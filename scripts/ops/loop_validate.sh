@@ -58,7 +58,7 @@ if [ -x "$PYTHON" ]; then
     backend/tests/test_queued_sse_completion.py \
     -q --tb=short
   run_gate backend_ruff "$PYTHON" -m ruff check backend
-  run_gate backend_bandit "$PYTHON" -m bandit -r backend -c backend/.bandit -ll
+  run_gate backend_bandit "$PYTHON" -m bandit -r backend --ini backend/.bandit -ll
   run_gate regex_safety "$PYTHON" scripts/security/check_regex_safety.py
   run_gate backend_compile "$PYTHON" -m compileall -q backend/app backend/services backend/ingest
 else

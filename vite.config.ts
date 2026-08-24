@@ -1,7 +1,35 @@
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react-swc";
+import fs from "fs";
 import path from "path";
 import { visualizer } from "rollup-plugin-visualizer";
+
+const STATIC_ASSET_RE = /^\/assets\/.+\.(?:js|css|png|jpe?g|gif|svg|webp|avif|ico|woff2?|ttf|eot|json|webmanifest)$/i;
+
+// Keep missing hashed assets from falling through to the SPA shell during local preview.
+// A 200 HTML response for a missing script is a silent, hard-to-diagnose production failure.
+const strictStaticAssetPreview = {
+  name: "strict-static-asset-preview",
+  configurePreviewServer(server: { middlewares: { use: (handler: (req: { url?: string }, res: { statusCode: number; setHeader: (name: string, value: string) => void; end: (body: string) => void }, next: () => void) => void) => void } }) {
+    server.middlewares.use((req, res, next) => {
+      const pathname = (req.url ?? "").split("?", 1)[0];
+      if (!STATIC_ASSET_RE.test(pathname)) {
+        next();
+        return;
+      }
+
+      const assetPath = path.resolve(process.cwd(), "dist", `.${pathname}`);
+      const distRoot = path.resolve(process.cwd(), "dist") + path.sep;
+      if (!assetPath.startsWith(distRoot) || !fs.existsSync(assetPath)) {
+        res.statusCode = 404;
+        res.setHeader("Content-Type", "text/plain; charset=utf-8");
+        res.end("Not Found");
+        return;
+      }
+      next();
+    });
+  },
+};
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode, command }) => {
@@ -40,6 +68,7 @@ export default defineConfig(({ mode, command }) => {
     },
     plugins: [
       react(),
+      strictStaticAssetPreview,
       isProd && visualizer({
         filename: "dist/stats.html",
         open: false,

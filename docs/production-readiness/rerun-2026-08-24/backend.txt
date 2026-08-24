@@ -1,0 +1,1133 @@
+=== TRACK: backend ===
+UTC: 2026-08-24T13:52:06Z
+HEAD: 1f882077616b92b5e2b59a31d9ee4fb246e8fe68
+backend/app/__init__.py
+backend/app/admin_telemetry.py
+backend/app/api/admin.py
+backend/app/api/assistants.py
+backend/app/api/cache_metrics.py
+backend/app/api/cancel_flow.py
+backend/app/api/capabilities.py
+backend/app/api/chat.py
+backend/app/api/compliance.py
+backend/app/api/endpoints/auth.py
+backend/app/api/feedback.py
+backend/app/api/healing_course.py
+backend/app/api/health.py
+backend/app/api/ingest.py
+backend/app/api/job_routes.py
+backend/app/api/kg.py
+backend/app/api/memory.py
+backend/app/api/metrics.py
+backend/app/api/profile.py
+backend/app/api/push.py
+backend/app/api/retention.py
+backend/app/api/second_brain.py
+backend/app/api/speech.py
+backend/app/api/srs.py
+backend/app/api/support.py
+backend/app/api/teachings.py
+backend/app/api/waitlist.py
+backend/app/assistant_authorization.py
+backend/app/assistant_registry.py
+backend/app/builder.py
+backend/app/chat_engine.py
+backend/app/chat_uploads.py
+backend/app/coalescer.py
+backend/app/config.py
+backend/app/constants.py
+backend/app/container.py
+backend/app/context.py
+backend/app/contracts/__init__.py
+backend/app/contracts/embedding.py
+backend/app/contracts/errors.py
+backend/app/contracts/guardrails.py
+backend/app/contracts/llm.py
+backend/app/contracts/transcription.py
+backend/app/contracts/translation.py
+backend/app/contracts/vector_store.py
+backend/app/core/__init__.py
+backend/app/core/database.py
+backend/app/core/errors.py
+backend/app/core/feedback_store.py
+backend/app/core/limiter.py
+backend/app/core/refiner.py
+backend/app/core/result.py
+backend/app/core/threading_config.py
+backend/app/core/user_usage_monitor.py
+backend/app/corpus_release_registry.py
+backend/app/db/seed_ontology.py
+backend/app/dependencies.py
+backend/app/evidence_support.py
+backend/app/gradio_ui.py
+backend/app/grounding.py
+backend/app/health.py
+backend/app/language_utils.py
+backend/app/lifecycle.py
+backend/app/main.py
+backend/app/metrics.py
+backend/app/middleware/__init__.py
+backend/app/middleware/audit.py
+backend/app/middleware/idempotency.py
+backend/app/middleware/rate_limit.py
+backend/app/model_policy.py
+backend/app/observability.py
+backend/app/okf_compile.py
+backend/app/openrouter_budget.py
+backend/app/orchestrator_utils.py
+backend/app/orchestrator.py
+backend/app/pipeline/__init__.py
+backend/app/pipeline/pipeline_coordinator.py
+backend/app/pipeline/result.py
+backend/app/pipeline/stages/__init__.py
+backend/app/pipeline/stages/base.py
+backend/app/pipeline/stages/cache_stage.py
+backend/app/pipeline/stages/context.py
+backend/app/pipeline/stages/distress_stage.py
+backend/app/pipeline/stages/doctrine_cache_stage.py
+backend/app/pipeline/stages/glue_stages.py
+backend/app/pipeline/stages/graph_stage.py
+backend/app/pipeline/stages/guardrail_stage.py
+backend/app/pipeline/stages/meditation_gen_stage.py
+backend/app/pipeline/stages/memory_stage.py
+backend/app/pipeline/stages/pipeline_builder.py
+backend/app/pipeline/stages/stage_runner.py
+backend/app/pipeline/stages/tone_adapter_stage.py
+backend/app/qa_wiring_check.py
+backend/app/qdrant_version_check.py
+backend/app/queue/__init__.py
+backend/app/queue/in_process_queue.py
+backend/app/queue/redis_stream_queue.py
+backend/app/queue/request_queue.py
+backend/app/release_manifest.py
+backend/app/runtime_artifacts.py
+backend/app/runtime_metrics.py
+backend/app/sanitization.py
+backend/app/schemas/__init__.py
+backend/app/schemas/compliance_provenance.py
+backend/app/schemas/compliance.py
+backend/app/schemas/metrics.py
+backend/app/security_utils.py
+backend/app/seed_okf.py
+backend/app/services/base.py
+backend/app/services/email_service.py
+backend/app/services/job_queue.py
+backend/app/services/llm_queue.py
+backend/app/stream_orchestrator.py
+backend/app/telemetry_db.py
+backend/app/telemetry_sink.py
+backend/app/telemetry/__init__.py
+backend/app/telemetry/prompt_cache_telemetry.py
+backend/app/trace_dashboard.py
+backend/app/tracing.py
+backend/rag/__init__.py
+backend/rag/agentic_nodes.py
+backend/rag/compression.py
+backend/rag/compressor.py
+backend/rag/context_graph.py
+backend/rag/corpus_scope.py
+backend/rag/doc_utils.py
+backend/rag/dspy_engine.py
+backend/rag/graph_builder.py
+backend/rag/graph_strategies.py
+backend/rag/graph.py
+backend/rag/intent_prerouter.py
+backend/rag/kg_expansion.py
+backend/rag/meditation.py
+backend/rag/memory.py
+backend/rag/node_command.py
+backend/rag/node_llm_config.py
+backend/rag/node_registry.py
+backend/rag/nodes/__init__.py
+backend/rag/nodes/_services.py
+backend/rag/nodes/agentic_graph_traversal.py
+backend/rag/nodes/citation_extractor.py
+backend/rag/nodes/cross_teacher_reasoning.py
+backend/rag/nodes/deep_research.py
+backend/rag/nodes/generation.py
+backend/rag/nodes/guru_tone_adapter.py
+backend/rag/nodes/intent.py
+backend/rag/nodes/keyword_injection.py
+backend/rag/nodes/nl2cypher.py
+backend/rag/nodes/on_device_intent.py
+backend/rag/nodes/reranking.py
+backend/rag/nodes/retrieval.py
+backend/rag/nodes/short_circuit.py
+backend/rag/nodes/tools.py
+backend/rag/nodes/utils.py
+backend/rag/nodes/verification.py
+backend/rag/nodes/web_search.py
+backend/rag/prompts/__init__.py
+backend/rag/prompts/deep_research_prompts.py
+backend/rag/prompts/guardrails.py
+backend/rag/prompts/rag.py
+backend/rag/prompts/system.py
+backend/rag/query_patterns.py
+backend/rag/resolve_followup.py
+backend/rag/self_correction.py
+backend/rag/states.py
+backend/rag/telemetry_observer.py
+backend/rag/timeout_utils.py
+backend/rag/tools.py
+backend/rag/tree_navigator.py
+backend/services/__init__.py
+backend/services/ab_testing.py
+backend/services/anon_quota_memory.py
+backend/services/anon_quota_port.py
+backend/services/anon_quota_redis.py
+backend/services/anon_quota_service.py
+backend/services/asr_gate.py
+backend/services/auth_service.py
+backend/services/base_llm_service.py
+backend/services/cache_service.py
+backend/services/cache/__init__.py
+backend/services/cache/constants.py
+backend/services/cache/exceptions.py
+backend/services/cache/factory.py
+backend/services/cache/hot_cache_adapter.py
+backend/services/cache/llm_cache.py
+backend/services/cache/manager.py
+backend/services/cache/memory_adapter.py
+backend/services/cache/redis_adapter.py
+backend/services/cache/semantic_adapter.py
+backend/services/circuit_breaker.py
+backend/services/citation_service.py
+backend/services/colbert_maxsim.py
+backend/services/compliance_logger.py
+backend/services/concurrent_retriever.py
+backend/services/confidence_calibrator.py
+backend/services/confidence_scorer.py
+backend/services/config_watcher.py
+backend/services/container_builder.py
+backend/services/context_compressor.py
+backend/services/contextual_chunking_service.py
+backend/services/cookie_helper.py
+backend/services/cost_tracker.py
+backend/services/crisis_helplines.py
+backend/services/doctrine_cache.py
+backend/services/doctrine_lexicon.py
+backend/services/doctrine_service.py
+backend/services/doctrine_terms.py
+backend/services/embedding_service.py
+backend/services/feedback_service.py
+backend/services/gateways/__init__.py
+backend/services/gateways/anthropic_gateway.py
+backend/services/gateways/sarvam_http.py
+backend/services/graphrag_fusion.py
+backend/services/guru_brain/__init__.py
+backend/services/guru_brain/guru_brain_service.py
+backend/services/guru_brain/guru_kg_service.py
+backend/services/guru_brain/persona_discriminator.py
+backend/services/guru_brain/tone_extractor.py
+backend/services/guru_voice_langhanam.py
+backend/services/healing_course_service.py
+backend/services/health_monitor.py
+backend/services/hot_cache.py
+backend/services/http_client_pool.py
+backend/services/humanizer.py
+backend/services/ingestion_tracker.py
+backend/services/injection_scanner.py
+backend/services/kg_algorithms.py
+backend/services/kg_analytics.py
+backend/services/krutrim_service.py
+backend/services/language_router.py
+backend/services/layered_memory/__init__.py
+backend/services/layered_memory/_llm_client.py
+backend/services/layered_memory/l1_extractor.py
+backend/services/layered_memory/l2_scene_compressor.py
+backend/services/layered_memory/l3_persona_generator.py
+backend/services/layered_memory/models.py
+backend/services/layered_memory/persona_store.py
+backend/services/layered_memory/prompts.py
+backend/services/layered_memory/skill_generator.py
+backend/services/lettuce_detect_service.py
+backend/services/lightrag_service.py
+backend/services/llm_factory.py
+backend/services/llm_gateway.py
+backend/services/llm_protocol.py
+backend/services/llm/__init__.py
+backend/services/llm/base.py
+backend/services/llm/factory.py
+backend/services/llm/nim_provider.py
+backend/services/llm/ollama_provider.py
+backend/services/llm/openrouter_provider.py
+backend/services/llm/sarvam_provider.py
+backend/services/memory_outbox.py
+backend/services/memory_service_v2.py
+backend/services/memory_service.py
+backend/services/memory/__init__.py
+backend/services/memory/compiler.py
+backend/services/memory/episodic.py
+backend/services/memory/okf_store.py
+backend/services/metadata_extractor.py
+backend/services/model_registry.py
+backend/services/multi_provider_llm.py
+backend/services/nim_service.py
+backend/services/notebook_service.py
+backend/services/ocr_service.py
+backend/services/okf_quality_filter.py
+backend/services/ollama_service.py
+backend/services/onnx_reranker.py
+backend/services/ontology_exporter.py
+backend/services/ontology_rag.py
+backend/services/ontology_validator.py
+backend/services/openrouter_service.py
+backend/services/phonetic.py
+backend/services/pii_scanner.py
+backend/services/prompt_store.py
+backend/services/proposition_service.py
+backend/services/provenance_context.py
+backend/services/provenance_ontology_service.py
+backend/services/push_service.py
+backend/services/qdrant_service.py
+backend/services/qdrant/__init__.py
+backend/services/qdrant/client.py
+backend/services/qdrant/filters.py
+backend/services/qdrant/indexer.py
+backend/services/qdrant/metrics.py
+backend/services/qdrant/mmr.py
+backend/services/qdrant/multitenancy_guard.py
+backend/services/qdrant/neighbor.py
+backend/services/qdrant/raptor.py
+backend/services/qdrant/searcher.py
+backend/services/qdrant/source_policy.py
+backend/services/qdrant/utils.py
+backend/services/rankers.py
+backend/services/reranker_service.py
+backend/services/retention_service.py
+backend/services/retrieval_cache.py
+backend/services/sarvam_exceptions.py
+backend/services/sarvam_failover.py
+backend/services/sarvam_service.py
+backend/services/second_brain/__init__.py
+backend/services/second_brain/context_adapter.py
+backend/services/second_brain/crypto.py
+backend/services/second_brain/second_brain_service.py
+backend/services/second_brain/vault_index.py
+backend/services/semantic_cache.py
+backend/services/semantic_model_router.py
+backend/services/semantic_router_fallback.py
+backend/services/semantic_router.py
+backend/services/serene_mind_engine.py
+backend/services/srs_service.py
+backend/services/streaming_hardening.py
+backend/services/tenant_context.py
+backend/services/text_quality_filter.py
+backend/services/transcript_polisher.py
+backend/services/translation/__init__.py
+backend/services/translation/base.py
+backend/services/translation/citation_markers.py
+backend/services/translation/factory.py
+backend/services/translation/gemini_provider.py
+backend/services/translation/ollama_provider.py
+backend/services/translation/routing_provider.py
+backend/services/translation/sarvam_provider.py
+backend/services/turboquant_cache.py
+backend/services/user_profile_service.py
+backend/services/vector_optimizer.py
+backend/services/watermarking_service.py
+backend/services/web_search_guardrails.py
+backend/services/web_search_service.py
+backend/services/whisper_local_service.py
+backend/services/whisperx_pipeline.py
+--- TODO/FIXME/HACK ---
+backend/rag/resolve_followup.py:173:    except Exception as _e:
+backend/rag/resolve_followup.py:230:    except Exception as e:
+backend/rag/resolve_followup.py:232:        return {}  # Graceful fallback — proceed with original question
+backend/rag/meditation.py:8:  - Null Object Pattern: format_meditation_response returns a context-aware fallback
+backend/rag/states.py:176:    # Final (13 writer nodes across casual/distress/fallback/format lanes)
+backend/rag/agentic_nodes.py:82:            except Exception as exc:
+backend/rag/graph_builder.py:31:    pass
+backend/rag/compressor.py:121:        except Exception as e:
+backend/rag/compressor.py:151:        except Exception as e:
+backend/rag/node_llm_config.py:49:    "handle_fallback": {"effort": "low", "timeout": 10, "model": None, "max_tokens": None},
+backend/rag/node_llm_config.py:76:    "handle_fallback": {"effort": "low", "timeout": 10, "model": None, "max_tokens": None},
+backend/services/confidence_scorer.py:146:        except Exception:
+backend/services/confidence_scorer.py:256:    except Exception as exc:
+backend/services/confidence_scorer.py:314:    except Exception as exc:
+backend/services/push_service.py:85:    except Exception as e:  # import error or init failure
+backend/services/push_service.py:125:    except Exception as e:
+backend/services/push_service.py:185:        except Exception as e:
+backend/services/push_service.py:200:        except Exception as e:
+backend/services/push_service.py:282:        except Exception as e:
+backend/services/push_service.py:328:            except Exception as e:
+backend/rag/prompts/rag.py:423:# Shared constant for context_engineer and generation fallback paths.
+backend/rag/graph.py:302:    except Exception as exc:
+backend/rag/self_correction.py:25:        raise NotImplementedError
+backend/rag/self_correction.py:41:        state["use_fallback"] = True
+backend/rag/self_correction.py:81:            except Exception as exc:
+backend/rag/kg_expansion.py:29:except Exception:  # pragma: no cover — defensive at import time
+backend/rag/kg_expansion.py:199:                except Exception as e:
+backend/rag/kg_expansion.py:207:    except Exception as e:
+backend/rag/dspy_engine.py:66:    except Exception as e:
+backend/rag/dspy_engine.py:81:    except Exception as e:
+backend/rag/dspy_engine.py:95:    except Exception as e:
+backend/rag/nodes/deep_research.py:45:    except Exception:
+backend/rag/nodes/deep_research.py:120:    except Exception as e:
+backend/rag/nodes/deep_research.py:167:        except Exception as e:
+backend/app/telemetry_db.py:149:        method: 'semantic', 'heuristic', or 'fallback'.
+backend/app/telemetry_db.py:177:    except Exception as e:
+backend/app/telemetry_db.py:221:        except Exception as e:
+backend/app/telemetry_db.py:278:    except Exception as e:
+backend/app/telemetry_db.py:319:    except Exception as e:
+backend/app/telemetry_db.py:429:        except Exception as e:
+backend/app/telemetry_db.py:446:    except Exception as e:
+backend/app/telemetry_db.py:484:    except Exception as e:
+backend/app/telemetry_db.py:531:            # Default fallback
+backend/app/telemetry_db.py:631:    except Exception as e:
+backend/app/telemetry_db.py:656:    except Exception as e:
+backend/app/telemetry_db.py:681:    except Exception as e:
+backend/app/telemetry_db.py:696:    except Exception as e:
+backend/app/telemetry_db.py:795:    except Exception as e:
+backend/app/telemetry_db.py:889:    except Exception as e:
+backend/app/telemetry_db.py:910:    except Exception as e:
+backend/app/telemetry_db.py:924:    except Exception as e:
+backend/app/telemetry_db.py:940:    except Exception as e:
+backend/app/telemetry_db.py:954:    except Exception as e:
+backend/app/telemetry_db.py:968:    except Exception as e:
+backend/app/telemetry_db.py:982:    except Exception as e:
+backend/app/telemetry_db.py:1016:    except Exception as e:
+backend/app/telemetry_db.py:1030:    except Exception as e:
+backend/app/telemetry_db.py:1087:    except Exception as e:
+backend/app/telemetry_db.py:1172:    except Exception as e:
+backend/app/telemetry_db.py:1206:    except Exception as e:
+backend/app/telemetry_db.py:1248:    except Exception as e:
+backend/app/telemetry_db.py:1263:    except Exception:
+backend/app/telemetry_db.py:1281:    except Exception as e:
+backend/app/telemetry_db.py:1332:    except Exception as e:
+backend/app/telemetry_db.py:1408:    except Exception as e:
+backend/app/telemetry_db.py:1471:    except Exception as e:
+backend/app/telemetry_db.py:1540:    except Exception as e:
+backend/app/telemetry_db.py:1581:    except Exception as e:
+backend/rag/tree_navigator.py:95:    except Exception as e:
+backend/rag/tree_navigator.py:129:    except Exception as e:
+backend/rag/tree_navigator.py:155:        pass
+backend/app/security_utils.py:431:        self._fallback = ExponentialBackoffRateLimiter(
+backend/app/security_utils.py:437:        self._fallback_active = False
+backend/app/security_utils.py:439:        # fallback mode (0.0 = never attempted; see _maybe_reconnect).
+backend/app/security_utils.py:448:    # fallback mode (seconds). Redis outage at boot would otherwise leave
+backend/app/security_utils.py:449:    # _fallback_active True forever with no recovery path.
+backend/app/security_utils.py:453:        """Retry Redis periodically while in fallback mode.
+backend/app/security_utils.py:456:        would otherwise leave the limiter on the process-local fallback
+backend/app/security_utils.py:458:        successful ping _connect() resets _fallback_active and the Redis
+backend/app/security_utils.py:459:        path resumes. If Redis is still down, _fallback_active stays True
+backend/app/security_utils.py:460:        and the fallback limiter keeps being used (fail-open unchanged).
+backend/app/security_utils.py:462:        if not self._fallback_active:
+backend/app/security_utils.py:481:            self._fallback_active = False
+backend/app/security_utils.py:482:        except Exception as exc:
+backend/app/security_utils.py:490:            self._fallback_active = True
+backend/app/security_utils.py:502:        if self._fallback_active or self._redis is None:
+backend/app/security_utils.py:503:            allowed, retry_after = self._fallback.is_allowed(key, now)
+backend/app/security_utils.py:512:                # in fallback mode a success is then counted twice, versus
+backend/app/security_utils.py:522:                # ::test_fallback_window_counts_allowed_events. The extra
+backend/app/security_utils.py:524:                self._fallback.record_attempt(key, True, now)
+backend/app/security_utils.py:529:        except Exception as exc:
+backend/app/security_utils.py:542:        if self._fallback_active or self._redis is None:
+backend/app/security_utils.py:544:            # outcome here so fallback backoff tracking works while Redis is down.
+backend/app/security_utils.py:545:            self._fallback.record_attempt(key, success, now)
+backend/app/security_utils.py:550:        except Exception as exc:
+backend/app/security_utils.py:557:            # fallback limiter so backoff tracking keeps working. Fail-safe,
+backend/app/security_utils.py:559:            self._fallback.record_attempt(key, success, now)
+backend/rag/telemetry_observer.py:99:        pass
+backend/rag/telemetry_observer.py:102:        pass
+backend/app/assistant_authorization.py:77:def _scope_from_metadata(row: Optional[dict[str, Any]], *, fallback: AssistantScope) -> AssistantScope:
+backend/app/assistant_authorization.py:79:        return fallback
+backend/app/assistant_authorization.py:81:        corpus_id=str(row.get("corpus_id") or fallback.corpus_id),
+backend/app/assistant_authorization.py:82:        teacher_id=(str(row["teacher_id"]).strip() if row.get("teacher_id") else fallback.teacher_id),
+backend/app/assistant_authorization.py:83:        graph_namespace=(str(row["graph_namespace"]).strip() if row.get("graph_namespace") else fallback.graph_namespace),
+backend/app/assistant_authorization.py:84:        source_release_id=(str(row["source_release_id"]).strip() if row.get("source_release_id") else fallback.source_release_id),
+backend/app/assistant_authorization.py:85:        rights_status=str(row.get("rights_status") or fallback.rights_status).strip().lower(),
+backend/app/assistant_authorization.py:86:        rollout_enabled=bool(row.get("rollout_enabled", fallback.rollout_enabled)),
+backend/app/assistant_authorization.py:113:    except Exception as exc:
+backend/app/assistant_authorization.py:142:    except Exception as exc:
+backend/app/assistant_authorization.py:177:    fallback_scope = AssistantScope(corpus_id="askmukthiguru", rights_status="pending", rollout_enabled=False)
+backend/app/assistant_authorization.py:178:    scope = _scope_from_metadata(metadata_row, fallback=fallback_scope)
+backend/app/assistant_authorization.py:221:    except Exception as exc:
+backend/app/assistant_authorization.py:275:    except Exception as exc:
+backend/rag/nodes/cross_teacher_reasoning.py:25:# bounded fallback driver, but never create one per request.
+backend/rag/nodes/cross_teacher_reasoning.py:42:        except Exception as e:
+backend/rag/nodes/cross_teacher_reasoning.py:56:        except Exception as e:
+backend/rag/nodes/cross_teacher_reasoning.py:212:        except Exception as e:
+backend/app/services/job_queue.py:26:    pass
+backend/app/services/job_queue.py:350:        except Exception as e:
+backend/app/services/email_service.py:94:    except Exception as e:
+backend/app/services/email_service.py:143:    except Exception as e:
+backend/rag/nodes/intent.py:96:    except Exception:
+backend/rag/nodes/intent.py:115:        except Exception as e:
+backend/rag/nodes/intent.py:116:            logger.warning("Serene Mind distress check failed in fallback: %s", e)
+backend/rag/nodes/intent.py:134:                    "Crisis keyword matched in fallback-of-fallback. Routing to DISTRESS."
+backend/rag/nodes/intent.py:152:                routing_reason="intent_fallback_with_distress_check",
+backend/rag/nodes/intent.py:316:        except Exception as e:
+backend/rag/nodes/intent.py:335:                    "Crisis keyword matched in fallback-of-fallback. Routing to DISTRESS."
+backend/rag/nodes/intent.py:345:                        routing_reason="fallback_of_fallback_keyword_distress",
+backend/rag/nodes/intent.py:724:        except Exception as exc:  # noqa: BLE001 — never block routing over a router error
+backend/rag/nodes/intent.py:870:    except Exception as e:
+backend/rag/nodes/intent.py:881:    except Exception as e:
+backend/rag/nodes/intent.py:889:        except Exception as e2:
+backend/rag/nodes/intent.py:1165:            logger.warning("handle_casual: LLM returned empty response, using warm fallback")
+backend/rag/nodes/intent.py:1171:    except Exception as e:
+backend/rag/nodes/intent.py:1213:        except Exception as e:
+backend/rag/nodes/intent.py:1246:        except Exception as e:
+backend/rag/nodes/intent.py:1297:    except Exception:
+backend/rag/nodes/intent.py:1332:    safe_fallback = getattr(settings, "meditation_safe_fallback", True)
+backend/rag/nodes/intent.py:1412:    if not safe_fallback:
+backend/rag/nodes/intent.py:1418:    soft_fallback = (
+backend/rag/nodes/intent.py:1424:        "final_answer": soft_fallback,
+backend/rag/nodes/intent.py:1451:        return "fallback"
+backend/rag/nodes/verification.py:203:    # except Exception as e:
+backend/rag/nodes/verification.py:542:    except Exception as exc:
+backend/rag/nodes/verification.py:550:    except Exception as exc:
+backend/rag/nodes/verification.py:621:    except Exception as exc:
+backend/rag/nodes/verification.py:682:            except Exception:
+backend/rag/nodes/verification.py:716:    except Exception as e:
+backend/app/services/llm_queue.py:91:            except Exception:
+backend/app/services/llm_queue.py:124:            except Exception:
+backend/app/qa_wiring_check.py:113:        except Exception as e:
+backend/rag/nodes/generation.py:78:# translation heuristic; this keeps the bounded fallback from catching unrelated
+backend/rag/nodes/generation.py:134:def _generic_stillness_meaning_fallback() -> str:
+backend/rag/nodes/generation.py:156:def _generic_peace_meaning_fallback() -> str:
+backend/rag/nodes/generation.py:165:def _generic_stillness_practice_fallback() -> str:
+backend/rag/nodes/generation.py:174:def _simple_meditation_comparison_fallback() -> str:
+backend/rag/nodes/generation.py:928:            except Exception:
+backend/rag/nodes/generation.py:1038:            answer = _generic_stillness_practice_fallback()
+backend/rag/nodes/generation.py:1039:            route_decision = "reflective_practice_fallback"
+backend/rag/nodes/generation.py:1041:            answer = _generic_stillness_meaning_fallback()
+backend/rag/nodes/generation.py:1042:            route_decision = "reflective_meaning_fallback"
+backend/rag/nodes/generation.py:1185:            answer = _generic_stillness_practice_fallback()
+backend/rag/nodes/generation.py:1186:            route_decision = "reflective_practice_fallback"
+backend/rag/nodes/generation.py:1188:            answer = _generic_stillness_meaning_fallback()
+backend/rag/nodes/generation.py:1189:            route_decision = "reflective_meaning_fallback"
+backend/rag/nodes/generation.py:1472:                "Translate the supported answer into the requested language; do not emit the English canonical fallback "
+backend/rag/nodes/generation.py:1494:    except Exception as exc:
+backend/rag/nodes/generation.py:1519:        except Exception as exc:
+backend/rag/nodes/generation.py:1641:            except Exception as e:
+backend/rag/nodes/generation.py:1727:        logger.warning("headroom CCR: second [RETRIEVE] round detected; using fallback response")
+backend/rag/nodes/generation.py:1851:                except Exception as exc:
+backend/rag/nodes/generation.py:1880:        except Exception as _humanizer_err:
+backend/rag/nodes/generation.py:1897:        except Exception as _cbs_err:
+backend/rag/nodes/generation.py:1901:        logger.warning("Main generation returned empty response. Using internal fallback.")
+backend/rag/nodes/generation.py:1976:                except Exception as _ld_err:
+backend/rag/nodes/generation.py:2093:        except Exception as _cite_err:
+backend/rag/nodes/generation.py:2105:        fallback_answer = _simple_meditation_comparison_fallback()
+backend/rag/nodes/generation.py:2107:            "final_answer": fallback_answer,
+backend/rag/nodes/generation.py:2112:            "verification": {"passed": False, "method": "limited_comparison_fallback"},
+backend/rag/nodes/generation.py:2119:                final_answer_chars=len(fallback_answer),
+backend/rag/nodes/generation.py:2123:                route_decision="limited_comparison_fallback",
+backend/rag/nodes/generation.py:2133:        fallback_answer = _generic_peace_meaning_fallback()
+backend/rag/nodes/generation.py:2135:            "final_answer": fallback_answer,
+backend/rag/nodes/generation.py:2140:            "verification": {"passed": False, "method": "reflective_peace_meaning_fallback"},
+backend/rag/nodes/generation.py:2147:                final_answer_chars=len(fallback_answer),
+backend/rag/nodes/generation.py:2152:                route_decision="reflective_peace_meaning_fallback",
+backend/rag/nodes/generation.py:2162:        fallback_answer = _generic_stillness_meaning_fallback()
+backend/rag/nodes/generation.py:2164:            "final_answer": fallback_answer,
+backend/rag/nodes/generation.py:2169:            "verification": {"passed": False, "method": "reflective_meaning_fallback"},
+backend/rag/nodes/generation.py:2176:                final_answer_chars=len(fallback_answer),
+backend/rag/nodes/generation.py:2180:                route_decision="reflective_meaning_fallback",
+backend/rag/nodes/generation.py:2190:        fallback_answer = _generic_stillness_practice_fallback()
+backend/rag/nodes/generation.py:2192:            "final_answer": fallback_answer,
+backend/rag/nodes/generation.py:2197:            "verification": {"passed": False, "method": "reflective_practice_fallback"},
+backend/rag/nodes/generation.py:2204:                final_answer_chars=len(fallback_answer),
+backend/rag/nodes/generation.py:2208:                route_decision="reflective_practice_fallback",
+backend/rag/nodes/generation.py:2251:            "Final: citation-backed refusal persisted after retry; using bounded fallback"
+backend/rag/nodes/generation.py:2289:        fallback_answer = _generic_peace_meaning_fallback()
+backend/rag/nodes/generation.py:2291:            "final_answer": fallback_answer,
+backend/rag/nodes/generation.py:2298:                "method": "reflective_peace_meaning_fallback",
+backend/rag/nodes/generation.py:2307:                final_answer_chars=len(fallback_answer),
+backend/rag/nodes/generation.py:2313:                route_decision="reflective_peace_meaning_fallback",
+backend/rag/nodes/generation.py:2320:        fallback_answer = _generic_stillness_meaning_fallback()
+backend/rag/nodes/generation.py:2322:            "final_answer": fallback_answer,
+backend/rag/nodes/generation.py:2329:                "method": "reflective_meaning_fallback",
+backend/rag/nodes/generation.py:2338:                final_answer_chars=len(fallback_answer),
+backend/rag/nodes/generation.py:2344:                route_decision="reflective_meaning_fallback",
+backend/rag/nodes/generation.py:2451:            fallback_answer = _generic_peace_meaning_fallback()
+backend/rag/nodes/generation.py:2453:                "final_answer": fallback_answer,
+backend/rag/nodes/generation.py:2460:                    "method": "reflective_peace_meaning_fallback",
+backend/rag/nodes/generation.py:2469:                    final_answer_chars=len(fallback_answer),
+backend/rag/nodes/generation.py:2475:                    route_decision="reflective_peace_meaning_fallback",
+backend/rag/nodes/generation.py:2482:            fallback_answer = _simple_meditation_comparison_fallback()
+backend/rag/nodes/generation.py:2484:                "final_answer": fallback_answer,
+backend/rag/nodes/generation.py:2491:                    "method": "limited_comparison_fallback",
+backend/rag/nodes/generation.py:2500:                    final_answer_chars=len(fallback_answer),
+backend/rag/nodes/generation.py:2506:                    route_decision="limited_comparison_fallback",
+backend/rag/nodes/generation.py:2536:        pass
+backend/rag/nodes/generation.py:2571:        # substantive answers and trigger the retry/fallback spiral — accept
+backend/rag/nodes/generation.py:2582:        except Exception as _e:
+backend/rag/nodes/generation.py:2634:            f"Final: Answer rejected, max retries exhausted (retry_count={retry_count}), using fallback"
+backend/rag/nodes/generation.py:2682:    pass
+backend/rag/nodes/generation.py:2766:        except Exception as exc:  # pragma: no cover - soft-gate must never block
+backend/app/runtime_metrics.py:34:        # ru_maxrss is bytes on macOS and KiB on Linux/BSD. It is a safe fallback.
+backend/app/runtime_metrics.py:78:    fallback_cost_known: bool = False,
+backend/app/runtime_metrics.py:112:    if not cost_known and not fallback_cost_known:
+backend/rag/nodes/tools.py:131:    except Exception as e:
+backend/rag/nodes/tools.py:227:    except Exception as e:
+backend/rag/nodes/on_device_intent.py:4:sentence embeddings.  Replaces the Ollama LLM fallback for >90% of
+backend/rag/nodes/on_device_intent.py:14:- QUERY     : complex multi-part questions (fallback to LLM)
+backend/rag/nodes/on_device_intent.py:276:    except Exception as exc:
+backend/rag/nodes/on_device_intent.py:287:        pass
+backend/rag/nodes/on_device_intent.py:297:        except Exception:
+backend/rag/nodes/on_device_intent.py:378:    except Exception:
+backend/services/kg_algorithms.py:36:    except Exception:
+backend/services/kg_algorithms.py:69:                except Exception as _e:
+backend/services/kg_algorithms.py:85:    except Exception as e:
+backend/services/kg_algorithms.py:113:                except Exception as _e:
+backend/services/kg_algorithms.py:131:    except Exception as e:
+backend/services/guru_brain/tone_extractor.py:135:            except Exception as exc:
+backend/services/guru_brain/tone_extractor.py:140:        # Deterministic speaker diarization fallback: filter out interviewer and unknown segments
+backend/services/guru_brain/tone_extractor.py:146:            fallback_guru = (
+backend/services/guru_brain/tone_extractor.py:149:            guru_segments = [{"speaker": fallback_guru, "text": c} for c in chunks]
+backend/services/guru_brain/tone_extractor.py:278:            except Exception as chunk_exc:
+backend/services/guru_brain/guru_kg_service.py:106:            except Exception as exc:
+backend/services/guru_brain/guru_kg_service.py:108:                    f"GuruKGService: Neo4j Cypher write failed ({exc}), stored in graph memory fallback."
+backend/services/guru_brain/guru_kg_service.py:145:        except Exception as exc:
+backend/services/guru_brain/guru_kg_service.py:183:            except Exception as exc:
+backend/rag/prompts/guardrails.py:30:ADVERSARIAL - The user is asking provocative, comparative, critical, or mocking questions. Examples include asking if Ekam/Oneness is "just repackaged Buddhism," comparing it to "Reiki" or "Pranic healing," questioning financial charges/costs of retreats, or demanding supernatural promises (e.g. bringing back the dead, solving world poverty).
+backend/rag/prompts/guardrails.py:78:ADVERSARIAL    - provocative/comparative/mocking ("is X just repackaged Y?")
+backend/services/guru_brain/guru_brain_service.py:138:        except Exception as exc:
+backend/services/guru_brain/guru_brain_service.py:151:            logger.info(f"GuruBrainService: Stored {len(exemplars)} exemplars in memory fallback.")
+backend/services/guru_brain/guru_brain_service.py:181:            except Exception as exc:
+backend/services/guru_brain/guru_brain_service.py:196:            except Exception as exc:
+backend/services/guru_brain/guru_brain_service.py:270:            except Exception as exc:
+backend/services/guru_brain/guru_brain_service.py:272:                    f"GuruBrainService: Qdrant search failed ({exc}), using memory fallback."
+backend/services/guru_brain/guru_brain_service.py:358:    except Exception as _e:
+backend/services/guru_brain/persona_discriminator.py:143:                "PersonaDiscriminator: judge LLM timed out after 8s, using heuristic fallback."
+backend/services/guru_brain/persona_discriminator.py:145:        except Exception as exc:
+backend/services/guru_brain/persona_discriminator.py:147:                f"PersonaDiscriminator: evaluation error ({exc}), using heuristic fallback."
+backend/services/guru_brain/persona_discriminator.py:153:        """Deterministic fallback scoring using expanded cliché list."""
+backend/rag/nodes/_services.py:17:_fallback_cache: Any = None
+backend/rag/nodes/_services.py:28:# InMemoryCacheAdapter fallback removed (Unit 8) — missing service is now a hard error
+backend/rag/nodes/_services.py:116:    except Exception as exc:  # noqa: BLE001 — never block startup over router
+backend/rag/graph_strategies.py:41:    handle_fallback,
+backend/rag/graph_strategies.py:138:            return "fallback"
+backend/rag/graph_strategies.py:244:        graph.add_node("handle_fallback", handle_fallback)
+backend/rag/graph_strategies.py:304:                "fallback": "handle_fallback",
+backend/rag/graph_strategies.py:319:                "fallback": "handle_fallback",
+backend/rag/graph_strategies.py:337:        graph.add_edge("handle_fallback", END)
+backend/rag/graph_strategies.py:392:        graph.add_node("handle_fallback", handle_fallback)
+backend/rag/graph_strategies.py:430:        graph.add_edge("handle_fallback", END)
+backend/rag/graph_strategies.py:478:        except Exception as exc:
+backend/rag/graph_strategies.py:516:    except Exception as exc:
+backend/rag/graph_strategies.py:517:        logger.error(f"deep_contradiction_gate: LettuceDetect fallback failed: {exc}")
+backend/rag/nodes/nl2cypher.py:162:    except Exception as e:
+backend/rag/nodes/nl2cypher.py:204:    except Exception as e:
+backend/rag/nodes/web_search.py:39:    except Exception as exc:
+backend/rag/nodes/short_circuit.py:1:"""Short circuit query rewriting and fallback node handlers."""
+backend/rag/nodes/short_circuit.py:30:def _simple_meditation_comparison_fallback() -> str:
+backend/rag/nodes/short_circuit.py:79:@trace_rag_node("handle_fallback")
+backend/rag/nodes/short_circuit.py:80:async def handle_fallback(state: GraphState, config: dict = None) -> dict:
+backend/rag/nodes/short_circuit.py:81:    """Return a bounded, honest fallback without discarding safe general help."""
+backend/rag/nodes/short_circuit.py:85:            "Terminal fallback: replacing simple meditation comparison refusal with limited-support explanation"
+backend/rag/nodes/short_circuit.py:88:            "final_answer": _simple_meditation_comparison_fallback(),
+backend/rag/nodes/short_circuit.py:92:                "method": "limited_comparison_fallback",
+backend/rag/nodes/short_circuit.py:106:            _generic_peace_meaning_fallback,
+backend/rag/nodes/short_circuit.py:112:                "Terminal fallback: replacing no-evidence peace meaning refusal with bounded reflection"
+backend/rag/nodes/short_circuit.py:115:                "final_answer": _generic_peace_meaning_fallback(),
+backend/rag/nodes/short_circuit.py:119:                    "method": "reflective_peace_meaning_fallback",
+backend/rag/nodes/short_circuit.py:127:    except Exception as exc:
+backend/rag/nodes/short_circuit.py:128:        logger.warning("Terminal peace fallback unavailable; using canonical fallback: %s", exc)
+backend/app/main.py:60:except Exception:
+backend/app/main.py:150:        except Exception as _e:
+backend/app/main.py:167:        except Exception as _e:
+backend/app/main.py:208:    except Exception as exc:
+backend/app/main.py:227:    except Exception as exc:
+backend/app/main.py:258:    except Exception as e:
+backend/app/main.py:290:        except Exception:
+backend/app/main.py:297:                except Exception as _e:
+backend/app/main.py:313:            # Store fingerprint in Redis (primary) and /tmp (fallback)
+backend/app/main.py:326:            except Exception:
+backend/app/main.py:338:                except Exception as _e:
+backend/app/main.py:341:    except Exception as e:
+backend/app/main.py:366:    except Exception as e:
+backend/app/main.py:377:        except Exception as e:
+backend/app/main.py:394:    except Exception as e:
+backend/app/main.py:417:        except Exception as e:
+backend/app/main.py:425:        except Exception as e:
+backend/app/main.py:433:        except Exception as e:
+backend/app/main.py:461:    except Exception as _warmup_err:
+backend/app/main.py:477:    except Exception as _intent_warmup_err:
+backend/app/main.py:502:    except Exception as _semantic_warmup_err:
+backend/app/main.py:546:    except Exception as e:
+backend/app/main.py:561:    except Exception as e:
+backend/app/main.py:585:    except Exception as e:
+backend/app/main.py:594:    except Exception as e:
+backend/app/main.py:601:        except Exception as e:
+backend/app/main.py:608:        except Exception as e:
+backend/app/main.py:615:        except Exception as e:
+backend/app/main.py:625:    except Exception as exc:
+backend/app/main.py:633:    except Exception as exc:
+backend/app/main.py:886:            pass
+backend/app/main.py:1128:    except Exception as e:
+backend/app/grounding.py:41:        # this deterministic excerpt envelope. The fallback itself derives its
+backend/app/orchestrator_utils.py:180:    """Select the most appropriate compiled graph variant for a query using dynamic LLM classification with heuristic fallback.
+backend/app/orchestrator_utils.py:214:        except Exception as _e:
+backend/app/orchestrator_utils.py:236:            except Exception as _e:
+backend/app/orchestrator_utils.py:265:                except Exception as _e:
+backend/app/orchestrator_utils.py:279:            except Exception as _e:
+backend/app/orchestrator_utils.py:296:            except Exception as _e:
+backend/app/orchestrator_utils.py:313:            except Exception as _e:
+backend/app/orchestrator_utils.py:329:        except Exception as _e:
+backend/app/orchestrator_utils.py:356:                    except Exception as _e:
+backend/app/orchestrator_utils.py:369:        except Exception as exc:
+backend/app/orchestrator_utils.py:372:    # 3. Default fallback
+backend/app/orchestrator_utils.py:384:    except Exception as _e:
+backend/app/orchestrator_utils.py:483:        except Exception as translation_err:
+backend/app/orchestrator_utils.py:512:            except Exception as translation_err:
+backend/app/orchestrator_utils.py:566:        except Exception as e:
+backend/app/orchestrator_utils.py:688:        except Exception as exc:
+backend/app/orchestrator_utils.py:769:            pass
+backend/app/orchestrator_utils.py:774:        except Exception as e:
+backend/app/orchestrator_utils.py:881:            except Exception as e:
+backend/app/orchestrator_utils.py:887:        except Exception as e:
+backend/rag/nodes/__init__.py:45:    handle_fallback,
+backend/rag/nodes/__init__.py:148:    "handle_fallback",
+backend/services/retention_service.py:135:        except Exception:
+backend/services/circuit_breaker.py:44:    pass
+backend/services/circuit_breaker.py:98:        pass
+backend/services/circuit_breaker.py:103:        pass
+backend/services/circuit_breaker.py:108:        pass
+backend/services/circuit_breaker.py:203:        except Exception:
+backend/services/circuit_breaker.py:216:        except Exception:
+backend/services/circuit_breaker.py:248:                    except Exception as _e:
+backend/services/circuit_breaker.py:291:                except Exception as _e:
+backend/services/contextual_chunking_service.py:115:            fallback header when LLM generation fails.
+backend/services/contextual_chunking_service.py:182:            except Exception as exc:
+backend/services/sarvam_failover.py:19:    Wraps a primary LLM service (e.g. SarvamCloudService) with Krutrim fallback.
+backend/services/sarvam_failover.py:34:        except Exception as exc:
+backend/services/sarvam_failover.py:35:            logger.warning(f"Primary LLM service failed: {exc}. Trying Krutrim fallback...")
+backend/services/sarvam_failover.py:48:        except Exception as exc:
+backend/services/sarvam_failover.py:50:                f"Primary LLM streaming failed: {exc}. Trying Krutrim non-streaming fallback..."
+backend/services/crisis_helplines.py:23:  * **Defensive fallback.** If the YAML is unreadable or empty, the registry
+backend/services/crisis_helplines.py:24:    returns a small in-code fallback so the safety path never breaks.
+backend/services/crisis_helplines.py:25:    The fallback is loud-logged so an operator notices the misconfiguration.
+backend/services/crisis_helplines.py:106:        logger.warning("crisis_helplines: %s not found; using in-code fallback list.", path)
+backend/services/crisis_helplines.py:114:            "crisis_helplines: failed to read %s (%s); using in-code fallback.",
+backend/services/crisis_helplines.py:122:            "crisis_helplines: %s did not parse to a mapping (got %s); using in-code fallback.",
+backend/services/crisis_helplines.py:131:            "crisis_helplines: %s has no `crisis_helplines:` entries; using fallback.",
+backend/services/doctrine_terms.py:310:    except Exception as exc:  # missing table, Supabase down, no client — fall back to defaults
+backend/services/doctrine_terms.py:486:    except Exception as _lex_err:
+backend/services/doctrine_lexicon.py:401:    except Exception as exc:  # corrupt JSON, missing rapidfuzz/jellyfish
+backend/services/lettuce_detect_service.py:16:2. **Heuristic fallback** — the original sentence-split + cosine-similarity
+backend/services/lettuce_detect_service.py:65:            fallback path for cosine-similarity scoring. Ignored by the real
+backend/services/lettuce_detect_service.py:85:                "LettuceDetectService: heuristic fallback active (lettucedetect_enabled=False)."
+backend/services/lettuce_detect_service.py:97:        failure so operators see the fallback, not just DEBUG noise.
+backend/services/lettuce_detect_service.py:143:        except Exception as e:
+backend/services/lettuce_detect_service.py:210:        except Exception as e:
+backend/services/lettuce_detect_service.py:244:    # Heuristic fallback path (original logic, C2 emoji branch removed)
+backend/services/lettuce_detect_service.py:323:            except Exception as e:
+backend/services/lettuce_detect_service.py:334:            # Word overlap fallback
+backend/services/model_registry.py:43:      3. Krutrim API (cloud fallback)
+backend/services/model_registry.py:57:        # Build a lightweight fallback Ollama client for llama3.2:3b
+backend/services/model_registry.py:61:            self._fallback_llm = ChatOllama(
+backend/services/model_registry.py:68:            logger.info(f"ModelRegistry: fallback model ready ({_FALLBACK_OLLAMA_MODEL})")
+backend/services/model_registry.py:69:        except Exception as exc:
+backend/services/model_registry.py:70:            logger.warning(f"ModelRegistry: could not init fallback Ollama model: {exc}")
+backend/services/model_registry.py:71:            self._fallback_llm = None
+backend/services/model_registry.py:96:                f"Trying fallback Ollama ({_FALLBACK_OLLAMA_MODEL})..."
+backend/services/model_registry.py:98:        except Exception as exc:
+backend/services/model_registry.py:101:                f"Trying fallback Ollama ({_FALLBACK_OLLAMA_MODEL})..."
+backend/services/model_registry.py:105:        if self._fallback_llm:
+backend/services/model_registry.py:107:                result = await self._generate_with_fallback_llm(
+backend/services/model_registry.py:115:            except Exception as exc:
+backend/services/model_registry.py:127:            except Exception as exc:
+backend/services/model_registry.py:135:            f"{_FAILOVER_LOG_PREFIX} All LLM providers exhausted and no Krutrim fallback configured."
+backend/services/model_registry.py:138:    async def _generate_with_fallback_llm(
+backend/services/model_registry.py:145:        """Direct generation with the fallback ChatOllama instance."""
+backend/services/model_registry.py:158:        response = await asyncio.wait_for(self._fallback_llm.ainvoke(messages), timeout=timeout)
+backend/services/model_registry.py:168:        """Streaming generation with automatic failover to non-streaming fallback.
+backend/services/model_registry.py:191:            except Exception as fallback_exc:
+backend/services/model_registry.py:193:                    f"{_FAILOVER_LOG_PREFIX} Streaming + fallback both failed: {fallback_exc}"
+backend/services/model_registry.py:203:    def fallback_model(self) -> str:
+backend/services/model_registry.py:204:        """Return the name of the fallback Ollama model."""
+backend/services/doctrine_cache.py:177:        except Exception as e:
+backend/services/doctrine_cache.py:196:        except Exception as e:
+backend/services/memory_service.py:118:        except Exception as e:
+backend/services/memory_service.py:168:                    except Exception:
+backend/services/memory_service.py:202:        except Exception as e:
+backend/services/memory_service.py:226:        except Exception as e:
+backend/services/memory_service.py:243:        except Exception as e:
+backend/services/memory_service.py:302:                except Exception as dup_err:
+backend/services/memory_service.py:340:                except Exception as insert_err:
+backend/services/memory_service.py:357:        except Exception as e:
+backend/services/memory_service.py:396:        except Exception as e:
+backend/services/memory_service.py:428:        except Exception as e:
+backend/services/memory_service.py:468:        except Exception as e:
+backend/services/memory_service.py:483:        except Exception as e:
+backend/services/memory_service.py:504:        except Exception as e:
+backend/services/memory_service.py:677:        except Exception as e:
+backend/services/memory_service.py:806:            # Safe extraction with per-field fallbacks
+backend/services/memory_service.py:882:        except Exception as e:
+backend/services/memory_service.py:962:            except Exception as e:
+backend/services/streaming_hardening.py:11:  - stream_with_recovery(): attempts retry up to max_retries times before fallback
+backend/services/streaming_hardening.py:62:    except Exception as exc:
+backend/services/streaming_hardening.py:105:        except Exception as exc:
+backend/services/proposition_service.py:105:        except Exception as e:
+backend/services/llm_gateway.py:10:  - Same-VENDOR model-tier fallback (e.g. OpenRouter primary model -> OpenRouter
+backend/services/llm_gateway.py:11:    fallback model) is the default-on behavior — it's the dormant bug fix
+backend/services/llm_gateway.py:12:    described in openrouter_service.py:322 ("fallback_model branch removed per
+backend/services/llm_gateway.py:15:  - Cross-PROVIDER (different vendor) fallback is OFF by default and only runs
+backend/services/llm_gateway.py:16:    when the caller explicitly passes cross_provider_fallback_enabled=True.
+backend/services/llm_gateway.py:49:    fallbacks: int = 0
+backend/services/llm_gateway.py:60:            "fallbacks": self.fallbacks,
+backend/services/llm_gateway.py:82:        primary_model_fallback: Optional[str] = None,
+backend/services/llm_gateway.py:83:        cross_provider_fallback_enabled: bool = False,
+backend/services/llm_gateway.py:89:        self._primary_model_fallback = primary_model_fallback
+backend/services/llm_gateway.py:90:        self._cross_provider_fallback_enabled = cross_provider_fallback_enabled
+backend/services/llm_gateway.py:161:        """Primary -> same-provider model fallback -> (opt-in) cross-provider fallback."""
+backend/services/llm_gateway.py:169:            if self._cross_provider_fallback_enabled and self._secondary is not None:
+backend/services/llm_gateway.py:181:        except Exception as primary_exc:
+backend/services/llm_gateway.py:186:            if self._primary_model_fallback:
+backend/services/llm_gateway.py:192:                        model=self._primary_model_fallback,
+backend/services/llm_gateway.py:196:                    self.metrics.fallbacks += 1
+backend/services/llm_gateway.py:198:                except Exception as fb_exc:
+backend/services/llm_gateway.py:202:                        f"LLMGateway: primary '{self._primary_name}' model-fallback "
+backend/services/llm_gateway.py:203:                        f"'{self._primary_model_fallback}' also failed: {fb_exc}"
+backend/services/llm_gateway.py:207:            if self._cross_provider_fallback_enabled and self._secondary is not None:
+backend/services/llm_gateway.py:233:            self.metrics.fallbacks += 1
+backend/services/llm_gateway.py:235:                f"LLMGateway: cross-provider fallback to '{self._secondary_name}' succeeded"
+backend/services/llm_gateway.py:238:        except Exception as secondary_exc:
+backend/services/llm_gateway.py:271:        except Exception as exc:  # fail-closed: never emit an unbounded call
+backend/services/llm_gateway.py:282:        Reuses the same circuit-breaker / metrics / fallback machinery as
+backend/services/llm_gateway.py:292:        except Exception:
+backend/services/llm_gateway.py:300:            if self._cross_provider_fallback_enabled and self._secondary is not None:
+backend/services/llm_gateway.py:310:        except Exception as primary_exc:
+backend/services/llm_gateway.py:317:            if self._primary_model_fallback:
+backend/services/llm_gateway.py:322:                        model=self._primary_model_fallback,
+backend/services/llm_gateway.py:326:                    self.metrics.fallbacks += 1
+backend/services/llm_gateway.py:328:                except Exception as fb_exc:
+backend/services/llm_gateway.py:332:                        f"LLMGateway: primary '{self._primary_name}' model-fallback "
+backend/services/llm_gateway.py:333:                        f"'{self._primary_model_fallback}' verify also failed: {fb_exc}"
+backend/services/llm_gateway.py:337:            if self._cross_provider_fallback_enabled and self._secondary is not None:
+backend/services/llm_gateway.py:361:            self.metrics.fallbacks += 1
+backend/services/llm_gateway.py:363:                f"LLMGateway: cross-provider verify fallback to '{self._secondary_name}' succeeded"
+backend/services/llm_gateway.py:366:        except Exception as secondary_exc:
+backend/services/llm_gateway.py:389:        failures, and does same-provider model fallback (before the first
+backend/services/llm_gateway.py:410:        fallback. Mid-stream cross-provider fallback is intentionally NOT done
+backend/services/llm_gateway.py:412:        opt-in path guarded by cross_provider_fallback_enabled elsewhere)."""
+backend/services/llm_gateway.py:428:        except Exception as primary_exc:
+backend/services/llm_gateway.py:434:            if emitted or not self._primary_model_fallback:
+backend/services/llm_gateway.py:437:            fallback_kwargs = kwargs.copy()
+backend/services/llm_gateway.py:438:            fallback_kwargs.pop("model", None)
+backend/services/llm_gateway.py:444:                    model=self._primary_model_fallback,
+backend/services/llm_gateway.py:445:                    **fallback_kwargs,
+backend/services/llm_gateway.py:449:                self.metrics.fallbacks += 1
+backend/services/llm_gateway.py:450:            except Exception as fallback_exc:
+backend/services/llm_gateway.py:451:                self._primary_breaker.record_failure(fallback_exc)
+backend/services/llm_gateway.py:453:                raise fallback_exc
+backend/services/multi_provider_llm.py:146:        # fallback). This ingest-tooling-only service still configures it for
+backend/services/multi_provider_llm.py:199:            except Exception as e:
+backend/services/onnx_reranker.py:22:This implementation resolves the model into HF_HOME (or a fixed fallback)
+backend/services/turboquant_cache.py:48:    Uses TurboVec (4-bit quantization) when available, numpy fallback otherwise.
+backend/services/turboquant_cache.py:73:            logger.info("TurboVec not available; TurboQuantCache will use numpy fallback")
+backend/services/turboquant_cache.py:96:            # Store full-precision vector in metadata for numpy fallback
+backend/services/graphrag_fusion.py:283:                    except Exception as exc:
+backend/services/graphrag_fusion.py:292:                    except Exception as exc:
+backend/services/graphrag_fusion.py:318:        except Exception as exc:
+backend/services/graphrag_fusion.py:346:        except Exception as exc:
+backend/services/krutrim_service.py:1:"""Krutrim AI integration as alternative/fallback LLM provider."""
+backend/services/ocr_service.py:248:                    pass
+backend/services/ocr_service.py:296:        except Exception as e:
+backend/services/ontology_exporter.py:120:    """Map a Neo4j relationship type to a RelationType (fallback IS_RELATED_TO)."""
+backend/services/ontology_exporter.py:245:        # Index by full entity_id first, with a fallback by short_id (slug via
+backend/services/ontology_exporter.py:369:        raise NotImplementedError("OWL/XML export coming in v1.1")
+backend/services/ontology_exporter.py:414:        except Exception:  # noqa: BLE001 — optional dep
+backend/services/ontology_exporter.py:421:        except Exception as exc:  # noqa: BLE001
+backend/services/semantic_cache.py:95:        except Exception as e:
+backend/services/semantic_cache.py:126:            except Exception as e:
+backend/services/semantic_cache.py:148:            except Exception as mget_err:
+backend/services/semantic_cache.py:201:        except Exception as e:
+backend/services/semantic_cache.py:228:            except Exception as e:
+backend/services/semantic_cache.py:274:        except Exception as e:
+backend/services/semantic_cache.py:288:        except Exception as e:
+backend/services/semantic_cache.py:365:        except Exception as e:
+backend/services/base_llm_service.py:118:        except Exception:
+backend/services/base_llm_service.py:160:        except Exception as exc:
+backend/services/qdrant/indexer.py:38:                except Exception as e:
+backend/services/qdrant/indexer.py:188:                except Exception as exc:
+backend/services/qdrant/indexer.py:270:        except Exception:
+backend/services/qdrant/indexer.py:314:        except Exception as e:
+backend/services/qdrant/indexer.py:354:        except Exception as e:
+backend/services/qdrant/indexer.py:372:        except Exception as e:
+backend/services/qdrant/indexer.py:387:        except Exception as e:
+backend/services/qdrant/multitenancy_guard.py:17:    pass
+backend/services/qdrant/multitenancy_guard.py:71:    # Should pass
+backend/services/qdrant/client.py:207:                except Exception as create_err:
+backend/services/qdrant/client.py:237:        except Exception:
+backend/services/qdrant/client.py:301:            except Exception as idx_err:
+backend/services/qdrant/client.py:349:        except Exception as e:
+backend/services/qdrant/client.py:358:        except Exception:
+backend/services/qdrant/client.py:365:        except Exception as _e:
+backend/services/qdrant/searcher.py:45:                except Exception as e:
+backend/services/qdrant/searcher.py:259:            except Exception as e:
+backend/services/qdrant/searcher.py:293:                except Exception as exc:
+backend/services/qdrant/searcher.py:402:        except Exception as e:
+backend/services/qdrant/raptor.py:94:        except Exception as e:
+backend/services/qdrant/neighbor.py:66:        except Exception as e:
+backend/services/qdrant/metrics.py:166:        except Exception:
+backend/rag/doc_utils.py:7:query into the rewrite/fallback spiral.
+backend/services/lightrag_service.py:46:    caller's default-LLM fallback runs without burning retry attempts."""
+backend/services/lightrag_service.py:203:                                pass
+backend/services/lightrag_service.py:312:                except Exception as e:
+backend/services/lightrag_service.py:433:        except Exception as e:
+backend/services/lightrag_service.py:482:            except Exception as pe:
+backend/services/lightrag_service.py:496:        except Exception as e:
+backend/services/lightrag_service.py:540:        except Exception as e:
+backend/services/lightrag_service.py:553:                except Exception as retry_err:
+backend/services/lightrag_service.py:594:        except Exception as e:
+backend/services/lightrag_service.py:622:        except Exception as e:
+backend/services/lightrag_service.py:652:        except Exception as e:  # invalidation is best-effort, never fatal
+backend/services/lightrag_service.py:703:            except Exception as e:
+backend/services/health_monitor.py:26:        # use fallback
+backend/services/health_monitor.py:124:        except Exception as _e:
+backend/services/embedding_service.py:150:            pass
+backend/services/embedding_service.py:191:            except Exception as e:
+backend/services/embedding_service.py:210:                    except Exception as e:
+backend/services/embedding_service.py:231:            except Exception as e:
+backend/services/embedding_service.py:360:        except Exception:
+backend/services/embedding_service.py:364:        """Lazy-load the encoder model with multi-tier fallback support."""
+backend/services/embedding_service.py:387:            # dimension (app/container.py, before any encoder loads). A fallback
+backend/services/embedding_service.py:400:                    except Exception as first_err:
+backend/services/embedding_service.py:424:                            # Only trust a concrete int (a real encoder). A mock or
+backend/services/embedding_service.py:427:                        except Exception:
+backend/services/embedding_service.py:452:                except Exception as e:
+backend/services/embedding_service.py:506:                        pass
+backend/services/embedding_service.py:511:                        pass
+backend/services/embedding_service.py:592:                except Exception as e:
+backend/services/embedding_service.py:628:        fallback is active and can pre-download the model if they want it.
+backend/services/embedding_service.py:654:                        "Cascaded reranking will fallback to pure CrossEncoder."
+backend/services/embedding_service.py:658:                except Exception as e:
+backend/services/embedding_service.py:751:                except Exception as e:
+backend/services/embedding_service.py:904:                                except Exception:
+backend/services/embedding_service.py:947:                except Exception as e:
+backend/services/embedding_service.py:1069:                except Exception as e:
+backend/services/embedding_service.py:1529:                except Exception as e:
+backend/services/embedding_service.py:1553:                except Exception as e:
+backend/services/embedding_service.py:1594:            except Exception as e:
+backend/services/kg_analytics.py:85:        except Exception as e:
+backend/services/kg_analytics.py:94:        except Exception as e:
+backend/services/kg_analytics.py:100:    except Exception as e:
+backend/services/kg_analytics.py:154:    except Exception as e:
+backend/services/kg_analytics.py:277:            pass
+backend/services/ingestion_tracker.py:15:        raise NotImplementedError  # pragma: no cover
+backend/services/ingestion_tracker.py:18:        raise NotImplementedError  # pragma: no cover
+backend/services/ingestion_tracker.py:21:        raise NotImplementedError  # pragma: no cover
+backend/services/ingestion_tracker.py:71:        except Exception as e:
+backend/services/ingestion_tracker.py:91:        except Exception as e:
+backend/services/ingestion_tracker.py:112:                    except Exception:
+backend/services/ingestion_tracker.py:125:        except Exception as e:
+backend/services/ingestion_tracker.py:143:        except Exception as e:
+backend/services/ingestion_tracker.py:160:        except Exception as e:
+backend/services/whisper_local_service.py:206:    except Exception as e:
+backend/services/whisper_local_service.py:230:    except Exception as gate_err:
+backend/services/whisper_local_service.py:274:    except Exception as _e:
+backend/services/whisper_local_service.py:294:        except Exception as cache_err:
+backend/services/whisper_local_service.py:363:    except Exception as e:
+backend/services/whisper_local_service.py:413:    except Exception as exc:
+backend/services/whisper_local_service.py:425:    # This overwrites any mlx-whisper cache entry from the fallback path above.
+backend/services/whisper_local_service.py:428:    except Exception as cache_err:
+backend/services/whisper_local_service.py:484:    except Exception:
+backend/rag/nodes/retrieval.py:79:    except Exception:
+backend/rag/nodes/retrieval.py:101:# Keyword-fallback gates (used only when EmbeddingService is unavailable):
+backend/rag/nodes/retrieval.py:109:    """Semantic match via cosine similarity on title embeddings; keyword fallback.
+backend/rag/nodes/retrieval.py:162:    except Exception as _e:
+backend/rag/nodes/retrieval.py:165:    # Keyword fallback — naive word overlap when EmbeddingService unavailable.
+backend/rag/nodes/retrieval.py:271:    except Exception as e:
+backend/rag/nodes/retrieval.py:279:    Returns list of dicts representing the steps, or a mock sequence if no graph database is configured/empty.
+backend/rag/nodes/retrieval.py:339:    except Exception as e:
+backend/rag/nodes/retrieval.py:436:    except Exception as e:
+backend/rag/nodes/retrieval.py:699:    except Exception as e:
+backend/rag/nodes/retrieval.py:845:        except Exception as _e:
+backend/rag/nodes/retrieval.py:907:        except Exception as _e:
+backend/rag/nodes/retrieval.py:975:    except Exception as e:
+backend/rag/nodes/retrieval.py:1004:            except Exception:  # noqa: BLE001 — metric must never break retrieval
+backend/rag/nodes/retrieval.py:1005:                pass
+backend/rag/nodes/retrieval.py:1103:    except Exception as _kg_err:
+backend/rag/nodes/retrieval.py:1169:        except Exception as enc_err:
+backend/rag/nodes/retrieval.py:1194:        except Exception as bm25_err:
+backend/rag/nodes/retrieval.py:1234:        except Exception as bm25_err:
+backend/rag/nodes/retrieval.py:1247:        except Exception as exp_err:
+backend/rag/nodes/retrieval.py:1333:        logger.info(f"Low document count ({len(all_docs)}), triggering broader fallback search...")
+backend/rag/nodes/retrieval.py:1334:        fallback_query = state["question"] if state.get("rewritten_query") else sub_queries[0]
+backend/rag/nodes/retrieval.py:1338:                    asyncio.to_thread(embedder.encode_single_full, fallback_query),
+backend/rag/nodes/retrieval.py:1341:                fallback_results = await asyncio.wait_for(
+backend/rag/nodes/retrieval.py:1354:            except Exception as fallback_err:
+backend/rag/nodes/retrieval.py:1355:                logger.warning("Fast fallback retrieval timed out or failed; continuing with current docs: %s", fallback_err)
+backend/rag/nodes/retrieval.py:1356:                fallback_results = []
+backend/rag/nodes/retrieval.py:1358:            query_embedding = await asyncio.to_thread(embedder.encode_single_full, fallback_query)
+backend/rag/nodes/retrieval.py:1359:            fallback_results = await asyncio.to_thread(
+backend/rag/nodes/retrieval.py:1370:        for doc in fallback_results:
+backend/rag/nodes/retrieval.py:1377:            f"Fallback search added {len(all_docs) - (len(all_docs) - len(fallback_results))} docs. Total: {len(all_docs)}"
+backend/rag/nodes/retrieval.py:1432:        except Exception as e:
+backend/rag/nodes/retrieval.py:1452:    # pass covers GraphRAG, OKF, web, and fallback documents that bypass Qdrant.
+backend/rag/nodes/retrieval.py:1488:            f"threshold {_coverage_threshold} (max_score={max_score:.4f}); no web fallback."
+backend/rag/nodes/retrieval.py:1492:        except Exception as _e:
+backend/rag/nodes/retrieval.py:1498:        logger.info("RAG retrieval yielded zero chunks; no web fallback (S4).")
+backend/rag/nodes/retrieval.py:1501:        except Exception as _e:
+backend/rag/nodes/retrieval.py:1527:        except Exception:
+backend/rag/nodes/retrieval.py:1548:        except Exception as e:
+backend/rag/nodes/retrieval.py:1569:        except Exception as e:
+backend/services/memory_service_v2.py:38:_LRU_MAX_SIZE = 1000  # ponytail: in-memory LRU fallback cap, bump if eviction rate >5%
+backend/services/memory_service_v2.py:50:    """Three-tier memory service with isolated fallback per tier."""
+backend/services/memory_service_v2.py:70:        # LRU fallback when Redis is down — bounded, thread-safe via asyncio
+backend/services/memory_service_v2.py:71:        self._lru_fallback: OrderedDict[str, str] = OrderedDict()
+backend/services/memory_service_v2.py:166:        except Exception as e:
+backend/services/memory_service_v2.py:235:            except Exception as dup_err:
+backend/services/memory_service_v2.py:364:            except Exception as e:
+backend/services/memory_service_v2.py:385:            except Exception as e:
+backend/services/memory_service_v2.py:397:            except Exception as e:
+backend/services/memory_service_v2.py:414:            except Exception as e:
+backend/services/memory_service_v2.py:417:        # LRU fallback
+backend/services/memory_service_v2.py:432:            except Exception as e:
+backend/services/memory_service_v2.py:435:        # LRU fallback
+backend/services/memory_service_v2.py:453:        except Exception as e:
+backend/services/memory_service_v2.py:468:        except Exception as e:
+backend/services/memory_service_v2.py:484:        except Exception:
+backend/services/memory_service_v2.py:492:        failed inside their broad `except Exception` handlers. Call once at
+backend/services/memory_service_v2.py:520:        except Exception as e:
+backend/services/memory_service_v2.py:525:        """Get the shared Neo4j driver, or a bounded process-local fallback."""
+backend/services/memory_service_v2.py:529:            except Exception as e:
+backend/services/memory_service_v2.py:547:            except Exception as e:
+backend/services/memory_service_v2.py:597:        except Exception as e:
+backend/services/memory_service_v2.py:622:        except Exception as e:
+backend/services/memory_service_v2.py:679:        except Exception as e:
+backend/services/memory_service_v2.py:722:        except Exception as e:
+backend/services/memory_service_v2.py:746:            except Exception as _e:
+backend/services/memory_service_v2.py:762:            except Exception as e:
+backend/services/memory_service_v2.py:776:            except Exception as e:
+backend/services/memory_service_v2.py:796:            except Exception as e:
+backend/services/memory_service_v2.py:812:        # container, not by this service. Only close private fallback drivers.
+backend/services/memory_service_v2.py:858:        except Exception as e:
+backend/services/memory_service_v2.py:877:        except Exception as e:
+backend/services/memory_service_v2.py:976:            except Exception as e:
+backend/services/memory_service_v2.py:988:                pass
+backend/services/memory_service_v2.py:1018:        except Exception as e:
+backend/services/memory_service_v2.py:1024:        except Exception as e:
+backend/services/memory_service_v2.py:1043:        except Exception as e:
+backend/services/memory_service_v2.py:1124:            except Exception as e:
+backend/services/memory_service_v2.py:1127:        # For any memories that were not in Neo4j, do keyword matching fallback
+backend/services/memory_service_v2.py:1141:        except Exception as _e:
+backend/services/memory_service_v2.py:1197:            except Exception as e:
+backend/services/memory_service_v2.py:1228:        except Exception as e:
+backend/services/memory_service_v2.py:1248:        except Exception as e:
+backend/services/memory_service_v2.py:1261:            pass
+backend/services/memory_service_v2.py:1269:    # ---- LRU fallback helpers ----
+backend/services/memory_service_v2.py:1272:        self._lru_fallback[key] = value
+backend/services/memory_service_v2.py:1273:        self._lru_fallback.move_to_end(key)
+backend/services/memory_service_v2.py:1275:        while len(self._lru_fallback) > _LRU_MAX_SIZE:
+backend/services/memory_service_v2.py:1276:            self._lru_fallback.popitem(last=False)
+backend/services/memory_service_v2.py:1281:        if key in self._lru_fallback:
+backend/services/memory_service_v2.py:1282:            self._lru_fallback.move_to_end(key)
+backend/services/memory_service_v2.py:1283:            return self._lru_fallback[key]
+backend/services/healing_course_service.py:62:# never trips the "stress" keyword. "general" is the fallback signal.
+backend/services/healing_course_service.py:278:    except Exception as e:
+backend/services/healing_course_service.py:305:    except Exception as e:
+backend/services/asr_gate.py:28:# the MLX fallback path ignores unknown kwargs via explicit allow-list.
+backend/services/cache/manager.py:68:            except Exception as e:
+backend/services/cache/manager.py:90:        except Exception as e:
+backend/services/cache/manager.py:112:        except Exception as e:
+backend/services/cache/manager.py:128:            except Exception as e:
+backend/services/cache/manager.py:149:            except Exception as e:
+backend/services/translation/base.py:26:        pass
+backend/services/translation/base.py:31:        pass
+backend/services/translation/gemini_provider.py:6:the routing provider's fallback logic. So we re-issue the same translation
+backend/services/translation/gemini_provider.py:83:        except Exception as e:
+backend/services/translation/gemini_provider.py:108:        except Exception as stitch_err:  # pragma: no cover — defensive
+backend/services/translation/gemini_provider.py:117:        except Exception:
+backend/app/chat_uploads.py:153:        except Exception as exc:
+backend/app/chat_uploads.py:169:        except Exception as exc:
+backend/services/translation/routing_provider.py:16:    """Dynamic translation router: Gemini first (when enabled), Sarvam fallback, Ollama last resort."""
+backend/services/translation/routing_provider.py:46:            except Exception as gemini_err:
+backend/services/translation/routing_provider.py:47:                if settings.gemini_fallback_to_sarvam:
+backend/services/translation/routing_provider.py:50:                    logger.error(f"Gemini translation failed, no fallback configured: {gemini_err}")
+backend/services/translation/routing_provider.py:54:        # Sarvam fallback path (existing gate preserved).
+backend/services/translation/routing_provider.py:65:            except Exception as sarvam_err:
+backend/services/translation/routing_provider.py:68:                pass
+backend/services/translation/routing_provider.py:70:        # Ollama fallback if Sarvam unavailable/failed and Ollama configured.
+backend/services/translation/routing_provider.py:77:            except Exception as ollama_err:
+backend/services/translation/routing_provider.py:89:            except Exception as e:
+backend/services/translation/routing_provider.py:101:            except Exception:
+backend/services/translation/routing_provider.py:108:            except Exception:
+backend/app/chat_engine.py:219:            except Exception:
+backend/app/chat_engine.py:382:                            except Exception:
+backend/app/chat_engine.py:395:                        except Exception:
+backend/app/chat_engine.py:407:                    pass
+backend/app/chat_engine.py:433:            except Exception:
+backend/app/chat_engine.py:474:        except Exception as e:
+backend/app/chat_engine.py:514:    from unittest.mock import MagicMock
+backend/app/corpus_release_registry.py:136:    fallback_version: int = 1
+backend/app/corpus_release_registry.py:147:        fallback = int(getattr(settings, "corpus_release_fallback_version", 1) or 1)
+backend/app/corpus_release_registry.py:148:        fallback = fallback if fallback > 0 else 1
+backend/app/corpus_release_registry.py:150:            return cls(enabled=enabled, client=client, fallback_version=fallback)
+backend/app/corpus_release_registry.py:154:            return cls(enabled=True, client=_get_client(), fallback_version=fallback)
+backend/app/corpus_release_registry.py:155:        except Exception as exc:
+backend/app/corpus_release_registry.py:157:            return cls(enabled=True, client=None, fallback_version=fallback)
+backend/app/corpus_release_registry.py:212:        except Exception as exc:
+backend/app/corpus_release_registry.py:261:        except Exception as exc:
+backend/app/corpus_release_registry.py:270:        fallback_version: int | None = None,
+backend/app/corpus_release_registry.py:272:        fallback = self.fallback_version
+backend/app/corpus_release_registry.py:273:        if isinstance(fallback_version, int) and fallback_version > 0:
+backend/app/corpus_release_registry.py:274:            fallback = fallback_version
+backend/app/corpus_release_registry.py:279:        return active.release_version if active is not None else fallback
+backend/app/corpus_release_registry.py:292:        except Exception as exc:
+backend/rag/nodes/utils.py:78:    except Exception:
+backend/rag/nodes/utils.py:80:        pass
+backend/rag/nodes/utils.py:498:        except Exception as e:
+backend/rag/nodes/utils.py:529:        except Exception as e:
+backend/rag/nodes/utils.py:655:    except Exception as e:
+backend/rag/nodes/utils.py:673:    # Apply CoT patterns iteratively until the text stabilises.  A single pass
+backend/rag/nodes/utils.py:762:    except Exception as _e:
+backend/rag/nodes/utils.py:800:    # Default fallback
+backend/rag/nodes/utils.py:919:    except Exception:
+backend/rag/nodes/utils.py:1050:            except Exception:
+backend/rag/nodes/utils.py:1054:    except Exception:
+backend/rag/nodes/utils.py:1062:    the error is caught, logged, and a fallback result is returned instead of
+backend/rag/nodes/utils.py:1075:        except Exception as e:
+backend/rag/nodes/utils.py:1088:            except Exception as _e:
+backend/rag/nodes/utils.py:1100:            # InvalidUpdateError, turning a graceful per-node fallback into a
+backend/rag/nodes/utils.py:1102:            # this fallback needs to guarantee, preserving already-populated
+backend/rag/nodes/utils.py:1104:            fallback = {
+backend/rag/nodes/utils.py:1107:                "fallback": True,
+backend/rag/nodes/utils.py:1118:            result.update(fallback)
+backend/rag/nodes/utils.py:1135:        except Exception as _e:
+backend/app/api/cancel_flow.py:168:# Prometheus metric (no-op fallback if prometheus_client missing)
+backend/app/api/cancel_flow.py:183:        except Exception as _e:  # no-op fallback
+backend/app/api/cancel_flow.py:185:except Exception:  # pragma: no cover - prometheus unavailable
+backend/app/api/cancel_flow.py:189:        pass
+backend/app/api/cancel_flow.py:353:    except Exception as e:
+backend/app/api/cancel_flow.py:402:    except Exception as e:
+backend/app/api/cancel_flow.py:444:        except Exception as e:
+backend/app/api/cancel_flow.py:477:        except Exception as _survey_err:
+backend/app/api/cancel_flow.py:481:    except Exception as e:
+backend/app/api/cancel_flow.py:499:    except Exception as e:
+backend/app/api/cancel_flow.py:543:    except Exception as e:
+backend/app/api/cancel_flow.py:588:                except Exception:
+backend/app/api/cancel_flow.py:598:    except Exception as e:
+backend/app/api/cancel_flow.py:662:                    except Exception:
+backend/app/api/cancel_flow.py:695:    except Exception as _db_err:
+backend/app/api/speech.py:54:    Transcribe uploaded audio file using Sarvam Cloud STT or fallback to local Whisper.
+backend/app/api/speech.py:122:        except Exception as e:
+backend/app/api/speech.py:155:    except Exception as e:
+backend/app/api/speech.py:156:        logger.error(f"Local Whisper fallback failed: {e}", exc_info=True)
+backend/app/api/speech.py:278:                    except Exception as p_err:
+backend/app/api/speech.py:292:    except Exception as e:
+backend/app/api/kg.py:280:    except Exception as exc:  # noqa: BLE001
+backend/app/api/kg.py:431:    except Exception as exc:  # noqa: BLE001
+backend/app/api/kg.py:478:    except Exception as exc:  # noqa: BLE001
+backend/app/api/kg.py:498:    source: str  # "neo4j" | "seed_fallback"
+backend/app/api/kg.py:565:            logger.warning("ontology/version: Neo4j count timed out; using seed fallback.")
+backend/app/api/kg.py:566:        except Exception as exc:  # noqa: BLE001
+backend/app/api/kg.py:567:            logger.warning("ontology/version: Neo4j count failed: %s; using seed fallback.", exc)
+backend/app/api/kg.py:573:        source="seed_fallback",
+backend/app/api/kg.py:591:    # legit reads pass
+backend/app/api/cache_metrics.py:43:            # Support get_stats() or fallback to basic info
+backend/app/api/cache_metrics.py:55:    except Exception:
+backend/app/api/cache_metrics.py:66:    except Exception:
+backend/app/api/cache_metrics.py:102:    except Exception as e:
+backend/app/api/cache_metrics.py:113:    except Exception as e:
+backend/app/api/cache_metrics.py:124:    except Exception as e:
+backend/rag/nodes/agentic_graph_traversal.py:114:        except Exception as e:
+backend/rag/nodes/agentic_graph_traversal.py:165:        except Exception as e:
+backend/rag/nodes/agentic_graph_traversal.py:192:        # ungraded), and "relevant_docs" too as a harmless fallback in case
+backend/rag/nodes/agentic_graph_traversal.py:292:    except Exception as e:
+backend/rag/nodes/agentic_graph_traversal.py:328:        pass
+backend/rag/nodes/agentic_graph_traversal.py:335:    # 2. Heuristic fallback for non-JSON responses.
+backend/rag/nodes/agentic_graph_traversal.py:446:    except Exception as e:
+backend/rag/nodes/agentic_graph_traversal.py:455:    """Extract likely ontology entity concepts from relevant docs as fallback."""

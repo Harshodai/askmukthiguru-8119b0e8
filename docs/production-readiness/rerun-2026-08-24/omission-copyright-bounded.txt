@@ -1,0 +1,5 @@
+tracked_book_file_count= 0
+four_sacred_reference_count= 10
+doctrine_cache_lines= 3
+copyright_policy_files= 48
+store_claim_file_tracked= 1

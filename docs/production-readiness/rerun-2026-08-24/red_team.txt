@@ -1,0 +1,1803 @@
+=== TRACK: red_team ===
+UTC: 2026-08-24T13:52:06Z
+HEAD: 1f882077616b92b5e2b59a31d9ee4fb246e8fe68
+.github/workflows/lint-test.yml:20:    defaults:
+.github/workflows/lint-test.yml:58:          VITE_SUPABASE_URL: https://mock-supabase.supabase.co
+.github/workflows/lint-test.yml:59:          VITE_SUPABASE_PUBLISHABLE_KEY: mock-anon-key-for-ci-build
+.github/workflows/lint-test.yml:71:    defaults:
+.github/workflows/lint-test.yml:104:        run: bandit -r . -x tests/,benchmarks/,venv/,.venv/ --severity-level medium --confidence-level medium --quiet --configfile .bandit
+.github/workflows/lint-test.yml:106:      - name: Forbid JWT_SECRET benchmark backdoor (CRIT-1)
+.github/workflows/lint-test.yml:108:        # the benchmark X-Test-Key bypass. Runs from the repo root (this job's
+.github/workflows/lint-test.yml:109:        # working-directory is backend/) so root-level benchmark scripts such as
+.github/workflows/lint-test.yml:110:        # scripts/benchmarks/load_test.py are scanned too.
+.github/workflows/lint-test.yml:111:        # AST-based scanner (scripts/security/check_benchmark_backdoor.py):
+.github/workflows/lint-test.yml:120:        # GitHub's default bash (-e) turns a non-zero exit into a step failure,
+.github/workflows/lint-test.yml:123:        run: python3 scripts/security/check_benchmark_backdoor.py
+supabase/functions/telemetry/index.ts:89:    const admin = createClient(
+supabase/functions/telemetry/index.ts:93:    const { data: sessionData, error: sessionErr } = await admin
+supabase/functions/telemetry/index.ts:108:  const admin = createClient(
+supabase/functions/telemetry/index.ts:113:  const { error } = await admin.from("telemetry_events").insert({
+.github/workflows/cache-warm.yml:31:          API_URL: ${{ secrets.CACHE_WARM_API_URL || 'http://localhost:8000/api/chat' }}
+.github/workflows/dependency-check.yml:45:    defaults:
+.github/workflows/backup-drill-reminder.yml:39:            - [ ] Smoke tests pass
+supabase/functions/admin-ask/index.ts:2:// Requires admin role.
+supabase/functions/admin-ask/index.ts:10:const SYSTEM = `You are an AI analytics assistant for the AskMukthiGuru admin dashboard.
+supabase/functions/admin-ask/index.ts:11:Answer admin questions about platform metrics (query volume, latency, hallucination rates,
+supabase/functions/admin-ask/index.ts:36:      _role: "admin",
+supabase/functions/admin-ask/index.ts:69:      console.error("[admin-ask] upstream error", r.status, errText);
+supabase/functions/admin-ask/index.ts:76:    console.error("[admin-ask] exception", e);
+scripts/generate_complete_as.py:159:        "admin": "এডমিন",
+scripts/generate_complete_as.py:188:        "demo": {
+scripts/generate_complete_as.py:394:    # 11. admin (25 keys)
+scripts/generate_complete_as.py:395:    as_dict["admin"] = {
+scripts/generate_complete_as.py:409:        "admins": "প্ৰশাসকসকল",
+scripts/build_exact_gu.py:156:        "admin": "એડમિન",
+scripts/build_exact_gu.py:238:        "demo": {
+scripts/build_exact_gu.py:665:    # 12. admin (25 keys)
+scripts/build_exact_gu.py:666:    gu["admin"] = {
+scripts/build_exact_gu.py:684:        "admins": "એડમિનિસ્ટ્રેટર્સ",
+scripts/okf_v02_migrate.py:24:    except Exception:
+backend/verify_refactoring.py:36:    except Exception as e:
+backend/verify_refactoring.py:51:    except Exception as e:
+backend/verify_refactoring.py:74:    except Exception as e:
+backend/verify_refactoring.py:93:    except Exception as e:
+backend/verify_refactoring.py:109:    except Exception as e:
+backend/verify_refactoring.py:128:    except Exception as e:
+backend/verify_refactoring.py:141:    except Exception as e:
+backend/verify_refactoring.py:156:    except Exception as e:
+backend/verify_refactoring.py:172:    except Exception as e:
+backend/verify_refactoring.py:190:    except Exception as e:
+src/pages/PracticeDetailPage.tsx:206:                    src={`https://img.youtube.com/vi/${practice.videoId}/hqdefault.jpg`}
+src/pages/PracticeDetailPage.tsx:339:export default PracticeDetailPage;
+src/pages/NotFound.tsx:77:export default NotFound;
+src/pages/AuthLatencyDashboard.tsx:153:              <div className="text-right text-muted-foreground">{s.samples}</div>
+src/pages/AuthLatencyDashboard.tsx:226:export default AuthLatencyDashboard;
+.github/workflows/nightly-load.yml:3:# Nightly engineering evidence. A missing benchmark endpoint is NOT silently
+.github/workflows/nightly-load.yml:16:        default: false
+.github/workflows/nightly-load.yml:20:  LOAD_TEST_URL: ${{ secrets.LOAD_TEST_URL || 'http://127.0.0.1:8000' }}
+.github/workflows/nightly-load.yml:39:      - name: Boot local stack with mock LLM when no remote URL is configured
+.github/workflows/nightly-load.yml:40:        if: env.LOAD_TEST_URL == 'http://127.0.0.1:8000'
+.github/workflows/nightly-load.yml:43:          python backend/scripts/mock_llm_server.py --port 9002 &
+.github/workflows/nightly-load.yml:46:            curl -sf http://127.0.0.1:9002/ >/dev/null && break
+.github/workflows/nightly-load.yml:50:          LLM_PROVIDER=nim NIM_API_KEY=mock NIM_BASE_URL=http://host.docker.internal:9002/v1 \
+.github/workflows/nightly-load.yml:53:            curl -sf http://127.0.0.1:8000/api/healthz >/dev/null && break
+.github/workflows/nightly-load.yml:76:        run: locust -f benchmarks/locustfile.py --headless -u 20 -r 5 -t 90s --host "$LOAD_TEST_URL" --json > /tmp/locust-20.json
+.github/workflows/nightly-load.yml:84:        run: locust -f benchmarks/locustfile.py --headless -u 50 -r 10 -t 90s --host "$LOAD_TEST_URL" --json > /tmp/locust-50.json
+.github/workflows/nightly-load.yml:143:      - name: Kill mock LLM
+supabase/functions/_shared/embed.ts:12: *   ollama serve                 # runs at http://localhost:11434
+supabase/functions/_shared/embed.ts:25:const OLLAMA_DEFAULT = "http://localhost:11434";
+.github/workflows/prelaunch-gate.yml:13:        default: ""
+.github/workflows/prelaunch-gate.yml:52:          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://mock-supabase.supabase.co' }}
+.github/workflows/prelaunch-gate.yml:53:          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || 'mock-anon-key-for-ci-build' }}
+.github/workflows/benchmark.yml:12:      - '.github/workflows/benchmark.yml'
+.github/workflows/benchmark.yml:40:          python backend/benchmarks/golden_eval.py \
+.github/workflows/migration-revert-check.yml:33:            echo "origin/main not available; checking all migration files as fallback." >&2
+.github/workflows/nightly-eval.yml:22:#   ANTHROPIC_API_KEY  — alternative judge key (provider:anthropic default)
+.github/workflows/security-audit.yml:47:          if grep "add_header Content-Security-Policy" nginx.conf | grep -qE "localhost|127\.0\.0\.1|cdn\.jsdelivr|gs-extension"; then
+.github/workflows/security-audit.yml:48:            echo "::error::nginx.conf CSP contains a banned domain (localhost/127.0.0.1/cdn.jsdelivr/gs-extension)"
+scripts/migration/dry_run.sql:54:-- 3) Every public table must GRANT to `authenticated` OR `service_role` ------
+scripts/migration/dry_run.sql:66:        AND g.grantee IN ('authenticated','service_role')
+scripts/migration/dry_run.sql:69:    RAISE EXCEPTION 'DRY-RUN FAIL: no GRANT to authenticated/service_role on: %', bad;
+scripts/migration/dry_run.sql:79:    'whoami_diagnostics','grant_admin_for_designated_emails',
+scripts/migration/dry_run.sql:80:    'promote_admin_by_email','demote_admin_by_id','list_admins',
+scripts/migration/dry_run.sql:101:    SELECT 1 FROM pg_trigger WHERE tgname LIKE '%grant_admin%'
+scripts/migration/dry_run.sql:103:    RAISE EXCEPTION 'DRY-RUN FAIL: grant_admin_for_designated_emails triggers not installed';
+scripts/migration/dry_run.sql:105:  RAISE NOTICE '✓ admin auto-grant triggers installed';
+scripts/migration/dry_run.sql:116:  IF NOT (vals @> ARRAY['admin','user']) THEN
+scripts/migration/dry_run.sql:117:    RAISE EXCEPTION 'DRY-RUN FAIL: app_role enum missing admin/user, got %', vals;
+supabase/functions/delete-my-account/index.ts:36:  admin: SupabaseClient,
+supabase/functions/delete-my-account/index.ts:40:  const { error } = await admin.from(table).delete().eq('user_id', userId);
+supabase/functions/delete-my-account/index.ts:45:  admin: SupabaseClient,
+supabase/functions/delete-my-account/index.ts:48:  const { data: conversations, error: conversationLookupError } = await admin
+supabase/functions/delete-my-account/index.ts:58:    const { error: messageError } = await admin
+supabase/functions/delete-my-account/index.ts:65:  const { error: conversationError } = await admin
+supabase/functions/delete-my-account/index.ts:99:    const admin = createClient(
+supabase/functions/delete-my-account/index.ts:107:    await deleteConversations(admin, userId);
+supabase/functions/delete-my-account/index.ts:134:      await deleteUserRows(admin, table, userId);
+supabase/functions/delete-my-account/index.ts:137:    const { error: meditationError } = await admin
+supabase/functions/delete-my-account/index.ts:143:    const { error: rolesError } = await admin.from('user_roles').delete().eq('user_id', userId);
+supabase/functions/delete-my-account/index.ts:146:    const { error: profileError } = await admin.from('profiles').delete().eq('id', userId);
+supabase/functions/delete-my-account/index.ts:149:    const { error: delErr } = await admin.auth.admin.deleteUser(userId);
+scripts/check_docker_health.py:35:except Exception:
+scripts/check_docker_health.py:49:        "url": "http://localhost:6333",
+scripts/check_docker_health.py:54:        "url": "redis://localhost:6379",
+scripts/check_docker_health.py:58:        "url": "bolt://localhost:7687",
+scripts/check_docker_health.py:63:        "url": "http://localhost:16686",
+scripts/check_docker_health.py:68:        "url": "http://localhost:8000",
+scripts/check_docker_health.py:83:    except Exception as e:
+scripts/check_docker_health.py:103:    except Exception as e:
+scripts/check_docker_health.py:121:    except Exception as e:
+scripts/check_docker_health.py:133:    except Exception as e:
+scripts/check_docker_health.py:149:    except Exception as e:
+scripts/check_docker_health.py:187:            except Exception as e:
+scripts/check_docker_health.py:224:        default=30,
+scripts/check_docker_health.py:225:        help="Timeout for each health check in seconds (default: 30)"
+scripts/dump_all_stores.py:55:    except Exception as e:
+scripts/dump_all_stores.py:104:    except Exception as e:
+scripts/dump_all_stores.py:123:    except Exception as e:
+scripts/dump_all_stores.py:160:        except Exception as e:
+scripts/dump_all_stores.py:217:    parser.add_argument("--output-dir", default="./data/dump", help="Base directory to write dump folders")
+scripts/dump_all_stores.py:218:    parser.add_argument("--quality-threshold", type=int, default=65, help="Only export chunks meeting this threshold (default: 65)")
+.github/workflows/nightly-rls.yml:9:#   SUPABASE_SERVICE_ROLE_KEY       — service_role key (admin API only)
+backend/services/confidence_scorer.py:146:        except Exception:
+backend/services/confidence_scorer.py:256:    except Exception as exc:
+backend/services/confidence_scorer.py:314:    except Exception as exc:
+backend/services/rankers.py:10:from collections import defaultdict
+backend/services/rankers.py:31:    scores: defaultdict[T, float] = defaultdict(float)
+src/pages/ChatPage.tsx:70:    if (import.meta.env.VITE_ENABLE_DEMO_AUTH === 'true' && (window.location.search.includes('demo=true') || localStorage.getItem('demo_mode') === 'true')) {
+src/pages/ChatPage.tsx:195:export default ChatPage;
+backend/services/push_service.py:6:  - Send dispatch: FCM via firebase-admin, APNs via httpx + JWT-signed requests.
+backend/services/push_service.py:10:This keeps the chat pipeline and admin tools running on hosts without creds.
+backend/services/push_service.py:67:    """Idempotently initialize the firebase-admin default app. Returns True if ready."""
+backend/services/push_service.py:75:        import firebase_admin
+backend/services/push_service.py:76:        from firebase_admin import credentials
+backend/services/push_service.py:79:            firebase_admin.get_app()
+backend/services/push_service.py:81:            firebase_admin.initialize_app(credentials.Certificate(creds))
+backend/services/push_service.py:83:        logger.info("firebase-admin initialized")
+backend/services/push_service.py:85:    except Exception as e:  # import error or init failure
+backend/services/push_service.py:86:        logger.warning("firebase-admin init failed: %s", e)
+backend/services/push_service.py:125:    except Exception as e:
+backend/services/push_service.py:131:    """Resolve the APNs host: explicit override → sandbox flag → production default."""
+backend/services/push_service.py:185:        except Exception as e:
+backend/services/push_service.py:200:        except Exception as e:
+backend/services/push_service.py:244:    # --- FCM (firebase-admin) -------------------------------------------
+backend/services/push_service.py:258:            from firebase_admin import messaging
+backend/services/push_service.py:263:            # firebase-admin multicast caps at 500 tokens per call — batch and aggregate.
+backend/services/push_service.py:282:        except Exception as e:
+backend/services/push_service.py:310:            "sound": "default",
+backend/services/push_service.py:328:            except Exception as e:
+src/pages/PrivacyPage.tsx:52:export default PrivacyPage;
+src/pages/SecondBrainPage.tsx:35:export default function SecondBrainPage() {
+src/pages/PracticesPage.tsx:239:export default PracticesPage;
+src/pages/StudyNotebookPage.tsx:20:export default function StudyNotebookPage() {
+scripts/backup/snapshot_manager.py:29:QDRANT_HOST_URL = "http://localhost:6333"
+scripts/backup/snapshot_manager.py:65:    except Exception:
+scripts/backup/snapshot_manager.py:66:        pass
+scripts/backup/snapshot_manager.py:83:    except Exception:
+scripts/backup/snapshot_manager.py:84:        pass
+scripts/backup/snapshot_manager.py:108:    except Exception as e:
+scripts/backup/snapshot_manager.py:122:    except Exception as e:
+scripts/backup/snapshot_manager.py:179:    except Exception as e:
+scripts/backup/snapshot_manager.py:213:            # Write a simple fallback cypher file
+scripts/backup/snapshot_manager.py:237:    except Exception as e:
+scripts/backup/snapshot_manager.py:281:    except Exception as e:
+scripts/backup/snapshot_manager.py:331:    except Exception as e:
+scripts/backup/snapshot_manager.py:377:    except Exception as e:
+scripts/backup/snapshot_manager.py:388:    parser.add_argument("--collection", default="spiritual_wisdom", help="Target Qdrant collection")
+src/pages/guides/SufferingToBeautifulStatePage.tsx:193:export default SufferingToBeautifulStatePage;
+scripts/apply_offline_translations_ta.py:4:# --- Full Tamil Translations mapping for all missing/fallback/corrupted keys (277 unique strings) ---
+scripts/apply_offline_translations_ta.py:15:    "Meet the Gurus": "Read Aloud: குருக்களை சந்தியுங்கள்", # changed to avoid fallback matching if needed, wait, let's just make it "குருக்களை சந்தியுங்கள்"
+scripts/apply_offline_translations_ta.py:144:    "No active profile found. Creating defaults.": "செயலில் உள்ள சுயவிவரம் எதுவும் இல்லை. இயல்புநிலைகளை உருவாக்குகிறது.",
+scripts/apply_offline_translations_ta.py:472:    def is_english_fallback(en_val, tgt_val):
+scripts/apply_offline_translations_ta.py:500:            if is_english_fallback(str(en_val), str(tgt_val)):
+src/pages/guides/SpiritGuidesPage.tsx:88:export default SpiritGuidesPage;
+scripts/eval/retrieval_evaluation_matrix.py:1:"""Build a held-out retrieval evaluation matrix from benchmark JSON.
+scripts/eval/eval_openrouter_cheap_models.py:21:        pass
+scripts/eval/eval_openrouter_cheap_models.py:23:os.environ["NEO4J_URI"] = "bolt://localhost:7687"
+scripts/eval/eval_openrouter_cheap_models.py:24:os.environ["QDRANT_URL"] = "http://localhost:6333"
+scripts/eval/eval_openrouter_cheap_models.py:66:    except Exception as e:
+scripts/eval/eval_openrouter_cheap_models.py:126:        except Exception as exc:
+supabase/snippets/Untitled query 510.sql:1:SELECT pg_get_functiondef('public.seed_admin_demo()'::regprocedure);
+scripts/eval/eval_single_query.py:19:        pass
+scripts/eval/eval_single_query.py:21:# Force localhost mappings when running outside Docker
+scripts/eval/eval_single_query.py:22:os.environ["QDRANT_HOST"] = "localhost"
+scripts/eval/eval_single_query.py:23:os.environ["QDRANT_URL"] = "http://localhost:6333"
+scripts/eval/eval_single_query.py:24:os.environ["NEO4J_URI"] = "bolt://localhost:7687"
+scripts/eval/eval_single_query.py:25:os.environ["REDIS_HOST"] = "localhost"
+scripts/eval/eval_single_query.py:27:os.environ["REDIS_URL"] = f"redis://:{_redis_pass}@localhost:6379/0"
+scripts/eval/eval_single_query.py:46:    res = await engine._execute_batch(chat_request=chat_req, user={"id": "eval-user"}, is_benchmark=True)
+src/pages/guides/SereneMindPracticePage.tsx:191:export default SereneMindPracticePage;
+scripts/eval/eval_e2e_rag_gemini_flash.py:15:os.environ.setdefault("NEO4J_URI", "bolt://localhost:7687")
+scripts/eval/eval_e2e_rag_gemini_flash.py:16:os.environ.setdefault("QDRANT_URL", "http://localhost:6333")
+scripts/eval/eval_e2e_rag_gemini_flash.py:25:        pass
+scripts/eval/eval_e2e_rag_gemini_flash.py:54:    except Exception as e:
+scripts/eval/eval_e2e_rag_gemini_flash.py:114:        except Exception as exc:
+src/pages/guides/AiSpiritualCompanionPage.tsx:190:export default AiSpiritualCompanionPage;
+scripts/eval/eval_gemini_flash_models.py:15:os.environ["NEO4J_URI"] = "bolt://localhost:7687"
+scripts/eval/eval_gemini_flash_models.py:16:os.environ["QDRANT_URL"] = "http://localhost:6333"
+scripts/eval/eval_gemini_flash_models.py:25:        pass
+scripts/eval/eval_gemini_flash_models.py:66:    except Exception as e:
+scripts/eval/eval_gemini_flash_models.py:125:        except Exception as exc:
+scripts/eval/run_ragas_eval.py:23:    BACKEND_URL     Base URL (default: http://localhost:8000)
+scripts/eval/run_ragas_eval.py:24:    TEST_KEY        X-Test-Key for benchmark auth bypass (local hosts, or HTTPS
+scripts/eval/run_ragas_eval.py:27:                    receive X-Test-Key (default: empty — remote hosts get
+scripts/eval/run_ragas_eval.py:30:    RAGAS_LLM_API_KEY   Key for the RAGAS LLM/embedding provider (defaults to
+scripts/eval/run_ragas_eval.py:32:    RAGAS_LLM_MODEL     LLM model for metric scoring (default: gpt-4o-mini)
+scripts/eval/run_ragas_eval.py:34:                    (default: text-embedding-3-small)
+scripts/eval/run_ragas_eval.py:36:                    (default: 15; a 5s margin is added before use)
+scripts/eval/run_ragas_eval.py:37:    RAGAS_CHAT_TIMEOUT  Timeout (s) for POST /api/chat (default: 120; a 5s
+scripts/eval/run_ragas_eval.py:64:BACKEND_URL = os.environ.get("BACKEND_URL", "http://localhost:8000").rstrip("/")
+scripts/eval/run_ragas_eval.py:67:# Remote HTTPS hosts allowed to receive the X-Test-Key benchmark bypass.
+scripts/eval/run_ragas_eval.py:74:LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1", "0.0.0.0"}
+scripts/eval/run_ragas_eval.py:162:    # X-Test-Key is a benchmark auth bypass and must never reach production:
+scripts/eval/run_ragas_eval.py:164:    # allowlisted via RAGAS_TEST_KEY_ALLOWED_HOSTS (default empty).
+scripts/eval/run_ragas_eval.py:201:def evaluate_with_ragas(samples: list[dict]) -> dict:
+scripts/eval/run_ragas_eval.py:202:    """Run RAGAS evaluation on collected samples."""
+scripts/eval/run_ragas_eval.py:228:    dataset = Dataset.from_list(samples)
+scripts/eval/run_ragas_eval.py:229:    logger.info("Running RAGAS evaluation on %d samples...", len(samples))
+scripts/eval/run_ragas_eval.py:250:    samples = []
+scripts/eval/run_ragas_eval.py:261:        except Exception as exc:
+scripts/eval/run_ragas_eval.py:278:        samples.append(
+scripts/eval/run_ragas_eval.py:289:    if not samples:
+scripts/eval/run_ragas_eval.py:290:        logger.error("No samples collected — check backend connectivity.")
+scripts/eval/run_ragas_eval.py:296:    metrics = evaluate_with_ragas(samples)
+scripts/eval/run_ragas_eval.py:302:        "n_samples": len(samples),
+scripts/eval/run_ragas_eval.py:338:        default=f"scripts/eval/reports/eval_{datetime.now(tz=timezone.utc).strftime('%Y%m%d_%H%M%S')}.json",
+scripts/eval/run_ragas_eval.py:342:    parser.add_argument("--threshold", type=float, default=0.6, help="CI faithfulness threshold")
+src/pages/guides/BeautifulStateMeditationPage.tsx:189:export default BeautifulStateMeditationPage;
+src/pages/guides/SelfCentricThinkingPage.tsx:10:    a: 'Self-centric thinking refers to the mind\'s default habit of filtering everything through "how does this affect me" — fear of loss, comparison, and the need for control. Sri Preethaji & Sri Krishnaji teach it as the root of much everyday suffering and overthinking.',
+src/pages/guides/SelfCentricThinkingPage.tsx:80:            losses, my fears. It is not the same as selfishness in the everyday sense. It's the default operating
+src/pages/guides/SelfCentricThinkingPage.tsx:130:            mind's default direction.
+src/pages/guides/SelfCentricThinkingPage.tsx:200:export default SelfCentricThinkingPage;
+scripts/eval/eval_guru_tone.py:27:        pass
+scripts/eval/eval_guru_tone.py:118:    except Exception as exc:
+scripts/eval/eval_guru_tone.py:119:        logger.warning(f"Could not initialize LLM service ({exc}); benchmark will run offline fallback.")
+scripts/eval/eval_guru_tone.py:176:    # Save benchmark evaluation report
+src/pages/guides/SpiritualGuideForAnxietyPage.tsx:191:export default SpiritualGuideForAnxietyPage;
+supabase/functions/admin-telemetry/index.ts:2:// Returns paginated telemetry_events with filters for admin dashboard.
+supabase/functions/admin-telemetry/index.ts:3:// Requires admin role (service role key used for queries).
+supabase/functions/admin-telemetry/index.ts:32:  // Auth: require admin (service role)
+supabase/functions/admin-telemetry/index.ts:54:  // Check admin role
+supabase/functions/admin-telemetry/index.ts:55:  const adminClient = createClient(
+supabase/functions/admin-telemetry/index.ts:59:  const { data: roleData } = await adminClient
+supabase/functions/admin-telemetry/index.ts:63:    .eq("role", "admin")
+supabase/functions/admin-telemetry/index.ts:95:  let query = adminClient
+supabase/functions/admin-telemetry/index.ts:111:    console.error("admin-telemetry query failed", error);
+src/pages/MFAChallengePage.tsx:12: * Used as a fallback when listFactors() fails in environments with mocked
+src/pages/MFAChallengePage.tsx:56:      // listFactors can fail in mocked test environments. Fall back to the
+src/pages/MFAChallengePage.tsx:152:export default MFAChallengePage;
+supabase/functions/memory-extract-drain/index.ts:18:const OLLAMA_CHAT_DEFAULT = "http://localhost:11434/v1/chat/completions";
+src/pages/AuthDiagnosticsPage.tsx:93:        is_admin: boolean;
+src/pages/AuthDiagnosticsPage.tsx:127:        id: 'admin',
+src/pages/AuthDiagnosticsPage.tsx:129:        status: w.is_admin ? 'ok' : 'warn',
+src/pages/AuthDiagnosticsPage.tsx:130:        detail: w.is_admin
+src/pages/AuthDiagnosticsPage.tsx:132:          : 'Standard user (no administrative role).',
+src/pages/AuthDiagnosticsPage.tsx:137:    update({ id: 'has_role', label: 'has_role(admin) direct RPC', status: 'pending' });
+src/pages/AuthDiagnosticsPage.tsx:140:      _role: 'admin',
+src/pages/AuthDiagnosticsPage.tsx:144:      label: 'has_role(admin) direct RPC',
+src/pages/AuthDiagnosticsPage.tsx:210:                  Verifies session, profile, roles, admin status, and backend reachability.
+src/pages/AuthDiagnosticsPage.tsx:271:              trigger fires, or have an admin insert a row into{' '}
+src/pages/AuthDiagnosticsPage.tsx:275:              <strong className="text-foreground">Not an admin?</strong> An existing admin must
+src/pages/AuthDiagnosticsPage.tsx:278:                INSERT INTO public.user_roles (user_id, role) VALUES ('&lt;your-uuid&gt;', 'admin');
+src/pages/AuthDiagnosticsPage.tsx:299:export default AuthDiagnosticsPage;
+scripts/generate_pa_locale.py:143:    "admin": "ਐਡਮਿਨ",
+scripts/generate_pa_locale.py:223:    "demo": {
+scripts/generate_pa_locale.py:637:  "admin": {
+scripts/generate_pa_locale.py:655:    "admins": "ਐਡਮਿਨਸ",
+src/pages/AuthPage.tsx:152:        // Complete the OAuth flow explicitly. Supabase v2 uses PKCE by default
+src/pages/AuthPage.tsx:700:    // second call reuses an already-consumed nonce, hits the mismatch fallback
+src/pages/AuthPage.tsx:892:          <p className="text-xs text-muted-foreground text-center">{t('auth.continueWith', { defaultValue: 'Continue with' })}</p>
+src/pages/AuthPage.tsx:1124:export default AuthPage;
+scripts/security_audit.py:156:    cors_hits = _grep_code(r'allow_origins\s*=\s*\[?\s*["\']?\*["\']?\s*\]?', [".py", ".yml"])
+scripts/security_audit.py:286:    # Only flag service_role JWTs (role:service_role in payload)
+scripts/security_audit.py:288:        r"eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}.*service_role",
+scripts/security_audit.py:289:        "Hardcoded service_role JWT (CRITICAL)",
+scripts/security_audit.py:348:        except Exception:
+scripts/security_audit.py:349:            pass
+scripts/security_audit.py:550:        except Exception:
+scripts/security_audit.py:551:            pass
+scripts/security_audit.py:599:            "default-src 'self'; "
+scripts/security_audit.py:684:                    except Exception:
+scripts/security_audit.py:685:                        pass
+supabase/functions/push-send/index.ts:2: * push-send — admin/cron-callable function that broadcasts a daily teaching
+supabase/functions/push-send/index.ts:23:  // or an authenticated admin user (via Supabase JWT + has_role check).
+supabase/functions/push-send/index.ts:46:            _role: 'admin',
+src/pages/TermsPage.tsx:42:export default TermsPage;
+supabase/functions/eval-run/index.ts:34:      _role: "admin",
+supabase/functions/eval-run/index.ts:38:    const admin = createClient(
+supabase/functions/eval-run/index.ts:44:    const { data: questions, error: qErr } = await admin
+supabase/functions/eval-run/index.ts:55:    const { data: run, error: runErr } = await admin
+supabase/functions/eval-run/index.ts:113:    await admin.from("eval_results").insert(results);
+supabase/functions/eval-run/index.ts:125:    await admin
+scripts/generate_ur_locale.py:148:    "admin": "ایڈمن",
+scripts/generate_ur_locale.py:228:    "demo": {
+scripts/generate_ur_locale.py:642:  "admin": {
+scripts/generate_ur_locale.py:660:    "admins": "ایڈمنز",
+src/pages/TTSVerificationPage.tsx:24:export default function TTSVerificationPage() {
+src/pages/TTSVerificationPage.tsx:196:        variant: 'default'
+scripts/migrate_tenant_collections.py:6:deleting or moving existing data. The legacy default collection is left intact.
+scripts/migrate_tenant_collections.py:18:Soft mode (default):
+scripts/build_odia_locale.py:156:        "admin": "ପ୍ରଶାସକ",
+scripts/build_odia_locale.py:238:        "demo": {
+scripts/build_odia_locale.py:382:    # 11. admin
+scripts/build_odia_locale.py:383:    admin = {
+scripts/build_odia_locale.py:401:        "admins": "ପ୍ରଶାସକମାନେ",
+scripts/build_odia_locale.py:1367:        "admin": admin,
+src/pages/AdminSelfCheckPage.tsx:10:  is_admin?: boolean;
+src/pages/AdminSelfCheckPage.tsx:16: * /admin/self-check — public route (guarded by auth, not admin) that shows a
+src/pages/AdminSelfCheckPage.tsx:17: * granular checklist so a designated admin can verify their grant took effect.
+src/pages/AdminSelfCheckPage.tsx:19:export default function AdminSelfCheckPage() {
+src/pages/AdminSelfCheckPage.tsx:51:          label: "'admin' role assigned",
+src/pages/AdminSelfCheckPage.tsx:52:          pass: (diag.roles ?? []).includes("admin"),
+src/pages/AdminSelfCheckPage.tsx:54:        { label: "has_role(admin) = true", pass: !!diag.is_admin },
+src/pages/AdminSelfCheckPage.tsx:64:        Verifies that the currently signed-in account has admin privileges wired end-to-end.
+src/pages/AdminSelfCheckPage.tsx:77:            data-testid="admin-selfcheck-status"
+src/pages/AdminSelfCheckPage.tsx:86:              ? "✓ All checks passed — you have full admin access."
+scripts/ingestion/verify_ingestion_quality.py:39:QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
+scripts/ingestion/verify_ingestion_quality.py:41:NEO4J_URI  = os.getenv("NEO4J_URI", "bolt://localhost:7687")
+scripts/ingestion/verify_ingestion_quality.py:86:        except Exception as e:
+scripts/ingestion/verify_ingestion_quality.py:102:    except Exception as e:
+scripts/ingestion/verify_ingestion_quality.py:123:    except Exception as e:
+scripts/ingestion/verify_ingestion_quality.py:130:    supabase_url = os.getenv("SUPABASE_URL", "http://localhost:54321")
+scripts/ingestion/verify_ingestion_quality.py:146:    except Exception as e:
+scripts/ingestion/verify_ingestion_quality.py:175:            except Exception:
+scripts/ingestion/verify_ingestion_quality.py:179:            log.warning("DuckDuckGo returned empty results; using offline mock fallback for quality gate.")
+scripts/ingestion/verify_ingestion_quality.py:180:            r = [{"title": "Mock Result", "href": "https://mock.com", "body": "Mock body content."}]
+scripts/ingestion/verify_ingestion_quality.py:184:    except Exception as e:
+scripts/ingestion/verify_ingestion_quality.py:205:                    except Exception:
+scripts/ingestion/verify_ingestion_quality.py:206:                        pass
+scripts/ingestion/verify_ingestion_quality.py:212:        except Exception:
+scripts/ingestion/verify_ingestion_quality.py:228:    except Exception as e:
+src/pages/ProfilePage.tsx:1265:export default ProfilePage;
+src/pages/KnowledgeGraphPage.tsx:8:export default function KnowledgeGraphPage() {
+scripts/extract_keyframes.py:1:"""Extract selected still frames from a supplied product-demo video.
+scripts/extract_keyframes.py:4:assumes a tracked demo render or composition project exists in the repository.
+scripts/extract_keyframes.py:28:        default=Path("artifacts/video-review/keyframes"),
+scripts/migrations/20260623_add_chat_queries_assistant_slug.sql:9:-- Step 2: optional index for admin dashboards / quality breakdowns by assistant
+src/pages/ResetPasswordPage.tsx:124:export default ResetPasswordPage;
+scripts/ingestion/reviews/apply_confirmed_patch.py:100:        except Exception:
+scripts/ingestion/reviews/apply_confirmed_patch.py:134:                fp=pkg/name; entry=man['artifacts'].setdefault(name,{}); entry['size_bytes']=fp.stat().st_size; entry['sha256']=sha(fp.read_text(encoding='utf-8').encode('utf-8') if name.endswith('.json') else fp.read_bytes())
+scripts/apply_offline_translations.py:71:    "admin.admins": "అడ్మిన్లు",
+scripts/apply_offline_translations.py:72:    "admin.alerts": "హెచ్చరికలు",
+scripts/apply_offline_translations.py:73:    "admin.evals": "మూల్యాంకనాలు",
+scripts/apply_offline_translations.py:74:    "admin.login": "అడ్మిన్ లాగిన్",
+scripts/apply_offline_translations.py:75:    "admin.monitoring": "పర్యవేక్షణ",
+scripts/apply_offline_translations.py:76:    "admin.quality": "నాణ్యత",
+scripts/apply_offline_translations.py:77:    "admin.ragFlow": "రాగ్ ఫ్లో",
+scripts/apply_offline_translations.py:78:    "admin.retrieval": "తిరిగి పొందడం",
+scripts/apply_offline_translations.py:79:    "admin.teachingTips": "बोधना चिदकालु",
+scripts/apply_offline_translations.py:80:    "admin.telemetry": "టెలిమెట్రీ",
+scripts/apply_offline_translations.py:81:    "admin.unauthorized": "మీకు ఈ విభాగానికి ప్రాప్యత లేదు.",
+scripts/apply_offline_translations.py:155:    "admin.admins": "ಆಡಳಿತಾಧಿಕಾರಿಗಳು",
+scripts/apply_offline_translations.py:156:    "admin.dailyTeaching": "ದೈನಂದಿನ ಬೋಧನೆ",
+scripts/apply_offline_translations.py:157:    "admin.evals": "ಮೌಲ್ಯಮಾಪನಗಳು",
+scripts/apply_offline_translations.py:158:    "admin.feedback": "ಪ್ರತಿಕ್ರಿಯೆ",
+scripts/apply_offline_translations.py:159:    "admin.ingestion": "ಡೇಟಾ ಇಂಜೆಷನ್",
+scripts/apply_offline_translations.py:160:    "admin.jobs": "ಕೆಲಸಗಳು",
+scripts/apply_offline_translations.py:161:    "admin.login": "ಅಡ್ಮಿನ್ ಲಾಗಿನ್",
+scripts/apply_offline_translations.py:162:    "admin.okfManager": "OKF ವ್ಯವಸ್ಥಾಪಕ",
+scripts/apply_offline_translations.py:163:    "admin.overview": "ಅವಲೋಕನ",
+scripts/apply_offline_translations.py:164:    "admin.prompts": "ಪ್ರಾಂಪ್ಟ್‌ಗಳು",
+scripts/apply_offline_translations.py:165:    "admin.quality": "ಗುಣಮಟ್ಟ",
+scripts/apply_offline_translations.py:166:    "admin.queries": "ಪ್ರಶ್ನೆಗಳು",
+scripts/apply_offline_translations.py:167:    "admin.ragFlow": "RAG ಫ್ಲೋ",
+scripts/apply_offline_translations.py:168:    "admin.retrieval": "ಮಾಹಿತಿ ಮರುಪಡೆಯುವಿಕೆ",
+scripts/apply_offline_translations.py:169:    "admin.settings": "ಸೆಟ್ಟಿಂಗ್‌ಗಳು",
+scripts/apply_offline_translations.py:170:    "admin.teachingTips": "ಬೋಧನಾ ಸಲಹೆಗಳು",
+scripts/apply_offline_translations.py:171:    "admin.triggers": "ಟ್ರಿಗ್ಗರ್‌ಗಳು",
+scripts/apply_offline_translations.py:276:            except Exception as e:
+scripts/apply_offline_translations.py:285:    # 2. Add/merge missing, fallback, or corrupted keys
+src/pages/Index.tsx:93:export default Index;
+scripts/ingestion/reviews/sanskrit_term_inventory.py:4:from collections import Counter, defaultdict
+scripts/ingestion/reviews/sanskrit_term_inventory.py:83:        except Exception:
+scripts/ingestion/reviews/validate_confirmed_patch.py:36:        except Exception as e:
+scripts/ingestion/reviews/detect_mantra_like_passages.py:26:        except Exception: data={'segments':[]}
+scripts/ingestion/build_correction_report.py:3:from collections import Counter,defaultdict
+scripts/ingestion/build_correction_report.py:26:by=Counter((r['rule_id'],r['matched_text'],r['replacement'],r['disposition']) for r in x); disp=Counter(r['disposition'] for r in x); rules=defaultdict(list)
+scripts/ingestion/build_correction_report.py:36:md += ['', '## Important research interpretation','', 'The corpus ledger labels every entry as a phonetic correction, but the second research pass shows that not every entry is a phonetic error. Beautiful State, Four Sacred Secrets, and Soul Sync are often **branding or style normalizations**. The primary video evidence supports “soul sync” and rejects “soul sink” [5].', '', 'The Mukti→Mukthi family requires a project-level decision: a representative primary video visibly and audibly uses **Mukti**, while the repository’s curated map prefers **Mukthi** [4]. This is not enough evidence for a universal correction. The Samskaras→Samskara and Chakras→Chakra families also require sentence-level review because authoritative English usage recognizes the base terms and valid plural forms [8] [9]; several corrected sentences can become grammatically awkward if a plural is collapsed to singular.', '', 'The exact places are in `correction_locations.csv` and `correction_findings.json`. Each row includes the video ID, segment ID, start/end timestamps, original character span, current text, proposed text, quality state, and disposition. A compact sample is shown below.','', '| Video ID | Segment | Timestamp | Current text | Proposed | Disposition |', '|---|---|---:|---|---|---|']
+scripts/ingestion/build_correction_report.py:38:md += ['', '> For the complete end-to-end list, use the attached CSV; the table above is only a readable sample.', '', '## Corpus and validation notes','',f"The corpus contains {summary['package_count']} package directories. {summary['packages_with_ledgers']} packages contain one or more correction-ledger entries, totaling {summary['candidate_count']} locations. The deterministic validator found no ledger span, segment lookup, or original-text mismatch after applying the documented offset semantics. It did find {summary['issue_counts'].get('missing_required',0)} packages with missing required files; those packages should not be promoted without a separate integrity review.", '', '## References']
+scripts/ingestion/generate_corpus_excel_audit.py:185:            except Exception:
+scripts/ingestion/generate_corpus_excel_audit.py:193:            except Exception:
+scripts/ingestion/generate_corpus_excel_audit.py:205:            except Exception:
+scripts/ingestion/generate_corpus_excel_audit.py:214:                except Exception:
+scripts/ingestion/generate_corpus_excel_audit.py:215:                    pass
+scripts/ingestion/generate_corpus_excel_audit.py:245:            except Exception:
+scripts/ingestion/parallel_corpus_extractor.py:10:2. Faster-Whisper ASR fallback for videos without captions.
+scripts/ingestion/parallel_corpus_extractor.py:201:        except Exception:
+scripts/ingestion/parallel_corpus_extractor.py:202:            pass
+scripts/ingestion/parallel_corpus_extractor.py:237:        "extractor_args": {"youtube": {"player_client": ["default", "-android_sdkless"]}},
+scripts/ingestion/parallel_corpus_extractor.py:262:    except Exception as exc:
+scripts/ingestion/parallel_corpus_extractor.py:297:    def process_single_video(self, video: dict, enable_whisper_fallback: bool = True) -> tuple[bool, str, Optional[str]]:
+scripts/ingestion/parallel_corpus_extractor.py:306:            except Exception:
+scripts/ingestion/parallel_corpus_extractor.py:307:                pass
+scripts/ingestion/parallel_corpus_extractor.py:326:                    except Exception as e:
+scripts/ingestion/parallel_corpus_extractor.py:343:                except Exception:
+scripts/ingestion/parallel_corpus_extractor.py:349:                    except Exception:
+scripts/ingestion/parallel_corpus_extractor.py:350:                        pass
+scripts/ingestion/parallel_corpus_extractor.py:397:            except Exception as e:
+scripts/ingestion/parallel_corpus_extractor.py:469:                except Exception as e:
+scripts/ingestion/parallel_corpus_extractor.py:473:        if enable_whisper_fallback and FASTER_WHISPER_AVAILABLE and yt_dlp is not None:
+scripts/ingestion/parallel_corpus_extractor.py:556:                except Exception as e:
+scripts/ingestion/parallel_corpus_extractor.py:665:            except Exception as exc:
+scripts/ingestion/parallel_corpus_extractor.py:693:    parser.add_argument("--workers", type=int, default=2, help="Number of concurrent threads (default: 2)")
+scripts/ingestion/parallel_corpus_extractor.py:694:    parser.add_argument("--limit-per-playlist", type=int, default=None, help="Max videos per playlist")
+scripts/ingestion/parallel_corpus_extractor.py:695:    parser.add_argument("--whisper-model", default="small", help="Whisper model: tiny, base, small, medium, large-v3")
+scripts/ingestion/parallel_corpus_extractor.py:696:    parser.add_argument("--disable-whisper", action="store_true", help="Disable local ASR fallback")
+scripts/ingestion/parallel_corpus_extractor.py:697:    parser.add_argument("--cookies-from-browser", default=None, help="Browser to read cookies from (e.g. chrome, brave, safari)")
+scripts/ingestion/parallel_corpus_extractor.py:698:    parser.add_argument("--cookies", default=None, help="Path to cookies.txt file")
+scripts/ingestion/parallel_corpus_extractor.py:699:    parser.add_argument("--delay-min", type=float, default=2.0, help="Min human delay in seconds (default: 2.0)")
+scripts/ingestion/parallel_corpus_extractor.py:700:    parser.add_argument("--delay-max", type=float, default=4.5, help="Max human delay in seconds (default: 4.5)")
+scripts/ingestion/ingest_pageindex_json.py:54:                )  # Use text as fallback summary
+supabase/functions/sarvam-tts/index.ts:81:        speech_sample_rate: 48000,
+scripts/find_keys_to_translate.py:15:def is_english_fallback(en_val: str, tgt_val: str) -> bool:
+scripts/find_keys_to_translate.py:69:        # 2. English fallback, corrupted, or validation failed
+scripts/find_keys_to_translate.py:80:            elif is_english_fallback(en_val, tgt_val):
+scripts/find_keys_to_translate.py:81:                to_translate[k] = ("fallback", en_val)
+scripts/ingestion/backfill_metadata.py:26:QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
+scripts/ingestion/backfill_metadata.py:101:    parser.add_argument("--limit", type=int, default=0, help="Max videos to backfill (0 = all)")
+scripts/ingestion/backfill_metadata.py:103:        "--min-chars", type=int, default=100,
+scripts/ingestion/backfill_metadata.py:104:        help="Min transcript chars to attempt LLM extraction (default 100)",
+scripts/ingestion/backfill_metadata.py:197:            except Exception:
+scripts/ingestion/backfill_metadata.py:203:            except Exception as e:
+scripts/ingestion/backfill_metadata.py:251:            except Exception as e:
+scripts/ingest_lightrag_data.py:37:                os.environ.setdefault(k.strip(), v.strip())
+scripts/ingest_lightrag_data.py:39:# Map Docker container hostnames to localhost for host-level execution
+scripts/ingest_lightrag_data.py:41:    os.environ["QDRANT_URL"] = "http://localhost:6333"
+scripts/ingest_lightrag_data.py:43:    os.environ["NEO4J_URI"] = "bolt://localhost:7687"
+scripts/ingest_lightrag_data.py:45:    os.environ["REDIS_URL"] = os.getenv("REDIS_URL", "").replace("redis:6379", "localhost:6379")
+scripts/ingest_lightrag_data.py:47:    os.environ["SUPABASE_URL"] = os.getenv("SUPABASE_URL", "").replace("host.docker.internal", "127.0.0.1")
+scripts/ingest_lightrag_data.py:61:        except Exception as e:
+scripts/ingest_lightrag_data.py:76:    except Exception as e:
+scripts/ingest_lightrag_data.py:105:                except Exception:
+scripts/ingest_lightrag_data.py:106:                    pass
+scripts/ingest_lightrag_data.py:107:        except Exception as e:
+scripts/ingest_lightrag_data.py:135:                except Exception as e:
+scripts/ingest_lightrag_data.py:169:    except Exception as e:
+scripts/ingest_lightrag_data.py:237:            except Exception as e:
+scripts/ingestion/2_upload_transcripts_to_railway.py:14:  2. Get your admin access token: log into askmukthiguru.lovable.app as
+scripts/ingestion/2_upload_transcripts_to_railway.py:15:     admin, open browser DevTools -> Application -> Local Storage ->
+scripts/ingestion/2_upload_transcripts_to_railway.py:70:        except Exception:
+scripts/ingestion/2_upload_transcripts_to_railway.py:87:    except Exception as e:
+scripts/ingestion/2_upload_transcripts_to_railway.py:151:        except Exception:
+scripts/ingestion/2_upload_transcripts_to_railway.py:152:            pass
+scripts/ingestion/2_upload_transcripts_to_railway.py:166:        except Exception:
+scripts/ingestion/2_upload_transcripts_to_railway.py:167:            pass
+scripts/ingestion/2_upload_transcripts_to_railway.py:183:    admin_token: str = ADMIN_TOKEN,
+scripts/ingestion/2_upload_transcripts_to_railway.py:200:                headers={"Authorization": f"Bearer {admin_token}"},
+scripts/ingestion/2_upload_transcripts_to_railway.py:213:        except Exception as e:
+scripts/ingestion/2_upload_transcripts_to_railway.py:215:            pass
+scripts/ingestion/2_upload_transcripts_to_railway.py:227:    admin_token: str = ADMIN_TOKEN,
+scripts/ingestion/2_upload_transcripts_to_railway.py:246:        headers={"Authorization": f"Bearer {admin_token}"},
+scripts/ingestion/2_upload_transcripts_to_railway.py:256:    admin_token: str = ADMIN_TOKEN,
+scripts/ingestion/2_upload_transcripts_to_railway.py:287:                    result = forward_to_railway(client, item, api_base, admin_token, collection)
+scripts/ingestion/2_upload_transcripts_to_railway.py:303:                        terminal_state, status_resp = poll_job_status(client, job_id, api_base, admin_token)
+scripts/ingestion/2_upload_transcripts_to_railway.py:337:                except Exception as e:
+scripts/ingestion/2_upload_transcripts_to_railway.py:369:                "This is a sample test transcript."
+scripts/ingestion/2_upload_transcripts_to_railway.py:385:    parser.add_argument("--limit", type=int, default=None, help="Max files to upload (for testing)")
+scripts/ingestion/2_upload_transcripts_to_railway.py:386:    parser.add_argument("--delay", type=float, default=0.5, help="Seconds between uploads (default 0.5)")
+scripts/ingestion/2_upload_transcripts_to_railway.py:387:    parser.add_argument("--api-base", default=API_BASE, help=f"Railway API base (default {API_BASE})")
+scripts/ingestion/2_upload_transcripts_to_railway.py:389:    parser.add_argument("--collection", default=None, help="Write to this Qdrant collection instead of the live default (isolated testing)")
+scripts/ingestion/2_upload_transcripts_to_railway.py:408:        md_files, api_base=args.api_base, admin_token=token, delay=args.delay,
+scripts/ml_locales_part1.py:15:- admin
+scripts/ml_locales_part1.py:169:        "admin": "അഡ്മിൻ",
+scripts/ml_locales_part1.py:251:        "demo": {
+scripts/ml_locales_part1.py:393:    # 11. admin (25 keys)
+scripts/ml_locales_part1.py:394:    p1["admin"] = {
+scripts/ingestion/run_batched_ingestion_pipeline.py:23:  export MUKTHI_ADMIN_TOKEN="<your_admin_token>"
+scripts/ingestion/run_batched_ingestion_pipeline.py:72:        except Exception:
+scripts/ingestion/run_batched_ingestion_pipeline.py:73:            pass
+scripts/ingestion/run_batched_ingestion_pipeline.py:94:    admin_token: str = "",
+scripts/ingestion/run_batched_ingestion_pipeline.py:98:    enable_whisper_fallback: bool = False,
+scripts/ingestion/run_batched_ingestion_pipeline.py:108:    print(f"   Whisper fallback:     {enable_whisper_fallback}")
+scripts/ingestion/run_batched_ingestion_pipeline.py:134:                enable_whisper_fallback=enable_whisper_fallback,
+scripts/ingestion/run_batched_ingestion_pipeline.py:141:                if process_video(video, DEFAULT_LANGUAGES, enable_whisper_fallback=enable_whisper_fallback):
+scripts/ingestion/run_batched_ingestion_pipeline.py:157:        except Exception as e:
+scripts/ingestion/run_batched_ingestion_pipeline.py:170:                    except Exception as e:
+scripts/ingestion/run_batched_ingestion_pipeline.py:175:            failed_videos = state.setdefault("failed_videos", [])
+scripts/ingestion/run_batched_ingestion_pipeline.py:191:            if not admin_token:
+scripts/ingestion/run_batched_ingestion_pipeline.py:199:                admin_token=admin_token,
+scripts/ingestion/run_batched_ingestion_pipeline.py:250:    parser.add_argument("--limit-per-playlist", type=int, default=None, help="Max videos per playlist (useful for test runs)")
+scripts/ingestion/run_batched_ingestion_pipeline.py:251:    parser.add_argument("--api-base", default=API_BASE, help=f"Railway API base URL (default {API_BASE})")
+scripts/ingestion/run_batched_ingestion_pipeline.py:252:    parser.add_argument("--delay-fetch", type=float, default=0.75, help="Delay between local fetches in seconds")
+scripts/ingestion/run_batched_ingestion_pipeline.py:253:    parser.add_argument("--delay-upload", type=float, default=0.5, help="Delay between Railway uploads in seconds")
+scripts/ingestion/run_batched_ingestion_pipeline.py:255:    parser.add_argument("--enable-whisper-fallback", action="store_true", help="Download audio and use local Whisper for videos without captions")
+scripts/ingestion/run_batched_ingestion_pipeline.py:270:        admin_token=token,
+scripts/ingestion/run_batched_ingestion_pipeline.py:274:        enable_whisper_fallback=args.enable_whisper_fallback,
+scripts/security/check_benchmark_backdoor.py:2:"""CI tripwire for CRIT-1: JWT_SECRET must never unlock the benchmark backdoor.
+scripts/security/check_benchmark_backdoor.py:11:    is_benchmark = bool(test_key and jwt_sec and test_key == jwt_sec)
+scripts/security/check_benchmark_backdoor.py:139:        print("CRIT-1 gate failed: JWT_SECRET coupled with the benchmark X-Test-Key backdoor:", file=sys.stderr)
+scripts/security/audit_grants.sql:4:-- table in the public schema. Supabase's default access privileges only
+scripts/security/audit_grants.sql:12:--   psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -f scripts/security/audit_grants.sql
+scripts/ingestion/corpus_publish_gate.py:7:trust state. The default allowed states intentionally exclude needs_review,
+scripts/ingestion/corpus_publish_gate.py:56:    except Exception:
+scripts/ingestion/corpus_publish_gate.py:159:        "error_samples": errors[:25],
+scripts/ingestion/corpus_publish_gate.py:195:    parser.add_argument("--repo", type=Path, default=Path.cwd())
+scripts/db_rectify.py:3:    python scripts/db_rectify.py            # dry-run (default): reports counts, deletes nothing
+scripts/db_rectify.py:16:NEO4J_URI = "bolt://localhost:7687"
+scripts/db_rectify.py:61:    except Exception as e:
+scripts/db_rectify.py:67:    parser.add_argument("--apply", action="store_true", help="Actually delete (default: dry-run)")
+scripts/ingestion/corpus_end_to_end_audit.py:64:    except Exception as e: issues.append("transcript_parse:" + type(e).__name__)
+scripts/ingestion/corpus_end_to_end_audit.py:75:    except Exception as e: issues.append("quality_report_parse:" + type(e).__name__)
+scripts/ingestion/corpus_end_to_end_audit.py:99:    except Exception as e: issues.append("canonical_segments_parse:" + type(e).__name__)
+scripts/ingestion/corpus_end_to_end_audit.py:125:    except Exception as e: issues.append("correction_ledger_parse:" + type(e).__name__)
+scripts/ingestion/corpus_end_to_end_audit.py:157:    except Exception as e: issues.append("artifact_manifest_parse:" + type(e).__name__)
+scripts/ingestion/corpus_end_to_end_audit.py:166:    ap.add_argument("--workers", type=int, default=max(2, min(12, mp.cpu_count())))
+src/lib/workspaceNavigation.ts:39:  fallback = '/chat',
+src/lib/workspaceNavigation.ts:42:  const target = isSafeReturnPath(origin.returnTo) ? origin.returnTo : fallback;
+scripts/gdpr_purge.py:3:The command is dry-run by default. Real deletion requires ``--confirm`` and a
+scripts/gdpr_purge.py:64:    except Exception as exc:  # tables vary by deployment migration level
+scripts/gdpr_purge.py:85:    except Exception as exc:
+src/lib/domain.ts:6: * safer than emitting a retired hosting provider URL. The build-time fallback
+src/lib/healingCourses.ts:5: * Curriculum lives in code (versioned, reviewable, no admin UI needed);
+scripts/ops/ruthless_data_audit.py:12:from collections import defaultdict
+scripts/ops/ruthless_data_audit.py:17:QDRANT_URL  = os.getenv("QDRANT_URL", "http://localhost:6333")
+scripts/ops/ruthless_data_audit.py:18:NEO4J_URI   = os.getenv("NEO4J_URI", "bolt://localhost:7687")
+scripts/ops/ruthless_data_audit.py:61:            # Audit payload structure for sample points
+scripts/ops/ruthless_data_audit.py:62:            sample_points = []
+scripts/ops/ruthless_data_audit.py:91:                except Exception as ex:
+scripts/ops/ruthless_data_audit.py:100:                "duplicate_chunks_sample": duplicate_chunks
+scripts/ops/ruthless_data_audit.py:110:                    "description": f"Found {duplicate_chunks} duplicate chunks in sample of 200 points."
+scripts/ops/ruthless_data_audit.py:122:        rows = [[c["name"], c["points"], c["payload_status"], c["duplicate_chunks_sample"]] for c in self.report["qdrant"]["collections"]]
+scripts/ops/ruthless_data_audit.py:212:                except Exception as e:
+scripts/ops/ruthless_data_audit.py:228:                except Exception as e:
+scripts/ops/ensure_qdrant_graph_payload_indexes.py:3:Dry-run by default. ``--apply`` creates only keyword indexes and never deletes
+scripts/ops/ensure_qdrant_graph_payload_indexes.py:63:    parser.add_argument("--url", default=os.environ.get("QDRANT_URL", "http://localhost:6333"))
+scripts/ops/ensure_qdrant_graph_payload_indexes.py:64:    parser.add_argument("--api-key", default=os.environ.get("QDRANT_API_KEY"))
+scripts/ops/ensure_qdrant_graph_payload_indexes.py:65:    parser.add_argument("--collection", default=os.environ.get("QDRANT_COLLECTION", "spiritual_wisdom"))
+scripts/ops/ensure_qdrant_graph_payload_indexes.py:66:    parser.add_argument("--lock-file", default=DEFAULT_LOCK)
+scripts/ops/ensure_qdrant_graph_payload_indexes.py:100:        print(json.dumps(result, indent=2, sort_keys=True, default=str))
+scripts/ops/process_sql_dump.py:46:    'admin',
+scripts/ops/process_sql_dump.py:52:        'admin',
+scripts/ops/backup_neo4j.py:5:Creates graph database dumps using `neo4j-admin database dump` or Cypher export.
+scripts/ops/backup_neo4j.py:14:    NEO4J_URI       — Bolt URI (default: bolt://localhost:7687)
+scripts/ops/backup_neo4j.py:15:    NEO4J_USER      — Username (default: neo4j)
+scripts/ops/backup_neo4j.py:16:    NEO4J_PASSWORD  — Password (required, no default)
+scripts/ops/backup_neo4j.py:17:    BACKUP_BASE_DIR — Where dumps are stored (default: ./backups/neo4j)
+scripts/ops/backup_neo4j.py:20:    Uses neo4j-admin inside the running container.
+scripts/ops/backup_neo4j.py:35:NEO4J_URI = os.environ.get("NEO4J_URI", "bolt://localhost:7687")
+scripts/ops/backup_neo4j.py:39:NEO4J_DB_NAME = os.environ.get("NEO4J_DB_NAME", "neo4j")  # default database
+scripts/ops/backup_neo4j.py:103:# ─── Dump Backup (neo4j-admin) ───────────────────────────────────────────────
+scripts/ops/backup_neo4j.py:107:    """Use neo4j-admin database dump inside the Docker container."""
+scripts/ops/backup_neo4j.py:109:    print("  Neo4j Backup — Format: dump (neo4j-admin)")
+scripts/ops/backup_neo4j.py:124:        # 1. Run neo4j-admin dump inside container
+scripts/ops/backup_neo4j.py:125:        print("[*] Running neo4j-admin database dump ...")
+scripts/ops/backup_neo4j.py:130:            "neo4j-admin",
+scripts/ops/backup_neo4j.py:157:            pass
+scripts/ops/backup_neo4j.py:173:        print(f"[-] neo4j-admin dump failed: {e.stderr or e.stdout}")
+scripts/ops/backup_neo4j.py:176:        print("[-] neo4j-admin dump timed out.")
+scripts/ops/backup_neo4j.py:178:    except Exception as e:
+scripts/ops/backup_neo4j.py:209:    # We can also try neo4j-admin database check inside a temporary container if needed,
+scripts/ops/backup_neo4j.py:277:    except Exception as e:
+scripts/ops/backup_neo4j.py:331:        default=DEFAULT_FORMAT,
+scripts/ops/backup_neo4j.py:332:        help="Backup format: 'dump' (neo4j-admin binary) or 'cypher' (plain text)",
+scripts/ops/backup_neo4j.py:335:        "--retention", type=int, default=DEFAULT_RETENTION, help="Backups to retain"
+backend/services/guru_voice_langhanam.py:259:    sample = (
+backend/services/guru_voice_langhanam.py:263:    print(f"fillers detected: {count_fillers(sample)}")
+backend/services/guru_voice_langhanam.py:264:    print(f"after strip_fillers: {strip_fillers(sample)!r}")
+backend/services/guru_voice_langhanam.py:265:    print(f"direct address: {has_direct_address(sample)}")
+backend/services/guru_voice_langhanam.py:266:    print(f"sanskrit terms: {contains_sanskrit_terms(sample)}")
+backend/services/guru_voice_langhanam.py:267:    print(f"mean sentence length: {mean_sentence_length(sample):.1f} words")
+scripts/ops/backup_qdrant.py:14:    QDRANT_URL        — Qdrant REST endpoint (default: http://localhost:6333)
+scripts/ops/backup_qdrant.py:15:    BACKUP_BASE_DIR   — Where snapshots are stored (default: ./backups/qdrant)
+scripts/ops/backup_qdrant.py:34:QDRANT_URL = os.environ.get("QDRANT_URL", "http://localhost:6333")
+scripts/ops/backup_qdrant.py:218:    except Exception as e:
+scripts/ops/backup_qdrant.py:245:        except Exception as e:
+scripts/ops/backup_qdrant.py:246:            print(f"  [!] Could not mirror source collection config ({e}); using defaults.")
+scripts/ops/backup_qdrant.py:255:            pass
+scripts/ops/backup_qdrant.py:269:            pass
+scripts/ops/backup_qdrant.py:270:    except Exception:
+scripts/ops/backup_qdrant.py:271:        pass
+scripts/ops/backup_qdrant.py:373:    except Exception as e:
+scripts/ops/backup_qdrant.py:380:    parser.add_argument("--collection", default=DEFAULT_COLLECTION, help="Qdrant collection name")
+scripts/ops/backup_qdrant.py:384:        default=DEFAULT_RETENTION,
+backend/services/humanizer.py:13:    your eval/benchmark harness so the "humanization rate" is measurable).
+backend/services/humanizer.py:120:    changes: list = field(default_factory=list)
+backend/services/humanizer.py:121:    detections: list = field(default_factory=list)
+backend/services/humanizer.py:254:    sample = (
+backend/services/humanizer.py:260:    cleaned, rep = scrub_with_report(sample)
+backend/services/humanizer.py:261:    print("BEFORE:", sample[:90], "…")
+scripts/ops/audit_doctrine_data_quality.py:5:equal, and not yet a known variant — so an admin can add them to the correction map, and
+scripts/ops/audit_doctrine_data_quality.py:26:except Exception:  # pragma: no cover - allow running without backend on path
+backend/services/kg_algorithms.py:36:    except Exception:
+backend/services/kg_algorithms.py:69:                except Exception as _e:
+backend/services/kg_algorithms.py:85:    except Exception as e:
+backend/services/kg_algorithms.py:113:                except Exception as _e:
+backend/services/kg_algorithms.py:131:    except Exception as e:
+backend/services/guru_brain/tone_extractor.py:37:    phrasing_dna: list[str] = field(default_factory=list)  # Key signature phrases
+backend/services/guru_brain/tone_extractor.py:53:        self, text: str, default_guru: str = "preethaji"
+backend/services/guru_brain/tone_extractor.py:122:        default_guru: str = "combined",
+backend/services/guru_brain/tone_extractor.py:131:                    transcript_text, source_id, default_guru
+backend/services/guru_brain/tone_extractor.py:135:            except Exception as exc:
+backend/services/guru_brain/tone_extractor.py:140:        # Deterministic speaker diarization fallback: filter out interviewer and unknown segments
+backend/services/guru_brain/tone_extractor.py:141:        segments = self.rule_based_speaker_diarization(transcript_text, default_guru=default_guru)
+backend/services/guru_brain/tone_extractor.py:146:            fallback_guru = (
+backend/services/guru_brain/tone_extractor.py:147:                default_guru if default_guru in ("krishnaji", "preethaji") else "preethaji"
+backend/services/guru_brain/tone_extractor.py:149:            guru_segments = [{"speaker": fallback_guru, "text": c} for c in chunks]
+backend/services/guru_brain/tone_extractor.py:155:            guru_name = speaker if speaker in ("krishnaji", "preethaji") else default_guru
+backend/services/guru_brain/tone_extractor.py:206:        default_guru: str,
+backend/services/guru_brain/tone_extractor.py:262:                            guru_name=item.get("guru_name", default_guru),
+backend/services/guru_brain/tone_extractor.py:263:                            speaker_role=item.get("guru_name", default_guru),
+backend/services/guru_brain/tone_extractor.py:278:            except Exception as chunk_exc:
+backend/services/guru_brain/guru_kg_service.py:106:            except Exception as exc:
+backend/services/guru_brain/guru_kg_service.py:108:                    f"GuruKGService: Neo4j Cypher write failed ({exc}), stored in graph memory fallback."
+backend/services/guru_brain/guru_kg_service.py:145:        except Exception as exc:
+backend/services/guru_brain/guru_kg_service.py:183:            except Exception as exc:
+scripts/ingestion/retry_failed_videos.py:49:        except Exception as e:
+backend/services/guru_brain/guru_brain_service.py:138:        except Exception as exc:
+backend/services/guru_brain/guru_brain_service.py:151:            logger.info(f"GuruBrainService: Stored {len(exemplars)} exemplars in memory fallback.")
+backend/services/guru_brain/guru_brain_service.py:181:            except Exception as exc:
+backend/services/guru_brain/guru_brain_service.py:196:            except Exception as exc:
+backend/services/guru_brain/guru_brain_service.py:270:            except Exception as exc:
+backend/services/guru_brain/guru_brain_service.py:272:                    f"GuruBrainService: Qdrant search failed ({exc}), using memory fallback."
+backend/services/guru_brain/guru_brain_service.py:358:    except Exception as _e:
+supabase/migrations/20260601050554_d184ca2a-1755-4713-9b5a-6572499cdf09.sql:14:-- DROP POLICY IF EXISTS "realtime_admin_topics" ON realtime.messages;
+supabase/migrations/20260601050554_d184ca2a-1755-4713-9b5a-6572499cdf09.sql:40:-- Admins can subscribe to admin-scoped topics (prefix 'admin:')
+supabase/migrations/20260601050554_d184ca2a-1755-4713-9b5a-6572499cdf09.sql:41:CREATE POLICY "realtime_admin_topics"
+supabase/migrations/20260601050554_d184ca2a-1755-4713-9b5a-6572499cdf09.sql:46:  realtime.topic() LIKE 'admin:%'
+supabase/migrations/20260601050554_d184ca2a-1755-4713-9b5a-6572499cdf09.sql:47:  AND public.has_role(auth.uid(), 'admin'::public.app_role)
+scripts/translate_locales.py:16:def load_env_fallback():
+scripts/translate_locales.py:37:    load_env_fallback()
+scripts/translate_locales.py:76:def is_english_fallback(en_val: str, tgt_val: str) -> bool:
+scripts/translate_locales.py:78:    Checks if a target value is an English fallback.
+scripts/translate_locales.py:244:        pass
+scripts/translate_locales.py:248:    Scans locale files for errors (missing, superfluous, corrupted, fallback, placeholder mismatch).
+scripts/translate_locales.py:270:        except Exception as e:
+scripts/translate_locales.py:299:            # 2. English fallback check
+scripts/translate_locales.py:300:            if is_english_fallback(en_val, tgt_val):
+scripts/translate_locales.py:301:                lang_errors.append(f"Key '{k}' is a direct English fallback: '{tgt_val}'")
+scripts/translate_locales.py:345:                except Exception as e:
+scripts/translate_locales.py:360:                elif is_english_fallback(en_val, tgt_flat[k]):
+scripts/translate_locales.py:419:    parser.add_argument("--lang", default="hi,te,kn,ta,mr", help="Comma-separated target languages to process (e.g. hi,te).")
+scripts/translate_locales.py:420:    parser.add_argument("--limit", type=int, default=0, help="Limit the number of translated keys per language (0 means no limit).")
+scripts/translate_locales.py:421:    parser.add_argument("--locales-dir", default="src/locales", help="Directory containing the json locale files.")
+scripts/translate_locales.py:432:            logger.info("Validation PASS: No missing, superfluous, fallback, corrupted, or placeholder mismatch errors detected.")
+scripts/test_one_question.py:31:        is_benchmark=True,
+scripts/as_translations_part2.py:83:    t["landing.demo.newHere"] = "ইয়াত নতুন নেকি?"
+scripts/as_translations_part2.py:84:    t["landing.demo.tourAria"] = "তিনটা সহজ পদক্ষেপত AskMukthiGuru কেনেদৰে কাম কৰে চাওক"
+scripts/as_translations_part2.py:85:    t["landing.demo.closeTourAria"] = "ট্যুৰ বন্ধ কৰক"
+scripts/as_translations_part2.py:301:    t["nav.admin"] = "এডমিন"
+scripts/ingestion/ingest_youtube_seeds.py:36:# Original 4 core video IDs (keep as individual fallbacks)
+scripts/ingestion/ingest_youtube_seeds.py:72:    except Exception as e:
+scripts/ingestion/ingest_youtube_seeds.py:95:    except Exception as e:
+scripts/ingestion/ingest_youtube_seeds.py:107:    # Set environment defaults
+scripts/ingestion/ingest_youtube_seeds.py:108:    os.environ.setdefault("LLM_PROVIDER", "ollama")
+scripts/capture_dark_screens_sync.py:22:        localStorage.setItem('demo_mode', 'true');
+scripts/capture_dark_screens_sync.py:34:            {"name": "screen_01_hero", "path": "/?demo=true", "scroll": 0, "desc": "Landing Hero in Dark Sanctuary Mode"},
+scripts/capture_dark_screens_sync.py:35:            {"name": "screen_02_how_it_works", "path": "/?demo=true", "scroll": 1050, "desc": "How It Works 4-Step Flow in Dark Mode"},
+scripts/capture_dark_screens_sync.py:36:            {"name": "screen_03_auth", "path": "/auth?demo=true", "scroll": 0, "desc": "Sign-In Page with Google Login in Dark Mode"},
+scripts/capture_dark_screens_sync.py:37:            {"name": "screen_04_chat", "path": "/chat?demo=true", "scroll": 0, "desc": "Grounded RAG Chat Interface in Dark Mode (No Tour Modal)"},
+scripts/capture_dark_screens_sync.py:38:            {"name": "screen_05_serene_mind", "path": "/chat?modal=serene-mind&demo=true", "scroll": 0, "desc": "Serene Mind Guided Meditation Modal in Dark Mode"},
+scripts/capture_dark_screens_sync.py:39:            {"name": "screen_06_notebook", "path": "/notebooks?demo=true", "scroll": 0, "desc": "Encrypted Study Notebook in Dark Mode"},
+scripts/capture_dark_screens_sync.py:40:            {"name": "screen_07_kg", "path": "/knowledge-graph?demo=true", "scroll": 0, "desc": "7,601-Node Interactive Wisdom Map in Dark Mode"},
+scripts/capture_dark_screens_sync.py:41:            {"name": "screen_08_profile", "path": "/profile?tab=profile&demo=true", "scroll": 0, "desc": "Profile & 14 Languages Selector in Dark Mode"},
+scripts/capture_dark_screens_sync.py:42:            {"name": "screen_09_memory_vault", "path": "/profile?tab=memory&demo=true", "scroll": 0, "desc": "Second Brain Vault & Memory Manager in Dark Mode"},
+scripts/capture_dark_screens_sync.py:43:            {"name": "screen_10_privacy", "path": "/profile?tab=privacy&demo=true", "scroll": 0, "desc": "Privacy & GDPR Right to Forget in Dark Mode"},
+scripts/capture_dark_screens_sync.py:49:            url = "http://localhost:8080" + item["path"]
+scripts/ingestion/1_fetch_transcripts_local.py:185:        except Exception as e:
+scripts/ingestion/1_fetch_transcripts_local.py:210:    except Exception as e:
+scripts/ingestion/1_fetch_transcripts_local.py:219:    except Exception:
+scripts/ingestion/1_fetch_transcripts_local.py:220:        pass
+scripts/ingestion/1_fetch_transcripts_local.py:228:    except Exception:
+scripts/ingestion/1_fetch_transcripts_local.py:229:        pass
+scripts/ingestion/1_fetch_transcripts_local.py:244:    except Exception:
+scripts/ingestion/1_fetch_transcripts_local.py:257:    except Exception:
+scripts/ingestion/1_fetch_transcripts_local.py:331:    except Exception:
+scripts/ingestion/1_fetch_transcripts_local.py:332:        pass
+scripts/ingestion/1_fetch_transcripts_local.py:365:        except Exception as e:
+scripts/ingestion/1_fetch_transcripts_local.py:377:            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+scripts/ingestion/1_fetch_transcripts_local.py:413:    except Exception as e:
+scripts/ingestion/1_fetch_transcripts_local.py:459:                model = WhisperModel(model_size, device="auto", compute_type="default")
+scripts/ingestion/1_fetch_transcripts_local.py:471:        except Exception as e:
+scripts/ingestion/1_fetch_transcripts_local.py:511:                model = WhisperModel(model_size, device="auto", compute_type="default")
+scripts/ingestion/1_fetch_transcripts_local.py:543:        except Exception as exc:
+scripts/ingestion/1_fetch_transcripts_local.py:555:def fetch_transcript(video_id: str, languages: list[str], enable_whisper_fallback: bool = False) -> tuple[Optional[str], str]:
+scripts/ingestion/1_fetch_transcripts_local.py:573:    if enable_whisper_fallback:
+scripts/ingestion/1_fetch_transcripts_local.py:621:    except Exception:
+scripts/ingestion/1_fetch_transcripts_local.py:622:        pass
+scripts/ingestion/1_fetch_transcripts_local.py:698:    enable_whisper_fallback: bool = False,
+scripts/ingestion/1_fetch_transcripts_local.py:719:        except Exception:
+scripts/ingestion/1_fetch_transcripts_local.py:725:            except Exception:
+scripts/ingestion/1_fetch_transcripts_local.py:726:                pass
+scripts/ingestion/1_fetch_transcripts_local.py:727:    except Exception:
+scripts/ingestion/1_fetch_transcripts_local.py:728:        pass
+scripts/ingestion/1_fetch_transcripts_local.py:786:            except Exception:
+scripts/ingestion/1_fetch_transcripts_local.py:787:                pass
+scripts/ingestion/1_fetch_transcripts_local.py:807:    if enable_whisper_fallback:
+scripts/ingestion/1_fetch_transcripts_local.py:852:        except Exception:
+scripts/ingestion/1_fetch_transcripts_local.py:853:            pass
+scripts/ingestion/1_fetch_transcripts_local.py:866:    enable_whisper_fallback: bool = False,
+scripts/ingestion/1_fetch_transcripts_local.py:872:        video, languages=languages, enable_whisper_fallback=enable_whisper_fallback,
+scripts/ingestion/1_fetch_transcripts_local.py:888:    enable_whisper_fallback: bool = False,
+scripts/ingestion/1_fetch_transcripts_local.py:916:        if process_video(video, languages, enable_whisper_fallback=enable_whisper_fallback):
+scripts/ingestion/1_fetch_transcripts_local.py:936:    """Execute the 11-fixture pilot benchmark set."""
+scripts/ingestion/1_fetch_transcripts_local.py:955:            mock_segments = []
+scripts/ingestion/1_fetch_transcripts_local.py:957:                mock_segments = [
+scripts/ingestion/1_fetch_transcripts_local.py:958:                    CanonicalSegment(segment_id="seg_0001", start=10.0, end=15.0, text="First line.", source_tier="pilot_mock"),
+scripts/ingestion/1_fetch_transcripts_local.py:959:                    CanonicalSegment(segment_id="seg_0002", start=5.0, end=8.0, text="Backwards jump.", source_tier="pilot_mock"),
+scripts/ingestion/1_fetch_transcripts_local.py:962:                mock_segments = [
+scripts/ingestion/1_fetch_transcripts_local.py:963:                    CanonicalSegment(segment_id="seg_0001", start=0.0, end=10.0, text="[Music]" if f_id == "music_sound_only" else "", source_tier="pilot_mock", is_non_speech=True)
+scripts/ingestion/1_fetch_transcripts_local.py:967:                mock_segments = []
+scripts/ingestion/1_fetch_transcripts_local.py:969:                mock_segments = [
+scripts/ingestion/1_fetch_transcripts_local.py:970:                    CanonicalSegment(segment_id="seg_0001", start=0.0, end=5.0, text="Om Shanti Om. Welcome to Ekam.", source_tier="pilot_mock")
+scripts/ingestion/1_fetch_transcripts_local.py:974:                video_id=v_id, tier="pilot_mock", language="en", filename="mock.json", content=json.dumps({"fixture": f_id})
+scripts/ingestion/1_fetch_transcripts_local.py:978:                segments=mock_segments,
+scripts/ingestion/1_fetch_transcripts_local.py:991:            # Corpus video (offline mock fallback if network restricted)
+scripts/ingestion/1_fetch_transcripts_local.py:992:            ok, state, m_hash = fetch_and_package_video({"video_id": v_id, "title": f"Corpus {v_id}"}, enable_whisper_fallback=True)
+scripts/ingestion/1_fetch_transcripts_local.py:996:                print(f"  ⚠️  {v_id}: real source unavailable; no mock transcript will be generated.")
+scripts/ingestion/1_fetch_transcripts_local.py:1024:    parser.add_argument("--url", help="Single video or playlist URL (default: all 20 PLAYLIST_URLS)")
+scripts/ingestion/1_fetch_transcripts_local.py:1026:    parser.add_argument("--pilot-only", action="store_true", help="Run the 11-fixture pilot benchmark set")
+scripts/ingestion/1_fetch_transcripts_local.py:1028:    parser.add_argument("--limit", type=int, default=None, help="Max videos to process (for testing)")
+scripts/ingestion/1_fetch_transcripts_local.py:1029:    parser.add_argument("--delay", type=float, default=0.75, help="Base seconds between videos (default 0.75)")
+scripts/ingestion/1_fetch_transcripts_local.py:1030:    parser.add_argument("--enable-whisper-fallback", action="store_true", help="Download audio and use local Whisper for videos without captions")
+scripts/ingestion/1_fetch_transcripts_local.py:1031:    parser.add_argument("--whisper-model", default="small", help="Whisper model size: tiny, base, small, medium, large-v3")
+scripts/ingestion/1_fetch_transcripts_local.py:1049:            except Exception as exc:
+scripts/ingestion/1_fetch_transcripts_local.py:1052:        ok = process_video(video_info, enable_whisper_fallback=args.enable_whisper_fallback, whisper_model=args.whisper_model)
+scripts/ingestion/1_fetch_transcripts_local.py:1066:                enable_whisper_fallback=args.enable_whisper_fallback,
+scripts/ingestion/1_fetch_transcripts_local.py:1079:                if process_video(video, DEFAULT_LANGUAGES, enable_whisper_fallback=args.enable_whisper_fallback):
+scripts/i18n_extract.py:84:    "admin/pages/AdminLoginPage.tsx",
+scripts/i18n_extract.py:85:    "admin/layout/AdminShell.tsx",
+scripts/i18n_extract.py:86:    "admin/layout/AdminTopbar.tsx",
+scripts/i18n_extract.py:87:    "admin/components/EmptyState.tsx",
+scripts/i18n_extract.py:88:    "admin/components/AdminPageStates.tsx",
+scripts/i18n_extract.py:89:    "admin/components/AdminErrorBoundary.tsx",
+scripts/as_translations_part1.py:5:- admin (25)
+scripts/as_translations_part1.py:29:    # --- admin (25) ---
+scripts/as_translations_part1.py:30:    t["admin.dashboard"] = "ডেশ্বব'ৰ্ড"
+scripts/as_translations_part1.py:31:    t["admin.overview"] = "অৱলোকন"
+scripts/as_translations_part1.py:32:    t["admin.queries"] = "অনুসন্ধানসমূহ"
+scripts/as_translations_part1.py:33:    t["admin.retrieval"] = "তথ্য পুনৰুদ্ধাৰ"
+scripts/as_translations_part1.py:34:    t["admin.quality"] = "গুণগত মান"
+scripts/as_translations_part1.py:35:    t["admin.teachingTips"] = "শিক্ষা পৰামৰ্শ"
+scripts/as_translations_part1.py:36:    t["admin.dailyTeaching"] = "দৈনিক শিক্ষা"
+scripts/as_translations_part1.py:37:    t["admin.triggers"] = "ট্ৰিগাৰসমূহ"
+scripts/as_translations_part1.py:38:    t["admin.topics"] = "বিষয়সমূহ"
+scripts/as_translations_part1.py:39:    t["admin.prompts"] = "প্ৰম্পটসমূহ"
+scripts/as_translations_part1.py:40:    t["admin.evals"] = "মূল্যায়ন"
+scripts/as_translations_part1.py:41:    t["admin.ingestion"] = "তথ্য অন্তৰ্ভুক্তি"
+scripts/as_translations_part1.py:42:    t["admin.logs"] = "লগসমূহ"
+scripts/as_translations_part1.py:43:    t["admin.telemetry"] = "টেলিমেট্ৰী"
+scripts/as_translations_part1.py:44:    t["admin.monitoring"] = "নিৰীক্ষণ"
+scripts/as_translations_part1.py:45:    t["admin.alerts"] = "সতৰ্কবাণীসমূহ"
+scripts/as_translations_part1.py:46:    t["admin.settings"] = "ছেটিংছ"
+scripts/as_translations_part1.py:47:    t["admin.admins"] = "প্ৰশাসকসকল"
+scripts/as_translations_part1.py:48:    t["admin.feedback"] = "মতামত"
+scripts/as_translations_part1.py:49:    t["admin.okfManager"] = "OKF ব্যৱস্থাপক"
+scripts/as_translations_part1.py:50:    t["admin.jobs"] = "কাৰ্য্যসমূহ"
+scripts/as_translations_part1.py:51:    t["admin.ragFlow"] = "RAG প্ৰৱাহ"
+scripts/as_translations_part1.py:52:    t["admin.login"] = "প্ৰশাসক লগইন"
+scripts/as_translations_part1.py:53:    t["admin.loginTitle"] = "প্ৰশাসক পেনেলত ছাইন ইন কৰক"
+scripts/as_translations_part1.py:54:    t["admin.unauthorized"] = "আপোনাৰ এই স্থানত প্ৰৱেশৰ অনুমতি নাই।"
+scripts/cleanup_prompt_leaks.py:28:    pass
+scripts/cleanup_prompt_leaks.py:187:        except Exception as exc:
+scripts/cleanup_prompt_leaks.py:204:        except Exception as exc:
+scripts/cleanup_prompt_leaks.py:221:    parser.add_argument("--max", type=int, default=None,
+scripts/cleanup_prompt_leaks.py:222:                        help="Cap number of points scanned (default: all)")
+src/lib/greeting.ts:16: *   • "return_new_day"   — user is back on a different calendar day (default)
+src/lib/greeting.ts:80: * @param date    Date used for time-of-day and rotation (defaults to now).
+src/lib/practicesContent.ts:53:      'Read: Receive today\'s teaching, or the fallback reflection prompt.',
+src/lib/practicesContent.ts:187:  // Helper: read an i18n key, returning the *same* fallback string when the key
+src/lib/practicesContent.ts:190:  const pick = (key: string, fallback: string): string => {
+src/lib/practicesContent.ts:192:    if (typeof value !== 'string' || value === key) return fallback;
+src/lib/practicesContent.ts:196:  const pickList = (key: string, fallback: string[]): string[] => {
+src/lib/practicesContent.ts:199:    if (Array.isArray(value) && value.length === fallback.length) {
+src/lib/practicesContent.ts:204:        `[i18n] Translation key "${key}" returned array of length ${value.length}, expected ${fallback.length}. Falling back to English.`,
+src/lib/practicesContent.ts:207:    return fallback;
+src/lib/authTelemetry.ts:212:  perStep: Array<{ name: AuthStepName; avgMs: number; p95Ms: number; errorRate: number; samples: number }>;
+src/lib/authTelemetry.ts:240:    const samples = b.durations.length + b.errors;
+src/lib/authTelemetry.ts:245:      errorRate: samples ? b.errors / samples : 0,
+src/lib/authTelemetry.ts:246:      samples,
+src/lib/lazyWithRetry.ts:13:  factory: () => Promise<{ default: T }>
+src/lib/lazyWithRetry.ts:24:        return new Promise<{ default: T }>(() => {}); // reload takes over
+src/lib/lazyWithRetry.ts:37:  factory: () => Promise<{ default: T }>
+src/lib/chatStorage.ts:119:// wiped by the "corrupted conversations — clearing" fallback below.
+src/lib/chatStorage.ts:261:  } catch { /* storage is unavailable; use the documented safe default */ }
+src/lib/chatStorage.ts:265:/** Read the user-configured retention window in days (default: 90). */
+src/lib/chatStorage.ts:271:  } catch { /* storage is unavailable; use the documented safe default */ }
+src/lib/chatStorage.ts:292:  } catch { /* storage is unavailable; use the documented safe default */ }
+src/lib/featureFlags.ts:2:const enabled = (value: unknown, fallback = true): boolean => {
+src/lib/featureFlags.ts:3:  if (value === undefined || value === null || value === '') return fallback;
+src/lib/profileStorage.ts:103:/** Shared sentinel for the default display name — used to detect un-seeded profiles. */
+src/lib/profileStorage.ts:233:    void import('@/i18n').then(({ default: i18n }) => {
+src/lib/profileStorage.ts:324:      // ONLY overwrite if the local language is 'en' (default) or matches the server language,
+scripts/ops/multi_user_load_test.py:125:                pass
+scripts/ops/multi_user_load_test.py:147:        "--base-url", default="https://askmukthiguru-8119b0e8-production.up.railway.app"
+scripts/ops/multi_user_load_test.py:149:    parser.add_argument("--users", type=int, default=8)
+scripts/ops/multi_user_load_test.py:150:    parser.add_argument("--workers", type=int, default=4)
+scripts/ops/multi_user_load_test.py:151:    parser.add_argument("--health-requests", type=int, default=20)
+scripts/ops/multi_user_load_test.py:152:    parser.add_argument("--chat-requests", type=int, default=8)
+src/lib/backendUrl.ts:7: *   3. Empty string — callers fall back to relative /api or dev localhost.
+src/lib/backendUrl.ts:20: *  previews, localhost) must NOT resolve to the prod backend. */
+src/lib/backendUrl.ts:59:/** For dev tools that need a local fallback (e.g. useStudyNotebooks).
+src/lib/backendUrl.ts:60: * In production, BACKEND_URL is always set (Railway), so the localhost
+src/lib/backendUrl.ts:61: * fallback is dev-only — Vite tree-shakes it from the production bundle. */
+src/lib/backendUrl.ts:63:  BACKEND_URL || (import.meta.env.DEV ? 'http://localhost:8000' : '');
+scripts/ops/flush_cache.py:56:    except Exception as exc:
+scripts/ops/flush_cache.py:59:            results.setdefault(name, f"error: {exc}")
+scripts/ops/flush_cache.py:92:    except Exception as exc:
+scripts/ops/flush_cache.py:105:    except Exception as exc:
+src/lib/sarvamVoices.ts:11:  { id: 'shubh', label: 'Shubh', gender: 'male', hint: 'Clear, default' },
+scripts/ops/stream_chat_probe.py:13:        "--base-url", default="https://askmukthiguru-8119b0e8-production.up.railway.app"
+scripts/ops/stream_chat_probe.py:17:        default="What is one evidence-based benefit of mindfulness, and what remains uncertain?",
+src/lib/chat/config.ts:6://   2. Production Railway backend (hardcoded fallback for Lovable prod deploys)
+src/lib/chat/transport.ts:34:  } catch { /* fallback */ }
+src/lib/chat/transport.ts:362:  // Final fallback: no provider matched or unreachable code path.
+src/lib/chat/transport.ts:406:  const fallback = firstUserMessage.trim().slice(0, 48);
+src/lib/chat/transport.ts:407:  if (!fallback) return 'New conversation';
+src/lib/chat/transport.ts:430:      if (!response.ok) return fallback;
+src/lib/chat/transport.ts:432:      const title = (data.title || fallback)
+src/lib/chat/transport.ts:436:      return title.length > 60 ? `${title.slice(0, 57)}...` : title || fallback;
+src/lib/chat/transport.ts:441:      return fallback;
+src/lib/chat/transport.ts:445:  return fallback;
+src/lib/chat/types.ts:154:  /** Teachings-infused custom meditation steps (alternative to default Serene Mind) */
+src/lib/chat/streaming.ts:188:  // Guard against Vite/SPA HTML fallback (when backend isn't running, the dev
+src/lib/sentry.ts:7: *  (localhost inside Capacitor) must report too. */
+backend/services/guru_brain/persona_discriminator.py:143:                "PersonaDiscriminator: judge LLM timed out after 8s, using heuristic fallback."
+backend/services/guru_brain/persona_discriminator.py:145:        except Exception as exc:
+backend/services/guru_brain/persona_discriminator.py:147:                f"PersonaDiscriminator: evaluation error ({exc}), using heuristic fallback."
+backend/services/guru_brain/persona_discriminator.py:153:        """Deterministic fallback scoring using expanded cliché list."""
+src/hooks/useMetrics.ts:39:/** Backend serializes `UserMetrics` with snake_case keys (pydantic default);
+backend/services/llm_factory.py:79:def _register_default_providers() -> None:
+backend/services/llm_factory.py:110:_register_default_providers()
+src/hooks/useNotes.ts:27: * Falls back to empty list when not signed in (no localStorage fallback by design;
+backend/services/sarvam_failover.py:19:    Wraps a primary LLM service (e.g. SarvamCloudService) with Krutrim fallback.
+backend/services/sarvam_failover.py:34:        except Exception as exc:
+backend/services/sarvam_failover.py:35:            logger.warning(f"Primary LLM service failed: {exc}. Trying Krutrim fallback...")
+backend/services/sarvam_failover.py:48:        except Exception as exc:
+backend/services/sarvam_failover.py:50:                f"Primary LLM streaming failed: {exc}. Trying Krutrim non-streaming fallback..."
+src/hooks/useTextToSpeech.ts:118:    const fallbackVoice = voices.find((voice) => voice.lang.startsWith('en'));
+src/hooks/useTextToSpeech.ts:119:    setCurrentVoice(fallbackVoice || voices[0] || null);
+src/hooks/useTextToSpeech.ts:199:      // Sarvam neural TTS is the default for all languages.
+backend/services/doctrine_terms.py:22:fall back to the code defaults and never crash ingestion. ``reload()`` drops the TTL cache so admin
+backend/services/doctrine_terms.py:294:def _load_admin_overrides() -> dict[str, list[str]]:
+backend/services/doctrine_terms.py:310:    except Exception as exc:  # missing table, Supabase down, no client — fall back to defaults
+backend/services/doctrine_terms.py:311:        logger.debug("doctrine_terms: no admin overrides (%s); using code defaults", exc)
+backend/services/doctrine_terms.py:338:    """DEFAULTS merged with admin overrides (DB wins), TTL-cached. Never raises."""
+backend/services/doctrine_terms.py:344:    for canonical, variants in _load_admin_overrides().items():
+backend/services/doctrine_terms.py:354:    """Drop the cache so the next call reflects admin edits (hot-reload)."""
+backend/services/doctrine_terms.py:486:    except Exception as _lex_err:
+src/hooks/useAutoTranslate.ts:11: *    (optional, off by default — user must opt-in via `autoTranslateResponse`)
+scripts/ingestion/smart_extract_and_ingest.py:11:    export OLLAMA_API_BASE="http://localhost:11434"
+scripts/ingestion/smart_extract_and_ingest.py:646:    # 2. Get structure — prefer hand-verified, fallback to programmatic
+scripts/ingestion/smart_extract_and_ingest.py:738:        default=None,
+scripts/ingestion/run_pageindex.py:18:        "--model", type=str, default=None, help="Model to use (overrides config.yaml)"
+scripts/ingestion/run_pageindex.py:24:        default=None,
+scripts/ingestion/run_pageindex.py:30:        default=None,
+scripts/ingestion/run_pageindex.py:36:        default=None,
+scripts/ingestion/run_pageindex.py:43:        default=None,
+scripts/ingestion/run_pageindex.py:49:        default=None,
+scripts/ingestion/run_pageindex.py:55:        default=None,
+scripts/ingestion/run_pageindex.py:61:        default=None,
+scripts/ingestion/run_pageindex.py:69:        default="no",
+scripts/ingestion/run_pageindex.py:75:        default=5000,
+scripts/ingestion/run_pageindex.py:81:        default=200,
+scripts/ingestion/run_pageindex.py:140:        # Use ConfigLoader to get consistent defaults (matching PDF behavior)
+scripts/ingestion/run_pageindex.py:154:        # Load config with defaults from config.yaml
+backend/services/doctrine_lexicon.py:23:**every** gate passes, and the default at each gate is to do nothing:
+backend/services/doctrine_lexicon.py:43:from collections import defaultdict
+backend/services/doctrine_lexicon.py:136:    counts: dict[str, int] = field(default_factory=dict)
+backend/services/doctrine_lexicon.py:214:        self._index: dict[str, list[str]] = defaultdict(list)
+backend/services/doctrine_lexicon.py:293:        # errors. Correcting them is how a 4,000-chunk sample produced
+backend/services/doctrine_lexicon.py:385:        # Pass the path explicitly: `load`'s default argument binds LEXICON_PATH at
+backend/services/doctrine_lexicon.py:401:    except Exception as exc:  # corrupt JSON, missing rapidfuzz/jellyfish
+backend/services/doctrine_lexicon.py:446:    vocabulary: dict[str, int] = defaultdict(int)
+backend/services/doctrine_lexicon.py:447:    proper_nouns: dict[str, int] = defaultdict(int)
+backend/services/doctrine_lexicon.py:451:    targets: dict[str, int] = defaultdict(int)
+backend/services/doctrine_lexicon.py:478:    corpus_freq: dict[str, int] = defaultdict(int)
+backend/services/doctrine_lexicon.py:479:    per_word_sources: dict[str, set] = defaultdict(set)
+backend/services/compliance_logger.py:103:    def start_session(self, tenant_id: str = "default", user_id: str = "") -> str:
+src/hooks/useSpeechRecognition.ts:290:              console.warn('[STT] Edge function failed, trying backend STT endpoint fallback:', edgeErr);
+supabase/functions/memory-extract/index.ts:29:const OLLAMA_CHAT_DEFAULT = "http://localhost:11434/v1/chat/completions";
+supabase/functions/memory-extract/index.ts:144:  const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
+supabase/functions/memory-extract/index.ts:169:      const { error } = await admin.from("guru_memories").insert({
+supabase/migrations/20260627130000_tenant_rls.sql:26:-- Each table gets a tenant_id column defaulting to 'default' for legacy data.
+supabase/migrations/20260627130000_tenant_rls.sql:29:ALTER TABLE public.chat_queries ADD COLUMN IF NOT EXISTS tenant_id TEXT NOT NULL DEFAULT 'default';
+supabase/migrations/20260627130000_tenant_rls.sql:37:ALTER TABLE public.chat_responses ADD COLUMN IF NOT EXISTS tenant_id TEXT NOT NULL DEFAULT 'default';
+supabase/migrations/20260627130000_tenant_rls.sql:45:ALTER TABLE public.retrieval_events ADD COLUMN IF NOT EXISTS tenant_id TEXT NOT NULL DEFAULT 'default';
+supabase/migrations/20260627130000_tenant_rls.sql:53:ALTER TABLE public.guru_core_memory ADD COLUMN IF NOT EXISTS tenant_id TEXT NOT NULL DEFAULT 'default';
+supabase/migrations/20260627130000_tenant_rls.sql:61:ALTER TABLE public.guru_memories ADD COLUMN IF NOT EXISTS tenant_id TEXT NOT NULL DEFAULT 'default';
+supabase/migrations/20260627130000_tenant_rls.sql:69:ALTER TABLE public.guru_session_summaries ADD COLUMN IF NOT EXISTS tenant_id TEXT NOT NULL DEFAULT 'default';
+scripts/load_test.py:14:    locust -f ../scripts/load_test.py --host http://localhost:8000 --users 10 --spawn-rate 2
+scripts/load_test.py:17:    locust -f ../scripts/load_test.py --host http://localhost:8000 \
+scripts/load_test.py:214:        except Exception as exc:
+supabase/migrations/20260617000000_add_dashboard_indexes.sql:21:-- Add recommended indexes for admin dashboard & analytics performance
+supabase/migrations/20260617000000_add_dashboard_indexes.sql:25:-- chat_queries — session, user, and status lookups (admin queries, history)
+supabase/migrations/20260702150000_staging_quality_queue.sql:42:GRANT ALL ON public.staging_quality_queue TO service_role;
+scripts/apply_offline_translations_mr.py:4:# --- Full Marathi Translations mapping for all missing/fallback/corrupted keys (467 keys) ---
+scripts/apply_offline_translations_mr.py:86:    "MukthiGuru demo video": "मुक्तिगुरू डेमो व्हिडिओ",
+scripts/apply_offline_translations_mr.py:562:    def is_english_fallback(en_val, tgt_val):
+scripts/apply_offline_translations_mr.py:590:            if is_english_fallback(str(en_val), str(tgt_val)):
+supabase/migrations/20260823111223_f55630fb-e1d9-42d2-b8a3-a3066280fc94.sql:7:USING (public.has_role(auth.uid(), 'admin'::public.app_role));
+supabase/migrations/20260823111223_f55630fb-e1d9-42d2-b8a3-a3066280fc94.sql:9:REVOKE EXECUTE ON FUNCTION public.seed_admin_demo() FROM authenticated, anon, PUBLIC;
+supabase/migrations/20260823111223_f55630fb-e1d9-42d2-b8a3-a3066280fc94.sql:10:REVOKE EXECUTE ON FUNCTION public.promote_admin_by_email(text) FROM anon, PUBLIC;
+supabase/migrations/20260823111223_f55630fb-e1d9-42d2-b8a3-a3066280fc94.sql:11:REVOKE EXECUTE ON FUNCTION public.demote_admin_by_id(uuid) FROM anon, PUBLIC;
+supabase/migrations/20260823111223_f55630fb-e1d9-42d2-b8a3-a3066280fc94.sql:12:REVOKE EXECUTE ON FUNCTION public.list_admins() FROM anon, PUBLIC;
+scripts/apply_offline_translations_kn.py:155:    # and replace it with proper English fallback or translation if we can.
+scripts/apply_offline_translations_kn.py:222:        # If it's corrupted (contains Devanagari) or still identical to English fallback
+scripts/ops/ingest_playlists.py:27:        pass
+scripts/ops/ingest_playlists.py:72:    except Exception as exc:
+scripts/ops/ingest_playlists.py:121:                default_guru=guru_name,
+scripts/ops/ingest_playlists.py:137:        except Exception as exc:
+scripts/ops/ingest_playlists.py:155:        "sample_exemplars": [e.to_dict() for e in total_extracted_exemplars[:3]],
+supabase/migrations/20260621033728_d14bd1cf-bb63-485e-871d-455aa729d6b2.sql:36:GRANT ALL ON public.notes TO service_role;
+supabase/migrations/20260621033728_d14bd1cf-bb63-485e-871d-455aa729d6b2.sql:65:GRANT ALL ON public.assistants TO service_role;
+supabase/migrations/20260621033728_d14bd1cf-bb63-485e-871d-455aa729d6b2.sql:78:GRANT ALL ON public.assistant_access TO service_role;
+supabase/migrations/20260805000001_memory_outbox.sql:6:    tenant_id text NOT NULL DEFAULT 'default',
+supabase/migrations/20260805000001_memory_outbox.sql:20:    tenant_id text NOT NULL DEFAULT 'default',
+supabase/migrations/20260805000001_memory_outbox.sql:42:    tenant_id text NOT NULL DEFAULT 'default',
+supabase/migrations/20260805000001_memory_outbox.sql:112:GRANT EXECUTE ON FUNCTION public.claim_memory_outbox(text, integer) TO service_role;
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:3:askmukthiguru_ruthless_benchmark.py — CORRECTED Production Benchmark
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:7:This benchmark tests against VERIFIED public teachings of Sri Preethaji & Sri Krishnaji.
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1033:    details: list[str] = field(default_factory=list)
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1139:        host = parsed.host or "localhost"
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1149:            except Exception as e:
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1163:            except Exception as e:
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1281:            url = url.replace("host.docker.internal", "localhost")
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1285:def load_benchmark_secret() -> str | None:
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1286:    """Load the benchmark X-Test-Key secret (BENCHMARK_SECRET only).
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1288:    JWT_SECRET (the token-signing secret) must never be used as the benchmark
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1289:    bypass key — see backend/app/security_utils.py is_benchmark_request.
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1337:    except Exception as e:
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1362:    except Exception as e:
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1410:    except Exception as e:
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1453:    except Exception as e:
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2102:async def run_admin_telemetry(
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2105:    """Ported from test_admin_metrics_e2e.py — Verifies that queries appear in telemetry."""
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2119:            await page.goto(f"{frontend_url}/admin", wait_until="networkidle", timeout=30000)
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2125:                r = await client.get(f"{url}/api/admin/kpis", headers={"X-Test-Key": test_key})
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2129:                pass
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2134:                    category="admin_telemetry",
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2151:    except Exception as e:
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2154:                category="admin_telemetry",
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2392:    admin = [r for r in results if r.category == "admin_telemetry"]
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2393:    if admin:
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2394:        ok = [r for r in admin if r.status == 200]
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2396:        scores["admin"] = CategoryScore(
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2480:    print("  6. The benchmark cannot verify if your vector DB actually contains these teachings.")
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2486:        print("  • All categories passing. Note: passing benchmark ≠ perfect production readiness.")
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2548:    """Raised when pre-flight checks fail and benchmark cannot proceed."""
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2550:    pass
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2555:    Comprehensive pre-flight diagnostics before running the benchmark.
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2595:    except Exception as e:
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2630:        except Exception as e:
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2655:        except Exception as e:
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2687:        except Exception as e:
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2695:            res = await client.get("http://localhost:6333/collections", timeout=5.0)
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2705:                                f"http://localhost:6333/collections/{name}", timeout=5.0
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2714:                        except Exception:
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2715:                            pass
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2722:        except Exception as e:
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2752:        print("  ✅ All pre-flight checks passed. Ready to benchmark.\n")
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2782:            except Exception:
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2783:                pass
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2799:        print("   Fix the issue above and re-run the benchmark.")
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2828:            ("Admin Telemetry", run_admin_telemetry),
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2836:            except Exception as e:
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2872:            print("📤 Uploading benchmark run results to Supabase...")
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2877:            except Exception as e:
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2895:    p.add_argument("--url", default="http://localhost:8000")
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2896:    p.add_argument("--test-key", default=None)
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2898:    test_key = args.test_key or load_benchmark_secret()
+supabase/migrations/20260613180000_fix_memory_to_1024_dim.sql:24:--   - embedding_service default: BAAI/bge-m3
+scripts/benchmarks/production_end_to_end_benchmark.py:3:"""Production end-to-end benchmark for AskMukthiGuru.
+scripts/benchmarks/production_end_to_end_benchmark.py:28:from benchmarks.question_bank import QUERIES  # noqa: E402
+scripts/benchmarks/production_end_to_end_benchmark.py:314:                node_values.setdefault(name, []).append(float(value))
+scripts/benchmarks/production_end_to_end_benchmark.py:365:    parser.add_argument("output", nargs="?", default="/tmp/production_end_to_end_benchmark.json")
+scripts/benchmarks/production_end_to_end_benchmark.py:367:    parser.add_argument("--max-cases", type=int, default=0)
+scripts/benchmarks/production_end_to_end_benchmark.py:368:    parser.add_argument("--concurrency", type=int, default=2)
+scripts/benchmarks/production_end_to_end_benchmark.py:369:    parser.add_argument("--timeout", type=float, default=180.0)
+scripts/generate_edge_tts_samples.py:14:output_dir = "artifacts/video-review/audio/voice_samples"
+scripts/generate_edge_tts_samples.py:20:        print(f"Generating voice sample for {voice} -> {out_path}...")
+scripts/generate_edge_tts_samples.py:23:    print("All audio samples generated successfully!")
+scripts/benchmarks/load_test.py:6:to benchmark TTFT (Time-to-First-Token) and completion latencies.
+scripts/benchmarks/load_test.py:33:    benchmark_secret = os.getenv("BENCHMARK_SECRET")
+scripts/benchmarks/load_test.py:35:    if benchmark_secret:
+scripts/benchmarks/load_test.py:36:        headers["X-Test-Key"] = benchmark_secret
+scripts/benchmarks/load_test.py:76:    except Exception as e:
+scripts/benchmarks/load_test.py:105:    parser.add_argument("--url", default="http://localhost:8000", help="Backend base URL")
+scripts/benchmarks/load_test.py:106:    parser.add_argument("--concurrent", type=int, default=5, help="Number of concurrent users")
+scripts/benchmarks/load_test.py:107:    parser.add_argument("--duration", type=int, default=15, help="Test duration in seconds")
+scripts/generate_ml_locale.py:40:        "admin": part1["admin"],
+scripts/build_as_locale.py:151:    "admin": "এডমিন",
+scripts/build_as_locale.py:180:    "demo": {
+scripts/whatsapp_webhook.py:26:# Configuration (loaded from environment or defaults)
+scripts/whatsapp_webhook.py:27:BACKEND_URL = os.getenv('BACKEND_URL', 'http://localhost:8000')
+scripts/whatsapp_webhook.py:199:    except Exception as e:
+scripts/whatsapp_webhook.py:325:            except Exception:
+scripts/whatsapp_webhook.py:326:                pass
+scripts/whatsapp_webhook.py:343:            except Exception:
+scripts/whatsapp_webhook.py:344:                pass
+scripts/whatsapp_webhook.py:346:    except Exception as e:
+scripts/whatsapp_webhook.py:361:            except Exception:
+scripts/whatsapp_webhook.py:362:                pass
+scripts/whatsapp_webhook.py:370:    app.run(host='0.0.0.0', port=PORT)
+scripts/generate_sa_json.py:157:        "admin": "प्रशासकः",
+scripts/generate_sa_json.py:239:        "demo": {
+scripts/generate_sa_json.py:666:    # 12. admin (25 keys)
+scripts/generate_sa_json.py:667:    sa["admin"] = {
+scripts/generate_sa_json.py:685:        "admins": "प्रशासकाः",
+scripts/verify_multilingual.py:5:    cd backend && python scripts/verify_multilingual.py [--base-url http://localhost:8000]
+scripts/verify_multilingual.py:31:BASE_URL = "http://localhost:8000"
+scripts/verify_multilingual.py:187:    except Exception as e:
+scripts/verify_multilingual.py:323:    parser.add_argument("--base-url", default=BASE_URL, help="Backend base URL")
+supabase/migrations/20260814070623_6b7e3af1-d5c1-4791-a5de-b5887f2ad05e.sql:14:GRANT ALL ON public.doctrine_faqs TO service_role;
+supabase/migrations/20260814070623_6b7e3af1-d5c1-4791-a5de-b5887f2ad05e.sql:27:  USING (public.has_role(auth.uid(), 'admin'::public.app_role))
+supabase/migrations/20260814070623_6b7e3af1-d5c1-4791-a5de-b5887f2ad05e.sql:28:  WITH CHECK (public.has_role(auth.uid(), 'admin'::public.app_role));
+supabase/migrations/20260715010000_fix_prompt_versions_and_app_settings.sql:50:GRANT ALL ON public.app_settings TO service_role;
+scripts/ops/heal_neo4j_poison.py:71:NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
+scripts/ops/heal_neo4j_poison.py:78:# Auto-fallback: when running outside Docker the hostname "neo4j" won't resolve.
+scripts/ops/heal_neo4j_poison.py:79:# Replace it with localhost (the port is forwarded by docker-compose).
+scripts/ops/heal_neo4j_poison.py:85:        NEO4J_URI = NEO4J_URI.replace("neo4j:7687", "localhost:7687")
+scripts/ops/heal_neo4j_poison.py:86:        print(f"  ⚠️  'neo4j' hostname not resolvable — using localhost:7687 instead")
+scripts/ops/heal_neo4j_poison.py:195:    except Exception as e:
+scripts/ops/heal_neo4j_poison.py:218:    except Exception as e:
+scripts/ops/heal_neo4j_poison.py:252:        json.dump(backup_data, f, indent=2, default=str)
+scripts/ops/heal_neo4j_poison.py:322:        default=None,
+scripts/ops/backfill_qdrant_scope.py:4:Dry-run by default. Use --apply only after inspecting the reported count and
+scripts/ops/backfill_qdrant_scope.py:41:    parser.add_argument("--apply", action="store_true", help="Persist inferred default scope values")
+scripts/ops/backfill_qdrant_scope.py:42:    parser.add_argument("--url", default=os.environ.get("QDRANT_URL", "http://localhost:6333"))
+scripts/ops/backfill_qdrant_scope.py:43:    parser.add_argument("--api-key", default=os.environ.get("QDRANT_API_KEY"))
+scripts/ops/backfill_qdrant_scope.py:44:    parser.add_argument("--collection", default=os.environ.get("QDRANT_COLLECTION", "mukthi_guru_knowledge"))
+scripts/ops/backfill_qdrant_scope.py:45:    parser.add_argument("--tenant-id", default="default")
+scripts/ops/backfill_qdrant_scope.py:46:    parser.add_argument("--corpus-id", default=os.environ.get("DEFAULT_CORPUS_ID", "askmukthiguru"))
+scripts/ops/backfill_qdrant_scope.py:53:        print("Dry run only. Re-run with --apply after validating the defaults.")
+scripts/ops/backfill_qdrant_scope.py:64:    print(f"Applied scope defaults to {len(points)} point(s).")
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:2:-- REVERT: Regression-hardening only: PostgreSQL already defaults WITH CHECK to USING,
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:22:-- Empirically verified 2026-08-04 that PostgreSQL defaults WITH CHECK to the
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:114:-- ============ 4 admin FOR ALL policies (20260711000000_enable_rls_on_all_tables.sql) ============
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:115:-- Predicate: public.has_role(auth.uid(), 'admin'::public.app_role). There is
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:116:-- no admin_users table; has_role is the single admin gate.
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:120:  USING (public.has_role(auth.uid(), 'admin'::public.app_role))
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:121:  WITH CHECK (public.has_role(auth.uid(), 'admin'::public.app_role));
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:126:  USING (public.has_role(auth.uid(), 'admin'::public.app_role))
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:127:  WITH CHECK (public.has_role(auth.uid(), 'admin'::public.app_role));
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:132:  USING (public.has_role(auth.uid(), 'admin'::public.app_role))
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:133:  WITH CHECK (public.has_role(auth.uid(), 'admin'::public.app_role));
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:150:-- ============ communications admin FOR ALL (guarded — table created conditionally) ============
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:157:      USING (public.has_role(auth.uid(), 'admin'::public.app_role))
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:158:      WITH CHECK (public.has_role(auth.uid(), 'admin'::public.app_role));
+scripts/extract_okf_from_stores.py:5:synthesizes structured markdown entries → staging for admin review → compile.
+scripts/extract_okf_from_stores.py:315:    except Exception as exc:
+scripts/extract_okf_from_stores.py:361:    except Exception as exc:
+scripts/extract_okf_from_stores.py:387:    except Exception as exc:
+scripts/extract_okf_from_stores.py:401:            except Exception as exc:
+scripts/extract_okf_from_stores.py:403:    except Exception as exc:
+scripts/extract_okf_from_stores.py:414:    """Group Qdrant chunks by topic field (primary) or source_url (fallback)."""
+scripts/extract_okf_from_stores.py:475:        # Collect unique speakers, source URLs, and sample texts
+scripts/extract_okf_from_stores.py:615:    except Exception as exc:
+scripts/extract_okf_from_stores.py:632:    except Exception as exc:
+scripts/extract_okf_from_stores.py:635:    # Final fallback: Ollama (local — always available if ollama serve is running)
+scripts/extract_okf_from_stores.py:649:    except Exception as exc:
+scripts/extract_okf_from_stores.py:694:        logger.warning("Invalid type %r — defaulting to 'teaching'", frontmatter.get("type"))
+scripts/extract_okf_from_stores.py:802:        except Exception as exc:
+scripts/extract_okf_from_stores.py:813:        except Exception as exc:
+scripts/extract_okf_from_stores.py:833:    p.add_argument("--topic", default=None, help="Extract specific topic (e.g. 'beautiful state')")
+scripts/extract_okf_from_stores.py:834:    p.add_argument("--video-id", default=None, help="Extract from a specific YouTube video ID")
+scripts/extract_okf_from_stores.py:836:        "--limit", type=int, default=20, help="Max topic clusters to process (default: 20)"
+scripts/extract_okf_from_stores.py:849:        default=None,
+scripts/extract_okf_from_stores.py:850:        help="Max Qdrant chunks to scan (default: unlimited)",
+scripts/ops/backfill_qdrant_graph_links.py:4:``scripts/ingestion/corpus/``. It is dry-run by default, scoped to one tenant and
+scripts/ops/backfill_qdrant_graph_links.py:7:Use ``--apply`` only after reviewing the dry-run sample and collection scope.
+scripts/ops/backfill_qdrant_graph_links.py:82:            pass
+scripts/ops/backfill_qdrant_graph_links.py:178:    parser.add_argument("--apply", action="store_true", help="Persist payload patches; dry-run is the default")
+scripts/ops/backfill_qdrant_graph_links.py:180:    parser.add_argument("--url", default=os.environ.get("QDRANT_URL", "http://localhost:6333"))
+scripts/ops/backfill_qdrant_graph_links.py:181:    parser.add_argument("--api-key", default=os.environ.get("QDRANT_API_KEY"))
+scripts/ops/backfill_qdrant_graph_links.py:182:    parser.add_argument("--collection", default=os.environ.get("QDRANT_COLLECTION", "spiritual_wisdom"))
+scripts/ops/backfill_qdrant_graph_links.py:183:    parser.add_argument("--tenant-id", default=os.environ.get("DEFAULT_TENANT_ID", "default"))
+scripts/ops/backfill_qdrant_graph_links.py:184:    parser.add_argument("--corpus-id", default=os.environ.get("DEFAULT_CORPUS_ID", "askmukthiguru"))
+scripts/ops/backfill_qdrant_graph_links.py:185:    parser.add_argument("--ontology-version", default=DEFAULT_ONTOLOGY_VERSION)
+scripts/ops/backfill_qdrant_graph_links.py:186:    parser.add_argument("--page-size", type=int, default=128)
+scripts/ops/backfill_qdrant_graph_links.py:187:    parser.add_argument("--max-points", type=int, default=0)
+scripts/ops/backfill_qdrant_graph_links.py:188:    parser.add_argument("--state-file", default=DEFAULT_STATE_PATH)
+scripts/ops/backfill_qdrant_graph_links.py:189:    parser.add_argument("--lock-file", default=DEFAULT_LOCK_PATH)
+scripts/ops/backfill_qdrant_graph_links.py:213:        samples: List[Dict[str, Any]] = []
+scripts/ops/backfill_qdrant_graph_links.py:229:                if len(samples) < 10:
+scripts/ops/backfill_qdrant_graph_links.py:230:                    samples.append({"id": point.id, "entities": entities, "patch": patch})
+scripts/ops/backfill_qdrant_graph_links.py:262:            "samples": samples,
+scripts/ops/qdrant_backup.py:13:    QDRANT_URL              Qdrant base URL (default: http://localhost:6333)
+scripts/ops/qdrant_backup.py:15:    QDRANT_COLLECTION       Collection name (default: spiritual_wisdom)
+scripts/ops/qdrant_backup.py:16:    BACKUP_DIR              Local directory to store snapshots (default: ./backups/qdrant)
+scripts/ops/qdrant_backup.py:18:    S3_BACKUP_PREFIX        S3 key prefix (default: qdrant-snapshots)
+scripts/ops/qdrant_backup.py:19:    RETAIN_LOCAL_DAYS       Days to retain local snapshot files (default: 7)
+scripts/ops/qdrant_backup.py:20:    RETAIN_S3_DAYS          Days to retain S3 snapshots (default: 30)
+scripts/ops/qdrant_backup.py:49:        pass
+scripts/ops/qdrant_backup.py:54:QDRANT_URL: str = os.environ.get("QDRANT_URL", "http://localhost:6333").rstrip("/")
+scripts/ops/qdrant_backup.py:60:def _parse_retention_days(env_name: str, default: int) -> int:
+scripts/ops/qdrant_backup.py:66:    raw = os.environ.get(env_name, str(default))
+scripts/ops/qdrant_backup.py:93:_LOOPBACK_HOSTS = {"localhost", "127.0.0.1", "::1", "0.0.0.0"}
+scripts/ops/qdrant_backup.py:121:                "address (localhost/127.0.0.1/::1/0.0.0.0); refusing "
+scripts/ops/qdrant_backup.py:218:    except Exception as exc:
+scripts/ops/qdrant_backup.py:269:    except Exception as exc:
+scripts/ops/qdrant_backup.py:284:    except Exception as exc:
+scripts/ops/qdrant_backup.py:294:    except Exception as exc:
+scripts/ops/qdrant_backup.py:300:    except Exception as exc:
+scripts/ops/qdrant_backup.py:326:            except Exception as exc:
+scripts/ops/preflight_check.py:113:    except Exception as e:
+scripts/ops/preflight_check.py:147:    except Exception as e:
+scripts/ops/preflight_check.py:170:        default="all",
+scripts/ops/preflight_check.py:171:        help="Capability profile to check (default: all)",
+scripts/ops/consolidate_entities.py:7:- Run with dry-run by default.
+scripts/ops/consolidate_entities.py:14:from collections import defaultdict
+scripts/ops/consolidate_entities.py:17:NEO4J_URI   = os.getenv("NEO4J_URI", "bolt://localhost:7687")
+scripts/ops/consolidate_entities.py:57:    groups = defaultdict(list)
+scripts/ops/consolidate_entities.py:141:    parser.add_argument("--execute", action="store_true", help="Apply changes to the database (defaults to dry-run)")
+scripts/ops/consolidate_entities.py:167:    except Exception as e:
+scripts/ops/self_heal_data.py:11:QDRANT_URL  = os.getenv("QDRANT_URL", "http://localhost:6333")
+scripts/ops/self_heal_data.py:12:NEO4J_URI   = os.getenv("NEO4J_URI", "bolt://localhost:7687")
+scripts/ops/self_heal_data.py:60:    except Exception as e:
+scripts/ops/self_heal_data.py:99:    except Exception as e:
+scripts/ingestion/rectify_target_packages.py:56:        except Exception:
+scripts/ingestion/rectify_target_packages.py:57:            pass
+scripts/ingestion/rectify_target_packages.py:97:    except Exception as e:
+scripts/ingestion/rectify_target_packages.py:105:    # 1. Read original text from raw sources if possible, or fallback to current text
+scripts/ingestion/rectify_target_packages.py:162:        except Exception:
+scripts/ingestion/rectify_target_packages.py:229:        except Exception as e:
+scripts/ingestion/rectify_target_packages.py:243:            except Exception:
+scripts/ingestion/rectify_target_packages.py:294:            except Exception as e:
+scripts/ingestion/bulk_ingest_whisper.py:47:os.environ["QDRANT_URL"] = "http://localhost:6333"
+scripts/ingestion/bulk_ingest_whisper.py:48:os.environ["NEO4J_URI"] = "bolt://localhost:7687"
+scripts/ingestion/bulk_ingest_whisper.py:53:    f"redis://:{os.environ['REDIS_PASSWORD']}@localhost:6379/0"
+scripts/ingestion/bulk_ingest_whisper.py:55:os.environ["SUPABASE_URL"] = "http://localhost:54321"
+scripts/ingestion/bulk_ingest_whisper.py:78:# Dynamically bind to config-driven RAG_CHUNK_SIZE, defaulting to a safe 2000 characters (instead of 8000)
+scripts/ingestion/bulk_ingest_whisper.py:93:    When sentence boundary search moved 'end' close to 'start', the fallback
+scripts/ingestion/bulk_ingest_whisper.py:152:    except Exception as e:
+scripts/ingestion/bulk_ingest_whisper.py:182:            except Exception as e:
+scripts/ingestion/bulk_ingest_whisper.py:290:                except Exception:
+scripts/ingestion/bulk_ingest_whisper.py:291:                    pass
+scripts/ingestion/bulk_ingest_whisper.py:325:                except Exception:
+scripts/ingestion/bulk_ingest_whisper.py:326:                    pass
+scripts/ingestion/bulk_ingest_whisper.py:458:            logger.info("Using Chrome cookies-from-browser fallback")
+scripts/ingestion/bulk_ingest_whisper.py:467:    except Exception as e:
+scripts/ingestion/bulk_ingest_whisper.py:495:            except Exception as _ce:
+scripts/ingestion/bulk_ingest_whisper.py:496:                logger.debug(f"apply_corrections_with_ledger fallback: {_ce}")
+scripts/ingestion/bulk_ingest_whisper.py:498:    except Exception as e:
+scripts/ingestion/bulk_ingest_whisper.py:527:        default=0,
+scripts/ingestion/bulk_ingest_whisper.py:543:        default=0,
+scripts/ingestion/bulk_ingest_whisper.py:549:        default="",
+scripts/ingestion/bulk_ingest_whisper.py:560:        default="general",
+scripts/ingestion/bulk_ingest_whisper.py:561:        help="Comma-separated knowledge tags for ingested content (default: general)",
+scripts/ingestion/bulk_ingest_whisper.py:591:        except Exception as e:
+scripts/ingestion/bulk_ingest_whisper.py:656:                except Exception as e:
+scripts/ingestion/bulk_ingest_whisper.py:752:        except Exception as e:
+scripts/ingestion/bulk_ingest_whisper.py:894:                        except Exception as _ce:
+scripts/ingestion/bulk_ingest_whisper.py:923:            except Exception as e:
+backend/services/model_registry.py:43:      3. Krutrim API (cloud fallback)
+backend/services/model_registry.py:57:        # Build a lightweight fallback Ollama client for llama3.2:3b
+backend/services/model_registry.py:61:            self._fallback_llm = ChatOllama(
+backend/services/model_registry.py:68:            logger.info(f"ModelRegistry: fallback model ready ({_FALLBACK_OLLAMA_MODEL})")
+backend/services/model_registry.py:69:        except Exception as exc:
+backend/services/model_registry.py:70:            logger.warning(f"ModelRegistry: could not init fallback Ollama model: {exc}")
+backend/services/model_registry.py:71:            self._fallback_llm = None
+backend/services/model_registry.py:96:                f"Trying fallback Ollama ({_FALLBACK_OLLAMA_MODEL})..."
+backend/services/model_registry.py:98:        except Exception as exc:
+backend/services/model_registry.py:101:                f"Trying fallback Ollama ({_FALLBACK_OLLAMA_MODEL})..."
+backend/services/model_registry.py:105:        if self._fallback_llm:
+backend/services/model_registry.py:107:                result = await self._generate_with_fallback_llm(
+backend/services/model_registry.py:115:            except Exception as exc:
+backend/services/model_registry.py:127:            except Exception as exc:
+backend/services/model_registry.py:135:            f"{_FAILOVER_LOG_PREFIX} All LLM providers exhausted and no Krutrim fallback configured."
+backend/services/model_registry.py:138:    async def _generate_with_fallback_llm(
+backend/services/model_registry.py:145:        """Direct generation with the fallback ChatOllama instance."""
+backend/services/model_registry.py:158:        response = await asyncio.wait_for(self._fallback_llm.ainvoke(messages), timeout=timeout)
+backend/services/model_registry.py:168:        """Streaming generation with automatic failover to non-streaming fallback.
+backend/services/model_registry.py:191:            except Exception as fallback_exc:
+backend/services/model_registry.py:193:                    f"{_FAILOVER_LOG_PREFIX} Streaming + fallback both failed: {fallback_exc}"
+backend/services/model_registry.py:203:    def fallback_model(self) -> str:
+backend/services/model_registry.py:204:        """Return the name of the fallback Ollama model."""
+scripts/ingestion/ingestion_subagent.py:69:    issues: list[str] = field(default_factory=list)
+scripts/ingestion/ingestion_subagent.py:70:    warnings: list[str] = field(default_factory=list)
+scripts/ingestion/ingestion_subagent.py:72:    processed_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+scripts/ingestion/ingestion_subagent.py:113:            except Exception as e:
+scripts/ingestion/ingestion_subagent.py:149:                except Exception as e:
+scripts/ingestion/ingestion_subagent.py:161:            except Exception as e:
+scripts/ingestion/ingestion_subagent.py:315:    parser.add_argument("--corpus-root", default=str(REPO_ROOT / "scripts" / "ingestion" / "corpus"), help="Corpus root directory")
+backend/services/memory_service.py:14:def _safe_confidence(val: Any, default: float = 0.75) -> float:
+backend/services/memory_service.py:16:        v = float(val) if val is not None else default
+backend/services/memory_service.py:19:        return default
+backend/services/memory_service.py:34:        default="",
+backend/services/memory_service.py:38:        default=0.75,
+backend/services/memory_service.py:50:        default=0.75,
+backend/services/memory_service.py:65:        default_factory=list,
+backend/services/memory_service.py:118:        except Exception as e:
+backend/services/memory_service.py:168:                    except Exception:
+backend/services/memory_service.py:202:        except Exception as e:
+backend/services/memory_service.py:226:        except Exception as e:
+backend/services/memory_service.py:243:        except Exception as e:
+backend/services/memory_service.py:302:                except Exception as dup_err:
+backend/services/memory_service.py:340:                except Exception as insert_err:
+backend/services/memory_service.py:357:        except Exception as e:
+backend/services/memory_service.py:396:        except Exception as e:
+backend/services/memory_service.py:428:        except Exception as e:
+backend/services/memory_service.py:468:        except Exception as e:
+backend/services/memory_service.py:483:        except Exception as e:
+backend/services/memory_service.py:504:        except Exception as e:
+backend/services/memory_service.py:542:                    default_headers={"api-subscription-key": settings.sarvam_api_key},
+backend/services/memory_service.py:637:                default=0.75,
+backend/services/memory_service.py:677:        except Exception as e:
+backend/services/memory_service.py:710:                    default_headers={"api-subscription-key": settings.sarvam_api_key},
+backend/services/memory_service.py:806:            # Safe extraction with per-field fallbacks
+backend/services/memory_service.py:882:        except Exception as e:
+backend/services/memory_service.py:883:            logger.warning(f"Memory extraction failed: {e}. Falling back to default empty memory.")
+backend/services/memory_service.py:962:            except Exception as e:
+scripts/warm_cache.py:55:    except Exception as e:
+scripts/warm_cache.py:68:                is_benchmark=True,  # Bypasses normal user constraints / limits if any
+scripts/warm_cache.py:71:        except Exception as e:
+backend/services/streaming_hardening.py:11:  - stream_with_recovery(): attempts retry up to max_retries times before fallback
+backend/services/streaming_hardening.py:62:    except Exception as exc:
+backend/services/streaming_hardening.py:105:        except Exception as exc:
+src/hooks/use-toast.ts:18:type Variant = 'default' | 'destructive' | 'success' | 'warning' | 'info';
+src/hooks/use-toast.ts:41:  const { title, description, variant = 'default', duration, id, action } = args;
+src/hooks/use-toast.ts:89:    default:
+scripts/build_exact_ml.py:160:        "admin": "അഡ്മിൻ",
+scripts/build_exact_ml.py:242:        "demo": {
+scripts/build_exact_ml.py:386:    # 11. admin (25 keys)
+scripts/build_exact_ml.py:387:    ml["admin"] = {
+scripts/build_exact_ml.py:408:        "admins": "അഡ്മിൻമാർ",
+src/hooks/useChatCapabilities.ts:40:  const isAvailable = (key: string, fallback: boolean) =>
+src/hooks/useChatCapabilities.ts:41:    features[key] === undefined ? fallback : features[key] === 'available';
+src/hooks/useChatCapabilities.ts:65:      configuredUrl.hostname === 'localhost' ||
+src/hooks/useChatCapabilities.ts:66:      configuredUrl.hostname === '127.0.0.1' ||
+src/hooks/useChatCapabilities.ts:70:    // the developer's localhost. Docker and reverse-proxy deployments use the
+backend/services/proposition_service.py:105:        except Exception as e:
+scripts/list_needed_english.py:15:def is_english_fallback(en_val: str, tgt_val: str) -> bool:
+scripts/list_needed_english.py:55:        # Missing or fallback
+scripts/list_needed_english.py:61:                if is_english_fallback(str(en_val), str(tgt_val)) or (lang == "kn" and is_corrupted_kn(str(tgt_val))) or not validate_placeholders_and_citations(str(en_val), str(tgt_val)):
+backend/services/multi_provider_llm.py:86:    default_model: str
+backend/services/multi_provider_llm.py:105:                default_model="arya-1.2-8b",
+backend/services/multi_provider_llm.py:118:                default_model="google/gemini-flash-1.5-8b",
+backend/services/multi_provider_llm.py:131:                default_model="minimaxai/minimax-m2.7",
+backend/services/multi_provider_llm.py:146:        # fallback). This ingest-tooling-only service still configures it for
+backend/services/multi_provider_llm.py:173:        value is coerced to the 1024 default and a value above the hard runaway
+backend/services/multi_provider_llm.py:199:            except Exception as e:
+backend/services/multi_provider_llm.py:216:        use_model = model or cfg.default_model
+backend/services/multi_provider_llm.py:277:                "model": self.providers[name].default_model,
+scripts/monitoring_dashboard.py:12:    python scripts/monitoring_dashboard.py [--url http://localhost:8000/metrics]
+scripts/monitoring_dashboard.py:127:    parser.add_argument("--url", default="http://localhost:8000/metrics", help="Prometheus endpoint URL")
+src/hooks/useWebPush.ts:40:    permission: 'default',
+supabase/migrations/20240430000000_schema.sql:44:create type public.app_role as enum ('admin', 'user');
+supabase/migrations/20240430000000_schema.sql:47:  id uuid primary key default gen_random_uuid(),
+supabase/migrations/20240430000000_schema.sql:64:  for select to authenticated using (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20240430000000_schema.sql:70:  id uuid primary key default gen_random_uuid(),
+supabase/migrations/20240430000000_schema.sql:72:  started_at timestamptz default now()
+supabase/migrations/20240430000000_schema.sql:76:  id uuid primary key default gen_random_uuid(),
+supabase/migrations/20240430000000_schema.sql:78:  content text not null, active boolean default false,
+supabase/migrations/20240430000000_schema.sql:79:  created_at timestamptz default now(), created_by uuid,
+supabase/migrations/20240430000000_schema.sql:84:  id uuid primary key default gen_random_uuid(),
+supabase/migrations/20240430000000_schema.sql:91:  created_at timestamptz default now()
+supabase/migrations/20240430000000_schema.sql:95:  id uuid primary key default gen_random_uuid(),
+supabase/migrations/20240430000000_schema.sql:102:  id uuid primary key default gen_random_uuid(),
+supabase/migrations/20240430000000_schema.sql:108:  created_at timestamptz default now()
+supabase/migrations/20240430000000_schema.sql:112:  id uuid primary key default gen_random_uuid(),
+supabase/migrations/20240430000000_schema.sql:115:  metadata jsonb, created_at timestamptz default now()
+supabase/migrations/20240430000000_schema.sql:119:  id uuid primary key default gen_random_uuid(),
+supabase/migrations/20240430000000_schema.sql:122:  created_at timestamptz default now()
+supabase/migrations/20240430000000_schema.sql:126:  id uuid primary key default gen_random_uuid(),
+supabase/migrations/20240430000000_schema.sql:130:  attributes jsonb, created_at timestamptz default now()
+supabase/migrations/20240430000000_schema.sql:134:  id uuid primary key default gen_random_uuid(),
+supabase/migrations/20240430000000_schema.sql:137:  created_at timestamptz default now()
+supabase/migrations/20240430000000_schema.sql:141:  id uuid primary key default gen_random_uuid(),
+supabase/migrations/20240430000000_schema.sql:143:  expected_sources text[], tags text[], active boolean default true
+supabase/migrations/20240430000000_schema.sql:147:  id uuid primary key default gen_random_uuid(),
+supabase/migrations/20240430000000_schema.sql:150:  started_at timestamptz default now(), finished_at timestamptz,
+supabase/migrations/20240430000000_schema.sql:155:  id uuid primary key default gen_random_uuid(),
+supabase/migrations/20240430000000_schema.sql:164:  id uuid primary key default gen_random_uuid(),
+supabase/migrations/20240430000000_schema.sql:167:  created_at timestamptz default now()
+supabase/migrations/20240430000000_schema.sql:173:  request_id text, created_at timestamptz default now()
+supabase/migrations/20240430000000_schema.sql:178:  input_per_1k numeric, output_per_1k numeric, currency text default 'USD'
+supabase/migrations/20240430000000_schema.sql:188:  id uuid primary key default gen_random_uuid(),
+supabase/migrations/20240430000000_schema.sql:190:  window_minutes int, channel text, target text, active boolean default true
+supabase/migrations/20240430000000_schema.sql:194:  id uuid primary key default gen_random_uuid(),
+supabase/migrations/20240430000000_schema.sql:196:  fired_at timestamptz default now(), resolved_at timestamptz
+supabase/migrations/20240430000000_schema.sql:200:  id uuid primary key default gen_random_uuid(),
+supabase/migrations/20240430000000_schema.sql:203:  promoted_to_golden boolean default false,
+supabase/migrations/20240430000000_schema.sql:204:  created_at timestamptz default now()
+supabase/migrations/20240430000000_schema.sql:208:-- RLS — admin-only SELECT on every telemetry table
+supabase/migrations/20240430000000_schema.sql:223:         for select to authenticated using (public.has_role(auth.uid(), 'admin'))$f$, t);
+supabase/migrations/20240430000000_schema.sql:260:-- values ('<your-auth.users-uuid>', 'admin');
+backend/services/onnx_reranker.py:22:This implementation resolves the model into HF_HOME (or a fixed fallback)
+src/hooks/useStudyNotebooks.ts:23:function errMsg(e: unknown, fallback: string): string {
+src/hooks/useStudyNotebooks.ts:24:  return e instanceof Error ? e.message : fallback;
+src/hooks/useStudyNotebooks.ts:40:  { id: 'nb-1', user_id: 'demo-user', title: '🪷 Beautiful State Reflections & Teachings', created_at: new Date().toISOString() },
+src/hooks/useStudyNotebooks.ts:41:  { id: 'nb-2', user_id: 'demo-user', title: '🧘 Sacred Breathwork & Serene Mind Practice Notes', created_at: new Date().toISOString() },
+src/hooks/useStudyNotebooks.ts:42:  { id: 'nb-3', user_id: 'demo-user', title: '✨ Sri Preethaji & Sri Krishnaji Doctrine Insights', created_at: new Date().toISOString() },
+src/hooks/useStudyNotebooks.ts:178:      answer: 'The Beautiful State is a state of inner connection, joy, love, compassion, and vitality. When you are not in a beautiful state, your default state is stress.',
+supabase/migrations/20260626062100_create_router_decisions.sql:32:-- Grant all privileges to anon, authenticated and service_role
+supabase/migrations/20260626062100_create_router_decisions.sql:33:GRANT ALL ON public.router_decisions TO anon, authenticated, service_role;
+backend/services/turboquant_cache.py:11:  - Mirrors top N (default 500) results from Qdrant
+backend/services/turboquant_cache.py:48:    Uses TurboVec (4-bit quantization) when available, numpy fallback otherwise.
+backend/services/turboquant_cache.py:73:            logger.info("TurboVec not available; TurboQuantCache will use numpy fallback")
+backend/services/turboquant_cache.py:96:            # Store full-precision vector in metadata for numpy fallback
+supabase/migrations/20260820090000_assistant_scope_metadata.sql:20:GRANT ALL ON TABLE public.assistant_scope_metadata TO service_role;
+scripts/migrate_data.py:13:Env: MIGRATE_LIMIT=N (default 0 = no limit) processes only the first N unique
+scripts/migrate_data.py:23:from collections import defaultdict
+scripts/migrate_data.py:75:    except Exception as e:
+scripts/migrate_data.py:92:        sources = defaultdict(list)
+scripts/migrate_data.py:106:        # MIGRATE_LIMIT: trial-replay knob; default 0 means no limit.
+scripts/migrate_data.py:143:            except Exception as e:
+scripts/migrate_data.py:186:            except Exception as e:
+supabase/migrations/20260516190000_user_memory.sql:10:-- DIFFERENT public.user_profiles (admin-telemetry shape) — after this revert
+supabase/migrations/20260516190000_user_memory.sql:68:  FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'::public.app_role));
+supabase/migrations/20260516190000_user_memory.sql:72:  FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'::public.app_role));
+backend/services/krutrim_service.py:1:"""Krutrim AI integration as alternative/fallback LLM provider."""
+scripts/ops/prune_retention.py:91:    except Exception as rpc_err:
+scripts/ops/prune_retention.py:93:        # Client-side fallback: list + filter + delete iteratively.
+scripts/ops/prune_retention.py:116:                except Exception:
+scripts/ops/prune_retention.py:130:                    except Exception as del_err:
+scripts/ops/prune_retention.py:133:        except Exception as scan_err:
+scripts/ops/prune_retention.py:151:    parser.add_argument("--user-id", default=None, help="Only prune this user's conversations (UUID).")
+scripts/ops/rotate_brain_kek.py:45:    parser.add_argument("--old-env", default="BRAIN_KEK")
+scripts/ops/rotate_brain_kek.py:46:    parser.add_argument("--new-env", default="BRAIN_KEK_NEXT")
+scripts/ops/rotate_brain_kek.py:47:    parser.add_argument("--page-size", type=int, default=PAGE_SIZE)
+scripts/ops/rotate_brain_kek.py:155:    except Exception as exc:
+supabase/migrations/20260717191006_second_brain_vault.sql:42:    wrap_mode    text not null default 'server_wrapped'
+supabase/migrations/20260717191006_second_brain_vault.sql:45:    version      int  not null default 1,
+supabase/migrations/20260717191006_second_brain_vault.sql:46:    created_at   timestamptz not null default now(),
+supabase/migrations/20260717191006_second_brain_vault.sql:60:    confidence   real not null default 0.8,
+supabase/migrations/20260717191006_second_brain_vault.sql:61:    decay        real not null default 1.0,
+supabase/migrations/20260717191006_second_brain_vault.sql:62:    access_count int  not null default 0,
+supabase/migrations/20260717191006_second_brain_vault.sql:63:    created_at   timestamptz not null default now(),
+supabase/migrations/20260717191006_second_brain_vault.sql:64:    updated_at   timestamptz not null default now()
+supabase/migrations/20260717191006_second_brain_vault.sql:80:    weight      real not null default 1.0,
+supabase/migrations/20260717191006_second_brain_vault.sql:81:    created_at  timestamptz not null default now()
+supabase/migrations/20260717191006_second_brain_vault.sql:118:-- NOTE: there is intentionally NO policy granting any admin/operator role
+supabase/migrations/20260717191006_second_brain_vault.sql:127:-- Revoke public access, grant only to service_role
+supabase/migrations/20260717191006_second_brain_vault.sql:129:grant execute on function public.brain_touch to service_role;
+scripts/ops/full_cleanup.py:30:            except Exception as e:
+scripts/ops/full_cleanup.py:39:        except Exception as e:
+scripts/ops/full_cleanup.py:49:            except Exception as e:
+scripts/ops/full_cleanup.py:52:    # 4. Clear Qdrant collections on localhost
+scripts/ops/full_cleanup.py:53:    logger.info("Connecting to Qdrant on localhost...")
+scripts/ops/full_cleanup.py:57:        client = QdrantClient(url="http://localhost:6333")
+scripts/ops/full_cleanup.py:63:    except Exception as e:
+scripts/ops/full_cleanup.py:64:        logger.error(f"❌ Qdrant cleanup failed (is Qdrant running on localhost:6333?): {e}")
+scripts/ops/full_cleanup.py:66:    # 5. Clear Neo4j on localhost
+scripts/ops/full_cleanup.py:67:    logger.info("Connecting to Neo4j on localhost...")
+scripts/ops/full_cleanup.py:72:        driver = GraphDatabase.driver("bolt://localhost:7687", auth=("neo4j", password))
+scripts/ops/full_cleanup.py:78:    except Exception as e:
+scripts/ops/full_cleanup.py:79:        logger.error(f"❌ Neo4j cleanup failed (is Neo4j running on localhost:7687?): {e}")
+scripts/ops/full_cleanup.py:81:    # 6. Clear Redis on localhost
+scripts/ops/full_cleanup.py:82:    logger.info("Connecting to Redis on localhost...")
+scripts/ops/full_cleanup.py:87:        r = redis.from_url(f"redis://:{password}@localhost:6379/0")
+scripts/ops/full_cleanup.py:90:    except Exception as e:
+supabase/migrations/20260615044110_ccb90a86-ce4b-42dd-b1d4-7cc0124d4933.sql:10:-- 20260605023720) and the benchmark-admin DELETEs are not restored — re-seed
+supabase/migrations/20260615044110_ccb90a86-ce4b-42dd-b1d4-7cc0124d4933.sql:11:-- from 20260516191000 only if the benchmark user must come back.
+supabase/migrations/20260615044110_ccb90a86-ce4b-42dd-b1d4-7cc0124d4933.sql:38:-- Remove predictable benchmark admin seeded with empty password / well-known UUID
+scripts/ops/cross_store_audit.py:6:from collections import defaultdict
+scripts/ops/cross_store_audit.py:12:QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
+scripts/ops/cross_store_audit.py:13:NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
+scripts/ops/cross_store_audit.py:99:            "sample_our_missing_lr": sorted(our_missing_lr)[:20],
+scripts/ops/cross_store_audit.py:100:            "sample_lr_extra": sorted(lr_extra)[:20],
+scripts/ops/cross_store_audit.py:101:            "sample_qdrant_missing_our": sorted(qdrant_missing_our)[:20],
+scripts/ops/cross_store_audit.py:183:            except Exception as e:
+scripts/ops/cross_store_audit.py:193:            json.dump(self.report, f, indent=2, default=str)
+scripts/ops/add_neo4j_indexes.py:35:    except Exception as e:
+scripts/ops/add_neo4j_indexes.py:44:        except Exception as e:
+scripts/ops/generate_mobile_assets.py:79:    except Exception:
+scripts/ops/okf_fast_extract.py:1:"""Fast OKF extraction: fetch Qdrant samples + Neo4j entities directly, produce MD files.
+scripts/ops/okf_fast_extract.py:22:QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
+scripts/ops/okf_fast_extract.py:32:def _fetch_qdrant_sample(limit: int = 100) -> list[dict]:
+scripts/ops/okf_fast_extract.py:33:    """Fetch sample from Qdrant via HTTP API scroll (no vector needed)."""
+scripts/ops/okf_fast_extract.py:55:def _build_okf_entry(samples: list[dict], topic: str) -> str:
+scripts/ops/okf_fast_extract.py:56:    """Build a simple OKF markdown entry from Qdrant samples."""
+scripts/ops/okf_fast_extract.py:61:        f"source: auto-extracted from Qdrant ({len(samples)} chunks)",
+scripts/ops/okf_fast_extract.py:68:    for s in samples[:5]:
+scripts/ops/okf_fast_extract.py:83:    log.info("Fetching Qdrant sample...")
+scripts/ops/okf_fast_extract.py:84:    samples = _fetch_qdrant_sample(limit=100)
+scripts/ops/okf_fast_extract.py:85:    log.info("  Got %d samples from Qdrant", len(samples))
+scripts/ops/okf_fast_extract.py:104:        # Filter samples that match keywords
+scripts/ops/okf_fast_extract.py:105:        matched = [s for s in samples if any(k.lower() in s["content"].lower() for k in keywords)]
+scripts/ops/okf_fast_extract.py:107:            log.info("  SKIP %s (no matching content in sample)", slug)
+scripts/ops/backfill_neo4j_relationship_scope.py:5:safe by default: it reports the candidate count unless ``--apply`` is supplied.
+scripts/ops/backfill_neo4j_relationship_scope.py:19:    parser.add_argument("--corpus-id", default="askmukthiguru")
+scripts/ops/backfill_neo4j_relationship_scope.py:20:    parser.add_argument("--apply", action="store_true", help="perform the backfill; default is dry run")
+scripts/ops/cleanup_data.py:33:    except Exception as e:
+scripts/ops/cleanup_data.py:46:    except Exception as e:
+scripts/ops/cleanup_data.py:57:    except Exception as e:
+scripts/ops/backup_and_reset_knowledge_stores.py:63:    except Exception as e:
+scripts/ops/backup_and_reset_knowledge_stores.py:93:    except Exception as e:
+scripts/ops/backup_and_reset_knowledge_stores.py:127:    except Exception as e:
+scripts/ops/backup_and_reset_knowledge_stores.py:138:    neo4j_uri = os.environ.get("NEO4J_URI", "bolt://localhost:7687")
+scripts/ops/backup_and_reset_knowledge_stores.py:154:    except Exception as e:
+scripts/ops/backup_and_reset_knowledge_stores.py:165:    qdrant_url = os.environ.get("QDRANT_URL", "http://localhost:6333")
+scripts/ops/backup_and_reset_knowledge_stores.py:178:    except Exception as e:
+scripts/ops/backup_and_reset_knowledge_stores.py:222:        except Exception as e:
+scripts/ops/backup_and_reset_knowledge_stores.py:276:    parser.add_argument("--collection", default="spiritual_wisdom_contextual", help="Qdrant collection to wipe")
+scripts/ops/ingest_guru_tone_podcast.py:25:        pass
+scripts/ops/ingest_guru_tone_podcast.py:60:            default_guru="preethaji",
+scripts/ops/ingest_guru_tone_podcast.py:76:            default_guru="combined",
+scripts/ops/ingest_guru_tone_podcast.py:97:        "sample_exemplars": [e.to_dict() for e in total_exemplars[:3]],
+src/admin/pages/QueriesPage.tsx:23:import type { ChatQuery, TraceSpan } from "@/admin/types";
+src/admin/pages/QueriesPage.tsx:24:import { useQueries, usePromptVersions, useModels } from "@/admin/hooks/useAdminData";
+src/admin/pages/QueriesPage.tsx:25:import { fmtDateTime, fmtMs, truncate } from "@/admin/lib/formatters";
+src/admin/pages/QueriesPage.tsx:26:import { TraceDrawer } from "@/admin/components/TraceDrawer";
+src/admin/pages/QueriesPage.tsx:27:import { EmptyState } from "@/admin/components/EmptyState";
+src/admin/pages/QueriesPage.tsx:42:export default function QueriesPage() {
+src/admin/pages/QueriesPage.tsx:100:        default:
+src/admin/pages/QueriesPage.tsx:108:    if (!id) return "v0 (default)";
+src/admin/pages/TelemetryPage.test.tsx:6:vi.mock("@/admin/hooks/useAdminData", () => ({
+src/admin/pages/TelemetryPage.test.tsx:7:  useTelemetryEvents: vi.fn().mockReturnValue({
+src/admin/pages/AlertsPage.tsx:4:import { useAlertEvents, useAlertRules } from "@/admin/hooks/useAdminData";
+src/admin/pages/AlertsPage.tsx:13:import { fmtDateTime } from "@/admin/lib/formatters";
+src/admin/pages/AlertsPage.tsx:14:import { upsertAlertRule } from "@/admin/lib/api";
+src/admin/pages/AlertsPage.tsx:16:import { AlertRuleBuilder } from "@/admin/components/AlertRuleBuilder";
+src/admin/pages/AlertsPage.tsx:17:import { EmptyState } from "@/admin/components/EmptyState";
+src/admin/pages/AlertsPage.tsx:20:export default function AlertsPage() {
+src/admin/pages/AlertsPage.tsx:66:                      qc.invalidateQueries({ queryKey: ["admin", "alert-rules"] });
+scripts/ops/test_prune_retention.py:13:from unittest.mock import MagicMock, patch
+scripts/ops/test_prune_retention.py:41:    # Force the RPC path to fail so the client-side fallback runs (deterministic, no DB required).
+scripts/ops/test_prune_retention.py:121:    """user_id scope passed into the select query for the client-side fallback."""
+backend/services/ocr_service.py:180:                (off by default — only explicit callers may opt in)
+backend/services/ocr_service.py:248:                    pass
+backend/services/ocr_service.py:296:        except Exception as e:
+supabase/migrations/20260508043115_0eb9a75d-8aa0-4988-a3f6-0b4b012e5621.sql:2:-- REVERT: Drop the admin-only policies added here. NOTE: this re-opens INSERT/UPDATE/
+supabase/migrations/20260508043115_0eb9a75d-8aa0-4988-a3f6-0b4b012e5621.sql:11:-- DROP POLICY IF EXISTS "admins_manage_roles_insert" ON public.user_roles;
+supabase/migrations/20260508043115_0eb9a75d-8aa0-4988-a3f6-0b4b012e5621.sql:12:-- DROP POLICY IF EXISTS "admins_manage_roles_update" ON public.user_roles;
+supabase/migrations/20260508043115_0eb9a75d-8aa0-4988-a3f6-0b4b012e5621.sql:13:-- DROP POLICY IF EXISTS "admins_manage_roles_delete" ON public.user_roles;
+supabase/migrations/20260508043115_0eb9a75d-8aa0-4988-a3f6-0b4b012e5621.sql:18:-- Add explicit admin-only INSERT/UPDATE/DELETE policies on user_roles
+supabase/migrations/20260508043115_0eb9a75d-8aa0-4988-a3f6-0b4b012e5621.sql:19:CREATE POLICY "admins_manage_roles_insert"
+supabase/migrations/20260508043115_0eb9a75d-8aa0-4988-a3f6-0b4b012e5621.sql:23:WITH CHECK (has_role(auth.uid(), 'admin'::app_role));
+supabase/migrations/20260508043115_0eb9a75d-8aa0-4988-a3f6-0b4b012e5621.sql:25:CREATE POLICY "admins_manage_roles_update"
+supabase/migrations/20260508043115_0eb9a75d-8aa0-4988-a3f6-0b4b012e5621.sql:29:USING (has_role(auth.uid(), 'admin'::app_role));
+supabase/migrations/20260508043115_0eb9a75d-8aa0-4988-a3f6-0b4b012e5621.sql:31:CREATE POLICY "admins_manage_roles_delete"
+supabase/migrations/20260508043115_0eb9a75d-8aa0-4988-a3f6-0b4b012e5621.sql:35:USING (has_role(auth.uid(), 'admin'::app_role));
+supabase/migrations/20260508043115_0eb9a75d-8aa0-4988-a3f6-0b4b012e5621.sql:37:-- Add UPDATE and DELETE policies on daily-teachings storage bucket for admins
+supabase/migrations/20260508043115_0eb9a75d-8aa0-4988-a3f6-0b4b012e5621.sql:42:USING (bucket_id = 'daily-teachings' AND (SELECT has_role(auth.uid(), 'admin'::app_role)));
+supabase/migrations/20260508043115_0eb9a75d-8aa0-4988-a3f6-0b4b012e5621.sql:48:USING (bucket_id = 'daily-teachings' AND (SELECT has_role(auth.uid(), 'admin'::app_role)));
+backend/services/tenant_context.py:13:Soft migration mode (default):
+backend/services/tenant_context.py:14:  - Existing data on the "default" (legacy) collection is preserved.
+backend/services/tenant_context.py:36:_tenant_id_var: ContextVar[str] = ContextVar("tenant_id", default=settings.default_tenant_id)
+backend/services/tenant_context.py:37:_tenant_email_var: ContextVar[str] = ContextVar("tenant_email", default="")
+backend/services/tenant_context.py:38:_tenant_user_id_var: ContextVar[str] = ContextVar("tenant_user_id", default="")
+backend/services/tenant_context.py:40:_LEGACY_TENANT = settings.default_tenant_id
+backend/services/tenant_context.py:75:        ContextVar defaults are not mutated; only the current context is reset.
+backend/services/tenant_context.py:83:        """True if the current tenant is the legacy (single-tenant) default."""
+backend/services/tenant_context.py:118:      3. ``"default"`` (legacy fallback)
+src/admin/pages/OkfManager.tsx:16:} from "@/admin/lib/api";
+src/admin/pages/OkfManager.tsx:47:export default function OkfManagerPage() {
+src/admin/pages/OkfManager.tsx:110:      await rejectOkfReview(id, "Rejected by admin");
+src/admin/pages/OkfManager.tsx:240:                                {item.guru_slug && item.guru_slug !== "default" && ` · ${item.guru_slug}`}
+src/admin/pages/OkfManager.tsx:245:                            <Button size="sm" variant="default" className="bg-emerald-600 hover:bg-emerald-700 h-8 px-3 text-xs"
+backend/services/web_search_service.py:59:    except Exception:
+backend/services/web_search_service.py:140:    """Search via duckduckgo-search, with a dependency-free HTML fallback."""
+backend/services/web_search_service.py:162:            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+backend/services/web_search_service.py:216:        logger.info("DuckDuckGo HTML fallback returned %d raw results", len(results))
+backend/services/web_search_service.py:228:        # docker-internal hostnames (the compose default is
+backend/services/web_search_service.py:248:                # Hostname: single-label names (localhost, docker-internal
+backend/services/web_search_service.py:292:    - Uses duckduckgo-search by default (no API key).
+backend/services/web_search_service.py:313:        # entry for web search; from_provider() falls back to default thresholds).
+backend/services/web_search_service.py:399:        except Exception as exc:
+backend/services/ontology_exporter.py:120:    """Map a Neo4j relationship type to a RelationType (fallback IS_RELATED_TO)."""
+backend/services/ontology_exporter.py:245:        # Index by full entity_id first, with a fallback by short_id (slug via
+backend/services/ontology_exporter.py:251:            uri_index.setdefault(c.short_id, c.uri)
+backend/services/ontology_exporter.py:414:        except Exception:  # noqa: BLE001 — optional dep
+backend/services/ontology_exporter.py:421:        except Exception as exc:  # noqa: BLE001
+backend/services/ontology_exporter.py:432:    sample_concepts = [
+backend/services/ontology_exporter.py:451:    sample_relation = Relation(
+backend/services/ontology_exporter.py:452:        subject_uri=sample_concepts[0].uri,
+backend/services/ontology_exporter.py:454:        object_uri=sample_concepts[1].uri,
+backend/services/ontology_exporter.py:459:    turtle_out = exporter.to_rdf_turtle(sample_concepts, [sample_relation])
+backend/services/ontology_exporter.py:460:    jsonld_out = exporter.to_jsonld(sample_concepts, [sample_relation])
+src/admin/pages/DailyTeachingPage.tsx:232:      <Tabs defaultValue="active">
+src/admin/pages/DailyTeachingPage.tsx:483:export default DailyTeachingPage;
+backend/services/config_watcher.py:47:_POLL_INTERVAL = 30  # seconds — used as fallback polling interval
+backend/services/config_watcher.py:74:    except Exception as exc:
+backend/services/config_watcher.py:91:    except Exception as exc:
+backend/services/config_watcher.py:111:    except Exception as exc:
+backend/services/config_watcher.py:136:            except Exception as exc:
+backend/services/config_watcher.py:168:                pass
+backend/services/config_watcher.py:169:            except Exception as exc:
+backend/services/config_watcher.py:183:                pass
+backend/run_pilot.py:61:open("/tmp/pilot_result.json", "w").write(json.dumps(res, indent=2, default=str))
+supabase/migrations/20260710000000_add_guru_memories_missing_columns.sql:9:-- was defaulted 1.0). memory_service.py retries writes without these columns, so
+src/admin/pages/StagingQueuePage.tsx:22:import { listStagingQueue, reviewStagingItem, type StagingQueueItem } from "@/admin/lib/api";
+src/admin/pages/StagingQueuePage.tsx:23:import { fmtDateTime } from "@/admin/lib/formatters";
+src/admin/pages/StagingQueuePage.tsx:27:export default function StagingQueuePage() {
+src/admin/pages/StagingQueuePage.tsx:257:              variant={actionType === "approve" ? "default" : "destructive"}
+supabase/migrations/20260627120000_create_ingest_jobs.sql:42:    TO service_role
+backend/domain/ports/llm_port.py:13:        pass
+backend/domain/ports/llm_port.py:17:        pass
+backend/domain/ports/llm_port.py:22:        pass
+backend/domain/ports/llm_port.py:27:        pass
+backend/domain/ports/llm_port.py:32:        pass
+backend/domain/ports/llm_port.py:37:        pass
+backend/domain/ports/cache_port.py:11:        pass
+backend/domain/ports/cache_port.py:18:        pass
+backend/domain/ports/cache_port.py:23:        pass
+supabase/migrations/20260515122052_4624ba2e-1e4f-4b2a-968d-c676bb9beecb.sql:66:  is_admin boolean;
+supabase/migrations/20260515122052_4624ba2e-1e4f-4b2a-968d-c676bb9beecb.sql:74:  SELECT public.has_role(uid, 'admin'::public.app_role) INTO is_admin;
+supabase/migrations/20260515122052_4624ba2e-1e4f-4b2a-968d-c676bb9beecb.sql:82:    'is_admin', COALESCE(is_admin, false)
+supabase/migrations/20260715050512_8ab790ce-1979-4afc-8d5f-5db683c9e421.sql:30:GRANT ALL ON public.app_settings TO service_role;
+src/admin/types.ts:3:// src/admin/lib/mockData.ts swap from in-memory to real database queries.
+src/admin/types.ts:98:    | "fallback"
+src/admin/types.ts:255:  role: "admin" | "user";
+src/admin/types.ts:444:  sample_size: number;
+supabase/migrations/20260715000000_harden_linter_warnings.sql:13:-- DROP POLICY IF EXISTS "Allow write access to admins only" ON public.app_settings;
+supabase/migrations/20260715000000_harden_linter_warnings.sql:14:-- DROP POLICY IF EXISTS "Allow write access to admins only" ON public.staging_quality_queue;
+supabase/migrations/20260715000000_harden_linter_warnings.sql:15:-- DROP POLICY IF EXISTS "Allow select for admins only" ON public.router_decisions;
+supabase/migrations/20260715000000_harden_linter_warnings.sql:16:-- DROP POLICY IF EXISTS "Allow insert for admins only" ON public.router_decisions;
+supabase/migrations/20260715000000_harden_linter_warnings.sql:28:-- Only admins should be able to write/manage app_settings
+supabase/migrations/20260715000000_harden_linter_warnings.sql:30:CREATE POLICY "Allow write access to admins only" ON public.app_settings
+supabase/migrations/20260715000000_harden_linter_warnings.sql:32:  USING (public.has_role(auth.uid(), 'admin'::public.app_role))
+supabase/migrations/20260715000000_harden_linter_warnings.sql:33:  WITH CHECK (public.has_role(auth.uid(), 'admin'::public.app_role));
+supabase/migrations/20260715000000_harden_linter_warnings.sql:35:-- Only admins should be able to write/manage staging_quality_queue
+supabase/migrations/20260715000000_harden_linter_warnings.sql:37:CREATE POLICY "Allow write access to admins only" ON public.staging_quality_queue
+supabase/migrations/20260715000000_harden_linter_warnings.sql:39:  USING (public.has_role(auth.uid(), 'admin'::public.app_role))
+supabase/migrations/20260715000000_harden_linter_warnings.sql:40:  WITH CHECK (public.has_role(auth.uid(), 'admin'::public.app_role));
+supabase/migrations/20260715000000_harden_linter_warnings.sql:43:-- Only admins should be able to SELECT/INSERT/UPDATE router decisions (backend uses service_role which bypasses RLS)
+supabase/migrations/20260715000000_harden_linter_warnings.sql:45:CREATE POLICY "Allow select for admins only" ON public.router_decisions
+supabase/migrations/20260715000000_harden_linter_warnings.sql:47:  USING (public.has_role(auth.uid(), 'admin'::public.app_role));
+supabase/migrations/20260715000000_harden_linter_warnings.sql:50:CREATE POLICY "Allow insert for admins only" ON public.router_decisions
+supabase/migrations/20260715000000_harden_linter_warnings.sql:52:  WITH CHECK (public.has_role(auth.uid(), 'admin'::public.app_role));
+supabase/migrations/20260715000000_harden_linter_warnings.sql:54:-- ── 3. Secure Storage Buckets (Disable listing for non-admins) ──
+supabase/migrations/20260715000000_harden_linter_warnings.sql:60:-- Create policy allowing admins full management (including listing)
+supabase/migrations/20260715000000_harden_linter_warnings.sql:64:  USING (bucket_id = 'daily-teachings' AND public.has_role(auth.uid(), 'admin'::public.app_role))
+supabase/migrations/20260715000000_harden_linter_warnings.sql:65:  WITH CHECK (bucket_id = 'daily-teachings' AND public.has_role(auth.uid(), 'admin'::public.app_role));
+supabase/migrations/20260610055007_1750df65-b2d6-45db-ab95-8b2bba92d12b.sql:2:-- REVERT: Data-only migration. Remove the admin role row. The profile row may be
+supabase/migrations/20260610055007_1750df65-b2d6-45db-ab95-8b2bba92d12b.sql:12:-- WHERE role = 'admin'
+supabase/migrations/20260610055007_1750df65-b2d6-45db-ab95-8b2bba92d12b.sql:16:-- Grant admin role to kharshaengineer@gmail.com if the user exists.
+supabase/migrations/20260610055007_1750df65-b2d6-45db-ab95-8b2bba92d12b.sql:19:SELECT id, 'admin'::public.app_role
+supabase/migrations/20260610055007_1750df65-b2d6-45db-ab95-8b2bba92d12b.sql:24:-- Also ensure a profile row exists for the admin user.
+supabase/migrations/20260616050717_7b7722a8-f581-4d55-bcae-7c4c45b30ab4.sql:30:GRANT ALL ON public.pending_extractions TO service_role;
+src/admin/pages/SettingsPage.tsx:6:import { getGlobalSettings, updateGlobalSettings } from "@/admin/lib/api";
+src/admin/pages/SettingsPage.tsx:19:} from "@/admin/hooks/useAdminData";
+src/admin/pages/SettingsPage.tsx:109:export default function SettingsPage() {
+src/admin/pages/SettingsPage.tsx:189:            Configure comma-separated domains allowed for DuckDuckGo/SearXNG web search fallbacks.
+src/components/teachings/TeachingCard.tsx:22: * hover-lift shadow. Uses `serene.*` palette via inline hex fallbacks so the
+src/components/teachings/TeachingCard.tsx:83:export default TeachingCard;
+src/admin/pages/MonitoringPage.tsx:6:export default function MonitoringPage() {
+src/admin/pages/MonitoringPage.tsx:9:  // Read Grafana URL from environment variables, fallback to local development URL.
+src/admin/pages/MonitoringPage.tsx:11:  const rawGrafanaUrl = import.meta.env.VITE_GRAFANA_URL || "http://localhost:3000";
+src/admin/pages/MonitoringPage.tsx:12:  const baseGrafanaUrl = typeof rawGrafanaUrl === "string" ? rawGrafanaUrl.trim().replace(/\/+$/, "") : "http://localhost:3000";
+src/admin/pages/MonitoringPage.tsx:43:            variant="default"
+src/admin/pages/MonitoringPage.tsx:111:              (default credentials: <code className="bg-muted px-1.5 py-0.5 rounded text-foreground">admin / admin</code>).
+src/components/onboarding/GuidedTour.tsx:8:  /** Mobile fallback target — used when `target` anchor is not visible (e.g. desktop sidebar is hidden on mobile). */
+src/components/onboarding/GuidedTour.tsx:120:   *  primary AND mobile-fallback anchors are both invisible are skipped, so a
+src/components/onboarding/GuidedTour.tsx:671:                            defaultValue: 'Go to step {{n}}',
+src/components/ai-elements/message.tsx:144:  defaultBranch?: number;
+src/components/ai-elements/message.tsx:149:  defaultBranch = 0,
+src/components/ai-elements/message.tsx:154:  const [currentBranch, setCurrentBranch] = useState(defaultBranch);
+src/components/ai-elements/conversation.tsx:120:const defaultFormatMessage = (message: UIMessage): string => {
+src/components/ai-elements/conversation.tsx:131:  ) => string = defaultFormatMessage
+src/components/ai-elements/conversation.tsx:137:  formatMessage = defaultFormatMessage,
+src/components/ai-elements/prompt-input.tsx:457:      if (event.defaultPrevented) {
+src/components/ai-elements/prompt-input.tsx:984:      // If the external handler prevented default, don't run internal logic
+src/components/ai-elements/prompt-input.tsx:985:      if (e.defaultPrevented) {
+src/components/ai-elements/prompt-input.tsx:1233:  variant = "default",
+src/components/kg/KGConceptMap.test.tsx:7:vi.mock('@/lib/chat/config', () => ({ getAIConfig: () => ({ endpoint: 'http://localhost:8000/api/chat' }) }));
+src/components/kg/KGConceptMap.test.tsx:8:vi.mock('@/lib/chat/auth', () => ({ getAccessToken: vi.fn(() => Promise.resolve('token')) }));
+src/components/kg/KGConceptMap.test.tsx:33:  it('renders live subgraph and hides demo label', async () => {
+src/components/kg/KGConceptMap.test.tsx:44:  it('shows show-example button on empty live result and loads demo when clicked', async () => {
+src/components/kg/KGConceptMap.test.tsx:54:  it('falls back to demo data on fetch failure and offers a live-map retry', async () => {
+src/components/kg/KGConceptMap.test.tsx:63:  it('does not contain off-brand Krishnamurti node in demo data', () => {
+src/components/kg/KGConceptMap.tsx:99:  const demoTimerRef = useRef<number | null>(null);
+src/components/kg/KGConceptMap.tsx:143:    if (demoTimerRef.current) {
+src/components/kg/KGConceptMap.tsx:144:      clearTimeout(demoTimerRef.current);
+src/components/kg/KGConceptMap.tsx:145:      demoTimerRef.current = null;
+src/components/kg/KGConceptMap.tsx:153:    demoTimerRef.current = window.setTimeout(() => {
+src/components/kg/KGConceptMap.tsx:176:      if (demoTimerRef.current) {
+src/components/kg/KGConceptMap.tsx:177:        clearTimeout(demoTimerRef.current);
+src/components/kg/KGConceptMap.tsx:178:        demoTimerRef.current = null;
+src/components/kg/KGConceptMap.tsx:193:      if (demoTimerRef.current) {
+src/components/kg/KGConceptMap.tsx:194:        clearTimeout(demoTimerRef.current);
+src/components/kg/KGConceptMap.tsx:195:        demoTimerRef.current = null;
+src/components/kg/KGConceptMap.tsx:201:      console.warn('[Wisdom Map] live graph unavailable; showing demo data', message);
+src/components/kg/KGConceptMap.tsx:206:        if (demoTimerRef.current) {
+src/components/kg/KGConceptMap.tsx:207:          clearTimeout(demoTimerRef.current);
+src/components/kg/KGConceptMap.tsx:208:          demoTimerRef.current = null;
+src/components/kg/KGConceptMap.tsx:226:      if (demoTimerRef.current) clearTimeout(demoTimerRef.current);
+src/components/kg/KGConceptMap.tsx:876:export default KGConceptMap;
+supabase/migrations/20260713000000_create_push_devices.sql:20:  id uuid primary key default gen_random_uuid(),
+supabase/migrations/20260713000000_create_push_devices.sql:24:  created_at timestamptz not null default now(),
+supabase/migrations/20260713000000_create_push_devices.sql:25:  updated_at timestamptz not null default now(),
+supabase/migrations/20260713000000_create_push_devices.sql:26:  active boolean not null default true
+supabase/migrations/20260605023720_602a5230-c7aa-47c2-9b22-195342ada89b.sql:37:GRANT ALL ON public.kb_sources TO service_role;
+supabase/migrations/20260605023720_602a5230-c7aa-47c2-9b22-195342ada89b.sql:45:CREATE POLICY "kb_sources_admin_write"
+supabase/migrations/20260605023720_602a5230-c7aa-47c2-9b22-195342ada89b.sql:48:  USING (public.has_role(auth.uid(), 'admin'))
+supabase/migrations/20260605023720_602a5230-c7aa-47c2-9b22-195342ada89b.sql:49:  WITH CHECK (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260605023720_602a5230-c7aa-47c2-9b22-195342ada89b.sql:64:GRANT ALL ON public.kb_chunks TO service_role;
+supabase/migrations/20260605023720_602a5230-c7aa-47c2-9b22-195342ada89b.sql:72:CREATE POLICY "kb_chunks_admin_write"
+supabase/migrations/20260605023720_602a5230-c7aa-47c2-9b22-195342ada89b.sql:75:  USING (public.has_role(auth.uid(), 'admin'))
+supabase/migrations/20260605023720_602a5230-c7aa-47c2-9b22-195342ada89b.sql:76:  WITH CHECK (public.has_role(auth.uid(), 'admin'));
+src/components/profile/NotesPanel.tsx:183:                variant={activeTag === t ? "default" : "outline"}
+supabase/migrations/20260618110000_db_consolidation.sql:16:-- DROP POLICY IF EXISTS "service_role manage conversation_memories" ON public.conversation_memories;
+supabase/migrations/20260618110000_db_consolidation.sql:33:  tenant_id TEXT NOT NULL DEFAULT 'default',
+supabase/migrations/20260618110000_db_consolidation.sql:46:GRANT ALL ON public.token_usage TO service_role;
+supabase/migrations/20260618110000_db_consolidation.sql:50:CREATE POLICY "admins read token_usage"
+supabase/migrations/20260618110000_db_consolidation.sql:53:  USING (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260618110000_db_consolidation.sql:55:CREATE POLICY "service_role manage token_usage"
+supabase/migrations/20260618110000_db_consolidation.sql:57:  TO service_role
+supabase/migrations/20260618110000_db_consolidation.sql:77:-- 3. Fix RLS on conversation_memories – allow service_role full access
+supabase/migrations/20260618110000_db_consolidation.sql:80:DROP POLICY IF EXISTS "service_role manage conversation_memories" ON public.conversation_memories;
+supabase/migrations/20260618110000_db_consolidation.sql:81:CREATE POLICY "service_role manage conversation_memories"
+supabase/migrations/20260618110000_db_consolidation.sql:83:  TO service_role
+supabase/migrations/20260618110000_db_consolidation.sql:110:GRANT ALL ON public.feedback_events TO service_role;
+supabase/migrations/20260711000000_enable_rls_on_all_tables.sql:31:--   assistant_configurations: admin-only (has_role check)
+supabase/migrations/20260711000000_enable_rls_on_all_tables.sql:32:--   assistant_doctrines:     admin-only (has_role check)
+supabase/migrations/20260711000000_enable_rls_on_all_tables.sql:33:--   communications:          user-own SELECT + INSERT, admin full access
+supabase/migrations/20260711000000_enable_rls_on_all_tables.sql:34:--   digital_employees:       user-own SELECT + INSERT + UPDATE, admin full access
+supabase/migrations/20260711000000_enable_rls_on_all_tables.sql:36:-- The service_role key (used by backend) bypasses RLS entirely.
+supabase/migrations/20260711000000_enable_rls_on_all_tables.sql:47:  FOR ALL USING (public.has_role(auth.uid(), 'admin'::public.app_role));
+supabase/migrations/20260711000000_enable_rls_on_all_tables.sql:49:-- ============ assistant_configurations (admin only) ============
+supabase/migrations/20260711000000_enable_rls_on_all_tables.sql:54:  FOR ALL USING (public.has_role(auth.uid(), 'admin'::public.app_role));
+supabase/migrations/20260711000000_enable_rls_on_all_tables.sql:56:-- ============ assistant_doctrines (admin only) ============
+supabase/migrations/20260711000000_enable_rls_on_all_tables.sql:61:  FOR ALL USING (public.has_role(auth.uid(), 'admin'::public.app_role));
+supabase/migrations/20260711000000_enable_rls_on_all_tables.sql:79:      FOR ALL USING (public.has_role(auth.uid(), 'admin'::public.app_role));
+supabase/migrations/20260711000000_enable_rls_on_all_tables.sql:103:      FOR ALL USING (public.has_role(auth.uid(), 'admin'::public.app_role));
+src/components/profile/MemoryManager.tsx:177:  // list→graph switch and the canvas stuck at its default width.
+src/components/profile/MemoryManager.tsx:695:                  <option value="none">{t('memory.graph.metricNone', 'Size: default')}</option>
+src/components/profile/MemoryManager.tsx:1629:                  variant={viewMode === 'list' ? 'default' : 'outline'}
+src/components/profile/MemoryManager.tsx:1639:                variant={viewMode === 'graph' ? 'default' : 'outline'}
+src/components/profile/MemoryManager.tsx:1655:                {t('memory.demoMode', 'Service unavailable — showing sample memories')}
+backend/services/semantic_cache.py:22:entry if their embedding similarity exceeds the threshold (default 0.92).
+backend/services/semantic_cache.py:95:        except Exception as e:
+backend/services/semantic_cache.py:98:    def _cache_key(self, idx: int, user_id: str = "", tenant_id: str = "default") -> str:
+backend/services/semantic_cache.py:103:    def _index_key(self, user_id: str = "", tenant_id: str = "default") -> str:
+backend/services/semantic_cache.py:113:        tenant_id: str = "default",
+backend/services/semantic_cache.py:126:            except Exception as e:
+backend/services/semantic_cache.py:148:            except Exception as mget_err:
+backend/services/semantic_cache.py:201:        except Exception as e:
+backend/services/semantic_cache.py:215:        tenant_id: str = "default",
+backend/services/semantic_cache.py:228:            except Exception as e:
+backend/services/semantic_cache.py:274:        except Exception as e:
+backend/services/semantic_cache.py:288:        except Exception as e:
+backend/services/semantic_cache.py:296:        tenant_id: str = "default",
+backend/services/semantic_cache.py:365:        except Exception as e:
+supabase/migrations/20260724054031_41ce0885-a2cf-4301-9911-516ba2b8d26a.sql:10:-- (app-layer admin check is the only gate) — revert only deliberately.
+backend/services/base_llm_service.py:118:        except Exception:
+backend/services/base_llm_service.py:160:        except Exception as exc:
+supabase/migrations/20260516182217_515238b1-b493-4e4e-88dc-75a5db2cb880.sql:13:-- Idempotent helper: callers (authenticated users) ensure they have a profile + default role.
+supabase/migrations/20260516182217_515238b1-b493-4e4e-88dc-75a5db2cb880.sql:71:-- One-time backfill for any historical user missing a profile or default role.
+supabase/migrations/20260615120000_backend_improvements.sql:81:GRANT ALL ON public.push_subscriptions TO service_role;
+supabase/migrations/20260615120000_backend_improvements.sql:96:GRANT ALL ON public.daily_teachings TO service_role;
+supabase/migrations/20260615120000_backend_improvements.sql:116:GRANT SELECT, INSERT, UPDATE ON public.pending_extractions TO service_role;
+supabase/migrations/20260616050645_effd7cd1-c5a9-403c-abc7-053a5f5f932c.sql:41:GRANT ALL ON public.push_subscriptions TO service_role;
+src/components/common/SessionExpiredHandler.tsx:10:const PROTECTED_PREFIXES = ['/chat', '/profile', '/admin'];
+backend/services/qdrant/indexer.py:38:                except Exception as e:
+backend/services/qdrant/indexer.py:188:                except Exception as exc:
+backend/services/qdrant/indexer.py:228:            payload.setdefault("tenant_id", TenantContext.get() or settings.default_tenant_id)
+backend/services/qdrant/indexer.py:229:            payload.setdefault("corpus_id", settings.default_corpus_id)
+backend/services/qdrant/indexer.py:237:            payload.setdefault("domain_rights_status", "licensed")
+backend/services/qdrant/indexer.py:270:        except Exception:
+backend/services/qdrant/indexer.py:314:        except Exception as e:
+backend/services/qdrant/indexer.py:354:        except Exception as e:
+backend/services/qdrant/indexer.py:372:        except Exception as e:
+backend/services/qdrant/indexer.py:387:        except Exception as e:
+supabase/migrations/20260714051557_c3977534-69e8-43c4-9427-699ea9b00d06.sql:19:-- Restrict public assistant publishing to admins only
+supabase/migrations/20260714051557_c3977534-69e8-43c4-9427-699ea9b00d06.sql:26:    AND (visibility <> 'public'::assistant_visibility OR public.has_role(auth.uid(), 'admin'::public.app_role))
+supabase/migrations/20260714051557_c3977534-69e8-43c4-9427-699ea9b00d06.sql:36:    AND (visibility <> 'public'::assistant_visibility OR public.has_role(auth.uid(), 'admin'::public.app_role))
+src/components/common/RootErrorBoundary.tsx:14: * a branded fallback if React fails to render anywhere in the tree.
+src/admin/pages/TriggersPage.tsx:2:import { useTriggers, useTriggerTrend } from "@/admin/hooks/useAdminData";
+src/admin/pages/TriggersPage.tsx:18:import { fmtInt } from "@/admin/lib/formatters";
+src/admin/pages/TriggersPage.tsx:21:import { EmptyState } from "@/admin/components/EmptyState";
+src/admin/pages/TriggersPage.tsx:26:  fallback: "hsl(var(--muted-foreground))",
+src/admin/pages/TriggersPage.tsx:44:export default function TriggersPage() {
+src/admin/pages/TriggersPage.tsx:70:          Special flows fired during chat — Serene Mind, fallbacks, handoffs.
+src/admin/pages/TriggersPage.tsx:126:              <Link to="/admin/queries?search=anxious">View related queries →</Link>
+supabase/migrations/20260706035450_554143f3-5acc-4f23-a091-c6428071ff71.sql:9:-- grants (authenticated could call the admin RPCs before this hardening).
+supabase/migrations/20260706035450_554143f3-5acc-4f23-a091-c6428071ff71.sql:14:-- GRANT EXECUTE ON FUNCTION public.seed_admin_demo() TO authenticated;
+supabase/migrations/20260706035450_554143f3-5acc-4f23-a091-c6428071ff71.sql:15:-- GRANT EXECUTE ON FUNCTION public.promote_admin_by_email(text) TO authenticated;
+supabase/migrations/20260706035450_554143f3-5acc-4f23-a091-c6428071ff71.sql:16:-- GRANT EXECUTE ON FUNCTION public.demote_admin_by_id(uuid) TO authenticated;
+supabase/migrations/20260706035450_554143f3-5acc-4f23-a091-c6428071ff71.sql:17:-- GRANT EXECUTE ON FUNCTION public.list_admins() TO authenticated;
+supabase/migrations/20260706035450_554143f3-5acc-4f23-a091-c6428071ff71.sql:19:-- NOTE: re-granting EXECUTE to authenticated re-opens admin RPCs to any
+supabase/migrations/20260706035450_554143f3-5acc-4f23-a091-c6428071ff71.sql:33:REVOKE EXECUTE ON FUNCTION public.seed_admin_demo() FROM PUBLIC, anon, authenticated;
+supabase/migrations/20260706035450_554143f3-5acc-4f23-a091-c6428071ff71.sql:34:REVOKE EXECUTE ON FUNCTION public.promote_admin_by_email(text) FROM PUBLIC, anon, authenticated;
+supabase/migrations/20260706035450_554143f3-5acc-4f23-a091-c6428071ff71.sql:35:REVOKE EXECUTE ON FUNCTION public.demote_admin_by_id(uuid) FROM PUBLIC, anon, authenticated;
+supabase/migrations/20260706035450_554143f3-5acc-4f23-a091-c6428071ff71.sql:36:REVOKE EXECUTE ON FUNCTION public.list_admins() FROM PUBLIC, anon, authenticated;
+supabase/migrations/20260706035450_554143f3-5acc-4f23-a091-c6428071ff71.sql:39:GRANT EXECUTE ON FUNCTION public.seed_admin_demo() TO service_role;
+supabase/migrations/20260706035450_554143f3-5acc-4f23-a091-c6428071ff71.sql:40:GRANT EXECUTE ON FUNCTION public.promote_admin_by_email(text) TO service_role;
+supabase/migrations/20260706035450_554143f3-5acc-4f23-a091-c6428071ff71.sql:41:GRANT EXECUTE ON FUNCTION public.demote_admin_by_id(uuid) TO service_role;
+supabase/migrations/20260706035450_554143f3-5acc-4f23-a091-c6428071ff71.sql:42:GRANT EXECUTE ON FUNCTION public.list_admins() TO service_role;
+supabase/migrations/20260706035450_554143f3-5acc-4f23-a091-c6428071ff71.sql:43:GRANT EXECUTE ON FUNCTION public.handle_new_user() TO service_role;
+src/components/common/ChatErrorBoundary.tsx:17: * Shows a friendly fallback instead of a white screen when
+backend/services/qdrant/multitenancy_guard.py:17:    pass
+backend/services/qdrant/multitenancy_guard.py:71:    # Should pass
+src/components/common/BrandedSpinner.tsx:7: * Used as the global Suspense fallback to replace bare "Loading..." text.
+supabase/migrations/20260728103548_85070891-f7bf-4835-94db-4246463b3813.sql:19:-- GRANT EXECUTE ON FUNCTION public.brain_touch(text) TO service_role;
+supabase/migrations/20260728103548_85070891-f7bf-4835-94db-4246463b3813.sql:51:GRANT EXECUTE ON FUNCTION public.brain_touch(text) TO authenticated, service_role;
+src/admin/pages/PromptsPage.tsx:5:import { usePromptVersions, usePromptMetrics } from "@/admin/hooks/useAdminData";
+src/admin/pages/PromptsPage.tsx:6:import { activatePromptVersion } from "@/admin/lib/api";
+src/admin/pages/PromptsPage.tsx:16:import { fmtDate } from "@/admin/lib/formatters";
+src/admin/pages/PromptsPage.tsx:17:import { PromptDiff } from "@/admin/components/PromptDiff";
+src/admin/pages/PromptsPage.tsx:18:import { EmptyState } from "@/admin/components/EmptyState";
+src/admin/pages/PromptsPage.tsx:31:export default function PromptsPage() {
+src/admin/pages/PromptsPage.tsx:104:                      qc.invalidateQueries({ queryKey: ["admin", "prompts"] });
+src/admin/pages/PromptsPage.tsx:105:                      qc.invalidateQueries({ queryKey: ["admin", "prompt-metrics"] });
+backend/services/qdrant/client.py:85:            # The default 5s is too short and causes cascading timeout/retry loops.
+backend/services/qdrant/client.py:207:                except Exception as create_err:
+backend/services/qdrant/client.py:237:        except Exception:
+backend/services/qdrant/client.py:301:            except Exception as idx_err:
+backend/services/qdrant/client.py:349:        except Exception as e:
+backend/services/qdrant/client.py:358:        except Exception:
+backend/services/qdrant/client.py:365:        except Exception as _e:
+backend/services/qdrant/client.py:382:        print(f"    json: {json.dumps(cfg.model_dump(), default=str)}")
+backend/domain/retrieval_types.py:33:    collection: str = "default"
+backend/domain/retrieval_types.py:73:            collection=d.get("collection", "default"),
+backend/domain/retrieval_types.py:82:    docs: list[RetrievedDoc] = field(default_factory=list)
+backend/domain/retrieval_types.py:90:        return max((d.score for d in self.docs), default=0.0)
+supabase/migrations/20260714080216_b87a05f0-8df7-4370-82ad-1833dd26e6aa.sql:11:-- DROP POLICY IF EXISTS kb_sources_admin_select ON public.kb_sources;
+supabase/migrations/20260714080216_b87a05f0-8df7-4370-82ad-1833dd26e6aa.sql:12:-- DROP POLICY IF EXISTS kb_chunks_admin_select ON public.kb_chunks;
+supabase/migrations/20260714080216_b87a05f0-8df7-4370-82ad-1833dd26e6aa.sql:32:CREATE POLICY kb_sources_admin_select
+supabase/migrations/20260714080216_b87a05f0-8df7-4370-82ad-1833dd26e6aa.sql:36:  USING (public.has_role(auth.uid(), 'admin'::public.app_role));
+supabase/migrations/20260714080216_b87a05f0-8df7-4370-82ad-1833dd26e6aa.sql:38:CREATE POLICY kb_chunks_admin_select
+supabase/migrations/20260714080216_b87a05f0-8df7-4370-82ad-1833dd26e6aa.sql:42:  USING (public.has_role(auth.uid(), 'admin'::public.app_role));
+supabase/migrations/20260714080216_b87a05f0-8df7-4370-82ad-1833dd26e6aa.sql:68:REVOKE EXECUTE ON FUNCTION public.grant_admin_for_designated_emails()  FROM PUBLIC, anon, authenticated;
+src/admin/pages/AdminLoginPage.tsx:9:import { loginAdmin, verifyAdminSession } from "@/admin/lib/adminAuth";
+src/admin/pages/AdminLoginPage.tsx:13:export default function AdminLoginPage() {
+src/admin/pages/AdminLoginPage.tsx:17:  const redirectTo = params.get("redirect") || "/admin";
+src/admin/pages/AdminLoginPage.tsx:59:              Enter your admin credentials to access the dashboard.
+src/admin/pages/AdminLoginPage.tsx:65:                <Label htmlFor="admin-email">Email</Label>
+src/admin/pages/AdminLoginPage.tsx:67:                  id="admin-email"
+src/admin/pages/AdminLoginPage.tsx:71:                  placeholder="admin@example.com"
+src/admin/pages/AdminLoginPage.tsx:77:                <Label htmlFor="admin-password">Password</Label>
+src/admin/pages/AdminLoginPage.tsx:79:                  id="admin-password"
+backend/services/qdrant/searcher.py:45:                except Exception as e:
+backend/services/qdrant/searcher.py:97:            tenant_id = settings.default_tenant_id
+backend/services/qdrant/searcher.py:98:        corpus_id = getattr(settings, "default_corpus_id", "askmukthiguru")
+backend/services/qdrant/searcher.py:259:            except Exception as e:
+backend/services/qdrant/searcher.py:293:                except Exception as exc:
+backend/services/qdrant/searcher.py:368:        Scalar INT8 is Qdrant's default quantization baseline and does not need
+backend/services/qdrant/searcher.py:402:        except Exception as e:
+backend/domain/dprod_descriptor.yaml:57:    access: "admin-only, read-only, token-boundary-guarded (see app/api/kg.py)"
+backend/domain/dprod_descriptor.yaml:68:access_control: "admin read-only via hardened endpoint; no public SPARQL"
+backend/services/qdrant/raptor.py:44:            tenant_id=TenantContext.get() or settings.default_tenant_id,
+backend/services/qdrant/raptor.py:45:            corpus_id=settings.default_corpus_id,
+backend/services/qdrant/raptor.py:94:        except Exception as e:
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:2:-- REVERT: Drop the admin policies, grants and seed_admin_demo(). Tables were created
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:11:-- DROP POLICY IF EXISTS "admins read chat_queries" ON public.chat_queries;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:12:-- DROP POLICY IF EXISTS "admins read chat_responses" ON public.chat_responses;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:13:-- DROP POLICY IF EXISTS "admins read retrieval_events" ON public.retrieval_events;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:14:-- DROP POLICY IF EXISTS "admins read trace_spans" ON public.trace_spans;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:15:-- DROP POLICY IF EXISTS "admins read trigger_events" ON public.trigger_events;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:16:-- DROP POLICY IF EXISTS "admins read safety_events" ON public.safety_events;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:17:-- DROP POLICY IF EXISTS "admins read prompt_versions" ON public.prompt_versions;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:18:-- DROP POLICY IF EXISTS "admins write prompt_versions" ON public.prompt_versions;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:19:-- DROP POLICY IF EXISTS "admins read alert_rules" ON public.alert_rules;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:20:-- DROP POLICY IF EXISTS "admins write alert_rules" ON public.alert_rules;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:21:-- DROP POLICY IF EXISTS "admins read alert_events" ON public.alert_events;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:22:-- DROP POLICY IF EXISTS "admins read annotations" ON public.annotations;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:23:-- DROP POLICY IF EXISTS "admins write annotations" ON public.annotations;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:24:-- DROP POLICY IF EXISTS "admins read app_logs" ON public.app_logs;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:25:-- DROP POLICY IF EXISTS "admins read eval_runs" ON public.eval_runs;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:26:-- DROP POLICY IF EXISTS "admins read eval_results" ON public.eval_results;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:27:-- DROP POLICY IF EXISTS "admins read golden_questions" ON public.golden_questions;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:28:-- DROP POLICY IF EXISTS "admins write golden_questions" ON public.golden_questions;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:29:-- DROP POLICY IF EXISTS "admins read ingestion_runs" ON public.ingestion_runs;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:30:-- DROP POLICY IF EXISTS "admins read model_pricing" ON public.model_pricing;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:31:-- DROP POLICY IF EXISTS "admins write model_pricing" ON public.model_pricing;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:32:-- DROP POLICY IF EXISTS "admins read query_clusters" ON public.query_clusters;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:33:-- DROP POLICY IF EXISTS "admins read user_profiles" ON public.user_profiles;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:34:-- DROP POLICY IF EXISTS "admins read feedback_events" ON public.feedback_events;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:36:-- DROP FUNCTION IF EXISTS public.seed_admin_demo();
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:38:-- NOTE: demo-seed data rows remain in the telemetry tables after this revert.
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:61:GRANT ALL ON public.chat_queries TO service_role;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:63:CREATE POLICY "admins read chat_queries" ON public.chat_queries FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:81:GRANT ALL ON public.chat_responses TO service_role;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:83:CREATE POLICY "admins read chat_responses" ON public.chat_responses FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:94:GRANT ALL ON public.retrieval_events TO service_role;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:96:CREATE POLICY "admins read retrieval_events" ON public.retrieval_events FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:108:GRANT ALL ON public.trace_spans TO service_role;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:110:CREATE POLICY "admins read trace_spans" ON public.trace_spans FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:122:GRANT ALL ON public.trigger_events TO service_role;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:124:CREATE POLICY "admins read trigger_events" ON public.trigger_events FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:137:GRANT ALL ON public.safety_events TO service_role;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:139:CREATE POLICY "admins read safety_events" ON public.safety_events FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:151:GRANT ALL ON public.prompt_versions TO service_role;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:153:CREATE POLICY "admins read prompt_versions" ON public.prompt_versions FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:154:CREATE POLICY "admins write prompt_versions" ON public.prompt_versions FOR ALL TO authenticated USING (public.has_role(auth.uid(), 'admin')) WITH CHECK (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:167:GRANT ALL ON public.alert_rules TO service_role;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:169:CREATE POLICY "admins read alert_rules" ON public.alert_rules FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:170:CREATE POLICY "admins write alert_rules" ON public.alert_rules FOR ALL TO authenticated USING (public.has_role(auth.uid(), 'admin')) WITH CHECK (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:181:GRANT ALL ON public.alert_events TO service_role;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:183:CREATE POLICY "admins read alert_events" ON public.alert_events FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:194:GRANT ALL ON public.annotations TO service_role;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:196:CREATE POLICY "admins read annotations" ON public.annotations FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:197:CREATE POLICY "admins write annotations" ON public.annotations FOR ALL TO authenticated USING (public.has_role(auth.uid(), 'admin')) WITH CHECK (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:208:GRANT ALL ON public.app_logs TO service_role;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:210:CREATE POLICY "admins read app_logs" ON public.app_logs FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:222:GRANT ALL ON public.eval_runs TO service_role;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:224:CREATE POLICY "admins read eval_runs" ON public.eval_runs FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:237:GRANT ALL ON public.eval_results TO service_role;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:239:CREATE POLICY "admins read eval_results" ON public.eval_results FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:250:GRANT ALL ON public.golden_questions TO service_role;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:252:CREATE POLICY "admins read golden_questions" ON public.golden_questions FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:253:CREATE POLICY "admins write golden_questions" ON public.golden_questions FOR ALL TO authenticated USING (public.has_role(auth.uid(), 'admin')) WITH CHECK (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:265:GRANT ALL ON public.ingestion_runs TO service_role;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:267:CREATE POLICY "admins read ingestion_runs" ON public.ingestion_runs FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:278:GRANT ALL ON public.model_pricing TO service_role;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:280:CREATE POLICY "admins read model_pricing" ON public.model_pricing FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:281:CREATE POLICY "admins write model_pricing" ON public.model_pricing FOR ALL TO authenticated USING (public.has_role(auth.uid(), 'admin')) WITH CHECK (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:292:GRANT ALL ON public.query_clusters TO service_role;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:294:CREATE POLICY "admins read query_clusters" ON public.query_clusters FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:296:-- user_profiles (admin telemetry view of seekers — separate from public.profiles)
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:305:GRANT ALL ON public.user_profiles TO service_role;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:307:CREATE POLICY "admins read user_profiles" ON public.user_profiles FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:319:GRANT ALL ON public.feedback_events TO service_role;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:321:CREATE POLICY "admins read feedback_events" ON public.feedback_events FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:333:-- Seed function for admin drill-down demo (admin-only)
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:335:CREATE OR REPLACE FUNCTION public.seed_admin_demo()
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:346:  IF NOT public.has_role(auth.uid(), 'admin'::public.app_role) THEN
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:347:    RETURN jsonb_build_object('ok', false, 'reason', 'not_admin');
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:386:REVOKE EXECUTE ON FUNCTION public.seed_admin_demo() FROM PUBLIC, anon;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:387:GRANT EXECUTE ON FUNCTION public.seed_admin_demo() TO authenticated;
+backend/domain/upper_ontology_mapping.py:180:    # every real enum member must resolve to a mapping (no silent fallback holes)
+backend/services/qdrant/neighbor.py:66:        except Exception as e:
+supabase/migrations/20260705000000_fix_memory_service_auth.sql:46:-- Grant to service_role (backend calls) and authenticated (direct client calls)

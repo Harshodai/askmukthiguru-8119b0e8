@@ -1,0 +1,48 @@
+=== frontend ===
+HTTP/1.1 301 Moved Permanently
+Server: nginx
+Date: Mon, 24 Aug 2026 14:02:25 GMT
+Content-Type: text/html
+Content-Length: 162
+Location: http://localhost/chat/
+Connection: keep-alive
+X-Frame-Options: DENY
+X-Content-Type-Options: nosniff
+Referrer-Policy: same-origin
+Permissions-Policy: camera=(), microphone=(), geolocation=()
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+Content-Security-Policy: default-src 'self'; script-src 'self' https://accounts.google.com https://accounts.google.com/gsi/; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com https://accounts.google.com/gsi/; img-src 'self' data: https://lh3.googleusercontent.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://accounts.google.com; frame-src 'self' https://accounts.google.com; frame-ancestors 'none'; form-action 'self'; base-uri 'self'
+
+<title>301 Moved Permanently
+=== healthz ===
+HTTP/1.1 200 OK
+date: Mon, 24 Aug 2026 14:02:25 GMT
+server: uvicorn
+content-length: 28
+content-type: application/json
+x-correlation-id: 45c7d1fd
+x-content-type-options: nosniff
+x-frame-options: DENY
+referrer-policy: strict-origin-when-cross-origin
+permissions-policy: camera=(), microphone=(), geolocation=()
+strict-transport-security: max-age=31536000; includeSubDomains
+x-xss-protection: 1; mode=block
+content-security-policy: default-src 'self'; script-src 'self' 'nonce-_YDpQsF3nHuImp7ERTP6PQ' https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://api.sarvam.ai https://*.supabase.co wss://*.supabase.co; frame-ancestors 'none';
+
+{"ok":true,"status":"alive"}
+=== health ===
+HTTP/1.1 200 OK
+date: Mon, 24 Aug 2026 14:02:25 GMT
+server: uvicorn
+content-length: 1238
+content-type: application/json
+x-correlation-id: dde87687
+x-content-type-options: nosniff
+x-frame-options: DENY
+referrer-policy: strict-origin-when-cross-origin
+permissions-policy: camera=(), microphone=(), geolocation=()
+strict-transport-security: max-age=31536000; includeSubDomains
+x-xss-protection: 1; mode=block
+content-security-policy: default-src 'self'; script-src 'self' 'nonce-llpICpEor10ah-UjANkFAg' https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://api.sarvam.ai https://*.supabase.co wss://*.supabase.co; frame-ancestors 'none';
+
+{"ready":false,"status":"unhealthy","services":{"qdrant":{"ok":true,"latency_ms":2,"critical":true},"redis":{"ok":true,"latency_ms":2,"critical":true},"neo4j":{"ok":true,"latency_ms":2,"critical":false},"llm":{"ok":true,"latency_ms":62,"critical":true},"embedding":{"ok":true,"latency_ms":0,"critical":true,"dim":1024},"runtime_artifacts":{"ok":false,"latency_ms":0,"critical":true,"missing_required":["okf_compiled"],"present":2,"total":3},"guardrails":{"ok":true,"latency_ms":0,"critical":false,"provider":"lightweight"},"exact_cache":{"ok":true,"latency_ms":0,"critical":false,"keys":0,"nonexpiring_keys":0,"max_keys":10000},"semantic_cache":{"ok":true,"latency_ms":0,"critical":false},"fast_graph":{"ok":true,"latency_ms":0,"critical":true},"standard_graph":{"ok":true,"latency_ms":0,"critical":true},"deep_graph":{"ok":true,"latency_ms":0,"critical":false},"graph_warmup":{"ok":true,"status":"ready","latency_ms":0,"critical":false},"job_queue":{"ok":true,"latency_ms":0,"critical":false,"queue_size":0},"chat_backpressure":{"ok":true,"latency_ms":0,"critical":false,"max_concurrent":20,"in_flight":0,"admission_limited":false},"lightrag":{"ok":true,"latency_ms":0,"critical":true},"ocr":{"ok":true,"latency_ms":0,"critical":false}}}

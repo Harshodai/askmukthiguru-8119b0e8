@@ -44,6 +44,21 @@ from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
+
+
+# Only Qdrant network endpoints are accepted; file:// and custom schemes are rejected.
+def _validate_qdrant_base_url(base_url: str) -> str:
+    """Allow only network HTTP(S) endpoints; reject local/custom schemes."""
+    parsed = urlparse(base_url)
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        raise ValueError("Qdrant URL must be an absolute http:// or https:// URL")
+    if parsed.username or parsed.password:
+        raise ValueError("Qdrant URL must not embed credentials")
+    if parsed.query or parsed.fragment:
+        raise ValueError("Qdrant URL must not contain a query string or fragment")
+    return base_url.rstrip("/")
+
 
 _BACKEND = Path(__file__).resolve().parents[2]
 if str(_BACKEND) not in sys.path:
@@ -83,6 +98,8 @@ def _scroll(base_url: str, collection: str, limit: int, cap: int | None) -> Iter
     """Yield payloads from a Qdrant collection. Read-only."""
     import urllib.request
 
+    base_url = _validate_qdrant_base_url(base_url)
+
     offset: Any = None
     seen = 0
     while True:
@@ -94,7 +111,8 @@ def _scroll(base_url: str, collection: str, limit: int, cap: int | None) -> Iter
             data=json.dumps(body).encode(),
             headers={"Content-Type": "application/json"},
         )
-        with urllib.request.urlopen(req, timeout=60) as resp:
+        # URL has been validated as an absolute HTTP(S) endpoint above.
+        with urllib.request.urlopen(req, timeout=60) as resp:  # nosec B310
             result = json.load(resp)["result"]
         points = result.get("points") or []
         if not points:
@@ -240,7 +258,7 @@ def main(argv: list[str] | None = None) -> int:
 
     cap = args.sample or (5000 if args.mode == "ci" else None)
     try:
-        report = audit(url.rstrip("/"), collection, cap)
+        report = audit(_validate_qdrant_base_url(url), collection, cap)
     except Exception as exc:
         print(f"audit failed against {url} / {collection}: {exc}", file=sys.stderr)
         return 2

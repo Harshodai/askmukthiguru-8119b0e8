@@ -1,0 +1,1203 @@
+=== TRACK: rag ===
+UTC: 2026-08-24T13:52:06Z
+HEAD: 1f882077616b92b5e2b59a31d9ee4fb246e8fe68
+tests/e2e/seeker-journey.spec.ts:112:            'data: {"intent": "CASUAL", "citations": [], "meditation_step": 0}\n\n',
+tests/e2e/security-aal2.spec.ts:151:      body: JSON.stringify({ code: 'mfa_verification_failed', message: 'Invalid MFA code' }),
+tests/e2e/security-aal2.spec.ts:268:      (await page.getByText(/verification code|authenticator|two-factor|2fa/i).count()) > 0 ||
+tests/e2e/security-aal2.spec.ts:282:    const codeInput = page.getByRole('textbox', { name: /verification code/i });
+tests/e2e/security-aal2.spec.ts:288:    await expect(page.getByText(/invalid|wrong|failed|verification failed|mfa verification failed/i)).toBeVisible();
+tests/e2e/ui-regression-screenshots.spec.ts:187:      { path: '/admin/retrieval', desc: 'admin_retrieval' },
+tests/e2e/ui-regression-screenshots.spec.ts:195:      { path: '/admin/tts-verification', desc: 'admin_tts_verification' }
+tests/e2e/chat-scrolling-and-tts.spec.ts:352:    // Visit the TTS verification page
+tests/e2e/chat-scrolling-and-tts.spec.ts:371:    // Take screenshot to document verification page excellence
+tests/e2e/chat-scrolling-and-tts.spec.ts:373:    console.log('✅ Captured E2E verification screenshot: chat_ui_screenshot.png');
+tests/e2e/chat-scrolling-and-tts.spec.ts:460:            'data: {"intent": "FACTUAL", "citations": ["wisdom-scroll-1"], "meditation_step": 0}\n\n',
+tests/e2e/chat-scrolling-and-tts.spec.ts:510:    console.log('✅ Captured chat streaming auto-scroll verification screenshot: chat_ui_screenshot_chat.png');
+backend/services/confidence_scorer.py:3:Replaces single-signal verification confidence with a calibrated 5-signal
+backend/services/confidence_scorer.py:6:  retrieval quality   20%  — how well top chunks matched the query
+backend/services/confidence_scorer.py:7:  faithfulness        25%  — LettuceDetect / lexical overlap score
+backend/services/confidence_scorer.py:8:  CoVe pass rate      15%  — fraction of claims that passed verification
+backend/services/confidence_scorer.py:10:  source authority    10%  — citation quality heuristic
+backend/services/confidence_scorer.py:33:    "retrieval": 0.20,
+backend/services/confidence_scorer.py:34:    "faithfulness": 0.25,
+backend/services/confidence_scorer.py:43:# Tuned so a high-faithfulness, contradiction-free, well-sourced answer
+backend/services/confidence_scorer.py:44:# reaches the 8.0+ confidence threshold expected by downstream verification.
+backend/services/confidence_scorer.py:49:# eval (temperature sweep vs verification outcomes) before changing this value.
+backend/services/confidence_scorer.py:71:def _retrieval_confidence(reranked_docs: list) -> float:
+backend/services/confidence_scorer.py:72:    """Estimate retrieval quality from reranked document scores."""
+backend/services/confidence_scorer.py:73:    if not reranked_docs:
+backend/services/confidence_scorer.py:76:    for doc in reranked_docs[:5]:
+backend/services/confidence_scorer.py:78:            score = doc.get("score") or doc.get("rerank_score") or 0.0
+backend/services/confidence_scorer.py:87:def _source_authority(citations: list) -> float:
+backend/services/confidence_scorer.py:88:    """Heuristic authority score based on citation quality and count.
+backend/services/confidence_scorer.py:90:    `citations` may be plain URL strings (pre-format_final_answer graph
+backend/services/confidence_scorer.py:91:    state) or `{"url", "title"}` dicts (the public citation contract) —
+backend/services/confidence_scorer.py:94:    if not citations:
+backend/services/confidence_scorer.py:104:        (c.get("url") or "") if isinstance(c, dict) else str(c or "") for c in citations
+backend/services/confidence_scorer.py:107:    base = min(1.0, len(citations) / 5.0)
+backend/services/confidence_scorer.py:111:def _source_authority_from_docs(reranked_docs: list) -> float:
+backend/services/confidence_scorer.py:113:    if not reranked_docs:
+backend/services/confidence_scorer.py:116:    for doc in reranked_docs[:5]:
+backend/services/confidence_scorer.py:127:def _recency(reranked_docs: list) -> float:
+backend/services/confidence_scorer.py:129:    if not reranked_docs:
+backend/services/confidence_scorer.py:133:    for doc in reranked_docs[:5]:
+backend/services/confidence_scorer.py:156:def _llm_uncertainty(verification: dict) -> float:
+backend/services/confidence_scorer.py:159:    if not isinstance(verification, dict):
+backend/services/confidence_scorer.py:162:        verification.get("uncertainty")
+backend/services/confidence_scorer.py:163:        or verification.get("difficulty")
+backend/services/confidence_scorer.py:164:        or verification.get("llm_uncertainty")
+backend/services/confidence_scorer.py:184:        state: LangGraph GraphState dict containing verification results,
+backend/services/confidence_scorer.py:185:               reranked docs, citations, and contradiction flag.
+backend/services/confidence_scorer.py:191:        verification = state.get("verification") or {}
+backend/services/confidence_scorer.py:193:        # Signal 1: retrieval quality (0–1)
+backend/services/confidence_scorer.py:194:        reranked_docs = state.get("reranked_docs") or state.get("documents") or []
+backend/services/confidence_scorer.py:195:        retrieval_sig = _retrieval_confidence(reranked_docs)
+backend/services/confidence_scorer.py:197:        # Signal 2: faithfulness from LettuceDetect / lexical overlap (0–1)
+backend/services/confidence_scorer.py:198:        faithfulness_sig = float(state.get("faithfulness_score") or verification.get("score", 0.0))
+backend/services/confidence_scorer.py:199:        faithfulness_sig = max(0.0, min(1.0, faithfulness_sig))
+backend/services/confidence_scorer.py:201:        # Signal 3: CoVe pass ratio (0–1); proxy from faithfulness if absent
+backend/services/confidence_scorer.py:202:        cove_sig = float(verification.get("cove_pass_ratio", 0.0))
+backend/services/confidence_scorer.py:204:        if cove_sig == 0.0 and faithfulness_sig > 0.0:
+backend/services/confidence_scorer.py:205:            cove_sig = faithfulness_sig * 0.9
+backend/services/confidence_scorer.py:218:        # Signal 5: source authority (0–1) — prefer doc-metadata version, fall back to citations
+backend/services/confidence_scorer.py:219:        authority_sig = _source_authority_from_docs(reranked_docs)
+backend/services/confidence_scorer.py:221:            authority_sig = _source_authority(state.get("citations") or [])
+backend/services/confidence_scorer.py:224:        recency_sig = _recency(reranked_docs)
+backend/services/confidence_scorer.py:227:        llm_unc_sig = _llm_uncertainty(verification)
+backend/services/confidence_scorer.py:230:            "retrieval": retrieval_sig,
+backend/services/confidence_scorer.py:231:            "faithfulness": faithfulness_sig,
+backend/services/confidence_scorer.py:268:        verification = state.get("verification") or {}
+backend/services/confidence_scorer.py:269:        reranked_docs = state.get("reranked_docs") or state.get("documents") or []
+backend/services/confidence_scorer.py:270:        faithfulness = float(state.get("faithfulness_score") or verification.get("score", 0.0))
+backend/services/confidence_scorer.py:271:        retrieval = _retrieval_confidence(reranked_docs)
+backend/services/confidence_scorer.py:272:        cove = float(verification.get("cove_pass_ratio", 0.0))
+backend/services/confidence_scorer.py:281:        authority = _source_authority_from_docs(reranked_docs) or _source_authority(
+backend/services/confidence_scorer.py:282:            state.get("citations") or []
+backend/services/confidence_scorer.py:284:        recency = _recency(reranked_docs)
+backend/services/confidence_scorer.py:285:        llm_unc = _llm_uncertainty(verification)
+backend/services/confidence_scorer.py:290:            "faithfulness": faithfulness,
+backend/services/confidence_scorer.py:291:            "retrieval": retrieval,
+backend/services/confidence_scorer.py:304:        if faithfulness < 0.5:
+backend/services/confidence_scorer.py:305:            parts.append(f"low faithfulness={faithfulness:.2f}")
+backend/services/confidence_scorer.py:306:        if retrieval < 0.4:
+backend/services/confidence_scorer.py:307:            parts.append(f"weak retrieval={retrieval:.2f}")
+backend/services/confidence_scorer.py:322:        "reranked_docs": [
+backend/services/confidence_scorer.py:326:        "faithfulness_score": 0.82,
+backend/services/confidence_scorer.py:327:        "verification": {"cove_pass_ratio": 0.9, "uncertainty": 0.2},
+backend/services/confidence_scorer.py:328:        "citations": ["https://ekam.org/teaching"],
+backend/services/guru_voice_langhanam.py:3:The active voice path is prompt-time only. It preserves attributable retrieved
+backend/services/guru_voice_langhanam.py:5:answer is rewritten by regex after citation attachment.
+backend/services/guru_voice_langhanam.py:55:# absent from the retrieved context was also hallucination by instruction, layered
+backend/services/guru_voice_langhanam.py:140:# tradition claims absent from the retrieved context). CASUAL and GREETING stay
+backend/services/humanizer.py:35:def _sentence_has_citation(sentence: str) -> bool:
+backend/services/humanizer.py:152:    citations survive humanization.  Paragraph boundaries are preserved
+backend/services/humanizer.py:173:        if _sentence_has_citation(stripped):
+backend/services/humanizer.py:215:        if _sentence_has_citation(stripped):
+scripts/eval/retrieval_evaluation_matrix.py:1:"""Build a held-out retrieval evaluation matrix from benchmark JSON.
+scripts/eval/retrieval_evaluation_matrix.py:4:optional golden labels; it never changes retrieval weights or production data.
+scripts/eval/retrieval_evaluation_matrix.py:78:def _citation_correctness(record: Dict[str, Any], expected: Set[str]) -> Optional[float]:
+scripts/eval/retrieval_evaluation_matrix.py:81:    citations = _list_of_strings(record.get("citations"))
+scripts/eval/retrieval_evaluation_matrix.py:82:    return round(sum(1 for value in citations if value in expected) / len(citations), 4) if citations else 0.0
+scripts/eval/retrieval_evaluation_matrix.py:94:    faithfulness = record.get("faithfulness_score")
+scripts/eval/retrieval_evaluation_matrix.py:105:        "citation_correctness": _citation_correctness(record, expected_sources),
+scripts/eval/retrieval_evaluation_matrix.py:107:        "faithfulness_score": faithfulness if isinstance(faithfulness, (int, float)) else None,
+scripts/eval/retrieval_evaluation_matrix.py:110:        "citation_count": record.get("citation_count", 0),
+scripts/eval/retrieval_evaluation_matrix.py:111:        "grounding_state": record.get("grounding_state"),
+scripts/eval/retrieval_evaluation_matrix.py:118:    latencies, faithfulness, recalls, ndcgs, citations = [nums(key) for key in ("latency_ms", "faithfulness_score", "entity_recall", "ndcg_at_k", "citation_correctness")]
+scripts/eval/retrieval_evaluation_matrix.py:122:        "faithfulness_mean": round(statistics.mean(faithfulness), 4) if faithfulness else None,
+scripts/eval/retrieval_evaluation_matrix.py:125:        "citation_correctness_mean": round(statistics.mean(citations), 4) if citations else None,
+scripts/eval/eval_gemini_flash_models.py:35:from services.qdrant_service import QdrantService
+scripts/eval/eval_gemini_flash_models.py:62:    logger.info("🧹 Flushing Qdrant semantic query cache...")
+scripts/eval/eval_gemini_flash_models.py:75:    qdrant_svc = QdrantService()
+scripts/eval/run_ragas_eval.py:5:RAGAS metrics (faithfulness, answer_relevancy, context_precision), and writes
+scripts/eval/run_ragas_eval.py:19:    # CI usage (fails if mean_faithfulness < 0.6)
+scripts/eval/run_ragas_eval.py:30:    RAGAS_LLM_API_KEY   Key for the RAGAS LLM/embedding provider (defaults to
+scripts/eval/run_ragas_eval.py:34:                    (default: text-embedding-3-small)
+scripts/eval/run_ragas_eval.py:40:    Privacy note: evaluation sends the collected chat answers and retrieved
+scripts/eval/run_ragas_eval.py:41:    contexts to the configured LLM/embedding provider (e.g. OpenAI) for metric
+scripts/eval/run_ragas_eval.py:77:RAGAS_EMBEDDINGS_MODEL = os.environ.get("RAGAS_EMBEDDINGS_MODEL", "text-embedding-3-small")
+scripts/eval/run_ragas_eval.py:207:        from ragas.embeddings import LangchainEmbeddingsWrapper
+scripts/eval/run_ragas_eval.py:209:        from ragas.metrics import answer_relevancy, context_precision, faithfulness
+scripts/eval/run_ragas_eval.py:224:    embeddings = LangchainEmbeddingsWrapper(
+scripts/eval/run_ragas_eval.py:232:        metrics=[faithfulness, answer_relevancy, context_precision],
+scripts/eval/run_ragas_eval.py:234:        embeddings=embeddings,
+scripts/eval/run_ragas_eval.py:267:        contexts = resp.get("sources") or resp.get("contexts") or resp.get("citations") or []
+scripts/eval/run_ragas_eval.py:318:        faithfulness_score = metrics.get("faithfulness")
+scripts/eval/run_ragas_eval.py:319:        if faithfulness_score is None or not math.isfinite(faithfulness_score):
+scripts/eval/run_ragas_eval.py:320:            logger.error("CI FAIL: faithfulness missing or non-finite")
+scripts/eval/run_ragas_eval.py:322:        if faithfulness_score < args.threshold:
+scripts/eval/run_ragas_eval.py:324:                "CI FAIL: faithfulness %.3f < threshold %.3f",
+scripts/eval/run_ragas_eval.py:325:                faithfulness_score,
+scripts/eval/run_ragas_eval.py:329:        logger.info("CI PASS: faithfulness %.3f >= %.3f", faithfulness_score, args.threshold)
+scripts/eval/run_ragas_eval.py:342:    parser.add_argument("--threshold", type=float, default=0.6, help="CI faithfulness threshold")
+backend/services/okf_quality_filter.py:24:# the 89k-chunk Qdrant corpus, and maintaining two separate lists is exactly how the
+backend/services/whisper_local_service.py:31:# wrapper) so the ingestion pipeline can retrieve segments/words later without re-running STT.
+backend/services/whisper_local_service.py:47:    """Stash the full whisperx result (segments + words + speakers) for later retrieval."""
+backend/services/whisper_local_service.py:288:        # ingestion pipeline can later retrieve word-level timestamps + speaker
+backend/services/whisper_local_service.py:424:    # so the ingestion pipeline can retrieve it later via get_cached_whisperx_result().
+backend/services/circuit_breaker.py:412:    # Services (qdrant/embedding/web_search/sarvam/openrouter) self-register their
+backend/rag/states.py:41:    """Reducer for monotone counters written by concurrent branches (e.g. CRAG
+backend/rag/states.py:68:      - documents:    Set by retrieve_documents. List of retrieved doc dicts
+backend/rag/states.py:69:      - reranked_docs: Set by rerank_documents. Top-k after CrossEncoder
+backend/rag/states.py:71:    CRAG Fields:
+backend/rag/states.py:73:      - rewrite_count: Tracks CRAG rewrite iterations (max 3)
+backend/rag/states.py:85:      - citations:      Source URLs cited in the answer
+backend/rag/states.py:87:    Self-RAG Fields:
+backend/rag/states.py:88:      - is_faithful:    Set by check_faithfulness. Boolean grounding check
+backend/rag/states.py:90:    CoVe Fields:
+backend/rag/states.py:91:      - verification:   Set by verify_answer. Verification result dict
+backend/rag/states.py:118:    # keep_latest reducers: the CRAG rewrite loop re-enters retrieve→rerank→grade
+backend/rag/states.py:122:    reranked_docs: Annotated[list, keep_latest]
+backend/rag/states.py:123:    hyde_text: Optional[str]  # Hypothetical answer for HyDE retrieval
+backend/rag/states.py:125:    # CRAG
+backend/rag/states.py:135:    # LangGraph Send API — parallel sub-query retrieval
+backend/rag/states.py:149:    citations: Annotated[list, keep_latest]
+backend/rag/states.py:151:    # Self-RAG
+backend/rag/states.py:152:    is_faithful: Annotated[Optional[bool], keep_latest]
+backend/rag/states.py:158:    # CoVe
+backend/rag/states.py:159:    verification: Optional[dict]
+backend/rag/states.py:162:    ]  # 1-10 confidence from combined verification
+backend/rag/states.py:163:    faithfulness_score: Annotated[
+backend/rag/states.py:165:    ]  # Self-RAG / LettuceDetect faithfulness score
+backend/rag/states.py:187:    citation_reasoning: Annotated[dict, add_dicts]  # {url: reasoning}
+backend/rag/states.py:212:    # Server-resolved retrieval authority; never populated from client tags.
+backend/rag/states.py:217:    low_confidence_retrieval: Optional[bool]
+backend/rag/states.py:259:    # RAGFlow Gap 1 — Deep Research (recursive sufficiency retrieval)
+backend/rag/states.py:269:    # Provenance-first retrieval evidence, produced after all channels and
+backend/rag/states.py:271:    # retrieval node is the sole producer of the final manifest.
+scripts/eval/eval_openrouter_cheap_models.py:32:from services.qdrant_service import QdrantService
+scripts/eval/eval_openrouter_cheap_models.py:62:    logger.info("🧹 Flushing Qdrant semantic query cache...")
+scripts/eval/eval_openrouter_cheap_models.py:75:    qdrant_svc = QdrantService()
+backend/services/text_quality_filter.py:7:LLM's own chain-of-thought, embedded and retrievable as doctrine. Verbatim, live:
+backend/services/text_quality_filter.py:19:Nothing guarded the Qdrant write path, and ``pipeline._extract_topics`` salvaged
+backend/services/guru_brain/guru_kg_service.py:215:        """Format retrieved 5-node OKF Knowledge Graph arcs into prompt context."""
+backend/services/guru_brain/guru_brain_service.py:18:from services.qdrant_service import QdrantService
+backend/services/guru_brain/guru_brain_service.py:86:        qdrant_service: Optional[QdrantService] = None,
+backend/services/guru_brain/guru_brain_service.py:88:        embedding_service: Any = None,
+backend/services/guru_brain/guru_brain_service.py:91:        self.embedding_service = embedding_service
+backend/services/guru_brain/guru_brain_service.py:100:        """Create the `guru_tone_podcast` Qdrant collection if missing, preserving existing collections on dimension mismatch."""
+backend/services/guru_brain/guru_brain_service.py:103:            logger.info("GuruBrainService: Qdrant client unavailable, using in-memory store.")
+backend/services/guru_brain/guru_brain_service.py:119:                        f"GuruBrainService: Qdrant collection '{COLLECTION_NAME}' dimension mismatch ({current_size} != {vector_size}). Preserving existing collection."
+backend/services/guru_brain/guru_brain_service.py:125:                    f"GuruBrainService: Creating Qdrant collection '{COLLECTION_NAME}' (size={vector_size})."
+backend/services/guru_brain/guru_brain_service.py:139:            logger.warning(f"GuruBrainService: Failed to initialize Qdrant collection: {exc}")
+backend/services/guru_brain/guru_brain_service.py:143:        """Index PersonaToneExemplar records into Qdrant `guru_tone_podcast`."""
+backend/services/guru_brain/guru_brain_service.py:150:        if not client or not self.embedding_service:
+backend/services/guru_brain/guru_brain_service.py:160:                if hasattr(self.embedding_service, "encode_single_async"):
+backend/services/guru_brain/guru_brain_service.py:161:                    vector = await self.embedding_service.encode_single_async(text_to_embed)
+backend/services/guru_brain/guru_brain_service.py:162:                elif hasattr(self.embedding_service, "embed"):
+backend/services/guru_brain/guru_brain_service.py:163:                    vector = self.embedding_service.embed(text_to_embed)
+backend/services/guru_brain/guru_brain_service.py:194:                    f"GuruBrainService: Successfully upserted {len(points)} points ({dim}d) into Qdrant '{COLLECTION_NAME}'."
+backend/services/guru_brain/guru_brain_service.py:197:                logger.error(f"GuruBrainService: Failed to upsert to Qdrant: {exc}")
+backend/services/guru_brain/guru_brain_service.py:210:        if client and self.embedding_service:
+backend/services/guru_brain/guru_brain_service.py:212:                if hasattr(self.embedding_service, "encode_single_async"):
+backend/services/guru_brain/guru_brain_service.py:213:                    vector = await self.embedding_service.encode_single_async(query)
+backend/services/guru_brain/guru_brain_service.py:214:                elif hasattr(self.embedding_service, "embed"):
+backend/services/guru_brain/guru_brain_service.py:215:                    vector = self.embedding_service.embed(query)
+backend/services/guru_brain/guru_brain_service.py:272:                    f"GuruBrainService: Qdrant search failed ({exc}), using memory fallback."
+backend/services/guru_brain/guru_brain_service.py:307:        """Format retrieved exemplars with PersoDPO Contrastive Preference Bounds (Y_win vs Y_lose)."""
+backend/services/guru_brain/guru_brain_service.py:349:    qdrant_service: Optional[QdrantService] = None,
+backend/services/guru_brain/guru_brain_service.py:350:    embedding_service: Any = None,
+backend/services/guru_brain/guru_brain_service.py:360:    return GuruBrainService(qdrant_service=qdrant_service, embedding_service=embedding_service)
+scripts/eval/eval_guru_tone.py:165:                "retrieved_exemplars": [e.to_dict() for e in exemplars],
+tests/e2e/full-regression.spec.ts:77:    // Regression guard for the reported UX bug: embedding Google auth in an
+backend/services/llm/nim_provider.py:54:    async def check_faithfulness(self, answer: str, context: str, **kwargs: Any) -> dict[str, Any]:
+backend/services/llm/nim_provider.py:55:        is_faithful = await self._service.check_faithfulness(answer, context)
+backend/services/llm/nim_provider.py:56:        return {"is_faithful": is_faithful, "details": "Faithfulness score via check_faithfulness"}
+backend/services/gateways/anthropic_gateway.py:9:  2. **Citations API** via documents content blocks (block-index citations)
+backend/services/gateways/anthropic_gateway.py:32:        documents=[{"title": "...", "text": "..."}],  # optional, enables citations
+backend/services/gateways/anthropic_gateway.py:34:    print(response.text, response.citations, response.usage)
+backend/services/gateways/anthropic_gateway.py:80:    """One citation as returned by the Citations API."""
+backend/services/gateways/anthropic_gateway.py:96:    citations: list[Citation] = field(default_factory=list)
+backend/services/gateways/anthropic_gateway.py:195:        for c in resp.citations:
+backend/services/gateways/anthropic_gateway.py:263:        (`"citations": {"enabled": True}`) so the model returns block-index
+backend/services/gateways/anthropic_gateway.py:264:        citations instead of free-form citation strings. The documents come
+backend/services/gateways/anthropic_gateway.py:265:        FIRST so the model treats them as the grounding context, then the
+backend/services/gateways/anthropic_gateway.py:280:                    "citations": {"enabled": True},
+backend/services/gateways/anthropic_gateway.py:428:        citations: list[Citation] = []
+backend/services/gateways/anthropic_gateway.py:432:                for c in block.get("citations") or []:
+backend/services/gateways/anthropic_gateway.py:433:                    citations.append(
+backend/services/gateways/anthropic_gateway.py:463:            citations=citations,
+backend/services/llm/base.py:101:    async def check_faithfulness(
+backend/services/llm/base.py:104:        """Check whether answer is faithful to context."""
+backend/services/llm/base.py:109:        """CoVe-style verification."""
+backend/services/llm/base.py:124:        """Generate a hypothetical document for HyDE embedding."""
+backend/services/llm/base.py:152:    # Public probe so callers (PipelineCoordinator._is_circuit_open) never
+scripts/eval/eval_e2e_rag_gemini_flash.py:6:Flushes both Redis & Qdrant semantic cache before every model run.
+scripts/eval/eval_e2e_rag_gemini_flash.py:48:    """Flush Qdrant semantic cache before each run."""
+scripts/eval/eval_e2e_rag_gemini_flash.py:49:    logger.info("🧹 Flushing Qdrant semantic cache...")
+scripts/eval/eval_e2e_rag_gemini_flash.py:65:    logger.info("FULL E2E RAG EVALUATION — Real retrieval, no hardcoded draft")
+backend/app/telemetry_db.py:59:    faithfulness = [
+backend/app/telemetry_db.py:60:        float(r["faithfulness"])
+backend/app/telemetry_db.py:62:        if isinstance(r.get("faithfulness"), (int, float))
+backend/app/telemetry_db.py:64:    faithfulness_nonzero = [value for value in faithfulness if value > 0.0]
+backend/app/telemetry_db.py:65:    floor = float(getattr(settings, "faithfulness_floor", 0.6))
+backend/app/telemetry_db.py:88:        "faithfulness_p50": round(_percentile(faithfulness_nonzero, 50), 4),
+backend/app/telemetry_db.py:89:        "faithfulness_p95": round(_percentile(faithfulness_nonzero, 95), 4),
+backend/app/telemetry_db.py:90:        "faithfulness_below_floor_rate": sum(1 for value in faithfulness_nonzero if value < floor) / len(faithfulness_nonzero) if faithfulness_nonzero else 0.0,
+backend/app/telemetry_db.py:91:        "faithfulness_zero_rate": sum(1 for value in faithfulness if value <= 0.0) / len(faithfulness) if faithfulness else 0.0,
+backend/app/telemetry_db.py:92:        "faithfulness_sample_size": len(faithfulness),
+backend/app/telemetry_db.py:231:            "citations": response_data.get("citations", []),
+backend/app/telemetry_db.py:232:            "faithfulness": response_data.get("faithfulness", 0.0),
+backend/app/telemetry_db.py:246:        retrieval = query_data.get("retrieval_metadata")
+backend/app/telemetry_db.py:247:        if retrieval:
+backend/app/telemetry_db.py:248:            retrieval_payload = {
+backend/app/telemetry_db.py:250:                "chunk_ids": retrieval.get("chunk_ids", []),
+backend/app/telemetry_db.py:251:                "source_docs": retrieval.get("source_docs", []),
+backend/app/telemetry_db.py:252:                "scores": retrieval.get("scores", []),
+backend/app/telemetry_db.py:253:                "top_k": retrieval.get("top_k", 0),
+backend/app/telemetry_db.py:254:                "retrieval_hit": retrieval.get("hit", False),
+backend/app/telemetry_db.py:256:            client.table("retrieval_events").insert(retrieval_payload).execute()
+backend/app/telemetry_db.py:391:            "hallucination_flag, response_text, faithfulness"
+backend/app/telemetry_db.py:474:            "embedding_model": run_data.get("embedding_model"),
+backend/app/telemetry_db.py:527:        elif metric == "retrieval_hit_rate":
+backend/app/telemetry_db.py:528:            # Would need to check if citations exist
+backend/app/telemetry_db.py:529:            query = client.table("chat_responses").select("citations, created_at")
+backend/app/telemetry_db.py:596:                elif metric == "retrieval_hit_rate":
+backend/app/telemetry_db.py:597:                    citations = item.get("citations", [])
+backend/app/telemetry_db.py:598:                    hit = len(citations) > 0 if isinstance(citations, list) else False
+backend/app/telemetry_db.py:614:            elif metric in ["hallucination_rate", "thumbs_up_rate", "retrieval_hit_rate"]:
+backend/app/telemetry_db.py:701:async def get_retrieval_health(
+backend/app/telemetry_db.py:704:    """Get retrieval health metrics."""
+backend/app/telemetry_db.py:708:            "total_retrievals": 0,
+backend/app/telemetry_db.py:710:            "empty_retrievals": 0,
+backend/app/telemetry_db.py:727:        # Build query for retrieval events with joins
+backend/app/telemetry_db.py:728:        query = client.table("retrieval_events").select("*, chat_queries!inner(created_at)")
+backend/app/telemetry_db.py:736:        retrievals = response.data or []
+backend/app/telemetry_db.py:738:        if not retrievals:
+backend/app/telemetry_db.py:740:                "total_retrievals": 0,
+backend/app/telemetry_db.py:742:                "empty_retrievals": 0,
+backend/app/telemetry_db.py:753:        total_retrievals = len(retrievals)
+backend/app/telemetry_db.py:754:        hit_count = sum(1 for r in retrievals if r.get("retrieval_hit"))
+backend/app/telemetry_db.py:755:        hit_rate = hit_count / total_retrievals if total_retrievals > 0 else 0
+backend/app/telemetry_db.py:758:        scores = [r.get("scores", []) for r in retrievals if r.get("scores")]
+backend/app/telemetry_db.py:774:        chunk_counts = [len(r.get("chunk_ids", [])) for r in retrievals if r.get("chunk_ids")]
+backend/app/telemetry_db.py:780:        # Get sources with average faithfulness (simplified)
+backend/app/telemetry_db.py:784:            "total_retrievals": total_retrievals,
+backend/app/telemetry_db.py:786:            "empty_retrievals": total_retrievals - hit_count,
+backend/app/telemetry_db.py:796:        logger.error(f"Failed to get retrieval health: {e}")
+backend/app/telemetry_db.py:798:            "total_retrievals": 0,
+backend/app/telemetry_db.py:800:            "empty_retrievals": 0,
+backend/app/telemetry_db.py:818:            "faithfulness": 0.0,
+backend/app/telemetry_db.py:846:                "faithfulness": 0.0,
+backend/app/telemetry_db.py:854:        # Calculate average faithfulness and relevancy
+backend/app/telemetry_db.py:855:        faithfulness_scores = [
+backend/app/telemetry_db.py:856:            r.get("faithfulness", 0)
+backend/app/telemetry_db.py:858:            if isinstance(r.get("faithfulness"), int | float)
+backend/app/telemetry_db.py:866:        avg_faithfulness = (
+backend/app/telemetry_db.py:867:            sum(faithfulness_scores) / len(faithfulness_scores) if faithfulness_scores else 0.0
+backend/app/telemetry_db.py:882:            "faithfulness": avg_faithfulness,
+backend/app/telemetry_db.py:892:            "faithfulness": 0.0,
+backend/app/telemetry_db.py:1038:    """Get top failures by faithfulness."""
+backend/app/telemetry_db.py:1054:        # Filter for low faithfulness and relevancy, then sort
+backend/app/telemetry_db.py:1058:        # Filter out entries with null faithfulness or relevancy
+backend/app/telemetry_db.py:1062:            if r.get("faithfulness") is not None and r.get("answer_relevancy") is not None
+backend/app/telemetry_db.py:1065:        # Sort by combined score (faithfulness + relevancy) ascending
+backend/app/telemetry_db.py:1066:        valid_responses.sort(key=lambda x: x.get("faithfulness", 0) + x.get("answer_relevancy", 0))
+backend/app/telemetry_db.py:1079:                    "faithfulness": failure.get("faithfulness", 0),
+backend/app/telemetry_db.py:1082:                    "reason": "Low faithfulness score",
+backend/app/telemetry_db.py:1145:    metrics = ("faithfulness", "answer_relevancy", "context_precision", "context_recall")
+backend/app/telemetry_db.py:1151:            .select("faithfulness, answer_relevancy, context_precision, context_recall, created_at")
+backend/app/telemetry_db.py:1223:            client.table("retrieval_events")
+backend/app/telemetry_db.py:1269:        query = client.table("retrieval_events").select("source_docs")
+backend/app/telemetry_db.py:1275:        retrieved = {src for row in rows for src in (row.get("source_docs") or [])}
+backend/app/telemetry_db.py:1279:            if row.get("source") and row.get("source") not in retrieved
+backend/app/telemetry_db.py:1286:async def get_empty_retrievals(
+backend/app/telemetry_db.py:1289:    """Get empty retrievals."""
+backend/app/telemetry_db.py:1295:        # Build query for responses with no citations
+backend/app/telemetry_db.py:1308:        # Filter for empty citations
+backend/app/telemetry_db.py:1312:            if not r.get("citations")
+backend/app/telemetry_db.py:1313:            or (isinstance(r.get("citations"), list) and len(r.get("citations")) == 0)
+backend/app/telemetry_db.py:1333:        logger.error(f"Failed to get empty retrievals: {e}")
+backend/app/telemetry_db.py:1433:            .select("prompt_version_id, latency_ms, chat_responses(faithfulness, answer_relevancy)")
+backend/app/telemetry_db.py:1454:                    if response.get("faithfulness") is not None:
+backend/app/telemetry_db.py:1455:                        faith.append(float(response["faithfulness"]))
+backend/app/telemetry_db.py:1466:                    "avg_faithfulness": sum(faith) / len(faith) if faith else 0,
+backend/app/telemetry_db.py:1500:        # Fetch retrieval events
+backend/app/telemetry_db.py:1501:        retrieval_resp = (
+backend/app/telemetry_db.py:1502:            client.table("retrieval_events").select("*").eq("query_id", query_id).execute()
+backend/app/telemetry_db.py:1504:        retrieval = retrieval_resp.data[0] if retrieval_resp.data else None
+backend/app/telemetry_db.py:1533:            "retrieval": retrieval,
+backend/services/gateways/sarvam_http.py:285:                "rerank",
+backend/services/gateways/sarvam_http.py:296:                "faithfulness",
+backend/app/admin_telemetry.py:24:    "faithfulness",
+backend/app/admin_telemetry.py:35:_RETRIEVAL_FIELDS = ("id", "top_k", "retrieval_hit")
+backend/app/admin_telemetry.py:65:    retrieval = _allow(trace.get("retrieval"), _RETRIEVAL_FIELDS)
+backend/app/admin_telemetry.py:72:        "retrieval": retrieval,
+backend/app/assistant_authorization.py:19:    """Effective assistant identity, prompt, and retrieval authority."""
+backend/services/retrieval_cache.py:4:Reduces Qdrant round-trips for repeated query patterns by caching the top-k
+backend/services/retrieval_cache.py:5:retrieved document IDs keyed on a (query_embedding_bucket, tenant_id) pair.
+backend/services/retrieval_cache.py:9:- Bucketing quantises the dense query embedding to 1 decimal place before
+backend/services/retrieval_cache.py:11:- TTL is governed by settings.retrieval_cache_ttl (default 300 s).
+backend/services/retrieval_cache.py:29:_cache: TTLCache = TTLCache(maxsize=2048, ttl=settings.retrieval_cache_ttl)
+backend/services/retrieval_cache.py:32:def _bucket_key(embedding: list[float], tenant_id: str) -> str:
+backend/services/retrieval_cache.py:33:    """Stable cache key from a quantised dense embedding + tenant.
+backend/services/retrieval_cache.py:39:    quantised = tuple(round(v, 1) for v in embedding)
+backend/services/retrieval_cache.py:44:def get(embedding: list[float], tenant_id: str) -> Optional[list[str]]:
+backend/services/retrieval_cache.py:45:    """Return cached doc IDs for this embedding/tenant pair, or None on miss."""
+backend/services/retrieval_cache.py:46:    key = _bucket_key(embedding, tenant_id)
+backend/services/retrieval_cache.py:49:        logger.debug("retrieval_cache HIT key=%s n_docs=%d", key[:8], len(result))
+backend/services/retrieval_cache.py:53:def put(embedding: list[float], tenant_id: str, doc_ids: list[str]) -> None:
+backend/services/retrieval_cache.py:54:    """Store doc IDs for this embedding/tenant pair."""
+backend/services/retrieval_cache.py:57:    key = _bucket_key(embedding, tenant_id)
+backend/services/retrieval_cache.py:60:        "retrieval_cache PUT key=%s n_docs=%d ttl=%ds",
+backend/services/retrieval_cache.py:63:        settings.retrieval_cache_ttl,
+backend/services/retrieval_cache.py:76:        logger.info("retrieval_cache: evicted %d entries for tenant=%s", len(evict), tenant_id)
+backend/services/cache_service.py:11:  - Semantic Key: Uses normalized query embedding similarity for cache hits
+backend/services/memory_service.py:76:    Uses Supabase PostgreSQL for persistence and local embedding service for vector queries.
+backend/services/memory_service.py:84:    def __init__(self, supabase_client=None, embedding_service=None, llm_service=None):
+backend/services/memory_service.py:86:        self._embedding_service = embedding_service
+backend/services/memory_service.py:128:            or not self._embedding_service
+backend/services/memory_service.py:134:            # Generate query embedding
+backend/services/memory_service.py:135:            emb_dict = await asyncio.to_thread(self._embedding_service.encode_single_full, query)
+backend/services/memory_service.py:136:            query_embedding = emb_dict["dense"]
+backend/services/memory_service.py:144:                        "p_query_embedding": query_embedding,
+backend/services/memory_service.py:276:                    self._embedding_service.encode_single_full, content
+backend/services/memory_service.py:278:                embedding = emb_dict["dense"]
+backend/services/memory_service.py:289:                                    "p_query_embedding": embedding,
+backend/services/memory_service.py:308:                    "embedding": embedding,
+backend/services/memory_service.py:456:            emb_dict = await asyncio.to_thread(self._embedding_service.encode_single_full, content)
+backend/services/memory_service.py:459:                .update({"content": content, "embedding": emb_dict["dense"]})
+backend/services/memory_service.py:642:            # Generate embeddings for all new compacted memories first
+backend/services/memory_service.py:646:                    self._embedding_service.encode_single_full, content
+backend/services/memory_service.py:648:                embedding = emb_dict["dense"]
+backend/services/memory_service.py:652:                    "embedding": embedding,
+backend/services/llm/sarvam_provider.py:54:    async def check_faithfulness(
+backend/services/llm/sarvam_provider.py:57:        return await self._service.check_faithfulness(answer, context)
+backend/services/openrouter_service.py:829:            # lexical checks (and the optional embedding detector) remain the
+backend/services/openrouter_service.py:843:        """CRAG: Grade documents batch-wise in one call."""
+backend/services/openrouter_service.py:881:                "reason": "Fallback: Used top retrieval result as a starting point.",
+backend/services/openrouter_service.py:886:    async def check_faithfulness(self, answer: str, context: str, **kwargs) -> bool:
+backend/services/openrouter_service.py:887:        """Self-RAG: Check if answer is faithful to the context."""
+backend/services/openrouter_service.py:890:        return "faithful" in result.lower()
+backend/services/openrouter_service.py:917:        """CRAG: Rewrite query for retry."""
+backend/services/openrouter_service.py:922:            prompt += f"\n\nReasons for previous retrieval failure:\n{reasons_text}\n\nInstructions: Use these reasons to understand what was missing."
+backend/services/openrouter_service.py:927:        """CoVe: Generate verification questions and check."""
+backend/services/openrouter_service.py:950:        """Combined Self-RAG + CoVe verification in a single call."""
+backend/services/openrouter_service.py:959:        is_faithful = False
+backend/services/openrouter_service.py:963:                is_faithful = "FAITHFUL" in after and "HALLUCINATED" not in after
+backend/services/openrouter_service.py:974:        faithfulness_score = 1.0 if is_faithful else 0.0
+backend/services/openrouter_service.py:987:        final_passed = is_faithful and passed
+backend/services/openrouter_service.py:990:            "is_faithful": is_faithful,
+backend/services/openrouter_service.py:993:            "faithfulness_score": faithfulness_score,
+backend/app/sanitization.py:64:    Clean free-form user input before logging, embedding, or forwarding to LLMs.
+backend/services/memory_service_v2.py:5:  Tier 2 — Semantic (PG+Qdrant): long-term vector search (existing v1)
+backend/services/memory_service_v2.py:6:  Tier 3 — Global (Qdrant Cluster+Neo4j): cross-user knowledge graph memory
+backend/services/memory_service_v2.py:55:        embedding_service=None,
+backend/services/memory_service_v2.py:63:        super().__init__(supabase_client, embedding_service, llm_service)
+backend/services/memory_service_v2.py:77:        """Return the Qdrant collection for memory writes.
+backend/services/memory_service_v2.py:216:                    self._embedding_service.encode_single_full, content
+backend/services/memory_service_v2.py:218:                embedding = emb_dict.get("dense")
+backend/services/memory_service_v2.py:219:                if embedding and not self._search_disabled:
+backend/services/memory_service_v2.py:225:                                "p_query_embedding": embedding,
+backend/services/memory_service_v2.py:472:    # ---- Tier 3: Global (Qdrant Cluster + Neo4j) ----
+backend/services/memory_service_v2.py:475:        """Get Qdrant client for global memory collection."""
+backend/services/memory_service_v2.py:477:            from qdrant_client import QdrantClient
+backend/services/memory_service_v2.py:483:            return QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
+backend/services/memory_service_v2.py:488:        """Create the GLOBAL_MEMORY_COLLECTION in Qdrant if it doesn't exist yet.
+backend/services/memory_service_v2.py:491:        via a raw QdrantClient but never created it — every write/search silently
+backend/services/memory_service_v2.py:495:        Uses an unnamed default vector (matches the raw `vector=embedding` upsert
+backend/services/memory_service_v2.py:501:            logger.warning("Cannot ensure global_memory collection — Qdrant client unavailable")
+backend/services/memory_service_v2.py:515:                    size=settings.embedding_dimension, distance=Distance.COSINE
+backend/services/memory_service_v2.py:518:            logger.info(f"Created Qdrant collection: {GLOBAL_MEMORY_COLLECTION}")
+backend/services/memory_service_v2.py:556:        embedding: list[float],
+backend/services/memory_service_v2.py:562:        """Store in global Qdrant collection + Neo4j graph."""
+backend/services/memory_service_v2.py:585:                            vector=embedding,
+backend/services/memory_service_v2.py:598:            logger.warning(f"Global Qdrant write failed: {e}")
+backend/services/memory_service_v2.py:629:        query_embedding: list[float],
+backend/services/memory_service_v2.py:664:                query_vector=query_embedding,
+backend/services/memory_service_v2.py:739:        embedding = None
+backend/services/memory_service_v2.py:740:        if self._embedding_service:
+backend/services/memory_service_v2.py:743:                    self._embedding_service.encode_single_full, query
+backend/services/memory_service_v2.py:745:                embedding = emb_dict.get("dense")
+backend/services/memory_service_v2.py:783:                if embedding:
+backend/services/memory_service_v2.py:785:                        embedding,
+backend/services/llm/openrouter_provider.py:54:    async def check_faithfulness(self, answer: str, context: str, **kwargs: Any) -> dict[str, Any]:
+backend/services/llm/openrouter_provider.py:55:        is_faithful = await self._service.check_faithfulness(answer, context)
+backend/services/llm/openrouter_provider.py:56:        return {"is_faithful": is_faithful, "details": "Faithfulness score via check_faithfulness"}
+backend/services/ollama_service.py:77:    - _llm (Sarvam 30B): Full generation, verification, summarization
+backend/services/ollama_service.py:100:        # Main model — for generation and verification
+backend/services/ollama_service.py:723:            # optional embedding detector as the safety signals.
+backend/services/ollama_service.py:737:        CRAG: Batch relevance grading of multiple documents in one LLM call.
+backend/services/ollama_service.py:777:    async def check_faithfulness(self, answer: str, context: str, **kwargs) -> bool:
+backend/services/ollama_service.py:779:        Self-RAG: Check if the generated answer is faithful to the context.
+backend/services/ollama_service.py:788:        return "faithful" in result.lower()
+backend/services/ollama_service.py:792:        Stimulus RAG: Extract key evidence hints from retrieved documents.
+backend/services/ollama_service.py:819:        CRAG: Rewrite a query to improve retrieval quality.
+backend/services/ollama_service.py:822:        If reasons for previous retrieval failure are provided, they are incorporated.
+backend/services/ollama_service.py:826:            prompt += "\n\nReasons for previous retrieval failure:\n- " + "\n- ".join(reasons[:5])
+backend/services/ollama_service.py:835:        Chain of Verification (CoVe): Generate verification questions and check.
+backend/services/ollama_service.py:855:                "CoVe: No VERDICT line found in verification output. "
+backend/services/ollama_service.py:867:        Combined Self-RAG + CoVe verification in a single LLM call.
+backend/services/ollama_service.py:869:        Merges faithfulness checking (layer 10) and claim verification (layer 11)
+backend/services/ollama_service.py:874:            Dict with 'is_faithful' (bool), 'passed' (bool),
+backend/services/ollama_service.py:886:        is_faithful = False
+backend/services/ollama_service.py:890:                is_faithful = "FAITHFUL" in after and "HALLUCINATED" not in after
+backend/services/ollama_service.py:918:        final_passed = is_faithful and passed
+backend/services/ollama_service.py:922:                f"Combined verify: faithful={is_faithful}, verdict_pass={passed}, "
+backend/services/ollama_service.py:927:            "is_faithful": is_faithful,
+backend/services/ollama_service.py:967:        HyDE only needs an approximate, plausible answer to feed retrieval —
+backend/services/ollama_service.py:968:        the embedding similarity does not benefit from deepseek-r1's chain-of-thought.
+backend/services/ocr_service.py:68:    caller. TLS certificate verification still runs against the original
+backend/services/llm/ollama_provider.py:52:    async def check_faithfulness(
+backend/services/llm/ollama_provider.py:55:        return await self._service.check_faithfulness(answer, context)
+backend/services/contextual_chunking_service.py:4:Implements Anthropic-style Contextual Retrieval (https://anthropic.com/news/contextual-retrieval).
+backend/services/contextual_chunking_service.py:7:the full document.  The header is prepended to the chunk text before embedding — improving
+backend/services/contextual_chunking_service.py:8:retrieval precision by ~49 % (67 % when combined with reranking).
+backend/services/contextual_chunking_service.py:36:    "You are a context-situating assistant for a spiritual teaching retrieval system. "
+backend/services/contextual_chunking_service.py:38:    "that situates the chunk within the document. The context should help a retrieval "
+backend/services/contextual_chunking_service.py:54:overall document for the purposes of improving search retrieval of the chunk. \
+backend/services/vector_optimizer.py:5:  1. ``optimize_collection()``: trigger Qdrant's built-in optimizer on-demand
+backend/services/vector_optimizer.py:10:  - Trigger optimizer: tells Qdrant to re-merge and optimize segments
+backend/services/vector_optimizer.py:36:    Wraps Qdrant's optimizer trigger API and provides collection health metrics.
+backend/services/vector_optimizer.py:120:        """Trigger Qdrant's built-in segment optimizer.
+backend/services/vector_optimizer.py:122:        This is a fire-and-forget trigger — Qdrant runs optimization asynchronously
+backend/services/vector_optimizer.py:126:            # Qdrant doesn't expose a direct "run optimizer now" API, but
+backend/rag/graph_builder.py:70:            "embedding_service": services.embedding,
+backend/services/multi_provider_llm.py:239:        # same flag that lets retrieved docs arrive compressed (see
+backend/services/multi_provider_llm.py:240:        # rag/nodes/retrieval.py).
+backend/services/memory_outbox.py:43:        required = {"user_message", "assistant_answer", "citations", "intent"}
+backend/services/qdrant/filters.py:1:"""Reusable Qdrant metadata filter builders."""
+backend/services/qdrant/filters.py:10:class QdrantFilterBuilder:
+backend/services/qdrant/filters.py:11:    """Composable Qdrant payload filters for retrieval scoping."""
+backend/services/qdrant/filters.py:15:        """Return a Qdrant filter matching a specific source URL."""
+backend/services/qdrant/filters.py:20:        """Return a Qdrant filter matching a source_type (youtube/image/text/video/etc.)."""
+backend/services/qdrant/filters.py:25:        """Return a Qdrant filter matching a detected language code."""
+backend/services/qdrant/filters.py:30:        """Return a Qdrant filter matching one or more tags."""
+backend/services/qdrant/filters.py:38:        """Return a Qdrant filter matching an exact title (useful for scoped retrieval)."""
+backend/services/qdrant/filters.py:53:        Compose a Qdrant filter from available metadata fields.
+backend/services/qdrant/filters.py:87:        """Build a nested boolean Qdrant filter from a list of conditions.
+backend/services/qdrant/filters.py:89:        Supports Qdrant's three boolean operators: ``must`` (AND),
+backend/services/qdrant/filters.py:101:            A Qdrant :class:`Filter` with the conditions placed under the
+backend/services/serene_mind_engine.py:10:  - Strategy Pattern: Multiple detection strategies (keyword, embedding, LLM)
+backend/services/serene_mind_engine.py:295:        "🌱 **Quick grounding technique**: Take a slow breath in for 4 counts, "
+backend/services/serene_mind_engine.py:316:        "🌸 **5-4-3-2-1 grounding**: Name 5 things you see, 4 you can touch, "
+backend/services/serene_mind_engine.py:394:    Compares user message against pre-computed distress example embeddings.
+backend/services/serene_mind_engine.py:398:    def __init__(self, embedding_service, threshold: float | None = None):
+backend/services/serene_mind_engine.py:418:        self._embedder = embedding_service
+backend/services/serene_mind_engine.py:422:        self._distress_embeddings = {}  # level -> list of embeddings
+backend/services/serene_mind_engine.py:426:        """Pre-compute distress example embeddings."""
+backend/services/serene_mind_engine.py:434:                    embeddings = await asyncio.to_thread(self._embedder.encode_batch, examples)
+backend/services/serene_mind_engine.py:435:                    self._distress_embeddings[level] = embeddings["dense"]
+backend/services/serene_mind_engine.py:441:                    self._distress_embeddings[level] = level_embs
+backend/services/serene_mind_engine.py:455:        if not self._distress_embeddings:
+backend/services/serene_mind_engine.py:460:            msg_embedding = await asyncio.to_thread(self._embedder.encode_single_full, message)
+backend/services/serene_mind_engine.py:461:            msg_vec = np.array(msg_embedding["dense"])
+backend/services/serene_mind_engine.py:467:            for level in sorted(self._distress_embeddings.keys(), reverse=True):
+backend/services/serene_mind_engine.py:468:                level_embs = self._distress_embeddings[level]
+backend/services/serene_mind_engine.py:509:    def __init__(self, embedding_service=None):
+backend/services/serene_mind_engine.py:514:            embedding_service: Optional embedding service for semantic distress detection.
+backend/services/serene_mind_engine.py:519:        self._embedder = embedding_service
+backend/services/serene_mind_engine.py:521:        if embedding_service:
+backend/services/serene_mind_engine.py:522:            self._semantic_detector = SemanticDistressDetector(embedding_service)
+backend/services/whisperx_pipeline.py:2:Mukthi Guru — WhisperX Pipeline (word-level alignment + speaker diarization)
+backend/services/whisperx_pipeline.py:256:            from whisperx.diarize import DiarizationPipeline, assign_word_speakers
+backend/services/whisperx_pipeline.py:258:            diarize_model = DiarizationPipeline(
+backend/rag/compressor.py:4:Compresses retrieved documents by extracting only the most relevant
+backend/rag/compressor.py:5:sentences using Microsoft LLMLingua (if available) or the CrossEncoder reranker.
+backend/rag/compressor.py:64:    reranker,
+backend/rag/compressor.py:78:        reranker: CrossEncoder model (from EmbeddingService)
+backend/rag/compressor.py:124:    # A missing reranker is a valid degraded deployment state. Preserve the
+backend/rag/compressor.py:125:    # retrieved evidence instead of invoking ``None.predict`` once per document
+backend/rag/compressor.py:127:    if reranker is None:
+backend/rag/compressor.py:128:        logger.debug("Contextual compression skipped: sentence reranker unavailable")
+backend/rag/compressor.py:150:            scores = reranker.predict(pairs)
+backend/services/onnx_reranker.py:2:ONNX INT8 CrossEncoder reranker for mmarco-mMiniLMv2-L12-H384-v1.
+backend/services/onnx_reranker.py:38:# 2026-08-01 and validated by scripts/validate_onnx_reranker.py (Spearman
+backend/services/onnx_reranker.py:61:    """ONNX INT8 CrossEncoder for document reranking.
+backend/services/onnx_reranker.py:69:        reranker = OnnxReranker()
+backend/services/onnx_reranker.py:70:        scores = reranker.predict([("what is karma?", "Karma is ..."), ...])
+backend/services/onnx_reranker.py:95:                f"Refusing to load unvetted reranker model id '{model_id}'. "
+backend/services/onnx_reranker.py:104:        # Pinned model id + immutable revision (temsa ONNX INT8 reranker),
+backend/services/onnx_reranker.py:105:        # validated by scripts/validate_onnx_reranker.py (Spearman >0.90 gate).
+backend/services/onnx_reranker.py:151:            "Loaded ONNX INT8 reranker: %s  (file=%s, inputs=%s, token_type_ids=%s, outputs=%s)",
+backend/services/onnx_reranker.py:217:    reranker = OnnxReranker()
+backend/services/onnx_reranker.py:224:    scores = reranker.predict(pairs)
+backend/services/turboquant_cache.py:4:Mirrors top Qdrant results in a local TurboQuantIndex for sub-millisecond
+backend/services/turboquant_cache.py:11:  - Mirrors top N (default 500) results from Qdrant
+backend/services/turboquant_cache.py:46:    """TurboQuantIndex mirroring top Qdrant results for sub-ms lookup.
+backend/services/turboquant_cache.py:75:    def put(self, embedding: list[float], metadata: dict) -> int:
+backend/services/turboquant_cache.py:76:        """Insert a single embedding + metadata pair.
+backend/services/turboquant_cache.py:79:            embedding: Dense vector as list of floats.
+backend/services/turboquant_cache.py:80:            metadata: Dict with keys like "response", "citations", "intent".
+backend/services/turboquant_cache.py:90:            vec = np.array([embedding], dtype=np.float32)
+backend/services/turboquant_cache.py:97:            metadata["_embedding"] = embedding
+backend/services/turboquant_cache.py:101:    def put_batch(self, embeddings: list[list[float]], metadatas: list[dict]) -> list[int]:
+backend/services/turboquant_cache.py:102:        """Insert a batch of embeddings."""
+backend/services/turboquant_cache.py:104:        for emb, meta in zip(embeddings, metadatas):
+backend/services/turboquant_cache.py:109:        self, query_embedding: list[float], top_k: int = 1, threshold: float = 0.0
+backend/services/turboquant_cache.py:114:            query_embedding: Query vector as list of floats.
+backend/services/turboquant_cache.py:126:            qvec = np.array([query_embedding], dtype=np.float32)
+backend/services/turboquant_cache.py:170:                        "metadata": {k: v for k, v in meta.items() if k != "_embedding"},
+backend/services/turboquant_cache.py:176:        """Rebuild the index (clear if no Qdrant available)."""
+backend/services/turboquant_cache.py:239:            emb = self._metadata[fid].get("_embedding")
+backend/services/turboquant_cache.py:253:            emb = self._metadata[fid].get("_embedding")
+backend/services/turboquant_cache.py:282:                    "metadata": {k: v for k, v in meta.items() if k != "_embedding"},
+backend/services/turboquant_cache.py:299:    PipelineCoordinator is constructed per request (``app/api/chat.py``), so a
+backend/services/turboquant_cache.py:301:    every later lookup sees ``size == 0`` and falls through to Qdrant. Entries have
+backend/services/turboquant_cache.py:307:        dimension=settings.embedding_dimension,
+backend/services/semantic_cache.py:4:This module provides ``SemanticCacheService``, a Redis-only embedding cache kept
+backend/services/semantic_cache.py:8:  ``services/cache/semantic_adapter.py::SemanticCacheAdapter`` (Qdrant + Redis),
+backend/services/semantic_cache.py:12:  ``put(query, response, intent, citations, meditation_step=0)``.
+backend/services/semantic_cache.py:14:The earlier dead ``QdrantSemanticCache`` class that lived in this file has been
+backend/services/semantic_cache.py:16:which do not exist on ``QdrantService`` and would crash if activated.
+backend/services/semantic_cache.py:19:Uses cosine similarity between query embeddings to identify cache hits.
+backend/services/semantic_cache.py:22:entry if their embedding similarity exceeds the threshold (default 0.92).
+backend/services/semantic_cache.py:25:  - Redis stores: query_embedding (JSON) + response payload + TTL
+backend/services/semantic_cache.py:26:  - On lookup: compute embedding for new query, compare with all cached embeddings
+backend/services/semantic_cache.py:64:        Prefer ``services.cache.semantic_adapter.SemanticCacheAdapter`` (Qdrant + Redis),
+backend/services/semantic_cache.py:69:    Stores query embeddings in Redis and matches new queries
+backend/services/semantic_cache.py:73:    def __init__(self, redis_url: str, embedding_service=None):
+backend/services/semantic_cache.py:74:        self._embedder = embedding_service
+backend/services/semantic_cache.py:111:        query_embedding: Optional[list[float]] = None,
+backend/services/semantic_cache.py:118:        if query_embedding is None:
+backend/services/semantic_cache.py:123:                query_embedding = (
+backend/services/semantic_cache.py:166:                cached_embedding = entry.get("embedding")
+backend/services/semantic_cache.py:167:                if not cached_embedding:
+backend/services/semantic_cache.py:170:                score = _cosine_similarity(query_embedding, cached_embedding)
+backend/services/semantic_cache.py:192:                    "citations": best_entry.get("citations", []),
+backend/services/semantic_cache.py:211:        citations: list[str],
+backend/services/semantic_cache.py:212:        query_embedding: Optional[list[float]] = None,
+backend/services/semantic_cache.py:220:        if query_embedding is None:
+backend/services/semantic_cache.py:225:                query_embedding = (
+backend/services/semantic_cache.py:239:                "embedding": query_embedding,
+backend/services/semantic_cache.py:242:                "citations": citations,
+backend/services/semantic_cache.py:291:    def invalidate_by_embedding(
+backend/services/semantic_cache.py:293:        new_embedding: list[float],
+backend/services/semantic_cache.py:299:        Invalidate cache entries whose embeddings are similar to the new content.
+backend/services/semantic_cache.py:303:            new_embedding: Embedding vector of newly ingested content
+backend/services/semantic_cache.py:333:                cached_embedding = entry.get("embedding")
+backend/services/semantic_cache.py:334:                if not cached_embedding:
+backend/services/semantic_cache.py:337:                score = _cosine_similarity(new_embedding, cached_embedding)
+backend/services/semantic_cache.py:360:                    f"Semantic cache: invalidated {invalidated} entries by embedding similarity"
+backend/services/semantic_cache.py:366:            logger.warning(f"Semantic cache invalidation by embedding failed: {e}")
+backend/services/semantic_cache.py:386:# NOTE: The dead `QdrantSemanticCache` class that previously lived here has been
+backend/services/semantic_cache.py:388:# which do not exist on QdrantService, so it would have crashed if activated. The
+backend/services/semantic_cache.py:389:# canonical Qdrant+Redis semantic cache is `SemanticCacheAdapter` in
+backend/rag/kg_expansion.py:5:neighbors (sub-concepts, synonyms, related practices) so retrieval can
+backend/rag/kg_expansion.py:9:retrieval (`services/lightrag_service.py`); this is explicit ontology
+backend/rag/kg_expansion.py:11:retrieve docs tagged with "Dharma", "prarabdha karma").
+backend/rag/kg_expansion.py:13:Wired into the retrieval node's query expansion alongside
+backend/rag/kg_expansion.py:122:    is safe to use as the first stage of context-graph retrieval and keeps
+backend/rag/kg_expansion.py:213:    """Append neighbor terms to a query string (used by retrieval expansion).
+backend/rag/kg_expansion.py:216:    neighbor terms as extra retrieval keywords so Qdrant hits docs tagged
+backend/rag/tree_navigator.py:3:(Inspired by PageIndex's reasoning-driven retrieval)
+backend/rag/tree_navigator.py:14:After retrieval, a sufficiency check asks the LLM if the context is
+backend/rag/tree_navigator.py:109:    After retrieval, asks the LLM: "Do you have enough context to
+backend/rag/memory.py:5:retrieval/generation prompts without requiring a new database migration.
+backend/rag/node_llm_config.py:43:    "retrieve_documents": {"effort": None, "timeout": 10, "model": None, "max_tokens": None},
+backend/rag/node_llm_config.py:63:    "retrieve_documents": {"effort": None, "timeout": 10, "model": None, "max_tokens": None},
+backend/rag/node_llm_config.py:64:    "rerank_documents": {"effort": None, "timeout": 5, "model": None, "max_tokens": None},
+backend/services/lettuce_detect_service.py:10:   the (context, question, answer) triple. ``is_faithful`` is True iff the
+backend/services/lettuce_detect_service.py:13:   ``score_faithfulness`` call so a missing torch/transformers at import time
+backend/services/lettuce_detect_service.py:23:``rag/nodes/verification.py``, ``ingest/raptor.py``, ``ingest/quality_gate.py``)::
+backend/services/lettuce_detect_service.py:25:    score_faithfulness(query, context, answer) -> {
+backend/services/lettuce_detect_service.py:26:        "is_faithful": bool,
+backend/services/lettuce_detect_service.py:64:        :param embedder: Optional embedding service used by the heuristic
+backend/services/lettuce_detect_service.py:79:                "Lazy-loading on first score_faithfulness call.",
+backend/services/lettuce_detect_service.py:106:        matching the ONNX reranker pattern (``services/onnx_reranker.py::_load``).
+backend/services/lettuce_detect_service.py:156:    def score_faithfulness(
+backend/services/lettuce_detect_service.py:164:        """Evaluate whether the generated answer is faithful to the context.
+backend/services/lettuce_detect_service.py:168:        detector and embedding inference; deeper verification keeps the
+backend/services/lettuce_detect_service.py:186:                "is_faithful": False,
+backend/services/lettuce_detect_service.py:192:        # Strip the source citation block the formatter appends — it is
+backend/services/lettuce_detect_service.py:197:                "is_faithful": False,
+backend/services/lettuce_detect_service.py:199:                "details": "Empty answer after citation strip.",
+backend/services/lettuce_detect_service.py:221:                "is_faithful": True,
+backend/services/lettuce_detect_service.py:233:            "is_faithful": False,
+backend/services/lettuce_detect_service.py:259:                "is_faithful": False,
+backend/services/lettuce_detect_service.py:265:        # Clean answer to remove source citation lists to prevent false negatives
+backend/services/lettuce_detect_service.py:274:                "is_faithful": False,
+backend/services/lettuce_detect_service.py:280:        # C2: emoji auto-pass branch removed — it bypassed faithfulness scoring unconditionally.
+backend/services/lettuce_detect_service.py:281:        # (Previously: any answer >200 chars containing 📚 returned is_faithful=True, score=1.0
+backend/services/lettuce_detect_service.py:299:                context_embeddings = self.embedder.encode_batch(context_chunks)["dense"]
+backend/services/lettuce_detect_service.py:300:                sentence_embeddings = self.embedder.encode_batch(sentences)["dense"]
+backend/services/lettuce_detect_service.py:301:                if len(sentence_embeddings) != len(sentences):
+backend/services/lettuce_detect_service.py:302:                    raise ValueError("embedding batch returned the wrong sentence count")
+backend/services/lettuce_detect_service.py:305:                for sentence, sentence_emb in zip(sentences, sentence_embeddings):
+backend/services/lettuce_detect_service.py:308:                    for c_emb in context_embeddings:
+backend/services/lettuce_detect_service.py:318:                    # "deeksha" cleared over half the bar), weakening the grounding
+backend/services/lettuce_detect_service.py:344:        is_faithful = len(unsupported_sentences) == 0
+backend/services/lettuce_detect_service.py:348:        if not is_faithful:
+backend/services/lettuce_detect_service.py:355:            f"LettuceDetect finished: faithful={is_faithful}, score={avg_score:.2f} in {duration:.1f}ms"
+backend/services/lettuce_detect_service.py:358:            "is_faithful": is_faithful,
+backend/services/lettuce_detect_service.py:403:    faithful = "The capital of France is Paris."
+backend/services/lettuce_detect_service.py:405:    print("heuristic faithful:", svc.score_faithfulness("What is the capital?", ctx, faithful))
+backend/services/lettuce_detect_service.py:406:    print("heuristic fabricated:", svc.score_faithfulness("What is the capital?", ctx, fabricated))
+backend/services/web_search_guardrails.py:6:retrieval, and output boundaries.
+backend/services/web_search_guardrails.py:339:    Uses a simple heuristic; for production, use embeddings.
+backend/services/qdrant/indexer.py:1:"""Qdrant indexing operations: upsert, delete, backup, count, scroll."""
+backend/services/qdrant/indexer.py:10:from qdrant_client import QdrantClient
+backend/services/qdrant/indexer.py:21:from services.qdrant.utils import QdrantUtils
+backend/services/qdrant/indexer.py:28:    """Exponential backoff decorator for Qdrant operations."""
+backend/services/qdrant/indexer.py:43:                        f"Qdrant {func.__name__} failed (attempt {attempt + 1}/{max_retries}): {e}. Retrying in {delay}s..."
+backend/services/qdrant/indexer.py:48:            logger.error(f"Qdrant {func.__name__} failed after {max_retries} attempts.")
+backend/services/qdrant/indexer.py:56:class QdrantIndexer:
+backend/services/qdrant/indexer.py:59:    def __init__(self, client: QdrantClient, collection: Optional[str] = None) -> None:
+backend/services/qdrant/indexer.py:67:        self._utils = QdrantUtils()
+backend/services/qdrant/indexer.py:94:        # `ingest/pipeline.py:_embed_and_upsert` gates earlier (before embedding,
+backend/services/qdrant/indexer.py:98:        # never touch IngestionPipeline at all. The 2026-08-01 audit found 29.4%
+backend/services/qdrant/indexer.py:178:            # Reconcile stale Qdrant points for dropped duplicate chunks before upsert
+backend/services/qdrant/indexer.py:189:                    logger.warning("Failed to delete stale Qdrant points before upsert: %s", exc)
+backend/services/qdrant/indexer.py:213:            # phonetic prefetch in QdrantSearcher that was removed for latency
+backend/services/qdrant/indexer.py:222:            # Qdrant payload filters and GraphRAG provenance share one contract.
+backend/services/qdrant/indexer.py:236:            # every chunk indexed here was permanently unretrievable under the gate.
+backend/services/qdrant/mmr.py:12:class QdrantMMR:
+backend/services/qdrant/mmr.py:13:    """Static MMR selection for diverse retrieval results."""
+backend/services/qdrant/mmr.py:17:        query_embedding: list[float],
+backend/services/qdrant/mmr.py:19:        doc_embeddings: list[list[float]],
+backend/services/qdrant/mmr.py:30:            query_embedding: Dense embedding of the query
+backend/services/qdrant/mmr.py:32:            doc_embeddings: Dense embeddings of each document
+backend/services/qdrant/mmr.py:42:        query_vec = np.array(query_embedding)
+backend/services/qdrant/mmr.py:43:        doc_vecs = np.array(doc_embeddings)
+backend/services/lightrag_service.py:66:    Orchestrates graph-based extraction and retrieval using Neo4j and Qdrant.
+backend/services/lightrag_service.py:120:        logger.info("Initializing LightRAG Service (Neo4j Graph + Qdrant Vector)...")
+backend/services/lightrag_service.py:122:        # LightRAG's doc-id dedup cache lives here — it must be distinct per Neo4j/Qdrant
+backend/services/lightrag_service.py:143:        # LightRAG Native Qdrant Configuration
+backend/services/lightrag_service.py:393:            if container.embedding is None:
+backend/services/lightrag_service.py:395:                return np.zeros((len(texts), settings.embedding_dimension))
+backend/services/lightrag_service.py:398:            batch_result = await asyncio.to_thread(container.embedding.encode_batch, texts)
+backend/services/lightrag_service.py:402:        embedding_func = EmbeddingFunc(
+backend/services/lightrag_service.py:403:            embedding_dim=settings.embedding_dimension,
+backend/services/lightrag_service.py:406:            model_name=settings.embedding_model,
+backend/services/lightrag_service.py:444:                embedding_func=embedding_func,
+backend/services/lightrag_service.py:446:                vector_storage="QdrantVectorDBStorage",
+backend/services/lightrag_service.py:448:                embedding_func_max_async=8,
+backend/services/lightrag_service.py:592:                f"Skipping this chunk — Qdrant vectors are already indexed."
+backend/services/lightrag_service.py:617:        Qdrant vector ingestion is the primary store — graph extraction is bonus.
+backend/rag/compression.py:4:Strips irrelevant sentences from retrieved chunks based on their
+backend/rag/compression.py:14:from services.embedding_service import EmbeddingService
+backend/rag/compression.py:20:    def __init__(self, embedding_service: EmbeddingService, threshold: float = 0.5):
+backend/rag/compression.py:21:        self._embedder = embedding_service
+backend/app/services/llm_queue.py:174:    async def check_faithfulness(self, **kwargs):
+backend/app/services/llm_queue.py:176:            LLMPriority.VERIFY, self._provider.check_faithfulness, **kwargs
+backend/rag/corpus_scope.py:1:"""Mandatory corpus-and-tenant containment contract for retrieval paths."""
+backend/rag/corpus_scope.py:13:    """The smallest scope allowed to cross retrieval and graph boundaries."""
+backend/rag/corpus_scope.py:22:        """Return strict payload conditions for shared Qdrant collections."""
+backend/rag/timeout_utils.py:14:    "retrieve_documents": 20.0,
+backend/rag/timeout_utils.py:15:    "rerank_documents": 15.0,
+backend/rag/timeout_utils.py:24:    "default_embedding": 15.0,
+backend/services/health_monitor.py:4:Tracks health of external dependencies (Qdrant, Redis, Supabase, OpenRouter, Sarvam)
+backend/app/main.py:237:    """Get the raw Qdrant gRPC/REST client from QdrantService."""
+backend/app/main.py:251:    # Advisory-only: warn if Qdrant server predates sparse-vector support (>= 1.8)
+backend/app/main.py:259:        logger.info(f"Lifespan: Qdrant version check skipped (non-critical): {e}")
+backend/app/main.py:265:    # If embedding model changed, all existing vectors are stale — alert on mismatch.
+backend/app/main.py:266:    logger.info("Lifespan: checking embedding model fingerprint...")
+backend/app/main.py:271:        _embed_model_name = getattr(settings, "embedding_model", "BAAI/bge-m3")
+backend/app/main.py:272:        _embed_dim = getattr(settings, "embedding_dimension", 1024)
+backend/app/main.py:276:        _fp_redis_key = "embedding_model_fingerprint"
+backend/app/main.py:291:            _fp_path = "/tmp/embedding_model_fingerprint.json"
+backend/app/main.py:304:                    "Full re-indexing of spiritual_wisdom required to avoid retrieval degradation!",
+backend/app/main.py:311:                logger.info("Lifespan: embedding model fingerprint OK (%s)", _fingerprint[:8])
+backend/app/main.py:327:                _fp_path = "/tmp/embedding_model_fingerprint.json"
+backend/app/main.py:340:            logger.info("Lifespan: embedding model fingerprint stored (%s)", _fingerprint[:8])
+backend/app/main.py:342:        logger.warning(f"Lifespan: embedding model drift check error (non-critical): {e}")
+backend/app/main.py:344:    # Verify multilingual reranker model is cached (fail fast on cold start to surface missing models)
+backend/app/main.py:345:    logger.info("Lifespan: verifying reranker model availability...")
+backend/app/main.py:349:        _reranker_model = getattr(
+backend/app/main.py:350:            settings, "reranker_model_cpu", "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
+backend/app/main.py:356:        _model_dir = _os.path.join(_model_cache, _reranker_model.replace("/", "_"))
+backend/app/main.py:357:        _alt_model_dir = _os.path.join(_model_cache, _reranker_model.replace("/", "__"))
+backend/app/main.py:359:            logger.info("Lifespan: reranker model %s found in cache — OK", _reranker_model)
+backend/app/main.py:362:                "Lifespan: reranker model %s NOT in cache at %s — will download on first use (cold start latency expected)",
+backend/app/main.py:363:                _reranker_model,
+backend/app/main.py:367:        logger.warning(f"Lifespan: reranker cache check error (non-critical): {e}")
+backend/app/main.py:439:        if getattr(container, "embedding", None):
+backend/app/main.py:442:                container.embedding.encode_single, "consciousness stillness awareness"
+backend/app/main.py:446:            if _dim != settings.embedding_dimension:
+backend/app/main.py:449:                    "Qdrant dense search will fail. Check HF_REVISION and ONNX model pin.",
+backend/app/main.py:451:                    settings.embedding_dimension,
+backend/app/main.py:455:                    f"{settings.embedding_dimension} — Qdrant dense search will fail"
+backend/app/main.py:481:    # initialize a model/embedding path lazily and previously added an observed
+backend/app/main.py:519:    # 2. Create service container (fast, synchronous — no network calls beyond Qdrant handshake)
+backend/rag/telemetry_observer.py:73:        reranked = len(state.get("reranked_docs", []) or [])
+backend/rag/telemetry_observer.py:79:            f"reranked={reranked}, relevant={relevant}, "
+backend/rag/prompts/rag.py:29:CONTEXT (retrieved teachings):
+backend/rag/prompts/rag.py:40:5. SOURCE-AWARE FOUNDER VOICE: Preserve first-person wording only inside an exact retrieved quotation when the Context identifies the speaker. Attribute it to that speaker and keep the quoted span bounded. Otherwise speak about the founders in the third person. Never invent first-person founder speech.
+backend/rag/prompts/rag.py:46:# === CRAG GRADING PROMPT (system instructions — data formatted in ollama_service) ===
+backend/rag/prompts/rag.py:49:Given a user question and a retrieved document, determine if the document contains information that is relevant to answering the question.
+backend/rag/prompts/rag.py:57:FAITHFULNESS_CHECK_PROMPT = """You are a strict faithfulness checker for a spiritual guidance system.
+backend/rag/prompts/rag.py:65:If ALL sentences are supported by the Context, respond 'faithful'.
+backend/rag/prompts/rag.py:68:Respond with ONLY 'faithful' or 'hallucinated'."""
+backend/rag/prompts/rag.py:71:# === CoVe VERIFICATION PROMPT (system instructions — data formatted in ollama_service) ===
+backend/rag/prompts/rag.py:77:1. Generate 2-3 specific verification questions based on claims in the Answer
+backend/rag/prompts/rag.py:81:Q1: [verification question]
+backend/rag/prompts/rag.py:83:Q2: [verification question]
+backend/rag/prompts/rag.py:89:ENHANCED_FAITHFULNESS_CHECK_PROMPT = """You are a strict faithfulness checker for a spiritual guidance system.
+backend/rag/prompts/rag.py:98:If ALL sentences are supported by the Context with exact terminology where required, respond 'faithful'.
+backend/rag/prompts/rag.py:101:Respond with ONLY 'faithful' or 'hallucinated'."""
+backend/rag/prompts/rag.py:122:The original query didn't retrieve relevant results. Rewrite it to:
+backend/rag/prompts/rag.py:149:Given a question and retrieved teaching documents, extract the 3-5 most relevant key phrases, sentences, or concepts that directly address the question.
+backend/rag/prompts/rag.py:187:Given a user question and a numbered list of retrieved documents, determine which documents contain information relevant to answering the question.
+backend/rag/prompts/rag.py:198:# === COMBINED VERIFICATION PROMPT (merges Self-RAG + CoVe into one call) ===
+backend/rag/prompts/rag.py:199:COMBINED_VERIFICATION_PROMPT = """You are a verification checker for a spiritual guidance system.
+backend/rag/prompts/rag.py:209:- Source citations and attributions
+backend/rag/prompts/rag.py:212:IMPORTANT: General spiritual concepts are hallucinations UNLESS the Context explicitly contains them. For example, "meditation brings peace" is hallucinated if no Context passage states it. The gurus' teachings are specific, not generic — do not credit generic platitudes (Buddhist, Advaita, Yoga, or otherwise) to the teachings. An answer that paraphrases tradition-agnostic spirituality without grounding it in the Context is HALLUCINATED even if the sentiment is widely held as common knowledge.
+backend/rag/prompts/rag.py:217:Generate 2-3 specific verification questions about the CORE claims in the Answer.
+backend/rag/prompts/rag.py:229:Q1: [verification question]
+backend/rag/prompts/rag.py:231:Q2: [verification question]
+backend/rag/prompts/rag.py:253:    "its official source URL and verification time. If no live_logistics context exists, say "
+backend/rag/prompts/rag.py:272:CONTEXT (retrieved teachings):
+backend/rag/prompts/rag.py:287:# === TREE NAVIGATION PROMPT (PageIndex-inspired reasoning-based retrieval) ===
+backend/rag/prompts/rag.py:288:TREE_NAVIGATION_PROMPT = """You are a retrieval expert for a spiritual knowledge base.
+backend/rag/prompts/rag.py:305:# === SUFFICIENCY CHECK PROMPT (PageIndex-inspired iterative retrieval) ===
+backend/rag/prompts/rag.py:306:SUFFICIENCY_CHECK_PROMPT = """You are a retrieval quality checker for a spiritual Q&A system.
+backend/rag/prompts/rag.py:308:Given a question and the retrieved context, determine if the context contains SUFFICIENT information to provide a complete, accurate answer to the question.
+backend/rag/prompts/rag.py:348:Given a user's question and a retrieved teaching, explain in 1 short sentence why this specific teaching is relevant and what core wisdom it provides for the question.
+backend/rag/prompts/rag.py:354:# This prompt is used for transforming queries into retrieval-optimized forms.
+backend/rag/prompts/rag.py:356:QUERY_TRANSFORMATION_PROMPT = """You are a retrieval query optimizer for a spiritual teachings knowledge base.
+backend/rag/prompts/rag.py:358:Given a user's question, generate 2-3 alternative search queries that will retrieve the most relevant spiritual teachings from the knowledge base.
+backend/rag/prompts/rag.py:373:# This prompt generates contextual headers for chunks to improve retrieval
+backend/rag/prompts/rag.py:375:# to retrieve parent documents.
+backend/rag/prompts/rag.py:408:Given a user's question and a retrieved document chunk, extract ONLY the sentences, facts, and concepts that directly relate to answering the question.
+backend/rag/prompts/rag.py:435:    "its official source URL and verification time. If no live_logistics context exists, say "
+backend/rag/prompts/guardrails.py:24:FACTUAL - The user is asking a specific question about spiritual teachings, concepts, biographies, or educational questions about meditation (e.g., "How do I start meditating") that requires direct knowledge retrieval.
+backend/services/embedding_service.py:13:  - All encode_*/rerank methods have ``async def`` siblings named encode_async /
+backend/services/embedding_service.py:14:    encode_batch_async / rerank_async / cascaded_rerank_async.
+backend/services/embedding_service.py:68:    Aids dense retrieval for known entity patterns ("where ekam",
+backend/services/embedding_service.py:70:    participates in the embedding. Shared by `encode_single_full`
+backend/services/embedding_service.py:71:    and the retrieval node's batched-encode path.
+backend/services/embedding_service.py:83:    Multilingual embedding service with native hybrid search support.
+backend/services/embedding_service.py:101:        self._reranker = None
+backend/services/embedding_service.py:112:        self.instruction = "Given a spiritual teaching, retrieve relevant passages: "
+backend/services/embedding_service.py:117:        self._embed_cache = EmbeddingCache(max_size=settings.embedding_cache_size)
+backend/services/embedding_service.py:120:        # "embedding" has no entry in CIRCUIT_BREAKER_CONFIGS, so from_provider()
+backend/services/embedding_service.py:122:        self._circuit = DefaultCircuitBreaker(CircuitBreakerConfig.from_provider("embedding"))
+backend/services/embedding_service.py:125:        get_circuit_breaker_registry().register("embedding", self._circuit)
+backend/services/embedding_service.py:130:        logger.info("Warming up embedding service — loading all models...")
+backend/services/embedding_service.py:132:        self._ensure_reranker()
+backend/services/embedding_service.py:167:        if settings.embedding_backend == "onnx_int8":
+backend/services/embedding_service.py:271:        Validates output dimension against the configured Qdrant collection
+backend/services/embedding_service.py:300:                "_ONNX_ENCODER_REVISION in embedding_service.py. "
+backend/services/embedding_service.py:337:            required_dim = settings.embedding_dimension
+backend/services/embedding_service.py:341:                    f"but Qdrant collection requires {required_dim}-dim. "
+backend/services/embedding_service.py:342:                    f"This would cause silent retrieval degradation — refusing to load."
+backend/services/embedding_service.py:375:                settings.embedding_model,
+backend/services/embedding_service.py:386:            # Qdrant's collection is created once at container startup with this
+backend/services/embedding_service.py:393:            required_dim = settings.embedding_dimension
+backend/services/embedding_service.py:406:                            f"Failed to load embedding model '{model_name}': {first_err}. "
+backend/services/embedding_service.py:421:                    if enc is not None and hasattr(enc, "get_sentence_embedding_dimension"):
+backend/services/embedding_service.py:423:                            _d = enc.get_sentence_embedding_dimension()
+backend/services/embedding_service.py:434:                            if model_name == settings.embedding_model
+backend/services/embedding_service.py:439:                            f"'{model_name}' loaded at {actual_dim}-dim, Qdrant collection is "
+backend/services/embedding_service.py:443:                    logger.info(f"Successfully loaded embedding model '{model_name}'")
+backend/services/embedding_service.py:445:                    if model_name != settings.embedding_model:
+backend/services/embedding_service.py:446:                        settings.embedding_model = model_name
+backend/services/embedding_service.py:449:                            f"dim={settings.embedding_dimension}"
+backend/services/embedding_service.py:455:                    logger.warning(f"Failed to load embedding model '{model_name}': {e}.")
+backend/services/embedding_service.py:463:                f"Failed to load a {required_dim}-dim-compatible embedding model. "
+backend/services/embedding_service.py:476:        page-cache pressure; it never changes the loaded encoder or Qdrant vectors.
+backend/services/embedding_service.py:480:        if model_name != "BAAI/bge-m3" or settings.embedding_backend == "onnx_int8":
+backend/services/embedding_service.py:569:    def _ensure_reranker(self) -> None:
+backend/services/embedding_service.py:570:        """Lazy-load the reranker model."""
+backend/services/embedding_service.py:571:        if self._reranker is not None:
+backend/services/embedding_service.py:574:            if self._reranker is not None:
+backend/services/embedding_service.py:580:            # Phase 1 optimisation: prefer ONNX INT8 reranker (~23 MB, ~2x faster).
+backend/services/embedding_service.py:581:            # Rollback: set RERANKER_BACKEND=flagembedding in .env and restart.
+backend/services/embedding_service.py:582:            if settings.reranker_backend == "onnx_int8":
+backend/services/embedding_service.py:584:                    from services.onnx_reranker import OnnxReranker
+backend/services/embedding_service.py:586:                    self._reranker = OnnxReranker(model_id=settings.reranker_onnx_model)
+backend/services/embedding_service.py:588:                    # Setting this flag tells rerank() not to apply it again.
+backend/services/embedding_service.py:589:                    self._reranker_outputs_probs = True
+backend/services/embedding_service.py:590:                    logger.info("Loaded ONNX INT8 reranker: %s", settings.reranker_onnx_model)
+backend/services/embedding_service.py:594:                        "ONNX reranker load failed (%s); falling back to PyTorch CrossEncoder",
+backend/services/embedding_service.py:600:            # CPU can't afford bge-reranker-v2-m3 (~4s/doc -> 88s for 19 docs). Use the
+backend/services/embedding_service.py:601:            # light CPU model there; heavy multilingual reranker only on GPU/MPS.
+backend/services/embedding_service.py:602:            model_id = settings.reranker_model_cpu if device == "cpu" else settings.reranker_model
+backend/services/embedding_service.py:603:            logger.info(f"Loading reranker: {model_id} on device: {device}")
+backend/services/embedding_service.py:605:                self._reranker = CrossEncoder(model_id, device=device)
+backend/services/embedding_service.py:609:                self._reranker = CrossEncoder(model_id, device=device)
+backend/services/embedding_service.py:611:            if "jina" in model_name or "jina-reranker" in model_name:
+backend/services/embedding_service.py:612:                self._reranker_outputs_probs = True
+backend/services/embedding_service.py:614:                    f"Reranker '{settings.reranker_model}' emits probabilities; skipping sigmoid normalization."
+backend/services/embedding_service.py:617:                self._reranker_outputs_probs = False
+backend/services/embedding_service.py:625:        cascaded rerank path degrades to pure CrossEncoder. This is intentional
+backend/services/embedding_service.py:648:                    logger.info(f"Loading ColBERTv2 reranker (RAGatouille): {model_name}")
+backend/services/embedding_service.py:654:                        "Cascaded reranking will fallback to pure CrossEncoder."
+backend/services/embedding_service.py:667:                    "Falling back to pure CrossEncoder reranking (active path). "
+backend/services/embedding_service.py:676:        self._ensure_reranker()
+backend/services/embedding_service.py:687:            List of dense embedding vectors (1024 dims each)
+backend/services/embedding_service.py:694:                provider="embedding",
+backend/services/embedding_service.py:695:                message="Circuit breaker OPEN for embedding — failing fast",
+backend/services/embedding_service.py:728:                            is_bge_m3 = settings.embedding_model == "BAAI/bge-m3"
+backend/services/embedding_service.py:740:                                    normalize_embeddings=True,
+backend/services/embedding_service.py:755:                        f"Dense embedding failed on attempt {attempt}/{max_retries}: {e}. "
+backend/services/embedding_service.py:799:        cached_embeddings = []
+backend/services/embedding_service.py:807:                cached_embeddings.append((i, cached))
+backend/services/embedding_service.py:819:            for idx, emb in cached_embeddings:
+backend/services/embedding_service.py:829:                provider="embedding",
+backend/services/embedding_service.py:830:                message="Circuit breaker OPEN for embedding — failing fast",
+backend/services/embedding_service.py:883:                            is_bge_m3 = settings.embedding_model == "BAAI/bge-m3"
+backend/services/embedding_service.py:908:                                        normalize_embeddings=True,
+backend/services/embedding_service.py:921:                    for idx, emb in cached_embeddings:
+backend/services/embedding_service.py:930:                    # Cache the newly computed embeddings (using prefixed text as key)
+backend/services/embedding_service.py:933:                        embedding_result = {
+backend/services/embedding_service.py:937:                        self._embed_cache.put(prefixed_text, embedding_result)
+backend/services/embedding_service.py:973:        """Return dense, sparse, AND colbert token embeddings in one batched ONNX call.
+backend/services/embedding_service.py:980:        LRU cache deferred — batched caller in _colbert_maxsim_rerank makes
+backend/services/embedding_service.py:1094:    # span. Every chunk embedding then carries the surrounding discourse with
+backend/services/embedding_service.py:1104:    #     produce plausible floats and near-random retrieval, with no error.
+backend/services/embedding_service.py:1123:    # embedding: no traceback, no result file, just a vanished process — the
+backend/services/embedding_service.py:1138:        follow ``settings.embedding_backend`` (ONNX INT8 in production, ~570MB,
+backend/services/embedding_service.py:1196:        dim = settings.embedding_dimension
+backend/services/embedding_service.py:1316:        dim = settings.embedding_dimension
+backend/services/embedding_service.py:1329:    def _colbert_maxsim_rerank(
+backend/services/embedding_service.py:1367:        logger.info(f"ColBERT MaxSim reranked {len(documents)} -> {len(scored[:top_k])} docs")
+backend/services/embedding_service.py:1385:        """Async GIL-escape wrapper for encode_single_full(). Use in retrieval nodes."""
+backend/services/embedding_service.py:1388:    def rerank(
+backend/services/embedding_service.py:1398:        Pipeline: Qdrant returns 20 docs (from hybrid search)
+backend/services/embedding_service.py:1401:                  -> Filter by minimum score threshold (rerank_min_score)
+backend/services/embedding_service.py:1405:            top_k = settings.rag_top_k_rerank
+backend/services/embedding_service.py:1411:            self._ensure_reranker()
+backend/services/embedding_service.py:1419:                raw_scores = self._reranker.predict(pairs)
+backend/services/embedding_service.py:1423:            # PHASE-2 / Truth-3: jina-reranker-v2 already returns [0,1] probabilities;
+backend/services/embedding_service.py:1424:            # detected at model-load time and stored in self._reranker_outputs_probs.
+backend/services/embedding_service.py:1430:            outputs_probs = getattr(self, "_reranker_outputs_probs", False)
+backend/services/embedding_service.py:1433:                doc["rerank_score"] = rs if outputs_probs else float(_sigmoid(rs))
+backend/services/embedding_service.py:1434:                doc["rerank_raw_logit"] = rs
+backend/services/embedding_service.py:1450:            ranked = sorted(documents, key=lambda d: d["rerank_score"], reverse=True)
+backend/services/embedding_service.py:1453:            effective_min_score = min_score if min_score is not None else settings.rerank_min_score
+backend/services/embedding_service.py:1454:            above_threshold = [d for d in ranked if d["rerank_score"] >= effective_min_score]
+backend/services/embedding_service.py:1461:                    f"Keeping top-1 (score={ranked[0]['rerank_score']:.4f})"
+backend/services/embedding_service.py:1474:                + (f". Top score: {top_docs[0]['rerank_score']:.4f}" if top_docs else "")
+backend/services/embedding_service.py:1479:    async def rerank_async(
+backend/services/embedding_service.py:1486:        """Async GIL-escape wrapper for rerank(). Frees event loop during CrossEncoder scoring."""
+backend/services/embedding_service.py:1487:        return await asyncio.to_thread(self.rerank, query, documents, top_k, min_score)
+backend/services/embedding_service.py:1489:    def cascaded_rerank(
+backend/services/embedding_service.py:1497:        """Cascaded Pipeline:
+backend/services/embedding_service.py:1511:            logger.debug(f"cascaded_rerank: {len(documents)} docs < 10, skipping CrossEncoder")
+backend/services/embedding_service.py:1513:                return self._colbert_maxsim_rerank(
+backend/services/embedding_service.py:1516:            return self._colbert_only_rerank(
+backend/services/embedding_service.py:1521:            self._ensure_reranker()
+backend/services/embedding_service.py:1526:                    colbert_docs = self._colbert_maxsim_rerank(
+backend/services/embedding_service.py:1531:                        f"ColBERT MaxSim rerank failed: {e}. Falling back to RAGatouille path."
+backend/services/embedding_service.py:1538:                    colbert_results = self._colbert.rerank(
+backend/services/embedding_service.py:1559:            return self.rerank(query, colbert_docs, top_k=cross_top_k, min_score=min_score)
+backend/services/embedding_service.py:1561:    async def cascaded_rerank_async(
+backend/services/embedding_service.py:1569:        """Async GIL-escape wrapper for cascaded_rerank(). Use in async retrieval nodes."""
+backend/services/embedding_service.py:1571:            self.cascaded_rerank, query, documents, colbert_top_k, cross_top_k, min_score
+backend/services/embedding_service.py:1574:    def _colbert_only_rerank(self, query: str, documents: list[dict], top_k: int = 5) -> list[dict]:
+backend/services/embedding_service.py:1575:        """ColBERT-only reranking for small candidate sets."""
+backend/services/embedding_service.py:1583:                colbert_results = self._colbert.rerank(query=query, documents=texts, k=top_k)
+backend/services/embedding_service.py:1592:                logger.info(f"ColBERT-only reranked {len(documents)} -> {len(mapped_docs)} docs")
+backend/services/embedding_service.py:1595:                logger.error(f"ColBERT-only reranking failed: {e}")
+backend/services/translation/gemini_provider.py:30:# Matches plain citation markers: [1], [42], [1, 2, 3], etc.
+backend/services/translation/gemini_provider.py:32:# citation linker consumes them downstream.
+backend/services/translation/gemini_provider.py:64:        # Snapshot citation markers from the input before translation. If Gemini
+backend/services/translation/gemini_provider.py:73:            f"explanations, or quotes. Preserve any [N] citation markers verbatim "
+backend/rag/nodes/deep_research.py:1:"""RAGFlow Gap 1 — Deep Research (recursive sufficiency retrieval).
+backend/rag/nodes/deep_research.py:4:retrieve_for_single_query → dedupe → recurse up to settings.rag_deep_research_max_depth.
+backend/rag/nodes/deep_research.py:7:ponytail: reuses retrieve_for_single_query + _services accessors; no new retrieval code.
+backend/rag/nodes/deep_research.py:19:from rag.nodes.retrieval import retrieve_for_single_query
+backend/rag/nodes/deep_research.py:75:    Tier3 routing alone is not consent to spend multiple extra LLM/retrieval
+backend/rag/nodes/deep_research.py:98:    Failures in the judge LLM or follow-up retrieval are non-fatal: log + return what we have.
+backend/rag/nodes/deep_research.py:150:    # LightRAG is disabled in the hot retrieval path (latency/circuit-breaker safety).
+backend/rag/nodes/deep_research.py:155:            return await retrieve_for_single_query(
+backend/rag/nodes/deep_research.py:168:            logger.warning("Deep research: follow-up retrieval failed for %r: %s", q, e)
+backend/rag/nodes/cross_teacher_reasoning.py:13:from rag.nodes.retrieval import _screen_prompt_injection
+backend/rag/nodes/cross_teacher_reasoning.py:80:    This node runs after retrieve_documents, so it bypasses that node's
+backend/services/doctrine_cache.py:132:    ``DEFAULT_DOCTRINE`` map.  Answers include pre-written citations so
+backend/services/semantic_router.py:59:            "embedding", "fallthrough_factual").
+backend/services/semantic_router.py:79:    # Per-utterance embeddings. We use per-utterance max similarity instead of a
+backend/services/semantic_router.py:218:    """Tiny abstraction over the embedding model used by the router.
+backend/services/semantic_router.py:289:        """Compute and cache per-utterance embeddings for each route.
+backend/services/semantic_router.py:319:               reason="embedding".
+backend/services/semantic_router.py:334:        # Collect (score, route) for all embedding-eligible routes so we can
+backend/services/semantic_router.py:390:                return RouteMatch(route=route.name, score=score, reason="embedding")
+backend/services/qdrant/utils.py:1:"""Qdrant utility helpers: point IDs, poison detection, sparse-vector conversion."""
+backend/services/qdrant/utils.py:19:class QdrantUtils:
+backend/services/qdrant/utils.py:20:    """Static-style helpers for Qdrant point IDs, poison detection, and sparse vectors."""
+backend/services/qdrant/utils.py:66:        """Convert bge-m3 lexical_weights dict to Qdrant SparseVector."""
+backend/services/qdrant/source_policy.py:5:must not reach user-facing retrieval, provenance, or generation until an
+backend/services/qdrant/source_policy.py:49:    """Return True when a retrieved document belongs to a quarantined source."""
+backend/services/qdrant/multitenancy_guard.py:3:Ensures all Qdrant operations include teacher_id (or other tenant isolator).
+backend/services/qdrant/multitenancy_guard.py:15:    """Raised when a Qdrant operation is missing required tenant context."""
+backend/services/qdrant/__init__.py:1:"""Mukthi Guru Qdrant vector database subpackage.
+backend/services/qdrant/__init__.py:3:Decomposes the monolithic QdrantService into focused concerns:
+backend/services/qdrant/__init__.py:6:- searcher: hybrid/dense retrieval with metadata filtering
+backend/services/qdrant/__init__.py:8:- raptor: hierarchical summary node retrieval
+backend/services/qdrant/__init__.py:9:- filters: reusable Qdrant filter builders
+backend/services/qdrant/__init__.py:14:from services.qdrant.client import QdrantClientManager
+backend/services/qdrant/__init__.py:15:from services.qdrant.filters import QdrantFilterBuilder
+backend/services/qdrant/__init__.py:16:from services.qdrant.indexer import QdrantIndexer
+backend/services/qdrant/__init__.py:17:from services.qdrant.mmr import QdrantMMR
+backend/services/qdrant/__init__.py:18:from services.qdrant.neighbor import QdrantNeighborLookup
+backend/services/qdrant/__init__.py:19:from services.qdrant.raptor import QdrantRaptorStore
+backend/services/qdrant/__init__.py:20:from services.qdrant.searcher import QdrantSearcher
+backend/services/qdrant/__init__.py:21:from services.qdrant.utils import QdrantUtils
+backend/services/qdrant/__init__.py:24:    "QdrantClientManager",
+backend/services/qdrant/__init__.py:25:    "QdrantFilterBuilder",
+backend/services/qdrant/__init__.py:26:    "QdrantIndexer",
+backend/services/qdrant/__init__.py:27:    "QdrantMMR",
+backend/services/qdrant/__init__.py:28:    "QdrantNeighborLookup",
+backend/services/qdrant/__init__.py:29:    "QdrantRaptorStore",
+backend/services/qdrant/__init__.py:30:    "QdrantSearcher",
+backend/services/qdrant/__init__.py:31:    "QdrantUtils",
+backend/services/qdrant/client.py:1:"""Qdrant client connection and collection management."""
+backend/services/qdrant/client.py:9:from qdrant_client import QdrantClient
+backend/services/qdrant/client.py:42:    Qdrant's scroll API returns no native BM25 score, so we approximate relevance
+backend/services/qdrant/client.py:52:class QdrantClientManager:
+backend/services/qdrant/client.py:53:    """Owns the Qdrant client lifecycle, collection creation, and health checks."""
+backend/services/qdrant/client.py:55:    # Every payload index that must exist for retrieval, filtering, and BM25 search.
+backend/services/qdrant/client.py:76:        client: Optional[QdrantClient] = None,
+backend/services/qdrant/client.py:79:        # in a pre-bound QdrantClient so every operation in the flow uses the
+backend/services/qdrant/client.py:88:                logger.info(f"Qdrant: local mode at {settings.qdrant_local_path}")
+backend/services/qdrant/client.py:89:                self._client = QdrantClient(
+backend/services/qdrant/client.py:95:                logger.info(f"Qdrant: remote mode at {settings.qdrant_url}")
+backend/services/qdrant/client.py:96:                self._client = QdrantClient(
+backend/services/qdrant/client.py:112:        self._dimension = settings.embedding_dimension
+backend/services/qdrant/client.py:115:    def client(self) -> QdrantClient:
+backend/services/qdrant/client.py:128:        """Build Qdrant quantization_config from settings.qdrant_quantization.
+backend/services/qdrant/client.py:246:        resolves to a different dimension, see embedding_service.py's
+backend/services/qdrant/client.py:247:        _ensure_encoder — every dense search 400s with a Qdrant-side "Vector
+backend/services/qdrant/client.py:256:        is uncertain — Qdrant represents vectors as either a single VectorParams
+backend/services/qdrant/client.py:277:                f"Qdrant collection '{self._collection}' is {actual_dim}-dim but "
+backend/services/qdrant/client.py:278:                f"settings.embedding_dimension is {self._dimension}-dim. Every dense "
+backend/services/qdrant/client.py:314:        """BM25-like full-text search via Qdrant text_index on text field.
+backend/services/qdrant/client.py:316:        Uses Qdrant's scroll with text-matching filter for keyword retrieval.
+backend/services/qdrant/client.py:354:        """Check if Qdrant is reachable and collection exists."""
+backend/services/qdrant/client.py:362:        """Close the Qdrant client connection."""
+backend/services/qdrant/client.py:380:        cfg = QdrantClientManager._build_quantization_config(setting)
+backend/services/qdrant/client.py:388:            QdrantClientManager._build_quantization_config(setting)
+backend/rag/graph_strategies.py:34:    extract_citations,
+backend/rag/graph_strategies.py:47:    rerank_documents,
+backend/rag/graph_strategies.py:48:    retrieve_documents,
+backend/rag/graph_strategies.py:59:    """Route after intent classification in the fast pipeline (bypasses retrieval for distress)."""
+backend/rag/graph_strategies.py:90:    Standard strategy routes DISTRESS to the retrieval chain ('query') so we can ground
+backend/rag/graph_strategies.py:160:    """Bridge node: maps retrieved documents → relevant_docs for fast path."""
+backend/rag/graph_strategies.py:178:        embedding_service,
+backend/rag/graph_strategies.py:196:        embedding_service = kwargs.get("embedding_service")
+backend/rag/graph_strategies.py:209:                embedding_service,
+backend/rag/graph_strategies.py:229:        graph.add_node("retrieve_documents", retrieve_documents)
+backend/rag/graph_strategies.py:231:        graph.add_node("rerank_documents", rerank_documents)
+backend/rag/graph_strategies.py:238:        graph.add_node("extract_citations", extract_citations)
+backend/rag/graph_strategies.py:269:        # To avoid LangGraph OR-join race condition (and prevent intermittently degraded retrieval quality
+backend/rag/graph_strategies.py:274:        graph.add_edge("navigate_and_hyde", "retrieve_documents")
+backend/rag/graph_strategies.py:277:        # All other intents route directly to reranking.
+backend/rag/graph_strategies.py:278:        def _route_after_retrieve(state: GraphState) -> str:
+backend/rag/graph_strategies.py:282:                else "rerank_documents"
+backend/rag/graph_strategies.py:286:            "retrieve_documents",
+backend/rag/graph_strategies.py:287:            _route_after_retrieve,
+backend/rag/graph_strategies.py:290:                "rerank_documents": "rerank_documents",
+backend/rag/graph_strategies.py:293:        graph.add_edge("agentic_graph_traversal", "rerank_documents")
+backend/rag/graph_strategies.py:294:        graph.add_edge("rerank_documents", "grade_documents")
+backend/rag/graph_strategies.py:311:        graph.add_edge("rewrite_query", "retrieve_documents")
+backend/rag/graph_strategies.py:323:        graph.add_edge("verify_answer", "extract_citations")
+backend/rag/graph_strategies.py:324:        graph.add_edge("extract_citations", "format_final_answer")
+backend/rag/graph_strategies.py:353:        embedding_service = kwargs.get("embedding_service")
+backend/rag/graph_strategies.py:366:                embedding_service,
+backend/rag/graph_strategies.py:383:        graph.add_node("retrieve_documents", retrieve_documents)
+backend/rag/graph_strategies.py:411:                "query": "retrieve_documents",
+backend/rag/graph_strategies.py:415:        graph.add_edge("web_search", "retrieve_documents")
+backend/rag/graph_strategies.py:416:        graph.add_edge("retrieve_documents", "_map_docs_to_relevant")
+backend/rag/graph_strategies.py:438:    """Extra verification pass for tier4_deep queries before final formatting.
+backend/rag/graph_strategies.py:440:    Runs a second verification pass via the LLM gateway when available, and
+backend/rag/graph_strategies.py:456:        logger.warning("deep_contradiction_gate: insufficient answer/context for deep verification")
+backend/rag/graph_strategies.py:459:            "reflection_feedback": "Deep verification skipped: insufficient context",
+backend/rag/graph_strategies.py:469:                timeout=float(getattr(settings, "cove_verification_timeout", 12.0)),
+backend/rag/graph_strategies.py:471:            is_faithful = bool(cove_result.get("is_faithful", cove_result.get("passed", False)))
+backend/rag/graph_strategies.py:472:            if not is_faithful:
+backend/rag/graph_strategies.py:475:                    "reflection_feedback": f"Deep contradiction gate failed: {cove_result.get('details', 'unfaithful')}",
+backend/rag/graph_strategies.py:486:            "deep_contradiction_gate: no verification service available, marking as needing correction"
+backend/rag/graph_strategies.py:488:        return {"needs_correction": True, "reflection_feedback": "Deep verification unavailable"}
+backend/rag/graph_strategies.py:493:                lettuce_detect.score_faithfulness,
+backend/rag/graph_strategies.py:498:            timeout=float(getattr(settings, "faithfulness_verification_timeout", 8.0)),
+backend/rag/graph_strategies.py:500:        is_faithful = result.get("is_faithful", False)
+backend/rag/graph_strategies.py:502:        if score < settings.faithfulness_floor:
+backend/rag/graph_strategies.py:503:            is_faithful = False
+backend/rag/graph_strategies.py:504:        if not is_faithful:
+backend/rag/graph_strategies.py:511:        logger.warning("deep_contradiction_gate: faithfulness scorer deadline exceeded")
+backend/rag/graph_strategies.py:514:            "reflection_feedback": "Deep verification deadline exceeded; answer remains unverified",
+backend/rag/graph_strategies.py:518:        return {"needs_correction": True, "reflection_feedback": f"Deep verification error: {exc}"}
+backend/rag/graph_strategies.py:522:    """Deep graph — extends standard wiring with extra verification/research edges.
+backend/rag/graph_strategies.py:525:    tier4_deep queries (an extra verification pass after the standard verify node
+backend/rag/graph_strategies.py:526:    and before citations/formatting). Keeps the same entry/exit contract as the
+backend/rag/graph_strategies.py:549:            finds a contradiction; otherwise continue to citation extraction."""
+backend/rag/graph_strategies.py:554:        # Replace the existing verify_answer -> extract_citations edge with a
+backend/rag/graph_strategies.py:556:        builder.edges.discard(("verify_answer", "extract_citations"))
+backend/rag/graph_strategies.py:562:                "extract": "extract_citations",
+backend/rag/graph_strategies.py:570:                "extract": "extract_citations",
+backend/app/grounding.py:8:def grounding_state_for(result: Any) -> GroundingState:
+backend/app/grounding.py:9:    """Derive a conservative, user-visible grounding state from pipeline output.
+backend/app/grounding.py:11:    A response is only labelled grounded when it has at least one retrieved
+backend/app/grounding.py:12:    source and citations were not explicitly marked unverified. Safety and
+backend/app/grounding.py:33:    verification = getattr(result, "verification", None)
+backend/app/grounding.py:34:    if not isinstance(verification, dict):
+backend/app/grounding.py:35:        verification = {}
+backend/app/grounding.py:37:        verification.get("method") == "grounded_partial_evidence"
+backend/app/grounding.py:38:        and getattr(result, "citations", None)
+backend/app/grounding.py:39:        and verification.get("partial") is True
+backend/app/grounding.py:40:        # citations_verified can describe the rejected model draft rather than
+backend/app/grounding.py:42:        # citations from the same retrieved documents, so require citations and
+backend/app/grounding.py:46:        # The model draft failed verification, but the public answer is made
+backend/app/grounding.py:47:        # exclusively from retrieved excerpts with resolvable source URLs.
+backend/app/grounding.py:48:        # Keep the user-visible state grounded while the verification metadata
+backend/app/grounding.py:57:        source_count = len(getattr(result, "citations", None) or [])
+backend/app/grounding.py:59:    citations_verified = getattr(result, "citations_verified", None)
+backend/app/grounding.py:61:    if int(source_count or 0) > 0 and citations_verified is not False and not hallucination_flag:
+backend/rag/graph.py:2:Mukthi Guru — LangGraph Pipeline Assembly
+backend/rag/graph.py:37:from services.embedding_service import EmbeddingService
+backend/rag/graph.py:40:from services.qdrant_service import QdrantService
+backend/rag/graph.py:47:    embedding_service,
+backend/rag/graph.py:65:        embedder=embedding_service,
+backend/rag/graph.py:79:    embedding_service: EmbeddingService,
+backend/rag/graph.py:80:    qdrant_service: QdrantService,
+backend/rag/graph.py:97:        embedding_service,
+backend/rag/graph.py:110:    embedding_service: EmbeddingService,
+backend/rag/graph.py:111:    qdrant_service: QdrantService,
+backend/rag/graph.py:123:        embedding_service,
+backend/rag/graph.py:136:    embedding_service: EmbeddingService,
+backend/rag/graph.py:137:    qdrant_service: QdrantService,
+backend/rag/graph.py:145:    """Deep path: full standard graph with additional verification + CoT nodes."""
+backend/rag/graph.py:149:        embedding_service,
+backend/rag/graph.py:199:        reranked_docs=[],
+backend/rag/graph.py:201:        # CRAG
+backend/rag/graph.py:218:        citations=[],
+backend/rag/graph.py:219:        # Self-RAG
+backend/rag/graph.py:220:        is_faithful=None,
+backend/rag/graph.py:223:        # CoVe
+backend/rag/graph.py:224:        verification=None,
+backend/rag/graph.py:239:        citation_reasoning={},
+backend/rag/graph.py:265:        # Provenance-first retrieval evidence
+backend/rag/graph.py:291:            retrieve_documents,
+backend/rag/graph.py:299:        registry.register("retrieve_documents", is_llm=False)(retrieve_documents)
+backend/rag/tools.py:5:(Qdrant, embedding, etc.).
+backend/rag/tools.py:13:    tool = QdrantSearchTool(qdrant_service)
+backend/rag/tools.py:44:class QdrantSearchTool(Tool):
+backend/rag/tools.py:45:    """Tool for searching the Qdrant vector store."""
+backend/rag/tools.py:48:    description = "Search Qdrant vector store for relevant documents."
+backend/rag/tools.py:55:    def __init__(self, qdrant_service, embedding_service):
+backend/rag/tools.py:57:        self._embedding = embedding_service
+backend/rag/tools.py:62:        """Embed the query and search Qdrant for matching documents."""
+backend/rag/tools.py:63:        logger.debug(f"[QdrantSearchTool] query={query!r}, top_k={top_k}")
+backend/rag/tools.py:64:        query_embedding = self._embedding.embed_query(query)
+backend/rag/tools.py:65:        return self._qdrant.search(query_embedding, top_k=top_k, filter=filter)
+backend/rag/tools.py:69:    """Tool for embedding text (query or document)."""
+backend/rag/tools.py:71:    name = "embedding"
+backend/rag/tools.py:72:    description = "Embed text into a dense vector using the configured embedding model."
+backend/rag/tools.py:78:    def __init__(self, embedding_service):
+backend/rag/tools.py:79:        self._embedding = embedding_service
+backend/rag/tools.py:82:        """Return the embedding vector for the given text."""
+backend/rag/tools.py:85:            self._embedding.embed_query(text) if is_query else self._embedding.embed_document(text)
+backend/rag/tools.py:97:        "context": "str — retrieved context to inject",
+backend/rag/tools.py:117:        registry.register(QdrantSearchTool(qdrant_svc, embedding_svc))
+backend/services/translation/citation_markers.py:1:"""Preserve answer citation markers across every provider translation path."""
+backend/services/translation/citation_markers.py:10:def citation_numbers(text: str) -> list[str]:
+backend/services/translation/citation_markers.py:11:    """Return unique citation numbers in first-seen order."""
+backend/services/translation/citation_markers.py:21:def restore_citation_markers(source_text: str, translated_text: str) -> str:
+backend/services/translation/citation_markers.py:25:    present = citation_numbers(translated)
+backend/services/translation/citation_markers.py:26:    for number in citation_numbers(source_text):
+backend/rag/nodes/retrieval.py:1:"""Query decomposition and hybrid document retrieval nodes."""
+backend/rag/nodes/retrieval.py:25:from services.embedding_service import EmbeddingService, _apply_query_expansion
+backend/rag/nodes/retrieval.py:29:from services.qdrant_service import QdrantService
+backend/rag/nodes/retrieval.py:34:    _grounded_citation_urls,
+backend/rag/nodes/retrieval.py:35:    _llm_retrieval_expansions,
+backend/rag/nodes/retrieval.py:96:# only crowds out genuinely retrieved teachings.
+backend/rag/nodes/retrieval.py:103:# its score may reach so lexical overlap never outranks a real embedding match.
+backend/rag/nodes/retrieval.py:109:    """Semantic match via cosine similarity on title embeddings; keyword fallback.
+backend/rag/nodes/retrieval.py:130:            emb = e.get("embedding", [])
+backend/rag/nodes/retrieval.py:135:                # genuine Qdrant hit. With 23 entries in the bundle, top-3 was
+backend/rag/nodes/retrieval.py:137:                # query. On the fast graph (no reranker, documents[:5]) that meant
+backend/rag/nodes/retrieval.py:151:                        # longer outrank a strongly-matching retrieved teaching.
+backend/rag/nodes/retrieval.py:163:        logger.debug("[retrieval node] suppressed non-critical error: %s", _e)
+backend/rag/nodes/retrieval.py:187:                # semantic path so it never outranks a real embedding match.
+backend/rag/nodes/retrieval.py:366:_ADAPTIVE_PARENT_THRESHOLD = settings.retrieval_adaptive_parent_threshold
+backend/rag/nodes/retrieval.py:369:_SCORE_DELTA_RATIO = settings.retrieval_score_delta_ratio
+backend/rag/nodes/retrieval.py:393:    """Pre-rerank dedup: same source_id + title → keep highest source_version.
+backend/rag/nodes/retrieval.py:426:def _apply_retrieval_dedup(docs: list[dict]) -> list[dict]:
+backend/rag/nodes/retrieval.py:427:    """Drop retrieved docs whose content is nearly identical to an already-selected doc."""
+backend/rag/nodes/retrieval.py:428:    if not docs or not getattr(settings, "retrieval_deduplication_enabled", False):
+backend/rag/nodes/retrieval.py:432:        from ingest.deduplication import deduplicate_retrieved_docs
+backend/rag/nodes/retrieval.py:434:        threshold = getattr(settings, "retrieval_dedup_threshold", 0.85)
+backend/rag/nodes/retrieval.py:435:        return deduplicate_retrieved_docs(docs, threshold=threshold)
+backend/rag/nodes/retrieval.py:444:    qdrant: QdrantService,
+backend/rag/nodes/retrieval.py:448:    """Native BM25 sparse-vector search via Qdrant's sparse named vector.
+backend/rag/nodes/retrieval.py:451:    vector in Qdrant, returning Qdrant's own relevance scores instead of a
+backend/rag/nodes/retrieval.py:454:    query_embedding = embedder.encode_single_full(query)
+backend/rag/nodes/retrieval.py:455:    sparse_vector = query_embedding.get("sparse")
+backend/rag/nodes/retrieval.py:460:        query_vector=query_embedding["dense"],
+backend/rag/nodes/retrieval.py:604:    retrieval query. Avoiding a planner call here preserves the complex-tier
+backend/rag/nodes/retrieval.py:605:    grading and verification gates while removing one avoidable provider round
+backend/rag/nodes/retrieval.py:668:    """PageIndex-inspired reasoning-based pre-retrieval."""
+backend/rag/nodes/retrieval.py:706:def _compute_query_for_embedding(
+backend/rag/nodes/retrieval.py:714:    `retrieve_for_single_query` so the retrieve node can batch-encode
+backend/rag/nodes/retrieval.py:724:    query_for_embedding = hyde_text or augmented_query
+backend/rag/nodes/retrieval.py:725:    return _apply_query_expansion(query_for_embedding)
+backend/rag/nodes/retrieval.py:728:async def retrieve_for_single_query(
+backend/rag/nodes/retrieval.py:735:    qdrant: QdrantService,
+backend/rag/nodes/retrieval.py:740:    query_embedding: Optional[dict] = None,
+backend/rag/nodes/retrieval.py:744:    If `query_embedding` is supplied ({"dense": ..., "sparse": ...}),
+backend/rag/nodes/retrieval.py:745:    skip the encode step and use it directly — this lets the retrieve
+backend/rag/nodes/retrieval.py:760:    query_for_embedding = hyde_text or augmented_query
+backend/rag/nodes/retrieval.py:761:    if query_embedding is None:
+backend/rag/nodes/retrieval.py:762:        query_embedding = await asyncio.to_thread(embedder.encode_single_full, query_for_embedding)
+backend/rag/nodes/retrieval.py:764:    # 1.8: Adaptive retrieval depth by tier
+backend/rag/nodes/retrieval.py:774:        query_vector=query_embedding["dense"],
+backend/rag/nodes/retrieval.py:776:        sparse_vector=query_embedding["sparse"],
+backend/rag/nodes/retrieval.py:778:        query=query_for_embedding,
+backend/rag/nodes/retrieval.py:785:        query_vector=query_embedding["dense"],
+backend/rag/nodes/retrieval.py:787:        sparse_vector=query_embedding["sparse"],
+backend/rag/nodes/retrieval.py:790:        query=query_for_embedding,
+backend/rag/nodes/retrieval.py:807:        t_out = getattr(settings, "lightrag_retrieval_timeout", 30)
+backend/rag/nodes/retrieval.py:846:            logger.debug("[retrieval node] suppressed non-critical error: %s", _e)
+backend/rag/nodes/retrieval.py:874:            # Normalise LightRAG score to Qdrant-comparable range (0.3-0.7)
+backend/rag/nodes/retrieval.py:901:    # Emit per-doc retrieval scores to Prometheus histogram
+backend/rag/nodes/retrieval.py:908:            logger.debug("[retrieval node] suppressed non-critical error: %s", _e)
+backend/rag/nodes/retrieval.py:914:    """Compress retrieved docs by keeping only sentences matching query threshold."""
+backend/rag/nodes/retrieval.py:983:    content is ingested into the same Qdrant collection as the teachings, so a
+backend/rag/nodes/retrieval.py:1003:                GUARDRAILS_BLOCKED.labels(rail="retrieval").inc()
+backend/rag/nodes/retrieval.py:1004:            except Exception:  # noqa: BLE001 — metric must never break retrieval
+backend/rag/nodes/retrieval.py:1011:@trace_rag_node("retrieve_documents")
+backend/rag/nodes/retrieval.py:1013:async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
+backend/rag/nodes/retrieval.py:1014:    """Two-phase hybrid retrieval from Qdrant."""
+backend/rag/nodes/retrieval.py:1022:    retrieval_started = time.perf_counter()
+backend/rag/nodes/retrieval.py:1023:    retrieval_stage_times: dict[str, float] = {}
+backend/rag/nodes/retrieval.py:1024:    preparation_started = retrieval_started
+backend/rag/nodes/retrieval.py:1050:            "retrieval_queries": [base_question],
+backend/rag/nodes/retrieval.py:1053:                retrieve_documents="guided_tour_retrieved",
+backend/rag/nodes/retrieval.py:1070:    # Doctrine keyword injection & synonym expansion for better retrieval
+backend/rag/nodes/retrieval.py:1075:    # of mentioned concepts (e.g. "karma" -> also retrieve "Dharma", "prarabdha").
+backend/rag/nodes/retrieval.py:1090:            # Bounded: this call sits sequentially before the retrieval fan-out
+backend/rag/nodes/retrieval.py:1105:    retrieval_stage_times["prepare_ms"] = round(
+backend/rag/nodes/retrieval.py:1111:    # the first retrieval batch instead of awaiting it serially. The
+backend/rag/nodes/retrieval.py:1113:    # the primary retrievals (which take ~1-3s themselves) hides that
+backend/rag/nodes/retrieval.py:1116:    # Ordering preserved: primary sub_queries retrieved first, then any
+backend/rag/nodes/retrieval.py:1117:    # expansion-generated queries (capped at 6 total). RRF reranking later
+backend/rag/nodes/retrieval.py:1120:    # Feature-flagged: set rag_skip_retrieval_expansions=true to skip the
+backend/rag/nodes/retrieval.py:1124:    # expansion_queries: list[str] = await _llm_retrieval_expansions(state)
+backend/rag/nodes/retrieval.py:1135:        or getattr(settings, "rag_skip_retrieval_expansions", False)
+backend/rag/nodes/retrieval.py:1139:        expansion_task = asyncio.create_task(_llm_retrieval_expansions(state))
+backend/rag/nodes/retrieval.py:1157:    precomputed_embeddings: list[Optional[dict]] = [None] * len(primary_queries)
+backend/rag/nodes/retrieval.py:1161:            _compute_query_for_embedding(q, chat_history, hyde_text) for q in primary_queries
+backend/rag/nodes/retrieval.py:1165:            precomputed_embeddings = [
+backend/rag/nodes/retrieval.py:1173:    retrieval_stage_times["encode_ms"] = round(
+backend/rag/nodes/retrieval.py:1177:    # --- BM25 sparse-vector search (concurrent with vector retrieval) ---
+backend/rag/nodes/retrieval.py:1182:    # questions; dense retrieval remains the fail-open primary source.
+backend/rag/nodes/retrieval.py:1183:    if getattr(settings, "bm25_retrieval_enabled", True) and query_tier not in ("fast", "tier2_simple"):
+backend/rag/nodes/retrieval.py:1201:                retrieve_for_single_query(
+backend/rag/nodes/retrieval.py:1209:                    None,  # LightRAG disabled in hot retrieval path (latency/circuit-breaker safety)
+backend/rag/nodes/retrieval.py:1212:                    query_embedding=precomputed_embeddings[i],
+backend/rag/nodes/retrieval.py:1223:    retrieval_stage_times["primary_retrieval_ms"] = round(
+backend/rag/nodes/retrieval.py:1236:    retrieval_stage_times["bm25_wait_ms"] = round(
+backend/rag/nodes/retrieval.py:1241:    # Cap total retrievals at 6 to bound LLM/Qdrant load.
+backend/rag/nodes/retrieval.py:1248:            logger.warning(f"LLM retrieval expansion failed (non-fatal): {exp_err}")
+backend/rag/nodes/retrieval.py:1251:    retrieval_stage_times["expansion_planner_wait_ms"] = round(
+backend/rag/nodes/retrieval.py:1262:                f"LLM retrieval planner: adding {len(novel_expansions)} expansion query/queries "
+backend/rag/nodes/retrieval.py:1268:                        retrieve_for_single_query(
+backend/rag/nodes/retrieval.py:1276:                            None,  # LightRAG disabled in hot retrieval path (latency/circuit-breaker safety)
+backend/rag/nodes/retrieval.py:1291:    retrieval_queries = (
+backend/rag/nodes/retrieval.py:1302:            logger.warning(f"Sub-query retrieval failed but pipeline will continue: {res}")
+backend/rag/nodes/retrieval.py:1337:                query_embedding = await asyncio.wait_for(
+backend/rag/nodes/retrieval.py:1344:                        query_vector=query_embedding["dense"],
+backend/rag/nodes/retrieval.py:1346:                        sparse_vector=query_embedding["sparse"],
+backend/rag/nodes/retrieval.py:1355:                logger.warning("Fast fallback retrieval timed out or failed; continuing with current docs: %s", fallback_err)
+backend/rag/nodes/retrieval.py:1358:            query_embedding = await asyncio.to_thread(embedder.encode_single_full, fallback_query)
+backend/rag/nodes/retrieval.py:1361:                query_vector=query_embedding["dense"],
+backend/rag/nodes/retrieval.py:1363:                sparse_vector=query_embedding["sparse"],
+backend/rag/nodes/retrieval.py:1382:    # Ordinary questions without canonical ontology matches remain Qdrant-only.
+backend/rag/nodes/retrieval.py:1406:            fused = await _services._graphrag_fusion.retrieve(
+backend/rag/nodes/retrieval.py:1436:    if getattr(settings, "retrieval_score_delta_enabled", False):
+backend/rag/nodes/retrieval.py:1439:    # Pre-rerank dedup: same source_id+title → keep highest source_version
+backend/rag/nodes/retrieval.py:1442:    # Near-duplicate removal at retrieval time
+backend/rag/nodes/retrieval.py:1443:    all_docs = _apply_retrieval_dedup(all_docs)
+backend/rag/nodes/retrieval.py:1451:    # Qdrant searcher applies the same rule at the vector boundary; this second
+backend/rag/nodes/retrieval.py:1452:    # pass covers GraphRAG, OKF, web, and fallback documents that bypass Qdrant.

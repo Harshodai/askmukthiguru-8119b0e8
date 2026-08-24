@@ -645,59 +645,36 @@ async def flush_caches(base_url: str, skip: bool = False) -> None:
 
     flushed_any = False
 
-    # 1. Redis flush via redis-cli inside the backend container (host may not have redis-cli)
+    # 1. Clear only query-response cache namespaces. The shared utility uses
+    # Redis SCAN on mukthiguru:cache:* / mukthiguru:semcache:* and recreates
+    # only semantic-cache Qdrant collections; it never runs FLUSHALL.
     try:
-        redis_pass = os.getenv("REDIS_PASSWORD", "")
-        async with httpx.AsyncClient() as c:
-            r = await c.post(
-                f"{base_url}/api/chat",
-                json={"messages": [], "user_message": ""},
-                timeout=2.0,
-            )
-    except Exception:
-        pass
-
-    # Use direct socket to Redis if reachable (mirrors check_infra pattern)
-    parsed = httpx.URL(base_url)
-    host = parsed.host or "localhost"
-    try:
-        import socket as _socket
-
-        s = _socket.socket(_socket.AF_INET, _socket.SOCK_STREAM)
-        s.settimeout(5.0)
-        s.connect((host, 6379))
-        s.close()
-        # Redis is reachable — try redis-cli fallback (works on host if installed)
         import subprocess
 
-        redis_pass = os.getenv("REDIS_PASSWORD", "")
-        cmd = f"redis-cli -h {host} -p 6379"
-        if redis_pass:
-            cmd += f" -a '{redis_pass}'"
-        cmd += " flushall"
-        ret = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
-        if ret.returncode == 0:
-            print("  ✅ Redis flushed (all keys removed).")
+        flush_script = Path(__file__).resolve().parents[2] / "scripts" / "ops" / "flush_cache.py"
+        result = await asyncio.to_thread(
+            subprocess.run,
+            [sys.executable, str(flush_script)],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+        if result.stdout:
+            print(result.stdout.strip()[-2000:])
+        if result.stderr:
+            print(result.stderr.strip()[-1000:])
+        if result.returncode == 0 and "error:" not in result.stdout.lower():
+            print("  ✅ Scoped query caches cleared; queues, sessions, quotas, telemetry, and user data were preserved.")
             flushed_any = True
         else:
-            # Try via Docker exec on the redis container (host doesn't have redis-cli)
-            redis_pass_arg = f"-a '{redis_pass}'" if redis_pass else ""
-            ret2 = subprocess.run(
-                f"docker exec mukthiguru-redis redis-cli {redis_pass_arg} flushall",
-                shell=True,
-                capture_output=True,
-                text=True,
-                timeout=10,
-            )
-            if ret2.returncode == 0:
-                print("  ✅ Redis flushed via docker exec (all keys removed).")
-                flushed_any = True
-            else:
-                print(
-                    f"  ⚠️  redis-cli not available on host and docker exec failed: {ret2.stderr.strip()[:80]}"
-                )
+            print("  ⚠️  Scoped cache utility did not complete cleanly; benchmark will continue without claiming a cold cache.")
     except Exception as e:
-        print(f"  ⚠️  Redis flush skipped (not reachable on host: {str(e)[:60]})")
+        print(f"  ⚠️  Scoped cache flush skipped: {str(e)[:120]}")
+
+    # Derive the host only for the semantic-cache HTTP fallback below.
+    parsed = httpx.URL(base_url)
+    host = parsed.host or "localhost"
 
     # 2. Qdrant semantic cache collection delete+recreate via HTTP API
     try:

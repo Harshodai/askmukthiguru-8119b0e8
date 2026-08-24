@@ -1,5 +1,5 @@
 import React from 'react';
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import App from '@/App';
@@ -67,10 +67,30 @@ vi.mock('@/lib/lazyWithRetry', () => ({
 vi.mock('@/components/ui/sonner', () => ({ Toaster: () => null }));
 vi.mock('@/components/ui/toaster', () => ({ Toaster: () => null }));
 
+afterEach(() => {
+  window.history.pushState({}, '', '/');
+});
+
 describe('QueryClient defaults', () => {
   it('provides a QueryClient with configured defaults', async () => {
     render(<App />);
     await waitFor(() => expect(screen.getByTestId('index-page')).toBeInTheDocument());
+  });
+});
+
+describe('public compatibility routes', () => {
+  it('routes /guides to the public guides landing content', async () => {
+    window.history.pushState({}, '', '/guides');
+    render(<App />);
+    await waitFor(() => expect(screen.getByTestId('spirit-guides-page')).toBeInTheDocument());
+    expect(screen.queryByTestId('notfound-page')).not.toBeInTheDocument();
+  });
+
+  it('routes /support to the profile support surface', async () => {
+    window.history.pushState({}, '', '/support');
+    render(<App />);
+    await waitFor(() => expect(screen.getByTestId('profile-page')).toBeInTheDocument());
+    expect(screen.queryByTestId('notfound-page')).not.toBeInTheDocument();
   });
 });
 

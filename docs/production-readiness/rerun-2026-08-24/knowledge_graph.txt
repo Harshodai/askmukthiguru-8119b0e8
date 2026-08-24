@@ -1,0 +1,1203 @@
+=== TRACK: knowledge_graph ===
+UTC: 2026-08-24T13:52:06Z
+HEAD: 1f882077616b92b5e2b59a31d9ee4fb246e8fe68
+backend/verify_refactoring.py:80:def check_graph_strategies() -> bool:
+backend/verify_refactoring.py:84:        from rag.graph_strategies import DeepGraphStrategy, FastGraphStrategy, StandardGraphStrategy
+backend/verify_refactoring.py:100:    """Verify NodeRegistry for graph node discovery."""
+backend/verify_refactoring.py:185:        print("  ✓ _wire_graph_observers() imported from main.py")
+backend/verify_refactoring.py:206:        ("GraphStrategies", check_graph_strategies),
+src/App.tsx:320:              <Route path="/knowledge-graph" element={<Suspense fallback={<BrandedSpinner />}><KnowledgeGraphPage /></Suspense>} />
+src/App.tsx:321:              <Route path="/wisdom-map" element={<Navigate to="/knowledge-graph" replace />} />
+tests/e2e/prelaunch-sweep.spec.ts:21:  '/knowledge-graph',
+tests/e2e/full-regression.spec.ts:6: * ship broken — chat round-trips, the newer /second-brain & /knowledge-graph
+tests/e2e/full-regression.spec.ts:63:  test('newer routes mount: /second-brain and /knowledge-graph', async ({ page }) => {
+tests/e2e/full-regression.spec.ts:64:    for (const route of ['/second-brain', '/knowledge-graph']) {
+tests/e2e/full-regression.spec.ts:71:      expect(['/second-brain', '/knowledge-graph', '/auth']).toContain(p);
+tests/e2e/ui-regression-screenshots.spec.ts:188:      { path: '/admin/knowledge-graph', desc: 'admin_knowledge_graph' },
+tests/e2e/security-aal2.spec.ts:15: * suite targets routes that require an authenticated identity.
+scripts/ml_locales_part2.py:72:        "graphView": "ഗ്രാഫ് വ്യൂ",
+scripts/ml_locales_part2.py:74:        "graphDesc": "നിങ്ങളുടെ സംഭാഷണങ്ങളിൽ നിന്ന് രൂപപ്പെട്ട ആത്മീയ അവസ്ഥകളുടെ സംവേദനാത്മക ഭൂപടം. ബന്ധങ്ങൾ പരിശോധിക്കാൻ ഗ്രാഫ് വ്യൂവിലേക്ക് മാറുക.",
+tests/e2e/a11y-smoke.spec.ts:21:  '/knowledge-graph',
+tests/e2e/a11y-smoke.spec.ts:25:const PROTECTED_ROUTES = new Set(['/chat', '/profile', '/practices', '/practices/serene-mind', '/knowledge-graph']);
+backend/services/sarvam_service.py:174:        Attempt to extract structured data (JSON, markdown code blocks, tab-separated entity tables)
+backend/services/sarvam_service.py:206:                        or "entity" in block_lower
+backend/services/sarvam_service.py:235:        # 3. For LightRAG extraction, search for lines that look like entity or relationship records
+backend/services/sarvam_service.py:244:                    and ("entity" in l_lower or "relation" in l_lower or "\t" in l_strip)
+scripts/extract_okf_from_stores.py:2:"""Extract curated OKF entries from Qdrant, Neo4j, and LightRAG via LLM synthesis.
+scripts/extract_okf_from_stores.py:325:async def _gather_neo4j_entities() -> list[dict[str, str]]:
+scripts/extract_okf_from_stores.py:326:    """Fetch all named entities from Neo4j."""
+scripts/extract_okf_from_stores.py:329:    if not getattr(settings, "neo4j_uri", None):
+scripts/extract_okf_from_stores.py:330:        logger.warning("Neo4j not configured — skipping entity query")
+scripts/extract_okf_from_stores.py:334:        from neo4j import GraphDatabase
+scripts/extract_okf_from_stores.py:338:                settings.neo4j_uri,
+scripts/extract_okf_from_stores.py:339:                auth=(settings.neo4j_user, settings.neo4j_password),
+scripts/extract_okf_from_stores.py:344:                    "MATCH (n) WHERE n.entity_id IS NOT NULL "
+scripts/extract_okf_from_stores.py:345:                    "RETURN n.entity_id AS name, n.description AS desc, "
+scripts/extract_okf_from_stores.py:346:                    "n.entity_type AS type LIMIT 200"
+scripts/extract_okf_from_stores.py:359:        logger.info("Neo4j: %d entities loaded", len(entities))
+scripts/extract_okf_from_stores.py:362:        logger.warning("Neo4j entity fetch failed: %s", exc)
+scripts/extract_okf_from_stores.py:366:async def _gather_lightrag_relationships(
+scripts/extract_okf_from_stores.py:369:    """Query LightRAG for entity-relationship context per topic."""
+scripts/extract_okf_from_stores.py:382:                            "Low memory available (%d MB) — bypassing LightRAG queries to prevent SIGKILL",
+scripts/extract_okf_from_stores.py:391:        from services.lightrag_service import LightRAGService
+scripts/extract_okf_from_stores.py:393:        rag = LightRAGService()
+scripts/extract_okf_from_stores.py:402:                logger.debug("LightRAG query skipped for %r: %s", q, exc)
+scripts/extract_okf_from_stores.py:404:        logger.warning("LightRAG unavailable: %s", exc)
+scripts/extract_okf_from_stores.py:406:    logger.info("LightRAG: %d relationship sets gathered", len(results))
+scripts/extract_okf_from_stores.py:432:    """Build topic clusters with chunks, entities, and LightRAG context.
+scripts/extract_okf_from_stores.py:434:    When ``skip_heavy`` is True (dry-run), Neo4j & LightRAG are skipped —
+scripts/extract_okf_from_stores.py:468:    # Fetch Neo4j entities — skip in dry-run to avoid heavyweight service init
+scripts/extract_okf_from_stores.py:471:        entities = await _gather_neo4j_entities()
+scripts/extract_okf_from_stores.py:511:    # Gather LightRAG context for each cluster (parallel async) — skip in dry-run
+scripts/extract_okf_from_stores.py:513:        lightrag_queries = [c["topic_key"] for c in clusters[:10]]
+scripts/extract_okf_from_stores.py:514:        lr_results = await _gather_lightrag_relationships(lightrag_queries)
+scripts/extract_okf_from_stores.py:516:            c["lightrag_context"] = lr_results.get(c["topic_key"], "")
+scripts/extract_okf_from_stores.py:519:            c["lightrag_context"] = ""
+scripts/extract_okf_from_stores.py:569:    entity_lines = "\n".join(
+scripts/extract_okf_from_stores.py:573:    lr_context = cluster.get("lightrag_context", "")
+scripts/extract_okf_from_stores.py:583:        f"─── RELATED ENTITIES (from knowledge graph) ───\n\n"
+scripts/extract_okf_from_stores.py:584:        f"{entity_lines or '(none)'}\n\n"
+scripts/extract_okf_from_stores.py:585:        f"─── ENTITY RELATIONSHIPS (from LightRAG) ───\n\n"
+scripts/extract_okf_from_stores.py:746:    # 2. Cluster by topic (skip Neo4j/LightRAG in dry-run — avoid OOM)
+scripts/extract_okf_from_stores.py:830:        description="LLM-powered OKF extraction from Qdrant, Neo4j, and LightRAG",
+backend/services/confidence_scorer.py:90:    `citations` may be plain URL strings (pre-format_final_answer graph
+src/lib/workspaceNavigation.ts:18:  if (options.conceptQuery && pathname === '/knowledge-graph') params.set('q', options.conceptQuery);
+backend/services/rankers.py:44:    graph = [103, 101, 104]
+backend/services/rankers.py:45:    fused = _reciprocal_rank_fusion([vector, graph], k=60)
+src/pages/SecondBrainPage.tsx:29:  "entity",
+src/pages/SecondBrainPage.tsx:31:  "relationship",
+scripts/migrate_data.py:71:    # LightRAG requires async initialization (done in main.py lifespan normally)
+scripts/migrate_data.py:73:        await container.lightrag.initialize()
+scripts/migrate_data.py:74:        logger.info("✅ LightRAG initialized for graph extraction")
+scripts/migrate_data.py:76:        logger.warning(f"⚠️  LightRAG init failed (Graph RAG will be skipped): {e}")
+src/pages/guides/SufferingToBeautifulStatePage.tsx:40:      '@graph': [
+backend/services/transcript_polisher.py:9:  - Zero-edit prompt: Adds standard punctuation (,.!?:;) and natural paragraph breaks
+backend/services/transcript_polisher.py:25:Your task is to take a raw, unpunctuated or poorly punctuated speech-to-text transcript and add proper punctuation (commas, periods, question marks, colons, quotation marks) and natural paragraph breaks.
+backend/services/transcript_polisher.py:31:4. Output ONLY the formatted transcript with added punctuation and paragraph breaks."""
+backend/services/guru_voice_langhanam.py:12:# Cleaned reference voice — five paragraphs distilled from the Langhanam
+src/lib/responseCache.ts:20: * Not cryptographic — just needs to be deterministic and fast.
+src/pages/guides/SereneMindPracticePage.tsx:40:      '@graph': [
+backend/services/humanizer.py:152:    citations survive humanization.  Paragraph boundaries are preserved
+backend/services/humanizer.py:153:    so multi-paragraph responses keep their structure.
+backend/services/kg_algorithms.py:1:"""Neo4j Graph Data Science (GDS) algorithm stubs.
+backend/services/kg_algorithms.py:3:Checks whether the Neo4j Graph Data Science (GDS) plugin is loaded.
+backend/services/kg_algorithms.py:7:GDS is configured via NEO4J_PLUGINS=["apoc","n10s","graph-data-science"]
+backend/services/kg_algorithms.py:8:in docker-compose.yml and k8s helm templates. The Neo4j 5.17.0 Docker image
+backend/services/kg_algorithms.py:39:            "GDS plugin NOT loaded on Neo4j — kg_algorithms returning empty. "
+backend/services/kg_algorithms.py:46:    neo4j_driver: Any,
+backend/services/kg_algorithms.py:49:    relationship_type: str = "RELATED_TO",
+backend/services/kg_algorithms.py:50:    graph_name: str = "kg_louvain",
+backend/services/kg_algorithms.py:55:    graph and streams Louvain results.
+backend/services/kg_algorithms.py:57:    if neo4j_driver is None:
+backend/services/kg_algorithms.py:59:    available = await asyncio.to_thread(_gds_procedure_available, neo4j_driver)
+backend/services/kg_algorithms.py:65:            with neo4j_driver.session() as session:
+backend/services/kg_algorithms.py:68:                    session.run(f"CALL gds.graph.drop('{graph_name}', false)").consume()
+backend/services/kg_algorithms.py:72:                    "CALL gds.graph.project($name, $node, $rel)",
+backend/services/kg_algorithms.py:73:                    name=graph_name,
+backend/services/kg_algorithms.py:75:                    rel=relationship_type,
+backend/services/kg_algorithms.py:78:                    f"CALL gds.louvain.stream('{graph_name}') "
+backend/services/kg_algorithms.py:80:                    "RETURN gds.util.asNode(nodeId).entity_id AS node_id, communityId"
+backend/services/kg_algorithms.py:91:    neo4j_driver: Any,
+backend/services/kg_algorithms.py:94:    relationship_type: str = "RELATED_TO",
+backend/services/kg_algorithms.py:95:    graph_name: str = "kg_pagerank",
+backend/services/kg_algorithms.py:102:    if neo4j_driver is None:
+backend/services/kg_algorithms.py:104:    available = await asyncio.to_thread(_gds_procedure_available, neo4j_driver)
+backend/services/kg_algorithms.py:110:            with neo4j_driver.session() as session:
+backend/services/kg_algorithms.py:112:                    session.run(f"CALL gds.graph.drop('{graph_name}', false)").consume()
+backend/services/kg_algorithms.py:116:                    "CALL gds.graph.project($name, $node, $rel)",
+backend/services/kg_algorithms.py:117:                    name=graph_name,
+backend/services/kg_algorithms.py:119:                    rel=relationship_type,
+backend/services/kg_algorithms.py:122:                    f"CALL gds.pageRank.stream('{graph_name}', {{maxIterations: $iter}}) "
+backend/services/kg_algorithms.py:124:                    "RETURN gds.util.asNode(nodeId).entity_id AS node_id, score "
+backend/services/kg_algorithms.py:137:    # Self-check — no live Neo4j needed. None driver -> [] for both.
+backend/services/guru_brain/tone_extractor.py:229:            "- seeker_emotional_state: string (e.g. 'anxiety about wealth', 'fear of future', 'relationship strain')\n"
+scripts/load_test.py:46:    "What is the relationship between meditation and daily life?",
+scripts/load_test.py:49:    "How can I find peace in difficult relationships?",
+src/lib/chatStorage.ts:32: * Remove locally cached conversation and feedback content on identity changes.
+src/lib/chatStorage.ts:707:  "Suffering is not what happens to you - it is your relationship with what happens. Transform the relationship, transform the experience.",
+src/pages/guides/SpiritualGuideForAnxietyPage.tsx:40:      '@graph': [
+src/pages/guides/AiSpiritualCompanionPage.tsx:81:      '@graph': [
+src/pages/guides/BeautifulStateMeditationPage.tsx:40:      '@graph': [
+src/pages/guides/SelfCentricThinkingPage.tsx:40:      '@graph': [
+src/pages/guides/SelfCentricThinkingPage.tsx:87:            <li>Comparing your life, career, or relationships to others</li>
+backend/services/tenant_context.py:45:    """Accessor for the current request's tenant identity."""
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:25:  - LightRAG on Neo4j
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:92:    "neo4j": {"health": "/", "port": 7474, "name": "Neo4j Knowledge Graph"},
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2477:    print("  3. Architecture claims (12-layer RAG, NeMo, LightRAG) are from README only.")
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2774:                    # may include boolean-false flags like lightrag_degraded:false
+scripts/benchmarks/production_end_to_end_benchmark.py:398:        ("/api/memory/knowledge-graph", [200, 401, 403]),
+backend/services/guru_brain/guru_kg_service.py:2:GuruKGService — Neo4j Knowledge Graph & OKF Ontology Engine for Guru Brain.
+backend/services/guru_brain/guru_kg_service.py:36:    """Neo4j Knowledge Graph & OKF 5-Node Ontology Engine."""
+backend/services/guru_brain/guru_kg_service.py:39:        self, neo4j_driver: Any = None, neo4j_driver_accessor: Optional[Callable[[], Any]] = None
+backend/services/guru_brain/guru_kg_service.py:41:        self.neo4j_driver = neo4j_driver
+backend/services/guru_brain/guru_kg_service.py:42:        self._neo4j_driver_accessor = neo4j_driver_accessor
+backend/services/guru_brain/guru_kg_service.py:43:        self._in_memory_graph: list[OKFTransformationArc] = []
+backend/services/guru_brain/guru_kg_service.py:47:        if self._neo4j_driver_accessor:
+backend/services/guru_brain/guru_kg_service.py:48:            return self._neo4j_driver_accessor()
+backend/services/guru_brain/guru_kg_service.py:49:        return self.neo4j_driver
+backend/services/guru_brain/guru_kg_service.py:69:        self._in_memory_graph.append(arc)
+backend/services/guru_brain/guru_kg_service.py:108:                    f"GuruKGService: Neo4j Cypher write failed ({exc}), stored in graph memory fallback."
+backend/services/guru_brain/guru_kg_service.py:118:        """Record temporal user state transition arc in Neo4j graph."""
+backend/services/guru_brain/guru_kg_service.py:148:    def traverse_guru_ontology(
+backend/services/guru_brain/guru_kg_service.py:151:        """Perform 5-node multi-hop graph traversal to discover spiritual transformation arcs."""
+backend/services/guru_brain/guru_kg_service.py:185:                    f"GuruKGService: Neo4j traversal failed ({exc}), falling back to in-memory graph."
+backend/services/guru_brain/guru_kg_service.py:188:        # Fallback in-memory graph traversal
+backend/services/guru_brain/guru_kg_service.py:191:        for arc in self._in_memory_graph:
+backend/services/guru_brain/guru_kg_service.py:233:def get_guru_kg_service(neo4j_driver: Any = None) -> GuruKGService:
+backend/services/guru_brain/guru_kg_service.py:236:        _kg_instance = GuruKGService(neo4j_driver=neo4j_driver)
+scripts/ml_locales_part1.py:616:        "relationships": "ബന്ധങ്ങൾ",
+scripts/apply_offline_translations_mr.py:387:    "Couldn't load graph: {{error}}": "आलेख लोड करू शकलो नाही: {{error}}",
+scripts/apply_offline_translations_mr.py:390:    "Search a concept to visualise the knowledge graph.": "ज्ञान आलेख पाहण्यासाठी संकल्पना शोधा.",
+scripts/apply_offline_translations_mr.py:391:    "{{nodeCount}} concepts · {{edgeCount}} relationships": "{{nodeCount}} संकल्पना · {{edgeCount}} संबंध",
+scripts/build_exact_gu.py:887:        "relationships": "સંબંધો",
+scripts/build_exact_gu.py:1007:        "graphView": "ગ્રાફ દૃશ્ય",
+scripts/build_exact_gu.py:1009:        "graphDesc": "તમારી વાતચીતોમાંથી તારવેલી તમારી આધ્યાત્મિક સ્થિતિઓનો ઇન્ટરેક્ટિવ નકશો. જોડાણો શોધવા માટે ગ્રાફ વ્યૂ પર સ્વિચ કરો.",
+backend/run_pilot.py:12:# pins the general provider too, so nothing in the import graph can quietly fall
+scripts/check_ingestion_heartbeat.py:2:"""Check whether the LightRAG Railway ingestion is still alive via its checkpoint
+scripts/check_ingestion_heartbeat.py:13:CHECKPOINT_FILE = Path(__file__).resolve().parent.parent / "data" / "lightrag_checkpoint_railway.json"
+scripts/generate_pa_locale.py:850:    "relationships": "ਸੰਬੰਧ",
+scripts/generate_pa_locale.py:962:    "graphView": "ਗ੍ਰਾਫ਼ ਦ੍ਰਿਸ਼",
+scripts/generate_pa_locale.py:964:    "graphDesc": "ਤੁਹਾਡੀਆਂ ਗੱਲਬਾਤਾਂ ਤੋਂ ਪ੍ਰਾਪਤ ਤੁਹਾਡੀਆਂ ਅਧਿਆਤਮਿਕ ਅਵਸਥਾਵਾਂ ਦਾ ਇੰਟਰਐਕਟਿਵ ਨਕਸ਼ਾ। ਸੰਬੰਧਾਂ ਦੀ ਪੜਚੋਲ ਕਰਨ ਲਈ ਗ੍ਰਾਫ਼ ਦ੍ਰਿਸ਼ 'ਤੇ ਸਵਿੱਚ ਕਰੋ।",
+scripts/generate_sa_json.py:901:        "relationships": "सम्बन्धाः",
+scripts/generate_sa_json.py:1008:        "graphView": "आलेखदृश्यम्",
+scripts/generate_sa_json.py:1010:        "graphDesc": "भवतः सम्भाषणेभ्यः निष्पन्नं भवतः आध्यात्मिकस्थितीनां संवादात्मकं मानचित्रम्। सम्बन्धान् ज्ञातुम् आलेखदृश्ये परिवर्तयन्तु।",
+scripts/as_translations_part2.py:230:    t["memory.graphDesc"] = "আপোনাৰ আধ্যাত্মিক অৱস্থাসমূহৰ সংযোগী মানচিত্ৰ"
+scripts/as_translations_part2.py:263:    t["memory.graphView"] = "মানচিত্ৰ দৃশ্য"
+src/lib/healingCourses.ts:72:        intention: 'Carry the beautiful state into one relationship today.',
+src/lib/healingCourses.ts:74:        guruPrompt: 'How do I stay in the beautiful state in my relationships, according to the teachings?',
+src/lib/healingCourses.ts:141:    subtitle: 'For anger, resentment and broken relationships.',
+src/lib/healingCourses.ts:164:        guruPrompt: 'How do I repair a relationship from the beautiful state?',
+scripts/ingestion/verify_ingestion_quality.py:42:NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
+scripts/ingestion/verify_ingestion_quality.py:90:        for vdb_suffix in ["entities", "relationships", "chunks"]:
+scripts/ingestion/verify_ingestion_quality.py:91:            matching_cols = [c for c in all_cols if c.startswith(f"lightrag_vdb_{vdb_suffix}_")]
+scripts/ingestion/verify_ingestion_quality.py:96:                check(f"lightrag_vdb_{vdb_suffix}", total_pts > 0, f"{total_pts} records in {matching_cols}")
+scripts/ingestion/verify_ingestion_quality.py:98:                check(f"lightrag_vdb_{vdb_suffix}", False, "Collection missing")
+scripts/ingestion/verify_ingestion_quality.py:107:# ── Neo4j / LightRAG checks ──────────────────────────────────────────────────
+scripts/ingestion/verify_ingestion_quality.py:108:def audit_neo4j() -> bool:
+scripts/ingestion/verify_ingestion_quality.py:110:        from neo4j import GraphDatabase  # type: ignore
+scripts/ingestion/verify_ingestion_quality.py:113:            entity_count = s.run("MATCH (n:base) WHERE n.entity_id IS NOT NULL RETURN count(n) AS c").single()["c"]
+scripts/ingestion/verify_ingestion_quality.py:115:            doc_count    = s.run("MATCH (n:base) WHERE n.entity_type = 'document' OR n.file_path IS NOT NULL RETURN count(n) AS c").single()["c"]
+scripts/ingestion/verify_ingestion_quality.py:117:        ok_ent = check("neo4j_entity_count", entity_count >= MIN_LIGHTRAG_ENTITIES,
+scripts/ingestion/verify_ingestion_quality.py:118:                       f"{entity_count} entities")
+scripts/ingestion/verify_ingestion_quality.py:119:        ok_rel = check("neo4j_relation_count", rel_count >= MIN_LIGHTRAG_RELATIONS,
+scripts/ingestion/verify_ingestion_quality.py:121:        check("neo4j_document_count", doc_count > 0, f"{doc_count} doc nodes")
+scripts/ingestion/verify_ingestion_quality.py:124:        check("neo4j_connection", False, str(e))
+scripts/ingestion/verify_ingestion_quality.py:242:    audit_neo4j()
+scripts/ingestion/reviews/classify_sanskrit_terms.py:33:    'Kapola': ('Kapola / Kapala', 'manual_term_identity', 'Kapola is a valid Sanskrit word, but the intended chakra term is not uniquely established.'),
+scripts/apply_offline_translations.py:104:    "memory.graphView": "గ್ರಾಫ್ వీక్షణ",
+scripts/apply_offline_translations.py:222:    "memory.graphView": "ಗ್ರಾಫ್ ವೀಕ್ಷಣೆ",
+scripts/generate_ur_locale.py:855:    "relationships": "تعلقات",
+scripts/generate_ur_locale.py:967:    "graphView": "گراف کا منظر",
+scripts/generate_ur_locale.py:969:    "graphDesc": "آپ کی گفتگو سے اخذ کردہ آپ کی روحانی کیفیات کا انٹرایکٹو نقشہ۔ باہمی روابط کو دیکھنے کے لیے گراف منظر پر جائیں۔",
+scripts/capture_dark_screens_sync.py:40:            {"name": "screen_07_kg", "path": "/knowledge-graph?demo=true", "scroll": 0, "desc": "7,601-Node Interactive Wisdom Map in Dark Mode"},
+scripts/capture_dark_screens_sync.py:70:            wait_time = 4500 if "knowledge-graph" in item["path"] else 2000
+src/lib/secondBrainApi.ts:3: * per-user knowledge graph). Unlike memoryApi.ts, this always goes through
+src/lib/secondBrainApi.ts:15:  kind: 'reflection' | 'entity' | 'preference' | 'relationship' | 'journal';
+src/lib/greeting.ts:35:const JI_PERSONAS = new Set(['sri_preethaji', 'sri_krishnaji', 'general', 'relationship', 'sky']);
+scripts/check_docker_health.py:8:- Neo4j (graph database)
+scripts/check_docker_health.py:25:from neo4j import AsyncGraphDatabase, AsyncDriver
+scripts/check_docker_health.py:33:    NEO4J_PASSWORD = settings.neo4j_password
+scripts/check_docker_health.py:34:    NEO4J_USER = settings.neo4j_user
+scripts/check_docker_health.py:37:    NEO4J_USER = os.environ.get("NEO4J_USER", "neo4j")
+scripts/check_docker_health.py:57:    "neo4j": {
+scripts/check_docker_health.py:106:async def check_neo4j_health(config: dict, password: str) -> Tuple[bool, str]:
+scripts/check_docker_health.py:107:    """Check Neo4j health."""
+scripts/check_docker_health.py:120:        return True, "Neo4j is healthy"
+scripts/check_docker_health.py:122:        return False, f"Neo4j health check failed: {str(e)}"
+scripts/check_docker_health.py:157:        "neo4j": check_neo4j_health,
+scripts/check_docker_health.py:168:    elif service_name == "neo4j":
+scripts/dump_all_stores.py:7:  2. Neo4j (nodes, labels, relationships)
+scripts/dump_all_stores.py:8:  3. LightRAG (entities, relations)
+scripts/dump_all_stores.py:60:async def get_neo4j_data() -> dict[str, list[dict[str, Any]]]:
+scripts/dump_all_stores.py:61:    """Fetch all nodes and relationships from Neo4j."""
+scripts/dump_all_stores.py:64:    if not getattr(settings, "neo4j_uri", None):
+scripts/dump_all_stores.py:65:        logger.warning("Neo4j not configured — skipping export")
+scripts/dump_all_stores.py:66:        return {"nodes": [], "relationships": []}
+scripts/dump_all_stores.py:69:        from neo4j import GraphDatabase
+scripts/dump_all_stores.py:73:                settings.neo4j_uri,
+scripts/dump_all_stores.py:74:                auth=(settings.neo4j_user, settings.neo4j_password),
+scripts/dump_all_stores.py:99:            return {"nodes": nodes, "relationships": rels}
+scripts/dump_all_stores.py:102:        logger.info(f"Fetched {len(data['nodes'])} nodes and {len(data['relationships'])} relationships from Neo4j")
+scripts/dump_all_stores.py:105:        logger.error(f"Failed to fetch Neo4j data: {e}")
+scripts/dump_all_stores.py:106:        return {"nodes": [], "relationships": []}
+scripts/dump_all_stores.py:109:def get_lightrag_data() -> dict[str, Any]:
+scripts/dump_all_stores.py:110:    """Load entities and relationships from LightRAG local KV stores."""
+scripts/dump_all_stores.py:111:    entities_path = Path("data/lightrag/kv_store_full_entities.json")
+scripts/dump_all_stores.py:112:    relations_path = Path("data/lightrag/kv_store_full_relations.json")
+scripts/dump_all_stores.py:122:        logger.info(f"Loaded {len(entities)} entities and {len(relations)} relations from LightRAG KV")
+scripts/dump_all_stores.py:124:        logger.warning(f"Could not load LightRAG KV stores: {e}")
+scripts/dump_all_stores.py:178:    neo4j_task = get_neo4j_data()
+scripts/dump_all_stores.py:180:    qdrant_chunks, neo4j_graph = await asyncio.gather(qdrant_task, neo4j_task)
+scripts/dump_all_stores.py:182:    lightrag_data = get_lightrag_data()
+scripts/dump_all_stores.py:187:    (target_dir / "neo4j_graph.json").write_text(json.dumps(neo4j_graph, indent=2, ensure_ascii=False), encoding="utf-8")
+scripts/dump_all_stores.py:188:    (target_dir / "lightrag_store.json").write_text(json.dumps(lightrag_data, indent=2, ensure_ascii=False), encoding="utf-8")
+scripts/dump_all_stores.py:200:            "neo4j_nodes": len(neo4j_graph["nodes"]),
+scripts/dump_all_stores.py:201:            "neo4j_relationships": len(neo4j_graph["relationships"]),
+scripts/dump_all_stores.py:202:            "lightrag_entities": len(lightrag_data["entities"]),
+scripts/dump_all_stores.py:203:            "lightrag_relations": len(lightrag_data["relations"]),
+scripts/backup/snapshot_manager.py:7:  2. Neo4j (Graph Database APOC cypher streams via Docker cypher-shell)
+scripts/backup/snapshot_manager.py:30:NEO4J_CONTAINER = "mukthiguru-neo4j"
+scripts/backup/snapshot_manager.py:37:NEO4J_BACKUP_PATH = os.path.join(BACKUP_DIR, "neo4j", "backup.cypher")
+scripts/backup/snapshot_manager.py:184:# ─── Neo4j Backup & Restore ────────────────────────────────────────────────────
+scripts/backup/snapshot_manager.py:187:def backup_neo4j():
+scripts/backup/snapshot_manager.py:188:    """Stream out a plain cypher backup from Neo4j APOC export."""
+scripts/backup/snapshot_manager.py:189:    print("\n[Neo4j] Starting graph backup via APOC Cypher stream...")
+scripts/backup/snapshot_manager.py:199:        "neo4j",
+scripts/backup/snapshot_manager.py:206:        print("  [*] Executing stream export in Neo4j container...")
+scripts/backup/snapshot_manager.py:212:            print("  [-] Neo4j APOC export returned empty graph state.")
+scripts/backup/snapshot_manager.py:215:                f.write("// Neo4j Empty Graph State Backup\n")
+scripts/backup/snapshot_manager.py:230:            f"  [✅] Neo4j graph backup saved: {NEO4J_BACKUP_PATH} ({len(cypher_text.splitlines())} cypher lines)"
+scripts/backup/snapshot_manager.py:235:        print(f"  [-] Neo4j backup execution failed: {e.stderr}")
+scripts/backup/snapshot_manager.py:238:        print(f"  [-] Neo4j backup error: {e}")
+scripts/backup/snapshot_manager.py:242:def restore_neo4j():
+scripts/backup/snapshot_manager.py:243:    """Restore Neo4j database using the exported backup cypher file."""
+scripts/backup/snapshot_manager.py:244:    print("\n[Neo4j] Restoring graph database from Cypher backup...")
+scripts/backup/snapshot_manager.py:247:        print(f"  [-] Neo4j backup file not found at {NEO4J_BACKUP_PATH}. Skipping restore.")
+scripts/backup/snapshot_manager.py:267:            "neo4j",
+scripts/backup/snapshot_manager.py:276:        print("  [✅] Neo4j graph database successfully restored!")
+scripts/backup/snapshot_manager.py:279:        print(f"  [-] Neo4j cypher execution failed: {e.stderr or e.stdout}")
+scripts/backup/snapshot_manager.py:282:        print(f"  [-] Neo4j restoration error: {e}")
+scripts/backup/snapshot_manager.py:405:        n_ok = backup_neo4j()
+scripts/backup/snapshot_manager.py:412:        print(f"  - Neo4j graph state:  {'[✅] SUCCESS' if n_ok else '[❌] FAILED'}")
+scripts/backup/snapshot_manager.py:423:        n_ok = restore_neo4j()
+scripts/backup/snapshot_manager.py:430:        print(f"  - Neo4j graph state:  {'[✅] RESTORED' if n_ok else '[[-] SKIPPED / FAILED'}")
+src/lib/greetingConstants.ts:94:/** Greetings for general / relationship / sky personas. */
+src/lib/memoryApi.ts:36:  /** Plain text, ≤2048 chars. Whole-person stable identity. */
+src/lib/memoryApi.ts:285:  /** Cascade-erase memory across every store (Supabase, Qdrant, Neo4j, second brain). Best-effort per-store. */
+src/lib/memoryApi.ts:308:  /** Get the current user's core (stable identity) memory, or null if unset. */
+src/lib/memoryApi.ts:409:  /** Get the user's personal knowledge graph (memories + ontology concepts).
+src/lib/memoryApi.ts:410:   *  With auth: full graph (User + Memories + Concepts + edges).
+src/lib/memoryApi.ts:424:      const res = await fetch(`${BACKEND}/api/memory/knowledge-graph?view=${view}`, { headers });
+src/lib/memoryApi.ts:432:  /** Export the knowledge graph as a standalone interactive HTML file. */
+src/lib/memoryApi.ts:444:      const res = await fetch(`${BACKEND}/api/memory/knowledge-graph/export`, {
+backend/services/doctrine_lexicon.py:113:    # (mukti/mukthi, diksha/deeksha, ujash/ojas). Fold the digraphs before
+backend/services/doctrine_lexicon.py:116:    for digraph, plain in (
+backend/services/doctrine_lexicon.py:126:        value = value.replace(digraph, plain)
+backend/domain/retrieval_types.py:85:    source: str = "vector"  # "vector" | "graph" | "hybrid"
+backend/services/memory_service.py:95:        # resolve_anon_identity, root CLAUDE.md caching invariants) which is
+scripts/ingestion/reviews/detect_mantra_like_passages.py:31:        # Keep paragraph granularity so the full mantra context is preserved.
+scripts/ingestion/reviews/detect_mantra_like_passages.py:34:            if para: add(pkg.name,'transcript.md',f'paragraph_{i+1}','','',para)
+src/lib/meditationResume.ts:5: * purge can be wired from anywhere without pulling the meditation UI graph
+backend/domain/upper_ontology_mapping.py:6:well-known external IRIs so the doctrine graph is interoperable and
+backend/domain/upper_ontology_mapping.py:58:        "bfo": "http://purl.obolibrary.org/obo/BFO_0000141",  # immaterial entity
+backend/domain/upper_ontology_mapping.py:95:    "bfo": "http://purl.obolibrary.org/obo/BFO_0000001",  # entity
+backend/domain/upper_ontology_mapping.py:150:    """Validate a Turtle graph against ontology_shapes.ttl.
+backend/domain/upper_ontology_mapping.py:168:    conforms, _report_graph, report_text = _pyshacl_validate(
+backend/domain/upper_ontology_mapping.py:170:        shacl_graph=shapes_turtle,
+backend/domain/upper_ontology_mapping.py:171:        data_graph_format="turtle",
+backend/domain/upper_ontology_mapping.py:172:        shacl_graph_format="turtle",
+src/lib/authConstants.ts:9:// Google Identity Services (GIS) / GSI SDK URL
+scripts/build_odia_locale.py:501:        "relationships": "ସମ୍ପର୍କଗୁଡ଼ିକ",
+scripts/build_odia_locale.py:621:        "graphView": "ଗ୍ରାଫ୍ ଦୃଶ୍ୟ",
+scripts/build_odia_locale.py:623:        "graphDesc": "ଆପଣଙ୍କ କଥାବାର୍ତ୍ତାରୁ ପ୍ରାପ୍ତ ଆପଣଙ୍କ ଆଧ୍ୟାତ୍ମିକ ସ୍ଥିତିର ଇଣ୍ଟରାକ୍ଟିଭ୍ ମାନଚିତ୍ର। ସଂଯୋଗ ଅନୁସନ୍ଧାନ କରିବାକୁ ଗ୍ରାଫ୍ ଦୃଶ୍ୟକୁ ସୁଇଚ୍ କରନ୍ତୁ।",
+scripts/ingestion/2_upload_transcripts_to_railway.py:9:embed, Qdrant, RAPTOR, LightRAG, OKF.
+scripts/as_translations_part1.py:388:    t["kg.relationships"] = "সম্বন্ধসমূহ"
+backend/services/multi_provider_llm.py:237:        # blank line as a soft cap on runaway paragraphs. The [RETRIEVE: stop
+src/lib/chat/anonSession.ts:7: * conversation id, because resolve_anon_identity() rejects unsigned ids.
+src/lib/chat/anonSession.ts:9: * The token is cached in localStorage so the identity is stable across
+scripts/apply_offline_translations_ta.py:397:    "Couldn't load graph: {{error}}": "வரைபடத்தை ஏற்ற முடியவில்லை: {{error}}",
+scripts/apply_offline_translations_ta.py:399:    "Search a concept to visualise the knowledge graph.": "அறிவு வரைபடத்தைக் காண ஒரு கருத்தைத் தேடுங்கள்.",
+scripts/apply_offline_translations_ta.py:400:    "{{nodeCount}} concepts · {{edgeCount}} relationships": "{{nodeCount}} கருத்துக்கள் · {{edgeCount}} உறவுகள்",
+backend/services/onnx_reranker.py:135:        # Detect whether the graph accepts token_type_ids (some ONNX exports
+backend/services/onnx_reranker.py:136:        # strip them; passing them to a graph that does not expect them raises).
+backend/services/onnx_reranker.py:142:        # ONNX graph) — load from local_path, never from a mutable repo head.
+scripts/ingestion/run_batched_ingestion_pipeline.py:13:   generate RAPTOR summaries, extract LightRAG knowledge graph, and
+scripts/ingestion/run_batched_ingestion_pipeline.py:14:   materialize OKF entities into Neo4j.
+scripts/eval/retrieval_evaluation_matrix.py:54:        entities.update(_list_of_strings(item.get("entity_ids")))
+scripts/eval/retrieval_evaluation_matrix.py:90:    entity_recall = round(len(expected_entities & predicted_entities) / len(expected_entities), 4) if expected_entities else None
+scripts/eval/retrieval_evaluation_matrix.py:93:    graph_timeout = bool(golden.get("graph_timeout") or "deadline exceeded" in response_text or "timed out" in response_text)
+scripts/eval/retrieval_evaluation_matrix.py:101:        "entity_recall": entity_recall,
+scripts/eval/retrieval_evaluation_matrix.py:108:        "graph_timeout": graph_timeout,
+scripts/eval/retrieval_evaluation_matrix.py:118:    latencies, faithfulness, recalls, ndcgs, citations = [nums(key) for key in ("latency_ms", "faithfulness_score", "entity_recall", "ndcg_at_k", "citation_correctness")]
+scripts/eval/retrieval_evaluation_matrix.py:123:        "entity_recall_mean": round(statistics.mean(recalls), 4) if recalls else None,
+scripts/eval/retrieval_evaluation_matrix.py:126:        "graph_timeout_rate": round(sum(1 for row in rows if row["graph_timeout"]) / len(rows), 4) if rows else None,
+scripts/ingestion/parallel_corpus_extractor.py:381:                                speaker_identity_source="metadata",
+scripts/ingestion/parallel_corpus_extractor.py:533:                                    speaker_identity_source="metadata",
+backend/domain/spiritual_ontology.py:6:defines the concepts, relationships, and constraints that govern spiritual
+backend/domain/spiritual_ontology.py:15:The real Neo4j graph (described by, but NOT queried from, this module)
+backend/domain/spiritual_ontology.py:16:uses labels `Teacher`, `Concept`, `Practice`, and `base` (LightRAG base
+backend/domain/spiritual_ontology.py:17:schema), with properties `entity_id`, `name`, `description`, `bio`,
+backend/domain/spiritual_ontology.py:18:`entity_type`, and the `EXPOUNDS` relation. This module stays naming-
+backend/domain/spiritual_ontology.py:19:consistent with that graph without hardcoding any Cypher.
+backend/domain/spiritual_ontology.py:59:    """Types of relationships between concepts."""
+backend/domain/spiritual_ontology.py:92:    IS_ASPECT_OF = "is_aspect_of"  # Partial identity
+backend/domain/spiritual_ontology.py:199:def relation_type_to_neo4j_label(rel: RelationType) -> str:
+backend/domain/spiritual_ontology.py:200:    """Canonical Neo4j edge label: snake_case -> UPPER_SNAKE_CASE."""
+backend/domain/spiritual_ontology.py:204:# Canonical entity aliases: maps common surface forms to a single entity_id.
+backend/domain/spiritual_ontology.py:234:    corpus, graph namespace, voice policy, and safety overlay. Nothing about
+backend/domain/spiritual_ontology.py:239:    entity (e.g. mentioned by name in a comparative teaching) but must never
+backend/domain/spiritual_ontology.py:246:    # Canonical entity names belonging to this domain (matches values in
+backend/domain/spiritual_ontology.py:253:    graph_namespace: Optional[str] = (
+backend/domain/spiritual_ontology.py:254:        None  # Neo4j scoping label/property for this domain's own nodes
+backend/domain/spiritual_ontology.py:266:# recognized so cross-teacher mentions can be graphed and cited correctly,
+backend/domain/spiritual_ontology.py:276:        graph_namespace="ekam",
+backend/domain/spiritual_ontology.py:310:def resolve_teacher_domain(entity_name: str) -> Optional[TeacherDomain]:
+backend/domain/spiritual_ontology.py:311:    """Resolve an entity name (teacher/org name) to its TeacherDomain, if any.
+backend/domain/spiritual_ontology.py:315:    gate on rights must additionally check `.rollout_enabled` — an entity can
+backend/domain/spiritual_ontology.py:318:    domain_id = _ALIAS_TO_DOMAIN.get(normalize_entity_name(entity_name).lower())
+backend/domain/spiritual_ontology.py:322:def normalize_entity_name(name: str) -> str:
+backend/domain/spiritual_ontology.py:323:    """Normalize entity name: strip whitespace, collapse inner spaces."""
+backend/domain/spiritual_ontology.py:328:# ingest/pipeline.py's `_consolidate_graph_entities.clean_name()` regex so
+backend/domain/spiritual_ontology.py:337:def canonical_entity_id(name: str) -> str:
+backend/domain/spiritual_ontology.py:338:    """Resolve entity name to canonical entity_id (case-insensitive).
+backend/domain/spiritual_ontology.py:343:    alias matches, so unmapped entities keep their original entity_id.
+backend/domain/spiritual_ontology.py:345:    normalized = normalize_entity_name(name)
+backend/domain/spiritual_ontology.py:405:    A typed relationship between two concepts.
+scripts/db_rectify.py:11:from neo4j import GraphDatabase
+scripts/db_rectify.py:17:NEO4J_USER = "neo4j"
+scripts/db_rectify.py:23:    logger.info(f"Starting rectification of isolated Neo4j nodes... (mode={mode})")
+scripts/db_rectify.py:43:            # Find malformed nodes (null or empty entity_id)
+scripts/db_rectify.py:45:                "MATCH (n) WHERE n.entity_id IS NULL OR n.entity_id = '' RETURN count(n) as malformed_count"
+scripts/db_rectify.py:48:            logger.info(f"Found {malformed_count} malformed nodes (missing entity_id).")
+scripts/db_rectify.py:54:                        "MATCH (n) WHERE n.entity_id IS NULL OR n.entity_id = '' DETACH DELETE n"
+scripts/db_rectify.py:62:        logger.error(f"Error rectifying Neo4j: {e}", exc_info=True)
+scripts/db_rectify.py:66:    parser = argparse.ArgumentParser(description="Rectify isolated/malformed Neo4j nodes")
+backend/services/ontology_exporter.py:4:Materializes concepts and relations from the LIVE Neo4j graph (labels
+backend/services/ontology_exporter.py:10:test fixture, not a data source. The exporter queries the real graph through
+backend/services/ontology_exporter.py:11:the shared ``container.neo4j_driver`` accessor.
+backend/services/ontology_exporter.py:17:Self-check (no Neo4j needed):
+backend/services/ontology_exporter.py:39:# Map a Neo4j node label to a ConceptType. The live graph uses
+backend/services/ontology_exporter.py:41:# ``Practice``, and the LightRAG ``base`` schema label. We only map the
+backend/services/ontology_exporter.py:48:    # LightRAG ``base`` nodes that carry an ``entity_type`` hint
+backend/services/ontology_exporter.py:52:# Relation types observed (or expected) in the live graph, mapped to the
+backend/services/ontology_exporter.py:54:# graph today only emits ``EXPOUNDS`` (Teacher -> Concept). Unknown relation
+backend/services/ontology_exporter.py:92:def _concept_type_for(labels: list[str], entity_type: Optional[str]) -> ConceptType:
+backend/services/ontology_exporter.py:93:    """Pick the most specific ConceptType from a node's labels + entity_type.
+backend/services/ontology_exporter.py:96:    Teacher > Practice > Concept > base. Falls back to entity_type hints
+backend/services/ontology_exporter.py:104:    # Fall back to entity_type hints.
+backend/services/ontology_exporter.py:105:    if entity_type:
+backend/services/ontology_exporter.py:106:        et = entity_type.strip().lower()
+backend/services/ontology_exporter.py:120:    """Map a Neo4j relationship type to a RelationType (fallback IS_RELATED_TO)."""
+backend/services/ontology_exporter.py:134:def _build_uri(concept_type: ConceptType, entity_id: str) -> str:
+backend/services/ontology_exporter.py:136:    slug = _slugify(entity_id)
+backend/services/ontology_exporter.py:158:    def __init__(self, neo4j_driver: Any = None) -> None:
+backend/services/ontology_exporter.py:162:        neo4j_driver:
+backend/services/ontology_exporter.py:163:            Optional Neo4j driver (the shared ``container.neo4j_driver``).
+backend/services/ontology_exporter.py:164:            When provided, :meth:`materialize_from_graph` queries the live
+backend/services/ontology_exporter.py:165:            graph. The pure serialization methods (:meth:`to_rdf_turtle`,
+backend/services/ontology_exporter.py:169:        self._driver = neo4j_driver
+backend/services/ontology_exporter.py:173:    def materialize_from_graph(self) -> tuple[list[SpiritualConcept], list[Relation]]:
+backend/services/ontology_exporter.py:175:        Query the live Neo4j graph and return (concepts, relations).
+backend/services/ontology_exporter.py:180:          2. All relationships between those nodes (``EXPOUNDS`` and any
+backend/services/ontology_exporter.py:188:            logger.warning("ontology_exporter: no neo4j_driver; returning empty graph.")
+backend/services/ontology_exporter.py:206:            coalesce(n.entity_id, n.name, elementId(n)) AS entity_id,
+backend/services/ontology_exporter.py:207:            coalesce(n.name, n.entity_id, n.description) AS name,
+backend/services/ontology_exporter.py:210:            n.entity_type AS entity_type,
+backend/services/ontology_exporter.py:216:            entity_id = rec.get("entity_id")
+backend/services/ontology_exporter.py:217:            if not entity_id:
+backend/services/ontology_exporter.py:220:            entity_type = rec.get("entity_type")
+backend/services/ontology_exporter.py:221:            concept_type = _concept_type_for(labels, entity_type)
+backend/services/ontology_exporter.py:222:            uri = _build_uri(concept_type, str(entity_id))
+backend/services/ontology_exporter.py:226:            name = rec.get("name") or entity_id
+backend/services/ontology_exporter.py:242:        """Pull all relationships between exported concepts."""
+backend/services/ontology_exporter.py:245:        # Index by full entity_id first, with a fallback by short_id (slug via
+backend/services/ontology_exporter.py:246:        # recursion/descendants that don't carry the base entity_id property).
+backend/services/ontology_exporter.py:249:            if c.entity_id:
+backend/services/ontology_exporter.py:250:                uri_index[c.entity_id] = c.uri
+backend/services/ontology_exporter.py:257:            coalesce(a.entity_id, a.name, elementId(a)) AS src_id,
+backend/services/ontology_exporter.py:258:            coalesce(b.entity_id, b.name, elementId(b)) AS dst_id,
+backend/services/ontology_exporter.py:294:                    source=str(rec.get("source") or "graph"),
+backend/services/ontology_exporter.py:429:    # Build an exporter with no Neo4j driver — serialization-only path.
+backend/services/ontology_exporter.py:430:    exporter = OntologyExporter(neo4j_driver=None)
+scripts/eval/run_ragas_eval.py:124:            "of thought but a shift of identity from thinker to awareness itself."
+scripts/eval/run_ragas_eval.py:143:    Production resolve_anon_identity() rejects bare client-chosen session ids,
+scripts/ingestion/bulk_ingest_whisper.py:8:  2. Chunked LightRAG → Neo4j (graph entity extraction in safe ~8K segments)
+scripts/ingestion/bulk_ingest_whisper.py:9:  3. YouTube → Qdrant + Neo4j (Whisper STT + graph)
+scripts/ingestion/bulk_ingest_whisper.py:49:os.environ["NEO4J_USERNAME"] = "neo4j"
+scripts/ingestion/bulk_ingest_whisper.py:77:# ── Chunked LightRAG Insertion ──────────────────────────────
+scripts/ingestion/bulk_ingest_whisper.py:128:async def safe_lightrag_insert(
+scripts/ingestion/bulk_ingest_whisper.py:129:    lightrag_service,
+scripts/ingestion/bulk_ingest_whisper.py:136:    """Insert text into LightRAG in safe, chunked segments with retry & exponential backoff.
+scripts/ingestion/bulk_ingest_whisper.py:153:        logger.debug(f"apply_corrections in safe_lightrag_insert skipped: {e}")
+scripts/ingestion/bulk_ingest_whisper.py:158:        f"LightRAG: Splitting {len(full_text):,} chars into {total} chunks (~{LIGHTRAG_CHUNK_SIZE} chars each)"
+scripts/ingestion/bulk_ingest_whisper.py:167:            f"LightRAG: Inserting chunk {i}/{total} ({len(chunk):,} chars) for [{source_name}]"
+scripts/ingestion/bulk_ingest_whisper.py:176:                # Call LightRAG directly to raise exceptions on failures
+scripts/ingestion/bulk_ingest_whisper.py:177:                await lightrag_service.ainsert(
+scripts/ingestion/bulk_ingest_whisper.py:185:                    f"LightRAG: Chunk {i}/{total} Attempt {attempt}/{max_chunk_attempts} failed: {e}"
+scripts/ingestion/bulk_ingest_whisper.py:189:                    logger.info(f"LightRAG: Retrying chunk {i}/{total} in {sleep_time:.1f}s...")
+scripts/ingestion/bulk_ingest_whisper.py:194:            logger.info(f"LightRAG: ✅ Chunk {i}/{total} done")
+scripts/ingestion/bulk_ingest_whisper.py:197:                f"LightRAG: ❌ Chunk {i}/{total} completely failed after {max_chunk_attempts} attempts."
+scripts/ingestion/bulk_ingest_whisper.py:202:                if "failed_lightrag_chunks" not in state:
+scripts/ingestion/bulk_ingest_whisper.py:203:                    state["failed_lightrag_chunks"] = []
+scripts/ingestion/bulk_ingest_whisper.py:208:                    for c in state["failed_lightrag_chunks"]
+scripts/ingestion/bulk_ingest_whisper.py:222:                    state["failed_lightrag_chunks"].append(failed_chunk_record)
+scripts/ingestion/bulk_ingest_whisper.py:223:                    logger.info(f"LightRAG: Stored failed chunk {i}/{total} in state.")
+scripts/ingestion/bulk_ingest_whisper.py:228:            logger.info(f"LightRAG: Cooling down {LIGHTRAG_SLEEP_BETWEEN}s...")
+scripts/ingestion/bulk_ingest_whisper.py:232:        f"LightRAG: ✅ {success_count}/{total} chunks processed successfully for [{source_name}]"
+scripts/ingestion/bulk_ingest_whisper.py:294:                child_paragraphs = child_splitter.split_text(text)
+scripts/ingestion/bulk_ingest_whisper.py:297:                for child_index, child_text in enumerate(child_paragraphs):
+scripts/ingestion/bulk_ingest_whisper.py:531:        "--skip-lightrag",
+scripts/ingestion/bulk_ingest_whisper.py:533:        help="Skip LightRAG graph extraction (saves API calls)",
+scripts/ingestion/bulk_ingest_whisper.py:553:        "--retry-failed-lightrag",
+scripts/ingestion/bulk_ingest_whisper.py:555:        help="Retry only the failed LightRAG chunks stored in state, then exit",
+scripts/ingestion/bulk_ingest_whisper.py:598:    # Initialize LightRAG for Knowledge Graph extraction
+scripts/ingestion/bulk_ingest_whisper.py:599:    if container.lightrag:
+scripts/ingestion/bulk_ingest_whisper.py:600:        await container.lightrag.initialize()
+scripts/ingestion/bulk_ingest_whisper.py:615:    if "failed_lightrag_chunks" not in state:
+scripts/ingestion/bulk_ingest_whisper.py:616:        state["failed_lightrag_chunks"] = []
+scripts/ingestion/bulk_ingest_whisper.py:622:    # ── Handle Retry of Failed LightRAG Chunks Directly ───────
+scripts/ingestion/bulk_ingest_whisper.py:623:    if args.retry_failed_lightrag:
+scripts/ingestion/bulk_ingest_whisper.py:624:        failed_chunks = state.get("failed_lightrag_chunks", [])
+scripts/ingestion/bulk_ingest_whisper.py:626:            logger.info("🎉 No failed LightRAG chunks stored in state. Nothing to retry!")
+scripts/ingestion/bulk_ingest_whisper.py:629:        logger.info(f"🔄 Retrying {len(failed_chunks)} failed LightRAG chunk(s)...")
+scripts/ingestion/bulk_ingest_whisper.py:651:                    await container.lightrag.ainsert(
+scripts/ingestion/bulk_ingest_whisper.py:665:                state["failed_lightrag_chunks"] = [
+scripts/ingestion/bulk_ingest_whisper.py:667:                    for c in state["failed_lightrag_chunks"]
+scripts/ingestion/bulk_ingest_whisper.py:680:                logger.info(f"LightRAG: Cooling down {LIGHTRAG_SLEEP_BETWEEN}s...")
+scripts/ingestion/bulk_ingest_whisper.py:684:            f"🎉 Failed LightRAG retry complete: {success_count} chunks successfully ingested. {len(state['failed_lightrag_chunks'])} remaining."
+scripts/ingestion/bulk_ingest_whisper.py:710:            # STEP 2: Chunked LightRAG → Neo4j (graph entity extraction)
+scripts/ingestion/bulk_ingest_whisper.py:711:            if args.skip_lightrag:
+scripts/ingestion/bulk_ingest_whisper.py:712:                logger.info("Step 2/2: ⏭️  --skip-lightrag flag set, skipping graph extraction")
+scripts/ingestion/bulk_ingest_whisper.py:713:            elif container.lightrag:
+scripts/ingestion/bulk_ingest_whisper.py:714:                logger.info("Step 2/2: LightRAG → Neo4j (chunked graph extraction)...")
+scripts/ingestion/bulk_ingest_whisper.py:729:                    await safe_lightrag_insert(
+scripts/ingestion/bulk_ingest_whisper.py:730:                        lightrag_service=container.lightrag,
+scripts/ingestion/bulk_ingest_whisper.py:737:                    logger.info("Step 2/2: ✅ LightRAG → Neo4j complete")
+scripts/ingestion/bulk_ingest_whisper.py:741:                logger.warning("LightRAG not available — skipping graph extraction")
+scripts/ingestion/bulk_ingest_whisper.py:858:                # STEP 2: LightRAG/Neo4j (knowledge graph via safe chunked insertion)
+scripts/ingestion/bulk_ingest_whisper.py:859:                if args.skip_lightrag:
+scripts/ingestion/bulk_ingest_whisper.py:861:                elif container.lightrag:
+scripts/ingestion/bulk_ingest_whisper.py:867:                            f"[LightRAG] No text in Qdrant result — re-fetching transcript for video: {vid}..."
+scripts/ingestion/bulk_ingest_whisper.py:872:                            f"[LightRAG] Reusing transcript from Qdrant step ({len(text):,} chars) — skipping second Whisper run"
+scripts/ingestion/bulk_ingest_whisper.py:876:                            "[LightRAG] Correcting spelling and domain terminology in transcript..."
+scripts/ingestion/bulk_ingest_whisper.py:888:                                corrected_text, segment_id=f"{vid}_lightrag"
+scripts/ingestion/bulk_ingest_whisper.py:892:                                    f"[{vid}] LightRAG transcript ledger recorded {len(ledger)} corrections"
+scripts/ingestion/bulk_ingest_whisper.py:895:                            logger.debug(f"apply_corrections_with_ledger in LightRAG step: {_ce}")
+scripts/ingestion/bulk_ingest_whisper.py:897:                        await safe_lightrag_insert(
+scripts/ingestion/bulk_ingest_whisper.py:898:                            lightrag_service=container.lightrag,
+scripts/ingestion/bulk_ingest_whisper.py:905:                        logger.info("[LightRAG] ✅ Success")
+scripts/ingestion/bulk_ingest_whisper.py:907:                        logger.warning("[LightRAG] ⚠️ No transcript content retrieved")
+scripts/ingestion/bulk_ingest_whisper.py:909:                    logger.warning("[LightRAG] Service not active — skipping")
+scripts/eval/eval_guru_tone.py:54:        "seeker_query": "I keep reliving past betrayal and painful memories in my relationships. How do I break free from these constant stories in my head?",
+scripts/eval/eval_guru_tone.py:55:        "baseline_draft": "Past relationship pain comes from attachment to memories. You should observe your thoughts, forgive the past, and focus on the present moment.",
+scripts/gdpr_purge.py:4:specific ``--user-id``. Optional Qdrant and Neo4j deletion is enabled only when
+scripts/gdpr_purge.py:6:misconfigured run from deleting an entire shared collection or graph.
+scripts/gdpr_purge.py:112:async def _delete_neo4j(user_id: str, dry_run: bool) -> dict[str, Any]:
+scripts/gdpr_purge.py:121:    from neo4j import GraphDatabase
+scripts/gdpr_purge.py:151:    stores["neo4j"] = await _delete_neo4j(user_id, dry_run)
+backend/services/qdrant/indexer.py:223:            for _field in ("entity_ids", "graph_node_ids", "context_cluster_ids"):
+backend/services/qdrant/indexer.py:234:            # other-teacher content, unlike ontology_writer.py's Neo4j BEING-node stamp,
+backend/services/qdrant/indexer.py:324:        backed-up points. Used when a downstream step (RAPTOR, LightRAG, Neo4j
+backend/services/qdrant/source_policy.py:42:def _normalise_identity(value: str) -> str:
+backend/services/qdrant/source_policy.py:51:        identity = _normalise_identity(candidate)
+backend/services/qdrant/source_policy.py:52:        if identity in _BLOCKED_SOURCE_IDENTITIES:
+scripts/ingest_lightrag_data.py:4:Hydrate LightRAG DIRECTLY from Qdrant `spiritual_wisdom` collection payload (89,053 points).
+scripts/ingest_lightrag_data.py:11:  5. Content-hash deduplication (`doc-id`), Qdrant deterministic UUID vector upserts, and Neo4j Cypher `MERGE`.
+scripts/ingest_lightrag_data.py:42:if os.getenv("NEO4J_URI", "").startswith("bolt://neo4j:") or os.getenv("NEO4J_URI", "") == "bolt://neo4j":
+scripts/ingest_lightrag_data.py:50:    os.getenv("LIGHTRAG_CHECKPOINT_FILE", str(PROJECT_ROOT / "data" / "lightrag_checkpoint.json"))
+scripts/ingest_lightrag_data.py:80:async def process_single_point(lightrag_svc, point, sem, counter_lock, counters, start_time, rate_stats):
+scripts/ingest_lightrag_data.py:81:    """Process one Qdrant point through LightRAG safe_ainsert.
+scripts/ingest_lightrag_data.py:133:                    ok = await lightrag_svc.safe_ainsert(text=text, file_paths=[source], timeout=insert_timeout)
+scripts/ingest_lightrag_data.py:184:    from services.lightrag_service import LightRAGService
+scripts/ingest_lightrag_data.py:191:    print(f"🚀 Initializing Auto-Scaling LightRAG Full-Collection Ingestion...")
+scripts/ingest_lightrag_data.py:204:    lightrag_svc = LightRAGService()
+scripts/ingest_lightrag_data.py:205:    await lightrag_svc.initialize()
+scripts/ingest_lightrag_data.py:206:    if not lightrag_svc._initialized:
+scripts/ingest_lightrag_data.py:208:            "LightRAGService failed to initialize (Neo4j/Qdrant unreachable) — "
+scripts/ingest_lightrag_data.py:251:            process_single_point(lightrag_svc, point, sem, counter_lock, counters, start_time, rate_stats)
+scripts/ingestion/ingest_four_sacred_secrets.py:49:        # If there's meaningful text, create child paragraph chunks linked to this parent text
+scripts/ingestion/ingest_four_sacred_secrets.py:52:            child_paragraphs = child_splitter.split_text(text)
+scripts/ingestion/ingest_four_sacred_secrets.py:57:            for child_index, child_text in enumerate(child_paragraphs):
+scripts/ops/backup_and_reset_knowledge_stores.py:5:Safely backs up and resets Neo4j, Qdrant, LightRAG, and Ingestion Checkpoints
+scripts/ops/backup_and_reset_knowledge_stores.py:38:def backup_neo4j(dry_run: bool = False) -> bool:
+scripts/ops/backup_and_reset_knowledge_stores.py:39:    logger.info("📦 [1/3] Backing up Neo4j Graph Database...")
+scripts/ops/backup_and_reset_knowledge_stores.py:41:        logger.info("  [dry-run] Would invoke scripts/ops/backup_neo4j.py")
+scripts/ops/backup_and_reset_knowledge_stores.py:44:    backup_script = REPO_ROOT / "scripts" / "ops" / "backup_neo4j.py"
+scripts/ops/backup_and_reset_knowledge_stores.py:46:        logger.warning(f"Neo4j backup script not found at {backup_script}")
+scripts/ops/backup_and_reset_knowledge_stores.py:58:            logger.info("  ✅ Neo4j backup completed successfully.")
+scripts/ops/backup_and_reset_knowledge_stores.py:61:            logger.error(f"  ❌ Neo4j backup failed: {res.stderr or res.stdout}")
+scripts/ops/backup_and_reset_knowledge_stores.py:64:        logger.error(f"  ❌ Neo4j backup exception: {e}")
+scripts/ops/backup_and_reset_knowledge_stores.py:98:def backup_lightrag_and_checkpoints(dry_run: bool = False) -> bool:
+scripts/ops/backup_and_reset_knowledge_stores.py:99:    logger.info("📦 [3/3] Backing up LightRAG state & ingestion checkpoints...")
+scripts/ops/backup_and_reset_knowledge_stores.py:100:    out_archive_dir = BACKUP_DIR / "lightrag_and_checkpoints" / datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+scripts/ops/backup_and_reset_knowledge_stores.py:103:        logger.info(f"  [dry-run] Would copy data/lightrag and state files to {out_archive_dir}")
+scripts/ops/backup_and_reset_knowledge_stores.py:108:        # Copy LightRAG
+scripts/ops/backup_and_reset_knowledge_stores.py:109:        lightrag_dir = REPO_ROOT / "data" / "lightrag"
+scripts/ops/backup_and_reset_knowledge_stores.py:110:        if lightrag_dir.exists():
+scripts/ops/backup_and_reset_knowledge_stores.py:111:            shutil.copytree(lightrag_dir, out_archive_dir / "lightrag", dirs_exist_ok=True)
+scripts/ops/backup_and_reset_knowledge_stores.py:125:        logger.info(f"  ✅ LightRAG & checkpoints archived to: {out_archive_dir}")
+scripts/ops/backup_and_reset_knowledge_stores.py:128:        logger.error(f"  ❌ Failed to backup LightRAG / checkpoints: {e}")
+scripts/ops/backup_and_reset_knowledge_stores.py:132:def wipe_neo4j(dry_run: bool = False) -> bool:
+scripts/ops/backup_and_reset_knowledge_stores.py:133:    logger.info("🧹 Wiping Neo4j Graph Database...")
+scripts/ops/backup_and_reset_knowledge_stores.py:138:    neo4j_uri = os.environ.get("NEO4J_URI", "bolt://localhost:7687")
+scripts/ops/backup_and_reset_knowledge_stores.py:139:    neo4j_user = os.environ.get("NEO4J_USER", "neo4j")
+scripts/ops/backup_and_reset_knowledge_stores.py:140:    neo4j_password = os.environ.get("NEO4J_PASSWORD")
+scripts/ops/backup_and_reset_knowledge_stores.py:142:    if not neo4j_password:
+scripts/ops/backup_and_reset_knowledge_stores.py:143:        logger.warning("  ⚠️  NEO4J_PASSWORD not set in environment. Skipping Neo4j wipe.")
+scripts/ops/backup_and_reset_knowledge_stores.py:147:        from neo4j import GraphDatabase
+scripts/ops/backup_and_reset_knowledge_stores.py:148:        driver = GraphDatabase.driver(neo4j_uri, auth=(neo4j_user, neo4j_password))
+scripts/ops/backup_and_reset_knowledge_stores.py:152:        logger.info("  ✅ Neo4j database completely cleared (all nodes & relationships removed).")
+scripts/ops/backup_and_reset_knowledge_stores.py:155:        logger.error(f"  ❌ Neo4j wipe failed: {e}")
+scripts/ops/backup_and_reset_knowledge_stores.py:183:def wipe_lightrag_and_checkpoints(dry_run: bool = False) -> bool:
+scripts/ops/backup_and_reset_knowledge_stores.py:184:    logger.info("🧹 Wiping LightRAG state and ingestion checkpoints...")
+scripts/ops/backup_and_reset_knowledge_stores.py:186:        logger.info("  [dry-run] Would delete data/lightrag, GPTCache, and ingestion state files")
+scripts/ops/backup_and_reset_knowledge_stores.py:189:    # 1. Clear LightRAG
+scripts/ops/backup_and_reset_knowledge_stores.py:190:    for p in [REPO_ROOT / "data" / "lightrag", BACKEND_DIR / "data" / "lightrag"]:
+scripts/ops/backup_and_reset_knowledge_stores.py:193:            logger.info(f"  ✅ Deleted LightRAG dir: {p}")
+scripts/ops/backup_and_reset_knowledge_stores.py:225:    logger.info("  ✅ LightRAG, caches, and checkpoints cleaned.")
+scripts/ops/backup_and_reset_knowledge_stores.py:236:    # 1. Verify Neo4j cypher backup
+scripts/ops/backup_and_reset_knowledge_stores.py:237:    neo4j_files = list(BACKUP_DIR.glob("neo4j_backup_*.cypher"))
+scripts/ops/backup_and_reset_knowledge_stores.py:238:    if not neo4j_files:
+scripts/ops/backup_and_reset_knowledge_stores.py:239:        logger.error("  ❌ Neo4j restore smoke test failed: No cypher backup file found.")
+scripts/ops/backup_and_reset_knowledge_stores.py:241:    latest_neo4j = max(neo4j_files, key=lambda p: p.stat().st_mtime)
+scripts/ops/backup_and_reset_knowledge_stores.py:242:    if latest_neo4j.stat().st_size == 0:
+scripts/ops/backup_and_reset_knowledge_stores.py:243:        logger.error(f"  ❌ Neo4j backup file is empty: {latest_neo4j}")
+scripts/ops/backup_and_reset_knowledge_stores.py:295:        b1 = backup_neo4j(dry_run=args.dry_run)
+scripts/ops/backup_and_reset_knowledge_stores.py:297:        b3 = backup_lightrag_and_checkpoints(dry_run=args.dry_run)
+scripts/ops/backup_and_reset_knowledge_stores.py:318:        w1 = wipe_neo4j(dry_run=args.dry_run)
+scripts/ops/backup_and_reset_knowledge_stores.py:320:        w3 = wipe_lightrag_and_checkpoints(dry_run=args.dry_run)
+scripts/ingestion/corpus_end_to_end_audit.py:57:        paragraphs = [p.strip() for p in re.split(r"\n\s*\n", transcript_body) if p.strip()]
+scripts/ingestion/corpus_end_to_end_audit.py:58:        lens = [len(re.sub(r"\s+", " ", p)) for p in paragraphs]
+scripts/ingestion/corpus_end_to_end_audit.py:60:        if not paragraphs and not is_dlq: issues.append("transcript_body_empty")
+scripts/ingestion/corpus_end_to_end_audit.py:61:        elif paragraphs:
+scripts/ingestion/corpus_end_to_end_audit.py:62:            row.update({"paragraph_count": len(paragraphs), "transcript_chars": len(transcript_body), "transcript_words": len(re.findall(r"\b\w+\b", transcript_body)), "paragraph_min_chars": min(lens), "paragraph_median_chars": statistics.median(lens), "paragraph_max_chars": max(lens)})
+scripts/ingestion/corpus_end_to_end_audit.py:63:            if sum(x < 300 or x > 500 for x in lens) / len(lens) > 0.5: warnings.append("most_paragraphs_outside_300_500_chars")
+scripts/ops/ruthless_data_audit.py:4:Performs deep-dive audits of Qdrant and Neo4j for hybrid consistency,
+scripts/ops/ruthless_data_audit.py:14:from neo4j import GraphDatabase
+scripts/ops/ruthless_data_audit.py:19:NEO4J_USER  = os.getenv("NEO4J_USER", "neo4j")
+scripts/ops/ruthless_data_audit.py:41:        self.neo4j_driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASS))
+scripts/ops/ruthless_data_audit.py:44:            "neo4j": {},
+scripts/ops/ruthless_data_audit.py:50:        self.neo4j_driver.close()
+scripts/ops/ruthless_data_audit.py:125:    def audit_neo4j(self):
+scripts/ops/ruthless_data_audit.py:126:        print("\n=== Auditing Neo4j Knowledge Graph ===")
+scripts/ops/ruthless_data_audit.py:127:        with self.neo4j_driver.session() as session:
+scripts/ops/ruthless_data_audit.py:129:            res = session.run("MATCH (n:base) RETURN n.entity_type as t, count(n) as c")
+scripts/ops/ruthless_data_audit.py:131:            self.report["neo4j"]["node_types"] = types_counts
+scripts/ops/ruthless_data_audit.py:136:            self.report["neo4j"]["orphaned_nodes"] = orphans
+scripts/ops/ruthless_data_audit.py:139:            missing_ids_res = session.run("MATCH (n:base) WHERE n.entity_id IS NULL AND n.file_path IS NULL RETURN count(n) as c").single()
+scripts/ops/ruthless_data_audit.py:141:            self.report["neo4j"]["missing_keys"] = missing_ids
+scripts/ops/ruthless_data_audit.py:144:            empty_desc_res = session.run("MATCH (n:base) WHERE n.entity_id IS NOT NULL AND (n.description IS NULL OR n.description = '') RETURN count(n) as c").single()
+scripts/ops/ruthless_data_audit.py:146:            self.report["neo4j"]["empty_descriptions"] = empty_desc
+scripts/ops/ruthless_data_audit.py:149:            missing_source_res = session.run("MATCH (n:base) WHERE n.entity_type = 'document' AND n.source_id IS NULL RETURN count(n) as c").single()
+scripts/ops/ruthless_data_audit.py:151:            self.report["neo4j"]["chunks_missing_source_link"] = missing_source
+scripts/ops/ruthless_data_audit.py:161:                "database": "neo4j",
+scripts/ops/ruthless_data_audit.py:164:                "description": f"Found {orphans} nodes in the graph with 0 relationships (unreachable during RAG walks)."
+scripts/ops/ruthless_data_audit.py:168:                "database": "neo4j",
+scripts/ops/ruthless_data_audit.py:171:                "description": f"Found {missing_ids} nodes missing both entity_id and file_path identifiers."
+scripts/ops/ruthless_data_audit.py:175:                "database": "neo4j",
+scripts/ops/ruthless_data_audit.py:182:        print("\n=== Auditing Cross-Database Consistency (Qdrant ↔ Neo4j) ===")
+scripts/ops/ruthless_data_audit.py:186:        entity_cols = [c for c in all_cols if c.startswith("lightrag_vdb_entities_")]
+scripts/ops/ruthless_data_audit.py:187:        chunk_cols = [c for c in all_cols if c.startswith("lightrag_vdb_chunks_")]
+scripts/ops/ruthless_data_audit.py:189:        # 1. Fetch Neo4j canonical entities
+scripts/ops/ruthless_data_audit.py:190:        with self.neo4j_driver.session() as session:
+scripts/ops/ruthless_data_audit.py:191:            res = session.run("MATCH (n:base) WHERE n.entity_id IS NOT NULL RETURN n.entity_id as name")
+scripts/ops/ruthless_data_audit.py:192:            neo4j_entities = {r["name"].strip().lower() for r in res if r["name"]}
+scripts/ops/ruthless_data_audit.py:194:            # Neo4j in LightRAG only stores entities and relationships; chunks reside in Qdrant.
+scripts/ops/ruthless_data_audit.py:195:            neo4j_chunks = set()
+scripts/ops/ruthless_data_audit.py:198:        print(f"Neo4j Entities: {len(neo4j_entities)}, Neo4j Chunks: {len(neo4j_chunks)}")
+scripts/ops/ruthless_data_audit.py:202:        for col in entity_cols:
+scripts/ops/ruthless_data_audit.py:209:                        ent_id = pay.get("entity_name") or pay.get("entity_id") or pay.get("id")
+scripts/ops/ruthless_data_audit.py:233:        # Inconsistencies: Entities in Qdrant but missing in Neo4j (Broken linkages)
+scripts/ops/ruthless_data_audit.py:234:        mismatched_entities = qdrant_entities - neo4j_entities
+scripts/ops/ruthless_data_audit.py:235:        mismatched_chunks = qdrant_chunks - neo4j_chunks
+scripts/ops/ruthless_data_audit.py:238:            "neo4j_entities_count": len(neo4j_entities),
+scripts/ops/ruthless_data_audit.py:245:        print(f"Entities in Qdrant but missing in Neo4j: {len(mismatched_entities)}")
+scripts/ops/ruthless_data_audit.py:246:        print(f"Chunks in Qdrant but missing in Neo4j: {len(mismatched_chunks)}")
+scripts/ops/ruthless_data_audit.py:253:                "description": f"Found {len(mismatched_entities)} entities that have vector embeddings in Qdrant but no corresponding node in Neo4j (Broken RAG graph links)."
+scripts/ops/ruthless_data_audit.py:260:                "description": f"Found {len(mismatched_chunks)} chunks in Qdrant but missing in Neo4j."
+scripts/ops/ruthless_data_audit.py:265:        self.audit_neo4j()
+scripts/ops/ruthless_data_audit.py:288:                action = "Cypher: MATCH (n:base) WHERE n.entity_id IS NULL AND n.file_path IS NULL DETACH DELETE n;"
+scripts/ops/ruthless_data_audit.py:292:                action = "Delete corresponding orphaned entity points from Qdrant vector collections to restore consistency."
+scripts/ingestion/smart_extract_and_ingest.py:291:    # Build parent-child relationships
+scripts/ingestion/ingestion_subagent.py:4:It acts after raw ASR transcription and before downstream vector indexing (Qdrant, LightRAG, Neo4j).
+scripts/ingestion/ingestion_subagent.py:8:2. Runs acoustic & textual quality scoring (speech coverage, repetition, paragraph bounds).
+scripts/ingestion/ingestion_subagent.py:9:3. Computes cryptographic SHA-256 artifact manifests.
+scripts/ingestion/ingestion_subagent.py:67:    paragraph_count: int
+scripts/ingestion/ingestion_subagent.py:87:        """Run full autonomous review, normalization, ledger generation, and cryptographic manifest sealing."""
+scripts/ingestion/ingestion_subagent.py:102:                paragraph_count=0,
+scripts/ingestion/ingestion_subagent.py:131:                paragraph_count=0,
+scripts/ingestion/ingestion_subagent.py:181:        # 4. Generate Standardized Paragraphs and Full Transcript
+scripts/ingestion/ingestion_subagent.py:183:        paragraphs: list[str] = []
+scripts/ingestion/ingestion_subagent.py:187:        # Natural boundary paragraph grouping (targeting 300-500 chars)
+scripts/ingestion/ingestion_subagent.py:191:                paragraphs.append(" ".join(curr_p))
+scripts/ingestion/ingestion_subagent.py:198:            paragraphs.append(" ".join(curr_p))
+scripts/ingestion/ingestion_subagent.py:215:        new_transcript_content = meta_header + "\n\n".join(paragraphs) + "\n"
+scripts/ingestion/ingestion_subagent.py:233:        # 5. Compute Artifact Manifest & Seal Package Cryptographically
+scripts/ingestion/ingestion_subagent.py:278:        if not paragraphs and quality_state not in {"dead_lettered", "unavailable"}:
+scripts/ingestion/ingestion_subagent.py:281:        lens = [len(p) for p in paragraphs] if paragraphs else []
+scripts/ingestion/ingestion_subagent.py:283:            warnings.append("paragraph_lengths_skewed")
+scripts/ingestion/ingestion_subagent.py:304:            paragraph_count=len(paragraphs),
+backend/services/qdrant/searcher.py:139:        # Optional graph-linked prefetch: it is an additional candidate channel,
+backend/services/qdrant/searcher.py:140:        # never a mandatory filter. Legacy chunks without graph metadata remain
+backend/services/qdrant/searcher.py:142:        graph_entity_ids = kwargs.get("graph_entity_ids") or kwargs.get("entity_ids")
+backend/services/qdrant/searcher.py:143:        graph_prefetch_enabled = bool(kwargs.get("graph_prefetch_enabled", False))
+backend/services/qdrant/searcher.py:227:                if graph_prefetch_enabled and graph_entity_ids:
+backend/services/qdrant/searcher.py:228:                    graph_filter = Filter(
+backend/services/qdrant/searcher.py:232:                                key="entity_ids",
+backend/services/qdrant/searcher.py:233:                                match=MatchAny(any=list(graph_entity_ids)),
+backend/services/qdrant/searcher.py:236:                                key="graph_node_ids",
+backend/services/qdrant/searcher.py:237:                                match=MatchAny(any=list(graph_entity_ids)),
+backend/services/qdrant/searcher.py:246:                            filter=graph_filter,
+backend/services/qdrant/searcher.py:268:            if graph_prefetch_enabled and graph_entity_ids:
+backend/services/qdrant/searcher.py:270:                    graph_filter = Filter(
+backend/services/qdrant/searcher.py:274:                                key="entity_ids",
+backend/services/qdrant/searcher.py:275:                                match=MatchAny(any=list(graph_entity_ids)),
+backend/services/qdrant/searcher.py:278:                                key="graph_node_ids",
+backend/services/qdrant/searcher.py:279:                                match=MatchAny(any=list(graph_entity_ids)),
+backend/services/qdrant/searcher.py:283:                    graph_results = self._client.query_points(
+backend/services/qdrant/searcher.py:288:                        query_filter=graph_filter,
+backend/services/qdrant/searcher.py:292:                    hits.extend(graph_results.points)
+backend/services/qdrant/searcher.py:294:                    logger.info("Optional graph-linked Qdrant prefetch failed open: %s", exc)
+backend/services/qdrant/searcher.py:332:                "entity_ids": hit.payload.get("entity_ids", []),
+backend/services/qdrant/searcher.py:333:                "graph_node_ids": hit.payload.get("graph_node_ids", []),
+backend/services/qdrant/searcher.py:337:                "entity_resolution_confidence": hit.payload.get("entity_resolution_confidence"),
+scripts/build_exact_ml.py:608:        "relationships": "ബന്ധങ്ങൾ",
+scripts/build_exact_ml.py:728:        "graphView": "ഗ്രാഫ് വ്യൂ",
+scripts/build_exact_ml.py:730:        "graphDesc": "നിങ്ങളുടെ സംഭാഷണങ്ങളിൽ നിന്ന് രൂപപ്പെട്ട ആത്മീയ അവസ്ഥകളുടെ സംവേദനാത്മക ഭൂപടം. ബന്ധങ്ങൾ പരിശോധിക്കാൻ ഗ്രാഫ് വ്യൂവിലേക്ക് മാറുക.",
+scripts/ops/cleanup_data.py:7:from neo4j import GraphDatabase
+scripts/ops/cleanup_data.py:36:    # 2. FULL Clear Neo4j
+scripts/ops/cleanup_data.py:37:    logger.info("Connecting to Neo4j...")
+scripts/ops/cleanup_data.py:40:        driver = GraphDatabase.driver("bolt://neo4j:7687", auth=("neo4j", __import__("os").environ["NEO4J_PASSWORD"]))
+scripts/ops/cleanup_data.py:42:            logger.info("Deleting ALL Neo4j data...")
+scripts/ops/cleanup_data.py:45:        logger.info("✅ Neo4j completely cleared.")
+scripts/ops/cleanup_data.py:47:        logger.error(f"❌ Neo4j cleanup failed: {e}")
+scripts/ops/qdrant_backup.py:179:    can never traverse the Qdrant snapshot REST path.
+scripts/ops/ensure_qdrant_graph_payload_indexes.py:1:"""Ensure Qdrant payload indexes required by graph-linked retrieval.
+scripts/ops/ensure_qdrant_graph_payload_indexes.py:4:or rewrites points. The rollback is to stop using the optional graph-linked
+scripts/ops/ensure_qdrant_graph_payload_indexes.py:24:logger = logging.getLogger("ensure_qdrant_graph_payload_indexes")
+scripts/ops/ensure_qdrant_graph_payload_indexes.py:27:    "entity_ids",
+scripts/ops/ensure_qdrant_graph_payload_indexes.py:28:    "graph_node_ids",
+scripts/ops/ensure_qdrant_graph_payload_indexes.py:86:            "rollback": "Disable optional graph-linked filters; do not delete indexes during incident response.",
+scripts/ops/preflight_check.py:151:    neo4j_script = REPO_ROOT / "scripts" / "ops" / "backup_neo4j.py"
+scripts/ops/preflight_check.py:155:    for s, name in [(neo4j_script, "Neo4j Backup"), (qdrant_script, "Qdrant Backup"), (reset_script, "Reset Tool")]:
+scripts/ops/backup_neo4j.py:3:Mukthi Guru — Neo4j Backup & Verification Script
+scripts/ops/backup_neo4j.py:5:Creates graph database dumps using `neo4j-admin database dump` or Cypher export.
+scripts/ops/backup_neo4j.py:9:    python scripts/ops/backup_neo4j.py
+scripts/ops/backup_neo4j.py:10:    python scripts/ops/backup_neo4j.py --format dump
+scripts/ops/backup_neo4j.py:11:    python scripts/ops/backup_neo4j.py --format cypher --retention 7
+scripts/ops/backup_neo4j.py:15:    NEO4J_USER      — Username (default: neo4j)
+scripts/ops/backup_neo4j.py:17:    BACKUP_BASE_DIR — Where dumps are stored (default: ./backups/neo4j)
+scripts/ops/backup_neo4j.py:20:    Uses neo4j-admin inside the running container.
+scripts/ops/backup_neo4j.py:36:NEO4J_USER = os.environ.get("NEO4J_USER", "neo4j")
+scripts/ops/backup_neo4j.py:38:NEO4J_CONTAINER = os.environ.get("NEO4J_CONTAINER", "mukthiguru-neo4j")
+scripts/ops/backup_neo4j.py:39:NEO4J_DB_NAME = os.environ.get("NEO4J_DB_NAME", "neo4j")  # default database
+scripts/ops/backup_neo4j.py:42:    os.environ.get("BACKUP_BASE_DIR", Path(__file__).resolve().parents[2] / "backups" / "neo4j")
+scripts/ops/backup_neo4j.py:103:# ─── Dump Backup (neo4j-admin) ───────────────────────────────────────────────
+scripts/ops/backup_neo4j.py:107:    """Use neo4j-admin database dump inside the Docker container."""
+scripts/ops/backup_neo4j.py:109:    print("  Neo4j Backup — Format: dump (neo4j-admin)")
+scripts/ops/backup_neo4j.py:115:        print(f"[-] Neo4j container '{NEO4J_CONTAINER}' not found. Is Docker Compose running?")
+scripts/ops/backup_neo4j.py:124:        # 1. Run neo4j-admin dump inside container
+scripts/ops/backup_neo4j.py:125:        print("[*] Running neo4j-admin database dump ...")
+scripts/ops/backup_neo4j.py:130:            "neo4j-admin",
+scripts/ops/backup_neo4j.py:173:        print(f"[-] neo4j-admin dump failed: {e.stderr or e.stdout}")
+scripts/ops/backup_neo4j.py:176:        print("[-] neo4j-admin dump timed out.")
+scripts/ops/backup_neo4j.py:184:    """Verify a Neo4j dump archive."""
+scripts/ops/backup_neo4j.py:202:    # neo4j dumps are tar-like but proprietary; we do a basic magic-byte check
+scripts/ops/backup_neo4j.py:209:    # We can also try neo4j-admin database check inside a temporary container if needed,
+scripts/ops/backup_neo4j.py:221:    print("  Neo4j Backup — Format: cypher (APOC export)")
+scripts/ops/backup_neo4j.py:227:        print(f"[-] Neo4j container '{NEO4J_CONTAINER}' not found.")
+scripts/ops/backup_neo4j.py:231:    cypher_filename = f"neo4j_{ts}.cypher"
+scripts/ops/backup_neo4j.py:255:            print("  [!] APOC export returned empty graph state.")
+scripts/ops/backup_neo4j.py:256:            host_dest.write_text("// Neo4j Empty Graph State Backup\n", encoding="utf-8")
+scripts/ops/backup_neo4j.py:301:    if "CREATE" in text or "MERGE" in text or "MATCH" in text or "// Neo4j Empty" in text:
+scripts/ops/backup_neo4j.py:327:    parser = argparse.ArgumentParser(description="Mukthi Guru — Neo4j Backup & Verification")
+scripts/ops/backup_neo4j.py:332:        help="Backup format: 'dump' (neo4j-admin binary) or 'cypher' (plain text)",
+scripts/ingestion/1_fetch_transcripts_local.py:674:            speaker_identity_source="metadata",
+scripts/ingestion/1_fetch_transcripts_local.py:830:                        speaker_identity_source="metadata",
+scripts/ops/consolidate_entities.py:4:Identifies and merges duplicate entities in Neo4j (e.g., 'Sri Krishnaji' and 'Krishnaji').
+scripts/ops/consolidate_entities.py:15:from neo4j import GraphDatabase
+scripts/ops/consolidate_entities.py:18:NEO4J_USER  = os.getenv("NEO4J_USER", "neo4j")
+scripts/ops/consolidate_entities.py:37:    print("Fetching nodes from Neo4j...")
+scripts/ops/consolidate_entities.py:40:    WHERE n.entity_id IS NOT NULL
+scripts/ops/consolidate_entities.py:41:    RETURN elementId(n) as id, n.entity_id as name, n.entity_type as type, n.description as desc
+scripts/ops/consolidate_entities.py:54:    print(f"Total entity nodes found: {len(nodes)}")
+scripts/ops/consolidate_entities.py:96:            # Transfer outgoing relationships, preserving the original relationship
+scripts/ops/consolidate_entities.py:97:            # type and properties via apoc.merge.relationship (Cypher can't
+scripts/ops/consolidate_entities.py:98:            # parameterize a relationship type directly). The prior version used
+scripts/ops/consolidate_entities.py:100:            # to $master_id — Neo4j would match *any* :base node already carrying a
+scripts/ops/consolidate_entities.py:102:            # and it collapsed every relationship type (TEACHES, EXPOUNDS, ...) into
+scripts/ops/consolidate_entities.py:108:            CALL apoc.merge.relationship(master, type(r), properties(r), properties(r), target, {}) YIELD rel
+scripts/ops/consolidate_entities.py:112:            # Transfer incoming relationships (same fix, reversed direction)
+scripts/ops/consolidate_entities.py:117:            CALL apoc.merge.relationship(source, type(r), properties(r), properties(r), master, {}) YIELD rel
+scripts/ops/consolidate_entities.py:140:    parser = argparse.ArgumentParser(description="Merge duplicate entities in Neo4j.")
+scripts/ops/self_heal_data.py:4:Applies corrective fixes to Neo4j and Qdrant to resolve data inconsistencies.
+scripts/ops/self_heal_data.py:9:from neo4j import GraphDatabase
+scripts/ops/self_heal_data.py:13:NEO4J_USER  = os.getenv("NEO4J_USER", "neo4j")
+scripts/ops/self_heal_data.py:19:    # 1. Clean Neo4j Orphans and Corrupted Nodes
+scripts/ops/self_heal_data.py:20:    print("\n1. Healing Neo4j Graph...")
+scripts/ops/self_heal_data.py:26:            print(f"  Found {orphans_before} orphaned nodes in Neo4j.")
+scripts/ops/self_heal_data.py:34:                WHERE n.entity_type IS NOT NULL AND (
+scripts/ops/self_heal_data.py:35:                    n.entity_type CONTAINS '"' OR
+scripts/ops/self_heal_data.py:36:                    n.entity_type CONTAINS '\\\\' OR
+scripts/ops/self_heal_data.py:37:                    size(n.entity_type) > 50
+scripts/ops/self_heal_data.py:42:            print(f"  Found {corrupted_before} nodes with corrupted/malformed entity_type.")
+scripts/ops/self_heal_data.py:46:                    WHERE n.entity_type IS NOT NULL AND (
+scripts/ops/self_heal_data.py:47:                        n.entity_type CONTAINS '"' OR
+scripts/ops/self_heal_data.py:48:                        n.entity_type CONTAINS '\\\\' OR
+scripts/ops/self_heal_data.py:49:                        size(n.entity_type) > 50
+scripts/ops/self_heal_data.py:53:                print("  -> Deleted corrupted entity type nodes successfully.")
+scripts/ops/self_heal_data.py:56:            res = session.run("MATCH (n:base) WHERE n.entity_id IS NOT NULL RETURN n.entity_id as name")
+scripts/ops/self_heal_data.py:57:            neo4j_entities = {r["name"].strip().lower() for r in res if r["name"]}
+scripts/ops/self_heal_data.py:58:            print(f"  Active entities in Neo4j: {len(neo4j_entities)}")
+scripts/ops/self_heal_data.py:61:        print(f"  ❌ Neo4j healing failed: {e}")
+scripts/ops/self_heal_data.py:69:        entity_cols = [c for c in all_cols if c.startswith("lightrag_vdb_entities_")]
+scripts/ops/self_heal_data.py:72:        for col in entity_cols:
+scripts/ops/self_heal_data.py:83:                ent_name = pay.get("entity_name") or pay.get("entity_id") or pay.get("id")
+scripts/ops/self_heal_data.py:86:                    if ent_name_clean not in neo4j_entities:
+backend/tests/test_retrieval_okf_embedder.py:42:def test_okf_match_uses_same_embedder_identity(monkeypatch):
+scripts/ingestion/rectify_target_packages.py:7:with 100% cryptographic SHA-256 integrity.
+scripts/ingestion/rectify_target_packages.py:124:    # 2. Assemble paragraph-formatted transcript
+scripts/ingestion/rectify_target_packages.py:126:    paragraphs = []
+scripts/ingestion/rectify_target_packages.py:136:                paragraphs.append(p_text[0].upper() + p_text[1:])
+scripts/ingestion/rectify_target_packages.py:142:            paragraphs.append(p_text[0].upper() + p_text[1:])
+scripts/ingestion/rectify_target_packages.py:144:    body_text = "\n\n".join(paragraphs)
+backend/tests/test_live_logistics.py:6:from rag.graph_strategies import route_after_intent
+backend/tests/test_ontology_provenance.py:1:"""Regression coverage for corpus-scoped ontology relationship writes."""
+backend/tests/test_ontology_provenance.py:7:from ingest.ontology_writer import _MockDriver, write_extraction_to_neo4j
+backend/tests/test_ontology_provenance.py:11:async def test_ontology_relationships_are_merged_with_corpus_provenance():
+backend/tests/test_ontology_provenance.py:14:    writes = await write_extraction_to_neo4j(
+backend/tests/test_ontology_provenance.py:17:        relationships=[("Teacher", "teaches", "Meditation")],
+backend/tests/test_ontology_provenance.py:27:    relationship_calls = [(cypher, params) for cypher, params in calls if "MERGE (s)-[r:" in cypher]
+backend/tests/test_ontology_provenance.py:28:    assert len(relationship_calls) == 1
+backend/tests/test_ontology_provenance.py:29:    cypher, params = relationship_calls[0]
+backend/tests/test_ontology_provenance.py:46:    tx.run.side_effect = RuntimeError("Neo4j unavailable")
+backend/tests/test_ontology_provenance.py:49:        await write_extraction_to_neo4j(
+backend/tests/test_ontology_provenance.py:52:            relationships=[],
+scripts/ingestion/summarize_corpus_audit.py:14:    paras=[r['paragraph_median_chars'] for r in rows if isinstance(r.get('paragraph_median_chars'),(int,float))]
+scripts/ingestion/summarize_corpus_audit.py:27:      'paragraph_median_chars':{'min':min(paras),'median':statistics.median(paras),'mean':round(statistics.mean(paras),2),'max':max(paras)} if paras else {},
+scripts/ingestion/summarize_corpus_audit.py:32:      'paragraph_target_warning_packages':sum('most_paragraphs_outside_300_500_chars' in r.get('warnings',[]) for r in rows),
+scripts/ops/heal_neo4j_poison.py:3:heal_neo4j_poison.py — In-Place Neo4j Description Sanitizer
+scripts/ops/heal_neo4j_poison.py:6:Identifies and cleans "poisoned" Neo4j entity descriptions where LightRAG
+scripts/ops/heal_neo4j_poison.py:10:asked to merge entity descriptions, emitting the developer prompt text verbatim.
+scripts/ops/heal_neo4j_poison.py:11:LightRAG saved this as the entity description property.
+scripts/ops/heal_neo4j_poison.py:14:  1. PRE-FLIGHT BACKUP: Dump all poisoned nodes to data/neo4j_poisoned_backup.json
+scripts/ops/heal_neo4j_poison.py:18:  3. CONDITIONAL WRITE-BACK: Only update Neo4j after receiving a valid, non-empty
+scripts/ops/heal_neo4j_poison.py:23:    python3 scripts/ops/heal_neo4j_poison.py
+scripts/ops/heal_neo4j_poison.py:26:    python3 scripts/ops/heal_neo4j_poison.py --dry-run
+scripts/ops/heal_neo4j_poison.py:29:    python3 scripts/ops/heal_neo4j_poison.py --limit 5
+scripts/ops/heal_neo4j_poison.py:46:    from neo4j import GraphDatabase
+scripts/ops/heal_neo4j_poison.py:48:    print("ERROR: neo4j driver not installed. Run: pip install neo4j")
+scripts/ops/heal_neo4j_poison.py:72:NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
+scripts/ops/heal_neo4j_poison.py:78:# Auto-fallback: when running outside Docker the hostname "neo4j" won't resolve.
+scripts/ops/heal_neo4j_poison.py:80:if "neo4j:7687" in NEO4J_URI:
+scripts/ops/heal_neo4j_poison.py:83:        socket.getaddrinfo("neo4j", 7687)
+scripts/ops/heal_neo4j_poison.py:85:        NEO4J_URI = NEO4J_URI.replace("neo4j:7687", "localhost:7687")
+scripts/ops/heal_neo4j_poison.py:86:        print(f"  ⚠️  'neo4j' hostname not resolvable — using localhost:7687 instead")
+scripts/ops/heal_neo4j_poison.py:88:BACKUP_PATH = _repo_root / "data" / "neo4j_poisoned_backup.json"
+scripts/ops/heal_neo4j_poison.py:111:RETURN elementId(n) AS neo4j_id,
+scripts/ops/heal_neo4j_poison.py:114:ORDER BY n.entity_id
+scripts/ops/heal_neo4j_poison.py:119:WHERE elementId(n) = $neo4j_id
+scripts/ops/heal_neo4j_poison.py:129:1. Identify and return ONLY the actual spiritual teaching, definition, or factual content about the entity.
+scripts/ops/heal_neo4j_poison.py:142:Entity name for context: {entity_name}
+scripts/ops/heal_neo4j_poison.py:147:def call_sarvam_scrub(entity_name: str, contaminated_text: str) -> str | None:
+scripts/ops/heal_neo4j_poison.py:161:                    entity_name=entity_name,
+scripts/ops/heal_neo4j_poison.py:206:    print("Neo4j Poison Healer")
+scripts/ops/heal_neo4j_poison.py:217:        print("✅ Connected to Neo4j\n")
+scripts/ops/heal_neo4j_poison.py:219:        print(f"❌ Cannot connect to Neo4j: {e}")
+scripts/ops/heal_neo4j_poison.py:256:        print("DRY-RUN mode: no Neo4j writes will be performed.")
+scripts/ops/heal_neo4j_poison.py:267:        neo4j_id = node["neo4j_id"]
+scripts/ops/heal_neo4j_poison.py:269:        entity_name = props.get("entity_id") or props.get("name") or f"node-{idx}"
+scripts/ops/heal_neo4j_poison.py:272:        print(f"  [{idx}/{len(poisoned_nodes)}] {entity_name[:60]}")
+scripts/ops/heal_neo4j_poison.py:276:        cleaned = call_sarvam_scrub(entity_name, contaminated)
+scripts/ops/heal_neo4j_poison.py:283:            # Write back to Neo4j
+scripts/ops/heal_neo4j_poison.py:287:                    neo4j_id=neo4j_id,
+scripts/ops/heal_neo4j_poison.py:290:            print("    ✅ Updated in Neo4j")
+scripts/ops/heal_neo4j_poison.py:313:    parser = argparse.ArgumentParser(description="In-place Neo4j description sanitizer")
+scripts/ops/heal_neo4j_poison.py:317:        help="Backup only, no Neo4j writes",
+scripts/ops/full_cleanup.py:33:    # 2. Clear LightRAG State
+scripts/ops/full_cleanup.py:34:    lightrag_path = Path(BASE_DIR) / "data" / "lightrag"
+scripts/ops/full_cleanup.py:35:    if lightrag_path.exists():
+scripts/ops/full_cleanup.py:37:            shutil.rmtree(lightrag_path)
+scripts/ops/full_cleanup.py:38:            logger.info(f"✅ LightRAG state directory '{lightrag_path}' deleted.")
+scripts/ops/full_cleanup.py:40:            logger.error(f"❌ Failed to delete LightRAG directory: {e}")
+scripts/ops/full_cleanup.py:66:    # 5. Clear Neo4j on localhost
+scripts/ops/full_cleanup.py:67:    logger.info("Connecting to Neo4j on localhost...")
+scripts/ops/full_cleanup.py:69:        from neo4j import GraphDatabase
+scripts/ops/full_cleanup.py:72:        driver = GraphDatabase.driver("bolt://localhost:7687", auth=("neo4j", password))
+scripts/ops/full_cleanup.py:74:            logger.info("Deleting ALL Neo4j data (nodes + relationships)...")
+scripts/ops/full_cleanup.py:77:        logger.info("✅ Neo4j database completely cleared.")
+scripts/ops/full_cleanup.py:79:        logger.error(f"❌ Neo4j cleanup failed (is Neo4j running on localhost:7687?): {e}")
+scripts/ops/cross_store_audit.py:2:"""Cross-store audit: LightRAG entities/chunks ↔ Neo4j ↔ Qdrant ↔ working dir."""
+scripts/ops/cross_store_audit.py:9:from neo4j import GraphDatabase
+scripts/ops/cross_store_audit.py:14:NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
+scripts/ops/cross_store_audit.py:16:LIGHTRAG_DIR = "data/lightrag"
+scripts/ops/cross_store_audit.py:17:LIGHTRAG_COLLECTION = os.getenv("QDRANT_COLLECTION", "ekam_lightrag")
+scripts/ops/cross_store_audit.py:35:        self.neo4j = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASS))
+scripts/ops/cross_store_audit.py:39:        self.neo4j.close()
+scripts/ops/cross_store_audit.py:48:        with self.neo4j.session() as s:
+scripts/ops/cross_store_audit.py:50:                "MATCH (n:base) WHERE n.entity_id IS NOT NULL "
+scripts/ops/cross_store_audit.py:51:                "RETURN n.entity_id AS id, n.entity_type AS type, n.description AS desc"
+scripts/ops/cross_store_audit.py:63:                "MATCH (n:LIGHTRAG) WHERE n.entity_id IS NOT NULL "
+scripts/ops/cross_store_audit.py:64:                "RETURN n.entity_id AS id, labels(n) AS labels, n.entity_type AS type "
+scripts/ops/cross_store_audit.py:69:        qdrant_entity_cols = [
+scripts/ops/cross_store_audit.py:74:        for col_name in qdrant_entity_cols:
+scripts/ops/cross_store_audit.py:80:                eid = str(p.payload.get("entity_name") or p.payload.get("entity_id") or "").strip().lower()
+scripts/ops/cross_store_audit.py:92:            "our_neo4j_total": len(our_set),
+scripts/ops/cross_store_audit.py:93:            "lightrag_neo4j_total": len(lr_entities),
+scripts/ops/cross_store_audit.py:94:            "lightrag_qdrant_total": len(qdrant_entities),
+scripts/ops/cross_store_audit.py:95:            "matched_neo4j": len(our_in_lr),
+scripts/ops/cross_store_audit.py:96:            "our_missing_from_lightrag_neo4j": len(our_missing_lr),
+scripts/ops/cross_store_audit.py:97:            "our_missing_from_lightrag_qdrant": len(our_set - qdrant_entities),
+scripts/ops/cross_store_audit.py:98:            "lightrag_extra_not_in_our_neo4j": len(lr_extra),
+scripts/ops/cross_store_audit.py:104:        print(f"Our Neo4j entities:             {len(our_set)}")
+scripts/ops/cross_store_audit.py:105:        print(f"LightRAG Neo4j entities:         {len(lr_entities)}")
+scripts/ops/cross_store_audit.py:106:        print(f"LightRAG Qdrant entities:        {len(qdrant_entities)}")
+scripts/ops/cross_store_audit.py:108:        print(f"Our entities missing in LR Neo4j: {len(our_missing_lr)}")
+scripts/ops/cross_store_audit.py:110:        print(f"LR entities not in our Neo4j:    {len(lr_extra)}")
+scripts/ops/cross_store_audit.py:113:            self._inc("cross_store", "our_entities_missing_lightrag", "MEDIUM",
+scripts/ops/cross_store_audit.py:114:                       f"{len(our_missing_lr)} entities exist in our Neo4j but are absent from LightRAG Neo4j. "
+scripts/ops/cross_store_audit.py:115:                       "LightRAG will return no graph context for these entities.")
+scripts/ops/cross_store_audit.py:117:            self._inc("cross_store", "lightrag_orphan_entities", "LOW",
+scripts/ops/cross_store_audit.py:118:                       f"{len(lr_extra)} entities exist in LightRAG Neo4j but have no counterpart in our Neo4j. "
+scripts/ops/cross_store_audit.py:134:        with self.neo4j.session() as s:
+scripts/ops/cross_store_audit.py:135:            our_chunks = s.run("MATCH (n:base) WHERE n.entity_type = 'chunk' RETURN count(n) AS c").single()["c"]
+scripts/ops/cross_store_audit.py:136:            our_docs = s.run("MATCH (n:base) WHERE n.entity_type = 'document' RETURN count(n) AS c").single()["c"]
+scripts/ops/cross_store_audit.py:139:            "lightrag_qdrant_chunks": total_chunks,
+scripts/ops/cross_store_audit.py:140:            "lightrag_qdrant_collections": chunk_count_by_col,
+scripts/ops/cross_store_audit.py:141:            "our_neo4j_chunks": our_chunks,
+scripts/ops/cross_store_audit.py:142:            "our_neo4j_documents": our_docs,
+scripts/ops/cross_store_audit.py:145:        print(f"LightRAG Qdrant chunks (total): {total_chunks}")
+scripts/ops/cross_store_audit.py:148:        print(f"Our Neo4j chunks:               {our_chunks}")
+scripts/ops/cross_store_audit.py:149:        print(f"Our Neo4j documents:            {our_docs}")
+scripts/ops/cross_store_audit.py:152:        print("\n=== LightRAG Working Directory Audit ===")
+scripts/ops/cross_store_audit.py:159:        graphml = list(lr_path.glob("*.graphml"))
+scripts/ops/cross_store_audit.py:165:        rd["graphml_files"] = [str(p.name) for p in graphml]
+scripts/ops/cross_store_audit.py:172:        print(f"  GraphML files:      {len(graphml)}")
+scripts/ops/add_neo4j_indexes.py:2:"""Add missing Neo4j indexes for query performance.
+scripts/ops/add_neo4j_indexes.py:4:Run: source .venv/bin/activate && python scripts/ops/add_neo4j_indexes.py
+scripts/ops/add_neo4j_indexes.py:10:from neo4j import GraphDatabase
+scripts/ops/add_neo4j_indexes.py:13:logger = logging.getLogger("add_neo4j_indexes")
+scripts/ops/add_neo4j_indexes.py:18:NEO4J_URI = os.getenv("NEO4J_URI") or settings.neo4j_uri
+scripts/ops/add_neo4j_indexes.py:19:NEO4J_USER = os.getenv("NEO4J_USER") or settings.neo4j_user
+scripts/ops/add_neo4j_indexes.py:20:NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD") or settings.neo4j_password
+scripts/ops/add_neo4j_indexes.py:23:    ("entity_type_index", "CREATE INDEX entity_type_index IF NOT EXISTS FOR (n:base) ON (n.entity_type)"),
+scripts/ops/add_neo4j_indexes.py:25:    ("entity_id_index", "CREATE INDEX entity_id_index IF NOT EXISTS FOR (n:base) ON (n.entity_id)"),
+scripts/ops/add_neo4j_indexes.py:34:        logger.info("Neo4j reachable")
+scripts/ops/add_neo4j_indexes.py:36:        logger.error(f"Neo4j unreachable: {e}")
+scripts/ops/okf_fast_extract.py:1:"""Fast OKF extraction: fetch Qdrant samples + Neo4j entities directly, produce MD files.
+scripts/ops/backfill_qdrant_graph_links.py:36:logger = logging.getLogger("backfill_qdrant_graph_links")
+scripts/ops/backfill_qdrant_graph_links.py:38:DEFAULT_STATE_PATH = "/tmp/askmukthiguru_qdrant_graph_links.json"
+scripts/ops/backfill_qdrant_graph_links.py:39:DEFAULT_LOCK_PATH = "/tmp/askmukthiguru_qdrant_graph_links.lock"
+scripts/ops/backfill_qdrant_graph_links.py:41:    "entity_ids",
+scripts/ops/backfill_qdrant_graph_links.py:42:    "graph_node_ids",
+scripts/ops/backfill_qdrant_graph_links.py:45:    "entity_resolution_confidence",
+scripts/ops/backfill_qdrant_graph_links.py:93:        raise RuntimeError(f"Another graph-link backfill holds {path}") from exc
+scripts/ops/backfill_qdrant_graph_links.py:123:def build_graph_patch(
+scripts/ops/backfill_qdrant_graph_links.py:128:    """Return only missing graph metadata and the deterministic entity matches."""
+scripts/ops/backfill_qdrant_graph_links.py:133:    existing_entities = [str(item) for item in _as_list(payload.get("entity_ids")) if item]
+scripts/ops/backfill_qdrant_graph_links.py:138:    if not payload.get("entity_ids") and entities:
+scripts/ops/backfill_qdrant_graph_links.py:139:        patch["entity_ids"] = entities
+scripts/ops/backfill_qdrant_graph_links.py:140:    if not payload.get("graph_node_ids") and entities:
+scripts/ops/backfill_qdrant_graph_links.py:141:        patch["graph_node_ids"] = entities
+scripts/ops/backfill_qdrant_graph_links.py:146:    if not payload.get("entity_resolution_confidence") and entities:
+scripts/ops/backfill_qdrant_graph_links.py:148:        confidence = 0.90 if any(entity.lower() in title_topic for entity in entities) else 0.80
+scripts/ops/backfill_qdrant_graph_links.py:149:        patch["entity_resolution_confidence"] = confidence
+scripts/ops/backfill_qdrant_graph_links.py:223:                patch, entities = build_graph_patch(payload, point.id, args.ontology_version)
+scripts/ops/backfill_neo4j_relationship_scope.py:2:"""Backfill corpus provenance on legacy ontology relationships.
+scripts/ops/backfill_neo4j_relationship_scope.py:4:Only relationships between ontology ``:base`` nodes are touched. The command is
+scripts/ops/backfill_neo4j_relationship_scope.py:7:evidence before changing a production graph.
+scripts/ops/backfill_neo4j_relationship_scope.py:30:        print("Neo4j connection variables are required", file=sys.stderr)
+scripts/ops/backfill_neo4j_relationship_scope.py:33:    from neo4j import GraphDatabase
+scripts/ops/backfill_neo4j_relationship_scope.py:52:            print(f"legacy ontology relationships without corpus_id: {candidates}")
+scripts/ops/backfill_neo4j_relationship_scope.py:57:            print(f"backfilled corpus_id={args.corpus_id!r} on {updated} relationships")
+backend/tests/test_p1_sec11_service_role_http_superuser.py:8:identity dict with ``is_superuser=False`` and ``role="service_role"``.
+backend/tests/test_tiered_routing_streaming.py:29:    mock_lightrag = MagicMock()
+backend/tests/test_tiered_routing_streaming.py:32:        ollama=mock_ollama, embedder=mock_embedder, qdrant=mock_qdrant, lightrag=mock_lightrag
+backend/tests/test_multilingual_guardrails.py:34:DOCTRINAL_QUERY = "What is the relationship between suffering and consciousness?"
+backend/services/second_brain/crypto.py:4:Drop-in module. Depends only on `cryptography` (already pinned in
+backend/services/second_brain/crypto.py:32:      The operator — even with full prod access — cannot read the graph.
+backend/services/second_brain/crypto.py:51:from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+backend/services/second_brain/context_adapter.py:3:The adapter never writes to Neo4j, public Qdrant, or the immutable corpus. It
+backend/services/second_brain/context_adapter.py:21:    entity_ids: list[str] = field(default_factory=list)
+backend/services/second_brain/context_adapter.py:31:            "entity_ids": list(dict.fromkeys(self.entity_ids)),
+backend/services/second_brain/context_adapter.py:58:            entity_ids=linked_entities,
+backend/services/second_brain/context_adapter.py:75:        concepts = ", ".join(link.entity_ids) or "none"
+backend/services/second_brain/second_brain_service.py:2:Mukthi Vault — Second Brain service (per-user, owner-blind knowledge graph).
+backend/services/second_brain/second_brain_service.py:141:    kind: str  # reflection | entity | journal | preference | relationship
+backend/services/second_brain/second_brain_service.py:308:        """Store an encrypted relationship between two of the user's nodes."""
+backend/services/second_brain/second_brain_service.py:338:            "You maintain a private, per-user personal knowledge graph for a spiritual "
+backend/services/second_brain/second_brain_service.py:341:            "struggles, relationships, practices they follow, preferences, milestones. "
+backend/services/second_brain/second_brain_service.py:344:            'Return strict JSON: {"items":[{"kind":"reflection|entity|preference|relationship|journal",'
+backend/services/second_brain/second_brain_service.py:367:                if kind not in {"reflection", "entity", "preference", "relationship", "journal"}:
+scripts/ops/ingest_playlists.py:3:Playlist Ingestion CLI for Guru Brain — Neo4j Knowledge Graph + Qdrant Dual-Stream Indexing.
+scripts/ops/ingest_playlists.py:9:Extracts verbatim transcripts, builds Neo4j KG ontology nodes, and embeds tone vectors into Qdrant `guru_tone_podcast`.
+scripts/ops/ingest_playlists.py:126:            # Step 3: Populate Neo4j Knowledge Graph & OKF Ontology Nodes
+scripts/ops/ingest_playlists.py:154:        "neo4j_kg_nodes_populated": len(total_extracted_exemplars),
+backend/services/second_brain/__init__.py:1:"""Mukthi Vault — per-user, owner-blind encrypted knowledge graph (Second Brain).
+scripts/whatsapp_webhook.py:33:# This legacy broker is intentionally frozen until its identity, consent,
+scripts/whatsapp_webhook.py:295:                f"https://graph.facebook.com/v18.0/{phone_number_id}/messages",
+scripts/whatsapp_webhook.py:316:                    f"https://graph.facebook.com/v18.0/{phone_number_id}/messages",
+scripts/whatsapp_webhook.py:334:                    f"https://graph.facebook.com/v18.0/{phone_number_id}/messages",
+scripts/whatsapp_webhook.py:352:                    f"https://graph.facebook.com/v18.0/{phone_number_id}/messages",
+backend/services/semantic_model_router.py:47:    Route incoming user queries to one of three graph strategies
+backend/services/semantic_model_router.py:99:            "What is the relationship between karma and dharma in the Beautiful State framework?",
+backend/tests/test_assistants_integration.py:208:        lightrag=MagicMock(),
+backend/tests/test_assistants_integration.py:218:    """When no context layers exist, a custom assistant prompt still drives identity."""
+backend/services/gateways/sarvam_http.py:319:        # for keyword extraction prompts, causing LightRAG to fail keyword parsing
+backend/services/gateways/sarvam_http.py:582:                        or "entity" in block_lower
+backend/services/gateways/sarvam_http.py:633:                    and ("entity" in line.lower() or "relation" in line.lower() or "\t" in line)
+backend/services/ollama_service.py:254:                        # Non-model kwargs (e.g. context, hashing_kv) passed by LightRAG are stripped.
+backend/services/ollama_service.py:937:        Creates mid-level tree nodes that capture thematic relationships
+src/components/onboarding/GuidedTour.tsx:46:    target: 'knowledge-graph',
+scripts/ingestion/rectify_all_corpus.py:8:with 100% cryptographic SHA-256 integrity and zero discrepancies.
+backend/tests/test_wiring_invariants.py:13:    some identity/auth dependency (Supabase user, optional user, AAL2/MFA
+backend/tests/test_wiring_invariants.py:14:    admin gate, FastAPI-Users authenticator, or the anon-identity bridge).
+backend/tests/test_wiring_invariants.py:65:    "persona_max_paragraphs": "Declared persona format cap; no runtime read",
+backend/tests/test_wiring_invariants.py:193:    "/api/memory/knowledge-graph": "Docstring: anonymous access allowed when no credentials; public /knowledge-graph page",
+backend/tests/test_wiring_invariants.py:194:    "/api/memory/knowledge-graph/export": "Public KG export — same auth policy as the graph itself",
+backend/tests/test_wiring_invariants.py:209:    "require_scoped_identity",
+backend/tests/test_wiring_invariants.py:214:    "resolve_anon_identity",
+backend/tests/test_wiring_invariants.py:263:    """True if the route resolves some caller identity: Supabase user, optional
+backend/tests/test_wiring_invariants.py:299:        " (add an identity dependency, or justify them in PUBLIC_ROUTES):\n  - "
+backend/tests/redteam_harness.py:144:def attack_path_traversal() -> None:
+backend/tests/redteam_harness.py:145:    # Ingest doesn't take a file path field directly, but image URLs with traversal
+backend/tests/redteam_harness.py:146:    # must be rejected by the URL regex. Try a file:// URL and a traversal path.
+backend/tests/redteam_harness.py:153:            _record(f"path_traversal:{url[:40]}", "400/403", ok, f"status={r.status_code}")
+backend/tests/redteam_harness.py:155:            _record(f"path_traversal:{url[:40]}", "400/403", False, f"err={e}")
+backend/tests/redteam_harness.py:229:        attack_path_traversal,
+backend/tests/test_hyper_extract_adapter.py:62:        "relationships": [],
+backend/tests/test_hyper_extract_adapter.py:71:    assert result["relationships"] == []
+backend/tests/test_hyper_extract_adapter.py:79:    assert result["relationships"] == []
+backend/tests/test_hyper_extract_adapter.py:102:async def test_entity_extraction_knows_spiritual_terms(mock_pipeline, monkeypatch):
+backend/tests/test_hyper_extract_adapter.py:116:    entities = {entity.lower() for entity in result["entities"]}
+backend/tests/test_hyper_extract_adapter.py:125:async def test_relationship_extraction_links_entities(mock_pipeline, monkeypatch):
+backend/tests/test_hyper_extract_adapter.py:138:    assert len(result["relationships"]) >= 1
+backend/tests/test_hyper_extract_adapter.py:139:    relationships = {(s.lower(), r, t.lower()) for s, r, t in result["relationships"]}
+backend/tests/test_hyper_extract_adapter.py:140:    assert any("sri krishnaji" in (source, target) for source, _, target in relationships)
+backend/tests/test_hyper_extract_adapter.py:174:        "relationships": [],
+backend/services/web_search_guardrails.py:40:    # Command injection / path traversal
+backend/services/container_builder.py:53:        self._add_graphs()
+backend/services/container_builder.py:108:    def _add_graphs(self) -> None:
+backend/services/container_builder.py:109:        """Layer 8: RAG graph variants."""
+backend/services/container_builder.py:110:        self._container._build_graphs()
+backend/services/container_builder.py:111:        logger.info("ContainerBuilder: graph strategies added")
+backend/services/lettuce_detect_service.py:285:        # Split context into paragraphs/chunks
+backend/tests/test_citation_service.py:41:    # Substantive paragraphs exceeding the 25-word threshold — all must be cited
+backend/tests/test_citation_service.py:43:        "First paragraph with more than twenty-five words so it passes the substantive threshold and requires a citation.[^1]\n\n"
+backend/tests/test_citation_service.py:44:        "Second paragraph also twenty-five plus words because it needs citation checking too not a short empty paragraph.[^2]"
+backend/tests/test_citation_service.py:55:    # Uncited substantive paragraph — should NOT be grounded
+backend/tests/test_citation_service.py:57:        "First paragraph with more than twenty-five words so it passes the substantive threshold and requires a citation.[^1]\n\n"
+backend/tests/test_citation_service.py:58:        "Second paragraph also twenty-five plus words and actually does not have any citation marker not a single one at all here now added more words to exceed threshold."
+backend/tests/test_citation_service.py:128:    # text is grounded because the single short paragraph has a valid marker.
+backend/tests/test_citation_service.py:144:    # Single short paragraph with an in-range marker: citation_service resolves
+backend/tests/test_citation_service.py:145:    # [[CITE:1]] and the grounding check accepts the single short paragraph.
+backend/services/graphrag_fusion.py:2:GraphRAG fusion — vector retrieval + knowledge-graph traversal, fused.
+backend/services/graphrag_fusion.py:6:fix is to let the question traverse the knowledge graph (entity -> relation ->
+backend/services/graphrag_fusion.py:7:entity) *in addition to* vector search, then fuse and rerank both channels.
+backend/services/graphrag_fusion.py:10:graph query (Neo4j) callables. It returns a single, fused, deduplicated,
+backend/services/graphrag_fusion.py:17:* Fused: reciprocal-rank-fusion (RRF) of vector hits + graph-derived chunks.
+backend/services/graphrag_fusion.py:20:  (Tony Seale's "context rot" — pull the right subgraph, not the haystack).
+backend/services/graphrag_fusion.py:33:# Deep variable-length traversals (r*1..N) grow super-linearly — a caller or
+backend/services/graphrag_fusion.py:35:# graph-traversal DoS, so the hop count is clamped at the call boundary.
+backend/services/graphrag_fusion.py:38:logger = logging.getLogger("graphrag")
+backend/services/graphrag_fusion.py:49:    channel: str  # "vector" | "graph"
+backend/services/graphrag_fusion.py:96:    graph_hits: list[dict],
+backend/services/graphrag_fusion.py:118:                    "entity_ids": h.get("entity_ids", []),
+backend/services/graphrag_fusion.py:121:                    "entity_resolution_confidence": h.get("entity_resolution_confidence"),
+backend/services/graphrag_fusion.py:126:    for rank, h in enumerate(graph_hits):
+backend/services/graphrag_fusion.py:131:            items[key].provenance["graph"] = True
+backend/services/graphrag_fusion.py:134:            items[key].provenance["entity_id"] = h.get("entity_id") or h.get("uri")
+backend/services/graphrag_fusion.py:135:            items[key].provenance["entity_ids"] = [
+backend/services/graphrag_fusion.py:136:                h.get("entity_id") or h.get("uri")
+backend/services/graphrag_fusion.py:137:            ] if (h.get("entity_id") or h.get("uri")) else []
+backend/services/graphrag_fusion.py:138:            items[key].provenance["graph_source"] = h.get("source") or "neo4j://ontology"
+backend/services/graphrag_fusion.py:142:            items[key].provenance["entity_resolution_confidence"] = h.get("entity_resolution_confidence")
+backend/services/graphrag_fusion.py:148:                channel="graph",
+backend/services/graphrag_fusion.py:153:                    "source": h.get("source") or "neo4j://ontology",
+backend/services/graphrag_fusion.py:154:                    "entity_id": h.get("entity_id") or h.get("uri"),
+backend/services/graphrag_fusion.py:155:                    "entity_ids": [h.get("entity_id") or h.get("uri")]
+backend/services/graphrag_fusion.py:156:                    if (h.get("entity_id") or h.get("uri"))
+backend/services/graphrag_fusion.py:161:                    "entity_resolution_confidence": h.get("entity_resolution_confidence"),
+backend/services/graphrag_fusion.py:186:        traverse_graph: GraphTraverseFn,
+backend/services/graphrag_fusion.py:191:        enable_graph: bool = True,
+backend/services/graphrag_fusion.py:193:        per_traversal_timeout: float = 5.0,
+backend/services/graphrag_fusion.py:199:        self._graph = traverse_graph
+backend/services/graphrag_fusion.py:201:        # variable-length pattern (r*1..$hops) makes traversal cost grow
+backend/services/graphrag_fusion.py:206:        self.enable_graph = enable_graph
+backend/services/graphrag_fusion.py:208:        self.per_traversal_timeout = float(per_traversal_timeout)
+backend/services/graphrag_fusion.py:259:            graph_task = asyncio.create_task(self._safe_graph(question, max_hops=max_hops))
+backend/services/graphrag_fusion.py:261:            graph_hits: list[dict] = []
+backend/services/graphrag_fusion.py:265:                vector_hits, (graph_hits, entities) = await asyncio.wait_for(
+backend/services/graphrag_fusion.py:266:                    asyncio.gather(vector_task, graph_task),
+backend/services/graphrag_fusion.py:275:                for task in (vector_task, graph_task):
+backend/services/graphrag_fusion.py:287:                if graph_task.done() and not graph_task.cancelled():
+backend/services/graphrag_fusion.py:289:                        res = graph_task.result()
+backend/services/graphrag_fusion.py:291:                            graph_hits, entities = res
+backend/services/graphrag_fusion.py:293:                        logger.debug("graph task error during partial recovery: %s", exc)
+backend/services/graphrag_fusion.py:294:                        graph_hits, entities = [], []
+backend/services/graphrag_fusion.py:296:            fused = reciprocal_rank_fusion(vector_hits, graph_hits)
+backend/services/graphrag_fusion.py:313:                timeout=self.per_traversal_timeout,
+backend/services/graphrag_fusion.py:316:            logger.warning("vector channel timed out after %.1fs", self.per_traversal_timeout)
+backend/services/graphrag_fusion.py:322:    async def _safe_graph(
+backend/services/graphrag_fusion.py:328:        if not self.enable_graph:
+backend/services/graphrag_fusion.py:333:                timeout=self.per_traversal_timeout,
+backend/services/graphrag_fusion.py:339:                self._graph(entities, hops),
+backend/services/graphrag_fusion.py:340:                timeout=self.per_traversal_timeout,
+backend/services/graphrag_fusion.py:344:            logger.warning("graph channel timed out after %.1fs", self.per_traversal_timeout)
+backend/services/graphrag_fusion.py:347:            logger.warning("graph channel failed: %s", exc)
+backend/services/graphrag_fusion.py:374:    """Wire GraphRAGFusion to the repo's real Qdrant, Neo4j, and embedder."""
+backend/services/graphrag_fusion.py:405:    async def traverse_graph(uris: list[str], max_hops: int):
+backend/services/graphrag_fusion.py:410:        RETURN n.text AS text, n.uri AS uri, type(last(relationships(path))) AS relation,
+backend/services/graphrag_fusion.py:415:        driver = get_container().neo4j_driver
+backend/services/graphrag_fusion.py:437:    return GraphRAGFusion(vector_search, resolve_entities, traverse_graph)
+backend/services/graphrag_fusion.py:465:    async def fake_graph(uris, hops):
+backend/services/graphrag_fusion.py:484:        eng = GraphRAGFusion(fake_vector, fake_entities, fake_graph, token_budget=200)
+backend/services/graphrag_fusion.py:490:        print("graphrag fusion self-test OK —")
+backend/services/concurrent_retriever.py:21:    Wraps vector and graph retrievers to fetch results concurrently.
+backend/services/concurrent_retriever.py:24:    - Any exception in vector or graph fetcher immediately cancels the sibling
+backend/services/concurrent_retriever.py:32:        graph_fetcher: Callable[[str], Coroutine[Any, Any, list[str]]],
+backend/services/concurrent_retriever.py:35:        self.graph_fetcher = graph_fetcher
+backend/services/concurrent_retriever.py:42:                gt = tg.create_task(self.graph_fetcher(query), name="graph_retrieval")
+backend/services/concurrent_retriever.py:54:            "graph": gt.result(),
+backend/services/semantic_router_fallback.py:2:Unit 21 — Semantic Router Fallback (Neo4j Full-Text Search)
+backend/services/semantic_router_fallback.py:5:this module provides a fallback using Neo4j full-text search to prevent
+backend/services/semantic_router_fallback.py:10:  2. Neo4j full-text search (this module — used when Qdrant returns < min_results)
+backend/services/semantic_router_fallback.py:11:  3. LightRAG GraphRAG query (deep graph-based retrieval for complex questions)
+backend/services/semantic_router_fallback.py:15:  - ``neo4j_fulltext_search()``: runs a Cypher full-text query against the Neo4j index
+backend/services/semantic_router_fallback.py:17:  - Graceful: if Neo4j is unreachable, falls back gracefully with an empty list
+backend/services/semantic_router_fallback.py:19:Neo4j full-text index expected:
+backend/services/semantic_router_fallback.py:21:  - Created by LightRAG during initialization
+backend/services/semantic_router_fallback.py:27:    fallback = SemanticRouterFallback(lightrag_service)
+backend/services/semantic_router_fallback.py:45:# Max results to return from Neo4j fallback
+backend/services/semantic_router_fallback.py:49:async def neo4j_fulltext_search(
+backend/services/semantic_router_fallback.py:52:    neo4j_uri: Optional[str] = None,
+backend/services/semantic_router_fallback.py:53:    neo4j_user: Optional[str] = None,
+backend/services/semantic_router_fallback.py:54:    neo4j_password: Optional[str] = None,
+backend/services/semantic_router_fallback.py:56:    """Execute a Neo4j full-text search on the ``chunk_text`` index.
+backend/services/semantic_router_fallback.py:59:    Returns an empty list if Neo4j is unreachable or the index doesn't exist.
+backend/services/semantic_router_fallback.py:64:        uri = neo4j_uri or _settings.neo4j_uri
+backend/services/semantic_router_fallback.py:65:        user = neo4j_user or _settings.neo4j_user
+backend/services/semantic_router_fallback.py:66:        pwd = neo4j_password or _settings.neo4j_password
+backend/services/semantic_router_fallback.py:77:    use_shared_driver = neo4j_uri is None and neo4j_user is None and neo4j_password is None
+backend/services/semantic_router_fallback.py:97:            driver = get_container().neo4j_driver
+backend/services/semantic_router_fallback.py:99:                raise RuntimeError("Neo4j driver unavailable")
+backend/services/semantic_router_fallback.py:102:            from neo4j import GraphDatabase
+backend/services/semantic_router_fallback.py:117:                            "content_type": "neo4j_fts",
+backend/services/semantic_router_fallback.py:139:            f"SemanticRouterFallback: Neo4j full-text search returned "
+backend/services/semantic_router_fallback.py:144:        logger.warning("SemanticRouterFallback: Neo4j query timed out (10s)")
+backend/services/semantic_router_fallback.py:147:        logger.warning(f"SemanticRouterFallback: Neo4j search failed: {type(exc).__name__}: {exc}")
+backend/services/semantic_router_fallback.py:155:    Tier 2: Neo4j full-text search (this class)
+backend/services/semantic_router_fallback.py:156:    Tier 3: LightRAG GraphRAG context extraction (for complex/spiritual queries)
+backend/services/semantic_router_fallback.py:159:    def __init__(self, lightrag_service=None) -> None:
+backend/services/semantic_router_fallback.py:160:        self._lightrag = lightrag_service
+backend/services/semantic_router_fallback.py:167:        use_lightrag: bool = True,
+backend/services/semantic_router_fallback.py:175:            use_lightrag: Whether to try LightRAG as a 3rd-tier fallback.
+backend/services/semantic_router_fallback.py:185:            f"(min={min_results}). Triggering Neo4j fallback."
+backend/services/semantic_router_fallback.py:188:        # Tier 2: Neo4j full-text search
+backend/services/semantic_router_fallback.py:189:        neo4j_results = await neo4j_fulltext_search(query)
+backend/services/semantic_router_fallback.py:194:        for r in neo4j_results:
+backend/services/semantic_router_fallback.py:202:                f"SemanticRouterFallback: Neo4j fallback added "
+backend/services/semantic_router_fallback.py:203:                f"{len(neo4j_results)} results → total {len(combined)}"
+backend/services/semantic_router_fallback.py:207:        # Tier 3: LightRAG GraphRAG
+backend/services/semantic_router_fallback.py:208:        if use_lightrag and self._lightrag:
+backend/services/semantic_router_fallback.py:210:                lightrag_context = await asyncio.wait_for(
+backend/services/semantic_router_fallback.py:211:                    self._lightrag.aquery(query, mode="hybrid", only_need_context=True),
+backend/services/semantic_router_fallback.py:214:                if lightrag_context and isinstance(lightrag_context, str):
+backend/services/semantic_router_fallback.py:217:                            "text": lightrag_context[:2000],
+backend/services/semantic_router_fallback.py:218:                            "source_url": "lightrag://graph",
+backend/services/semantic_router_fallback.py:220:                            "content_type": "lightrag_graph",
+backend/services/semantic_router_fallback.py:231:                    logger.info("SemanticRouterFallback: LightRAG added graph context")
+backend/services/semantic_router_fallback.py:233:                logger.warning("SemanticRouterFallback: LightRAG query timed out (15s)")
+backend/services/semantic_router_fallback.py:236:                    f"SemanticRouterFallback: LightRAG fallback failed: {type(exc).__name__}: {exc}"
+backend/services/ontology_rag.py:6:real Neo4j graph) and boosting retrieved documents that reference
+backend/services/ontology_rag.py:14:  - Neo4j driver: ``container.neo4j_driver`` (sync ``driver.session()``;
+backend/services/ontology_rag.py:15:    nodes carry ``entity_id`` / ``name`` / ``description`` with labels
+backend/services/ontology_rag.py:55:    Uses the formal spiritual ontology + the real Neo4j graph to expand a
+backend/services/ontology_rag.py:62:        neo4j_driver: Any,
+backend/services/ontology_rag.py:69:        self.neo4j = neo4j_driver
+backend/services/ontology_rag.py:86:          2. Find matching concepts in the Neo4j graph by query-token overlap.
+backend/services/ontology_rag.py:87:          3. BFS-expand the seed concepts via the ontology graph (depth N).
+backend/services/ontology_rag.py:114:        """Find ontology concepts whose Neo4j name/entity_id match query tokens.
+backend/services/ontology_rag.py:116:        The real Neo4j graph is not vector-indexed for this workload, so we
+backend/services/ontology_rag.py:117:        match by case-insensitive CONTAINS against ``name``/``entity_id``.
+backend/services/ontology_rag.py:120:        if self.neo4j is None:
+backend/services/ontology_rag.py:129:        WHERE any(tok IN $tokens WHERE toLower(coalesce(n.name, n.entity_id, '')) CONTAINS tok)
+backend/services/ontology_rag.py:132:        RETURN coalesce(n.entity_id, n.name) AS eid,
+backend/services/ontology_rag.py:140:            with self.neo4j.session() as session:
+backend/services/ontology_rag.py:150:                            uri=f"neo4j://entity/{eid}",
+backend/services/ontology_rag.py:170:        """BFS-expand the seed set via the Neo4j graph (depth N, confidence>floor).
+backend/services/ontology_rag.py:211:        """Get concepts related to ``concept_uri`` via the real Neo4j graph.
+backend/services/ontology_rag.py:213:        The analysis imagined a ``Concept {uri}`` schema; the real graph keys
+backend/services/ontology_rag.py:214:        nodes by ``entity_id`` / ``name`` (see kg.py). We therefore extract the
+backend/services/ontology_rag.py:215:        entity_id from the URI suffix and match bidirectionally over any
+backend/services/ontology_rag.py:218:        if self.neo4j is None:
+backend/services/ontology_rag.py:227:        WHERE coalesce(n.entity_id, n.name) = $eid
+backend/services/ontology_rag.py:229:        WHERE coalesce(m.entity_id, m.name) IS NOT NULL
+backend/services/ontology_rag.py:231:        RETURN coalesce(m.entity_id, m.name) AS eid,
+backend/services/ontology_rag.py:243:            with self.neo4j.session() as session:
+backend/services/ontology_rag.py:250:                        uri=f"neo4j://entity/{m_eid}",
+backend/services/ontology_rag.py:329:        """Remove duplicate documents by stable identity (source_url + chunk_index)."""
+backend/services/ontology_rag.py:343:    """Map a Neo4j label set onto the ontology ConceptType enum (best-effort)."""
+backend/services/ontology_rag.py:358:    # real APIs (Neo4j sync driver, EmbeddingService.encode_single_async,
+backend/services/ontology_rag.py:361:    class _MockNeo4jSession:
+backend/services/ontology_rag.py:374:    class _MockNeo4jDriver:
+backend/services/ontology_rag.py:448:            neo4j_driver=_MockNeo4jDriver(),
+backend/services/lightrag_service.py:12:from lightrag.lightrag import LightRAG
+backend/services/lightrag_service.py:13:from lightrag.utils import EmbeddingFunc
+backend/services/lightrag_service.py:23:# Fixed enum for LightRAG entity-type extraction. Without this, LightRAG falls
+backend/services/lightrag_service.py:63:class LightRAGService:
+backend/services/lightrag_service.py:65:    Singleton service wrapper around LightRAG.
+backend/services/lightrag_service.py:66:    Orchestrates graph-based extraction and retrieval using Neo4j and Qdrant.
+backend/services/lightrag_service.py:88:        # is a DIFFERENT flag, set by the async initialize() method once Neo4j/
+backend/services/lightrag_service.py:89:        # LightRAG setup completes -- guarding construction with it meant every
+backend/services/lightrag_service.py:90:        # LightRAGService() call before the first initialize() completed would
+backend/services/lightrag_service.py:111:            # entry for lightrag; from_provider() falls back to default thresholds.
+backend/services/lightrag_service.py:112:            self._circuit = DefaultCircuitBreaker(CircuitBreakerConfig.from_provider("lightrag"))
+backend/services/lightrag_service.py:113:            get_circuit_breaker_registry().register("lightrag", self._circuit)
+backend/services/lightrag_service.py:120:        logger.info("Initializing LightRAG Service (Neo4j Graph + Qdrant Vector)...")
+backend/services/lightrag_service.py:121:        # Working directory for LightRAG internal states (e.g., pipeline completion files).
+backend/services/lightrag_service.py:122:        # LightRAG's doc-id dedup cache lives here — it must be distinct per Neo4j/Qdrant
+backend/services/lightrag_service.py:125:        working_dir = os.getenv("LIGHTRAG_WORKING_DIR", "data/lightrag")
+backend/services/lightrag_service.py:128:        # Inject Neo4j Configuration
+backend/services/lightrag_service.py:129:        os.environ["NEO4J_URI"] = settings.neo4j_uri
+backend/services/lightrag_service.py:130:        os.environ["NEO4J_USERNAME"] = settings.neo4j_user
+backend/services/lightrag_service.py:131:        os.environ["NEO4J_PASSWORD"] = settings.neo4j_password
+backend/services/lightrag_service.py:132:        os.environ["NEO4J_MAX_CONNECTION_POOL_SIZE"] = str(settings.neo4j_max_connection_pool_size)
+backend/services/lightrag_service.py:133:        os.environ["NEO4J_CONNECTION_TIMEOUT"] = str(settings.neo4j_connection_timeout_s)
+backend/services/lightrag_service.py:135:            settings.neo4j_connection_acquisition_timeout_s
+backend/services/lightrag_service.py:138:            settings.neo4j_max_transaction_retry_time_s
+backend/services/lightrag_service.py:140:        os.environ["NEO4J_MAX_CONNECTION_LIFETIME"] = str(settings.neo4j_max_connection_lifetime_s)
+backend/services/lightrag_service.py:141:        os.environ["NEO4J_KEEP_ALIVE"] = str(settings.neo4j_keep_alive).lower()
+backend/services/lightrag_service.py:143:        # LightRAG Native Qdrant Configuration
+backend/services/lightrag_service.py:145:        os.environ["QDRANT_COLLECTION"] = f"{settings.qdrant_collection}_lightrag"
+backend/services/lightrag_service.py:180:                            # Normalize entity_type (2nd field of a 3-field entity tuple)
+backend/services/lightrag_service.py:196:                        # If relationship tuple (4+ fields), preserve weight as number
+backend/services/lightrag_service.py:218:        # Dynamically bridge our main generative LLM to LightRAG
+backend/services/lightrag_service.py:219:        # We use a fast, non-reasoning classifier model for LightRAG's internal operations.
+backend/services/lightrag_service.py:220:        # This keeps graph extraction, summaries, and keyword search fast and clean.
+backend/services/lightrag_service.py:232:            # Format history (lightrag provides dicts like {"role": "user", "content": "..."})
+backend/services/lightrag_service.py:246:                or "entity" in sys_prompt_str
+backend/services/lightrag_service.py:255:            # Route ALL LightRAG internal LLM tasks to a fast non-reasoning model.
+backend/services/lightrag_service.py:257:            # from blocking LightRAG keyword extraction and defeating the anti-hallucination pipeline.
+backend/services/lightrag_service.py:269:                        f"LightRAG: Routing extraction/keyword task to OpenRouter ({settings.openrouter_classify_model})"
+backend/services/lightrag_service.py:280:                        f"LightRAG: Routing summarization task to OpenRouter ({settings.openrouter_classify_model})"
+backend/services/lightrag_service.py:284:                        f"LightRAG: Routing generic query task to OpenRouter ({settings.openrouter_classify_model})"
+backend/services/lightrag_service.py:314:                        f"LightRAG: OpenRouter task failed after retries ({e}), falling back to default LLM"
+backend/services/lightrag_service.py:330:                            f"LightRAG: Routing extraction/keyword task to {settings.model_for_classification} to prevent reasoning runaway"
+backend/services/lightrag_service.py:341:                            f"LightRAG: Routing summarization task to {settings.model_for_classification} to prevent reasoning runaway"
+backend/services/lightrag_service.py:345:                            f"LightRAG: Routing generic query task to {settings.model_for_classification} to prevent reasoning runaway"
+backend/services/lightrag_service.py:368:                    # Force the fast classification model for ALL LightRAG internals.
+backend/services/lightrag_service.py:397:            # LightRAG requires a numpy array. Run in thread pool to avoid blocking event loop.
+backend/services/lightrag_service.py:409:        # Pre-flight: Verify Neo4j is reachable before attempting LightRAG construction
+backend/services/lightrag_service.py:411:        def _check_neo4j():
+backend/services/lightrag_service.py:412:            from neo4j import GraphDatabase
+backend/services/lightrag_service.py:415:                (settings.neo4j_user, settings.neo4j_password) if settings.neo4j_password else None
+backend/services/lightrag_service.py:418:                settings.neo4j_uri,
+backend/services/lightrag_service.py:420:                max_connection_pool_size=settings.neo4j_max_connection_pool_size,
+backend/services/lightrag_service.py:421:                connection_timeout=settings.neo4j_connection_timeout_s,
+backend/services/lightrag_service.py:422:                connection_acquisition_timeout=settings.neo4j_connection_acquisition_timeout_s,
+backend/services/lightrag_service.py:423:                max_transaction_retry_time=settings.neo4j_max_transaction_retry_time_s,
+backend/services/lightrag_service.py:424:                max_connection_lifetime=settings.neo4j_max_connection_lifetime_s,
+backend/services/lightrag_service.py:425:                keep_alive=settings.neo4j_keep_alive,
+backend/services/lightrag_service.py:431:            await asyncio.to_thread(_check_neo4j)
+backend/services/lightrag_service.py:432:            logger.info("Neo4j connectivity verified.")
+backend/services/lightrag_service.py:435:                f"❌ Neo4j unreachable: {e}. GraphRAG requires Neo4j connectivity. Halting startup."
+backend/services/lightrag_service.py:437:            raise RuntimeError(f"Neo4j connection failed: {e}") from e
+backend/services/lightrag_service.py:440:        def _create_lightrag():
+backend/services/lightrag_service.py:441:            return LightRAG(
+backend/services/lightrag_service.py:445:                graph_storage="Neo4JStorage",
+backend/services/lightrag_service.py:453:                    "entity_types": SPIRITUAL_ENTITY_TYPES,
+backend/services/lightrag_service.py:458:            self.rag = _create_lightrag()
+backend/services/lightrag_service.py:460:            # Inject Custom Spiritual Guidance into LightRAG Prompts
+backend/services/lightrag_service.py:462:                import lightrag.prompt
+backend/services/lightrag_service.py:471:                    "Extract relationships showing how teachers expound concepts, teach practices, and how practices lead to beautiful states (e.g. EXPOUNDS, TEACHES, PRACTICE_FOR, CONTRASTS_WITH).\n"
+backend/services/lightrag_service.py:473:                if "entity_extraction_system_prompt" in lightrag.prompt.PROMPTS:
+backend/services/lightrag_service.py:474:                    lightrag.prompt.PROMPTS["entity_extraction_system_prompt"] += spiritual_guidance
+backend/services/lightrag_service.py:475:                if "entity_extraction_json_system_prompt" in lightrag.prompt.PROMPTS:
+backend/services/lightrag_service.py:476:                    lightrag.prompt.PROMPTS["entity_extraction_json_system_prompt"] += (
+backend/services/lightrag_service.py:480:                    "Spiritual domain guidance and custom entity types injected into LightRAG prompts."
+backend/services/lightrag_service.py:483:                logger.warning(f"Failed to inject custom spiritual prompts to LightRAG: {pe}")
+backend/services/lightrag_service.py:495:            logger.info("✅ LightRAG Service successfully initialized.")
+backend/services/lightrag_service.py:497:            logger.error(f"❌ Failed to initialize LightRAG: {e}", exc_info=True)
+backend/services/lightrag_service.py:513:            logger.info("LightRAG cache hit for query")
+backend/services/lightrag_service.py:517:            logger.warning("Circuit breaker OPEN for lightrag — skipping graph query.")

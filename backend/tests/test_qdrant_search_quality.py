@@ -11,6 +11,7 @@ Baseline: memory/qdrant_quality_baseline.json (updated on success)
 
 import json
 import logging
+import os
 from pathlib import Path
 
 import pytest
@@ -85,16 +86,58 @@ def qdrant_searcher():
             "skipping search-quality integration test"
         )
     points_count = info.get("points_count") if isinstance(info, dict) else None
-    if points_count == 0:
-        pytest.skip(
-            f"Qdrant collection '{settings.qdrant_collection}' has 0 points "
-            "— ingest the corpus before running search-quality tests"
+    if not isinstance(points_count, int) or points_count <= 0:
+        message = (
+            f"Qdrant collection '{settings.qdrant_collection}' has no usable points "
+            f"(points_count={points_count!r}) — retrieval evaluation corpus is unavailable"
         )
-    if points_count is None:
-        pytest.skip(
-            f"Qdrant collection '{settings.qdrant_collection}' did not expose a point count "
-            "— skipping search-quality integration test"
+        if os.environ.get("REQUIRE_QDRANT_EVAL", "").lower() in {"1", "true", "yes"}:
+            pytest.fail(message)
+        pytest.skip(message)
+
+    # A non-empty collection can still be the wrong corpus. The historical
+    # golden set names approved markdown sources, while a production/live
+    # collection may contain only video URLs or a different corpus release.
+    # Do not turn that label mismatch into NDCG=0 and then overwrite the
+    # baseline. Fail closed as unavailable unless the CI gate explicitly
+    # requires the evaluation corpus, in which case the gate must fail.
+    expected_sources = {
+        source
+        for query in QdrantSearchQualityTester.GOLDEN_QUERIES
+        for source in query["relevant_sources"]
+    }
+    try:
+        sample_points, _ = client_mgr.client.scroll(
+            collection_name=settings.qdrant_collection,
+            limit=min(512, points_count),
+            with_payload=["source_url", "source", "url"],
+            with_vectors=False,
         )
+    except Exception as exc:
+        message = (
+            f"Could not inspect Qdrant evaluation labels for '{settings.qdrant_collection}' "
+            f"({type(exc).__name__}: {str(exc)[:180]})"
+        )
+        if os.environ.get("REQUIRE_QDRANT_EVAL", "").lower() in {"1", "true", "yes"}:
+            pytest.fail(message)
+        pytest.skip(message)
+
+    available_sources = set()
+    for point in sample_points or []:
+        payload = getattr(point, "payload", None) or {}
+        for key in ("source_url", "source", "url"):
+            value = payload.get(key)
+            if isinstance(value, str) and value.strip():
+                available_sources.add(value.rsplit("/", 1)[-1])
+    if not expected_sources.intersection(available_sources):
+        message = (
+            f"Qdrant collection '{settings.qdrant_collection}' does not contain any "
+            "source labels from the golden evaluation set — refusing to measure or "
+            f"rewrite NDCG baseline; sampled_labels={sorted(available_sources)[:8]}"
+        )
+        if os.environ.get("REQUIRE_QDRANT_EVAL", "").lower() in {"1", "true", "yes"}:
+            pytest.fail(message)
+        pytest.skip(message)
 
     return QdrantSearcher(client_mgr.client, settings.qdrant_collection)
 

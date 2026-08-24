@@ -1,0 +1,603 @@
+=== TRACK: product ===
+UTC: 2026-08-24T13:52:06Z
+HEAD: 1f882077616b92b5e2b59a31d9ee4fb246e8fe68
+README.md:7:An AI-powered spiritual guide rooted in the teachings of **Sri Preethaji & Sri Krishnaji**. Built with a 12-layer RAG pipeline, dual-level LightRAG knowledge graph, second-brain memory vault, real-time guardrails, and cross-platform native mobile & web UI.
+README.md:25:| **Knowledge Graph** | Neo4j 5.17 (LightRAG 7,601 concept & transformation arc nodes) | `7474` (HTTP) / `7687` (Bolt) |
+README.md:36:- **Neo4j Knowledge Graph**: 7,601 nodes (7,498 base concept nodes + 103 OKF 5-node transformation arc nodes).
+README.md:40:### 2. Second Brain Vault & Personalization Memory
+README.md:41:- **Second Brain Vault (`second_brain_vault`)**: Multi-tenant collection in Qdrant indexed with `user_id` keyword filters. User notes live encrypted in Postgres (`user_brain_nodes`), vectors in Qdrant.
+README.md:49:  - *Tier 3 (User Core Vault)*: Protected user core memory. Inactive accounts (>365 days) automatically purged via `scripts/ops/cleanup_inactive_user_data.py`.
+README.md:50:- **GDPR Privacy Controls**: Full user control via `DELETE /api/memory/reflections` and `POST /api/memory/forget`.
+README.md:62:10. **Context-Aware Generation**: Bounded conversation memory injection.
+README.md:66:### 4. Interactive Obsidian-Style Knowledge Graph
+README.md:74:- Integrated Push Notifications (`@capacitor/push-notifications` -> FCM & APNs).
+README.md:105:- **Admin Dashboard**: [http://localhost/admin](http://localhost/admin)
+README.md:106:- **Knowledge Graph UI**: [http://localhost/knowledge-graph](http://localhost/knowledge-graph)
+README.md:160:│   ├── services/                  # Qdrant, Neo4j, LightRAG, Second Brain services
+README.md:200:| `CELERY_QUEUES` | Comma-separated allowlisted queues for a worker profile; use a maintenance-only profile only after queue/SLA measurement | `ingestion,embedding,indexing,okf,memory` |
+README.md:206:## Ephemeral chat attachments
+README.md:208:The chat composer accepts text and office documents (`.txt`, Markdown, CSV/TSV, JSON, XML, HTML, YAML, DOCX, PPTX, XLSX), PDFs, images, audio, and video. Each selected file is sent to `POST /api/chat/upload`, where the backend applies a 10 MB per-file cap and 50 MB combined cap, extracts bounded evidence using PDF/OOXML text extraction, OCR, or local Whisper transcription, and returns an `attachment_context` value for the next chat turn. Upload bytes are not persisted or indexed automatically. The subsequent `/api/chat` or `/api/chat/stream` request carries that context separately from `user_message`; the RAG generation prompt marks it as untrusted evidence and shared caches/coalescing are bypassed or scoped by an attachment digest.
+src/components/mood/MoodCheckIn.tsx:6:import { recordMoodCheckIn, getMeditationStats } from '@/lib/meditationStorage';
+src/components/mood/MoodCheckIn.tsx:65:    try { return getMeditationStats().streakDays ?? 0; } catch { return 0; }
+src/components/onboarding/GuidedTour.tsx:125:      if (target) acc.push({ ...s, resolvedTarget: target });
+src/pages/AuthDiagnosticsPage.tsx:93:        is_admin: boolean;
+src/pages/AuthDiagnosticsPage.tsx:127:        id: 'admin',
+src/pages/AuthDiagnosticsPage.tsx:129:        status: w.is_admin ? 'ok' : 'warn',
+src/pages/AuthDiagnosticsPage.tsx:130:        detail: w.is_admin
+src/pages/AuthDiagnosticsPage.tsx:132:          : 'Standard user (no administrative role).',
+src/pages/AuthDiagnosticsPage.tsx:137:    update({ id: 'has_role', label: 'has_role(admin) direct RPC', status: 'pending' });
+src/pages/AuthDiagnosticsPage.tsx:140:      _role: 'admin',
+src/pages/AuthDiagnosticsPage.tsx:144:      label: 'has_role(admin) direct RPC',
+src/pages/AuthDiagnosticsPage.tsx:210:                  Verifies session, profile, roles, admin status, and backend reachability.
+src/pages/AuthDiagnosticsPage.tsx:271:              trigger fires, or have an admin insert a row into{' '}
+src/pages/AuthDiagnosticsPage.tsx:275:              <strong className="text-foreground">Not an admin?</strong> An existing admin must
+src/pages/AuthDiagnosticsPage.tsx:278:                INSERT INTO public.user_roles (user_id, role) VALUES ('&lt;your-uuid&gt;', 'admin');
+src/pages/PracticeDetailPage.tsx:80:  const audioEmbed = practice.audioId
+src/pages/PracticeDetailPage.tsx:81:    ? `https://www.youtube-nocookie.com/embed/${practice.audioId}?modestbranding=1&rel=0`
+src/pages/PracticeDetailPage.tsx:83:  const audioWatch = practice.audioId
+src/pages/PracticeDetailPage.tsx:84:    ? `https://www.youtube.com/watch?v=${practice.audioId}`
+src/pages/PracticeDetailPage.tsx:97:        title: 'Meditation Guide Copied!',
+src/pages/PracticeDetailPage.tsx:240:        {/* Optional audio */}
+src/pages/PracticeDetailPage.tsx:241:        {audioEmbed && audioWatch && (
+src/pages/PracticeDetailPage.tsx:248:                <a href={audioWatch} target="_blank" rel="noopener noreferrer">
+src/pages/PracticeDetailPage.tsx:259:                  src={audioEmbed}
+src/pages/PracticeDetailPage.tsx:260:                  title={`${lp!.title} — audio`}
+src/components/profile/CancelFlow.tsx:84: *  pattern in PushNotificationsManager / memoryApi: get Supabase session, attach
+src/pages/NotFound.tsx:57:            {t('notFound.startChat', 'Start Chatting')}
+src/components/teachings/TeachingCard.tsx:11:  /** Category tag (e.g. "Meditation", "Wisdom"). */
+src/pages/PracticesPage.tsx:114:    title: t('seo.practicesTitle') || 'Daily Practices — Guided Meditations | AskMukthiGuru',
+src/pages/StudyNotebookPage.tsx:213:                  placeholder="e.g., Morning Meditations"
+src/components/profile/ProfileStatTiles.tsx:4:import type { MeditationStats } from '@/lib/meditationStorage';
+src/components/profile/ProfileStatTiles.tsx:8:  stats: MeditationStats;
+src/components/chat/ChatInterface.test.tsx:130:vi.mock('@/components/meditation/GuidedMeditationFlow', () => ({
+src/components/chat/ChatInterface.test.tsx:131:  GuidedMeditationFlow: () => null,
+src/pages/ChatPage.tsx:166:          share the viewport with it — otherwise it pushes the chat (and the
+src/pages/PrivacyPage.tsx:30:          <li>{t('privacy.storeMeditation')}</li>
+src/pages/TTSVerificationPage.tsx:90:      addLog('success', `Profile voice preference updated in persistent memory: "${voiceId}"`);
+src/pages/TTSVerificationPage.tsx:110:    // Play audio
+src/pages/TTSVerificationPage.tsx:118:  // any listeners — e.g. MeditationStats / analytics hooks — can react).
+src/pages/TTSVerificationPage.tsx:164:      addLog('action', `Step 2/4: Playing audio via "Ishita" speaker...`);
+src/pages/TTSVerificationPage.tsx:178:      addLog('action', `Step 4/4: Playing audio via "Mani" speaker...`);
+src/pages/guides/SereneMindPracticePage.tsx:33:    title: 'Serene Mind Meditation: A 3-Minute Stress Practice',
+src/pages/guides/SereneMindPracticePage.tsx:43:          headline: 'Serene Mind Meditation: A 3-Minute Practice for Stress',
+src/pages/guides/SereneMindPracticePage.tsx:67:            Serene Mind Meditation: A 3-Minute Practice for Stress
+src/pages/AdminSelfCheckPage.tsx:10:  is_admin?: boolean;
+src/pages/AdminSelfCheckPage.tsx:16: * /admin/self-check — public route (guarded by auth, not admin) that shows a
+src/pages/AdminSelfCheckPage.tsx:17: * granular checklist so a designated admin can verify their grant took effect.
+src/pages/AdminSelfCheckPage.tsx:51:          label: "'admin' role assigned",
+src/pages/AdminSelfCheckPage.tsx:52:          pass: (diag.roles ?? []).includes("admin"),
+src/pages/AdminSelfCheckPage.tsx:54:        { label: "has_role(admin) = true", pass: !!diag.is_admin },
+src/pages/AdminSelfCheckPage.tsx:64:        Verifies that the currently signed-in account has admin privileges wired end-to-end.
+src/pages/AdminSelfCheckPage.tsx:77:            data-testid="admin-selfcheck-status"
+src/pages/AdminSelfCheckPage.tsx:86:              ? "✓ All checks passed — you have full admin access."
+src/pages/guides/AiSpiritualCompanionPage.tsx:74:    title: "The Seeker's Guide to AI-Guided Meditation | AskMukthiGuru",
+src/pages/guides/AiSpiritualCompanionPage.tsx:84:          headline: "The Seeker's Guide to AI-Guided Meditation",
+src/pages/guides/AiSpiritualCompanionPage.tsx:108:            The Seeker's Guide to AI-Guided Meditation
+src/pages/ProfilePage.tsx:35:import { fireTestReminder, requestNotificationPermission } from '@/hooks/useMeditationReminder';
+src/pages/ProfilePage.tsx:76:import { getMeditationStats, getMeditationStatsFromDb, getMeditationSessionsFromDb, loadMeditationSessions, type MeditationStats } from '@/lib/meditationStorage';
+src/pages/ProfilePage.tsx:80:import { memoryApi, type GuruMemory } from '@/lib/memoryApi';
+src/pages/ProfilePage.tsx:141:  const initialTab = (tabParam === 'privacy' || tabParam === 'memory') ? 'memory' : (tabParam || 'profile');
+src/pages/ProfilePage.tsx:190:  const [stats, setStats] = useState<MeditationStats>(() => getMeditationStats());
+src/pages/ProfilePage.tsx:192:    loadMeditationSessions().map((s) => ({
+src/pages/ProfilePage.tsx:211:      const dbStats = await getMeditationStatsFromDb();
+src/pages/ProfilePage.tsx:221:      // Derive richer insights from local sessions + backend memory (if live).
+src/pages/ProfilePage.tsx:222:      const localSessions = loadMeditationSessions();
+src/pages/ProfilePage.tsx:224:      const chartSessions = await getMeditationSessionsFromDb();
+src/pages/ProfilePage.tsx:228:        const list = await memoryApi.list(1, 50);
+src/pages/ProfilePage.tsx:333:      await memoryApi.deleteAll();
+src/pages/ProfilePage.tsx:337:      toast({ title: 'Local data cleared, but memory erasure failed', description: e instanceof Error ? e.message : 'unknown', variant: 'destructive' });
+src/pages/ProfilePage.tsx:450:                <TabsTrigger value="memory" className="rounded-full min-h-[44px] text-xs sm:text-sm px-4 sm:px-5 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground/80 hover:text-foreground transition-colors">{t('profile.tabs.memory', 'Memory')}</TabsTrigger>
+src/pages/ProfilePage.tsx:638:                      Couldn't load journey metrics right now. They'll reappear once the Guru's memory is awake.
+src/pages/ProfilePage.tsx:873:            <TabsContent value="memory" className="space-y-6 mt-0">
+src/pages/ProfilePage.tsx:962:                        <p className="text-xs text-muted-foreground">Choose the voice personality for Indic language audio.</p>
+src/pages/ProfilePage.tsx:991:                        Meditation Reminders
+src/components/landing/SampleWisdomSection.tsx:55:      title: t('wisdom.teaching5.title', 'Three-Question Meditation'),
+src/components/landing/SampleWisdomSection.tsx:59:        'Meditation is not about a religion; it is about being human — about returning to a beautiful state. Simply observing your state, time, and self-preoccupation without trying to change anything loosens the grip of self-centric thinking and lets the beautiful state return.'
+src/components/landing/Footer.tsx:41:              AI Meditation Guide
+src/components/profile/MemoryManager.tsx:28:  memoryApi,
+src/components/profile/MemoryManager.tsx:37:} from '@/lib/memoryApi';
+src/components/profile/MemoryManager.tsx:64:  { id: 'mem-3', content: 'Second Brain Vault encrypted key active — Qdrant multi-tenant privacy verified.', source: 'explicit', created_at: new Date().toISOString() },
+src/components/profile/MemoryManager.tsx:92:    rings[ring].push(node);
+src/components/profile/MemoryManager.tsx:153:  // Voice-to-text for reflection and core memory textareas
+src/components/profile/MemoryManager.tsx:266:  // - Cooldown counter freezes the sim once the layout settles (Supermemory-
+src/components/profile/MemoryManager.tsx:301:      // 1. Charge Repulsion (push nodes apart)
+src/components/profile/MemoryManager.tsx:377:      memoryApi.list(1, 100),
+src/components/profile/MemoryManager.tsx:378:      memoryApi.getCore(),
+src/components/profile/MemoryManager.tsx:379:      memoryApi.getSummaries(10),
+src/components/profile/MemoryManager.tsx:380:      memoryApi.getConversations(5),
+src/components/profile/MemoryManager.tsx:381:      memoryApi.getPersona(),
+src/components/profile/MemoryManager.tsx:382:      memoryApi.getSkills(),
+src/components/profile/MemoryManager.tsx:413:      const res = await memoryApi.regeneratePersona();
+src/components/profile/MemoryManager.tsx:415:      toast({ title: t('memory.personaRegenerated', 'Persona refreshed') });
+src/components/profile/MemoryManager.tsx:417:      toast({ title: t('memory.personaRegenerateFailed', 'Could not refresh persona'), variant: 'destructive' });
+src/components/profile/MemoryManager.tsx:426:      const updated = await memoryApi.regenerateSkills();
+src/components/profile/MemoryManager.tsx:428:      toast({ title: t('memory.skillsRegenerated', 'Skills refreshed') });
+src/components/profile/MemoryManager.tsx:430:      toast({ title: t('memory.skillsRegenerateFailed', 'Could not refresh skills'), variant: 'destructive' });
+src/components/profile/MemoryManager.tsx:439:      const kg = await memoryApi.getKnowledgeGraph(view);
+src/components/profile/MemoryManager.tsx:488:      const saved = await memoryApi.setCore(coreText);
+src/components/profile/MemoryManager.tsx:490:      toast({ title: t('memory.coreSaved'), description: t('memory.coreSavedDesc') });
+src/components/profile/MemoryManager.tsx:492:      const msg = err instanceof MemoryApiError ? err.message : 'Could not save core memory.';
+src/components/profile/MemoryManager.tsx:493:      toast({ title: t('memory.couldNotSave'), description: msg, variant: 'destructive' });
+src/components/profile/MemoryManager.tsx:499:  const MEMORY_CONSENT_KEY = 'askmukthiguru_memory_consent_granted';
+src/components/profile/MemoryManager.tsx:504:      const created = await memoryApi.add(newText);
+src/components/profile/MemoryManager.tsx:507:      toast({ title: t('memory.memorySaved'), description: t('memory.memorySavedDesc') });
+src/components/profile/MemoryManager.tsx:509:      memoryApi.reflect().then((res) => {
+src/components/profile/MemoryManager.tsx:516:      const msg = err instanceof MemoryApiError ? err.message : 'Could not save memory.';
+src/components/profile/MemoryManager.tsx:517:      toast({ title: t('memory.couldNotSave'), description: msg, variant: 'destructive' });
+src/components/profile/MemoryManager.tsx:535:      await memoryApi.recordConsent(true);
+src/components/profile/MemoryManager.tsx:547:      await memoryApi.edit(id, editingText.trim());
+src/components/profile/MemoryManager.tsx:551:      toast({ title: t('memory.updated', 'Memory updated') });
+src/components/profile/MemoryManager.tsx:553:      const msg = err instanceof MemoryApiError ? err.message : 'Could not update memory.';
+src/components/profile/MemoryManager.tsx:554:      toast({ title: t('memory.couldNotUpdate', 'Could not update memory'), description: msg, variant: 'destructive' });
+src/components/profile/MemoryManager.tsx:564:      await memoryApi.forget(id);
+src/components/profile/MemoryManager.tsx:571:      toast({ title: t('memory.forgotten'), description: t('memory.forgottenDesc') });
+src/components/profile/MemoryManager.tsx:573:      const msg = err instanceof MemoryApiError ? err.message : 'Could not forget memory.';
+src/components/profile/MemoryManager.tsx:574:      toast({ title: t('memory.couldNotForget'), description: msg, variant: 'destructive' });
+src/components/profile/MemoryManager.tsx:584:      await memoryApi.forgetAllReflections();
+src/components/profile/MemoryManager.tsx:589:      toast({ title: t('memory.reflectionsCleared', 'Reflections cleared') });
+src/components/profile/MemoryManager.tsx:592:      toast({ title: t('memory.couldNotClear', 'Could not clear reflections'), description: msg, variant: 'destructive' });
+src/components/profile/MemoryManager.tsx:695:                  <option value="none">{t('memory.graph.metricNone', 'Size: default')}</option>
+src/components/profile/MemoryManager.tsx:696:                  <option value="degree">{t('memory.graph.metricDegree', 'Size: degree')}</option>
+src/components/profile/MemoryManager.tsx:697:                  <option value="pagerank">{t('memory.graph.metricPagerank', 'Size: PageRank')}</option>
+src/components/profile/MemoryManager.tsx:698:                  <option value="betweenness">{t('memory.graph.metricBetweenness', 'Size: bridges')}</option>
+src/components/profile/MemoryManager.tsx:699:                  <option value="closeness">{t('memory.graph.metricCloseness', 'Size: closeness')}</option>
+src/components/profile/MemoryManager.tsx:700:                  <option value="hits_hub">{t('memory.graph.metricHitsHub', 'Size: hubs')}</option>
+src/components/profile/MemoryManager.tsx:701:                  <option value="hits_authority">{t('memory.graph.metricHitsAuthority', 'Size: authorities')}</option>
+src/components/profile/MemoryManager.tsx:707:                  {t('memory.graph.colorByCommunity', 'Communities')}
+src/components/profile/MemoryManager.tsx:729:                    <div className="text-muted-foreground uppercase tracking-wider">{t(`memory.graph.insight.${key}`, key)}</div>
+src/components/profile/MemoryManager.tsx:804:                        <AlertDialogTitle>{t('memory.consentTitle', 'Save this to your memory?')}</AlertDialogTitle>
+src/components/profile/MemoryManager.tsx:806:                          {t('memory.consentDesc', 'You can delete anytime.')}
+src/components/profile/MemoryManager.tsx:812:                          {t('memory.consentConfirm', 'Save')}
+src/components/profile/MemoryManager.tsx:923:                    // SHARED_STATE = inferred peer link (memory↔memory via
+src/components/profile/MemoryManager.tsx:1070:              {/* Connected Detail Drawer Overlay (Supermemory / Understand Anything style) */}
+src/components/profile/MemoryManager.tsx:1178:                              <AlertDialogTitle>Forget this memory?</AlertDialogTitle>
+src/components/profile/MemoryManager.tsx:1371:            <Brain className="w-5 h-5 text-ojas" /> {t('memory.memory')}
+src/components/profile/MemoryManager.tsx:1373:          <CardDescription>{t('memory.memoryDesc')}</CardDescription>
+src/components/profile/MemoryManager.tsx:1409:                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">{t('memory.statMemories')}</p>
+src/components/profile/MemoryManager.tsx:1418:                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">{t('memory.statCoreStatus')}</p>
+src/components/profile/MemoryManager.tsx:1419:                <p className="text-xs font-bold text-white mt-1">{coreText.trim() ? t('memory.active') : t('memory.unset')}</p>
+src/components/profile/MemoryManager.tsx:1427:                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">{t('memory.statKgNodes')}</p>
+src/components/profile/MemoryManager.tsx:1436:                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">{t('memory.statReflections')}</p>
+src/components/profile/MemoryManager.tsx:1449:              <Sparkles className="w-5 h-5 text-ojas" /> {t('memory.coreMemory')}
+src/components/profile/MemoryManager.tsx:1452:              {t('memory.coreMemoryDesc')}
+src/components/profile/MemoryManager.tsx:1459:              placeholder={t('memory.corePlaceholder')}
+src/components/profile/MemoryManager.tsx:1475:                aria-label={coreVoice.isListening ? 'Stop voice input' : 'Dictate core memory'}
+src/components/profile/MemoryManager.tsx:1498:              <p className="text-xs text-muted-foreground">{t('memory.lastSaved', { date: formatDate(core.updated_at) })}</p>
+src/components/profile/MemoryManager.tsx:1510:                <Sparkles className="w-5 h-5 text-violet-400" /> {t('memory.persona', 'Persona')}
+src/components/profile/MemoryManager.tsx:1524:                {t('memory.regenerate', 'Regenerate')}
+src/components/profile/MemoryManager.tsx:1528:              {t('memory.personaDesc', 'AI-synthesized self-portrait from your recent memories')}
+src/components/profile/MemoryManager.tsx:1545:                <Sparkles className="w-5 h-5 text-emerald-400" /> {t('memory.skills', 'Skills')}
+src/components/profile/MemoryManager.tsx:1560:                {t('memory.regenerate', 'Regenerate')}
+src/components/profile/MemoryManager.tsx:1564:              {t('memory.skillsDesc', 'Skills and techniques identified from your practice')}
+src/components/profile/MemoryManager.tsx:1574:                      {t('memory.proficiency', 'Proficiency')}: {Math.round((sk.proficiency ?? 0) * 100)}%
+src/components/profile/MemoryManager.tsx:1596:              <Brain className="w-5 h-5 text-ojas" /> {isFullscreen ? t('memory.consciousnessMap') : t('memory.memories')}
+src/components/profile/MemoryManager.tsx:1611:                    <span className="sr-only">{t('memory.clearReflections', 'Clear reflections')}</span>
+src/components/profile/MemoryManager.tsx:1616:                    <AlertDialogTitle>{t('memory.clearReflections', 'Clear reflections')}</AlertDialogTitle>
+src/components/profile/MemoryManager.tsx:1617:                    <AlertDialogDescription>{t('memory.clearReflectionsWarning', 'This permanently removes episodic reflections while preserving your core memory.')}</AlertDialogDescription>
+src/components/profile/MemoryManager.tsx:1621:                    <AlertDialogAction onClick={() => void handleForgetAllReflections()}>{t('memory.clearReflectionsConfirm', 'Clear reflections')}</AlertDialogAction>
+src/components/profile/MemoryManager.tsx:1633:                  title={t('memory.listView')}
+src/components/profile/MemoryManager.tsx:1643:                title={t('memory.graphView')}
+src/components/profile/MemoryManager.tsx:1651:              ? t('memory.fullscreenDesc')
+src/components/profile/MemoryManager.tsx:1652:              : t('memory.graphDesc')}
+src/components/profile/MemoryManager.tsx:1655:                {t('memory.demoMode', 'Service unavailable — showing sample memories')}
+src/components/profile/MemoryManager.tsx:1666:                placeholder={t('memory.reflectPlaceholder')}
+src/components/profile/MemoryManager.tsx:1682:                  aria-label={reflectVoice.isListening ? 'Stop voice input' : 'Dictate memory'}
+src/components/profile/MemoryManager.tsx:1702:                    {t('memory.saveMemory')}
+src/components/profile/MemoryManager.tsx:1719:                    placeholder={t('memory.searchPlaceholder')}
+src/components/profile/MemoryManager.tsx:1741:                    {listSearchQuery ? t('memory.noMatchFound') : t('memory.noMemories')}
+src/components/profile/MemoryManager.tsx:1763:                                aria-label={t('memory.editAria', 'Correct memory')}
+src/components/profile/MemoryManager.tsx:1786:                                {t('memory.youAdded')}
+src/components/profile/MemoryManager.tsx:1790:                                {t('memory.autoExtracted')}
+src/components/profile/MemoryManager.tsx:1796:                                title={t('memory.retentionTooltip', 'Fades from memory over time unless reinforced')}
+src/components/profile/MemoryManager.tsx:1798:                                {t('memory.retention', 'Retention')}: {Math.round(m.decay_score * 100)}%
+src/components/profile/MemoryManager.tsx:1809:                            aria-label={t('memory.editAria', 'Correct memory')}
+src/components/profile/MemoryManager.tsx:1822:                              aria-label={t('memory.forgetAria')}
+src/components/profile/MemoryManager.tsx:1833:                              <AlertDialogTitle>{t('memory.forgetTitle')}</AlertDialogTitle>
+src/components/profile/MemoryManager.tsx:1838:                                {t('memory.forgetWarning')}
+src/components/profile/MemoryManager.tsx:1844:                                {t('memory.forgetBtn')}
+src/components/profile/MemoryManager.tsx:1865:              <BookText className="w-5 h-5 text-ojas" /> {t('memory.sessionReflections')}
+src/components/profile/MemoryManager.tsx:1869:              {t('memory.sessionReflectionsDesc')}
+docs/QUESTION_BANK_REFERENCE.md:30:### C. Meditation Practices & Step-by-Step Protocols
+docs/skill-enhancements.md:13:| 5 | MapReduce memory consolidation | Medium | Medium | Building Apps w/ AI Agents ch12 |
+docs/skill-enhancements.md:29:- `MeditationGuideAgent` — guided meditation flows
+docs/skill-enhancements.md:71:Prevents memory bloat, surfaces long-term patterns.
+docs/skill-enhancements.md:73:**Files**: `backend/services/memory_service.py`
+docs/skill-enhancements.md:88:Read active prompt version from Supabase PromptStore per request (with in-memory cache fallback). Add experiment ID to cost tracking for prompt version → score → cost correlation.
+docs/skill-enhancements.md:152:**Files**: `backend/rag/nodes/intent.py`, `backend/rag/memory.py`
+docs/skill-enhancements.md:244:`services/` imports each other directly. Introduce port/adapter interfaces so `memory_service` talks to `embedding_service` through a port, not directly.
+docs/skill-enhancements.md:276:**Files**: `services/memory_service.py`, `rag/memory.py`
+docs/skill-enhancements.md:320:- Three-tier: HotCache (exact, in-memory) → SemanticCacheService (semantic, Qdrant) → GPTCache (heavy, disk)
+docs/skill-enhancements.md:335:- Decouples graph logic from service implementations → testable with in-memory stubs
+src/pages/guides/SpiritualGuideForAnxietyPage.tsx:112:          <h2 className="text-xl font-semibold text-foreground">Meditation for Anxiety: A Spiritual Approach</h2>
+src/pages/guides/BeautifulStateMeditationPage.tsx:30:const BeautifulStateMeditationPage = () => {
+src/pages/guides/BeautifulStateMeditationPage.tsx:33:    title: 'How to Enter Beautiful State: A Meditation Guide',
+src/pages/guides/BeautifulStateMeditationPage.tsx:43:          headline: 'How to Enter Beautiful State: A Practical Meditation Guide',
+src/pages/guides/BeautifulStateMeditationPage.tsx:63:    <PublicShell title="Beautiful State Meditation">
+src/pages/guides/BeautifulStateMeditationPage.tsx:67:            How to Enter Beautiful State: A Practical Meditation Guide
+src/pages/guides/BeautifulStateMeditationPage.tsx:124:          <h2 className="text-xl font-semibold text-foreground">A 3-Minute Meditation You Can Do Anywhere</h2>
+src/pages/guides/BeautifulStateMeditationPage.tsx:127:            <li><strong>Minute 2:</strong> Bring to mind a person or memory that genuinely opens your heart. Stay with the feeling, not the story around it.</li>
+src/pages/guides/BeautifulStateMeditationPage.tsx:189:export default BeautifulStateMeditationPage;
+src/pages/Index.tsx:8:import { AboutMeditationSection } from '@/components/landing/AboutMeditationSection';
+src/pages/Index.tsx:63:            name: 'What is Serene Mind Meditation?',
+src/pages/Index.tsx:86:      <AboutMeditationSection />
+src/components/ai-elements/prompt-input.tsx:117:      audio: false,
+src/components/ai-elements/prompt-input.tsx:200:  attachments: AttachmentsContext;
+src/components/ai-elements/prompt-input.tsx:259:  // ----- attachments state (global when wrapped)
+src/components/ai-elements/prompt-input.tsx:260:  const [attachmentFiles, setAttachmentFiles] = useState<
+src/components/ai-elements/prompt-input.tsx:306:  // Keep a ref to attachments for cleanup on unmount (avoids stale closure)
+src/components/ai-elements/prompt-input.tsx:307:  const attachmentsRef = useRef(attachmentFiles);
+src/components/ai-elements/prompt-input.tsx:310:    attachmentsRef.current = attachmentFiles;
+src/components/ai-elements/prompt-input.tsx:311:  }, [attachmentFiles]);
+src/components/ai-elements/prompt-input.tsx:313:  // Cleanup blob URLs on unmount to prevent memory leaks
+src/components/ai-elements/prompt-input.tsx:316:      for (const f of attachmentsRef.current) {
+src/components/ai-elements/prompt-input.tsx:329:  const attachments = useMemo<AttachmentsContext>(
+src/components/ai-elements/prompt-input.tsx:334:      files: attachmentFiles,
+src/components/ai-elements/prompt-input.tsx:338:    [attachmentFiles, add, remove, clear, openFileDialog]
+src/components/ai-elements/prompt-input.tsx:352:      attachments,
+src/components/ai-elements/prompt-input.tsx:359:    [textInput, clearInput, attachments, __registerFileInput]
+src/components/ai-elements/prompt-input.tsx:364:      <ProviderAttachmentsContext.Provider value={attachments}>
+src/components/ai-elements/prompt-input.tsx:424:  const attachments = usePromptInputAttachments();
+src/components/ai-elements/prompt-input.tsx:429:      attachments.openFileDialog();
+src/components/ai-elements/prompt-input.tsx:431:    [attachments]
+src/components/ai-elements/prompt-input.tsx:452:  const attachments = usePromptInputAttachments();
+src/components/ai-elements/prompt-input.tsx:464:          attachments.add([screenshot]);
+src/components/ai-elements/prompt-input.tsx:476:    [onSelect, attachments]
+src/components/ai-elements/prompt-input.tsx:538:  // ----- Local attachments (only used when no provider)
+src/components/ai-elements/prompt-input.tsx:540:  const files = usingProvider ? controller.attachments.files : items;
+src/components/ai-elements/prompt-input.tsx:618:          next.push({
+src/components/ai-elements/prompt-input.tsx:682:        controller?.attachments.add(capped);
+src/components/ai-elements/prompt-input.tsx:691:        ? controller?.attachments.clear()
+src/components/ai-elements/prompt-input.tsx:709:  const remove = usingProvider ? controller.attachments.remove : removeLocal;
+src/components/ai-elements/prompt-input.tsx:711:    ? controller.attachments.openFileDialog
+src/components/ai-elements/prompt-input.tsx:817:  const attachmentsCtx = useMemo<AttachmentsContext>(
+src/components/ai-elements/prompt-input.tsx:942:    <LocalAttachmentsContext.Provider value={attachmentsCtx}>
+src/components/ai-elements/prompt-input.tsx:976:  const attachments = usePromptInputAttachments();
+src/components/ai-elements/prompt-input.tsx:1010:      // Remove last attachment when Backspace is pressed and textarea is empty
+src/components/ai-elements/prompt-input.tsx:1014:        attachments.files.length > 0
+src/components/ai-elements/prompt-input.tsx:1017:        const lastAttachment = attachments.files.at(-1);
+src/components/ai-elements/prompt-input.tsx:1019:          attachments.remove(lastAttachment.id);
+src/components/ai-elements/prompt-input.tsx:1023:    [onKeyDown, isComposing, attachments]
+src/components/ai-elements/prompt-input.tsx:1040:            files.push(file);
+src/components/ai-elements/prompt-input.tsx:1047:        attachments.add(files);
+src/components/ai-elements/prompt-input.tsx:1050:    [attachments]
+src/components/ai-elements/prompt-input.tsx:1224:// are provided in opt-in modules (e.g., prompt-input-attachments).
+docs/PRODUCTION_HOSTING_INDIA.md:67: (Lovable Cloud)        FastAPI                  (healthz, push-send,
+docs/PHASE_2_3_4_COMPLETE.md:5:- Headline: **wiring is correct on all 16 admin pages**. The reason metrics "look wrong" is that 14 of 20 source tables are empty in your prod DB. One SQL call fixes the demo state:
+docs/PHASE_2_3_4_COMPLETE.md:7:  SELECT public.seed_admin_demo();   -- run while authenticated as admin
+docs/PHASE_2_3_4_COMPLETE.md:37:1. Run `SELECT public.seed_admin_demo();` and reload the admin dashboard.
+docs/PRODUCT_STORY_AND_ADOPTION.md:8:AskMukthiGuru should not be understood as a catalogue of AI, retrieval, meditation, profile, and memory features. It is a companion experience that helps a person move from **a moment that feels difficult or unclear** to **one considered next step**. The product supports that transition through a question, an optional short practice, teaching-grounded reflection, and a path to return.
+src/components/landing/AboutMeditationSection.tsx:7:export const AboutMeditationSection = React.forwardRef<HTMLElement>(
+src/components/landing/AboutMeditationSection.tsx:8:  function AboutMeditationSection(_props, ref) {
+src/components/chat/SereneMindModal.tsx:10:  startMeditationSession,
+src/components/chat/SereneMindModal.tsx:11:  completeMeditationSession,
+src/components/chat/SereneMindModal.tsx:12:  MeditationSession,
+src/components/chat/SereneMindModal.tsx:15:export type SereneMindTab = 'audio' | 'video';
+src/components/chat/SereneMindModal.tsx:31:export const SereneMindModal = ({ isOpen, onClose, initialTab = 'audio', onComplete, isGated = false }: SereneMindModalProps) => {
+src/components/chat/SereneMindModal.tsx:40:  const sessionRef = useRef<MeditationSession | null>(null);
+src/components/chat/SereneMindModal.tsx:54:  const resetMeditation = useCallback(() => {
+src/components/chat/SereneMindModal.tsx:65:      sessionRef.current = startMeditationSession();
+src/components/chat/SereneMindModal.tsx:73:      completeMeditationSession(sessionRef.current.id, duration, cycleCount);
+src/components/chat/SereneMindModal.tsx:91:    if (activeTab !== 'audio') return;
+src/components/chat/SereneMindModal.tsx:146:        completeMeditationSession(sessionRef.current.id, duration, cycleCount);
+src/components/chat/SereneMindModal.tsx:148:      resetMeditation();
+src/components/chat/SereneMindModal.tsx:150:  }, [isOpen, resetMeditation, phase, totalTime, cycleCount, selectedTechnique]);
+src/components/chat/SereneMindModal.tsx:154:    if (activeTab !== 'audio' && isPlaying) {
+src/components/chat/SereneMindModal.tsx:253:    { id: 'audio', label: t('meditation.tabAudio'), icon: Headphones },
+src/components/chat/SereneMindModal.tsx:334:              {activeTab === 'audio' && (
+src/components/chat/SereneMindModal.tsx:347:                    resetMeditation={resetMeditation}
+src/components/chat/SereneMindModal.tsx:356:                    mode="audio"
+src/components/chat/SereneMindModal.tsx:361:                    onExternalReset={resetMeditation}
+src/components/chat/SereneMindModal.tsx:400:  resetMeditation: () => void;
+src/components/chat/SereneMindModal.tsx:420:  resetMeditation,
+src/components/chat/SereneMindModal.tsx:589:                onClick={resetMeditation}
+src/components/chat/SereneMindModal.tsx:677:  mode: 'audio' | 'video';
+src/components/chat/SereneMindModal.tsx:683:  /** When set, audio playback is slaved to this value (breath-tab Start/pause/reset). */
+src/components/chat/SereneMindModal.tsx:685:  /** Called when audio naturally completes so breath-tab can be reset. */
+src/components/chat/SereneMindModal.tsx:692:  // In audio mode with externalIsPlaying, local state is overridden by breath controls
+src/components/chat/SereneMindModal.tsx:694:  const isPlaying = mode === 'audio' && externalIsPlaying !== undefined ? externalIsPlaying : localIsPlaying;
+src/components/chat/SereneMindModal.tsx:733:  // Slave audio to breath controls when externalIsPlaying is provided
+src/components/chat/SereneMindModal.tsx:735:    if (mode !== 'audio' || externalIsPlaying === undefined) return;
+src/components/chat/SereneMindModal.tsx:856:              title="Serene Mind audio player helper"
+src/components/chat/MessageList.tsx:127:      groups.push({ label, messages: [msg] });
+src/components/chat/MessageList.tsx:129:      groups[groups.length - 1].messages.push(msg);
+src/components/common/SessionExpiredHandler.tsx:7:import { clearMeditationResume } from '@/lib/meditationResume';
+src/components/common/SessionExpiredHandler.tsx:10:const PROTECTED_PREFIXES = ['/chat', '/profile', '/admin'];
+src/components/common/SessionExpiredHandler.tsx:17:  clearMeditationResume();
+src/components/common/PushPermissionPrompt.tsx:11:const DISMISS_KEY = 'askmukthiguru_push_prompt_dismissed_at';
+src/components/common/PushPermissionPrompt.tsx:23:  const gated = isNative || !capabilities.pushNotifications;
+src/components/common/PushPermissionPrompt.tsx:62:          aria-label={t('common.pushPromptAria')}
+src/components/common/PushPermissionPrompt.tsx:78:                {t('common.pushPromptTitle')}
+src/components/common/PushPermissionPrompt.tsx:81:                {t('common.pushPromptDesc')}
+docs/edge-cases-research.md:26:| **Description** | Attacker crafts input to override system instructions in the spiritual guidance LLM. Techniques include instruction overrides ("ignore previous instructions"), jailbreaks, role-play attacks ("pretend you are a system administrator"), and encoding tricks (Base64, emoji, Unicode obfuscation). |
+docs/edge-cases-research.md:49:| **Exploitation Vector** | Single injection modifies the LLM's behavior so that it writes new system instructions or agent prompts to memory/database, which then get loaded for subsequent users. |
+docs/edge-cases-research.md:61:| | **c) Metadata injection** — `raw_user_meta_data` (accessed as `auth.jwt() -> 'user_metadata'` in RLS) is user-writable. Any user can `await supabase.auth.update({ data: { role: "admin" } })` to escalate privileges if RLS trusts this field. |
+docs/edge-cases-research.md:113:| **Description** | Attacker floods the LLM endpoint with expensive queries (long context, high max_tokens, recursive follow-ups), exhausting API quota, GPU memory, and database connections. |
+docs/edge-cases-research.md:184:| **Description** | User-controllable metadata fields (display name, bio, avatar URL, spiritual preferences) are rendered unsanitized in admin panels, chat UIs, or fed directly into LLM context without sanitization. |
+docs/edge-cases-research.md:186:| **Potential Impact** | **Medium-High**. Stored XSS affecting admin users. Persistent prompt injection affecting all users who interact with the attacker's profile content. |
+docs/edge-cases-research.md:193:| **Description** | Users can upload images, audio (meditation recordings), or documents. Upload endpoints may be vulnerable to path traversal, arbitrary file upload, or SSRF via file processing. |
+docs/edge-cases-research.md:250:| **Potential Impact** | **High**. Complete service degradation. All downstream services become unresponsive. Cascading failure — HTTP clients queue up, memory grows, OOM. |
+docs/edge-cases-research.md:257:| **Description** | The platform runs background ingestion pipelines (ETL into Qdrant, Neo4j). Heavy ingestion (embedding generation, graph construction) competes for CPU/memory/GPU with real-time chat requests. |
+docs/edge-cases-research.md:260:| **Mitigation** | Time-slice ingestion to off-peak hours. Use separate compute resources (different container, CPU affinity). Cgroup CPU/memory limits on ingestion containers. Adaptive throttling: reduce ingestion rate when chat latency exceeds threshold. Use message queues for ingestion jobs (consumer-controlled polling). |
+docs/edge-cases-research.md:276:| **Exploitation Vector** | Many users send long context queries simultaneously. KV cache for each sequence consumes VRAM. Total exceeds GPU memory → OOM → process killed → all active streams fail. |
+docs/edge-cases-research.md:278:| **Mitigation** | KV cache quotas per user/request. Max context length enforcement. Concurrent request limits at inference server level. Preemption with swapping to CPU memory. Use PagedAttention (vLLM) for efficient memory management. Autoscaling inference workers. |
+docs/edge-cases-research.md:367:### 3.8 Meditation Step Parsing Errors
+docs/edge-cases-research.md:429:| **Description** | User has the app on phone and tablet. Meditation history, favorites, and preferences diverge. Sync conflicts arise — last-write-wins may lose data. |
+docs/edge-cases-research.md:551:| | **d) Cross-tenant memory leakage** — User A's spiritual reflections appear in User B's context due to non-scoped vector search. This is a data breach triggering Article 33 (72-hour notification). |
+src/components/meditation/breathTechniques.ts:6: * GuidedMeditationFlow state machine works for any pattern without code changes.
+src/components/meditation/meditationSteps.ts:16: * asset URL is set on every step so `useMeditationAudio` recognises the src
+src/components/meditation/meditationSteps.ts:24:export interface MeditationStep {
+src/components/meditation/meditationSteps.ts:31:   * Optional narrated audio for this step. When every step points at the
+src/components/meditation/meditationSteps.ts:32:   * same URL, `useMeditationAudio` short-circuits and plays a single
+src/components/meditation/meditationSteps.ts:37:  audioSrc?: string;
+src/components/meditation/meditationSteps.ts:43:export const GUIDED_STEPS: MeditationStep[] = [
+src/components/meditation/meditationSteps.ts:50:    audioSrc: PREETHAJI_AUDIO_SRC,
+src/components/meditation/meditationSteps.ts:58:    audioSrc: PREETHAJI_AUDIO_SRC,
+src/components/meditation/meditationSteps.ts:67:    audioSrc: PREETHAJI_AUDIO_SRC,
+src/components/meditation/meditationSteps.ts:75:    audioSrc: PREETHAJI_AUDIO_SRC,
+src/components/meditation/meditationSteps.ts:83:    audioSrc: PREETHAJI_AUDIO_SRC,
+src/components/meditation/meditationSteps.ts:91:    audioSrc: PREETHAJI_AUDIO_SRC,
+src/components/chat/MobileConversationSheet.tsx:11:import { MeditationStats } from './MeditationStats';
+src/components/chat/MobileConversationSheet.tsx:69:    groups[timeGroup].push(conv);
+src/components/chat/MobileConversationSheet.tsx:115:      description: t('nav.secondBrainDesc', 'Your personal spiritual memory vault'),
+src/components/chat/MobileConversationSheet.tsx:222:                    {/* Meditation stats strip */}
+src/components/chat/MobileConversationSheet.tsx:223:                    <MeditationStats />
+src/components/meditation/useMeditationAudio.ts:2:import type { MeditationStep } from './meditationSteps';
+src/components/meditation/useMeditationAudio.ts:5: * Plays per-step narration audio in sync with the meditation timeline.
+src/components/meditation/useMeditationAudio.ts:8: * - Owns a single <audio> element (reused across steps to avoid iOS autoplay stalls).
+src/components/meditation/useMeditationAudio.ts:9: * - When `stepIndex` changes and the new step has an `audioSrc`, cross-fades in the new track.
+src/components/meditation/useMeditationAudio.ts:11: * - When a step has no `audioSrc`, the previous audio fades out — timeline continues silently.
+src/components/meditation/useMeditationAudio.ts:12: * - Preloads the next step's audio so transitions feel seamless.
+src/components/meditation/useMeditationAudio.ts:13: * - A missing/broken clip (`onerror`) is reported via the returned `audioFailed` flag so the
+src/components/meditation/useMeditationAudio.ts:14: *   caller can fall back to `useMeditationTTS` instead of going silent.
+src/components/meditation/useMeditationAudio.ts:18:export interface MeditationAudioOptions {
+src/components/meditation/useMeditationAudio.ts:24:export function useMeditationAudio(
+src/components/meditation/useMeditationAudio.ts:25:  steps: MeditationStep[],
+src/components/meditation/useMeditationAudio.ts:29:  options: MeditationAudioOptions = {},
+src/components/meditation/useMeditationAudio.ts:32:  const audioRef = useRef<HTMLAudioElement | null>(null);
+src/components/meditation/useMeditationAudio.ts:37:  // Lazy-create the audio elements once, on the client.
+src/components/meditation/useMeditationAudio.ts:40:    if (!audioRef.current) {
+src/components/meditation/useMeditationAudio.ts:44:      // <audio>, and setting it to 'anonymous' blocks the load entirely,
+src/components/meditation/useMeditationAudio.ts:47:        console.error('[useMeditationAudio] failed to load src=', el.src, 'error code=', el.error?.code, 'network state=', el.networkState, 'ready state=', el.readyState);
+src/components/meditation/useMeditationAudio.ts:51:      audioRef.current = el;
+src/components/meditation/useMeditationAudio.ts:60:      audioRef.current?.pause();
+src/components/meditation/useMeditationAudio.ts:68:    const el = audioRef.current;
+src/components/meditation/useMeditationAudio.ts:74:  // Load + fade in current step audio when stepIndex changes.
+src/components/meditation/useMeditationAudio.ts:76:    const el = audioRef.current;
+src/components/meditation/useMeditationAudio.ts:79:    const src = step?.audioSrc;
+src/components/meditation/useMeditationAudio.ts:81:    // No audio for this step → fade out and stop.
+src/components/meditation/useMeditationAudio.ts:97:        if (e instanceof DOMException && e.name !== 'AbortError') console.warn('[useMeditationAudio] play rejected:', e.message);
+src/components/meditation/useMeditationAudio.ts:103:    const next = steps[stepIndex + 1]?.audioSrc;
+src/components/meditation/useMeditationAudio.ts:109:  // Resume or user-requested seek is applied to the canonical audio timeline.
+src/components/meditation/useMeditationAudio.ts:111:    const el = audioRef.current;
+src/components/meditation/useMeditationAudio.ts:123:    const el = audioRef.current;
+src/components/meditation/useMeditationAudio.ts:127:        if (e instanceof DOMException && e.name !== 'AbortError') console.warn('[useMeditationAudio] play rejected:', e.message);
+src/components/meditation/useMeditationAudio.ts:136:    const el = audioRef.current;
+src/components/meditation/useMeditationAudio.ts:141:  return { audioFailed: failedStep === stepIndex };
+src/components/meditation/MeditationProgressIndicator.tsx:4:interface MeditationProgressIndicatorProps {
+src/components/meditation/MeditationProgressIndicator.tsx:15:export const MeditationProgressIndicator = ({
+src/components/meditation/MeditationProgressIndicator.tsx:19:}: MeditationProgressIndicatorProps) => {
+src/components/chat/ChatComposer.tsx:6:} from '@/lib/chat/attachmentLimits';
+src/components/chat/ChatComposer.tsx:63:    guidedMeditation: boolean;
+src/components/chat/ChatComposer.tsx:67:    audioAttachments?: boolean;
+src/components/chat/ChatComposer.tsx:73:  onGuidedMeditation: () => void;
+src/components/chat/ChatComposer.tsx:110:  onGuidedMeditation,
+src/components/chat/ChatComposer.tsx:122:    guidedMeditation: true,
+src/components/chat/ChatComposer.tsx:126:    audioAttachments: true,
+src/components/chat/ChatComposer.tsx:131:  const attachmentCapabilities = {
+src/components/chat/ChatComposer.tsx:135:    audio: actionCapabilities.audioAttachments ?? actionCapabilities.textAttachments,
+src/components/chat/ChatComposer.tsx:138:  const attachmentsAvailable = Object.values(attachmentCapabilities).some(Boolean);
+src/components/chat/ChatComposer.tsx:139:  const hasMoreActions = actionCapabilities.sereneMind || actionCapabilities.guidedMeditation || attachmentsAvailable;
+src/components/chat/ChatComposer.tsx:140:  const attachmentAccept = [
+src/components/chat/ChatComposer.tsx:141:    ...(attachmentCapabilities.text ? ['.txt', '.md', '.markdown', '.csv', '.tsv', '.json', '.log', '.xml', '.html', '.htm', '.yaml', '.yml'] : []),
+src/components/chat/ChatComposer.tsx:142:    ...(attachmentCapabilities.documents ? ['.pdf', '.docx', '.pptx', '.xlsx'] : []),
+src/components/chat/ChatComposer.tsx:143:    ...(attachmentCapabilities.images ? ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp'] : []),
+src/components/chat/ChatComposer.tsx:144:    ...(attachmentCapabilities.audio ? ['.mp3', '.wav', '.m4a', '.ogg', '.flac'] : []),
+src/components/chat/ChatComposer.tsx:145:    ...(attachmentCapabilities.video ? ['.webm', '.mp4', '.mov', '.avi', '.mkv'] : []),
+src/components/chat/ChatComposer.tsx:154:        title: t('chat.attachmentTooLarge') === 'chat.attachmentTooLarge' ? 'Attachment too large' : t('chat.attachmentTooLarge'),
+src/components/chat/ChatComposer.tsx:155:        description: t('chat.attachmentSizeHint') === 'chat.attachmentSizeHint' ? `Please choose a file under ${formatMegabytes(CHAT_MAX_SINGLE_ATTACHMENT_BYTES)}.` : t('chat.attachmentSizeHint'),
+src/components/chat/ChatComposer.tsx:249:          accept={attachmentAccept}
+src/components/chat/ChatComposer.tsx:330:                  {actionCapabilities.guidedMeditation && (
+src/components/chat/ChatComposer.tsx:331:                    <DropdownMenuItem onClick={onGuidedMeditation}>
+src/components/chat/ChatComposer.tsx:333:                      {t('chat.guidedMeditation')}
+src/components/chat/ChatComposer.tsx:336:                  {attachmentsAvailable && (
+src/components/chat/ChatComposer.tsx:339:                      {isUploading ? 'Processing attachment…' : 'Attach media or document'}
+docs/PENDING_AND_EDGE_CASES.md:49:- All changes rebased and pushed successfully to `origin/main`. Working tree clean.
+docs/PENDING_AND_EDGE_CASES.md:66:rtk proxy git push origin main
+src/components/chat/PrePracticeGate.tsx:76:      setTimeout(() => openSereneMind('audio'), 250);
+src/components/chat/DesktopSidebar.tsx:11:import { MeditationStats } from './MeditationStats';
+src/components/chat/DesktopSidebar.tsx:18:import { memoryApi } from '@/lib/memoryApi';
+src/components/chat/DesktopSidebar.tsx:52:  const [memoryCount, setMemoryCount] = useState<number>(0);
+src/components/chat/DesktopSidebar.tsx:55:    memoryApi.list(1, 1).then(res => {
+src/components/chat/DesktopSidebar.tsx:352:              <MeditationStats compact />
+src/components/chat/DesktopSidebar.tsx:365:              <span>{t('desktopSidebar.memories', { count: memoryCount })}</span>
+src/components/chat/MeditationStats.tsx:5:import { getMeditationStats } from '@/lib/meditationStorage';
+src/components/chat/MeditationStats.tsx:7:export const MeditationStats = ({ compact = false }: { compact?: boolean }) => {
+src/components/chat/MeditationStats.tsx:9:  const [stats, setStats] = useState(() => getMeditationStats());
+src/components/chat/MeditationStats.tsx:12:    const refresh = () => setStats(getMeditationStats());
+src/components/chat/ChatMessage.tsx:21:import { memoryApi } from '@/lib/memoryApi';
+src/components/chat/ChatMessage.tsx:109:  const customMeditation = offer.custom_meditation;
+src/components/chat/ChatMessage.tsx:134:              onClick={() => open('audio', false, customMeditation?.steps, customMeditation?.source_teaching)}
+src/components/chat/ChatMessage.tsx:576:        await memoryApi.add(snippet);
+src/components/chat/ChatMessage.tsx:938:                    onClick={() => openSereneMind('audio', true)}
+docs/5W_ANALYSIS_Jul8.md:4:Knowledge Graph (KG) Concept Map Visualizer for Mukthi Guru. Users can see a 40-ontology-node graph (Teachers, Concepts, Practices) on their profile page at `/profile`, rendered as an SVG with circular layout, pan/zoom, and a dual list/graph toggle.
+docs/5W_ANALYSIS_Jul8.md:8:- **Backend**: `memory.py` — KG endpoint with auth fallback; `memory_service_v2.py` — `build_personal_knowledge_graph()` with ontology-only fallback
+docs/5W_ANALYSIS_Jul8.md:10:- **API Client**: `memoryApi.ts` — `getKnowledgeGraph()` sends auth-optional requests
+docs/5W_ANALYSIS_Jul8.md:13:- **Endpoint**: `GET /api/memory/knowledge-graph` (FastAPI, mounted at `/api`)
+docs/5W_ANALYSIS_Jul8.md:47:- **435 total tests pass** (297 backend + 32 graph strategy + 106 API/memory)
+docs/5W_ANALYSIS_Jul8.md:67:- Memory list, Core memory editor, Session reflections
+docs/5W_ANALYSIS_Jul8.md:75:| KG empty if Neo4j DB is fresh | Seed script must have been run. Confirm: `curl -s http://localhost:8000/api/memory/knowledge-graph \| python3 -c "import sys,json; d=json.load(sys.stdin); print(f'{d[\"count\"]} nodes')"` |
+docs/INTEGRATION_GUIDE.md:121:Add ONLY the new Settings fields the diff introduces (the `# --- Meditation
+docs/INTEGRATION_GUIDE.md:137:- Meditation-hijack demote guard in `_intent_router_impl`
+docs/DEPLOY_READINESS.md:13:| **Rate limiting** | `backend/app/core/limiter.py` (slowapi, Redis-backed when `REDIS_URL` set, in-memory fallback), applied via `@limiter.limit(...)` in `app/api/compliance.py` and referenced across `app/api/*` | Health/readiness paths explicitly exempted so Railway health checks never 429 |
+docs/DEPLOY_READINESS.md:16:| **GDPR/compliance surface** | `backend/app/api/compliance.py` — `/api/compliance/audit/sessions/{user_id}` (Art. 15 export, hashed prompts only), `DELETE .../sessions/{user_id}` (Art. 17 erasure), rate-limited | Real, not just a stub — admin-gated, audit-logged |
+docs/DEPLOY_READINESS.md:17:| **Data retention lifecycle** | README: 3-tier memory retention (Redis 15-min TTL ephemeral, 90-day transient logs, protected core vault; `scripts/ops/cleanup_inactive_user_data.py` purges >365-day inactive accounts) | Matches privacy-by-design expectations for a companion app |
+docs/DEPLOY_READINESS.md:34:| **RLS explicitly marked pending** | `PRE_LAUNCH_CHECKLIST_PLAN.md` §1.1: "Turn on RLS so your database isn't publicly readable" — Status: ⏳ Pending, with SQL for `profiles`, `user_brain_nodes`, `guru_memories`, `chat_sessions`, `chat_messages`, `push_devices` still to be applied | If Postgres Row-Level Security isn't confirmed enabled with per-table policies, the Supabase anon key (which is legitimately public per Supabase's model) could read/write other users' chat history, memory vault, and profile data. This is a P0 data-breach risk for a companion app storing intimate personal disclosures. |
+docs/DEPLOY_READINESS.md:49:2. **RAPTOR + LightRAG + OKF hybrid retrieval** — `backend/rag/tree_navigator.py` (RAPTOR-style hierarchical summarization), `backend/rag/kg_expansion.py` + Neo4j 7,601-node graph (LightRAG dual-level graph retrieval), and a custom **OKF** (Ontological Knowledge Framework, per `src/admin/pages/OkfManager.tsx`, `backend/memory/okf/compiled.json` referenced in `Dockerfile`) — a proprietary 5-node "transformation arc" schema (103 OKF nodes layered onto 7,498 concept nodes) mapping teachings to psychological/spiritual states. Combining dense vector search + graph traversal + a bespoke transformation-arc ontology, then cross-encoder reranking (`bge-reranker-v2-m3`) and CRAG grading, is a multi-quarter engineering investment (`backend/rag/` has 25+ node/strategy modules) that a "wrap GPT with a prompt" competitor cannot replicate quickly.
+docs/DEPLOY_READINESS.md:51:4. **"Serene Mind" distress-aware engine** — `src/components/common/SereneMindProvider.tsx`, `backend/tests/test_serene_mind.py`, `src/pages/guides/SereneMindPracticePage.tsx`: a crisis/distress detection and graceful-disengagement layer (`SECURITY.md`: "distress detection with graceful disengagement") combined with guided meditation flows (`GuidedMeditationFlow.tsx`, `breathTechniques.ts`). This blends therapeutic safety design with the doctrine engine — a narrower "chat with a guru persona" competitor typically has no equivalent safety architecture.
+docs/DEPLOY_READINESS.md:108:  that anonymous visitors never reach a protected seeker or admin route, that a forged
+docs/RUFLO_EVALUATION.md:54:1. **Knowledge Graph Enhancement**
+docs/superpowers/plans/2026-08-17-multi-finding-remediation.md:26:| 14 | anon_quota_memory maxlen from degraded limit | Stale: current `_window_for` uses hardcoded `deque(maxlen=200)`. |
+docs/superpowers/plans/2026-08-17-multi-finding-remediation.md:100:- Consumes: `validate_safe_url`, `resolve_and_validate_hostname`, `download_streaming_file`, `_download_audio`, `httpx.AsyncClient`.
+docs/superpowers/plans/2026-08-17-multi-finding-remediation.md:115:  - In `_download_audio` / wherever `yt_dlp.YoutubeDL(...).extract_info` runs in executor, wrap the executor future in `asyncio.wait_for(..., timeout=SUBPROCESS_TIMEOUT)`. Preserve existing `socket_timeout` and `max_filesize` options.
+docs/superpowers/plans/2026-08-17-multi-finding-remediation.md:157:**Files:** `backend/services/anon_quota_memory.py`, `backend/services/anon_quota_redis.py`, `backend/services/anon_quota_service.py`, `backend/tests/test_anon_quota.py`.
+docs/superpowers/plans/2026-08-17-multi-finding-remediation.md:159:**Findings:** #15 (_prune_empty_sessions protects incoming session), #16 (no in-memory fallback for Redis claim/release), #18 (fix ineffective settings patch).
+docs/superpowers/plans/2026-08-17-multi-finding-remediation.md:165:- [ ] **G1: Protect incoming session in memory quota**
+docs/superpowers/plans/2026-08-17-multi-finding-remediation.md:177:## Cluster H: Second Brain KEK
+docs/PHASE_1_COMPLETE.md:12:- `public/push-sw.js` — push-only service worker (no caching, isolated from any future app-shell SW per Lovable PWA skill).
+docs/PHASE_1_COMPLETE.md:13:- `src/hooks/useWebPush.ts` — registers SW, subscribes to PushManager, upserts to `push_subscriptions` table.
+docs/PHASE_1_COMPLETE.md:15:- `supabase/functions/push-send/index.ts` — broadcasts to all (or one) user's subscriptions; cleans up stale 404/410 endpoints automatically.
+docs/PHASE_1_COMPLETE.md:23:- `push_subscriptions` table with RLS (own rows only).
+docs/PHASE_1_COMPLETE.md:24:- `pending_extractions` queue table for memory-extract-drain (fixes prior TS error).
+docs/PHASE_1_COMPLETE.md:26:## What you must do before push notifications work
+docs/PHASE_1_COMPLETE.md:30:   npx web-push generate-vapid-keys --json
+docs/PHASE_1_COMPLETE.md:42:   curl -X POST https://<project>.supabase.co/functions/v1/push-send \
+docs/COST_EFFECTIVENESS_AUDIT_2026-08-22.md:11:AskMukthiGuru is currently **functionally cost-controlled but not cost-efficient enough to scale without further measurement**. The largest measured cost driver is memory, not CPU, network, or volume storage. The latest recorded Railway snapshot shows **$29.6933 of current-period usage** against the **$30 hard limit**, with a **$55.2651 forecast**. The memory share is approximately **94%**, leaving negligible headroom for broad public traffic. The cache-pruning release produced a measured working-set reduction, but a sustained invoice reduction has not yet been proven.
+docs/COST_EFFECTIVENESS_AUDIT_2026-08-22.md:13:The most economically attractive safe work is memory reduction and cache/accounting instrumentation. A sustained **1 GB reduction is worth approximately $10 per month**, and a sustained **2 GB reduction approximately $20 per month**, using Railway’s official resource rate [1]. However, the current production evidence does not prove that ONNX INT8 would save one or two GB, nor that it would preserve retrieval quality. It therefore remains correctly gated. Neo4j schema mutation and broader graph concurrency have no demonstrated cost payback yet: the remote graph is healthy, current Neo4j CPU is low, and no controlled graph-on versus graph-off experiment has established either a quality lift or a lower cost per successful answer.
+docs/COST_EFFECTIVENESS_AUDIT_2026-08-22.md:17:Railway bills CPU, memory, volumes, and egress by actual usage. The current-period usage was retrieved directly from the workspace rather than inferred from service limits [1] [2].
+docs/COST_EFFECTIVENESS_AUDIT_2026-08-22.md:22:| CPU | Included in the remaining approximately 6% | **Approximately 5%** | Not available in this snapshot | Secondary to memory |
+docs/COST_EFFECTIVENESS_AUDIT_2026-08-22.md:30:Railway resource metrics from the benchmark window show a substantial memory floor in the user-serving stack. These figures are a capacity diagnostic, not a substitute for invoice line-item attribution because they cover only a 30-minute window and do not prove that the same processes were running at the same level for the entire billing cycle.
+docs/COST_EFFECTIVENESS_AUDIT_2026-08-22.md:32:| Service | Average memory | Maximum memory | Average CPU | Cost implication at official rates |
+docs/COST_EFFECTIVENESS_AUDIT_2026-08-22.md:39:The backend is the principal known memory target, followed by Neo4j’s page-cache/runtime floor. The worker is already economically efficient and should not be optimized by reducing concurrency until ingestion SLA and queue throughput are measured. The historical health probe reported Neo4j latency of 47 ms, Qdrant 37 ms, and Redis 36 ms with queue size zero; these healthy dependency checks do not imply that removing any dependency would be safe or cost-positive.
+docs/COST_EFFECTIVENESS_AUDIT_2026-08-22.md:45:The 30-minute route window recorded 141 successful `/api/chat` responses, 3 client errors, and no 5xx responses, with p50 approximately 3.62 seconds and p95 approximately 4.05 seconds. It is not valid to divide the entire month-to-date Railway bill by those 141 benchmark requests and call the result a per-request production cost, because the invoice includes idle service memory, databases, prior traffic, and benchmark-independent workload.
+docs/COST_EFFECTIVENESS_AUDIT_2026-08-22.md:47:As a planning scenario only, if the observed 282 chat requests per hour were sustained for 30 days, that would represent approximately 203,040 requests per month. Dividing the latest Railway forecast of $54.76 by that hypothetical volume gives approximately **$0.27 per 1,000 requests**, or **$0.00027 per request**, before external model-provider charges. This scenario is not a measured user unit cost; at lower traffic, the always-on memory floor makes the cost per request materially higher.
+docs/COST_EFFECTIVENESS_AUDIT_2026-08-22.md:53:| Backend resident memory | Largest known cost driver; approximately 6.77 GB average in the latest window, with a 13.63 GB reported maximum | Every sustained GB removed is approximately $10/month; 2–3 GB would be approximately $20–$30/month | Measure heap/model residency before changing runtime |
+docs/COST_EFFECTIVENESS_AUDIT_2026-08-22.md:54:| Neo4j | Approximately 2.40 GB memory and 0.003 vCPU average in the latest window | Schema indexes may improve latency but can increase storage/page-cache pressure; no proven invoice saving | Do not mutate schema yet |
+docs/COST_EFFECTIVENESS_AUDIT_2026-08-22.md:56:| Qdrant hybrid retrieval | Healthy at 37 ms in the health probe; RRF/DBSF settings unchanged | Ranking changes could improve answer quality but may increase candidates, memory, or compute | Do not tune without held-out quality/cost matrix |
+docs/COST_EFFECTIVENESS_AUDIT_2026-08-22.md:58:| Semantic cache | Enabled with seven-day TTL and Qdrant-backed collection | A valid hit can avoid retrieval/generation work; cache storage and embeddings add baseline memory/compute | Keep enabled, but require hit-rate, false-hit, and cost-avoidance telemetry |
+docs/COST_EFFECTIVENESS_AUDIT_2026-08-22.md:60:| Worker | Approximately 177 MB memory and 0.004 vCPU average in the latest window | Little meaningful saving available; scaling down may harm ingestion throughput | Leave unchanged until queue/SLA data exists |
+docs/COST_EFFECTIVENESS_AUDIT_2026-08-22.md:73:| Remove 1 GB sustained backend memory | **$10/month** | Low-risk financial benefit if measured without latency/quality loss | Need RSS/heap attribution and warm/cold benchmark |
+docs/COST_EFFECTIVENESS_AUDIT_2026-08-22.md:74:| Remove 2 GB sustained backend memory | **$20/month** | Meaningful reduction of the dominant cost line | ONNX or model-loader change may alter recall, memory, or startup behavior |
+docs/COST_EFFECTIVENESS_AUDIT_2026-08-22.md:75:| Remove 3 GB sustained memory | **$30/month** | Could offset most of the current $30 hard limit | Not currently demonstrated; must not be treated as an ONNX guarantee |
+docs/COST_EFFECTIVENESS_AUDIT_2026-08-22.md:76:| Remove 0.25 sustained vCPU | **$5/month** | Smaller than memory savings | CPU is not presently the dominant cost; could increase latency |
+docs/COST_EFFECTIVENESS_AUDIT_2026-08-22.md:82:The important conclusion is that graph parallelization is principally a **latency/quality investment**, not a cost-saving change. If both vector and graph branches are executed for the same request, concurrency generally changes elapsed time, not the number of billable operations. It becomes cost-effective only if the measured quality lift or latency improvement materially increases successful user throughput without requiring more instances or larger memory. That trade-off has not yet been measured.
+docs/COST_EFFECTIVENESS_AUDIT_2026-08-22.md:86:The first action should be to add a cost dashboard that reports current-period Railway usage, backend/Neo4j/Qdrant/Redis memory, OpenRouter actual cost, unknown-cost requests, cache-hit rate, avoided generation calls, graph-enabled request share, and cost per successful grounded answer. The dashboard must keep infrastructure cost and model-provider cost as separate ledgers.
+docs/COST_EFFECTIVENESS_AUDIT_2026-08-22.md:88:The second action should be a memory attribution experiment in a staging or blue-green deployment. Measure resident set size after each model/service initialization, then compare the current FlagEmbedding process with a candidate ONNX INT8 build using the same corpus-compatible vectors and held-out queries. The financial gate is not merely “memory lower”; the candidate must save enough memory to matter while preserving retrieval overlap, NDCG/recall, faithfulness, citation correctness, multilingual behavior, safety, and p95/p99 latency.
+docs/COST_EFFECTIVENESS_AUDIT_2026-08-22.md:90:The third action should be to protect the Railway hard limit. The current period is already at approximately 97.9% of the $30 limit, and the latest forecast is $54.76. Until the memory floor is understood, uncontrolled full-question-bank benchmarks should not run on the production project. Use a staging project, a dedicated benchmark window, or a hard global budget with unbuffered progress and cancellation.
+docs/COST_EFFECTIVENESS_AUDIT_2026-08-22.md:94:Qdrant’s official guidance supports scalar quantization as a lower-risk memory and search optimization than more aggressive binary or product quantization, but it requires oversampling, rescoring, and held-out quality checks. Qdrant also warns that leaving original vectors in RAM can erase expected memory savings [6]. Neo4j’s memory guidance separates JVM heap, native memory, transaction memory, page cache, and OS reserve, and warns that inadequate OS reserve can cause swapping and severe performance degradation [7]. OpenRouter documents `cached_tokens`, `cache_write_tokens`, and cache-discount fields as the basis for measuring prompt-cache savings [8]. Redis’ production RAG guidance emphasizes request correlation, retrieval precision, and cache-hit monitoring before scaling [9].
+docs/COST_EFFECTIVENESS_AUDIT_2026-08-22.md:98:A first-hand inference-optimization talk recommended separating TTFT from decode latency, hardcoding trivial intents, using model cascades, and optimizing p90/p99 rather than only averages [10]. A vLLM engineering talk reported a Gemma-3 27B throughput change from 0.48 to 0.91 requests per second using a hybrid allocator on H100 hardware, but that GPU-specific result is not transferable to this CPU/external-API Railway architecture [11]. These sources support the implementation order—instrument first, then evaluate memory and routing candidates—but do not authorize an ONNX switch or a new self-hosted inference stack.
+docs/COST_EFFECTIVENESS_AUDIT_2026-08-22.md:102:The system’s current cost profile is **memory-heavy and under-instrumented for model spend**. The most defensible near-term savings are from reducing resident memory, not from adding Neo4j indexes or increasing graph concurrency. A successful 2 GB reduction would be worth approximately $20 per month at Railway’s official rate, but no implementation has yet proven that amount is available without retrieval or quality regression. Neo4j constraints are healthy, graph queries are responsive, and the worker is inexpensive; neither warrants speculative cost-driven changes.
+docs/COST_EFFECTIVENESS_AUDIT_2026-08-22.md:104:The project is therefore cost-effective enough for controlled testing, but not yet cost-optimized for broad scale. The immediate economic blocker is the current memory floor and the near-limit Railway budget. The cache-pruning change is safe and measured at the filesystem/working-set level, but billing savings require a sustained observation window. Provider-reported OpenRouter cost is now separated from known estimates and unknown cost in code, while authenticated aggregate dashboard proof remains open. ONNX INT8, RRF/DBSF changes, schema mutations, and broader graph concurrency should remain gated until they demonstrate a positive cost-quality-latency result on held-out evidence.
+docs/COST_EFFECTIVENESS_AUDIT_2026-08-22.md:114:[7]: <https://neo4j.com/docs/operations-manual/current/performance/memory-configuration/> "Neo4j memory configuration guidance"
+docs/COST_EFFECTIVENESS_AUDIT_2026-08-22.md:118:[11]: <https://www.youtube.com/watch?v=0cUFUtNW_S8> "vLLM hybrid memory allocator engineering talk"
+src/components/common/PushNotificationsManager.tsx:3:import { PushNotifications, Token, PushNotificationSchema, ActionPerformed } from '@capacitor/push-notifications';
+src/components/common/PushNotificationsManager.tsx:33:        const res = await fetch(`${BACKEND_URL}/api/push/register`, {
+src/components/common/PushNotificationsManager.tsx:61:          console.info(TAG, 'push permission not granted');
+src/components/common/PushNotificationsManager.tsx:74:          PushNotifications.addListener('pushNotificationReceived', (n: PushNotificationSchema) => {
+src/components/common/PushNotificationsManager.tsx:80:          PushNotifications.addListener('pushNotificationActionPerformed', (a: ActionPerformed) => {
+docs/runbooks/BACKUP_RESTORE_DRILL.md:13:- `backups/neo4j/` — Neo4j dump files produced by `neo4j-admin dump`.
+docs/runbooks/BACKUP_RESTORE_DRILL.md:77:neo4j-admin load --from=backups/neo4j/neo4j_<date>.dump --database=neo4j --force
+docs/admin/backend-integration.md:107:Cache `model_pricing` in memory for the request lifetime.
+docs/admin/backend-integration.md:121:for the admin role and write-only for the service role.
+docs/admin/evals.md:21:- `manual` — button on `/admin/evals`
+docs/admin/evals.md:39:The `/admin/evals` page shows Δ vs the previous run for `avg_faithfulness`,
+docs/mukthi_quality_research_notes.md:4:### Agent memory and graph-memory videos
+docs/mukthi_quality_research_notes.md:5:- `https://www.youtube.com/watch?v=qiBib0ap0KM` (Building Graph Memory for AI Agents with LangGraph & Neo4j) describes a dual-memory design: thread-scoped short-term memory plus user-scoped long-term memory in Neo4j. Memory nodes use a key, namespace derived from user/thread identity, value, and timestamp. Retrieval is user-scoped, ordered by timestamp, and injected into a dynamically rebuilt system prompt. The demonstrated privacy test changes the user ID and verifies that memories do not leak across users. The video emphasizes an explicit write/read path and UI testing across session restarts.
+docs/mukthi_quality_research_notes.md:6:- `https://www.youtube.com/watch?v=fEQlTt7vDb0` (Shape agent memory with ontologies), `https://www.youtube.com/watch?v=JGFoTQt4GA0` (Actionable Knowledge for Agents with Context Graphs), and `https://www.youtube.com/watch?v=W2HVdB4Jbjs` (Architecting Agent Memory) were launched in parallel; the first two long-running analyses had not completed at the time of this note. Their analysis outputs must not be treated as complete until their saved result files show completion.
+docs/mukthi_quality_research_notes.md:11:- Official memory-control reference: `https://openai.com/index/memory-and-new-controls-for-chatgpt/`.
+docs/mukthi_quality_research_notes.md:14:- `prepare_user_memory` in `backend/app/orchestrator_utils.py` already merges Second Brain, profile memory, semantic memory, and a fresh persona summary, but uses two separate 200ms timeouts and injects Second Brain text as plain bullets without scores, freshness, provenance, or an explicit untrusted-data boundary.
+docs/mukthi_quality_research_notes.md:16:- `ChatInterface` has streaming, AbortController stop, partial stream checkpoints, citations, regenerate, inline edit, scroll tracking, and responsive composer logic. `ChatComposer` enforces a 2 MB attachment limit while parent logic tracks a separate 10 MB aggregate/content limit, creating policy drift.
+docs/mukthi_quality_research_notes.md:21:The local chat page loads and prerenders successfully. The first-visit flow presents a practice-intent modal before the composer, then the main chat surface exposes the sidebar, source/transparency controls, language selector, assistant switcher, voice input, starter prompts, and a responsive composer. The visual pass confirmed a visible `0 memory` indicator in the sidebar and a large empty-state welcome surface. The top bar shows a temporary “Guru is waking up” warning, while the cookie banner and daily-teaching prompt occupy the lower-right area; these are functional but can compete with the primary chat action on first load.
+docs/mukthi_quality_research_notes.md:27:A real local question was submitted successfully from the composer. The UI immediately displayed the user bubble, an active “Searching …”/pipeline state, and a visible Stop control, confirming the expected streaming affordance. After the local backend failed to respond, the UI rendered a bounded `ERR_UNKNOWN` / “Failed to fetch” error with Retry last message and Details controls rather than leaving an endless spinner. The page also exposed copy, read-aloud, save-to-memory, save-as-note, share, edit-and-resend, provenance, and groundedness controls on the assistant message.
+docs/mukthi_quality_research_notes.md:35:## Visual Second Brain check
+docs/mukthi_quality_research_notes.md:37:Opening `/second-brain` while unauthenticated correctly redirects to `/auth`. The auth surface is visually coherent and exposes sign-in, sign-up, password recovery, diagnostics, and privacy links. A full end-to-end Second Brain UI check requires an authenticated session; no credentials were requested or entered. The code path is therefore reviewed statically and the unauthenticated privacy boundary is confirmed visually, but authenticated vault provisioning, unlock, recall, forget, and export still need a dedicated logged-in E2E run before being considered fully verified.
+docs/CHURN_PLAYBOOK.md:42:- **30-day win-back:** "It's been a while. Your Second Brain remembers where
+docs/CHURN_PLAYBOOK.md:74:their **Second Brain stays encrypted and theirs** — offer export before
+docs/SECOND_BRAIN.md:1:# Mukthi Vault — the owner-blind Second Brain
+docs/SECOND_BRAIN.md:26:  (Tony Seale's "memory is a graph, not a bag of facts").
+docs/SECOND_BRAIN.md:35:| DB admin browsing tables | ✅ ciphertext only | ✅ ciphertext only |
+docs/SECOND_BRAIN.md:70:   DEK **in memory for that request only**, decrypts, zeroizes.
+docs/SECOND_BRAIN.md:84:| `backend/app/api/second_brain.py` | FastAPI router; per-request vault unlock; **no admin read endpoint by design**. |
+docs/SECOND_BRAIN.md:85:| `supabase/migrations/20260717191006_second_brain_vault.sql` | schema + RLS; no admin read policy. |
+docs/SECOND_BRAIN.md:106:  memory at all, let alone encrypted.
+docs/SECOND_BRAIN.md:109:- **Big platforms** (ChatGPT/Gemini memory): not owner-blind, not spiritual.
+docs/SECOND_BRAIN.md:112:**graph-structured** + **owner-blind-encrypted** personal memory. That's the
+src/components/meditation/GuidedMeditationFlow.tsx:8:import { GUIDED_STEPS, TOTAL_DURATION_SECONDS, type MeditationStep } from './meditationSteps';
+src/components/meditation/GuidedMeditationFlow.tsx:9:import { MeditationProgressIndicator } from './MeditationProgressIndicator';
+src/components/meditation/GuidedMeditationFlow.tsx:11:import { useMeditationAudio } from './useMeditationAudio';
+src/components/meditation/GuidedMeditationFlow.tsx:12:import { useMeditationTTS } from './useMeditationTTS';
+src/components/meditation/GuidedMeditationFlow.tsx:16:  completeMeditationSession,
+src/components/meditation/GuidedMeditationFlow.tsx:18:import { clearMeditationResume, MEDITATION_RESUME_KEY } from '@/lib/meditationResume';
+src/components/meditation/GuidedMeditationFlow.tsx:20:interface GuidedMeditationFlowProps {
+src/components/meditation/GuidedMeditationFlow.tsx:24:  customSteps?: MeditationStep[];
+src/components/meditation/GuidedMeditationFlow.tsx:67:  clearMeditationResume();
+src/components/meditation/GuidedMeditationFlow.tsx:70:export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeaching, isGated = false, onComplete }: GuidedMeditationFlowProps) => {
+src/components/meditation/GuidedMeditationFlow.tsx:83:  const [audioSeek, setAudioSeek] = useState<number | null>(null);
+src/components/meditation/GuidedMeditationFlow.tsx:95:  const usesCanonicalAudio = steps.length > 0 && steps.every((candidate) => Boolean(candidate.audioSrc));
+src/components/meditation/GuidedMeditationFlow.tsx:124:  // When every step has audio, real media time owns the visual step, timer,
+src/components/meditation/GuidedMeditationFlow.tsx:127:  const { audioFailed } = useMeditationAudio(
+src/components/meditation/GuidedMeditationFlow.tsx:132:    { onTimeUpdate: handleAudioTimeUpdate, onEnded: handleAudioEnded, seekTo: audioSeek },
+src/components/meditation/GuidedMeditationFlow.tsx:135:  useMeditationTTS(steps, currentStepIndex, isPlaying && !isComplete, muted, audioFailed);
+src/components/meditation/GuidedMeditationFlow.tsx:253:      completeMeditationSession(sessionIdRef.current, durationSec, 0);
+src/components/meditation/GuidedMeditationFlow.tsx:294:        completeMeditationSession(sessionIdRef.current, durationSec, 0);
+src/components/meditation/GuidedMeditationFlow.tsx:434:                    // (matches the other completeMeditationSession call sites in
+src/components/meditation/GuidedMeditationFlow.tsx:443:                    completeMeditationSession(sessionIdRef.current, durationSec, 0, {
+src/components/meditation/GuidedMeditationFlow.tsx:479:            <MeditationProgressIndicator
+src/components/meditation/GuidedMeditationFlow.tsx:563:            {/* The canonical audio owns the timeline. Keep the original teaching as
+src/components/meditation/GuidedMeditationFlow.tsx:594:                  {t('meditation.youPausedAt', { step: steps[resumeOffer.stepIndex]?.title ?? t('meditation.guidedMeditation') })}
+src/components/meditation/PostCompletionStreak.tsx:2:import { getMeditationStats } from '@/lib/meditationStorage';
+src/components/meditation/PostCompletionStreak.tsx:8:    try { return getMeditationStats().streakDays ?? 0; } catch { return 0; }
+docs/ARCHITECTURE.md:119:| `lib/meditationStorage.ts` | Meditation session tracking with streak calculation. |
+docs/ARCHITECTURE.md:237:- **Landing page** (`/`) — Hero, Meet the Gurus, How It Works, About Meditation sections
+docs/runbooks/CREDENTIALS_GUIDE.md:107:npx supabase db push
+docs/runbooks/CREDENTIALS_GUIDE.md:476:The AskMukthiGuru mobile app is a Capacitor 8 wrapper around the Vite build. Signing + push creds live **outside the repo** (gitignored). See `docs/MOBILE_RELEASE_RUNBOOK.md` for the full submission flow.
+docs/runbooks/CREDENTIALS_GUIDE.md:506:### Backend env (push notifications)
+docs/runbooks/CREDENTIALS_GUIDE.md:613:- Railway writes fail with 403/RLS errors on every admin operation
+docs/runbooks/STREAM_PROTOCOL.md:311:        else if (line.startsWith("data:")) dataLines.push(line.slice(5).replace(/^ /, ""));
+docs/runbooks/STREAM_PROTOCOL.md:416:- **Streaming images, audio, or other binary content.** Text only. If the
+src/components/chat/ConversationSourcesPanel.tsx:70:          existing.usedIn.push({ messageId: m.id, answerNumber });
+docs/runbooks/MIGRATION_ROLLBACK.md:47:| `20260516190000_user_memory.sql` | User memory tables | Drop memory-related tables/functions; data loss. |
+docs/runbooks/MIGRATION_ROLLBACK.md:53:| `20260601090000_admin_telemetry_reliability_fields.sql` | Reliability columns | Drop added columns/indexes; data in those columns is lost. |
+docs/runbooks/MIGRATION_ROLLBACK.md:57:| `20260607180000_memory_layer.sql` | Memory layer refactor | Drop new memory tables/functions; restore old layer if required. |
+docs/runbooks/MIGRATION_ROLLBACK.md:60:| `20260613120000_fix_memory_embedding_dims.sql` | Memory embedding dimension fix | Revert dimension-related column/type changes. |
+docs/runbooks/MIGRATION_ROLLBACK.md:61:| `20260613180000_fix_memory_to_1024_dim.sql` | Memory embedding to 1024 | Revert 1024-dim changes per block. |
+docs/runbooks/MIGRATION_ROLLBACK.md:83:| `20260705000000_fix_memory_service_auth.sql` | Memory service auth fix | Revert grants/policies/functions per block. |
+docs/runbooks/MIGRATION_ROLLBACK.md:89:| `20260713000000_create_push_devices.sql` | Push devices table | Drop table/indexes/policies. |
+docs/runbooks/MIGRATION_ROLLBACK.md:122:| `20260804000006_add_push_devices_user_id_index.sql` | Push devices index | `DROP INDEX IF EXISTS ...`. |
+docs/MEMORY_FIX.md:7:`src/lib/memoryApi.ts` calls `${VITE_BACKEND_URL}/api/memory/*` — the self-hosted
+docs/MEMORY_FIX.md:8:FastAPI memory router. **That backend is not deployed to Lovable production**, so
+docs/MEMORY_FIX.md:12:The Supabase tables `guru_core_memory`, `guru_memories`, and
+docs/MEMORY_FIX.md:16:Fix = move the memory layer onto Lovable Cloud (Supabase + a tiny edge function
+docs/MEMORY_FIX.md:17:for embeddings) and keep the `memoryApi` surface stable so `MemoryManager.tsx`
+docs/MEMORY_FIX.md:22:## 1. New edge function — `memory-embed`
+docs/MEMORY_FIX.md:24:Path: `supabase/functions/memory-embed/index.ts`
+docs/MEMORY_FIX.md:38:## 2. Refactor `src/lib/memoryApi.ts` to talk to Supabase directly
+docs/MEMORY_FIX.md:42:| `add(text)` | invoke `memory-embed` → `insert into guru_memories (user_id, content, embedding, source='explicit')` |
+docs/MEMORY_FIX.md:45:| `getCore()` | `select * from guru_core_memory limit 1` |
+docs/MEMORY_FIX.md:46:| `setCore(text)` | upsert `guru_core_memory` (new method; used by Profile) |
+docs/MEMORY_FIX.md:48:| `getRelevant(query, k)` | invoke `memory-embed` → call existing `match_user_memories` RPC |
+docs/MEMORY_FIX.md:55:This is the **real** "memory not updating" the user feels: nothing fires after
+docs/MEMORY_FIX.md:58:New edge function `supabase/functions/memory-extract/index.ts`:
+docs/MEMORY_FIX.md:64:- For each fact: embed via `memory-embed` and insert with `source='extracted'`.
+docs/MEMORY_FIX.md:70:silent — memory is best-effort.
+docs/MEMORY_FIX.md:76:1. Call `memoryApi.getRelevant(userText, 5)`.
+docs/MEMORY_FIX.md:78:3. When ≥1 memory was used, render a small **"🧠 Memory used"** chip in the
+docs/MEMORY_FIX.md:80:   memory snippets.
+docs/MEMORY_FIX.md:91:- New "Core memory" card at the top — single textarea (≤2048 chars) that calls
+docs/MEMORY_FIX.md:92:  `memoryApi.setCore(text)`. This is the slow-moving stable identity ("I'm a
+docs/MEMORY_FIX.md:103:- [ ] Refresh `/profile` → MemoryManager shows the new memory.
+docs/MEMORY_FIX.md:107:- [ ] Network tab: zero calls to `VITE_BACKEND_URL/api/memory/*` once the
+docs/MEMORY_FIX.md:118:- Cross-tab realtime memory sync — single-tab refresh is enough for v1.
+docs/MEMORY_FIX.md:119:- Nightly memory decay / consolidation — leave as a future cron edge function.
+docs/MEMORY_FIX.md:120:- Multimodal memories (images/audio) — text only for now.
+docs/RAILWAY_DEPLOYMENT_CHECKLIST.md:23:| `celery-worker` | Dockerfile.railway (`SERVICE_TYPE=celery`) | — | Celery ping; consumes `memory` queue |
+docs/RAILWAY_DEPLOYMENT_CHECKLIST.md:24:| `celery-beat` | Dockerfile.railway (`SERVICE_TYPE=celery-beat`) | — | Schedules one-minute durable-memory recovery |
+docs/RAILWAY_DEPLOYMENT_CHECKLIST.md:32:- Queues: `embedding,indexing,ingestion,okf,memory`
+docs/RAILWAY_DEPLOYMENT_CHECKLIST.md:33:- Max tasks per child: 50 (prevents memory leak)
+docs/RAILWAY_DEPLOYMENT_CHECKLIST.md:48:curl -H "Authorization: Bearer <admin_jwt>" \
+src/components/common/ReminderProvider.tsx:1:import { useMeditationReminder } from '@/hooks/useMeditationReminder';
+src/components/common/ReminderProvider.tsx:8:  useMeditationReminder();
+docs/superpowers/plans/2026-08-15-progressive-anonymous-access.md:7:**Architecture:** We separate three concerns using Clean/Hexagonal boundaries: (1) a layout layer split into `PublicShell` and `AuthShell` so auth policy is explicit per route; (2) a backend domain service `AnonymousQuotaService` (port) with Redis/in-memory adapters to enforce per-session message limits; (3) a chat UX layer that interprets a backend `anon_limit_reached` signal and surfaces a soft auth prompt instead of a doctrine response. Deployment contracts (Vercel static-file exclusions + Playwright route tests) are added as a final verification layer.
+docs/superpowers/plans/2026-08-15-progressive-anonymous-access.md:161:- `src/pages/guides/BeautifulStateMeditationPage.tsx`
+docs/superpowers/plans/2026-08-15-progressive-anonymous-access.md:281:> in-memory adapter. Tests shipped as `backend/tests/test_anon_quota.py` (12 tests: sliding-window limits, reset, release, claim-commit, claim-deadline reap for dropped queued jobs, auth bypass/enforcement).
+docs/superpowers/plans/2026-08-15-progressive-anonymous-access.md:411:### Task P2.2: Implement Redis + in-memory quota adapters
+docs/superpowers/plans/2026-08-15-progressive-anonymous-access.md:415:- Create: `backend/app/adapters/in_memory_quota_repository.py`
+docs/superpowers/plans/2026-08-15-progressive-anonymous-access.md:419:> `backend/services/anon_quota_memory.py` (`AnonQuotaMemoryAdapter`) and
+docs/superpowers/plans/2026-08-15-progressive-anonymous-access.md:421:> `backend/app/adapters/`. The in-memory adapter is a true sliding window (a deque
+docs/superpowers/plans/2026-08-15-progressive-anonymous-access.md:438:from app.adapters.in_memory_quota_repository import InMemoryQuotaRepository
+docs/superpowers/plans/2026-08-15-progressive-anonymous-access.md:441:async def test_in_memory_repository_counts_and_expires():
+docs/superpowers/plans/2026-08-15-progressive-anonymous-access.md:455:Create `backend/app/adapters/in_memory_quota_repository.py`:
+docs/superpowers/plans/2026-08-15-progressive-anonymous-access.md:512:git add backend/app/adapters/in_memory_quota_repository.py backend/app/adapters/redis_quota_repository.py backend/tests/test_quota_adapters.py
+docs/superpowers/plans/2026-08-15-progressive-anonymous-access.md:513:git commit -m "feat(adapters): in-memory and Redis quota repositories"
+docs/superpowers/plans/2026-08-15-progressive-anonymous-access.md:551:from app.adapters.in_memory_quota_repository import InMemoryQuotaRepository
+docs/superpowers/plans/2026-08-15-progressive-anonymous-access.md:652:> `release`/`reset` clear the pending hash too), and the memory adapter stores
+docs/superpowers/plans/2026-08-15-progressive-anonymous-access.md:1259:11. `anon_quota_memory.py` — `_result` window annotation corrected to the

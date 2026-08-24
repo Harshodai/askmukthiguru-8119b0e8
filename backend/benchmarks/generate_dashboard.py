@@ -456,7 +456,7 @@ def build_html(ruthless, native, comprehensive, docker_logs, sdlc=None):
         </div>
         """
 
-    # HTML string
+    # HTML template only; no SQL or query construction occurs here.
     html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>

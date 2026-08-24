@@ -10,7 +10,6 @@ import pytest
 
 from services.memory_service_v2 import MemoryServiceV2
 
-
 _USER_ID = "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6"
 
 

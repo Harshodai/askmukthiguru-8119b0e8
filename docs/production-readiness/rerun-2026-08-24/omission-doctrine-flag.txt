@@ -1,0 +1,209 @@
+=== setting definitions ===
+docs/production-readiness/rerun-2026-08-24/omission-doctrine-cache-trace.txt-295-backend/app/config.py-119-    translation_timeout_s: float = Field(default=5.0, gt=0.0, le=15.0)
+docs/production-readiness/rerun-2026-08-24/omission-doctrine-cache-trace.txt-296-backend/app/config.py-120-
+docs/production-readiness/rerun-2026-08-24/omission-doctrine-cache-trace.txt-297-backend/app/config.py-121-    serene_mind_enabled: bool = True
+docs/production-readiness/rerun-2026-08-24/omission-doctrine-cache-trace.txt-298-backend/app/config.py-122-    # Enable/disable Serene Mind distress detection engine
+docs/production-readiness/rerun-2026-08-24/omission-doctrine-cache-trace.txt:299:backend/app/config.py:123:    doctrine_cache_enabled: bool = (
+docs/production-readiness/rerun-2026-08-24/omission-doctrine-cache-trace.txt-300-backend/app/config.py-124-        False  # Default OFF: built-in canned answers lack citations and hurt benchmark quality
+docs/production-readiness/rerun-2026-08-24/omission-doctrine-cache-trace.txt-301-backend/app/config.py-125-    )
+docs/production-readiness/rerun-2026-08-24/omission-doctrine-cache-trace.txt-302-backend/app/config.py-126-
+docs/production-readiness/rerun-2026-08-24/omission-doctrine-cache-trace.txt-303-backend/app/config.py-127-    # --- Distress / Serene Mind safety dials ---
+docs/production-readiness/rerun-2026-08-24/omission-doctrine-cache-trace.txt-304-backend/app/config.py-128-    semantic_distress_threshold: float = Field(default=0.72, ge=0.0, le=1.0)
+docs/production-readiness/rerun-2026-08-24/omission-doctrine-cache-trace.txt-305-backend/app/config.py-129-    # Count of recent turns with distress_score > semantic_distress_history_score_threshold
+docs/production-readiness/rerun-2026-08-24/omission-doctrine-cache-trace.txt-306-backend/app/config.py-130-    # required before persistent-distress escalation.
+docs/production-readiness/rerun-2026-08-24/omission-doctrine-cache-trace.txt-307-backend/app/config.py-131-    semantic_distress_history_score_threshold: float = Field(default=0.6, ge=0.0, le=1.0)
+--
+docs/production-readiness/rerun-2026-08-24/omission-doctrine-cache-trace.txt-363-backend/app/pipeline/stages/doctrine_cache_stage.py-20-
+docs/production-readiness/rerun-2026-08-24/omission-doctrine-cache-trace.txt-364-backend/app/pipeline/stages/doctrine_cache_stage.py:21:class DoctrineCacheStage(Stage):
+docs/production-readiness/rerun-2026-08-24/omission-doctrine-cache-trace.txt-365-backend/app/pipeline/stages/doctrine_cache_stage.py:22:    """Fast-path stage using DoctrineCache for known spiritual questions.
+docs/production-readiness/rerun-2026-08-24/omission-doctrine-cache-trace.txt-366-backend/app/pipeline/stages/doctrine_cache_stage.py-23-
+docs/production-readiness/rerun-2026-08-24/omission-doctrine-cache-trace.txt:367:backend/app/pipeline/stages/doctrine_cache_stage.py-24-    Default disabled (DOCTRINE_CACHE_ENABLED=false) because the built-in canned
+docs/production-readiness/rerun-2026-08-24/omission-doctrine-cache-trace.txt-368-backend/app/pipeline/stages/doctrine_cache_stage.py-25-    map lacks structured citations and misses many doctrinal keywords, which
+docs/production-readiness/rerun-2026-08-24/omission-doctrine-cache-trace.txt-369-backend/app/pipeline/stages/doctrine_cache_stage.py-26-    tanks ruthless benchmark scores.  Enable only after curating a high-quality
+docs/production-readiness/rerun-2026-08-24/omission-doctrine-cache-trace.txt-370-backend/app/pipeline/stages/doctrine_cache_stage.py-27-    FAQ file with citation metadata.
+docs/production-readiness/rerun-2026-08-24/omission-doctrine-cache-trace.txt-371-backend/app/pipeline/stages/doctrine_cache_stage.py-28-    """
+docs/production-readiness/rerun-2026-08-24/omission-doctrine-cache-trace.txt-372-backend/app/pipeline/stages/doctrine_cache_stage.py-29-
+docs/production-readiness/rerun-2026-08-24/omission-doctrine-cache-trace.txt-373-backend/app/pipeline/stages/doctrine_cache_stage.py:30:    name = "doctrine_cache"
+docs/production-readiness/rerun-2026-08-24/omission-doctrine-cache-trace.txt-374-backend/app/pipeline/stages/doctrine_cache_stage.py-31-
+docs/production-readiness/rerun-2026-08-24/omission-doctrine-cache-trace.txt-375-backend/app/pipeline/stages/doctrine_cache_stage.py-32-    async def run(self, ctx) -> PipelineResult | None:  # noqa: ANN001  — ctx: PipelineContext
+docs/production-readiness/rerun-2026-08-24/omission-doctrine-cache-trace.txt:376:backend/app/pipeline/stages/doctrine_cache_stage.py:33:        if not getattr(settings, "doctrine_cache_enabled", False):
+docs/production-readiness/rerun-2026-08-24/omission-doctrine-cache-trace.txt-377-backend/app/pipeline/stages/doctrine_cache_stage.py-34-            return None
+docs/production-readiness/rerun-2026-08-24/omission-doctrine-cache-trace.txt-378-backend/app/pipeline/stages/doctrine_cache_stage.py:35:        doctrine_cache = getattr(ctx.container, "doctrine_cache", None) if ctx.container else None
+docs/production-readiness/rerun-2026-08-24/omission-doctrine-cache-trace.txt-379-backend/app/pipeline/stages/doctrine_cache_stage.py:36:        if doctrine_cache is None:
+docs/production-readiness/rerun-2026-08-24/omission-doctrine-cache-trace.txt-380-backend/app/pipeline/stages/doctrine_cache_stage.py-37-            return None
+docs/production-readiness/rerun-2026-08-24/omission-doctrine-cache-trace.txt-381-backend/app/pipeline/stages/doctrine_cache_stage.py-38-
+docs/production-readiness/rerun-2026-08-24/omission-doctrine-cache-trace.txt-382-backend/app/pipeline/stages/doctrine_cache_stage.py:39:        answer = doctrine_cache.lookup(ctx.user_msg)
+docs/production-readiness/rerun-2026-08-24/omission-doctrine-cache-trace.txt-383-backend/app/pipeline/stages/doctrine_cache_stage.py-40-        if not answer:
+docs/production-readiness/rerun-2026-08-24/omission-doctrine-cache-trace.txt-384-backend/app/pipeline/stages/doctrine_cache_stage.py-41-            return None
+--
+docs/production-readiness/rerun-2026-08-24/omission-doctrine-cache-trace.txt-505-backend/tests/test_release_provenance.py-296-        preferred_lang="en",
+docs/production-readiness/rerun-2026-08-24/omission-doctrine-cache-trace.txt-506-backend/tests/test_release_provenance.py-297-        state={"user_msg_en": "What are the four sacred secrets?"},
+docs/production-readiness/rerun-2026-08-24/omission-doctrine-cache-trace.txt-507-backend/tests/test_release_provenance.py-298-    )
+docs/production-readiness/rerun-2026-08-24/omission-doctrine-cache-trace.txt-508-backend/tests/test_release_provenance.py-299-
+docs/production-readiness/rerun-2026-08-24/omission-doctrine-cache-trace.txt:509:backend/tests/test_release_provenance.py:300:    with patch("app.pipeline.stages.doctrine_cache_stage.settings.doctrine_cache_enabled", True):
+docs/production-readiness/rerun-2026-08-24/omission-doctrine-cache-trace.txt-510-backend/tests/test_release_provenance.py-301-        res = await stage.run(ctx)
+docs/production-readiness/rerun-2026-08-24/omission-doctrine-cache-trace.txt-511-backend/tests/test_release_provenance.py-302-        assert res is not None
+docs/production-readiness/rerun-2026-08-24/omission-doctrine-cache-trace.txt-512-backend/tests/test_release_provenance.py-303-        assert res.cache_hit is True
+docs/production-readiness/rerun-2026-08-24/omission-doctrine-cache-trace.txt-513-backend/tests/test_release_provenance.py-304-        assert res.release_manifest is not None
+docs/production-readiness/rerun-2026-08-24/omission-doctrine-cache-trace.txt-514-backend/tests/test_release_provenance.py-305-        assert res.release_manifest["release_id"] == get_release_manifest().release_id
+docs/production-readiness/rerun-2026-08-24/omission-doctrine-cache-trace.txt-515-backend/tests/test_release_provenance.py-306-
+docs/production-readiness/rerun-2026-08-24/omission-doctrine-cache-trace.txt-516-backend/tests/test_release_provenance.py-307-
+docs/production-readiness/rerun-2026-08-24/omission-doctrine-cache-trace.txt-517-backend/tests/test_release_provenance.py-308-@pytest.mark.asyncio
+--
+backend/app/config.py-119-    translation_timeout_s: float = Field(default=5.0, gt=0.0, le=15.0)
+backend/app/config.py-120-
+backend/app/config.py-121-    serene_mind_enabled: bool = True
+backend/app/config.py-122-    # Enable/disable Serene Mind distress detection engine
+backend/app/config.py:123:    doctrine_cache_enabled: bool = (
+backend/app/config.py-124-        False  # Default OFF: built-in canned answers lack citations and hurt benchmark quality
+backend/app/config.py-125-    )
+backend/app/config.py-126-
+backend/app/config.py-127-    # --- Distress / Serene Mind safety dials ---
+backend/app/config.py-128-    semantic_distress_threshold: float = Field(default=0.72, ge=0.0, le=1.0)
+backend/app/config.py-129-    # Count of recent turns with distress_score > semantic_distress_history_score_threshold
+backend/app/config.py-130-    # required before persistent-distress escalation.
+backend/app/config.py-131-    semantic_distress_history_score_threshold: float = Field(default=0.6, ge=0.0, le=1.0)
+--
+backend/app/pipeline/stages/doctrine_cache_stage.py-20-
+backend/app/pipeline/stages/doctrine_cache_stage.py-21-class DoctrineCacheStage(Stage):
+backend/app/pipeline/stages/doctrine_cache_stage.py-22-    """Fast-path stage using DoctrineCache for known spiritual questions.
+backend/app/pipeline/stages/doctrine_cache_stage.py-23-
+backend/app/pipeline/stages/doctrine_cache_stage.py:24:    Default disabled (DOCTRINE_CACHE_ENABLED=false) because the built-in canned
+backend/app/pipeline/stages/doctrine_cache_stage.py-25-    map lacks structured citations and misses many doctrinal keywords, which
+backend/app/pipeline/stages/doctrine_cache_stage.py-26-    tanks ruthless benchmark scores.  Enable only after curating a high-quality
+backend/app/pipeline/stages/doctrine_cache_stage.py-27-    FAQ file with citation metadata.
+backend/app/pipeline/stages/doctrine_cache_stage.py-28-    """
+backend/app/pipeline/stages/doctrine_cache_stage.py-29-
+backend/app/pipeline/stages/doctrine_cache_stage.py-30-    name = "doctrine_cache"
+backend/app/pipeline/stages/doctrine_cache_stage.py-31-
+backend/app/pipeline/stages/doctrine_cache_stage.py-32-    async def run(self, ctx) -> PipelineResult | None:  # noqa: ANN001  — ctx: PipelineContext
+backend/app/pipeline/stages/doctrine_cache_stage.py:33:        if not getattr(settings, "doctrine_cache_enabled", False):
+backend/app/pipeline/stages/doctrine_cache_stage.py-34-            return None
+backend/app/pipeline/stages/doctrine_cache_stage.py-35-        doctrine_cache = getattr(ctx.container, "doctrine_cache", None) if ctx.container else None
+backend/app/pipeline/stages/doctrine_cache_stage.py-36-        if doctrine_cache is None:
+backend/app/pipeline/stages/doctrine_cache_stage.py-37-            return None
+backend/app/pipeline/stages/doctrine_cache_stage.py-38-
+backend/app/pipeline/stages/doctrine_cache_stage.py-39-        answer = doctrine_cache.lookup(ctx.user_msg)
+backend/app/pipeline/stages/doctrine_cache_stage.py-40-        if not answer:
+backend/app/pipeline/stages/doctrine_cache_stage.py-41-            return None
+--
+backend/tests/test_release_provenance.py-296-        preferred_lang="en",
+backend/tests/test_release_provenance.py-297-        state={"user_msg_en": "What are the four sacred secrets?"},
+backend/tests/test_release_provenance.py-298-    )
+backend/tests/test_release_provenance.py-299-
+backend/tests/test_release_provenance.py:300:    with patch("app.pipeline.stages.doctrine_cache_stage.settings.doctrine_cache_enabled", True):
+backend/tests/test_release_provenance.py-301-        res = await stage.run(ctx)
+backend/tests/test_release_provenance.py-302-        assert res is not None
+backend/tests/test_release_provenance.py-303-        assert res.cache_hit is True
+backend/tests/test_release_provenance.py-304-        assert res.release_manifest is not None
+backend/tests/test_release_provenance.py-305-        assert res.release_manifest["release_id"] == get_release_manifest().release_id
+backend/tests/test_release_provenance.py-306-
+backend/tests/test_release_provenance.py-307-
+backend/tests/test_release_provenance.py-308-@pytest.mark.asyncio
+=== container/env defaults ===
+.github/workflows/cache-warm.yml:27:      - name: Warm doctrine cache
+.github/workflows/cache-warm.yml:29:        run: python scripts/warm_doctrine_cache.py
+=== tests for disabled/enable behavior ===
+backend/tests/test_pipeline_stages.py-93-    container.ollama = MagicMock()
+backend/tests/test_pipeline_stages.py-94-    container.ollama._circuit = MagicMock()
+backend/tests/test_pipeline_stages.py-95-    container.ollama._circuit.can_execute.return_value = True
+backend/tests/test_pipeline_stages.py-96-
+backend/tests/test_pipeline_stages.py:97:    # Doctrine cache — explicitly None so getattr skips DoctrineCacheStage
+backend/tests/test_pipeline_stages.py-98-    container.doctrine_cache = None
+backend/tests/test_pipeline_stages.py-99-
+backend/tests/test_pipeline_stages.py-100-    return container
+backend/tests/test_pipeline_stages.py-101-
+backend/tests/test_pipeline_stages.py-102-
+backend/tests/test_pipeline_stages.py-103-def _build_ctx(
+backend/tests/test_pipeline_stages.py-104-    container: MagicMock, coordinator: PipelineCoordinator, **overrides
+backend/tests/test_pipeline_stages.py-105-) -> PipelineContext:
+backend/tests/test_pipeline_stages.py-106-    """Build a PipelineContext pre-populated the way execute() does."""
+backend/tests/test_pipeline_stages.py-107-    state = {
+backend/tests/test_pipeline_stages.py-108-        "user_msg_en": "what is the beautiful state",
+backend/tests/test_pipeline_stages.py-109-        "chat_history_en": [],
+backend/tests/test_pipeline_stages.py-110-        "memory_context": "",
+backend/tests/test_pipeline_stages.py-111-        "lang_detection": None,
+backend/tests/test_pipeline_stages.py-112-        "query_tier": "standard",
+backend/tests/test_pipeline_stages.py-113-    }
+--
+backend/tests/test_graph_strategy_wiring.py-49-    }
+backend/tests/test_graph_strategy_wiring.py-50-
+backend/tests/test_graph_strategy_wiring.py-51-
+backend/tests/test_graph_strategy_wiring.py-52-def test_fast_graph_compiles(mock_init_services, mock_build_kwargs):
+backend/tests/test_graph_strategy_wiring.py:53:    """The FastGraphStrategy must compile and contain the fast-path nodes."""
+backend/tests/test_graph_strategy_wiring.py-54-    strategy = FastGraphStrategy()
+backend/tests/test_graph_strategy_wiring.py-55-    compiled = strategy.build(**mock_build_kwargs)
+backend/tests/test_graph_strategy_wiring.py-56-
+backend/tests/test_graph_strategy_wiring.py-57-    assert compiled is not None
+backend/tests/test_graph_strategy_wiring.py-58-    nodes = set(compiled.nodes.keys())
+backend/tests/test_graph_strategy_wiring.py-59-    assert _expected_nodes().issubset(nodes)
+backend/tests/test_graph_strategy_wiring.py-60-    assert "_map_docs_to_relevant" in nodes
+backend/tests/test_graph_strategy_wiring.py-61-    assert "resolve_followup" not in nodes
+backend/tests/test_graph_strategy_wiring.py-62-    assert "rerank_documents" not in nodes
+backend/tests/test_graph_strategy_wiring.py-63-    assert "verify_answer" not in nodes
+backend/tests/test_graph_strategy_wiring.py-64-
+backend/tests/test_graph_strategy_wiring.py-65-
+backend/tests/test_graph_strategy_wiring.py-66-def test_standard_graph_compiles(mock_init_services, mock_build_kwargs):
+backend/tests/test_graph_strategy_wiring.py-67-    """The StandardGraphStrategy must compile with the full anti-hallucination chain."""
+backend/tests/test_graph_strategy_wiring.py-68-    strategy = StandardGraphStrategy()
+backend/tests/test_graph_strategy_wiring.py-69-    compiled = strategy.build(**mock_build_kwargs)
+--
+backend/tests/test_release_provenance.py-23-from app.pipeline.stages import PipelineContext, StageRunner
+backend/tests/test_release_provenance.py-24-from app.pipeline.stages.base import Stage
+backend/tests/test_release_provenance.py-25-from app.pipeline.stages.cache_stage import CacheCheckStage
+backend/tests/test_release_provenance.py-26-from app.pipeline.stages.distress_stage import DistressStage
+backend/tests/test_release_provenance.py:27:from app.pipeline.stages.doctrine_cache_stage import DoctrineCacheStage
+backend/tests/test_release_provenance.py-28-from app.pipeline.stages.glue_stages import CasualShortCircuitStage, ResultAssemblyStage
+backend/tests/test_release_provenance.py-29-from app.pipeline.stages.guardrail_stage import InputGuardrailStage
+backend/tests/test_release_provenance.py-30-from app.release_manifest import (
+backend/tests/test_release_provenance.py-31-    ReleaseManifest,
+backend/tests/test_release_provenance.py-32-    ReleaseManifestError,
+backend/tests/test_release_provenance.py-33-    build_release_manifest,
+backend/tests/test_release_provenance.py-34-    get_release_manifest,
+backend/tests/test_release_provenance.py-35-    set_release_manifest,
+backend/tests/test_release_provenance.py-36-    validate_release_manifest,
+backend/tests/test_release_provenance.py-37-)
+backend/tests/test_release_provenance.py-38-from app.schemas import ChatRequest, ChatResponse
+backend/tests/test_release_provenance.py-39-from services.serene_mind_engine import DistressAssessment, DistressLevel
+backend/tests/test_release_provenance.py-40-
+backend/tests/test_release_provenance.py-41-# ---------------------------------------------------------------------------
+backend/tests/test_release_provenance.py-42-# 1. ReleaseManifest Invariants & Readiness Validation Tests
+backend/tests/test_release_provenance.py-43-# ---------------------------------------------------------------------------
+--
+backend/tests/test_release_provenance.py-280-
+backend/tests/test_release_provenance.py-281-
+backend/tests/test_release_provenance.py-282-@pytest.mark.asyncio
+backend/tests/test_release_provenance.py-283-async def test_doctrine_cache_hit_attaches_manifest():
+backend/tests/test_release_provenance.py:284:    """Verify DoctrineCacheStage attaches release_manifest on hit."""
+backend/tests/test_release_provenance.py:285:    stage = DoctrineCacheStage()
+backend/tests/test_release_provenance.py-286-    container = MagicMock(spec=ServiceContainer)
+backend/tests/test_release_provenance.py-287-    mock_cache = MagicMock()
+backend/tests/test_release_provenance.py-288-    mock_cache.lookup.return_value = "The Four Sacred Secrets lead to inner peace."
+backend/tests/test_release_provenance.py-289-    container.doctrine_cache = mock_cache
+backend/tests/test_release_provenance.py-290-
+backend/tests/test_release_provenance.py-291-    ctx = PipelineContext(
+backend/tests/test_release_provenance.py-292-        container=container,
+backend/tests/test_release_provenance.py-293-        coordinator=MagicMock(),
+backend/tests/test_release_provenance.py-294-        request=ChatRequest(user_message="What are the four sacred secrets?", messages=[]),
+backend/tests/test_release_provenance.py-295-        user_msg="What are the four sacred secrets?",
+backend/tests/test_release_provenance.py-296-        preferred_lang="en",
+backend/tests/test_release_provenance.py-297-        state={"user_msg_en": "What are the four sacred secrets?"},
+backend/tests/test_release_provenance.py-298-    )
+backend/tests/test_release_provenance.py-299-
+backend/tests/test_release_provenance.py:300:    with patch("app.pipeline.stages.doctrine_cache_stage.settings.doctrine_cache_enabled", True):
+backend/tests/test_release_provenance.py-301-        res = await stage.run(ctx)
+backend/tests/test_release_provenance.py-302-        assert res is not None
+backend/tests/test_release_provenance.py-303-        assert res.cache_hit is True
+backend/tests/test_release_provenance.py-304-        assert res.release_manifest is not None
+backend/tests/test_release_provenance.py-305-        assert res.release_manifest["release_id"] == get_release_manifest().release_id
+backend/tests/test_release_provenance.py-306-
+backend/tests/test_release_provenance.py-307-
+backend/tests/test_release_provenance.py-308-@pytest.mark.asyncio
+backend/tests/test_release_provenance.py-309-async def test_cache_stage_hits_attach_manifest():
+backend/tests/test_release_provenance.py-310-    """Verify CacheCheckStage attaches release_manifest on hot, vector, and semantic hits."""
+backend/tests/test_release_provenance.py-311-    stage = CacheCheckStage()
+backend/tests/test_release_provenance.py-312-    container = MagicMock(spec=ServiceContainer)
+backend/tests/test_release_provenance.py-313-    container.guardrails = MagicMock()
+backend/tests/test_release_provenance.py-314-    container.guardrails.check_output = AsyncMock(
+backend/tests/test_release_provenance.py-315-        return_value={"blocked": False, "moderated_response": ""}
+backend/tests/test_release_provenance.py-316-    )

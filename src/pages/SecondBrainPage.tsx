@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { Brain, Lock, Plus, Trash2, Download, ShieldAlert, Loader2 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { useTranslation } from "react-i18next";
@@ -275,10 +276,19 @@ export default function SecondBrainPage() {
               <div>
                 <h2 className="font-semibold text-foreground">Reflections unavailable</h2>
                 <p className="text-sm text-muted-foreground mt-1">We could not load your reflections. Your data has not been deleted.</p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  My Reflections is an encrypted vault, separate from Profile Memory. If the vault is unavailable,
+                  your Profile Memory may still be accessible.
+                </p>
               </div>
-              <Button type="button" variant="outline" onClick={() => void initialize()}>
-                Try again
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="outline" onClick={() => void initialize()}>
+                  Try again
+                </Button>
+                <Button asChild type="button" variant="ghost">
+                  <Link to="/profile?tab=memory">View Profile Memory</Link>
+                </Button>
+              </div>
             </div>
           </Card>
         )}

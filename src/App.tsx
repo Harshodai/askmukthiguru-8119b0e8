@@ -49,6 +49,10 @@ const SecondBrainPage = lazyWithRetry(() => import("./pages/SecondBrainPage"));
 // entire block below is dead code and gets tree-shaken (no admin route path
 // strings, no admin chunk imports).
 const ADMIN_ENABLED = import.meta.env.VITE_ADMIN_ENABLED !== 'false';
+// Diagnostics remain absent from ordinary production builds; Playwright may
+// opt into the standalone verification page with an explicit test-only flag.
+const DIAGNOSTICS_ENABLED =
+  !import.meta.env.PROD || import.meta.env.VITE_ENABLE_E2E_DIAGNOSTICS === 'true';
 const NoopPage: ComponentType = () => null;
 declare global {
   interface Window {
@@ -295,7 +299,7 @@ const App = () => {
               <Route path="/" element={<Suspense fallback={<BrandedSpinner />}><Index /></Suspense>} />
               <Route path="/auth" element={<Suspense fallback={<BrandedSpinner />}><AuthPage /></Suspense>} />
               <Route path="/auth/mfa" element={<Suspense fallback={<BrandedSpinner />}><MFAChallengePage /></Suspense>} />
-              {!import.meta.env.PROD && (
+              {DIAGNOSTICS_ENABLED && (
                 <>
                   <Route path="/auth/diagnostics" element={<Suspense fallback={<BrandedSpinner />}><AuthDiagnosticsPage /></Suspense>} />
                   <Route path="/auth/latency" element={<Suspense fallback={<BrandedSpinner />}><AuthLatencyDashboard /></Suspense>} />
@@ -309,6 +313,9 @@ const App = () => {
               <Route path="/profile" element={<Suspense fallback={<BrandedSpinner />}><ProfilePage /></Suspense>} />
               <Route path="/practices" element={<Suspense fallback={<BrandedSpinner />}><PracticesPage /></Suspense>} />
               <Route path="/practices/:slug" element={<Suspense fallback={<BrandedSpinner />}><PracticeDetailPage /></Suspense>} />
+              {/* Compatibility entry points: keep shared public links from becoming hard 404s. */}
+              <Route path="/guides" element={<Navigate to="/guides/spirit-guides" replace />} />
+              <Route path="/support" element={<Navigate to="/profile?tab=support" replace />} />
               <Route path="/guides/spirit-guides" element={<Suspense fallback={<BrandedSpinner />}><SpiritGuidesPage /></Suspense>} />
               <Route path="/guides/ai-spiritual-companion" element={<Suspense fallback={<BrandedSpinner />}><AiSpiritualCompanionPage /></Suspense>} />
               <Route path="/guides/beautiful-state-meditation" element={<Suspense fallback={<BrandedSpinner />}><BeautifulStateMeditationPage /></Suspense>} />

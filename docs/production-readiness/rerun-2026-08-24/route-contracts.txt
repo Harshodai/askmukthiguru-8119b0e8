@@ -1,0 +1,223 @@
+backend/app/schemas/__init__.py:84:class ChatRequest(BaseModel):
+backend/app/schemas/__init__.py:88:    user_message: str = Field(
+backend/app/schemas/__init__.py:91:    session_id: Optional[str] = Field(None, description="Optional session ID")
+backend/app/telemetry_db.py:19:from app.security_utils import validate_iso_date, validate_session_id, validate_user_id
+backend/app/telemetry_db.py:189:        # Validate session_id before any DB use
+backend/app/telemetry_db.py:190:        raw_session_id = query_data.get("session_id")
+backend/app/telemetry_db.py:191:        safe_session_id = validate_session_id(raw_session_id)
+backend/app/telemetry_db.py:197:            "session_id": safe_session_id,
+backend/app/telemetry_db.py:212:            if safe_session_id:
+backend/app/telemetry_db.py:214:                    "id": safe_session_id,
+backend/app/schemas/compliance_provenance.py:209:    session_id: Optional[str] = Field(
+backend/app/schemas/compliance_provenance.py:429:        if self.session_id:
+backend/app/schemas/compliance_provenance.py:430:            meta["session_id"] = self.session_id
+backend/app/security_utils.py:94:def validate_session_id(session_id: Optional[str]) -> Optional[str]:
+backend/app/security_utils.py:100:    if session_id is None:
+backend/app/security_utils.py:102:    session_id = session_id.strip()
+backend/app/security_utils.py:103:    if not session_id:
+backend/app/security_utils.py:105:    if not _SAFE_ID_RE.match(session_id):
+backend/app/security_utils.py:106:        raise ValueError("Invalid session_id format")
+backend/app/security_utils.py:107:    return session_id
+backend/app/schemas/__init__.py:84:class ChatRequest(BaseModel):
+backend/app/schemas/__init__.py:88:    user_message: str = Field(
+backend/app/schemas/__init__.py:91:    session_id: Optional[str] = Field(None, description="Optional session ID")
+backend/app/schemas/compliance_provenance.py:209:    session_id: Optional[str] = Field(
+backend/app/schemas/compliance_provenance.py:429:        if self.session_id:
+backend/app/schemas/compliance_provenance.py:430:            meta["session_id"] = self.session_id
+backend/app/api/memory.py:385:                "session_id": str(r.get("session_id", "")),
+backend/app/api/memory.py:580:                "session_id": m.session_id,
+backend/app/sanitization.py:25:def sanitize_session_id(value: Optional[str]) -> str:
+backend/app/api/job_routes.py:32:    session_id: Optional[str] = request.headers.get("X-Session-Id")
+backend/app/api/job_routes.py:33:    user = resolve_anon_identity(user, session_id)
+backend/app/api/job_routes.py:54:    session_id: Optional[str] = request.headers.get("X-Session-Id")
+backend/app/api/job_routes.py:55:    user = resolve_anon_identity(user, session_id)
+backend/app/api/admin.py:871:    user_message = f"{context_block}Question: {req.question}"
+backend/app/api/admin.py:876:            user_prompt=user_message,
+backend/app/orchestrator_utils.py:23:from rag.memory import build_memory_context, normalize_session_id
+backend/app/orchestrator_utils.py:29:    from app.schemas import ChatRequest
+backend/app/orchestrator_utils.py:33:    from app.schemas import ChatRequest
+backend/app/orchestrator_utils.py:440:    chat_body: ChatRequest,
+backend/app/orchestrator_utils.py:445:    user_msg = chat_body.user_message.strip()
+backend/app/orchestrator_utils.py:452:    stable_session_id = normalize_session_id(chat_body.session_id, user_id)
+backend/app/orchestrator_utils.py:574:        "stable_session_id": stable_session_id,
+backend/app/orchestrator_utils.py:580:        "original_user_msg": chat_body.user_message,
+backend/app/main.py:65:# dependency (wired into routers, e.g. app/api/chat.py and app/api/ingest.py).
+backend/app/main.py:923:# Token-bucket rate limiter for /api/chat (only when Redis is configured)
+backend/app/main.py:958:_STREAMING_PATHS: frozenset[str] = frozenset({"/api/chat/stream"})
+backend/app/main.py:1094:    Path("/app/chat-ui"),
+backend/app/main.py:1096:    Path("../chat-ui"),
+backend/app/api/chat.py:35:from app.schemas import ChatRequest, ChatResponse, MessagePayload
+backend/app/api/chat.py:55:@router.post("/chat/upload")
+backend/app/api/chat.py:62:    session_id: Optional[str] = Form(None),
+backend/app/api/chat.py:71:    user = resolve_anon_identity(user, session_id)
+backend/app/api/chat.py:244:    chat_body: ChatRequest, user: dict, container: ServiceContainer, is_benchmark: bool
+backend/app/api/chat.py:257:    # If session_id is missing or user is anonymous, we force history to be empty.
+backend/app/api/chat.py:259:    # rewrites anonymous ids to "anon:<session_id>", so a literal "anonymous"
+backend/app/api/chat.py:262:    if not user or user.get("is_anonymous") or user_id == "anonymous" or not chat_body.session_id:
+backend/app/api/chat.py:281:            sc.table("conversations").select("user_id").eq("id", chat_body.session_id).execute
+backend/app/api/chat.py:297:            .eq("conversation_id", chat_body.session_id)
+backend/app/api/chat.py:310:        logger.info(f"Loaded {len(chat_body.messages)} messages for session {chat_body.session_id}")
+backend/app/api/chat.py:327:                (arg for arg in args if hasattr(arg, "user_message")), None
+backend/app/api/chat.py:332:            session_id = chat_body.session_id or "" if chat_body else ""
+backend/app/api/chat.py:349:                            session_id=session_id,
+backend/app/api/chat.py:378:@router.post("/chat/title")
+backend/app/api/chat.py:415:@router.post("/chat")
+backend/app/api/chat.py:417:@record_token_usage(endpoint="/api/chat")
+backend/app/api/chat.py:421:    chat_body: ChatRequest,
+backend/app/api/chat.py:432:    Delegates inline to ChatRequestOrchestrator when queue is disabled.
+backend/app/api/chat.py:434:    chat_body.user_message = sanitize_user_input(chat_body.user_message, max_length=10000)
+backend/app/api/chat.py:438:    user = resolve_anon_identity(user, chat_body.session_id)
+backend/app/api/chat.py:514:    from app.orchestrator import ChatRequestOrchestrator
+backend/app/api/chat.py:516:    orchestrator = ChatRequestOrchestrator(container)
+backend/app/api/chat.py:529:@router.post("/chat/v2")
+backend/app/api/chat.py:531:@record_token_usage(endpoint="/api/chat/v2")
+backend/app/api/chat.py:535:    chat_body: ChatRequest,
+backend/app/api/chat.py:545:    primary ``/api/chat`` route — only the wrapping surface differs. The
+backend/app/api/chat.py:548:    chat_body.user_message = sanitize_user_input(chat_body.user_message, max_length=10000)
+backend/app/api/chat.py:550:    user = resolve_anon_identity(user, chat_body.session_id)
+backend/app/api/chat.py:621:@router.post("/chat/stream")
+backend/app/api/chat.py:626:    chat_body: ChatRequest,
+backend/app/api/chat.py:636:    Client then connects to GET /api/chat/stream/{job_id} for SSE.
+backend/app/api/chat.py:639:    chat_body.user_message = sanitize_user_input(chat_body.user_message, max_length=10000)
+backend/app/api/chat.py:643:    user = resolve_anon_identity(user, chat_body.session_id)
+backend/app/api/chat.py:704:                "stream_url": f"/api/chat/stream/{job_id}",
+backend/app/api/chat.py:716:@router.get("/chat/stream/{job_id}")
+backend/app/api/chat.py:733:    session_id = request.headers.get("X-Session-Id")
+backend/app/api/chat.py:734:    user = resolve_anon_identity(user, session_id)
+backend/app/observability.py:20:DEFAULT_FASTAPI_EXCLUDED_URLS = r"^(?!.*\/api\/chat(?:\/stream)?(?:\?.*)?$).*"
+backend/app/api/endpoints/auth.py:10:@router.post("/anon-session", tags=["auth"])
+backend/app/api/endpoints/auth.py:14:    Returns ``{"session_id": "anon:<id>", "token": "<payload>.<sig>"}``. The
+backend/app/api/endpoints/auth.py:16:    ``session_id`` body field on POST) so resolve_anon_identity() can verify
+backend/app/orchestrator.py:26:from app.schemas import ChatRequest, ChatResponse
+backend/app/orchestrator.py:29:from rag.memory import normalize_session_id
+backend/app/orchestrator.py:37:class ChatRequestOrchestrator:
+backend/app/orchestrator.py:48:        chat_body: ChatRequest,
+backend/app/orchestrator.py:53:        user_msg = chat_body.user_message.strip()
+backend/app/orchestrator.py:56:        session_id = normalize_session_id(chat_body.session_id, user_id)
+backend/app/orchestrator.py:77:        _coalesce_key = f"rag:v3:{_manifest.release_id}:{_manifest.policy_version}:{preferred_lang}:{assistant_tag}:{user_id}:{session_id}:{_msg_digest}"
+backend/app/orchestrator.py:85:                session_id=chat_body.session_id,
+backend/app/orchestrator.py:109:                session_id=session_id,
+backend/app/orchestrator.py:169:        session_id: str,
+backend/app/orchestrator.py:177:                session_id=session_id,
+backend/app/orchestrator.py:248:    from app.schemas import ChatRequest
+backend/app/orchestrator.py:252:    chat_body = ChatRequest(**request_data.get("chat_body", {}))
+backend/app/orchestrator.py:264:                user_msg=chat_body.user_message.strip(),
+backend/app/orchestrator.py:268:                session_id=chat_body.session_id,
+backend/app/orchestrator.py:293:    orch = ChatRequestOrchestrator(container)
+backend/app/telemetry_sink.py:90:        session_id: str,
+backend/app/telemetry_sink.py:128:        session_id = self._coerce_uuid(session_id)
+backend/app/telemetry_sink.py:133:            "session_id": session_id,
+backend/app/telemetry_sink.py:287:        session_id = self._coerce_uuid(p.get("session_id"))
+backend/app/telemetry_sink.py:324:            "session_id": session_id,
+backend/app/telemetry_sink.py:428:                if session_id:
+backend/app/telemetry_sink.py:430:                        "id": session_id,
+backend/app/api/feedback.py:34:        session_id=user_id or "anonymous",
+backend/app/gradio_ui.py:42:        async def respond(user_message, chat_history):
+backend/app/gradio_ui.py:43:            bot_message = await chat_fn(user_message, chat_history)
+backend/app/gradio_ui.py:44:            chat_history.append({"role": "user", "content": user_message})
+backend/app/stream_orchestrator.py:25:from app.schemas import ChatRequest
+backend/app/stream_orchestrator.py:29:from rag.memory import normalize_session_id
+backend/app/stream_orchestrator.py:66:        chat_body: ChatRequest,
+backend/app/stream_orchestrator.py:77:        user_msg = chat_body.user_message.strip()
+backend/app/stream_orchestrator.py:108:        session_id = normalize_session_id(chat_body.session_id, user_id)
+backend/app/stream_orchestrator.py:117:                session_id=chat_body.session_id,
+backend/app/stream_orchestrator.py:321:                    self._log_telemetry, result, user_id, session_id, user_msg, assistant_slug
+backend/app/stream_orchestrator.py:356:        session_id: str,
+backend/app/stream_orchestrator.py:364:                session_id=session_id,
+backend/app/chat_engine.py:12:``/api/chat`` endpoint without risk.
+backend/app/chat_engine.py:49:from app.schemas import ChatRequest
+backend/app/chat_engine.py:50:from rag.memory import normalize_session_id
+backend/app/chat_engine.py:136:            ChatRequest(user_message=message, messages=[]),
+backend/app/chat_engine.py:146:            chat_request=ChatRequest(user_message=message, messages=[]),
+backend/app/chat_engine.py:152:        chat_request: ChatRequest,
+backend/app/chat_engine.py:161:        chat_request: ChatRequest,
+backend/app/chat_engine.py:166:            message=chat_request.user_message,
+backend/app/chat_engine.py:235:        session_id: str,
+backend/app/chat_engine.py:242:        return f"rag:v3:{manifest.release_id}:{manifest.policy_version}:{language}:{assistant_tag}:{user_id}:{session_id}:{msg_digest}"
+backend/app/chat_engine.py:246:        chat_request: ChatRequest,
+backend/app/chat_engine.py:251:        message = chat_request.user_message.strip()
+backend/app/chat_engine.py:253:        session_id = normalize_session_id(chat_request.session_id, user_id)
+backend/app/chat_engine.py:260:            message, user_id, session_id, assistant_slug, language
+backend/app/chat_engine.py:272:                session_id=chat_request.session_id,
+backend/app/chat_engine.py:323:            asyncio.create_task(self._log_telemetry(result, user_id, session_id, message))
+backend/app/chat_engine.py:331:        chat_request: ChatRequest,
+backend/app/chat_engine.py:337:        _ = normalize_session_id(chat_request.session_id, user_id)
+backend/app/chat_engine.py:349:                session_id=chat_request.session_id,
+backend/app/chat_engine.py:450:        session_id: str,
+backend/app/chat_engine.py:459:                session_id=session_id,
+backend/app/config.py:467:    # Max concurrent in-flight /api/chat (and /api/chat/v2, /api/chat/stream)
+backend/app/config.py:514:    # (POST /api/auth/anon-session). REQUIRED in production — the app refuses to
+backend/app/config.py:1307:            base = self.jwt_secret or "dev-anon-session-fallback-key"
+backend/app/pipeline/pipeline_coordinator.py:43:from rag.memory import normalize_session_id
+backend/app/pipeline/pipeline_coordinator.py:77:        session_id: str | None = None,
+backend/app/pipeline/pipeline_coordinator.py:143:        stable_session_id = normalize_session_id(session_id, user_id)
+backend/app/pipeline/pipeline_coordinator.py:153:            session_id=session_id,
+backend/app/pipeline/pipeline_coordinator.py:163:            stable_session_id=stable_session_id,
+backend/app/api/memory.py:385:                "session_id": str(r.get("session_id", "")),
+backend/app/api/memory.py:580:                "session_id": m.session_id,
+backend/app/api/job_routes.py:32:    session_id: Optional[str] = request.headers.get("X-Session-Id")
+backend/app/api/job_routes.py:33:    user = resolve_anon_identity(user, session_id)
+backend/app/api/job_routes.py:54:    session_id: Optional[str] = request.headers.get("X-Session-Id")
+backend/app/api/job_routes.py:55:    user = resolve_anon_identity(user, session_id)
+backend/app/core/feedback_store.py:22:        session_id: str,
+backend/app/core/feedback_store.py:33:            "session_id": session_id,
+backend/app/api/endpoints/auth.py:10:@router.post("/anon-session", tags=["auth"])
+backend/app/api/endpoints/auth.py:14:    Returns ``{"session_id": "anon:<id>", "token": "<payload>.<sig>"}``. The
+backend/app/api/endpoints/auth.py:16:    ``session_id`` body field on POST) so resolve_anon_identity() can verify
+backend/app/middleware/rate_limit.py:1:"""Token-bucket rate limit middleware for /api/chat.
+backend/app/middleware/rate_limit.py:40:    """Per-tenant + per-user token bucket on /api/chat.
+backend/app/middleware/rate_limit.py:63:        if not request.url.path.startswith("/api/chat"):
+backend/app/api/feedback.py:34:        session_id=user_id or "anonymous",
+backend/app/api/admin.py:871:    user_message = f"{context_block}Question: {req.question}"
+backend/app/api/admin.py:876:            user_prompt=user_message,
+backend/app/api/chat.py:35:from app.schemas import ChatRequest, ChatResponse, MessagePayload
+backend/app/api/chat.py:55:@router.post("/chat/upload")
+backend/app/api/chat.py:62:    session_id: Optional[str] = Form(None),
+backend/app/api/chat.py:71:    user = resolve_anon_identity(user, session_id)
+backend/app/api/chat.py:244:    chat_body: ChatRequest, user: dict, container: ServiceContainer, is_benchmark: bool
+backend/app/api/chat.py:257:    # If session_id is missing or user is anonymous, we force history to be empty.
+backend/app/api/chat.py:259:    # rewrites anonymous ids to "anon:<session_id>", so a literal "anonymous"
+backend/app/api/chat.py:262:    if not user or user.get("is_anonymous") or user_id == "anonymous" or not chat_body.session_id:
+backend/app/api/chat.py:281:            sc.table("conversations").select("user_id").eq("id", chat_body.session_id).execute
+backend/app/api/chat.py:297:            .eq("conversation_id", chat_body.session_id)
+backend/app/api/chat.py:310:        logger.info(f"Loaded {len(chat_body.messages)} messages for session {chat_body.session_id}")
+backend/app/api/chat.py:327:                (arg for arg in args if hasattr(arg, "user_message")), None
+backend/app/api/chat.py:332:            session_id = chat_body.session_id or "" if chat_body else ""
+backend/app/api/chat.py:349:                            session_id=session_id,
+backend/app/api/chat.py:378:@router.post("/chat/title")
+backend/app/api/chat.py:415:@router.post("/chat")
+backend/app/api/chat.py:417:@record_token_usage(endpoint="/api/chat")
+backend/app/api/chat.py:421:    chat_body: ChatRequest,
+backend/app/api/chat.py:432:    Delegates inline to ChatRequestOrchestrator when queue is disabled.
+backend/app/api/chat.py:434:    chat_body.user_message = sanitize_user_input(chat_body.user_message, max_length=10000)
+backend/app/api/chat.py:438:    user = resolve_anon_identity(user, chat_body.session_id)
+backend/app/api/chat.py:514:    from app.orchestrator import ChatRequestOrchestrator
+backend/app/api/chat.py:516:    orchestrator = ChatRequestOrchestrator(container)
+backend/app/api/chat.py:529:@router.post("/chat/v2")
+backend/app/api/chat.py:531:@record_token_usage(endpoint="/api/chat/v2")
+backend/app/api/chat.py:535:    chat_body: ChatRequest,
+backend/app/api/chat.py:545:    primary ``/api/chat`` route — only the wrapping surface differs. The
+backend/app/api/chat.py:548:    chat_body.user_message = sanitize_user_input(chat_body.user_message, max_length=10000)
+backend/app/api/chat.py:550:    user = resolve_anon_identity(user, chat_body.session_id)
+backend/app/api/chat.py:621:@router.post("/chat/stream")
+backend/app/api/chat.py:626:    chat_body: ChatRequest,
+backend/app/api/chat.py:636:    Client then connects to GET /api/chat/stream/{job_id} for SSE.
+backend/app/api/chat.py:639:    chat_body.user_message = sanitize_user_input(chat_body.user_message, max_length=10000)
+backend/app/api/chat.py:643:    user = resolve_anon_identity(user, chat_body.session_id)
+backend/app/api/chat.py:704:                "stream_url": f"/api/chat/stream/{job_id}",
+backend/app/api/chat.py:716:@router.get("/chat/stream/{job_id}")
+backend/app/api/chat.py:733:    session_id = request.headers.get("X-Session-Id")
+backend/app/api/chat.py:734:    user = resolve_anon_identity(user, session_id)
+backend/app/pipeline/stages/graph_stage.py:71:    session_id: str,
+backend/app/pipeline/stages/graph_stage.py:90:        f"{user_id}:{session_id}:{lang_code}:{digest}:{history_hash}:"
+backend/app/pipeline/stages/graph_stage.py:281:                session_id = getattr(chat_body, "session_id", None) or str(uuid.uuid4())
+backend/app/pipeline/stages/graph_stage.py:286:                        "session_id": session_id,
+backend/app/pipeline/stages/graph_stage.py:311:        session_id = getattr(chat_body, "session_id", None) or str(uuid.uuid4())
+backend/app/pipeline/stages/graph_stage.py:339:                        session_id,
+backend/app/pipeline/stages/memory_stage.py:72:        stable_session_id = ctx.stable_session_id
+backend/app/pipeline/stages/memory_stage.py:99:                session_id=stable_session_id,
+backend/app/pipeline/stages/memory_stage.py:102:                    "user_message": user_msg,
+backend/app/pipeline/stages/glue_stages.py:493:                        "session_id": ctx.session_id or ctx.stable_session_id,
+backend/app/pipeline/stages/context.py:26:    request: Any  # ChatRequest / ChatStreamRequest body
+backend/app/pipeline/stages/context.py:30:    session_id: str | None = None
+backend/app/pipeline/stages/context.py:48:    stable_session_id: str = "anonymous"

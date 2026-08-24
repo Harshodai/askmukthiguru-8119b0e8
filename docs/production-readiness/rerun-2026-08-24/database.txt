@@ -1,0 +1,1544 @@
+=== TRACK: database ===
+UTC: 2026-08-24T13:52:06Z
+HEAD: 1f882077616b92b5e2b59a31d9ee4fb246e8fe68
+supabase/.branches/_current_branch
+supabase/.env
+supabase/.gitignore
+supabase/.temp/cli-latest
+supabase/.temp/gotrue-version
+supabase/.temp/linked-project.json
+supabase/.temp/pooler-url
+supabase/.temp/postgres-version
+supabase/.temp/project-ref
+supabase/.temp/rest-version
+supabase/.temp/start-secrets/supabase_edge_runtime_hqhcunyifwofyfjtuphl/env/docker.env
+supabase/.temp/start-secrets/supabase_edge_runtime_hqhcunyifwofyfjtuphl/main/index.ts
+supabase/.temp/start-secrets/supabase_kong_hqhcunyifwofyfjtuphl/secret-0
+supabase/.temp/start-secrets/supabase_kong_hqhcunyifwofyfjtuphl/secret-1
+supabase/.temp/start-secrets/supabase_kong_hqhcunyifwofyfjtuphl/secret-2
+supabase/.temp/storage-migration
+supabase/.temp/storage-version
+supabase/config.toml
+supabase/functions/_shared/embed.ts
+supabase/functions/.env
+supabase/functions/admin-ask/index.ts
+supabase/functions/admin-telemetry/index.ts
+supabase/functions/chat-rate-limit/index.ts
+supabase/functions/daily-teaching-push/index.ts
+supabase/functions/delete-my-account/index.ts
+supabase/functions/eval-run/index.ts
+supabase/functions/export-my-data/index.ts
+supabase/functions/healthz/index.ts
+supabase/functions/memory-embed/index.ts
+supabase/functions/memory-extract-drain/index.ts
+supabase/functions/memory-extract/index.ts
+supabase/functions/push-send/index.ts
+supabase/functions/sarvam-stt/index.ts
+supabase/functions/sarvam-tts/index.ts
+supabase/functions/telemetry/index.ts
+supabase/migrations/20240430000000_schema.sql
+supabase/migrations/20260506061859_969175ae-50fb-4d23-a45d-262c10029c65.sql
+supabase/migrations/20260506061924_89930c43-e214-4471-b173-1cd05b2f866a.sql
+supabase/migrations/20260506061946_ef6edab1-60a5-4fe6-809b-7d93ba4b39ff.sql
+supabase/migrations/20260506064449_d698be63-b027-463b-ba24-a90cec443811.sql
+supabase/migrations/20260506064513_18ea0bdd-e54c-49c1-a175-4b15e21214cd.sql
+supabase/migrations/20260508043115_0eb9a75d-8aa0-4988-a3f6-0b4b012e5621.sql
+supabase/migrations/20260509115452_6b12135e-bd5a-4f68-8a9f-ab1c00f93838.sql
+supabase/migrations/20260509180000_secure_realtime.sql
+supabase/migrations/20260511_create_daily_teachings_bucket.sql
+supabase/migrations/20260515122052_4624ba2e-1e4f-4b2a-968d-c676bb9beecb.sql
+supabase/migrations/20260516182217_515238b1-b493-4e4e-88dc-75a5db2cb880.sql
+supabase/migrations/20260516182245_44f5bf76-8079-446d-b0b3-74236330e7ff.sql
+supabase/migrations/20260516190000_user_memory.sql
+supabase/migrations/20260516191000_fix_telemetry_and_seed.sql
+supabase/migrations/20260526050952_a6a2b7ca-beb1-4d07-a4c6-335de99b8dd2.sql
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql
+supabase/migrations/20260530141027_7381bcc3-40f2-436d-9b37-5c182a838cb5.sql
+supabase/migrations/20260601050554_d184ca2a-1755-4713-9b5a-6572499cdf09.sql
+supabase/migrations/20260601090000_admin_telemetry_reliability_fields.sql
+supabase/migrations/20260604000001_fix_trace_spans_span_name_compat.sql
+supabase/migrations/20260605023720_602a5230-c7aa-47c2-9b22-195342ada89b.sql
+supabase/migrations/20260606024228_4a5cf016-573e-47af-bef7-a9959217cfbc.sql
+supabase/migrations/20260607180000_memory_layer.sql
+supabase/migrations/20260610055007_1750df65-b2d6-45db-ab95-8b2bba92d12b.sql
+supabase/migrations/20260613043512_a3c17109-f08f-4b9c-9944-d265d1daa192.sql
+supabase/migrations/20260613120000_fix_memory_embedding_dims.sql
+supabase/migrations/20260613180000_fix_memory_to_1024_dim.sql
+supabase/migrations/20260615044110_ccb90a86-ce4b-42dd-b1d4-7cc0124d4933.sql
+supabase/migrations/20260615120000_backend_improvements.sql
+supabase/migrations/20260616050645_effd7cd1-c5a9-403c-abc7-053a5f5f932c.sql
+supabase/migrations/20260616050717_7b7722a8-f581-4d55-bcae-7c4c45b30ab4.sql
+supabase/migrations/20260617000000_add_dashboard_indexes.sql
+supabase/migrations/20260618044620_58e0642d-38c0-469d-9bd5-b6e91fc32297.sql
+supabase/migrations/20260618045331_cdb918bb-9241-493b-ab1a-5174b83c5710.sql
+supabase/migrations/20260618100000_telemetry_hardening_indexes.sql
+supabase/migrations/20260618110000_db_consolidation.sql
+supabase/migrations/20260621033728_d14bd1cf-bb63-485e-871d-455aa729d6b2.sql
+supabase/migrations/20260623000000_add_chat_queries_assistant_slug.sql
+supabase/migrations/20260626062100_create_router_decisions.sql
+supabase/migrations/20260627120000_create_ingest_jobs.sql
+supabase/migrations/20260627130000_tenant_rls.sql
+supabase/migrations/20260627140000_user_episodes.sql
+supabase/migrations/20260630140000_study_notebooks.sql
+supabase/migrations/20260701140000_app_settings.sql
+supabase/migrations/20260702150000_staging_quality_queue.sql
+supabase/migrations/20260703160000_okf_review_queue.sql
+supabase/migrations/20260703170000_gurus_and_configurations.sql
+supabase/migrations/20260704180000_create_ingestion_checkpoints.sql
+supabase/migrations/20260705000000_fix_memory_service_auth.sql
+supabase/migrations/20260706035450_554143f3-5acc-4f23-a091-c6428071ff71.sql
+supabase/migrations/20260708021442_7a1a7776-3fef-4f0b-b511-d50ecdd20d7d.sql
+supabase/migrations/20260710000000_add_guru_memories_missing_columns.sql
+supabase/migrations/20260711000000_enable_rls_on_all_tables.sql
+supabase/migrations/20260712000000_add_retention_and_summary.sql
+supabase/migrations/20260713000000_create_push_devices.sql
+supabase/migrations/20260713000001_user_retention_cards.sql
+supabase/migrations/20260714000000_harden_rls_and_security_invoker.sql
+supabase/migrations/20260714051557_c3977534-69e8-43c4-9427-699ea9b00d06.sql
+supabase/migrations/20260714064138_12207701-9e67-4374-97a5-774bc440fe73.sql
+supabase/migrations/20260714071022_6c0e906c-9864-443b-bb1b-928c3c846aca.sql
+supabase/migrations/20260714080216_b87a05f0-8df7-4370-82ad-1833dd26e6aa.sql
+supabase/migrations/20260715000000_harden_linter_warnings.sql
+supabase/migrations/20260715010000_fix_prompt_versions_and_app_settings.sql
+supabase/migrations/20260715020000_cancel_flow.sql
+supabase/migrations/20260715050512_8ab790ce-1979-4afc-8d5f-5db683c9e421.sql
+supabase/migrations/20260715051301_bb0ec1c6-ee99-44ff-bc91-2d7ff2fdc403.sql
+supabase/migrations/20260715052416_cbbec360-6db7-44c7-be78-87c9f9cc91ff.sql
+supabase/migrations/20260717191006_second_brain_vault.sql
+supabase/migrations/20260718000000_user_streaks.sql
+supabase/migrations/20260718120000_add_unique_session_summary.sql
+supabase/migrations/20260718120001_second_brain_keys_table.sql
+supabase/migrations/20260722000000_add_citation_verification_columns.sql
+supabase/migrations/20260722090000_drop_match_kb_chunks_768.sql
+supabase/migrations/20260724000000_allow_assistant_role_chat_messages.sql
+supabase/migrations/20260724054031_41ce0885-a2cf-4301-9911-516ba2b8d26a.sql
+supabase/migrations/20260724080000_harden_security_and_rls_lints.sql
+supabase/migrations/20260724090000_drop_permissive_daily_teachings_policies.sql
+supabase/migrations/20260728000000_create_user_personas.sql
+supabase/migrations/20260728103548_85070891-f7bf-4835-94db-4246463b3813.sql
+supabase/migrations/20260729000000_create_user_scene_blocks_and_skills.sql
+supabase/migrations/20260730000000_verify_rls_with_check.sql
+supabase/migrations/20260730044540_f2e71129-2f79-4b21-823c-2e888e6c82e9.sql
+supabase/migrations/20260801000000_user_course_progress_one_active.sql
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql
+supabase/migrations/20260804000002_revoke_router_decisions_anon_grant.sql
+supabase/migrations/20260804000003_drop_kb_chunks_dead_column.sql
+supabase/migrations/20260804000004_add_chat_messages_composite_index.sql
+supabase/migrations/20260804000005_reconcile_user_brain_keys.sql
+supabase/migrations/20260804000006_add_push_devices_user_id_index.sql
+supabase/migrations/20260804000006_regenerate_summaries_rpc.sql
+supabase/migrations/20260805000001_memory_outbox.sql
+supabase/migrations/20260805000002_waitlist_entries.sql
+supabase/migrations/20260805000003_source_releases.sql
+supabase/migrations/20260805000004_source_release_rollback.sql
+supabase/migrations/20260814065756_33cdb892-28a3-459a-9fa3-ea7dcb60f5c4.sql
+supabase/migrations/20260814070623_6b7e3af1-d5c1-4791-a5de-b5887f2ad05e.sql
+supabase/migrations/20260814080000_harden_source_release_atomicity.sql
+supabase/migrations/20260816000000_admin_telemetry_created_at_indexes.sql
+supabase/migrations/20260820090000_assistant_scope_metadata.sql
+supabase/migrations/20260820090500_harden_assistant_scope_access.sql
+supabase/migrations/20260823111223_f55630fb-e1d9-42d2-b8a3-a3066280fc94.sql
+supabase/migrations/20260823130000_ingest_jobs_idempotency_key.sql
+supabase/snippets/Untitled query 322.sql
+supabase/snippets/Untitled query 510.sql
+supabase/snippets/Untitled query 511.sql
+supabase/migrations/20260805000003_source_releases.sql:2:CREATE TABLE IF NOT EXISTS public.source_releases (
+supabase/migrations/20260805000003_source_releases.sql:29:CREATE INDEX IF NOT EXISTS source_releases_lookup_idx
+supabase/migrations/20260805000003_source_releases.sql:31:CREATE INDEX IF NOT EXISTS source_releases_status_idx
+supabase/migrations/20260805000003_source_releases.sql:36:ALTER TABLE public.source_releases ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260805000003_source_releases.sql:38:GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.source_releases TO service_role;
+supabase/migrations/20260805000003_source_releases.sql:80:    UPDATE public.source_releases SET status = 'approved', approved_by = trim(p_approved_by), approved_at = now()
+supabase/migrations/20260805000003_source_releases.sql:93:    SELECT * INTO candidate FROM public.source_releases WHERE id = p_release_id FOR UPDATE;
+supabase/migrations/20260805000003_source_releases.sql:97:    UPDATE public.source_releases SET status = 'superseded'
+supabase/migrations/20260805000003_source_releases.sql:99:    UPDATE public.source_releases SET status = 'active', activated_at = now()
+supabase/migrations/20260805000003_source_releases.sql:111:    UPDATE public.source_releases SET status = 'rejected'
+supabase/migrations/20260601090000_admin_telemetry_reliability_fields.sql:2:-- REVERT: Drop the columns and indexes added here. NOTE: chat_queries.session_id etc
+supabase/migrations/20260601090000_admin_telemetry_reliability_fields.sql:39:CREATE INDEX IF NOT EXISTS idx_chat_queries_model_created_at
+supabase/migrations/20260601090000_admin_telemetry_reliability_fields.sql:42:CREATE INDEX IF NOT EXISTS idx_chat_queries_route_created_at
+supabase/migrations/20260728103548_85070891-f7bf-4835-94db-4246463b3813.sql:2:-- REVERT: Restore pre-migration state: un-checked brain_touch() and USING-only UPDATE
+supabase/migrations/20260728103548_85070891-f7bf-4835-94db-4246463b3813.sql:9:-- policies. CAUTION: removing the WITH CHECK re-opens the owner-transfer risk
+supabase/migrations/20260728103548_85070891-f7bf-4835-94db-4246463b3813.sql:21:-- CREATE POLICY own_conversations_update ON public.conversations
+supabase/migrations/20260728103548_85070891-f7bf-4835-94db-4246463b3813.sql:22:--   FOR UPDATE TO authenticated USING (user_id = auth.uid());
+supabase/migrations/20260728103548_85070891-f7bf-4835-94db-4246463b3813.sql:24:-- CREATE POLICY own_messages_update ON public.chat_messages
+supabase/migrations/20260728103548_85070891-f7bf-4835-94db-4246463b3813.sql:25:--   FOR UPDATE TO authenticated
+supabase/migrations/20260728103548_85070891-f7bf-4835-94db-4246463b3813.sql:28:-- CREATE POLICY own_sessions_update ON public.meditation_sessions
+supabase/migrations/20260728103548_85070891-f7bf-4835-94db-4246463b3813.sql:29:--   FOR UPDATE TO authenticated USING (user_id = auth.uid());
+supabase/migrations/20260728103548_85070891-f7bf-4835-94db-4246463b3813.sql:31:-- CREATE POLICY "Users can update their own profiles" ON public.user_profiles
+supabase/migrations/20260728103548_85070891-f7bf-4835-94db-4246463b3813.sql:32:--   FOR UPDATE TO authenticated USING (user_id = auth.uid());
+supabase/migrations/20260728103548_85070891-f7bf-4835-94db-4246463b3813.sql:53:-- 2. Add WITH CHECK to UPDATE policies so rows cannot be reassigned to other users
+supabase/migrations/20260728103548_85070891-f7bf-4835-94db-4246463b3813.sql:55:CREATE POLICY own_conversations_update ON public.conversations
+supabase/migrations/20260728103548_85070891-f7bf-4835-94db-4246463b3813.sql:56:  FOR UPDATE TO authenticated
+supabase/migrations/20260728103548_85070891-f7bf-4835-94db-4246463b3813.sql:58:  WITH CHECK (user_id = auth.uid());
+supabase/migrations/20260728103548_85070891-f7bf-4835-94db-4246463b3813.sql:61:CREATE POLICY own_messages_update ON public.chat_messages
+supabase/migrations/20260728103548_85070891-f7bf-4835-94db-4246463b3813.sql:62:  FOR UPDATE TO authenticated
+supabase/migrations/20260728103548_85070891-f7bf-4835-94db-4246463b3813.sql:64:  WITH CHECK (conversation_id IN (SELECT c.id FROM public.conversations c WHERE c.user_id = auth.uid()));
+supabase/migrations/20260728103548_85070891-f7bf-4835-94db-4246463b3813.sql:67:CREATE POLICY own_sessions_update ON public.meditation_sessions
+supabase/migrations/20260728103548_85070891-f7bf-4835-94db-4246463b3813.sql:68:  FOR UPDATE TO authenticated
+supabase/migrations/20260728103548_85070891-f7bf-4835-94db-4246463b3813.sql:70:  WITH CHECK (user_id = auth.uid());
+supabase/migrations/20260728103548_85070891-f7bf-4835-94db-4246463b3813.sql:73:CREATE POLICY "Users can update their own profiles" ON public.user_profiles
+supabase/migrations/20260728103548_85070891-f7bf-4835-94db-4246463b3813.sql:74:  FOR UPDATE TO authenticated
+supabase/migrations/20260728103548_85070891-f7bf-4835-94db-4246463b3813.sql:76:  WITH CHECK (user_id = auth.uid());
+supabase/migrations/20260804000003_drop_kb_chunks_dead_column.sql:2:-- REVERT: Restore the dropped 768-dim embedding column + HNSW index (from
+supabase/migrations/20260804000003_drop_kb_chunks_dead_column.sql:13:-- CREATE INDEX IF NOT EXISTS kb_chunks_embedding_hnsw
+supabase/migrations/20260804000003_drop_kb_chunks_dead_column.sql:18:-- 1. Drop the dead 768-dim embedding column + HNSW index.
+supabase/migrations/20260804000006_regenerate_summaries_rpc.sql:16:-- The backend previously SELECTed every NULL-summary row and issued one UPDATE
+supabase/migrations/20260804000006_regenerate_summaries_rpc.sql:18:-- the whole loop with one UPDATE ... WHERE statement.
+supabase/migrations/20260804000006_regenerate_summaries_rpc.sql:23:-- the UPDATE inside this function scopes the write to the caller's user_id
+supabase/migrations/20260715052416_cbbec360-6db7-44c7-be78-87c9f9cc91ff.sql:24:    CREATE POLICY "service_role_all" ON public.guru_memories
+supabase/migrations/20260715052416_cbbec360-6db7-44c7-be78-87c9f9cc91ff.sql:25:      FOR ALL TO service_role USING (true) WITH CHECK (true);
+supabase/migrations/20260715052416_cbbec360-6db7-44c7-be78-87c9f9cc91ff.sql:27:    CREATE POLICY "users_read_own" ON public.guru_memories
+backend/services/rankers.py:47:    assert fused.index(103) < fused.index(102), "shared id 103 should outrank single-list 102"
+backend/services/rankers.py:48:    assert fused.index(101) < fused.index(104), "dual-list 101 should outrank single-list 104"
+supabase/migrations/20260715020000_cancel_flow.sql:54:create index if not exists idx_exit_surveys_user on exit_surveys(user_id);
+supabase/migrations/20260715020000_cancel_flow.sql:55:create index if not exists idx_exit_surveys_reason on exit_surveys(reason);
+supabase/migrations/20260715020000_cancel_flow.sql:56:create index if not exists idx_save_offers_user on save_offers(user_id);
+supabase/migrations/20260715020000_cancel_flow.sql:57:create index if not exists idx_cancellations_status on cancellations(status);
+supabase/migrations/20260715020000_cancel_flow.sql:58:create index if not exists idx_cancellations_scheduled on cancellations(scheduled_deletion);
+supabase/migrations/20260715020000_cancel_flow.sql:59:create index if not exists idx_cancellations_user on cancellations(user_id);
+backend/services/guru_brain/guru_brain_service.py:142:    async def index_exemplars(self, exemplars: list[PersonaToneExemplar]) -> int:
+backend/services/guru_brain/guru_brain_service.py:154:        indexed_count = 0
+backend/services/guru_brain/guru_brain_service.py:180:                indexed_count += 1
+backend/services/guru_brain/guru_brain_service.py:199:        return indexed_count
+backend/services/doctrine_terms.py:429:                "occurrence_index": occurrence_counts[matched_str],
+backend/services/doctrine_lexicon.py:158:    """Authority vocabulary plus the phonetic index built over it."""
+backend/services/doctrine_lexicon.py:214:        self._index: dict[str, list[str]] = defaultdict(list)
+backend/services/doctrine_lexicon.py:217:                self._index[_phonetic_key(word)].append(word)
+backend/services/doctrine_lexicon.py:286:        candidates = self._index.get(_phonetic_key(word), [])
+supabase/migrations/20260601050554_d184ca2a-1755-4713-9b5a-6572499cdf09.sql:20:CREATE POLICY "anon_reads_active_daily_teachings"
+supabase/migrations/20260601050554_d184ca2a-1755-4713-9b5a-6572499cdf09.sql:29:ALTER TABLE realtime.messages ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260601050554_d184ca2a-1755-4713-9b5a-6572499cdf09.sql:32:CREATE POLICY "realtime_daily_teachings_public"
+supabase/migrations/20260601050554_d184ca2a-1755-4713-9b5a-6572499cdf09.sql:41:CREATE POLICY "realtime_admin_topics"
+supabase/migrations/20260601050554_d184ca2a-1755-4713-9b5a-6572499cdf09.sql:51:CREATE POLICY "realtime_user_own_topics"
+supabase/migrations/20260626062100_create_router_decisions.sql:15:CREATE TABLE IF NOT EXISTS public.router_decisions (
+supabase/migrations/20260626062100_create_router_decisions.sql:26:ALTER TABLE public.router_decisions ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260626062100_create_router_decisions.sql:29:CREATE POLICY "Allow insert for all users" ON public.router_decisions FOR INSERT WITH CHECK (true);
+supabase/migrations/20260626062100_create_router_decisions.sql:30:CREATE POLICY "Allow select for all users" ON public.router_decisions FOR SELECT USING (true);
+supabase/migrations/20260627130000_tenant_rls.sql:9:-- were recreated with WITH CHECK by 20260804000001 — the DROP removes whichever
+supabase/migrations/20260627130000_tenant_rls.sql:30:ALTER TABLE public.chat_queries ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260627130000_tenant_rls.sql:32:CREATE POLICY tenant_isolation ON public.chat_queries
+supabase/migrations/20260627130000_tenant_rls.sql:38:ALTER TABLE public.chat_responses ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260627130000_tenant_rls.sql:40:CREATE POLICY tenant_isolation ON public.chat_responses
+supabase/migrations/20260627130000_tenant_rls.sql:46:ALTER TABLE public.retrieval_events ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260627130000_tenant_rls.sql:48:CREATE POLICY tenant_isolation ON public.retrieval_events
+supabase/migrations/20260627130000_tenant_rls.sql:54:ALTER TABLE public.guru_core_memory ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260627130000_tenant_rls.sql:56:CREATE POLICY tenant_isolation ON public.guru_core_memory
+supabase/migrations/20260627130000_tenant_rls.sql:62:ALTER TABLE public.guru_memories ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260627130000_tenant_rls.sql:64:CREATE POLICY tenant_isolation ON public.guru_memories
+supabase/migrations/20260627130000_tenant_rls.sql:70:ALTER TABLE public.guru_session_summaries ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260627130000_tenant_rls.sql:72:CREATE POLICY tenant_isolation ON public.guru_session_summaries
+backend/services/memory_service.py:490:        One bulk UPDATE via the regenerate_summaries RPC fills every NULL
+backend/services/memory_service.py:492:        round-trip (previously one UPDATE per row: ~1000 rows = 20-50s of
+supabase/migrations/20260617000000_add_dashboard_indexes.sql:21:-- Add recommended indexes for admin dashboard & analytics performance
+supabase/migrations/20260617000000_add_dashboard_indexes.sql:27:create index if not exists idx_chat_queries_session_created
+supabase/migrations/20260617000000_add_dashboard_indexes.sql:30:create index if not exists idx_chat_queries_user_created
+supabase/migrations/20260617000000_add_dashboard_indexes.sql:33:create index if not exists idx_chat_queries_status_created
+supabase/migrations/20260617000000_add_dashboard_indexes.sql:39:create index if not exists idx_chat_responses_query_created
+supabase/migrations/20260617000000_add_dashboard_indexes.sql:45:create index if not exists idx_user_feedback_response_created
+supabase/migrations/20260617000000_add_dashboard_indexes.sql:51:create index if not exists idx_app_logs_request_id
+supabase/migrations/20260617000000_add_dashboard_indexes.sql:54:create index if not exists idx_app_logs_level_created
+supabase/migrations/20260617000000_add_dashboard_indexes.sql:60:create index if not exists idx_retrieval_events_query_id
+supabase/migrations/20260617000000_add_dashboard_indexes.sql:63:create index if not exists idx_trigger_events_created
+supabase/migrations/20260702150000_staging_quality_queue.sql:17:CREATE TABLE IF NOT EXISTS public.staging_quality_queue (
+supabase/migrations/20260702150000_staging_quality_queue.sql:31:ALTER TABLE public.staging_quality_queue ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260702150000_staging_quality_queue.sql:34:CREATE POLICY "Allow read access to anyone" ON public.staging_quality_queue
+supabase/migrations/20260702150000_staging_quality_queue.sql:38:CREATE POLICY "Allow write access to authenticated users" ON public.staging_quality_queue
+backend/services/turboquant_cache.py:68:            self._index = TurboQuantIndex(dim=dimension, bit_width=4)
+backend/services/turboquant_cache.py:71:            self._index = None
+backend/services/turboquant_cache.py:92:            if _HAVE_TURBOVEC and self._index is not None:
+backend/services/turboquant_cache.py:93:                self._index.add(vec)
+backend/services/turboquant_cache.py:111:        """Search the local index for similar entries.
+backend/services/turboquant_cache.py:129:            if _HAVE_TURBOVEC and self._index is not None:
+backend/services/turboquant_cache.py:131:                    self._index.prepare()
+backend/services/turboquant_cache.py:133:                scores, indices = self._index.search(qvec, k)
+backend/services/turboquant_cache.py:176:        """Rebuild the index (clear if no Qdrant available)."""
+backend/services/turboquant_cache.py:224:        # TurboQuantIndex uses positional indexing, so we can't remove by FID.
+backend/services/turboquant_cache.py:226:        if _HAVE_TURBOVEC and self._index is not None:
+backend/services/turboquant_cache.py:227:            self._reset_index()
+backend/services/turboquant_cache.py:230:    def _reset_index(self) -> None:
+backend/services/turboquant_cache.py:231:        if _HAVE_TURBOVEC and self._index is not None:
+backend/services/turboquant_cache.py:232:            self._index = TurboQuantIndex(dim=self._dimension, bit_width=4)
+backend/services/turboquant_cache.py:236:        if not self._metadata or not _HAVE_TURBOVEC or self._index is None:
+backend/services/turboquant_cache.py:241:                self._index.add(np.array([emb], dtype=np.float32))
+backend/services/turboquant_cache.py:289:            self._index = TurboQuantIndex(dim=self._dimension, bit_width=4)
+backend/services/text_quality_filter.py:153:    ``(index, matched_artifact, chunk_preview)``. Callers filter their own
+backend/services/text_quality_filter.py:220:                    keep_pos = keep.index(prev_idx)
+supabase/migrations/20260613120000_fix_memory_embedding_dims.sql:24:-- 1. Drop HNSW index (cannot alter column type with an index present)
+supabase/migrations/20260613120000_fix_memory_embedding_dims.sql:32:-- 3. Recreate HNSW index at correct dimensions
+supabase/migrations/20260613120000_fix_memory_embedding_dims.sql:33:CREATE INDEX guru_memories_hnsw_idx
+supabase/migrations/20260820090500_harden_assistant_scope_access.sql:2:CREATE INDEX IF NOT EXISTS assistant_access_user_assistant_idx
+supabase/migrations/20260820090500_harden_assistant_scope_access.sql:4:CREATE INDEX IF NOT EXISTS assistant_access_assistant_idx
+supabase/migrations/20260820090500_harden_assistant_scope_access.sql:6:CREATE INDEX IF NOT EXISTS assistants_slug_visibility_idx
+supabase/migrations/20260820090500_harden_assistant_scope_access.sql:10:CREATE POLICY assistant_scope_metadata_service_role_only
+supabase/migrations/20260820090500_harden_assistant_scope_access.sql:15:  WITH CHECK (true);
+supabase/migrations/20260515122052_4624ba2e-1e4f-4b2a-968d-c676bb9beecb.sql:32:  ON CONFLICT (id) DO NOTHING;
+supabase/migrations/20260515122052_4624ba2e-1e4f-4b2a-968d-c676bb9beecb.sql:36:  ON CONFLICT (user_id, role) DO NOTHING;
+supabase/migrations/20260814065756_33cdb892-28a3-459a-9fa3-ea7dcb60f5c4.sql:10:CREATE POLICY "Authenticated users can read app settings"
+supabase/migrations/20260724054031_41ce0885-a2cf-4301-9911-516ba2b8d26a.sql:11:-- CREATE POLICY "Authenticated users can upload teachings" ON storage.objects
+supabase/migrations/20260724054031_41ce0885-a2cf-4301-9911-516ba2b8d26a.sql:12:--   FOR INSERT WITH CHECK (bucket_id = 'daily-teachings' AND auth.role() = 'authenticated');
+supabase/migrations/20260724054031_41ce0885-a2cf-4301-9911-516ba2b8d26a.sql:13:-- CREATE POLICY "Authenticated users can delete teachings" ON storage.objects
+supabase/migrations/20260724054031_41ce0885-a2cf-4301-9911-516ba2b8d26a.sql:14:--   FOR DELETE USING (bucket_id = 'daily-teachings' AND auth.role() = 'authenticated');
+supabase/migrations/20260509180000_secure_realtime.sql:21:ALTER TABLE realtime.messages ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260509180000_secure_realtime.sql:26:CREATE POLICY "Authenticated users can subscribe" ON realtime.messages
+supabase/migrations/20260509180000_secure_realtime.sql:32:ALTER TABLE public.daily_teachings ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260509180000_secure_realtime.sql:36:CREATE POLICY "Public can read teachings" ON public.daily_teachings
+supabase/migrations/20260516182217_515238b1-b493-4e4e-88dc-75a5db2cb880.sql:50:  ON CONFLICT (id) DO UPDATE SET
+supabase/migrations/20260516182217_515238b1-b493-4e4e-88dc-75a5db2cb880.sql:57:  ON CONFLICT (user_id, role) DO NOTHING;
+supabase/migrations/20260516191000_fix_telemetry_and_seed.sql:12:-- DELETE FROM public.user_profiles WHERE user_id = '00000000-0000-0000-0000-000000000000';
+supabase/migrations/20260516191000_fix_telemetry_and_seed.sql:13:-- DELETE FROM public.user_roles WHERE user_id = '00000000-0000-0000-0000-000000000000';
+supabase/migrations/20260516191000_fix_telemetry_and_seed.sql:14:-- DELETE FROM public.profiles WHERE id = '00000000-0000-0000-0000-000000000000';
+supabase/migrations/20260516191000_fix_telemetry_and_seed.sql:15:-- DELETE FROM auth.users WHERE id = '00000000-0000-0000-0000-000000000000';
+supabase/migrations/20260516191000_fix_telemetry_and_seed.sql:50:ON CONFLICT (user_id, role) DO NOTHING;
+supabase/migrations/20260516191000_fix_telemetry_and_seed.sql:55:ON CONFLICT (id) DO NOTHING;
+supabase/migrations/20260516191000_fix_telemetry_and_seed.sql:60:ON CONFLICT (user_id) DO NOTHING;
+supabase/migrations/20260820090000_assistant_scope_metadata.sql:3:CREATE TABLE IF NOT EXISTS public.assistant_scope_metadata (
+supabase/migrations/20260820090000_assistant_scope_metadata.sql:4:  assistant_id UUID PRIMARY KEY REFERENCES public.assistants(id) ON DELETE CASCADE,
+supabase/migrations/20260820090000_assistant_scope_metadata.sql:18:ALTER TABLE public.assistant_scope_metadata ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260820090000_assistant_scope_metadata.sql:24:  BEFORE UPDATE ON public.assistant_scope_metadata
+supabase/migrations/20260820090000_assistant_scope_metadata.sql:51:ON CONFLICT (assistant_id) DO UPDATE SET
+supabase/migrations/20260823111223_f55630fb-e1d9-42d2-b8a3-a3066280fc94.sql:3:CREATE POLICY "Admins can read app settings"
+supabase/migrations/20260718120000_add_unique_session_summary.sql:2:-- REVERT: Drop the unique constraint. NOTE: the dedup DELETE removed duplicate rows
+supabase/migrations/20260718120000_add_unique_session_summary.sql:14:-- Required for ON CONFLICT(user_id, session_id) in memory_service.py
+supabase/migrations/20260718120000_add_unique_session_summary.sql:21:DELETE FROM public.guru_session_summaries a
+backend/services/krutrim_service.py:26:        # Connection pooling: Create a singleton httpx.AsyncClient with pool limits
+backend/services/krutrim_service.py:31:        """Get or create the singleton HTTP client with connection pooling."""
+backend/services/krutrim_service.py:34:                # Configure connection pool limits from settings
+backend/services/krutrim_service.py:46:                    f"Krutrim HTTP client initialized with pool limits: "
+backend/services/ocr_service.py:108:    AsyncHTTPTransport whose connection pool uses the SSRF-guarding network
+backend/services/ocr_service.py:115:        self._pool = httpcore.AsyncConnectionPool(
+backend/services/ontology_exporter.py:247:        uri_index: dict[str, str] = {}
+backend/services/ontology_exporter.py:250:                uri_index[c.entity_id] = c.uri
+backend/services/ontology_exporter.py:251:            uri_index.setdefault(c.short_id, c.uri)
+backend/services/ontology_exporter.py:271:            src_uri = uri_index.get(_slugify(str(src_id)))
+backend/services/ontology_exporter.py:272:            dst_uri = uri_index.get(_slugify(str(dst_id)))
+backend/services/ontology_exporter.py:273:            # Fall back to a rebuilt URI if the slug isn't in the index
+supabase/migrations/20260730044540_f2e71129-2f79-4b21-823c-2e888e6c82e9.sql:15:CREATE TABLE public.user_course_progress (
+supabase/migrations/20260730044540_f2e71129-2f79-4b21-823c-2e888e6c82e9.sql:22:  current_lesson_index integer NOT NULL DEFAULT 0,
+supabase/migrations/20260730044540_f2e71129-2f79-4b21-823c-2e888e6c82e9.sql:31:GRANT SELECT, INSERT, UPDATE, DELETE ON public.user_course_progress TO authenticated;
+supabase/migrations/20260730044540_f2e71129-2f79-4b21-823c-2e888e6c82e9.sql:34:ALTER TABLE public.user_course_progress ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260730044540_f2e71129-2f79-4b21-823c-2e888e6c82e9.sql:36:CREATE POLICY "Users read own course progress"
+supabase/migrations/20260730044540_f2e71129-2f79-4b21-823c-2e888e6c82e9.sql:40:CREATE POLICY "Users insert own course progress"
+supabase/migrations/20260730044540_f2e71129-2f79-4b21-823c-2e888e6c82e9.sql:42:  WITH CHECK (auth.uid() = user_id);
+supabase/migrations/20260730044540_f2e71129-2f79-4b21-823c-2e888e6c82e9.sql:44:CREATE POLICY "Users update own course progress"
+supabase/migrations/20260730044540_f2e71129-2f79-4b21-823c-2e888e6c82e9.sql:45:  ON public.user_course_progress FOR UPDATE TO authenticated
+supabase/migrations/20260730044540_f2e71129-2f79-4b21-823c-2e888e6c82e9.sql:47:  WITH CHECK (auth.uid() = user_id);
+supabase/migrations/20260730044540_f2e71129-2f79-4b21-823c-2e888e6c82e9.sql:49:CREATE POLICY "Users delete own course progress"
+supabase/migrations/20260730044540_f2e71129-2f79-4b21-823c-2e888e6c82e9.sql:50:  ON public.user_course_progress FOR DELETE TO authenticated
+supabase/migrations/20260730044540_f2e71129-2f79-4b21-823c-2e888e6c82e9.sql:53:CREATE INDEX idx_user_course_progress_user ON public.user_course_progress (user_id, status);
+supabase/migrations/20260730044540_f2e71129-2f79-4b21-823c-2e888e6c82e9.sql:56:  BEFORE UPDATE ON public.user_course_progress
+supabase/migrations/20260630140000_study_notebooks.sql:15:CREATE TABLE IF NOT EXISTS public.study_notebooks (
+supabase/migrations/20260630140000_study_notebooks.sql:17:  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+supabase/migrations/20260630140000_study_notebooks.sql:22:CREATE TABLE IF NOT EXISTS public.study_notebook_items (
+supabase/migrations/20260630140000_study_notebooks.sql:24:  notebook_id uuid NOT NULL REFERENCES public.study_notebooks(id) ON DELETE CASCADE,
+supabase/migrations/20260630140000_study_notebooks.sql:28:  source_episode_id uuid REFERENCES public.user_episodes(id) ON DELETE SET NULL,
+supabase/migrations/20260630140000_study_notebooks.sql:32:ALTER TABLE public.study_notebooks ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260630140000_study_notebooks.sql:33:ALTER TABLE public.study_notebook_items ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260630140000_study_notebooks.sql:36:CREATE POLICY "users select own notebooks" ON public.study_notebooks
+supabase/migrations/20260630140000_study_notebooks.sql:39:CREATE POLICY "users insert own notebooks" ON public.study_notebooks
+supabase/migrations/20260630140000_study_notebooks.sql:40:  FOR INSERT WITH CHECK (auth.uid() = user_id);
+supabase/migrations/20260630140000_study_notebooks.sql:42:CREATE POLICY "users delete own notebooks" ON public.study_notebooks
+supabase/migrations/20260630140000_study_notebooks.sql:43:  FOR DELETE USING (auth.uid() = user_id);
+supabase/migrations/20260630140000_study_notebooks.sql:46:CREATE POLICY "users select own items" ON public.study_notebook_items
+supabase/migrations/20260630140000_study_notebooks.sql:52:CREATE POLICY "users insert own items" ON public.study_notebook_items
+supabase/migrations/20260630140000_study_notebooks.sql:53:  FOR INSERT WITH CHECK (EXISTS (
+supabase/migrations/20260630140000_study_notebooks.sql:58:CREATE INDEX IF NOT EXISTS study_notebooks_user_created_idx
+supabase/migrations/20260630140000_study_notebooks.sql:60:CREATE INDEX IF NOT EXISTS study_notebook_items_notebook_created_idx
+supabase/migrations/20260715050512_8ab790ce-1979-4afc-8d5f-5db683c9e421.sql:23:CREATE TABLE IF NOT EXISTS public.app_settings (
+supabase/migrations/20260715050512_8ab790ce-1979-4afc-8d5f-5db683c9e421.sql:31:GRANT INSERT, UPDATE, DELETE ON public.app_settings TO authenticated;
+supabase/migrations/20260715050512_8ab790ce-1979-4afc-8d5f-5db683c9e421.sql:33:ALTER TABLE public.app_settings ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260715050512_8ab790ce-1979-4afc-8d5f-5db683c9e421.sql:36:CREATE POLICY "Allow read access to anyone" ON public.app_settings
+supabase/migrations/20260715050512_8ab790ce-1979-4afc-8d5f-5db683c9e421.sql:40:CREATE POLICY "Allow write access to authenticated users" ON public.app_settings
+supabase/migrations/20260715050512_8ab790ce-1979-4afc-8d5f-5db683c9e421.sql:41:  FOR ALL TO authenticated USING (true) WITH CHECK (true);
+supabase/migrations/20260506064449_d698be63-b027-463b-ba24-a90cec443811.sql:2:-- REVERT: Drop conversations + chat_messages and their triggers/functions/indexes
+supabase/migrations/20260506064449_d698be63-b027-463b-ba24-a90cec443811.sql:24:CREATE TABLE public.conversations (
+supabase/migrations/20260506064449_d698be63-b027-463b-ba24-a90cec443811.sql:34:CREATE TABLE public.chat_messages (
+supabase/migrations/20260506064449_d698be63-b027-463b-ba24-a90cec443811.sql:36:  conversation_id uuid REFERENCES public.conversations(id) ON DELETE CASCADE NOT NULL,
+supabase/migrations/20260506064449_d698be63-b027-463b-ba24-a90cec443811.sql:45:ALTER TABLE public.conversations ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260506064449_d698be63-b027-463b-ba24-a90cec443811.sql:46:ALTER TABLE public.chat_messages ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260506064449_d698be63-b027-463b-ba24-a90cec443811.sql:49:CREATE POLICY "own_conversations_select" ON public.conversations
+supabase/migrations/20260506064449_d698be63-b027-463b-ba24-a90cec443811.sql:52:CREATE POLICY "own_conversations_insert" ON public.conversations
+supabase/migrations/20260506064449_d698be63-b027-463b-ba24-a90cec443811.sql:53:  FOR INSERT TO authenticated WITH CHECK (user_id = auth.uid());
+supabase/migrations/20260506064449_d698be63-b027-463b-ba24-a90cec443811.sql:55:CREATE POLICY "own_conversations_update" ON public.conversations
+supabase/migrations/20260506064449_d698be63-b027-463b-ba24-a90cec443811.sql:56:  FOR UPDATE TO authenticated USING (user_id = auth.uid());
+supabase/migrations/20260506064449_d698be63-b027-463b-ba24-a90cec443811.sql:58:CREATE POLICY "own_conversations_delete" ON public.conversations
+supabase/migrations/20260506064449_d698be63-b027-463b-ba24-a90cec443811.sql:59:  FOR DELETE TO authenticated USING (user_id = auth.uid());
+supabase/migrations/20260506064449_d698be63-b027-463b-ba24-a90cec443811.sql:62:CREATE POLICY "own_messages_select" ON public.chat_messages
+supabase/migrations/20260506064449_d698be63-b027-463b-ba24-a90cec443811.sql:66:CREATE POLICY "own_messages_insert" ON public.chat_messages
+supabase/migrations/20260506064449_d698be63-b027-463b-ba24-a90cec443811.sql:68:  WITH CHECK (conversation_id IN (SELECT id FROM public.conversations WHERE user_id = auth.uid()));
+supabase/migrations/20260506064449_d698be63-b027-463b-ba24-a90cec443811.sql:70:CREATE POLICY "own_messages_update" ON public.chat_messages
+supabase/migrations/20260506064449_d698be63-b027-463b-ba24-a90cec443811.sql:71:  FOR UPDATE TO authenticated
+supabase/migrations/20260506064449_d698be63-b027-463b-ba24-a90cec443811.sql:74:CREATE POLICY "own_messages_delete" ON public.chat_messages
+supabase/migrations/20260506064449_d698be63-b027-463b-ba24-a90cec443811.sql:75:  FOR DELETE TO authenticated
+supabase/migrations/20260506064449_d698be63-b027-463b-ba24-a90cec443811.sql:88:  BEFORE UPDATE ON public.conversations
+supabase/migrations/20260506064449_d698be63-b027-463b-ba24-a90cec443811.sql:93:CREATE INDEX idx_chat_messages_conversation ON public.chat_messages(conversation_id);
+supabase/migrations/20260506064449_d698be63-b027-463b-ba24-a90cec443811.sql:94:CREATE INDEX idx_conversations_user ON public.conversations(user_id);
+supabase/migrations/20260714080216_b87a05f0-8df7-4370-82ad-1833dd26e6aa.sql:13:-- CREATE POLICY kb_sources_select_authenticated ON public.kb_sources
+supabase/migrations/20260714080216_b87a05f0-8df7-4370-82ad-1833dd26e6aa.sql:15:-- CREATE POLICY kb_chunks_select_authenticated ON public.kb_chunks
+supabase/migrations/20260714080216_b87a05f0-8df7-4370-82ad-1833dd26e6aa.sql:18:-- CREATE POLICY public_read_active_teaching_images ON storage.objects
+supabase/migrations/20260714080216_b87a05f0-8df7-4370-82ad-1833dd26e6aa.sql:32:CREATE POLICY kb_sources_admin_select
+supabase/migrations/20260714080216_b87a05f0-8df7-4370-82ad-1833dd26e6aa.sql:38:CREATE POLICY kb_chunks_admin_select
+supabase/migrations/20260714080216_b87a05f0-8df7-4370-82ad-1833dd26e6aa.sql:48:CREATE POLICY public_read_active_teaching_images
+supabase/migrations/20260715000000_harden_linter_warnings.sql:18:-- CREATE POLICY "Allow write access to authenticated users" ON public.app_settings
+supabase/migrations/20260715000000_harden_linter_warnings.sql:20:-- CREATE POLICY "Allow write access to authenticated users" ON public.staging_quality_queue
+supabase/migrations/20260715000000_harden_linter_warnings.sql:22:-- CREATE POLICY "Allow select for all users" ON public.router_decisions FOR SELECT USING (true);
+supabase/migrations/20260715000000_harden_linter_warnings.sql:23:-- CREATE POLICY "Allow insert for all users" ON public.router_decisions FOR INSERT WITH CHECK (true);
+supabase/migrations/20260715000000_harden_linter_warnings.sql:30:CREATE POLICY "Allow write access to admins only" ON public.app_settings
+supabase/migrations/20260715000000_harden_linter_warnings.sql:33:  WITH CHECK (public.has_role(auth.uid(), 'admin'::public.app_role));
+supabase/migrations/20260715000000_harden_linter_warnings.sql:37:CREATE POLICY "Allow write access to admins only" ON public.staging_quality_queue
+supabase/migrations/20260715000000_harden_linter_warnings.sql:40:  WITH CHECK (public.has_role(auth.uid(), 'admin'::public.app_role));
+supabase/migrations/20260715000000_harden_linter_warnings.sql:43:-- Only admins should be able to SELECT/INSERT/UPDATE router decisions (backend uses service_role which bypasses RLS)
+supabase/migrations/20260715000000_harden_linter_warnings.sql:45:CREATE POLICY "Allow select for admins only" ON public.router_decisions
+supabase/migrations/20260715000000_harden_linter_warnings.sql:50:CREATE POLICY "Allow insert for admins only" ON public.router_decisions
+supabase/migrations/20260715000000_harden_linter_warnings.sql:52:  WITH CHECK (public.has_role(auth.uid(), 'admin'::public.app_role));
+supabase/migrations/20260715000000_harden_linter_warnings.sql:62:CREATE POLICY "Admins manage daily-teachings bucket" ON storage.objects
+supabase/migrations/20260715000000_harden_linter_warnings.sql:65:  WITH CHECK (bucket_id = 'daily-teachings' AND public.has_role(auth.uid(), 'admin'::public.app_role));
+supabase/migrations/20260615120000_backend_improvements.sql:31:  ADD COLUMN IF NOT EXISTS last_conversation_id uuid REFERENCES public.conversations(id) ON DELETE SET NULL,
+supabase/migrations/20260615120000_backend_improvements.sql:32:  ADD COLUMN IF NOT EXISTS last_message_id uuid REFERENCES public.chat_messages(id) ON DELETE SET NULL,
+supabase/migrations/20260615120000_backend_improvements.sql:38:  UPDATE public.profiles
+supabase/migrations/20260615120000_backend_improvements.sql:72:CREATE TABLE IF NOT EXISTS public.push_subscriptions (
+supabase/migrations/20260615120000_backend_improvements.sql:74:  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+supabase/migrations/20260615120000_backend_improvements.sql:80:GRANT SELECT, INSERT, DELETE ON public.push_subscriptions TO authenticated;
+supabase/migrations/20260615120000_backend_improvements.sql:82:ALTER TABLE public.push_subscriptions ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260615120000_backend_improvements.sql:84:CREATE POLICY "self" ON public.push_subscriptions FOR ALL
+supabase/migrations/20260615120000_backend_improvements.sql:85:  USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+supabase/migrations/20260615120000_backend_improvements.sql:88:CREATE TABLE IF NOT EXISTS public.daily_teachings (
+supabase/migrations/20260615120000_backend_improvements.sql:97:ALTER TABLE public.daily_teachings ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260615120000_backend_improvements.sql:99:CREATE POLICY "daily_teachings_public" ON public.daily_teachings FOR SELECT USING (true);
+supabase/migrations/20260615120000_backend_improvements.sql:102:CREATE TABLE IF NOT EXISTS public.pending_extractions (
+supabase/migrations/20260615120000_backend_improvements.sql:104:  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+supabase/migrations/20260615120000_backend_improvements.sql:114:CREATE INDEX IF NOT EXISTS idx_pending_extractions_status_created
+supabase/migrations/20260615120000_backend_improvements.sql:116:GRANT SELECT, INSERT, UPDATE ON public.pending_extractions TO service_role;
+supabase/migrations/20260615120000_backend_improvements.sql:117:ALTER TABLE public.pending_extractions ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260615120000_backend_improvements.sql:119:CREATE POLICY "pending_extractions_self" ON public.pending_extractions FOR ALL
+supabase/migrations/20260615120000_backend_improvements.sql:120:  USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+supabase/migrations/20260713000001_user_retention_cards.sql:16:CREATE TABLE IF NOT EXISTS public.user_retention_cards (
+supabase/migrations/20260713000001_user_retention_cards.sql:18:    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+supabase/migrations/20260713000001_user_retention_cards.sql:32:CREATE INDEX IF NOT EXISTS user_retention_cards_user_review_idx
+supabase/migrations/20260713000001_user_retention_cards.sql:36:ALTER TABLE public.user_retention_cards ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260713000001_user_retention_cards.sql:39:CREATE POLICY "own_retention_cards_select" ON public.user_retention_cards
+supabase/migrations/20260713000001_user_retention_cards.sql:43:CREATE POLICY "own_retention_cards_insert" ON public.user_retention_cards
+supabase/migrations/20260713000001_user_retention_cards.sql:44:    FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+supabase/migrations/20260713000001_user_retention_cards.sql:47:CREATE POLICY "own_retention_cards_update" ON public.user_retention_cards
+supabase/migrations/20260713000001_user_retention_cards.sql:48:    FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+supabase/migrations/20260713000001_user_retention_cards.sql:51:CREATE POLICY "own_retention_cards_delete" ON public.user_retention_cards
+supabase/migrations/20260713000001_user_retention_cards.sql:52:    FOR DELETE TO authenticated USING (auth.uid() = user_id);
+supabase/migrations/20260713000001_user_retention_cards.sql:55:GRANT SELECT, INSERT, UPDATE, DELETE ON public.user_retention_cards TO authenticated;
+supabase/migrations/20260713000001_user_retention_cards.sql:60:    BEFORE UPDATE ON public.user_retention_cards
+supabase/migrations/20260516190000_user_memory.sql:19:CREATE TABLE IF NOT EXISTS public.user_profiles (
+supabase/migrations/20260516190000_user_memory.sql:20:  user_id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+supabase/migrations/20260516190000_user_memory.sql:33:CREATE TABLE IF NOT EXISTS public.conversation_memories (
+supabase/migrations/20260516190000_user_memory.sql:35:  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+supabase/migrations/20260516190000_user_memory.sql:44:ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260516190000_user_memory.sql:45:ALTER TABLE public.conversation_memories ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260516190000_user_memory.sql:49:CREATE POLICY "Users can see their own profiles" ON public.user_profiles
+supabase/migrations/20260516190000_user_memory.sql:53:CREATE POLICY "Users can update their own profiles" ON public.user_profiles
+supabase/migrations/20260516190000_user_memory.sql:58:CREATE POLICY "Users can see their own memories" ON public.conversation_memories
+supabase/migrations/20260516190000_user_memory.sql:62:CREATE POLICY "Users can insert their own memories" ON public.conversation_memories
+supabase/migrations/20260516190000_user_memory.sql:67:CREATE POLICY "Admins can read all profiles" ON public.user_profiles
+supabase/migrations/20260516190000_user_memory.sql:71:CREATE POLICY "Admins can read all memories" ON public.conversation_memories
+supabase/migrations/20260508043115_0eb9a75d-8aa0-4988-a3f6-0b4b012e5621.sql:2:-- REVERT: Drop the admin-only policies added here. NOTE: this re-opens INSERT/UPDATE/
+supabase/migrations/20260508043115_0eb9a75d-8aa0-4988-a3f6-0b4b012e5621.sql:9:-- DELETE on user_roles to any authenticated user (the pre-migration state) —
+supabase/migrations/20260508043115_0eb9a75d-8aa0-4988-a3f6-0b4b012e5621.sql:18:-- Add explicit admin-only INSERT/UPDATE/DELETE policies on user_roles
+supabase/migrations/20260508043115_0eb9a75d-8aa0-4988-a3f6-0b4b012e5621.sql:19:CREATE POLICY "admins_manage_roles_insert"
+supabase/migrations/20260508043115_0eb9a75d-8aa0-4988-a3f6-0b4b012e5621.sql:23:WITH CHECK (has_role(auth.uid(), 'admin'::app_role));
+supabase/migrations/20260508043115_0eb9a75d-8aa0-4988-a3f6-0b4b012e5621.sql:25:CREATE POLICY "admins_manage_roles_update"
+supabase/migrations/20260508043115_0eb9a75d-8aa0-4988-a3f6-0b4b012e5621.sql:27:FOR UPDATE
+supabase/migrations/20260508043115_0eb9a75d-8aa0-4988-a3f6-0b4b012e5621.sql:31:CREATE POLICY "admins_manage_roles_delete"
+supabase/migrations/20260508043115_0eb9a75d-8aa0-4988-a3f6-0b4b012e5621.sql:33:FOR DELETE
+supabase/migrations/20260508043115_0eb9a75d-8aa0-4988-a3f6-0b4b012e5621.sql:37:-- Add UPDATE and DELETE policies on daily-teachings storage bucket for admins
+supabase/migrations/20260508043115_0eb9a75d-8aa0-4988-a3f6-0b4b012e5621.sql:38:CREATE POLICY "Admins can update teaching images"
+supabase/migrations/20260508043115_0eb9a75d-8aa0-4988-a3f6-0b4b012e5621.sql:40:FOR UPDATE
+supabase/migrations/20260508043115_0eb9a75d-8aa0-4988-a3f6-0b4b012e5621.sql:44:CREATE POLICY "Admins can delete teaching images"
+supabase/migrations/20260508043115_0eb9a75d-8aa0-4988-a3f6-0b4b012e5621.sql:46:FOR DELETE
+supabase/migrations/20260713000000_create_push_devices.sql:10:-- users_update_own policy recreated with WITH CHECK by 20260804000001 — drops
+supabase/migrations/20260713000000_create_push_devices.sql:30:-- Plain unique index (no partial `where active`) so ON CONFLICT upsert works.
+supabase/migrations/20260713000000_create_push_devices.sql:31:create unique index if not exists push_devices_uq_token
+supabase/migrations/20260605023720_602a5230-c7aa-47c2-9b22-195342ada89b.sql:22:CREATE TABLE IF NOT EXISTS public.kb_sources (
+supabase/migrations/20260605023720_602a5230-c7aa-47c2-9b22-195342ada89b.sql:30:  created_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+supabase/migrations/20260605023720_602a5230-c7aa-47c2-9b22-195342ada89b.sql:36:GRANT INSERT, UPDATE, DELETE ON public.kb_sources TO authenticated;
+supabase/migrations/20260605023720_602a5230-c7aa-47c2-9b22-195342ada89b.sql:39:ALTER TABLE public.kb_sources ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260605023720_602a5230-c7aa-47c2-9b22-195342ada89b.sql:41:CREATE POLICY "kb_sources_read_all"
+supabase/migrations/20260605023720_602a5230-c7aa-47c2-9b22-195342ada89b.sql:45:CREATE POLICY "kb_sources_admin_write"
+supabase/migrations/20260605023720_602a5230-c7aa-47c2-9b22-195342ada89b.sql:49:  WITH CHECK (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260605023720_602a5230-c7aa-47c2-9b22-195342ada89b.sql:52:CREATE TABLE IF NOT EXISTS public.kb_chunks (
+supabase/migrations/20260605023720_602a5230-c7aa-47c2-9b22-195342ada89b.sql:54:  source_id uuid NOT NULL REFERENCES public.kb_sources(id) ON DELETE CASCADE,
+supabase/migrations/20260605023720_602a5230-c7aa-47c2-9b22-195342ada89b.sql:63:GRANT INSERT, UPDATE, DELETE ON public.kb_chunks TO authenticated;
+supabase/migrations/20260605023720_602a5230-c7aa-47c2-9b22-195342ada89b.sql:66:ALTER TABLE public.kb_chunks ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260605023720_602a5230-c7aa-47c2-9b22-195342ada89b.sql:68:CREATE POLICY "kb_chunks_read_all"
+supabase/migrations/20260605023720_602a5230-c7aa-47c2-9b22-195342ada89b.sql:72:CREATE POLICY "kb_chunks_admin_write"
+supabase/migrations/20260605023720_602a5230-c7aa-47c2-9b22-195342ada89b.sql:76:  WITH CHECK (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260605023720_602a5230-c7aa-47c2-9b22-195342ada89b.sql:78:CREATE INDEX IF NOT EXISTS kb_chunks_source_idx ON public.kb_chunks (source_id);
+supabase/migrations/20260605023720_602a5230-c7aa-47c2-9b22-195342ada89b.sql:79:CREATE INDEX IF NOT EXISTS kb_chunks_embedding_hnsw
+supabase/migrations/20260605023720_602a5230-c7aa-47c2-9b22-195342ada89b.sql:95:  BEFORE UPDATE ON public.kb_sources
+supabase/migrations/20260724090000_drop_permissive_daily_teachings_policies.sql:11:-- CREATE POLICY "Public can read teachings" ON public.daily_teachings FOR SELECT USING (true);
+supabase/migrations/20260724090000_drop_permissive_daily_teachings_policies.sql:12:-- CREATE POLICY "daily_teachings_public" ON public.daily_teachings FOR SELECT USING (true);
+backend/services/semantic_cache.py:103:    def _index_key(self, user_id: str = "", tenant_id: str = "default") -> str:
+backend/services/semantic_cache.py:105:            return f"mukthiguru:semcache:{tenant_id}:{user_id}:index"
+backend/services/semantic_cache.py:106:        return f"mukthiguru:semcache:{tenant_id}:shared:index"
+backend/services/semantic_cache.py:132:            index_data = self._redis.get(self._index_key(user_id=user_id, tenant_id=tenant_id))
+backend/services/semantic_cache.py:133:            if not index_data:
+backend/services/semantic_cache.py:137:            entry_ids = json.loads(index_data)
+backend/services/semantic_cache.py:251:            # Update index
+backend/services/semantic_cache.py:252:            index_data = self._redis.get(self._index_key(user_id=user_id, tenant_id=tenant_id))
+backend/services/semantic_cache.py:253:            entry_ids = json.loads(index_data) if index_data else []
+backend/services/semantic_cache.py:257:                # Cap at 500 entries to prevent index bloat
+backend/services/semantic_cache.py:267:                    self._index_key(user_id=user_id, tenant_id=tenant_id),
+backend/services/semantic_cache.py:315:            index_data = self._redis.get(self._index_key(user_id=user_id, tenant_id=tenant_id))
+backend/services/semantic_cache.py:316:            if not index_data:
+backend/services/semantic_cache.py:319:            entry_ids = json.loads(index_data)
+backend/services/semantic_cache.py:346:                # Rebuild index without invalidated entries
+backend/services/semantic_cache.py:355:                    self._index_key(user_id=user_id, tenant_id=tenant_id),
+backend/services/qdrant/indexer.py:1:"""Qdrant indexing operations: upsert, delete, backup, count, scroll."""
+backend/services/qdrant/indexer.py:81:        Uses deterministic IDs based on source_url:chunk_index:raptor_level
+backend/services/qdrant/indexer.py:139:        # was individually innocent, and `make_point_id` hashes chunk_index, so
+backend/services/qdrant/indexer.py:150:                m.get("chunk_index", i),
+backend/services/qdrant/indexer.py:236:            # every chunk indexed here was permanently unretrievable under the gate.
+backend/services/qdrant/indexer.py:323:        currently indexed for source_url in the main collection, then re-upserts the
+backend/services/qdrant/indexer.py:326:        partially-processed source never gets left indexed.
+backend/services/qdrant/indexer.py:416:                "chunk_index": r.payload.get("chunk_index", 0),
+backend/services/qdrant/indexer.py:424:        """Get total number of indexed chunks."""
+backend/services/qdrant/utils.py:23:    def make_point_id(source_url: str, chunk_index: int, raptor_level: int = 0) -> str:
+backend/services/qdrant/utils.py:25:        key = f"{source_url}:{chunk_index}:{raptor_level}"
+supabase/migrations/20260805000002_waitlist_entries.sql:2:CREATE TABLE IF NOT EXISTS public.waitlist_entries (
+supabase/migrations/20260805000002_waitlist_entries.sql:15:ALTER TABLE public.waitlist_entries ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260805000002_waitlist_entries.sql:17:GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.waitlist_entries TO service_role;
+supabase/migrations/20260712000000_add_retention_and_summary.sql:2:-- REVERT: Drop the retention_days + summary columns and the partial index. NOTE:
+supabase/migrations/20260712000000_add_retention_and_summary.sql:31:UPDATE public.guru_memories
+supabase/migrations/20260712000000_add_retention_and_summary.sql:36:CREATE INDEX IF NOT EXISTS idx_conversations_retention_created
+supabase/migrations/20260607180000_memory_layer.sql:2:-- REVERT: Drop the memory-layer tables, HNSW index and match_user_memories(). DESTRUCTIVE:
+supabase/migrations/20260607180000_memory_layer.sql:26:CREATE TABLE IF NOT EXISTS public.guru_core_memory (
+supabase/migrations/20260607180000_memory_layer.sql:28:  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+supabase/migrations/20260607180000_memory_layer.sql:35:CREATE TABLE IF NOT EXISTS public.guru_memories (
+supabase/migrations/20260607180000_memory_layer.sql:37:  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+supabase/migrations/20260607180000_memory_layer.sql:45:-- HNSW index for fast vector similarity search using Cosine Distance
+supabase/migrations/20260607180000_memory_layer.sql:46:CREATE INDEX IF NOT EXISTS guru_memories_hnsw_idx
+supabase/migrations/20260607180000_memory_layer.sql:51:CREATE TABLE IF NOT EXISTS public.guru_session_summaries (
+supabase/migrations/20260607180000_memory_layer.sql:53:  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+supabase/migrations/20260607180000_memory_layer.sql:61:ALTER TABLE public.guru_core_memory ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260607180000_memory_layer.sql:62:ALTER TABLE public.guru_memories ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260607180000_memory_layer.sql:63:ALTER TABLE public.guru_session_summaries ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260607180000_memory_layer.sql:67:CREATE POLICY "Users can see their own core memory" ON public.guru_core_memory
+supabase/migrations/20260607180000_memory_layer.sql:71:CREATE POLICY "Users can insert their own core memory" ON public.guru_core_memory
+supabase/migrations/20260607180000_memory_layer.sql:72:  FOR INSERT WITH CHECK (auth.uid() = user_id);
+supabase/migrations/20260607180000_memory_layer.sql:75:CREATE POLICY "Users can update their own core memory" ON public.guru_core_memory
+supabase/migrations/20260607180000_memory_layer.sql:76:  FOR UPDATE USING (auth.uid() = user_id);
+supabase/migrations/20260607180000_memory_layer.sql:79:CREATE POLICY "Users can delete their own core memory" ON public.guru_core_memory
+supabase/migrations/20260607180000_memory_layer.sql:80:  FOR DELETE USING (auth.uid() = user_id);
+supabase/migrations/20260607180000_memory_layer.sql:84:CREATE POLICY "Users can see their own memories" ON public.guru_memories
+supabase/migrations/20260607180000_memory_layer.sql:88:CREATE POLICY "Users can insert their own memories" ON public.guru_memories
+supabase/migrations/20260607180000_memory_layer.sql:89:  FOR INSERT WITH CHECK (auth.uid() = user_id);
+supabase/migrations/20260607180000_memory_layer.sql:92:CREATE POLICY "Users can update their own memories" ON public.guru_memories
+supabase/migrations/20260607180000_memory_layer.sql:93:  FOR UPDATE USING (auth.uid() = user_id);
+supabase/migrations/20260607180000_memory_layer.sql:96:CREATE POLICY "Users can delete their own memories" ON public.guru_memories
+supabase/migrations/20260607180000_memory_layer.sql:97:  FOR DELETE USING (auth.uid() = user_id);
+supabase/migrations/20260607180000_memory_layer.sql:101:CREATE POLICY "Users can see their own session summaries" ON public.guru_session_summaries
+supabase/migrations/20260607180000_memory_layer.sql:105:CREATE POLICY "Users can insert their own session summaries" ON public.guru_session_summaries
+supabase/migrations/20260607180000_memory_layer.sql:106:  FOR INSERT WITH CHECK (auth.uid() = user_id);
+supabase/migrations/20260607180000_memory_layer.sql:109:CREATE POLICY "Users can update their own session summaries" ON public.guru_session_summaries
+supabase/migrations/20260607180000_memory_layer.sql:110:  FOR UPDATE USING (auth.uid() = user_id);
+supabase/migrations/20260607180000_memory_layer.sql:113:CREATE POLICY "Users can delete their own session summaries" ON public.guru_session_summaries
+supabase/migrations/20260607180000_memory_layer.sql:114:  FOR DELETE USING (auth.uid() = user_id);
+supabase/migrations/20260618044620_58e0642d-38c0-469d-9bd5-b6e91fc32297.sql:23:CREATE TABLE IF NOT EXISTS public.guru_memories (
+supabase/migrations/20260618044620_58e0642d-38c0-469d-9bd5-b6e91fc32297.sql:25:  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+supabase/migrations/20260618044620_58e0642d-38c0-469d-9bd5-b6e91fc32297.sql:35:GRANT SELECT, INSERT, UPDATE, DELETE ON public.guru_memories TO authenticated;
+supabase/migrations/20260618044620_58e0642d-38c0-469d-9bd5-b6e91fc32297.sql:37:ALTER TABLE public.guru_memories ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260618044620_58e0642d-38c0-469d-9bd5-b6e91fc32297.sql:38:CREATE POLICY "own_guru_memories_select" ON public.guru_memories FOR SELECT TO authenticated USING (auth.uid() = user_id);
+supabase/migrations/20260618044620_58e0642d-38c0-469d-9bd5-b6e91fc32297.sql:39:CREATE POLICY "own_guru_memories_insert" ON public.guru_memories FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+supabase/migrations/20260618044620_58e0642d-38c0-469d-9bd5-b6e91fc32297.sql:40:CREATE POLICY "own_guru_memories_update" ON public.guru_memories FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+supabase/migrations/20260618044620_58e0642d-38c0-469d-9bd5-b6e91fc32297.sql:41:CREATE POLICY "own_guru_memories_delete" ON public.guru_memories FOR DELETE TO authenticated USING (auth.uid() = user_id);
+supabase/migrations/20260618044620_58e0642d-38c0-469d-9bd5-b6e91fc32297.sql:42:CREATE INDEX IF NOT EXISTS guru_memories_user_created_idx ON public.guru_memories (user_id, created_at DESC);
+supabase/migrations/20260618044620_58e0642d-38c0-469d-9bd5-b6e91fc32297.sql:43:CREATE INDEX IF NOT EXISTS guru_memories_embedding_idx
+supabase/migrations/20260618044620_58e0642d-38c0-469d-9bd5-b6e91fc32297.sql:49:CREATE TABLE IF NOT EXISTS public.guru_core_memory (
+supabase/migrations/20260618044620_58e0642d-38c0-469d-9bd5-b6e91fc32297.sql:51:  user_id UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
+supabase/migrations/20260618044620_58e0642d-38c0-469d-9bd5-b6e91fc32297.sql:56:GRANT SELECT, INSERT, UPDATE, DELETE ON public.guru_core_memory TO authenticated;
+supabase/migrations/20260618044620_58e0642d-38c0-469d-9bd5-b6e91fc32297.sql:58:ALTER TABLE public.guru_core_memory ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260618044620_58e0642d-38c0-469d-9bd5-b6e91fc32297.sql:59:CREATE POLICY "own_core_memory_select" ON public.guru_core_memory FOR SELECT TO authenticated USING (auth.uid() = user_id);
+supabase/migrations/20260618044620_58e0642d-38c0-469d-9bd5-b6e91fc32297.sql:60:CREATE POLICY "own_core_memory_insert" ON public.guru_core_memory FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+supabase/migrations/20260618044620_58e0642d-38c0-469d-9bd5-b6e91fc32297.sql:61:CREATE POLICY "own_core_memory_update" ON public.guru_core_memory FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+supabase/migrations/20260618044620_58e0642d-38c0-469d-9bd5-b6e91fc32297.sql:62:CREATE POLICY "own_core_memory_delete" ON public.guru_core_memory FOR DELETE TO authenticated USING (auth.uid() = user_id);
+supabase/migrations/20260618044620_58e0642d-38c0-469d-9bd5-b6e91fc32297.sql:65:CREATE TABLE IF NOT EXISTS public.guru_session_summaries (
+supabase/migrations/20260618044620_58e0642d-38c0-469d-9bd5-b6e91fc32297.sql:67:  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+supabase/migrations/20260618044620_58e0642d-38c0-469d-9bd5-b6e91fc32297.sql:72:GRANT SELECT, INSERT, UPDATE, DELETE ON public.guru_session_summaries TO authenticated;
+supabase/migrations/20260618044620_58e0642d-38c0-469d-9bd5-b6e91fc32297.sql:74:ALTER TABLE public.guru_session_summaries ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260618044620_58e0642d-38c0-469d-9bd5-b6e91fc32297.sql:75:CREATE POLICY "own_summaries_select" ON public.guru_session_summaries FOR SELECT TO authenticated USING (auth.uid() = user_id);
+supabase/migrations/20260618044620_58e0642d-38c0-469d-9bd5-b6e91fc32297.sql:76:CREATE POLICY "own_summaries_insert" ON public.guru_session_summaries FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+supabase/migrations/20260618044620_58e0642d-38c0-469d-9bd5-b6e91fc32297.sql:77:CREATE POLICY "own_summaries_update" ON public.guru_session_summaries FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+supabase/migrations/20260618044620_58e0642d-38c0-469d-9bd5-b6e91fc32297.sql:78:CREATE POLICY "own_summaries_delete" ON public.guru_session_summaries FOR DELETE TO authenticated USING (auth.uid() = user_id);
+supabase/migrations/20260618044620_58e0642d-38c0-469d-9bd5-b6e91fc32297.sql:79:CREATE INDEX IF NOT EXISTS guru_summaries_user_created_idx ON public.guru_session_summaries (user_id, created_at DESC);
+supabase/migrations/20260618044620_58e0642d-38c0-469d-9bd5-b6e91fc32297.sql:82:CREATE TABLE IF NOT EXISTS public.chat_sessions (
+supabase/migrations/20260618044620_58e0642d-38c0-469d-9bd5-b6e91fc32297.sql:84:  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+supabase/migrations/20260618044620_58e0642d-38c0-469d-9bd5-b6e91fc32297.sql:87:GRANT SELECT, INSERT, UPDATE, DELETE ON public.chat_sessions TO authenticated;
+supabase/migrations/20260618044620_58e0642d-38c0-469d-9bd5-b6e91fc32297.sql:89:ALTER TABLE public.chat_sessions ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260618044620_58e0642d-38c0-469d-9bd5-b6e91fc32297.sql:90:CREATE POLICY "own_chat_sessions_select" ON public.chat_sessions FOR SELECT TO authenticated USING (auth.uid() = user_id);
+supabase/migrations/20260618044620_58e0642d-38c0-469d-9bd5-b6e91fc32297.sql:91:CREATE POLICY "own_chat_sessions_insert" ON public.chat_sessions FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+supabase/migrations/20260618044620_58e0642d-38c0-469d-9bd5-b6e91fc32297.sql:92:CREATE POLICY "own_chat_sessions_delete" ON public.chat_sessions FOR DELETE TO authenticated USING (auth.uid() = user_id);
+supabase/migrations/20260618044620_58e0642d-38c0-469d-9bd5-b6e91fc32297.sql:94:CREATE INDEX IF NOT EXISTS chat_sessions_user_created_idx ON public.chat_sessions (user_id, created_at DESC);
+supabase/migrations/20260618044620_58e0642d-38c0-469d-9bd5-b6e91fc32297.sql:102:CREATE TRIGGER trg_guru_memories_touch BEFORE UPDATE ON public.guru_memories FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
+supabase/migrations/20260618044620_58e0642d-38c0-469d-9bd5-b6e91fc32297.sql:104:CREATE TRIGGER trg_guru_core_touch BEFORE UPDATE ON public.guru_core_memory FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
+supabase/migrations/20260616050645_effd7cd1-c5a9-403c-abc7-053a5f5f932c.sql:2:-- REVERT: Drop the push_subscriptions v2 table + index and the session-continuity
+supabase/migrations/20260616050645_effd7cd1-c5a9-403c-abc7-053a5f5f932c.sql:27:CREATE TABLE IF NOT EXISTS public.push_subscriptions (
+supabase/migrations/20260616050645_effd7cd1-c5a9-403c-abc7-053a5f5f932c.sql:29:  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+supabase/migrations/20260616050645_effd7cd1-c5a9-403c-abc7-053a5f5f932c.sql:40:GRANT SELECT, INSERT, UPDATE, DELETE ON public.push_subscriptions TO authenticated;
+supabase/migrations/20260616050645_effd7cd1-c5a9-403c-abc7-053a5f5f932c.sql:43:ALTER TABLE public.push_subscriptions ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260616050645_effd7cd1-c5a9-403c-abc7-053a5f5f932c.sql:45:CREATE POLICY "own_push_subs_select" ON public.push_subscriptions
+supabase/migrations/20260616050645_effd7cd1-c5a9-403c-abc7-053a5f5f932c.sql:47:CREATE POLICY "own_push_subs_insert" ON public.push_subscriptions
+supabase/migrations/20260616050645_effd7cd1-c5a9-403c-abc7-053a5f5f932c.sql:48:  FOR INSERT TO authenticated WITH CHECK (user_id = auth.uid());
+supabase/migrations/20260616050645_effd7cd1-c5a9-403c-abc7-053a5f5f932c.sql:49:CREATE POLICY "own_push_subs_update" ON public.push_subscriptions
+supabase/migrations/20260616050645_effd7cd1-c5a9-403c-abc7-053a5f5f932c.sql:50:  FOR UPDATE TO authenticated USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+supabase/migrations/20260616050645_effd7cd1-c5a9-403c-abc7-053a5f5f932c.sql:51:CREATE POLICY "own_push_subs_delete" ON public.push_subscriptions
+supabase/migrations/20260616050645_effd7cd1-c5a9-403c-abc7-053a5f5f932c.sql:52:  FOR DELETE TO authenticated USING (user_id = auth.uid());
+supabase/migrations/20260616050645_effd7cd1-c5a9-403c-abc7-053a5f5f932c.sql:54:CREATE INDEX IF NOT EXISTS push_subscriptions_user_idx ON public.push_subscriptions(user_id);
+supabase/migrations/20260718000000_user_streaks.sql:17:CREATE TABLE IF NOT EXISTS public.user_streaks (
+supabase/migrations/20260718000000_user_streaks.sql:18:    user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+supabase/migrations/20260718000000_user_streaks.sql:27:CREATE INDEX IF NOT EXISTS user_streaks_last_active_idx
+supabase/migrations/20260718000000_user_streaks.sql:30:ALTER TABLE public.user_streaks ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260718000000_user_streaks.sql:32:CREATE POLICY "own_streaks_select" ON public.user_streaks
+supabase/migrations/20260718000000_user_streaks.sql:39:    BEFORE UPDATE ON public.user_streaks
+supabase/migrations/20260718000000_user_streaks.sql:44:CREATE TABLE IF NOT EXISTS public.retention_events (
+supabase/migrations/20260718000000_user_streaks.sql:46:    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+supabase/migrations/20260718000000_user_streaks.sql:52:CREATE INDEX IF NOT EXISTS retention_events_user_idx
+supabase/migrations/20260718000000_user_streaks.sql:55:CREATE INDEX IF NOT EXISTS retention_events_event_idx
+supabase/migrations/20260718000000_user_streaks.sql:58:ALTER TABLE public.retention_events ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260718000000_user_streaks.sql:60:CREATE POLICY "own_retention_events_select" ON public.retention_events
+supabase/migrations/20260718000000_user_streaks.sql:63:CREATE POLICY "own_retention_events_insert" ON public.retention_events
+supabase/migrations/20260718000000_user_streaks.sql:64:    FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+supabase/migrations/20260718000000_user_streaks.sql:66:CREATE POLICY "service_role_all_events" ON public.retention_events
+supabase/migrations/20260718000000_user_streaks.sql:67:    FOR ALL TO service_role USING (true) WITH CHECK (true);
+supabase/migrations/20260718000000_user_streaks.sql:73:-- and logs practice/milestone events in a single transaction.
+supabase/migrations/20260718000000_user_streaks.sql:93:    ON CONFLICT (user_id) DO NOTHING;
+supabase/migrations/20260718000000_user_streaks.sql:95:    SELECT * INTO rec FROM public.user_streaks WHERE user_id = p_user_id FOR UPDATE;
+supabase/migrations/20260718000000_user_streaks.sql:132:    ON CONFLICT (user_id) DO UPDATE SET
+supabase/migrations/20240430000000_schema.sql:9:-- Drops every object this migration created (FK-cascade order; indexes and
+supabase/migrations/20240430000000_schema.sql:230:create index on chat_queries (created_at desc);
+supabase/migrations/20240430000000_schema.sql:231:create index on chat_responses (hallucination_flag, created_at desc);
+supabase/migrations/20240430000000_schema.sql:232:create index on trigger_events (trigger_name, created_at desc);
+supabase/migrations/20240430000000_schema.sql:233:create index on trace_spans (query_id);
+supabase/migrations/20240430000000_schema.sql:234:create index on safety_events (type, created_at desc);
+supabase/migrations/20240430000000_schema.sql:235:create index on app_logs (created_at desc);
+supabase/migrations/20260618110000_db_consolidation.sql:2:-- REVERT: Drop token_usage + policies/indexes, reverse the prompt_versions changes and
+supabase/migrations/20260618110000_db_consolidation.sql:31:CREATE TABLE IF NOT EXISTS public.token_usage (
+supabase/migrations/20260618110000_db_consolidation.sql:48:ALTER TABLE public.token_usage ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260618110000_db_consolidation.sql:50:CREATE POLICY "admins read token_usage"
+supabase/migrations/20260618110000_db_consolidation.sql:55:CREATE POLICY "service_role manage token_usage"
+supabase/migrations/20260618110000_db_consolidation.sql:58:  USING (true) WITH CHECK (true);
+supabase/migrations/20260618110000_db_consolidation.sql:60:CREATE INDEX IF NOT EXISTS idx_token_usage_tenant_created
+supabase/migrations/20260618110000_db_consolidation.sql:63:CREATE INDEX IF NOT EXISTS idx_token_usage_user_created
+supabase/migrations/20260618110000_db_consolidation.sql:66:CREATE INDEX IF NOT EXISTS idx_token_usage_created_at
+supabase/migrations/20260618110000_db_consolidation.sql:78:ALTER TABLE public.conversation_memories ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260618110000_db_consolidation.sql:81:CREATE POLICY "service_role manage conversation_memories"
+supabase/migrations/20260618110000_db_consolidation.sql:84:  USING (true) WITH CHECK (true);
+supabase/migrations/20260618110000_db_consolidation.sql:88:CREATE POLICY "users read own conversation_memories"
+supabase/migrations/20260618110000_db_consolidation.sql:95:CREATE POLICY "users insert own conversation_memories"
+supabase/migrations/20260618110000_db_consolidation.sql:98:  WITH CHECK (auth.uid() = user_id);
+supabase/migrations/20260621033728_d14bd1cf-bb63-485e-871d-455aa729d6b2.sql:23:CREATE TABLE public.notes (
+supabase/migrations/20260621033728_d14bd1cf-bb63-485e-871d-455aa729d6b2.sql:25:  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+supabase/migrations/20260621033728_d14bd1cf-bb63-485e-871d-455aa729d6b2.sql:35:GRANT SELECT, INSERT, UPDATE, DELETE ON public.notes TO authenticated;
+supabase/migrations/20260621033728_d14bd1cf-bb63-485e-871d-455aa729d6b2.sql:37:ALTER TABLE public.notes ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260621033728_d14bd1cf-bb63-485e-871d-455aa729d6b2.sql:38:CREATE POLICY "notes_own_select" ON public.notes FOR SELECT TO authenticated USING (auth.uid() = user_id);
+supabase/migrations/20260621033728_d14bd1cf-bb63-485e-871d-455aa729d6b2.sql:39:CREATE POLICY "notes_own_insert" ON public.notes FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+supabase/migrations/20260621033728_d14bd1cf-bb63-485e-871d-455aa729d6b2.sql:40:CREATE POLICY "notes_own_update" ON public.notes FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+supabase/migrations/20260621033728_d14bd1cf-bb63-485e-871d-455aa729d6b2.sql:41:CREATE POLICY "notes_own_delete" ON public.notes FOR DELETE TO authenticated USING (auth.uid() = user_id);
+supabase/migrations/20260621033728_d14bd1cf-bb63-485e-871d-455aa729d6b2.sql:42:CREATE TRIGGER notes_touch_updated_at BEFORE UPDATE ON public.notes FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
+supabase/migrations/20260621033728_d14bd1cf-bb63-485e-871d-455aa729d6b2.sql:43:CREATE INDEX notes_user_updated_idx ON public.notes(user_id, updated_at DESC);
+supabase/migrations/20260621033728_d14bd1cf-bb63-485e-871d-455aa729d6b2.sql:48:CREATE TABLE public.assistants (
+supabase/migrations/20260621033728_d14bd1cf-bb63-485e-871d-455aa729d6b2.sql:59:  created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+supabase/migrations/20260621033728_d14bd1cf-bb63-485e-871d-455aa729d6b2.sql:64:GRANT INSERT, UPDATE, DELETE ON public.assistants TO authenticated;
+supabase/migrations/20260621033728_d14bd1cf-bb63-485e-871d-455aa729d6b2.sql:66:ALTER TABLE public.assistants ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260621033728_d14bd1cf-bb63-485e-871d-455aa729d6b2.sql:67:CREATE TRIGGER assistants_touch BEFORE UPDATE ON public.assistants FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
+supabase/migrations/20260621033728_d14bd1cf-bb63-485e-871d-455aa729d6b2.sql:70:CREATE TABLE public.assistant_access (
+supabase/migrations/20260621033728_d14bd1cf-bb63-485e-871d-455aa729d6b2.sql:71:  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+supabase/migrations/20260621033728_d14bd1cf-bb63-485e-871d-455aa729d6b2.sql:72:  assistant_id UUID NOT NULL REFERENCES public.assistants(id) ON DELETE CASCADE,
+supabase/migrations/20260621033728_d14bd1cf-bb63-485e-871d-455aa729d6b2.sql:79:ALTER TABLE public.assistant_access ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260621033728_d14bd1cf-bb63-485e-871d-455aa729d6b2.sql:80:CREATE POLICY "assistant_access_own_select" ON public.assistant_access FOR SELECT TO authenticated USING (user_id = auth.uid());
+supabase/migrations/20260621033728_d14bd1cf-bb63-485e-871d-455aa729d6b2.sql:83:CREATE POLICY "assistants_read_public" ON public.assistants FOR SELECT TO anon, authenticated USING (visibility = 'public');
+supabase/migrations/20260621033728_d14bd1cf-bb63-485e-871d-455aa729d6b2.sql:84:CREATE POLICY "assistants_read_granted" ON public.assistants FOR SELECT TO authenticated
+supabase/migrations/20260621033728_d14bd1cf-bb63-485e-871d-455aa729d6b2.sql:86:CREATE POLICY "assistants_read_own" ON public.assistants FOR SELECT TO authenticated USING (created_by = auth.uid());
+supabase/migrations/20260621033728_d14bd1cf-bb63-485e-871d-455aa729d6b2.sql:87:CREATE POLICY "assistants_insert_own" ON public.assistants FOR INSERT TO authenticated WITH CHECK (created_by = auth.uid());
+supabase/migrations/20260621033728_d14bd1cf-bb63-485e-871d-455aa729d6b2.sql:88:CREATE POLICY "assistants_update_own" ON public.assistants FOR UPDATE TO authenticated USING (created_by = auth.uid()) WITH CHECK (created_by = auth.uid());
+supabase/migrations/20260621033728_d14bd1cf-bb63-485e-871d-455aa729d6b2.sql:89:CREATE POLICY "assistants_delete_own" ON public.assistants FOR DELETE TO authenticated USING (created_by = auth.uid());
+supabase/migrations/20260621033728_d14bd1cf-bb63-485e-871d-455aa729d6b2.sql:91:ALTER TABLE public.conversations ADD COLUMN IF NOT EXISTS assistant_id UUID REFERENCES public.assistants(id) ON DELETE SET NULL;
+supabase/migrations/20260621033728_d14bd1cf-bb63-485e-871d-455aa729d6b2.sql:108:ON CONFLICT (slug) DO NOTHING;
+supabase/migrations/20260805000001_memory_outbox.sql:3:CREATE TABLE IF NOT EXISTS public.memory_consent_receipts (
+supabase/migrations/20260805000001_memory_outbox.sql:5:    user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+supabase/migrations/20260805000001_memory_outbox.sql:14:CREATE INDEX IF NOT EXISTS idx_memory_consent_receipts_user_tenant
+supabase/migrations/20260805000001_memory_outbox.sql:17:CREATE TABLE IF NOT EXISTS public.memory_outbox (
+supabase/migrations/20260805000001_memory_outbox.sql:19:    user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+supabase/migrations/20260805000001_memory_outbox.sql:23:    consent_receipt_id uuid REFERENCES public.memory_consent_receipts(id) ON DELETE SET NULL,
+supabase/migrations/20260805000001_memory_outbox.sql:34:CREATE INDEX IF NOT EXISTS idx_memory_outbox_status_created
+supabase/migrations/20260805000001_memory_outbox.sql:36:CREATE INDEX IF NOT EXISTS idx_memory_outbox_user_tenant
+supabase/migrations/20260805000001_memory_outbox.sql:39:CREATE TABLE IF NOT EXISTS public.memory_deletion_receipts (
+supabase/migrations/20260805000001_memory_outbox.sql:41:    user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+supabase/migrations/20260805000001_memory_outbox.sql:50:CREATE INDEX IF NOT EXISTS idx_memory_deletion_receipts_user_tenant
+supabase/migrations/20260805000001_memory_outbox.sql:53:ALTER TABLE public.memory_consent_receipts ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260805000001_memory_outbox.sql:54:ALTER TABLE public.memory_outbox ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260805000001_memory_outbox.sql:55:ALTER TABLE public.memory_deletion_receipts ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260805000001_memory_outbox.sql:58:CREATE POLICY "Users can read own memory consent receipts"
+supabase/migrations/20260805000001_memory_outbox.sql:63:CREATE POLICY "Users can read own memory outbox rows"
+supabase/migrations/20260805000001_memory_outbox.sql:68:CREATE POLICY "Users can delete own memory outbox rows"
+supabase/migrations/20260805000001_memory_outbox.sql:69:    ON public.memory_outbox FOR DELETE TO authenticated
+supabase/migrations/20260805000001_memory_outbox.sql:73:CREATE POLICY "Users can read own memory deletion receipts"
+supabase/migrations/20260805000001_memory_outbox.sql:94:        FOR UPDATE SKIP LOCKED
+supabase/migrations/20260805000001_memory_outbox.sql:97:        UPDATE public.memory_outbox AS outbox
+supabase/migrations/20260613180000_fix_memory_to_1024_dim.sql:26:-- 1. Drop HNSW index
+supabase/migrations/20260613180000_fix_memory_to_1024_dim.sql:34:-- 3. Recreate HNSW index at correct dimensions
+supabase/migrations/20260613180000_fix_memory_to_1024_dim.sql:35:CREATE INDEX guru_memories_hnsw_idx
+backend/services/qdrant/__init__.py:5:- indexer: chunk upsert, delete, backup, counts
+backend/services/qdrant/__init__.py:16:from services.qdrant.indexer import QdrantIndexer
+supabase/migrations/20260814070623_6b7e3af1-d5c1-4791-a5de-b5887f2ad05e.sql:1:CREATE TABLE IF NOT EXISTS public.doctrine_faqs (
+supabase/migrations/20260814070623_6b7e3af1-d5c1-4791-a5de-b5887f2ad05e.sql:16:ALTER TABLE public.doctrine_faqs ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260814070623_6b7e3af1-d5c1-4791-a5de-b5887f2ad05e.sql:19:CREATE POLICY "Active doctrine FAQs are publicly readable"
+supabase/migrations/20260814070623_6b7e3af1-d5c1-4791-a5de-b5887f2ad05e.sql:24:CREATE POLICY "Admins manage doctrine FAQs"
+supabase/migrations/20260814070623_6b7e3af1-d5c1-4791-a5de-b5887f2ad05e.sql:28:  WITH CHECK (public.has_role(auth.uid(), 'admin'::public.app_role));
+supabase/migrations/20260814070623_6b7e3af1-d5c1-4791-a5de-b5887f2ad05e.sql:32:  BEFORE UPDATE ON public.doctrine_faqs
+backend/services/qdrant/client.py:55:    # Every payload index that must exist for retrieval, filtering, and BM25 search.
+backend/services/qdrant/client.py:131:        schema exactly. ``always_ram=True`` keeps the quantized index in RAM
+backend/services/qdrant/client.py:194:                                index=SparseIndexParams(),
+backend/services/qdrant/client.py:221:                    self._ensure_existing_collection_indexes()
+backend/services/qdrant/client.py:224:                        self._client.create_payload_index(
+backend/services/qdrant/client.py:231:                        f"(dense={self._dimension}d + sparse, raptor_level, text-FTS, teacher_id, and metadata indexes)"
+backend/services/qdrant/client.py:236:                self._ensure_existing_collection_indexes()
+backend/services/qdrant/client.py:283:    def _ensure_existing_collection_indexes(self) -> None:
+backend/services/qdrant/client.py:284:        """Idempotently create payload indexes on an existing collection.
+backend/services/qdrant/client.py:287:        race-handler path to ensure every index in _PAYLOAD_INDEXES exists.
+backend/services/qdrant/client.py:293:                self._client.create_payload_index(
+backend/services/qdrant/client.py:299:                    f"Created {field_name} index on existing collection: {self._collection}"
+backend/services/qdrant/client.py:304:                    logger.info(f"{field_name} index already exists on {self._collection}")
+backend/services/qdrant/client.py:314:        """BM25-like full-text search via Qdrant text_index on text field.
+backend/services/qdrant/searcher.py:319:                "chunk_index": hit.payload.get("chunk_index", 0),
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:47:CREATE TABLE IF NOT EXISTS public.chat_queries (
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:62:ALTER TABLE public.chat_queries ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:63:CREATE POLICY "admins read chat_queries" ON public.chat_queries FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:66:CREATE TABLE IF NOT EXISTS public.chat_responses (
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:82:ALTER TABLE public.chat_responses ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:83:CREATE POLICY "admins read chat_responses" ON public.chat_responses FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:86:CREATE TABLE IF NOT EXISTS public.retrieval_events (
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:95:ALTER TABLE public.retrieval_events ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:96:CREATE POLICY "admins read retrieval_events" ON public.retrieval_events FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:99:CREATE TABLE IF NOT EXISTS public.trace_spans (
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:109:ALTER TABLE public.trace_spans ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:110:CREATE POLICY "admins read trace_spans" ON public.trace_spans FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:113:CREATE TABLE IF NOT EXISTS public.trigger_events (
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:123:ALTER TABLE public.trigger_events ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:124:CREATE POLICY "admins read trigger_events" ON public.trigger_events FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:127:CREATE TABLE IF NOT EXISTS public.safety_events (
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:138:ALTER TABLE public.safety_events ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:139:CREATE POLICY "admins read safety_events" ON public.safety_events FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:142:CREATE TABLE IF NOT EXISTS public.prompt_versions (
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:152:ALTER TABLE public.prompt_versions ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:153:CREATE POLICY "admins read prompt_versions" ON public.prompt_versions FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:154:CREATE POLICY "admins write prompt_versions" ON public.prompt_versions FOR ALL TO authenticated USING (public.has_role(auth.uid(), 'admin')) WITH CHECK (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:157:CREATE TABLE IF NOT EXISTS public.alert_rules (
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:168:ALTER TABLE public.alert_rules ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:169:CREATE POLICY "admins read alert_rules" ON public.alert_rules FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:170:CREATE POLICY "admins write alert_rules" ON public.alert_rules FOR ALL TO authenticated USING (public.has_role(auth.uid(), 'admin')) WITH CHECK (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:173:CREATE TABLE IF NOT EXISTS public.alert_events (
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:182:ALTER TABLE public.alert_events ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:183:CREATE POLICY "admins read alert_events" ON public.alert_events FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:186:CREATE TABLE IF NOT EXISTS public.annotations (
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:195:ALTER TABLE public.annotations ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:196:CREATE POLICY "admins read annotations" ON public.annotations FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:197:CREATE POLICY "admins write annotations" ON public.annotations FOR ALL TO authenticated USING (public.has_role(auth.uid(), 'admin')) WITH CHECK (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:200:CREATE TABLE IF NOT EXISTS public.app_logs (
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:209:ALTER TABLE public.app_logs ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:210:CREATE POLICY "admins read app_logs" ON public.app_logs FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:213:CREATE TABLE IF NOT EXISTS public.eval_runs (
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:223:ALTER TABLE public.eval_runs ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:224:CREATE POLICY "admins read eval_runs" ON public.eval_runs FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:227:CREATE TABLE IF NOT EXISTS public.eval_results (
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:238:ALTER TABLE public.eval_results ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:239:CREATE POLICY "admins read eval_results" ON public.eval_results FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:242:CREATE TABLE IF NOT EXISTS public.golden_questions (
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:251:ALTER TABLE public.golden_questions ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:252:CREATE POLICY "admins read golden_questions" ON public.golden_questions FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:253:CREATE POLICY "admins write golden_questions" ON public.golden_questions FOR ALL TO authenticated USING (public.has_role(auth.uid(), 'admin')) WITH CHECK (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:256:CREATE TABLE IF NOT EXISTS public.ingestion_runs (
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:266:ALTER TABLE public.ingestion_runs ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:267:CREATE POLICY "admins read ingestion_runs" ON public.ingestion_runs FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:270:CREATE TABLE IF NOT EXISTS public.model_pricing (
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:279:ALTER TABLE public.model_pricing ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:280:CREATE POLICY "admins read model_pricing" ON public.model_pricing FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:281:CREATE POLICY "admins write model_pricing" ON public.model_pricing FOR ALL TO authenticated USING (public.has_role(auth.uid(), 'admin')) WITH CHECK (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:284:CREATE TABLE IF NOT EXISTS public.query_clusters (
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:293:ALTER TABLE public.query_clusters ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:294:CREATE POLICY "admins read query_clusters" ON public.query_clusters FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:297:CREATE TABLE IF NOT EXISTS public.user_profiles (
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:306:ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:307:CREATE POLICY "admins read user_profiles" ON public.user_profiles FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:310:CREATE TABLE IF NOT EXISTS public.feedback_events (
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:320:ALTER TABLE public.feedback_events ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:321:CREATE POLICY "admins read feedback_events" ON public.feedback_events FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:322:CREATE POLICY "users insert feedback" ON public.feedback_events FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:325:CREATE INDEX IF NOT EXISTS idx_chat_responses_query_id ON public.chat_responses(query_id);
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:326:CREATE INDEX IF NOT EXISTS idx_retrieval_events_query_id ON public.retrieval_events(query_id);
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:327:CREATE INDEX IF NOT EXISTS idx_trace_spans_query_id ON public.trace_spans(query_id);
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:328:CREATE INDEX IF NOT EXISTS idx_trigger_events_query_id ON public.trigger_events(query_id);
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:329:CREATE INDEX IF NOT EXISTS idx_safety_events_query_id ON public.safety_events(query_id);
+supabase/migrations/20260527060500_57f4da6f-be73-46d8-a87a-24534aeb92cd.sql:330:CREATE INDEX IF NOT EXISTS idx_chat_queries_created_at ON public.chat_queries(created_at DESC);
+supabase/migrations/20260704180000_create_ingestion_checkpoints.sql:16:CREATE TABLE IF NOT EXISTS public.ingestion_checkpoints (
+supabase/migrations/20260704180000_create_ingestion_checkpoints.sql:24:CREATE INDEX IF NOT EXISTS idx_ingestion_checkpoints_tenant ON public.ingestion_checkpoints (tenant_id);
+supabase/migrations/20260704180000_create_ingestion_checkpoints.sql:27:ALTER TABLE public.ingestion_checkpoints ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260704180000_create_ingestion_checkpoints.sql:30:CREATE POLICY "Service role full access on ingestion_checkpoints"
+supabase/migrations/20260704180000_create_ingestion_checkpoints.sql:33:    USING (true) WITH CHECK (true);
+supabase/migrations/20260804000004_add_chat_messages_composite_index.sql:13:-- P1-DB-3: chat_messages(conversation_id, created_at DESC) composite index.
+supabase/migrations/20260804000004_add_chat_messages_composite_index.sql:16:-- idx_chat_messages_conversation index can serve the filter but not the sort.
+supabase/migrations/20260804000004_add_chat_messages_composite_index.sql:17:-- The new index covers both. Leading column matches the old index, which is
+supabase/migrations/20260804000004_add_chat_messages_composite_index.sql:20:CREATE INDEX IF NOT EXISTS idx_chat_messages_conv_created
+supabase/migrations/20260804000004_add_chat_messages_composite_index.sql:23:-- EXPLAIN verification deferred to CI/prod (no local Supabase); index choice
+supabase/migrations/20260816000000_admin_telemetry_created_at_indexes.sql:19:-- (20260527060500), which only indexed chat_queries.created_at and the
+supabase/migrations/20260816000000_admin_telemetry_created_at_indexes.sql:27:--     same shape; feedback_events had zero indexes before this migration.
+supabase/migrations/20260816000000_admin_telemetry_created_at_indexes.sql:32:--     same gap as feedback_events (zero indexes before this migration).
+supabase/migrations/20260816000000_admin_telemetry_created_at_indexes.sql:34:CREATE INDEX IF NOT EXISTS idx_chat_responses_created_at
+supabase/migrations/20260816000000_admin_telemetry_created_at_indexes.sql:37:CREATE INDEX IF NOT EXISTS idx_feedback_events_created_at
+supabase/migrations/20260816000000_admin_telemetry_created_at_indexes.sql:40:CREATE INDEX IF NOT EXISTS idx_trigger_events_name_created_at
+supabase/migrations/20260816000000_admin_telemetry_created_at_indexes.sql:43:CREATE INDEX IF NOT EXISTS idx_safety_events_created_at
+supabase/migrations/20260816000000_admin_telemetry_created_at_indexes.sql:49:-- indexes make the range-scan path available, not mandatory.
+supabase/migrations/20260714071022_6c0e906c-9864-443b-bb1b-928c3c846aca.sql:15:-- CREATE POLICY "authenticated_read_teaching_images" ON storage.objects
+supabase/migrations/20260714071022_6c0e906c-9864-443b-bb1b-928c3c846aca.sql:52:-- the entire signup transaction, so the check cannot be bypassed by calling Auth REST directly.
+supabase/migrations/20260714071022_6c0e906c-9864-443b-bb1b-928c3c846aca.sql:73:  ON CONFLICT (id) DO NOTHING;
+supabase/migrations/20260714071022_6c0e906c-9864-443b-bb1b-928c3c846aca.sql:77:  ON CONFLICT (user_id, role) DO NOTHING;
+supabase/migrations/20260714071022_6c0e906c-9864-443b-bb1b-928c3c846aca.sql:87:CREATE POLICY "public_read_active_teaching_images"
+supabase/migrations/20260714071022_6c0e906c-9864-443b-bb1b-928c3c846aca.sql:100:-- 6) Ensure UPDATE/DELETE on daily_teachings are admin-only (they already are for DELETE;
+supabase/migrations/20260714071022_6c0e906c-9864-443b-bb1b-928c3c846aca.sql:101:-- add explicit admin UPDATE policy so realtime UPDATE events cannot originate from non-admins).
+supabase/migrations/20260714071022_6c0e906c-9864-443b-bb1b-928c3c846aca.sql:103:CREATE POLICY "admin_update"
+supabase/migrations/20260714071022_6c0e906c-9864-443b-bb1b-928c3c846aca.sql:105:FOR UPDATE
+supabase/migrations/20260714071022_6c0e906c-9864-443b-bb1b-928c3c846aca.sql:108:WITH CHECK (has_role(auth.uid(), 'admin'::app_role));
+supabase/migrations/20260703170000_gurus_and_configurations.sql:18:CREATE TABLE IF NOT EXISTS gurus (
+supabase/migrations/20260703170000_gurus_and_configurations.sql:30:CREATE TABLE IF NOT EXISTS assistant_configurations (
+supabase/migrations/20260703170000_gurus_and_configurations.sql:43:CREATE TABLE IF NOT EXISTS assistant_doctrines (
+supabase/migrations/20260703170000_gurus_and_configurations.sql:56:ON CONFLICT (slug) DO NOTHING;
+supabase/migrations/20260703170000_gurus_and_configurations.sql:62:ON CONFLICT (guru_id, slug) DO NOTHING;
+supabase/migrations/20260703170000_gurus_and_configurations.sql:67:ON CONFLICT (guru_id, slug) DO NOTHING;
+supabase/migrations/20260703170000_gurus_and_configurations.sql:72:ON CONFLICT (guru_id, slug) DO NOTHING;
+supabase/migrations/20260703170000_gurus_and_configurations.sql:77:ON CONFLICT (assistant_slug) DO NOTHING;
+supabase/migrations/20260711000000_enable_rls_on_all_tables.sql:10:-- (it re-exposes the tables to anon). Policies recreated with WITH CHECK by
+supabase/migrations/20260711000000_enable_rls_on_all_tables.sql:34:--   digital_employees:       user-own SELECT + INSERT + UPDATE, admin full access
+supabase/migrations/20260711000000_enable_rls_on_all_tables.sql:39:ALTER TABLE IF EXISTS public.gurus ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260711000000_enable_rls_on_all_tables.sql:42:CREATE POLICY "Everyone can view gurus" ON public.gurus
+supabase/migrations/20260711000000_enable_rls_on_all_tables.sql:46:CREATE POLICY "Admins can manage gurus" ON public.gurus
+supabase/migrations/20260711000000_enable_rls_on_all_tables.sql:50:ALTER TABLE IF EXISTS public.assistant_configurations ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260711000000_enable_rls_on_all_tables.sql:53:CREATE POLICY "Admins can manage assistant_configurations" ON public.assistant_configurations
+supabase/migrations/20260711000000_enable_rls_on_all_tables.sql:57:ALTER TABLE IF EXISTS public.assistant_doctrines ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260711000000_enable_rls_on_all_tables.sql:60:CREATE POLICY "Admins can manage assistant_doctrines" ON public.assistant_doctrines
+supabase/migrations/20260711000000_enable_rls_on_all_tables.sql:67:    ALTER TABLE public.communications ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260711000000_enable_rls_on_all_tables.sql:70:    CREATE POLICY "Users can view own communications" ON public.communications
+supabase/migrations/20260711000000_enable_rls_on_all_tables.sql:74:    CREATE POLICY "Users can insert own communications" ON public.communications
+supabase/migrations/20260711000000_enable_rls_on_all_tables.sql:75:      FOR INSERT WITH CHECK (auth.uid() = user_id);
+supabase/migrations/20260711000000_enable_rls_on_all_tables.sql:78:    CREATE POLICY "Admins can manage communications" ON public.communications
+supabase/migrations/20260711000000_enable_rls_on_all_tables.sql:87:    ALTER TABLE public.digital_employees ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260711000000_enable_rls_on_all_tables.sql:90:    CREATE POLICY "Users can view own digital_employees" ON public.digital_employees
+supabase/migrations/20260711000000_enable_rls_on_all_tables.sql:94:    CREATE POLICY "Users can insert own digital_employees" ON public.digital_employees
+supabase/migrations/20260711000000_enable_rls_on_all_tables.sql:95:      FOR INSERT WITH CHECK (auth.uid() = user_id);
+supabase/migrations/20260711000000_enable_rls_on_all_tables.sql:98:    CREATE POLICY "Users can update own digital_employees" ON public.digital_employees
+supabase/migrations/20260711000000_enable_rls_on_all_tables.sql:99:      FOR UPDATE USING (auth.uid() = user_id);
+supabase/migrations/20260711000000_enable_rls_on_all_tables.sql:102:    CREATE POLICY "Admins can manage digital_employees" ON public.digital_employees
+backend/services/sarvam_service.py:120:        # Connection pooling: Create a singleton httpx.AsyncClient with pool limits
+backend/services/sarvam_service.py:143:        """Get or create the singleton HTTP client with connection pooling."""
+backend/services/sarvam_service.py:146:                # Configure connection pool limits from settings
+backend/services/sarvam_service.py:156:                    f"HTTP client initialized with pool limits: "
+backend/services/sarvam_service.py:865:            # Match pattern: index, then yes/no, then optional reason
+backend/services/ab_testing.py:109:    variant_index: int
+backend/services/ab_testing.py:158:                variant_index=0,
+backend/services/ab_testing.py:170:                variant_index=0,
+backend/services/ab_testing.py:196:            variant_index=selected_idx,
+supabase/migrations/20260715010000_fix_prompt_versions_and_app_settings.sql:33:CREATE TABLE IF NOT EXISTS public.app_settings (
+supabase/migrations/20260715010000_fix_prompt_versions_and_app_settings.sql:39:ALTER TABLE public.app_settings ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260715010000_fix_prompt_versions_and_app_settings.sql:42:CREATE POLICY "Allow read access to anyone" ON public.app_settings
+supabase/migrations/20260715010000_fix_prompt_versions_and_app_settings.sql:46:CREATE POLICY "Allow write access to authenticated users" ON public.app_settings
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:2:-- REVERT: Regression-hardening only: PostgreSQL already defaults WITH CHECK to USING,
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:10:-- state, recreate each affected policy WITHOUT the explicit WITH CHECK clause —
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:15:-- CREATE POLICY tenant_isolation ON public.chat_queries
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:20:-- CRIT-2 (reclassified P1 defense-in-depth): explicit WITH CHECK on FOR ALL policies.
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:22:-- Empirically verified 2026-08-04 that PostgreSQL defaults WITH CHECK to the
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:23:-- USING expression when WITH CHECK is omitted, so cross-user INSERT / owner-
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:24:-- transfer UPDATE are ALREADY blocked. This migration is therefore
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:29:-- Pattern per table: DROP POLICY IF EXISTS + CREATE POLICY with the SAME name
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:30:-- and predicate, adding an explicit WITH CHECK mirroring USING. Idempotent —
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:35:-- an explicit WITH CHECK by migration 20260730000000 (conversations,
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:39:-- Policy: tenant_isolation, FOR ALL TO authenticated, no WITH CHECK.
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:42:CREATE POLICY tenant_isolation ON public.chat_queries
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:45:  WITH CHECK (tenant_id = current_setting('request.jwt.claims')::json->>'tenant_id');
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:48:CREATE POLICY tenant_isolation ON public.chat_responses
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:51:  WITH CHECK (tenant_id = current_setting('request.jwt.claims')::json->>'tenant_id');
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:54:CREATE POLICY tenant_isolation ON public.retrieval_events
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:57:  WITH CHECK (tenant_id = current_setting('request.jwt.claims')::json->>'tenant_id');
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:60:CREATE POLICY tenant_isolation ON public.guru_core_memory
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:63:  WITH CHECK (tenant_id = current_setting('request.jwt.claims')::json->>'tenant_id');
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:65:-- guru_memories has separate own_* INSERT/UPDATE policies WITH CHECK from
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:68:CREATE POLICY tenant_isolation ON public.guru_memories
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:71:  WITH CHECK (tenant_id = current_setting('request.jwt.claims')::json->>'tenant_id');
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:74:CREATE POLICY tenant_isolation ON public.guru_session_summaries
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:77:  WITH CHECK (tenant_id = current_setting('request.jwt.claims')::json->>'tenant_id');
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:82:CREATE POLICY "Users can insert their own memories" ON public.conversation_memories
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:85:  WITH CHECK (auth.uid() = user_id);
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:89:CREATE POLICY user_personas_owner_policy ON public.user_personas
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:92:  WITH CHECK (user_id = auth.uid());
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:96:CREATE POLICY user_scene_blocks_owner_policy ON public.user_scene_blocks
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:99:  WITH CHECK (user_id = auth.uid());
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:102:CREATE POLICY user_skills_owner_policy ON public.user_skills
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:105:  WITH CHECK (user_id = auth.uid());
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:107:-- ============ push_devices UPDATE (20260713000000_create_push_devices.sql) ============
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:109:CREATE POLICY users_update_own ON public.push_devices
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:110:  FOR UPDATE TO authenticated
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:112:  WITH CHECK (auth.uid() = user_id);
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:118:CREATE POLICY "Admins can manage gurus" ON public.gurus
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:121:  WITH CHECK (public.has_role(auth.uid(), 'admin'::public.app_role));
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:124:CREATE POLICY "Admins can manage assistant_configurations" ON public.assistant_configurations
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:127:  WITH CHECK (public.has_role(auth.uid(), 'admin'::public.app_role));
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:130:CREATE POLICY "Admins can manage assistant_doctrines" ON public.assistant_doctrines
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:133:  WITH CHECK (public.has_role(auth.uid(), 'admin'::public.app_role));
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:135:-- ============ digital_employees UPDATE (guarded — table created conditionally) ============
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:143:    CREATE POLICY "Users can update own digital_employees" ON public.digital_employees
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:144:      FOR UPDATE TO authenticated
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:146:      WITH CHECK (auth.uid() = user_id);
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:155:    CREATE POLICY "Admins can manage communications" ON public.communications
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:158:      WITH CHECK (public.has_role(auth.uid(), 'admin'::public.app_role));
+supabase/migrations/20260717191006_second_brain_vault.sql:31:--   * Blind indexes are HMAC outputs — not reversible.
+supabase/migrations/20260717191006_second_brain_vault.sql:59:    blind        text,                       -- HMAC blind index (exact-match dedupe)
+supabase/migrations/20260717191006_second_brain_vault.sql:66:create index if not exists brain_nodes_user_idx  on public.user_brain_nodes (user_id, created_at desc);
+supabase/migrations/20260717191006_second_brain_vault.sql:67:create index if not exists brain_nodes_kind_idx  on public.user_brain_nodes (user_id, kind);
+supabase/migrations/20260717191006_second_brain_vault.sql:68:create unique index if not exists brain_nodes_blind_uidx on public.user_brain_nodes (user_id, blind)
+supabase/migrations/20260717191006_second_brain_vault.sql:83:create index if not exists brain_edges_user_idx on public.user_brain_edges (user_id);
+supabase/migrations/20260717191006_second_brain_vault.sql:84:create index if not exists brain_edges_src_idx  on public.user_brain_edges (src);
+supabase/migrations/20260717191006_second_brain_vault.sql:85:create index if not exists brain_edges_dst_idx  on public.user_brain_edges (dst);
+supabase/migrations/20260717191006_second_brain_vault.sql:131:-- Ensure composite index before FK references
+supabase/migrations/20260717191006_second_brain_vault.sql:132:create unique index if not exists brain_nodes_id_user_uidx
+supabase/migrations/20260615044110_ccb90a86-ce4b-42dd-b1d4-7cc0124d4933.sql:10:-- 20260605023720) and the benchmark-admin DELETEs are not restored — re-seed
+supabase/migrations/20260615044110_ccb90a86-ce4b-42dd-b1d4-7cc0124d4933.sql:25:CREATE POLICY "users read own chat_queries"
+supabase/migrations/20260615044110_ccb90a86-ce4b-42dd-b1d4-7cc0124d4933.sql:32:CREATE POLICY "users read own feedback"
+supabase/migrations/20260615044110_ccb90a86-ce4b-42dd-b1d4-7cc0124d4933.sql:39:DELETE FROM public.user_roles WHERE user_id = '00000000-0000-0000-0000-000000000000';
+supabase/migrations/20260615044110_ccb90a86-ce4b-42dd-b1d4-7cc0124d4933.sql:40:DELETE FROM public.profiles  WHERE id      = '00000000-0000-0000-0000-000000000000';
+supabase/migrations/20260615044110_ccb90a86-ce4b-42dd-b1d4-7cc0124d4933.sql:41:DELETE FROM auth.users       WHERE id      = '00000000-0000-0000-0000-000000000000';
+backend/services/qdrant/neighbor.py:25:    def get_neighbor_chunks(self, source_url: str, chunk_index: int, window: int = 1) -> list[dict]:
+backend/services/qdrant/neighbor.py:34:        indices = list(range(chunk_index - window, chunk_index + window + 1))
+backend/services/qdrant/neighbor.py:44:                        FieldCondition(key="chunk_index", match=MatchAny(any=indices)),
+backend/services/qdrant/neighbor.py:52:            # Sort by chunk_index to maintain sequence
+backend/services/qdrant/neighbor.py:53:            neighbors = sorted(results, key=lambda x: x.payload.get("chunk_index", 0))
+backend/services/qdrant/neighbor.py:60:                    "chunk_index": hit.payload.get("chunk_index", 0),
+backend/services/qdrant/neighbor.py:62:                    "is_neighbor": hit.payload.get("chunk_index") != chunk_index,
+backend/services/qdrant/neighbor.py:67:            logger.warning(f"Failed to fetch neighbors for {source_url}:{chunk_index}: {e}")
+backend/services/qdrant/metrics.py:3:Tracks search latency, upsert latency, collection health, and index fragmentation.
+backend/services/qdrant/metrics.py:34:    index_fragmentation_pct: float
+backend/services/qdrant/metrics.py:35:    index_segment_count: int
+backend/services/qdrant/metrics.py:66:            self.index_fragmentation_gauge = Gauge(
+backend/services/qdrant/metrics.py:67:                "qdrant_index_fragmentation_pct",
+backend/services/qdrant/metrics.py:68:                "Percentage of index fragmentation (0-100)",
+backend/services/qdrant/metrics.py:70:            self.index_segment_count_gauge = Gauge(
+backend/services/qdrant/metrics.py:71:                "qdrant_index_segment_count",
+backend/services/qdrant/metrics.py:72:                "Number of index segments",
+backend/services/qdrant/metrics.py:111:            self.index_fragmentation_gauge.set(fragmentation_pct)
+backend/services/qdrant/metrics.py:112:            self.index_segment_count_gauge.set(segment_count)
+backend/services/qdrant/metrics.py:137:            index_fragmentation_pct=0,
+backend/services/qdrant/metrics.py:138:            index_segment_count=0,
+supabase/migrations/20260804000006_add_push_devices_user_id_index.sql:12:-- P1-DB-10: push_devices(user_id, active) composite index.
+supabase/migrations/20260804000006_add_push_devices_user_id_index.sql:14:-- to fan out pushes; the only existing index is push_devices_uq_token (platform, token),
+supabase/migrations/20260804000006_add_push_devices_user_id_index.sql:18:CREATE INDEX IF NOT EXISTS idx_push_devices_user_id_active
+supabase/migrations/20260610055007_1750df65-b2d6-45db-ab95-8b2bba92d12b.sql:11:-- DELETE FROM public.user_roles
+supabase/migrations/20260610055007_1750df65-b2d6-45db-ab95-8b2bba92d12b.sql:17:-- Idempotent: ON CONFLICT NO-OP. Safe to re-run.
+supabase/migrations/20260610055007_1750df65-b2d6-45db-ab95-8b2bba92d12b.sql:22:ON CONFLICT (user_id, role) DO NOTHING;
+supabase/migrations/20260610055007_1750df65-b2d6-45db-ab95-8b2bba92d12b.sql:29:ON CONFLICT (id) DO NOTHING;
+supabase/migrations/20260805000004_source_release_rollback.sql:3:-- then traverse the existing activate_source_release transaction, which
+supabase/migrations/20260805000004_source_release_rollback.sql:14:    UPDATE public.source_releases
+supabase/migrations/20260616050717_7b7722a8-f581-4d55-bcae-7c4c45b30ab4.sql:2:-- REVERT: Drop the pending_extractions v2 table + index and last_conversation_id
+supabase/migrations/20260616050717_7b7722a8-f581-4d55-bcae-7c4c45b30ab4.sql:18:CREATE TABLE IF NOT EXISTS public.pending_extractions (
+supabase/migrations/20260616050717_7b7722a8-f581-4d55-bcae-7c4c45b30ab4.sql:20:  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+supabase/migrations/20260616050717_7b7722a8-f581-4d55-bcae-7c4c45b30ab4.sql:29:GRANT SELECT, INSERT, UPDATE, DELETE ON public.pending_extractions TO authenticated;
+supabase/migrations/20260616050717_7b7722a8-f581-4d55-bcae-7c4c45b30ab4.sql:32:ALTER TABLE public.pending_extractions ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260616050717_7b7722a8-f581-4d55-bcae-7c4c45b30ab4.sql:34:CREATE POLICY "own_extractions_insert" ON public.pending_extractions
+supabase/migrations/20260616050717_7b7722a8-f581-4d55-bcae-7c4c45b30ab4.sql:35:  FOR INSERT TO authenticated WITH CHECK (user_id = auth.uid());
+supabase/migrations/20260616050717_7b7722a8-f581-4d55-bcae-7c4c45b30ab4.sql:36:CREATE POLICY "own_extractions_select" ON public.pending_extractions
+supabase/migrations/20260616050717_7b7722a8-f581-4d55-bcae-7c4c45b30ab4.sql:39:CREATE INDEX IF NOT EXISTS pending_extractions_status_idx
+supabase/migrations/20260604000001_fix_trace_spans_span_name_compat.sql:2:-- REVERT: Drop the span_name alias column + index. NOTE: backfilled span_name values
+supabase/migrations/20260604000001_fix_trace_spans_span_name_compat.sql:27:UPDATE public.trace_spans
+supabase/migrations/20260604000001_fix_trace_spans_span_name_compat.sql:36:CREATE INDEX IF NOT EXISTS idx_trace_spans_span_name
+supabase/migrations/20260714051557_c3977534-69e8-43c4-9427-699ea9b00d06.sql:11:-- CREATE POLICY assistants_insert_own ON public.assistants
+supabase/migrations/20260714051557_c3977534-69e8-43c4-9427-699ea9b00d06.sql:12:--   FOR INSERT TO authenticated WITH CHECK (created_by = auth.uid());
+supabase/migrations/20260714051557_c3977534-69e8-43c4-9427-699ea9b00d06.sql:14:-- CREATE POLICY assistants_update_own ON public.assistants
+supabase/migrations/20260714051557_c3977534-69e8-43c4-9427-699ea9b00d06.sql:15:--   FOR UPDATE TO authenticated USING (created_by = auth.uid());
+supabase/migrations/20260714051557_c3977534-69e8-43c4-9427-699ea9b00d06.sql:21:CREATE POLICY assistants_insert_own ON public.assistants
+supabase/migrations/20260714051557_c3977534-69e8-43c4-9427-699ea9b00d06.sql:24:  WITH CHECK (
+supabase/migrations/20260714051557_c3977534-69e8-43c4-9427-699ea9b00d06.sql:30:CREATE POLICY assistants_update_own ON public.assistants
+supabase/migrations/20260714051557_c3977534-69e8-43c4-9427-699ea9b00d06.sql:31:  FOR UPDATE
+supabase/migrations/20260714051557_c3977534-69e8-43c4-9427-699ea9b00d06.sql:34:  WITH CHECK (
+supabase/migrations/20260618100000_telemetry_hardening_indexes.sql:14:-- Telemetry hardening: add indexes for faster writes and common query patterns
+supabase/migrations/20260618100000_telemetry_hardening_indexes.sql:15:-- 1. Composite index for user/session filtering (most common admin query)
+supabase/migrations/20260618100000_telemetry_hardening_indexes.sql:19:CREATE INDEX IF NOT EXISTS telemetry_events_user_session_created_idx
+supabase/migrations/20260618100000_telemetry_hardening_indexes.sql:22:CREATE INDEX IF NOT EXISTS telemetry_events_metric_type_created_idx
+supabase/migrations/20260618100000_telemetry_hardening_indexes.sql:25:CREATE INDEX IF NOT EXISTS telemetry_events_session_created_idx
+supabase/migrations/20260708021442_7a1a7776-3fef-4f0b-b511-d50ecdd20d7d.sql:50:  ON CONFLICT (id) DO UPDATE SET
+supabase/migrations/20260708021442_7a1a7776-3fef-4f0b-b511-d50ecdd20d7d.sql:57:  ON CONFLICT (user_id, role) DO NOTHING;
+supabase/migrations/20260823130000_ingest_jobs_idempotency_key.sql:9:CREATE INDEX IF NOT EXISTS idx_ingest_jobs_idempotency_key
+supabase/migrations/20260715051301_bb0ec1c6-ee99-44ff-bc91-2d7ff2fdc403.sql:19:CREATE POLICY "Admins can insert app settings"
+supabase/migrations/20260715051301_bb0ec1c6-ee99-44ff-bc91-2d7ff2fdc403.sql:22:WITH CHECK (public.has_role(auth.uid(), 'admin'::public.app_role));
+supabase/migrations/20260715051301_bb0ec1c6-ee99-44ff-bc91-2d7ff2fdc403.sql:24:CREATE POLICY "Admins can update app settings"
+supabase/migrations/20260715051301_bb0ec1c6-ee99-44ff-bc91-2d7ff2fdc403.sql:25:ON public.app_settings FOR UPDATE
+supabase/migrations/20260715051301_bb0ec1c6-ee99-44ff-bc91-2d7ff2fdc403.sql:28:WITH CHECK (public.has_role(auth.uid(), 'admin'::public.app_role));
+supabase/migrations/20260715051301_bb0ec1c6-ee99-44ff-bc91-2d7ff2fdc403.sql:30:CREATE POLICY "Admins can delete app settings"
+supabase/migrations/20260715051301_bb0ec1c6-ee99-44ff-bc91-2d7ff2fdc403.sql:31:ON public.app_settings FOR DELETE
+supabase/migrations/20260606024228_4a5cf016-573e-47af-bef7-a9959217cfbc.sql:11:-- DELETE FROM public.user_roles
+supabase/migrations/20260606024228_4a5cf016-573e-47af-bef7-a9959217cfbc.sql:21:ON CONFLICT (user_id, role) DO NOTHING;
+backend/services/web_search_service.py:146:        # DDGS is sync; run in thread pool so provider failures reach the circuit breaker.
+backend/services/web_search_service.py:434:                    "chunk_index": 0,
+backend/run_pilot.py:21:# 9.5 ms/query) and is safe there: with late chunking both sides mean-pool
+supabase/migrations/20260627140000_user_episodes.sql:19:CREATE TABLE IF NOT EXISTS public.user_episodes (
+supabase/migrations/20260627140000_user_episodes.sql:21:  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+supabase/migrations/20260627140000_user_episodes.sql:29:ALTER TABLE public.user_episodes ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260627140000_user_episodes.sql:32:CREATE POLICY "users select own episodes" ON public.user_episodes
+supabase/migrations/20260627140000_user_episodes.sql:36:CREATE POLICY "users insert own episodes" ON public.user_episodes
+supabase/migrations/20260627140000_user_episodes.sql:37:  FOR INSERT WITH CHECK (auth.uid() = user_id);
+supabase/migrations/20260627140000_user_episodes.sql:39:CREATE INDEX IF NOT EXISTS user_episodes_user_created_idx
+backend/services/second_brain/crypto.py:209:# Deterministic blind index (search without decryption)
+backend/services/second_brain/crypto.py:213:def blind_index(dek: bytes, term: str) -> str:
+backend/services/second_brain/crypto.py:214:    """HMAC-based blind index for exact-match lookups over encrypted rows.
+supabase/migrations/20260728000000_create_user_personas.sql:9:-- policy was recreated with WITH CHECK by 20260804000001 — drops with the table.
+supabase/migrations/20260728000000_create_user_personas.sql:13:CREATE TABLE IF NOT EXISTS public.user_personas (
+supabase/migrations/20260728000000_create_user_personas.sql:15:    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+supabase/migrations/20260728000000_create_user_personas.sql:22:ALTER TABLE public.user_personas ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260728000000_create_user_personas.sql:24:CREATE POLICY user_personas_owner_policy ON public.user_personas
+backend/services/second_brain/context_adapter.py:73:    for index, link in enumerate(links, start=1):
+backend/services/second_brain/context_adapter.py:76:        lines.append(f"[{index}] item_id={link.item_id} kind={link.kind} confidence={link.confidence:.2f} concepts={concepts}")
+supabase/migrations/20260623000000_add_chat_queries_assistant_slug.sql:2:-- REVERT: Drop the view, index and column. NOTE: assistant_slug telemetry values are
+supabase/migrations/20260623000000_add_chat_queries_assistant_slug.sql:23:-- Step 2: optional index for admin dashboards / quality breakdowns by assistant
+supabase/migrations/20260623000000_add_chat_queries_assistant_slug.sql:24:-- drop index if exists idx_chat_queries_assistant_slug;
+supabase/migrations/20260623000000_add_chat_queries_assistant_slug.sql:25:create index if not exists idx_chat_queries_assistant_slug
+supabase/migrations/20260710000000_add_guru_memories_missing_columns.sql:17:-- never applied because CREATE TABLE IF NOT EXISTS skipped the existing table.
+backend/services/second_brain/second_brain_service.py:9:   Second-Brain Qdrant collection (vault_index.py), filtered by user_id.
+backend/services/second_brain/second_brain_service.py:31:* `qdrant_client`: a `vault_index.VaultIndex` instance (duck-typed: upsert /
+backend/services/second_brain/second_brain_service.py:68:        blind_index,
+backend/services/second_brain/second_brain_service.py:83:        blind_index,
+backend/services/second_brain/second_brain_service.py:164:        self._qdrant = qdrant_client  # a vault_index.VaultIndex, or None
+backend/services/second_brain/second_brain_service.py:274:        """Encrypt + store one artifact; index its embedding in the shared
+backend/services/second_brain/second_brain_service.py:287:            "blind": blind_index(vault.dek, text[:64]),
+backend/services/second_brain/second_brain_service.py:295:            await self._index_embedding(user_id, item_id, kind, text)
+backend/services/second_brain/second_brain_service.py:503:        await self._drop_collection(user_id)  # early-returns if no vault index configured
+backend/services/second_brain/second_brain_service.py:601:    # ---- vectors (shared vault collection, user_id-filtered — see vault_index.py) ----
+backend/services/second_brain/second_brain_service.py:603:    async def _index_embedding(self, user_id: str, item_id: str, kind: str, text: str) -> None:
+backend/services/second_brain/second_brain_service.py:608:            logger.warning("second-brain vector index failed: %s", exc)
+backend/services/second_brain/second_brain_service.py:633:        no more a per-user collection to drop. See vault_index.VaultIndex.delete_all."""
+supabase/migrations/20260530141027_7381bcc3-40f2-436d-9b37-5c182a838cb5.sql:33:-- (was: UPDATE public.alert_rules SET active = enabled ... but `enabled` column never existed)
+supabase/migrations/20260530141027_7381bcc3-40f2-436d-9b37-5c182a838cb5.sql:106:  ON CONFLICT (user_id, role) DO NOTHING;
+supabase/migrations/20260530141027_7381bcc3-40f2-436d-9b37-5c182a838cb5.sql:127:  DELETE FROM public.user_roles WHERE user_id = _user_id AND role = 'admin'::public.app_role;
+supabase/migrations/20260530141027_7381bcc3-40f2-436d-9b37-5c182a838cb5.sql:157:  ON CONFLICT DO NOTHING;
+supabase/migrations/20260530141027_7381bcc3-40f2-436d-9b37-5c182a838cb5.sql:160:  ON CONFLICT DO NOTHING;
+supabase/migrations/20260530141027_7381bcc3-40f2-436d-9b37-5c182a838cb5.sql:198:  ON CONFLICT DO NOTHING;
+supabase/migrations/20260627120000_create_ingest_jobs.sql:2:-- REVERT: Drop ingest_jobs (policies + indexes drop with the table). DESTRUCTIVE:
+supabase/migrations/20260627120000_create_ingest_jobs.sql:17:CREATE TABLE IF NOT EXISTS ingest_jobs (
+supabase/migrations/20260627120000_create_ingest_jobs.sql:25:    chunks_indexed INT DEFAULT 0,
+supabase/migrations/20260627120000_create_ingest_jobs.sql:34:CREATE INDEX IF NOT EXISTS idx_ingest_jobs_status ON ingest_jobs (status);
+supabase/migrations/20260627120000_create_ingest_jobs.sql:35:CREATE INDEX IF NOT EXISTS idx_ingest_jobs_created_at ON ingest_jobs (created_at DESC);
+supabase/migrations/20260627120000_create_ingest_jobs.sql:38:ALTER TABLE ingest_jobs ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260627120000_create_ingest_jobs.sql:40:CREATE POLICY "Service role full access on ingest_jobs"
+supabase/migrations/20260627120000_create_ingest_jobs.sql:43:    USING (true) WITH CHECK (true);
+supabase/migrations/20260627120000_create_ingest_jobs.sql:45:CREATE POLICY "Anon read-only on ingest_jobs"
+backend/services/second_brain/__init__.py:5:- vault_index: shared Qdrant collection for semantic recall, user_id-filtered.
+backend/services/second_brain/__init__.py:19:from services.second_brain.vault_index import VaultIndex
+supabase/migrations/20260718120001_second_brain_keys_table.sql:21:CREATE TABLE IF NOT EXISTS public.user_brain_keys (
+supabase/migrations/20260718120001_second_brain_keys_table.sql:22:    user_id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+supabase/migrations/20260718120001_second_brain_keys_table.sql:30:ALTER TABLE public.user_brain_keys ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260718120001_second_brain_keys_table.sql:33:CREATE POLICY "owner_brain_keys" ON public.user_brain_keys
+supabase/migrations/20260718120001_second_brain_keys_table.sql:34:    FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+supabase/migrations/20260718120001_second_brain_keys_table.sql:36:GRANT SELECT, INSERT, UPDATE, DELETE ON public.user_brain_keys TO authenticated;
+supabase/migrations/20260718120001_second_brain_keys_table.sql:39:CREATE INDEX IF NOT EXISTS user_brain_keys_user_id_idx ON public.user_brain_keys (user_id);
+supabase/migrations/20260718120001_second_brain_keys_table.sql:43:-- user_brain_keys WITHOUT an updated_at column, so the CREATE TABLE above is a
+supabase/migrations/20260718120001_second_brain_keys_table.sql:57:-- Refresh updated_at on every UPDATE (key rotations, re-wraps) so it can never
+supabase/migrations/20260718120001_second_brain_keys_table.sql:61:    BEFORE UPDATE ON public.user_brain_keys
+backend/services/second_brain/vault_index.py:1:"""Vault Index — semantic-recall index for the Second Brain (Mukthi Vault).
+backend/services/second_brain/vault_index.py:15:mapping lives in Postgres (user_brain_nodes); this index only answers
+backend/services/second_brain/vault_index.py:19:# filtered-delete only — no re-ranking. Two payload indexes: user_id and
+backend/services/second_brain/vault_index.py:52:    for the default `scalar_int8` setting. Quantized index lives in RAM for
+backend/services/second_brain/vault_index.py:94:        vectors. Keyword indexes on user_id and kind.
+backend/services/second_brain/vault_index.py:116:                self._client.create_payload_index(
+backend/services/second_brain/vault_index.py:173:    print("vault_index self-check: OK")
+supabase/migrations/20260730000000_verify_rls_with_check.sql:9:-- the four UPDATE policies, the result is identical to 20260728103548; see that
+supabase/migrations/20260730000000_verify_rls_with_check.sql:13:-- Verify RLS UPDATE policies have both USING and WITH CHECK ownership predicates.
+supabase/migrations/20260730000000_verify_rls_with_check.sql:14:-- Idempotent: checks pg_policy for the four UPDATE policies and only recreates
+supabase/migrations/20260730000000_verify_rls_with_check.sql:15:-- them if either USING or WITH CHECK is missing. No-op when migration
+supabase/migrations/20260730000000_verify_rls_with_check.sql:40:            RAISE NOTICE 'Policy % on %.% already has USING and WITH CHECK; skipping.',
+supabase/migrations/20260730000000_verify_rls_with_check.sql:45:        RAISE NOTICE 'Recreating policy % on %.% to enforce USING + WITH CHECK ownership.',
+supabase/migrations/20260730000000_verify_rls_with_check.sql:53:                'CREATE POLICY %I ON %I.%I FOR UPDATE TO authenticated '
+supabase/migrations/20260730000000_verify_rls_with_check.sql:55:                || 'WITH CHECK (conversation_id IN (SELECT c.id FROM public.conversations c WHERE c.user_id = auth.uid()));',
+supabase/migrations/20260730000000_verify_rls_with_check.sql:60:                'CREATE POLICY %I ON %I.%I FOR UPDATE TO authenticated '
+supabase/migrations/20260730000000_verify_rls_with_check.sql:62:                || 'WITH CHECK (user_id = auth.uid());',
+supabase/migrations/20260701140000_app_settings.sql:17:CREATE TABLE IF NOT EXISTS public.app_settings (
+supabase/migrations/20260701140000_app_settings.sql:23:ALTER TABLE public.app_settings ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260701140000_app_settings.sql:26:CREATE POLICY "Allow read access to anyone" ON public.app_settings
+supabase/migrations/20260701140000_app_settings.sql:30:CREATE POLICY "Allow write access to authenticated users" ON public.app_settings
+supabase/migrations/20260706035450_554143f3-5acc-4f23-a091-c6428071ff71.sql:11:-- CREATE POLICY "public_read_teaching_images" ON storage.objects
+supabase/migrations/20260706035450_554143f3-5acc-4f23-a091-c6428071ff71.sql:28:CREATE POLICY "authenticated_read_teaching_images"
+supabase/migrations/20260511_create_daily_teachings_bucket.sql:11:-- DELETE FROM storage.objects WHERE bucket_id = 'daily-teachings';
+supabase/migrations/20260511_create_daily_teachings_bucket.sql:12:-- DELETE FROM storage.buckets WHERE id = 'daily-teachings';
+supabase/migrations/20260511_create_daily_teachings_bucket.sql:19:ON CONFLICT (id) DO NOTHING;
+supabase/migrations/20260511_create_daily_teachings_bucket.sql:22:CREATE POLICY "Public read access for daily teachings"
+supabase/migrations/20260511_create_daily_teachings_bucket.sql:27:CREATE POLICY "Authenticated users can upload teachings"
+supabase/migrations/20260511_create_daily_teachings_bucket.sql:29:  WITH CHECK (
+supabase/migrations/20260511_create_daily_teachings_bucket.sql:35:CREATE POLICY "Authenticated users can delete teachings"
+supabase/migrations/20260511_create_daily_teachings_bucket.sql:36:  ON storage.objects FOR DELETE
+backend/services/gateways/anthropic_gateway.py:9:  2. **Citations API** via documents content blocks (block-index citations)
+backend/services/gateways/anthropic_gateway.py:83:    document_index: int
+backend/services/gateways/anthropic_gateway.py:85:    start_char_index: int | None = None
+backend/services/gateways/anthropic_gateway.py:86:    end_char_index: int | None = None
+backend/services/gateways/anthropic_gateway.py:87:    start_block_index: int | None = None
+backend/services/gateways/anthropic_gateway.py:88:    end_block_index: int | None = None
+backend/services/gateways/anthropic_gateway.py:196:            print(c.document_index, c.cited_text)
+backend/services/gateways/anthropic_gateway.py:263:        (`"citations": {"enabled": True}`) so the model returns block-index
+backend/services/gateways/anthropic_gateway.py:436:                            document_index=int(c.get("document_index", 0)),
+backend/services/gateways/anthropic_gateway.py:438:                            start_char_index=c.get("start_char_index"),
+backend/services/gateways/anthropic_gateway.py:439:                            end_char_index=c.get("end_char_index"),
+backend/services/gateways/anthropic_gateway.py:440:                            start_block_index=c.get("start_block_index"),
+backend/services/gateways/anthropic_gateway.py:441:                            end_block_index=c.get("end_block_index"),
+backend/scripts/init_db.py:13:CREATE TABLE IF NOT EXISTS user_profiles (
+backend/scripts/init_db.py:27:CREATE TABLE IF NOT EXISTS conversation_memories (
+backend/scripts/init_db.py:38:CREATE INDEX IF NOT EXISTS idx_conversation_memories_user_id ON conversation_memories(user_id);
+backend/scripts/init_db.py:39:CREATE INDEX IF NOT EXISTS idx_conversation_memories_started_at ON conversation_memories(started_at DESC);
+backend/services/gateways/sarvam_http.py:47:      - Connection pooling & lifecycle
+backend/services/gateways/sarvam_http.py:79:        self._key_index = 0
+backend/services/gateways/sarvam_http.py:112:        # Connection pooling
+backend/services/gateways/sarvam_http.py:160:        While holding ``_key_lock``, searches the key ring for the next index
+backend/services/gateways/sarvam_http.py:162:        Returns (new_index, new_key) — captured under the lock so the caller's
+backend/services/gateways/sarvam_http.py:171:                self._key_index = (self._key_index + 1) % len(self._api_keys)
+backend/services/gateways/sarvam_http.py:172:                if self._key_index in excluded:
+backend/services/gateways/sarvam_http.py:174:                self._api_key = self._api_keys[self._key_index]
+backend/services/gateways/sarvam_http.py:177:                    f"Rotated Sarvam API key to key {self._key_index + 1}/{len(self._api_keys)}"
+backend/services/gateways/sarvam_http.py:179:                return (self._key_index, self._api_key)
+backend/services/gateways/sarvam_http.py:204:                logger.info(f"HTTP client initialised with pool {limits}")
+backend/services/gateways/sarvam_http.py:364:                    _current_index = self._key_index
+backend/services/gateways/sarvam_http.py:368:                _tried_key_indices: set[int] = {_current_index}
+backend/services/gateways/sarvam_http.py:465:                            # The exclusion set guarantees the returned index was
+backend/services/gateways/sarvam_http.py:469:                                new_index, new_key = rotated
+backend/services/gateways/sarvam_http.py:470:                                _tried_key_indices.add(new_index)
+supabase/migrations/20260506061859_969175ae-50fb-4d23-a45d-262c10029c65.sql:20:-- -- DELETE FROM storage.objects WHERE bucket_id = 'daily-teachings';
+supabase/migrations/20260506061859_969175ae-50fb-4d23-a45d-262c10029c65.sql:21:-- -- DELETE FROM storage.buckets WHERE id = 'daily-teachings';
+supabase/migrations/20260506061859_969175ae-50fb-4d23-a45d-262c10029c65.sql:27:CREATE POLICY "users_read_own_roles" ON public.user_roles
+supabase/migrations/20260506061859_969175ae-50fb-4d23-a45d-262c10029c65.sql:32:CREATE TABLE public.profiles (
+supabase/migrations/20260506061859_969175ae-50fb-4d23-a45d-262c10029c65.sql:33:  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+supabase/migrations/20260506061859_969175ae-50fb-4d23-a45d-262c10029c65.sql:40:ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260506061859_969175ae-50fb-4d23-a45d-262c10029c65.sql:42:CREATE POLICY "own_profile_select" ON public.profiles
+supabase/migrations/20260506061859_969175ae-50fb-4d23-a45d-262c10029c65.sql:44:CREATE POLICY "own_profile_update" ON public.profiles
+supabase/migrations/20260506061859_969175ae-50fb-4d23-a45d-262c10029c65.sql:45:  FOR UPDATE TO authenticated USING (id = auth.uid()) WITH CHECK (id = auth.uid());
+supabase/migrations/20260506061859_969175ae-50fb-4d23-a45d-262c10029c65.sql:46:CREATE POLICY "own_profile_insert" ON public.profiles
+supabase/migrations/20260506061859_969175ae-50fb-4d23-a45d-262c10029c65.sql:47:  FOR INSERT TO authenticated WITH CHECK (id = auth.uid());
+supabase/migrations/20260506061859_969175ae-50fb-4d23-a45d-262c10029c65.sql:63:CREATE TABLE public.daily_teachings (
+supabase/migrations/20260506061859_969175ae-50fb-4d23-a45d-262c10029c65.sql:71:ALTER TABLE public.daily_teachings ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260506061859_969175ae-50fb-4d23-a45d-262c10029c65.sql:73:CREATE POLICY "anyone_reads_active" ON public.daily_teachings
+supabase/migrations/20260506061859_969175ae-50fb-4d23-a45d-262c10029c65.sql:75:CREATE POLICY "admin_insert" ON public.daily_teachings
+supabase/migrations/20260506061859_969175ae-50fb-4d23-a45d-262c10029c65.sql:77:  WITH CHECK (public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260506061859_969175ae-50fb-4d23-a45d-262c10029c65.sql:78:CREATE POLICY "admin_delete" ON public.daily_teachings
+supabase/migrations/20260506061859_969175ae-50fb-4d23-a45d-262c10029c65.sql:79:  FOR DELETE TO authenticated
+supabase/migrations/20260506061859_969175ae-50fb-4d23-a45d-262c10029c65.sql:83:CREATE TABLE public.meditation_sessions (
+supabase/migrations/20260506061859_969175ae-50fb-4d23-a45d-262c10029c65.sql:85:  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+supabase/migrations/20260506061859_969175ae-50fb-4d23-a45d-262c10029c65.sql:93:ALTER TABLE public.meditation_sessions ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260506061859_969175ae-50fb-4d23-a45d-262c10029c65.sql:95:CREATE POLICY "own_sessions_select" ON public.meditation_sessions
+supabase/migrations/20260506061859_969175ae-50fb-4d23-a45d-262c10029c65.sql:97:CREATE POLICY "own_sessions_insert" ON public.meditation_sessions
+supabase/migrations/20260506061859_969175ae-50fb-4d23-a45d-262c10029c65.sql:98:  FOR INSERT TO authenticated WITH CHECK (user_id = auth.uid());
+supabase/migrations/20260506061859_969175ae-50fb-4d23-a45d-262c10029c65.sql:99:CREATE POLICY "own_sessions_update" ON public.meditation_sessions
+supabase/migrations/20260506061859_969175ae-50fb-4d23-a45d-262c10029c65.sql:100:  FOR UPDATE TO authenticated USING (user_id = auth.uid());
+supabase/migrations/20260506061859_969175ae-50fb-4d23-a45d-262c10029c65.sql:105:CREATE POLICY "admin_upload_teaching_images" ON storage.objects
+supabase/migrations/20260506061859_969175ae-50fb-4d23-a45d-262c10029c65.sql:107:  WITH CHECK (bucket_id = 'daily-teachings' AND public.has_role(auth.uid(), 'admin'));
+supabase/migrations/20260506061859_969175ae-50fb-4d23-a45d-262c10029c65.sql:109:CREATE POLICY "public_read_teaching_images" ON storage.objects
+backend/services/vector_optimizer.py:6:  2. ``get_index_health()``: return key index metrics (segment count, RAM usage, etc.)
+backend/services/vector_optimizer.py:34:    """On-demand and scheduled vector index optimizer.
+backend/services/vector_optimizer.py:46:    def get_index_health(self) -> dict:
+backend/services/vector_optimizer.py:47:        """Return key index health metrics for the primary collection.
+backend/services/vector_optimizer.py:52:              - points_count: total indexed vectors
+backend/services/vector_optimizer.py:87:            # Push to Prometheus so /api/metrics reflects live index health
+backend/services/vector_optimizer.py:133:                    indexing_threshold=20_000,  # Trigger index build at 20k vectors
+backend/services/vector_optimizer.py:177:        """Run a full optimization pass (non-blocking — runs in thread pool).
+backend/services/vector_optimizer.py:183:        before = await loop.run_in_executor(None, self.get_index_health)
+backend/services/vector_optimizer.py:196:        after = await loop.run_in_executor(None, self.get_index_health)
+supabase/migrations/20260729000000_create_user_scene_blocks_and_skills.sql:9:-- state is lost. NOTE: owner policies were recreated with WITH CHECK by
+supabase/migrations/20260729000000_create_user_scene_blocks_and_skills.sql:15:CREATE TABLE IF NOT EXISTS public.user_scene_blocks (
+supabase/migrations/20260729000000_create_user_scene_blocks_and_skills.sql:17:    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+supabase/migrations/20260729000000_create_user_scene_blocks_and_skills.sql:30:CREATE INDEX idx_user_scene_blocks_user ON public.user_scene_blocks (user_id, tenant_id);
+supabase/migrations/20260729000000_create_user_scene_blocks_and_skills.sql:31:CREATE INDEX idx_user_scene_blocks_session ON public.user_scene_blocks (session_id);
+supabase/migrations/20260729000000_create_user_scene_blocks_and_skills.sql:33:ALTER TABLE public.user_scene_blocks ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260729000000_create_user_scene_blocks_and_skills.sql:35:CREATE POLICY user_scene_blocks_owner_policy ON public.user_scene_blocks
+supabase/migrations/20260729000000_create_user_scene_blocks_and_skills.sql:39:CREATE TABLE IF NOT EXISTS public.user_skills (
+supabase/migrations/20260729000000_create_user_scene_blocks_and_skills.sql:41:    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+supabase/migrations/20260729000000_create_user_scene_blocks_and_skills.sql:53:CREATE INDEX idx_user_skills_user ON public.user_skills (user_id, tenant_id);
+supabase/migrations/20260729000000_create_user_scene_blocks_and_skills.sql:55:ALTER TABLE public.user_skills ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260729000000_create_user_scene_blocks_and_skills.sql:57:CREATE POLICY user_skills_owner_policy ON public.user_skills
+backend/scripts/okf_compile.py:4:Rebuild the OKF compiled index from memory/okf/ markdown files.
+supabase/migrations/20260714064138_12207701-9e67-4374-97a5-774bc440fe73.sql:11:-- -- DELETE FROM public.user_roles WHERE role = 'admin' AND user_id IN
+supabase/migrations/20260714064138_12207701-9e67-4374-97a5-774bc440fe73.sql:40:    ON CONFLICT (id) DO NOTHING;
+supabase/migrations/20260714064138_12207701-9e67-4374-97a5-774bc440fe73.sql:45:    ON CONFLICT (user_id, role) DO NOTHING;
+supabase/migrations/20260714064138_12207701-9e67-4374-97a5-774bc440fe73.sql:50:    ON CONFLICT (user_id, role) DO NOTHING;
+supabase/migrations/20260714064138_12207701-9e67-4374-97a5-774bc440fe73.sql:63:  AFTER UPDATE OF email_confirmed_at ON auth.users
+supabase/migrations/20260714064138_12207701-9e67-4374-97a5-774bc440fe73.sql:76:    ON CONFLICT (id) DO NOTHING;
+supabase/migrations/20260714064138_12207701-9e67-4374-97a5-774bc440fe73.sql:78:    ON CONFLICT (user_id, role) DO NOTHING;
+supabase/migrations/20260714064138_12207701-9e67-4374-97a5-774bc440fe73.sql:80:    ON CONFLICT (user_id, role) DO NOTHING;
+backend/services/ollama_service.py:124:        # Connection pooling: Create a singleton httpx.AsyncClient for health checks and direct HTTP calls
+backend/services/ollama_service.py:766:                    idx = int(parts[0].strip()) - 1  # 1-indexed → 0-indexed
+backend/services/ollama_service.py:1037:        """Get or create the singleton HTTP client with connection pooling."""
+backend/services/ollama_service.py:1040:                # Configure connection pool limits from settings
+backend/services/ollama_service.py:1052:                    f"Ollama HTTP client initialized with pool limits: "
+supabase/migrations/20260804000005_reconcile_user_brain_keys.sql:27:-- Two CREATE TABLE IF NOT EXISTS migrations shipped with incompatible column
+backend/scripts/ops/backfill_important_kwd.py:26:    """Extract the chunk's text from whatever field the indexer stored it in."""
+supabase/migrations/20260714000000_harden_rls_and_security_invoker.sql:51:CREATE POLICY "Admins have full access to okf_review_queue"
+supabase/migrations/20260714000000_harden_rls_and_security_invoker.sql:56:    WITH CHECK (public.has_role(auth.uid(), 'admin'::public.app_role));
+backend/scripts/ops/corpus_forensics.py:7:                 citation readiness, duplication, pooling consistency)
+backend/scripts/ops/corpus_forensics.py:91:_CITATION_REQUIRED = ("source_url", "title", "chunk_index")
+backend/scripts/ops/corpus_forensics.py:92:_RETRIEVAL_REQUIRED = ("text", "pooling")
+backend/scripts/ops/corpus_forensics.py:137:    pooling_modes: Counter[str] = Counter()
+backend/scripts/ops/corpus_forensics.py:162:        pooling_modes[str(p.get("pooling") or "(absent)")] += 1
+backend/scripts/ops/corpus_forensics.py:173:        "pooling_modes": dict(pooling_modes),
+backend/scripts/ops/corpus_forensics.py:307:            "pooling_modes": scan_result["pooling_modes"],
+backend/scripts/ops/corpus_forensics.py:308:            "pooling_mixed": len([m for m in scan_result["pooling_modes"] if m != "(absent)"]) > 1,
+backend/scripts/ops/corpus_forensics.py:380:    if rr["pooling_mixed"]:
+backend/scripts/ops/corpus_forensics.py:381:        print(f"  !! MIXED POOLING {rr['pooling_modes']} — mean and CLS vectors sit ~0.757")
+backend/tests/test_distress_provider_fail_closed.py:37:    assert names.index("input_guardrails") < names.index("circuit_breaker")
+supabase/migrations/20260724080000_harden_security_and_rls_lints.sql:14:-- CREATE POLICY "Allow read access to anyone" ON public.staging_quality_queue FOR SELECT USING (true);
+supabase/migrations/20260724080000_harden_security_and_rls_lints.sql:30:CREATE POLICY "Allow read access to admins only" ON public.staging_quality_queue
+backend/scripts/ops/shadow_collection_experiment.py:14:verifiable offline before committing to a live re-index.
+backend/scripts/ops/shadow_collection_experiment.py:175:        "A model switch still requires a full re-index before cutover — see "
+backend/scripts/ops/shadow_collection_experiment.py:176:        "app/config.py's embedding_backend comment for the re-index requirement."
+supabase/migrations/20260703160000_okf_review_queue.sql:14:CREATE TABLE IF NOT EXISTS okf_review_queue (
+supabase/migrations/20260703160000_okf_review_queue.sql:28:ALTER TABLE okf_review_queue ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260703160000_okf_review_queue.sql:30:CREATE POLICY "Admins have full access to okf_review_queue"
+supabase/migrations/20260703160000_okf_review_queue.sql:35:    WITH CHECK (public.has_role(auth.uid(), 'admin'::public.app_role));
+backend/scripts/ops/resolve_entities.py:117:            max_connection_pool_size=50,
+backend/scripts/ops/resolve_entities.py:120:            max_transaction_retry_time=30.0,
+backend/scripts/ops/resolve_entities.py:130:    """Call at shutdown to release the connection pool."""
+backend/scripts/ops/resolve_entities.py:162:DELETE r_out
+backend/scripts/ops/resolve_entities.py:170:DELETE r_in
+backend/scripts/ops/resolve_entities.py:174:_DELETE_LOSER_QUERY = f"""
+backend/scripts/ops/resolve_entities.py:176:DETACH DELETE loser
+backend/scripts/ops/resolve_entities.py:224:        await session.run(_DELETE_LOSER_QUERY, loser_id=loser_id)
+backend/scripts/ops/resolve_entities.py:665:        # Clean up the async driver pool (best-effort)
+backend/tests/test_wiring_invariants.py:19:  - Concurrent task C5 may DELETE known-dead settings while this test runs.
+backend/services/contextual_chunking_service.py:162:        index: int,
+backend/services/contextual_chunking_service.py:183:                raise RuntimeError(f"LLM contextual enrichment failed for chunk {index}") from exc
+supabase/migrations/20260506061924_89930c43-e214-4471-b173-1cd05b2f866a.sql:12:-- CREATE POLICY "public_read_teaching_images" ON storage.objects
+supabase/migrations/20260506061924_89930c43-e214-4471-b173-1cd05b2f866a.sql:23:CREATE POLICY "authenticated_read_teaching_images" ON storage.objects
+supabase/migrations/20260801000000_user_course_progress_one_active.sql:2:-- REVERT: Drop the partial unique index. NOTE: reverting allows multiple concurrent
+supabase/migrations/20260801000000_user_course_progress_one_active.sql:23:-- This partial unique index makes the database the source of truth: a
+supabase/migrations/20260618045331_cdb918bb-9241-493b-ab1a-5174b83c5710.sql:2:-- REVERT: Drop telemetry_events (policies + indexes drop with the table). DESTRUCTIVE:
+supabase/migrations/20260618045331_cdb918bb-9241-493b-ab1a-5174b83c5710.sql:13:CREATE TABLE IF NOT EXISTS public.telemetry_events (
+supabase/migrations/20260618045331_cdb918bb-9241-493b-ab1a-5174b83c5710.sql:15:  user_id uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+supabase/migrations/20260618045331_cdb918bb-9241-493b-ab1a-5174b83c5710.sql:28:ALTER TABLE public.telemetry_events ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260618045331_cdb918bb-9241-493b-ab1a-5174b83c5710.sql:30:CREATE POLICY "Users read their own telemetry"
+supabase/migrations/20260618045331_cdb918bb-9241-493b-ab1a-5174b83c5710.sql:35:CREATE POLICY "Service role manages telemetry"
+supabase/migrations/20260618045331_cdb918bb-9241-493b-ab1a-5174b83c5710.sql:38:  USING (true) WITH CHECK (true);
+supabase/migrations/20260618045331_cdb918bb-9241-493b-ab1a-5174b83c5710.sql:40:CREATE INDEX IF NOT EXISTS telemetry_events_user_msg_idx ON public.telemetry_events(user_message_id);
+supabase/migrations/20260618045331_cdb918bb-9241-493b-ab1a-5174b83c5710.sql:41:CREATE INDEX IF NOT EXISTS telemetry_events_user_id_created_idx ON public.telemetry_events(user_id, created_at DESC);
+backend/tests/test_second_brain_keys_schema.py:3:The two user_brain_keys CREATE TABLE migrations (20260717191006_second_brain_
+backend/tests/test_quality_gate.py:178:        {"status": "success", "indexing": {"count": 12}},
+backend/tests/test_quality_gate.py:179:        {"status": "success", "indexing": {"count": 8}},
+backend/tests/test_quality_gate.py:196:        assert res["chunks_indexed"] == 20
+backend/tests/test_quality_gate.py:200:            "parent-job", "completed", progress_pct=100, chunks_indexed=20, error_message=None
+backend/tests/test_guardrail_self_harm_priority.py:77:        assert order.index("self_harm") < order.index("medical_prescription")
+backend/tests/test_guardrail_self_harm_priority.py:78:        assert order.index("substance_abuse") < order.index("medical_prescription")
+backend/tests/test_guardrail_self_harm_priority.py:79:        assert order.index("violence") < order.index("medical_prescription")
+backend/ingest/quality_gate.py:368:    the retrieval index as ground truth, later quoted to a seeker as doctrine.
+backend/ingest/quality_gate.py:378:    index, and the leaf chunks survive regardless.
+backend/tests/test_source_release_atomicity_contract.py:9:def test_source_release_atomicity_migration_has_idempotency_and_single_active_indexes():
+backend/tests/test_ontology_provenance.py:44:    tx = session.begin_transaction.return_value
+backend/tests/conftest.py:129:    _close_global_redis_pool()
+backend/tests/conftest.py:133:def _close_global_redis_pool():
+backend/tests/conftest.py:134:    """Drop every module-level coalescer pool connection between tests.
+backend/tests/conftest.py:136:    pytest-asyncio creates a fresh event loop per test, so a pooled redis
+backend/tests/conftest.py:140:    and their pools outlive every test loop. Closing via RedisCoalescer.close()
+backend/tests/conftest.py:142:    pool lists when their transport is already dead, so we clear the lists
+backend/tests/conftest.py:143:    directly. The pool lazily creates fresh connections on the next test's
+backend/tests/conftest.py:151:            _log.debug("_close_global_redis_pool: could not import %s: %s", module_name, _ie)
+backend/tests/conftest.py:154:        pool = getattr(redis_client, "connection_pool", None)
+backend/tests/conftest.py:155:        if pool is None:
+backend/tests/conftest.py:158:            conns = getattr(pool, list_attr, ())
+backend/tests/conftest.py:163:                    "_close_global_redis_pool: could not clear %s.%s: %s",
+backend/domain/spiritual_ontology.py:302:# Reverse index: normalized alias -> domain_id, built once at import time.
+backend/ingest/pipeline.py:408:        # process-level driver per worker process instead of one pool per task.
+backend/ingest/pipeline.py:416:                    max_connection_pool_size=settings.neo4j_max_connection_pool_size,
+backend/ingest/pipeline.py:419:                    max_transaction_retry_time=settings.neo4j_max_transaction_retry_time_s,
+backend/ingest/pipeline.py:594:            Dict with 'chunks_indexed', 'summaries_created', 'source_url', etc.
+backend/ingest/pipeline.py:619:                "chunks_indexed": 0,
+backend/ingest/pipeline.py:663:                            "chunks_indexed": 0,
+backend/ingest/pipeline.py:681:                        "chunks_indexed": 0,
+backend/ingest/pipeline.py:713:                            "chunks_indexed": 0,
+backend/ingest/pipeline.py:731:                        "chunks_indexed": 0,
+backend/ingest/pipeline.py:738:                    "chunks_indexed": 0,
+backend/ingest/pipeline.py:771:                "chunks_indexed": 0,
+backend/ingest/pipeline.py:787:                "chunks_indexed": 0,
+backend/ingest/pipeline.py:810:                "chunks_indexed": 0,
+backend/ingest/pipeline.py:817:        # Chunk → embed → index (uses adaptive chunking via _split_text)
+backend/ingest/pipeline.py:818:        self._notify(on_progress, "Chunking and indexing...", 0.55)
+backend/ingest/pipeline.py:819:        backup_collection = self._backup_before_reindex(url)
+backend/ingest/pipeline.py:831:                "chunks_indexed": 0,
+backend/ingest/pipeline.py:835:        chunks_count = self._embed_and_index(
+backend/ingest/pipeline.py:866:            self._rollback_reindex(url, backup_collection)
+backend/ingest/pipeline.py:871:                "chunks_indexed": 0,
+backend/ingest/pipeline.py:900:            "chunks_indexed": chunks_count,
+backend/ingest/pipeline.py:955:                "chunks_indexed": 0,
+backend/ingest/pipeline.py:987:                "chunks_indexed": 0,
+backend/ingest/pipeline.py:1008:                "chunks_indexed": 0,
+backend/ingest/pipeline.py:1040:        backup_collection = self._backup_before_reindex(source_url)
+backend/ingest/pipeline.py:1042:        # Step 5: Embed and index
+backend/ingest/pipeline.py:1051:            chunks_count = self._embed_and_index(
+backend/ingest/pipeline.py:1091:            self._rollback_reindex(source_url, backup_collection)
+backend/ingest/pipeline.py:1096:                "chunks_indexed": 0,
+backend/ingest/pipeline.py:1107:        # after all downstream work (chunking, indexing, RAPTOR, LightRAG) is
+backend/ingest/pipeline.py:1134:                        "chunks_indexed": 0,
+backend/ingest/pipeline.py:1160:            "chunks_indexed": chunks_count,
+backend/ingest/pipeline.py:1208:                    "chunks_indexed": 0,
+backend/ingest/pipeline.py:1234:                "chunks_indexed": 0,
+backend/ingest/pipeline.py:1247:                "chunks_indexed": 0,
+backend/ingest/pipeline.py:1262:                "chunks_indexed": 0,
+backend/ingest/pipeline.py:1282:        self._notify(on_progress, "Chunking and indexing...", 0.5)
+backend/ingest/pipeline.py:1313:                "chunks_indexed": 0,
+backend/ingest/pipeline.py:1319:        backup_collection = self._backup_before_reindex(url)
+backend/ingest/pipeline.py:1335:        # Step 5: Embed and index
+backend/ingest/pipeline.py:1344:            chunks_count = self._embed_and_index(
+backend/ingest/pipeline.py:1389:            self._rollback_reindex(url, backup_collection)
+backend/ingest/pipeline.py:1394:                "chunks_indexed": 0,
+backend/ingest/pipeline.py:1424:                        "chunks_indexed": 0,
+backend/ingest/pipeline.py:1449:            "chunks_indexed": chunks_count,
+backend/ingest/pipeline.py:1466:        Includes speaker diarization, topic extraction, and partitioned indexing.
+backend/ingest/pipeline.py:1506:                "chunks_indexed": 0,
+backend/ingest/pipeline.py:1520:                "chunks_indexed": 0,
+backend/ingest/pipeline.py:1540:                "chunks_indexed": 0,
+backend/ingest/pipeline.py:1598:        topic_index = 0
+backend/ingest/pipeline.py:1600:            self._notify(on_progress, f"Processing topic: {topic}...", 0.7 + (topic_index * 0.05))
+backend/ingest/pipeline.py:1635:            topic_index += 1
+backend/ingest/pipeline.py:1639:        backup_collection = self._backup_before_reindex(url)
+backend/ingest/pipeline.py:1654:        # Embed and index all leaf chunks at once to prevent catastrophic deletion/overwrite
+backend/ingest/pipeline.py:1659:                total_chunks = self._embed_and_index(
+backend/ingest/pipeline.py:1695:            self._rollback_reindex(url, backup_collection)
+backend/ingest/pipeline.py:1700:                "chunks_indexed": 0,
+backend/ingest/pipeline.py:1730:                        "chunks_indexed": 0,
+backend/ingest/pipeline.py:1757:            "chunks_indexed": total_chunks,
+backend/ingest/pipeline.py:1911:        # Phase 2: Process transcripts (clean, chunk, embed, index)
+backend/ingest/pipeline.py:1954:                # Clean & redact PII, then chunk, embed, index
+backend/ingest/pipeline.py:1994:                backup_collection = self._backup_before_reindex(video["url"])
+backend/ingest/pipeline.py:1997:                    chunks_count = self._embed_and_index(
+backend/ingest/pipeline.py:2036:                    self._rollback_reindex(video["url"], backup_collection)
+backend/ingest/pipeline.py:2069:                            self._rollback_reindex(video["url"], backup_collection)
+backend/ingest/pipeline.py:2112:            "chunks_indexed": total_chunks,
+backend/ingest/pipeline.py:2133:                "chunks_indexed": 0,
+backend/ingest/pipeline.py:2146:                "chunks_indexed": 0,
+backend/ingest/pipeline.py:2150:        self._notify(on_progress, "Cleaning and indexing...", 0.6)
+backend/ingest/pipeline.py:2159:        chunks_count = self._chunk_embed_index(
+backend/ingest/pipeline.py:2194:            "chunks_indexed": chunks_count,
+backend/ingest/pipeline.py:2286:                                with session.begin_transaction() as tx:
+backend/ingest/pipeline.py:2294:                                    DELETE r
+backend/ingest/pipeline.py:2307:                                    DELETE r
+backend/ingest/pipeline.py:2325:                                        "MATCH (dup:base) WHERE elementId(dup) = $dup_id DETACH DELETE dup",
+backend/ingest/pipeline.py:2341:                            session.run("MATCH (n:base) WHERE NOT (n)-[]-() DETACH DELETE n")
+backend/ingest/pipeline.py:2365:                                DETACH DELETE n
+backend/ingest/pipeline.py:2381:                    # create another HTTP pool on every maintenance run.
+backend/ingest/pipeline.py:2450:    # of leaving it half-indexed.
+backend/ingest/pipeline.py:2454:    def _backup_before_reindex(self, source_url: str) -> Optional[str]:
+backend/ingest/pipeline.py:2470:            f"Pre-reindex backup failed for {source_url} — proceeding without rollback safety net"
+backend/ingest/pipeline.py:2474:    def _rollback_reindex(self, source_url: str, backup_collection: Optional[str]) -> None:
+backend/ingest/pipeline.py:2478:        the partially-indexed new source so it isn't left half-processed.
+backend/ingest/pipeline.py:2492:                f"Removed partially-indexed new source {source_url} after a downstream failure"
+backend/ingest/pipeline.py:2495:    def _embed_and_index(
+backend/ingest/pipeline.py:2620:        #  2. `extra_metadatas[i]` was indexed by POST-filter position while it was
+backend/ingest/pipeline.py:2623:        # Filtering by index keeps every parallel array aligned.
+backend/ingest/pipeline.py:2687:            logger.info(f"Source already indexed, overwriting: {source_url}")
+backend/ingest/pipeline.py:2701:            logger.debug(f"apply_corrections in _embed_and_index skipped: {dt_err}")
+backend/ingest/pipeline.py:2724:                "chunk_index": i,
+backend/ingest/pipeline.py:2809:                "status": "indexed",
+backend/ingest/pipeline.py:2815:            # log, not a dedup index).
+backend/ingest/pipeline.py:2868:                # chunks stay attributable — they were previously indexed with
+backend/ingest/pipeline.py:2879:    def _chunk_embed_index(
+backend/ingest/pipeline.py:2896:        return self._embed_and_index(
+backend/tests/test_contextual_reingest.py:61:            "chunk_index": 0,
+backend/tests/test_contextual_reingest.py:75:            "chunk_index": 1,
+backend/tests/test_contextual_reingest.py:162:        # that reads as a working parent-child index (lessons.md L-CORRUPT-5).
+backend/tests/test_contextual_reingest.py:203:            "chunk_index": 0,
+backend/tests/test_contextual_reingest.py:207:            "chunk_index": 1,
+backend/tests/test_contextual_reingest.py:263:    assert points[0].payload["pooling"] == "mean"
+backend/tests/test_contextual_reingest.py:264:    assert points[1].payload["pooling"] == "mean"
+backend/tests/test_contextual_reingest.py:360:    """Summaries share chunk_index space with transcript chunks; sorting by index
+backend/tests/test_contextual_reingest.py:367:            "chunk_index": 0,
+backend/tests/test_contextual_reingest.py:374:            "chunk_index": 0,
+backend/tests/test_contextual_reingest.py:381:            "chunk_index": 1,
+backend/tests/test_contextual_reingest.py:408:# 2026-08-02: parent-child, uniform pooling, per-chunk provenance, bloat prune.
+backend/tests/test_contextual_reingest.py:470:    mapped = ContextualReingestEngine._origin_index_map(payloads, spans, 3000)
+backend/tests/test_contextual_reingest.py:476:    assert ContextualReingestEngine._origin_index_map([], spans, 3000) == [0, 0, 0, 0]
+backend/tests/test_contextual_reingest.py:479:def test_late_chunking_never_mixes_pooling_modes():
+backend/tests/test_contextual_reingest.py:484:    mean-pool the chunk standalone instead."""
+backend/tests/test_contextual_reingest.py:490:    assert "encode_query_mean_pooled" in src, (
+backend/tests/test_contextual_reingest.py:491:        "the late-chunking fallback must mean-pool, not fall back to CLS"
+backend/tests/test_contextual_reingest.py:493:    assert "mixed pooling modes" in src, "a mixed-pooling collection must raise, not warn"
+backend/tests/test_contextual_reingest.py:494:    # The old defect is literally the line `pooling_modes[i] = "mean"` sitting
+backend/tests/test_contextual_reingest.py:496:    assert src.count('pooling_modes[i] = "mean"') == 1
+backend/tests/test_contextual_reingest.py:506:    from services.qdrant.indexer import QdrantIndexer
+backend/tests/test_contextual_reingest.py:512:    indexer_src = inspect.getsource(QdrantIndexer.upsert_chunks)
+backend/tests/test_contextual_reingest.py:513:    assert '"phonetic_tokens": phonetic_tokens' not in indexer_src
+backend/tests/test_contextual_reingest.py:514:    assert "IndicPhoneticMatcher.get_phonetic_tokens" not in indexer_src
+backend/tests/test_contextual_reingest.py:651:    # Point ids stay unique: chunk_index continues across sections.
+backend/tests/test_contextual_reingest.py:652:    assert "next_index + offset" in src
+backend/tests/test_contextual_reingest.py:653:    assert "next_index += len(section_payloads)" in src, "resume must advance the cursor"
+backend/scripts/ops/reprocess_contextual.py:154:        # Sort chunks by index to reconstruct document order
+backend/scripts/ops/reprocess_contextual.py:155:        pts.sort(key=lambda p: p["payload"].get("chunk_index", 0))
+backend/scripts/ops/reprocess_contextual.py:163:            sources.index(src) + 1,
+backend/tests/test_guru_brain.py:91:async def test_guru_brain_service_indexing_and_search():
+backend/tests/test_guru_brain.py:107:    indexed = await service.index_exemplars([exemplar])
+backend/tests/test_guru_brain.py:108:    assert indexed == 1
+backend/tests/test_second_brain.py:113:    """Matches services.second_brain.vault_index.VaultIndex's duck-typed shape:
+backend/tests/test_second_brain.py:174:            # vector index only ever sees {user_id, kind} — never plaintext (payload
+backend/services/doctrine_cache.py:158:            self._build_index()
+backend/services/doctrine_cache.py:175:            self._build_index()
+backend/services/doctrine_cache.py:194:                self._build_index()
+backend/services/doctrine_cache.py:208:            self._build_index()
+backend/services/doctrine_cache.py:210:    def _build_index(self) -> None:
+backend/infrastructure/scheduler.py:31:        # ingest_url will discover videos and skip already indexed ones.
+backend/tests/test_circuit_breaker.py:58:    with ThreadPoolExecutor(max_workers=20) as pool:
+backend/tests/test_circuit_breaker.py:59:        decisions = list(pool.map(lambda _: breaker.can_execute(), range(20)))
+backend/services/graphrag_fusion.py:236:        busy concurrency pool cannot push a retrieval past its deadline: slot
+backend/ops/flush_cache.py:8:* Redis semantic-cache payload/index keys under ``mukthiguru:semcache:*``.
+backend/ops/flush_cache.py:81:            pipe = client.pipeline(transaction=False)
+backend/ops/flush_cache.py:87:                    pipe = client.pipeline(transaction=False)
+backend/tests/test_maintenance_runner.py:85:        "qdrant-payload-indexes-v1",
+backend/tests/test_maintenance_runner.py:100:    assert "qdrant-payload-indexes-v1" in captured.out
+backend/tests/test_maintenance_runner.py:150:def test_qdrant_payload_indexes_dry_run_does_not_mutate(mock_qdrant_client):
+backend/tests/test_maintenance_runner.py:152:    res = run_operation("qdrant-payload-indexes-v1", dry_run=True, ctx=ctx)
+backend/tests/test_maintenance_runner.py:157:    mock_qdrant_client.create_payload_index.assert_not_called()
+backend/tests/test_maintenance_runner.py:240:def test_qdrant_payload_indexes_apply_and_idempotency(mock_qdrant_client, mock_redis_client):
+backend/tests/test_maintenance_runner.py:246:    res1 = run_operation("qdrant-payload-indexes-v1", dry_run=False, ctx=ctx)
+backend/tests/test_maintenance_runner.py:252:    assert mock_qdrant_client.create_payload_index.call_count == total_fields
+backend/tests/test_maintenance_runner.py:254:    # Second apply: indexes exist (mock raises conflict / already exists)
+backend/tests/test_maintenance_runner.py:255:    mock_qdrant_client.create_payload_index.side_effect = Exception("Index already exists")
+backend/tests/test_maintenance_runner.py:256:    res2 = run_operation("qdrant-payload-indexes-v1", dry_run=False, ctx=ctx)
+backend/tests/test_maintenance_runner.py:453:        mock_qclient.create_payload_index.assert_not_called()
+backend/ingest/youtube_loader.py:239:# Three backends with independent rate-limit pools:
+backend/ingest/youtube_loader.py:254:    which is a different rate-limit pool from the API.
+backend/ingest/youtube_loader.py:533:# Cascade Fetcher: three backends with independent rate-limit pools
+backend/ingest/youtube_loader.py:954:        on_progress: Optional callback(video_index, total, result)
+backend/ingest/youtube_loader.py:968:    async def fetch_single_video(index: int, video: dict):
+backend/ingest/youtube_loader.py:996:                # permit stays held, keeping the pool at the reduced level.
+backend/ingest/youtube_loader.py:999:        results[index] = res
+backend/ingest/youtube_loader.py:1002:                on_progress(index, total, res)
+backend/scripts/build_comprehensive_golden_qa_bank.py:458:        "reference_answer": "In the teachings of Sri Preethaji and Sri Krishnaji, a relationship is not a transaction for fulfilling ego demands, but a sacred mirror of your inner state. When conflicts arise, rather than blaming the other person, you look within to discover your own inner hurt, fear, or self-centric expectation (Inner Truth). When you move from demanding love to offering connection from a Beautiful State, your listening deepens, defensiveness dissolves, and genuine heart connection is restored.",
+backend/services/semantic_router_fallback.py:15:  - ``neo4j_fulltext_search()``: runs a Cypher full-text query against the Neo4j index
+backend/services/semantic_router_fallback.py:19:Neo4j full-text index expected:
+backend/services/semantic_router_fallback.py:56:    """Execute a Neo4j full-text search on the ``chunk_text`` index.
+backend/services/semantic_router_fallback.py:59:    Returns an empty list if Neo4j is unreachable or the index doesn't exist.
+backend/services/semantic_router_fallback.py:80:    CALL db.index.fulltext.queryNodes('chunk_text', $query, {limit: $limit})
+backend/services/semantic_router_fallback.py:86:        node.chunk_index AS chunk_index,
+backend/services/semantic_router_fallback.py:118:                            "chunk_index": record.get("chunk_index", 0),
+backend/services/semantic_router_fallback.py:221:                            "chunk_index": 0,
+backend/ingest/contextual_reingest.py:7:payload index configuration.
+backend/ingest/contextual_reingest.py:404:        self._dedup_index: Optional[LSHNearDupIndex] = None
+backend/ingest/contextual_reingest.py:405:        self._dedup_index_seeded: bool = False
+backend/ingest/contextual_reingest.py:584:    def _get_dedup_index(self) -> Optional[LSHNearDupIndex]:
+backend/ingest/contextual_reingest.py:585:        """Lazy MinHash-LSH index of already-accepted raw chunk texts (§6.4).
+backend/ingest/contextual_reingest.py:595:        if self._dedup_index is None:
+backend/ingest/contextual_reingest.py:596:            self._dedup_index = LSHNearDupIndex(threshold=settings.ingestion_dedup_threshold)
+backend/ingest/contextual_reingest.py:597:        return self._dedup_index
+backend/ingest/contextual_reingest.py:599:    def _seed_dedup_index_from_target(self) -> None:
+backend/ingest/contextual_reingest.py:617:                        self._get_dedup_index().add(
+backend/ingest/contextual_reingest.py:624:            logger.warning("Could not seed dedup index from target collection: %s", exc)
+backend/ingest/contextual_reingest.py:630:        if not self._dedup_index_seeded:
+backend/ingest/contextual_reingest.py:631:            self._seed_dedup_index_from_target()
+backend/ingest/contextual_reingest.py:632:            self._dedup_index_seeded = True
+backend/ingest/contextual_reingest.py:636:            if self._get_dedup_index().is_near_duplicate(chunk):
+backend/ingest/contextual_reingest.py:639:            self._get_dedup_index().add(chunk, {"authority_tier": "primary"})
+backend/ingest/contextual_reingest.py:686:        # raptor_level > 0). They share the same chunk_index space — a source can
+backend/ingest/contextual_reingest.py:687:        # have BOTH a summary and a transcript chunk at index 0 — so sorting by
+backend/ingest/contextual_reingest.py:688:        # chunk_index alone interleaves them, and _reconstruct_full_text then
+backend/ingest/contextual_reingest.py:697:        # transcript chunks still share an index.
+backend/ingest/contextual_reingest.py:704:            groups[src].sort(key=lambda p: (p.get("chunk_index", 0), str(p.get("_id", ""))))
+backend/ingest/contextual_reingest.py:734:        chunking fully disabled (``0/2 dense vectors pooled from the document``)
+backend/ingest/contextual_reingest.py:737:        pooling, and the provenance map falls back to payload 0 — so this failure
+backend/ingest/contextual_reingest.py:833:    def _origin_index_map(
+backend/ingest/contextual_reingest.py:849:        Falls back to index 0 for a chunk whose span could not be located.
+backend/ingest/contextual_reingest.py:1079:        next_index = 0
+backend/ingest/contextual_reingest.py:1083:                # Recover the index cursor so a resumed run does not reuse point
+backend/ingest/contextual_reingest.py:1085:                next_index += len(section_payloads)
+backend/ingest/contextual_reingest.py:1093:                # A mutilated or mixed-pooling SECTION must not abort the other 24.
+backend/ingest/contextual_reingest.py:1103:            # chunk_index is globally unique across the source: deterministic point
+backend/ingest/contextual_reingest.py:1104:            # ids are source_url:chunk_index:raptor_level, so per-section numbering
+backend/ingest/contextual_reingest.py:1107:                meta["chunk_index"] = next_index + offset
+backend/ingest/contextual_reingest.py:1108:            next_index += len(metadatas)
+backend/ingest/contextual_reingest.py:1212:        # by late chunking to pool the right token range, and by the provenance
+backend/ingest/contextual_reingest.py:1241:        # §6.3 late chunking — replace the dense vector with one pooled from the
+backend/ingest/contextual_reingest.py:1249:        # Pooling must match on the query side: mean-pooled chunks searched with a
+backend/ingest/contextual_reingest.py:1250:        # CLS query scored 0.4823, i.e. the entire gain disappears. `pooling` is
+backend/ingest/contextual_reingest.py:1253:        pooling_modes = ["cls"] * len(contextual_chunks)
+backend/ingest/contextual_reingest.py:1268:                    # — in ONE collection: whichever pooling the query used, the
+backend/ingest/contextual_reingest.py:1271:                    # one pooling mode. Mean-pool the chunk on its own instead;
+backend/ingest/contextual_reingest.py:1274:                    dense_vectors[i] = self._embedder().encode_query_mean_pooled(
+backend/ingest/contextual_reingest.py:1278:                pooling_modes[i] = "mean"
+backend/ingest/contextual_reingest.py:1280:                "Late chunking: %d/%d dense vectors pooled from the document, "
+backend/ingest/contextual_reingest.py:1281:                "%d mean-pooled standalone (span not located) for %s",
+backend/ingest/contextual_reingest.py:1288:        # One collection, one pooling mode — asserted, not assumed. A mixed
+backend/ingest/contextual_reingest.py:1291:        distinct_pooling = set(pooling_modes)
+backend/ingest/contextual_reingest.py:1292:        if len(distinct_pooling) > 1:
+backend/ingest/contextual_reingest.py:1294:                f"Refusing to write {unit_label}: mixed pooling modes "
+backend/ingest/contextual_reingest.py:1295:                f"{sorted(distinct_pooling)} in one collection."
+backend/ingest/contextual_reingest.py:1303:        # summary at chunk_index 0 meant every re-ingested chunk inherited
+backend/ingest/contextual_reingest.py:1328:        origin = self._origin_index_map(payloads, spans, len(full_text))
+backend/ingest/contextual_reingest.py:1342:                # How this vector was pooled. Late-chunked (mean) and CLS vectors
+backend/ingest/contextual_reingest.py:1344:                # searcher must pool its query the same way.
+backend/ingest/contextual_reingest.py:1345:                "pooling": pooling_modes[i] if i < len(pooling_modes) else "cls",
+backend/ingest/contextual_reingest.py:1357:                "chunk_index": i,
+backend/ingest/contextual_reingest.py:1364:                # read as a working index. The real parent fields below are the
+backend/scripts/migrate_data.py:49:# restore_from_backup was promoted to services.qdrant.indexer.QdrantIndexer
+backend/scripts/migrate_data.py:145:            # 4b: Reconstruct text (sort by chunk_index, strip old headers)
+backend/scripts/migrate_data.py:146:            sorted_chunks = sorted(chunks, key=lambda x: x.get("chunk_index", 0))
+backend/scripts/migrate_data.py:178:                    logger.info(f"  ✅ Success: {result.get('chunks_indexed', 0)} chunks indexed")
+backend/ingest/book_ingest.py:42:    Deliberately stays CLS-pooled (plain EmbeddingService.encode_batch, not
+backend/ingest/book_ingest.py:45:    why mixing pooling modes within one collection is a correctness bug, not
+backend/ingest/book_ingest.py:112:                            "page_range": f"{node.get('start_index', '?')}-{node.get('end_index', '?')}",
+backend/ingest/book_ingest.py:155:        chunk["metadata"]["chunk_index"] = i
+backend/ingest/book_ingest.py:185:    Returns a summary dict: {chunks_indexed, lightrag_chunks_ok, lightrag_chunks_failed}.
+backend/ingest/book_ingest.py:253:        "chunks_indexed": len(chunks),
+backend/services/ontology_rag.py:22:    dicts with ``text`` / ``source_url`` / ``chunk_index`` / ``score`` /
+backend/services/ontology_rag.py:116:        The real Neo4j graph is not vector-indexed for this workload, so we
+backend/services/ontology_rag.py:329:        """Remove duplicate documents by stable identity (source_url + chunk_index)."""
+backend/services/ontology_rag.py:335:                doc_id = f"{doc.get('source_url', '')}:{doc.get('chunk_index', '')}"
+backend/services/ontology_rag.py:432:                    "chunk_index": 0,
+backend/services/ontology_rag.py:440:                    "chunk_index": 0,
+backend/tests/test_ingestion_pipeline.py:59:def test_embed_and_index_teacher_tagging(mock_pipeline):
+backend/tests/test_ingestion_pipeline.py:68:    mock_pipeline._embed_and_index(
+backend/tests/test_ingestion_pipeline.py:83:    mock_pipeline._embed_and_index(
+backend/tests/test_ingestion_pipeline.py:97:    mock_pipeline._embed_and_index(
+backend/tests/test_ingestion_pipeline.py:219:    mock_pipeline._backup_before_reindex = MagicMock(return_value="backup")
+backend/tests/test_ingestion_pipeline.py:227:    mock_pipeline._embed_and_index = MagicMock(return_value=1)
+backend/tests/test_ingestion_pipeline.py:235:    embed_args = mock_pipeline._embed_and_index.call_args
+backend/scripts/mock_llm_server.py:73:                    "index": 0,
+backend/scripts/verify_multilingual.py:158:    index: int,
+backend/scripts/verify_multilingual.py:165:        "session_id": f"{SESSION_PREFIX}-{category}-{index}",
+backend/tests/test_production_fixes.py:95:    pipeline._embed_and_index = MagicMock(return_value=2)
+backend/tests/test_production_fixes.py:102:    assert res1["chunks_indexed"] > 0
+backend/tests/test_production_fixes.py:106:    assert res2["chunks_indexed"] == 0
+backend/ingest/social_media_loader.py:331:            pool=connect_timeout,
+backend/ingest/social_media_loader.py:466:        with concurrent.futures.ThreadPoolExecutor() as pool:
+backend/ingest/social_media_loader.py:467:            result_info = await loop.run_in_executor(pool, _download_audio)
+backend/ingest/social_media_loader.py:526:            with concurrent.futures.ThreadPoolExecutor() as pool:
+backend/ingest/social_media_loader.py:527:                transcript = await loop.run_in_executor(pool, _transcribe, audio_file)
+backend/tests/test_context_graph_expansion.py:24:        "chunk_index": 3,
+backend/scripts/validate_colbert_maxsim.py:544:                    colbert_order.index(original_doc)
+backend/scripts/validate_colbert_maxsim.py:549:                    cross_order.index(original_doc) if original_doc in cross_order else len(docs)
+backend/ingest/ontology_writer.py:237:        OntologyWriteError: if a Neo4j transaction cannot be committed. Callers
+backend/ingest/ontology_writer.py:261:            with session.begin_transaction() as tx:
+backend/ingest/ontology_writer.py:413:    def begin_transaction(self) -> _MockTransaction:
+backend/services/openrouter_service.py:108:        # Connection pooling: AsyncClient
+backend/services/openrouter_service.py:119:        """Get or create the singleton HTTP client with connection pooling."""
+backend/scripts/validate_onnx_embedding.py:77:    Returns list of dicts with keys: q, category, index.
+backend/scripts/validate_onnx_embedding.py:93:                        "index": i,
+backend/scripts/validate_onnx_embedding.py:104:                                "index": j,
+backend/scripts/validate_onnx_embedding.py:254:                    "index": i,
+backend/scripts/validate_onnx_embedding.py:318:        {"q": p, "category": "paraphrased", "index": i} for i, p in enumerate(PARAPHRASED)
+backend/tests/test_okf_index_available.py:1:"""Regression guard: the OKF compiled index must reach the container.
+backend/tests/test_okf_index_available.py:3:``rag_okf_injection_enabled`` defaults to True and ``retrieval.py`` resolves the index
+backend/tests/test_okf_index_available.py:4:to ``/app/memory/okf/compiled.json`` inside the image. The index lives at the repo root
+backend/tests/test_okf_index_available.py:35:def test_dockerfile_copies_okf_index(dockerfile: Path):
+backend/tests/test_okf_index_available.py:49:def test_okf_index_loads_from_repo_root():
+backend/tests/test_okf_index_available.py:50:    """The checked-in index resolves and parses.
+backend/tests/test_okf_index_available.py:54:    index to load yet. Re-arms once `compile_okf()` runs against real entries.
+backend/tests/test_okf_index_available.py:61:def test_missing_index_warns_instead_of_failing_silently(tmp_path, monkeypatch, caplog):
+backend/tests/test_okf_index_available.py:62:    """A missing index must be loud — it strips the knowledge layer from every answer."""
+backend/tests/test_okf_index_available.py:68:    assert any("OKF compiled index missing" in r.message for r in caplog.records), (
+backend/tests/test_okf_index_available.py:69:        "missing OKF index was swallowed without a warning"
+backend/start_railway.py:44:_CELERY_ALLOWED_QUEUES = frozenset({"ingestion", "embedding", "indexing", "okf", "memory"})
+backend/start_railway.py:224:                os.environ.get("CELERY_QUEUES", "ingestion,embedding,indexing,okf,memory")
+backend/services/lightrag_service.py:107:            # thread pool can race on read/write. An RLock serialises all cache
+backend/services/lightrag_service.py:132:        os.environ["NEO4J_MAX_CONNECTION_POOL_SIZE"] = str(settings.neo4j_max_connection_pool_size)
+backend/services/lightrag_service.py:138:            settings.neo4j_max_transaction_retry_time_s
+backend/services/lightrag_service.py:397:            # LightRAG requires a numpy array. Run in thread pool to avoid blocking event loop.
+backend/services/lightrag_service.py:420:                max_connection_pool_size=settings.neo4j_max_connection_pool_size,
+backend/services/lightrag_service.py:423:                max_transaction_retry_time=settings.neo4j_max_transaction_retry_time_s,
+backend/services/lightrag_service.py:592:                f"Skipping this chunk — Qdrant vectors are already indexed."
+backend/ingest/raptor.py:48:    4. index() — upsert summaries as level-1 nodes
+backend/ingest/raptor.py:97:        # don't support is a fabrication being written into the index as doctrine.
+backend/ingest/raptor.py:132:                "chunk_index": s["cluster_id"],  # Use cluster_id as chunk_index for dedup
+backend/ingest/raptor.py:257:        build_tree can drop fabrications before they are indexed.

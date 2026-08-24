@@ -56,7 +56,7 @@ function runSupabaseStatus(): string | null {
   if (existsSync(DOCKER_BIN)) paths.unshift(`${DOCKER_BIN}:${paths[0]}`);
   for (const path of paths) {
     try {
-      const out = spawnSync('npx', ['supabase', 'status'], {
+      const out = spawnSync('npx', ['supabase', 'status', '--output', 'json'], {
         env: { ...process.env, PATH: path },
         encoding: 'utf8',
         timeout: 60_000,
@@ -101,6 +101,7 @@ function adminHeaders(cfg: SupabaseConfig): Record<string, string> {
     apikey: cfg.serviceRoleKey,
     Authorization: `Bearer ${cfg.serviceRoleKey}`,
     'Content-Type': 'application/json',
+    Prefer: 'return=representation',
   };
 }
 
@@ -182,6 +183,22 @@ async function insertRow(
   return body[0];
 }
 
+async function insertAdminRow(
+  cfg: SupabaseConfig,
+  table: string,
+  row: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  const res = await fetch(`${cfg.supabaseUrl}/rest/v1/${table}`, {
+    method: 'POST',
+    headers: adminHeaders(cfg),
+    body: JSON.stringify(row),
+  });
+  if (!res.ok) throw new Error(`admin insert ${table} failed: ${res.status} ${await res.text()}`);
+  const body = (await res.json()) as Record<string, unknown>[];
+  if (!body?.length) throw new Error(`admin insert ${table} returned no rows`);
+  return body[0];
+}
+
 async function updateRows(
   cfg: SupabaseConfig,
   token: string,
@@ -235,13 +252,13 @@ async function signInViaUI(page: Page, email: string, password: string): Promise
  * real user would (Skip) whenever it appears.
  */
 async function dismissPrePracticeGate(page: Page): Promise<void> {
-  const dialog = page.getByRole('dialog', { name: /soul sync|serene mind|before we begin/i });
+  const dialog = page.getByRole('dialog', { name: /soul sync|serene mind|before we begin|chat with the guru/i });
   try {
     await dialog.waitFor({ state: 'visible', timeout: 5_000 });
   } catch {
     return; // gate did not appear — nothing to dismiss
   }
-  const skip = dialog.getByRole('button', { name: 'Skip' });
+  const skip = dialog.getByRole('button', { name: /^skip(?: tour)?$/i });
   if (await skip.isVisible()) await skip.click();
   await expect(dialog).not.toBeVisible({ timeout: 5_000 });
 }
@@ -374,12 +391,12 @@ test.describe('RLS cross-user isolation', () => {
     const users = rlsUsers;
 
     // Seed Alice-owned rows exactly like verify_rls_policies.py does.
-    const conv = await insertRow(users, users.alice.accessToken, 'conversations', {
+    const conv = await insertAdminRow(users, 'conversations', {
       user_id: users.alice.id,
       title: 'Alice private conv',
     });
     const convId = String(conv.id);
-    const msg = await insertRow(users, users.alice.accessToken, 'chat_messages', {
+    const msg = await insertAdminRow(users, 'chat_messages', {
       conversation_id: convId,
       role: 'user',
       content: 'Alice private message',

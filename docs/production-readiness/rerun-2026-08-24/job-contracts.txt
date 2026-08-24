@@ -1,0 +1,500 @@
+backend/celery_config.py-122-        "broker": REDIS_URL,
+backend/celery_config.py-123-    }
+backend/celery_config.py-124-
+backend/celery_config.py-125-
+backend/celery_config.py-126-# ---- Ingest job progress tracking (PostgreSQL via Supabase) ----
+backend/celery_config.py-127-
+backend/celery_config.py-128-
+backend/celery_config.py-129-def update_job_progress(
+backend/celery_config.py:130:    job_id: str,
+backend/celery_config.py-131-    status: str,
+backend/celery_config.py-132-    progress_pct: int = 0,
+backend/celery_config.py-133-    chunks_indexed: int = 0,
+backend/celery_config.py-134-    error_message: str = None,
+backend/celery_config.py-135-    worker_id: str = None,
+backend/celery_config.py-136-) -> None:
+backend/celery_config.py-137-    """Update ingest_jobs row. Best-effort — failures are logged, not raised."""
+backend/celery_config.py-138-    try:
+backend/celery_config.py-139-        from app.config import settings
+backend/celery_config.py-140-
+backend/celery_config.py-141-        if not settings.supabase_url or not settings.supabase_key:
+backend/celery_config.py-142-            return
+backend/celery_config.py-143-        from supabase import create_client
+backend/celery_config.py-144-
+backend/celery_config.py-145-        client = create_client(settings.supabase_url, settings.supabase_key)
+backend/celery_config.py-146-
+backend/celery_config.py-147-        updates = {"status": status, "progress_pct": progress_pct, "chunks_indexed": chunks_indexed}
+backend/celery_config.py-148-        if status == "running" and progress_pct == 0:
+backend/celery_config.py-149-            updates["started_at"] = "now()"
+backend/celery_config.py-150-        if status in ("completed", "failed"):
+backend/celery_config.py-151-            updates["completed_at"] = "now()"
+backend/celery_config.py-152-        if error_message:
+backend/celery_config.py-153-            updates["error_message"] = error_message
+backend/celery_config.py-154-        if worker_id:
+backend/celery_config.py-155-            updates["worker_id"] = worker_id
+backend/celery_config.py-156-
+backend/celery_config.py:157:        client.table("ingest_jobs").update(updates).eq("id", job_id).execute()
+backend/celery_config.py-158-    except Exception as e:
+backend/celery_config.py-159-        # Don't fail the task — progress tracking is non-critical
+backend/celery_config.py-160-        import logging
+backend/celery_config.py-161-
+backend/celery_config.py:162:        logging.getLogger(__name__).warning(f"Job progress update failed for {job_id}: {e}")
+backend/celery_config.py-163-
+backend/celery_config.py-164-
+backend/celery_config.py-165-def retry_backoff(self, exc: Exception) -> None:
+backend/celery_config.py-166-    """Exponential backoff: 2^retry * base_delay (30s max)."""
+backend/celery_config.py-167-    delay = min(2**self.request.retries * 5, 30)
+backend/celery_config.py-168-    raise self.retry(exc=exc, countdown=delay)
+--
+backend/app/api/chat.py-422-    background_tasks: BackgroundTasks,
+backend/app/api/chat.py-423-    user: dict = Depends(get_optional_user),
+backend/app/api/chat.py-424-    container: ServiceContainer = Depends(get_container),
+backend/app/api/chat.py-425-    _tenant=Depends(set_tenant_from_request),
+backend/app/api/chat.py-426-):
+backend/app/api/chat.py-427-    """
+backend/app/api/chat.py-428-    Main conversational endpoint.
+backend/app/api/chat.py-429-
+backend/app/api/chat.py:430:    When queue is enabled (default), returns 202 with job_id immediately.
+backend/app/api/chat.py-431-    Add ?wait=true to block for result (backward compat).
+backend/app/api/chat.py-432-    Delegates inline to ChatRequestOrchestrator when queue is disabled.
+backend/app/api/chat.py-433-    """
+backend/app/api/chat.py-434-    chat_body.user_message = sanitize_user_input(chat_body.user_message, max_length=10000)
+backend/app/api/chat.py-435-
+backend/app/api/chat.py-436-    is_benchmark = is_benchmark_request(request)
+backend/app/api/chat.py-437-
+backend/app/api/chat.py-438-    user = resolve_anon_identity(user, chat_body.session_id)
+backend/app/api/chat.py-439-    if getattr(chat_body, "assistant", None) is not None:
+backend/app/api/chat.py-440-        await authorize_chat_assistant(chat_body, user, container)
+backend/app/api/chat.py-441-
+backend/app/api/chat.py-442-    quota = await _enforce_anon_quota(user, container)
+backend/app/api/chat.py-443-    if quota.quota_exceeded:
+backend/app/api/chat.py-444-        return _anon_quota_response(quota)
+backend/app/api/chat.py-445-
+backend/app/api/chat.py-446-    try:
+backend/app/api/chat.py-447-        await populate_server_side_history(chat_body, user, container, is_benchmark)
+backend/app/api/chat.py-448-    except Exception:
+backend/app/api/chat.py-449-        # History population is optional enrichment; a failure here must not
+backend/app/api/chat.py-450-        # leak the quota reservation taken at admission.
+backend/app/api/chat.py-451-        await _release_anon_quota(user, container, quota)
+backend/app/api/chat.py-452-        raise
+backend/app/api/chat.py-453-
+backend/app/api/chat.py-454-    if (
+backend/app/api/chat.py-455-        container.job_queue
+backend/app/api/chat.py-456-        and settings.queue_enabled
+backend/app/api/chat.py-457-        and not is_benchmark
+backend/app/api/chat.py-458-        and not chat_body.incognito
+backend/app/api/chat.py-459-    ):
+backend/app/api/chat.py-460-        from app.services.job_queue import QueueFullError
+backend/app/api/chat.py-461-
+backend/app/api/chat.py-462-        chat_body_dict = chat_body.model_dump()
+backend/app/api/chat.py-463-        user_dict = (
+backend/app/api/chat.py-464-            {"id": user.get("id", "anonymous"), "is_anonymous": bool(user.get("is_anonymous"))}
+backend/app/api/chat.py-465-            if user
+backend/app/api/chat.py-466-            else {"id": "anonymous", "is_anonymous": False}
+backend/app/api/chat.py-467-        )
+backend/app/api/chat.py-468-        request_data = {
+backend/app/api/chat.py-469-            "chat_body": chat_body_dict,
+backend/app/api/chat.py-470-            "user": user_dict,
+backend/app/api/chat.py-471-            "is_benchmark": False,
+backend/app/api/chat.py-472-            # Lets the queued worker release the reservation when the job
+backend/app/api/chat.py-473-            # fails; a successful job keeps it (commit on completion).
+backend/app/api/chat.py-474-            "quota_reservation_id": quota.reservation_id,
+backend/app/api/chat.py-475-        }
+backend/app/api/chat.py-476-        try:
+backend/app/api/chat.py:477:            job_id, queue_pos = await container.job_queue.enqueue(
+backend/app/api/chat.py-478-                request_data, user.get("id", "anonymous"), is_stream=False
+backend/app/api/chat.py-479-            )
+backend/app/api/chat.py-480-        except QueueFullError:
+backend/app/api/chat.py-481-            # The reservation was recorded at admission; give it back since
+backend/app/api/chat.py-482-            # the interaction never entered the queue.
+backend/app/api/chat.py-483-            await _release_anon_quota(user, container, quota)
+backend/app/api/chat.py-484-            return JSONResponse(
+backend/app/api/chat.py-485-                status_code=429,
+backend/app/api/chat.py-486-                content={
+backend/app/api/chat.py-487-                    "error": "Too Many Requests",
+backend/app/api/chat.py-488-                    "detail": "Server is busy. Please try again shortly.",
+backend/app/api/chat.py-489-                },
+backend/app/api/chat.py-490-                headers={"Retry-After": "5"},
+backend/app/api/chat.py-491-            )
+backend/app/api/chat.py-492-
+backend/app/api/chat.py-493-        if request.query_params.get("wait", "").lower() == "true":
+backend/app/api/chat.py-494-            deadline = time.time() + settings.queue_default_timeout
+backend/app/api/chat.py-495-            while time.time() < deadline:
+backend/app/api/chat.py:496:                job = await container.job_queue.get_job(job_id)
+backend/app/api/chat.py-497-                if job and job["status"] == "completed" and job["result"]:
+backend/app/api/chat.py-498-                    return ChatResponse(**job["result"])
+backend/app/api/chat.py-499-                if job and job["status"] == "failed":
+backend/app/api/chat.py-500-                    raise HTTPException(status_code=500, detail=job.get("error", "Pipeline failed"))
+backend/app/api/chat.py-501-                await asyncio.sleep(0.5)
+backend/app/api/chat.py-502-            raise HTTPException(status_code=504, detail="Pipeline timeout")
+backend/app/api/chat.py-503-
+backend/app/api/chat.py-504-        return JSONResponse(
+backend/app/api/chat.py-505-            status_code=202,
+backend/app/api/chat.py-506-            content={
+backend/app/api/chat.py:507:                "job_id": job_id,
+backend/app/api/chat.py-508-                "status": "queued",
+backend/app/api/chat.py-509-                "queue_position": queue_pos,
+backend/app/api/chat.py:510:                "poll_url": f"/api/jobs/{job_id}",
+backend/app/api/chat.py-511-            },
+backend/app/api/chat.py-512-        )
+backend/app/api/chat.py-513-
+backend/app/api/chat.py-514-    from app.orchestrator import ChatRequestOrchestrator
+backend/app/api/chat.py-515-
+backend/app/api/chat.py-516-    orchestrator = ChatRequestOrchestrator(container)
+backend/app/api/chat.py-517-    try:
+backend/app/api/chat.py-518-        response = await orchestrator.orchestrate(request, chat_body, background_tasks, user)
+backend/app/api/chat.py-519-    except Exception:
+backend/app/api/chat.py-520-        await _release_anon_quota(user, container, quota)
+backend/app/api/chat.py-521-        raise
+backend/app/api/chat.py-522-    if getattr(response, "blocked", False):
+backend/app/api/chat.py-523-        await _release_anon_quota(user, container, quota)
+backend/app/api/chat.py-524-    else:
+backend/app/api/chat.py-525-        await _charge_anon_quota(user, container, quota)
+backend/app/api/chat.py-526-    return response
+backend/app/api/chat.py-527-
+backend/app/api/chat.py-528-
+backend/app/api/chat.py-529-@router.post("/chat/v2")
+backend/app/api/chat.py-530-@limiter.limit(settings.chat_rate_limit)
+backend/app/api/chat.py-531-@record_token_usage(endpoint="/api/chat/v2")
+backend/app/api/chat.py-532-@backpressure_semaphore
+backend/app/api/chat.py-533-async def chat_v2_endpoint(
+backend/app/api/chat.py-534-    request: Request,
+backend/app/api/chat.py-535-    chat_body: ChatRequest,
+backend/app/api/chat.py-536-    background_tasks: BackgroundTasks,
+backend/app/api/chat.py-537-    user: dict = Depends(get_optional_user),
+backend/app/api/chat.py-538-    container: ServiceContainer = Depends(get_container),
+backend/app/api/chat.py-539-    _tenant=Depends(set_tenant_from_request),
+backend/app/api/chat.py-540-):
+backend/app/api/chat.py-541-    """Alternative chat endpoint backed by the ChatEngine facade (C3).
+backend/app/api/chat.py-542-
+backend/app/api/chat.py-543-    A/B surface for the unified ``app.chat_engine.ChatEngine`` deep-module
+backend/app/api/chat.py-544-    facade. Delegates to the SAME ``PipelineCoordinator.execute`` as the
+backend/app/api/chat.py-545-    primary ``/api/chat`` route — only the wrapping surface differs. The
+backend/app/api/chat.py-546-    legacy route stays untouched; this exists purely for low-risk rollout.
+backend/app/api/chat.py-547-    """
+backend/app/api/chat.py-548-    chat_body.user_message = sanitize_user_input(chat_body.user_message, max_length=10000)
+backend/app/api/chat.py-549-    is_benchmark = is_benchmark_request(request)
+backend/app/api/chat.py-550-    user = resolve_anon_identity(user, chat_body.session_id)
+backend/app/api/chat.py-551-    if getattr(chat_body, "assistant", None) is not None:
+backend/app/api/chat.py-552-        await authorize_chat_assistant(chat_body, user, container)
+backend/app/api/chat.py-553-
+backend/app/api/chat.py-554-    quota = await _enforce_anon_quota(user, container)
+backend/app/api/chat.py-555-    if quota.quota_exceeded:
+--
+backend/app/api/chat.py-628-    user: dict = Depends(get_optional_user),
+backend/app/api/chat.py-629-    container: ServiceContainer = Depends(get_container),
+backend/app/api/chat.py-630-    _tenant=Depends(set_tenant_from_request),
+backend/app/api/chat.py-631-):
+backend/app/api/chat.py-632-    """
+backend/app/api/chat.py-633-    Streaming chat endpoint using Server-Sent Events (SSE).
+backend/app/api/chat.py-634-
+backend/app/api/chat.py-635-    When queue enabled (default), returns 202 with stream_url immediately.
+backend/app/api/chat.py:636:    Client then connects to GET /api/chat/stream/{job_id} for SSE.
+backend/app/api/chat.py-637-    Delegates inline to ChatStreamRequestOrchestrator when queue is disabled.
+backend/app/api/chat.py-638-    """
+backend/app/api/chat.py-639-    chat_body.user_message = sanitize_user_input(chat_body.user_message, max_length=10000)
+backend/app/api/chat.py-640-
+backend/app/api/chat.py-641-    is_benchmark = is_benchmark_request(request)
+backend/app/api/chat.py-642-
+backend/app/api/chat.py-643-    user = resolve_anon_identity(user, chat_body.session_id)
+backend/app/api/chat.py-644-    if getattr(chat_body, "assistant", None) is not None:
+backend/app/api/chat.py-645-        await authorize_chat_assistant(chat_body, user, container)
+backend/app/api/chat.py-646-
+backend/app/api/chat.py-647-    quota = await _enforce_anon_quota(user, container)
+backend/app/api/chat.py-648-    if quota.quota_exceeded:
+backend/app/api/chat.py-649-        return _anon_quota_response(quota)
+backend/app/api/chat.py-650-
+backend/app/api/chat.py-651-    try:
+backend/app/api/chat.py-652-        await populate_server_side_history(chat_body, user, container, is_benchmark)
+backend/app/api/chat.py-653-    except Exception:
+backend/app/api/chat.py-654-        # History population is optional enrichment; a failure here must not
+backend/app/api/chat.py-655-        # leak the quota reservation taken at admission.
+backend/app/api/chat.py-656-        await _release_anon_quota(user, container, quota)
+backend/app/api/chat.py-657-        raise
+backend/app/api/chat.py-658-
+backend/app/api/chat.py-659-    if (
+backend/app/api/chat.py-660-        container.job_queue
+backend/app/api/chat.py-661-        and settings.queue_enabled
+backend/app/api/chat.py-662-        and not is_benchmark
+backend/app/api/chat.py-663-        and not chat_body.incognito
+backend/app/api/chat.py-664-    ):
+backend/app/api/chat.py-665-        from app.services.job_queue import QueueFullError
+backend/app/api/chat.py-666-
+backend/app/api/chat.py-667-        chat_body_dict = chat_body.model_dump()
+backend/app/api/chat.py-668-        user_dict = (
+backend/app/api/chat.py-669-            {"id": user.get("id", "anonymous"), "is_anonymous": bool(user.get("is_anonymous"))}
+backend/app/api/chat.py-670-            if user
+backend/app/api/chat.py-671-            else {"id": "anonymous", "is_anonymous": False}
+backend/app/api/chat.py-672-        )
+backend/app/api/chat.py-673-        request_data = {
+backend/app/api/chat.py-674-            "chat_body": chat_body_dict,
+backend/app/api/chat.py-675-            "user": user_dict,
+backend/app/api/chat.py-676-            "is_benchmark": False,
+backend/app/api/chat.py-677-            # Lets the queued worker release the reservation when the job
+backend/app/api/chat.py-678-            # fails; a successful job keeps it (commit on completion).
+backend/app/api/chat.py-679-            "quota_reservation_id": quota.reservation_id,
+backend/app/api/chat.py-680-        }
+backend/app/api/chat.py-681-        try:
+backend/app/api/chat.py:682:            job_id, queue_pos = await container.job_queue.enqueue(
+backend/app/api/chat.py-683-                request_data, user.get("id", "anonymous"), is_stream=True
+backend/app/api/chat.py-684-            )
+backend/app/api/chat.py-685-        except QueueFullError:
+backend/app/api/chat.py-686-            # The reservation was recorded at admission; give it back since
+backend/app/api/chat.py-687-            # the interaction never entered the queue.
+backend/app/api/chat.py-688-            await _release_anon_quota(user, container, quota)
+backend/app/api/chat.py-689-            return JSONResponse(
+backend/app/api/chat.py-690-                status_code=429,
+backend/app/api/chat.py-691-                content={
+backend/app/api/chat.py-692-                    "error": "Too Many Requests",
+backend/app/api/chat.py-693-                    "detail": "Server is busy. Please try again shortly.",
+backend/app/api/chat.py-694-                },
+backend/app/api/chat.py-695-                headers={"Retry-After": "5"},
+backend/app/api/chat.py-696-            )
+backend/app/api/chat.py-697-
+backend/app/api/chat.py-698-        return JSONResponse(
+backend/app/api/chat.py-699-            status_code=202,
+backend/app/api/chat.py-700-            content={
+backend/app/api/chat.py:701:                "job_id": job_id,
+backend/app/api/chat.py-702-                "status": "queued",
+backend/app/api/chat.py-703-                "queue_position": queue_pos,
+backend/app/api/chat.py:704:                "stream_url": f"/api/chat/stream/{job_id}",
+backend/app/api/chat.py-705-            },
+backend/app/api/chat.py-706-        )
+backend/app/api/chat.py-707-
+backend/app/api/chat.py-708-    from app.stream_orchestrator import ChatStreamRequestOrchestrator
+backend/app/api/chat.py-709-
+backend/app/api/chat.py-710-    orchestrator = ChatStreamRequestOrchestrator(container)
+backend/app/api/chat.py-711-    return await orchestrator.orchestrate_stream(
+backend/app/api/chat.py-712-        request, chat_body, background_tasks, user, anon_quota=quota
+backend/app/api/chat.py-713-    )
+backend/app/api/chat.py-714-
+backend/app/api/chat.py-715-
+backend/app/api/chat.py:716:@router.get("/chat/stream/{job_id}")
+backend/app/api/chat.py-717-async def chat_stream_poll(
+backend/app/api/chat.py:718:    job_id: str,
+backend/app/api/chat.py-719-    request: Request,
+backend/app/api/chat.py-720-    container: ServiceContainer = Depends(get_container),
+backend/app/api/chat.py-721-    user: dict = Depends(get_optional_user),
+backend/app/api/chat.py-722-):
+backend/app/api/chat.py-723-    """
+backend/app/api/chat.py-724-    SSE endpoint for queued streaming jobs. Only the job owner may stream.
+backend/app/api/chat.py-725-
+backend/app/api/chat.py-726-    Reads events from Redis Stream (populated by worker) and streams them as SSE.
+backend/app/api/chat.py-727-    """
+backend/app/api/chat.py-728-    if not container.job_queue:
+backend/app/api/chat.py-729-        raise HTTPException(status_code=503, detail="Job tracking is not available.")
+backend/app/api/chat.py-730-
+backend/app/api/chat.py-731-    # For anonymous (incognito) users, derive per-session identity from the
+backend/app/api/chat.py-732-    # X-Session-Id header so ownership checks isolate incognito sessions.
+backend/app/api/chat.py-733-    session_id = request.headers.get("X-Session-Id")
+backend/app/api/chat.py-734-    user = resolve_anon_identity(user, session_id)
+backend/app/api/chat.py-735-    require_scoped_identity(user)
+backend/app/api/chat.py-736-
+backend/app/api/chat.py-737-    # Ownership check — return 404 on mismatch to avoid confirming existence.
+backend/app/api/chat.py:738:    job_meta = await container.job_queue.get_job(job_id)
+backend/app/api/chat.py-739-    if not job_meta or str(job_meta.get("user_id") or "") != str(user.get("id") or ""):
+backend/app/api/chat.py-740-        raise HTTPException(status_code=404, detail="Job not found or expired")
+backend/app/api/chat.py-741-
+backend/app/api/chat.py-742-    import redis.asyncio as aioredis
+backend/app/api/chat.py-743-
+backend/app/api/chat.py-744-    r = aioredis.from_url(settings.redis_url, decode_responses=True)
+backend/app/api/chat.py:745:    stream_key = f"job:stream:{job_id}:events"
+backend/app/api/chat.py-746-    requested_last_id = (request.headers.get("last-event-id") or "0").strip()
+backend/app/api/chat.py-747-    last_event_id = requested_last_id if re.fullmatch(r"\d+-\d+", requested_last_id) else "0"
+backend/app/api/chat.py-748-
+backend/app/api/chat.py-749-    async def _sse():
+backend/app/api/chat.py-750-        last_id = last_event_id
+backend/app/api/chat.py-751-        last_done_data: str | None = None
+backend/app/api/chat.py-752-        timeout = settings.queue_default_timeout
+backend/app/api/chat.py-753-        deadline = time.time() + timeout
+backend/app/api/chat.py-754-        try:
+backend/app/api/chat.py-755-            while time.time() < deadline:
+backend/app/api/chat.py-756-                try:
+backend/app/api/chat.py-757-                    results = await r.xread({stream_key: last_id}, count=10, block=2000)
+backend/app/api/chat.py-758-                except Exception:
+backend/app/api/chat.py-759-                    await asyncio.sleep(0.5)
+backend/app/api/chat.py-760-                    continue
+backend/app/api/chat.py-761-
+backend/app/api/chat.py-762-                if not results:
+backend/app/api/chat.py:763:                    job_meta = await r.hgetall(f"job:{job_id}:meta")
+backend/app/api/chat.py-764-                    if job_meta:
+backend/app/api/chat.py-765-                        status = job_meta.get("status", "")
+backend/app/api/chat.py-766-                        if status == "failed":
+backend/app/api/chat.py-767-                            yield "event: error\ndata: Pipeline failed\n\n"
+backend/app/api/chat.py-768-                            return
+backend/app/api/chat.py-769-                        if status == "cancelled":
+backend/app/api/chat.py-770-                            yield "event: error\ndata: Job cancelled\n\n"
+backend/app/api/chat.py-771-                            return
+backend/app/api/chat.py-772-                        if status == "completed" and last_id == "0":
+backend/app/api/chat.py-773-                            await asyncio.sleep(0.5)
+backend/app/api/chat.py-774-                            continue
+backend/app/api/chat.py-775-                        if status in ("completed", "failed") and last_id != "0":
+backend/app/api/chat.py-776-                            # A terminal done entry was already delivered from
+backend/app/api/chat.py-777-                            # the Redis stream. Do not synthesize a second done
+backend/app/api/chat.py-778-                            # event; duplicate completion events can make the
+backend/app/api/chat.py-779-                            # browser persist metadata twice and obscure the
+backend/app/api/chat.py-780-                            # authoritative final event.
+backend/app/api/chat.py-781-                            if last_done_data is not None:
+backend/app/api/chat.py-782-                                return
+backend/app/api/chat.py-783-                            fallback = json.dumps(
+backend/app/api/chat.py-784-                                {"grounding_state": "system_error"}
+backend/app/api/chat.py-785-                            )
+backend/app/api/chat.py-786-                            yield f"event: done\\ndata: {fallback}\\n\\n"
+backend/app/api/chat.py-787-                            return
+backend/app/api/chat.py-788-                    continue
+backend/app/api/chat.py-789-
+backend/app/api/chat.py-790-                for _stream_name, entries in results:
+backend/app/api/chat.py-791-                    for entry_id, fields in entries:
+backend/app/api/chat.py-792-                        last_id = entry_id
+backend/app/api/chat.py-793-                        data = fields.get("data", "")
+backend/app/api/chat.py-794-                        event_id = f"id: {entry_id}\n"
+backend/app/api/chat.py-795-                        if data == "__COMPLETE__":
+backend/app/api/chat.py-796-                            fallback = last_done_data or json.dumps(
+backend/app/api/chat.py-797-                                {"grounding_state": "system_error"}
+backend/app/api/chat.py-798-                            )
+backend/app/api/chat.py-799-                            yield f"{event_id}event: done\ndata: {fallback}\n\n"
+backend/app/api/chat.py-800-                            return
+backend/app/api/chat.py-801-                        if data == "__ERROR__":
+backend/app/api/chat.py-802-                            yield f"{event_id}event: error\ndata: Pipeline failed\n\n"
+backend/app/api/chat.py-803-                            return
+backend/app/api/chat.py-804-                        try:
+backend/app/api/chat.py-805-                            parsed = json.loads(data)
+backend/app/api/chat.py-806-                            if isinstance(parsed, dict):
+backend/app/api/chat.py-807-                                evt = parsed.get("event", "status")
+backend/app/api/chat.py-808-                                dat = parsed.get("data", "")
+--
+backend/tasks/contextual_reingest_task.py-14-
+backend/tasks/contextual_reingest_task.py-15-
+backend/tasks/contextual_reingest_task.py-16-class AsyncTask(Task):
+backend/tasks/contextual_reingest_task.py-17-    """Async helper for Celery tasks — mirrors tasks.ingest_tasks.AsyncTask."""
+backend/tasks/contextual_reingest_task.py-18-
+backend/tasks/contextual_reingest_task.py-19-    _loop: Optional[asyncio.AbstractEventLoop] = None
+backend/tasks/contextual_reingest_task.py-20-
+backend/tasks/contextual_reingest_task.py-21-    def on_failure(self, exc, task_id, args, kwargs, einfo):
+backend/tasks/contextual_reingest_task.py:22:        job_id = kwargs.get("job_id") if kwargs else None
+backend/tasks/contextual_reingest_task.py:23:        if job_id:
+backend/tasks/contextual_reingest_task.py:24:            update_job_progress(job_id, "failed", error_message=str(exc))
+backend/tasks/contextual_reingest_task.py-25-        super().on_failure(exc, task_id, args, kwargs, einfo)
+backend/tasks/contextual_reingest_task.py-26-
+backend/tasks/contextual_reingest_task.py-27-    @property
+backend/tasks/contextual_reingest_task.py-28-    def loop(self) -> asyncio.AbstractEventLoop:
+backend/tasks/contextual_reingest_task.py-29-        if self._loop is None or self._loop.is_closed():
+backend/tasks/contextual_reingest_task.py-30-            self._loop = asyncio.new_event_loop()
+backend/tasks/contextual_reingest_task.py-31-            asyncio.set_event_loop(self._loop)
+backend/tasks/contextual_reingest_task.py-32-        return self._loop
+backend/tasks/contextual_reingest_task.py-33-
+backend/tasks/contextual_reingest_task.py-34-    def run_async(self, coro):
+backend/tasks/contextual_reingest_task.py-35-        return self.loop.run_until_complete(coro)
+backend/tasks/contextual_reingest_task.py-36-
+backend/tasks/contextual_reingest_task.py-37-
+backend/tasks/contextual_reingest_task.py-38-@celery_app.task(
+backend/tasks/contextual_reingest_task.py-39-    base=AsyncTask,
+backend/tasks/contextual_reingest_task.py-40-    bind=True,
+backend/tasks/contextual_reingest_task.py-41-    autoretry_for=(Exception,),
+backend/tasks/contextual_reingest_task.py-42-    retry_kwargs={"max_retries": 2},
+backend/tasks/contextual_reingest_task.py-43-    retry_backoff=True,
+backend/tasks/contextual_reingest_task.py-44-    retry_jitter=True,
+backend/tasks/contextual_reingest_task.py-45-    queue="ingestion",
+backend/tasks/contextual_reingest_task.py-46-)
+backend/tasks/contextual_reingest_task.py-47-def contextual_reingest(
+backend/tasks/contextual_reingest_task.py-48-    self,
+backend/tasks/contextual_reingest_task.py-49-    source_url: Optional[str] = None,
+backend/tasks/contextual_reingest_task.py-50-    limit: Optional[int] = None,
+backend/tasks/contextual_reingest_task.py-51-    skip_processed: bool = True,
+backend/tasks/contextual_reingest_task.py:52:    job_id: Optional[str] = None,
+backend/tasks/contextual_reingest_task.py-53-) -> dict[str, Any]:
+backend/tasks/contextual_reingest_task.py-54-    """Re-ingest existing source(s) into the contextual Qdrant collection."""
+backend/tasks/contextual_reingest_task.py-55-    self.update_state(state="STARTED", meta={"stage": "contextual_reingest"})
+backend/tasks/contextual_reingest_task.py:56:    if job_id:
+backend/tasks/contextual_reingest_task.py:57:        update_job_progress(job_id, "running", progress_pct=10)
+backend/tasks/contextual_reingest_task.py-58-
+backend/tasks/contextual_reingest_task.py-59-    try:
+backend/tasks/contextual_reingest_task.py-60-        from ingest.contextual_reingest import ContextualReingestEngine
+backend/tasks/contextual_reingest_task.py-61-
+backend/tasks/contextual_reingest_task.py-62-        engine = ContextualReingestEngine()
+backend/tasks/contextual_reingest_task.py-63-        result = self.run_async(
+backend/tasks/contextual_reingest_task.py-64-            engine.reingest(
+backend/tasks/contextual_reingest_task.py-65-                source_url=source_url,
+backend/tasks/contextual_reingest_task.py-66-                limit=limit,
+backend/tasks/contextual_reingest_task.py-67-                skip_processed=skip_processed,
+backend/tasks/contextual_reingest_task.py-68-            )
+backend/tasks/contextual_reingest_task.py-69-        )
+backend/tasks/contextual_reingest_task.py:70:        if job_id:
+backend/tasks/contextual_reingest_task.py-71-            update_job_progress(
+backend/tasks/contextual_reingest_task.py:72:                job_id,
+backend/tasks/contextual_reingest_task.py-73-                "completed",
+backend/tasks/contextual_reingest_task.py-74-                progress_pct=100,
+backend/tasks/contextual_reingest_task.py-75-                chunks_indexed=result.get("chunks_written", 0),
+backend/tasks/contextual_reingest_task.py-76-            )
+backend/tasks/contextual_reingest_task.py-77-        self.update_state(state="SUCCESS", meta=result)
+backend/tasks/contextual_reingest_task.py-78-        return result
+backend/tasks/contextual_reingest_task.py-79-    except Exception as exc:
+backend/tasks/contextual_reingest_task.py-80-        logger.exception("contextual_reingest task failed")
+backend/tasks/contextual_reingest_task.py:81:        if job_id:
+backend/tasks/contextual_reingest_task.py:82:            update_job_progress(job_id, "failed", error_message=str(exc))
+backend/tasks/contextual_reingest_task.py-83-        raise
+backend/tasks/contextual_reingest_task.py-84-    finally:
+backend/tasks/contextual_reingest_task.py-85-        _release_reingest_lock()
+backend/tasks/contextual_reingest_task.py-86-
+backend/tasks/contextual_reingest_task.py-87-
+backend/tasks/contextual_reingest_task.py-88-@celery_app.task(
+backend/tasks/contextual_reingest_task.py-89-    base=AsyncTask,
+backend/tasks/contextual_reingest_task.py-90-    bind=True,
+backend/tasks/contextual_reingest_task.py-91-    queue="ingestion",
+backend/tasks/contextual_reingest_task.py-92-)
+backend/tasks/contextual_reingest_task.py-93-def contextual_reingest_dry_run(
+backend/tasks/contextual_reingest_task.py-94-    self,
+backend/tasks/contextual_reingest_task.py-95-    source_url: Optional[str] = None,
+backend/tasks/contextual_reingest_task.py-96-    limit: int = 1,
+backend/tasks/contextual_reingest_task.py-97-) -> dict[str, Any]:
+backend/tasks/contextual_reingest_task.py-98-    """Dry-run preview for contextual re-ingestion."""
+backend/tasks/contextual_reingest_task.py-99-    self.update_state(state="STARTED", meta={"stage": "contextual_reingest_dry_run"})
+backend/tasks/contextual_reingest_task.py-100-    try:
+backend/tasks/contextual_reingest_task.py-101-        from ingest.contextual_reingest import ContextualReingestEngine
+backend/tasks/contextual_reingest_task.py-102-
+backend/tasks/contextual_reingest_task.py-103-        engine = ContextualReingestEngine()
+backend/tasks/contextual_reingest_task.py-104-        result = self.run_async(engine.dry_run(source_url=source_url, limit=limit))
+backend/tasks/contextual_reingest_task.py-105-        self.update_state(state="SUCCESS", meta=result)
+backend/tasks/contextual_reingest_task.py-106-        return result
+backend/tasks/contextual_reingest_task.py-107-    except Exception:
+backend/tasks/contextual_reingest_task.py-108-        logger.exception("contextual_reingest_dry_run task failed")
+backend/tasks/contextual_reingest_task.py-109-        raise
+backend/tasks/contextual_reingest_task.py-110-
+backend/tasks/contextual_reingest_task.py-111-
+backend/tasks/contextual_reingest_task.py-112-def _release_reingest_lock() -> None:
+backend/tasks/contextual_reingest_task.py-113-    """Release the Redis lock so the next contextual re-ingest can start.
+backend/tasks/contextual_reingest_task.py-114-
+backend/tasks/contextual_reingest_task.py-115-    Called from the task's ``finally`` block so the lock is freed on
+backend/tasks/contextual_reingest_task.py-116-    success, failure, or hard crash (as long as the process is running).
+backend/tasks/contextual_reingest_task.py-117-    The API handler also releases the lock on dispatch failure, so the
+backend/tasks/contextual_reingest_task.py-118-    two paths together guarantee the lock never outlives its task.
+backend/tasks/contextual_reingest_task.py-119-    """
+backend/tasks/contextual_reingest_task.py-120-    try:
+backend/tasks/contextual_reingest_task.py-121-        import redis as _sync_redis
+backend/tasks/contextual_reingest_task.py-122-
+backend/tasks/contextual_reingest_task.py-123-        from app.config import settings
+backend/tasks/contextual_reingest_task.py-124-
+backend/tasks/contextual_reingest_task.py-125-        _r = _sync_redis.from_url(settings.redis_url)
+backend/tasks/contextual_reingest_task.py-126-        _r.delete("contextual_reingest:running")
+backend/tasks/contextual_reingest_task.py-127-        _r.close()
+--
+backend/app/services/job_queue.py-88-            except TimeoutError:
+backend/app/services/job_queue.py-89-                logger.error("Redis ping timed out after 5s — connection may be stalled")
+backend/app/services/job_queue.py-90-                raise
+backend/app/services/job_queue.py-91-        return self._redis
+backend/app/services/job_queue.py-92-
+backend/app/services/job_queue.py-93-    async def start(self, worker_factory: Callable) -> None:
+backend/app/services/job_queue.py-94-        """Start worker pool.
+backend/app/services/job_queue.py-95-
+backend/app/services/job_queue.py:96:        worker_factory is called as worker_factory(request_data, is_stream, job_id)
+backend/app/services/job_queue.py-97-        and must return the result dict (for sync) or None (for stream).
+backend/app/services/job_queue.py-98-        """
+backend/app/services/job_queue.py-99-        self._running = True
+backend/app/services/job_queue.py-100-        if self._queue is None:
+backend/app/services/job_queue.py-101-            self._queue = asyncio.Queue(maxsize=self._max_queue)
+backend/app/services/job_queue.py-102-        r = await self._get_redis()
+backend/app/services/job_queue.py-103-        pending = await r.lrange("job_queue:pending", 0, -1)
+backend/app/services/job_queue.py-104-        recovered = 0
+backend/app/services/job_queue.py:105:        for job_id in pending:
+backend/app/services/job_queue.py-106-            try:
+backend/app/services/job_queue.py:107:                self._queue.put_nowait(job_id)

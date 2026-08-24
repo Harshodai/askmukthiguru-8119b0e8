@@ -1,0 +1,13 @@
+HTTP/1.1 202 Accepted
+date: Mon, 24 Aug 2026 14:08:57 GMT
+server: uvicorn
+content-length: 106
+content-type: application/json
+x-correlation-id: f4b7c3ee
+x-content-type-options: nosniff
+x-frame-options: DENY
+referrer-policy: strict-origin-when-cross-origin
+permissions-policy: camera=(), microphone=(), geolocation=()
+strict-transport-security: max-age=31536000; includeSubDomains
+x-xss-protection: 1; mode=block
+content-security-policy: default-src 'self'; script-src 'self' 'nonce-inoNgH8anuOu_Tmu1aUW3A' https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://api.sarvam.ai https://*.supabase.co wss://*.supabase.co; frame-ancestors 'none';

@@ -1,0 +1,2 @@
+/bin/bash: line 6: timeout: command not found
+docker_exit=127

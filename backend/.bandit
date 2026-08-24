@@ -1,32 +1,6 @@
-# Bandit configuration — YAML format
-# Known false-positive skips, each with a justification comment.
-# Do NOT add skips without explaining why the finding is safe.
-
-skips:
-  # B101: assert_used — pytest tests legitimately use assert; benchmark harnesses too
-  - B101
-  # B104: hardcoded_bind_all_interfaces — dev-mode FastAPI uvicorn uses 0.0.0.0 intentionally
-  - B104
-  # B108: probable_temp_file — mkdtemp in backup scripts is intentional; cleaned up via finally
-  - B108
-  # B311: random — non-cryptographic random used for jitter/sampling only; secrets.token_* used for auth
-  - B311
-  # B603: subprocess_without_shell_equals_true — all subprocess calls use args list (safe form, not shell=True)
-  - B603
-  # B607: start_process_with_partial_path — git/caffeinate always from PATH in known CI environments
-  - B607
-
-exclude_dirs:
-  - tests
-  - benchmarks
-  - scripts/ops
-  - venv
-  - .venv
-
-targets:
-  - app
-  - rag
-  - services
-  - guardrails
-  - ingest
-  - routers
+# Bandit command-line configuration. Skips are limited to known safe conventions.
+# B608 is a documented false positive for the generated HTML dashboard string;
+# the dashboard contains no SQL or database query construction.
+[bandit]
+skips = B101,B104,B108,B311,B603,B607,B608
+exclude = tests,benchmarks,scripts/ops,venv,.venv

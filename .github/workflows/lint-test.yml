@@ -101,7 +101,7 @@ jobs:
         # medium+ severity findings. Add known false positives to .bandit instead
         # of suppressing the entire scanner.
         # Exclude venv/.venv to avoid scanning third-party packages.
-        run: bandit -r . -x tests/,benchmarks/,venv/,.venv/ --severity-level medium --confidence-level medium --quiet --configfile .bandit
+        run: bandit -r . -x tests/,benchmarks/,venv/,.venv/ --severity-level medium --confidence-level medium --quiet --ini .bandit
 
       - name: Forbid JWT_SECRET benchmark backdoor (CRIT-1)
         # A leaked JWT_SECRET (the HS256 token-signing secret) must never unlock

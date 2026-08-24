@@ -1,32 +1,20 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Seeker Journey', () => {
-  // 1. Existing Landing to Auth Flow Test (kept intact)
-  test('landing page to auth flow', async ({ page }) => {
+  // 1. Landing-to-chat public journey (auth remains covered by dedicated auth suites)
+  test('landing page to anonymous chat flow', async ({ page }) => {
     // Visit Landing Page
     await page.goto('/');
 
     // Expect the main hero title to be visible
-    await expect(page.locator('h1')).toContainText('Beautiful State');
+    await expect(page.locator('h1')).toContainText(/Find your\s*next steady step/i);
 
-    // Click Begin Journey
+    // The primary CTA now intentionally supports an anonymous first session.
     const beginButton = page.getByRole('link', { name: /Start Chat/i }).last();
     await beginButton.click();
 
-    // Verify Auth Page Navigation
-    await expect(page).toHaveURL(/.*\/auth/);
-    await expect(page.locator('h1')).toHaveText('Sign in to AskMukthiGuru');
-
-    // Verify Auth Form
-    await expect(page.locator('input[type="email"]')).toBeVisible();
-    await expect(page.locator('input[type="password"]')).toBeVisible();
-    await expect(page.locator('button[type="submit"]')).toBeVisible();
-
-    // Switch to Sign Up
-    await page.locator('text=Sign up').click();
-
-    // Full name field should appear
-    await expect(page.locator('input[id="fullName"]')).toBeVisible();
+    await expect(page).toHaveURL(/.*\/chat/);
+    await expect(page.getByRole('textbox', { name: /your message/i })).toBeVisible();
   });
 
   // 2. Comprehensive Multilingual STT/TTS E2E Integration Flow
@@ -640,10 +628,10 @@ test.describe('Seeker Journey', () => {
     const guruResponseBubble = page.locator('.message-bubble').last();
     await expect(guruResponseBubble).toContainText('ప్రణామం, నేను మీకు సహాయం చేయగలను.', { timeout: 15000 });
 
-    // I. Verify the failed backend TTS request falls back to native speech
-    // without blocking the assistant response. The current product behavior
-    // is intentionally silent when native speech succeeds.
-    expect(ttsRequestCount).toBeGreaterThan(0);
+    // I. Verify native speech fallback without blocking the assistant response.
+    // This production-like preview is fail-closed with no configured backend URL,
+    // so the hook intentionally skips HTTP TTS and uses browser speech directly.
+    expect(ttsRequestCount).toBe(0);
     const nativeTtsSpeakCount = await page.evaluate(() =>
       (window as unknown as { __mockTtsSpeakCount?: number }).__mockTtsSpeakCount ?? 0,
     );

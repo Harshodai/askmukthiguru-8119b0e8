@@ -18,7 +18,7 @@ const mockSession = {
     id: 'mock-user-uuid',
     aud: 'authenticated',
     role: 'authenticated',
-    email: 'seeker@example.com',
+    email: 'seeker@gmail.com',
     email_confirmed_at: '2026-05-20T00:00:00Z',
     user_metadata: {
       full_name: 'Test Seeker',
@@ -38,6 +38,18 @@ const mockProfile = {
   ttsRate: 0.9,
   theme: 'dark',
 };
+
+async function dismissGuidedTour(page: import('@playwright/test').Page): Promise<void> {
+  const dialog = page.getByRole('dialog', { name: /soul sync|serene mind|before we begin|chat with the guru/i });
+  try {
+    await dialog.waitFor({ state: 'visible', timeout: 5_000 });
+  } catch {
+    return;
+  }
+  const skip = dialog.getByRole('button', { name: /^skip(?: tour)?$/i });
+  if (await skip.isVisible()) await skip.click();
+  await expect(dialog).not.toBeVisible({ timeout: 5_000 });
+}
 
 test.describe('E2E Verification of Scrolling Behavior and TTS Voice Switching', () => {
   
@@ -306,7 +318,7 @@ test.describe('E2E Verification of Scrolling Behavior and TTS Voice Switching', 
     });
   });
 
-  test('TTS Verification Page E2E diagnostics and voice switching', async ({ page }) => {
+  test('TTS Verification Page E2E diagnostics and voice switching', async ({ page }, testInfo) => {
     // Mock session token injection for consistent local run
     await page.addInitScript(() => {
       localStorage.clear();
@@ -321,7 +333,7 @@ test.describe('E2E Verification of Scrolling Behavior and TTS Voice Switching', 
           id: 'mock-user-uuid',
           aud: 'authenticated',
           role: 'authenticated',
-          email: 'seeker@example.com',
+          email: 'seeker@gmail.com',
           email_confirmed_at: '2026-05-20T00:00:00Z',
           user_metadata: {
             full_name: 'Test Seeker',
@@ -388,7 +400,7 @@ test.describe('E2E Verification of Scrolling Behavior and TTS Voice Switching', 
           id: 'mock-user-uuid',
           aud: 'authenticated',
           role: 'authenticated',
-          email: 'seeker@example.com',
+          email: 'seeker@gmail.com',
           email_confirmed_at: '2026-05-20T00:00:00Z',
           user_metadata: {
             full_name: 'Test Seeker',
@@ -465,13 +477,14 @@ test.describe('E2E Verification of Scrolling Behavior and TTS Voice Switching', 
     });
 
     // Go to Chat interface
-    await page.goto('/chat', { waitUntil: 'networkidle' });
-
-    console.log('[TEST LOG] Navigated to /chat successfully');
-
-    // Ensure page elements are present
-    const inputArea = page.locator('textarea');
+        await page.goto('/chat', { waitUntil: 'networkidle' });
+    console.log(`[TEST LOG] Navigated to ${page.url()}`);
+    expect(new URL(page.url()).pathname).toBe('/chat');
+    await dismissGuidedTour(page);
+    // Ensure the composer remains discoverable through its user-facing contract.
+    const inputArea = page.getByRole('textbox', { name: /your message/i });
     await expect(inputArea).toBeVisible();
+
 
     // Type a factual message
     await inputArea.fill('What is a beautiful state?');

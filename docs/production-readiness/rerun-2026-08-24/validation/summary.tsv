@@ -1,0 +1,14 @@
+repository_state	0	docs/production-readiness/rerun-2026-08-24/validation/repository_state.log
+json_settings	0	docs/production-readiness/rerun-2026-08-24/validation/json_settings.log
+diff_check	0	docs/production-readiness/rerun-2026-08-24/validation/diff_check.log
+frontend_unit	0	docs/production-readiness/rerun-2026-08-24/validation/frontend_unit.log
+frontend_lint	0	docs/production-readiness/rerun-2026-08-24/validation/frontend_lint.log
+frontend_typecheck	0	docs/production-readiness/rerun-2026-08-24/validation/frontend_typecheck.log
+frontend_build	0	docs/production-readiness/rerun-2026-08-24/validation/frontend_build.log
+bundle_budget	0	docs/production-readiness/rerun-2026-08-24/validation/bundle_budget.log
+backend_focused	0	docs/production-readiness/rerun-2026-08-24/validation/backend_focused.log
+backend_ruff	0	docs/production-readiness/rerun-2026-08-24/validation/backend_ruff.log
+backend_bandit	0	docs/production-readiness/rerun-2026-08-24/validation/backend_bandit.log
+regex_safety	0	docs/production-readiness/rerun-2026-08-24/validation/regex_safety.log
+backend_compile	0	docs/production-readiness/rerun-2026-08-24/validation/backend_compile.log
+backend_full	SKIP	set FULL_BACKEND=1 to run the dependency-complete full suite

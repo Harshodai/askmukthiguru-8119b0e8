@@ -22,6 +22,11 @@ def _suppress_langchain_warn(*args, **kwargs):
 
 warnings.warn = _suppress_langchain_warn
 
+# Unit/full tests must not emit spans to an external collector by default.
+# Observability integration tests explicitly opt in with monkeypatch; this keeps
+# ordinary test runs deterministic when Jaeger/OTLP is not running.
+os.environ.setdefault("OTEL_ENABLED", "false")
+
 # Add backend/ to sys.path first so that 'app' and 'services' imports resolve
 # regardless of whether pytest is invoked from the repo root or backend/.
 _BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

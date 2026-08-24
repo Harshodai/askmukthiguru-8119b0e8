@@ -1,0 +1,28 @@
+* Host localhost:8000 was resolved.
+* IPv6: ::1
+* IPv4: 127.0.0.1
+*   Trying [::1]:8000...
+* Connected to localhost (::1) port 8000
+> POST /api/auth/anon-session HTTP/1.1
+> Host: localhost:8000
+> User-Agent: curl/8.7.1
+> Accept: */*
+> Content-Type: application/json
+>
+* Request completely sent off
+< HTTP/1.1 200 OK
+< date: Mon, 24 Aug 2026 14:08:46 GMT
+< server: uvicorn
+< content-length: 121
+< content-type: application/json
+< x-correlation-id: 374c334f
+< x-content-type-options: nosniff
+< x-frame-options: DENY
+< referrer-policy: strict-origin-when-cross-origin
+< permissions-policy: camera=(), microphone=(), geolocation=()
+< strict-transport-security: max-age=31536000; includeSubDomains
+< x-xss-protection: 1; mode=block
+< content-security-policy: default-src 'self'; script-src 'self' 'nonce-vmiX1ncfkso9SFeYVOEOuA' https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://api.sarvam.ai https://*.supabase.co wss://*.supabase.co; frame-ancestors 'none';
+<
+{ [121 bytes data]
+* Connection #0 to host localhost left intact

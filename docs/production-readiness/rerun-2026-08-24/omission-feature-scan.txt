@@ -1,0 +1,701 @@
+=== all page files ===
+src/admin/pages/AdminLoginPage.tsx
+src/admin/pages/AdminsPage.tsx
+src/admin/pages/AlertsPage.tsx
+src/admin/pages/CachePage.tsx
+src/admin/pages/DailyTeachingPage.tsx
+src/admin/pages/DataSourcesPage.tsx
+src/admin/pages/EvalsPage.tsx
+src/admin/pages/FeedbackPage.tsx
+src/admin/pages/GroupedPage.tsx
+src/admin/pages/IngestionPage.tsx
+src/admin/pages/JobsPage.tsx
+src/admin/pages/LogsPage.tsx
+src/admin/pages/MonitoringPage.tsx
+src/admin/pages/OkfManager.tsx
+src/admin/pages/OverviewPage.tsx
+src/admin/pages/PromptsPage.tsx
+src/admin/pages/QualityPage.tsx
+src/admin/pages/QueriesPage.tsx
+src/admin/pages/RAGFlowPage.tsx
+src/admin/pages/RetrievalPage.tsx
+src/admin/pages/SettingsPage.tsx
+src/admin/pages/StagingQueuePage.tsx
+src/admin/pages/TeachingTipsPage.tsx
+src/admin/pages/TelemetryPage.test.tsx
+src/admin/pages/TelemetryPage.tsx
+src/admin/pages/TopicsPage.tsx
+src/admin/pages/TriggersPage.tsx
+src/pages/AdminSelfCheckPage.tsx
+src/pages/AuthDiagnosticsPage.tsx
+src/pages/AuthLatencyDashboard.tsx
+src/pages/AuthPage.tsx
+src/pages/ChatPage.tsx
+src/pages/guides/AiSpiritualCompanionPage.tsx
+src/pages/guides/BeautifulStateMeditationPage.tsx
+src/pages/guides/SelfCentricThinkingPage.tsx
+src/pages/guides/SereneMindPracticePage.tsx
+src/pages/guides/SpiritGuidesPage.tsx
+src/pages/guides/SpiritualGuideForAnxietyPage.tsx
+src/pages/guides/SufferingToBeautifulStatePage.tsx
+src/pages/Index.tsx
+src/pages/KnowledgeGraphPage.tsx
+src/pages/MFAChallengePage.tsx
+src/pages/NotFound.tsx
+src/pages/PracticeDetailPage.tsx
+src/pages/PracticesPage.tsx
+src/pages/PrivacyPage.tsx
+src/pages/ProfilePage.tsx
+src/pages/ResetPasswordPage.tsx
+src/pages/SecondBrainPage.tsx
+src/pages/StudyNotebookPage.tsx
+src/pages/TermsPage.tsx
+src/pages/TTSVerificationPage.tsx
+=== named user-facing components ===
+src/components/auth/TwoFactorSettings.tsx
+src/components/chat/AssistantSwitcher.tsx
+src/components/chat/ChatComposer.tsx
+src/components/chat/ChatEmptyState.tsx
+src/components/chat/ChatErrorBanner.tsx
+src/components/chat/ChatHeader.tsx
+src/components/chat/ChatHelpers.tsx
+src/components/chat/ChatInterface.test.tsx
+src/components/chat/ChatInterface.tsx
+src/components/chat/ChatMessage.tsx
+src/components/chat/CitationPanel.tsx
+src/components/chat/ConversationSourcesPanel.tsx
+src/components/chat/DailyTeaching.tsx
+src/components/chat/DesktopSidebar.tsx
+src/components/chat/DistressIndicator.tsx
+src/components/chat/ErrorCodePanel.tsx
+src/components/chat/HealingPathCard.test.tsx
+src/components/chat/HealingPathCard.tsx
+src/components/chat/InlineActions.tsx
+src/components/chat/LanguageSelector.tsx
+src/components/chat/LiveLogisticsCards.tsx
+src/components/chat/MeditationStats.tsx
+src/components/chat/MessageList.tsx
+src/components/chat/MobileConversationSheet.tsx
+src/components/chat/PrePracticeGate.tsx
+src/components/chat/QuotaAuthPrompt.tsx
+src/components/chat/ResponsePreferencesMenu.tsx
+src/components/chat/ScrollToBottomFab.tsx
+src/components/chat/SereneMindModal.tsx
+src/components/chat/SlashCommandMenu.tsx
+src/components/chat/SpiritualWelcomeBanner.tsx
+src/components/chat/TeacherGuidancePanel.tsx
+src/components/chat/ThinkingPills.tsx
+src/components/chat/WisdomCardGenerator.tsx
+src/components/common/ChatErrorBoundary.tsx
+src/components/common/CookieBanner.tsx
+src/components/common/CookieConsentBanner.tsx
+src/components/common/PushNotificationsManager.tsx
+src/components/common/PushPermissionPrompt.tsx
+src/components/common/RootErrorBoundary.tsx
+src/components/kg/KGConceptMap.test.tsx
+src/components/kg/KGConceptMap.tsx
+src/components/landing/AboutMeditationSection.tsx
+src/components/landing/ContinuePracticeCard.tsx
+src/components/landing/PracticesSection.tsx
+src/components/meditation/breathTechniques.ts
+src/components/meditation/FlashcardPractice.tsx
+src/components/meditation/GuidedMeditationFlow.tsx
+src/components/meditation/MeditationProgressIndicator.tsx
+src/components/meditation/meditationSteps.ts
+src/components/meditation/PostCompletionStreak.tsx
+src/components/meditation/useMeditationAudio.ts
+src/components/meditation/useMeditationTTS.ts
+src/components/meditation/WisdomReflectionPractice.tsx
+src/components/onboarding/GuidedTour.tsx
+src/components/onboarding/LanguageOnboardingStep.tsx
+src/components/profile/CancelFlow.tsx
+src/components/profile/GuidancePreview.test.tsx
+src/components/profile/GuidancePreview.tsx
+src/components/profile/MemoryManager.tsx
+src/components/profile/NotesPanel.tsx
+src/components/profile/ProfileStatTiles.tsx
+=== backend route modules ===
+backend/app/api/admin.py
+backend/app/api/assistants.py
+backend/app/api/cache_metrics.py
+backend/app/api/cancel_flow.py
+backend/app/api/capabilities.py
+backend/app/api/chat.py
+backend/app/api/compliance.py
+backend/app/api/endpoints/auth.py
+backend/app/api/feedback.py
+backend/app/api/healing_course.py
+backend/app/api/health.py
+backend/app/api/ingest.py
+backend/app/api/job_routes.py
+backend/app/api/kg.py
+backend/app/api/memory.py
+backend/app/api/metrics.py
+backend/app/api/profile.py
+backend/app/api/push.py
+backend/app/api/retention.py
+backend/app/api/second_brain.py
+backend/app/api/speech.py
+backend/app/api/srs.py
+backend/app/api/support.py
+backend/app/api/teachings.py
+backend/app/api/waitlist.py
+=== native and edge functions ===
+android/.gitignore
+android/app/.gitignore
+android/app/build.gradle
+android/app/build/.npmkeep
+android/app/capacitor.build.gradle
+android/app/proguard-rules.pro
+android/app/src/androidTest/java/com/getcapacitor/myapp/ExampleInstrumentedTest.java
+android/app/src/main/AndroidManifest.xml
+android/app/src/main/assets/capacitor.config.json
+android/app/src/main/assets/capacitor.plugins.json
+android/app/src/main/assets/public/assets/css/index-CINNXstO.css
+android/app/src/main/assets/public/assets/css/react-vendor-DvAyMxRW.css
+android/app/src/main/assets/public/assets/images/gurus-photo-BMONvrtD.jpg
+android/app/src/main/assets/public/assets/images/hero-spiritual-D0KhvmmF.jpg
+android/app/src/main/assets/public/assets/js/adminAuth-DS9t-n_8.js
+android/app/src/main/assets/public/assets/js/AdminLoginPage-DsPRHnl8.js
+android/app/src/main/assets/public/assets/js/AdminShell-Bcg4Ac_-.js
+android/app/src/main/assets/public/assets/js/AdminsPage-CoPAOmJ-.js
+android/app/src/main/assets/public/assets/js/aiService-C-w7t7b9.js
+android/app/src/main/assets/public/assets/js/alert-dialog-CsZL4ByJ.js
+android/app/src/main/assets/public/assets/js/alert-Dop7_Kzj.js
+android/app/src/main/assets/public/assets/js/AlertsPage-RBoONo71.js
+android/app/src/main/assets/public/assets/js/api-DIZSdbbM.js
+android/app/src/main/assets/public/assets/js/AppShell-ULN4iCph.js
+android/app/src/main/assets/public/assets/js/AuthDiagnosticsPage-CggwtNI4.js
+android/app/src/main/assets/public/assets/js/AuthLatencyDashboard-SGqpJKyn.js
+android/app/src/main/assets/public/assets/js/AuthPage-DQyRh0Zk.js
+android/app/src/main/assets/public/assets/js/authTelemetry-CC75moaw.js
+android/app/src/main/assets/public/assets/js/badge-D-h06ieh.js
+android/app/src/main/assets/public/assets/js/card-DOzwPc_4.js
+android/app/src/main/assets/public/assets/js/chart-vendor-Cwm99fZB.js
+android/app/src/main/assets/public/assets/js/ChatPage-B8qZWcIi.js
+android/app/src/main/assets/public/assets/js/command-DXjVLOnp.js
+android/app/src/main/assets/public/assets/js/config-2c7Odwe_.js
+android/app/src/main/assets/public/assets/js/DailyTeachingPage-8GtQy74z.js
+android/app/src/main/assets/public/assets/js/dialog-DRqtE87q.js
+android/app/src/main/assets/public/assets/js/dropdown-menu-DbbzgYGB.js
+android/app/src/main/assets/public/assets/js/EmptyState-s9MsQ9ZP.js
+android/app/src/main/assets/public/assets/js/EvalsPage-y9nORnhZ.js
+android/app/src/main/assets/public/assets/js/FeedbackPage-Dx36nVr7.js
+android/app/src/main/assets/public/assets/js/filtersStore-MR0ApYkr.js
+android/app/src/main/assets/public/assets/js/FloatingParticles-mNwgCWij.js
+android/app/src/main/assets/public/assets/js/formatters-BRkYcHnJ.js
+android/app/src/main/assets/public/assets/js/gurus-photo-CdIJpsSV.js
+android/app/src/main/assets/public/assets/js/Index-CbpWJtmC.js
+android/app/src/main/assets/public/assets/js/index-DQ0-XXoE.js
+android/app/src/main/assets/public/assets/js/IngestionPage-Alw4Q5xo.js
+android/app/src/main/assets/public/assets/js/input-BVnUcZpL.js
+android/app/src/main/assets/public/assets/js/JobsPage-5sQeYqM7.js
+android/app/src/main/assets/public/assets/js/KnowledgeGraphPage-CN4OWWJy.js
+android/app/src/main/assets/public/assets/js/KpiCard-DdxKI559.js
+android/app/src/main/assets/public/assets/js/label-3Hn1igUr.js
+android/app/src/main/assets/public/assets/js/LanguageSelector-Bz3uPIJ0.js
+android/app/src/main/assets/public/assets/js/LogsPage-vNCqgWJU.js
+android/app/src/main/assets/public/assets/js/mockData-CMLHjkGQ.js
+android/app/src/main/assets/public/assets/js/MonitoringPage-BeN8nrHN.js
+android/app/src/main/assets/public/assets/js/NotFound-gPXQYwx9.js
+android/app/src/main/assets/public/assets/js/OkfManager-jPu5kp_M.js
+android/app/src/main/assets/public/assets/js/OverviewPage-CWc1My-k.js
+android/app/src/main/assets/public/assets/js/popover-cxsF9tW6.js
+android/app/src/main/assets/public/assets/js/PracticeDetailPage-BPy4g359.js
+android/app/src/main/assets/public/assets/js/PracticesPage-Bs4ppMlQ.js
+android/app/src/main/assets/public/assets/js/PrivacyPage-DORP3FtP.js
+android/app/src/main/assets/public/assets/js/ProfilePage-BDJo5clj.js
+android/app/src/main/assets/public/assets/js/profileStorage-QjVesKk3.js
+android/app/src/main/assets/public/assets/js/PromptsPage-Dq9hdW1c.js
+android/app/src/main/assets/public/assets/js/QualityPage-CHdSO-LW.js
+android/app/src/main/assets/public/assets/js/QueriesPage-_GfyCJkr.js
+android/app/src/main/assets/public/assets/js/RAGFlowPage-DL_j7h5e.js
+android/app/src/main/assets/public/assets/js/react-vendor-BklflJ7E.js
+android/app/src/main/assets/public/assets/js/ResetPasswordPage-Buh9JGOg.js
+android/app/src/main/assets/public/assets/js/RetrievalPage-DY1DPpNc.js
+android/app/src/main/assets/public/assets/js/rolldown-runtime-W-g5d7YK.js
+android/app/src/main/assets/public/assets/js/select-DLYJ2EJW.js
+android/app/src/main/assets/public/assets/js/separator-BAJK6-Bg.js
+android/app/src/main/assets/public/assets/js/SettingsPage-BCTtUOVe.js
+android/app/src/main/assets/public/assets/js/sheet-BGBpk4i_.js
+android/app/src/main/assets/public/assets/js/slider-BMgZpHBv.js
+android/app/src/main/assets/public/assets/js/SpiritGuidesPage-D7PB2BZA.js
+android/app/src/main/assets/public/assets/js/StudyNotebookPage-BFcQ7V-P.js
+android/app/src/main/assets/public/assets/js/supabase-vendor-BWzdcCMN.js
+android/app/src/main/assets/public/assets/js/supportApi-CL4m1VeR.js
+android/app/src/main/assets/public/assets/js/switch-C3ccItEn.js
+android/app/src/main/assets/public/assets/js/table--urn4mKD.js
+android/app/src/main/assets/public/assets/js/tabs-B38e_dSd.js
+android/app/src/main/assets/public/assets/js/TeachingTipsPage-CNK6Doxj.js
+android/app/src/main/assets/public/assets/js/telemetryEvents-Bw-Azace.js
+android/app/src/main/assets/public/assets/js/TelemetryPage-Cbz4LoUP.js
+android/app/src/main/assets/public/assets/js/TermsPage-DGPzqyCP.js
+android/app/src/main/assets/public/assets/js/textarea-Bgk3dkfY.js
+android/app/src/main/assets/public/assets/js/TimeseriesChart-CAqoqcpD.js
+android/app/src/main/assets/public/assets/js/tooltip-BsyYAofF.js
+android/app/src/main/assets/public/assets/js/TopicsPage-BEY0gTEF.js
+android/app/src/main/assets/public/assets/js/TriggersPage-ClVG0A5x.js
+android/app/src/main/assets/public/assets/js/TTSVerificationPage-BKUnRIUo.js
+android/app/src/main/assets/public/assets/js/ui-vendor-D3p-IASo.js
+android/app/src/main/assets/public/assets/js/useAdminData-Cq-3g5ay.js
+android/app/src/main/assets/public/assets/js/useDailyTeaching-CEdyRLXc.js
+android/app/src/main/assets/public/assets/js/useFavorites-QdBKLEKL.js
+android/app/src/main/assets/public/assets/js/useNotes-CFK_apzB.js
+android/app/src/main/assets/public/assets/js/usePageMeta-jkSWk9CM.js
+android/app/src/main/assets/public/assets/js/useProfile-DL7uOeHR.js
+android/app/src/main/assets/public/assets/js/useRequireAuth-C0aWeZ-C.js
+android/app/src/main/assets/public/assets/js/useSpeechRecognition-CY6swtI_.js
+android/app/src/main/assets/public/assets/js/useStudyNotebooks-B7qte-5s.js
+android/app/src/main/assets/public/assets/js/useTextToSpeech-DuuhJcyT.js
+android/app/src/main/assets/public/assets/js/utils-vendor-JldCUJ46.js
+android/app/src/main/assets/public/assets/js/vendor-DKEgGALZ.js
+android/app/src/main/assets/public/cordova_plugins.js
+android/app/src/main/assets/public/cordova.js
+android/app/src/main/assets/public/favicon.svg
+android/app/src/main/assets/public/icon-192.png
+android/app/src/main/assets/public/icon-512.png
+android/app/src/main/assets/public/icon-maskable.svg
+android/app/src/main/assets/public/index.html
+android/app/src/main/assets/public/llms.txt
+android/app/src/main/assets/public/manifest.json
+android/app/src/main/assets/public/og-image.png
+android/app/src/main/assets/public/placeholder.svg
+android/app/src/main/assets/public/push-sw.js
+android/app/src/main/assets/public/robots.txt
+android/app/src/main/assets/public/sitemap.xml
+android/app/src/main/assets/public/sw.js
+android/app/src/main/java/com/askmukthiguru/app/MainActivity.java
+android/app/src/main/res/drawable-land-hdpi/splash.png
+android/app/src/main/res/drawable-land-mdpi/splash.png
+android/app/src/main/res/drawable-land-xhdpi/splash.png
+android/app/src/main/res/drawable-land-xxhdpi/splash.png
+android/app/src/main/res/drawable-land-xxxhdpi/splash.png
+android/app/src/main/res/drawable-port-hdpi/splash.png
+android/app/src/main/res/drawable-port-mdpi/splash.png
+android/app/src/main/res/drawable-port-xhdpi/splash.png
+android/app/src/main/res/drawable-port-xxhdpi/splash.png
+android/app/src/main/res/drawable-port-xxxhdpi/splash.png
+android/app/src/main/res/drawable-v24/ic_launcher_foreground.xml
+android/app/src/main/res/drawable/ic_launcher_background.xml
+android/app/src/main/res/drawable/splash.png
+android/app/src/main/res/layout/activity_main.xml
+android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
+android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png
+android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png
+android/app/src/main/res/mipmap-hdpi/ic_launcher.png
+android/app/src/main/res/mipmap-mdpi/ic_launcher_foreground.png
+android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png
+android/app/src/main/res/mipmap-mdpi/ic_launcher.png
+android/app/src/main/res/mipmap-xhdpi/ic_launcher_foreground.png
+android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png
+android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
+android/app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.png
+android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png
+android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png
+android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
+android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+android/app/src/main/res/values/ic_launcher_background.xml
+android/app/src/main/res/values/strings.xml
+android/app/src/main/res/values/styles.xml
+android/app/src/main/res/xml/config.xml
+android/app/src/main/res/xml/file_paths.xml
+android/app/src/test/java/com/getcapacitor/myapp/ExampleUnitTest.java
+android/build.gradle
+android/capacitor-cordova-android-plugins/build.gradle
+android/capacitor-cordova-android-plugins/cordova.variables.gradle
+android/capacitor-cordova-android-plugins/src/main/AndroidManifest.xml
+android/capacitor-cordova-android-plugins/src/main/java/.gitkeep
+android/capacitor-cordova-android-plugins/src/main/res/.gitkeep
+android/capacitor.settings.gradle
+android/gradle.properties
+android/gradle/wrapper/gradle-wrapper.jar
+android/gradle/wrapper/gradle-wrapper.properties
+android/gradlew
+android/gradlew.bat
+android/settings.gradle
+android/variables.gradle
+ios/.gitignore
+ios/App/App.xcodeproj/project.pbxproj
+ios/App/App.xcodeproj/project.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
+ios/App/App/AppDelegate.swift
+ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png
+ios/App/App/Assets.xcassets/AppIcon.appiconset/Contents.json
+ios/App/App/Assets.xcassets/Contents.json
+ios/App/App/Assets.xcassets/Splash.imageset/Contents.json
+ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732-1.png
+ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732-2.png
+ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732.png
+ios/App/App/Base.lproj/LaunchScreen.storyboard
+ios/App/App/Base.lproj/Main.storyboard
+ios/App/App/capacitor.config.json
+ios/App/App/config.xml
+ios/App/App/Info.plist
+ios/App/App/public/assets/css/index-CINNXstO.css
+ios/App/App/public/assets/css/react-vendor-DvAyMxRW.css
+ios/App/App/public/assets/images/gurus-photo-BMONvrtD.jpg
+ios/App/App/public/assets/images/hero-spiritual-D0KhvmmF.jpg
+ios/App/App/public/assets/js/adminAuth-DS9t-n_8.js
+ios/App/App/public/assets/js/AdminLoginPage-DsPRHnl8.js
+ios/App/App/public/assets/js/AdminShell-Bcg4Ac_-.js
+ios/App/App/public/assets/js/AdminsPage-CoPAOmJ-.js
+ios/App/App/public/assets/js/aiService-C-w7t7b9.js
+ios/App/App/public/assets/js/alert-dialog-CsZL4ByJ.js
+ios/App/App/public/assets/js/alert-Dop7_Kzj.js
+ios/App/App/public/assets/js/AlertsPage-RBoONo71.js
+ios/App/App/public/assets/js/api-DIZSdbbM.js
+ios/App/App/public/assets/js/AppShell-ULN4iCph.js
+ios/App/App/public/assets/js/AuthDiagnosticsPage-CggwtNI4.js
+ios/App/App/public/assets/js/AuthLatencyDashboard-SGqpJKyn.js
+ios/App/App/public/assets/js/AuthPage-DQyRh0Zk.js
+ios/App/App/public/assets/js/authTelemetry-CC75moaw.js
+ios/App/App/public/assets/js/badge-D-h06ieh.js
+ios/App/App/public/assets/js/card-DOzwPc_4.js
+ios/App/App/public/assets/js/chart-vendor-Cwm99fZB.js
+ios/App/App/public/assets/js/ChatPage-B8qZWcIi.js
+ios/App/App/public/assets/js/command-DXjVLOnp.js
+ios/App/App/public/assets/js/config-2c7Odwe_.js
+ios/App/App/public/assets/js/DailyTeachingPage-8GtQy74z.js
+ios/App/App/public/assets/js/dialog-DRqtE87q.js
+ios/App/App/public/assets/js/dropdown-menu-DbbzgYGB.js
+ios/App/App/public/assets/js/EmptyState-s9MsQ9ZP.js
+ios/App/App/public/assets/js/EvalsPage-y9nORnhZ.js
+ios/App/App/public/assets/js/FeedbackPage-Dx36nVr7.js
+ios/App/App/public/assets/js/filtersStore-MR0ApYkr.js
+ios/App/App/public/assets/js/FloatingParticles-mNwgCWij.js
+ios/App/App/public/assets/js/formatters-BRkYcHnJ.js
+ios/App/App/public/assets/js/gurus-photo-CdIJpsSV.js
+ios/App/App/public/assets/js/Index-CbpWJtmC.js
+ios/App/App/public/assets/js/index-DQ0-XXoE.js
+ios/App/App/public/assets/js/IngestionPage-Alw4Q5xo.js
+ios/App/App/public/assets/js/input-BVnUcZpL.js
+ios/App/App/public/assets/js/JobsPage-5sQeYqM7.js
+ios/App/App/public/assets/js/KnowledgeGraphPage-CN4OWWJy.js
+ios/App/App/public/assets/js/KpiCard-DdxKI559.js
+ios/App/App/public/assets/js/label-3Hn1igUr.js
+ios/App/App/public/assets/js/LanguageSelector-Bz3uPIJ0.js
+ios/App/App/public/assets/js/LogsPage-vNCqgWJU.js
+ios/App/App/public/assets/js/mockData-CMLHjkGQ.js
+ios/App/App/public/assets/js/MonitoringPage-BeN8nrHN.js
+ios/App/App/public/assets/js/NotFound-gPXQYwx9.js
+ios/App/App/public/assets/js/OkfManager-jPu5kp_M.js
+ios/App/App/public/assets/js/OverviewPage-CWc1My-k.js
+ios/App/App/public/assets/js/popover-cxsF9tW6.js
+ios/App/App/public/assets/js/PracticeDetailPage-BPy4g359.js
+ios/App/App/public/assets/js/PracticesPage-Bs4ppMlQ.js
+ios/App/App/public/assets/js/PrivacyPage-DORP3FtP.js
+ios/App/App/public/assets/js/ProfilePage-BDJo5clj.js
+ios/App/App/public/assets/js/profileStorage-QjVesKk3.js
+ios/App/App/public/assets/js/PromptsPage-Dq9hdW1c.js
+ios/App/App/public/assets/js/QualityPage-CHdSO-LW.js
+ios/App/App/public/assets/js/QueriesPage-_GfyCJkr.js
+ios/App/App/public/assets/js/RAGFlowPage-DL_j7h5e.js
+ios/App/App/public/assets/js/react-vendor-BklflJ7E.js
+ios/App/App/public/assets/js/ResetPasswordPage-Buh9JGOg.js
+ios/App/App/public/assets/js/RetrievalPage-DY1DPpNc.js
+ios/App/App/public/assets/js/rolldown-runtime-W-g5d7YK.js
+ios/App/App/public/assets/js/select-DLYJ2EJW.js
+ios/App/App/public/assets/js/separator-BAJK6-Bg.js
+ios/App/App/public/assets/js/SettingsPage-BCTtUOVe.js
+ios/App/App/public/assets/js/sheet-BGBpk4i_.js
+ios/App/App/public/assets/js/slider-BMgZpHBv.js
+ios/App/App/public/assets/js/SpiritGuidesPage-D7PB2BZA.js
+ios/App/App/public/assets/js/StudyNotebookPage-BFcQ7V-P.js
+ios/App/App/public/assets/js/supabase-vendor-BWzdcCMN.js
+ios/App/App/public/assets/js/supportApi-CL4m1VeR.js
+ios/App/App/public/assets/js/switch-C3ccItEn.js
+ios/App/App/public/assets/js/table--urn4mKD.js
+ios/App/App/public/assets/js/tabs-B38e_dSd.js
+ios/App/App/public/assets/js/TeachingTipsPage-CNK6Doxj.js
+ios/App/App/public/assets/js/telemetryEvents-Bw-Azace.js
+ios/App/App/public/assets/js/TelemetryPage-Cbz4LoUP.js
+ios/App/App/public/assets/js/TermsPage-DGPzqyCP.js
+ios/App/App/public/assets/js/textarea-Bgk3dkfY.js
+ios/App/App/public/assets/js/TimeseriesChart-CAqoqcpD.js
+ios/App/App/public/assets/js/tooltip-BsyYAofF.js
+ios/App/App/public/assets/js/TopicsPage-BEY0gTEF.js
+ios/App/App/public/assets/js/TriggersPage-ClVG0A5x.js
+ios/App/App/public/assets/js/TTSVerificationPage-BKUnRIUo.js
+ios/App/App/public/assets/js/ui-vendor-D3p-IASo.js
+ios/App/App/public/assets/js/useAdminData-Cq-3g5ay.js
+ios/App/App/public/assets/js/useDailyTeaching-CEdyRLXc.js
+ios/App/App/public/assets/js/useFavorites-QdBKLEKL.js
+ios/App/App/public/assets/js/useNotes-CFK_apzB.js
+ios/App/App/public/assets/js/usePageMeta-jkSWk9CM.js
+ios/App/App/public/assets/js/useProfile-DL7uOeHR.js
+ios/App/App/public/assets/js/useRequireAuth-C0aWeZ-C.js
+ios/App/App/public/assets/js/useSpeechRecognition-CY6swtI_.js
+ios/App/App/public/assets/js/useStudyNotebooks-B7qte-5s.js
+ios/App/App/public/assets/js/useTextToSpeech-DuuhJcyT.js
+ios/App/App/public/assets/js/utils-vendor-JldCUJ46.js
+ios/App/App/public/assets/js/vendor-DKEgGALZ.js
+ios/App/App/public/cordova_plugins.js
+ios/App/App/public/cordova.js
+ios/App/App/public/favicon.svg
+ios/App/App/public/icon-192.png
+ios/App/App/public/icon-512.png
+ios/App/App/public/icon-maskable.svg
+ios/App/App/public/index.html
+ios/App/App/public/llms.txt
+ios/App/App/public/manifest.json
+ios/App/App/public/og-image.png
+ios/App/App/public/placeholder.svg
+=== store/release claims ===
+# AskMukthiGuru — Store Listing & Privacy Disclosures
+
+> Task 9 — Mobile App Launch assets.
+> All char counts verified against store limits (Play short ≤80, App Store subtitle ≤30, keywords ≤100). Set the final Vercel domain before submission.
+
+---
+
+## 1. Google Play Store Listing
+
+| Field | Value | Limit |
+|---|---|---|
+| **App name** | `AskMukthiGuru` | 30 |
+| **Short description** | `AI spiritual guide rooted in the teachings of Sri Preethaji & Sri Krishnaji.` | 80 |
+| **Category (primary)** | `Lifestyle` | — |
+| **Category (secondary)** | `Health & Fitness` | — |
+| **Tags** | `spirituality, meditation, mindfulness, wisdom, guidance, mental wellbeing, self-help, chatbot` | — |
+| **Content rating** | Everyone | — |
+| **Privacy policy URL** | `https://askmukthiguru.com/privacy` ⚠️ **placeholder — update to final domain** | — |
+| **Support email** | `support@askmukthiguru.com` ⚠️ **placeholder** | — |
+| **Target audience** | 18+ (spiritual content, not for children) | — |
+| **Contains ads** | No | — |
+| **In-app purchases** | No (v1) | — |
+| **App type** | Free | — |
+| **Distribution** | Google Play (global) | — |
+
+### Full description (≤ 4000 chars)
+
+> AskMukthiGuru is your personal AI spiritual guide, rooted in the timeless teachings of Sri Preethaji & Sri Krishnaji. Ask any question about life, peace, purpose, or inner freedom — and receive a thoughtful, contemplative response drawn from a curated knowledge base of their discourses, books, and guided practices.
+>
+> #### ✨ What you can do
+>
+> - **Chat with the Guru** — Have meaningful, AI-powered conversations grounded in Sri Preethaji & Sri Krishnaji's wisdom. Responses are retrieved from a verified knowledge graph, not generic web text.
+> - **Guided meditations & daily practices** — Explore a library of breath practices, mindful meditations, and contemplative exercises designed to fit into your daily life.
+> - **Study notebook** — Save insights, jot reflections, and build a private journal of your spiritual journey.
+> - **Knowledge graph** — Visualize how concepts, teachers, and practices connect. Discover related teachings effortlessly.
+> - **Multilingual support** — Use AskMukthiGuru in English, हिन्दी, தமிழ், తెలుగు, ಕನ್ನಡ, or मराठी. More languages coming soon.
+> - **Truly private** — Conversations are encrypted in transit (HTTPS/TLS) and at rest (the deployed Supabase database and its backups). Row-level security enforces per-user access control on top of that encryption. No advertising SDKs, no third-party trackers, and we do not sell user data.
+> - **Free forever** — AskMukthiGuru v1 is completely free with no in-app purchases.
+>
+> #### 🧘 Who it's for
+>
+> Anyone seeking clarity, calm, or a deeper connection to their inner self — whether you're new to meditation or have years of practice. AskMukthiGuru meets you where you are.
+>
+> #### 🌱 Why it's different
+>
+> Unlike generic chatbots, AskMukthiGuru is anchored to a single, coherent body of teaching. The underlying knowledge graph links teachers, concepts, and practices so answers are consistent, sourced, and relevant — not hallucinated.
+>
+> #### ⚠️ Important
+>
+> AskMukthiGuru is a spiritual and reflective companion. It is **not a substitute for professional medical or mental-health care**. If you are in crisis or experiencing a mental-health emergency, please contact a qualified professional or a crisis helpline immediately.
+>
+> #### Privacy first
+>
+> - HTTPS/TLS encryption in transit; Supabase database + backups encrypted at rest.
+> - Row-level security enforces per-user access control on all user data.
+> - No advertising SDKs, no third-party trackers. We do not sell user data.
+> - Push notifications: a device token and the notification title/body are sent to Firebase (Android) or Apple APNs (iOS) for delivery. Those providers process the payload solely to deliver the notification; their retention is governed by their respective policies (Apple retains APNs delivery logs for up to 30 days; Firebase retains FCM delivery metrics per its data-retention policy). We do not share message content with any other third party.
+> - Delete your account and data anytime from the Profile page.
+>
+> Download AskMukthiGuru and begin your journey inward today.
+
+_Char count: ~2,350 — well within the 4,000 limit._
+
+---
+
+## 2. Apple App Store Listing
+
+| Field | Value | Limit |
+|---|---|---|
+| **App name** | `AskMukthiGuru` | 30 |
+| **Subtitle** | `AI Spiritual Guide & Meditate` | 30 |
+| **Primary category** | `Lifestyle` | — |
+| **Secondary category** | `Health & Fitness` | — |
+| **Keywords** | `spirituality,meditation,mindfulness,wisdom,guru,spiritual guide,reflection,daily practice` | 100 |
+| **Privacy policy URL** | `https://askmukthiguru.com/privacy` ⚠️ **placeholder** | — |
+| **Support URL** | `https://askmukthiguru.com/support` ⚠️ **placeholder** | — |
+| **Marketing URL** | `https://askmukthiguru.com` ⚠️ **placeholder** | — |
+| **Age rating** | 4+ | — |
+| **Made for Kids** | No | — |
+| **Apple Sign-In** | ✅ Implemented (native iOS only — `AuthPage.tsx` shows Apple button when `Capacitor.isNativePlatform()` + iOS). Requires Apple provider config in Supabase + Services ID + .p8 key. See §4. | — |
+
+### Description (≤ 4000 chars)
+
+> AskMukthiGuru is your personal AI spiritual guide, rooted in the timeless teachings of Sri Preethaji & Sri Krishnaji. Ask any question about life, peace, purpose, or inner freedom — and receive a thoughtful, contemplative response drawn from a curated knowledge base of their discourses, books, and guided practices.
+>
+> **What you can do**
+>
+> • **Chat with the Guru** — Have meaningful, AI-powered conversations grounded in Sri Preethaji & Sri Krishnaji's wisdom. Responses are retrieved from a verified knowledge graph, not generic web text.
+>
+> • **Guided meditations & daily practices** — Explore a library of breath practices, mindful meditations, and contemplative exercises designed to fit into your daily life.
+>
+> • **Study notebook** — Save insights, jot reflections, and build a private journal of your spiritual journey.
+>
+> • **Knowledge graph** — Visualize how concepts, teachers, and practices connect. Discover related teachings effortlessly.
+>
+> • **Multilingual support** — Use AskMukthiGuru in English, हिन्दी, தமிழ், తెలుగు, ಕನ್ನಡ, or मराठी. More languages coming soon.
+>
+> • **Truly private** — Your conversations are encrypted in transit and at rest. No ads, no selling of data, no third-party trackers.
+>
+> • **Free forever** — AskMukthiGuru v1 is completely free with no in-app purchases.
+>
+> **Who it's for**
+>
+> Anyone seeking clarity, calm, or a deeper connection to their inner self — whether you're new to meditation or have years of practice. AskMukthiGuru meets you where you are.
+>
+> **Why it's different**
+>
+> Unlike generic chatbots, AskMukthiGuru is anchored to a single, coherent body of teaching. The underlying knowledge graph links teachers, concepts, and practices so answers are consistent, sourced, and relevant — not hallucinated.
+>
+> **Important**
+>
+> AskMukthiGuru is a spiritual and reflective companion. It is **not a substitute for professional medical or mental-health care**. If you are in crisis or experiencing a mental-health emergency, please contact a qualified professional or a crisis helpline immediately.
+>
+> **Privacy first**
+>
+> • End-to-end HTTPS encryption.
+> • Row-level security on all user data.
+> • No advertising SDKs, no third-party data sharing.
+> • Delete your account and data anytime from the Profile page.
+>
+> Download AskMukthiGuru and begin your journey inward today.
+
+### Age-Rating Questionnaire (App Store Connect)
+
+| Question | Answer |
+|---|---|
+| Cartoon Violence | None |
+| Realistic Violence | None |
+| Prolonged Graphic or Sadistic Realistic Violence | None |
+| Profanity or Crude Humor | None |
+| Fear / Horror | None |
+| Medical / Treatment Information | None (no claims made — see disclaimer) |
+| Alcohol, Tobacco, or Drug Use | None |
+| Simulated Gambling | None |
+| Sexual Content or Nudity | None |
+| Unrestricted Web Access | No — Capacitor WebView is restricted to app content + Supabase backend only |
+| User-Generated Content | No public UGC. Chat content is private to the user. |
+| Data Collection | Yes — see Privacy Nutrition Label below |
+
+**Result: 4+**
+
+---
+
+## 3. Screenshots Required
+
+### Google Play
+- **Dimensions:** 1080 × 1920 px (9:16 portrait) is the **recommended target** for recommendation surfaces. Play Console permits screenshots between **320 and 3840 px** on either edge; stay within that range. PNG, 24-bit, no alpha.
+- **Quantity:** min 2, max 8 per phone screenshot set.
+- **Recommended screens:**
+  1. **Landing / Onboarding** (`/`) — value proposition + CTA.
+  2. **Chat** (`/chat`) — a sample AI response in the chat UI.
+  3. **Practices list** (`/practices`) — meditation library grid.
+  4. **Practice detail** (`/practices/<slug>`) — a guided meditation in progress.
+  5. **Profile / Memory** (`/profile`) — user profile + memory toggle.
+  6. **Knowledge graph** (`/knowledge-graph`) — interactive concept graph.
+
+### Apple App Store
+- **6.7" iPhone (iPhone 14 Pro Max / 15 Pro Max):** 1290 × 2796 px, PNG. 6–10 screenshots required.
+- **6.5" iPhone (optional, legacy):** 1242 × 2688 px, PNG.
+- Same six screens as Play.
+- First screenshot becomes the App Store search result thumbnail — pick the most visually compelling (recommend Chat or Knowledge graph).
+
+> Generation script: `scripts/ops/generate_store_screenshots.cjs`
+> Output: `artifacts/store-screenshots/{android,iphone}/{screen}.png`
+
+---
+
+## 4. ✅ Apple Sign-In — Implemented (native iOS)
+
+**App Store Review Guideline 4.8 — Sign in with Apple** requires Sign in with Apple whenever a third-party/social login (Google) is offered on iOS.
+
+**Status: implemented in code.** `src/pages/AuthPage.tsx` shows an Apple Sign-In button when `Capacitor.isNativePlatform()` is true (native iOS + Android; on Android it's a no-op UI that can be hidden via a platform check if desired). The handler calls `supabase.auth.signInWithOAuth({ provider: 'apple', redirectTo: 'com.askmukthiguru.app://auth-callback' })` on native.
+
+**Before submission you must configure Apple as a Supabase Auth provider:**
+1. Apple Developer → Certificates, Identifiers & Profiles → Identifiers → create a **Services ID** (not an App ID) with "Sign in with Apple" enabled. Return URL: `https://<your-supabase-project>.supabase.co/auth/v1/callback`.
+2. Create an **Auth Key** (.p8) with "Sign in with Apple" enabled for the Services ID. Download the .p8 + note Key ID + Team ID.
+3. Supabase Dashboard → Authentication → Providers → Apple → enable + paste Services ID, Secret Key (.p8 contents), Key ID, Team ID, and the authorized redirect URLs.
+4. Add `com.askmukthiguru.app://auth-callback` to Supabase Auth → URL Configuration → Redirect URLs.
+
+Until steps 1–4 are done, the Apple button will fail at OAuth init — complete them before submitting to App Store Connect.
+
+---
+
+## 5. Privacy Disclosures
+
+### 5.1 Apple Privacy Nutrition Label
+
+| Category | Data Type | Used For | Linked to You? |
+|---|---|---|---|
+| **Data Used to Track You** | _None_ | — | — |
+| **Contact Info** | Email Address | Authentication | ✅ Yes |
+| **User Content** | Chat history (messages) | App functionality (conversation list + retrieval-augmented responses) | ✅ Yes |
+| **Identifiers** | Device ID (push notification token) | Notifications — shared with Firebase (Android) / Apple APNs (iOS) for delivery | ✅ Yes |
+| **Usage Data** | Diagnostics (anonymized, opt-in) | Analytics / performance improvement | ✅ Yes (opt-in) |
+| **Data Not Linked to You** | _None_ | — | — |
+
+**Encryption:**
+- ✅ Data encrypted in transit (HTTPS / TLS 1.2+).
+- ✅ Data encrypted at rest (deployed Supabase database + backups). Row-level security enforces per-user access control on top of encryption.
+
+**Other disclosures:**
+- Apple's "Privacy Choices" icon: not required (no tracking).
+- No advertising SDKs collect data.
+- Push notification payload (title/body) is sent to Firebase (Android) or Apple APNs (iOS) for delivery; those providers' retention is governed by their policies (Apple retains APNs delivery logs for up to 30 days; Firebase retains FCM delivery metrics per its data-retention policy).
+
+### 5.2 Google Play Data Safety Form
+
+| Question | Answer |
+|---|---|
+| **Does your app collect or share any of the required user data types?** | Yes — collected. |
+| **Data collected:** | • Email address (auth) <br> • Chat messages (app functionality) <br> • Push notification token (notifications) <br> • Diagnostics — anonymized, opt-in (analytics) |
+| **Data shared with third parties:** | Push notification token + notification payload (title/body) are shared with Firebase (Android) / Apple APNs (iOS) solely for delivery. No other third-party sharing. |
+| **Data encrypted in transit?** | Yes (HTTPS). |
+| **Data encrypted at rest?** | Yes (deployed Supabase database + backups). RLS enforces per-user access control. |
+| **Can users request data deletion?** | Yes — via the **Delete Account** action on the Profile page. The action calls the `delete-my-account` Supabase Edge Function, which cascades deletion of user-owned rows + the auth.users row, then signs out. Verified end-to-end. |
+| **Family/Children policy:** | Not designed for or directed to children under 13. |
+| **Does your app contain ads?** | No. No ad SDKs. |
+| **Security practices:** | • Row-Level Security on all Supabase tables. <br> • JWT-based auth. <br> • No hardcoded secrets in the client bundle (all keys are public-anon Supabase keys; service keys live server-side only). <br> • PII redaction in backend logs. <br> • Per-user rate limiting. |
+
+### 5.3 Account Deletion Flow
+
+> **✅ Verified.** `src/pages/ProfilePage.tsx` (line ~907) exposes a "Delete Account" AlertDialog that calls the `delete-my-account` Supabase Edge Function (`supabase/functions/delete-my-account/index.ts`) which cascades deletes across user-owned rows + the auth.users row, then the frontend clears local storage + signs out. Apple Guideline 5.1.1(v) + Play Data Safety satisfied.
+>
+> Apple requires: "If your app supports account creation, you must also offer account deletion within the app."
+>
+> Link to issue: _file one in the project tracker if not yet present._
+
+---
+
+## 6. Pre-Submission Checklist
+
+- [ ] Verify the privacy policy URL matches `VITE_PUBLIC_APP_URL`.
+- [ ] Update **support URL** + **marketing URL** to final domain.
+- [ ] Configure **support@askmukthiguru.com** mailbox.
+- [ ] Configure **Sign in with Apple** provider in Supabase (Services ID + .p8 key + Return URL) — implementation already in `AuthPage.tsx` (see §4); verify end-to-end on TestFlight before submission.
+- [ ] Verify **Delete Account** flow on a TestFlight build (calls `delete-my-account` edge function — see §5.3).
+- [ ] Generate screenshots via `node scripts/ops/generate_store_screenshots.cjs --url http://localhost:8080` (or `--url https://askmukthiguru.com`).
+- [ ] Upload to Play Console + App Store Connect.
+- [ ] Fill Data Safety form on Play Console (mirrors §5.2).
+- [ ] Fill Privacy Nutrition Label on App Store Connect (mirrors §5.1).
+- [ ] Confirm content rating questionnaire on both stores.
+- [ ] Set pricing: Free on both stores.
+- [ ] Set availability: global (or per-market strategy).
+
+---
+
+## 7. File References
+
+| Asset | Path |
+|---|---|
+| Privacy page (web) | `src/pages/PrivacyPage.tsx` |
+| Terms page (web) | `src/pages/TermsPage.tsx` — contains `terms.notMedical` + `terms.notMedicalText` disclaimer ✅ |
+| i18n locales | `src/locales/{en,hi,kn,mr,ta,te}.json` |
+| Screenshot generator | `scripts/ops/generate_store_screenshots.cjs` |
+| Screenshot output | `artifacts/store-screenshots/` (gitignored) |
+
+_Last updated: 2026-07-13_

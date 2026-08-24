@@ -1,0 +1,366 @@
+=== TRACK: mobile ===
+UTC: 2026-08-24T13:52:06Z
+HEAD: 1f882077616b92b5e2b59a31d9ee4fb246e8fe68
+android/.gitignore
+android/app/.gitignore
+android/app/build.gradle
+android/app/build/.npmkeep
+android/app/capacitor.build.gradle
+android/app/proguard-rules.pro
+android/app/src/main/AndroidManifest.xml
+android/build.gradle
+android/capacitor-cordova-android-plugins/build.gradle
+android/capacitor-cordova-android-plugins/cordova.variables.gradle
+android/capacitor-cordova-android-plugins/src/main/AndroidManifest.xml
+android/capacitor.settings.gradle
+android/gradle.properties
+android/gradle/wrapper/gradle-wrapper.jar
+android/gradle/wrapper/gradle-wrapper.properties
+android/gradlew
+android/gradlew.bat
+android/settings.gradle
+android/variables.gradle
+ios/.gitignore
+ios/App/App.xcodeproj/project.pbxproj
+ios/App/App/AppDelegate.swift
+ios/App/App/Assets.xcassets/Contents.json
+ios/App/App/Base.lproj/LaunchScreen.storyboard
+ios/App/App/Base.lproj/Main.storyboard
+ios/App/App/capacitor.config.json
+ios/App/App/config.xml
+ios/App/App/Info.plist
+ios/App/App/public/cordova_plugins.js
+ios/App/App/public/cordova.js
+ios/App/App/public/favicon.svg
+ios/App/App/public/icon-192.png
+ios/App/App/public/icon-512.png
+ios/App/App/public/icon-maskable.svg
+ios/App/App/public/index.html
+ios/App/App/public/llms.txt
+ios/App/App/public/manifest.json
+ios/App/App/public/og-image.png
+ios/App/App/public/placeholder.svg
+ios/App/App/public/push-sw.js
+ios/App/App/public/robots.txt
+ios/App/App/public/sitemap.xml
+ios/App/App/public/sw.js
+ios/App/CapApp-SPM/.gitignore
+ios/App/CapApp-SPM/Package.swift
+ios/App/CapApp-SPM/README.md
+ios/capacitor-cordova-ios-plugins/CordovaPluginsResources.podspec
+ios/capacitor-cordova-ios-plugins/resources/.gitkeep
+ios/capacitor-cordova-ios-plugins/sources/.gitkeep
+ios/debug.xcconfig
+import { CapacitorConfig } from '@capacitor/cli';
+
+const config: CapacitorConfig = {
+  appId: 'com.askmukthiguru.app',
+  appName: 'AskMukthiGuru',
+  webDir: 'dist',
+  server: {
+    androidScheme: 'https',
+    iosScheme: 'capacitor',
+  },
+  plugins: {
+    PushNotifications: {
+      presentationOptions: ['badge', 'sound', 'banner', 'list'],
+    },
+  },
+};
+
+export default config;--- native references ---
+src/pages/AuthLatencyDashboard.tsx:124:            If Google sign-in is consistently slow, check: network throttling, third-party cookies blocked,
+src/pages/ChatPage.tsx:166:          share the viewport with it — otherwise it pushes the chat (and the
+src/pages/AdminSelfCheckPage.tsx:62:      <h1 className="text-2xl font-semibold">Admin permission self-check</h1>
+src/pages/Index.tsx:1:import { Capacitor } from '@capacitor/core';
+src/pages/Index.tsx:74:  const isNative = Capacitor.isNativePlatform();
+src/lib/exportConversation.ts:14:  lines.push(`# ${title}`);
+src/lib/exportConversation.ts:15:  lines.push('');
+src/lib/exportConversation.ts:16:  lines.push(`_Exported from AskMukthiGuru on ${new Date().toLocaleString()}_`);
+src/lib/exportConversation.ts:18:    lines.push(`_Last activity: ${fmtTime(conversation.updatedAt)}_`);
+src/lib/exportConversation.ts:20:  lines.push('');
+src/lib/exportConversation.ts:21:  lines.push('---');
+src/lib/exportConversation.ts:22:  lines.push('');
+src/lib/exportConversation.ts:26:    lines.push(`### ${roleLabel(msg.role)}  ·  ${fmtTime(msg.timestamp)}`);
+src/lib/exportConversation.ts:27:    lines.push('');
+src/lib/exportConversation.ts:28:    lines.push(msg.content.trim());
+src/lib/exportConversation.ts:30:      lines.push('');
+src/lib/exportConversation.ts:31:      lines.push('**Sources:**');
+src/lib/exportConversation.ts:34:        lines.push(`- ${label}`);
+src/lib/exportConversation.ts:37:    lines.push('');
+src/lib/exportConversation.ts:40:  lines.push('---');
+src/lib/exportConversation.ts:41:  lines.push('');
+src/lib/exportConversation.ts:42:  lines.push(
+src/lib/meditationStorage.ts:133:    sessions.push(completedSession);
+src/lib/backendUrl.ts:14:import { Capacitor } from '@capacitor/core';
+src/lib/backendUrl.ts:31:const isNative = typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform();
+src/lib/chatStorage.ts:4:import { Capacitor } from '@capacitor/core';
+src/lib/chatStorage.ts:8:const isNative = typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform();
+src/lib/chatStorage.ts:47:export type MessageErrorKind = 'network' | 'unauthorized' | 'rate_limited' | 'quota_exceeded' | 'server_error' | 'timeout' | 'connection_refused' | 'dns_failure' | 'backend_down' | 'telemetry_failed' | 'circuit_breaker' | 'unknown';
+src/lib/chatStorage.ts:73:  /** Non-null when this guru bubble represents a failed response (network/auth/server). */
+src/lib/practicesContent.ts:101:      'Scan Your Inner State: Notice your current emotions and thoughts without trying to push them away. Ask yourself: "What exact emotion am I feeling right now?" (e.g., anxiety, anger, sadness, peace).',
+src/lib/authTelemetry.ts:21:  | 'oauth_init'           // lovable.auth.signInWithOAuth() call
+src/lib/authTelemetry.ts:148:  run.steps.push(step);
+src/lib/authTelemetry.ts:182:    run.steps.push({ name: 'run_error', status: 'error', startedAt: Date.now(), durationMs: null, error });
+src/lib/authTelemetry.ts:186:  all.push(run);
+src/lib/authTelemetry.ts:232:      if (step.durationMs != null) bucket.durations.push(step.durationMs);
+src/lib/memoryApi.ts:110:  | 'network'
+src/lib/conversationGrouping.ts:45:      groups.Today.push(conv);
+src/lib/conversationGrouping.ts:47:      groups.Yesterday.push(conv);
+src/lib/conversationGrouping.ts:49:      groups['Previous 7 days'].push(conv);
+src/lib/conversationGrouping.ts:51:      groups.Older.push(conv);
+src/pages/TTSVerificationPage.tsx:102:  // Trigger test speech
+src/pages/TTSVerificationPage.tsx:107:    addLog('action', `Initiating speech synthesis for voice: "${selectedVoice}"`);
+src/pages/MFAChallengePage.tsx:13: * auth endpoints or partial network coverage.
+src/pages/AuthPage.tsx:15:import { Capacitor } from '@capacitor/core';
+src/pages/AuthPage.tsx:17:import { App as CapacitorApp } from '@capacitor/app';
+src/pages/AuthPage.tsx:33:const isNativePlatform = Capacitor.isNativePlatform();
+src/pages/AuthPage.tsx:84:  if (msg.includes('network') || msg.includes('fetch'))
+src/pages/AuthPage.tsx:135:  const oauthInFlightRef = useRef(false);
+src/pages/AuthPage.tsx:148:    CapacitorApp.addListener('appUrlOpen', ({ url }) => {
+src/pages/AuthPage.tsx:163:            .catch((e) => console.warn('[Auth] deep-link code exchange failed:', e));
+src/pages/AuthPage.tsx:168:            .catch((e) => console.warn('[Auth] deep-link setSession failed:', e));
+src/pages/AuthPage.tsx:170:          console.warn('[Auth] deep-link URL has no code or tokens — ignoring:', url);
+src/pages/AuthPage.tsx:173:        console.warn('[Auth] deep-link URL parse failed:', e);
+src/pages/AuthPage.tsx:516:    if (oauthInFlightRef.current) {
+src/pages/AuthPage.tsx:520:    oauthInFlightRef.current = true;
+src/pages/AuthPage.tsx:525:      oauthInFlightRef.current = false;
+src/pages/AuthPage.tsx:552:      recordStep('oauth_init', supabaseError ? 'error' : 'ok', Math.round(performance.now() - initT0), {
+src/pages/AuthPage.tsx:569:      oauthInFlightRef.current = false;
+src/pages/AuthPage.tsx:597:      recordStep('oauth_init', supabaseError ? 'error' : 'ok', Math.round(performance.now() - initT0), {
+src/pages/AuthPage.tsx:637:      recordStep('oauth_init', supabaseError ? 'error' : 'ok', Math.round(performance.now() - initT0), {
+src/pages/AuthPage.tsx:740:        const { error: oauthError } = await supabase.auth.signInWithOAuth({
+src/pages/AuthPage.tsx:744:        if (!oauthError) return;
+src/lib/chat/transport.ts:332:      let code: AIErrorCode = 'network';
+src/lib/chat/transport.ts:337:      } else if (err instanceof TypeError && /fetch|network/i.test(message)) {
+src/lib/chat/transport.ts:338:        code = 'network';
+src/lib/chat/telemetry.ts:29:    console.warn('[telemetry] network error', e);
+src/lib/chat/types.ts:31:  | 'network'
+ios/App/CapApp-SPM/Sources/CapApp-SPM/CapApp-SPM.swift:1:public let isCapacitorApp = true
+ios/App/App/AppDelegate.swift:2:import Capacitor
+src/hooks/useVoiceInput.ts:98:        if (e.data && e.data.size > 0) chunksRef.current.push(e.data);
+src/hooks/useVoiceInput.ts:117:          const res = await fetch(`${API_BASE}/api/speech/stt`, { method: 'POST', body: form });
+src/hooks/useTextToSpeech.ts:75:  const isSupported = typeof window !== 'undefined' && 'speechSynthesis' in window;
+src/hooks/useTextToSpeech.ts:87:      const availableVoices = window.speechSynthesis.getVoices();
+src/hooks/useTextToSpeech.ts:94:    window.speechSynthesis.addEventListener('voiceschanged', loadVoices);
+src/hooks/useTextToSpeech.ts:97:      window.speechSynthesis.removeEventListener('voiceschanged', loadVoices);
+src/hooks/useTextToSpeech.ts:178:    window.speechSynthesis.speak(utterance);
+src/hooks/useTextToSpeech.ts:192:      // Stop native speech synthesis
+src/hooks/useTextToSpeech.ts:194:        window.speechSynthesis.cancel();
+src/hooks/useTextToSpeech.ts:207:        const res = await fetch(`${backendUrl}/api/speech/tts`, {
+src/hooks/useTextToSpeech.ts:277:        // Fall back to native speech synthesis on backend failure.
+src/hooks/useTextToSpeech.ts:293:      window.speechSynthesis.cancel();
+src/hooks/useTextToSpeech.ts:305:      window.speechSynthesis.pause();
+src/hooks/useTextToSpeech.ts:315:      window.speechSynthesis.resume();
+src/hooks/useTextToSpeech.ts:327:      if (isSupported && utteranceRef.current != null && window.speechSynthesis.speaking) {
+src/hooks/useTextToSpeech.ts:328:        window.speechSynthesis.cancel();
+src/lib/chatErrorBus.ts:32:  network: { code: 'NET_OFFLINE', nextStep: 'Check your connection, then retry.' },
+src/lib/chatErrorBus.ts:36:  dns_failure: { code: 'DNS_FAIL', nextStep: 'Could not resolve the server address. Check your network.' },
+src/lib/sentry.ts:7: *  (localhost inside Capacitor) must report too. */
+ios/App/CapApp-SPM/Package.swift:4:// DO NOT MODIFY THIS FILE - managed by Capacitor CLI commands
+ios/App/CapApp-SPM/Package.swift:15:        .package(name: "CapacitorApp", path: "../../../node_modules/@capacitor/app"),
+ios/App/CapApp-SPM/Package.swift:16:        .package(name: "CapacitorDevice", path: "../../../node_modules/@capacitor/device"),
+ios/App/CapApp-SPM/Package.swift:17:        .package(name: "CapacitorPreferences", path: "../../../node_modules/@capacitor/preferences"),
+ios/App/CapApp-SPM/Package.swift:18:        .package(name: "CapacitorPushNotifications", path: "../../../node_modules/@capacitor/push-notifications")
+ios/App/CapApp-SPM/Package.swift:24:                .product(name: "Capacitor", package: "capacitor-swift-pm"),
+ios/App/CapApp-SPM/Package.swift:26:                .product(name: "CapacitorApp", package: "CapacitorApp"),
+ios/App/CapApp-SPM/Package.swift:27:                .product(name: "CapacitorDevice", package: "CapacitorDevice"),
+ios/App/CapApp-SPM/Package.swift:28:                .product(name: "CapacitorPreferences", package: "CapacitorPreferences"),
+ios/App/CapApp-SPM/Package.swift:29:                .product(name: "CapacitorPushNotifications", package: "CapacitorPushNotifications")
+android/app/src/main/AndroidManifest.xml:13:            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
+android/app/src/main/AndroidManifest.xml:54:    <uses-permission android:name="android.permission.INTERNET" />
+android/app/src/main/AndroidManifest.xml:55:    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+src/lib/chat/streaming.ts:197:    (err as RichError).errorCode = 'network';
+src/main.tsx:56:// API, personalised, safety and live-information requests always use the network.
+src/App.tsx:6:import { Capacitor } from "@capacitor/core";
+src/App.tsx:148:const isNativePlatform = Capacitor.isNativePlatform();
+src/lib/webVitals.ts:6: * network/device fingerprint attached.
+src/lib/meditationMetrics.ts:124:    out.push({
+src/components/onboarding/GuidedTour.tsx:115:  // Stable ref for stepIndex to avoid stale closures in keyboard handler
+src/components/onboarding/GuidedTour.tsx:125:      if (target) acc.push({ ...s, resolvedTarget: target });
+src/test/useMeditationTTS.test.ts:17:    Object.defineProperty(window, 'speechSynthesis', {
+src/components/ai-elements/prompt-input.tsx:618:          next.push({
+src/components/ai-elements/prompt-input.tsx:1040:            files.push(file);
+src/components/profile/MemoryManager.tsx:92:    rings[ring].push(node);
+src/components/profile/MemoryManager.tsx:301:      // 1. Charge Repulsion (push nodes apart)
+src/components/common/PushPermissionPrompt.tsx:5:import { Capacitor } from '@capacitor/core';
+src/components/common/PushPermissionPrompt.tsx:11:const DISMISS_KEY = 'askmukthiguru_push_prompt_dismissed_at';
+src/components/common/PushPermissionPrompt.tsx:16:  const { supported, permission, subscribed, subscribe, loading } = useWebPush();
+src/components/common/PushPermissionPrompt.tsx:21:  const isNative = Capacitor.isNativePlatform();
+src/components/common/PushPermissionPrompt.tsx:23:  const gated = isNative || !capabilities.pushNotifications;
+src/components/common/PushPermissionPrompt.tsx:33:    if (!supported || subscribed || permission === 'denied' || permission === 'unsupported') return;
+src/components/common/PushPermissionPrompt.tsx:38:  }, [supported, subscribed, permission, gated, chatResponseSeen]);
+src/components/common/PushPermissionPrompt.tsx:62:          aria-label={t('common.pushPromptAria')}
+src/components/common/PushPermissionPrompt.tsx:78:                {t('common.pushPromptTitle')}
+src/components/common/PushPermissionPrompt.tsx:81:                {t('common.pushPromptDesc')}
+src/components/common/CookieConsentBanner.tsx:7:import { Capacitor } from '@capacitor/core';
+src/components/common/CookieConsentBanner.tsx:46:  if (Capacitor.isNativePlatform()) return null;
+src/components/common/CookieBanner.tsx:105:    // function gtag(){window.dataLayer.push(arguments);}
+src/components/common/PushNotificationsManager.tsx:2:import { Capacitor } from '@capacitor/core';
+src/components/common/PushNotificationsManager.tsx:3:import { PushNotifications, Token, PushNotificationSchema, ActionPerformed } from '@capacitor/push-notifications';
+src/components/common/PushNotificationsManager.tsx:17:    if (!Capacitor.isNativePlatform()) return;
+src/components/common/PushNotificationsManager.tsx:33:        const res = await fetch(`${BACKEND_URL}/api/push/register`, {
+src/components/common/PushNotificationsManager.tsx:61:          console.info(TAG, 'push permission not granted');
+src/components/common/PushNotificationsManager.tsx:74:          PushNotifications.addListener('pushNotificationReceived', (n: PushNotificationSchema) => {
+src/components/common/PushNotificationsManager.tsx:80:          PushNotifications.addListener('pushNotificationActionPerformed', (a: ActionPerformed) => {
+src/components/common/PushNotificationsManager.tsx:82:            if (data.deep_link) navigate(data.deep_link);
+src/hooks/useChatShortcuts.ts:15: * Registers global keyboard shortcuts for the chat surface.
+src/hooks/useSpeechRecognition.ts:190:        'not-allowed': 'Microphone access denied. Please enable microphone permissions.',
+src/hooks/useSpeechRecognition.ts:191:        'no-speech': 'No speech detected. Please try again.',
+src/hooks/useSpeechRecognition.ts:193:        'network': 'Network error occurred. Please check your connection.',
+src/hooks/useSpeechRecognition.ts:261:            chunksRef.current.push(e.data);
+src/hooks/useSpeechRecognition.ts:291:              // Authenticate anonymous user before calling /api/speech/stt
+src/hooks/useSpeechRecognition.ts:297:              const resp = await fetch(`${backendUrl}/api/speech/stt`, {
+src/hooks/useSpeechRecognition.ts:311:              throw new Error('No speech detected. Please try again.');
+src/hooks/useSpeechRecognition.ts:321:            const msg = (err as Error).message || 'Failed to process speech input';
+src/hooks/useSpeechRecognition.ts:338:        const msg = 'Microphone permission denied or microphone not found.';
+src/hooks/useSpeechRecognition.ts:361:          setError('Failed to start speech recognition');
+src/components/chat/ChatHelpers.tsx:94:    case 'network':
+src/components/chat/ChatHelpers.tsx:96:        kind: 'network',
+src/components/chat/ChatMessage.tsx:528:    // Per-message read-aloud. speak() cancels any other message's speech, so
+src/components/chat/LanguageSelector.tsx:81:  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return new Set();
+src/components/chat/LanguageSelector.tsx:82:  const voices = window.speechSynthesis.getVoices();
+src/components/chat/LanguageSelector.tsx:173:    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+src/components/chat/LanguageSelector.tsx:176:    window.speechSynthesis.onvoiceschanged = update;
+src/components/chat/LanguageSelector.tsx:178:      if (window.speechSynthesis) window.speechSynthesis.onvoiceschanged = null;
+src/hooks/useWebPush.ts:2: * useWebPush — register a push-only service worker, subscribe via VAPID,
+src/hooks/useWebPush.ts:9:const SW_PATH = '/push-sw.js';
+src/hooks/useWebPush.ts:31:  permission: NotificationPermission | 'unsupported';
+src/hooks/useWebPush.ts:40:    permission: 'default',
+src/hooks/useWebPush.ts:53:      setState((s) => ({ ...s, supported: false, permission: 'unsupported' }));
+src/hooks/useWebPush.ts:59:        const existing = reg ? await reg.pushManager.getSubscription() : null;
+src/hooks/useWebPush.ts:63:          permission: Notification.permission,
+src/hooks/useWebPush.ts:77:          permission: 'unsupported',
+src/hooks/useWebPush.ts:92:      const permission = await Notification.requestPermission();
+src/hooks/useWebPush.ts:93:      if (permission !== 'granted') {
+src/hooks/useWebPush.ts:94:        setState((s) => ({ ...s, loading: false, permission }));
+src/hooks/useWebPush.ts:100:      const sub = await reg.pushManager.subscribe({
+src/hooks/useWebPush.ts:110:      await supabase.from('push_subscriptions').upsert(
+src/hooks/useWebPush.ts:119:      setState({ supported: true, permission: 'granted', subscribed: true, loading: false, error: null });
+src/hooks/useWebPush.ts:129:    const sub = reg ? await reg.pushManager.getSubscription() : null;
+src/hooks/useWebPush.ts:133:      await supabase.from('push_subscriptions').delete().eq('endpoint', endpoint);
+src/components/chat/MessageList.tsx:127:      groups.push({ label, messages: [msg] });
+src/components/chat/MessageList.tsx:129:      groups[groups.length - 1].messages.push(msg);
+src/test/ChatMessage-a11y.test.tsx:100:  it('guru action toolbar reveals on keyboard focus (md:group-focus-within)', () => {
+src/components/chat/MobileConversationSheet.tsx:69:    groups[timeGroup].push(conv);
+src/hooks/useDailyTeaching.ts:13: * without extra network calls.
+src/hooks/useMeditationReminder.ts:58:      // Browser notification (if permission granted)
+src/hooks/useMeditationReminder.ts:61:        Notification.permission === 'granted'
+src/hooks/useMeditationReminder.ts:90: * Request the OS-level Notification permission.
+src/hooks/useMeditationReminder.ts:91: * Resolves to the current permission state.
+src/hooks/useMeditationReminder.ts:95:  if (Notification.permission === 'granted' || Notification.permission === 'denied') {
+src/hooks/useMeditationReminder.ts:96:    return Notification.permission;
+src/hooks/useMeditationReminder.ts:117:    Notification.permission === 'granted'
+src/components/chat/ErrorCodePanel.tsx:19:    network: t('chat.errorCauseNetwork'),
+src/integrations/supabase/types.ts:1498:      push_subscriptions: {
+src/components/chat/ConversationSourcesPanel.tsx:8: *  • Full keyboard + screen-reader support: labelled list, focusable rows,
+src/components/chat/ConversationSourcesPanel.tsx:70:          existing.usedIn.push({ messageId: m.id, answerNumber });
+src/components/chat/ChatInterface.tsx:424:  // Sync profile changes into local chat state + push language to AI service
+src/components/chat/ChatInterface.tsx:695:        description: 'Your browser does not support text-to-speech.',
+src/components/chat/ChatInterface.tsx:719:  // Handle language change — persist to profile, push to AI service, restart STT in new lang
+src/components/chat/ChatInterface.tsx:1355:          const streamOffline = !navigator.onLine || /network|fetch|failed to fetch|load failed/i.test(streamDetail);
+src/components/chat/ChatInterface.tsx:1356:          const streamErrorCode = err?.errorCode || (streamOffline ? 'network' : undefined);
+src/components/chat/ChatInterface.tsx:1359:            (streamErrorCode === 'network' || streamErrorCode === 'unknown');
+src/components/chat/ChatInterface.tsx:1570:    const isOffline = !navigator.onLine || String(error).toLowerCase().includes('network') || String(error).toLowerCase().includes('fetch');
+src/components/chat/ChatInterface.tsx:1572:      errObj?.errorCode || (isOffline ? 'network' : 'unknown'),
+src/hooks/useChatCapabilities.ts:20:  pushNotifications: boolean;
+src/hooks/useChatCapabilities.ts:34:  pushNotifications: true,
+src/hooks/useChatCapabilities.ts:53:    pushNotifications: isAvailable('push_notifications', LOCAL_CHAT_CAPABILITIES.pushNotifications),
+src/admin/pages/RAGFlowPage.tsx:255:      colGroups[col].push(node.id);
+src/test/backendUrl.test.ts:8:  Capacitor: { isNativePlatform: mockIsNativePlatform },
+src/test/backendUrl.test.ts:92:describe('native (Capacitor) resolution', () => {
+src/test/aiServiceStreamingDone.test.ts:47:      collected.push(chunk);
+src/test/aiServiceStreamingDone.test.ts:82:      if (chunk.type === 'token') tokens.push(chunk.text);
+src/admin/pages/IngestionPage.tsx:97:        // silent — backend may not be running or transient network glitch
+src/admin/pages/GroupedPage.tsx:14: * `?tab=`, so old deep links can redirect straight to a tab.
+src/test/admin/hooks/useSeedDemo.test.tsx:56:  it('surfaces network/rpc errors', async () => {
+src/test/admin/hooks/useSeedDemo.test.tsx:58:    mocks.rpc.mockResolvedValue({ data: null, error: new Error('network down') });
+src/test/admin/hooks/useSeedDemo.test.tsx:65:    expect(toast.error).toHaveBeenCalledWith('Seed failed: network down');
+src/components/meditation/useMeditationAudio.ts:47:        console.error('[useMeditationAudio] failed to load src=', el.src, 'error code=', el.error?.code, 'network state=', el.networkState, 'ready state=', el.readyState);
+src/components/meditation/GuidedMeditationFlow.tsx:437:                    // Skip hang up to its ~30s network timeout instead of
+src/components/meditation/useMeditationTTS.ts:12:  if (typeof window === 'undefined' || !window.speechSynthesis) return null;
+src/components/meditation/useMeditationTTS.ts:13:  const voices = window.speechSynthesis.getVoices();
+src/components/meditation/useMeditationTTS.ts:36:    if (typeof window === 'undefined' || !window.speechSynthesis || muted) return;
+src/components/meditation/useMeditationTTS.ts:37:    window.speechSynthesis.cancel();
+src/components/meditation/useMeditationTTS.ts:46:    if (window.speechSynthesis.getVoices().length === 0) {
+src/components/meditation/useMeditationTTS.ts:47:      window.speechSynthesis.addEventListener('voiceschanged', assignVoice, { once: true });
+src/components/meditation/useMeditationTTS.ts:51:    window.speechSynthesis.speak(u);
+src/components/meditation/useMeditationTTS.ts:65:    if (typeof window === 'undefined' || !window.speechSynthesis) return;
+src/components/meditation/useMeditationTTS.ts:67:      window.speechSynthesis.pause();
+src/components/meditation/useMeditationTTS.ts:69:      window.speechSynthesis.resume();
+src/components/meditation/useMeditationTTS.ts:74:    if (muted && typeof window !== 'undefined') window.speechSynthesis?.cancel();
+src/components/meditation/useMeditationTTS.ts:79:      if (typeof window !== 'undefined') window.speechSynthesis?.cancel();
+src/admin/lib/mockData.ts:203:         buckets[bIdx].latencies.push(query.latency_ms);
+src/admin/lib/mockData.ts:384:    if (judgeGood && rating < 0) disagreements.push({ id: r.id, kind: "judge_good_user_bad", faithfulness: r.faithfulness, response_text: r.response_text || "" });
+src/admin/lib/mockData.ts:385:    else if (!judgeGood && rating > 0) disagreements.push({ id: r.id, kind: "judge_bad_user_good", faithfulness: r.faithfulness, response_text: r.response_text || "" });
+src/admin/lib/mockData.ts:401:    arr[idx].items.push(r);
+src/admin/lib/exportTrace.ts:46:  sections.push("# QUERY");
+src/admin/lib/exportTrace.ts:47:  sections.push(
+src/admin/lib/exportTrace.ts:68:  sections.push("\n# PROMPT");
+src/admin/lib/exportTrace.ts:69:  sections.push(
+src/admin/lib/exportTrace.ts:87:  sections.push("\n# SPANS");
+src/admin/lib/exportTrace.ts:88:  sections.push(
+src/admin/lib/exportTrace.ts:102:  sections.push("\n# RETRIEVAL");
+src/admin/lib/exportTrace.ts:107:    sections.push(
+src/admin/lib/exportTrace.ts:119:    sections.push("(no retrieval)");
+src/admin/lib/exportTrace.ts:123:  sections.push("\n# RESPONSE_AND_JUDGE");
+src/admin/lib/exportTrace.ts:126:    sections.push(
+src/admin/lib/exportTrace.ts:157:  sections.push("\n# TRIGGERS");
+src/admin/lib/exportTrace.ts:158:  sections.push(
+src/test/admin/AllAdminPagesEndToEnd.test.tsx:125:    it(`renders ${name} gracefully without crashing when network/backend fails with 503`, () => {
+src/admin/pages/SettingsPage.tsx:68:    tooltip: "Text-to-speech beta pricing. Billed per character and rounded per request.",
+src/admin/lib/seed.ts:119:      prompt_versions.push({
+src/admin/lib/seed.ts:147:      sessions.push({
+src/admin/lib/seed.ts:168:    queries.push({
+src/admin/lib/seed.ts:192:    retrievals.push({
+src/admin/lib/seed.ts:209:    responses.push({
+src/admin/lib/seed.ts:242:      spans.push({
+src/admin/lib/seed.ts:256:      triggers.push({
+src/admin/lib/seed.ts:265:      triggers.push({
+src/admin/lib/seed.ts:277:      feedback.push({
+src/admin/lib/seed.ts:289:      safety_events.push({
+src/admin/lib/seed.ts:332:      eval_results.push({
+src/admin/lib/seed.ts:344:    eval_runs.push({
+src/admin/components/PromptDiff.tsx:39:      leftOut.push({ type: "same", text: safeLeft[i] });
+src/admin/components/PromptDiff.tsx:40:      rightOut.push({ type: "same", text: safeRight[j] });
+src/admin/components/PromptDiff.tsx:44:      leftOut.push({ type: "del", text: safeLeft[i] });
+src/admin/components/PromptDiff.tsx:45:      rightOut.push({ type: "same", text: "" });
+src/admin/components/PromptDiff.tsx:48:      leftOut.push({ type: "same", text: "" });
+src/admin/components/PromptDiff.tsx:49:      rightOut.push({ type: "add", text: safeRight[j] });
+src/admin/components/PromptDiff.tsx:54:    leftOut.push({ type: "del", text: safeLeft[i++] });
+src/admin/components/PromptDiff.tsx:55:    rightOut.push({ type: "same", text: "" });
+src/admin/components/PromptDiff.tsx:58:    leftOut.push({ type: "same", text: "" });
+src/admin/components/PromptDiff.tsx:59:    rightOut.push({ type: "add", text: safeRight[j++] });
+src/admin/components/RagasHeatmap.tsx:42:      arr.push(c);
+src/test/chat/health.test.ts:48:    fetchMock.mockRejectedValue(new Error('network failure'));
+src/components/ui/sidebar.tsx:78:  // Adds a keyboard shortcut to toggle the sidebar.
+src/test/useChatCapabilities.test.ts:28:      pushNotifications: true,
+src/test/streaming-crlf.test.ts:86:      chunks.push(chunk);
+src/test/streaming-crlf.test.ts:105:      chunks.push(chunk);
+src/test/streaming-crlf.test.ts:120:      chunks.push(chunk);
+src/test/useMetrics.test.tsx:139:  it('serves the cached payload without a network call inside the TTL window', async () => {
+src/test/components/ChatMessage.test.tsx:135:  it('shows retry button when guru message has a network error', () => {
+src/test/components/ChatMessage.test.tsx:139:        kind: 'network',
+src/test/useTextToSpeech.test.ts:44:    // Mock speechSynthesis
+src/test/useTextToSpeech.test.ts:45:    Object.defineProperty(window, 'speechSynthesis', {
+src/test/useTextToSpeech.test.ts:70:  it('should return isSupported as true when speechSynthesis is available', () => {
+src/test/useTextToSpeech.test.ts:85:  it('should call backend /api/speech/tts by default', async () => {
+src/test/useTextToSpeech.test.ts:100:      'http://localhost:8000/api/speech/tts',
+src/test/useTextToSpeech.test.ts:112:  it('should fall back to native speech synthesis when backend returns 5xx', async () => {
+src/test/useTextToSpeech.test.ts:139:  it('should call speechSynthesis.cancel when stop is invoked', () => {
+src/test/useTextToSpeech.test.ts:149:  it('should call speechSynthesis.pause when pause is invoked', () => {
+src/test/useTextToSpeech.test.ts:159:  it('should call speechSynthesis.resume when resume is invoked', () => {
+src/test/useTextToSpeech.test.ts:174:  it('should cancel its own speech on unmount only when it owns a speaking utterance', async () => {
+src/test/useTextToSpeech.test.ts:194:  it('should not cancel global speech on unmount when this instance never started an utterance', () => {
+src/test/useSpeechRecognition.test.ts:78:      'not-allowed': 'Microphone access denied. Please enable microphone permissions.',
+src/test/useSpeechRecognition.test.ts:79:      'no-speech': 'No speech detected. Please try again.',
+src/test/useSpeechRecognition.test.ts:81:      'network': 'Network error occurred. Please check your connection.',
+src/test/useSpeechRecognition.test.ts:87:    expect(errorMessages['no-speech']).toContain('No speech detected');
+src/test/components/ChatInterface.test.tsx:325:          errorCode: 'network',
+src/test/aiService.regression.test.ts:46:    it('placeholder provider reports offline mode without network calls', async () => {
+src/test/aiService.regression.test.ts:102:      fetchMock.mockRejectedValue(new Error('network failure'));
+src/test/aiService.regression.test.ts:151:    it('returns network error with backend-unavailable message when fetch throws TypeError', async () => {
+src/test/aiService.regression.test.ts:162:      expect(result.errorCode).toBe('network');
+src/test/components/LanguageSelector.test.tsx:19:    Object.defineProperty(window, 'speechSynthesis', {
+src/test/QueryClient.test.tsx:43:  Capacitor: { isNativePlatform: () => false },
+src/test/QueryClient.test.tsx:111:    const fetcher = vi.fn().mockRejectedValue(new Error('network error'));

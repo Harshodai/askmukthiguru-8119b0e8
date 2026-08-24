@@ -1,0 +1,1109 @@
+=== TRACK: ai_evaluation ===
+UTC: 2026-08-24T13:52:06Z
+HEAD: 1f882077616b92b5e2b59a31d9ee4fb246e8fe68
+backend/tests/__pycache__/eval_ragas_native.cpython-312.pyc
+backend/tests/__pycache__/test_attachment_retrieval_guards.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_benchmark_sql_safety.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_benchmark_sql_safety.cpython-312.pyc
+backend/tests/__pycache__/test_benchmarks.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_benchmarks.cpython-312.pyc
+backend/tests/__pycache__/test_cache_stage_faithfulness.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_cache_stage_faithfulness.cpython-312.pyc
+backend/tests/__pycache__/test_citation_extractor.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_citation_extractor.cpython-312.pyc
+backend/tests/__pycache__/test_citation_marker_remap.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_citation_marker_remap.cpython-312.pyc
+backend/tests/__pycache__/test_citation_service.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_citation_service.cpython-312.pyc
+backend/tests/__pycache__/test_citation_threshold.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_citation_threshold.cpython-312.pyc
+backend/tests/__pycache__/test_clickable_citations.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_clickable_citations.cpython-312.pyc
+backend/tests/__pycache__/test_corpus_hallucination_integrity.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_crag_confidence_skip.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_crag_confidence_skip.cpython-312.pyc
+backend/tests/__pycache__/test_distress_retrieval_integration.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_distress_retrieval_integration.cpython-312.pyc
+backend/tests/__pycache__/test_golden_dataset.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_golden_dataset.cpython-312.pyc
+backend/tests/__pycache__/test_graphrag_fusion.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_graphrag_fusion.cpython-312.pyc
+backend/tests/__pycache__/test_graphrag_hops_clamp.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_graphrag_hops_clamp.cpython-312.pyc
+backend/tests/__pycache__/test_hallucination_anomaly.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_hallucination_anomaly.cpython-312.pyc
+backend/tests/__pycache__/test_hallucination_cache_invalidation.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_hallucination_cache_invalidation.cpython-312.pyc
+backend/tests/__pycache__/test_lightrag_concurrency.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_lightrag_concurrency.cpython-312.pyc
+backend/tests/__pycache__/test_lightrag_openrouter_retry.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_lightrag_openrouter_retry.cpython-312.pyc
+backend/tests/__pycache__/test_memory_scored_retrieval.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_memory_scored_retrieval.cpython-312.pyc
+backend/tests/__pycache__/test_onnx_retrieval_gate.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_onnx_retrieval_gate.cpython-312.pyc
+backend/tests/__pycache__/test_priority_language_evaluation.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_priority_language_evaluation.cpython-312.pyc
+backend/tests/__pycache__/test_qdrant_search_quality.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_qdrant_search_quality.cpython-312.pyc
+backend/tests/__pycache__/test_quality_gate.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_quality_gate.cpython-312.pyc
+backend/tests/__pycache__/test_rag_advanced.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_rag_advanced.cpython-312.pyc
+backend/tests/__pycache__/test_rag_properties.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_rag_properties.cpython-312.pyc
+backend/tests/__pycache__/test_retrieval_okf_embedder.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_retrieval_okf_embedder.cpython-312.pyc
+backend/tests/__pycache__/test_retrieval_quality.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_retrieval_quality.cpython-312.pyc
+backend/tests/__pycache__/test_retrieval_rail.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_retrieval_rail.cpython-312.pyc
+backend/tests/__pycache__/test_text_quality_filter.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_text_quality_filter.cpython-312.pyc
+backend/tests/__pycache__/test_transcript_quality_gates.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_transcript_quality_gates.cpython-312.pyc
+backend/tests/__pycache__/test_translation_citation_markers.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_translation_citation_markers.cpython-312.pyc
+backend/tests/eval_ragas_native.py
+backend/tests/test_attachment_retrieval_guards.py
+backend/tests/test_benchmark_sql_safety.py
+backend/tests/test_benchmarks.py
+backend/tests/test_cache_stage_faithfulness.py
+backend/tests/test_citation_extractor.py
+backend/tests/test_citation_marker_remap.py
+backend/tests/test_citation_service.py
+backend/tests/test_citation_threshold.py
+backend/tests/test_clickable_citations.py
+backend/tests/test_corpus_hallucination_integrity.py
+backend/tests/test_crag_confidence_skip.py
+backend/tests/test_distress_retrieval_integration.py
+backend/tests/test_golden_dataset.py
+backend/tests/test_graphrag_fusion.py
+backend/tests/test_graphrag_hops_clamp.py
+backend/tests/test_hallucination_anomaly.py
+backend/tests/test_hallucination_cache_invalidation.py
+backend/tests/test_lightrag_concurrency.py
+backend/tests/test_lightrag_openrouter_retry.py
+backend/tests/test_memory_scored_retrieval.py
+backend/tests/test_onnx_retrieval_gate.py
+backend/tests/test_priority_language_evaluation.py
+backend/tests/test_qdrant_search_quality.py
+backend/tests/test_quality_gate.py
+backend/tests/test_rag_advanced.py
+backend/tests/test_rag_properties.py
+backend/tests/test_retrieval_okf_embedder.py
+backend/tests/test_retrieval_quality.py
+backend/tests/test_retrieval_rail.py
+backend/tests/test_text_quality_filter.py
+backend/tests/test_transcript_quality_gates.py
+backend/tests/test_translation_citation_markers.py
+scripts/eval/__pycache__/retrieval_evaluation_matrix.cpython-312.pyc
+scripts/eval/__pycache__/run_ragas_eval.cpython-312.pyc
+scripts/eval/eval_e2e_rag_gemini_flash.py
+scripts/eval/eval_gemini_flash_models.py
+scripts/eval/eval_guru_tone.py
+scripts/eval/eval_openrouter_cheap_models.py
+scripts/eval/eval_single_query.py
+scripts/eval/retrieval_evaluation_matrix.py
+scripts/eval/run_ragas_eval.py
+tests/e2e/i18n-coverage.spec.ts
+backend/verify_refactoring.py:199:    print("  Plan: golden-singing-puzzle.md")
+backend/services/confidence_scorer.py:7:  faithfulness        25%  — LettuceDetect / lexical overlap score
+backend/services/confidence_scorer.py:34:    "faithfulness": 0.25,
+backend/services/confidence_scorer.py:43:# Tuned so a high-faithfulness, contradiction-free, well-sourced answer
+backend/services/confidence_scorer.py:197:        # Signal 2: faithfulness from LettuceDetect / lexical overlap (0–1)
+backend/services/confidence_scorer.py:198:        faithfulness_sig = float(state.get("faithfulness_score") or verification.get("score", 0.0))
+backend/services/confidence_scorer.py:199:        faithfulness_sig = max(0.0, min(1.0, faithfulness_sig))
+backend/services/confidence_scorer.py:201:        # Signal 3: CoVe pass ratio (0–1); proxy from faithfulness if absent
+backend/services/confidence_scorer.py:204:        if cove_sig == 0.0 and faithfulness_sig > 0.0:
+backend/services/confidence_scorer.py:205:            cove_sig = faithfulness_sig * 0.9
+backend/services/confidence_scorer.py:231:            "faithfulness": faithfulness_sig,
+backend/services/confidence_scorer.py:270:        faithfulness = float(state.get("faithfulness_score") or verification.get("score", 0.0))
+backend/services/confidence_scorer.py:290:            "faithfulness": faithfulness,
+backend/services/confidence_scorer.py:304:        if faithfulness < 0.5:
+backend/services/confidence_scorer.py:305:            parts.append(f"low faithfulness={faithfulness:.2f}")
+backend/services/confidence_scorer.py:326:        "faithfulness_score": 0.82,
+backend/services/humanizer.py:13:    your eval/benchmark harness so the "humanization rate" is measurable).
+backend/services/nim_service.py:578:    async def check_faithfulness(self, answer: str, context: str, **kwargs) -> bool:
+backend/services/nim_service.py:588:            operation="check_faithfulness",
+backend/services/lettuce_detect_service.py:13:   ``score_faithfulness`` call so a missing torch/transformers at import time
+backend/services/lettuce_detect_service.py:25:    score_faithfulness(query, context, answer) -> {
+backend/services/lettuce_detect_service.py:79:                "Lazy-loading on first score_faithfulness call.",
+backend/services/lettuce_detect_service.py:156:    def score_faithfulness(
+backend/services/lettuce_detect_service.py:280:        # C2: emoji auto-pass branch removed — it bypassed faithfulness scoring unconditionally.
+backend/services/lettuce_detect_service.py:405:    print("heuristic faithful:", svc.score_faithfulness("What is the capital?", ctx, faithful))
+backend/services/lettuce_detect_service.py:406:    print("heuristic fabricated:", svc.score_faithfulness("What is the capital?", ctx, fabricated))
+backend/services/llm/nim_provider.py:54:    async def check_faithfulness(self, answer: str, context: str, **kwargs: Any) -> dict[str, Any]:
+backend/services/llm/nim_provider.py:55:        is_faithful = await self._service.check_faithfulness(answer, context)
+backend/services/llm/nim_provider.py:56:        return {"is_faithful": is_faithful, "details": "Faithfulness score via check_faithfulness"}
+backend/services/llm/base.py:101:    async def check_faithfulness(
+backend/services/llm/sarvam_provider.py:54:    async def check_faithfulness(
+backend/services/llm/sarvam_provider.py:57:        return await self._service.check_faithfulness(answer, context)
+backend/services/llm/openrouter_provider.py:54:    async def check_faithfulness(self, answer: str, context: str, **kwargs: Any) -> dict[str, Any]:
+backend/services/llm/openrouter_provider.py:55:        is_faithful = await self._service.check_faithfulness(answer, context)
+backend/services/llm/openrouter_provider.py:56:        return {"is_faithful": is_faithful, "details": "Faithfulness score via check_faithfulness"}
+backend/services/llm/ollama_provider.py:52:    async def check_faithfulness(
+backend/services/llm/ollama_provider.py:55:        return await self._service.check_faithfulness(answer, context)
+backend/services/confidence_calibrator.py:19:    """Use held-out calibration points; never fabricate a probability mapping."""
+backend/services/prompt_store.py:83:    ``teacher_id`` filtering AND an end-to-end benchmark validates that
+backend/services/prompt_store.py:84:    teacher-voice injection does not regress faithfulness/citation scores.
+backend/services/gateways/sarvam_http.py:296:                "faithfulness",
+backend/services/ollama_service.py:777:    async def check_faithfulness(self, answer: str, context: str, **kwargs) -> bool:
+backend/services/ollama_service.py:869:        Merges faithfulness checking (layer 10) and claim verification (layer 11)
+backend/services/serene_mind_engine.py:404:          and distress prediction benchmarks (e.g., llm-mental-health-risk-detection /
+backend/services/serene_mind_engine.py:799:        # benchmark (https://github.com/sonia-health/llm-mental-health-risk-detection):
+backend/GRAPH_LATENCY_PLAN.md:10:- Fresh live baseline: simple English 14.67s, comparative English 31.39s with honest zero-source abstention, Hindi 19.90s. These measurements supersede optimistic estimates below until held-out benchmarks improve them.
+backend/GRAPH_LATENCY_PLAN.md:185:4. **Phase 4 (Parallel cross-teacher reasoning)** — **deferred**; requires explicit LangGraph reducers/join tests and a held-out comparative faithfulness benchmark.
+backend/GRAPH_LATENCY_PLAN.md:204:2. Build a held-out comparative evaluation slice with expected concepts, source segments, citation correctness, faithfulness, and latency before changing candidate limits or fusion weights.
+backend/services/openrouter_service.py:886:    async def check_faithfulness(self, answer: str, context: str, **kwargs) -> bool:
+backend/services/openrouter_service.py:974:        faithfulness_score = 1.0 if is_faithful else 0.0
+backend/services/openrouter_service.py:993:            "faithfulness_score": faithfulness_score,
+backend/tests/test_orchestrator_stream_drain.py:64:        faithfulness_score=None,
+backend/tests/test_format_final_answer.py:3:format_final_answer may legitimately accept an answer whose faithfulness
+backend/tests/test_format_final_answer.py:145:    assert result["faithfulness_score"] == 0.0
+backend/tests/test_format_final_answer.py:165:    assert result["faithfulness_score"] == 0.0
+backend/tests/test_format_final_answer.py:185:    assert result["faithfulness_score"] == 0.0
+backend/tests/test_format_final_answer.py:233:        faithfulness_score=0.67,
+backend/tests/test_format_final_answer.py:248:    assert result["faithfulness_score"] == 0.67
+backend/tests/test_format_final_answer.py:385:    assert result["faithfulness_score"] == 0.0
+backend/CLAUDE.md:19:Benchmarks: `benchmarks/RUN_ME.sh` (needs the live Docker stack; normally run by the user, not automated). Individual scripts: `python3 benchmarks/ruthless_benchmark.py --endpoint http://localhost:8000`. For live faithfulness/reject-rate signal against a real deployment (task #41-style threshold tuning), `python3 benchmarks/ragas_eval.py --endpoint <url> --limit 2` — hits `/api/chat` via the signed anon-session-token flow (`POST /api/auth/anon-session`) and reports the reject-rate delta against `settings.faithfulness_floor`.
+backend/CLAUDE.md:70:- Timeouts always carry safety margins (see `rag/timeout_utils.py`); benchmark-tuned values come from `.env.optimized`.
+backend/CLAUDE.md:74:- `scripts/ops/hallucination_anomaly.py` — daily CI/cron check for hallucination rate spike and faithfulness p50 drop. Reads from Supabase `chat_responses` table; exits non-zero on anomaly. Thresholds are env-driven via `ANOMALY_HALLUCINATION_RATE_THRESHOLD`, `ANOMALY_FAITHFULNESS_P50_THRESHOLD`, `ANOMALY_LOOKBACK_DAYS` (defaults in `app.config`).
+scripts/eval/retrieval_evaluation_matrix.py:1:"""Build a held-out retrieval evaluation matrix from benchmark JSON.
+scripts/eval/retrieval_evaluation_matrix.py:4:optional golden labels; it never changes retrieval weights or production data.
+scripts/eval/retrieval_evaluation_matrix.py:85:def row_for(record: Dict[str, Any], golden: Dict[str, Any]) -> Dict[str, Any]:
+scripts/eval/retrieval_evaluation_matrix.py:86:    expected_entities = set(_list_of_strings(golden.get("expected_entities")))
+scripts/eval/retrieval_evaluation_matrix.py:87:    expected_segments = set(_list_of_strings(golden.get("expected_segments")))
+scripts/eval/retrieval_evaluation_matrix.py:88:    expected_sources = set(_list_of_strings(golden.get("expected_sources")))
+scripts/eval/retrieval_evaluation_matrix.py:93:    graph_timeout = bool(golden.get("graph_timeout") or "deadline exceeded" in response_text or "timed out" in response_text)
+scripts/eval/retrieval_evaluation_matrix.py:94:    faithfulness = record.get("faithfulness_score")
+scripts/eval/retrieval_evaluation_matrix.py:97:        "query_class": golden.get("query_class") or record.get("category"),
+scripts/eval/retrieval_evaluation_matrix.py:102:        "expected_relation": golden.get("expected_relation"),
+scripts/eval/retrieval_evaluation_matrix.py:107:        "faithfulness_score": faithfulness if isinstance(faithfulness, (int, float)) else None,
+scripts/eval/retrieval_evaluation_matrix.py:118:    latencies, faithfulness, recalls, ndcgs, citations = [nums(key) for key in ("latency_ms", "faithfulness_score", "entity_recall", "ndcg_at_k", "citation_correctness")]
+scripts/eval/retrieval_evaluation_matrix.py:122:        "faithfulness_mean": round(statistics.mean(faithfulness), 4) if faithfulness else None,
+scripts/eval/retrieval_evaluation_matrix.py:134:    parser.add_argument("--golden", type=Path)
+scripts/eval/retrieval_evaluation_matrix.py:137:    golden_payload = _load(args.golden) if args.golden else {}
+scripts/eval/retrieval_evaluation_matrix.py:138:    golden_map = golden_payload.get("cases", golden_payload) if isinstance(golden_payload, dict) else {}
+scripts/eval/retrieval_evaluation_matrix.py:139:    rows = [row_for(record, golden_map.get(str(record.get("id")), {})) for record in _records(payload)]
+scripts/eval/retrieval_evaluation_matrix.py:140:    report = {"input": str(args.input), "golden": str(args.golden) if args.golden else None, "summary": summarize(rows), "rows": rows}
+scripts/eval/eval_single_query.py:46:    res = await engine._execute_batch(chat_request=chat_req, user={"id": "eval-user"}, is_benchmark=True)
+scripts/eval/run_ragas_eval.py:2:"""Standalone RAGAS evaluation runner — no pytest required.
+scripts/eval/run_ragas_eval.py:5:RAGAS metrics (faithfulness, answer_relevancy, context_precision), and writes
+scripts/eval/run_ragas_eval.py:13:    # is allowlisted via RAGAS_TEST_KEY_ALLOWED_HOSTS)
+scripts/eval/run_ragas_eval.py:14:    RAGAS_LLM_API_KEY=sk-... \
+scripts/eval/run_ragas_eval.py:19:    # CI usage (fails if mean_faithfulness < 0.6)
+scripts/eval/run_ragas_eval.py:24:    TEST_KEY        X-Test-Key for benchmark auth bypass (local hosts, or HTTPS
+scripts/eval/run_ragas_eval.py:25:                    hosts allowlisted via RAGAS_TEST_KEY_ALLOWED_HOSTS)
+scripts/eval/run_ragas_eval.py:26:    RAGAS_TEST_KEY_ALLOWED_HOSTS  Comma-separated HTTPS hostnames allowed to
+scripts/eval/run_ragas_eval.py:30:    RAGAS_LLM_API_KEY   Key for the RAGAS LLM/embedding provider (defaults to
+scripts/eval/run_ragas_eval.py:32:    RAGAS_LLM_MODEL     LLM model for metric scoring (default: gpt-4o-mini)
+scripts/eval/run_ragas_eval.py:33:    RAGAS_EMBEDDINGS_MODEL  Embeddings model for metric scoring
+scripts/eval/run_ragas_eval.py:35:    RAGAS_ANON_SESSION_TIMEOUT  Timeout (s) for POST /api/auth/anon-session
+scripts/eval/run_ragas_eval.py:37:    RAGAS_CHAT_TIMEOUT  Timeout (s) for POST /api/chat (default: 120; a 5s
+scripts/eval/run_ragas_eval.py:67:# Remote HTTPS hosts allowed to receive the X-Test-Key benchmark bypass.
+scripts/eval/run_ragas_eval.py:71:    for h in os.environ.get("RAGAS_TEST_KEY_ALLOWED_HOSTS", "").split(",")
+scripts/eval/run_ragas_eval.py:75:RAGAS_LLM_API_KEY = os.environ.get("RAGAS_LLM_API_KEY") or os.environ.get("OPENAI_API_KEY", "")
+scripts/eval/run_ragas_eval.py:76:RAGAS_LLM_MODEL = os.environ.get("RAGAS_LLM_MODEL", "gpt-4o-mini")
+scripts/eval/run_ragas_eval.py:77:RAGAS_EMBEDDINGS_MODEL = os.environ.get("RAGAS_EMBEDDINGS_MODEL", "text-embedding-3-small")
+scripts/eval/run_ragas_eval.py:81:ANON_SESSION_TIMEOUT = float(os.environ.get("RAGAS_ANON_SESSION_TIMEOUT", "15"))
+scripts/eval/run_ragas_eval.py:82:CHAT_TIMEOUT = float(os.environ.get("RAGAS_CHAT_TIMEOUT", "120"))
+scripts/eval/run_ragas_eval.py:162:    # X-Test-Key is a benchmark auth bypass and must never reach production:
+scripts/eval/run_ragas_eval.py:164:    # allowlisted via RAGAS_TEST_KEY_ALLOWED_HOSTS (default empty).
+scripts/eval/run_ragas_eval.py:202:    """Run RAGAS evaluation on collected samples."""
+scripts/eval/run_ragas_eval.py:209:        from ragas.metrics import answer_relevancy, context_precision, faithfulness
+scripts/eval/run_ragas_eval.py:212:            "RAGAS / datasets not installed. pip install ragas datasets langchain-openai"
+scripts/eval/run_ragas_eval.py:216:    if not RAGAS_LLM_API_KEY:
+scripts/eval/run_ragas_eval.py:218:            "Missing API key for RAGAS evaluation. Set RAGAS_LLM_API_KEY "
+scripts/eval/run_ragas_eval.py:223:    llm = LangchainLLMWrapper(ChatOpenAI(model=RAGAS_LLM_MODEL, api_key=RAGAS_LLM_API_KEY))
+scripts/eval/run_ragas_eval.py:225:        OpenAIEmbeddings(model=RAGAS_EMBEDDINGS_MODEL, api_key=RAGAS_LLM_API_KEY)
+scripts/eval/run_ragas_eval.py:229:    logger.info("Running RAGAS evaluation on %d samples...", len(samples))
+scripts/eval/run_ragas_eval.py:232:        metrics=[faithfulness, answer_relevancy, context_precision],
+scripts/eval/run_ragas_eval.py:237:    # RAGAS result frames can carry non-numeric columns (e.g. string ids) —
+scripts/eval/run_ragas_eval.py:241:        logger.error("RAGAS result contains no numeric metric columns — cannot aggregate.")
+scripts/eval/run_ragas_eval.py:247:    logger.info("=== RAGAS Evaluation -- %s ===", datetime.now(tz=timezone.utc).isoformat())
+scripts/eval/run_ragas_eval.py:297:    logger.info("RAGAS metrics: %s", json.dumps(metrics, indent=2))
+scripts/eval/run_ragas_eval.py:318:        faithfulness_score = metrics.get("faithfulness")
+scripts/eval/run_ragas_eval.py:319:        if faithfulness_score is None or not math.isfinite(faithfulness_score):
+scripts/eval/run_ragas_eval.py:320:            logger.error("CI FAIL: faithfulness missing or non-finite")
+scripts/eval/run_ragas_eval.py:322:        if faithfulness_score < args.threshold:
+scripts/eval/run_ragas_eval.py:324:                "CI FAIL: faithfulness %.3f < threshold %.3f",
+scripts/eval/run_ragas_eval.py:325:                faithfulness_score,
+scripts/eval/run_ragas_eval.py:329:        logger.info("CI PASS: faithfulness %.3f >= %.3f", faithfulness_score, args.threshold)
+scripts/eval/run_ragas_eval.py:335:    parser = argparse.ArgumentParser(description="RAGAS evaluation runner")
+scripts/eval/run_ragas_eval.py:342:    parser.add_argument("--threshold", type=float, default=0.6, help="CI faithfulness threshold")
+scripts/eval/eval_guru_tone.py:119:        logger.warning(f"Could not initialize LLM service ({exc}); benchmark will run offline fallback.")
+scripts/eval/eval_guru_tone.py:176:    # Save benchmark evaluation report
+backend/tests/test_tiered_routing_streaming.py:191:    mock_ld.score_faithfulness.return_value = {
+backend/tests/test_tiered_routing_streaming.py:216:    assert res_verify["faithfulness_score"] == 1.0
+backend/tests/test_no_jwt_secret_backdoor.py:1:"""Regression tests for CRIT-1: JWT_SECRET must never act as a benchmark backdoor.
+backend/tests/test_no_jwt_secret_backdoor.py:3:The benchmark X-Test-Key header only exempts requests from rate limiting (and
+backend/tests/test_no_jwt_secret_backdoor.py:10:  - the shared is_benchmark_request helper (backend/app/security_utils.py)
+backend/tests/test_no_jwt_secret_backdoor.py:23:from app.security_utils import is_benchmark_request
+backend/tests/test_no_jwt_secret_backdoor.py:26:# They exist to prove that a leaked JWT_SECRET cannot unlock the benchmark
+backend/tests/test_no_jwt_secret_backdoor.py:30:BENCHMARK_SECRET = "benchmark-secret-for-tests"  # gitleaks:allow
+backend/tests/test_no_jwt_secret_backdoor.py:50:        "benchmark_secret": settings.benchmark_secret,
+backend/tests/test_no_jwt_secret_backdoor.py:55:    settings.benchmark_secret = BENCHMARK_SECRET
+backend/tests/test_no_jwt_secret_backdoor.py:60:    settings.benchmark_secret = saved["benchmark_secret"]
+backend/tests/test_no_jwt_secret_backdoor.py:71:    def test_benchmark_secret_bypasses_limiter(self):
+backend/tests/test_no_jwt_secret_backdoor.py:73:        assert _rate_limit_key_func(req).startswith("benchmark_exempt_")
+backend/tests/test_no_jwt_secret_backdoor.py:75:    def test_benchmark_disabled_in_prod(self):
+backend/tests/test_no_jwt_secret_backdoor.py:91:    def test_benchmark_secret_allows(self):
+backend/tests/test_no_jwt_secret_backdoor.py:93:        assert is_benchmark_request(req) is True
+backend/tests/test_no_jwt_secret_backdoor.py:97:        assert is_benchmark_request(req) is False
+backend/tests/test_no_jwt_secret_backdoor.py:101:        assert is_benchmark_request(req) is False
+backend/tests/test_no_jwt_secret_backdoor.py:108:        assert is_benchmark_request(req) is False
+backend/tests/test_no_jwt_secret_backdoor.py:115:        assert is_benchmark_request(req) is False
+backend/tests/test_no_jwt_secret_backdoor.py:134:    def test_benchmark_secret_bypasses_limiter(self):
+backend/tests/test_no_jwt_secret_backdoor.py:140:    def test_benchmark_disabled_in_prod(self):
+backend/tests/test_no_jwt_secret_backdoor.py:162:    """The /api/chat/v2 handler must route its is_benchmark flag through the
+backend/tests/test_no_jwt_secret_backdoor.py:163:    shared is_benchmark_request guard — never a raw `test_key == jwt_secret`
+backend/tests/test_no_jwt_secret_backdoor.py:192:            async def chat_advanced(self, chat_body, user, is_benchmark):
+backend/tests/test_no_jwt_secret_backdoor.py:193:                engine_calls.append(is_benchmark)
+backend/tests/test_no_jwt_secret_backdoor.py:215:                    faithfulness_score=None,
+backend/tests/test_no_jwt_secret_backdoor.py:227:        async def _fake_history(chat_body, user, container, is_benchmark):
+backend/tests/test_no_jwt_secret_backdoor.py:256:    def test_jwt_secret_not_benchmark(self, monkeypatch):
+backend/tests/test_no_jwt_secret_backdoor.py:264:    def test_benchmark_secret_plus_gate_is_benchmark(self, monkeypatch):
+backend/tests/test_no_jwt_secret_backdoor.py:272:    def test_benchmark_secret_blocked_in_prod(self, monkeypatch):
+backend/tests/test_no_jwt_secret_backdoor.py:280:    def test_benchmark_secret_requires_test_auth(self, monkeypatch):
+backend/tests/conftest.py:46:# Enable the X-Test-Key benchmark auth backdoor (dev-only; guarded by
+backend/tests/conftest.py:53:    "BENCHMARK_SECRET", "test-benchmark-secret-for-aal2-tests"
+backend/scripts/cache_warmer.py:216:            async def check_faithfulness(self, answer, context, **kwargs):
+backend/scripts/cache_warmer.py:249:                                "email": "benchmark-admin@mukthi.guru",
+backend/evaluation/llm_judge.py:3:This module replaces the keyword-only PASS/FAIL benchmark scoring with a
+backend/evaluation/llm_judge.py:288:        "context_precision",
+backend/evaluation/llm_judge.py:291:        "crosslingual_faithfulness",
+backend/evaluation/llm_judge.py:335:                "context_precision": 0.10,
+backend/evaluation/llm_judge.py:338:                "crosslingual_faithfulness": 0.10,
+backend/evaluation/priority_language_eval.py:79:        with urlopen(request, timeout=45) as response:  # nosec B310 -- configured benchmark launch target
+backend/evaluation/run_golden_eval.py:2:runs RAGAS faithfulness, answer_relevancy, context_precision, and
+backend/evaluation/run_golden_eval.py:8:  python backend/evaluation/run_golden_eval.py \
+backend/evaluation/run_golden_eval.py:9:    --dataset backend/evaluation/golden_dataset.json \
+backend/evaluation/run_golden_eval.py:11:    --faithfulness-min 0.88 \
+backend/evaluation/run_golden_eval.py:52:    p.add_argument("--faithfulness-min", type=float, default=0.88)
+backend/evaluation/run_golden_eval.py:106:    # RAGAS scoring (deferred import so script runs without ragas in dev)
+backend/evaluation/run_golden_eval.py:107:    faithfulness_score = 0.0
+backend/evaluation/run_golden_eval.py:109:    context_precision_score = 0.0
+backend/evaluation/run_golden_eval.py:115:            answer_relevancy,
+backend/evaluation/run_golden_eval.py:116:            context_precision,
+backend/evaluation/run_golden_eval.py:118:            faithfulness,
+backend/evaluation/run_golden_eval.py:130:            ds, metrics=[faithfulness, answer_relevancy, context_precision, context_recall]
+backend/evaluation/run_golden_eval.py:132:        faithfulness_score = float(result["faithfulness"])
+backend/evaluation/run_golden_eval.py:133:        relevancy_score = float(result["answer_relevancy"])
+backend/evaluation/run_golden_eval.py:134:        context_precision_score = float(result["context_precision"])
+backend/evaluation/run_golden_eval.py:137:        print(f"[WARN] RAGAS unavailable ({e}); falling back to heuristic concept-overlap.")
+backend/evaluation/run_golden_eval.py:154:        faithfulness_score = hits / total if total else 0.0
+backend/evaluation/run_golden_eval.py:155:        relevancy_score = faithfulness_score
+backend/evaluation/run_golden_eval.py:156:        context_precision_score = faithfulness_score
+backend/evaluation/run_golden_eval.py:157:        context_recall_score = faithfulness_score
+backend/evaluation/run_golden_eval.py:159:    faithfulness_pass = faithfulness_score >= args.faithfulness_min
+backend/evaluation/run_golden_eval.py:161:    context_precision_pass = context_precision_score >= args.context_precision_min
+backend/evaluation/run_golden_eval.py:168:        "faithfulness": faithfulness_score,
+backend/evaluation/run_golden_eval.py:169:        "answer_relevancy": relevancy_score,
+backend/evaluation/run_golden_eval.py:170:        "context_precision": context_precision_score,
+backend/evaluation/run_golden_eval.py:173:        "faithfulness_pass": faithfulness_pass,
+backend/evaluation/run_golden_eval.py:175:        "context_precision_pass": context_precision_pass,
+backend/evaluation/run_golden_eval.py:179:            "faithfulness_min": args.faithfulness_min,
+backend/evaluation/run_golden_eval.py:181:            "context_precision_min": args.context_precision_min,
+backend/evaluation/run_golden_eval.py:190:        faithfulness_pass
+backend/evaluation/run_golden_eval.py:192:        and context_precision_pass
+scripts/README.md:7:├── benchmarks/          # Performance & quality testing
+scripts/README.md:8:│   ├── test_latency.py      # 5-phase RAG pipeline benchmark (p50/p95/p99, TTFT, concurrent, conversation flows)
+scripts/README.md:10:│   ├── test_stt.py          # Speech-to-text benchmark
+scripts/README.md:12:│   ├── REPORT.md            # Previous benchmark results narrative
+scripts/README.md:13:│   └── results.json         # Machine-readable benchmark output
+scripts/README.md:34:# Run the full benchmark suite (requires Docker backend running)
+scripts/README.md:36:python3 scripts/benchmarks/test_latency.py --n 50 --concurrency 5
+scripts/README.md:40:python3 scripts/benchmarks/test_rag_quality.py
+backend/tests/test_tone_adapter_grounded.py:42:        is_benchmark=False,
+backend/tests/test_tone_adapter_grounded.py:49:        graph_result={"faithfulness_score": 0.9},
+backend/tests/test_tone_adapter_grounded.py:56:async def test_stage_preserves_completed_answer_citations_and_faithfulness():
+backend/tests/test_tone_adapter_grounded.py:65:    assert ctx.graph_result["faithfulness_score"] == 0.9
+scripts/test_one_question.py:31:        is_benchmark=True,
+scripts/security/check_benchmark_backdoor.py:2:"""CI tripwire for CRIT-1: JWT_SECRET must never unlock the benchmark backdoor.
+scripts/security/check_benchmark_backdoor.py:11:    is_benchmark = bool(test_key and jwt_sec and test_key == jwt_sec)
+scripts/security/check_benchmark_backdoor.py:139:        print("CRIT-1 gate failed: JWT_SECRET coupled with the benchmark X-Test-Key backdoor:", file=sys.stderr)
+backend/tests/test_thresholds.py:10:    assert settings.faithfulness_floor == 0.6  # migrated default (b5399e48); 0.8 was stale
+backend/tests/test_thresholds.py:24:    assert settings.raptor_summary_faithfulness_floor == 0.35
+backend/tests/test_thresholds.py:46:    assert settings.faithfulness_floor == 0.9
+backend/tests/test_thresholds.py:52:    assert settings.raptor_summary_faithfulness_floor == 0.5
+backend/tests/test_lettuce_detect_real.py:65:    faithful = svc.score_faithfulness(question, ctx, "The capital of France is Paris.")
+backend/tests/test_lettuce_detect_real.py:70:    fabricated = svc.score_faithfulness(
+backend/tests/test_lettuce_detect_real.py:87:    assert svc.score_faithfulness("q", "ctx", "")["is_faithful"] is False
+backend/tests/test_lettuce_detect_real.py:88:    assert svc.score_faithfulness("q", "", "answer")["is_faithful"] is False
+backend/tests/test_lettuce_detect_real.py:133:        result = svc.score_faithfulness(
+backend/tests/test_lettuce_detect_real.py:157:    result = svc.score_faithfulness(
+backend/scripts/eval/run_ragas_eval.py:4:Evaluates the 50 golden questions across 5 dimensions:
+backend/scripts/eval/run_ragas_eval.py:29:GOLDEN_QUESTIONS_FILE = os.path.join(os.path.dirname(__file__), "golden_questions.json")
+backend/scripts/eval/run_ragas_eval.py:63:def load_golden_set() -> list[dict[str, Any]]:
+backend/scripts/eval/run_ragas_eval.py:110:    throttle a 50-question golden-set run."""
+backend/scripts/eval/run_ragas_eval.py:116:        timeout=timeout_with_margin(settings.benchmark_anon_session_timeout),
+backend/scripts/eval/run_ragas_eval.py:126:    golden_set = load_golden_set()
+backend/scripts/eval/run_ragas_eval.py:127:    print(f"Loaded {len(golden_set)} golden evaluation questions.")
+backend/scripts/eval/run_ragas_eval.py:138:        timeout=timeout_with_margin(settings.benchmark_chat_timeout),
+backend/scripts/eval/run_ragas_eval.py:141:        for idx, item in enumerate(golden_set, 1):
+backend/scripts/eval/run_ragas_eval.py:153:            faithfulness_score = None
+backend/scripts/eval/run_ragas_eval.py:173:                    faithfulness_score = data.get("faithfulness_score")
+backend/scripts/eval/run_ragas_eval.py:195:                f"{faithfulness_score * 100:.0f}%" if faithfulness_score is not None else "N/A"
+backend/scripts/eval/run_ragas_eval.py:207:                "faithfulness_score": (
+backend/scripts/eval/run_ragas_eval.py:208:                    round(faithfulness_score, 2) if faithfulness_score is not None else None
+backend/scripts/eval/run_ragas_eval.py:218:                f"[{idx}/{len(golden_set)}] {category:<12} | "
+backend/scripts/eval/run_ragas_eval.py:230:    faith_scores = [r["faithfulness_score"] for r in results if r["faithfulness_score"] is not None]
+backend/scripts/eval/run_ragas_eval.py:232:    avg_faithfulness = sum(faith_scores) / len(faith_scores) if faith_scores else 0.0
+backend/scripts/eval/run_ragas_eval.py:238:        cat_faith = [i["faithfulness_score"] for i in items if i["faithfulness_score"] is not None]
+backend/scripts/eval/run_ragas_eval.py:243:            "avg_faithfulness": round(sum(cat_faith) / len(cat_faith), 2) if cat_faith else 0.0,
+backend/scripts/eval/run_ragas_eval.py:244:            "faithfulness_count": len(cat_faith),
+backend/scripts/eval/run_ragas_eval.py:255:        "total_questions": len(golden_set),
+backend/scripts/eval/run_ragas_eval.py:258:        "overall_faithfulness": round(avg_faithfulness, 2),
+backend/scripts/eval/run_ragas_eval.py:259:        "faithfulness_unavailable": faith_unavailable,
+backend/scripts/eval/run_ragas_eval.py:271:        f"Overall Faithfulness:     {avg_faithfulness * 100:.1f}% "
+backend/scripts/eval/run_ragas_eval.py:280:            f"  {cat:<14}: Recall {stat['avg_kw_recall'] * 100:>5.1f}% | Faith {stat['avg_faithfulness'] * 100:>5.1f}% | Cite {stat['avg_citation_validity'] * 100:>5.1f}% | Abstain {stat['abstain_accuracy'] * 100:>5.1f}% | Latency {stat['avg_latency']:>4.1f}s"
+backend/scripts/eval/run_ragas_eval.py:292:    parser = argparse.ArgumentParser(description="Run Golden Set RAGAS Evaluation")
+backend/tests/test_hallucination_anomaly.py:5:  - Threshold-based anomaly detection (rate spike + faithfulness p50 drop).
+backend/tests/test_hallucination_anomaly.py:30:    assert metrics["faithfulness_p50"] == 0.0
+backend/tests/test_hallucination_anomaly.py:31:    assert metrics["faithfulness_mean"] == 0.0
+backend/tests/test_hallucination_anomaly.py:36:        {"hallucination_flag": True, "faithfulness": 0.4},
+backend/tests/test_hallucination_anomaly.py:37:        {"hallucination_flag": False, "faithfulness": 0.8},
+backend/tests/test_hallucination_anomaly.py:38:        {"hallucination_flag": False, "faithfulness": 0.95},
+backend/tests/test_hallucination_anomaly.py:44:    assert metrics["faithfulness_p50"] == pytest.approx(0.8)
+backend/tests/test_hallucination_anomaly.py:45:    assert metrics["faithfulness_mean"] == pytest.approx((0.4 + 0.8 + 0.95) / 3)
+backend/tests/test_hallucination_anomaly.py:55:        {"hallucination_flag": False, "faithfulness": 0.9},
+backend/tests/test_hallucination_anomaly.py:56:        {"hallucination_flag": False, "faithfulness": 0.85},
+backend/tests/test_hallucination_anomaly.py:63:    assert result["alerts"]["faithfulness_p50_drop"] is False
+backend/tests/test_hallucination_anomaly.py:64:    assert result["metrics"]["faithfulness_p50"] == pytest.approx(0.875)
+backend/tests/test_hallucination_anomaly.py:69:        {"hallucination_flag": True, "faithfulness": 0.4},
+backend/tests/test_hallucination_anomaly.py:70:        {"hallucination_flag": True, "faithfulness": 0.5},
+backend/tests/test_hallucination_anomaly.py:71:        {"hallucination_flag": False, "faithfulness": 0.9},
+backend/tests/test_hallucination_anomaly.py:81:def test_run_anomaly_check_faithfulness_drop() -> None:
+backend/tests/test_hallucination_anomaly.py:83:        {"hallucination_flag": False, "faithfulness": 0.4},
+backend/tests/test_hallucination_anomaly.py:84:        {"hallucination_flag": False, "faithfulness": 0.5},
+backend/tests/test_hallucination_anomaly.py:89:    assert result["alerts"]["faithfulness_p50_drop"] is True
+backend/tests/test_hallucination_anomaly.py:95:    rows = [{"hallucination_flag": False, "faithfulness": 0.9}]
+backend/tests/test_hallucination_anomaly.py:108:        {"hallucination_flag": True, "faithfulness": 0.4},
+backend/tests/test_hallucination_anomaly.py:109:        {"hallucination_flag": True, "faithfulness": 0.5},
+backend/tests/test_admin_api.py:4:golden-question upsert/delete, generic reingest, and logs list.
+backend/tests/test_admin_api.py:148:        "upsert_golden_question",
+backend/tests/test_admin_api.py:149:        "delete_golden_question",
+backend/tests/test_admin_api.py:384:def test_upsert_golden_question_forbidden_for_non_admin(normal_user):
+backend/tests/test_admin_api.py:387:        "/api/admin/golden-questions",
+backend/tests/test_admin_api.py:393:def test_upsert_golden_question_requires_aal2(admin_user_aal1):
+backend/tests/test_admin_api.py:396:        "/api/admin/golden-questions",
+backend/tests/test_admin_api.py:403:def test_upsert_golden_question_create(mock_get_client, admin_user):
+backend/tests/test_admin_api.py:413:        "/api/admin/golden-questions",
+backend/tests/test_admin_api.py:423:def test_delete_golden_question_success(mock_get_client, admin_user):
+backend/tests/test_admin_api.py:432:    res = client.delete("/api/admin/golden-questions/gq-1")
+backend/tests/test_admin_api.py:437:def test_delete_golden_question_forbidden_for_non_admin(normal_user):
+backend/tests/test_admin_api.py:439:    res = client.delete("/api/admin/golden-questions/gq-1")
+backend/tests/test_assistant_allowlist.py:49:        is_benchmark=False,
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:3:askmukthiguru_ruthless_benchmark.py — CORRECTED Production Benchmark
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:7:This benchmark tests against VERIFIED public teachings of Sri Preethaji & Sri Krishnaji.
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:107:    "golden light",  # Step 5: Visualization
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1021:    faithfulness: float = 1.0
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1022:    answer_relevancy: float = 1.0
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1023:    context_precision: float = 1.0
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1285:def load_benchmark_secret() -> str | None:
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1286:    """Load the benchmark X-Test-Key secret (BENCHMARK_SECRET only).
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1288:    JWT_SECRET (the token-signing secret) must never be used as the benchmark
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1289:    bypass key — see backend/app/security_utils.py is_benchmark_request.
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1342:async def get_golden_questions(url: str, key: str) -> dict[str, str]:
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1352:                f"{url}/rest/v1/golden_questions?select=id,question",
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1363:        print(f"      ⚠️  Could not retrieve golden questions mapping: {e}")
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1383:    golden_mapping = await get_golden_questions(url, key)
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1420:        g_id = golden_mapping.get(r.query.strip().lower())
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1424:                "golden_id": g_id,
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1425:                "faithfulness": round(r.faithfulness, 4),
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1426:                "answer_relevancy": round(r.answer_relevancy, 4),
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1427:                "context_precision": round(r.context_precision, 4),
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1513:                    faithfulness=1.0 if safe else 0.0,
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1514:                    answer_relevancy=1.0 if safe else 0.0,
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1515:                    context_precision=1.0,
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1558:                faithfulness=1.0 if safe else 0.0,
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1559:                answer_relevancy=1.0 if safe else 0.0,
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1560:                context_precision=1.0,
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1614:                    faithfulness=kw if res["ok"] else 0.0,
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1615:                    answer_relevancy=1.0 if res["ok"] and kw >= 0.4 else 0.0,
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1616:                    context_precision=1.0 if len(cites) >= 1 else 0.0,
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1660:                faithfulness=kw if res["ok"] else 0.0,
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1661:                answer_relevancy=1.0 if res["ok"] and kw >= 0.4 else 0.0,
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1662:                context_precision=1.0 if len(cites) >= 1 else 0.0,
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1705:                faithfulness=kw if res["ok"] else 0.0,
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1706:                answer_relevancy=1.0 if res["ok"] and kw >= 0.4 else 0.0,
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1707:                context_precision=1.0 if len(cites) >= 1 else 0.0,
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1754:                faithfulness=1.0 if res["ok"] else 0.0,
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1755:                answer_relevancy=ts if res["ok"] else 0.0,
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1756:                context_precision=1.0,
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1803:                faithfulness=ratio if res["ok"] else 0.0,
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1804:                answer_relevancy=1.0 if res["ok"] else 0.0,
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1805:                context_precision=1.0 if len(cites) >= 1 else 0.0,
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1849:                faithfulness=kw if res["ok"] else 0.0,
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1850:                answer_relevancy=0.0 if rejected else (1.0 if kw >= 0.4 else 0.5),
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1851:                context_precision=1.0 if len(cites) >= 1 else 0.5,
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1896:                    faithfulness=kw if res["ok"] else 0.0,
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1897:                    answer_relevancy=1.0 if res["ok"] else 0.0,
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1898:                    context_precision=1.0 if len(cites) >= 1 else 0.5,
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1956:                faithfulness=kw if res["ok"] else 0.0,
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1957:                answer_relevancy=1.0 if res["ok"] else 0.0,
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:1958:                context_precision=1.0 if links_ok and len(cites) >= 1 else 0.0,
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2000:                faithfulness=kw if res["ok"] else 0.0,
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2001:                answer_relevancy=1.0 if res["ok"] else 0.0,
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2002:                context_precision=1.0 if len(cites) >= 1 else 0.5,
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2044:                faithfulness=1.0 if res["ok"] else 0.0,
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2045:                answer_relevancy=1.0 if res["ok"] else 0.0,
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2046:                context_precision=1.0,
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2094:                faithfulness=1.0 if passed else 0.0,
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2095:                answer_relevancy=1.0 if passed else 0.0,
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2096:                context_precision=1.0,
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2144:                    faithfulness=1.0 if passed else 0.0,
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2145:                    answer_relevancy=1.0 if passed else 0.0,
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2146:                    context_precision=1.0,
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2164:                faithfulness=0.0,
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2165:                answer_relevancy=0.0,
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2166:                context_precision=1.0,
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2480:    print("  6. The benchmark cannot verify if your vector DB actually contains these teachings.")
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2486:        print("  • All categories passing. Note: passing benchmark ≠ perfect production readiness.")
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2548:    """Raised when pre-flight checks fail and benchmark cannot proceed."""
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2555:    Comprehensive pre-flight diagnostics before running the benchmark.
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2752:        print("  ✅ All pre-flight checks passed. Ready to benchmark.\n")
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2799:        print("   Fix the issue above and re-run the benchmark.")
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2851:        avg_faithfulness = (
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2852:            sum(r.faithfulness for r in results) / total_tests if total_tests > 0 else 0.0
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2854:        avg_answer_relevancy = (
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2855:            sum(r.answer_relevancy for r in results) / total_tests if total_tests > 0 else 0.0
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2857:        avg_context_precision = (
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2858:            sum(r.context_precision for r in results) / total_tests if total_tests > 0 else 0.0
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2864:            "avg_faithfulness": round(avg_faithfulness, 4),
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2865:            "avg_answer_relevancy": round(avg_answer_relevancy, 4),
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2866:            "avg_context_precision": round(avg_context_precision, 4),
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2872:            print("📤 Uploading benchmark run results to Supabase...")
+scripts/benchmarks/askmukthiguru_ruthless_benchmark.py:2898:    test_key = args.test_key or load_benchmark_secret()
+scripts/benchmarks/production_end_to_end_benchmark.py:3:"""Production end-to-end benchmark for AskMukthiGuru.
+scripts/benchmarks/production_end_to_end_benchmark.py:28:from benchmarks.question_bank import QUERIES  # noqa: E402
+scripts/benchmarks/production_end_to_end_benchmark.py:183:        "faithfulness_score": payload.get("faithfulness_score"),
+scripts/benchmarks/production_end_to_end_benchmark.py:309:    scores = [float(r["faithfulness_score"]) for r in chat if isinstance(r.get("faithfulness_score"), (int, float))]
+scripts/benchmarks/production_end_to_end_benchmark.py:335:        "faithfulness": {
+scripts/benchmarks/production_end_to_end_benchmark.py:365:    parser.add_argument("output", nargs="?", default="/tmp/production_end_to_end_benchmark.json")
+scripts/benchmarks/production_end_to_end_benchmark.py:389:                "faithfulness": record.get("faithfulness_score"),
+scripts/benchmarks/load_test.py:6:to benchmark TTFT (Time-to-First-Token) and completion latencies.
+scripts/benchmarks/load_test.py:33:    benchmark_secret = os.getenv("BENCHMARK_SECRET")
+scripts/benchmarks/load_test.py:35:    if benchmark_secret:
+scripts/benchmarks/load_test.py:36:        headers["X-Test-Key"] = benchmark_secret
+scripts/generate_sa_json.py:1048:                "Dissolve and Expand — visualise your body, the room, the entire universe dissolving and expanding into a limitless golden ocean of light. Feel you and existence are not separate.",
+scripts/generate_sa_json.py:1068:                "Flame Visualisation — visualise a steady golden flame glowing between your eyebrows. Slowly draw it inward to the centre of your brain — let it brighten the darkness and stabilise your mind.",
+backend/services/sarvam_service.py:892:    async def check_faithfulness(self, answer: str, context: str, **kwargs) -> bool:
+backend/services/sarvam_service.py:984:        Merges faithfulness checking (layer 10) and claim verification (layer 11)
+backend/services/sarvam_service.py:1017:        faithfulness_score = 1.0 if is_faithful else 0.0
+backend/services/sarvam_service.py:1034:                        faithfulness_score = float(scores[0])
+backend/services/sarvam_service.py:1052:                f"confidence={confidence}, faithfulness_score={faithfulness_score}, relevancy_score={relevancy_score}"
+backend/services/sarvam_service.py:1059:            "faithfulness_score": faithfulness_score,
+backend/services/auth_service.py:252:    """Strategy for local automated benchmarks and tests (X-Test-Key header).
+backend/services/auth_service.py:260:    cannot collide with a genuine account. It is a synthetic benchmark
+backend/services/auth_service.py:264:    SEC-4 (2026-08-10): Secret comparison delegated to `security_utils.is_benchmark_request`
+backend/services/auth_service.py:271:        from app.security_utils import is_benchmark_request
+backend/services/auth_service.py:273:        # Constant-time comparison via hmac.compare_digest (in is_benchmark_request).
+backend/services/auth_service.py:275:        if not is_benchmark_request(request):
+backend/services/auth_service.py:285:            "email": "benchmark-admin@mukthi.guru",
+backend/services/auth_service.py:577:# SEC-6: TestAuthStrategy benchmark backdoor.
+backend/services/auth_service.py:583:# The superuser identity is intentional — benchmarks exercise admin/ingest routes.
+backend/services/auth_service.py:591:    and getattr(settings, "benchmark_secret", None)
+backend/tests/test_pipeline_circuit_stub.py:79:    result = coord._circuit_open_result(is_benchmark=False, start_time=0.0)
+backend/tests/test_testauth_not_registered_in_prod.py:3:The X-Test-Key benchmark backdoor is gated on ALL THREE local-only
+backend/tests/test_testauth_not_registered_in_prod.py:108:    def test_testauth_absent_without_benchmark_secret(self):
+backend/tests/test_testauth_not_registered_in_prod.py:125:            assert settings.benchmark_secret == ""
+backend/tests/test_testauth_not_registered_in_prod.py:146:    async def test_benchmark_identity_uses_nil_uuid_sentinel(self):
+backend/tests/test_testauth_not_registered_in_prod.py:147:        """The fixed benchmark identity is the NIL UUID sentinel — a value
+backend/tests/test_testauth_not_registered_in_prod.py:155:                "BENCHMARK_SECRET": "benchmark-sentinel-check",
+backend/tests/test_testauth_not_registered_in_prod.py:163:            settings.benchmark_secret = "benchmark-sentinel-check"
+backend/tests/test_testauth_not_registered_in_prod.py:169:                _make_request({"X-Test-Key": "benchmark-sentinel-check"}), None
+backend/tests/test_release_provenance.py:381:        "faithfulness": 1.0,
+backend/tests/test_release_provenance.py:444:    circuit_res = coordinator._circuit_open_result(is_benchmark=False, start_time=0.0)
+backend/tests/test_release_provenance.py:633:    k1 = coordinator._build_context_aware_cache_key("What is the golden orb?", "en")
+backend/tests/test_release_provenance.py:651:    k2 = coordinator._build_context_aware_cache_key("What is the golden orb?", "en")
+backend/tests/test_release_provenance.py:669:    k3 = coordinator._build_context_aware_cache_key("What is the golden orb?", "en")
+backend/tests/test_chat_contract.py:90:        faithfulness_score=0.92,
+backend/tests/test_chat_contract.py:98:    assert payload["faithfulness_score"] == 0.92
+backend/tests/test_aal2_dependency.py:10:X-Test-Aal benchmark backdoor itself is covered at the strategy level with a
+backend/tests/test_aal2_dependency.py:30:_TEST_KEY = settings.benchmark_secret
+backend/tests/test_aal2_dependency.py:86:    """Unit tests for the X-Test-Aal header on the benchmark backdoor."""
+backend/tests/test_wiring_invariants.py:9:    tasks/, scripts/, benchmarks/, evaluation/, ...) except tests, so a field
+backend/tests/test_wiring_invariants.py:10:    consumed only by a benchmark script is still "read".
+backend/tests/test_wiring_invariants.py:94:    "guru_voice_benchmark_output",
+backend/tests/redteam_harness.py:194:    # 10 rapid requests with X-Test-Key → benchmark key is exempt from rate limit,
+backend/tests/redteam_harness.py:197:    # a regression for the benchmark path.) We assert all 10 succeed or are safely handled.
+backend/tests/redteam_harness.py:210:        "no 429 (benchmark exempt)",
+backend/tests/eval_ragas_native.py:50:async def run_benchmark():
+backend/tests/eval_ragas_native.py:57:    print("MUKTHI GURU: RAGAS-STYLE BENCHMARK EVALUATION")
+backend/tests/eval_ragas_native.py:79:                        "faithfulness": 1.0,  # N/A but safe
+backend/tests/eval_ragas_native.py:87:            # We manually trace the state to compute precision and faithfulness
+backend/tests/eval_ragas_native.py:123:                is_faithful = await ollama.check_faithfulness(answer, relevant_texts)
+backend/tests/eval_ragas_native.py:124:                faithfulness_score = 1.0 if is_faithful else 0.0
+backend/tests/eval_ragas_native.py:125:                print(f"  → Answer Faithfulness: {faithfulness_score:.2f}")
+backend/tests/eval_ragas_native.py:127:                faithfulness_score = 0.0
+backend/tests/eval_ragas_native.py:138:                    "faithfulness": faithfulness_score,
+backend/tests/eval_ragas_native.py:146:        print("\nNo benchmarks completed. Ensure Qdrant and Ollama are running.")
+backend/tests/eval_ragas_native.py:154:    avg_faith = sum(r["faithfulness"] for r in results) / len(results)
+backend/tests/eval_ragas_native.py:168:    asyncio.run(run_benchmark())
+backend/app/telemetry_db.py:59:    faithfulness = [
+backend/app/telemetry_db.py:60:        float(r["faithfulness"])
+backend/app/telemetry_db.py:62:        if isinstance(r.get("faithfulness"), (int, float))
+backend/app/telemetry_db.py:64:    faithfulness_nonzero = [value for value in faithfulness if value > 0.0]
+backend/app/telemetry_db.py:65:    floor = float(getattr(settings, "faithfulness_floor", 0.6))
+backend/app/telemetry_db.py:88:        "faithfulness_p50": round(_percentile(faithfulness_nonzero, 50), 4),
+backend/app/telemetry_db.py:89:        "faithfulness_p95": round(_percentile(faithfulness_nonzero, 95), 4),
+backend/app/telemetry_db.py:90:        "faithfulness_below_floor_rate": sum(1 for value in faithfulness_nonzero if value < floor) / len(faithfulness_nonzero) if faithfulness_nonzero else 0.0,
+backend/app/telemetry_db.py:91:        "faithfulness_zero_rate": sum(1 for value in faithfulness if value <= 0.0) / len(faithfulness) if faithfulness else 0.0,
+backend/app/telemetry_db.py:92:        "faithfulness_sample_size": len(faithfulness),
+backend/app/telemetry_db.py:232:            "faithfulness": response_data.get("faithfulness", 0.0),
+backend/app/telemetry_db.py:233:            "answer_relevancy": response_data.get("answer_relevancy", 0.0),
+backend/app/telemetry_db.py:234:            "context_precision": response_data.get("context_precision", 0.0),
+backend/app/telemetry_db.py:391:            "hallucination_flag, response_text, faithfulness"
+backend/app/telemetry_db.py:780:        # Get sources with average faithfulness (simplified)
+backend/app/telemetry_db.py:818:            "faithfulness": 0.0,
+backend/app/telemetry_db.py:846:                "faithfulness": 0.0,
+backend/app/telemetry_db.py:854:        # Calculate average faithfulness and relevancy
+backend/app/telemetry_db.py:855:        faithfulness_scores = [
+backend/app/telemetry_db.py:856:            r.get("faithfulness", 0)
+backend/app/telemetry_db.py:858:            if isinstance(r.get("faithfulness"), int | float)
+backend/app/telemetry_db.py:861:            r.get("answer_relevancy", 0)
+backend/app/telemetry_db.py:863:            if isinstance(r.get("answer_relevancy"), int | float)
+backend/app/telemetry_db.py:866:        avg_faithfulness = (
+backend/app/telemetry_db.py:867:            sum(faithfulness_scores) / len(faithfulness_scores) if faithfulness_scores else 0.0
+backend/app/telemetry_db.py:882:            "faithfulness": avg_faithfulness,
+backend/app/telemetry_db.py:892:            "faithfulness": 0.0,
+backend/app/telemetry_db.py:915:async def get_golden_questions() -> list[dict[str, Any]]:
+backend/app/telemetry_db.py:916:    """Get golden questions."""
+backend/app/telemetry_db.py:922:        response = client.table("golden_questions").select("*").execute()
+backend/app/telemetry_db.py:925:        logger.error(f"Failed to get golden questions: {e}")
+backend/app/telemetry_db.py:1038:    """Get top failures by faithfulness."""
+backend/app/telemetry_db.py:1054:        # Filter for low faithfulness and relevancy, then sort
+backend/app/telemetry_db.py:1058:        # Filter out entries with null faithfulness or relevancy
+backend/app/telemetry_db.py:1062:            if r.get("faithfulness") is not None and r.get("answer_relevancy") is not None
+backend/app/telemetry_db.py:1065:        # Sort by combined score (faithfulness + relevancy) ascending
+backend/app/telemetry_db.py:1066:        valid_responses.sort(key=lambda x: x.get("faithfulness", 0) + x.get("answer_relevancy", 0))
+backend/app/telemetry_db.py:1079:                    "faithfulness": failure.get("faithfulness", 0),
+backend/app/telemetry_db.py:1080:                    "answer_relevancy": failure.get("answer_relevancy", 0),
+backend/app/telemetry_db.py:1082:                    "reason": "Low faithfulness score",
+backend/app/telemetry_db.py:1140:    """Get RAGAS heatmap data."""
+backend/app/telemetry_db.py:1145:    metrics = ("faithfulness", "answer_relevancy", "context_precision", "context_recall")
+backend/app/telemetry_db.py:1151:            .select("faithfulness, answer_relevancy, context_precision, context_recall, created_at")
+backend/app/telemetry_db.py:1173:        logger.error(f"Failed to get RAGAS heatmap: {e}")
+backend/app/telemetry_db.py:1433:            .select("prompt_version_id, latency_ms, chat_responses(faithfulness, answer_relevancy)")
+backend/app/telemetry_db.py:1454:                    if response.get("faithfulness") is not None:
+backend/app/telemetry_db.py:1455:                        faith.append(float(response["faithfulness"]))
+backend/app/telemetry_db.py:1456:                    if response.get("answer_relevancy") is not None:
+backend/app/telemetry_db.py:1457:                        rel.append(float(response["answer_relevancy"]))
+backend/app/telemetry_db.py:1466:                    "avg_faithfulness": sum(faith) / len(faith) if faith else 0,
+backend/app/telemetry_db.py:1467:                    "avg_answer_relevancy": sum(rel) / len(rel) if rel else 0,
+backend/app/admin_telemetry.py:24:    "faithfulness",
+backend/app/admin_telemetry.py:25:    "answer_relevancy",
+backend/app/admin_telemetry.py:26:    "context_precision",
+backend/ingest/quality_gate.py:358:def gate_summary_faithfulness(
+backend/ingest/quality_gate.py:375:        score_faithfulness(query, context, answer) -> {"score": float}.
+backend/ingest/quality_gate.py:385:    effective_floor = floor if floor is not None else settings.raptor_summary_faithfulness_floor
+backend/ingest/quality_gate.py:387:        result = scorer.score_faithfulness("", context, summary)
+backend/ingest/quality_gate.py:390:        logger.warning("Summary faithfulness scoring failed, gating out: %s", e)
+backend/ingest/quality_gate.py:728:    # Summary faithfulness gate: supported summary passes, fabrication is gated out
+backend/ingest/quality_gate.py:730:        def score_faithfulness(self, q, context, answer):
+backend/ingest/quality_gate.py:737:    supported, s1 = gate_summary_faithfulness(
+backend/ingest/quality_gate.py:740:    fabricated, s2 = gate_summary_faithfulness(
+backend/app/security_utils.py:39:def is_benchmark_request(request) -> bool:
+backend/app/security_utils.py:41:    Detect a benchmark/test request via the X-Test-Key header.
+backend/app/security_utils.py:43:    The header only grants benchmark bypass when ALL of these hold:
+backend/app/security_utils.py:49:    JWT_SECRET is never accepted here — leaking it must not unlock benchmark
+backend/app/security_utils.py:58:    benchmark_secret = getattr(settings, "benchmark_secret", "") or ""
+backend/app/security_utils.py:65:    if not benchmark_secret or not test_key:
+backend/app/security_utils.py:67:    return hmac.compare_digest(test_key, benchmark_secret)
+backend/app/security_utils.py:346:        "No signing secret configured (csrf_secret/jwt_secret/benchmark_secret) — "
+backend/app/security_utils.py:365:    ``settings.benchmark_secret``. If none is set, falls back to a plain
+backend/app/security_utils.py:377:        or getattr(settings, "benchmark_secret", None)
+backend/tests/test_graph_stage_fixes.py:57:        is_benchmark=False,
+backend/tests/test_graph_stage_fixes.py:124:        is_benchmark=False,
+backend/tests/test_graph_stage_fixes.py:195:        is_benchmark=False,
+backend/tests/test_graph_stage_fixes.py:262:        is_benchmark=False,
+backend/app/services/llm_queue.py:174:    async def check_faithfulness(self, **kwargs):
+backend/app/services/llm_queue.py:176:            LLMPriority.VERIFY, self._provider.check_faithfulness, **kwargs
+backend/tests/test_semantic_router.py:5:  1. The four failing benchmark queries from results/query_results.json no longer
+backend/tests/test_semantic_router.py:144:        "Can I practice Soul Sync on Mars or does the gravity mess up the golden light?",
+backend/tests/test_semantic_router.py:150:def test_failing_benchmark_queries_do_not_route_to_meditation(query):
+backend/scripts/ops/hallucination_anomaly.py:5:  - faithfulness_p50 = median faithfulness score
+backend/scripts/ops/hallucination_anomaly.py:9:  - faithfulness_p50 < settings.anomaly_faithfulness_p50_threshold
+backend/scripts/ops/hallucination_anomaly.py:42:    """Pull chat_responses with faithfulness / hallucination_flag in the window.
+backend/scripts/ops/hallucination_anomaly.py:56:        .select("hallucination_flag, faithfulness, created_at")
+backend/scripts/ops/hallucination_anomaly.py:70:    """Derive hallucination rate and faithfulness p50 from response rows."""
+backend/scripts/ops/hallucination_anomaly.py:77:            "faithfulness_p50": 0.0,
+backend/scripts/ops/hallucination_anomaly.py:78:            "faithfulness_mean": 0.0,
+backend/scripts/ops/hallucination_anomaly.py:82:    faithfulness_values = [
+backend/scripts/ops/hallucination_anomaly.py:83:        float(r.get("faithfulness") or 0.0)
+backend/scripts/ops/hallucination_anomaly.py:85:        if isinstance(r.get("faithfulness"), (int, float))
+backend/scripts/ops/hallucination_anomaly.py:92:        "faithfulness_p50": statistics.median(faithfulness_values) if faithfulness_values else 0.0,
+backend/scripts/ops/hallucination_anomaly.py:93:        "faithfulness_mean": (
+backend/scripts/ops/hallucination_anomaly.py:94:            sum(faithfulness_values) / len(faithfulness_values) if faithfulness_values else 0.0
+backend/scripts/ops/hallucination_anomaly.py:115:                "faithfulness_p50": settings.anomaly_faithfulness_p50_threshold,
+backend/scripts/ops/hallucination_anomaly.py:132:                "faithfulness_p50": settings.anomaly_faithfulness_p50_threshold,
+backend/scripts/ops/hallucination_anomaly.py:140:    faith_alert = metrics["faithfulness_p50"] < settings.anomaly_faithfulness_p50_threshold
+backend/scripts/ops/hallucination_anomaly.py:149:            "faithfulness_p50": settings.anomaly_faithfulness_p50_threshold,
+backend/scripts/ops/hallucination_anomaly.py:155:            "faithfulness_p50_drop": faith_alert,
+backend/scripts/ops/hallucination_anomaly.py:195:        {"hallucination_flag": True, "faithfulness": 0.4},
+backend/scripts/ops/hallucination_anomaly.py:196:        {"hallucination_flag": False, "faithfulness": 0.9},
+backend/scripts/ops/hallucination_anomaly.py:197:        {"hallucination_flag": False, "faithfulness": 0.95},
+backend/scripts/ops/hallucination_anomaly.py:201:    assert m["faithfulness_p50"] == 0.9
+backend/scripts/ops/shadow_collection_experiment.py:6:with a candidate model, then runs the same golden-query NDCG evaluation
+backend/scripts/ops/shadow_collection_experiment.py:13:the new model score better on our golden queries," which is the part
+backend/scripts/ops/shadow_collection_experiment.py:90:    """Run the golden-query NDCG eval against both collections, dense-only
+backend/app/orchestrator_utils.py:422:            ["breath awareness", "humming", "pause", "Aham", "golden light", "intention"]
+backend/app/chat_engine.py:83:        self.faithfulness_score: float = 0.0
+backend/app/chat_engine.py:154:        is_benchmark: bool = False,
+backend/app/chat_engine.py:157:        return await self._execute_batch(chat_request, user, is_benchmark)
+backend/app/chat_engine.py:248:        is_benchmark: bool,
+backend/app/chat_engine.py:274:                is_benchmark=is_benchmark,
+backend/app/chat_engine.py:306:        result.faithfulness_score = pipeline_result.faithfulness_score
+backend/app/chat_engine.py:351:                is_benchmark=False,
+backend/app/chat_engine.py:470:                faithfulness=result.faithfulness_score,
+backend/scripts/ops/build_reingest_manifest.py:45:            "held_out_evaluation_passed",
+backend/app/api/cancel_flow.py:611:# Admin analytics: churn-metrics snapshot vs benchmark targets
+backend/app/api/cancel_flow.py:706:    """Admin-only snapshot of churn-prevention effectiveness vs benchmark targets.
+backend/app/api/cancel_flow.py:732:        "benchmarks": CHURN_BENCHMARKS,
+backend/app/api/cancel_flow.py:733:        "meets_benchmark": {
+backend/app/api/admin.py:28:    get_golden_questions,
+backend/app/api/admin.py:401:@admin_router.get("/golden-questions")
+backend/app/api/admin.py:402:async def list_golden_questions(
+backend/app/api/admin.py:405:    """List golden questions. Requires admin authentication."""
+backend/app/api/admin.py:406:    return await get_golden_questions()
+backend/app/api/admin.py:418:@admin_router.post("/golden-questions")
+backend/app/api/admin.py:419:async def upsert_golden_question(
+backend/app/api/admin.py:423:    """Create or update a golden question. Requires admin authentication + AAL2."""
+backend/app/api/admin.py:438:            client.table("golden_questions").update(payload).eq("id", body.id).execute()
+backend/app/api/admin.py:441:            result = client.table("golden_questions").insert(payload).execute()
+backend/app/api/admin.py:445:        logger.error(f"Failed to upsert golden question: {e}")
+backend/app/api/admin.py:446:        raise HTTPException(status_code=500, detail="Failed to save golden question")
+backend/app/api/admin.py:449:@admin_router.delete("/golden-questions/{question_id}")
+backend/app/api/admin.py:450:async def delete_golden_question(
+backend/app/api/admin.py:454:    """Delete a golden question. Requires admin authentication + AAL2."""
+backend/app/api/admin.py:461:        client.table("golden_questions").delete().eq("id", question_id).execute()
+backend/app/api/admin.py:464:        logger.error(f"Failed to delete golden question: {e}")
+backend/app/api/admin.py:465:        raise HTTPException(status_code=500, detail="Failed to delete golden question")
+backend/app/api/admin.py:670:    """Get top failures by faithfulness. Requires admin authentication."""
+backend/app/api/admin.py:681:    """Get RAGAS heatmap data. Requires admin authentication."""
+backend/app/api/chat.py:36:from app.security_utils import is_benchmark_request
+backend/app/api/chat.py:244:    chat_body: ChatRequest, user: dict, container: ServiceContainer, is_benchmark: bool
+backend/app/api/chat.py:251:    if is_benchmark:
+backend/app/api/chat.py:252:        logger.info("Bypassing server-side history retrieval for benchmark client")
+backend/app/api/chat.py:436:    is_benchmark = is_benchmark_request(request)
+backend/app/api/chat.py:447:        await populate_server_side_history(chat_body, user, container, is_benchmark)
+backend/app/api/chat.py:457:        and not is_benchmark
+backend/app/api/chat.py:471:            "is_benchmark": False,
+backend/app/api/chat.py:549:    is_benchmark = is_benchmark_request(request)
+backend/app/api/chat.py:559:        await populate_server_side_history(chat_body, user, container, is_benchmark)
+backend/app/api/chat.py:574:            is_benchmark=is_benchmark,
+backend/app/api/chat.py:598:        faithfulness_score=result.faithfulness_score,
+backend/app/api/chat.py:641:    is_benchmark = is_benchmark_request(request)
+backend/app/api/chat.py:652:        await populate_server_side_history(chat_body, user, container, is_benchmark)
+backend/app/api/chat.py:662:        and not is_benchmark
+backend/app/api/chat.py:676:            "is_benchmark": False,
+backend/tests/test_quality_gate.py:206:    """Stand-in faithfulness scorer: score = answer-word overlap with context.
+backend/tests/test_quality_gate.py:208:    Mirrors LettuceDetectService.score_faithfulness's contract without needing
+backend/tests/test_quality_gate.py:212:    def score_faithfulness(self, query, context, answer):
+backend/tests/test_quality_gate.py:220:def test_gate_summary_faithfulness_drops_unsupported_summary():
+backend/tests/test_quality_gate.py:221:    from ingest.quality_gate import gate_summary_faithfulness
+backend/tests/test_quality_gate.py:229:    supported, s_ok = gate_summary_faithfulness(
+backend/tests/test_quality_gate.py:232:    fabricated, s_bad = gate_summary_faithfulness(
+backend/tests/test_quality_gate.py:357:    mock_ld.score_faithfulness.return_value = {
+backend/tests/test_quality_gate.py:360:        "details": "Low faithfulness triggers CoVe.",
+backend/tests/test_quality_gate.py:413:    # is_faithful_ld remains False because faithfulness_score < floor, so
+backend/scripts/ops/build_doctrine_lexicon.py:127:    """Score the lexicon on held-out pairs. Precision is the number that matters."""
+backend/scripts/ops/build_doctrine_lexicon.py:246:    print("\ncalibration (held-out pairs, never fed into the lexicon):")
+backend/ingest/raptor.py:103:                "RAPTOR: gated out %d/%d unfaithful cluster summaries (faithfulness floor not met)",
+backend/ingest/raptor.py:109:            logger.info("RAPTOR: no summaries survived the faithfulness gate")
+backend/ingest/raptor.py:256:        Each summary is scored for faithfulness against its own source chunks so
+backend/ingest/raptor.py:264:        # skipped (score_faithfulness has no embedder to score with).
+backend/ingest/raptor.py:265:        from ingest.quality_gate import gate_summary_faithfulness
+backend/ingest/raptor.py:273:            return gate_summary_faithfulness(summary_text, cluster_texts, scorer)
+backend/ingest/raptor.py:321:                            "RAPTOR: cluster %d summary failed faithfulness "
+backend/ingest/raptor.py:334:                        "faithfulness_score": fscore,
+backend/ingest/raptor.py:348:                        "faithfulness_score": 1.0,
+backend/optimization/dspy/signatures.py:34:        faithfulness_score = dspy.OutputField()
+backend/tests/test_lettuce_detect_service.py:1:"""Regression tests for LettuceDetect faithfulness scoring."""
+backend/tests/test_lettuce_detect_service.py:35:    result = svc.score_faithfulness("any question", "some context", "")
+backend/tests/test_lettuce_detect_service.py:43:    result = svc.score_faithfulness("any question", "", "an answer")
+backend/tests/test_lettuce_detect_service.py:51:    result = svc.score_faithfulness("any question", "some context", "namaste hello")
+backend/tests/test_lettuce_detect_service.py:61:    result = svc.score_faithfulness(
+backend/tests/test_lettuce_detect_service.py:70:    """Doctrine keywords must not bypass a low faithfulness score (findings #1/#14)."""
+backend/tests/test_lettuce_detect_service.py:72:    result = svc.score_faithfulness(
+backend/tests/test_lettuce_detect_service.py:81:def test_faithfulness_batches_answer_sentence_embeddings():
+backend/tests/test_lettuce_detect_service.py:85:    result = svc.score_faithfulness(
+backend/tests/test_lettuce_detect_service.py:95:def test_fast_faithfulness_bypasses_embedding_inference():
+backend/tests/test_lettuce_detect_service.py:99:    result = svc.score_faithfulness(
+backend/tests/test_lettuce_detect_service.py:113:    result = svc.score_faithfulness(
+backend/tests/test_lettuce_detect_service.py:124:    result = svc.score_faithfulness(
+backend/tests/test_qdrant_search_quality.py:1:"""Qdrant search quality benchmarking.
+backend/tests/test_qdrant_search_quality.py:3:Measures NDCG@10 on golden queries across retrieval strategies:
+backend/tests/test_qdrant_search_quality.py:28:    Multi-key fallback fixes the NDCG=0.0 measurement bug (2026-08-03) where
+backend/tests/test_qdrant_search_quality.py:123:    """Golden query evaluation with NDCG@K metric."""
+backend/tests/test_qdrant_search_quality.py:178:        """Compute NDCG@K using standard log2(rank+1) formulation.
+backend/tests/test_qdrant_search_quality.py:189:            NDCG@K score in [0.0, 1.0]
+backend/tests/test_qdrant_search_quality.py:193:        # NDCG@K measures the top-k retrieved items: apply the cutoff to the
+backend/tests/test_qdrant_search_quality.py:214:        """Evaluate one retrieval strategy on golden queries.
+backend/tests/test_qdrant_search_quality.py:275:                    "NDCG: %d/%d source filenames are empty — source extraction "
+backend/tests/test_qdrant_search_quality.py:283:            # Compute NDCG@10
+backend/tests/test_qdrant_search_quality.py:291:                    f"{strategy} | {query[:40]}... | NDCG={ndcg:.3f} (threshold={threshold})"
+backend/tests/test_qdrant_search_quality.py:319:    assert result["mean_ndcg"] >= 0.70, f"Dense search mean NDCG too low: {result['mean_ndcg']}"
+backend/tests/test_qdrant_search_quality.py:320:    logger.info(f"Dense NDCG@10: {result['mean_ndcg']:.3f}")
+backend/tests/test_qdrant_search_quality.py:329:    assert result["mean_ndcg"] >= 0.75, f"Hybrid search mean NDCG too low: {result['mean_ndcg']}"
+backend/tests/test_qdrant_search_quality.py:330:    logger.info(f"Hybrid NDCG@10: {result['mean_ndcg']:.3f}")
+backend/tests/test_qdrant_search_quality.py:344:    assert result["mean_ndcg"] >= 0.78, f"Hybrid+reranked mean NDCG too low: {result['mean_ndcg']}"
+backend/tests/test_qdrant_search_quality.py:345:    logger.info(f"Hybrid+Reranked NDCG@10: {result['mean_ndcg']:.3f}")
+backend/tests/test_qdrant_search_quality.py:364:            f"Hybrid NDCG regressed: {current['mean_ndcg']:.3f} (baseline: {baseline_ndcg:.3f})"
+backend/optimization/dspy/dataset.py:1:"""Build DSPy training/eval examples from existing benchmark assets."""
+backend/optimization/dspy/dataset.py:23:    """Convert backend benchmark questions into compact optimization examples."""
+backend/optimization/dspy/dataset.py:24:    from benchmarks.question_bank import QUERIES
+backend/optimization/dspy/dataset.py:44:def examples_from_benchmark_report(path: Path) -> list[OptimizationExample]:
+backend/optimization/dspy/dataset.py:45:    """Convert a ruthless benchmark JSON report into examples with observed outputs."""
+backend/optimization/dspy/dataset.py:60:                category=str(row.get("category", "benchmark")),
+backend/optimization/dspy/__init__.py:4:artifacts from golden questions and benchmark traces, but production prompts are
+backend/optimization/dspy/optimize.py:17:    examples_from_benchmark_report,
+backend/optimization/dspy/optimize.py:30:        examples.extend(examples_from_benchmark_report(report))
+backend/tests/test_benchmarks.py:1:from benchmarks.question_bank import QUERIES
+backend/tests/test_benchmarks.py:2:from benchmarks.ruthless_benchmark import InfraResult, SingleResult, calculate_scores
+backend/tests/test_benchmarks.py:27:            faithfulness=0.95,
+backend/tests/test_benchmarks.py:40:            faithfulness=0.9,
+backend/tests/test_benchmarks.py:53:            faithfulness=0.9,
+backend/tests/test_benchmarks.py:62:    assert scores["faithfulness"].score == 1.0
+backend/app/orchestrator.py:27:from app.security_utils import is_benchmark_request
+backend/app/orchestrator.py:68:        is_benchmark = is_benchmark_request(request)
+backend/app/orchestrator.py:87:                is_benchmark=is_benchmark,
+backend/app/orchestrator.py:148:            faithfulness_score=result.faithfulness_score,
+backend/app/orchestrator.py:186:                faithfulness=result.faithfulness_score,
+backend/app/orchestrator.py:187:                answer_relevancy=result.answer_relevancy,
+backend/app/orchestrator.py:188:                context_precision=result.context_precision,
+backend/app/orchestrator.py:270:                is_benchmark=False,
+backend/app/orchestrator.py:560:        "faithfulness_score": result.faithfulness_score,
+backend/tests/test_answer_path_regressions.py:11:  3. `format_final_answer` overwrote the measured fast-tier faithfulness score
+backend/tests/test_answer_path_regressions.py:142:# 3. Fast-tier faithfulness must be measured, not asserted
+backend/tests/test_answer_path_regressions.py:155:    assert 'state.get("faithfulness_score")' in tail
+backend/tests/test_answer_path_regressions.py:156:    assert "faithfulness_floor" in tail
+backend/scripts/build_comprehensive_golden_qa_bank.py:2:"""build_comprehensive_golden_qa_bank.py
+backend/scripts/build_comprehensive_golden_qa_bank.py:234:        "reference_answer": "Soul Sync is a powerful, science-backed meditation designed by Sri Preethaji that shifts the brain from a chaotic Beta state to a calm, coherent Alpha state, allowing you to access universal intelligence and manifest intentions. The 6 steps are:\n1. Breath Awareness: Take 8 slow, deep conscious breaths, focusing on inhalation and exhalation.\n2. Bee Humming (Bhramari): For 8 breaths, exhale making a gentle humming sound like a bee to quiet the nervous system.\n3. Observation of the Pause: For 8 breaths, notice the tranquil pause and silence between your breaths.\n4. Chanting Aham: For 8 breaths, chant the sacred Sanskrit sound 'A-hummm' (signifying 'I am pure consciousness').\n5. Golden Light Visualization: Visualize radiant golden light filling your entire body and expanding into the universe.\n6. Setting Heartfelt Intention (Sankalpa): In this expanded state, hold your heartfelt intention with clarity and gratitude as if already fulfilled.",
+backend/scripts/build_comprehensive_golden_qa_bank.py:247:            "golden light",
+backend/scripts/build_comprehensive_golden_qa_bank.py:331:        "reference_answer": "Ekam's three-tiered structure mirrors the journey of human spiritual evolution:\n1. The Ground Floor (Dharma Moksha Hall): Represents freedom from suffering, dissolution of personal conflicts, and moral harmony.\n2. The Middle Floor: Represents the expansion of consciousness and awakening to interconnectedness.\n3. The Upper Sanctum (Garbha Griha): A pillarless meditation hall spanning over 25,000 square feet, holding the radiant golden Amrit Kalash at its apex. Here, practitioners sit in stillness to experience direct connection with universal intelligence and enlightenment.",
+backend/scripts/build_comprehensive_golden_qa_bank.py:656:    out_file = Path(__file__).resolve().parent.parent / "evaluation" / "golden_qa_bank.json"
+backend/scripts/build_comprehensive_golden_qa_bank.py:675:        f"Successfully generated {out_file} with {len(DATA)} golden Q&A entries across {len(categories)} categories."
+backend/tests/test_admin_telemetry.py:14:            "faithfulness": 0.9,
+backend/tests/test_admin_telemetry.py:23:        "faithfulness": 0.9,
+backend/tests/test_meditation_routing.py:3:The pre-fix benchmark (results/query_results.json, run 2026-06-16) had three
+backend/tests/test_meditation_routing.py:93:        # The four failing benchmark queries that hit the hijack:
+backend/tests/test_meditation_routing.py:94:        "Can I practice Soul Sync on Mars or does the gravity mess up the golden light?",
+backend/tests/test_meditation_routing.py:195:        "Can I practice Soul Sync on Mars or does the gravity mess up the golden light?",
+backend/app/schemas/__init__.py:207:    faithfulness_score: Optional[float] = Field(None, description="Self-RAG faithfulness score")
+backend/app/schemas/__init__.py:223:        None, description="Trajectory metadata for benchmark and production AI evaluation"
+backend/app/telemetry_sink.py:99:        faithfulness: float = 1.0,
+backend/app/telemetry_sink.py:100:        answer_relevancy: float = 1.0,
+backend/app/telemetry_sink.py:101:        context_precision: float = 1.0,
+backend/app/telemetry_sink.py:142:            "faithfulness": faithfulness,
+backend/app/telemetry_sink.py:143:            "answer_relevancy": answer_relevancy,
+backend/app/telemetry_sink.py:144:            "context_precision": context_precision,
+backend/app/telemetry_sink.py:296:        faithfulness = p.get("faithfulness", 1.0)
+backend/app/telemetry_sink.py:297:        answer_relevancy = p.get("answer_relevancy", 1.0)
+backend/app/telemetry_sink.py:298:        context_precision = p.get("context_precision", 1.0)
+backend/app/telemetry_sink.py:352:                "faithfulness": faithfulness,
+backend/app/telemetry_sink.py:353:                "answer_relevancy": answer_relevancy,
+backend/app/telemetry_sink.py:354:                "context_precision": context_precision,
+backend/scripts/chaos_qdrant_kill.py:75:        print("BENCHMARK_SECRET env required (benchmark auth backdoor)", file=sys.stderr)
+backend/app/contracts/llm.py:63:    async def check_faithfulness(
+backend/tests/test_chat_engine_boundary.py:48:        faithfulness_score=0.9,
+backend/tests/test_context_graph_expansion.py:38:def test_ndcg_at_k_is_held_out_and_bounded():
+backend/tests/test_grounding.py:47:            "faithfulness_score": 0.0,
+backend/tests/test_grounding.py:61:    assert response_data["faithfulness"] == 0.0
+backend/scripts/validate_onnx_reranker.py:11:P3  latency benchmark         — warm P95 < 600ms, cold P95 < 1500ms (2-thread Railway CPU).
+backend/scripts/validate_onnx_reranker.py:307:# P3 — latency benchmark
+backend/scripts/validate_onnx_reranker.py:311:def latency_benchmark(num_pairs: int = 100, warm_iters: int = 20) -> tuple[bool, dict]:
+backend/scripts/validate_onnx_reranker.py:456:        ok, metrics = latency_benchmark(num_pairs=100, warm_iters=20)
+backend/app/stream_orchestrator.py:26:from app.security_utils import is_benchmark_request
+backend/app/stream_orchestrator.py:81:        is_benchmark = is_benchmark_request(request)
+backend/app/stream_orchestrator.py:119:                is_benchmark=is_benchmark,
+backend/app/stream_orchestrator.py:373:                faithfulness=result.faithfulness_score,
+backend/app/stream_orchestrator.py:374:                answer_relevancy=result.answer_relevancy,
+backend/app/stream_orchestrator.py:375:                context_precision=result.context_precision,
+backend/tests/test_audit_fixes.py:14:    mock_ld.score_faithfulness = MagicMock(
+backend/tests/test_audit_fixes.py:38:        # Mock verify_answer's score_faithfulness to verify it is NOT called
+backend/tests/test_audit_fixes.py:39:        mock_ld.score_faithfulness.reset_mock()
+backend/tests/test_audit_fixes.py:43:        mock_ld.score_faithfulness.assert_not_called()
+backend/tests/test_streaming_guardrail.py:34:    faithfulness_score: float = 1.0
+backend/tests/test_nodes.py:112:    mock_ld.score_faithfulness.return_value = {
+backend/tests/test_nodes.py:162:    assert mock_ld.score_faithfulness.call_count == 1
+backend/tests/test_nodes.py:170:    mock_ld.score_faithfulness.return_value = {
+backend/tests/test_nodes.py:226:    mock_ld.score_faithfulness.return_value = {
+backend/tests/test_nodes.py:299:    assert result["faithfulness_score"] == 0.85
+backend/tests/test_nodes.py:303:async def test_verify_answer_tier3_complex_fast_exit_rejects_low_faithfulness(mock_services):
+backend/tests/test_nodes.py:308:    mock_ld.score_faithfulness.return_value = {
+backend/tests/test_nodes.py:367:    assert result["faithfulness_score"] == 0.1
+backend/tests/test_nodes.py:427:    mock_ld.score_faithfulness.return_value = {
+backend/tests/test_nodes.py:487:    assert result["faithfulness_score"] == 0.92
+backend/tests/test_nodes.py:499:    mock_ld.score_faithfulness.return_value = {
+backend/scripts/validate_onnx_embedding.py:81:    from benchmarks.question_bank import QUERIES
+backend/tests/test_pipeline_stages.py:123:        is_benchmark=False,
+backend/tests/test_pipeline_stages.py:325:            "faithfulness_score": 0.95,
+backend/tests/test_cove_enable.py:95:    mock_ld.score_faithfulness.return_value = {
+backend/tests/test_cove_enable.py:119:    assert result["faithfulness_score"] == 0.0
+backend/tests/test_cove_enable.py:134:    assert result["faithfulness_score"] == 0.85
+backend/tests/test_cove_enable.py:189:    mock_ld.score_faithfulness.return_value = {
+backend/tests/test_cove_enable.py:200:    mock_ld.score_faithfulness.assert_called_once()
+backend/tests/test_answer_evidence.py:13:    _faithfulness_score,
+backend/tests/test_answer_evidence.py:55:def test_pending_faithfulness_zero_is_unknown_but_measured_zero_is_failure():
+backend/tests/test_answer_evidence.py:56:    assert _faithfulness_score(
+backend/tests/test_answer_evidence.py:57:        {"is_faithful": None, "faithfulness_score": 0.0}, {"faithfulness": 0.9}
+backend/tests/test_answer_evidence.py:59:    assert _faithfulness_score(
+backend/tests/test_answer_evidence.py:60:        {"is_faithful": False, "faithfulness_score": 0.0}, {"faithfulness": 0.9}
+backend/tests/test_answer_evidence.py:62:    assert _faithfulness_score(
+backend/tests/test_answer_evidence.py:63:        {"is_faithful": None, "faithfulness_score": 0.7}, {"faithfulness": 0.9}
+backend/scripts/warm_doctrine_cache.py:5:Queries are sourced from the benchmark question bank.
+backend/scripts/warm_doctrine_cache.py:23:from benchmarks.question_bank import QUERIES
+backend/scripts/test_one_question.py:33:        is_benchmark=True,
+scripts/ingestion/reviews/confirmed_patch/backup_before_apply/avCLyAi9DeY/transcript.md:26:Now ask every cell of your body be filled with the divine. Visualize every cell of your body being filled with grace and feel the power flow into your hands. At this point, you may gently please both the hands on the receiver's head for around 30 seconds. Ask the divine to enter the receiver. Visualize Hiranyagarbha, the golden orb enter through Brahmarandra or the spiritual opening at the top of the head and feel the Hiranyagarbha settle into the receiver's heart.
+backend/tests/test_rag_advanced.py:57:    res_grounded = service.score_faithfulness(
+backend/tests/test_rag_advanced.py:65:    res_hallucinated = service.score_faithfulness(
+backend/tests/test_benchmark_sql_safety.py:1:"""Tests for SQL parameterization and injection safety in benchmark tools."""
+backend/tests/test_benchmark_sql_safety.py:7:from benchmarks.verify_custom_assistants import build_telemetry_check_command
+backend/tests/test_server_side_history.py:20:    await populate_server_side_history(chat_body, user, container, is_benchmark=False)
+backend/tests/test_server_side_history.py:34:    await populate_server_side_history(chat_body, user, container, is_benchmark=False)
+backend/tests/test_server_side_history.py:60:        await populate_server_side_history(chat_body, user, container, is_benchmark=False)
+backend/tests/test_server_side_history.py:109:    await populate_server_side_history(chat_body, user, container, is_benchmark=False)
+backend/tests/test_server_side_history.py:119:async def test_populate_server_side_history_benchmark():
+backend/tests/test_server_side_history.py:129:    await populate_server_side_history(chat_body, user, container, is_benchmark=True)
+backend/tests/test_test_auth_strategy.py:3:These tests verify that the benchmark auth backdoor (X-Test-Key) is only active
+backend/tests/test_test_auth_strategy.py:63:            assert settings.benchmark_secret == ""
+backend/tests/test_test_auth_strategy.py:92:            assert settings.benchmark_secret == ""
+backend/tests/test_test_auth_strategy.py:159:                "BENCHMARK_SECRET": "my-benchmark-secret",
+backend/tests/test_test_auth_strategy.py:168:            assert settings.benchmark_secret == "my-benchmark-secret"
+backend/tests/test_test_auth_strategy.py:184:    authenticate() delegates to is_benchmark_request() which reads from
+backend/tests/test_test_auth_strategy.py:186:    is_benchmark_request sees the correct values without requiring a module
+backend/tests/test_test_auth_strategy.py:199:            settings.benchmark_secret,
+backend/tests/test_test_auth_strategy.py:204:            settings.benchmark_secret = "my-secret"
+backend/tests/test_test_auth_strategy.py:212:            assert result["email"] == "benchmark-admin@mukthi.guru"
+backend/tests/test_test_auth_strategy.py:216:            settings.is_production, settings.enable_test_auth, settings.benchmark_secret = saved
+backend/tests/test_test_auth_strategy.py:224:        saved = (settings.is_production, settings.enable_test_auth, settings.benchmark_secret)
+backend/tests/test_test_auth_strategy.py:228:            settings.benchmark_secret = "correct-secret"
+backend/tests/test_test_auth_strategy.py:235:            settings.is_production, settings.enable_test_auth, settings.benchmark_secret = saved
+backend/tests/test_test_auth_strategy.py:243:        saved = (settings.is_production, settings.enable_test_auth, settings.benchmark_secret)
+backend/tests/test_test_auth_strategy.py:247:            settings.benchmark_secret = "my-secret"
+backend/tests/test_test_auth_strategy.py:254:            settings.is_production, settings.enable_test_auth, settings.benchmark_secret = saved
+backend/tests/test_test_auth_strategy.py:262:        saved = (settings.is_production, settings.enable_test_auth, settings.benchmark_secret)
+backend/tests/test_test_auth_strategy.py:266:            settings.benchmark_secret = ""
+backend/tests/test_test_auth_strategy.py:273:            settings.is_production, settings.enable_test_auth, settings.benchmark_secret = saved
+backend/tests/test_test_auth_strategy.py:280:    is_benchmark_request() reading from settings. Tests that exercise the full
+backend/tests/test_test_auth_strategy.py:336:            # Also patch settings so is_benchmark_request (settings-based) agrees.
+backend/tests/test_test_auth_strategy.py:337:            saved = (settings.is_production, settings.enable_test_auth, settings.benchmark_secret)
+backend/tests/test_test_auth_strategy.py:341:                settings.benchmark_secret = "test-secret-123"
+backend/tests/test_test_auth_strategy.py:350:                settings.is_production, settings.enable_test_auth, settings.benchmark_secret = saved
+backend/tests/test_test_auth_strategy.py:374:            # Also patch settings so is_benchmark_request (settings-based)
+backend/tests/test_test_auth_strategy.py:377:            saved = (settings.is_production, settings.enable_test_auth, settings.benchmark_secret)
+backend/tests/test_test_auth_strategy.py:381:                settings.benchmark_secret = "correct-secret"
+backend/tests/test_test_auth_strategy.py:389:                settings.is_production, settings.enable_test_auth, settings.benchmark_secret = saved
+backend/tests/test_golden_dataset.py:1:"""Test: golden_dataset.json is valid and populated; golden_eval CLI parses.
+backend/tests/test_golden_dataset.py:5:# questions are added to backend/benchmarks/question_bank.py.
+backend/tests/test_golden_dataset.py:15:DATASET = BACKEND / "evaluation" / "golden_dataset.json"
+backend/tests/test_golden_dataset.py:16:EVAL = BACKEND / "benchmarks" / "golden_eval.py"
+backend/tests/test_golden_dataset.py:39:def test_golden_eval_cli_parses():
+backend/tests/test_golden_dataset.py:50:def test_golden_eval_requires_flag():
+backend/tests/test_golden_dataset.py:62:    test_golden_eval_cli_parses()
+backend/tests/test_golden_dataset.py:63:    test_golden_eval_requires_flag()
+backend/tests/test_golden_dataset.py:64:    print("OK: golden dataset + eval CLI")
+backend/tests/test_cache_stage_faithfulness.py:3:Regression: a hallucinated (low-faithfulness) answer was cached and served to
+backend/tests/test_cache_stage_faithfulness.py:4:every seeker with the same query. The faithfulness verdict lives on
+backend/tests/test_cache_stage_faithfulness.py:11:  * faithfulness_score < floor   -> never cache (CoVe compulsory threshold)
+backend/tests/test_cache_stage_faithfulness.py:63:        is_benchmark=False,
+backend/tests/test_cache_stage_faithfulness.py:105:    _, ctx = _run(_ctx(coord, graph_result={"is_faithful": False, "faithfulness_score": 0.2}))
+backend/tests/test_cache_stage_faithfulness.py:114:async def test_low_faithfulness_score_not_cached():
+backend/tests/test_cache_stage_faithfulness.py:118:    _, ctx = _run(_ctx(coord, graph_result={"is_faithful": True, "faithfulness_score": 0.3}))
+backend/tests/test_cache_stage_faithfulness.py:156:    _, ctx = _run(_ctx(coord, graph_result={"is_faithful": True, "faithfulness_score": 0.95}))
+backend/tests/test_cache_stage_faithfulness.py:167:    _, ctx = _run(_ctx(coord, graph_result={"is_faithful": True, "faithfulness_score": 0.95}))
+backend/tests/test_cache_stage_faithfulness.py:207:                "faithfulness_score": 0.0,
+scripts/ingestion/reviews/confirmed_patch/backup_before_apply/Y7p7jHP0Ii0/transcript.md:26:When I was 11 years old, one day a magnificent golden being suddenly manifested in my heart. When I asked him, who are you? The being did not say I am Shiva, Vishnu or Narayana. He called himself by a strange name. He said, I am Prajapati. I had never heard that name before. I used to converse and have a beautiful connection with this being, who take me on journeys to higher worlds. He would show me my past lives, heal people and do so many miracles around nature. That golden being after some time transformed into the golden orb or the Hiranyagarbha. When I shared my experience with my father, he immediately knew that the Hiranyagarbha into which he had chanted for years had reappeared in me to help humanity. The time had come. He asked me if I could transfer this experience to others.
+scripts/ingestion/reviews/confirmed_patch/backup_before_apply/Y7p7jHP0Ii0/transcript.md:30:And Shri Bhagawan guided the phenomenon to reach the lives of millions across the globe. The purpose of dikshas is to receive a manifestation of the Hiranyagarbha in the form of the divine that you choose. Through dikshas, you can access the power of the Hiranyagarbha anywhere and at any time. Through dikshas, you can participate in elevating humanity to enlightenment. I would also like to tell you that in the entire world, there is only one sacred temple that houses the Hiranyagarbha or the golden orb, and that is Ekam. Only a powerful Kshetra like Ekam will be able to house this divine phenomenon.
+backend/tests/test_incognito_isolation.py:34:    await populate_server_side_history(request, {"id": "user-1"}, container, is_benchmark=False)
+backend/tests/tmp_expanded_chat_probe.py:85:                                    "intent", "grounding_state", "faithfulness_score",
+backend/tests/test_readiness_gate.py:1:from benchmarks.readiness_gate import evaluate, summarise
+backend/README.md:119:    faithfulness_score: str         # faithful | hallucinated
+backend/rag/resolve_followup.py:176:    # Build history string from last 10 messages (5 turns) so benchmark follow-ups
+backend/rag/meditation.py:40:            "Visualize golden light expanding through you into oneness.",
+backend/scripts/validate_onnx_retrieval.py:76:    from benchmarks.question_bank import (
+backend/scripts/validate_onnx_retrieval.py:135:    from benchmarks.question_bank import QUERIES
+backend/rag/states.py:88:      - is_faithful:    Set by check_faithfulness. Boolean grounding check
+backend/rag/states.py:163:    faithfulness_score: Annotated[
+backend/rag/states.py:165:    ]  # Self-RAG / LettuceDetect faithfulness score
+backend/rag/states.py:229:    # Machine-readable trajectory data for benchmarks and trace dashboards.
+backend/scripts/warm_semantic_cache.py:1:"""Warm the semantic cache by running doctrine benchmark queries through the pipeline."""
+backend/scripts/warm_semantic_cache.py:14:from benchmarks.question_bank import (
+backend/scripts/warm_cache.py:74:                is_benchmark=True,
+backend/rag/prompts/rag.py:57:FAITHFULNESS_CHECK_PROMPT = """You are a strict faithfulness checker for a spiritual guidance system.
+backend/rag/prompts/rag.py:89:ENHANCED_FAITHFULNESS_CHECK_PROMPT = """You are a strict faithfulness checker for a spiritual guidance system.
+scripts/ingestion/1_fetch_transcripts_local.py:936:    """Execute the 11-fixture pilot benchmark set."""
+scripts/ingestion/1_fetch_transcripts_local.py:1026:    parser.add_argument("--pilot-only", action="store_true", help="Run the 11-fixture pilot benchmark set")
+backend/QDRANT_ENHANCEMENTS.md:9:- **What**: NDCG@10 metric on 5 golden queries
+backend/QDRANT_ENHANCEMENTS.md:13:- **Result**: Each strategy must hit min NDCG thresholds (0.70-0.78)
+backend/QDRANT_ENHANCEMENTS.md:74:✅ `backend/tests/test_qdrant_search_quality.py` — NDCG evaluation
+backend/rag/prompts/guardrails.py:18:# (ref: Mental-LLM / neuhai, sonia-health/llm-mental-health-risk-detection benchmark).
+backend/benchmarks/smoke_doctrine.py:3:smoke_doctrine.py — Micro-benchmark to verify that BAAI/bge-m3 queries retrieve
+backend/benchmarks/smoke_doctrine.py:8:  docker compose exec backend python benchmarks/smoke_doctrine.py
+scripts/warm_cache.py:68:                is_benchmark=True,  # Bypasses normal user constraints / limits if any
+backend/rag/prompts/system.py:177:  * **Soul Sync** — breath, humming, pause, Aham, golden light, intention.
+backend/rag/prompts/system.py:351:        "Feel the warmth there. Imagine a soft golden light "
+backend/benchmarks/run_all.py:4:Runs HTTP API ruthless benchmarks and native Ollama evaluators,
+backend/benchmarks/run_all.py:86:                avg_faith = sum(r.get("faithfulness", 0) for r in native_data) / len(native_data)
+backend/benchmarks/run_all.py:138:    success_ruthless = run_script("ruthless_benchmark.py", ruthless_args)
+backend/rag/graph_strategies.py:493:                lettuce_detect.score_faithfulness,
+backend/rag/graph_strategies.py:498:            timeout=float(getattr(settings, "faithfulness_verification_timeout", 8.0)),
+backend/rag/graph_strategies.py:502:        if score < settings.faithfulness_floor:
+backend/rag/graph_strategies.py:511:        logger.warning("deep_contradiction_gate: faithfulness scorer deadline exceeded")
+backend/benchmarks/verify_custom_assistants.py:25:        "benchmark_secret": args.benchmark_secret or os.getenv("BENCHMARK_SECRET", ""),
+backend/benchmarks/verify_custom_assistants.py:33:        headers = {"X-Test-Key": config["benchmark_secret"]}
+backend/benchmarks/verify_custom_assistants.py:93:        "--benchmark-secret", default=None, help="Benchmark test key (default: $BENCHMARK_SECRET)"
+backend/benchmarks/lightrag_answer_comparison.py:10:  cd backend && python -m benchmarks.lightrag_answer_comparison
+backend/benchmarks/lightrag_answer_comparison.py:28:from benchmarks.question_bank import QUERIES
+backend/benchmarks/lightrag_answer_comparison.py:330:    report_path = Path("benchmarks/reports/lightrag_answer_comparison.json")
+backend/rag/nodes/utils.py:133:        ["soul sync", "breath awareness", "humming", "golden light", "guided meditation"],
+backend/rag/nodes/utils.py:857:    """Select generation model via config, not benchmark-answer hardcoding.
+backend/rag/nodes/keyword_injection.py:62:            "golden light",
+backend/benchmarks/comprehensive_benchmark.py:4:This module defines a diverse set of benchmark questions across different
+backend/benchmarks/comprehensive_benchmark.py:7:backend API (or mocks) and reports on accuracy, latency, and faithfulness.
+backend/benchmarks/comprehensive_benchmark.py:17:    cd backend && python -m benchmarks.comprehensive_benchmark
+backend/benchmarks/comprehensive_benchmark.py:48:    """A single benchmark question with expected outcomes."""
+backend/benchmarks/comprehensive_benchmark.py:613:def get_benchmarks_by_category(category: BenchmarkCategory) -> list[BenchmarkCase]:
+backend/benchmarks/comprehensive_benchmark.py:614:    """Return all benchmarks filtered by category."""
+backend/benchmarks/comprehensive_benchmark.py:618:def get_benchmarks_by_difficulty(difficulty: Difficulty) -> list[BenchmarkCase]:
+backend/benchmarks/comprehensive_benchmark.py:619:    """Return all benchmarks filtered by difficulty."""
+backend/benchmarks/comprehensive_benchmark.py:624:    """Print a human-readable summary of all benchmarks."""
+backend/benchmarks/comprehensive_benchmark.py:841:    parser = argparse.ArgumentParser(description="Comprehensive benchmark runner for AskMukthiGuru")
+backend/benchmarks/comprehensive_benchmark.py:851:    print("🚀 Running comprehensive benchmarks...")
+backend/rag/nodes/on_device_intent.py:114:        "golden light meditation",
+backend/rag/nodes/generation.py:51:    # refusal with an apparently healthy faithfulness score.
+backend/rag/nodes/generation.py:458:        "golden light",
+backend/rag/nodes/generation.py:662:        "pause, Aham, golden light, intention, Deeksha, oneness blessing, frontal lobe, "
+backend/rag/nodes/generation.py:1023:                "faithfulness_score": 0.9,
+backend/rag/nodes/generation.py:1062:            "faithfulness_score": 0.0,
+backend/rag/nodes/generation.py:1208:            "faithfulness_score": 0.0,
+backend/rag/nodes/generation.py:1348:                "faithfulness_score": 0.0,
+backend/rag/nodes/generation.py:1392:                "faithfulness_score": 0.0,
+backend/rag/nodes/generation.py:1477:    # flagged on by default; benchmark gate in guru_voice_benchmark.py.
+backend/rag/nodes/generation.py:1811:                    "\n\nIMPORTANT: Your previous answer was rejected for insufficient faithfulness. "
+backend/rag/nodes/generation.py:1926:    # local LettuceDetect faithfulness check here to give format_final_answer an
+backend/rag/nodes/generation.py:1930:        # local LettuceDetect faithfulness check here to give format_final_answer an
+backend/rag/nodes/generation.py:1938:        faithfulness_score = 1.0
+backend/rag/nodes/generation.py:1947:                # their explicit faithfulness_score=0.0 contract.
+backend/rag/nodes/generation.py:1948:                faithfulness_score = _LANGUAGE_AWARE_FAST_TIER_SCORE
+backend/rag/nodes/generation.py:1950:                confidence_score = faithfulness_score * 10.0
+backend/rag/nodes/generation.py:1954:                    "score": faithfulness_score,
+backend/rag/nodes/generation.py:1962:                        lettuce_detect.score_faithfulness,
+backend/rag/nodes/generation.py:1968:                    faithfulness_score = ld_result.get("score", 1.0)
+backend/rag/nodes/generation.py:1970:                    confidence_score = faithfulness_score * 10.0
+backend/rag/nodes/generation.py:1974:                        "score": faithfulness_score,
+backend/rag/nodes/generation.py:1977:                    logger.warning("Fast-tier faithfulness check failed (non-fatal): %s", _ld_err)
+backend/rag/nodes/generation.py:1979:                    faithfulness_score = 1.0
+backend/rag/nodes/generation.py:1985:        output["faithfulness_score"] = faithfulness_score
+backend/rag/nodes/generation.py:2113:            "faithfulness_score": 0.0,
+backend/rag/nodes/generation.py:2141:            "faithfulness_score": 0.0,
+backend/rag/nodes/generation.py:2170:            "faithfulness_score": 0.0,
+backend/rag/nodes/generation.py:2198:            "faithfulness_score": 0.0,
+backend/rag/nodes/generation.py:2245:                "faithfulness_score": 0.0,
+backend/rag/nodes/generation.py:2260:            "faithfulness_score": 0.0,
+backend/rag/nodes/generation.py:2301:            "faithfulness_score": 0.0,
+backend/rag/nodes/generation.py:2332:            "faithfulness_score": 0.0,
+backend/rag/nodes/generation.py:2348:    # Fast tier skips the heavy verification NODES, not the faithfulness GATE.
+backend/rag/nodes/generation.py:2351:    # `faithfulness_score: 1.0, method: "fast_tier_bypass"` — overwriting the real
+backend/rag/nodes/generation.py:2362:        fast_score = state.get("faithfulness_score")
+backend/rag/nodes/generation.py:2366:        floor = getattr(settings, "faithfulness_floor", 0.6)
+backend/rag/nodes/generation.py:2379:        # the citation check and the faithfulness floor pass. The three outputs
+backend/rag/nodes/generation.py:2390:                "faithfulness=%.2f, measured=%s, citations_verified=%s)",
+backend/rag/nodes/generation.py:2415:                "faithfulness_score": fast_score,
+backend/rag/nodes/generation.py:2432:            "citations_verified=%s, faithfulness=%.2f < %.2f, faithful=%s) — "
+backend/rag/nodes/generation.py:2463:                "faithfulness_score": 0.0,
+backend/rag/nodes/generation.py:2494:                "faithfulness_score": 0.0,
+backend/rag/nodes/generation.py:2521:            "faithfulness_score": 0.0,
+backend/rag/nodes/generation.py:2563:        # lane may legitimately skip the faithfulness verdict in fast tier
+backend/rag/nodes/generation.py:2620:                "faithfulness_score": 0.0,
+backend/rag/nodes/generation.py:2643:            "faithfulness_score": 0.0,
+backend/rag/nodes/generation.py:2689:    faithfulness_score = state.get("faithfulness_score")
+backend/rag/nodes/generation.py:2690:    if faithfulness_score is None:
+backend/rag/nodes/generation.py:2691:        faithfulness_score = 1.0 if (state.get("verification") or {}).get("passed", False) else 0.0
+backend/rag/nodes/generation.py:2700:        "faithfulness_score": faithfulness_score,
+backend/rag/nodes/short_circuit.py:95:            "faithfulness_score": 0.0,
+backend/rag/nodes/short_circuit.py:122:                "faithfulness_score": 0.0,
+backend/benchmarks/native_eval.py:4:Runs natively using the local Ollama LLM to assess context precision and faithfulness.
+backend/benchmarks/native_eval.py:18:from benchmarks.question_bank import QUERIES
+backend/benchmarks/native_eval.py:27:    print("MUKTHI GURU: NATIVE OLLAMA RAGAS-STYLE EVALUATION")
+backend/benchmarks/native_eval.py:90:                        "faithfulness": 1.0,
+backend/benchmarks/native_eval.py:120:            faithfulness_score = 0.0
+backend/benchmarks/native_eval.py:128:                is_faithful = await provider.check_faithfulness(answer, relevant_texts)
+backend/benchmarks/native_eval.py:129:                faithfulness_score = 1.0 if is_faithful else 0.0
+backend/benchmarks/native_eval.py:130:                print(f"  → Answer Faithfulness: {faithfulness_score:.2f}")
+backend/benchmarks/native_eval.py:140:                    "faithfulness": faithfulness_score,
+backend/benchmarks/native_eval.py:158:    avg_faith = sum(r["faithfulness"] for r in results) / len(results)
+backend/rag/nodes/verification.py:30:async def _score_faithfulness_bounded(
+backend/rag/nodes/verification.py:38:    """Run the local faithfulness scorer under a hard wall-clock budget."""
+backend/rag/nodes/verification.py:39:    timeout = float(getattr(settings, "faithfulness_verification_timeout", 8.0))
+backend/rag/nodes/verification.py:43:                lettuce_detect.score_faithfulness,
+backend/rag/nodes/verification.py:63:# Persona voice breaks that faithfulness scoring (LettuceDetect) can't catch —
+backend/rag/nodes/verification.py:82:# never do" rules in backend/rag/prompts/system.py that faithfulness scoring
+backend/rag/nodes/verification.py:181:    ld_result = await _score_faithfulness_bounded(
+backend/rag/nodes/verification.py:195:    # and compares faithfulness scores. It adds ~45s with zero quality
+backend/rag/nodes/verification.py:213:            f"Faithfulness below threshold (score: {ld_result['score']:.2f}, need >= {settings.faithfulness_floor})"
+backend/rag/nodes/verification.py:247:    When faithfulness_score < settings.cove_compulsory_threshold, CoVe fires
+backend/rag/nodes/verification.py:268:            "faithfulness_score": 0.0,
+backend/rag/nodes/verification.py:277:        # this as faithfulness 1.0 — a retrieval failure would otherwise land
+backend/rag/nodes/verification.py:285:            "faithfulness_score": 0.0,
+backend/rag/nodes/verification.py:310:    # tier3_complex. It must NOT skip the faithfulness check itself:
+backend/rag/nodes/verification.py:329:                "faithfulness_score": 0.0,
+backend/rag/nodes/verification.py:335:            ld_result = await _score_faithfulness_bounded(
+backend/rag/nodes/verification.py:338:        faithfulness_score = ld_result["score"]
+backend/rag/nodes/verification.py:339:        # Task #41: settings.faithfulness_floor was previously only referenced in
+backend/rag/nodes/verification.py:345:            ld_result["is_faithful"] and faithfulness_score >= settings.faithfulness_floor
+backend/rag/nodes/verification.py:348:        # Only fast-exit when the faithfulness score meets the compulsory CoVe
+backend/rag/nodes/verification.py:352:        if faithfulness_score >= cove_compulsory:
+backend/rag/nodes/verification.py:355:                f"LettuceDetect faithfulness={faithfulness_score:.2f} ({'YES' if is_faithful_ld else 'NO'}), "
+backend/rag/nodes/verification.py:364:                "confidence_score": (faithfulness_score * 10.0) if is_faithful_ld else 3.0,
+backend/rag/nodes/verification.py:365:                "faithfulness_score": faithfulness_score,
+backend/rag/nodes/verification.py:366:                "relevancy_score": faithfulness_score,
+backend/rag/nodes/verification.py:370:            f"faithfulness={faithfulness_score:.2f} < cove_compulsory={cove_compulsory}, "
+backend/rag/nodes/verification.py:385:            "faithfulness_score": 0.0,
+backend/rag/nodes/verification.py:391:        ld_result = await _score_faithfulness_bounded(
+backend/rag/nodes/verification.py:396:    faithfulness_score = ld_result["score"]
+backend/rag/nodes/verification.py:397:    # Task #41: settings.faithfulness_floor was previously only referenced in a
+backend/rag/nodes/verification.py:402:    is_faithful_ld = ld_result["is_faithful"] and faithfulness_score >= settings.faithfulness_floor
+backend/rag/nodes/verification.py:404:    # Compulsory CoVe: if faithfulness is low enough, fire regardless of tier.
+backend/rag/nodes/verification.py:409:        or faithfulness_score < cove_compulsory_threshold  # compulsory for ANY tier
+backend/rag/nodes/verification.py:413:    if query_tier in ("fast", "tier2_simple") and faithfulness_score >= cove_compulsory_threshold:
+backend/rag/nodes/verification.py:415:            "Combined verify: fast tier + high faithfulness (%.2f) — bypassing full verification",
+backend/rag/nodes/verification.py:416:            faithfulness_score,
+backend/rag/nodes/verification.py:421:            "confidence_score": faithfulness_score * 10.0,
+backend/rag/nodes/verification.py:422:            "faithfulness_score": faithfulness_score,
+backend/rag/nodes/verification.py:423:            "relevancy_score": faithfulness_score,
+backend/rag/nodes/verification.py:426:    # Short-answer skip for standard tier with adequate faithfulness
+backend/rag/nodes/verification.py:430:        and faithfulness_score >= cove_compulsory_threshold
+backend/rag/nodes/verification.py:435:        # fall back to raw faithfulness when retrieval signals are absent.
+backend/rag/nodes/verification.py:438:            "faithfulness_score": faithfulness_score,
+backend/rag/nodes/verification.py:442:                "score": faithfulness_score,
+backend/rag/nodes/verification.py:446:        confidence_score = ensemble_score if ensemble_score >= 8.0 else faithfulness_score * 10.0
+backend/rag/nodes/verification.py:457:            "faithfulness_score": faithfulness_score,
+backend/rag/nodes/verification.py:458:            "relevancy_score": faithfulness_score,
+backend/rag/nodes/verification.py:461:    # tier3_complex fast-exit: LettuceDetect only (skip full CoVe for speed) UNLESS faithfulness is suspect
+backend/rag/nodes/verification.py:465:        and faithfulness_score >= cove_compulsory_threshold
+backend/rag/nodes/verification.py:469:            "LettuceDetect faithfulness=%.2f (PASS), CoVe skipped (adequate score)",
+backend/rag/nodes/verification.py:470:            faithfulness_score,
+backend/rag/nodes/verification.py:478:            "confidence_score": (faithfulness_score * 10.0) if is_faithful_ld else 3.0,
+backend/rag/nodes/verification.py:479:            "faithfulness_score": faithfulness_score,
+backend/rag/nodes/verification.py:480:            "relevancy_score": faithfulness_score,
+backend/rag/nodes/verification.py:487:    # --- CoVe: fires when faithfulness is suspect OR tier3_complex ---
+backend/rag/nodes/verification.py:528:        "faithfulness_score": faithfulness_score,
+backend/rag/nodes/verification.py:531:            "score": faithfulness_score,
+backend/rag/nodes/verification.py:545:    relevancy_score = 1.0 if is_valid else faithfulness_score
+backend/rag/nodes/verification.py:548:        FAITHFULNESS_SCORE.observe(faithfulness_score)
+backend/rag/nodes/verification.py:555:        f"faithfulness={faithfulness_score:.2f} ({'YES' if is_faithful_ld else 'NO'}), "
+backend/rag/nodes/verification.py:562:    verification_details = f"Faithfulness: {faithfulness_score:.2f}; {claim_verification_details}; {consistency_feedback}"
+backend/rag/nodes/verification.py:574:        "faithfulness_score": faithfulness_score,
+backend/rag/nodes/verification.py:602:            "faithfulness_score": 0.0,
+backend/rag/nodes/verification.py:618:            "faithfulness_score": 0.0,
+backend/rag/nodes/verification.py:627:            "faithfulness_score": 0.0,
+backend/rag/nodes/verification.py:645:        "faithfulness_score": confidence / 10.0,
+backend/rag/nodes/intent.py:193:    r"street\s+food|golden\s+statue|unicorn|aliens?)",
+backend/rag/nodes/intent.py:523:        "golden light",
+backend/benchmarks/recall_harness.py:3:Loads the golden retrieval set (build_golden_retrieval_set.py), embeds each
+backend/benchmarks/recall_harness.py:17:    docker cp backend/benchmarks/recall_harness.py <ctr>:/app/benchmarks/
+backend/benchmarks/recall_harness.py:18:    docker cp golden_retrieval_v1.json <ctr>:/tmp/

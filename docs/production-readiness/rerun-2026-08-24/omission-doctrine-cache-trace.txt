@@ -1,0 +1,1809 @@
+=== doctrine cache references ===
+backend/services/doctrine_terms.py-16-are word-level and cannot be addressed in the original-text offsets the ledger
+backend/services/doctrine_terms.py-17-validator checks, so ledgered content skips that pass (``_apply_lexicon_corrections``
+backend/services/doctrine_terms.py-18-is reachable only from the non-audited ``apply_corrections`` wrapper).
+backend/services/doctrine_terms.py-19-
+backend/services/doctrine_terms.py-20-Admins can extend the map at runtime via the ``doctrine_terms`` Supabase table (canonical +
+backend/services/doctrine_terms.py:21:variants). DB rows merge over the code ``DEFAULT_DOCTRINE_TERMS`` (DB wins); if Supabase is down we
+backend/services/doctrine_terms.py-22-fall back to the code defaults and never crash ingestion. ``reload()`` drops the TTL cache so admin
+backend/services/doctrine_terms.py-23-edits apply without a restart.
+backend/services/doctrine_terms.py-24-"""
+backend/services/doctrine_terms.py-25-
+backend/services/doctrine_terms.py-26-from __future__ import annotations
+backend/services/doctrine_terms.py-27-
+backend/services/doctrine_terms.py-28-import logging
+backend/services/doctrine_terms.py-29-import re
+backend/services/doctrine_terms.py-30-import time
+backend/services/doctrine_terms.py-31-
+backend/services/doctrine_terms.py-32-logger = logging.getLogger(__name__)
+backend/services/doctrine_terms.py-33-
+backend/services/doctrine_terms.py-34-# canonical -> known mis-transcription variants. Terms with no variants yet are still listed so
+backend/services/doctrine_terms.py-35-# they bias the Whisper glossary toward the correct spelling.
+backend/services/doctrine_terms.py:36:DEFAULT_DOCTRINE_TERMS: dict[str, list[str]] = {
+backend/services/doctrine_terms.py-37-    "Ekam": [
+backend/services/doctrine_terms.py-38-        "Acam",
+backend/services/doctrine_terms.py-39-        "Akam",
+backend/services/doctrine_terms.py-40-        "Akham",
+backend/services/doctrine_terms.py-41-        "Ecom",
+backend/services/doctrine_terms.py-42-        "Ecoms",
+backend/services/doctrine_terms.py-43-        "Acom",
+backend/services/doctrine_terms.py-44-        "Acoms",
+backend/services/doctrine_terms.py-45-        "Ekum",
+backend/services/doctrine_terms.py-46-        "ECAM",
+backend/services/doctrine_terms.py-47-        "Eikam",
+backend/services/doctrine_terms.py-48-        "acome",
+--
+backend/services/doctrine_terms.py-338-    """DEFAULTS merged with admin overrides (DB wins), TTL-cached. Never raises."""
+backend/services/doctrine_terms.py-339-    global _cache_terms, _cache_regexes, _cache_ts
+backend/services/doctrine_terms.py-340-    now = time.time()
+backend/services/doctrine_terms.py-341-    if _cache_terms is not None and (now - _cache_ts) < _TTL_SECONDS:
+backend/services/doctrine_terms.py-342-        return _cache_terms
+backend/services/doctrine_terms.py:343:    terms: dict[str, list[str]] = {k: list(v) for k, v in DEFAULT_DOCTRINE_TERMS.items()}
+backend/services/doctrine_terms.py-344-    for canonical, variants in _load_admin_overrides().items():
+backend/services/doctrine_terms.py-345-        merged = list(dict.fromkeys([*terms.get(canonical, []), *variants]))
+backend/services/doctrine_terms.py-346-        terms[canonical] = merged
+backend/services/doctrine_terms.py-347-    _cache_terms = terms
+backend/services/doctrine_terms.py-348-    _cache_regexes = _build_regexes(terms)
+backend/services/doctrine_terms.py-349-    _cache_ts = now
+backend/services/doctrine_terms.py-350-    return terms
+backend/services/doctrine_terms.py-351-
+backend/services/doctrine_terms.py-352-
+backend/services/doctrine_terms.py-353-def reload() -> None:
+backend/services/doctrine_terms.py-354-    """Drop the cache so the next call reflects admin edits (hot-reload)."""
+backend/services/doctrine_terms.py-355-    global _cache_terms, _cache_regexes, _cache_ts
+--
+scripts/ops/audit_doctrine_data_quality.py-20-
+scripts/ops/audit_doctrine_data_quality.py-21-_REPO = Path(__file__).resolve().parents[2]
+scripts/ops/audit_doctrine_data_quality.py-22-sys.path.insert(0, str(_REPO / "backend"))
+scripts/ops/audit_doctrine_data_quality.py-23-
+scripts/ops/audit_doctrine_data_quality.py-24-try:
+scripts/ops/audit_doctrine_data_quality.py:25:    from services.doctrine_terms import DEFAULT_DOCTRINE_TERMS  # type: ignore
+scripts/ops/audit_doctrine_data_quality.py-26-except Exception:  # pragma: no cover - allow running without backend on path
+scripts/ops/audit_doctrine_data_quality.py:27:    DEFAULT_DOCTRINE_TERMS = {"Ekam": ["Acam", "Akam"]}
+scripts/ops/audit_doctrine_data_quality.py-28-
+scripts/ops/audit_doctrine_data_quality.py-29-OKF_DIR = _REPO / "memory" / "okf"
+scripts/ops/audit_doctrine_data_quality.py-30-_EXCLUDED = {"staging", "_scripts"}
+scripts/ops/audit_doctrine_data_quality.py-31-
+scripts/ops/audit_doctrine_data_quality.py-32-# single-word canonicals worth fuzzy-matching (multi-word phrases are matched literally elsewhere)
+scripts/ops/audit_doctrine_data_quality.py:33:_CANON_WORDS = [c for c in DEFAULT_DOCTRINE_TERMS if " " not in c and len(c) > 3]
+scripts/ops/audit_doctrine_data_quality.py:34:_KNOWN = {v.lower() for vs in DEFAULT_DOCTRINE_TERMS.values() for v in vs}
+scripts/ops/audit_doctrine_data_quality.py:35:_KNOWN |= {c.lower() for c in DEFAULT_DOCTRINE_TERMS}
+scripts/ops/audit_doctrine_data_quality.py-36-
+scripts/ops/audit_doctrine_data_quality.py-37-# extraction-artifact markers (mirror services/okf_quality_filter.py)
+scripts/ops/audit_doctrine_data_quality.py-38-_ARTIFACTS = [r"RAPTOR Level\s*:", r"_\(Source:\s*unknown\)_", r"The user wants me to analyze"]
+scripts/ops/audit_doctrine_data_quality.py-39-
+scripts/ops/audit_doctrine_data_quality.py-40-
+scripts/ops/audit_doctrine_data_quality.py-41-def _candidate_misspellings(text: str) -> Counter:
+scripts/ops/audit_doctrine_data_quality.py-42-    found: Counter = Counter()
+scripts/ops/audit_doctrine_data_quality.py-43-    for tok in re.findall(r"\b[A-Z][a-zA-Z]{3,}\b", text):
+scripts/ops/audit_doctrine_data_quality.py-44-        low = tok.lower()
+scripts/ops/audit_doctrine_data_quality.py-45-        if low in _KNOWN:
+scripts/ops/audit_doctrine_data_quality.py-46-            continue
+scripts/ops/audit_doctrine_data_quality.py-47-        match = difflib.get_close_matches(tok, _CANON_WORDS, n=1, cutoff=0.72)
+--
+backend/services/doctrine_cache.py-51-
+backend/services/doctrine_cache.py-52-
+backend/services/doctrine_cache.py-53-# ---------------------------------------------------------------------------
+backend/services/doctrine_cache.py-54-# Default doctrine dataset (embedded so the cache works out of the box)
+backend/services/doctrine_cache.py-55-# ---------------------------------------------------------------------------
+backend/services/doctrine_cache.py:56:DEFAULT_DOCTRINE: dict[str, str] = {
+backend/services/doctrine_cache.py-57-    "what is the beautiful state": (
+backend/services/doctrine_cache.py-58-        "The Beautiful State is a state of calm, joy, and inner connection taught by "
+backend/services/doctrine_cache.py-59-        "Sri Preethaji and Sri Krishnaji. It is not dependent on external circumstances, "
+backend/services/doctrine_cache.py-60-        "but is a direct experience of peace that arises when we move beyond the "
+backend/services/doctrine_cache.py-61-        "conditioned mind. It is the foundation of the Ekam teachings and the goal "
+backend/services/doctrine_cache.py-62-        "of the spiritual journey. [Source: Beautiful State Teachings]"
+backend/services/doctrine_cache.py-63-    ),
+backend/services/doctrine_cache.py-64-    "who is sri preethaji": (
+backend/services/doctrine_cache.py-65-        "Sri Preethaji is a spiritual teacher and the co-founder of Ekam, along with "
+backend/services/doctrine_cache.py-66-        "Sri Krishnaji. She is known for her mystical experiences and teachings on the "
+backend/services/doctrine_cache.py-67-        "Beautiful State, Deeksha, and the Four Sacred Secrets. [Source: Sri Preethaji Bio]"
+backend/services/doctrine_cache.py-68-    ),
+--
+backend/services/doctrine_cache.py-123-
+backend/services/doctrine_cache.py-124-# Minimum similarity threshold for fuzzy match (Levenshtein ratio)
+backend/services/doctrine_cache.py-125-_FUZZY_THRESHOLD = 0.85
+backend/services/doctrine_cache.py-126-
+backend/services/doctrine_cache.py-127-
+backend/services/doctrine_cache.py:128:class DoctrineCache:
+backend/services/doctrine_cache.py-129-    """Exact + fuzzy match cache for common doctrine queries.
+backend/services/doctrine_cache.py-130-
+backend/services/doctrine_cache.py-131-    Loads a JSON file if provided, otherwise falls back to the built-in
+backend/services/doctrine_cache.py:132:    ``DEFAULT_DOCTRINE`` map.  Answers include pre-written citations so
+backend/services/doctrine_cache.py-133-    that a cache hit is indistinguishable from a generated answer.
+backend/services/doctrine_cache.py-134-    """
+backend/services/doctrine_cache.py-135-
+backend/services/doctrine_cache.py-136-    def __init__(self, doctrine_file: str | None = None, supabase_client=None) -> None:
+backend/services/doctrine_cache.py-137-        self._map: dict[str, str] = {}
+backend/services/doctrine_cache.py-138-        self._raw: dict[str, str] = {}
+backend/services/doctrine_cache.py-139-        self._supabase = supabase_client
+backend/services/doctrine_cache.py-140-
+backend/services/doctrine_cache.py-141-        # 1. Try explicit file
+backend/services/doctrine_cache.py-142-        if doctrine_file and os.path.exists(doctrine_file):
+backend/services/doctrine_cache.py-143-            self._load_json(doctrine_file)
+backend/services/doctrine_cache.py-144-
+--
+backend/services/doctrine_cache.py-146-        if not self._raw and self._supabase is not None:
+backend/services/doctrine_cache.py-147-            self._load_from_supabase()
+backend/services/doctrine_cache.py-148-
+backend/services/doctrine_cache.py-149-        # 3. Try default path relative to backend root
+backend/services/doctrine_cache.py-150-        if not self._raw:
+backend/services/doctrine_cache.py:151:            default_path = Path(__file__).resolve().parent.parent / "data" / "doctrine_faqs.json"
+backend/services/doctrine_cache.py-152-            if default_path.exists():
+backend/services/doctrine_cache.py-153-                self._load_json(str(default_path))
+backend/services/doctrine_cache.py-154-
+backend/services/doctrine_cache.py-155-        # 4. Fall back to embedded defaults
+backend/services/doctrine_cache.py-156-        if not self._raw:
+backend/services/doctrine_cache.py:157:            self._raw = DEFAULT_DOCTRINE.copy()
+backend/services/doctrine_cache.py-158-            self._build_index()
+backend/services/doctrine_cache.py-159-
+backend/services/doctrine_cache.py-160-    def _load_json(self, path: str) -> None:
+backend/services/doctrine_cache.py-161-        try:
+backend/services/doctrine_cache.py-162-            with open(path, encoding="utf-8") as fh:
+backend/services/doctrine_cache.py-163-                data = json.load(fh)
+backend/services/doctrine_cache.py-164-            # Accept both flat dict and list-of-dict formats
+backend/services/doctrine_cache.py-165-            if isinstance(data, dict):
+backend/services/doctrine_cache.py-166-                self._raw = data
+backend/services/doctrine_cache.py-167-            elif isinstance(data, list):
+backend/services/doctrine_cache.py-168-                self._raw = {
+backend/services/doctrine_cache.py-169-                    item["question"]: item["answer"]
+--
+backend/services/doctrine_cache.py-177-        except Exception as e:
+backend/services/doctrine_cache.py-178-            logger.warning("Failed to load doctrine cache from %s: %s", path, e)
+backend/services/doctrine_cache.py-179-            self._raw = {}
+backend/services/doctrine_cache.py-180-
+backend/services/doctrine_cache.py-181-    def _load_from_supabase(self) -> None:
+backend/services/doctrine_cache.py:182:        """Load doctrine FAQs from Supabase table ``doctrine_faqs``."""
+backend/services/doctrine_cache.py-183-        try:
+backend/services/doctrine_cache.py-184-            # supabase client is synchronous; wrap in to_thread if we ever need async,
+backend/services/doctrine_cache.py-185-            # but init runs in sync context during service construction.
+backend/services/doctrine_cache.py:186:            res = self._supabase.table("doctrine_faqs").select("question,answer").execute()
+backend/services/doctrine_cache.py-187-            rows = getattr(res, "data", []) or []
+backend/services/doctrine_cache.py-188-            if rows:
+backend/services/doctrine_cache.py-189-                self._raw = {
+backend/services/doctrine_cache.py-190-                    row["question"]: row["answer"]
+backend/services/doctrine_cache.py-191-                    for row in rows
+backend/services/doctrine_cache.py-192-                    if "question" in row and "answer" in row
+backend/services/doctrine_cache.py-193-                }
+backend/services/doctrine_cache.py-194-                self._build_index()
+backend/services/doctrine_cache.py-195-                logger.info("Loaded doctrine cache from Supabase (%d entries)", len(self._raw))
+backend/services/doctrine_cache.py-196-        except Exception as e:
+backend/services/doctrine_cache.py-197-            logger.warning("Failed to load doctrine cache from Supabase: %s", e)
+backend/services/doctrine_cache.py-198-            self._raw = {}
+--
+backend/services/doctrine_cache.py-202-        self._raw = {}
+backend/services/doctrine_cache.py-203-        self._map = {}
+backend/services/doctrine_cache.py-204-        if self._supabase is not None:
+backend/services/doctrine_cache.py-205-            self._load_from_supabase()
+backend/services/doctrine_cache.py-206-        if not self._raw:
+backend/services/doctrine_cache.py:207:            self._raw = DEFAULT_DOCTRINE.copy()
+backend/services/doctrine_cache.py-208-            self._build_index()
+backend/services/doctrine_cache.py-209-
+backend/services/doctrine_cache.py-210-    def _build_index(self) -> None:
+backend/services/doctrine_cache.py-211-        self._map = {_normalize(q): a for q, a in self._raw.items()}
+backend/services/doctrine_cache.py-212-
+backend/services/doctrine_cache.py-213-    # ------------------------------------------------------------------
+backend/services/doctrine_cache.py-214-    # Public API
+backend/services/doctrine_cache.py-215-    # ------------------------------------------------------------------
+backend/services/doctrine_cache.py-216-    def lookup(self, query: str) -> str | None:
+backend/services/doctrine_cache.py-217-        """Return a canned answer if the query is close enough to a known question.
+backend/services/doctrine_cache.py-218-
+backend/services/doctrine_cache.py-219-        First tries exact normalized match, then fuzzy Levenshtein.
+--
+backend/services/doctrine_cache.py-223-
+backend/services/doctrine_cache.py-224-        normalized = _normalize(query)
+backend/services/doctrine_cache.py-225-
+backend/services/doctrine_cache.py-226-        # Exact match
+backend/services/doctrine_cache.py-227-        if normalized in self._map:
+backend/services/doctrine_cache.py:228:            logger.debug("DoctrineCache exact hit: %s", normalized)
+backend/services/doctrine_cache.py-229-            return self._map[normalized]
+backend/services/doctrine_cache.py-230-
+backend/services/doctrine_cache.py-231-        # Fuzzy match (Levenshtein ratio > threshold)
+backend/services/doctrine_cache.py-232-        best_ratio = 0.0
+backend/services/doctrine_cache.py-233-        best_answer: str | None = None
+backend/services/doctrine_cache.py-234-        for known, answer in self._map.items():
+backend/services/doctrine_cache.py-235-            dist = _levenshtein(normalized, known)
+backend/services/doctrine_cache.py-236-            max_len = max(len(normalized), len(known))
+backend/services/doctrine_cache.py-237-            ratio = (max_len - dist) / max_len if max_len else 0.0
+backend/services/doctrine_cache.py-238-            if ratio > best_ratio:
+backend/services/doctrine_cache.py-239-                best_ratio = ratio
+backend/services/doctrine_cache.py-240-                best_answer = answer
+backend/services/doctrine_cache.py-241-
+backend/services/doctrine_cache.py-242-        if best_ratio >= _FUZZY_THRESHOLD:
+backend/services/doctrine_cache.py:243:            logger.debug("DoctrineCache fuzzy hit (%.2f): %s", best_ratio, normalized)
+backend/services/doctrine_cache.py-244-            return best_answer
+backend/services/doctrine_cache.py-245-
+backend/services/doctrine_cache.py-246-        return None
+--
+backend/scripts/warm_doctrine_cache.py-4-doctrine queries, reducing latency for frequently asked spiritual questions.
+backend/scripts/warm_doctrine_cache.py-5-Queries are sourced from the benchmark question bank.
+backend/scripts/warm_doctrine_cache.py-6-
+backend/scripts/warm_doctrine_cache.py-7-Usage:
+backend/scripts/warm_doctrine_cache.py-8-    cd backend
+backend/scripts/warm_doctrine_cache.py:9:    python scripts/warm_doctrine_cache.py
+backend/scripts/warm_doctrine_cache.py-10-"""
+backend/scripts/warm_doctrine_cache.py-11-
+backend/scripts/warm_doctrine_cache.py-12-import asyncio
+backend/scripts/warm_doctrine_cache.py-13-import os
+backend/scripts/warm_doctrine_cache.py-14-import sys
+backend/scripts/warm_doctrine_cache.py-15-from pathlib import Path
+backend/scripts/warm_doctrine_cache.py-16-
+backend/scripts/warm_doctrine_cache.py-17-import httpx
+backend/scripts/warm_doctrine_cache.py-18-
+backend/scripts/warm_doctrine_cache.py-19-# Add parent directory to path for imports
+backend/scripts/warm_doctrine_cache.py-20-backend_dir = Path(__file__).resolve().parent.parent
+backend/scripts/warm_doctrine_cache.py-21-sys.path.insert(0, str(backend_dir))
+--
+src/integrations/supabase/types.ts-712-          id?: string
+src/integrations/supabase/types.ts-713-          image_url?: string
+src/integrations/supabase/types.ts-714-        }
+src/integrations/supabase/types.ts-715-        Relationships: []
+src/integrations/supabase/types.ts-716-      }
+src/integrations/supabase/types.ts:717:      doctrine_faqs: {
+src/integrations/supabase/types.ts-718-        Row: {
+src/integrations/supabase/types.ts-719-          answer: string
+src/integrations/supabase/types.ts-720-          created_at: string
+src/integrations/supabase/types.ts-721-          id: string
+src/integrations/supabase/types.ts-722-          is_active: boolean
+src/integrations/supabase/types.ts-723-          question: string
+src/integrations/supabase/types.ts-724-          sort_order: number
+src/integrations/supabase/types.ts-725-          updated_at: string
+src/integrations/supabase/types.ts-726-        }
+src/integrations/supabase/types.ts-727-        Insert: {
+src/integrations/supabase/types.ts-728-          answer: string
+src/integrations/supabase/types.ts-729-          created_at?: string
+--
+backend/CLAUDE.md-21-## Request flow (chat)
+backend/CLAUDE.md-22-
+backend/CLAUDE.md-23-`POST /api/chat` → anonymous-quota check (`ServiceContainer.anon_quota_service`) → `app/orchestrator.py` (sync) or `app/stream_orchestrator.py` (SSE) → `app/pipeline/pipeline_coordinator.py:PipelineCoordinator.execute()` → `StageRunner` runs the ordered stage chain from `app/pipeline/stages/pipeline_builder.py`:
+backend/CLAUDE.md-24-
+backend/CLAUDE.md-25-```
+backend/CLAUDE.md:26:CacheCheck → CircuitBreaker → RequestState → InputGuardrail → DoctrineCache
+backend/CLAUDE.md-27-→ CasualShortCircuit → Distress → Graph → MeditationGen → Translation
+backend/CLAUDE.md-28-→ ToneAdapter → OutputGuardrail → Memory → CacheUpdate → ResultAssembly
+backend/CLAUDE.md-29-```
+backend/CLAUDE.md-30-
+backend/CLAUDE.md-31-- Anonymous users get a server-signed session token from `POST /api/auth/anon-session` and echo it back as `session_id` / `X-Session-Id`. `resolve_anon_identity()` verifies the HMAC and rewrites the user id to `anon:<payload>` so sessions are isolated.
+backend/CLAUDE.md-32-- Anonymous chat quota: `settings.anon_quota_messages` (default 5), `settings.anon_quota_window_hours` (default 24), `settings.anon_quota_enabled` (default true). Enforced in `/api/chat`, `/api/chat/v2`, and `/api/chat/stream` before any pipeline work. Exceeded requests return `429 {quota_exceeded: true}`.
+backend/CLAUDE.md-33-- Quota storage is a port (`services/anon_quota_port.py`) with Redis (`services/anon_quota_redis.py`) and in-memory (`services/anon_quota_memory.py`) adapters; `AnonQuotaService` chooses Redis when available and falls back to memory. The in-memory adapter is process-local: state does not survive restart and does not enforce a quota shared across API workers/replicas (each process counts independently) — sandbox/single-node dev only. The Redis adapter is the only production-safe path. If Redis becomes unreachable **after** the adapter is already selected (not just at cold-start probe), `AnonQuotaRedisAdapter.check_and_record`/`inspect` degrade to an allowed result rather than raising — a mid-session Redis outage does not 500 anonymous chat, but does mean quota enforcement is unenforced (not process-local-fallback, genuinely open) until Redis recovers.
+backend/CLAUDE.md-34-
+backend/CLAUDE.md-35-- Stages are pure functions over a `PipelineContext` (`app/pipeline/stages/context.py`), unit-testable in isolation; they reach services via `ctx.container` and coordinator helpers via `ctx.coordinator`.
+backend/CLAUDE.md-36-- `GraphStage` executes the LangGraph: `rag/graph.py` is a thin facade over `rag/graph_strategies.py` (Fast/Standard/Deep); nodes live in `rag/nodes/`. The node data contract is the `GraphState` TypedDict in `rag/states.py` (carries `request_id` for log correlation).
+backend/CLAUDE.md-37-
+backend/CLAUDE.md-38-## Hard rules
+--
+backend/ingest/corrector.py-28-
+backend/ingest/corrector.py-29-Output ONLY the corrected text. Do not add any conversational filler.
+backend/ingest/corrector.py-30-"""
+backend/ingest/corrector.py-31-
+backend/ingest/corrector.py-32-# Doctrine-term corrections now live in the single source of truth
+backend/ingest/corrector.py:33:# (services.doctrine_terms.DEFAULT_DOCTRINE_TERMS, admin-editable). They are applied
+backend/ingest/corrector.py-34-# deterministically via apply_corrections() in correct_transcript() below — no local dict here,
+backend/ingest/corrector.py-35-# so the correction map can never drift between the whisper, ingest and output layers again.
+backend/ingest/corrector.py-36-
+backend/ingest/corrector.py-37-# Max concurrent correction tasks
+backend/ingest/corrector.py-38-_MAX_CONCURRENT = 3
+backend/ingest/corrector.py-39-
+backend/ingest/corrector.py-40-# Phrases from CORRECTION_SYSTEM_PROMPT that indicate LLM prompt leakage
+backend/ingest/corrector.py-41-# — when the LLM echoes its own instructions instead of correcting text.
+backend/ingest/corrector.py-42-_PROMPT_LEAK_PATTERNS: list[str] = [
+backend/ingest/corrector.py-43-    r"You are a Text Correction Expert",
+backend/ingest/corrector.py-44-    r"Your task is to fix transcription errors",
+backend/ingest/corrector.py-45-    r"DO NOT retain the original meaning absolutely",
+--
+backend/app/config.py-118-    # rather than holding the request until a degraded provider returns.
+backend/app/config.py-119-    translation_timeout_s: float = Field(default=5.0, gt=0.0, le=15.0)
+backend/app/config.py-120-
+backend/app/config.py-121-    serene_mind_enabled: bool = True
+backend/app/config.py-122-    # Enable/disable Serene Mind distress detection engine
+backend/app/config.py:123:    doctrine_cache_enabled: bool = (
+backend/app/config.py-124-        False  # Default OFF: built-in canned answers lack citations and hurt benchmark quality
+backend/app/config.py-125-    )
+backend/app/config.py-126-
+backend/app/config.py-127-    # --- Distress / Serene Mind safety dials ---
+backend/app/config.py-128-    semantic_distress_threshold: float = Field(default=0.72, ge=0.0, le=1.0)
+backend/app/config.py-129-    # Count of recent turns with distress_score > semantic_distress_history_score_threshold
+backend/app/config.py-130-    # required before persistent-distress escalation.
+backend/app/config.py-131-    semantic_distress_history_score_threshold: float = Field(default=0.6, ge=0.0, le=1.0)
+backend/app/config.py-132-    # Number of recent turns scanned for persistent distress escalation.
+backend/app/config.py-133-    semantic_distress_rolling_window: int = Field(default=5, gt=0)
+backend/app/config.py-134-    # Minimum distressed-turn count within rolling_window to escalate to SEVERE.
+backend/app/config.py-135-    semantic_distress_escalation_count: int = Field(default=3, gt=0)
+--
+backend/app/container.py-253-        logger.info("CostTracker initialized")
+backend/app/container.py-254-
+backend/app/container.py-255-    def _build_guardrails_and_cache(self) -> None:
+backend/app/container.py-256-        """Layer 5: Guardrails, exact/semantic caches, job queue, and web search."""
+backend/app/container.py-257-        from services.cache import CacheFactory
+backend/app/container.py:258:        from services.doctrine_cache import DoctrineCache
+backend/app/container.py-259-
+backend/app/container.py-260-        self.guardrails = GuardrailsService()
+backend/app/container.py-261-
+backend/app/container.py-262-        # Cache adapters honor the configured cache_mode setting.
+backend/app/container.py-263-        self.exact_cache = CacheFactory.create_exact_cache()
+backend/app/container.py-264-        self.semantic_cache = CacheFactory.create_semantic_cache(
+backend/app/container.py-265-            embedding_service=self.embedding,
+backend/app/container.py-266-        )
+backend/app/container.py-267-
+backend/app/container.py:268:        # Built once at startup — DoctrineCache._load_from_supabase() is a
+backend/app/container.py-269-        # blocking call and must never run per-request inside the event loop.
+backend/app/container.py:270:        self.doctrine_cache = DoctrineCache(supabase_client=self.supabase_client)
+backend/app/container.py-271-        from services.doctrine_service import DoctrineService
+backend/app/container.py-272-
+backend/app/container.py-273-        self.doctrine_service = DoctrineService(supabase_client=self.supabase_client)
+backend/app/container.py-274-
+backend/app/container.py-275-        # Job Queue (Redis-backed)
+backend/app/container.py-276-        if settings.queue_enabled:
+backend/app/container.py-277-            from app.services.job_queue import JobQueueService
+backend/app/container.py-278-
+backend/app/container.py-279-            self.job_queue = JobQueueService(
+backend/app/container.py-280-                redis_url=settings.redis_url,
+backend/app/container.py-281-                max_queue=settings.queue_max_size,
+backend/app/container.py-282-                max_concurrency=settings.queue_concurrency,
+--
+backend/app/pipeline/stages/doctrine_cache_stage.py-1-"""Doctrine cache fast-path stage.
+backend/app/pipeline/stages/doctrine_cache_stage.py-2-
+backend/app/pipeline/stages/doctrine_cache_stage.py:3:Checks DoctrineCache before running the heavy RAG graph pipeline.
+backend/app/pipeline/stages/doctrine_cache_stage.py-4-If the query is a known doctrine question (exact or fuzzy match),
+backend/app/pipeline/stages/doctrine_cache_stage.py-5-returns a pre-canned answer immediately, bypassing all downstream stages.
+backend/app/pipeline/stages/doctrine_cache_stage.py-6-"""
+backend/app/pipeline/stages/doctrine_cache_stage.py-7-
+backend/app/pipeline/stages/doctrine_cache_stage.py-8-from __future__ import annotations
+backend/app/pipeline/stages/doctrine_cache_stage.py-9-
+backend/app/pipeline/stages/doctrine_cache_stage.py-10-import asyncio
+backend/app/pipeline/stages/doctrine_cache_stage.py-11-import logging
+backend/app/pipeline/stages/doctrine_cache_stage.py-12-
+backend/app/pipeline/stages/doctrine_cache_stage.py-13-from app.config import settings
+backend/app/pipeline/stages/doctrine_cache_stage.py-14-from app.pipeline.result import PipelineResult
+backend/app/pipeline/stages/doctrine_cache_stage.py-15-from app.pipeline.stages.base import Stage
+backend/app/pipeline/stages/doctrine_cache_stage.py-16-from app.release_manifest import get_release_manifest
+backend/app/pipeline/stages/doctrine_cache_stage.py-17-
+backend/app/pipeline/stages/doctrine_cache_stage.py-18-logger = logging.getLogger(__name__)
+backend/app/pipeline/stages/doctrine_cache_stage.py-19-
+backend/app/pipeline/stages/doctrine_cache_stage.py-20-
+backend/app/pipeline/stages/doctrine_cache_stage.py:21:class DoctrineCacheStage(Stage):
+backend/app/pipeline/stages/doctrine_cache_stage.py:22:    """Fast-path stage using DoctrineCache for known spiritual questions.
+backend/app/pipeline/stages/doctrine_cache_stage.py-23-
+backend/app/pipeline/stages/doctrine_cache_stage.py-24-    Default disabled (DOCTRINE_CACHE_ENABLED=false) because the built-in canned
+backend/app/pipeline/stages/doctrine_cache_stage.py-25-    map lacks structured citations and misses many doctrinal keywords, which
+backend/app/pipeline/stages/doctrine_cache_stage.py-26-    tanks ruthless benchmark scores.  Enable only after curating a high-quality
+backend/app/pipeline/stages/doctrine_cache_stage.py-27-    FAQ file with citation metadata.
+backend/app/pipeline/stages/doctrine_cache_stage.py-28-    """
+backend/app/pipeline/stages/doctrine_cache_stage.py-29-
+backend/app/pipeline/stages/doctrine_cache_stage.py:30:    name = "doctrine_cache"
+backend/app/pipeline/stages/doctrine_cache_stage.py-31-
+backend/app/pipeline/stages/doctrine_cache_stage.py-32-    async def run(self, ctx) -> PipelineResult | None:  # noqa: ANN001  — ctx: PipelineContext
+backend/app/pipeline/stages/doctrine_cache_stage.py:33:        if not getattr(settings, "doctrine_cache_enabled", False):
+backend/app/pipeline/stages/doctrine_cache_stage.py-34-            return None
+backend/app/pipeline/stages/doctrine_cache_stage.py:35:        doctrine_cache = getattr(ctx.container, "doctrine_cache", None) if ctx.container else None
+backend/app/pipeline/stages/doctrine_cache_stage.py:36:        if doctrine_cache is None:
+backend/app/pipeline/stages/doctrine_cache_stage.py-37-            return None
+backend/app/pipeline/stages/doctrine_cache_stage.py-38-
+backend/app/pipeline/stages/doctrine_cache_stage.py:39:        answer = doctrine_cache.lookup(ctx.user_msg)
+backend/app/pipeline/stages/doctrine_cache_stage.py-40-        if not answer:
+backend/app/pipeline/stages/doctrine_cache_stage.py-41-            return None
+backend/app/pipeline/stages/doctrine_cache_stage.py-42-
+backend/app/pipeline/stages/doctrine_cache_stage.py-43-        # This stage short-circuits before TranslationStage ever runs (same
+backend/app/pipeline/stages/doctrine_cache_stage.py-44-        # gap fixed in distress_stage.py's crisis-preemption path) — an Indic
+backend/app/pipeline/stages/doctrine_cache_stage.py-45-        # user would otherwise get the canned English doctrine answer verbatim.
+backend/app/pipeline/stages/doctrine_cache_stage.py-46-        if getattr(ctx, "is_indic", False):
+backend/app/pipeline/stages/doctrine_cache_stage.py-47-            try:
+backend/app/pipeline/stages/doctrine_cache_stage.py-48-                translation_timeout = max(1.0, settings.node_timeout_fast - 2.0)
+backend/app/pipeline/stages/doctrine_cache_stage.py-49-                translated = await asyncio.wait_for(
+backend/app/pipeline/stages/doctrine_cache_stage.py-50-                    ctx.container.translation.translate_text(
+backend/app/pipeline/stages/doctrine_cache_stage.py-51-                        text=answer, source_lang="en", target_lang=ctx.preferred_lang
+--
+backend/app/pipeline/stages/doctrine_cache_stage.py-53-                    timeout=translation_timeout,
+backend/app/pipeline/stages/doctrine_cache_stage.py-54-                )
+backend/app/pipeline/stages/doctrine_cache_stage.py-55-                answer = translated
+backend/app/pipeline/stages/doctrine_cache_stage.py-56-            except TimeoutError:
+backend/app/pipeline/stages/doctrine_cache_stage.py-57-                logger.warning(
+backend/app/pipeline/stages/doctrine_cache_stage.py:58:                    "DoctrineCache translation timed out for Indic request; preserving English answer"
+backend/app/pipeline/stages/doctrine_cache_stage.py-59-                )
+backend/app/pipeline/stages/doctrine_cache_stage.py-60-            except Exception as e:
+backend/app/pipeline/stages/doctrine_cache_stage.py:61:                logger.warning("DoctrineCache translation failed for Indic request: %s", e)
+backend/app/pipeline/stages/doctrine_cache_stage.py-62-
+backend/app/pipeline/stages/doctrine_cache_stage.py:63:        logger.info("DoctrineCache fast-path hit for: %s", ctx.user_msg[:60])
+backend/app/pipeline/stages/doctrine_cache_stage.py-64-        # cache_hit=True also makes the coordinator patch in the real latency;
+backend/app/pipeline/stages/doctrine_cache_stage.py-65-        # citations stay empty — the canned answer embeds its own source line,
+backend/app/pipeline/stages/doctrine_cache_stage.py-66-        # and "doctrine-cache" is not a retrievable source.
+backend/app/pipeline/stages/doctrine_cache_stage.py-67-        return PipelineResult(
+backend/app/pipeline/stages/doctrine_cache_stage.py-68-            final_answer=answer,
+backend/app/pipeline/stages/doctrine_cache_stage.py-69-            intent="doctrine",
+backend/app/pipeline/stages/doctrine_cache_stage.py-70-            trace_id=getattr(ctx, "trace_id", "doctrine-hit"),
+backend/app/pipeline/stages/doctrine_cache_stage.py-71-            latency_ms=0,
+backend/app/pipeline/stages/doctrine_cache_stage.py-72-            citations=[],
+backend/app/pipeline/stages/doctrine_cache_stage.py:73:            route_decision="doctrine_cache",
+backend/app/pipeline/stages/doctrine_cache_stage.py-74-            cache_hit=True,
+backend/app/pipeline/stages/doctrine_cache_stage.py-75-            release_manifest=get_release_manifest().to_dict(),
+backend/app/pipeline/stages/doctrine_cache_stage.py-76-        )
+--
+backend/app/pipeline/stages/pipeline_builder.py-1-"""Pipeline builder — ordered list of default stages.
+backend/app/pipeline/stages/pipeline_builder.py-2-
+backend/app/pipeline/stages/pipeline_builder.py-3-Order keeps request validation and safety ahead of provider availability:
+backend/app/pipeline/stages/pipeline_builder.py-4-  cache_check → request_state → input_guardrails → circuit_breaker →
+backend/app/pipeline/stages/pipeline_builder.py:5:  doctrine_cache → casual_short_circuit → distress → bounded_comparison → graph →
+backend/app/pipeline/stages/pipeline_builder.py-6-  meditation_gen → translation → tone_adapter → output_guardrails →
+backend/app/pipeline/stages/pipeline_builder.py-7-  memory_save → cache_update → result_assembly
+backend/app/pipeline/stages/pipeline_builder.py-8-"""
+backend/app/pipeline/stages/pipeline_builder.py-9-
+backend/app/pipeline/stages/pipeline_builder.py-10-from __future__ import annotations
+backend/app/pipeline/stages/pipeline_builder.py-11-
+backend/app/pipeline/stages/pipeline_builder.py-12-from app.pipeline.stages.base import Stage
+backend/app/pipeline/stages/pipeline_builder.py-13-from app.pipeline.stages.cache_stage import CacheCheckStage, CacheUpdateStage
+backend/app/pipeline/stages/pipeline_builder.py-14-from app.pipeline.stages.distress_stage import DistressStage
+backend/app/pipeline/stages/pipeline_builder.py:15:from app.pipeline.stages.doctrine_cache_stage import DoctrineCacheStage
+backend/app/pipeline/stages/pipeline_builder.py-16-from app.pipeline.stages.glue_stages import (
+backend/app/pipeline/stages/pipeline_builder.py-17-    BoundedComparisonShortCircuitStage,
+backend/app/pipeline/stages/pipeline_builder.py-18-    CasualShortCircuitStage,
+backend/app/pipeline/stages/pipeline_builder.py-19-    RequestStateStage,
+backend/app/pipeline/stages/pipeline_builder.py-20-    ResultAssemblyStage,
+backend/app/pipeline/stages/pipeline_builder.py-21-    TranslationStage,
+backend/app/pipeline/stages/pipeline_builder.py-22-)
+backend/app/pipeline/stages/pipeline_builder.py-23-from app.pipeline.stages.graph_stage import GraphStage
+backend/app/pipeline/stages/pipeline_builder.py-24-from app.pipeline.stages.guardrail_stage import (
+backend/app/pipeline/stages/pipeline_builder.py-25-    CircuitBreakerStage,
+backend/app/pipeline/stages/pipeline_builder.py-26-    InputGuardrailStage,
+backend/app/pipeline/stages/pipeline_builder.py-27-    OutputGuardrailStage,
+--
+backend/app/pipeline/stages/pipeline_builder.py-36-    return [
+backend/app/pipeline/stages/pipeline_builder.py-37-        CacheCheckStage(),
+backend/app/pipeline/stages/pipeline_builder.py-38-        RequestStateStage(),
+backend/app/pipeline/stages/pipeline_builder.py-39-        InputGuardrailStage(),
+backend/app/pipeline/stages/pipeline_builder.py-40-        CircuitBreakerStage(),
+backend/app/pipeline/stages/pipeline_builder.py:41:        DoctrineCacheStage(),
+backend/app/pipeline/stages/pipeline_builder.py-42-        CasualShortCircuitStage(),
+backend/app/pipeline/stages/pipeline_builder.py-43-        DistressStage(),
+backend/app/pipeline/stages/pipeline_builder.py-44-        BoundedComparisonShortCircuitStage(),
+backend/app/pipeline/stages/pipeline_builder.py-45-        GraphStage(),
+backend/app/pipeline/stages/pipeline_builder.py-46-        MeditationGenStage(),
+backend/app/pipeline/stages/pipeline_builder.py-47-        TranslationStage(),
+backend/app/pipeline/stages/pipeline_builder.py-48-        ToneAdapterStage(),
+backend/app/pipeline/stages/pipeline_builder.py-49-        OutputGuardrailStage(),
+backend/app/pipeline/stages/pipeline_builder.py-50-        MemoryStage(),
+backend/app/pipeline/stages/pipeline_builder.py-51-        CacheUpdateStage(),
+backend/app/pipeline/stages/pipeline_builder.py-52-        ResultAssemblyStage(),
+backend/app/pipeline/stages/pipeline_builder.py-53-    ]
+--
+backend/tests/test_release_provenance.py-22-from app.pipeline.result import PipelineResult
+backend/tests/test_release_provenance.py-23-from app.pipeline.stages import PipelineContext, StageRunner
+backend/tests/test_release_provenance.py-24-from app.pipeline.stages.base import Stage
+backend/tests/test_release_provenance.py-25-from app.pipeline.stages.cache_stage import CacheCheckStage
+backend/tests/test_release_provenance.py-26-from app.pipeline.stages.distress_stage import DistressStage
+backend/tests/test_release_provenance.py:27:from app.pipeline.stages.doctrine_cache_stage import DoctrineCacheStage
+backend/tests/test_release_provenance.py-28-from app.pipeline.stages.glue_stages import CasualShortCircuitStage, ResultAssemblyStage
+backend/tests/test_release_provenance.py-29-from app.pipeline.stages.guardrail_stage import InputGuardrailStage
+backend/tests/test_release_provenance.py-30-from app.release_manifest import (
+backend/tests/test_release_provenance.py-31-    ReleaseManifest,
+backend/tests/test_release_provenance.py-32-    ReleaseManifestError,
+backend/tests/test_release_provenance.py-33-    build_release_manifest,
+backend/tests/test_release_provenance.py-34-    get_release_manifest,
+backend/tests/test_release_provenance.py-35-    set_release_manifest,
+backend/tests/test_release_provenance.py-36-    validate_release_manifest,
+backend/tests/test_release_provenance.py-37-)
+backend/tests/test_release_provenance.py-38-from app.schemas import ChatRequest, ChatResponse
+backend/tests/test_release_provenance.py-39-from services.serene_mind_engine import DistressAssessment, DistressLevel
+--
+backend/tests/test_release_provenance.py-278-    assert res.release_manifest is not None
+backend/tests/test_release_provenance.py-279-    assert res.release_manifest["release_id"] == get_release_manifest().release_id
+backend/tests/test_release_provenance.py-280-
+backend/tests/test_release_provenance.py-281-
+backend/tests/test_release_provenance.py-282-@pytest.mark.asyncio
+backend/tests/test_release_provenance.py:283:async def test_doctrine_cache_hit_attaches_manifest():
+backend/tests/test_release_provenance.py:284:    """Verify DoctrineCacheStage attaches release_manifest on hit."""
+backend/tests/test_release_provenance.py:285:    stage = DoctrineCacheStage()
+backend/tests/test_release_provenance.py-286-    container = MagicMock(spec=ServiceContainer)
+backend/tests/test_release_provenance.py-287-    mock_cache = MagicMock()
+backend/tests/test_release_provenance.py-288-    mock_cache.lookup.return_value = "The Four Sacred Secrets lead to inner peace."
+backend/tests/test_release_provenance.py:289:    container.doctrine_cache = mock_cache
+backend/tests/test_release_provenance.py-290-
+backend/tests/test_release_provenance.py-291-    ctx = PipelineContext(
+backend/tests/test_release_provenance.py-292-        container=container,
+backend/tests/test_release_provenance.py-293-        coordinator=MagicMock(),
+backend/tests/test_release_provenance.py-294-        request=ChatRequest(user_message="What are the four sacred secrets?", messages=[]),
+backend/tests/test_release_provenance.py-295-        user_msg="What are the four sacred secrets?",
+backend/tests/test_release_provenance.py-296-        preferred_lang="en",
+backend/tests/test_release_provenance.py-297-        state={"user_msg_en": "What are the four sacred secrets?"},
+backend/tests/test_release_provenance.py-298-    )
+backend/tests/test_release_provenance.py-299-
+backend/tests/test_release_provenance.py:300:    with patch("app.pipeline.stages.doctrine_cache_stage.settings.doctrine_cache_enabled", True):
+backend/tests/test_release_provenance.py-301-        res = await stage.run(ctx)
+backend/tests/test_release_provenance.py-302-        assert res is not None
+backend/tests/test_release_provenance.py-303-        assert res.cache_hit is True
+backend/tests/test_release_provenance.py-304-        assert res.release_manifest is not None
+backend/tests/test_release_provenance.py-305-        assert res.release_manifest["release_id"] == get_release_manifest().release_id
+backend/tests/test_release_provenance.py-306-
+backend/tests/test_release_provenance.py-307-
+backend/tests/test_release_provenance.py-308-@pytest.mark.asyncio
+backend/tests/test_release_provenance.py-309-async def test_cache_stage_hits_attach_manifest():
+backend/tests/test_release_provenance.py-310-    """Verify CacheCheckStage attaches release_manifest on hot, vector, and semantic hits."""
+backend/tests/test_release_provenance.py-311-    stage = CacheCheckStage()
+backend/tests/test_release_provenance.py-312-    container = MagicMock(spec=ServiceContainer)
+--
+backend/tests/test_doctrine_terms.py-7-"""
+backend/tests/test_doctrine_terms.py-8-
+backend/tests/test_doctrine_terms.py-9-from pathlib import Path
+backend/tests/test_doctrine_terms.py-10-
+backend/tests/test_doctrine_terms.py-11-from services.doctrine_terms import (
+backend/tests/test_doctrine_terms.py:12:    DEFAULT_DOCTRINE_TERMS,
+backend/tests/test_doctrine_terms.py-13-    apply_corrections,
+backend/tests/test_doctrine_terms.py-14-    correction_term_lines,
+backend/tests/test_doctrine_terms.py-15-    get_whisper_initial_prompt,
+backend/tests/test_doctrine_terms.py-16-)
+backend/tests/test_doctrine_terms.py-17-
+backend/tests/test_doctrine_terms.py-18-_BACKEND = Path(__file__).resolve().parents[1]
+backend/tests/test_doctrine_terms.py-19-
+backend/tests/test_doctrine_terms.py-20-
+backend/tests/test_doctrine_terms.py-21-def test_every_variant_is_corrected_to_its_canonical():
+backend/tests/test_doctrine_terms.py:22:    for canonical, variants in DEFAULT_DOCTRINE_TERMS.items():
+backend/tests/test_doctrine_terms.py-23-        for v in variants:
+backend/tests/test_doctrine_terms.py-24-            out = apply_corrections(f"start {v} end")
+backend/tests/test_doctrine_terms.py-25-            assert canonical in out, f"{v!r} was not corrected to {canonical!r}: {out!r}"
+backend/tests/test_doctrine_terms.py-26-
+backend/tests/test_doctrine_terms.py-27-
+backend/tests/test_doctrine_terms.py-28-def test_tamil_akam_lowercase_is_preserved():
+backend/tests/test_doctrine_terms.py-29-    # "akam" (lowercase) is the Tamil word for the inner self — must NOT become "ekam".
+backend/tests/test_doctrine_terms.py-30-    out = apply_corrections("The word akam means the inner self.")
+backend/tests/test_doctrine_terms.py-31-    assert "akam" in out and "ekam" not in out.lower()
+backend/tests/test_doctrine_terms.py-32-
+backend/tests/test_doctrine_terms.py-33-
+backend/tests/test_doctrine_terms.py-34-def test_capitalised_proper_noun_is_corrected():
+--
+backend/tests/test_pipeline_stages.py-92-    # Circuit breaker (closed = healthy)
+backend/tests/test_pipeline_stages.py-93-    container.ollama = MagicMock()
+backend/tests/test_pipeline_stages.py-94-    container.ollama._circuit = MagicMock()
+backend/tests/test_pipeline_stages.py-95-    container.ollama._circuit.can_execute.return_value = True
+backend/tests/test_pipeline_stages.py-96-
+backend/tests/test_pipeline_stages.py:97:    # Doctrine cache — explicitly None so getattr skips DoctrineCacheStage
+backend/tests/test_pipeline_stages.py:98:    container.doctrine_cache = None
+backend/tests/test_pipeline_stages.py-99-
+backend/tests/test_pipeline_stages.py-100-    return container
+backend/tests/test_pipeline_stages.py-101-
+backend/tests/test_pipeline_stages.py-102-
+backend/tests/test_pipeline_stages.py-103-def _build_ctx(
+backend/tests/test_pipeline_stages.py-104-    container: MagicMock, coordinator: PipelineCoordinator, **overrides
+backend/tests/test_pipeline_stages.py-105-) -> PipelineContext:
+backend/tests/test_pipeline_stages.py-106-    """Build a PipelineContext pre-populated the way execute() does."""
+backend/tests/test_pipeline_stages.py-107-    state = {
+backend/tests/test_pipeline_stages.py-108-        "user_msg_en": "what is the beautiful state",
+backend/tests/test_pipeline_stages.py-109-        "chat_history_en": [],
+backend/tests/test_pipeline_stages.py-110-        "memory_context": "",
+--
+backend/tests/test_pipeline_stages.py-444-    assert names == [
+backend/tests/test_pipeline_stages.py-445-        "cache_check",
+backend/tests/test_pipeline_stages.py-446-        "request_state",
+backend/tests/test_pipeline_stages.py-447-        "input_guardrails",
+backend/tests/test_pipeline_stages.py-448-        "circuit_breaker",
+backend/tests/test_pipeline_stages.py:449:        "doctrine_cache",
+backend/tests/test_pipeline_stages.py-450-        "casual_short_circuit",
+backend/tests/test_pipeline_stages.py-451-        "distress_detection",
+backend/tests/test_pipeline_stages.py-452-        "bounded_comparison_short_circuit",
+backend/tests/test_pipeline_stages.py-453-        "langgraph",
+backend/tests/test_pipeline_stages.py-454-        "meditation_gen",
+backend/tests/test_pipeline_stages.py-455-        "translation",
+backend/tests/test_pipeline_stages.py-456-        "tone_adapter",
+backend/tests/test_pipeline_stages.py-457-        "output_guardrails",
+backend/tests/test_pipeline_stages.py-458-        "memory_save",
+backend/tests/test_pipeline_stages.py-459-        "cache_update",
+backend/tests/test_pipeline_stages.py-460-        "result_assembly",
+backend/tests/test_pipeline_stages.py-461-    ]
+--
+backend/tests/test_corpus_hallucination_integrity.py-2-
+backend/tests/test_corpus_hallucination_integrity.py-3-Asserts 100% cryptographic and semantic integrity across all 745 corpus packages in
+backend/tests/test_corpus_hallucination_integrity.py-4-scripts/ingestion/corpus/:
+backend/tests/test_corpus_hallucination_integrity.py-5-  1. Zero YouTube outro boilerplate (subscribe, like/share, subtitles by, etc.).
+backend/tests/test_corpus_hallucination_integrity.py-6-  2. Zero unwanted HTML/XML entities, zero-width characters, and non-standard control chars.
+backend/tests/test_corpus_hallucination_integrity.py:7:  3. Zero uncorrected doctrine variants from DEFAULT_DOCTRINE_TERMS.
+backend/tests/test_corpus_hallucination_integrity.py-8-  4. 100% Artifact manifest SHA-256 integrity and field agreement across canonical segments,
+backend/tests/test_corpus_hallucination_integrity.py-9-     transcripts, quality reports, correction ledgers, and manifests.
+backend/tests/test_corpus_hallucination_integrity.py-10-"""
+backend/tests/test_corpus_hallucination_integrity.py-11-
+backend/tests/test_corpus_hallucination_integrity.py-12-import hashlib
+backend/tests/test_corpus_hallucination_integrity.py-13-import json
+backend/tests/test_corpus_hallucination_integrity.py-14-import re
+backend/tests/test_corpus_hallucination_integrity.py-15-from pathlib import Path
+backend/tests/test_corpus_hallucination_integrity.py-16-
+backend/tests/test_corpus_hallucination_integrity.py-17-import pytest
+backend/tests/test_corpus_hallucination_integrity.py-18-
+backend/tests/test_corpus_hallucination_integrity.py-19-from services.doctrine_terms import load_doctrine_terms
+=== chat pipeline cache/fallback references ===
+backend/rag/resolve_followup.py-173-    except Exception as _e:
+backend/rag/resolve_followup.py-174-        logger.debug("[followup resolution] suppressed non-critical error: %s", _e)
+backend/rag/resolve_followup.py-175-
+backend/rag/resolve_followup.py-176-    # Build history string from last 10 messages (5 turns) so benchmark follow-ups
+backend/rag/resolve_followup.py:177:    # retain the doctrine anchors from earlier answers.
+backend/rag/resolve_followup.py-178-    recent = chat_history[-10:]
+backend/rag/resolve_followup.py-179-    history_lines = []
+backend/rag/resolve_followup.py-180-    for msg in recent:
+backend/rag/resolve_followup.py-181-        role = msg.get("role", "user").capitalize()
+backend/rag/resolve_followup.py-182-        limit = 400 if role == "Assistant" else 260
+backend/rag/resolve_followup.py-183-        content = msg.get("content", "")[:limit]
+backend/rag/resolve_followup.py-184-        history_lines.append(f"{role}: {content}")
+backend/rag/resolve_followup.py-185-
+backend/rag/resolve_followup.py-186-    history_str = "\n".join(history_lines)
+backend/rag/resolve_followup.py-187-
+backend/rag/resolve_followup.py-188-    if _ollama is None:
+backend/rag/resolve_followup.py-189-        logger.warning("resolve_followup: OllamaService not initialized, skipping")
+--
+backend/rag/meditation.py-58-
+backend/rag/meditation.py-59-def _get_max_step() -> int:
+backend/rag/meditation.py-60-    """Resolve the meditation step count from settings, falling back to the script length.
+backend/rag/meditation.py-61-
+backend/rag/meditation.py:62:    Reading from settings keeps the value env-overridable per the no-hardcoding doctrine.
+backend/rag/meditation.py-63-    """
+backend/rag/meditation.py-64-    configured = getattr(settings, "meditation_max_step", None)
+backend/rag/meditation.py-65-    if isinstance(configured, int) and configured > 0:
+backend/rag/meditation.py-66-        return configured
+backend/rag/meditation.py-67-    return len(MEDITATION_STEPS)
+backend/rag/meditation.py-68-
+backend/rag/meditation.py-69-
+backend/rag/meditation.py-70-# Backwards-compatible module-level constant. Callers should prefer _get_max_step() so the
+backend/rag/meditation.py-71-# value tracks settings overrides, but legacy imports still resolve to a sane number.
+backend/rag/meditation.py-72-MAX_STEP = _get_max_step()
+backend/rag/meditation.py-73-
+backend/rag/meditation.py-74-
+--
+backend/services/guru_voice_langhanam.py-245-
+backend/services/guru_voice_langhanam.py-246-def is_voice_eligible(intent: str) -> bool:
+backend/services/guru_voice_langhanam.py-247-    """True when ``intent`` should receive the guru voice.
+backend/services/guru_voice_langhanam.py-248-
+backend/services/guru_voice_langhanam.py:249:    Teaching/doctrine queries, distress, and FACTUAL queries qualify — FACTUAL
+backend/services/guru_voice_langhanam.py-250-    is included in ``LANGHANAM_ELIGIBLE_INTENTS``: ``on_device_intent`` seeds it
+backend/services/guru_voice_langhanam.py-251-    with what/who/why/how/explain/teach-me, the shape of nearly every seeker
+backend/services/guru_voice_langhanam.py-252-    question. CASUAL and GREETING stay excluded: a one-line "Namaste" does not
+backend/services/guru_voice_langhanam.py-253-    need a teaching register.
+backend/services/guru_voice_langhanam.py-254-    """
+backend/services/guru_voice_langhanam.py-255-    return (intent or "").upper() in LANGHANAM_ELIGIBLE_INTENTS
+backend/services/guru_voice_langhanam.py-256-
+backend/services/guru_voice_langhanam.py-257-
+backend/services/guru_voice_langhanam.py-258-if __name__ == "__main__":
+backend/services/guru_voice_langhanam.py-259-    sample = (
+backend/services/guru_voice_langhanam.py-260-        "I want you to listen carefully. Basically, you know, langhanam "
+backend/services/guru_voice_langhanam.py-261-        "is fasting. Try this practice and observe your breath."
+--
+backend/rag/prompts/deep_research_prompts.py-1-"""Prompts for RAGFlow-inspired Deep Research (recursive sufficiency retrieval).
+backend/rag/prompts/deep_research_prompts.py-2-
+backend/rag/prompts/deep_research_prompts.py:3:Generic retrieval-sufficiency judge — no spiritual content, no fabricated doctrine.
+backend/rag/prompts/deep_research_prompts.py-4-The LLM decides whether gathered context can faithfully answer the question and,
+backend/rag/prompts/deep_research_prompts.py-5-if not, proposes complementary search queries.
+backend/rag/prompts/deep_research_prompts.py-6-"""
+backend/rag/prompts/deep_research_prompts.py-7-
+backend/rag/prompts/deep_research_prompts.py-8-SUFFICIENCY_CHECK_SYSTEM = (
+backend/rag/prompts/deep_research_prompts.py-9-    "You are a retrieval sufficiency judge for a question-answering system. "
+backend/rag/prompts/deep_research_prompts.py-10-    "Given a user question and a summary of gathered context, decide whether the "
+backend/rag/prompts/deep_research_prompts.py-11-    "context is sufficient to answer the question faithfully and completely. "
+backend/rag/prompts/deep_research_prompts.py-12-    "Return STRICT JSON only — no prose, no code fences. "
+backend/rag/prompts/deep_research_prompts.py-13-    'Schema: {"is_sufficient": true|false, "missing_information": str, '
+backend/rag/prompts/deep_research_prompts.py-14-    '"complementary_queries": [str, ...]}. '
+backend/rag/prompts/deep_research_prompts.py-15-    "If sufficient, set complementary_queries to [] and missing_information to ''. "
+--
+backend/app/seed_okf.py-1-#!/usr/bin/env python3
+backend/app/seed_okf.py-2-"""CLI: write a properly-formatted OKF markdown entry to memory/okf/.
+backend/app/seed_okf.py-3-
+backend/app/seed_okf.py:4:Does NOT auto-generate doctrine content (zero-hallucination constraint: data
+backend/app/seed_okf.py-5-source is only the gurus' approved videos). This scaffolds the file with the
+backend/app/seed_okf.py-6-required YAML frontmatter (`type` is mandatory) and a body you supply via
+backend/app/seed_okf.py-7---body-file or stdin. Use to grow memory/okf/ from approved transcripts.
+backend/app/seed_okf.py-8-
+backend/app/seed_okf.py-9-Usage:
+backend/app/seed_okf.py-10-  python -m scripts.seed_okf --title "Oneness" --type teaching \
+backend/app/seed_okf.py-11-      --video-id "abc123" --body-file path/to/body.md
+backend/app/seed_okf.py-12-  echo "body text" | python -m scripts.seed_okf --title X --type glossary
+backend/app/seed_okf.py-13-
+backend/app/seed_okf.py-14-# ponytail: full auto-extraction from transcripts (NLP summarisation of approved
+backend/app/seed_okf.py-15-# YouTube transcripts into OKF entries) is a future task; this CLI only formats
+backend/app/seed_okf.py-16-# author-supplied content so we never fabricate teachings.
+--
+backend/rag/prompts/system.py-159-region — never prescribe, dose, or diagnose, even by analogy. Do this
+backend/rag/prompts/system.py-160-without becoming robotic ("As an AI I cannot…" is forbidden); redirect
+backend/rag/prompts/system.py-161-through the language of care.
+backend/rag/prompts/system.py-162-
+backend/rag/prompts/system.py:163:## The doctrine you serve
+backend/rag/prompts/system.py-164-
+backend/rag/prompts/system.py-165-Mukthi Guru speaks for one specific lineage:
+backend/rag/prompts/system.py-166-
+backend/rag/prompts/system.py-167-  * The **Beautiful State** — calm, joy, love, and connection naturally
+backend/rag/prompts/system.py-168-    arising. Not an achievement; a return.
+backend/rag/prompts/system.py-169-  * The **Suffering State** — division, anxiety, fear, separation.
+backend/rag/prompts/system.py-170-    The movement between these two states is the heart of inner life.
+backend/rag/prompts/system.py-171-  * **Surrender** — not weakness, the greatest power.
+backend/rag/prompts/system.py-172-  * **Ekam** — the consciousness field in Andhra Pradesh, India.
+backend/rag/prompts/system.py-173-  * **The Four Sacred Secrets** — spiritual vision, inner truth, universal
+backend/rag/prompts/system.py-174-    intelligence, spiritual right action.
+backend/rag/prompts/system.py-175-  * **Deeksha** — the Oneness Blessing, with documented effects on the
+--
+backend/rag/doc_utils.py-18-    return _strip_ingestion_headers(text)
+backend/rag/doc_utils.py-19-
+backend/rag/doc_utils.py-20-
+backend/rag/doc_utils.py-21-def _strip_ingestion_headers(text: str) -> str:
+backend/rag/doc_utils.py:22:    """Remove ingestion pipeline headers embedded in document text before LLM sees them."""
+backend/rag/doc_utils.py-23-    if not text:
+backend/rag/doc_utils.py-24-        return text
+backend/rag/doc_utils.py-25-    text = re.sub(r"\[Source:\s*[^\]]*?(?:Speaker:|Topic:)[^\]]*\]", "", text)
+backend/rag/doc_utils.py-26-    text = re.sub(r"\[RAPTOR\s+Level:\s*\d+\s*\|\s*Topic:\s*[^\]]+\]", "", text)
+backend/rag/doc_utils.py-27-    return text.strip()
+backend/rag/doc_utils.py-28-
+backend/rag/doc_utils.py-29-
+backend/rag/doc_utils.py-30-import hashlib
+backend/rag/doc_utils.py-31-
+backend/rag/doc_utils.py-32-
+backend/rag/doc_utils.py-33-def doc_hash(doc: dict) -> str:
+backend/rag/doc_utils.py-34-    """Compute or return deterministic SHA-256 hash for a document chunk."""
+--
+backend/app/orchestrator_utils.py-3-Shared request preparation, memory context preparation, and language routing utilities
+backend/app/orchestrator_utils.py-4-used by both synchronous and streaming orchestrators.
+backend/app/orchestrator_utils.py-5-
+backend/app/orchestrator_utils.py-6-Fast-path routing: classifies queries into fast/standard/deep based on
+backend/app/orchestrator_utils.py:7:intent, doctrine keywords, and query structure.
+backend/app/orchestrator_utils.py-8-"""
+backend/app/orchestrator_utils.py-9-
+backend/app/orchestrator_utils.py-10-from __future__ import annotations
+backend/app/orchestrator_utils.py-11-
+backend/app/orchestrator_utils.py-12-import asyncio
+backend/app/orchestrator_utils.py-13-import hashlib
+backend/app/orchestrator_utils.py-14-import logging
+backend/app/orchestrator_utils.py-15-import re
+backend/app/orchestrator_utils.py-16-import time
+backend/app/orchestrator_utils.py-17-from collections import OrderedDict
+backend/app/orchestrator_utils.py-18-from datetime import UTC, datetime, timedelta
+backend/app/orchestrator_utils.py-19-from typing import TYPE_CHECKING, Any, Optional
+--
+backend/app/orchestrator_utils.py-239-
+backend/app/orchestrator_utils.py-240-    # Multi-part guard: preserve deep routing for comparisons and synthesis, but
+backend/app/orchestrator_utils.py-241-    # keep the common definition-plus-practice FAQ on the fast graph. This is a
+backend/app/orchestrator_utils.py-242-    # bounded two-intent pattern, not a general conjunction bypass.
+backend/app/orchestrator_utils.py:243:    is_definition_practice_faq = bool(
+backend/app/orchestrator_utils.py-244-        re.search(
+backend/app/orchestrator_utils.py-245-            r"^what is .{3,80} and how (?:can|do) i (?:practice|apply|use)\b",
+backend/app/orchestrator_utils.py-246-            q,
+backend/app/orchestrator_utils.py-247-        )
+backend/app/orchestrator_utils.py-248-    )
+backend/app/orchestrator_utils.py:249:    is_multi_part = any(re.search(patn, q) for patn in _MULTI_PART_INDICATORS) and not is_definition_practice_faq
+backend/app/orchestrator_utils.py-250-
+backend/app/orchestrator_utils.py-251-    # Doctrine keyword fast-path: known spiritual terms get fast even at 25 tokens
+backend/app/orchestrator_utils.py-252-    if detected_intent in ("FACTUAL", "QUERY"):
+backend/app/orchestrator_utils.py-253-        if any(kw in q for kw in _DOCTRINE_FAST_PATH_KEYWORDS) and not is_multi_part:
+backend/app/orchestrator_utils.py-254-            if len(tokens) <= 25:
+backend/app/orchestrator_utils.py-255-                try:
+backend/app/orchestrator_utils.py-256-                    _t = asyncio.create_task(
+backend/app/orchestrator_utils.py-257-                        log_router_decision(
+backend/app/orchestrator_utils.py-258-                            query=query,
+backend/app/orchestrator_utils.py-259-                            tier="fast",
+backend/app/orchestrator_utils.py-260-                            confidence=1.0,
+backend/app/orchestrator_utils.py:261:                            method="heuristic_doctrine",
+backend/app/orchestrator_utils.py-262-                        )
+backend/app/orchestrator_utils.py-263-                    )
+backend/app/orchestrator_utils.py-264-                    _t.add_done_callback(_observe_background_task_error)
+backend/app/orchestrator_utils.py-265-                except Exception as _e:
+backend/app/orchestrator_utils.py-266-                    logger.debug("[telemetry task] suppressed non-critical error: %s", _e)
+backend/app/orchestrator_utils.py-267-                return "fast"
+backend/app/orchestrator_utils.py-268-        elif len(tokens) <= 20 and not is_multi_part:
+backend/app/orchestrator_utils.py-269-            try:
+backend/app/orchestrator_utils.py-270-                _t = asyncio.create_task(
+backend/app/orchestrator_utils.py-271-                    log_router_decision(
+backend/app/orchestrator_utils.py-272-                        query=query,
+backend/app/orchestrator_utils.py-273-                        tier="fast",
+--
+backend/app/orchestrator_utils.py-394-    return query_tier in ("fast", "tier2_simple") or detected_intent in ("CASUAL", "MEDITATION")
+backend/app/orchestrator_utils.py-395-
+backend/app/orchestrator_utils.py-396-
+backend/app/orchestrator_utils.py-397-def get_expected_keywords(query: str) -> list[str]:
+backend/app/orchestrator_utils.py:398:    """Extract expected doctrine keywords from a query for retrieval boosting."""
+backend/app/orchestrator_utils.py-399-    q = query.lower()
+backend/app/orchestrator_utils.py-400-    keywords: list[str] = []
+backend/app/orchestrator_utils.py-401-
+backend/app/orchestrator_utils.py-402-    if "four sacred secret" in q or "four secret" in q or "sacred secrets" in q:
+backend/app/orchestrator_utils.py-403-        keywords.extend(
+backend/app/orchestrator_utils.py-404-            ["spiritual vision", "inner truth", "universal intelligence", "spiritual right action"]
+backend/app/orchestrator_utils.py-405-        )
+backend/app/orchestrator_utils.py-406-    elif "first sacred secret" in q or "1st sacred secret" in q or "explain the first" in q:
+backend/app/orchestrator_utils.py-407-        keywords.append("spiritual vision")
+backend/app/orchestrator_utils.py-408-    elif "second sacred secret" in q or "2nd sacred secret" in q:
+backend/app/orchestrator_utils.py-409-        keywords.append("inner truth")
+backend/app/orchestrator_utils.py-410-    elif "third sacred secret" in q or "3rd sacred secret" in q:
+--
+backend/services/doctrine_terms.py:1:"""Canonical doctrine-term corrections — the single source of truth.
+backend/services/doctrine_terms.py-2-
+backend/services/doctrine_terms.py:3:Whisper mis-transcribes doctrine proper nouns ("Ekam"->"Akam"/"Acam",
+backend/services/doctrine_terms.py-4-"Preethaji"->"Pretty Ji"). Historically the same corrections were duplicated across
+backend/services/doctrine_terms.py-5-``whisper_local_service``, ``ingest/corrector`` and the generation output — they drifted, so
+backend/services/doctrine_terms.py-6-"Acam" was fixed in all three and "Akam" in none. Every correction point now derives from THIS
+backend/services/doctrine_terms.py-7-module, so a term added once is corrected at transcription, at ingest, and in the output:
+backend/services/doctrine_terms.py-8-
+backend/services/doctrine_terms.py-9-  * ``get_whisper_initial_prompt()`` — biases Whisper toward correct spellings (prevents the error)
+backend/services/doctrine_terms.py-10-  * ``apply_corrections(text)``      — deterministic word-boundary correction (ingest + output)
+backend/services/doctrine_terms.py-11-  * ``apply_corrections_with_ledger()`` — audited path: map corrections + reversible ledger, no lexicon
+backend/services/doctrine_terms.py-12-  * ``correction_term_lines()``      — the LLM corrector's "Important Terms" list
+backend/services/doctrine_terms.py-13-
+backend/services/doctrine_terms.py-14-The audited ledger path (``apply_corrections_with_ledger``) and its ingestion
+backend/services/doctrine_terms.py-15-callers deliberately do NOT chain the data-derived lexicon: lexicon replacements
+backend/services/doctrine_terms.py-16-are word-level and cannot be addressed in the original-text offsets the ledger
+backend/services/doctrine_terms.py-17-validator checks, so ledgered content skips that pass (``_apply_lexicon_corrections``
+backend/services/doctrine_terms.py-18-is reachable only from the non-audited ``apply_corrections`` wrapper).
+backend/services/doctrine_terms.py-19-
+backend/services/doctrine_terms.py:20:Admins can extend the map at runtime via the ``doctrine_terms`` Supabase table (canonical +
+backend/services/doctrine_terms.py-21-variants). DB rows merge over the code ``DEFAULT_DOCTRINE_TERMS`` (DB wins); if Supabase is down we
+backend/services/doctrine_terms.py-22-fall back to the code defaults and never crash ingestion. ``reload()`` drops the TTL cache so admin
+backend/services/doctrine_terms.py-23-edits apply without a restart.
+backend/services/doctrine_terms.py-24-"""
+backend/services/doctrine_terms.py-25-
+backend/services/doctrine_terms.py-26-from __future__ import annotations
+backend/services/doctrine_terms.py-27-
+backend/services/doctrine_terms.py-28-import logging
+backend/services/doctrine_terms.py-29-import re
+backend/services/doctrine_terms.py-30-import time
+backend/services/doctrine_terms.py-31-
+backend/services/doctrine_terms.py-32-logger = logging.getLogger(__name__)
+--
+backend/services/doctrine_terms.py-291-_cache_ts = 0.0
+backend/services/doctrine_terms.py-292-
+backend/services/doctrine_terms.py-293-
+backend/services/doctrine_terms.py-294-def _load_admin_overrides() -> dict[str, list[str]]:
+backend/services/doctrine_terms.py:295:    """Rows from the ``doctrine_terms`` Supabase table. Empty on any failure (graceful)."""
+backend/services/doctrine_terms.py-296-    overrides: dict[str, list[str]] = {}
+backend/services/doctrine_terms.py-297-    try:
+backend/services/doctrine_terms.py-298-        from app.telemetry_db import _get_client  # same accessor PromptStore uses
+backend/services/doctrine_terms.py-299-
+backend/services/doctrine_terms.py-300-        client = _get_client()
+backend/services/doctrine_terms.py-301-        if not client:
+backend/services/doctrine_terms.py-302-            return overrides
+backend/services/doctrine_terms.py:303:        res = client.table("doctrine_terms").select("canonical, variants, enabled").execute()
+backend/services/doctrine_terms.py-304-        for row in getattr(res, "data", None) or []:
+backend/services/doctrine_terms.py-305-            if row.get("enabled") is False:
+backend/services/doctrine_terms.py-306-                continue
+backend/services/doctrine_terms.py-307-            canonical = (row.get("canonical") or "").strip()
+backend/services/doctrine_terms.py-308-            if canonical:
+backend/services/doctrine_terms.py-309-                overrides[canonical] = [v for v in (row.get("variants") or []) if v]
+backend/services/doctrine_terms.py-310-    except Exception as exc:  # missing table, Supabase down, no client — fall back to defaults
+backend/services/doctrine_terms.py:311:        logger.debug("doctrine_terms: no admin overrides (%s); using code defaults", exc)
+backend/services/doctrine_terms.py-312-    return overrides
+backend/services/doctrine_terms.py-313-
+backend/services/doctrine_terms.py-314-
+backend/services/doctrine_terms.py-315-def _build_regexes(terms: dict[str, list[str]]) -> list[tuple[re.Pattern, str, str]]:
+backend/services/doctrine_terms.py-316-    """Compile word-boundary variant->canonical rules. Case rule lives ONLY here."""
+backend/services/doctrine_terms.py-317-    out: list[tuple[re.Pattern, str, str]] = []
+backend/services/doctrine_terms.py-318-    for canonical, variants in terms.items():
+backend/services/doctrine_terms.py-319-        variant_literal_set = set(variants)  # exact strings, case preserved
+backend/services/doctrine_terms.py-320-        rule_slug = re.sub(r"[^A-Z0-9]+", "_", canonical.upper()).strip("_")
+backend/services/doctrine_terms.py-321-        rule_id = f"DOCTRINE_{rule_slug}"
+backend/services/doctrine_terms.py-322-        for v in variants:
+backend/services/doctrine_terms.py-323-            if not v:
+--
+backend/services/doctrine_terms.py-333-                out.append((re.compile(rf"\b{re.escape(low)}\b"), canonical, rule_id))
+backend/services/doctrine_terms.py-334-    return out
+backend/services/doctrine_terms.py-335-
+backend/services/doctrine_terms.py-336-
+backend/services/doctrine_terms.py:337:def load_doctrine_terms() -> dict[str, list[str]]:
+backend/services/doctrine_terms.py-338-    """DEFAULTS merged with admin overrides (DB wins), TTL-cached. Never raises."""
+backend/services/doctrine_terms.py-339-    global _cache_terms, _cache_regexes, _cache_ts
+backend/services/doctrine_terms.py-340-    now = time.time()
+backend/services/doctrine_terms.py-341-    if _cache_terms is not None and (now - _cache_ts) < _TTL_SECONDS:
+backend/services/doctrine_terms.py-342-        return _cache_terms
+backend/services/doctrine_terms.py-343-    terms: dict[str, list[str]] = {k: list(v) for k, v in DEFAULT_DOCTRINE_TERMS.items()}
+backend/services/doctrine_terms.py-344-    for canonical, variants in _load_admin_overrides().items():
+backend/services/doctrine_terms.py-345-        merged = list(dict.fromkeys([*terms.get(canonical, []), *variants]))
+backend/services/doctrine_terms.py-346-        terms[canonical] = merged
+backend/services/doctrine_terms.py-347-    _cache_terms = terms
+backend/services/doctrine_terms.py-348-    _cache_regexes = _build_regexes(terms)
+backend/services/doctrine_terms.py-349-    _cache_ts = now
+--
+backend/services/doctrine_terms.py-363-    pipeline_version: str = "2.0.0",
+backend/services/doctrine_terms.py-364-) -> tuple[str, list[dict]]:
+backend/services/doctrine_terms.py-365-    """Apply domain corrections while recording a truly reversible, offset-based audit ledger.
+backend/services/doctrine_terms.py-366-
+backend/services/doctrine_terms.py:367:    Only the doctrine_terms map corrections are recorded here. The data-derived
+backend/services/doctrine_terms.py-368-    lexicon pass (``_apply_lexicon_corrections``) is deliberately NOT chained: its
+backend/services/doctrine_terms.py-369-    word-level replacements cannot be addressed in original-text offsets, so
+backend/services/doctrine_terms.py-370-    ledgered/audited ingestion content skips it and stays fully reversible.
+backend/services/doctrine_terms.py-371-    Non-audited flows get the lexicon via ``apply_corrections``.
+backend/services/doctrine_terms.py-372-
+backend/services/doctrine_terms.py-373-    Returns:
+backend/services/doctrine_terms.py-374-        (corrected_text, ledger_records)
+backend/services/doctrine_terms.py-375-    """
+backend/services/doctrine_terms.py-376-    import hashlib
+backend/services/doctrine_terms.py-377-    import unicodedata
+backend/services/doctrine_terms.py-378-
+backend/services/doctrine_terms.py-379-    if not text:
+--
+backend/services/doctrine_terms.py-382-    # Enforce standard Unicode NFC normalization
+backend/services/doctrine_terms.py-383-    norm_text = unicodedata.normalize("NFC", text)
+backend/services/doctrine_terms.py-384-    orig_hash = hashlib.sha256(norm_text.encode("utf-8")).hexdigest()
+backend/services/doctrine_terms.py-385-
+backend/services/doctrine_terms.py:386:    load_doctrine_terms()
+backend/services/doctrine_terms.py-387-    ledger: list[dict] = []
+backend/services/doctrine_terms.py-388-
+backend/services/doctrine_terms.py-389-    # Collect all match spans
+backend/services/doctrine_terms.py-390-    matches: list[dict] = []
+backend/services/doctrine_terms.py-391-    for pattern, replacement, rule_id in _cache_regexes or []:
+backend/services/doctrine_terms.py-392-        for m in pattern.finditer(norm_text):
+backend/services/doctrine_terms.py-393-            matches.append(
+backend/services/doctrine_terms.py-394-                {
+backend/services/doctrine_terms.py-395-                    "start": m.start(),
+backend/services/doctrine_terms.py-396-                    "end": m.end(),
+backend/services/doctrine_terms.py-397-                    "matched_text": m.group(0),
+backend/services/doctrine_terms.py-398-                    "replacement": replacement,
+--
+backend/services/doctrine_terms.py-476-
+backend/services/doctrine_terms.py-477-def _apply_lexicon_corrections(text: str) -> str:
+backend/services/doctrine_terms.py-478-    """Second-tier corrections from the data-derived lexicon (non-audited flows only)."""
+backend/services/doctrine_terms.py-479-    try:
+backend/services/doctrine_terms.py:480:        from services.doctrine_lexicon import get_lexicon
+backend/services/doctrine_terms.py-481-
+backend/services/doctrine_terms.py-482-        lexicon = get_lexicon()
+backend/services/doctrine_terms.py-483-        if lexicon is not None:
+backend/services/doctrine_terms.py-484-            corrected, _ = lexicon.correct(text)
+backend/services/doctrine_terms.py-485-            return corrected
+backend/services/doctrine_terms.py-486-    except Exception as _lex_err:
+backend/services/doctrine_terms.py:487:        logger.debug("doctrine_lexicon pass skipped: %s", _lex_err)
+backend/services/doctrine_terms.py-488-    return text
+backend/services/doctrine_terms.py-489-
+backend/services/doctrine_terms.py-490-
+backend/services/doctrine_terms.py-491-def apply_corrections(text: str) -> str:
+backend/services/doctrine_terms.py:492:    """Deterministic doctrine-term correction (convenience wrapper).
+backend/services/doctrine_terms.py-493-
+backend/services/doctrine_terms.py-494-    Chains the derived lexicon after the map. This is the lexicon's only entry
+backend/services/doctrine_terms.py-495-    point: the audited ``apply_corrections_with_ledger`` path must not receive
+backend/services/doctrine_terms.py-496-    lexicon edits, because they cannot be recorded reversibly in the ledger.
+backend/services/doctrine_terms.py-497-    """
+backend/services/doctrine_terms.py-498-    corrected, _ = apply_corrections_with_ledger(text)
+backend/services/doctrine_terms.py-499-    return _apply_lexicon_corrections(corrected)
+backend/services/doctrine_terms.py-500-
+backend/services/doctrine_terms.py-501-
+backend/services/doctrine_terms.py-502-def get_whisper_initial_prompt() -> str:
+backend/services/doctrine_terms.py-503-    """Glossary of canonical spellings to bias Whisper transcription at the source."""
+backend/services/doctrine_terms.py:504:    canon = ", ".join(load_doctrine_terms().keys())
+backend/services/doctrine_terms.py-505-    return f"Correct spellings used in this recording: {canon}."
+backend/services/doctrine_terms.py-506-
+backend/services/doctrine_terms.py-507-
+backend/services/doctrine_terms.py-508-def correction_term_lines() -> str:
+backend/services/doctrine_terms.py-509-    """The LLM corrector's 'Important Terms' block, built from the canonical map."""
+backend/services/doctrine_terms.py-510-    lines = []
+backend/services/doctrine_terms.py:511:    for canonical, variants in load_doctrine_terms().items():
+backend/services/doctrine_terms.py-512-        if variants:
+backend/services/doctrine_terms.py-513-            lines.append(f'- "{canonical}" (often misheard as {", ".join(variants)})')
+backend/services/doctrine_terms.py-514-        else:
+backend/services/doctrine_terms.py-515-            lines.append(f'- "{canonical}"')
+backend/services/doctrine_terms.py-516-    return "\n".join(lines)
+backend/services/doctrine_terms.py-517-
+backend/services/doctrine_terms.py-518-
+backend/services/doctrine_terms.py-519-if __name__ == "__main__":
+backend/services/doctrine_terms.py-520-    assert apply_corrections("The energy at Akam is profound.") == "The energy at Ekam is profound."
+backend/services/doctrine_terms.py-521-    assert apply_corrections("Sri Pretty Ji teaches.") == "Sri Preethaji teaches."
+backend/services/doctrine_terms.py-522-    assert apply_corrections("We did soul sink today.") == "We did Soul Sync today."
+backend/services/doctrine_terms.py-523-    # Tamil "akam" (lowercase, inner self) must survive
+backend/services/doctrine_terms.py-524-    assert "akam" in apply_corrections("The word akam means the inner self.")
+backend/services/doctrine_terms.py-525-    # Layer 2 (the derived lexicon) corrects what nobody typed into the map above.
+backend/services/doctrine_terms.py-526-    # Skipped silently when the lexicon has not been built on this host.
+backend/services/doctrine_terms.py:527:    from services.doctrine_lexicon import get_lexicon
+backend/services/doctrine_terms.py-528-
+backend/services/doctrine_terms.py-529-    if get_lexicon() is not None:
+backend/services/doctrine_terms.py-530-        assert apply_corrections("The Ujash practice.") == "The Ojas practice."
+backend/services/doctrine_terms.py-531-        assert apply_corrections("a piece of peace") == "a piece of peace"
+backend/services/doctrine_terms.py-532-    assert "Ekam" in get_whisper_initial_prompt()
+backend/services/doctrine_terms.py-533-    assert "misheard" in correction_term_lines()
+backend/services/doctrine_terms.py:534:    print("doctrine_terms self-check: all asserts passed")
+--
+backend/rag/graph.py-48-    qdrant_service,
+backend/rag/graph.py-49-    lightrag_service,
+backend/rag/graph.py-50-    serene_mind_engine=None,
+backend/rag/graph.py-51-    web_search=None,
+backend/rag/graph.py:52:    doctrine_service=None,
+backend/rag/graph.py-53-    llm_gateway=None,
+backend/rag/graph.py-54-    graphrag_fusion=None,
+backend/rag/graph.py-55-) -> CompiledStateGraph:
+backend/rag/graph.py-56-    """Inject services into module globals, then return the cached compile.
+backend/rag/graph.py-57-
+backend/rag/graph.py-58-    init_services is idempotent (sets the same singletons); the compiled graph
+backend/rag/graph.py-59-    is cached by strategy name and reused across calls. The service args are
+backend/rag/graph.py-60-    retained for backward compatibility and so the first call establishes the
+backend/rag/graph.py-61-    module-level service globals the nodes read at invoke time.
+backend/rag/graph.py-62-    """
+backend/rag/graph.py-63-    init_services(
+backend/rag/graph.py-64-        ollama=ollama_service,
+--
+backend/rag/graph.py-66-        qdrant=qdrant_service,
+backend/rag/graph.py-67-        lightrag=lightrag_service,
+backend/rag/graph.py-68-        serene_mind=serene_mind_engine,
+backend/rag/graph.py-69-        web_search=web_search,
+backend/rag/graph.py:70:        doctrine_service=doctrine_service,
+backend/rag/graph.py-71-        llm_gateway=llm_gateway,
+backend/rag/graph.py-72-        graphrag_fusion=graphrag_fusion,
+backend/rag/graph.py-73-    )
+backend/rag/graph.py-74-    return build_cached(strategy_name)
+backend/rag/graph.py-75-
+backend/rag/graph.py-76-
+backend/rag/graph.py-77-def build_rag_graph(
+backend/rag/graph.py-78-    ollama_service: OllamaService,
+backend/rag/graph.py-79-    embedding_service: EmbeddingService,
+backend/rag/graph.py-80-    qdrant_service: QdrantService,
+backend/rag/graph.py-81-    lightrag_service: LightRAGService,
+backend/rag/graph.py-82-    serene_mind_engine: SereneMindEngine = None,
+backend/rag/graph.py-83-    web_search=None,
+backend/rag/graph.py:84:    doctrine_service=None,
+backend/rag/graph.py-85-    llm_gateway=None,
+backend/rag/graph.py-86-    graphrag_fusion=None,
+backend/rag/graph.py-87-) -> CompiledStateGraph:
+backend/rag/graph.py-88-    """
+backend/rag/graph.py-89-    Build and compile the complete RAG pipeline as a LangGraph.
+backend/rag/graph.py-90-
+backend/rag/graph.py-91-    Delegates to ``StandardGraphStrategy`` so the actual wiring is isolated
+backend/rag/graph.py-92-    from this public API. The compiled graph is cached by strategy name.
+backend/rag/graph.py-93-    """
+backend/rag/graph.py-94-    return _init_then_compile(
+backend/rag/graph.py-95-        "standard",
+backend/rag/graph.py-96-        ollama_service,
+--
+backend/rag/graph.py-98-        qdrant_service,
+backend/rag/graph.py-99-        lightrag_service,
+backend/rag/graph.py-100-        serene_mind_engine,
+backend/rag/graph.py-101-        web_search,
+backend/rag/graph.py:102:        doctrine_service,
+backend/rag/graph.py-103-        llm_gateway,
+backend/rag/graph.py-104-        graphrag_fusion,
+backend/rag/graph.py-105-    )
+backend/rag/graph.py-106-
+backend/rag/graph.py-107-
+backend/rag/graph.py-108-def build_fast_graph(
+backend/rag/graph.py-109-    ollama_service: OllamaService,
+backend/rag/graph.py-110-    embedding_service: EmbeddingService,
+backend/rag/graph.py-111-    qdrant_service: QdrantService,
+backend/rag/graph.py-112-    lightrag_service: LightRAGService,
+backend/rag/graph.py-113-    serene_mind_engine: SereneMindEngine = None,
+backend/rag/graph.py-114-    web_search=None,
+backend/rag/graph.py:115:    doctrine_service=None,
+backend/rag/graph.py-116-    llm_gateway=None,
+backend/rag/graph.py-117-    graphrag_fusion=None,
+backend/rag/graph.py-118-) -> CompiledStateGraph:
+backend/rag/graph.py-119-    """Fast path (Path A): 5-node pipeline for simple factual queries."""
+backend/rag/graph.py-120-    return _init_then_compile(
+backend/rag/graph.py-121-        "fast",
+backend/rag/graph.py-122-        ollama_service,
+backend/rag/graph.py-123-        embedding_service,
+backend/rag/graph.py-124-        qdrant_service,
+backend/rag/graph.py-125-        lightrag_service,
+backend/rag/graph.py-126-        serene_mind_engine,
+backend/rag/graph.py-127-        web_search,
+backend/rag/graph.py:128:        doctrine_service,
+backend/rag/graph.py-129-        llm_gateway,
+backend/rag/graph.py-130-        graphrag_fusion,
+backend/rag/graph.py-131-    )
+backend/rag/graph.py-132-
+backend/rag/graph.py-133-
+backend/rag/graph.py-134-def build_deep_graph(
+backend/rag/graph.py-135-    ollama_service: OllamaService,
+backend/rag/graph.py-136-    embedding_service: EmbeddingService,
+backend/rag/graph.py-137-    qdrant_service: QdrantService,
+backend/rag/graph.py-138-    lightrag_service: LightRAGService,
+backend/rag/graph.py-139-    serene_mind_engine: SereneMindEngine = None,
+backend/rag/graph.py-140-    web_search=None,
+backend/rag/graph.py:141:    doctrine_service=None,
+backend/rag/graph.py-142-    llm_gateway=None,
+backend/rag/graph.py-143-    graphrag_fusion=None,
+backend/rag/graph.py-144-) -> CompiledStateGraph:
+backend/rag/graph.py-145-    """Deep path: full standard graph with additional verification + CoT nodes."""
+backend/rag/graph.py-146-    return _init_then_compile(
+backend/rag/graph.py-147-        "deep",
+backend/rag/graph.py-148-        ollama_service,
+backend/rag/graph.py-149-        embedding_service,
+backend/rag/graph.py-150-        qdrant_service,
+backend/rag/graph.py-151-        lightrag_service,
+backend/rag/graph.py-152-        serene_mind_engine,
+backend/rag/graph.py-153-        web_search,
+backend/rag/graph.py:154:        doctrine_service,
+backend/rag/graph.py-155-        llm_gateway,
+backend/rag/graph.py-156-        graphrag_fusion,
+backend/rag/graph.py-157-    )
+backend/rag/graph.py-158-
+backend/rag/graph.py-159-
+backend/rag/graph.py-160-# ---------------------------------------------------------------------------
+backend/rag/graph.py-161-# Factory for initial state
+backend/rag/graph.py-162-# ---------------------------------------------------------------------------
+backend/rag/graph.py-163-
+backend/rag/graph.py-164-
+backend/rag/graph.py-165-def create_initial_state(
+backend/rag/graph.py-166-    question: str,
+--
+backend/services/doctrine_lexicon.py:1:"""Data-derived doctrine lexicon and ASR variant correction.
+backend/services/doctrine_lexicon.py-2-
+backend/services/doctrine_lexicon.py:3:Replaces the hand-maintained variant lists in ``doctrine_terms.py``. Those lists
+backend/services/doctrine_lexicon.py-4-could only fix mis-transcriptions somebody had already seen and typed in, which
+backend/services/doctrine_lexicon.py-5-is why the live corpus carries "Ojas" in 15 chunks and "Ujash" in 4 **from the
+backend/services/doctrine_lexicon.py-6-same video** — ``Ojas Shakti`` is a named Ekam meditation practice and no entry
+backend/services/doctrine_lexicon.py-7-for it existed. A list cannot enumerate what ASR will invent next: the same word
+backend/services/doctrine_lexicon.py-8-arrives as ``Ujash``, ``Ujasi``, ``Ojasi``, ``Ojus``. Similarity has to be
+backend/services/doctrine_lexicon.py-9-computed, not looked up.
+backend/services/doctrine_lexicon.py-10-
+backend/services/doctrine_lexicon.py-11-Two ideas carry the design.
+backend/services/doctrine_lexicon.py-12-
+backend/services/doctrine_lexicon.py-13-**The authority corpus is the dictionary.** Vocabulary is derived from sources
+backend/services/doctrine_lexicon.py-14-that are already correct — the professionally-edited books, the official Ekam and
+backend/services/doctrine_lexicon.py-15-Oneness Movement pages, terms many independent corpus sources already agree on,
+--
+backend/services/doctrine_lexicon.py-17-
+backend/services/doctrine_lexicon.py-18-**Precision comes from refusing to act.** A naive phonetic pass over general
+backend/services/doctrine_lexicon.py-19-vocabulary destroys spiritual text: measured over 89,061 live chunks, phonetic
+backend/services/doctrine_lexicon.py-20-collision families include ``peace``x111,163 against ``piece``x1,616 and
+backend/services/doctrine_lexicon.py:21:``four``x260,481 against ``fear``x3,203. Rewriting *peace* to *piece* in doctrine
+backend/services/doctrine_lexicon.py-22-is far worse than leaving ``Ujash`` alone. So a token is corrected only when
+backend/services/doctrine_lexicon.py-23-**every** gate passes, and the default at each gate is to do nothing:
+backend/services/doctrine_lexicon.py-24-
+backend/services/doctrine_lexicon.py-25-1. the token is absent from the authority vocabulary (if it is present it is
+backend/services/doctrine_lexicon.py-26-   correct by definition — this is what makes ``peace`` and ``piece`` both safe,
+backend/services/doctrine_lexicon.py-27-   since both appear in the books);
+backend/services/doctrine_lexicon.py-28-2. the token is rare in the corpus and concentrated in few sources (a spelling
+backend/services/doctrine_lexicon.py-29-   used widely across many independent sources is real usage, not an ASR slip);
+backend/services/doctrine_lexicon.py-30-3. exactly one authority term matches phonetically — an ambiguous match is
+backend/services/doctrine_lexicon.py-31-   abandoned rather than guessed;
+backend/services/doctrine_lexicon.py-32-4. string similarity to that term clears a high threshold.
+backend/services/doctrine_lexicon.py-33-
+--
+backend/services/doctrine_lexicon.py-49-
+backend/services/doctrine_lexicon.py-50-logger = logging.getLogger(__name__)
+backend/services/doctrine_lexicon.py-51-
+backend/services/doctrine_lexicon.py-52-_BACKEND = Path(__file__).resolve().parents[1]
+backend/services/doctrine_lexicon.py:53:LEXICON_PATH: Path = _BACKEND / "data" / "doctrine_lexicon.json"
+backend/services/doctrine_lexicon.py-54-
+backend/services/doctrine_lexicon.py-55-# A token must look like a word before it is even considered.
+backend/services/doctrine_lexicon.py-56-_TOKEN_RE = re.compile(r"\b[A-Za-z][a-zA-Z'’-]{2,}\b")
+backend/services/doctrine_lexicon.py-57-
+backend/services/doctrine_lexicon.py-58-# --- Correction gates -------------------------------------------------------
+backend/services/doctrine_lexicon.py-59-# Deliberately conservative. Every threshold trades recall for precision, and on
+backend/services/doctrine_lexicon.py:60:# doctrine text a false correction is unrecoverable (it is quoted to a seeker as
+backend/services/doctrine_lexicon.py-61-# the guru's own words) while a missed one merely leaves the status quo.
+backend/services/doctrine_lexicon.py-62-
+backend/services/doctrine_lexicon.py-63-# Above this corpus frequency a spelling is real usage, not an ASR error, even if
+backend/services/doctrine_lexicon.py-64-# the authority sources happen not to contain it.
+backend/services/doctrine_lexicon.py-65-_MAX_CORPUS_FREQ_TO_CORRECT: int = 40
+backend/services/doctrine_lexicon.py-66-# ...and if many independent sources use the spelling, it is not one bad ASR run.
+backend/services/doctrine_lexicon.py-67-_MAX_SOURCES_TO_CORRECT: int = 3
+backend/services/doctrine_lexicon.py-68-# Similarity to the candidate, applied ONLY to tokens the vocabulary gate has
+backend/services/doctrine_lexicon.py-69-# already rejected. Measured on real pairs, similarity alone cannot separate the
+backend/services/doctrine_lexicon.py-70-# two classes at any threshold:
+backend/services/doctrine_lexicon.py-71-#
+backend/services/doctrine_lexicon.py-72-#     should correct   ujash/ojas 0.783   diksha/deeksha 0.864
+--
+backend/services/doctrine_lexicon.py-182-        self.proper_nouns = {w.lower(): c for w, c in (proper_nouns or {}).items()}
+backend/services/doctrine_lexicon.py-183-        self.stats = stats or LexiconStats()
+backend/services/doctrine_lexicon.py-184-        self.corpus_freq = corpus_freq or {}
+backend/services/doctrine_lexicon.py-185-        self.corpus_sources = corpus_sources or {}
+backend/services/doctrine_lexicon.py:186:        # PROTECT with everything, CORRECT TOWARD only trusted doctrine sources.
+backend/services/doctrine_lexicon.py-187-        # The asymmetry is the whole design. A 200k English list is what keeps
+backend/services/doctrine_lexicon.py-188-        # `soar`, `steel` and `knots` safe, but its long tail is foreign words and
+backend/services/doctrine_lexicon.py-189-        # noise, and using it as a correction TARGET produced `yascha -> yasaka`,
+backend/services/doctrine_lexicon.py-190-        # `sthita -> stith` and `no-op -> knoop`. Targets come from the books, the
+backend/services/doctrine_lexicon.py-191-        # official sites and strong corpus consensus — text this project vouches
+backend/services/doctrine_lexicon.py-192-        # for. Everything else can only ever protect, never attract.
+backend/services/doctrine_lexicon.py-193-        self.targets = {w.lower(): c for w, c in (targets or vocabulary).items()}
+backend/services/doctrine_lexicon.py-194-        # A target must be a real WORD. Corpus consensus admits any spelling that
+backend/services/doctrine_lexicon.py-195-        # enough sources share, and a systematic truncation qualifies: "ealth"
+backend/services/doctrine_lexicon.py-196-        # reached the target set that way and produced `alth -> ealth`, repairing
+backend/services/doctrine_lexicon.py-197-        # one fragment into another. Wordhood evidence is membership in general
+backend/services/doctrine_lexicon.py-198-        # English or in the curated book/site vocabulary — never consensus alone.
+backend/services/doctrine_lexicon.py-199-        # The curated sources are not fragment-free either: the book PDF was
+backend/services/doctrine_lexicon.py-200-        # OCR'd, so `ealth` and `ense` sit in its text and attracted `alth` and
+backend/services/doctrine_lexicon.py:201:        # `eness`. A doctrine term absent from English must therefore EARN its
+backend/services/doctrine_lexicon.py-202-        # place by recurring — `ojas` and `humsa` appear repeatedly, a one-off
+backend/services/doctrine_lexicon.py-203-        # OCR slip does not.
+backend/services/doctrine_lexicon.py-204-        # Clean-text sources (scraped HTML) have no OCR damage, so every word in
+backend/services/doctrine_lexicon.py-205-        # them is a valid target — this is what keeps `ojas`, which appears only a
+backend/services/doctrine_lexicon.py-206-        # couple of times on ekam.org, correctable. OCR'd sources (the book PDFs)
+backend/services/doctrine_lexicon.py-207-        # do contain fragments like `ealth` and `ense`, so a word seen ONLY there
+backend/services/doctrine_lexicon.py-208-        # must recur before it can attract anything.
+backend/services/doctrine_lexicon.py-209-        real = (
+backend/services/doctrine_lexicon.py-210-            self.general_english
+backend/services/doctrine_lexicon.py-211-            | self.clean_curated
+backend/services/doctrine_lexicon.py-212-            | {w for w in self.curated if self.targets.get(w, 0) >= _MIN_TARGET_SUPPORT}
+backend/services/doctrine_lexicon.py-213-        )
+--
+backend/services/doctrine_lexicon.py-316-
+backend/services/doctrine_lexicon.py-317-        # The phonetic path may only aim at DOCTRINE-specific vocabulary — terms
+backend/services/doctrine_lexicon.py-318-        # absent from general English. A rare fragment that sounds like an
+backend/services/doctrine_lexicon.py-319-        # ordinary word (`blems`/`balms`, `filld`/`field`, `caree`/`carry`) is a
+backend/services/doctrine_lexicon.py:320:        # truncation the prefix rule already declined, not a mis-heard doctrine
+backend/services/doctrine_lexicon.py-321-        # term, and guessing there produced most of the residual damage. `ojas`
+backend/services/doctrine_lexicon.py-322-        # is in no English wordlist, which is exactly why it is a legitimate
+backend/services/doctrine_lexicon.py-323-        # target and `balms` is not.
+backend/services/doctrine_lexicon.py:324:        doctrine_only = [c for c in candidates if c not in self.general_english]
+backend/services/doctrine_lexicon.py:325:        if not doctrine_only:
+backend/services/doctrine_lexicon.py-326-            return Correction(
+backend/services/doctrine_lexicon.py:327:                raw, None, "phonetic matches are ordinary English, not doctrine terms"
+backend/services/doctrine_lexicon.py-328-            )
+backend/services/doctrine_lexicon.py-329-
+backend/services/doctrine_lexicon.py-330-        scored = sorted(
+backend/services/doctrine_lexicon.py-331-            (
+backend/services/doctrine_lexicon.py-332-                (JaroWinkler.similarity(word, c), c)
+backend/services/doctrine_lexicon.py:333:                for c in doctrine_only
+backend/services/doctrine_lexicon.py-334-                if Levenshtein.distance(word, c) <= _MAX_EDIT_DISTANCE
+backend/services/doctrine_lexicon.py-335-            ),
+backend/services/doctrine_lexicon.py-336-            reverse=True,
+backend/services/doctrine_lexicon.py-337-        )
+backend/services/doctrine_lexicon.py-338-        if not scored:
+backend/services/doctrine_lexicon.py-339-            return Correction(raw, None, "phonetic match but edit distance too large")
+backend/services/doctrine_lexicon.py-340-
+backend/services/doctrine_lexicon.py-341-        best_score, best = scored[0]
+backend/services/doctrine_lexicon.py-342-        if best_score < _MIN_SIMILARITY:
+backend/services/doctrine_lexicon.py-343-            return Correction(raw, None, f"best match {best!r} too weak", best_score)
+backend/services/doctrine_lexicon.py-344-        # Ambiguity is abandoned, not guessed: if two DIFFERENT authority terms
+backend/services/doctrine_lexicon.py-345-        # both match this closely there is no evidence for choosing between them.
+--
+backend/services/doctrine_lexicon.py-372-    """The process-wide lexicon, or None if it has not been built on this host.
+backend/services/doctrine_lexicon.py-373-
+backend/services/doctrine_lexicon.py-374-    Loading parses a ~7MB JSON, so it happens once and the result is held for the
+backend/services/doctrine_lexicon.py-375-    life of the process. A missing file is NOT an error: the file is derived
+backend/services/doctrine_lexicon.py:376:    (``python -m scripts.ops.build_doctrine_lexicon``) and is absent on a fresh
+backend/services/doctrine_lexicon.py-377-    checkout or a slim image. Callers fall back to the hand-maintained
+backend/services/doctrine_lexicon.py:378:    ``doctrine_terms`` map, which is strictly smaller but never wrong — so the
+backend/services/doctrine_lexicon.py-379-    absence costs recall, never precision.
+backend/services/doctrine_lexicon.py-380-    """
+backend/services/doctrine_lexicon.py-381-    global _SHARED, _LOAD_FAILED
+backend/services/doctrine_lexicon.py-382-    if _SHARED is not None or _LOAD_FAILED:
+backend/services/doctrine_lexicon.py-383-        return _SHARED
+backend/services/doctrine_lexicon.py-384-    try:
+backend/services/doctrine_lexicon.py-385-        # Pass the path explicitly: `load`'s default argument binds LEXICON_PATH at
+backend/services/doctrine_lexicon.py-386-        # import time, so a later reassignment of the module global (tests, an ops
+backend/services/doctrine_lexicon.py-387-        # script pointing at a rebuilt file) would be silently ignored.
+backend/services/doctrine_lexicon.py-388-        _SHARED = DoctrineLexicon.load(LEXICON_PATH)
+backend/services/doctrine_lexicon.py-389-        logger.info(
+backend/services/doctrine_lexicon.py:390:            "doctrine lexicon loaded: %d vocabulary, %d correction targets",
+backend/services/doctrine_lexicon.py-391-            len(_SHARED.vocabulary),
+backend/services/doctrine_lexicon.py-392-            len(_SHARED.targets),
+backend/services/doctrine_lexicon.py-393-        )
+backend/services/doctrine_lexicon.py-394-    except FileNotFoundError:
+backend/services/doctrine_lexicon.py-395-        _LOAD_FAILED = True
+backend/services/doctrine_lexicon.py-396-        logger.warning(
+backend/services/doctrine_lexicon.py:397:            "no doctrine lexicon at %s — falling back to the doctrine_terms map. "
+backend/services/doctrine_lexicon.py:398:            "Build it with: python -m scripts.ops.build_doctrine_lexicon",
+backend/services/doctrine_lexicon.py-399-            LEXICON_PATH,
+backend/services/doctrine_lexicon.py-400-        )
+backend/services/doctrine_lexicon.py-401-    except Exception as exc:  # corrupt JSON, missing rapidfuzz/jellyfish
+backend/services/doctrine_lexicon.py-402-        _LOAD_FAILED = True
+backend/services/doctrine_lexicon.py:403:        logger.error("doctrine lexicon at %s is unusable (%s)", LEXICON_PATH, exc)
+backend/services/doctrine_lexicon.py-404-    return _SHARED
+backend/services/doctrine_lexicon.py-405-
+backend/services/doctrine_lexicon.py-406-
+backend/services/doctrine_lexicon.py-407-def reload_lexicon() -> None:
+backend/services/doctrine_lexicon.py-408-    """Drop the cached lexicon so the next call re-reads the file (after a rebuild)."""
+backend/services/doctrine_lexicon.py-409-    global _SHARED, _LOAD_FAILED
+backend/services/doctrine_lexicon.py-410-    _SHARED = None
+backend/services/doctrine_lexicon.py-411-    _LOAD_FAILED = False
+backend/services/doctrine_lexicon.py-412-
+backend/services/doctrine_lexicon.py-413-
+backend/services/doctrine_lexicon.py-414-def _match_case(original: str, replacement: str) -> str:
+backend/services/doctrine_lexicon.py-415-    """Carry the original token's casing onto the replacement."""
+--
+backend/rag/nodes/cross_teacher_reasoning.py-68-
+backend/rag/nodes/cross_teacher_reasoning.py-69-
+backend/rag/nodes/cross_teacher_reasoning.py-70-def _licensed_pair(teacher1: str, teacher2: str) -> bool:
+backend/rag/nodes/cross_teacher_reasoning.py-71-    """Both teachers must resolve to a rollout_enabled TeacherDomain for a
+backend/rag/nodes/cross_teacher_reasoning.py:72:    concept-mapping doc to be injected as citable doctrine."""
+backend/rag/nodes/cross_teacher_reasoning.py-73-    d1 = resolve_teacher_domain(teacher1)
+backend/rag/nodes/cross_teacher_reasoning.py-74-    d2 = resolve_teacher_domain(teacher2)
+backend/rag/nodes/cross_teacher_reasoning.py-75-    return bool(d1 and d1.rollout_enabled and d2 and d2.rollout_enabled)
+backend/rag/nodes/cross_teacher_reasoning.py-76-
+backend/rag/nodes/cross_teacher_reasoning.py-77-
+backend/rag/nodes/cross_teacher_reasoning.py-78-def _build_doc(relationships: list[str], *, licensed: bool) -> dict | None:
+backend/rag/nodes/cross_teacher_reasoning.py-79-    """Screen Neo4j-sourced comparison text before it enters relevant_docs.
+backend/rag/nodes/cross_teacher_reasoning.py-80-    This node runs after retrieve_documents, so it bypasses that node's
+backend/rag/nodes/cross_teacher_reasoning.py-81-    _screen_prompt_injection call unless applied here explicitly."""
+backend/rag/nodes/cross_teacher_reasoning.py-82-    content = "\n".join(relationships)
+backend/rag/nodes/cross_teacher_reasoning.py-83-    if not _screen_prompt_injection([{"text": content}]):
+backend/rag/nodes/cross_teacher_reasoning.py-84-        logger.warning("cross_teacher_reasoning: dropped content failing prompt-injection screen")
+--
+backend/rag/nodes/cross_teacher_reasoning.py-174-
+backend/rag/nodes/cross_teacher_reasoning.py-175-    # Query Neo4j for relationships between these teachers and common concepts.
+backend/rag/nodes/cross_teacher_reasoning.py-176-    # Split by whether BOTH teachers resolve to a rollout_enabled TeacherDomain
+backend/rag/nodes/cross_teacher_reasoning.py-177-    # (see domain/spiritual_ontology.py) -- only licensed pairs are injected as
+backend/rag/nodes/cross_teacher_reasoning.py:178:    # citable doctrine; anything else is relabeled as an external reference.
+backend/rag/nodes/cross_teacher_reasoning.py-179-    licensed_relationships: list[str] = []
+backend/rag/nodes/cross_teacher_reasoning.py-180-    external_relationships: list[str] = []
+backend/rag/nodes/cross_teacher_reasoning.py-181-    if settings.neo4j_uri:
+backend/rag/nodes/cross_teacher_reasoning.py-182-        try:
+backend/rag/nodes/cross_teacher_reasoning.py-183-
+backend/rag/nodes/cross_teacher_reasoning.py-184-            def _query_paths(tx):
+backend/rag/nodes/cross_teacher_reasoning.py-185-                # Find concepts that both teachers expound
+backend/rag/nodes/cross_teacher_reasoning.py-186-                cypher = """
+backend/rag/nodes/cross_teacher_reasoning.py-187-                MATCH (t1:Teacher)-[:EXPOUNDS]->(c:Concept)<-[:EXPOUNDS]-(t2:Teacher)
+backend/rag/nodes/cross_teacher_reasoning.py-188-                WHERE t1.name IN $teachers AND t2.name IN $teachers AND t1.name <> t2.name
+backend/rag/nodes/cross_teacher_reasoning.py-189-                RETURN t1.name AS teacher1, t2.name AS teacher2, c.name AS concept, c.description AS description
+backend/rag/nodes/cross_teacher_reasoning.py-190-                """
+--
+backend/services/text_quality_filter.py-3-Why this exists
+backend/services/text_quality_filter.py-4----------------
+backend/services/text_quality_filter.py-5-A 2026-08-01 corpus audit found **13.7% of the 89,061 live `spiritual_wisdom`
+backend/services/text_quality_filter.py-6-chunks** (~12,193 chunks across 186 of 391 source videos) carried the extraction
+backend/services/text_quality_filter.py:7:LLM's own chain-of-thought, embedded and retrievable as doctrine. Verbatim, live:
+backend/services/text_quality_filter.py-8-
+backend/services/text_quality_filter.py-9-    "Sadhana is a term in the teaching. a common transcription error where a
+backend/services/text_quality_filter.py-10-     space is omitted."
+backend/services/text_quality_filter.py-11-
+backend/services/text_quality_filter.py-12-The root cause was not one bad function — it was three validators that each
+backend/services/text_quality_filter.py-13-guarded one path and never the others:
+backend/services/text_quality_filter.py-14-
+backend/services/text_quality_filter.py-15-  * ``OKFQualityFilter``            → only ``OKFStore.list_entries()`` (23 entries)
+backend/services/text_quality_filter.py-16-  * ``raptor.py`` topic-label check → only RAPTOR summaries (correct: fail-closed)
+backend/services/text_quality_filter.py-17-  * ``_contains_prompt_leak``       → only ``ingest/corrector.py``
+backend/services/text_quality_filter.py-18-
+backend/services/text_quality_filter.py-19-Nothing guarded the Qdrant write path, and ``pipeline._extract_topics`` salvaged
+backend/services/text_quality_filter.py-20-unparseable LLM output through a *blocklist* — which fails open by construction.
+backend/services/text_quality_filter.py:21:So reasoning text became a "topic", was written into the chunk header, embedded,
+backend/services/text_quality_filter.py-22-and served to seekers as teaching.
+backend/services/text_quality_filter.py-23-
+backend/services/text_quality_filter.py-24-This module is the shared detector both paths now call, so a pattern added once
+backend/services/text_quality_filter.py-25-is enforced at every persistence point.
+backend/services/text_quality_filter.py-26-
+backend/services/text_quality_filter.py-27-Design
+backend/services/text_quality_filter.py-28-------
+backend/services/text_quality_filter.py-29-**High precision over high recall.** Every pattern here is an unambiguous machine
+backend/services/text_quality_filter.py-30-artifact — markdown task scaffolding, explicit self-reference to the prompt, or a
+backend/services/text_quality_filter.py-31-known debug header. Ambiguous natural language is deliberately excluded: "We are
+backend/services/text_quality_filter.py:32:given" appears in real teachings, and deleting doctrine is a worse failure than
+backend/services/text_quality_filter.py-33-keeping one dirty chunk. Rejections are returned with the matched span so they
+backend/services/text_quality_filter.py-34-are auditable, never silently dropped.
+backend/services/text_quality_filter.py-35-
+backend/services/text_quality_filter.py-36-**Index-preserving.** ``select_clean`` returns *indices*, not a filtered list, so
+backend/services/text_quality_filter.py-37-callers can realign parallel arrays (metadata, speaker labels). Returning a bare
+backend/services/text_quality_filter.py-38-filtered list is exactly what let ``_embed_and_upsert`` shift every subsequent
+backend/services/text_quality_filter.py-39-chunk's metadata onto the wrong chunk whenever one chunk was dropped.
+backend/services/text_quality_filter.py-40-"""
+backend/services/text_quality_filter.py-41-
+backend/services/text_quality_filter.py-42-from __future__ import annotations
+backend/services/text_quality_filter.py-43-
+backend/services/text_quality_filter.py-44-import logging
+--
+backend/services/text_quality_filter.py-48-
+backend/services/text_quality_filter.py-49-logger = logging.getLogger(__name__)
+backend/services/text_quality_filter.py-50-
+backend/services/text_quality_filter.py-51-# Unambiguous machine artifacts. Every entry must be text a guru would never say.
+backend/services/text_quality_filter.py:52:# When in doubt, leave it out — a false positive deletes doctrine.
+backend/services/text_quality_filter.py-53-_ARTIFACT_PATTERNS: tuple[str, ...] = (
+backend/services/text_quality_filter.py-54-    # -- markdown task scaffolding emitted by a reasoning model --
+backend/services/text_quality_filter.py-55-    r"\*\*\s*(?:Analyze|Analyse|Conclusion|Deconstruct|Synthesiz|Refine|Brainstorm)",
+backend/services/text_quality_filter.py-56-    r"\*\*\s*Step\s*\d",
+backend/services/text_quality_filter.py-57-    r"^\s*\d+\.\s+\*\*[A-Z][a-z]+ the (?:Input|Text|Sentence|Rules)",
+backend/services/text_quality_filter.py-58-    # -- explicit self-reference to the prompt / task --
+backend/services/text_quality_filter.py-59-    r"\bI(?:'ve| have) been asked to\b",
+backend/services/text_quality_filter.py-60-    r"\bMy task is to\b",
+backend/services/text_quality_filter.py-61-    r"\bI need to (?:analyze|analyse|determine|classify|extract|identify)\b",
+backend/services/text_quality_filter.py-62-    r"\bLet me (?:analyze|analyse|break this|think about)\b",
+backend/services/text_quality_filter.py-63-    r"\bThe user (?:wants me to|has provided|is asking|has essentially)\b",
+backend/services/text_quality_filter.py-64-    r"\bInterpret the Input\b",
+--
+backend/services/text_quality_filter.py-271-        "Sadhana is a term in the teaching. a common transcription error where a space is omitted.",
+backend/services/text_quality_filter.py-272-        "[RAPTOR Level: 1 | Topic: Simple, Foundational Presence]",
+backend/services/text_quality_filter.py-273-        '*   "Ego and Control" - This gets to the *why* behind the flawed view.',
+backend/services/text_quality_filter.py-274-    ]
+backend/services/text_quality_filter.py:275:    doctrine = [
+backend/services/text_quality_filter.py-276-        "In a beautiful state, you are powerful enough to help yourself and help others around you.",
+backend/services/text_quality_filter.py-277-        "Let us observe Nomi a little longer. Anger and confusion have mounted over his ideas of duty.",
+backend/services/text_quality_filter.py-278-        "We are given this life to live in connection, not in division.",
+backend/services/text_quality_filter.py-279-    ]
+backend/services/text_quality_filter.py-280-    for t in poison:
+backend/services/text_quality_filter.py-281-        assert not is_clean(t), f"MISSED artifact: {t!r}"
+backend/services/text_quality_filter.py:282:    for t in doctrine:
+backend/services/text_quality_filter.py:283:        assert is_clean(t), f"FALSE POSITIVE on doctrine: {t!r}"
+backend/services/text_quality_filter.py-284-
+backend/services/text_quality_filter.py:285:    keep, rejected = select_clean([poison[0], poison[1], doctrine[0]])
+backend/services/text_quality_filter.py-286-    assert keep == [2], keep
+backend/services/text_quality_filter.py-287-    assert len(rejected) == 2, rejected
+backend/services/text_quality_filter.py-288-
+backend/services/text_quality_filter.py-289-    assert clean_topic_label("Nature of Suffering") == "Nature of Suffering"
+backend/services/text_quality_filter.py-290-    assert clean_topic_label("a common transcription error where a space is omitted.") is None
+backend/services/text_quality_filter.py-291-    assert clean_topic_label("x" * 80) is None
+backend/services/text_quality_filter.py-292-    assert clean_topic_label("Wait\nlet me reconsider") is None
+backend/services/text_quality_filter.py-293-    assert clean_topic_label("") is None
+backend/services/text_quality_filter.py-294-
+backend/services/text_quality_filter.py-295-    print(f"patterns: {len(_ARTIFACT_PATTERNS)}")
+backend/services/text_quality_filter.py:296:    print(f"poison detected: {len(poison)}/{len(poison)}  false positives: 0/{len(doctrine)}")
+backend/services/text_quality_filter.py-297-    print("text_quality_filter self-check OK")
+--
+backend/rag/nodes/retrieval.py-36-    _rrf_docs,
+backend/rag/nodes/retrieval.py-37-    _trace_update,
+backend/rag/nodes/retrieval.py-38-    emit_status,
+backend/rag/nodes/retrieval.py-39-    expand_query_with_synonyms,
+backend/rag/nodes/retrieval.py:40:    inject_doctrine_keywords,
+backend/rag/nodes/retrieval.py-41-    log_metrics,
+backend/rag/nodes/retrieval.py-42-    settings,
+backend/rag/nodes/retrieval.py-43-    stable_document_key,
+backend/rag/nodes/retrieval.py-44-)
+backend/rag/nodes/retrieval.py-45-
+backend/rag/nodes/retrieval.py-46-logger = logging.getLogger(__name__)
+backend/rag/nodes/retrieval.py-47-
+backend/rag/nodes/retrieval.py-48-
+backend/rag/nodes/retrieval.py-49-# ponytail: lightweight OKF compiled-index loader (Phase 2b).
+backend/rag/nodes/retrieval.py-50-# Avoids heavy startup — reads disk lazily, cached per-process via module-level cache.
+backend/rag/nodes/retrieval.py-51-_base_path = __import__("pathlib").Path(__file__).resolve().parent
+backend/rag/nodes/retrieval.py-52-while _base_path.name and _base_path.name != "backend":
+--
+backend/rag/nodes/retrieval.py-94-# Minimum cosine an OKF entry must reach before it is injected at all. Below
+backend/rag/nodes/retrieval.py-95-# this the curated bundle has nothing to say about the question and injecting it
+backend/rag/nodes/retrieval.py-96-# only crowds out genuinely retrieved teachings.
+backend/rag/nodes/retrieval.py-97-_OKF_MIN_SIMILARITY = settings.okf_min_similarity
+backend/rag/nodes/retrieval.py:98:# Curated, human-reviewed doctrine outranks a raw chunk of equal similarity —
+backend/rag/nodes/retrieval.py-99-# but by a margin, not by a floor of 0.9.
+backend/rag/nodes/retrieval.py-100-_OKF_CURATION_BOOST = settings.okf_curation_boost
+backend/rag/nodes/retrieval.py-101-# Keyword-fallback gates (used only when EmbeddingService is unavailable):
+backend/rag/nodes/retrieval.py-102-# fraction of the query's content words an entry must contain, and the ceiling
+backend/rag/nodes/retrieval.py-103-# its score may reach so lexical overlap never outranks a real embedding match.
+backend/rag/nodes/retrieval.py-104-_OKF_MIN_KEYWORD_COVERAGE = settings.okf_min_keyword_coverage
+backend/rag/nodes/retrieval.py-105-_OKF_KEYWORD_SCORE_CEILING = settings.okf_keyword_score_ceiling
+backend/rag/nodes/retrieval.py-106-
+backend/rag/nodes/retrieval.py-107-
+backend/rag/nodes/retrieval.py-108-def _okf_match(query: str, limit: int = 3, teacher: str | None = None) -> list[dict]:
+backend/rag/nodes/retrieval.py-109-    """Semantic match via cosine similarity on title embeddings; keyword fallback.
+backend/rag/nodes/retrieval.py-110-
+--
+backend/rag/nodes/retrieval.py-134-                # entry with cosine 0.0 still scored 0.9 — above essentially every
+backend/rag/nodes/retrieval.py-135-                # genuine Qdrant hit. With 23 entries in the bundle, top-3 was
+backend/rag/nodes/retrieval.py-136-                # "the 3 least-irrelevant of 23", prepended to EVERY non-casual
+backend/rag/nodes/retrieval.py-137-                # query. On the fast graph (no reranker, documents[:5]) that meant
+backend/rag/nodes/retrieval.py:138:                # 3 of the 5 documents the model saw were unrelated doctrine —
+backend/rag/nodes/retrieval.py-139-                # the mechanical cause of answers that blend unrelated teachings.
+backend/rag/nodes/retrieval.py-140-                if sim >= _OKF_MIN_SIMILARITY:
+backend/rag/nodes/retrieval.py-141-                    scored.append((sim, e))
+backend/rag/nodes/retrieval.py-142-        if scored:
+backend/rag/nodes/retrieval.py-143-            scored.sort(key=lambda x: x[0], reverse=True)
+backend/rag/nodes/retrieval.py-144-            docs = []
+backend/rag/nodes/retrieval.py-145-            for sim, e in scored[:limit]:
+backend/rag/nodes/retrieval.py-146-                docs.append(
+backend/rag/nodes/retrieval.py-147-                    {
+backend/rag/nodes/retrieval.py-148-                        "text": f"{e['title']}\n\n{e.get('body', '')}",
+backend/rag/nodes/retrieval.py:149:                        # Honest similarity. Curated doctrine still earns a modest
+backend/rag/nodes/retrieval.py-150-                        # edge over a raw chunk of equal similarity, but it can no
+backend/rag/nodes/retrieval.py-151-                        # longer outrank a strongly-matching retrieved teaching.
+backend/rag/nodes/retrieval.py-152-                        "score": min(1.0, sim * _OKF_CURATION_BOOST),
+backend/rag/nodes/retrieval.py-153-                        "metadata": {
+backend/rag/nodes/retrieval.py-154-                            "source": e.get("resource") or e.get("source", "OKF"),
+backend/rag/nodes/retrieval.py-155-                            "title": e["title"],
+backend/rag/nodes/retrieval.py-156-                            "type": e.get("type", "okf"),
+backend/rag/nodes/retrieval.py-157-                            "teacher": e.get("teacher", "both"),
+backend/rag/nodes/retrieval.py-158-                        },
+backend/rag/nodes/retrieval.py-159-                    }
+backend/rag/nodes/retrieval.py-160-                )
+backend/rag/nodes/retrieval.py-161-            return docs
+--
+backend/rag/nodes/retrieval.py-209-    scope = scope or CorpusScope(
+backend/rag/nodes/retrieval.py-210-        tenant_id=TenantContext.get() or settings.default_tenant_id,
+backend/rag/nodes/retrieval.py-211-        corpus_id=corpus_id or settings.default_corpus_id,
+backend/rag/nodes/retrieval.py-212-    )
+backend/rag/nodes/retrieval.py:213:    from ingest.pipeline import extract_doctrine_tags
+backend/rag/nodes/retrieval.py-214-
+backend/rag/nodes/retrieval.py:215:    matched_concepts = extract_doctrine_tags(query)
+backend/rag/nodes/retrieval.py-216-    if not matched_concepts:
+backend/rag/nodes/retrieval.py-217-        return ""
+backend/rag/nodes/retrieval.py-218-
+backend/rag/nodes/retrieval.py-219-    if not settings.neo4j_uri:
+backend/rag/nodes/retrieval.py-220-        return ""
+backend/rag/nodes/retrieval.py-221-
+backend/rag/nodes/retrieval.py-222-    try:
+backend/rag/nodes/retrieval.py-223-        from app.dependencies import get_container
+backend/rag/nodes/retrieval.py-224-
+backend/rag/nodes/retrieval.py-225-        def _run():
+backend/rag/nodes/retrieval.py-226-            driver = get_container().neo4j_driver
+backend/rag/nodes/retrieval.py-227-            if driver is None:
+--
+backend/rag/nodes/retrieval.py-244-                    result = session.run(cypher, concept=concept, **scope.to_neo4j_params())
+backend/rag/nodes/retrieval.py-245-                    for record in result:
+backend/rag/nodes/retrieval.py-246-                        # Domain-rights gate: n1/n2 may resolve to a Teacher entity.
+backend/rag/nodes/retrieval.py-247-                        # Unlicensed teachers (rollout_enabled=False) are recognized
+backend/rag/nodes/retrieval.py:248:                        # entities but must never be surfaced as citable doctrine.
+backend/rag/nodes/retrieval.py-249-                        src_domain = resolve_teacher_domain(record["source"] or "")
+backend/rag/nodes/retrieval.py-250-                        tgt_domain = resolve_teacher_domain(record["target"] or "")
+backend/rag/nodes/retrieval.py-251-                        if (src_domain and not src_domain.rollout_enabled) or (
+backend/rag/nodes/retrieval.py-252-                            tgt_domain and not tgt_domain.rollout_enabled
+backend/rag/nodes/retrieval.py-253-                        ):
+backend/rag/nodes/retrieval.py-254-                            continue
+backend/rag/nodes/retrieval.py-255-                        desc_str = f" - {record['desc']}" if record.get("desc") else ""
+backend/rag/nodes/retrieval.py-256-                        subgraph_context.append(
+backend/rag/nodes/retrieval.py-257-                            f"Relationship: {record['source']} -[{record['rel']}]-> {record['target']}{desc_str}"
+backend/rag/nodes/retrieval.py-258-                        )
+backend/rag/nodes/retrieval.py-259-                        if record.get("target"):
+backend/rag/nodes/retrieval.py-260-                            candidates.add(record["target"])
+--
+backend/rag/nodes/retrieval.py-986-    not the request — one bad chunk is dropped, the request continues.
+backend/rag/nodes/retrieval.py-987-    """
+backend/rag/nodes/retrieval.py-988-    kept: list[dict] = []
+backend/rag/nodes/retrieval.py-989-    for doc in docs:
+backend/rag/nodes/retrieval.py:990:        # Curated OKF doctrine is human-reviewed and cannot be poisoned, so exempt
+backend/rag/nodes/retrieval.py-991-        # it — the injection pattern list includes phrases ("act as", "you are now")
+backend/rag/nodes/retrieval.py-992-        # that occur in legitimate teaching ("act as a witness"), and dropping a
+backend/rag/nodes/retrieval.py:993:        # genuine teaching is the worse failure for a doctrine product.
+backend/rag/nodes/retrieval.py-994-        if (doc.get("metadata") or {}).get("type") == "okf":
+backend/rag/nodes/retrieval.py-995-            kept.append(doc)
+backend/rag/nodes/retrieval.py-996-            continue
+backend/rag/nodes/retrieval.py-997-        if contains_prompt_injection(doc.get("text", "")):
+backend/rag/nodes/retrieval.py-998-            logger.warning(
+backend/rag/nodes/retrieval.py-999-                "Retrieval rail dropped injected chunk (source=%s)",
+backend/rag/nodes/retrieval.py-1000-                doc.get("source_url") or doc.get("source_id") or doc.get("channel") or "unknown",
+backend/rag/nodes/retrieval.py-1001-            )
+backend/rag/nodes/retrieval.py-1002-            try:
+backend/rag/nodes/retrieval.py-1003-                GUARDRAILS_BLOCKED.labels(rail="retrieval").inc()
+backend/rag/nodes/retrieval.py-1004-            except Exception:  # noqa: BLE001 — metric must never break retrieval
+backend/rag/nodes/retrieval.py-1005-                pass
+--
+backend/rag/nodes/retrieval.py-1067-
+backend/rag/nodes/retrieval.py-1068-    base_question = state.get("rewritten_query") or state["question"]
+backend/rag/nodes/retrieval.py-1069-    assistant_slug = state.get("assistant_slug") or "default"
+backend/rag/nodes/retrieval.py-1070-    # Doctrine keyword injection & synonym expansion for better retrieval
+backend/rag/nodes/retrieval.py:1071:    base_question = await inject_doctrine_keywords(
+backend/rag/nodes/retrieval.py-1072-        await expand_query_with_synonyms(base_question, assistant_slug), assistant_slug
+backend/rag/nodes/retrieval.py-1073-    )
+backend/rag/nodes/retrieval.py-1074-    # E4.2: KG-RAG ontology traversal — broaden query with Neo4j neighbors
+backend/rag/nodes/retrieval.py-1075-    # of mentioned concepts (e.g. "karma" -> also retrieve "Dharma", "prarabdha").
+backend/rag/nodes/retrieval.py-1076-    # Ponytail: one helper, fire-and-forget, non-fatal. Runs alongside synonym
+backend/rag/nodes/retrieval.py-1077-    # expansion so docs tagged with sub-concepts are also surfaced.
+backend/rag/nodes/retrieval.py-1078-    try:
+backend/rag/nodes/retrieval.py-1079-        from app.dependencies import get_container
+backend/rag/nodes/retrieval.py-1080-        from rag.kg_expansion import augment_query, expand_query_with_ontology
+backend/rag/nodes/retrieval.py-1081-
+backend/rag/nodes/retrieval.py-1082-        _neo4j = getattr(get_container(), "neo4j_driver", None)
+backend/rag/nodes/retrieval.py-1083-        if (
+--
+backend/rag/nodes/retrieval.py-1126-    #     logger.info(...)
+backend/rag/nodes/retrieval.py-1127-    # sub_queries = list(dict.fromkeys([*sub_queries, *expansion_queries]))
+backend/rag/nodes/retrieval.py-1128-    # ------------------------------------------------------------
+backend/rag/nodes/retrieval.py-1129-    # Tier2/fast requests should be deterministic and cheap: their primary
+backend/rag/nodes/retrieval.py:1130:    # query already carries the user's wording and doctrine expansion. Running
+backend/rag/nodes/retrieval.py-1131-    # an additional LLM planner here created avoidable 10–60s tails, especially
+backend/rag/nodes/retrieval.py-1132-    # for code-switched and Indic questions.
+backend/rag/nodes/retrieval.py-1133-    if (
+backend/rag/nodes/retrieval.py-1134-        query_tier in ("fast", "tier2_simple")
+backend/rag/nodes/retrieval.py-1135-        or getattr(settings, "rag_skip_retrieval_expansions", False)
+backend/rag/nodes/retrieval.py-1136-    ):
+backend/rag/nodes/retrieval.py-1137-        expansion_task = None
+backend/rag/nodes/retrieval.py-1138-    else:
+backend/rag/nodes/retrieval.py-1139-        expansion_task = asyncio.create_task(_llm_retrieval_expansions(state))
+backend/rag/nodes/retrieval.py-1140-
+backend/rag/nodes/retrieval.py-1141-    chat_history = state.get("chat_history", [])
+backend/rag/nodes/retrieval.py-1142-    selected_clusters = state.get("selected_clusters", [])
+--
+backend/rag/nodes/retrieval.py-1475-            lambda_param=mmr_lambda,
+backend/rag/nodes/retrieval.py-1476-        )
+backend/rag/nodes/retrieval.py-1477-
+backend/rag/nodes/retrieval.py-1478-    # Coverage-gap check: docs exist but all score below quality threshold → treat as no coverage.
+backend/rag/nodes/retrieval.py:1479:    # S4: web-search substitution removed. Injecting external web results here answered non-doctrine
+backend/rag/nodes/retrieval.py-1480-    # text as the teachers' teachings and violated the zero-external-call-at-inference constraint.
+backend/rag/nodes/retrieval.py-1481-    # On a gap we now let the empty/thin set flow to generate_answer's honest content-gap refusal.
+backend/rag/nodes/retrieval.py-1482-    _coverage_threshold = getattr(settings, "web_search_coverage_threshold", 0.08)
+backend/rag/nodes/retrieval.py-1483-    _gap_intent = state.get("intent", "unknown")
+backend/rag/nodes/retrieval.py-1484-    if all_docs and all(doc.get("score", 0.0) < _coverage_threshold for doc in all_docs):
+backend/rag/nodes/retrieval.py-1485-        max_score = max(doc.get("score", 0.0) for doc in all_docs)
+backend/rag/nodes/retrieval.py-1486-        logger.warning(
+backend/rag/nodes/retrieval.py-1487-            f"Coverage gap: {len(all_docs)} docs retrieved but all scored below "
+backend/rag/nodes/retrieval.py-1488-            f"threshold {_coverage_threshold} (max_score={max_score:.4f}); no web fallback."
+backend/rag/nodes/retrieval.py-1489-        )
+backend/rag/nodes/retrieval.py-1490-        try:
+backend/rag/nodes/retrieval.py-1491-            COVERAGE_GAP_TOTAL.labels(intent=_gap_intent).inc()
+--
+backend/rag/nodes/retrieval.py-1569-        except Exception as e:
+backend/rag/nodes/retrieval.py-1570-            logger.warning("Low-confidence deep research failed (non-fatal): %s", e)
+backend/rag/nodes/retrieval.py-1571-
+backend/rag/nodes/retrieval.py-1572-        # S4: low-confidence web-search substitution removed (external text as
+backend/rag/nodes/retrieval.py:1573:        # doctrine + zero-external-call violation). Deep research above already
+backend/rag/nodes/retrieval.py-1574-        # exhausted the local corpus; a thin set flows to the honest refusal.
+backend/rag/nodes/retrieval.py-1575-
+backend/rag/nodes/retrieval.py-1576-    if getattr(settings, "rag_context_compression_enabled", False):
+backend/rag/nodes/retrieval.py-1577-        question = state.get("rewritten_query") or state["question"]
+backend/rag/nodes/retrieval.py-1578-        # Tier-aware compression budget: deep/complex queries keep more diversity
+backend/rag/nodes/retrieval.py-1579-        # because they rely on LITM/BM25/deep-research breadth. Fast/simple tiers
+backend/rag/nodes/retrieval.py-1580-        # benefit from a tighter focus. Preserve at least the top 3 and up to a
+backend/rag/nodes/retrieval.py-1581-        # score-threshold fraction of the retrieved set.
+backend/rag/nodes/retrieval.py-1582-        if query_tier in ("deep", "tier3_complex"):
+backend/rag/nodes/retrieval.py-1583-            max_compress_k = max(5, len(all_docs) // 2)
+backend/rag/nodes/retrieval.py-1584-        elif query_tier in ("fast", "tier2_simple"):
+backend/rag/nodes/retrieval.py-1585-            max_compress_k = 3
+--
+backend/app/api/admin.py-128-    variants: list[str] = Field(default_factory=list)
+backend/app/api/admin.py-129-    enabled: bool = True
+backend/app/api/admin.py-130-
+backend/app/api/admin.py-131-
+backend/app/api/admin.py:132:@admin_router.get("/doctrine-terms")
+backend/app/api/admin.py:133:async def fetch_doctrine_terms(
+backend/app/api/admin.py-134-    user: dict = Depends(_require_admin),
+backend/app/api/admin.py-135-) -> dict[str, Any]:
+backend/app/api/admin.py:136:    """Effective doctrine-term correction map (code defaults + admin overrides)."""
+backend/app/api/admin.py:137:    from services.doctrine_terms import load_doctrine_terms
+backend/app/api/admin.py-138-
+backend/app/api/admin.py:139:    return {"terms": load_doctrine_terms()}
+backend/app/api/admin.py-140-
+backend/app/api/admin.py-141-
+backend/app/api/admin.py:142:@admin_router.post("/doctrine-terms")
+backend/app/api/admin.py:143:async def upsert_doctrine_term(
+backend/app/api/admin.py-144-    body: DoctrineTermUpdate,
+backend/app/api/admin.py-145-    user: dict = Depends(_require_admin),
+backend/app/api/admin.py-146-) -> dict[str, Any]:
+backend/app/api/admin.py-147-    """Add/update a canonical term + its mis-transcription variants. Applies without a restart —
+backend/app/api/admin.py-148-    the whisper bias, ingest corrector and output cleanup all read the shared source of truth."""
+backend/app/api/admin.py-149-    from app.telemetry_db import _get_client
+backend/app/api/admin.py:150:    from services.doctrine_terms import reload as reload_doctrine_terms
+backend/app/api/admin.py-151-
+backend/app/api/admin.py-152-    client = _get_client()
+backend/app/api/admin.py-153-    if not client:
+backend/app/api/admin.py-154-        raise HTTPException(status_code=503, detail="Database service unavailable")
+backend/app/api/admin.py-155-    try:
+backend/app/api/admin.py-156-        await (
+backend/app/api/admin.py:157:            client.table("doctrine_terms")
+backend/app/api/admin.py-158-            .upsert(
+backend/app/api/admin.py-159-                {
+backend/app/api/admin.py-160-                    "canonical": body.canonical.strip(),
+backend/app/api/admin.py-161-                    "variants": body.variants,
+backend/app/api/admin.py-162-                    "enabled": body.enabled,
+backend/app/api/admin.py-163-                    "updated_by": user.get("email") or user.get("id"),
+backend/app/api/admin.py-164-                },
+backend/app/api/admin.py-165-                on_conflict="canonical",
+backend/app/api/admin.py-166-            )
+backend/app/api/admin.py-167-            .execute()
+backend/app/api/admin.py-168-        )
+backend/app/api/admin.py-169-    except Exception as e:
+backend/app/api/admin.py:170:        logger.error(f"Failed to upsert doctrine term: {e}")
+backend/app/api/admin.py-171-        raise HTTPException(
+backend/app/api/admin.py:172:            status_code=500, detail="Failed to save doctrine term. Please try again."
+backend/app/api/admin.py-173-        )
+backend/app/api/admin.py:174:    reload_doctrine_terms()  # hot-reload the correction map (no restart needed)
+backend/app/api/admin.py-175-    return {"ok": True, "canonical": body.canonical.strip()}
+backend/app/api/admin.py-176-
+backend/app/api/admin.py-177-
+backend/app/api/admin.py-178-@admin_router.get("/rag-flow-graph")
+backend/app/api/admin.py-179-async def get_rag_flow_graph(
+backend/app/api/admin.py-180-    strategy: str = "standard",
+backend/app/api/admin.py-181-    user: dict = Depends(_require_admin),
+backend/app/api/admin.py-182-) -> dict[str, Any]:
+backend/app/api/admin.py-183-    """
+backend/app/api/admin.py-184-    Expose the active RAG graph strategy nodes and edges, merged with average timing latencies.
+backend/app/api/admin.py-185-    Requires admin authentication.
+backend/app/api/admin.py-186-    """
+--
+backend/rag/nodes/agentic_graph_traversal.py-8-- Deterministic Neo4j queries exposed as tools for the LLM
+backend/rag/nodes/agentic_graph_traversal.py-9-- Tool responses include structured next-step hints and navigation advice
+backend/rag/nodes/agentic_graph_traversal.py-10-- Maximum 3 traversal steps to prevent runaway latency
+backend/rag/nodes/agentic_graph_traversal.py-11-- Only triggers for COMPARATIVE intent or tier3_complex query tiers
+backend/rag/nodes/agentic_graph_traversal.py:12:- Contextual awareness: starts from doctrine tags or initial retrieval
+backend/rag/nodes/agentic_graph_traversal.py-13-"""
+backend/rag/nodes/agentic_graph_traversal.py-14-
+backend/rag/nodes/agentic_graph_traversal.py-15-from __future__ import annotations
+backend/rag/nodes/agentic_graph_traversal.py-16-
+backend/rag/nodes/agentic_graph_traversal.py-17-import logging
+backend/rag/nodes/agentic_graph_traversal.py-18-from typing import Any, Optional
+backend/rag/nodes/agentic_graph_traversal.py-19-
+backend/rag/nodes/agentic_graph_traversal.py-20-from app.config import settings
+backend/rag/nodes/agentic_graph_traversal.py-21-from rag.prompts import AGENTIC_TRAVERSAL_SYSTEM_PROMPT
+backend/rag/nodes/agentic_graph_traversal.py-22-from rag.states import GraphState
+backend/rag/nodes/agentic_graph_traversal.py-23-
+backend/rag/nodes/agentic_graph_traversal.py-24-from .tools import get_adjacent_concepts, get_concept_details
+--
+backend/rag/nodes/agentic_graph_traversal.py-36-    """
+backend/rag/nodes/agentic_graph_traversal.py-37-    ReAct loop for walking the ontology graph during COMPARATIVE intent or complex queries.
+backend/rag/nodes/agentic_graph_traversal.py-38-
+backend/rag/nodes/agentic_graph_traversal.py-39-    Steps:
+backend/rag/nodes/agentic_graph_traversal.py:40:    1. Initialize: Extract starting concepts from doctrine tags or initial retrieval
+backend/rag/nodes/agentic_graph_traversal.py-41-    2. THINK: LLM analyzes current graph context and decides next traversal step
+backend/rag/nodes/agentic_graph_traversal.py-42-    3. ACT: LLM calls get_concept_details or get_adjacent_concepts tools
+backend/rag/nodes/agentic_graph_traversal.py-43-    4. OBSERVE: Parse tool response (which includes navigation_hints)
+backend/rag/nodes/agentic_graph_traversal.py-44-    5. Repeat until DONE, no candidates, or max steps reached
+backend/rag/nodes/agentic_graph_traversal.py-45-    """
+backend/rag/nodes/agentic_graph_traversal.py-46-    if not ENABLED:
+backend/rag/nodes/agentic_graph_traversal.py-47-        return {}
+backend/rag/nodes/agentic_graph_traversal.py-48-
+backend/rag/nodes/agentic_graph_traversal.py-49-    intent = state.get("intent", "")
+backend/rag/nodes/agentic_graph_traversal.py-50-    query_tier = state.get("query_tier", "")
+backend/rag/nodes/agentic_graph_traversal.py-51-
+backend/rag/nodes/agentic_graph_traversal.py-52-    # Only trigger for COMPARATIVE intent or tier3_complex
+--
+backend/rag/nodes/agentic_graph_traversal.py-64-    traversal_context = state.get("graph_traversal_context", [])
+backend/rag/nodes/agentic_graph_traversal.py-65-    current_step = 0
+backend/rag/nodes/agentic_graph_traversal.py-66-    max_steps = MAX_STEPS
+backend/rag/nodes/agentic_graph_traversal.py-67-
+backend/rag/nodes/agentic_graph_traversal.py:68:    # If no traversal context yet, extract from doctrine tags or initial retrieval
+backend/rag/nodes/agentic_graph_traversal.py-69-    if not traversal_context:
+backend/rag/nodes/agentic_graph_traversal.py-70-        try:
+backend/rag/nodes/agentic_graph_traversal.py:71:            from ingest.pipeline import extract_doctrine_tags
+backend/rag/nodes/agentic_graph_traversal.py-72-
+backend/rag/nodes/agentic_graph_traversal.py:73:            # First, check if we have doctrine tags in state
+backend/rag/nodes/agentic_graph_traversal.py-74-            if "graph_traversal_start_concepts" in state:
+backend/rag/nodes/agentic_graph_traversal.py-75-                start_concepts = state.get("graph_traversal_start_concepts", [])
+backend/rag/nodes/agentic_graph_traversal.py-76-            else:
+backend/rag/nodes/agentic_graph_traversal.py-77-                # Extract from query using existing pipeline function
+backend/rag/nodes/agentic_graph_traversal.py:78:                start_concepts = extract_doctrine_tags(state.get("question", ""))
+backend/rag/nodes/agentic_graph_traversal.py-79-
+backend/rag/nodes/agentic_graph_traversal.py-80-            # Fallback: if no start concepts found, extract entity concepts from initial retrieval docs
+backend/rag/nodes/agentic_graph_traversal.py-81-            if not start_concepts:
+backend/rag/nodes/agentic_graph_traversal.py-82-                start_concepts = _extract_concepts_from_docs(state.get("relevant_docs", []))
+backend/rag/nodes/agentic_graph_traversal.py-83-
+backend/rag/nodes/agentic_graph_traversal.py-84-            if start_concepts:
+backend/rag/nodes/agentic_graph_traversal.py-85-                for concept_id in start_concepts[:3]:  # Limit to top 3 concepts
+backend/rag/nodes/agentic_graph_traversal.py-86-                    if current_step >= max_steps:
+backend/rag/nodes/agentic_graph_traversal.py-87-                        break
+backend/rag/nodes/agentic_graph_traversal.py-88-                    concept_result = await get_concept_details(concept_id, state)
+backend/rag/nodes/agentic_graph_traversal.py-89-                    current_step += 1
+backend/rag/nodes/agentic_graph_traversal.py-90-
+--
+backend/rag/nodes/agentic_graph_traversal.py-93-                            {
+backend/rag/nodes/agentic_graph_traversal.py-94-                                "concept_id": concept_id,
+backend/rag/nodes/agentic_graph_traversal.py-95-                                "node_data": concept_result["node_data"],
+backend/rag/nodes/agentic_graph_traversal.py-96-                                "step": current_step,
+backend/rag/nodes/agentic_graph_traversal.py:97:                                "reasoning": "Starting concept from doctrine tags",
+backend/rag/nodes/agentic_graph_traversal.py-98-                            }
+backend/rag/nodes/agentic_graph_traversal.py-99-                        )
+backend/rag/nodes/agentic_graph_traversal.py-100-
+backend/rag/nodes/agentic_graph_traversal.py-101-                    if current_step < max_steps:
+backend/rag/nodes/agentic_graph_traversal.py-102-                        adj_result = await get_adjacent_concepts(concept_id, state)
+backend/rag/nodes/agentic_graph_traversal.py-103-                        current_step += 1
+backend/rag/nodes/agentic_graph_traversal.py-104-                        traversal_context.append(
+backend/rag/nodes/agentic_graph_traversal.py-105-                            {
+backend/rag/nodes/agentic_graph_traversal.py-106-                                "concept_id": f"adjacent_to_{concept_id}",
+backend/rag/nodes/agentic_graph_traversal.py-107-                                "adjacent_concepts": adj_result["adjacent_concepts"],
+backend/rag/nodes/agentic_graph_traversal.py-108-                                "relation_summary": adj_result["relation_summary"],
+backend/rag/nodes/agentic_graph_traversal.py-109-                                "step": current_step,
+--
+backend/rag/nodes/utils.py-490-
+backend/rag/nodes/utils.py-491-async def expand_query_with_synonyms(query: str, assistant_slug: str = "default") -> str:
+backend/rag/nodes/utils.py-492-    """Expand user query with doctrinal synonyms for better retrieval coverage."""
+backend/rag/nodes/utils.py-493-    synonyms_map = DOCTRINE_SYNONYMS
+backend/rag/nodes/utils.py:494:    if _services._doctrine_service:
+backend/rag/nodes/utils.py-495-        try:
+backend/rag/nodes/utils.py:496:            doc = await _services._doctrine_service.get_doctrine(assistant_slug)
+backend/rag/nodes/utils.py-497-            synonyms_map = doc.get("synonyms_json") or DOCTRINE_SYNONYMS
+backend/rag/nodes/utils.py-498-        except Exception as e:
+backend/rag/nodes/utils.py-499-            logger.warning(
+backend/rag/nodes/utils.py-500-                f"Failed to get synonyms from DoctrineService for '{assistant_slug}': {e}. Falling back to default."
+backend/rag/nodes/utils.py-501-            )
+backend/rag/nodes/utils.py-502-
+backend/rag/nodes/utils.py-503-    query_lower = query.lower()
+backend/rag/nodes/utils.py-504-    expansions: list[str] = []
+backend/rag/nodes/utils.py-505-    for canonical, alternates in synonyms_map.items():
+backend/rag/nodes/utils.py-506-        if canonical in query_lower:
+backend/rag/nodes/utils.py-507-            # Add alternate forms not already in the query
+backend/rag/nodes/utils.py-508-            for alt in alternates:
+--
+backend/rag/nodes/utils.py-514-        return expanded
+backend/rag/nodes/utils.py-515-    return query
+backend/rag/nodes/utils.py-516-
+backend/rag/nodes/utils.py-517-
+backend/rag/nodes/utils.py:518:async def inject_doctrine_keywords(query: str, assistant_slug: str = "default") -> str:
+backend/rag/nodes/utils.py:519:    """Inject known doctrine keywords into a query to improve retrieval coverage.
+backend/rag/nodes/utils.py-520-
+backend/rag/nodes/utils.py:521:    First runs database dynamic doctrine synonyms, then delegates to static keyword_injection.
+backend/rag/nodes/utils.py-522-    """
+backend/rag/nodes/utils.py-523-    enhanced = query
+backend/rag/nodes/utils.py:524:    if _services._doctrine_service:
+backend/rag/nodes/utils.py-525-        try:
+backend/rag/nodes/utils.py:526:            enhanced = await _services._doctrine_service.inject_doctrine_keywords(
+backend/rag/nodes/utils.py-527-                query, assistant_slug
+backend/rag/nodes/utils.py-528-            )
+backend/rag/nodes/utils.py-529-        except Exception as e:
+backend/rag/nodes/utils.py:530:            logger.warning(f"Dynamic doctrine injection failed for '{assistant_slug}': {e}")
+backend/rag/nodes/utils.py-531-
+backend/rag/nodes/utils.py:532:    from rag.nodes.keyword_injection import inject_doctrine_keywords as _ki
+backend/rag/nodes/utils.py-533-
+backend/rag/nodes/utils.py-534-    return _ki(enhanced, top_k=3)
+backend/rag/nodes/utils.py-535-
+backend/rag/nodes/utils.py-536-
+backend/rag/nodes/utils.py-537-def _remove_repetition_loops(text: str) -> str:
+backend/rag/nodes/utils.py-538-    """Detect and remove generation loops: lines/paragraphs repeating 3+ times."""
+backend/rag/nodes/utils.py-539-    if not text or len(text) < 120:
+backend/rag/nodes/utils.py-540-        return text
+backend/rag/nodes/utils.py-541-
+backend/rag/nodes/utils.py-542-    lines = text.split("\n")
+backend/rag/nodes/utils.py-543-    seen_counts: dict[str, int] = {}
+backend/rag/nodes/utils.py-544-    result_lines: list[str] = []
+--
+backend/rag/nodes/utils.py-620-    return trace
+backend/rag/nodes/utils.py-621-
+backend/rag/nodes/utils.py-622-
+backend/rag/nodes/utils.py-623-async def _llm_retrieval_expansions(state: GraphState) -> list[str]:
+backend/rag/nodes/utils.py:624:    """Ask the model to propose retrieval-only reformulations without encoding doctrine in code."""
+backend/rag/nodes/utils.py-625-    if state.get("query_tier") in ("fast", "tier2_simple"):
+backend/rag/nodes/utils.py-626-        return []
+backend/rag/nodes/utils.py-627-
+backend/rag/nodes/utils.py-628-    ollama = _services._ollama
+backend/rag/nodes/utils.py-629-    if ollama is None:
+backend/rag/nodes/utils.py-630-        return []
+backend/rag/nodes/utils.py-631-
+backend/rag/nodes/utils.py-632-    question = state.get("rewritten_query") or state["question"]
+backend/rag/nodes/utils.py-633-    history = state.get("chat_history", [])[-6:]
+backend/rag/nodes/utils.py-634-    history_lines = []
+backend/rag/nodes/utils.py-635-    for msg in history:
+backend/rag/nodes/utils.py-636-        role = msg.get("role", "user")
+--
+backend/rag/nodes/keyword_injection.py-1-"""Doctrine Keyword Injection System for Mukthi Guru RAG.
+backend/rag/nodes/keyword_injection.py-2-
+backend/rag/nodes/keyword_injection.py:3:Injects doctrine-specific keywords into queries for improved retrieval coverage.

@@ -25,6 +25,11 @@ const PUBLIC_ROUTES = [
 
 for (const route of PUBLIC_ROUTES) {
   test(`page opens: ${route}`, async ({ page }) => {
+    // Route third-party realtime traffic out of this mount smoke test. The
+    // application must degrade without it, and browser-specific cookie/CORS
+    // behavior on Supabase is not an application contract for this suite.
+    await page.route('**/realtime/v1/websocket**', (route) => route.abort());
+
     const errors: string[] = [];
     page.on('console', (msg: ConsoleMessage) => {
       if (msg.type() === 'error') errors.push(msg.text());
@@ -53,6 +58,12 @@ for (const route of PUBLIC_ROUTES) {
         // route to the OAuth origin fails the TLS handshake but nothing
         // functional depends on the hint succeeding.
         !e.includes('Failed to preconnect') &&
+        // Firefox may surface a Cloudflare cookie-domain warning from the
+        // third-party Supabase realtime websocket even when the request is
+        // aborted. It is not emitted by application code and does not prevent
+        // the page from mounting.
+        !e.includes('__cf_bm') &&
+        !e.includes('/realtime/v1/websocket') &&
         !(finalPathname === '/auth' && e.includes('Refused to frame') && e.includes('https://accounts.google.com/')) &&
         !(protectedRoute && finalPathname === '/auth' && /401(?:\s|\()|Unauthorized/i.test(e)),
     );

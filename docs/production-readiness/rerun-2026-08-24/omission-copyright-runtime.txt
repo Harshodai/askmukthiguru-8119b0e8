@@ -1,0 +1,64 @@
+=== file state ===
+.gitignore:213:backend/data/	backend/data/book/The_Four_Sacred_Secrets_structure.json
+-rw-r--r--@ 1 harshodaikolluru  staff  451108 16 Aug 00:09 backend/data/book/The_Four_Sacred_Secrets_structure.json
+.gitignore:213:backend/data/	backend/data/book
+drwxr-xr-x@ 3 harshodaikolluru  staff  96 16 Aug 00:09 [34mbackend/data/book[39;49m[0m
+=== docker context rules ===
+--- .dockerignore
+1:# Ignore all Git files
+3:.gitignore
+11:# Ignore massive model caches and local databases
+13:backend/.model_cache/
+16:qdrant_data/
+17:neo4j_data/
+18:redis_data/
+19:telemetry_data/
+22:.data/
+23:data/
+26:# Ignore agent artifacts
+37:# Ignore Python virtual environments
+39:backend/.venv/
+44:# Ignore cloned repos and PDF generators
+45:backend/repos/
+48:# Ignore Kubernetes/docker config — not needed in image
+53:# Ignore development/ops scripts — not needed at runtime
+60:# Ignore large log files
+75:# Exclude markdown and notebook files (docs don't belong in image)
+103:backend/app/sarvam_debug.json
+107:# Catch-all: any *.pdf at repo root (likely copyrighted content)
+--- backend/.dockerignore
+36:# Qdrant local data
+37:qdrant_data/
+38:neo4j_data/
+39:redis_data/
+--- backend/Dockerfile
+2:# Mukthi Guru — Backend Dockerfile
+19:RUN useradd -m -s /bin/bash appuser
+30:COPY backend/requirements.lock ./
+38:# Copy installed packages from deps stage
+39:COPY --from=deps /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+40:COPY --from=deps /usr/local/bin /usr/local/bin
+43:# COPY places .so files in a readonly overlay layer; mmap fails there.
+44:# Rewrite every .so file through a temp copy to force into writable layer.
+57:COPY backend/scripts/download_models.py /app/scripts/download_models.py
+61:# Copy application code
+62:COPY backend/ .
+64:# The OKF compiled index lives at the repo root, not under backend/, but
+68:COPY memory/ ./memory/
+70:# Copy the entrypoint script
+71:COPY backend/docker-entrypoint.sh /app/docker-entrypoint.sh
+--- Dockerfile
+16:RUN useradd -m -s /bin/bash appuser
+20:# Install Python deps before copying app code (cache layer)
+21:COPY backend/requirements.lock ./requirements.lock
+24:# Copy app code
+25:COPY backend/ .
+27:# OKF compiled index lives at the repo root, not under backend/; retrieval.py
+28:# resolves it to /app/memory/okf/compiled.json inside the image. See backend/Dockerfile.
+29:COPY memory/ ./memory/
+31:# Create data and cache directories and ensure proper permissions for non-root user
+32:RUN mkdir -p /app/data /app/.cache && chown -R appuser:appuser /app
+=== git tracked data roots ===
+=== repository status data-related ===
+[31m??[m docs/production-readiness/PRODUCTIONIZATION-PLAYBOOK-2026-08-24.md
+[31m??[m docs/production-readiness/rerun-2026-08-24/database.txt

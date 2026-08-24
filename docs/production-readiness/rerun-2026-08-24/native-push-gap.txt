@@ -1,0 +1,88 @@
+=== native plugin usage ===
+backend/rag/node_registry.py:12:    @registry.register("intent_router", is_llm=True)
+backend/rag/node_registry.py:51:    def register(
+backend/services/push_service.py:5:  - Device token registration (FCM / APNs) via Supabase `push_devices` table.
+backend/services/push_service.py:153:        """Upsert a device token into push_devices. Returns the device id.
+backend/services/push_service.py:170:            resp = client.table("push_devices").upsert(row, on_conflict="platform,token").execute()
+backend/services/push_service.py:175:                    client.table("push_devices")
+backend/services/push_service.py:231:        query = client.table("push_devices").select("platform,token").eq("active", True)
+backend/rag/graph.py:295:        registry.register("intent_router", is_llm=True)(intent_router)
+backend/rag/graph.py:296:        registry.register("generate_answer", is_llm=True)(generate_answer)
+backend/rag/graph.py:297:        registry.register("verify_answer", is_llm=True)(verify_answer)
+backend/rag/graph.py:298:        registry.register("reflect_on_answer", is_llm=True)(reflect_on_answer)
+backend/rag/graph.py:299:        registry.register("retrieve_documents", is_llm=False)(retrieve_documents)
+supabase/functions/delete-my-account/index.ts:14:  | 'push_subscriptions'
+supabase/functions/delete-my-account/index.ts:15:  | 'push_devices'
+supabase/functions/delete-my-account/index.ts:113:      'push_subscriptions',
+supabase/functions/delete-my-account/index.ts:114:      'push_devices',
+supabase/functions/push-send/index.ts:87:  let query = supabase.from('push_subscriptions').select('id, endpoint, p256dh, auth, user_id');
+supabase/functions/push-send/index.ts:123:  if (stale.length) await supabase.from('push_subscriptions').delete().in('id', stale);
+backend/rag/tools.py:117:        registry.register(QdrantSearchTool(qdrant_svc, embedding_svc))
+backend/rag/tools.py:125:    def register(self, tool: Tool) -> None:
+backend/app/api/push.py:4:- POST /push/register  : register/upsert a device token (auth optional; user_id derived from auth only).
+supabase/functions/daily-teaching-push/index.ts:30:  const { data: subs } = await sb.from("push_subscriptions").select("*");
+backend/services/llm_factory.py:27:    def register(self, name: str, constructor: Callable) -> None:
+backend/services/llm_factory.py:63:        _registry.register(name, constructor)
+backend/services/llm_factory.py:84:        _registry.register("ollama", OllamaService)
+backend/services/llm_factory.py:91:        _registry.register("sarvam_cloud", SarvamCloudService)
+backend/services/llm_factory.py:98:        _registry.register("openrouter", OpenRouterService)
+backend/services/llm_factory.py:105:        _registry.register("nim", NimService)
+backend/services/qdrant_service.py:109:        get_circuit_breaker_registry().register("qdrant", self._circuit)
+backend/services/ab_testing.py:27:    router.register(ABTestConfig(
+backend/services/ab_testing.py:127:    def register(self, config: ABTestConfig) -> None:
+backend/services/ab_testing.py:135:    def unregister(self, experiment_name: str) -> None:
+backend/services/ab_testing.py:243:    router.register(
+backend/services/ab_testing.py:254:    router.register(
+backend/services/web_search_service.py:317:        get_circuit_breaker_registry().register("web_search", self._circuit)
+backend/services/auth_service.py:46:    async def on_after_register(self, user: User, request: Request | None = None):
+backend/services/sarvam_service.py:113:        get_circuit_breaker_registry().register(
+backend/services/lightrag_service.py:113:            get_circuit_breaker_registry().register("lightrag", self._circuit)
+backend/services/embedding_service.py:125:        get_circuit_breaker_registry().register("embedding", self._circuit)
+backend/services/openrouter_service.py:99:        get_circuit_breaker_registry().register(
+src/hooks/useWebPush.ts:99:        (await navigator.serviceWorker.register(SW_PATH));
+src/hooks/useWebPush.ts:110:      await supabase.from('push_subscriptions').upsert(
+src/hooks/useWebPush.ts:133:      await supabase.from('push_subscriptions').delete().eq('endpoint', endpoint);
+backend/services/circuit_breaker.py:323:        registry.register("sarvam", DefaultCircuitBreaker(config))
+backend/services/circuit_breaker.py:324:        registry.register("ollama", DefaultCircuitBreaker(config))
+backend/services/circuit_breaker.py:335:    def register(self, provider: str, breaker: BaseCircuitBreaker) -> None:
+backend/services/circuit_breaker.py:340:    def unregister(self, provider: str) -> None:
+backend/services/circuit_breaker.py:413:    # REAL breaker via get_circuit_breaker_registry().register(...) in their own
+backend/services/circuit_breaker.py:421:            registry.register(provider, breaker)
+src/main.tsx:80:      .register("/sw.js")
+src/App.tsx:16:import { PushNotificationsManager } from "@/components/common/PushNotificationsManager";
+src/App.tsx:330:          <PushNotificationsManager />
+src/test/QueryClient.test.tsx:36:vi.mock('@/components/common/PushNotificationsManager', () => ({ PushNotificationsManager: () => null }));
+src/components/profile/CancelFlow.tsx:84: *  pattern in PushNotificationsManager / memoryApi: get Supabase session, attach
+src/components/common/PushNotificationsManager.tsx:3:import { PushNotifications, Token, PushNotificationSchema, ActionPerformed } from '@capacitor/push-notifications';
+src/components/common/PushNotificationsManager.tsx:10:const TAG = '[PushNotificationsManager]';
+src/components/common/PushNotificationsManager.tsx:12:export const PushNotificationsManager = () => {
+src/components/common/PushNotificationsManager.tsx:33:        const res = await fetch(`${BACKEND_URL}/api/push/register`, {
+src/components/common/PushNotificationsManager.tsx:56:        let permStatus = await PushNotifications.checkPermissions();
+src/components/common/PushNotificationsManager.tsx:58:          permStatus = await PushNotifications.requestPermissions();
+src/components/common/PushNotificationsManager.tsx:64:        await PushNotifications.register();
+src/components/common/PushNotificationsManager.tsx:66:          PushNotifications.addListener('registration', (token: Token) => {
+src/components/common/PushNotificationsManager.tsx:74:          PushNotifications.addListener('pushNotificationReceived', (n: PushNotificationSchema) => {
+src/components/common/PushNotificationsManager.tsx:80:          PushNotifications.addListener('pushNotificationActionPerformed', (a: ActionPerformed) => {
+backend/tests/test_abstractions.py:154:        @registry.register("test_node", is_llm=False)
+backend/tests/test_circuit_breaker.py:90:    registry.register("ollama", breaker)
+backend/tests/test_corpus_release_registry.py:26:            return Response(self.store.register(self.payload))
+backend/tests/test_corpus_release_registry.py:80:    def register(self, payload):
+src/integrations/supabase/types.ts:1498:      push_subscriptions: {
+=== mobile push build config ===
+capacitor.config.ts:12:    PushNotifications: {
+android/build.gradle:11:        classpath 'com.google.gms:google-services:4.4.4'
+android/gradlew:199:        set -- "$@" "$arg"      # push replacement arg
+ios/App/CapApp-SPM/Package.swift:18:        .package(name: "CapacitorPushNotifications", path: "../../../node_modules/@capacitor/push-notifications")
+ios/App/CapApp-SPM/Package.swift:29:                .product(name: "CapacitorPushNotifications", package: "CapacitorPushNotifications")
+android/app/proguard-rules.pro:10:# Firebase
+android/app/proguard-rules.pro:11:-keep class com.google.firebase.** { *; }
+android/app/proguard-rules.pro:12:-dontwarn com.google.firebase.**
+android/app/build.gradle:50:    def servicesJSON = file('google-services.json')
+android/app/build.gradle:52:        apply plugin: 'com.google.gms.google-services'
+android/app/build.gradle:55:    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+android/capacitor.settings.gradle:14:include ':capacitor-push-notifications'
+android/capacitor.settings.gradle:15:project(':capacitor-push-notifications').projectDir = new File('../node_modules/@capacitor/push-notifications/android')
+android/app/capacitor.build.gradle:15:    implementation project(':capacitor-push-notifications')
+android/app/src/main/AndroidManifest.xml:45:            android:name="com.google.firebase.messaging.default_notification_icon"
+android/app/src/main/AndroidManifest.xml:48:            android:name="com.google.firebase.messaging.default_notification_color"
+=== push tests ===

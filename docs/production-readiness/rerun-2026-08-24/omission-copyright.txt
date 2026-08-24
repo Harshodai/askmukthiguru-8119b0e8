@@ -1,0 +1,809 @@
+=== suspicious book/source files ===
+.agent/skills/antigravity-workflows/resources/implementation-playbook.md
+.agent/skills/claude-seo/LICENSE
+.agent/skills/claude-seo/extensions/banana/skills/seo-image-gen/LICENSE.txt
+.agent/skills/claude-seo/extensions/dataforseo/skills/seo-dataforseo/LICENSE.txt
+.agent/skills/claude-seo/extensions/firecrawl/skills/seo-firecrawl/LICENSE.txt
+.agent/skills/claude-seo/pdf/google-seo-reference.md
+.agent/skills/claude-seo/skills/seo-audit/LICENSE.txt
+.agent/skills/claude-seo/skills/seo-backlinks/LICENSE.txt
+.agent/skills/claude-seo/skills/seo-competitor-pages/LICENSE.txt
+.agent/skills/claude-seo/skills/seo-content-brief/LICENSE.txt
+.agent/skills/claude-seo/skills/seo-content/LICENSE.txt
+.agent/skills/claude-seo/skills/seo-dataforseo/LICENSE.txt
+.agent/skills/claude-seo/skills/seo-geo/LICENSE.txt
+.agent/skills/claude-seo/skills/seo-google/LICENSE.txt
+.agent/skills/claude-seo/skills/seo-hreflang/LICENSE.txt
+.agent/skills/claude-seo/skills/seo-image-gen/LICENSE.txt
+.agent/skills/claude-seo/skills/seo-images/LICENSE.txt
+.agent/skills/claude-seo/skills/seo-local/LICENSE.txt
+.agent/skills/claude-seo/skills/seo-maps/LICENSE.txt
+.agent/skills/claude-seo/skills/seo-page/LICENSE.txt
+.agent/skills/claude-seo/skills/seo-plan/LICENSE.txt
+.agent/skills/claude-seo/skills/seo-programmatic/LICENSE.txt
+.agent/skills/claude-seo/skills/seo-schema/LICENSE.txt
+.agent/skills/claude-seo/skills/seo-sitemap/LICENSE.txt
+.agent/skills/claude-seo/skills/seo-technical/LICENSE.txt
+.agent/skills/claude-seo/skills/seo/LICENSE.txt
+.agent/skills/deep-research-skills/LICENSE
+.agent/skills/fact-check-skill/LICENSE
+.agent/skills/frontend-design/LICENSE.txt
+.agent/skills/humanizer/LICENSE
+.agent/skills/mcp-builder/LICENSE.txt
+.agent/skills/python-performance-optimization/resources/implementation-playbook.md
+.agent/skills/python-testing-patterns/resources/implementation-playbook.md
+.agent/skills/skill-creator/LICENSE.txt
+.agent/skills/webapp-testing/LICENSE.txt
+.agents/skills/build-llm-app-scratch/chapters/ch11-7-booking-tips.md
+.agents/skills/rag-made-simple/chapters/ch01-1-copyright.md
+CONTENT-RIGHTS.md
+LICENSE-EXCEPTIONS.md
+backend/app/contracts/transcription.py
+backend/app/corpus_release_registry.py
+backend/ingest/book_ingest.py
+backend/ingest/pdf_parser.py
+backend/rag/corpus_scope.py
+backend/routers/notebooks.py
+backend/scripts/ingest_pdf_pipeline.py
+backend/scripts/ops/corpus_audit.py
+backend/scripts/ops/corpus_forensics.py
+backend/services/notebook_service.py
+backend/services/transcript_polisher.py
+backend/tests/test_corpus_hallucination_integrity.py
+backend/tests/test_corpus_release_registry.py
+backend/tests/test_corpus_scope.py
+backend/tests/test_domain_rights_read_gate.py
+backend/tests/test_graph_notebook_integration.py
+backend/tests/test_notebook_service.py
+backend/tests/test_pdf_extraction.py
+backend/tests/test_transcript_quality_gates.py
+docs/CHURN_PLAYBOOK.md
+docs/KUBECTL_RUNBOOK.md
+docs/MOBILE_RELEASE_RUNBOOK.md
+docs/PRODUCTION_RAG_OVER_MILLIONS_OF_PDFS.md
+docs/engineering-notes/CORPUS_REBUILD_PLAN.md
+docs/engineering-notes/corpus-remediation-and-migration-plan.md
+docs/operations/production-deployment-runbook.md
+docs/runbooks/ALERTING.md
+docs/runbooks/BACKUP_RESTORE_DRILL.md
+docs/runbooks/BENCHMARK_RUNBOOK.md
+docs/runbooks/BRAIN_KEK_ROTATION.md
+docs/runbooks/CAPACITY.md
+docs/runbooks/CREDENTIALS_GUIDE.md
+docs/runbooks/MIGRATION_ROLLBACK.md
+docs/runbooks/ONCALL.md
+docs/runbooks/PRIVACY.md
+docs/runbooks/QDRANT_VAULT.md
+docs/runbooks/REDIS_NAMESPACE_BUDGET.md
+docs/runbooks/RERANKER_AB_TEST_RUNBOOK.md
+docs/runbooks/RETENTION.md
+docs/runbooks/SECRET_ROTATION.md
+docs/runbooks/SOURCE_QUARANTINE.md
+docs/runbooks/STREAM_PROTOCOL.md
+docs/transcript_end_to_end_recheck_report.md
+docs/transcript_release_gate.md
+results/The_Four_Sacred_Secrets_structure.json
+scripts/books_status.json
+scripts/ingestion/1_fetch_transcripts_local.py
+scripts/ingestion/2_upload_transcripts_to_railway.py
+scripts/ingestion/corpus_audit_summary_latest.json
+scripts/ingestion/corpus_end_to_end_audit.py
+scripts/ingestion/corpus_end_to_end_audit_latest.csv
+scripts/ingestion/corpus_end_to_end_audit_latest.json
+scripts/ingestion/corpus_engine.py
+scripts/ingestion/corpus_publish_gate.py
+scripts/ingestion/extract_transcripts.py
+scripts/ingestion/generate_corpus_excel_audit.py
+scripts/ingestion/ingest_four_sacred_secrets.py
+scripts/ingestion/monitor_corpus_live.py
+scripts/ingestion/parallel_corpus_extractor.py
+scripts/ingestion/rectify_all_corpus.py
+scripts/ingestion/summarize_corpus_audit.py
+scripts/ingestion/test_corpus_publish_gate.py
+src/hooks/useStudyNotebooks.ts
+src/pages/StudyNotebookPage.tsx
+supabase/migrations/20260630140000_study_notebooks.sql
+=== sizes ===
+  451108 backend/data/book/The_Four_Sacred_Secrets_structure.json
+    5999 scripts/ingestion/ingest_four_sacred_secrets.py
+=== book references ===
+docs/QUESTION_BANK_REFERENCE.md:24:### B. The Four Sacred Secrets
+docs/QUESTION_BANK_REFERENCE.md:63:- **Clinical Non-Replacement**: Spiritual meditation and Deeksha are complementary supports for inner calm and must NEVER replace psychiatric medications, clinical therapies, or licensed medical supervision.
+src/pages/PrivacyPage.tsx:38:        <h2>{t('privacy.yourRights')}</h2>
+src/pages/StudyNotebookPage.tsx:4:import { BookOpen, Plus, Trash2, X, Loader2, ChevronDown, ChevronUp, Bookmark, Hash, Mic, MicOff } from "lucide-react";
+src/pages/StudyNotebookPage.tsx:11:import { useStudyNotebooks, type NotebookItem } from "@/hooks/useStudyNotebooks";
+src/pages/StudyNotebookPage.tsx:20:export default function StudyNotebookPage() {
+src/pages/StudyNotebookPage.tsx:22:  const { notebooks, loading, error, createNotebook, deleteNotebook, addItem, listItems } = useStudyNotebooks();
+src/pages/StudyNotebookPage.tsx:29:  const [itemsMap, setItemsMap] = useState<Record<string, NotebookItem[]>>({});
+src/pages/StudyNotebookPage.tsx:49:    const nb = await createNotebook(newTitle.trim());
+src/pages/StudyNotebookPage.tsx:53:      toast({ title: "Notebook created", description: nb.title });
+src/pages/StudyNotebookPage.tsx:58:    const ok = await deleteNotebook(id);
+src/pages/StudyNotebookPage.tsx:59:    if (ok) toast({ title: "Notebook deleted" });
+src/pages/StudyNotebookPage.tsx:82:              <BookOpen className="w-6 h-6 text-ojas" />
+src/pages/StudyNotebookPage.tsx:83:              Study Notebooks
+src/pages/StudyNotebookPage.tsx:90:            <Plus className="w-4 h-4 mr-1" /> New Notebook
+src/pages/StudyNotebookPage.tsx:98:        {loading && notebooks.length === 0 && (
+src/pages/StudyNotebookPage.tsx:100:            <Loader2 className="w-6 h-6 animate-spin mr-2" /> Loading notebooks...
+src/pages/StudyNotebookPage.tsx:104:        {!loading && notebooks.length === 0 && !error && (
+src/pages/StudyNotebookPage.tsx:106:            <BookOpen className="w-12 h-12 mx-auto mb-4 text-muted-foreground/40" />
+src/pages/StudyNotebookPage.tsx:107:            <p className="text-lg font-medium">No notebooks yet</p>
+src/pages/StudyNotebookPage.tsx:108:            <p className="text-sm mt-1">Create your first study notebook to save teachings</p>
+src/pages/StudyNotebookPage.tsx:113:          {notebooks.map((nb) => (
+src/pages/StudyNotebookPage.tsx:130:                      <BookOpen className="w-4 h-4 text-ojas" />
+src/pages/StudyNotebookPage.tsx:141:                      title="Delete notebook"
+src/pages/StudyNotebookPage.tsx:165:                            <Bookmark className="w-8 h-8 mx-auto mb-2 text-muted-foreground/30" />
+src/pages/StudyNotebookPage.tsx:167:                            <p className="text-xs mt-1">Save teachings from chat messages to this notebook</p>
+src/pages/StudyNotebookPage.tsx:205:              <DialogTitle>Create New Notebook</DialogTitle>
+supabase/functions/delete-my-account/index.ts:21:  | 'study_notebooks'
+supabase/functions/delete-my-account/index.ts:120:      'study_notebooks',
+docs/skill-enhancements.md:3:Generated by reading all 24 book skills twice and analyzing against current `backend/` implementation.
+docs/skill-enhancements.md:167:Split vectors into named groups (meditation, philosophy, biography, soul_sync, four_sacred_secrets) using Qdrant payload index. Reduces search space 60-80%.
+docs/skill-enhancements.md:297:**4 books read fully** (61 chapters total):
+docs/skill-enhancements.md:299:| Book | Chapters | Key Focus |
+docs/REFERENCE_DEVELOPMENT_GUIDE.md:61:### 1.5 Auth: deleted dead Lovable Facebook branch
+docs/REFERENCE_DEVELOPMENT_GUIDE.md:62:**File**: `/app/src/pages/AuthPage.tsx` (Facebook handler ~line 425)
+docs/REFERENCE_DEVELOPMENT_GUIDE.md:64:The Lovable wrapper's TypeScript union is `'google' | 'apple' | 'microsoft' | 'lovable'` — Facebook is not supported. The previous code cast `'facebook' as any` and silently failed in production. Now always uses Supabase native `signInWithOAuth({provider:'facebook'})`. Fixed 2 `any` lint errors in the Google One Tap handler at the same time.
+docs/REFERENCE_DEVELOPMENT_GUIDE.md:66:**Confidence: 10/10**. Lovable Facebook path was unreachable; removing it eliminates a footgun.
+docs/REFERENCE_DEVELOPMENT_GUIDE.md:217:## 3. How to validate (benchmark runbook)
+docs/REFERENCE_DEVELOPMENT_GUIDE.md:308:| `/app/src/pages/AuthPage.tsx` | Deleted dead Lovable Facebook branch (Lovable wrapper doesn't support Facebook); fixed 2 `any` lint errors in One Tap |
+docs/evidence/baseline.txt:77:backend/tests/test_domain_rights_read_gate.py
+docs/evidence/baseline.txt:97:backend/tests/test_graph_notebook_integration.py
+docs/evidence/baseline.txt:166:backend/tests/test_notebook_service.py
+docs/top_to_bottom_quality_review.md:59:The Knowledge Graph should add **reasoning memory** as a separate, permissioned layer. A reasoning-memory record should retain the evidence IDs, graph hops, memory IDs, retrieval scores, model/prompt version, and safety decisions that influenced an answer. It must not become a hidden user profile. The user-facing UI should expose a compact “Why this was recalled” panel and allow the user to remove a memory or disable that memory class.
+src/pages/guides/SpiritualGuideForAnxietyPage.tsx:14:    a: 'No. Spiritual practices address the state of consciousness generating anxious thoughts, while therapy addresses clinical patterns, trauma, and diagnosis. If anxiety is severe or persistent, please seek support from a licensed professional alongside any spiritual practice.',
+docs/PRODUCT_STORY_AND_ADOPTION.md:21:| **Return** | “I want to build on what helped.” | Practices, notebooks, favorites, and reflections that can be revisited at the user’s pace. | A voluntary return to a practice, reflection, or conversation. |
+docs/PRODUCT_STORY_AND_ADOPTION.md:34:| **Continuation** | A useful moment can become a gentle practice, not a one-off chat. | Practices, favorites, notebook, second brain, and reflection surfaces. |
+docs/PENDING_AND_EDGE_CASES.md:69:**Worktree cleanup (2026-06-23):** `git worktree list` now reports only the main working tree. A few empty `.claude/worktrees/` directory stubs may remain on disk due to sandbox permissions, but they are no longer registered worktrees and can be removed with `rm -rf .claude/worktrees/*` outside the sandbox if desired.
+docs/SLO.md:34:- **Quarterly:** full capacity + SLO review (see also `docs/runbooks/CAPACITY.md` when it exists — P1-OPS-7 writes it).
+docs/PRODUCTION_READINESS_CHECKLIST.md:22:- [x] License compliance verified (all dependencies are Apache 2.0, MIT, or Meta Community)
+docs/PRODUCTION_READINESS_CHECKLIST.md:60:### 6. Documentation & Runbooks
+docs/PRODUCTION_READINESS_CHECKLIST.md:67:- [x] Runbooks for operational procedures are available
+docs/PRODUCTION_READINESS_CHECKLIST.md:75:- [x] Content rights and attributions are properly handled
+scripts/generate_complete_as.py:160:        "notebooks": "নোটবুকসমূহ",
+scripts/generate_complete_as.py:246:            "copyright": "© {{year}} AskMukthiGuru. সৰ্বস্বত্ব সংৰক্ষিত।",
+scripts/generate_complete_as.py:301:        "yourRights": "আপোনাৰ অধিকাৰসমূহ (DPDP আইন / GDPR)",
+scripts/generate_complete_as.py:1137:        "savedToNotebook": "অধ্যয়ন নোটবুকত সংৰক্ষণ কৰা হ'ল",
+scripts/generate_complete_as.py:1138:        "savedToNotebookDesc": "\"{{title}}\"ত যোগ কৰা হ'ল",
+src/pages/AuthPage.tsx:237:        setFacebookStep('idle');
+src/pages/AuthPage.tsx:263:          setFacebookStep('idle');
+src/pages/AuthPage.tsx:280:            setFacebookStep('idle');
+src/pages/AuthPage.tsx:292:          getSessionItem('askmukthiguru_facebook_step'),
+src/pages/AuthPage.tsx:295:      const isFacebookReturn = fbKey === '1' || getActiveRun()?.provider === 'facebook';
+src/pages/AuthPage.tsx:301:      if (isFacebookReturn) {
+src/pages/AuthPage.tsx:302:        console.log('[Auth] Detected Facebook OAuth return');
+src/pages/AuthPage.tsx:303:        setFacebookStep('finalizing');
+src/pages/AuthPage.tsx:308:        removeSessionItem('askmukthiguru_facebook_step'),
+src/pages/AuthPage.tsx:397:        setFacebookStep('idle');
+src/pages/AuthPage.tsx:573:  const [facebookStep, setFacebookStep] = useState<'idle' | 'connecting' | 'redirecting' | 'finalizing'>('idle');
+src/pages/AuthPage.tsx:575:  const handleFacebookSignIn = async () => {
+src/pages/AuthPage.tsx:578:    setFacebookStep('connecting');
+src/pages/AuthPage.tsx:579:    startAuthRun('facebook');
+src/pages/AuthPage.tsx:581:    recordStep('click_facebook', 'ok', 0);
+src/pages/AuthPage.tsx:584:      setFacebookStep((s) => (s === 'connecting' ? 'redirecting' : s));
+src/pages/AuthPage.tsx:588:      await setSessionItem('askmukthiguru_facebook_step', '1');
+src/pages/AuthPage.tsx:592:        provider: 'facebook',
+src/pages/AuthPage.tsx:599:        meta: { provider: 'facebook' },
+src/pages/AuthPage.tsx:605:      const message = err instanceof Error ? err.message : t('auth.couldNotConnectFacebook');
+src/pages/AuthPage.tsx:606:      console.error('[Facebook Auth Error]', err);
+src/pages/AuthPage.tsx:607:      setError(t('auth.couldNotConnectFacebookRetry'));
+src/pages/AuthPage.tsx:608:      await removeSessionItems(['askmukthiguru_facebook_step']);
+src/pages/AuthPage.tsx:609:      setFacebookStep('idle');
+src/pages/AuthPage.tsx:658:  const facebookBusy = facebookStep !== 'idle';
+src/pages/AuthPage.tsx:663:    if (googleBusy || facebookBusy || appleBusy) {
+src/pages/AuthPage.tsx:671:  }, [googleBusy, facebookBusy, appleBusy]);
+src/pages/AuthPage.tsx:677:    setFacebookStep('idle');
+src/pages/AuthPage.tsx:683:      'askmukthiguru_facebook_step',
+src/pages/AuthPage.tsx:845:  const facebookStepLabel = facebookBusy ? t('auth.connectingToFacebook') : t('auth.continueWithFacebook');
+src/pages/AuthPage.tsx:985:          {showResetButton && (googleBusy || facebookBusy || appleBusy) && (
+docs/edge-cases-research.md:319:| | RAG with verified spiritual texts (not raw LLM knowledge). Citation required for scripture references. Never impersonate sacred figures or clergy. Clear disclosure: "This is an AI assistant, not a clergy member." Ground responses in approved texts with (book/chapter/verse). Block absolute claims of salvation, healing, or prophecy. Multi-faith review board for outputs. |
+docs/edge-cases-research.md:572:| **Potential Impact** | **High**. GDPR fines, inability to honor deletion requests, data subject rights violations. |
+backend/services/confidence_scorer.py:52:# Source-type authority ranking (E3.2): book > transcript > video > social > unknown
+backend/services/confidence_scorer.py:54:    "book": 1.0,
+backend/services/confidence_scorer.py:112:    """E3.2: authority from doc metadata source_type (book > video > social)."""
+backend/services/confidence_scorer.py:323:            {"score": 0.85, "metadata": {"source_type": "book", "published_date": "2023-05-01"}},
+src/pages/AdminSelfCheckPage.tsx:62:      <h1 className="text-2xl font-semibold">Admin permission self-check</h1>
+docs/DEPLOY_READINESS.md:32:| **No billing/payments system implemented** | `rg -l stripe` across the whole repo (excluding docs/plans) returns **zero application code** — only planning docs (`PRE_LAUNCH_CHECKLIST_PLAN.md:255-301`, `docs/CHURN_PLAYBOOK.md`, `docs/marketing_strategy.md`) reference Stripe as a future TODO. There is no `backend/app/api/webhooks/stripe.py` despite being referenced in the checklist. | Cannot monetize; the checklist itself marks "Enforce your login and paywall on the server" and "Test Stripe webhooks" as **⏳ Pending**. No entitlement/plan model exists to gate premium features server-side. |
+docs/DEPLOY_READINESS.md:35:| **Transactional email / deliverability not configured** | Checklist §2 (SPF/DKIM/DMARC, Supabase SMTP, subdomain sending) all marked ⏳ Pending | Password reset, magic-link, and dunning emails (see `docs/CHURN_PLAYBOOK.md`) will land in spam or fail outright without this — breaks auth recovery flows in production. |
+docs/DEPLOY_READINESS.md:36:| **No dunning / involuntary-churn handling** | `docs/CHURN_PLAYBOOK.md` line 5: "So *involuntary* churn (failed payments) doesn't exist yet" — entire playbook is written as a forward plan, not implemented logic | Confirms billing lifecycle (retries, card-updater, failed-payment emails) is design-only. |
+docs/DEPLOY_READINESS.md:48:1. **Proprietary doctrine corpus** — Qdrant `spiritual_wisdom` collection: 89,053 ingested items from books, 450+ YouTube discourses, and lectures specifically by Sri Preethaji & Sri Krishnaji (README, `scripts/ingest_lightrag_data.py`). This is licensed/curated first-party content, not scraped generic wisdom text — a competitor without a relationship to these teachers cannot legally or practically replicate the corpus.
+docs/DEPLOY_READINESS.md:67:**Bottom line**: the moat is real but resides in engineering depth (12-layer pipeline, dual retrieval, constitutional verification, distress safety) and content exclusivity (licensed teacher corpus), not in UI or persona novelty — which is exactly the layer that's cheapest for competitors to copy and hardest to defend without this backend.
+docs/DEPLOY_READINESS.md:75:| **Billing** | ❌ Not implemented | No Stripe (or other PSP) integration in code; `PRE_LAUNCH_CHECKLIST_PLAN.md` §7 marks Stripe MoR setup, webhook handling, and Tax config as pending. Need: plan/entitlement table (likely a new Supabase table + RLS policy), server-side feature gating, webhook handler, Stripe Billing Portal link, `docs/CHURN_PLAYBOOK.md` dunning flows wired to real webhook events. |
+docs/DEPLOY_READINESS.md:76:| **ToS / Privacy Policy** | ⚠️ Pages exist, content/legal review unverified | `src/pages/PrivacyPage.tsx`, `src/pages/TermsPage.tsx` exist in the frontend, but no evidence of legal counsel review, no Stripe data-processing addendum (checklist §7.3 pending), no explicit AI-specific disclosures (e.g., "not a licensed therapist/spiritual authority" disclaimers) confirmed in content. Need a legal pass before commercial billing goes live, especially given crisis/distress-detection features carrying liability exposure. |
+scripts/build_exact_gu.py:157:        "notebooks": "નોટબુક્સ",
+scripts/build_exact_gu.py:427:        "savedToNotebook": "નોટબુકમાં સાચવી લીધું",
+scripts/build_exact_gu.py:428:        "savedToNotebookDesc": "\"{{title}}\" માં ઉમેર્યું",
+scripts/build_exact_gu.py:572:        "yourRights": "તમારા અધિકારો (DPDP એક્ટ / GDPR)",
+scripts/build_exact_gu.py:620:        "couldNotConnectFacebook": "Facebook સાથે કનેક્ટ થઈ શક્યું નથી",
+scripts/build_exact_gu.py:621:        "couldNotConnectFacebookRetry": "Facebook કનેક્શન નિષ્ફળ ગયું. કૃપા કરીને ફરી પ્રયાસ કરો.",
+scripts/build_exact_gu.py:639:        "continueWithFacebook": "Facebook સાથે ચાલુ રાખો",
+scripts/build_exact_gu.py:640:        "connectingToFacebook": "Facebook સાથે કનેક્ટ થઈ રહ્યું છે…",
+docs/runbooks/CREDENTIALS_GUIDE.md:17:5. ⚠️ Facebook App ID/Secret (Authentication - Optional)
+docs/runbooks/CREDENTIALS_GUIDE.md:123:##### Enable Facebook OAuth:
+docs/runbooks/CREDENTIALS_GUIDE.md:124:1. Same section, find **Facebook**
+docs/runbooks/CREDENTIALS_GUIDE.md:126:3. You'll need Facebook App ID/Secret (see section 5 below)
+docs/runbooks/CREDENTIALS_GUIDE.md:273:## 5️⃣ FACEBOOK APP ID/SECRET (Optional)
+docs/runbooks/CREDENTIALS_GUIDE.md:276:Enables "Sign in with Facebook"
+docs/runbooks/CREDENTIALS_GUIDE.md:280:#### Step 1: Create Facebook App
+docs/runbooks/CREDENTIALS_GUIDE.md:281:1. Go to: https://developers.facebook.com
+docs/runbooks/CREDENTIALS_GUIDE.md:288:#### Step 2: Add Facebook Login
+docs/runbooks/CREDENTIALS_GUIDE.md:290:2. Find "Facebook Login" → Click "Set Up"
+docs/runbooks/CREDENTIALS_GUIDE.md:296:1. In left sidebar, go to **Facebook Login** → **Settings**
+docs/runbooks/CREDENTIALS_GUIDE.md:312:1. Supabase Dashboard → **Authentication** → **Providers** → **Facebook**
+docs/runbooks/CREDENTIALS_GUIDE.md:317:1. Top of Facebook App Dashboard
+docs/runbooks/CREDENTIALS_GUIDE.md:323:2. Click "Continue with Facebook"
+docs/runbooks/CREDENTIALS_GUIDE.md:324:3. Should redirect to Facebook login
+docs/runbooks/CREDENTIALS_GUIDE.md:476:The AskMukthiGuru mobile app is a Capacitor 8 wrapper around the Vite build. Signing + push creds live **outside the repo** (gitignored). See `docs/MOBILE_RELEASE_RUNBOOK.md` for the full submission flow.
+src/pages/ProfilePage.tsx:35:import { fireTestReminder, requestNotificationPermission } from '@/hooks/useMeditationReminder';
+src/pages/ProfilePage.tsx:1000:                          const ok = await requestNotificationPermission();
+src/pages/ProfilePage.tsx:1003:                              title: "Permissions required",
+docs/PHASE_1_COMPLETE.md:14:- `src/components/common/PushPermissionPrompt.tsx` — soft toast after 4s, dismiss cooldown 7 days, only shown if `permission !== 'denied'` and not already subscribed. Wired into `App.tsx`.
+docs/REFACTOR_BLUEPRINT.md:23:  LLM?" you must read 2200+ lines across two files. This is the textbook
+docs/INTEGRATION_GUIDE.md:27:| `WHAT_TO_DO.md` | Operations runbook |
+docs/INTEGRATION_GUIDE.md:30:| `MULTI_GURU_ONBOARDING.md` | Multi-guru playbook |
+docs/CHURN_PLAYBOOK.md:1:# Churn Prevention Playbook — AskMukthiGuru
+docs/CHURN_PLAYBOOK.md:7:This playbook covers both: the retention loops to ship now, and the
+supabase/migrations/20260601050554_d184ca2a-1755-4713-9b5a-6572499cdf09.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+docs/runbooks/BENCHMARK_RUNBOOK.md:1:# Benchmark Runbook — Phase-1 Optimization Verification
+supabase/migrations/20260627130000_tenant_rls.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+docs/runbooks/REDIS_NAMESPACE_BUDGET.md:1:# Redis Namespace Budget and Telemetry Runbook
+docs/runbooks/REDIS_NAMESPACE_BUDGET.md:59:[3]: https://redis.io/tutorials/redis-software-observability-playbook/ "Redis: Redis Software Developer Observability Playbook"
+supabase/migrations/20260617000000_add_dashboard_indexes.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+supabase/migrations/20260702150000_staging_quality_queue.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+docs/runbooks/MIGRATION_ROLLBACK.md:1:# Migration Rollback Runbook
+docs/runbooks/MIGRATION_ROLLBACK.md:13:5. **Update this runbook when the revert strategy changes.** If a migration is amended, add a note in the Index below.
+docs/runbooks/MIGRATION_ROLLBACK.md:49:| `20260526050952_a6a2b7ca-beb1-4d07-a4c6-335de99b8dd2.sql` | Notebook / study tables | Drop tables and dependent objects. |
+docs/runbooks/MIGRATION_ROLLBACK.md:77:| `20260630140000_study_notebooks.sql` | Study notebooks table | Drop table/indexes/policies. |
+docs/runbooks/MIGRATION_ROLLBACK.md:119:| `20260804000002_revoke_router_decisions_anon_grant.sql` | Revoke anon grant | Re-grant anon permission only if intentionally required. |
+scripts/capture_all_clean_screens.cjs:34:    { name: 'screen_06_notebook.png', url: 'http://localhost:8080/notebooks' },
+docs/runbooks/RERANKER_AB_TEST_RUNBOOK.md:1:# Reranker A/B Test Runbook — jina-v2 vs ms-marco-MiniLM
+docs/runbooks/RERANKER_AB_TEST_RUNBOOK.md:112:### Step 1 — Capture ms-marco baseline (you should have this from BENCHMARK_RUNBOOK.md)
+supabase/migrations/20260718120000_add_unique_session_summary.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+docs/SPEC_DEV.md:17:| License | Every dependency must be open source (Apache 2.0, MIT, or Meta Community) |
+docs/SPEC_DEV.md:19:| Data Source | Only Sri Preethaji & Sri Krishnaji's YouTube videos + approved images (see Content Permissions below) |
+docs/SPEC_DEV.md:185:## Content Permissions Checklist
+docs/SPEC_DEV.md:186:This project uses copyrighted content. **All items must be confirmed before deployment.**
+docs/SPEC_DEV.md:190:| YouTube ToS reviewed for transcription/indexing | ✅ Reviewed | YouTube ToS [Section 4B](https://www.youtube.com/static?template=terms) — API-based access requires compliance with YouTube API ToS; direct transcription via `youtube-transcript-api` uses publicly available caption data. Fair use analysis applies for educational/non-commercial use with transformative purpose. | Developer |
+docs/SPEC_DEV.md:191:| Copyright/IP clearance for listed videos | ☐ Pending | Requires written permission from Sri Preethaji & Sri Krishnaji (or authorized representative) before ingesting their content. | Developer |
+docs/SPEC_DEV.md:192:| Written permission obtained (if required) | ☐ Pending | Upload signed permission document and set link below. | Developer |
+docs/SPEC_DEV.md:193:| Permission documents linked | ☐ Placeholder | Set `permission_documents_link` to the URL of the uploaded document once obtained. | Developer |
+docs/SPEC_DEV.md:198:| `permissions_confirmed` | `false` | Set to `true` only after ALL items above are confirmed |
+docs/SPEC_DEV.md:200:| `copyright_clearance` | `false` | Set to `true` only after obtaining signed written permission from content owners |
+docs/SPEC_DEV.md:201:| `permission_documents_link` | `TBD` | URL to uploaded signed permission document |
+docs/SPEC_DEV.md:204:> **Do not deploy publicly or run ingestion code until `permissions_confirmed` is `true`.**
+docs/SPEC_DEV.md:205:> Written permission from the content owners is required before any content is ingested.
+docs/SPEC_DEV.md:206:> The `copyright_clearance` field must only be set to `true` after uploading the signed permission document.
+docs/runbooks/QDRANT_VAULT.md:1:# Qdrant Vault Runbook
+docs/runbooks/QDRANT_VAULT.md:3:Runbook for the Qdrant collections that hold user-personal data: `second_brain_vault` and `guru_memories`-related vector storage. Doctrine collection configuration lives in `services/qdrant/client.py`.
+supabase/migrations/20260722090000_drop_match_kb_chunks_768.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+docs/runbooks/SOURCE_QUARANTINE.md:5:On 2026-08-21, a production generic-practice request exposed `The_Four_Sacred_Secrets.pdf` in the provenance evidence returned from the legacy Qdrant collection. The repository history had already been scrubbed of that source, but stale vector payloads remained in the serving collection.
+docs/runbooks/SOURCE_QUARANTINE.md:7:This is a **rights and retrieval-boundary incident**. A source that is not currently approved must not reach user-facing context, citations, provenance, GraphRAG summaries, or generation merely because a legacy vector point exists.
+docs/runbooks/SOURCE_QUARANTINE.md:22:After cleanup, run a bounded Qdrant verification that searches representative queries and asserts no returned payload or provenance item contains the quarantined identity. Keep the serving denylist permanently unless a rights owner explicitly re-authorizes the source through the governed release registry.
+docs/runbooks/SOURCE_QUARANTINE.md:26:A production release is not rights-clean until all of the following hold:
+backend/services/doctrine_terms.py:151:    "Four Sacred Secrets": ["4 sacred secrets", "4 Sacred Secrets", "four sacred secrets"],
+supabase/migrations/20260724090000_drop_permissive_daily_teachings_policies.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+docs/archive/WHAT_TO_DO.md:1:# WHAT_TO_DO.md — Operations Runbook for Mukthi Guru
+docs/archive/WHAT_TO_DO.md:420:- NotebookLM-style inline citation chips UI (Phase C1)
+docs/runbooks/RETENTION.md:1:# Data Retention Runbook
+docs/runbooks/RETENTION.md:39:- Supabase query fails → script falls back to point-level cleanup (stale-by-`updated_at` only); verify RLS/service key permissions.
+docs/superpowers/plans/2026-08-17-multi-finding-remediation.md:25:| 7 | colab notebook NGROK_TOKEN order | Misleading/stale: normal `os.environ.get` then call pattern; placeholder is fallback string. |
+docs/superpowers/plans/2026-08-17-multi-finding-remediation.md:142:**Finding:** #13 (PyMuPDF dependency present; license).
+docs/superpowers/plans/2026-08-17-multi-finding-remediation.md:144:**Status: RESOLVED — PyMuPDF replaced by `pypdf` (BSD-3-Clause).** Verified against current source: `backend/requirements.txt` pins `pypdf>=6.13.3,<7.0` with no PyMuPDF entry; `backend/requirements.lock` pins `pypdf==6.15.0`; `fitz`/PyMuPDF usage migrated to `pypdf.PdfReader` in `backend/ingest/pdf_parser.py`, `backend/ingest/pipeline.py`, `backend/app/api/ingest.py`, `backend/tests/test_pdf_extraction.py`. The license-incompatibility decision is resolved by replacement — no exception is required, and no lock update is pending.
+docs/superpowers/plans/2026-08-17-multi-finding-remediation.md:148:- Produces: BSD-licensed PDF extraction; no PyMuPDF in requirements.
+docs/superpowers/plans/2026-08-17-multi-finding-remediation.md:209:**Files:** `docs/runbooks/SECRET_ROTATION.md`.
+docs/superpowers/plans/2026-08-17-multi-finding-remediation.md:216:  - Around lines 149-154, include `NIM_API_KEY`, `HF_TOKEN`, `GOOGLE_CLIENT_SECRET`, `FACEBOOK_CLIENT_SECRET` when configured; otherwise explicitly state "not configured". Keep inventory consistent with rotation procedures.
+supabase/migrations/20260621033728_d14bd1cf-bb63-485e-871d-455aa729d6b2.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+supabase/migrations/20260613180000_fix_memory_to_1024_dim.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+docs/runbooks/BACKUP_RESTORE_DRILL.md:1:# Backup / Restore Drill Runbook
+docs/runbooks/BACKUP_RESTORE_DRILL.md:5:Verify monthly that critical project data in the `backups/` subdirectories can be restored and that the application still passes basic smoke tests after restore. This runbook also defines the issue template used by the monthly GitHub Actions reminder.
+docs/runbooks/BACKUP_RESTORE_DRILL.md:176:- `docs/runbooks/INCIDENT_RESPONSE.md`
+docs/runbooks/BACKUP_RESTORE_DRILL.md:177:- `docs/runbooks/SECRET_ROTATION.md`
+backend/services/doctrine_lexicon.py:14:that are already correct — the professionally-edited books, the official Ekam and
+backend/services/doctrine_lexicon.py:27:   since both appear in the books);
+backend/services/doctrine_lexicon.py:87:# How far a book/site term must outweigh a consensus candidate before the
+backend/services/doctrine_lexicon.py:174:        # Vocabulary from the books and official sites — text this project
+backend/services/doctrine_lexicon.py:190:        # `sthita -> stith` and `no-op -> knoop`. Targets come from the books, the
+backend/services/doctrine_lexicon.py:198:        # English or in the curated book/site vocabulary — never consensus alone.
+backend/services/doctrine_lexicon.py:199:        # The curated sources are not fragment-free either: the book PDF was
+backend/services/doctrine_lexicon.py:206:        # couple of times on ekam.org, correctable. OCR'd sources (the book PDFs)
+backend/services/doctrine_lexicon.py:436:    ocr_sources: frozenset[str] = frozenset({"books"}),
+backend/services/doctrine_lexicon.py:440:    ``authority_texts`` maps a source label ("book", "ekam.org") to its texts.
+backend/services/doctrine_lexicon.py:489:    # authority. Measured: "akam" is absent from the books yet appears in 26
+backend/services/doctrine_lexicon.py:496:    # the books or the official sites, never from consensus itself) shares its
+backend/services/doctrine_lexicon.py:500:    # spelling variation exists, and the books say "mukti" while the movement's
+supabase/migrations/20260715010000_fix_prompt_versions_and_app_settings.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+docs/architecture/OPEN_SOURCE_ADOPTION_MATRIX.md:7:Do not replace the current Qdrant + Neo4j + LangGraph pipeline wholesale. The safer path is to preserve the existing source-release, rights, provenance, and tenant contracts, then add bounded adapters behind flags. The highest-value near-term adoption is **Docling for candidate document parsing**, **Ragas/Phoenix for held-out evaluation and tracing**, and **Neo4j’s first-party GraphRAG package for a retrieval spike**. Graphiti is a strong later candidate for temporal interaction/context graphs, but it must not own doctrinal truth or bypass the source-release registry.
+docs/architecture/OPEN_SOURCE_ADOPTION_MATRIX.md:11:| Candidate | Evidence and license | Fit | Recommendation | Main guardrail |
+docs/architecture/OPEN_SOURCE_ADOPTION_MATRIX.md:13:| [Graphiti](https://github.com/getzep/graphiti) | Apache-2.0; 29k+ stars; temporal entities, facts, episodes, provenance, prescribed/learned ontology, hybrid retrieval | Strong for evolving user/context graphs and historical facts | **Spike behind flag**; keep Neo4j as the system of record initially | Every episode/edge must carry teacher, source release, rights status, and provenance span; no cross-teacher merge by name alone |
+docs/architecture/OPEN_SOURCE_ADOPTION_MATRIX.md:14:| [Docling](https://github.com/docling-project/docling) | MIT; 64k+ stars; layout-aware PDF, DOCX, HTML, audio/video/ASR, OCR, local execution | Strong for PDFs, scanned books, tables, and structured documents | **Adopt as a candidate parser** before semantic chunking | Preserve raw bytes, parser version, page/span coordinates, language, and rights; never publish directly |
+docs/architecture/OPEN_SOURCE_ADOPTION_MATRIX.md:25:1. Add parser adapters that emit the existing canonical source/chunk/provenance contract; benchmark Docling and Unstructured on a rights-approved golden set.
+docs/runbooks/SECRET_ROTATION.md:1:# Runbook: Secret Rotation & PII Dump Remediation (CRIT-6)
+docs/runbooks/SECRET_ROTATION.md:3:> **Status:** Code-deliverable scope shipped (pre-commit hooks + this runbook
+docs/runbooks/SECRET_ROTATION.md:6:> or rotate keys in external services. This runbook is the checklist.
+docs/runbooks/SECRET_ROTATION.md:12:a P0 operational finding. The code shipped with this runbook prevents
+docs/runbooks/SECRET_ROTATION.md:14:runbook drives the *remediation* of the current exposure.
+docs/runbooks/SECRET_ROTATION.md:42:      - `The_Four_Sacred_Secrets.pdf` (~2.8 MB) — scrubbed from git history 2026-08-01, still on disk
+docs/runbooks/SECRET_ROTATION.md:45:      supabase_dump.sql redis_dump.rdb cookies.txt The_Four_Sacred_Secrets.pdf`.
+docs/runbooks/SECRET_ROTATION.md:97:- [ ] **C5.** `The_Four_Sacred_Secrets.pdf`: per `CONTENT-RIGHTS.md` the
+docs/runbooks/SECRET_ROTATION.md:98:      rights basis is **unconfirmed**. If you cannot confirm a rights basis
+docs/runbooks/SECRET_ROTATION.md:99:      (CC license / direct arrangement / fair-use academic commentary) with
+docs/runbooks/SECRET_ROTATION.md:103:      rm -f The_Four_Sacred_Secrets.pdf
+docs/runbooks/SECRET_ROTATION.md:105:      rm -f data/private/The_Four_Sacred_Secrets.pdf
+docs/runbooks/SECRET_ROTATION.md:107:      If rights are confirmed, instead move it to `data/private/` (gitignored
+docs/runbooks/SECRET_ROTATION.md:108:      via `*.pdf`) and record the basis in `CONTENT-RIGHTS.md`.
+docs/runbooks/SECRET_ROTATION.md:124:`BENCHMARK_SECRET`, `FACEBOOK_CLIENT_SECRET`, `GOOGLE_CLIENT_SECRET`,
+docs/runbooks/SECRET_ROTATION.md:144:`SMTP_PASSWORD`. Also: `BENCHMARK_SECRET`, `FACEBOOK_CLIENT_SECRET`,
+docs/runbooks/SECRET_ROTATION.md:156:- `GOOGLE_CLIENT_SECRET` / `FACEBOOK_CLIENT_SECRET` — only if the respective OAuth provider is enabled in Supabase Auth; otherwise mark as **not configured**.
+docs/runbooks/SECRET_ROTATION.md:228:      - **Google / Meta OAuth** (`GOOGLE_CLIENT_SECRET`, `FACEBOOK_CLIENT_SECRET`) — rotate in Google Cloud Console / Meta Developer Portal → update backend env.
+docs/runbooks/SECRET_ROTATION.md:258:- **`CONTENT-RIGHTS.md`** — rights basis for `The_Four_Sacred_Secrets.pdf`
+docs/runbooks/SECRET_ROTATION.md:262:  of scope for this runbook unless those were in a dump (they were not).
+docs/runbooks/SECRET_ROTATION.md:263:- **`docs/INCIDENT_RESPONSE.md`** — credential-exposure scenario runbook
+docs/RELEASE_READINESS_2026_07_30.md:180:Full incident playbook: `docs/ROLLBACK_PLAN.md`.
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+docs/runbooks/ONCALL.md:1:# On-Call Runbook
+docs/runbooks/ONCALL.md:14:2. Diagnose (see ALERTING.md → linked runbook for the alert).
+docs/runbooks/ONCALL.md:17:5. Sev-1 (user data exposure or full outage) → start `docs/INCIDENT_RESPONSE.md` immediately; the runbook takes priority over this schedule.
+docs/runbooks/ONCALL.md:31:2. Capture the time + the alert name in `docs/runbooks/INCIDENT_LOG.md` (append-only).
+docs/runbooks/ONCALL.md:32:3. Follow the linked runbook.
+supabase/migrations/20260717191006_second_brain_vault.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+docs/archive/WHATSAPP_BOT_INTEGRATION.md:14:   - [Meta Cloud API](https://developers.facebook.com/docs/whatsapp/cloud-api)
+docs/archive/WHATSAPP_BOT_INTEGRATION.md:250:      `https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`,
+docs/archive/WHATSAPP_BOT_INTEGRATION.md:497:- **Meta Cloud API Docs**: https://developers.facebook.com/docs/whatsapp/cloud-api
+supabase/migrations/20260615044110_ccb90a86-ce4b-42dd-b1d4-7cc0124d4933.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+supabase/migrations/20260627140000_user_episodes.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+supabase/migrations/20260627140000_user_episodes.sql:9:-- study_notebook_items.source_episode_id FK exists (added 20260630140000) —
+supabase/migrations/20260627140000_user_episodes.sql:11:-- -- ALTER TABLE public.study_notebook_items DROP CONSTRAINT IF EXISTS study_notebook_items_source_episode_id_fkey;
+docs/phase0-verification.md:28:*   **"Four Sacred Secrets":** 8 chunks match (directly in the PDF source).
+docs/runbooks/PRIVACY.md:1:# Runbook: Frontend Privacy — Sentry Replay Masking & Meditation Resume Purge (P1-FE-14 / P1-FE-15)
+docs/runbooks/PRIVACY.md:5:> `.superpowers/sdd/p1-fe-14-15-report.md`). This runbook documents the
+docs/admin/deep-research.md:50:- Anthropic evals cookbook: https://docs.anthropic.com/claude/docs/building-evals
+docs/architecture/source-verified-report.md:25:- **License**: Apache 2.0 (fully open for commercial use) [^4^]
+docs/architecture/source-verified-report.md:68:- **License**: Not Apache 2.0 (Qwen uses custom license, research/commercial allowed but check terms)
+docs/architecture/source-verified-report.md:98:| **Unstructured** | `Unstructured-IO/unstructured` [^39^] | Document processing (PDF, HTML, Word) with semantic chunking. Better than raw text splitting for books/PDFs of Sri Preethaji's teachings. | Low — replace your chunking |
+docs/architecture/source-verified-report.md:163:| **Sarvam model fine-tuning license terms** | Apache 2.0 allows fine-tuning, but verify if weights license has any restrictions for spiritual/religious content. | Read the full license on the HuggingFace repo. |
+supabase/migrations/20260728000000_create_user_personas.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+scripts/unique_english_strings.json:84:  "Connecting to Facebook…",
+scripts/unique_english_strings.json:92:  "Continue with Facebook",
+scripts/unique_english_strings.json:106:  "Could not connect to Facebook.",
+scripts/unique_english_strings.json:107:  "Could not connect to Facebook. Please try again.",
+scripts/unique_english_strings.json:215:  "How AskMukthiGuru handles your data: minimum collection, no third-party sharing, full export and deletion rights under DPDP Act and GDPR.",
+scripts/unique_english_strings.json:304:  "Notebooks",
+scripts/unique_english_strings.json:413:  "Saved to Study Notebook",
+scripts/unique_english_strings.json:507:  "Study Notebook",
+scripts/unique_english_strings.json:616:  "Your rights (DPDP Act / GDPR)",
+supabase/migrations/20260710000000_add_guru_memories_missing_columns.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+supabase/migrations/20260627120000_create_ingest_jobs.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+docs/runbooks/ALERTING.md:1:# Alerting Runbook
+docs/runbooks/ALERTING.md:3:Every Prometheus alert in `infrastructure/prometheus/alerting-rules.yml`, with the runbook to follow when it fires. SLO definitions live in `docs/SLO.md`.
+docs/runbooks/ALERTING.md:7:| Alert | Severity | Meaning | Runbook |
+supabase/migrations/20260515122052_4624ba2e-1e4f-4b2a-968d-c676bb9beecb.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+supabase/migrations/20260715050512_8ab790ce-1979-4afc-8d5f-5db683c9e421.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+src/lib/domain.ts:33:/** Get the hostname from the configured public domain. */
+docs/archive/user_video_script.md:6:HeroSection, HowItWorksSection, ChatInterface + SpiritualWelcomeBanner (personalized daily line), SereneMindModal, WisdomCardGenerator, StudyNotebookPage, **KGConceptMap** (new interactive Obsidian-style knowledge graph), SpiritGuidesPage, LanguageSelector, **incognito mode** (session-isolated, visually indicated in the header), **SafetyPillarsSection** (real on-site copy), **SampleWisdomSection** (real quotes from Sri Preethaji & Sri Krishnaji, with YouTube source links). No invented features, no invented claims.
+docs/archive/user_video_script.md:53:2. **Study Notebook** — save/bookmark a teaching for later.
+docs/archive/user_video_script.md:85:6. Study Notebook save
+supabase/migrations/20260715000000_harden_linter_warnings.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+supabase/migrations/20260715000000_harden_linter_warnings.sql:116:-- Reload PostgREST schema cache to apply permissions immediately
+docs/admin/migration-plan.md:63:`src/admin/lib/seed.ts` is no longer used at runtime — keep it for tests and Storybook fixtures.
+docs/runbooks/BRAIN_KEK_ROTATION.md:1:# BRAIN_KEK Rotation Runbook
+docs/superpowers/plans/2026-08-15-progressive-anonymous-access.md:1082:const AUTH_ONLY = ['/profile', '/notebooks', '/second-brain'];
+supabase/migrations/20260607180000_memory_layer.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+docs/architecture/rag-improvement-recommendations.md:9:The current Mukthi Guru pipeline implements a strong foundation with CRAG, Self-RAG, CoVe, RAPTOR, and NeMo guardrails. Based on techniques from both reference books, there are **12 high-impact improvements** spanning retrieval quality, latency, grounding, and user feedback loops.
+docs/architecture/rag-improvement-recommendations.md:148:Both books emphasize that production RAG systems need:
+docs/KUBECTL_RUNBOOK.md:1:# Kubectl Ops Runbook — AskMukthiGuru on K8s
+docs/KUBECTL_RUNBOOK.md:5:runbook is for when you migrate to (or add) the K8s deployment in `k8s/`.
+docs/KUBECTL_RUNBOOK.md:46:## 3. The memory-warning playbook (BGE-M3 OOM)
+supabase/migrations/20260506061946_ef6edab1-60a5-4fe6-809b-7d93ba4b39ff.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+src/lib/authTelemetry.ts:18:  | 'click_facebook'
+src/lib/authTelemetry.ts:46:  provider: 'google' | 'google_one_tap' | 'facebook' | 'apple' | 'email' | 'unknown';
+docs/MEMORY_BACKEND_HANDOFF.md:178:Krishnaji, Ekam, Four Sacred Secrets, Manifest, Oneness, Beautiful State,
+supabase/migrations/20260610055007_1750df65-b2d6-45db-ab95-8b2bba92d12b.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+docs/LATENCY_EVIDENCE_GATES.md:5:AskMukthiGuru must optimize for **useful latency**, not merely a lower wall-clock number. A change is accepted only when it improves the target latency distribution without degrading faithfulness, citation correctness, abstention quality, rights isolation, tenant isolation, or safety behavior. Results must be split by query class because averages hide comparative, multilingual, graph, and unsupported-query failures.
+docs/LATENCY_EVIDENCE_GATES.md:9:Every candidate change must be evaluated against the same held-out set and the same production-like configuration. Each row records query class, query text or stable ID, expected entities, expected relation, relevant source segment IDs, retrieved IDs, NDCG@k, recall@k, precision@k, answer faithfulness, citation correctness, abstention correctness, p50/p95/p99 latency, timeout/error status, and rights/tenant-isolation status. Raw answers and retrieval manifests remain available for human review; model judges are signals rather than ground truth.
+docs/LATENCY_EVIDENCE_GATES.md:16:| Safety and privacy | Distress, prompt-injection, rights quarantine, tenant isolation, and private-memory non-leak probes | Reject the change and roll back |
+docs/LATENCY_EVIDENCE_GATES.md:28:RRF constants, DBSF selection, dense/sparse prefetch multipliers, and candidate limits must be changed only in a held-out comparison against the current production settings. Evaluate exact identifiers, semantic paraphrases, multilingual queries, comparative questions, unsupported questions, stale/rights-blocked sources, and multi-hop questions. The candidate is accepted only when ranking and answer-quality floors hold while p95/p99 and Qdrant resource cost improve or remain within the approved budget. Do not infer quality from one successful answer.
+docs/LATENCY_EVIDENCE_GATES.md:32:Neo4j indexes and constraints must be applied through an idempotent, lock-protected maintenance operation with a pre-change schema snapshot, health check, bounded execution timeout, post-change query-plan check, and rollback note. The operation must be isolated from user-serving requests and must not rewrite doctrine or personal-memory data. A schema mutation is not a latency optimization until representative graph queries demonstrate lower tail latency without increasing timeouts or changing tenant/corpus/rights semantics.
+supabase/migrations/20260616050717_7b7722a8-f581-4d55-bcae-7c4c45b30ab4.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+supabase/migrations/20260801000000_user_course_progress_one_active.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+docs/MOBILE_RELEASE_RUNBOOK.md:1:# Mobile App Release Runbook — AskMukthiGuru (Android + iOS)
+supabase/migrations/20260714000000_harden_rls_and_security_invoker.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+supabase/migrations/20260714000000_harden_rls_and_security_invoker.sql:22:-- it re-exposes the underlying tables' rows per the view owner's rights.
+docs/INCIDENT_RESPONSE.md:1:# Incident Response Runbook — AskMukthiGuru
+docs/ROLLBACK_PLAN.md:149:   - Update runbooks if procedures need improvement
+supabase/migrations/20260724080000_harden_security_and_rls_lints.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+src/lib/chatStorage.ts:79:  /** Time-bounded event, booking, or schedule information from official sources. */
+src/lib/chatStorage.ts:144:    booking_url: z.string().url().nullable().optional(),
+supabase/migrations/20260703160000_okf_review_queue.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+docs/architecture/source-report.md:2872:| **Books/PDFs** | Published works | Written teachings | Static | Medium |
+supabase/migrations/20260804000005_reconcile_user_brain_keys.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+scripts/ingestion_state.json:724:    "The_Four_Sacred_Secrets.pdf"
+scripts/ingestion_state.json:727:    "The_Four_Sacred_Secrets.pdf": {
+backend/services/qdrant/indexer.py:230:            # Task #17 rights gate (services/qdrant/searcher.py) mandatorily filters on
+backend/services/qdrant/indexer.py:231:            # this field when settings.require_licensed_domain_reads is True. Only
+backend/services/qdrant/indexer.py:237:            payload.setdefault("domain_rights_status", "licensed")
+src/lib/meditationResume.ts:6: * into auth/lib modules. See docs/runbooks/PRIVACY.md.
+supabase/migrations/20260724000000_allow_assistant_role_chat_messages.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+docs/HYPER_EXTRACT_INTEGRATION.md:6:- **License:** Apache 2.0
+docs/engineering-notes/MASTER_REMEDIATION_PLAN.md:42:### B3 — Book-purchase URL determinism
+docs/engineering-notes/MASTER_REMEDIATION_PLAN.md:43:Same class as the logistics short-circuit: "where can I buy the book" should deterministically
+src/lib/backendUrl.ts:59:/** For dev tools that need a local fallback (e.g. useStudyNotebooks).
+docs/OOM_RAILWAY_INCIDENT.md:12:- **Done**: redeploy (`railway up`) to confirm the fix — deploy is gated by this environment's permission classifier, needs manual approval.
+backend/services/qdrant/source_policy.py:1:"""Serving-time source policy for rights and corpus quarantine boundaries.
+backend/services/qdrant/source_policy.py:6:explicit rights review re-authorizes it.
+backend/services/qdrant/source_policy.py:20:# merely mention the book title in prose.
+backend/services/qdrant/source_policy.py:23:        "the_four_sacred_secrets.pdf",
+backend/services/qdrant/source_policy.py:24:        "the four sacred secrets.pdf",
+supabase/migrations/20260714064138_12207701-9e67-4374-97a5-774bc440fe73.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+docs/operations/repository-cleanliness-audit-2026-08-12.md:21:| P0 | `book-to-skill` | A gitlink exists at the repository root, but `.gitmodules` contains no declaration. This makes fresh checkout behaviour ambiguous. | Recover a valid submodule declaration and pin, or remove the gitlink after confirming it is unused. |
+docs/operations/repository-cleanliness-audit-2026-08-12.md:32:## Follow-up completed — book-to-skill removal
+docs/operations/repository-cleanliness-audit-2026-08-12.md:34:The undeclared `book-to-skill` gitlink was removed after verifying that the only tracked dependency was the unreferenced `scripts/generate_all_skills.py` helper. That helper, its Docker exclusion, and the nested external worktree were removed together. No application module, test, CI workflow, deployment configuration, or active documentation path referenced the integration.
+docs/operations/repository-cleanliness-audit-2026-08-12.md:38:Reproducible evaluation reports now default to `artifacts/evaluations/`, which is ignored. The stale tracked evaluation reports, duplicate query-results export, data-quality report, and root-level E2E screenshot were removed. The E2E screenshot test now writes into the Playwright-managed per-test output directory. Retained `results/query_results.json` and `results/The_Four_Sacred_Secrets_structure.json` remain because active tests, documentation, or ingestion scripts reference them.
+supabase/migrations/20260701140000_app_settings.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+backend/services/qdrant/searcher.py:127:        if scope.required_rights_status:
+backend/services/qdrant/searcher.py:130:                    key="domain_rights_status",
+backend/services/qdrant/searcher.py:131:                    match=MatchValue(value=scope.required_rights_status),
+backend/services/qdrant/searcher.py:296:        # Filter out poisoned nodes and quarantined rights-risk sources before
+backend/services/qdrant/searcher.py:328:                "licensed_domain": hit.payload.get("licensed_domain", ""),
+backend/services/qdrant/searcher.py:329:                "domain_rights_status": hit.payload.get("domain_rights_status", ""),
+supabase/migrations/20260506064513_18ea0bdd-e54c-49c1-a175-4b15e21214cd.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+supabase/migrations/20260511_create_daily_teachings_bucket.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+scripts/capture_real_app_screens.cjs:56:  // 7. Study Notebook
+scripts/capture_real_app_screens.cjs:57:  console.log('7. Capturing Study Notebook (http://localhost:8080/#/notebook)...');
+scripts/capture_real_app_screens.cjs:58:  await page.goto('http://localhost:8080/#/notebook', { waitUntil: 'networkidle' });
+scripts/capture_real_app_screens.cjs:60:  await page.screenshot({ path: path.join(assetsDir, 'screen_07_notebook.png') });
+supabase/migrations/20260530141027_7381bcc3-40f2-436d-9b37-5c182a838cb5.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+docs/architecture/latency-roadmap.md:72:| **Bookmark guru responses** | Star responses to revisit (hook `useFavorites` already exists) | Low |
+supabase/migrations/20260506061924_89930c43-e214-4471-b173-1cd05b2f866a.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+supabase/migrations/20260601090000_admin_telemetry_reliability_fields.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+docs/operations/evaluation-observability-adoption-decision.md:18:| Retention | Telemetry retention is 90 days through the retention runbook and scheduled purge process. | Any new sink must support the same or stricter retention, verified deletion, and a documented purge owner. |
+docs/operations/evaluation-observability-adoption-decision.md:20:| Data sensitivity | Chat, meditation, and distress content are treated as personal or special-category data in the privacy runbook. | Production data may not be sent to an unapproved third party for evaluation, tracing, or model improvement. |
+supabase/migrations/20260804000003_drop_kb_chunks_dead_column.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+docs/architecture/grounded-guru-response-standard.md:33:The first public-source collection includes official pages and an official-channel research set; it must be expanded with rights-cleared, speaker-labelled transcripts before quantitative voice claims are introduced. The source record and limitations are retained in [`../research/external-evidence-2026-08-12.md`](../research/external-evidence-2026-08-12.md). [1] [2] [3]
+docs/architecture/grounded-guru-response-standard.md:74:The initial implementation will use prompt and pipeline contracts plus deterministic regression fixtures. It will not claim a model-quality score until it has a versioned, reviewed evaluation set with source permissions, expected response mode, required citation provenance, and human review criteria. Ragas can supplement evaluation, but project-local fixtures remain the governing evidence. [4]
+supabase/migrations/20260804000006_regenerate_summaries_rpc.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+supabase/migrations/20260509180000_secure_realtime.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+supabase/migrations/20260526050952_a6a2b7ca-beb1-4d07-a4c6-335de99b8dd2.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+docs/operations/release-evidence-pack.md:18:| Documentation | README/runbook/architecture link and freshness review for any behaviour or operation change. | Active instructions match the shipped release; historical records retain provenance. | Documentation owner |
+supabase/migrations/20260712000000_add_retention_and_summary.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+supabase/migrations/20260816000000_admin_telemetry_created_at_indexes.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+docs/COMPREHENSIVE_SYSTEM_SPEC.md:37:- **Open-source only** — every dependency must be Apache 2.0, MIT, or Meta Community License
+docs/COMPREHENSIVE_SYSTEM_SPEC.md:45:| Frontend | Vite React 18 + TypeScript + TailwindCSS + shadcn/ui | [facebook/react](https://github.com/facebook/react) |
+src/lib/chat/types.ts:46:/** A time-bounded event, booking, or schedule link returned from an official source. */
+src/lib/chat/types.ts:50:  booking_url?: string | null;
+src/lib/chat/types.ts:111:  /** Official-only schedule or booking results, time-bounded by the backend. */
+src/lib/chat/types.ts:180:      /** Official-only schedule or booking results, time-bounded by the backend. */
+supabase/migrations/20260714071022_6c0e906c-9864-443b-bb1b-928c3c846aca.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+docs/engineering-notes/subsystem-inventory.md:69:| POST | `/api/srs/generate` | Generate 2 flashcards from a saved notebook item (`query`, `answer`, `notebook_item_id`). |
+docs/operations/runtime-observability.md:13:| Cache / coalescing | Existing cache counters, `request_collapsed_total`, `coalescer_wait_seconds` | Cache and shared-work paths | Verify cost-saving be| Cache / coalescing | Existing cache counters, `request_collapsed_total`, `coalescer_wait_seconds` | Cache and shared-work paths | Verify cost-saIt exposes only process aggregates. The health snapshot publishes the bounded local job queue size; a multi-replica capacity decision still requires the staged Redis, Railway, and provider drills already retained in the deployment runbook.
+supabase/migrations/20260618100000_telemetry_hardening_indexes.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+docs/archive/RAG_QUALITY.md:153:### 4.3 First-person voice license (hybrid)
+docs/archive/RAG_QUALITY.md:205:| Four Sacred Secrets | 20 | "What is spiritual right action?" |
+docs/operations/requirement-reconciliation.md:11:| Knowledge graphs and multi-teacher growth | Frozen | New relationships carry corpus and teacher provenance. | Legacy graph quarantine, rights manifest, backfill, and cross-corpus isolation proof. |
+docs/operations/requirement-reconciliation.md:16:| Teacher voice and attribution | Partial | First person is preserved only from context and attributed in the Langhanam prompt. | Governed `TeacherProfile`, rights/source registry, and multilingual attribution benchmark. |
+docs/operations/requirement-reconciliation.md:18:| Trusted live event and booking information | Frozen | Official-domain filtering and result tags exist; search is off by default. | `LIVE_LOGISTICS` intent, typed event fields, verified-at timestamp, expiry, and official booking card. |
+docs/operations/requirement-reconciliation.md:22:| Vercel and Railway deployment | Partial | Railway readiness endpoint, root-to-appuser entrypoint, and runbook exist. | Staging deploy, volume-permission proof, dependency health drill, load test, and rollback record. |
+supabase/migrations/20260708021442_7a1a7776-3fef-4f0b-b511-d50ecdd20d7d.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+supabase/migrations/20260623000000_add_chat_queries_assistant_slug.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+backend/services/semantic_model_router.py:62:            "What is the Four Sacred Secrets?",
+backend/services/semantic_model_router.py:81:            "Explain the Four Sacred Secrets in detail",
+backend/services/semantic_model_router.py:88:            "How do the Four Sacred Secrets relate to each other?",
+backend/services/semantic_model_router.py:96:            "What are the similarities between the Four Sacred Secrets "
+supabase/migrations/20260509115452_6b12135e-bd5a-4f68-8a9f-ab1c00f93838.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+supabase/migrations/20260606024228_4a5cf016-573e-47af-bef7-a9959217cfbc.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+docs/archive/PRD.md:6:ingestion, NotebookLM-style UX, sub-minute latency, advisor-tone responses.
+docs/archive/PRD.md:21:- INTEGRATION_GUIDE.md (download → merge playbook without GitHub)
+docs/archive/PRD.md:49:- NotebookLM-style citation chip UI (Phase C1)
+supabase/migrations/20260506061859_969175ae-50fb-4d23-a45d-262c10029c65.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+supabase/migrations/20260729000000_create_user_scene_blocks_and_skills.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+docs/engineering-notes/CORPUS_REBUILD_PLAN.md:36:719 of the 720 sources are YouTube videos. The one non-YouTube source is the book
+docs/engineering-notes/CORPUS_REBUILD_PLAN.md:39:is exactly what the pipeline was built for, and what the book pilot proved works.
+docs/engineering-notes/CORPUS_REBUILD_PLAN.md:42:> `contextual_reingest.py` remains correct and useful — for the book, and as the
+docs/engineering-notes/CORPUS_REBUILD_PLAN.md:52:| Book pilot | **done** — 25/25 sections, 451 chunks in green | `spiritual_wisdom_contextual` = 453 points |
+docs/engineering-notes/CORPUS_REBUILD_PLAN.md:75:719 × (download + Whisper + contextualise + embed). At the book pilot's measured
+docs/engineering-notes/CORPUS_REBUILD_PLAN.md:92:Do not start a 700-video run without this. The book pilot proved the *book* path;
+docs/engineering-notes/CORPUS_REBUILD_PLAN.md:260:4. **Your trusted source is also dirty.** The book is 0% contaminated *and* full of
+supabase/migrations/20260613120000_fix_memory_embedding_dims.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+scripts/keys_to_translate_mr.json:130:  "auth.continueWithFacebook": [
+scripts/keys_to_translate_mr.json:132:    "Continue with Facebook"
+scripts/keys_to_translate_mr.json:866:  "chat.savedToNotebookDesc": [
+scripts/keys_to_translate_mr.json:938:  "auth.couldNotConnectFacebook": [
+scripts/keys_to_translate_mr.json:940:    "Could not connect to Facebook."
+scripts/keys_to_translate_mr.json:1070:  "privacy.yourRights": [
+scripts/keys_to_translate_mr.json:1072:    "Your rights (DPDP Act / GDPR)"
+scripts/keys_to_translate_mr.json:1510:  "auth.couldNotConnectFacebookRetry": [
+scripts/keys_to_translate_mr.json:1512:    "Could not connect to Facebook. Please try again."
+scripts/keys_to_translate_mr.json:1596:    "How AskMukthiGuru handles your data: minimum collection, no third-party sharing, full export and deletion rights under DPDP Act and GDPR."
+scripts/keys_to_translate_mr.json:1670:  "chat.savedToNotebook": [
+scripts/keys_to_translate_mr.json:1672:    "Saved to Study Notebook"
+scripts/keys_to_translate_mr.json:1714:  "auth.connectingToFacebook": [
+scripts/keys_to_translate_mr.json:1716:    "Connecting to Facebook…"
+supabase/migrations/20260730044540_f2e71129-2f79-4b21-823c-2e888e6c82e9.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+docs/operations/production-deployment-runbook.md:1:# Production Deployment Runbook
+docs/operations/production-deployment-runbook.md:3:This runbook applies to the current production-hardening release. Automated checks are necessary but do not replace the non-production evidence required by the [release evidence pack](./release-evidence-pack.md) and [hardening backlog](./product-hardening-backlog.md).
+docs/operations/production-deployment-runbook.md:14:| `WEB_SEARCH_ENABLED` | `false` | Staging verification of official event and booking sources, freshness, and citations. |
+docs/operations/production-deployment-runbook.md:85:booking questions only when an event/program noun and logistics cue are both
+docs/operations/production-deployment-runbook.md:92:`booking_url`, `verified_at`, and `expires_at`; the expiry is controlled by
+docs/operations/production-deployment-runbook.md:95:booking authority. If the feature or live service is unavailable, the response
+docs/operations/production-deployment-runbook.md:175:official URLs, with a verification time and distinct official-details and booking
+docs/operations/production-deployment-runbook.md:176:links. It must not infer dates or booking availability from generated prose.
+docs/SECURITY_CHECKLIST.md:31:| 25 | Response | Incident response runbook | DONE | `docs/INCIDENT_RESPONSE.md` created 2026-08-01. Covers: credential exposure, cross-tenant data leak, LLM hallucination, DoS/OOM, data loss. Includes timeline, escalation contacts, post-incident review template. |
+docs/SECURITY_CHECKLIST.md:33:| 27 | Auth | Comprehensive RBAC | DONE | Supabase Auth with roles (authenticated, service_role, admin). `get_current_user_from_supabase()` FastAPI dependency on all protected routes. Admin check via `user.get("is_superuser", False)` + `user_roles` table. Sufficient for current architecture; full role-permission matrix not needed. | HIGH |
+docs/SECURITY_CHECKLIST.md:42:6. **Incident response runbook** (#25) — document detection/recovery procedures.
+docs/engineering-notes/OKF_AND_ANTI_HALLUCINATION.md:22:1. **Doctrine types only** — `{teaching, practice, glossary, qa, reflection}`. Anything else (a runbook,
+docs/engineering-notes/OKF_AND_ANTI_HALLUCINATION.md:79:ontology expansion). **But LightRAG's own working-directory bookkeeping (`/app/data/lightrag/`) has only
+supabase/migrations/20260506064449_d698be63-b027-463b-ba24-a90cec443811.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+supabase/migrations/20260722000000_add_citation_verification_columns.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+docs/archive/MULTI_GURU_ONBOARDING.md:82:    recordings, book chapters, blog posts).
+supabase/migrations/20260804000002_revoke_router_decisions_anon_grant.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+supabase/migrations/20260804000002_revoke_router_decisions_anon_grant.sql:42:-- Force reload of PostgREST schema cache so permission changes apply immediately
+supabase/migrations/20260704180000_create_ingestion_checkpoints.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+supabase/migrations/20260804000006_add_push_devices_user_id_index.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+docs/operations/product-hardening-backlog.md:41:| Multi-teacher/licensed corpus expansion | Disabled | Scope/provenance and rights-release proofs pass. |
+docs/operations/product-hardening-backlog.md:80:| Live web results are tagged as official-domain evidence. Database configuration can narrow the source-controlled official allowlist but cannot widen it unless the explicit `WEB_SEARCH_ALLOW_DB_DOMAIN_OVERRIDE=true` break-glass flag is set. | Implemented and unit-tested. | Staging test for next-event and booking queries using accessible official event and booking pages; validate freshness and citation display. | `WEB_SEARCH_ENABLED` remains off by default. Do not claim live dates or booking availability while it is off or official evidence is unavailable. |
+docs/operations/product-hardening-backlog.md:81:| Teacher voice review confirms the Langhanam prompt allows first-person wording only when it is present in retrieved context and requires explicit attribution; it forbids synthesising or impersonating living teachers. | Existing control reviewed; no behavioural change required. | Attribution benchmark against quoted, paraphrased, multilingual, and sparse-context examples before adding a new teacher. | Multi-teacher expansion remains blocked on rights, provenance, and tenant-scope proof. |
+docs/operations/product-hardening-backlog.md:87:| The active backend Docker entrypoint now starts as root solely to repair mounted cache/data permissions, then drops to `appuser` before the server or worker executes. | Implemented; shell syntax verified. | Build and start the Railway image with representative mounted volumes; confirm the application process UID is `appuser` and writable paths are limited to the intended data/cache directories. | Prevents non-root startup failures caused by root-owned mounts without serving the application as root. |
+src/hooks/useSpeechRecognition.ts:190:        'not-allowed': 'Microphone access denied. Please enable microphone permissions.',
+src/hooks/useSpeechRecognition.ts:338:        const msg = 'Microphone permission denied or microphone not found.';
+supabase/migrations/20260703170000_gurus_and_configurations.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+docs/production-readiness/LOOP-REMEDIATION-2026-08-24.md:65:The runtime-artifact change is deliberately fail-closed. It does not create `compiled.json`, `doctrine_lexicon.json`, embeddings, graph data, or other corpus substitutes. When curated artifacts are absent, deep health reports the missing required names and readiness becomes false. This prevents a healthy-looking process from being mistaken for an approved corpus-backed teaching service. The actual artifacts still require an audited build, manifest/checksum validation, rights review, and held-out retrieval/faithfulness evidence before release.
+docs/production-readiness/LOOP-REMEDIATION-2026-08-24.md:80:| P0 | Curated serving artifacts are absent in the inspected repository/runtime. | Produce approved `compiled.json` and doctrine lexicon artifacts through the audited corpus pipeline, attach checksums/version/rights metadata, bake them into the image, and verify deep health. Never add placeholders. |
+scripts/apply_offline_translations_ta.py:109:    "Microphone error. Check permissions.": "ஒலிவாங்கி பிழை. அனுமதிகளைச் சரிபார்க்கவும்.",
+scripts/apply_offline_translations_ta.py:127:    "By signing in, you can sync your notebooks across devices and never lose your spiritual reflections.": "உள்நுழைவதன் மூலம், உங்கள் குறிப்பேடுகளைச் சாதனங்களில் ஒத்திசைக்கலாம் மற்றும் உங்கள் ஆன்மீக பிரதிபலிப்புகளை ஒருபோதும் இழக்க மாட்டீர்கள்.",
+scripts/apply_offline_translations_ta.py:149:    "Save to Study Notebook": "குறிப்பேட்டில் சேமி",
+scripts/apply_offline_translations_ta.py:150:    "Save answer to a notebook for reflection and study.": "பிரதிபலிப்பு மற்றும் படிப்பிற்காக பதிலை ஒரு குறிப்பேட்டில் சேமிக்கவும்.",
+scripts/apply_offline_translations_ta.py:151:    "Select Notebook": "குறிப்பேட்டைத் தேர்ந்தெடு",
+scripts/apply_offline_translations_ta.py:152:    "Create New Notebook": "புதிய குறிப்பேட்டை உருவாக்கு",
+scripts/apply_offline_translations_ta.py:153:    "Notebook title": "குறிப்பேட்டின் தலைப்பு",
+scripts/apply_offline_translations_ta.py:154:    "Notebook saved": "குறிப்பேடு சேமிக்கப்பட்டது",
+scripts/apply_offline_translations_ta.py:156:    "Failed to save notebook": "குறிப்பேட்டைச் சேமிக்க முடியவில்லை",
+scripts/apply_offline_translations_ta.py:157:    "Choose or create a notebook to organize your spiritual insights.": "உங்கள் ஆன்மீக நுண்ணறிவுகளை ஒழுங்கமைக்க ஒரு குறிப்பேட்டைத் தேர்ந்தெடுக்கவும் அல்லது உருவாக்கவும்.",
+scripts/apply_offline_translations_ta.py:158:    "Existing Notebooks": "ஏற்கனவே உள்ள குறிப்பேடுகள்",
+scripts/apply_offline_translations_ta.py:159:    "View your study notebooks": "உங்கள் குறிப்பேடுகளைப் பார்க்கவும்",
+scripts/apply_offline_translations_ta.py:160:    "New Notebook": "புதிய குறிப்பேடு",
+scripts/apply_offline_translations_ta.py:163:    "No study notebooks found. Create one to organize your wisdom cards and insights.": "குறிப்பேடுகள் எதுவும் இல்லை. உங்கள் ஞான அட்டைகளையும் நுண்ணறிவுகளையும் ஒழுங்கமைக்க ஒன்றை உருவாக்கவும்.",
+scripts/apply_offline_translations_ta.py:164:    "Failed to delete notebook": "குறிப்பேட்டை நீக்க முடியவில்லை",
+scripts/apply_offline_translations_ta.py:165:    "Edit Notebook": "குறிப்பேட்டைத் திருத்து",
+scripts/apply_offline_translations_ta.py:168:    "Are you sure you want to delete \"{{title}}\"? All saved answers in this notebook will be permanently deleted.": "\"{{title}}\" ஐ நீக்க விரும்புகிறீர்கள் என்பதில் உறுதியாக இருக்கிறீர்களா? இந்த குறிப்பேட்டில் உள்ள அனைத்து பதில்களும் நிரந்தரமாக நீக்கப்படும்.",
+scripts/apply_offline_translations_ta.py:169:    "Delete Notebook": "குறிப்பேட்டை நீக்கு",
+scripts/apply_offline_translations_ta.py:170:    "Study Notebooks": "குறிப்பேடுகள்",
+scripts/apply_offline_translations_ta.py:171:    "Failed to update notebook": "குறிப்பேட்டைப் புதுப்பிக்க முடியவில்லை",
+scripts/apply_offline_translations_ta.py:172:    "Select a notebook to view your saved insights.": "உங்கள் சேமிக்கப்பட்ட நுண்ணறிவுகளைக் காண ஒரு குறிப்பேட்டைத் தேர்ந்தெடுக்கவும்.",
+scripts/apply_offline_translations_ta.py:174:    "No insights saved in this notebook yet. Start chatting and save key teachings here.": "இந்த குறிப்பேட்டில் இன்னும் நுண்ணறிவுகள் எதுவும் சேமிக்கப்படவில்லை. உரையாடலைத் தொடங்கி முக்கிய போதனைகளை இங்கே சேமிக்கவும்.",
+scripts/apply_offline_translations_ta.py:176:    "Remove from notebook": "குறிப்பேட்டிலிருந்து நீக்கு",
+scripts/apply_offline_translations_ta.py:177:    "Insight removed from notebook": "குறிப்பேட்டிலிருந்து நுண்ணறிவு நீக்கப்பட்டது",
+scripts/apply_offline_translations_ta.py:381:    "Study Notebook": "குறிப்பேடு",
+docs/operations/documentation-governance-register.md:5:This register governs product-maintained Markdown. It applies to root guidance, application and backend instructions, architecture records, operating runbooks, release evidence, deployment material, evaluation guidance, and active product research. It does not treat vendored repositories, installed dependencies, copied skill libraries, generated reports, archived incident records, or raw research notes as living product documentation.
+docs/operations/documentation-governance-register.md:7:> **Authority rule:** a maintained document must identify what it is authoritative for. If it conflicts with executable configuration, source code, a security control, or a current approved runbook, the executable or approved source prevails and the document must be corrected in the same release.
+docs/operations/documentation-governance-register.md:13:| Product entry points | `README.md`, `SETUP.md`, `DESIGN.md`, `SECURITY.md`, `CONTENT-RIGHTS.md`, `LICENSE-EXCEPTIONS.md` | Product scope, local setup, security and rights commitments. | Any onboarding, security, rights, or material product change; quarterly otherwise. | Engineering lead plus product owner |
+docs/operations/documentation-governance-register.md:16:| Operations and runbooks | `docs/operations/`, `docs/runbooks/`, `docs/INCIDENT_RESPONSE.md`, `docs/SLO.md`, `docs/ROLLBACK_PLAN.md` | Executable production operations, release evidence, incidents, continuity, and recovery. | Every operational change or incident; quarterly drill review. | Operations owner |
+docs/operations/documentation-governance-register.md:25:Maintained decision and runbook documents should include a title, status or lifecycle, owner role, and last-verified date. A document that describes a command must state the intended environment and the safety boundary. A document that records external evidence must cite source URLs and distinguish evidence from proposed work.
+docs/operations/documentation-governance-register.md:30:2. Run a stale-reference scan after every removal or rename; update active instruction files, roadmap entries, and runbooks in the same change.
+docs/operations/documentation-governance-register.md:37:The maintained-document inventory contains root guidance, scoped agent instructions, active product/operations material, and historical records alongside substantial excluded vendor and research content. The first governance repair removed stale references to the retired `book-to-skill` integration from `CLAUDE.md` and `docs/DEVELOPER_GUIDE.md`, preserved the event in `docs/ROADMAP.md`, and reconciled the cleanup backlog. A broad local-link audit also identified many legacy absolute `file://` links and historical references; these are triaged as documentation-refresh work rather than silently rewritten, because many point to intentionally preserved historical context.
+backend/services/gateways/sarvam_http.py:163:        header and bookkeeping always agree — or None when every configured
+backend/services/gateways/sarvam_http.py:246:        #    lock-captured key pair so it matches rotation bookkeeping)
+backend/services/gateways/sarvam_http.py:361:                # and 429 bookkeeping always agree, even if another call
+supabase/migrations/20260630140000_study_notebooks.sql:2:-- REVERT: Drop study notebook tables. DESTRUCTIVE: all user notebooks and items are lost
+supabase/migrations/20260630140000_study_notebooks.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+supabase/migrations/20260630140000_study_notebooks.sql:9:-- DROP TABLE IF EXISTS public.study_notebook_items;
+supabase/migrations/20260630140000_study_notebooks.sql:10:-- DROP TABLE IF EXISTS public.study_notebooks;
+supabase/migrations/20260630140000_study_notebooks.sql:13:-- Phase 4: Persistent study notebooks
+supabase/migrations/20260630140000_study_notebooks.sql:15:CREATE TABLE IF NOT EXISTS public.study_notebooks (
+supabase/migrations/20260630140000_study_notebooks.sql:22:CREATE TABLE IF NOT EXISTS public.study_notebook_items (
+supabase/migrations/20260630140000_study_notebooks.sql:24:  notebook_id uuid NOT NULL REFERENCES public.study_notebooks(id) ON DELETE CASCADE,
+supabase/migrations/20260630140000_study_notebooks.sql:32:ALTER TABLE public.study_notebooks ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260630140000_study_notebooks.sql:33:ALTER TABLE public.study_notebook_items ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260630140000_study_notebooks.sql:35:DROP POLICY IF EXISTS "users select own notebooks" ON public.study_notebooks;
+supabase/migrations/20260630140000_study_notebooks.sql:36:CREATE POLICY "users select own notebooks" ON public.study_notebooks
+supabase/migrations/20260630140000_study_notebooks.sql:38:DROP POLICY IF EXISTS "users insert own notebooks" ON public.study_notebooks;
+supabase/migrations/20260630140000_study_notebooks.sql:39:CREATE POLICY "users insert own notebooks" ON public.study_notebooks
+supabase/migrations/20260630140000_study_notebooks.sql:41:DROP POLICY IF EXISTS "users delete own notebooks" ON public.study_notebooks;
+supabase/migrations/20260630140000_study_notebooks.sql:42:CREATE POLICY "users delete own notebooks" ON public.study_notebooks
+supabase/migrations/20260630140000_study_notebooks.sql:45:DROP POLICY IF EXISTS "users select own items" ON public.study_notebook_items;
+supabase/migrations/20260630140000_study_notebooks.sql:46:CREATE POLICY "users select own items" ON public.study_notebook_items
+supabase/migrations/20260630140000_study_notebooks.sql:48:    SELECT 1 FROM public.study_notebooks nb
+supabase/migrations/20260630140000_study_notebooks.sql:49:    WHERE nb.id = notebook_id AND nb.user_id = auth.uid()
+supabase/migrations/20260630140000_study_notebooks.sql:51:DROP POLICY IF EXISTS "users insert own items" ON public.study_notebook_items;
+supabase/migrations/20260630140000_study_notebooks.sql:52:CREATE POLICY "users insert own items" ON public.study_notebook_items
+supabase/migrations/20260630140000_study_notebooks.sql:54:    SELECT 1 FROM public.study_notebooks nb
+supabase/migrations/20260630140000_study_notebooks.sql:55:    WHERE nb.id = notebook_id AND nb.user_id = auth.uid()
+supabase/migrations/20260630140000_study_notebooks.sql:58:CREATE INDEX IF NOT EXISTS study_notebooks_user_created_idx
+supabase/migrations/20260630140000_study_notebooks.sql:59:  ON public.study_notebooks (user_id, created_at DESC);
+supabase/migrations/20260630140000_study_notebooks.sql:60:CREATE INDEX IF NOT EXISTS study_notebook_items_notebook_created_idx
+supabase/migrations/20260630140000_study_notebooks.sql:61:  ON public.study_notebook_items (notebook_id, created_at DESC);
+docs/engineering-notes/ingestion-handoff-2026-08-16.md:56:   and a "Re-ingest Four Sacred Secrets Book" button wired to the
+docs/engineering-notes/ingestion-handoff-2026-08-16.md:57:   pre-existing-but-unwired `POST /api/admin/ingest/book` endpoint. Both in the
+docs/engineering-notes/ingestion-handoff-2026-08-16.md:278:Lovable UI before the PDF-upload control and "Re-ingest Book" button (item 3
+docs/engineering-notes/ingestion-handoff-2026-08-16.md:279:above) actually appear. Ask the user to publish, then the book can be
+docs/PHASE_F_FINAL_REPORT.md:42:| q10: Four Sacred Secrets | 1.4s | 1.4s | 0% |
+docs/operations/offline-readiness-evidence-2026-08-13.md:13:| Live logistics | Official-source event handling regression passes | Code verified | Verify official source freshness, event-card transport, and booking links with the deployed web-search configuration |
+docs/operations/offline-readiness-evidence-2026-08-13.md:17:| Recovery | Runbook defines database, Qdrant, Neo4j, Redis, and release-config recovery checks | Not executable offline | Execute and time a restore drill; retain RTO/RPO and integrity results |
+supabase/migrations/20260618044620_58e0642d-38c0-469d-9bd5-b6e91fc32297.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+src/hooks/useMeditationReminder.ts:58:      // Browser notification (if permission granted)
+src/hooks/useMeditationReminder.ts:61:        Notification.permission === 'granted'
+src/hooks/useMeditationReminder.ts:90: * Request the OS-level Notification permission.
+src/hooks/useMeditationReminder.ts:91: * Resolves to the current permission state.
+src/hooks/useMeditationReminder.ts:93:export const requestNotificationPermission = async (): Promise<NotificationPermission> => {
+src/hooks/useMeditationReminder.ts:95:  if (Notification.permission === 'granted' || Notification.permission === 'denied') {
+src/hooks/useMeditationReminder.ts:96:    return Notification.permission;
+src/hooks/useMeditationReminder.ts:99:    return await Notification.requestPermission();
+src/hooks/useMeditationReminder.ts:117:    Notification.permission === 'granted'
+supabase/migrations/20260718000000_user_streaks.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+supabase/migrations/20240430000000_schema.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+supabase/migrations/20260626062100_create_router_decisions.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+src/hooks/useWebPush.ts:31:  permission: NotificationPermission | 'unsupported';
+src/hooks/useWebPush.ts:40:    permission: 'default',
+src/hooks/useWebPush.ts:53:      setState((s) => ({ ...s, supported: false, permission: 'unsupported' }));
+src/hooks/useWebPush.ts:63:          permission: Notification.permission,
+src/hooks/useWebPush.ts:77:          permission: 'unsupported',
+src/hooks/useWebPush.ts:92:      const permission = await Notification.requestPermission();
+src/hooks/useWebPush.ts:93:      if (permission !== 'granted') {
+src/hooks/useWebPush.ts:94:        setState((s) => ({ ...s, loading: false, permission }));
+src/hooks/useWebPush.ts:119:      setState({ supported: true, permission: 'granted', subscribed: true, loading: false, error: null });
+supabase/migrations/20260820090000_assistant_scope_metadata.sql:10:  rights_status TEXT NOT NULL DEFAULT 'pending' CHECK (rights_status IN ('approved', 'pending', 'revoked')),
+supabase/migrations/20260820090000_assistant_scope_metadata.sql:32:  rights_status,
+supabase/migrations/20260820090000_assistant_scope_metadata.sql:53:  rights_status = EXCLUDED.rights_status,
+docs/production-readiness/rerun-2026-08-24/mobile.txt:74:src/pages/AdminSelfCheckPage.tsx:62:      <h1 className="text-2xl font-semibold">Admin permission self-check</h1>
+docs/production-readiness/rerun-2026-08-24/mobile.txt:171:android/app/src/main/AndroidManifest.xml:54:    <uses-permission android:name="android.permission.INTERNET" />
+docs/production-readiness/rerun-2026-08-24/mobile.txt:172:android/app/src/main/AndroidManifest.xml:55:    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+docs/production-readiness/rerun-2026-08-24/mobile.txt:186:src/components/common/PushPermissionPrompt.tsx:5:import { Capacitor } from '@capacitor/core';
+docs/production-readiness/rerun-2026-08-24/mobile.txt:187:src/components/common/PushPermissionPrompt.tsx:11:const DISMISS_KEY = 'askmukthiguru_push_prompt_dismissed_at';
+docs/production-readiness/rerun-2026-08-24/mobile.txt:188:src/components/common/PushPermissionPrompt.tsx:16:  const { supported, permission, subscribed, subscribe, loading } = useWebPush();
+docs/production-readiness/rerun-2026-08-24/mobile.txt:189:src/components/common/PushPermissionPrompt.tsx:21:  const isNative = Capacitor.isNativePlatform();
+docs/production-readiness/rerun-2026-08-24/mobile.txt:190:src/components/common/PushPermissionPrompt.tsx:23:  const gated = isNative || !capabilities.pushNotifications;
+docs/production-readiness/rerun-2026-08-24/mobile.txt:191:src/components/common/PushPermissionPrompt.tsx:33:    if (!supported || subscribed || permission === 'denied' || permission === 'unsupported') return;
+docs/production-readiness/rerun-2026-08-24/mobile.txt:192:src/components/common/PushPermissionPrompt.tsx:38:  }, [supported, subscribed, permission, gated, chatResponseSeen]);
+docs/production-readiness/rerun-2026-08-24/mobile.txt:193:src/components/common/PushPermissionPrompt.tsx:62:          aria-label={t('common.pushPromptAria')}
+docs/production-readiness/rerun-2026-08-24/mobile.txt:194:src/components/common/PushPermissionPrompt.tsx:78:                {t('common.pushPromptTitle')}
+docs/production-readiness/rerun-2026-08-24/mobile.txt:195:src/components/common/PushPermissionPrompt.tsx:81:                {t('common.pushPromptDesc')}
+docs/production-readiness/rerun-2026-08-24/mobile.txt:203:src/components/common/PushNotificationsManager.tsx:61:          console.info(TAG, 'push permission not granted');
+docs/production-readiness/rerun-2026-08-24/mobile.txt:208:src/hooks/useSpeechRecognition.ts:190:        'not-allowed': 'Microphone access denied. Please enable microphone permissions.',
+docs/production-readiness/rerun-2026-08-24/mobile.txt:216:src/hooks/useSpeechRecognition.ts:338:        const msg = 'Microphone permission denied or microphone not found.';
+docs/production-readiness/rerun-2026-08-24/mobile.txt:228:src/hooks/useWebPush.ts:31:  permission: NotificationPermission | 'unsupported';
+docs/production-readiness/rerun-2026-08-24/mobile.txt:229:src/hooks/useWebPush.ts:40:    permission: 'default',
+docs/production-readiness/rerun-2026-08-24/mobile.txt:230:src/hooks/useWebPush.ts:53:      setState((s) => ({ ...s, supported: false, permission: 'unsupported' }));
+docs/production-readiness/rerun-2026-08-24/mobile.txt:232:src/hooks/useWebPush.ts:63:          permission: Notification.permission,
+docs/production-readiness/rerun-2026-08-24/mobile.txt:233:src/hooks/useWebPush.ts:77:          permission: 'unsupported',
+docs/production-readiness/rerun-2026-08-24/mobile.txt:234:src/hooks/useWebPush.ts:92:      const permission = await Notification.requestPermission();
+docs/production-readiness/rerun-2026-08-24/mobile.txt:235:src/hooks/useWebPush.ts:93:      if (permission !== 'granted') {
+docs/production-readiness/rerun-2026-08-24/mobile.txt:236:src/hooks/useWebPush.ts:94:        setState((s) => ({ ...s, loading: false, permission }));
+docs/production-readiness/rerun-2026-08-24/mobile.txt:239:src/hooks/useWebPush.ts:119:      setState({ supported: true, permission: 'granted', subscribed: true, loading: false, error: null });
+docs/production-readiness/rerun-2026-08-24/mobile.txt:247:src/hooks/useMeditationReminder.ts:58:      // Browser notification (if permission granted)
+docs/production-readiness/rerun-2026-08-24/mobile.txt:248:src/hooks/useMeditationReminder.ts:61:        Notification.permission === 'granted'
+docs/production-readiness/rerun-2026-08-24/mobile.txt:249:src/hooks/useMeditationReminder.ts:90: * Request the OS-level Notification permission.
+docs/production-readiness/rerun-2026-08-24/mobile.txt:250:src/hooks/useMeditationReminder.ts:91: * Resolves to the current permission state.
+docs/production-readiness/rerun-2026-08-24/mobile.txt:251:src/hooks/useMeditationReminder.ts:95:  if (Notification.permission === 'granted' || Notification.permission === 'denied') {
+docs/production-readiness/rerun-2026-08-24/mobile.txt:252:src/hooks/useMeditationReminder.ts:96:    return Notification.permission;
+docs/production-readiness/rerun-2026-08-24/mobile.txt:253:src/hooks/useMeditationReminder.ts:117:    Notification.permission === 'granted'
+docs/production-readiness/rerun-2026-08-24/mobile.txt:355:src/test/useSpeechRecognition.test.ts:78:      'not-allowed': 'Microphone access denied. Please enable microphone permissions.',
+docs/production/STILLNESS_STREAM_EVIDENCE_2026-08-22.sse:20:data: {"intent": "QUERY", "citations": [], "meditation_step": 0, "proactive_serene_mind": null, "trace_id": "bf3dc13e-cef8-462c-9b5b-a52921b9d628", "latency_ms": 4070, "model_used": "google/gemini-2.5-flash", "model_provider": "openrouter", "route_decision": "query", "query_tier": "tier2_simple", "cache_hit": false, "faithfulness_score": 0.0, "hallucination_flag": true, "follow_up_suggestions": [], "confidence_score": 0.0, "citations_verified": null, "orphan_citations_stripped": null, "live_logistics_events": [], "answer_evidence": {"corpus_id": "askmukthiguru", "release_version": null, "model_policy_id": "gemini-flash-budget-v1", "evidence_support_label": "Limited support", "source_count": 0, "top_source_score": null, "citations_verified": null}, "guidance_plan": {"response_mode": "balanced_guidance", "language": "en", "attribution": {"label": "Reflective guidance", "source_backed": false, "teacher_name": null}, "action_step": null, "reflection_prompt": null}, "grounding_state": "abstained", "verification": {"passed": false, "method": "reflective_meaning_fallback"}, "release_manifest": {"release_id": "rel-dev-c1-pgemini-flash-budget-v1", "git_sha": "unknown-sha", "build_timestamp": "2026-08-17T00:00:00Z", "corpus_version": "1", "embedding_model": "BAAI/bge-m3", "embedding_dim": 1024, "reranker_model": "BAAI/bge-reranker-v2-m3", "policy_version": "gemini-flash-budget-v1", "schema_version": "1.0.0"}, "provenance_manifest": {"manifest_id": "bf3dc13e-cef8-462c-9b5b-a52921b9d628", "model_name": "google/gemini-2.5-flash", "model_provider": "openrouter", "metadata": {"provenance_context": {"bands": {"direct_source": [{"text": "rection would be the punctuation. * Result: \"Yoga, Ha, Karma, Shukhaushala\" * Which is more likely? The prompt says \"fix transcription errors\". A missing space is a classic transc", "band": "direct_source", "score": 0.33333334, "source_url": "https://www.youtube.com/watch?v=3EqnSkAzfIg", "source_segment_id": "66b1f47b-f7d1-56d1-a214-d94fed7febc8", "entity_ids": [], "relation": null, "hop": 0, "confidence": 0.33333334, "ontology_version": null, "rights_status": "licensed", "channel": "vector", "corroborated": false}, {"text": "ly observing. Simply see a", "band": "direct_source", "score": 0.25, "source_url": "https://www.youtube.com/watch?v=hqre34QIMZg", "source_segment_id": "e4a55b35-e691-521e-9e94-5780d11eaeb1", "entity_ids": [], "relation": null, "hop": 0, "confidence": 0.25, "ontology_version": null, "rights_status": "licensed", "channel": "vector", "corroborated": false}, {"text": "Is it all that is to life? And meaninglessness therefore.\" * Okay, I've read it multiple times. There is no repetition. The final sentence is \"And meaninglessness therefore.\" It's a fragment. It's an error. * How to fix it? The instruction is to fix errors, not rewrite. The error is the fragment. The", "band": "direct_source", "score": 0.2, "source_url": "https://www.youtube.com/watch?v=E8N04l1Lptk", "source_segment_id": "b6b2d1e3-c8b0-5236-82f5-087e1eaf147d", "entity_ids": [], "relation": null, "hop": 0, "confidence": 0.2, "ontology_version": null, "rights_status": "licensed", "channel": "vector", "corroborated": false}], "graph_one_hop": [], "corroborated": [], "community_summary": []}, "total_tokens": 125, "evidence_count": 3, "entities_touched": ["Inner Stillness"]}, "evidence_count": 3, "entities_touched": ["Inner Stillness"]}}}
+src/hooks/useStudyNotebooks.ts:4:export interface StudyNotebook {
+src/hooks/useStudyNotebooks.ts:11:export type NotebookCitation = string | { url: string; title?: string; quote?: string; channel_name?: string };
+src/hooks/useStudyNotebooks.ts:13:export interface NotebookItem {
+src/hooks/useStudyNotebooks.ts:15:  notebook_id: string;
+src/hooks/useStudyNotebooks.ts:18:  citations: NotebookCitation[];
+src/hooks/useStudyNotebooks.ts:39:const DEFAULT_DEMO_NOTEBOOKS: StudyNotebook[] = [
+src/hooks/useStudyNotebooks.ts:45:export function useStudyNotebooks() {
+src/hooks/useStudyNotebooks.ts:46:  const [notebooks, setNotebooks] = useState<StudyNotebook[]>([]);
+src/hooks/useStudyNotebooks.ts:67:      const res = await fetch(`${BASE}/notebooks`, { headers });
+src/hooks/useStudyNotebooks.ts:69:      const data = (await res.json()) as StudyNotebook[];
+src/hooks/useStudyNotebooks.ts:71:        setNotebooks(Array.isArray(data) ? data : []);
+src/hooks/useStudyNotebooks.ts:75:        setNotebooks(DEFAULT_DEMO_NOTEBOOKS);
+src/hooks/useStudyNotebooks.ts:88:  const createNotebook = useCallback(async (title: string): Promise<StudyNotebook | null> => {
+src/hooks/useStudyNotebooks.ts:96:      const res = await fetch(`${BASE}/notebooks`, {
+src/hooks/useStudyNotebooks.ts:102:      const data = (await res.json()) as StudyNotebook;
+src/hooks/useStudyNotebooks.ts:103:      setNotebooks((prev) => [data, ...prev]);
+src/hooks/useStudyNotebooks.ts:106:      setError(errMsg(e, "Failed to create notebook"));
+src/hooks/useStudyNotebooks.ts:111:  const deleteNotebook = useCallback(async (id: string): Promise<boolean> => {
+src/hooks/useStudyNotebooks.ts:116:      const res = await fetch(`${BASE}/notebooks/${id}`, { method: "DELETE", headers });
+src/hooks/useStudyNotebooks.ts:118:      setNotebooks((prev) => prev.filter((n) => n.id !== id));
+src/hooks/useStudyNotebooks.ts:121:      setError(errMsg(e, "Failed to delete notebook"));
+src/hooks/useStudyNotebooks.ts:128:      notebookId: string,
+src/hooks/useStudyNotebooks.ts:129:      item: { query: string; answer: string; citations?: NotebookCitation[]; source_episode_id?: string | null }
+src/hooks/useStudyNotebooks.ts:130:    ): Promise<NotebookItem | null> => {
+src/hooks/useStudyNotebooks.ts:138:        const res = await fetch(`${BASE}/notebooks/${notebookId}/items`, {
+src/hooks/useStudyNotebooks.ts:149:        return (await res.json()) as NotebookItem;
+src/hooks/useStudyNotebooks.ts:158:  const listItems = useCallback(async (notebookId: string): Promise<NotebookItem[]> => {
+src/hooks/useStudyNotebooks.ts:163:      const res = await fetch(`${BASE}/notebooks/${notebookId}/items`, { headers });
+src/hooks/useStudyNotebooks.ts:165:      const items = (await res.json()) as NotebookItem[];
+src/hooks/useStudyNotebooks.ts:168:      return getSampleItems(notebookId);
+src/hooks/useStudyNotebooks.ts:172:function getSampleItems(id: string): NotebookItem[] {
+src/hooks/useStudyNotebooks.ts:176:      notebook_id: id,
+src/hooks/useStudyNotebooks.ts:179:      citations: ['Sri Preethaji — The Four Sacred Keys', 'Ekam Wisdom Corpus Vol 1'],
+src/hooks/useStudyNotebooks.ts:185:      notebook_id: id,
+src/hooks/useStudyNotebooks.ts:195:  return { notebooks, loading, error, refresh, createNotebook, deleteNotebook, addItem, listItems };
+docs/production-readiness/rerun-2026-08-24/distress-job-poll.txt:11:permissions-policy: camera=(), microphone=(), geolocation=()
+supabase/migrations/20260516190000_user_memory.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+docs/production-readiness/rerun-2026-08-24/chat-distress.headers:10:permissions-policy: camera=(), microphone=(), geolocation=()
+docs/engineering-notes/corpus-remediation-and-migration-plan.md:590:`IngestionPipeline` at all: `ingest_four_sacred_secrets.py`,
+docs/engineering-notes/corpus-remediation-and-migration-plan.md:744:   (`CLAUDE.md`, `LICENSE-EXCEPTIONS.md`). Before the bake-off, do not rely on
+docs/engineering-notes/corpus-remediation-and-migration-plan.md:822:   `telemetry_data` volume and destroyed LightRAG's bookkeeping. Use
+docs/engineering-notes/corpus-remediation-and-migration-plan.md:887:- [Databricks — Build an unstructured data pipeline for RAG](https://docs.databricks.com/aws/en/agents/tutorials/ai-cookbook/quality-data-pipeline-rag)
+docs/engineering-notes/corpus-remediation-and-migration-plan.md:916:- [Digital Applied — RAG Chunking Strategies: A 2026 Retrieval Playbook](https://www.digitalapplied.com/blog/rag-chunking-strategies-2026-retrieval-quality-playbook)
+supabase/migrations/20260508043115_0eb9a75d-8aa0-4988-a3f6-0b4b012e5621.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+supabase/migrations/20260713000000_create_push_devices.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+supabase/migrations/20260713000000_create_push_devices.sql:9:-- tokens are lost — users must re-grant notification permission. NOTE:
+docs/production/POST_REPORT_AUDIT_2026-08-23.md:19:| Flagship quality | Serene Mind: HTTP 200, partial grounded-evidence envelope, 2 citations, 1,152 characters, faithfulness `0.0`, verification passed `false`. Four Sacred Secrets: HTTP 200, 2 citations, 1,139 characters, faithfulness `0.0`, verification passed `false` | The envelope is a safe mitigation against a false refusal; it is not proof of verified doctrine generation |
+docs/production/POST_REPORT_AUDIT_2026-08-23.md:23:| Browser | Hosted Lovable `/chat` rendered a fresh Four Sacred Secrets partial and exposed two full YouTube URLs in References | One route and one flagship journey; no broad responsive or authenticated coverage |
+backend/services/contextual_chunking_service.py:110:            The complete document text (transcript, book chapter, etc.).
+docs/production-readiness/rerun-2026-08-24/feature-summary-expanded.txt:59:src/pages/StudyNotebookPage.tsx
+docs/production-readiness/rerun-2026-08-24/feature-summary-expanded.txt:143:/backend/services/notebook_service.py
+docs/production-readiness/rerun-2026-08-24/feature-summary-expanded.txt:252:scripts/ingestion/ingest_four_sacred_secrets.py
+supabase/migrations/20260605023720_602a5230-c7aa-47c2-9b22-195342ada89b.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+supabase/migrations/20260618110000_db_consolidation.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+docs/production-readiness/PRODUCTIONIZATION-PLAYBOOK-2026-08-24.md:1:# AskMukthiGuru Productionization Playbook
+docs/production-readiness/PRODUCTIONIZATION-PLAYBOOK-2026-08-24.md:8:## 1. How to use this playbook
+docs/production-readiness/PRODUCTIONIZATION-PLAYBOOK-2026-08-24.md:33:| Curated knowledge artifacts | Approved corpus exists, is rights-reviewed, versioned, checksummed, loaded, and reported by deep health as ready. | **OPEN**: `okf_compiled` is missing. |
+docs/production-readiness/PRODUCTIONIZATION-PLAYBOOK-2026-08-24.md:75:| F-18 | Speech-to-text | Composer microphone | Web Speech/native Capacitor plugin | Microphone permission and local handling | Partial | Chrome/Safari, Firefox unsupported state, native permission denial, language mapping, no accidental recording | P1 |
+docs/production-readiness/PRODUCTIONIZATION-PLAYBOOK-2026-08-24.md:80:| F-23 | Second Brain / notebooks | Notebooks, notes, vault UI | Encrypted memory/vault, Qdrant projection | Strong owner isolation; optional unlock | Partial | Create, classify, retrieve, edit, conflict, revoke unlock, deletion, stale vector invalidation | P0 |
+docs/production-readiness/PRODUCTIONIZATION-PLAYBOOK-2026-08-24.md:84:| F-27 | Web search | Possibly internal/provider route | Bounded web-search service | No arbitrary user-controlled host/scheme | Functional / policy-sensitive | Timeout, malicious page, source policy, robots/rights, citations, provider down, cache | P1 |
+docs/production-readiness/PRODUCTIONIZATION-PLAYBOOK-2026-08-24.md:91:| F-34 | Mobile webview app | Capacitor iOS/Android | Native bridge, app lifecycle | Native auth and permissions | Buildable, not device-proven | OAuth deep link, back/keyboard, audio, push, upload, offline, resume, signed build | P1 |
+docs/production-readiness/PRODUCTIONIZATION-PLAYBOOK-2026-08-24.md:151:Run the full practice flow on Chrome, Safari/WebKit, Firefox, Android emulator/device, and iOS simulator/device where available. Test audio start/pause/stop, background/foreground, route change, lock screen, Bluetooth interruption if relevant, microphone permission denial, TTS provider failure, language change, poor network, offline transition, and app restart.
+docs/production-readiness/PRODUCTIONIZATION-PLAYBOOK-2026-08-24.md:157:Use a real staged admin identity with AAL2. Attempt access anonymously, as a normal authenticated user, and as an admin without the required factor. Review a corpus item, reject it, approve it, publish a batch, inspect the release manifest, intentionally fail a quality gate, and roll back to the prior manifest. Confirm that approvals include reviewer, timestamp, source version, rights status, quality report, and diff.
+docs/production-readiness/PRODUCTIONIZATION-PLAYBOOK-2026-08-24.md:398:**Objective:** Make grounded doctrine chat serve only approved, versioned, rights-reviewed corpus artifacts.
+docs/production-readiness/PRODUCTIONIZATION-PLAYBOOK-2026-08-24.md:400:**Desired behavior:** A release manifest identifies source rights, source version, canonical URL, speaker/title metadata, chunk count, embedding model/revision/dimension, Qdrant collection, graph snapshot, checksum, reviewer approvals, and artifact build time. The image contains the exact manifest and runtime readiness verifies it.
+docs/production-readiness/PRODUCTIONIZATION-PLAYBOOK-2026-08-24.md:402:**Implementation:** Ingest only approved URLs; run transcript normalization and correction ledger; produce canonical segments; build embeddings and graph; run corpus quality and source-rights checks; create a signed or checksummed release manifest; stage for human review; publish atomically; make readiness fail closed on missing/mismatched artifacts.
+docs/production-readiness/PRODUCTIONIZATION-PLAYBOOK-2026-08-24.md:405:**Edge cases:** Empty corpus, partial upload, duplicate segment, source removal, rights revocation, interrupted publish, old graph with new vector index.
+docs/production-readiness/PRODUCTIONIZATION-PLAYBOOK-2026-08-24.md:491:| P2 | Add operator runbooks for every alert | Reduce mean time to diagnose | Alert drill from signal to rollback |
+docs/production-readiness/PRODUCTIONIZATION-PLAYBOOK-2026-08-24.md:493:| P2 | Add source/rights dashboard | Protect trust and publishing process | Every source has rights/version/reviewer state |
+docs/production-readiness/PRODUCTIONIZATION-PLAYBOOK-2026-08-24.md:520:The **client plane** contains web and Capacitor clients with one shared contract suite. It should know only public response fields, safe progress states, source links, and user controls. The **serving plane** contains identity resolution, safety, admission/quota, bounded retrieval, generation, verification, and response projection. The **knowledge plane** contains approved ingestion, normalization, source rights, embeddings, Qdrant, graph enrichment, manifests, and evaluation. The **memory plane** contains encrypted source records, scoped projections, transient cache, tombstones, retention jobs, and audit events. The **operations plane** contains readiness, metrics, traces, release manifests, dependency/image scans, backups, restore, rollback, and runbooks.
+docs/production-readiness/PRODUCTIONIZATION-PLAYBOOK-2026-08-24.md:526:`AGENTS.md` is the binding repository contract. It should contain current invariants, forbidden shortcuts, test commands, release gates, and the meaning of local versus production evidence. `lessons.md` contains durable mistakes and regression lessons. `docs/operations/` contains stable runbooks. `docs/production-readiness/` contains current and historical reports. `scripts/ops/` contains bounded reproducible commands. `.claude`, `.codex`, and `.opencode` task files should be clearly marked active, historical, or superseded.
+docs/production-readiness/PRODUCTIONIZATION-PLAYBOOK-2026-08-24.md:528:An agent can safely infer how to run static tests, inspect route contracts, preserve source provenance, respect signed identity, avoid secret logging, and fail closed on missing artifacts. An agent cannot infer the approved corpus, source rights, hosted Supabase role model, staging credentials, target cost budget, safety-owner decision, or whether an experimental feature should be public. Those must remain explicit human inputs.
+docs/production-readiness/PRODUCTIONIZATION-PLAYBOOK-2026-08-24.md:555:Confirm that the diff contains no secrets, raw tokens, private test data, generated build state, copyrighted corpus material without rights, or unreviewed migration changes. Run the static stage. Review changed files manually, especially dependency pins, auth, cache keys, deletion, RAG prompts, provider fallback, and migrations.
+docs/production/PRODUCTION_READINESS.md:19:| Core chat | Grounded answers for representative queries | PARTIAL / FLAGSHIP FALSE-REFUSAL MITIGATED | Post-deploy metadata-only probes returned Serene Mind and Four Sacred Secrets as `grounded_partial_evidence`, `partial=true`, `grounding_state=grounded`, `hallucination_flag=false`, with 2 exact public YouTube citations each and concise response lengths `1,152` and `1,139` chars. Beautiful State, neutral suffering, and Hindi controls were grounded with citations; the acute-crisis control remained a safety redirect. | Railway deployment `6374d867-65f8-4d7d-857d-cdc9531699c1`; 162 passed/2 skipped image suite; metadata-only probes | The generated drafts still fail verification (`faithfulness=0.0`, `verification.passed=false`) for the two flagship partials, curated runtime artifacts are absent, and held-out teaching/citation quality remains open |
+docs/production/PRODUCTION_READINESS.md:27:| Browser UX | Critical journeys pass in real browser at required breakpoints | PARTIAL / FLAGSHIP STREAM PROVEN | Hosted Lovable `/chat` completed a fresh Four Sacred Secrets turn and visibly rendered the grounded partial, `Grounded response`, `2 verified sources provided`, `Limited support`, and two full YouTube URLs in the References panel. Direct `/second-brain` and the authorized disposable reflection flow remain evidenced. | Connected-browser capture on 2026-08-23 plus Railway direct/queued SSE probes | Mobile/tablet, custom-domain, authenticated browser breadth, and full source-panel coverage remain open |
+docs/production/PRODUCTION_READINESS.md:32:| Backups | Important data can be restored | PARTIAL | Backup/restore runbook exists | Non-destructive restore proof remains open | DevOps + Data | Recovery may fail under incident pressure until drilled |
+docs/production/PRODUCTION_READINESS.md:43:The authoritative SSE final-answer change is proven in the backend contract, parser regression, queued `final`→`done` probe, and a fresh hosted Lovable Four Sacred Secrets conversation whose References panel exposed both exact public URLs. Queued polling also has focused `Last-Event-ID` replay and Redis `id:` tests. Direct POST streaming uses a fetch reader and has no event IDs or resume cursor; direct automatic reconnect/resume is not proven. Both direct and queued responses now set `Cache-Control: no-cache` and `X-Accel-Buffering: no` in the latest code. This proves the tested flagship browser path, not every route or breakpoint. The authorized Second Brain browser journey and BRAIN_KEK cutover are independently evidenced, but they do not close the cost, artifact, latency, authenticated breadth, or recovery gates.
+docs/production/PRODUCTION_READINESS.md:45:Grounded partial evidence is now deliberately cached only in the exact scoped Redis/hot tiers. Semantic/vector writes are skipped because those tiers have no fresh-evidence, source-version, or support gate on reads; the matching semantic entry is invalidated by exact query only. This is a bounded repeat-latency optimization, not permission to reuse a partial excerpt for paraphrases.
+docs/production/PRODUCTION_READINESS.md:70:The local retrieval-quality gate was executed in a dependency-complete Docker test image. It collected nine tests: **5 passed and 4 skipped**. The four integration strategies did not produce an NDCG result. A separate read-only Docker diagnostic confirmed that the configured `spiritual_wisdom` Qdrant endpoint is reachable and that the collection has **0 points**; the local data plane therefore cannot validate retrieval quality or prove a fix for the Serene Mind/Four Sacred Secrets false-refusal symptom. A metadata-only local flagship probe returned `QUERY`, `no_context_short_circuit`, zero citations, and a 38-character final for both questions. This is consistent with missing local evidence, not evidence that the production corpus or deployed refusal mitigation regressed.
+docs/production/PRODUCTION_READINESS.md:81:A metadata-only Docker interaction sweep covered **20 prompts**: English and Indic greetings, Beautiful State, Serene Mind, Four Sacred Secrets, neutral suffering, Hindi/Telugu/Kannada/Tamil prompts, comparison, acute crisis, domestic violence, off-topic, prompt injection, personal-memory and Second Brain probes, graph, unknown doctrine, and a follow-up. The local provider circuit was open for this sweep, so ordinary substantive prompts returned `intent=ERROR`, `grounding_state=system_error`, zero citations, and a short provider-error final. This is transparent outage behavior and cannot validate answer quality. The acute crisis prompt returned blocked `DISTRESS` with no final answer; domestic violence and prompt-injection prompts were blocked by deterministic guardrails. The ordinary and safety streams preserved their expected event shapes, with safety controls completing in approximately `12–24ms` and ordinary provider-error controls in approximately `49–71ms`.
+docs/production-readiness/rerun-2026-08-24/feature-inventory-expanded.txt:113:src/components/common/PushPermissionPrompt.tsx
+docs/production-readiness/rerun-2026-08-24/feature-inventory-expanded.txt:236:src/hooks/useStudyNotebooks.ts
+docs/production-readiness/rerun-2026-08-24/feature-inventory-expanded.txt:322:src/pages/StudyNotebookPage.tsx
+docs/production-readiness/rerun-2026-08-24/feature-inventory-expanded.txt:614:backend/services/notebook_service.py
+docs/production-readiness/rerun-2026-08-24/feature-inventory-expanded.txt:844:backend/tests/__pycache__/test_domain_rights_read_gate.cpython-312-pytest-8.4.2.pyc
+docs/production-readiness/rerun-2026-08-24/feature-inventory-expanded.txt:845:backend/tests/__pycache__/test_domain_rights_read_gate.cpython-312.pyc
+docs/production-readiness/rerun-2026-08-24/feature-inventory-expanded.txt:885:backend/tests/__pycache__/test_graph_notebook_integration.cpython-312-pytest-8.4.2.pyc
+docs/production-readiness/rerun-2026-08-24/feature-inventory-expanded.txt:886:backend/tests/__pycache__/test_graph_notebook_integration.cpython-312.pyc
+docs/production-readiness/rerun-2026-08-24/feature-inventory-expanded.txt:1031:backend/tests/__pycache__/test_notebook_service.cpython-312-pytest-8.4.2.pyc
+docs/production-readiness/rerun-2026-08-24/feature-inventory-expanded.txt:1032:backend/tests/__pycache__/test_notebook_service.cpython-312.pyc
+docs/production-readiness/rerun-2026-08-24/feature-inventory-expanded.txt:1329:backend/tests/test_domain_rights_read_gate.py
+docs/production-readiness/rerun-2026-08-24/feature-inventory-expanded.txt:1349:backend/tests/test_graph_notebook_integration.py
+docs/production-readiness/rerun-2026-08-24/feature-inventory-expanded.txt:1454:docs/CHURN_PLAYBOOK.md
+docs/production-readiness/rerun-2026-08-24/feature-inventory-expanded.txt:1495:docs/KUBECTL_RUNBOOK.md
+docs/production-readiness/rerun-2026-08-24/feature-inventory-expanded.txt:1503:docs/MOBILE_RELEASE_RUNBOOK.md
+docs/production-readiness/rerun-2026-08-24/feature-inventory-expanded.txt:1515:docs/operations/production-deployment-runbook.md
+docs/production-readiness/rerun-2026-08-24/feature-inventory-expanded.txt:1686:docs/runbooks/ALERTING.md
+docs/production-readiness/rerun-2026-08-24/feature-inventory-expanded.txt:1687:docs/runbooks/BACKUP_RESTORE_DRILL.md
+docs/production-readiness/rerun-2026-08-24/feature-inventory-expanded.txt:1688:docs/runbooks/BENCHMARK_RUNBOOK.md
+docs/production-readiness/rerun-2026-08-24/feature-inventory-expanded.txt:1689:docs/runbooks/BRAIN_KEK_ROTATION.md
+docs/production-readiness/rerun-2026-08-24/feature-inventory-expanded.txt:1690:docs/runbooks/CAPACITY.md
+docs/production-readiness/rerun-2026-08-24/feature-inventory-expanded.txt:1691:docs/runbooks/CREDENTIALS_GUIDE.md
+docs/production-readiness/rerun-2026-08-24/feature-inventory-expanded.txt:1692:docs/runbooks/MIGRATION_ROLLBACK.md
+docs/production-readiness/rerun-2026-08-24/feature-inventory-expanded.txt:1693:docs/runbooks/ONCALL.md
+docs/production-readiness/rerun-2026-08-24/feature-inventory-expanded.txt:1694:docs/runbooks/PRIVACY.md
+docs/production-readiness/rerun-2026-08-24/feature-inventory-expanded.txt:1695:docs/runbooks/QDRANT_VAULT.md
+docs/production-readiness/rerun-2026-08-24/feature-inventory-expanded.txt:1696:docs/runbooks/REDIS_NAMESPACE_BUDGET.md
+docs/production-readiness/rerun-2026-08-24/feature-inventory-expanded.txt:1697:docs/runbooks/RERANKER_AB_TEST_RUNBOOK.md
+docs/production-readiness/rerun-2026-08-24/feature-inventory-expanded.txt:1698:docs/runbooks/RETENTION.md
+docs/production-readiness/rerun-2026-08-24/feature-inventory-expanded.txt:1699:docs/runbooks/SECRET_ROTATION.md
+docs/production-readiness/rerun-2026-08-24/feature-inventory-expanded.txt:1700:docs/runbooks/SOURCE_QUARANTINE.md
+docs/production-readiness/rerun-2026-08-24/feature-inventory-expanded.txt:1701:docs/runbooks/STREAM_PROTOCOL.md
+docs/production-readiness/rerun-2026-08-24/feature-inventory-expanded.txt:1744:scripts/books_status.json
+supabase/migrations/20260711000000_enable_rls_on_all_tables.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+backend/services/doctrine_cache.py:67:        "Beautiful State, Deeksha, and the Four Sacred Secrets. [Source: Sri Preethaji Bio]"
+backend/services/doctrine_cache.py:84:    "what are the four sacred secrets": (
+backend/services/doctrine_cache.py:85:        "The Four Sacred Secrets are the core teachings of Sri Preethaji and Sri Krishnaji: "
+backend/services/doctrine_cache.py:88:        "[Source: Four Sacred Secrets]"
+supabase/migrations/20260724054031_41ce0885-a2cf-4301-9911-516ba2b8d26a.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+supabase/migrations/20260516182217_515238b1-b493-4e4e-88dc-75a5db2cb880.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+scripts/generate_pa_locale.py:144:    "notebooks": "ਨੋਟਬੁੱਕਸ",
+scripts/generate_pa_locale.py:408:    "savedToNotebook": "ਸਟੱਡੀ ਨੋਟਬੁੱਕ ਵਿੱਚ ਸੁਰੱਖਿਅਤ ਕੀਤਾ ਗਿਆ",
+scripts/generate_pa_locale.py:409:    "savedToNotebookDesc": "\"{{title}}\" ਵਿੱਚ ਸ਼ਾਮਲ ਕੀਤਾ ਗਿਆ",
+scripts/generate_pa_locale.py:549:    "yourRights": "ਤੁਹਾਡੇ ਅਧਿਕਾਰ (DPDP ਐਕਟ / GDPR)",
+scripts/generate_pa_locale.py:593:    "couldNotConnectFacebook": "Facebook ਨਾਲ ਕਨੈਕਟ ਨਹੀਂ ਹੋ ਸਕਿਆ।",
+scripts/generate_pa_locale.py:594:    "couldNotConnectFacebookRetry": "Facebook ਨਾਲ ਕਨੈਕਟ ਨਹੀਂ ਹੋ ਸਕਿਆ। ਕਿਰਪਾ ਕਰਕੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
+scripts/generate_pa_locale.py:612:    "continueWithFacebook": "Facebook ਨਾਲ ਜਾਰੀ ਰੱਖੋ",
+scripts/generate_pa_locale.py:613:    "connectingToFacebook": "Facebook ਨਾਲ ਕਨੈਕਟ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ…",
+supabase/migrations/20260615120000_backend_improvements.sql:4:-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+backend/services/llm_gateway.py:128:        # is our own bookkeeping: did an identical request already own this key
+docs/production-readiness/rerun-2026-08-24/omission-feature-scan.txt:51:src/pages/StudyNotebookPage.tsx
+docs/production-readiness/rerun-2026-08-24/omission-feature-scan.txt:93:src/components/common/PushPermissionPrompt.tsx

@@ -1,0 +1,16 @@
+poll=1
+HTTP/1.1 200 OK
+date: Mon, 24 Aug 2026 14:10:12 GMT
+server: uvicorn
+content-length: 1510
+content-type: application/json
+x-correlation-id: 7e465548
+x-content-type-options: nosniff
+x-frame-options: DENY
+referrer-policy: strict-origin-when-cross-origin
+permissions-policy: camera=(), microphone=(), geolocation=()
+strict-transport-security: max-age=31536000; includeSubDomains
+x-xss-protection: 1; mode=block
+content-security-policy: default-src 'self'; script-src 'self' 'nonce-R4dYMW97gV7qmKCMKdentA' https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://api.sarvam.ai https://*.supabase.co wss://*.supabase.co; frame-ancestors 'none';
+
+{"job_id":"job_30c878b85fd1","status":"completed","created_at":1787580537.3667042,"started_at":1787580537.3726313,"completed_at":1787580538.5879152,"user_id":"anon:DgwDhSt6H8idmOc8O_0bNA","result":{"response":"I can feel that you're going through something deeply painful right now. You are not alone, and your life matters deeply. 🙏\n\nPlease reach out to a crisis helpline:\n• India: National Emergency Services 112\n• International: 988 Suicide & Crisis Lifeline 988\n\nWhile you wait, may I guide you through a calming Serene Mind breathing practice? It can help settle the storm within. 🕊️","intent":"DISTRESS","meditation_step":0,"citations":[],"blocked":true,"block_reason":"Off-topic: self_harm","proactive_serene_mind":null,"faithfulness_score":1.0,"relevancy_score":null,"confidence_score":null,"verification":null,"hallucination_flag":false,"cache_hit":false,"trace_id":"721bb331-2d47-4813-aa46-1fc7b8f37510","latency_ms":1145,"node_timings":{},"evaluation_trace":null,"citations_verified":null,"orphan_citations_stripped":null,"model_used":null,"model_provider":null,"route_decision":"distress","query_tier":null,"follow_up_suggestions":[],"audio_url":null,"kg_concept_nodes":[],"daily_practice_card":null,"guidance_plan":null,"answer_evidence":null,"grounding_state":"safety_redirect","release_manifest":{"release_id":"rel-dev-c1-pgemini-flash-budget-v1","policy_version":"gemini-flash-budget-v1","schema_version":"1.0.0"},"provenance_manifest":null,"ai_provenance":null},"error":null}

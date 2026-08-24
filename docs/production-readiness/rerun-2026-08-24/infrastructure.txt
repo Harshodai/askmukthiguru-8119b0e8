@@ -1,0 +1,1565 @@
+=== TRACK: infrastructure ===
+UTC: 2026-08-24T13:52:06Z
+HEAD: 1f882077616b92b5e2b59a31d9ee4fb246e8fe68
+./.claude/tasks/railway_dependency_fix.md
+./.claude/tasks/railway-pro-best-practices.md
+./.emergent/emergent.yml
+./.github/workflows/backup-drill-reminder.yml
+./.github/workflows/benchmark.yml
+./.github/workflows/build-deploy.yml
+./.github/workflows/cache-warm.yml
+./.github/workflows/codeql.yml
+./.github/workflows/dependency-check.yml
+./.github/workflows/eval-gate.yml
+./.github/workflows/lint-test.yml
+./.github/workflows/main-hard-gates.yml
+./.github/workflows/migration-revert-check.yml
+./.github/workflows/nightly-eval.yml
+./.github/workflows/nightly-load.yml
+./.github/workflows/nightly-rls.yml
+./.github/workflows/prelaunch-gate.yml
+./.github/workflows/security-audit.yml
+./.pre-commit-config.yaml
+./.serena/project.local.yml
+./.serena/project.yml
+./.tmp_release_evidence/railway_metrics_1h.json
+./.tmp_release_evidence/todo_program/phase5/alerting-rules.yml
+./.tmp_release_evidence/todo_program/phase5/docker-compose.prod.yml
+./.tmp_release_evidence/todo_program/phase5/Dockerfile
+./.tmp_release_evidence/todo_program/phase5/Dockerfile.railway
+./backend/config/lmcache_config.yaml
+./backend/config/router_routes.yaml
+./backend/docker-compose.dev.yml
+./backend/docker-compose.yml
+./backend/Dockerfile
+./backend/Dockerfile.railway
+./backend/domain/dprod_descriptor.yaml
+./backend/evaluation/datasets/injection_crosslingual_v1.yaml
+./backend/evaluation/datasets/injection_multilingual.yaml
+./backend/evaluation/datasets/mukthi_guru_v1.yaml
+./backend/evaluation/rubrics/citation_correctness.yaml
+./backend/evaluation/rubrics/context_precision.yaml
+./backend/evaluation/rubrics/context_recall.yaml
+./backend/evaluation/rubrics/crosslingual_faithfulness.yaml
+./backend/evaluation/rubrics/doctrinal_consistency.yaml
+./backend/evaluation/rubrics/groundedness.yaml
+./backend/evaluation/rubrics/injection_resistance.yaml
+./backend/evaluation/rubrics/refusal_correctness.yaml
+./backend/evaluation/rubrics/tone.yaml
+./backend/gptcache_config.yml
+./backend/guardrails/config/config.yml
+./backend/infrastructure/k8s.yaml
+./docker-compose.prod.yml
+./Dockerfile
+./docs/production/railway_hindi_repeat_timing_2026-08-22.md
+./docs/production/railway_hindi_stage_timing_smoke_2026-08-22.json
+./docs/production/railway_internal_hindi_smoke_2026-08-22.txt
+./docs/production/railway_postflush_latency_evidence_2026-08-22.md
+./docs/production/railway_retrieval_fix_evidence_2026-08-22.md
+./docs/production/railway_stage_timing_health_browser_2026-08-22.md
+./external_repos/headroom/.devcontainer/docker-compose.memory.yml
+./external_repos/headroom/.devcontainer/Dockerfile
+./external_repos/headroom/.gitguardian.yaml
+./external_repos/headroom/.github/dependabot.yml
+./external_repos/headroom/.github/FUNDING.yml
+./external_repos/headroom/.pre-commit-config.yaml
+./external_repos/headroom/.serena/project.yml
+./external_repos/headroom/codecov.yml
+./external_repos/headroom/docker-compose.yml
+./external_repos/headroom/docker/docker-compose.native.yml
+./external_repos/headroom/Dockerfile
+./external_repos/headroom/mkdocs.yml
+./external_repos/ragflow/codecov.yml
+./external_repos/ragflow/conf/service_conf.yaml
+./external_repos/ragflow/docker/docker-compose-base.yml
+./external_repos/ragflow/docker/docker-compose-CN-oc9.yml
+./external_repos/ragflow/docker/docker-compose-macos.yml
+./external_repos/ragflow/docker/docker-compose.yml
+./external_repos/ragflow/Dockerfile
+./external_repos/ragflow/Dockerfile_deepdoc_oss
+./external_repos/ragflow/Dockerfile_tei
+./external_repos/ragflow/Dockerfile.scratch.oc9
+./external_repos/ragflow/helm/Chart.yaml
+./external_repos/ragflow/helm/values.yaml
+./external_repos/ragflow/lefthook.yml
+./external_repos/ragflow/ragflow_deps/Dockerfile
+./external_repos/ragflow/web/pnpm-lock.yaml
+./external_repos/surfsense/.github/FUNDING.yml
+./external_repos/surfsense/.pre-commit-config.yaml
+./external_repos/surfsense/.recurseml.yaml
+./external_repos/surfsense/docker/docker-compose.deps-only.yml
+./external_repos/surfsense/docker/docker-compose.dev.yml
+./external_repos/surfsense/docker/docker-compose.e2e.yml
+./external_repos/surfsense/docker/docker-compose.gpu.yml
+./external_repos/surfsense/docker/docker-compose.proxy.yml
+./external_repos/surfsense/docker/docker-compose.yml
+./external_repos/surfsense/surfsense_backend/Dockerfile
+./external_repos/surfsense/surfsense_browser_extension/pnpm-lock.yaml
+./external_repos/surfsense/surfsense_desktop/electron-builder.yml
+./external_repos/surfsense/surfsense_desktop/pnpm-lock.yaml
+./external_repos/surfsense/surfsense_desktop/pnpm-workspace.yaml
+./external_repos/surfsense/surfsense_web/Dockerfile
+./external_repos/surfsense/surfsense_web/pnpm-lock.yaml
+./external_repos/surfsense/surfsense_web/pnpm-workspace.yaml
+./external_repos/understand-anything/pnpm-lock.yaml
+./external_repos/understand-anything/pnpm-workspace.yaml
+./external_repos/understand-anything/understand-anything-plugin/pnpm-lock.yaml
+./external_repos/understand-anything/understand-anything-plugin/pnpm-workspace.yaml
+./external_repos/zabt-ai/.pre-commit-config.yaml
+./external_repos/zabt-ai/backend/Dockerfile
+./external_repos/zabt-ai/docker-compose.cloud.yml
+./external_repos/zabt-ai/docker-compose.cpu.yml
+./external_repos/zabt-ai/docker-compose.yml
+./external_repos/zabt-ai/frontend-2/Dockerfile
+./external_repos/zabt-ai/kong/kong.yml
+./external_repos/zabt-ai/zabt-bot-worker/Dockerfile
+./external_repos/zabt-ai/zabt-gpu-worker/Dockerfile
+./external_repos/zabt-ai/zabt-vision-worker/Dockerfile
+./frontend/Dockerfile
+./infrastructure/k8s_deployment.yaml
+./infrastructure/prometheus/alerting-rules.yml
+./infrastructure/prometheus/alertmanager.yml
+./infrastructure/prometheus/prometheus.yml
+./infrastructure/vllm-deployment.yaml
+./k8s/backend-deployment.yaml
+./k8s/helm/mukthiguru/Chart.yaml
+./k8s/helm/mukthiguru/values-minikube.yaml
+./k8s/helm/mukthiguru/values-production.yaml
+./k8s/helm/mukthiguru/values.yaml
+./k8s/skaffold.yaml
+./mcp-servers/claude-mem/.github/FUNDING.yml
+./mcp-servers/claude-mem/docker-compose.e2e.yml
+./mcp-servers/claude-mem/docker-compose.yml
+./mcp-servers/claude-mem/Dockerfile.test-installer
+./mcp-servers/claude-mem/openclaw/Dockerfile.e2e
+./mcp-servers/graphify/.github/FUNDING.yml
+./mcp-servers/hermes-agent/.github/dependabot.yml
+./mcp-servers/hermes-agent/.hadolint.yaml
+./mcp-servers/hermes-agent/datagen-config-examples/trajectory_compression.yaml
+./mcp-servers/hermes-agent/datagen-config-examples/web_research.yaml
+./mcp-servers/hermes-agent/docker-compose.windows.yml
+./mcp-servers/hermes-agent/docker-compose.yml
+./mcp-servers/hermes-agent/Dockerfile
+./mcp-servers/hermes-agent/locales/af.yaml
+./mcp-servers/hermes-agent/locales/de.yaml
+./mcp-servers/hermes-agent/locales/en.yaml
+./mcp-servers/hermes-agent/locales/es.yaml
+./mcp-servers/hermes-agent/locales/fr.yaml
+./mcp-servers/hermes-agent/locales/ga.yaml
+./mcp-servers/hermes-agent/locales/hu.yaml
+./mcp-servers/hermes-agent/locales/it.yaml
+./mcp-servers/hermes-agent/locales/ja.yaml
+./mcp-servers/hermes-agent/locales/ko.yaml
+./mcp-servers/hermes-agent/locales/pt.yaml
+./mcp-servers/hermes-agent/locales/ru.yaml
+./mcp-servers/hermes-agent/locales/tr.yaml
+./mcp-servers/hermes-agent/locales/uk.yaml
+./mcp-servers/hermes-agent/locales/zh-hant.yaml
+./mcp-servers/hermes-agent/locales/zh.yaml
+./railway.json
+./scripts/ingestion/Dockerfile.local-fetch
+./scripts/ingestion/pageindex/config.yaml
+./scripts/ops/railway_readiness_probe.py
+./scripts/railway_logs.txt
+./whatsapp_bot/Dockerfile
+--- health/startup ---
+Dockerfile:5:#   - Health check via /api/health
+Dockerfile:6:#   - 2 uvicorn workers for concurrency under production load
+Dockerfile:10:# System deps: curl for healthcheck, gcc for any compiled extensions
+Dockerfile:44:    CMD curl -f http://localhost:${PORT:-8000}/api/health || exit 1
+Dockerfile:48:# Railway sets $PORT; uvicorn reads it
+Dockerfile:49:CMD python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers ${WEB_CONCURRENCY:-1}
+docker-compose.prod.yml:46:    healthcheck:
+docker-compose.prod.yml:53:      resources:
+docker-compose.prod.yml:78:      # Memory limit for Python process (set in main.py via resource.setrlimit)
+docker-compose.prod.yml:85:        condition: service_healthy
+docker-compose.prod.yml:87:        condition: service_healthy
+docker-compose.prod.yml:90:    healthcheck:
+docker-compose.prod.yml:91:      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+docker-compose.prod.yml:102:      resources:
+docker-compose.prod.yml:117:    healthcheck:
+docker-compose.prod.yml:129:      resources:
+docker-compose.prod.yml:145:    healthcheck:
+docker-compose.prod.yml:152:      resources:
+.github/workflows/nightly-load.yml:53:            curl -sf http://127.0.0.1:8000/api/healthz >/dev/null && break
+.github/workflows/nightly-load.yml:61:          if curl -sf --max-time 5 "$LOAD_TEST_URL/api/healthz" >/dev/null; then
+infrastructure/vllm-deployment.yaml:46:  #     resources:
+infrastructure/vllm-deployment.yaml:54:  #   healthcheck:
+infrastructure/vllm-deployment.yaml:55:  #     test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+backend/celery_config.py:15:# configure_threading() is also called from app/main.py for the uvicorn process;
+backend/celery_config.py:16:# this copy covers the Celery worker process path. Idempotent — safe to call twice.
+backend/celery_config.py:21:from celery import Celery
+backend/celery_config.py:26:# no separate celery-worker container needed. Off by default -- Railway
+backend/celery_config.py:27:# production still wants the real async worker split.
+backend/celery_config.py:40:celery_app = Celery(
+backend/celery_config.py:55:celery_app.conf.update(
+backend/celery_config.py:65:    # without affecting the parent worker process.
+backend/celery_config.py:66:    worker_max_tasks_per_child=10,
+backend/celery_config.py:67:    worker_max_memory_per_child=1_500_000,
+backend/celery_config.py:69:    task_reject_on_worker_lost=True,
+backend/celery_config.py:70:    worker_prefetch_multiplier=1,
+backend/celery_config.py:76:    # not redelivered indefinitely. Transient worker crashes are handled by
+backend/celery_config.py:77:    # task_reject_on_worker_lost=True; transient errors are retried via autoretry_for.
+backend/celery_config.py:104:celery_app.conf.task_queues = task_queues
+backend/celery_config.py:106:celery_app.conf.task_routes = {
+backend/celery_config.py:117:@celery_app.task(bind=True)
+backend/celery_config.py:118:def health_check(self) -> dict:
+backend/celery_config.py:120:        "status": "healthy",
+backend/celery_config.py:121:        "worker": self.request.hostname,
+backend/celery_config.py:135:    worker_id: str = None,
+backend/celery_config.py:154:        if worker_id:
+backend/celery_config.py:155:            updates["worker_id"] = worker_id
+backend/gptcache_config.yml:2:# This enables shared semantic cache across multiple backend replicas
+backend/gptcache_config.yml:30:  workers: 4
+infrastructure/k8s_deployment.yaml:2:# Full specs for all services with HPA, resource limits, and scaling triggers.
+infrastructure/k8s_deployment.yaml:59:  replicas: 3
+infrastructure/k8s_deployment.yaml:80:          resources:
+infrastructure/k8s_deployment.yaml:87:          readinessProbe:
+infrastructure/k8s_deployment.yaml:89:              path: /api/health
+infrastructure/k8s_deployment.yaml:95:              path: /api/health
+infrastructure/k8s_deployment.yaml:115:      resource:
+infrastructure/k8s_deployment.yaml:141:  name: celery-transcription
+infrastructure/k8s_deployment.yaml:145:    component: celery-transcription
+infrastructure/k8s_deployment.yaml:147:  replicas: 3
+infrastructure/k8s_deployment.yaml:151:      component: celery-transcription
+infrastructure/k8s_deployment.yaml:156:        component: celery-transcription
+infrastructure/k8s_deployment.yaml:159:        - name: worker
+infrastructure/k8s_deployment.yaml:161:          command: ["celery", "-A", "celery_config", "worker", "-Q", "transcription", "-c", "2", "--loglevel=info"]
+infrastructure/k8s_deployment.yaml:167:          resources:
+infrastructure/k8s_deployment.yaml:188:  name: celery-transcription-hpa
+infrastructure/k8s_deployment.yaml:194:    name: celery-transcription
+infrastructure/k8s_deployment.yaml:201:          name: celery_queue_depth
+infrastructure/k8s_deployment.yaml:214:  name: celery-embedding
+infrastructure/k8s_deployment.yaml:218:    component: celery-embedding
+infrastructure/k8s_deployment.yaml:220:  replicas: 5
+infrastructure/k8s_deployment.yaml:224:      component: celery-embedding
+infrastructure/k8s_deployment.yaml:229:        component: celery-embedding
+infrastructure/k8s_deployment.yaml:232:        - name: worker
+infrastructure/k8s_deployment.yaml:234:          command: ["celery", "-A", "celery_config", "worker", "-Q", "embedding", "-c", "4", "--loglevel=info"]
+infrastructure/k8s_deployment.yaml:240:          resources:
+infrastructure/k8s_deployment.yaml:252:  name: celery-embedding-hpa
+infrastructure/k8s_deployment.yaml:258:    name: celery-embedding
+infrastructure/k8s_deployment.yaml:265:          name: celery_queue_depth
+infrastructure/k8s_deployment.yaml:278:  name: celery-indexing
+infrastructure/k8s_deployment.yaml:282:    component: celery-indexing
+infrastructure/k8s_deployment.yaml:284:  replicas: 3
+infrastructure/k8s_deployment.yaml:288:      component: celery-indexing
+infrastructure/k8s_deployment.yaml:293:        component: celery-indexing
+infrastructure/k8s_deployment.yaml:296:        - name: worker
+infrastructure/k8s_deployment.yaml:298:          command: ["celery", "-A", "celery_config", "worker", "-Q", "indexing", "-c", "2", "--loglevel=info"]
+infrastructure/k8s_deployment.yaml:304:          resources:
+infrastructure/k8s_deployment.yaml:316:  name: celery-indexing-hpa
+infrastructure/k8s_deployment.yaml:322:    name: celery-indexing
+infrastructure/k8s_deployment.yaml:329:          name: celery_queue_depth
+infrastructure/k8s_deployment.yaml:349:  replicas: 3
+infrastructure/k8s_deployment.yaml:366:          resources:
+infrastructure/k8s_deployment.yaml:381:        resources:
+infrastructure/k8s_deployment.yaml:415:  replicas: 1
+infrastructure/k8s_deployment.yaml:432:          resources:
+infrastructure/k8s_deployment.yaml:474:  replicas: 1
+infrastructure/k8s_deployment.yaml:500:          resources:
+infrastructure/k8s_deployment.yaml:515:        resources:
+infrastructure/k8s_deployment.yaml:545:  replicas: 1
+infrastructure/k8s_deployment.yaml:568:          resources:
+infrastructure/k8s_deployment.yaml:611:  resources:
+infrastructure/k8s_deployment.yaml:623:  resources:
+infrastructure/k8s_deployment.yaml:635:  resources:
+k8s/backend-deployment.yaml:8:# 2. Readiness probe checks /api/health (not liveness) so pods only receive
+k8s/backend-deployment.yaml:12:# 4. PYTHON_MEMORY_LIMIT_MB: soft heap guard, K8s hard limit via resources.limits.
+k8s/backend-deployment.yaml:25:  replicas: 1  # Scale up after memory profiling; each replica = +1.8GB RAM
+k8s/backend-deployment.yaml:61:          resources:
+k8s/backend-deployment.yaml:98:          resources:
+k8s/backend-deployment.yaml:125:          readinessProbe:
+k8s/backend-deployment.yaml:127:              path: /api/health
+k8s/backend-deployment.yaml:137:              path: /api/health
+k8s/backend-deployment.yaml:144:          startupProbe:
+k8s/backend-deployment.yaml:146:              path: /api/health
+k8s/backend-deployment.yaml:148:            failureThreshold: 40       # 40 × 15s = 10 min max startup
+k8s/backend-deployment.yaml:161:  # Formula: min(2, cpu_request // 1000) — matches resource request above
+k8s/backend-deployment.yaml:200:      resource:
+k8s/helm/mukthiguru/values-minikube.yaml:7:replicaCount: 2
+k8s/helm/mukthiguru/values-minikube.yaml:14:  resources:
+k8s/helm/mukthiguru/values-minikube.yaml:27:  resources:
+k8s/helm/mukthiguru/values-minikube.yaml:42:  resources:
+k8s/helm/mukthiguru/values-minikube.yaml:51:  resources:
+k8s/helm/mukthiguru/values-minikube.yaml:60:  resources:
+k8s/skaffold.yaml:6:profiles:
+backend/app/telemetry_db.py:701:async def get_retrieval_health(
+backend/app/telemetry_db.py:704:    """Get retrieval health metrics."""
+backend/app/telemetry_db.py:796:        logger.error(f"Failed to get retrieval health: {e}")
+backend/app/telemetry_db.py:1337:async def get_ingestion_health() -> dict[str, Any]:
+backend/app/telemetry_db.py:1338:    """Get ingestion health status."""
+backend/app/telemetry_db.py:1390:            status = "healthy"
+backend/app/telemetry_db.py:1409:        logger.error(f"Failed to get ingestion health: {e}")
+k8s/helm/mukthiguru/templates/namespace.yaml:7:    helm.sh/resource-policy: "keep"
+infrastructure/prometheus/alerting-rules.yml:31:      # SLO 2 — /api/health ready > 99.5%
+infrastructure/prometheus/alerting-rules.yml:34:          sum(rate(health_check_total{result="not_ready"}[5m]))
+infrastructure/prometheus/alerting-rules.yml:35:            / (sum(rate(health_check_total[5m])) + 1e-9)
+infrastructure/prometheus/alerting-rules.yml:43:          description: "More than 0.5% of /api/health probes return not_ready in a 15m window."
+infrastructure/prometheus/alerting-rules.yml:44:          runbook: "docs/runbooks/ALERTING.md#healthreadyslopage"
+k8s/helm/mukthiguru/values-production.yaml:7:replicaCount: 3
+k8s/helm/mukthiguru/values-production.yaml:14:  resources:
+k8s/helm/mukthiguru/values-production.yaml:27:  resources:
+k8s/helm/mukthiguru/values-production.yaml:58:      resource:
+k8s/helm/mukthiguru/values-production.yaml:64:      resource:
+k8s/helm/mukthiguru/values-production.yaml:99:  resources:
+k8s/helm/mukthiguru/values-production.yaml:112:  resources:
+k8s/helm/mukthiguru/values-production.yaml:124:  resources:
+k8s/helm/mukthiguru/values.yaml:12:replicaCount: 2
+k8s/helm/mukthiguru/values.yaml:24:  resources:
+k8s/helm/mukthiguru/values.yaml:31:  # Probes configured for slow startup (model loading, vector DB init)
+k8s/helm/mukthiguru/values.yaml:33:    startup:
+k8s/helm/mukthiguru/values.yaml:35:        path: /api/health
+k8s/helm/mukthiguru/values.yaml:42:        path: /api/health
+k8s/helm/mukthiguru/values.yaml:48:    readiness:
+k8s/helm/mukthiguru/values.yaml:65:  resources:
+k8s/helm/mukthiguru/values.yaml:99:      resource:
+k8s/helm/mukthiguru/values.yaml:105:      resource:
+k8s/helm/mukthiguru/values.yaml:155:    resources:
+k8s/helm/mukthiguru/values.yaml:171:  resources:
+k8s/helm/mukthiguru/values.yaml:190:  resources:
+k8s/helm/mukthiguru/values.yaml:203:  resources:
+k8s/helm/mukthiguru/values.yaml:248:resources: {}
+backend/services/anon_quota_port.py:24:    # users, disabled quotas, over-limit rollbacks). Pass to release() to give
+backend/services/anon_quota_port.py:48:        deadline (e.g. a queued job whose metadata expired before a worker
+backend/app/chat_engine.py:215:        """Gracefully release coalescer resources (e.g. Redis connection pool)."""
+backend/app/runtime_metrics.py:6:import resource
+backend/app/runtime_metrics.py:25:    usage = resource.getrusage(resource.RUSAGE_SELF)
+backend/app/runtime_metrics.py:40:def observe_request_resources(cpu_seconds: float) -> dict[str, float | int]:
+backend/app/orchestrator_utils.py:25:from services.user_profile_service import _is_persistable_user_id
+backend/app/orchestrator_utils.py:546:                recent = await container.user_profile.get_recent_memories(
+backend/app/orchestrator_utils.py:742:    """Fetch user profile and memory context to guide the prompt generation."""
+backend/app/orchestrator_utils.py:777:    if not container.user_profile:
+backend/app/orchestrator_utils.py:781:    # intentionally non-persistable and must never trigger profile creation,
+backend/app/orchestrator_utils.py:782:    # durable memory reads, persona lookups, or per-turn profile updates.
+backend/app/orchestrator_utils.py:786:    profile = await container.user_profile.get_or_create_profile(user_id)
+backend/app/orchestrator_utils.py:787:    profile.total_conversations += 1
+backend/app/orchestrator_utils.py:788:    await container.user_profile.update_profile(profile)
+backend/app/orchestrator_utils.py:790:    recent_memories = await container.user_profile.get_recent_memories(user_id, limit=3)
+backend/app/orchestrator_utils.py:791:    profile_context = build_memory_context(
+backend/app/orchestrator_utils.py:795:    if profile_context:
+backend/app/orchestrator_utils.py:797:            memory_context = f"{memory_context}\n\n{profile_context}"
+backend/app/orchestrator_utils.py:799:            memory_context = profile_context
+backend/app/orchestrator_utils.py:858:            # L3 persona context: short, stable user profile summary.
+backend/services/push_service.py:156:        an empty string, consistent with send()'s graceful-degradation pattern.
+backend/services/push_service.py:348:    # Smoke-test: graceful no-creds response.
+backend/app/main.py:45:    import resource as _resource
+backend/app/main.py:50:        if hasattr(_resource, "RLIMIT_DATA"):  # Safe heap limit (does not restrict mmap)
+backend/app/main.py:51:            _resource.setrlimit(_resource.RLIMIT_DATA, (_limit_bytes, _limit_bytes))
+backend/app/main.py:58:        elif hasattr(_resource, "RLIMIT_AS"):  # Fallback only
+backend/app/main.py:59:            _resource.setrlimit(_resource.RLIMIT_AS, (_limit_bytes, _limit_bytes))
+backend/app/main.py:72:from app.dependencies import async_shutdown, get_container, startup
+backend/app/main.py:100:from app.api.health import router as health_router
+backend/app/main.py:104:from app.api.profile import router as profile_router
+backend/app/main.py:119:telemetry_worker = TelemetryWorker(telemetry_sink)
+backend/app/main.py:151:            logger.debug("[startup/shutdown] suppressed non-critical error: %s", _e)
+backend/app/main.py:168:            logger.debug("[startup/shutdown] suppressed non-critical error: %s", _e)
+backend/app/main.py:186:# === NodeObserver wiring (called during startup) ===
+backend/app/main.py:231:# === Startup state (checked by health endpoint) ===
+backend/app/main.py:232:_startup_complete = False
+backend/app/main.py:233:_startup_error: str | None = None
+backend/app/main.py:244:async def _background_startup_body(container, fastapi_app) -> None:
+backend/app/main.py:298:                    logger.debug("[startup/shutdown] suppressed non-critical error: %s", _e)
+backend/app/main.py:339:                    logger.debug("[startup/shutdown] suppressed non-critical error: %s", _e)
+backend/app/main.py:398:    logger.info("Lifespan: about to start telemetry worker...")
+backend/app/main.py:399:    telemetry_worker.start()
+backend/app/main.py:400:    logger.info("Lifespan: telemetry worker started")
+backend/app/main.py:409:    # Start Job Queue workers
+backend/app/main.py:412:            from app.orchestrator import queue_worker_factory
+backend/app/main.py:415:            await container.job_queue.start(queue_worker_factory)
+backend/app/main.py:416:            logger.info("JobQueue workers started")
+backend/app/main.py:418:            logger.warning(f"Failed to start JobQueue workers: {e}")
+backend/app/main.py:453:                _app_deps.startup_error = (
+backend/app/main.py:505:    _app_deps.startup_complete = True
+backend/app/main.py:509:# === Lifespan (startup/shutdown) ===
+backend/app/main.py:520:    startup()
+backend/app/main.py:524:    app_dependencies.startup_complete = False
+backend/app/main.py:525:    app_dependencies.startup_error = None
+backend/app/main.py:527:    # Validate release manifest readiness
+backend/app/main.py:553:    # The start_railway.py wrapper returns 200 for /api/healthz for 90s
+backend/app/main.py:554:    # so Railway won't kill us during init. The /api/health endpoint returns
+backend/app/main.py:555:    # ready:false until startup_complete=True at the end of this block.
+backend/app/main.py:557:        await asyncio.wait_for(_background_startup_body(container, app), timeout=180)
+backend/app/main.py:560:        app_dependencies.startup_error = "Background init timed out"
+backend/app/main.py:563:        app_dependencies.startup_error = str(e)
+backend/app/main.py:565:    # YIELD NOW — Railway health check can reach /api/health
+backend/app/main.py:569:    logger.info("Shutting down — waiting for in-flight requests (R3 graceful drain)...")
+backend/app/main.py:588:    telemetry_worker.stop()
+backend/app/main.py:600:            logger.info("JobQueue workers stopped")
+backend/app/main.py:659:    # Railway health checker uses *.railway.app hostnames — always allow them
+backend/app/main.py:660:    _allowed.extend(["localhost", "127.0.0.1", ".railway.app", "healthcheck.railway.app"])
+backend/app/main.py:825:    # No Redis configured — fall back to process-local limiters (acceptable for single-worker dev)
+backend/app/main.py:836:        "Auth/Admin rate limiters: process-local (Redis not configured) — not safe for multi-worker deploy"
+backend/app/main.py:943:# In-flight tracker middleware for graceful drain (R3)
+backend/app/main.py:946:    """Increment/decrement global in-flight counter for graceful shutdown drain."""
+backend/app/main.py:1026:app.include_router(health_router, prefix="")
+backend/app/main.py:1033:app.include_router(profile_router, prefix="/api")
+backend/app/main.py:1141:    import uvicorn
+backend/app/main.py:1143:    uvicorn.run(
+backend/services/guru_voice_langhanam.py:16:If you want mental, emotional, spiritual and physical health, practice langhanam.
+backend/app/telemetry/prompt_cache_telemetry.py:20:# NOTE: This accumulator is per-process. For multi-worker deployments,
+backend/app/api/kg.py:58:# (default 10) to bound resource consumption.
+backend/services/kg_algorithms.py:9:auto-downloads the matching GDS jar on startup.
+backend/app/api/cache_metrics.py:3:Exposes hit rates, sizes, and health for all cache tiers:
+backend/app/dependencies.py:21:  - app.health            — ContainerHealthChecker (non-blocking probes)
+backend/app/dependencies.py:41:# Re-exported for legacy callers that touched health/cleanup internals.
+backend/app/dependencies.py:42:from app.health import ContainerHealthChecker
+backend/app/dependencies.py:53:startup_complete: bool = False
+backend/app/dependencies.py:54:startup_error: str | None = None
+backend/app/dependencies.py:77:def startup() -> None:
+backend/app/dependencies.py:78:    """Initialize the service container on application startup."""
+backend/app/dependencies.py:95:    """Cleanup on async application shutdown, awaiting service resources."""
+backend/app/dependencies.py:115:    "startup",
+backend/app/dependencies.py:118:    "startup_complete",
+backend/app/dependencies.py:119:    "startup_error",
+backend/app/api/capabilities.py:41:        ocr_available = bool(ocr_service is not None and ocr_service.health_check())
+backend/app/api/capabilities.py:90:    if not app_dependencies.startup_complete:
+backend/app/services/job_queue.py:30:# races a worker's claim must either win cleanly (job never runs) or lose
+backend/app/services/job_queue.py:42:# Atomic QUEUED -> PROCESSING claim. Only one worker (or a cancel) wins the
+backend/app/services/job_queue.py:74:        self._worker_instance_id = uuid.uuid4().hex
+backend/app/services/job_queue.py:78:        self._workers: list[asyncio.Task] = []
+backend/app/services/job_queue.py:93:    async def start(self, worker_factory: Callable) -> None:
+backend/app/services/job_queue.py:94:        """Start worker pool.
+backend/app/services/job_queue.py:96:        worker_factory is called as worker_factory(request_data, is_stream, job_id)
+backend/app/services/job_queue.py:112:            worker = asyncio.create_task(self._worker_loop(worker_factory, i))
+backend/app/services/job_queue.py:113:            self._workers.append(worker)
+backend/app/services/job_queue.py:115:            f"JobQueue: started {len(self._workers)} workers, "
+backend/app/services/job_queue.py:121:        for w in self._workers:
+backend/app/services/job_queue.py:123:        if self._workers:
+backend/app/services/job_queue.py:124:            await asyncio.gather(*self._workers, return_exceptions=True)
+backend/app/services/job_queue.py:125:        self._workers.clear()
+backend/app/services/job_queue.py:255:    async def _worker_loop(self, worker_factory: Callable, worker_id: int) -> None:
+backend/app/services/job_queue.py:264:                await self._process_job(job_id, worker_factory, worker_id)
+backend/app/services/job_queue.py:268:        """Release only this worker's lease; never delete a newer owner's lock."""
+backend/app/services/job_queue.py:272:    async def _process_job(self, job_id: str, worker_factory: Callable, worker_id: int) -> None:
+backend/app/services/job_queue.py:283:        lease_owner = f"{self._worker_instance_id}:{worker_id}"
+backend/app/services/job_queue.py:291:            logger.debug("JobQueue worker %s skipped leased job %s", worker_id, job_id)
+backend/app/services/job_queue.py:297:            # never resurrected by a competing worker that observed stale metadata.
+backend/app/services/job_queue.py:308:            # a cancel (or a competing worker) already took the job. A failed
+backend/app/services/job_queue.py:320:                    "JobQueue worker %s: %s no longer queued — skipping", worker_id, job_id
+backend/app/services/job_queue.py:324:            result = await worker_factory(request_data, is_stream, job_id)
+backend/app/services/job_queue.py:336:            logger.info(f"JobQueue worker {worker_id}: completed {job_id}")
+backend/app/services/job_queue.py:348:            logger.info("JobQueue worker %s returned %s to queued on shutdown", worker_id, job_id)
+backend/app/services/job_queue.py:351:            logger.error(f"JobQueue worker {worker_id}: {job_id} failed: {e}")
+backend/app/api/admin.py:29:    get_ingestion_health,
+backend/app/api/admin.py:40:    get_retrieval_health,
+backend/app/api/admin.py:49:from celery_config import celery_app
+backend/app/api/admin.py:105:        release_readiness=_source_release_readiness(),
+backend/app/api/admin.py:305:@admin_router.get("/retrieval-health")
+backend/app/api/admin.py:306:async def get_retrieval_health_endpoint(
+backend/app/api/admin.py:311:    """Get retrieval health metrics. Requires admin authentication."""
+backend/app/api/admin.py:312:    return await get_retrieval_health(from_date, to_date)
+backend/app/api/admin.py:728:@admin_router.get("/ingestion-health")
+backend/app/api/admin.py:729:async def get_ingestion_health_endpoint(
+backend/app/api/admin.py:732:    """Get ingestion health status. Requires admin authentication."""
+backend/app/api/admin.py:733:    return await get_ingestion_health()
+backend/app/api/admin.py:972:@admin_router.post("/prompt-store/{name}/rollback/{version}")
+backend/app/api/admin.py:973:async def rollback_prompt(
+backend/app/api/admin.py:981:    result = get_prompt_store().rollback(name, version)
+backend/app/api/admin.py:1073:        default="direct", description="'direct' (run inline) or 'celery' (queue async)"
+backend/app/api/admin.py:1084:    if body.mode == "celery":
+backend/app/api/admin.py:1085:        from tasks.okf_extract_tasks import extract_okf_entries as celery_extract
+backend/app/api/admin.py:1087:        task = celery_extract.delay(
+backend/app/api/admin.py:1093:        return {"status": "queued", "task_id": task.id, "mode": "celery"}
+backend/app/api/admin.py:1336:        # Fail gracefully when telemetry is not configured; return empty so the
+backend/app/api/admin.py:1429:      - ``contextual``: queue the existing contextual re-ingest worker.
+backend/app/api/admin.py:1493:        _current = celery_app.current_task
+backend/app/api/admin.py:1677:    celery-worker so LightRAG can reach Neo4j over Railway's internal network.
+backend/app/api/admin.py:1685:def _source_release_readiness() -> dict[str, Any]:
+backend/app/api/admin.py:1687:    readiness = {
+backend/app/api/admin.py:1696:        return readiness
+backend/app/api/admin.py:1704:        return readiness
+backend/app/api/admin.py:1705:    readiness["available"] = True
+backend/app/api/admin.py:1708:            readiness["active_count"] += 1
+backend/app/api/admin.py:1710:            readiness["pending_count"] += 1
+backend/app/api/admin.py:1712:            readiness["approved_count"] += 1
+backend/app/api/admin.py:1714:            previous = readiness["last_activated_at"]
+backend/app/api/admin.py:1716:                readiness["last_activated_at"] = release.activated_at
+backend/app/api/admin.py:1717:    return readiness
+backend/app/services/llm_queue.py:30:        self._workers: list[asyncio.Task] = []
+backend/app/services/llm_queue.py:67:        for w in self._workers:
+backend/app/services/llm_queue.py:69:        if self._workers:
+backend/app/services/llm_queue.py:70:            await asyncio.gather(*self._workers, return_exceptions=True)
+backend/app/services/llm_queue.py:71:        self._workers.clear()
+backend/app/services/llm_queue.py:205:    async def health_check(self):
+backend/app/services/llm_queue.py:206:        return await self._provider.health_check()
+backend/services/sarvam_failover.py:58:    async def health_check(self) -> bool:
+backend/services/sarvam_failover.py:59:        primary_ok = await self._primary.health_check()
+backend/services/sarvam_failover.py:61:            return await self._krutrim.health_check()
+backend/app/admin_telemetry.py:84:    release_readiness: dict[str, Any] | None = None,
+backend/app/admin_telemetry.py:93:    readiness = release_readiness if isinstance(release_readiness, dict) else {}
+backend/app/admin_telemetry.py:95:        "enabled": bool(readiness.get("enabled", False)),
+backend/app/admin_telemetry.py:96:        "available": bool(readiness.get("available", False)),
+backend/app/admin_telemetry.py:97:        "active_count": int(readiness.get("active_count", 0) or 0),
+backend/app/admin_telemetry.py:98:        "pending_count": int(readiness.get("pending_count", 0) or 0),
+backend/app/admin_telemetry.py:99:        "approved_count": int(readiness.get("approved_count", 0) or 0),
+backend/app/admin_telemetry.py:100:        "last_activated_at": readiness.get("last_activated_at"),
+backend/app/security_utils.py:367:    so multi-worker rate limiting keeps working, but an unkeyed hash lets
+backend/app/security_utils.py:401:    unavailable so the system degrades gracefully rather than open-gating
+backend/services/doctrine_terms.py:295:    """Rows from the ``doctrine_terms`` Supabase table. Empty on any failure (graceful)."""
+k8s/helm/mukthiguru/templates/redis.yaml:28:  replicas: 1
+k8s/helm/mukthiguru/templates/redis.yaml:46:          resources:
+k8s/helm/mukthiguru/templates/redis.yaml:47:            {{- toYaml .Values.redis.resources | nindent 12 }}
+k8s/helm/mukthiguru/templates/redis.yaml:57:        resources:
+k8s/helm/mukthiguru/templates/qdrant.yaml:32:  replicas: 1
+k8s/helm/mukthiguru/templates/qdrant.yaml:52:          resources:
+k8s/helm/mukthiguru/templates/qdrant.yaml:53:            {{- toYaml .Values.qdrant.resources | nindent 12 }}
+k8s/helm/mukthiguru/templates/qdrant.yaml:62:        resources:
+backend/services/memory_service.py:938:                        # raw `claim` content. Falls back gracefully if the column is absent
+backend/services/streaming_hardening.py:5:from LLM providers (Ollama, Krutrim, etc.) and yields a graceful sentinel
+backend/services/streaming_hardening.py:49:      1. The sentinel string is yielded so the client sees a graceful message.
+backend/Dockerfile:78:    CMD curl -f http://localhost:8000/api/health || exit 1
+backend/Dockerfile:84:CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+backend/app/schemas/__init__.py:21:from services.user_profile_service import LanguagePreference, SpiritualLevel
+backend/app/schemas/__init__.py:145:    """Schema for updating user profile."""
+k8s/helm/mukthiguru/templates/frontend.yaml:28:  replicas: 1
+k8s/helm/mukthiguru/templates/frontend.yaml:49:          resources:
+k8s/helm/mukthiguru/templates/frontend.yaml:50:            {{- toYaml .Values.frontend.resources | nindent 12 }}
+k8s/helm/mukthiguru/templates/frontend.yaml:58:          readinessProbe:
+backend/services/memory_outbox.py:24:    def __init__(self, *, supabase_client: Any, worker_id: str | None = None) -> None:
+backend/services/memory_outbox.py:28:        configured_worker_id = os.environ.get("MEMORY_OUTBOX_WORKER_ID")
+backend/services/memory_outbox.py:29:        self._worker_id = worker_id or configured_worker_id or f"api-{uuid.uuid4()}"
+backend/services/memory_outbox.py:119:            {"p_worker_id": self._worker_id, "p_limit": max(1, min(limit, 100))},
+backend/services/memory_outbox.py:130:        query = query.eq("id", outbox_id).eq("locked_by", self._worker_id)
+backend/services/memory_outbox.py:140:        query = query.eq("id", outbox_id).eq("locked_by", self._worker_id)
+backend/config/lmcache_config.yaml:2:# Integrates with local NIM / vLLM workers for zero-loss KV cache reuse and CacheBlend
+backend/config/lmcache_config.yaml:9:# Remote KV storage backend (Shared Redis instance across scale-out workers)
+backend/services/turboquant_cache.py:209:    def health_check(self) -> bool:
+backend/app/release_manifest.py:4:and startup readiness validation. Never includes secrets, credentials, or tokens.
+backend/app/release_manifest.py:51:        """Validate manifest invariants and readiness at startup.
+backend/app/release_manifest.py:178:    Validates readiness on creation.
+backend/app/release_manifest.py:197:    """Startup readiness validation entrypoint.
+backend/services/krutrim_service.py:85:        """Close the HTTP client and release resources."""
+backend/app/observability.py:4:Tracing is optional and must never block application startup. Jaeger receives
+backend/app/observability.py:54:        from opentelemetry.sdk.resources import Resource
+backend/app/observability.py:69:        resource = Resource.create({"service.name": service_name})
+backend/app/observability.py:70:        provider = TracerProvider(resource=resource)
+backend/app/telemetry_sink.py:30:    _invalidation_executor = ThreadPoolExecutor(max_workers=3)
+backend/app/telemetry_sink.py:55:                    health_check_interval=30,
+backend/app/telemetry_sink.py:81:        trace id plus a logical event identity (e.g. 'response'). The worker is
+backend/app/telemetry_sink.py:217:                        "Semantic cache invalidation timed out; awaiting worker cleanup..."
+backend/app/telemetry_sink.py:223:                            "Semantic cache invalidation worker hung after extended timeout"
+backend/app/telemetry_sink.py:343:        # 2. chat_responses — deterministic id so worker replays (at-least-once)
+backend/app/telemetry_sink.py:527:    """Background worker to consume telemetry events from Redis Stream and write to Supabase."""
+backend/app/telemetry_sink.py:538:            logger.info("Telemetry background worker started.")
+backend/app/telemetry_sink.py:544:            logger.info("Telemetry background worker stopped.")
+backend/app/telemetry_sink.py:603:                                health_check_interval=30,
+backend/services/ocr_service.py:306:    def health_check(self) -> bool:
+backend/services/ocr_service.py:307:        """Check if EasyOCR can be imported (don't load the model for health check)."""
+backend/app/constants.py:18:# openrouter_service.py's/nim_service.py's _graceful_degradation() text ("...temporary
+backend/app/constants.py:25:def is_graceful_degradation(text: str) -> bool:
+backend/services/base_llm_service.py:197:    async def health_check(self) -> bool:
+backend/services/base_llm_service.py:198:        """Return True if the service is currently healthy."""
+backend/tests/test_user_profile_cache_bound.py:10:from services.user_profile_service import ConversationMemory, UserProfile, UserProfileService
+k8s/helm/mukthiguru/templates/jaeger.yaml:36:  replicas: 1
+k8s/helm/mukthiguru/templates/jaeger.yaml:58:          resources:
+k8s/helm/mukthiguru/templates/jaeger.yaml:59:            {{- toYaml .Values.jaeger.resources | nindent 12 }}
+backend/app/contracts/errors.py:48:def not_found(resource: str, identifier: str) -> ErrorResponse:
+backend/app/contracts/errors.py:49:    """404 — resource could not be located."""
+backend/app/contracts/errors.py:52:        message=f"{resource} '{identifier}' not found",
+backend/app/contracts/errors.py:53:        details={"resource": resource, "identifier": identifier},
+backend/ingest/ontology_writer.py:376:    """Records Cypher + params, supports commit/rollback."""
+backend/ingest/ontology_writer.py:387:    def rollback(self) -> None:
+backend/ingest/pipeline.py:260:    retry/backoff, runs on the celery-worker service off the request path) and
+backend/ingest/pipeline.py:262:    — e.g. local dev without the worker container running.
+backend/ingest/pipeline.py:408:        # process-level driver per worker process instead of one pool per task.
+backend/ingest/pipeline.py:848:        # RAPTOR + LightRAG (fire-and-forget; rollback on failure)
+backend/ingest/pipeline.py:866:            self._rollback_reindex(url, backup_collection)
+backend/ingest/pipeline.py:1035:        # (PDF/txt uploads) — previously had zero rollback protection against a
+backend/ingest/pipeline.py:1037:        # method but already takes its own outer backup/rollback around it; this
+backend/ingest/pipeline.py:1091:            self._rollback_reindex(source_url, backup_collection)
+backend/ingest/pipeline.py:1110:        # invoke it exactly once, after rollback-prone work has finished.
+backend/ingest/pipeline.py:1389:            self._rollback_reindex(url, backup_collection)
+backend/ingest/pipeline.py:1399:        # Runs after the RAPTOR/LightRAG rollback-prone block but BEFORE the
+backend/ingest/pipeline.py:1695:            self._rollback_reindex(url, backup_collection)
+backend/ingest/pipeline.py:1705:        # Runs after the RAPTOR/LightRAG rollback-prone block but BEFORE the
+backend/ingest/pipeline.py:2036:                    self._rollback_reindex(video["url"], backup_collection)
+backend/ingest/pipeline.py:2069:                            self._rollback_reindex(video["url"], backup_collection)
+backend/ingest/pipeline.py:2442:    # === Iceberg-style stage/commit/rollback for live ingestion ==============
+backend/ingest/pipeline.py:2443:    # Fix: only the offline migrate_data.py script had backup/rollback around
+backend/ingest/pipeline.py:2470:            f"Pre-reindex backup failed for {source_url} — proceeding without rollback safety net"
+backend/ingest/pipeline.py:2474:    def _rollback_reindex(self, source_url: str, backup_collection: Optional[str]) -> None:
+backend/ingest/pipeline.py:2475:        """Iceberg-style rollback after a downstream ingestion step fails.
+backend/app/contracts/translation.py:27:    async def health_check(self) -> bool:
+backend/app/contracts/translation.py:28:        """Return True if the translation service is reachable and healthy."""
+backend/app/contracts/llm.py:107:    async def health_check(self) -> bool:
+backend/app/contracts/llm.py:108:        """Return True if the LLM service is reachable and healthy."""
+k8s/helm/mukthiguru/templates/neo4j.yaml:32:  replicas: 1
+k8s/helm/mukthiguru/templates/neo4j.yaml:57:          resources:
+k8s/helm/mukthiguru/templates/neo4j.yaml:58:            {{- toYaml .Values.neo4j.resources | nindent 12 }}
+k8s/helm/mukthiguru/templates/neo4j.yaml:67:        resources:
+backend/app/contracts/vector_store.py:71:    def health_check(self) -> bool:
+backend/app/contracts/vector_store.py:72:        """Return True if the store is reachable and healthy."""
+backend/tests/test_dspy_integration.py:77:    """DSPy failure falls through gracefully — module returns None on error."""
+backend/ingest/youtube_loader.py:900:        comes from the calling worker (it simply does not release), so no
+backend/ingest/youtube_loader.py:903:        never performs a shrink — a later permit-holding worker will.
+backend/ingest/youtube_loader.py:943:    max_workers: Optional[int] = None,
+backend/ingest/youtube_loader.py:953:        max_workers: Max concurrent requests. Default is settings.ingestion_concurrency (5)
+backend/ingest/youtube_loader.py:961:    limit = getattr(settings, "transcript_concurrent_workers", 1)
+backend/ingest/youtube_loader.py:962:    concurrency = max_workers or getattr(settings, "ingestion_concurrency", 5)
+backend/ingest/video_pipeline.py:4:Ponytail: optional features (diarization, VLM) stubbed with graceful skip if deps missing.
+k8s/helm/mukthiguru/templates/backend.yaml:28:  replicas: {{ .Values.replicaCount }}
+k8s/helm/mukthiguru/templates/backend.yaml:68:          resources:
+k8s/helm/mukthiguru/templates/backend.yaml:69:            {{- toYaml .Values.backend.resources | nindent 12 }}
+k8s/helm/mukthiguru/templates/backend.yaml:70:          startupProbe:
+k8s/helm/mukthiguru/templates/backend.yaml:71:            {{- toYaml .Values.backend.probes.startup | nindent 12 }}
+k8s/helm/mukthiguru/templates/backend.yaml:74:          readinessProbe:
+k8s/helm/mukthiguru/templates/backend.yaml:75:            {{- toYaml .Values.backend.probes.readiness | nindent 12 }}
+backend/ingest/contextual_reingest.py:14:- Runtime Ollama health/model check prevents silent stalls.
+backend/ingest/contextual_reingest.py:171:        skip_health_check: bool = False,
+backend/ingest/contextual_reingest.py:183:        if not skip_health_check and not self._api_key:
+backend/ingest/contextual_reingest.py:276:        skip_health_check: bool = False,
+backend/ingest/contextual_reingest.py:289:        if not skip_health_check:
+backend/ingest/contextual_reingest.py:415:        skip_health_check: bool = False,
+backend/ingest/contextual_reingest.py:422:        # Force lazy initialization of the contextualizer (and health check)
+backend/ingest/contextual_reingest.py:424:        self._contextualizer_service(skip_health_check=skip_health_check)
+backend/ingest/contextual_reingest.py:460:        self._contextualizer_service(skip_health_check=False)
+backend/ingest/contextual_reingest.py:561:    def _contextualizer_service(self, skip_health_check: bool = False):
+backend/ingest/contextual_reingest.py:576:                    skip_health_check=skip_health_check
+backend/ingest/contextual_reingest.py:580:                    skip_health_check=skip_health_check
+backend/ingest/contextual_reingest.py:1437:    preview = await engine.dry_run(limit=1, skip_health_check=True)
+backend/app/qdrant_version_check.py:4:Qdrant server >= 1.8. This is a non-fatal warning, not a hard startup abort —
+backend/app/qdrant_version_check.py:5:matching the degrade-gracefully pattern used by every other lifespan check in
+backend/app/qdrant_version_check.py:55:        # Never let a version-check hiccup take down startup — this is advisory only.
+backend/services/ontology_validator.py:38:# is unavailable on a stripped-down host (ponytail: degrade gracefully).
+backend/app/metrics.py:4:Tracks key metrics for monitoring the health and performance of:
+backend/app/metrics.py:55:    "health_check_total",
+backend/app/metrics.py:56:    "Total /api/health readiness probe results (SLO: ready > 99.5%)",
+backend/app/metrics.py:94:# is invisible — INFO logs get lost and health only reports the active provider.
+backend/app/metrics.py:103:# read) from a healthy cache, so _LRU_MAX_SIZE can never be tuned on evidence.
+backend/app/metrics.py:312:    "guru_dependency_health",
+backend/app/metrics.py:313:    "Dependency health status (0=unhealthy, 1=healthy)",
+backend/tests/test_p1_sec11_service_role_http_superuser.py:52:        "path": "/api/health",
+backend/ingest/book_ingest.py:3:Runs inside the deployed celery-worker (internal-network access to Neo4j/Qdrant),
+backend/ingest/book_ingest.py:8:worker) and evolve independently -- see book_ingest_task in tasks/ingest_tasks.py
+backend/tests/test_cleanup_inactive.py:1:"""P1-DB-2 — cleanup_stale_qdrant_memories uses profiles.last_active_at AND stale points."""
+backend/tests/test_p1_sec10_local_issuer_prod_gate.py:55:        "path": "/api/health",
+backend/services/llm/nim_provider.py:81:    async def health_check(self) -> bool:
+backend/services/llm/nim_provider.py:82:        return await self._service.health_check()
+backend/services/llm/base.py:145:    async def health_check(self) -> bool:
+backend/services/llm/base.py:146:        """Return True if the LLM service is reachable and healthy."""
+backend/app/pipeline/stages/cache_stage.py:17:from app.constants import is_graceful_degradation
+backend/app/pipeline/stages/cache_stage.py:414:            or is_graceful_degradation(final_answer)
+backend/app/pipeline/stages/cache_stage.py:487:                            # a blocking call here freezes the single worker
+backend/app/pipeline/stages/cache_stage.py:490:                            # long enough to fail Railway's health check and
+backend/services/llm/sarvam_provider.py:82:    async def health_check(self) -> bool:
+backend/services/llm/sarvam_provider.py:83:        return await self._service.health_check()
+backend/services/llm/openrouter_provider.py:81:    async def health_check(self) -> bool:
+backend/services/llm/openrouter_provider.py:82:        return await self._service.health_check()
+backend/app/pipeline/stages/memory_stage.py:18:from services.user_profile_service import _is_persistable_user_id
+backend/app/pipeline/stages/memory_stage.py:36:    max_workers=_DISPATCH_MAX_SLOTS, thread_name_prefix="memory-outbox-dispatch"
+backend/app/pipeline/stages/memory_stage.py:61:    """Persist conversation memory (user_profile + memory_service). Never short-circuits."""
+backend/app/pipeline/stages/memory_stage.py:142:            logger.warning("Memory outbox dispatch deferred to scheduled worker: %s", exc)
+backend/services/llm/ollama_provider.py:80:    async def health_check(self) -> bool:
+backend/services/llm/ollama_provider.py:81:        return await self._service.health_check()
+backend/tests/test_multilingual_guardrails.py:52:    container.user_profile = None
+backend/services/user_profile_service.py:100:    Manages user profiles and persistent conversation memory.
+backend/services/user_profile_service.py:120:    async def get_or_create_profile(self, user_id: str) -> UserProfile:
+backend/services/user_profile_service.py:121:        """Get existing profile or create default."""
+backend/services/user_profile_service.py:125:                    self._supabase.table("user_profiles").select("*").eq("user_id", user_id).execute
+backend/services/user_profile_service.py:136:                logger.warning(f"Supabase profile fetch failed for {user_id}: {e}")
+backend/services/user_profile_service.py:143:        profile = UserProfile(
+backend/services/user_profile_service.py:148:        self._local_cache[user_id] = profile
+backend/services/user_profile_service.py:149:        return profile
+backend/services/user_profile_service.py:151:    async def update_profile(self, profile: UserProfile) -> None:
+backend/services/user_profile_service.py:152:        """Update user profile in database."""
+backend/services/user_profile_service.py:153:        profile.updated_at = time.time()
+backend/services/user_profile_service.py:156:        # users table, so upserting user_profiles logs a FK violation warning
+backend/services/user_profile_service.py:160:            profile.user_id == _TEST_BACKDOOR_USER_ID
+backend/services/user_profile_service.py:164:            self._local_cache[profile.user_id] = profile
+backend/services/user_profile_service.py:166:        if self._supabase and _is_persistable_user_id(profile.user_id):
+backend/services/user_profile_service.py:168:                data = asdict(profile)
+backend/services/user_profile_service.py:170:                data["preferred_language"] = profile.preferred_language.value
+backend/services/user_profile_service.py:171:                data["spiritual_level"] = profile.spiritual_level.value
+backend/services/user_profile_service.py:172:                await asyncio.to_thread(self._supabase.table("user_profiles").upsert(data).execute)
+backend/services/user_profile_service.py:174:                logger.warning(f"Supabase profile update failed for {profile.user_id}: {e}")
+backend/services/user_profile_service.py:175:        self._local_cache[profile.user_id] = profile
+backend/services/user_profile_service.py:264:        # Update profile
+backend/services/user_profile_service.py:265:        profile = await self.get_or_create_profile(user_id)
+backend/services/user_profile_service.py:266:        if detected != profile.preferred_language:
+backend/services/user_profile_service.py:267:            profile.preferred_language = detected
+backend/services/user_profile_service.py:269:                profile.codemix_preference = True
+backend/services/user_profile_service.py:270:            await self.update_profile(profile)
+backend/tests/test_notebook_service.py:118:def test_no_client_degrades_gracefully() -> None:
+backend/services/prompt_store.py:5:Provides rollback capability and A/B testing integration.
+backend/services/prompt_store.py:25:    store.rollback("GENERATION_PROMPT", version="1.0.0")
+backend/services/prompt_store.py:273:    def rollback(self, name: str, version: str) -> Optional[PromptVersion]:
+backend/services/prompt_store.py:287:                logger.warning(f"PromptStore: rollback failed — '{name}' v{version} not found")
+backend/services/prompt_store.py:298:            logger.error(f"PromptStore: rollback failed: {e}")
+backend/services/qdrant_service.py:117:    def health_check(self) -> bool:
+backend/services/qdrant_service.py:119:        return self._client_manager.health_check()
+backend/services/qdrant_service.py:192:        """Restore a source's points from a backup collection (Iceberg-style rollback)."""
+backend/tests/test_memory_outbox.py:70:    outbox = MemoryOutbox(supabase_client=client, worker_id="worker-1")
+backend/tests/test_memory_outbox.py:86:    outbox = MemoryOutbox(supabase_client=Client([]), worker_id="worker-1")
+backend/tests/test_memory_outbox.py:108:async def test_claim_and_terminal_statuses_are_worker_bound():
+backend/tests/test_memory_outbox.py:110:    outbox = MemoryOutbox(supabase_client=client, worker_id="worker-1")
+backend/tests/test_memory_outbox.py:118:        ("claim_memory_outbox", {"p_worker_id": "worker-1", "p_limit": 100})
+backend/tests/test_embedding_service.py:12:def test_embedding_service_ragatouille_optional_graceful_fallback(monkeypatch):
+backend/tests/test_embedding_service.py:13:    """Verify that if ragatouille is not installed, it falls back gracefully with an info log instead of crashing."""
+backend/services/openrouter_service.py:27:    latency before the inevitable graceful-degradation fallback. Other
+backend/services/openrouter_service.py:141:        """Close the HTTP client and release resources."""
+backend/services/openrouter_service.py:172:    async def _graceful_degradation(self, messages: list[dict], operation: str = "fallback") -> str:
+backend/services/openrouter_service.py:173:        """Return a graceful fallback response when OpenRouter is unavailable.
+backend/services/openrouter_service.py:177:        logger.warning(f"Using graceful degradation for {operation}")
+backend/services/openrouter_service.py:295:        falling back to graceful degradation). Falls back to graceful
+backend/services/openrouter_service.py:312:                f"OpenRouter circuit breaker open — graceful degradation for {operation}"
+backend/services/openrouter_service.py:314:            return await self._graceful_degradation(messages, operation=operation)
+backend/services/openrouter_service.py:451:                    # we still degrade gracefully — matches ollama_service.py's pattern
+backend/services/openrouter_service.py:453:                    # failures actually trips the circuit instead of looking healthy forever.
+backend/services/openrouter_service.py:470:                logger.warning(f"OpenRouter {reason} during {operation} — graceful degradation")
+backend/services/openrouter_service.py:471:                return await self._graceful_degradation(messages, operation=operation)
+backend/services/openrouter_service.py:548:        """Raw generation without graceful degradation — exceptions propagate.
+backend/services/openrouter_service.py:1067:    async def health_check(self) -> bool:
+backend/services/layered_memory/l3_persona_generator.py:1:"""L3 persona generation — Tencent-style layer-3 user profile."""
+backend/services/layered_memory/l3_persona_generator.py:14:_SYSTEM_PROMPT = """You are a spiritual profile architect. Given a user's atomic memories, generate a concise user persona in Markdown.
+backend/tests/test_lettuce_detect_real.py:7:   (monkeypatches ``settings.lettucedetect_enabled`` True). Skips gracefully
+backend/services/whisperx_pipeline.py:4:Modeled on external_repos/zabt-ai/zabt-gpu-worker/src/pipeline.py but adapted
+backend/tests/test_worker_queue_config.py:5:from start_railway import _parse_celery_concurrency, _parse_celery_queues
+backend/tests/test_worker_queue_config.py:8:def test_default_worker_queue_profile_is_stable() -> None:
+backend/tests/test_worker_queue_config.py:9:    assert _parse_celery_queues("ingestion,embedding,indexing,okf,memory") == [
+backend/tests/test_worker_queue_config.py:16:    assert _parse_celery_concurrency("2") == 2
+backend/tests/test_worker_queue_config.py:19:def test_worker_queue_profile_rejects_unknown_queue() -> None:
+backend/tests/test_worker_queue_config.py:21:        _parse_celery_queues("ingestion,private_user_queue")
+backend/tests/test_worker_queue_config.py:24:def test_worker_concurrency_is_bounded() -> None:
+backend/tests/test_worker_queue_config.py:25:    assert _parse_celery_concurrency("1") == 1
+backend/tests/test_worker_queue_config.py:26:    assert _parse_celery_concurrency("32") == 32
+backend/tests/test_worker_queue_config.py:28:        _parse_celery_concurrency("0")
+backend/tests/test_worker_queue_config.py:30:        _parse_celery_concurrency("33")
+backend/tests/test_worker_queue_config.py:32:        _parse_celery_concurrency("not-a-number")
+backend/services/serene_mind_engine.py:223:# Crisis resources by region
+backend/services/serene_mind_engine.py:245:def get_crisis_resource(region_key: str = "global") -> str:
+backend/services/serene_mind_engine.py:268:    """Dict-like read-only accessor backed by `get_crisis_resource()`."""
+backend/services/serene_mind_engine.py:271:        return get_crisis_resource(key)
+backend/services/serene_mind_engine.py:275:            return get_crisis_resource(key)
+backend/services/serene_mind_engine.py:404:          and distress prediction benchmarks (e.g., llm-mental-health-risk-detection /
+backend/services/serene_mind_engine.py:405:          sonia-health).
+backend/services/serene_mind_engine.py:719:        self, user_id: str, current_assessment: DistressAssessment, user_profile_service
+backend/services/serene_mind_engine.py:729:        recent_memories = await user_profile_service.get_recent_memories(user_id, limit=5)
+backend/services/serene_mind_engine.py:798:        # Based on the clinician-validated sonia-health/llm-mental-health-risk-detection
+backend/services/serene_mind_engine.py:799:        # benchmark (https://github.com/sonia-health/llm-mental-health-risk-detection):
+backend/services/serene_mind_engine.py:806:        #   CRISIS    → CRISIS (4):  Active self-harm language. Escalate to crisis resources.
+backend/services/serene_mind_engine.py:845:        Returns a compassionate, graduated response with crisis resources if needed.
+backend/services/serene_mind_engine.py:855:        # For SEVERE and CRISIS, append crisis resources
+backend/services/auth_service.py:756:    resource by an id previously written to job_meta["user_id"] (job
+backend/services/auth_service.py:764:            detail="A session id is required for anonymous access to this resource.",
+backend/tests/test_backpressure.py:7:release restores, `_value`/`locked()` observability). Plus the /api/health
+backend/tests/test_backpressure.py:90:def test_health_exposes_admission_contention():
+backend/tests/test_backpressure.py:104:def test_health_defaults_when_semaphore_uninitialized():
+backend/tests/test_backpressure.py:105:    """Before any chat request, health reports zero contention."""
+backend/services/sarvam_service.py:163:        """Close the HTTP client and release resources."""
+backend/services/sarvam_service.py:1200:    async def health_check(self) -> bool:
+backend/services/lightrag_service.py:435:                f"❌ Neo4j unreachable: {e}. GraphRAG requires Neo4j connectivity. Halting startup."
+backend/app/api/chat.py:51:# occupying every worker even when the per-client limiter is bypassed.
+backend/app/api/chat.py:179:# P1-OPS-8: upstream backpressure for chat. A single replica can be
+backend/app/api/chat.py:228:    """Current chat admission-control state, surfaced in /api/health."""
+backend/app/api/chat.py:472:            # Lets the queued worker release the reservation when the job
+backend/app/api/chat.py:677:            # Lets the queued worker release the reservation when the job
+backend/app/api/chat.py:726:    Reads events from Redis Stream (populated by worker) and streams them as SSE.
+backend/tests/test_memory_episodic.py:135:def test_no_client_degrades_gracefully() -> None:
+backend/tests/test_qdrant_dimension_validation.py:5:search 400'd while the app looked healthy. This guards the fail-loud check
+backend/tests/test_qdrant_dimension_validation.py:6:added at startup to catch that class of drift immediately.
+backend/services/health_monitor.py:4:Tracks health of external dependencies (Qdrant, Redis, Supabase, OpenRouter, Sarvam)
+backend/services/health_monitor.py:13:  - φ > 3 (threshold) → 0.1% false positive probability → mark unhealthy
+backend/services/health_monitor.py:18:  - OPEN (φ ≥ 3): Unhealthy, traffic blocked with backoff
+backend/services/health_monitor.py:23:    if monitor.is_healthy("qdrant"):
+backend/services/health_monitor.py:61:        self._healthy: bool = True
+backend/services/health_monitor.py:97:            self._healthy = True
+backend/services/health_monitor.py:114:        self._healthy = self._phi < self.threshold
+backend/services/health_monitor.py:123:            DEPENDENCY_HEALTH.labels(name=self.name).set(1.0 if self._healthy else 0.0)
+backend/services/health_monitor.py:125:            logger.debug("[health monitor] suppressed non-critical error: %s", _e)
+backend/services/health_monitor.py:128:    def is_healthy(self) -> bool:
+backend/services/health_monitor.py:131:        return self._healthy
+backend/services/health_monitor.py:151:    """Singleton health matrix tracking all external dependencies."""
+backend/services/health_monitor.py:181:    def is_healthy(self, name: str) -> bool:
+backend/services/health_monitor.py:185:        return detector.is_healthy
+backend/services/health_monitor.py:206:    def health_summary(self) -> dict:
+backend/services/health_monitor.py:209:                "healthy": det.is_healthy,
+backend/services/config_watcher.py:176:        """Stop the background watcher gracefully."""
+backend/app/api/profile.py:1:"""User spiritual profile routes."""
+backend/app/api/profile.py:12:from services.user_profile_service import LanguagePreference, SpiritualLevel
+backend/app/api/profile.py:17:@router.get("/profile")
+backend/app/api/profile.py:18:async def get_profile_endpoint(
+backend/app/api/profile.py:22:    """Fetch the authenticated user's spiritual profile."""
+backend/app/api/profile.py:23:    if not container.user_profile:
+backend/app/api/profile.py:28:    profile = await container.user_profile.get_or_create_profile(user["id"])
+backend/app/api/profile.py:29:    return asdict(profile)
+backend/app/api/profile.py:32:@router.put("/profile")
+backend/app/api/profile.py:33:async def update_profile_endpoint(
+backend/app/api/profile.py:34:    profile_data: ProfileUpdate,
+backend/app/api/profile.py:39:    if not container.user_profile:
+backend/app/api/profile.py:44:    profile = await container.user_profile.get_or_create_profile(user["id"])
+backend/app/api/profile.py:46:    if profile_data.preferred_language is not None:
+backend/app/api/profile.py:47:        profile.preferred_language = LanguagePreference(profile_data.preferred_language)
+backend/app/api/profile.py:48:    if profile_data.spiritual_level is not None:
+backend/app/api/profile.py:49:        profile.spiritual_level = SpiritualLevel(profile_data.spiritual_level)
+backend/app/api/profile.py:50:    if profile_data.topics_of_interest is not None:
+backend/app/api/profile.py:51:        profile.topics_of_interest = profile_data.topics_of_interest
+backend/app/api/profile.py:52:    if profile_data.codemix_preference is not None:
+backend/app/api/profile.py:53:        profile.codemix_preference = profile_data.codemix_preference
+backend/app/api/profile.py:55:    await container.user_profile.update_profile(profile)
+backend/app/api/profile.py:56:    return asdict(profile)
+backend/run_pilot.py:5:import resource
+backend/run_pilot.py:60:res["peak_rss_gb"] = round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / (1024 * 1024), 2)
+backend/tests/test_supabase_connection.py:5:All tests skip gracefully when SUPABASE_URL / SUPABASE_KEY are not set
+backend/tests/test_supabase_connection.py:39:def test_supabase_rpc_health(supabase_client):
+backend/services/embedding_service.py:19:    Docker single-node → 1 worker; Railway/K8s multi-CPU → 2 workers.
+backend/services/embedding_service.py:129:        """Eagerly load all models at startup to avoid latency spikes on first request."""
+backend/services/embedding_service.py:386:            # Qdrant's collection is created once at container startup with this
+backend/services/embedding_service.py:763:                    # The sleep runs in a worker thread, NOT the event loop.
+backend/services/embedding_service.py:959:                    # The sleep runs in a worker thread, NOT the event loop.
+backend/services/embedding_service.py:1081:                    # The sleep runs in a worker thread, NOT the event loop.
+backend/app/api/health.py:1:"""Aggregate health, readiness, circuit-breaker, and metrics endpoints."""
+backend/app/api/health.py:74:async def _health_check(name: str, coro) -> dict:
+backend/app/api/health.py:81:        return {"name": name, "ok": False, "error": "unhealthy"}
+backend/app/api/health.py:84:@router.get("/api/healthz")
+backend/app/api/health.py:85:async def healthz() -> JSONResponse:
+backend/app/api/health.py:87:    alive/dead check, not deep service dependency checks (which live in /api/health).
+backend/app/api/health.py:95:@router.get("/api/health")
+backend/app/api/health.py:96:async def health_endpoint(container: ServiceContainer = Depends(get_container)) -> JSONResponse:
+backend/app/api/health.py:97:    """Comprehensive service health with go/no-go status for each service.
+backend/app/api/health.py:100:    Useful for debugging startup hangs and production monitoring.
+backend/app/api/health.py:102:    if not _app_deps.startup_complete:
+backend/app/api/health.py:109:                "startup_error": _app_deps.startup_error,
+backend/app/api/health.py:139:    await check("qdrant", loop.run_in_executor(None, container.qdrant.health_check), critical=True)
+backend/app/api/health.py:144:    await check("llm", container.ollama.health_check(), critical=True)
+backend/app/api/health.py:180:    # Curated knowledge inputs are a critical readiness dependency. Keep the
+backend/app/api/health.py:181:    # complete artifact report in deep health while using its required-only
+backend/app/api/health.py:185:        "ok": bool(artifact_report.get("readiness_ok", False)),
+backend/app/api/health.py:226:            logger.debug("Exact-cache telemetry unavailable during health check: %s", exc)
+backend/app/api/health.py:272:    # P1-OPS-8: chat admission-control contention (per-replica semaphore)
+backend/app/api/health.py:296:    await check("ocr", loop.run_in_executor(None, container.ocr.health_check), critical=False)
+backend/app/api/health.py:307:            "status": "healthy" if all_ok else ("degraded" if critical_ok else "unhealthy"),
+backend/app/api/health.py:337:@router.get("/api/health/services")
+backend/app/api/health.py:338:async def services_health_endpoint(
+backend/app/api/health.py:341:    """Alias for /api/health — comprehensive service health with go/no-go per service."""
+backend/app/api/health.py:342:    return await health_endpoint(container)
+backend/app/api/health.py:345:@router.get("/api/health/mfa")
+backend/app/api/health.py:346:async def health_mfa(user: dict = Depends(require_aal2)) -> dict:
+backend/app/api/health.py:350:    Useful for verifying require_aal2 wiring and for release readiness checks.
+backend/app/api/health.py:356:async def readiness_endpoint(container: ServiceContainer = Depends(get_container)) -> JSONResponse:
+backend/app/api/health.py:358:    Kubernetes readiness probe endpoint.
+backend/app/api/health.py:360:    Unlike /api/health (liveness), this checks that critical services
+backend/app/api/health.py:364:    health = await container.health_status()
+backend/app/api/health.py:375:    critical_ok = health.get("qdrant", False) and health.get("ollama", False) and circuit_breaker_ok
+backend/app/api/health.py:382:                "qdrant": health.get("qdrant", False),
+backend/app/api/health.py:383:                "llm": health.get("ollama", False),
+backend/app/api/health.py:386:                if (health.get("qdrant", False) and health.get("ollama", False))
+backend/domain/upper_ontology_mapping.py:10:degrades gracefully when `pyshacl` isn't installed, matching this repo's
+backend/app/core/limiter.py:15:        "/api/health",
+backend/app/core/limiter.py:16:        "/api/healthz",
+backend/app/core/limiter.py:19:        "/health",
+backend/app/core/limiter.py:25:    """Custom key function that exempts benchmark + health-check requests from rate limiting.
+backend/app/core/limiter.py:34:    Health/readiness probes are exempt unconditionally — Railway health checks
+backend/app/core/limiter.py:35:    must never 429 or the deployment is marked unhealthy (cascading failure).
+backend/app/core/limiter.py:38:    IP that uvicorn's ``--proxy-headers`` populates from X-Forwarded-For (see
+backend/app/core/limiter.py:43:        return f"health_exempt_{uuid.uuid4().hex}"
+backend/tests/test_corpus_release_registry.py:169:def test_unavailable_registry_falls_back_gracefully():
+backend/tests/test_corpus_release_registry.py:259:    restored = reg.reactivate_release(first.id, approved_by="rollback-reviewer")
+backend/tests/test_corpus_release_registry.py:263:    assert restored.approved_by == "rollback-reviewer"
+backend/app/core/threading_config.py:16:    overwritten. Should be called once at process startup before importing
+backend/app/api/memory.py:20:from services.user_profile_service import SpiritualLevel
+backend/app/api/memory.py:142:    profile: CoreMemoryProfile
+backend/app/api/memory.py:215:    """Retrieve core profile preferences aggregated with core facts."""
+backend/app/api/memory.py:216:    if not container.user_profile:
+backend/app/api/memory.py:221:    profile = await container.user_profile.get_or_create_profile(user["id"])
+backend/app/api/memory.py:229:    practice_level = practice_level_map.get(profile.spiritual_level, "beginner")
+backend/app/api/memory.py:230:    language = profile.preferred_language.value if profile.preferred_language else "en"
+backend/app/api/memory.py:232:    core_profile = CoreMemoryProfile(
+backend/app/api/memory.py:236:        dominant_themes=profile.topics_of_interest or [],
+backend/app/api/memory.py:240:        updated_at_dt = _dt.datetime.fromtimestamp(profile.updated_at, _dt.UTC)
+backend/app/api/memory.py:246:        profile=core_profile,
+backend/app/api/memory.py:565:    if not container.user_profile:
+backend/app/api/memory.py:569:    rows = await container.user_profile.get_recent_memories(user["id"], limit=limit)
+backend/services/nim_service.py:146:    async def _graceful_degradation(self, messages: list[dict], operation: str = "fallback") -> str:
+backend/services/nim_service.py:163:        logger.warning(f"Using graceful degradation for {operation}")
+backend/services/nim_service.py:202:        """Try OpenRouter when NIM and Sarvam are unavailable. Returns graceful degradation if no fallback."""
+backend/services/nim_service.py:204:            return await self._graceful_degradation(messages, operation=operation)
+backend/services/nim_service.py:223:        return await self._graceful_degradation(messages, operation=operation)
+backend/services/nim_service.py:228:        """Try Sarvam when NIM is unavailable. Returns graceful degradation if no fallback."""
+backend/services/nim_service.py:230:            return await self._graceful_degradation(messages, operation=operation)
+backend/services/nim_service.py:261:            logger.warning(f"NIM circuit breaker open — graceful degradation for {operation}")
+backend/services/nim_service.py:262:            return await self._graceful_degradation(messages, operation=operation)
+backend/services/nim_service.py:748:    async def health_check(self) -> bool:
+backend/services/nim_service.py:754:            logger.warning(f"NIM health check failed: {exc}")
+backend/tests/test_async_lifecycle_close.py:27:        user_profile=None,
+backend/services/reranker_service.py:43:        """Eagerly load the reranker model at startup to avoid latency spikes."""
+backend/tests/test_health.py:15:def test_health_check(monkeypatch):
+backend/tests/test_health.py:16:    """Verify the health endpoint returns a valid healthy response with mocked container."""
+backend/tests/test_health.py:17:    monkeypatch.setattr(_app_deps, "startup_complete", True)
+backend/tests/test_health.py:18:    monkeypatch.setattr("app.api.health._check_redis", lambda c: _async_true())
+backend/tests/test_health.py:19:    monkeypatch.setattr("app.api.health._check_neo4j", lambda c: _async_true())
+backend/tests/test_health.py:21:        "app.api.health.inspect_runtime_artifacts",
+backend/tests/test_health.py:23:            "readiness_ok": True,
+backend/tests/test_health.py:31:    mock_container.qdrant.health_check.return_value = True
+backend/tests/test_health.py:32:    mock_container.ollama.health_check = _async_true
+backend/tests/test_health.py:33:    mock_container.ocr.health_check.return_value = True
+backend/tests/test_health.py:34:    # S7: the health probe now encodes a token and checks the vector width, so
+backend/tests/test_health.py:62:        response = client.get("/api/health")
+backend/tests/test_health.py:65:        assert data["status"] == "healthy"
+backend/app/core/refiner.py:20:    Background worker that mines a failed session using the local Ollama LLM
+backend/app/api/job_routes.py:65:    # A cancelled chat job never reaches the worker, so its anonymous-quota
+backend/services/memory_service_v2.py:493:        startup (ServiceContainer._build_profiles) so global memory actually works.
+backend/services/memory_service_v2.py:883:    # off the request path on repeat profile visits (Supermemory-style hot graph).
+backend/infrastructure/k8s.yaml:12:  replicas: 2
+backend/infrastructure/k8s.yaml:43:        resources:
+backend/infrastructure/k8s.yaml:52:            path: /health
+backend/infrastructure/k8s.yaml:56:        readinessProbe:
+backend/infrastructure/k8s.yaml:58:            path: /health
+backend/infrastructure/k8s.yaml:69:  replicas: 1
+backend/infrastructure/k8s.yaml:98:        resources:
+backend/infrastructure/k8s.yaml:115:  replicas: 3
+backend/infrastructure/k8s.yaml:132:        resources:
+backend/infrastructure/k8s.yaml:144:      resources:
+backend/infrastructure/k8s.yaml:155:  replicas: 3
+backend/infrastructure/k8s.yaml:179:        resources:
+backend/infrastructure/k8s.yaml:191:      resources:
+backend/infrastructure/k8s.yaml:201:  replicas: 1
+backend/infrastructure/k8s.yaml:227:        resources:
+backend/infrastructure/k8s.yaml:239:      resources:
+backend/infrastructure/k8s.yaml:246:  name: celery-worker
+backend/infrastructure/k8s.yaml:249:  replicas: 2
+backend/infrastructure/k8s.yaml:252:      app: celery-worker
+backend/infrastructure/k8s.yaml:256:        app: celery-worker
+backend/infrastructure/k8s.yaml:259:      - name: celery-worker
+backend/infrastructure/k8s.yaml:261:        command: ["celery", "-A", "celery_config", "worker", "--loglevel=info", "--concurrency=4"]
+backend/infrastructure/k8s.yaml:277:        resources:
+backend/infrastructure/k8s.yaml:291:  replicas: 2
+backend/infrastructure/k8s.yaml:305:        resources:
+backend/tests/test_edge_cases.py:5:multi-tenant isolation) and verifies graceful degradation.
+backend/tests/test_edge_cases.py:89:    mock_container.ollama.health_check.return_value = True
+backend/tests/test_edge_cases.py:110:    mock_container.qdrant.health_check = lambda: True
+backend/tests/test_edge_cases.py:113:    mock_container.ocr.health_check = lambda: True
+backend/tests/test_edge_cases.py:127:    mock_container.profile_service = AsyncMock()
+backend/tests/test_edge_cases.py:128:    mock_container.profile_service.get_profile.return_value = {}
+backend/tests/test_edge_cases.py:129:    mock_container.user_profile = None
+backend/tests/test_edge_cases.py:151:    mock_container.embedding.health_check.return_value = True
+backend/tests/test_edge_cases.py:156:    mock_container.health_status = AsyncMock()
+backend/tests/test_edge_cases.py:157:    mock_container.health_status.return_value = {
+backend/tests/test_edge_cases.py:255:    # Server must still be healthy after the failure
+backend/tests/test_edge_cases.py:256:    health = client.get("/health")
+backend/tests/test_edge_cases.py:257:    assert health.status_code in (200, 404)
+backend/tests/test_edge_cases.py:264:    """When Qdrant returns empty results, the pipeline should still produce a graceful answer."""
+backend/tests/test_edge_cases.py:296:    """When Redis raises ConnectionError, pipeline should degrade gracefully without crash."""
+backend/tests/test_edge_cases.py:316:    health = client.get("/health")
+backend/tests/test_edge_cases.py:317:    assert health.status_code in (200, 404)
+backend/tests/test_edge_cases.py:324:    """An expired JWT on /api/chat gracefully degrades to anonymous chat (200).
+backend/tests/test_edge_cases.py:329:    exactly the "graceful degradation" this test module is named for.
+backend/tests/test_edge_cases.py:351:            f"Expected graceful anonymous fallback, got {response.status_code}"
+backend/tests/test_edge_cases.py:366:    """A message >10KB should be rejected or gracefully truncated."""
+backend/tests/test_edge_cases.py:399:        # Should be handled gracefully — no 500, no crash
+backend/tests/test_edge_cases.py:412:    """When the graph hangs, the pipeline should timeout and return a graceful response."""
+backend/tests/test_edge_cases.py:425:        # Should return graceful response, not crash
+backend/tests/test_edge_cases.py:436:    """Simulate a client disconnect mid-stream — server should handle gracefully (no crash).
+backend/tests/test_edge_cases.py:458:    health_resp = client.get("/health")
+backend/tests/test_edge_cases.py:459:    assert health_resp.status_code in (200, 404), "Server became unavailable after partial stream"
+backend/tests/test_edge_cases.py:489:async def test_neo4j_unavailable_graceful_degradation():
+backend/tests/test_edge_cases.py:546:    Uses separate mocked containers with distinct user profiles.
+backend/tests/test_edge_cases.py:551:    # Give each tenant a distinct profile
+backend/tests/test_edge_cases.py:552:    mock_container_a.profile_service.get_profile.return_value = {"display_name": "Tenant A"}
+backend/tests/test_edge_cases.py:553:    mock_container_b.profile_service.get_profile.return_value = {"display_name": "Tenant B"}
+backend/tests/test_edge_cases.py:578:async def test_qdrant_timeout_graceful_degradation():
+backend/tests/test_edge_cases.py:580:    the pipeline should degrade gracefully rather than hang or crash."""
+backend/tests/test_edge_cases.py:606:    health = client.get("/health")
+backend/tests/test_edge_cases.py:607:    assert health.status_code in (200, 404)
+backend/tests/test_edge_cases.py:643:    health = client.get("/health")
+backend/tests/test_edge_cases.py:644:    assert health.status_code in (200, 404)
+backend/tests/test_edge_cases.py:690:    token-bucket limiter denies every provider), the request should degrade gracefully
+backend/tests/test_edge_cases.py:691:    rather than hang. This test verifies the same graceful-degradation contract as other
+backend/tests/test_edge_cases.py:715:    health = client.get("/health")
+backend/tests/test_edge_cases.py:716:    assert health.status_code in (200, 404)
+backend/tests/test_edge_cases.py:747:        # degraded outcome, but the process itself must stay alive (checked via /health below).
+backend/tests/test_edge_cases.py:752:    health = client.get("/health")
+backend/tests/test_edge_cases.py:753:    assert health.status_code in (200, 404)
+backend/app/config.py:11:  - Concurrent playlist ingestion workers
+backend/app/config.py:91:    # (uvicorn forwarded_allow_ips). Required by start_railway.py: startup fails
+backend/app/config.py:93:    # "10.0.0.0/8" on Railway. Local dev runs uvicorn directly and is unaffected.
+backend/app/config.py:216:    # Redis-backed cross-replica reservation guard. Enable only after Redis health and budget drill pass.
+backend/app/config.py:300:    # Distinct service-role key for worker/admin paths (no RLS). Falls back
+backend/app/config.py:416:    transcript_concurrent_workers: int = 1  # Kept at 1 to avoid YouTube 429 rate limits
+backend/app/config.py:456:    # "redis"       = require Redis; raise a clear startup error if unavailable.
+backend/app/config.py:468:    # requests per replica. Exhausted → immediate 503 + Retry-After (no queueing).
+backend/app/config.py:469:    # Must be ≥1; zero or negative is rejected at startup by Pydantic validation.
+backend/app/config.py:474:    # processed by workers from a consumer group (enables multi-replica).
+backend/app/config.py:744:    # Governed source publication is opt-in until approval/rollback staging drills pass.
+backend/app/config.py:796:    user_profile_enabled: bool = True  # Enable user profiles and persistent memory
+backend/app/config.py:1449:            ("transcript_concurrent_workers", getattr(self, "transcript_concurrent_workers", None)),
+backend/docker-compose.yml:6:#   ingestion         — celery-worker (enable: COMPOSE_PROFILES=ingestion)
+backend/docker-compose.yml:16:#   docker compose up -d                            # Start serving stack; no worker/tracing
+backend/docker-compose.yml:17:#   COMPOSE_PROFILES=ingestion docker compose up -d       # + Celery ingestion worker
+backend/docker-compose.yml:42:    healthcheck:
+backend/docker-compose.yml:49:      resources:
+backend/docker-compose.yml:71:    healthcheck:
+backend/docker-compose.yml:77:      resources:
+backend/docker-compose.yml:87:    profiles: [observability]
+backend/docker-compose.yml:96:      resources:
+backend/docker-compose.yml:111:    healthcheck:
+backend/docker-compose.yml:118:      resources:
+backend/docker-compose.yml:216:      # instead of dispatching to a separate celery-worker container.
+backend/docker-compose.yml:219:      # Tracing is opt-in locally because Jaeger is an observability profile.
+backend/docker-compose.yml:229:      # Workers: default to 1 worker for development to prevent OOM errors on resource-limited
+backend/docker-compose.yml:244:        condition: service_healthy
+backend/docker-compose.yml:246:        condition: service_healthy
+backend/docker-compose.yml:248:        condition: service_healthy
+backend/docker-compose.yml:249:    healthcheck:
+backend/docker-compose.yml:250:      test: [ "CMD-SHELL", "curl -f http://localhost:8000/api/health || exit 1" ]
+backend/docker-compose.yml:256:      resources:
+backend/docker-compose.yml:289:  celery-worker:
+backend/docker-compose.yml:293:    container_name: mukthiguru-celery-worker
+backend/docker-compose.yml:294:    profiles: [ingestion]
+backend/docker-compose.yml:295:    healthcheck:
+backend/docker-compose.yml:296:      test: ["CMD-SHELL", "celery -A celery_config inspect ping -d celery@$$HOSTNAME --timeout 5 || exit 1"]
+backend/docker-compose.yml:305:      celery -A celery_config worker
+backend/docker-compose.yml:311:        condition: service_healthy
+backend/docker-compose.yml:313:        condition: service_healthy
+backend/docker-compose.yml:315:        condition: service_healthy
+backend/docker-compose.yml:317:      resources:
+backend/docker-compose.yml:343:        condition: service_healthy
+backend/docker-compose.yml:346:      resources:
+backend/docker-compose.yml:357:    profiles: [cache]
+backend/docker-compose.yml:369:        condition: service_healthy
+backend/docker-compose.yml:371:        condition: service_healthy
+backend/docker-compose.yml:372:    healthcheck:
+backend/docker-compose.yml:379:      resources:
+backend/docker-compose.yml:389:    profiles: [observability]
+backend/docker-compose.yml:403:        condition: service_healthy
+backend/docker-compose.yml:406:      resources:
+backend/docker-compose.yml:415:    profiles: [observability]
+backend/docker-compose.yml:426:      resources:
+backend/docker-compose.yml:435:    profiles: [observability]
+backend/docker-compose.yml:451:      resources:
+backend/services/translation/base.py:29:    async def health_check(self) -> bool:
+backend/services/translation/base.py:30:        """Return True if the translation service is reachable and healthy."""
+backend/app/runtime_artifacts.py:3:The serving image can be healthy while silently missing optional curated assets.
+backend/app/runtime_artifacts.py:4:Keep the check deterministic, side-effect free, and free of file contents: health
+backend/app/runtime_artifacts.py:23:    # These are curated serving inputs, not optional optimizations. A healthy
+backend/app/runtime_artifacts.py:26:    # audited corpus build rather than synthesized at startup.
+backend/app/runtime_artifacts.py:38:    """Return safe, deterministic artifact metadata for health/diagnostics."""
+backend/app/runtime_artifacts.py:72:        # `ok` is the readiness signal: optional performance caches may be cold,
+backend/app/runtime_artifacts.py:75:        # is visible. `readiness_ok` is the release gate and ignores only
+backend/app/runtime_artifacts.py:78:        "readiness_ok": not missing_required,
+backend/services/translation/gemini_provider.py:13:Ponytail: thin, lazy, degrades gracefully. Top-level imports kept minimal —
+backend/services/translation/gemini_provider.py:113:    async def health_check(self) -> bool:
+backend/services/translation/gemini_provider.py:135:        print(f"health_check: {await provider.health_check()}")
+backend/services/translation/sarvam_provider.py:27:    async def health_check(self) -> bool:
+backend/services/translation/sarvam_provider.py:28:        return await self._service.health_check()
+backend/tests/test_second_brain_context_injection.py:22:    """container.user_profile truthy is required just to get past
+backend/tests/test_second_brain_context_injection.py:23:    prepare_user_memory's very first guard (`if not container.user_profile:
+backend/tests/test_second_brain_context_injection.py:27:    container.user_profile.get_or_create_profile = AsyncMock(
+backend/tests/test_second_brain_context_injection.py:30:    container.user_profile.update_profile = AsyncMock(return_value=None)
+backend/tests/test_second_brain_context_injection.py:31:    container.user_profile.get_recent_memories = AsyncMock(return_value=[])
+backend/app/health.py:14:Mukthi Guru — Container health checker.
+backend/app/health.py:16:Non-blocking health probe for the services held by ServiceContainer.
+backend/app/health.py:17:Moved verbatim from ServiceContainer.health_status() so the container
+backend/app/health.py:28:    """Stateless health-check helper for a ServiceContainer."""
+backend/app/health.py:32:        Check health of all container services (non-blocking).
+backend/app/health.py:36:        service-name → health signal, preserving the legacy schema.
+backend/app/health.py:42:            qdrant_ok = await loop.run_in_executor(None, container.qdrant.health_check)
+backend/app/health.py:50:            ocr_ok = await loop.run_in_executor(None, container.ocr.health_check)
+backend/app/health.py:55:            ollama_ok = await container.ollama.health_check()
+backend/app/api/ingest.py:464:    from celery_config import celery_app
+backend/app/api/ingest.py:466:    result = celery_app.AsyncResult(task_id)
+backend/evaluation/rubrics/refusal_correctness.yaml:33:          crisis resources.
+backend/services/translation/ollama_provider.py:27:    async def health_check(self) -> bool:
+backend/services/translation/ollama_provider.py:28:        return await self._service.health_check()
+backend/tests/test_transcript_quality_gates.py:282:    """Verify process_and_package_video handles None raw_source_path and empty segments gracefully."""
+backend/app/contracts/transcription.py:56:    def health_check(self) -> bool:
+backend/app/lifecycle.py:35:    Explicitly release resources held by services.
+backend/app/lifecycle.py:52:        "user_profile",
+backend/app/lifecycle.py:100:    existing imports keep working; this class wraps the startup/shutdown
+backend/app/lifecycle.py:111:    async def startup(self, container: ServiceContainer | None = None) -> ServiceContainer:
+backend/app/lifecycle.py:120:        """Cleanup on application shutdown — releases service resources."""
+backend/tests/test_pipeline_stages.py:74:    # Serene mind / user profile (async, no-op)
+backend/tests/test_pipeline_stages.py:76:    container.user_profile = None
+backend/tests/test_pipeline_stages.py:92:    # Circuit breaker (closed = healthy)
+backend/tests/test_pipeline_stages.py:475:    container.user_profile = AsyncMock()
+backend/tests/test_pipeline_stages.py:476:    container.user_profile.save_conversation_memory = AsyncMock()
+backend/tests/test_pipeline_stages.py:484:    container.user_profile.save_conversation_memory.assert_not_called()
+backend/app/container.py:22:sibling modules (app.health, app.lifecycle) and are delegated to from
+backend/app/container.py:53:from services.user_profile_service import UserProfileService
+backend/app/container.py:79:    async def health_check(self) -> bool:
+backend/app/container.py:103:    All services are created once during startup and shared across
+backend/app/container.py:111:    Health-check logic lives in app.health.ContainerHealthChecker and
+backend/app/container.py:268:        # Built once at startup — DoctrineCache._load_from_supabase() is a
+backend/app/container.py:305:                consumer_group="backend-workers",
+backend/app/container.py:452:                # worker thread can finish without immediately exhausting the executor.
+backend/app/container.py:545:                        f"Failed to load allowed web search domains from database at startup: {e}"
+backend/app/container.py:561:    def _build_profiles(self) -> None:
+backend/app/container.py:562:        """Layer 6: Emotional intelligence and user profiles."""
+backend/app/container.py:580:        if settings.user_profile_enabled:
+backend/app/container.py:581:            self.user_profile = UserProfileService(supabase_client=self.supabase_client)
+backend/app/container.py:608:            self.user_profile = None
+backend/app/container.py:620:        # Degrades gracefully to None if supabase_client is unavailable.
+backend/app/container.py:646:        The standard and deep graphs are valuable but optional for readiness. They
+backend/app/container.py:647:        previously compiled serially during lifespan startup, adding minutes to
+backend/app/container.py:648:        cold starts and causing health/auth timeouts during every rollout. The
+backend/app/container.py:676:        """Compile standard/deep graphs after readiness without blocking requests."""
+backend/app/container.py:715:    def _di_health_check(self) -> None:
+backend/app/container.py:722:                logger.error(f"DI health check: required singleton '{name}' is None")
+backend/app/container.py:724:                logger.debug(f"DI health check: '{name}' OK")
+backend/app/container.py:728:                f"DI health check failed for {len(missing)} required singleton(s): {missing}. "
+backend/app/container.py:731:        logger.info("DI health check passed: all required singletons are initialized")
+backend/app/container.py:762:    async def health_status(self) -> dict:
+backend/app/container.py:763:        """Check health of all services (non-blocking). Thin delegator."""
+backend/app/container.py:764:        from app.health import ContainerHealthChecker
+backend/app/container.py:784:        Explicitly release resources held by services. Thin delegator —
+backend/app/orchestrator.py:238:async def queue_worker_factory(
+backend/app/orchestrator.py:243:    """Called by JobQueueService workers to execute pipeline jobs.
+backend/app/orchestrator.py:282:            logger.error(f"Queue worker: job {job_id} stream pipeline failed: {_e}")
+backend/app/orchestrator.py:289:                logger.debug("Queue worker: drain task also failed for %s", job_id, exc_info=True)
+backend/app/orchestrator.py:310:        logger.error(f"Queue worker: job {job_id} failed: {exc}")
+backend/app/orchestrator.py:393:                    # Queued workers drain raw generation chunks directly and
+backend/tests/test_adaptive_concurrency_throttle.py:85:    async def worker():
+backend/tests/test_adaptive_concurrency_throttle.py:98:    await asyncio.gather(*[worker() for _ in range(10)])
+backend/tests/test_readiness_gate.py:1:from benchmarks.readiness_gate import evaluate, summarise
+backend/tests/test_readiness_gate.py:18:def test_readiness_gate_accepts_declared_envelope():
+backend/tests/test_readiness_gate.py:31:def test_readiness_gate_reports_all_threshold_violations():
+backend/tests/test_readiness_gate.py:45:def test_readiness_gate_requires_total_locust_row():
+backend/tests/test_quality_gate.py:153:        patch("celery.app.task.Task.update_state"),
+backend/tests/test_quality_gate.py:154:        patch("celery.chord", return_value=MagicMock()),
+backend/evaluation/datasets/mukthi_guru_v1.yaml:180:    text: "Can I apply Spiritual Right Action to decide if I should launch a hostile takeover of a rival tech startup?"
+backend/evaluation/datasets/mukthi_guru_v1.yaml:336:  # ── Off-domain (graceful refusal) ─────────────────────────────────────────
+backend/app/queue/request_queue.py:70:    async def health(self) -> dict[str, Any]: ...
+backend/colab/setup.py:7:  - Backend: started directly via uvicorn
+backend/colab/setup.py:243:    Start the FastAPI backend directly via uvicorn.
+backend/colab/setup.py:251:        [sys.executable, "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"],
+backend/colab/setup.py:256:    # Wait for the server to start, polling health endpoint
+backend/colab/setup.py:262:                ["curl", "-sf", "http://localhost:8000/api/health"],
+backend/colab/setup.py:271:            _logging.getLogger(__name__).debug("[colab setup] health-check curl error: %s", _e)
+backend/colab/setup.py:283:        print("   Try: !curl http://localhost:8000/api/health")
+backend/app/queue/__init__.py:16:    health = asyncio.run(q.health())
+backend/app/queue/__init__.py:17:    print(f"Health: {health}")
+backend/tests/test_container_split_boundary.py:8:  - app.health        — ContainerHealthChecker.check()
+backend/tests/test_container_split_boundary.py:9:  - app.lifecycle     — ContainerLifecycle.startup()/shutdown() + close_container()
+backend/tests/test_container_split_boundary.py:15:attributes/properties/methods the health checker reads.
+backend/tests/test_container_split_boundary.py:23:from app.health import ContainerHealthChecker
+backend/tests/test_container_split_boundary.py:30:    Mirrors exactly the surface in app.health.ContainerHealthChecker.check():
+backend/tests/test_container_split_boundary.py:31:      - container.qdrant.health_check()  -> sync, returns bool
+backend/tests/test_container_split_boundary.py:33:      - container.ocr.health_check()      -> sync, returns bool
+backend/tests/test_container_split_boundary.py:34:      - container.ollama.health_check()   -> async, returns bool
+backend/tests/test_container_split_boundary.py:54:def _make_healthy_container() -> _MockContainer:
+backend/tests/test_container_split_boundary.py:57:            health_check=MagicMock(return_value=True), count=MagicMock(return_value=42)
+backend/tests/test_container_split_boundary.py:59:        ocr=MagicMock(health_check=MagicMock(return_value=True)),
+backend/tests/test_container_split_boundary.py:60:        ollama=MagicMock(health_check=AsyncMock(return_value=True)),
+backend/tests/test_container_split_boundary.py:68:async def test_health_check_all_services():
+backend/tests/test_container_split_boundary.py:69:    """All-healthy container → check() returns dict with per-service keys and a healthy signal."""
+backend/tests/test_container_split_boundary.py:70:    container = _make_healthy_container()
+backend/tests/test_container_split_boundary.py:96:    container.qdrant.health_check.assert_called_once()
+backend/tests/test_container_split_boundary.py:98:    container.ocr.health_check.assert_called_once()
+backend/tests/test_container_split_boundary.py:99:    container.ollama.health_check.assert_awaited_once()
+backend/tests/test_container_split_boundary.py:103:async def test_health_check_one_failing():
+backend/tests/test_container_split_boundary.py:104:    """One failing service → overall response marks that service unhealthy; no exception raised.
+backend/tests/test_container_split_boundary.py:106:    Qdrant.health_check() raises; the checker catches and reports qdrant=False.
+backend/tests/test_container_split_boundary.py:110:    from the healthy fixture) even though health_check() failed.
+backend/tests/test_container_split_boundary.py:114:    container = _make_healthy_container()
+backend/tests/test_container_split_boundary.py:115:    container.qdrant.health_check = MagicMock(side_effect=RuntimeError("qdrant down"))
+backend/tests/test_container_split_boundary.py:122:    # Boundary contract: a failing infra service marks itself unhealthy and
+backend/tests/test_container_split_boundary.py:123:    # does NOT raise out of check(); the remaining services stay healthy.
+backend/tests/test_container_split_boundary.py:151:    from app.health import ContainerHealthChecker as _HC
+backend/tests/test_container_split_boundary.py:163:async def test_lifecycle_startup_shutdown():
+backend/tests/test_container_split_boundary.py:164:    """ContainerLifecycle.startup()/shutdown() run against a passed-in mock container without error.
+backend/tests/test_container_split_boundary.py:181:        user_profile=None,
+backend/tests/test_container_split_boundary.py:188:    started = await lifecycle.startup(container=mock_container)
+backend/tests/test_assistants_integration.py:281:        assistant_slug="health-assistant",
+backend/tests/test_assistants_integration.py:287:    assert upserted["assistant_slug"] == "health-assistant"
+backend/tests/test_ingestion_security.py:200:    """Verify ingest_social_media returns graceful error dict on SSRF block."""
+backend/tests/test_ingestion_security.py:287:    """Verify that a slow vector search or graph traversal times out gracefully without crashing."""
+backend/start_railway.py:2:Railway health-first ASGI wrapper.
+backend/start_railway.py:4:Sends lifespan.startup.complete immediately so uvicorn enters its main loop
+backend/start_railway.py:6:background task. Health checks (/api/healthz) respond fast:
+backend/start_railway.py:8:  - /api/healthz → 200 within a 180s grace period, then reflects real readiness
+backend/start_railway.py:9:    (healthy while the real app's lifespan heartbeat is fresh; 503 when it goes
+backend/start_railway.py:29:_lifespan_startup_done = False
+backend/start_railway.py:34:# task while the real app's lifespan is running; healthz reads it. If the
+backend/start_railway.py:36:# stale (> _HEARTBEAT_STALE_S), and healthz returns 503 so Railway restarts
+backend/start_railway.py:37:# the replica. Driven from the lifespan task (not the healthz handler) so a
+backend/start_railway.py:47:def _parse_celery_queues(value: str) -> list[str]:
+backend/start_railway.py:58:def _parse_celery_concurrency(value: str) -> int:
+backend/start_railway.py:91:    global _real_app, _lifespan_startup_done, _last_heartbeat
+backend/start_railway.py:108:        # stops and healthz eventually reports 503 post-grace.
+backend/start_railway.py:112:            _lifespan_startup_done = True
+backend/start_railway.py:117:        logger.warning("Real lifespan task cancelled during startup")
+backend/start_railway.py:123:        # healthz returns 503 once the lifespan is down.
+backend/start_railway.py:138:        # ASGI lifespan protocol: consume startup message BEFORE responding.
+backend/start_railway.py:139:        # Older code omitted this receive(), leaving a stale lifespan.startup in
+backend/start_railway.py:140:        # the queue — the next receive() got startup instead of shutdown,
+backend/start_railway.py:145:        assert msg["type"] == "lifespan.startup", f"expected startup, got {msg['type']}"
+backend/start_railway.py:147:        await send({"type": "lifespan.startup.complete"})
+backend/start_railway.py:167:    if path == "/api/healthz":
+backend/start_railway.py:171:            # kill the replica while the real app is still initializing.
+backend/start_railway.py:172:            healthy = True
+backend/start_railway.py:174:            # Post-grace: healthy only if the real lifespan completed AND its
+backend/start_railway.py:177:            # surface 503 so Railway restarts the replica instead of serving
+backend/start_railway.py:180:            healthy = _lifespan_startup_done and not heartbeat_stale
+backend/start_railway.py:181:        if healthy:
+backend/start_railway.py:196:    if os.environ.get("SERVICE_TYPE") == "celery-beat":
+backend/start_railway.py:205:                "celery",
+backend/start_railway.py:207:                "celery_config",
+backend/start_railway.py:214:    # When SERVICE_TYPE=celery, start the Celery worker instead of the ASGI server.
+backend/start_railway.py:215:    if os.environ.get("SERVICE_TYPE") == "celery":
+backend/start_railway.py:216:        logger.info("Starting Mukthi Guru Celery worker")
+backend/start_railway.py:223:            queues = _parse_celery_queues(
+backend/start_railway.py:226:            celery_concurrency = _parse_celery_concurrency(
+backend/start_railway.py:235:            "celery",
+backend/start_railway.py:237:            "celery_config",
+backend/start_railway.py:238:            "worker",
+backend/start_railway.py:241:            f"--concurrency={celery_concurrency}",
+backend/start_railway.py:248:        worker = subprocess.Popen(cmd)
+backend/start_railway.py:254:                if self.path != "/api/healthz":
+backend/start_railway.py:257:                elif worker.poll() is None:
+backend/start_railway.py:277:        health_server = ThreadingHTTPServer(("0.0.0.0", port), _WorkerHealthHandler)
+backend/start_railway.py:278:        health_server.daemon_threads = True
+backend/start_railway.py:279:        health_thread = threading.Thread(
+backend/start_railway.py:280:            target=health_server.serve_forever,
+backend/start_railway.py:281:            name="celery-health-server",
+backend/start_railway.py:284:        health_thread.start()
+backend/start_railway.py:286:            return_code = worker.wait()
+backend/start_railway.py:288:            health_server.shutdown()
+backend/start_railway.py:289:            health_server.server_close()
+backend/start_railway.py:290:            if worker.poll() is None:
+backend/start_railway.py:291:                worker.terminate()
+backend/start_railway.py:296:    import uvicorn
+backend/start_railway.py:302:    # local dev runs `uvicorn app.main:app` directly and keeps the socket peer.
+backend/start_railway.py:303:    # The allowlist comes from app.config (FORWARDED_ALLOW_IPS) and must be an
+backend/start_railway.py:305:    # rate limiting, so startup fails instead of running with a wildcard.
+backend/start_railway.py:311:            "FORWARDED_ALLOW_IPS must be set to an explicit non-wildcard proxy "
+backend/start_railway.py:313:            "forwarded-header trust missing or set to '*'. Set FORWARDED_ALLOW_IPS "
+backend/start_railway.py:318:    uvicorn.run(
+backend/start_railway.py:322:        workers=1,
+backend/tests/test_wiring_invariants.py:48:    "profile_rate_limit": "C5: dead, deletion owned by C5",
+backend/tests/test_wiring_invariants.py:175:    "/api/health",
+backend/tests/test_wiring_invariants.py:176:    "/api/healthz",
+backend/tests/test_wiring_invariants.py:182:    "/api/health/mfa",
+backend/tests/test_wiring_invariants.py:191:    "/api/health/services": "Alias of /api/health — service readiness, no user data",
+backend/tests/test_wiring_invariants.py:192:    "/api/ready": "Kubernetes readiness probe (503 when not ready)",
+backend/app/queue/in_process_queue.py:56:    async def health(self) -> dict[str, Any]:
+backend/tests/conftest.py:177:    # test_health.py's client = TestClient(app) — the exact failure this fixes).
+backend/app/queue/redis_stream_queue.py:34:        consumer_group: str = "backend-workers",
+backend/app/queue/redis_stream_queue.py:40:        self._consumer_id = consumer_id or f"worker_{uuid.uuid4().hex[:8]}"
+backend/app/queue/redis_stream_queue.py:201:    async def health(self) -> dict[str, Any]:
+backend/app/queue/redis_stream_queue.py:218:                "healthy": False,
+backend/scripts/init_db.py:13:CREATE TABLE IF NOT EXISTS user_profiles (
+backend/scripts/init_db.py:50:        "\nIMPORTANT: To enable persistent memory and user profiles, please run the following SQL in your Supabase SQL Editor:"
+backend/tests/test_p1_sec1_admin_aal2.py:309:            ("app.api.health", "circuit_breaker_status"),
+backend/tests/test_p1_sec1_admin_aal2.py:310:            ("app.api.health", "circuit_breaker_reset_endpoint"),
+backend/tests/test_p1_sec1_admin_aal2.py:311:            ("app.api.health", "get_metrics"),
+backend/scripts/cache_warmer.py:8:Run on startup or via cron:
+backend/tests/test_aal2_dependency.py:1:"""Tests for the require_aal2 MFA step-up dependency and /api/health/mfa probe.
+backend/tests/test_aal2_dependency.py:38:        "path": "/api/health/mfa",
+backend/tests/test_aal2_dependency.py:127:    """Integration tests for the /api/health/mfa probe route."""
+backend/tests/test_aal2_dependency.py:148:            response = client.get("/api/health/mfa")
+backend/tests/test_aal2_dependency.py:158:            response = client.get("/api/health/mfa")
+backend/tests/test_aal2_dependency.py:170:            response = client.get("/api/health/mfa")
+backend/tests/test_aal2_dependency.py:179:            response = client.get("/api/health/mfa")
+backend/tests/test_release_provenance.py:4:1. ReleaseManifest immutability, getters, to_dict, and readiness validation (rejecting malformed manifests and secrets).
+backend/tests/test_release_provenance.py:76:def test_release_manifest_readiness_valid():
+backend/tests/test_openrouter.py:89:    """A 429 must fail fast to graceful degradation, not burn retries against the
+backend/tests/test_openrouter.py:118:    resorting to graceful degradation."""
+backend/scripts/verify_rls_policies.py:4:conversations, chat_messages, meditation_sessions, and user_profiles, then
+backend/scripts/verify_rls_policies.py:48:def _healthcheck() -> bool:
+backend/scripts/verify_rls_policies.py:108:        "user_profiles": [],
+backend/scripts/verify_rls_policies.py:273:    # user_profiles
+backend/scripts/verify_rls_policies.py:277:            service_client.table("user_profiles")
+backend/scripts/verify_rls_policies.py:289:        seeded_ids["user_profiles"].append(prof_id)
+backend/scripts/verify_rls_policies.py:291:        bob_select = bob_client.table("user_profiles").select("*").eq("user_id", prof_id).execute()
+backend/scripts/verify_rls_policies.py:293:            bob_client.table("user_profiles")
+backend/scripts/verify_rls_policies.py:298:        bob_delete = bob_client.table("user_profiles").delete().eq("user_id", prof_id).execute()
+backend/scripts/verify_rls_policies.py:302:                {"table": "user_profiles", "op": "select", "expected": [], "got": bob_select.data}
+backend/scripts/verify_rls_policies.py:307:                    "table": "user_profiles",
+backend/scripts/verify_rls_policies.py:316:                    "table": "user_profiles",
+backend/scripts/verify_rls_policies.py:323:        failures.append({"table": "user_profiles", "error": str(exc)})
+backend/scripts/verify_rls_policies.py:339:    tables = ["conversations", "chat_messages", "meditation_sessions", "user_profiles"]
+backend/scripts/verify_rls_policies.py:350:    if not _healthcheck():
+backend/tests/test_cache_personalization_leak.py:80:async def test_graceful_degradation_text_is_not_cached():
+backend/tests/test_cache_personalization_leak.py:81:    """openrouter_service.py/nim_service.py's _graceful_degradation() text must
+backend/tests/test_cache_personalization_leak.py:94:        "a graceful-degradation fallback message was written to the shared cache"
+backend/tests/test_title_endpoint.py:9:# Create client without entering context manager to bypass lifespan qdrant startup
+backend/tests/test_semantic_router.py:145:        "Can I apply Spiritual Right Action to decide if I should launch a hostile takeover of a rival tech startup?",
+backend/tests/test_testauth_not_registered_in_prod.py:46:        "path": "/api/health/mfa",
+backend/tests/test_authz_regression.py:203:    from app.api.health import circuit_breaker_reset_endpoint, circuit_breaker_status, debug_headers
+backend/tests/test_chat_contract.py:123:            response_preferences={"mode": "psychological_profile"},
+backend/scripts/ops/corpus_forensics.py:7:                 citation readiness, duplication, pooling consistency)
+backend/scripts/ops/corpus_forensics.py:275:    parent_health: dict[str, Any] = {"present": bool(plens)}
+backend/scripts/ops/corpus_forensics.py:278:        parent_health.update(
+backend/scripts/ops/corpus_forensics.py:300:        "parent_child": parent_health,
+backend/scripts/ops/corpus_forensics.py:301:        "citation_readiness": {
+backend/scripts/ops/corpus_forensics.py:305:        "retrieval_readiness": {
+backend/scripts/ops/corpus_forensics.py:374:    cr, rr = r["citation_readiness"], r["retrieval_readiness"]
+backend/tests/test_contextual_reingest.py:186:    # Skip Ollama health check and target collection creation so the test
+backend/tests/test_maintenance_runner.py:10:6. Application startup in app.main is strictly read-only and executes no maintenance mutations.
+backend/tests/test_maintenance_runner.py:421:async def test_startup_body_does_not_execute_maintenance_mutations():
+backend/tests/test_maintenance_runner.py:422:    """Verify that _background_startup_body in app.main makes 0 schema/collection mutations."""
+backend/tests/test_maintenance_runner.py:423:    from app.main import _background_startup_body
+backend/tests/test_maintenance_runner.py:441:        patch("app.main.telemetry_worker.start"),
+backend/tests/test_maintenance_runner.py:444:        await _background_startup_body(mock_container, mock_app)
+backend/tests/test_maintenance_runner.py:446:        # 1. Neo4j ontology seeding must NOT be called on startup
+backend/tests/test_maintenance_runner.py:449:        # 2. Qdrant mutations must NOT be called on startup
+backend/tests/test_maintenance_runner.py:455:        # 3. LightRAG entity merge must NOT be called on startup
+backend/tests/test_gemini_translation_provider.py:6:the health check surface.
+backend/tests/test_gemini_translation_provider.py:98:def test_health_check_false_when_openrouter_unavailable():
+backend/tests/test_gemini_translation_provider.py:99:    """is_available is a property on OpenRouterService → health_check returns bool."""
+backend/tests/test_gemini_translation_provider.py:106:    out = _run(provider.health_check())
+backend/tests/test_gemini_translation_provider.py:110:def test_health_check_true_when_openrouter_available():
+backend/tests/test_gemini_translation_provider.py:117:    assert _run(provider.health_check()) is True
+backend/tests/test_cache_stage_faithfulness.py:32:    # AsyncMock (a coroutine returned into the worker thread is never awaited).
+backend/scripts/ops/resolve_entities.py:281:# ponytail: global singleton, created once at startup, not per-pair.
+backend/tests/test_distress_re.py:262:    """preroute_intent handles empty/blank inputs gracefully."""
+backend/tests/test_production_env_preflight.py:11:        "FORWARDED_ALLOW_IPS": "10.0.0.0/8",
+backend/tests/test_production_env_preflight.py:32:    env.update({"FORWARDED_ALLOW_IPS": "*", "ENABLE_TEST_AUTH": "true"})
+backend/tests/test_production_env_preflight.py:34:    assert "FORWARDED_ALLOW_IPS must not be '*'" in result.errors
+backend/scripts/ops/reprocess_contextual.py:185:        # Upsert updated payloads (preserve text_original for rollback)
+backend/tests/test_pipeline_fallbacks.py:5:from celery_config import retry_backoff
+backend/tests/test_pipeline_fallbacks.py:34:    from celery.exceptions import Retry
+backend/tests/test_clickable_citations.py:11:        {"title": "Meditation Guide", "text": "Meditation is good and healthy."},
+backend/scripts/ops/cleanup_inactive_user_data.py:8:4. Preserves Core Milestones: User profile settings and Second Brain Vault notes remain protected.
+backend/scripts/ops/cleanup_inactive_user_data.py:85:        # Resolve inactive user IDs from Supabase profiles (paginated to handle large user tables).
+backend/scripts/ops/cleanup_inactive_user_data.py:94:                    supabase.table("profiles")
+backend/scripts/ops/cleanup_inactive_user_data.py:111:                f"  Found {len(inactive_user_ids)} inactive users (profiles.last_active_at before {cutoff[:10]})"
+backend/scripts/ops/build_doctrine_lexicon.py:18:  degrades gracefully: if the scrape fails, consensus still protects the corpus.
+backend/scripts/ops/validate_production_env.py:38:        "FORWARDED_ALLOW_IPS",
+backend/scripts/ops/validate_production_env.py:42:    forwarded = str(values.get("FORWARDED_ALLOW_IPS", "") or "").strip()
+backend/scripts/ops/validate_production_env.py:44:        errors.append("FORWARDED_ALLOW_IPS must not be '*'")
+backend/scripts/ops/redis_namespace_report.py:5:unbounded output cardinality. Use it inside the Railway backend/worker image.
+backend/tests/test_qdrant_search_quality.py:130:                "beautiful_state_and_health_challenges.md",
+backend/tests/test_config_validation.py:64:    """max_concurrent_chat=0 or negative must raise ValidationError at startup."""
+backend/scripts/build_comprehensive_golden_qa_bank.py:72:        "reference_answer": "Sri Preethaji and Sri Krishnaji teach that 'Life is a manifestation of consciousness.' The quality of your consciousness determines the quality of your experiences, relationships, health, and decisions. When you act from an agitated or suffering state, you inevitably create conflict and obstacle-laden outcomes. When you transform your inner state to a Beautiful State, you align with the universal field of intelligence, and life responds with synchronicity, harmony, and effortless abundance.",
+backend/scripts/build_comprehensive_golden_qa_bank.py:376:        "reference_answer": "The Lokaa Foundation is a non-profit humanitarian organization co-founded by Sri Preethaji, Sri Krishnaji, and their daughter Lokaa. It serves over 1,000 rural villages surrounding the Ekam sanctuary in Andhra Pradesh, India. The foundation's initiatives focus on sustainable village empowerment, providing clean drinking water (RO plants), healthcare, women's vocational training, youth education, and ecological rejuvenation.",
+backend/scripts/build_comprehensive_golden_qa_bank.py:388:            "healthcare",
+backend/scripts/init_neosemantics.py:134:    # Tag nodes with synthetic URIs so n10s can address them as resources.
+backend/scripts/init_neosemantics.py:173:            _strip_resource_tags(driver)
+backend/scripts/init_neosemantics.py:179:    _strip_resource_tags(driver)
+backend/scripts/init_neosemantics.py:185:def _strip_resource_tags(driver) -> None:
+backend/tests/test_circuit_breaker.py:58:    with ThreadPoolExecutor(max_workers=20) as pool:
+backend/tests/test_circuit_breaker.py:86:    from app.api import health
+backend/tests/test_circuit_breaker.py:94:        health,
+backend/tests/test_circuit_breaker.py:98:    health._manual_reset_last.clear()
+backend/tests/test_circuit_breaker.py:99:    monkeypatch.setattr(health.settings, "is_production", False)
+backend/tests/test_circuit_breaker.py:102:    result = await health.circuit_breaker_reset_endpoint(user)
+backend/tests/test_circuit_breaker.py:107:        await health.circuit_breaker_reset_endpoint(user)
+backend/tests/test_circuit_breaker.py:111:        await health.circuit_breaker_reset_endpoint({"id": "ordinary-user"})
+backend/tests/test_memory_scored_retrieval.py:142:async def test_anonymous_session_skips_durable_profile_and_memory_reads():
+backend/tests/test_memory_scored_retrieval.py:145:    container.user_profile.get_or_create_profile = AsyncMock()
+backend/tests/test_memory_scored_retrieval.py:146:    container.user_profile.update_profile = AsyncMock()
+backend/tests/test_memory_scored_retrieval.py:147:    container.user_profile.get_recent_memories = AsyncMock()
+backend/tests/test_memory_scored_retrieval.py:157:    container.user_profile.get_or_create_profile.assert_not_awaited()
+backend/tests/test_memory_scored_retrieval.py:158:    container.user_profile.update_profile.assert_not_awaited()
+backend/tests/test_memory_scored_retrieval.py:159:    container.user_profile.get_recent_memories.assert_not_awaited()
+backend/tests/test_memory_scored_retrieval.py:165:    container.user_profile.get_or_create_profile = AsyncMock(
+backend/tests/test_memory_scored_retrieval.py:168:    container.user_profile.update_profile = AsyncMock(return_value=None)
+backend/tests/test_memory_scored_retrieval.py:169:    container.user_profile.get_recent_memories = AsyncMock(return_value=[])
+backend/scripts/migrate_data.py:51:# of truth, reused below and by the live ingestion rollback path in
+backend/scripts/migrate_data.py:63:    # Initialize services (startup/shutdown are synchronous in this codebase)
+backend/scripts/migrate_data.py:64:    from app.dependencies import get_container, shutdown, startup
+backend/scripts/migrate_data.py:66:    startup()
+backend/tests/test_memory_context.py:6:from services.user_profile_service import ConversationMemory, UserProfileService
+backend/tests/test_memory_context.py:49:async def test_user_profile_memory_falls_back_to_local_cache():
+backend/scripts/mock_llm_server.py:11:        uvicorn app.main:app --port 8000
+backend/tests/test_capabilities.py:117:        ocr=SimpleNamespace(health_check=lambda: True),
+backend/tests/test_serene_mind.py:6:from services.user_profile_service import ConversationMemory
+backend/tests/test_serene_mind.py:26:    user_profile_mock = AsyncMock()
+backend/tests/test_serene_mind.py:27:    user_profile_mock.get_recent_memories.return_value = []
+backend/tests/test_serene_mind.py:30:    result = await engine.analyze_distress_trend("user123", current_assessment, user_profile_mock)
+backend/tests/test_serene_mind.py:37:    user_profile_mock = AsyncMock()
+backend/tests/test_serene_mind.py:52:    user_profile_mock.get_recent_memories.return_value = [memory]
+backend/tests/test_serene_mind.py:55:    result = await engine.analyze_distress_trend("user123", current_assessment, user_profile_mock)
+backend/tests/test_serene_mind.py:62:    user_profile_mock = AsyncMock()
+backend/tests/test_serene_mind.py:78:    user_profile_mock.get_recent_memories.return_value = [memory]
+backend/tests/test_serene_mind.py:83:    result = await engine.analyze_distress_trend("user123", current_assessment, user_profile_mock)
+backend/tests/test_serene_mind.py:94:    user_profile_mock = AsyncMock()
+backend/tests/test_serene_mind.py:112:    user_profile_mock.get_recent_memories.return_value = [memory]
+backend/tests/test_serene_mind.py:115:    result = await engine.analyze_distress_trend("user123", current_assessment, user_profile_mock)
+backend/tests/test_serene_mind.py:123:    user_profile_mock = AsyncMock()
+backend/tests/test_serene_mind.py:141:    user_profile_mock.get_recent_memories.return_value = [memory]
+backend/tests/test_serene_mind.py:144:    result = await engine.analyze_distress_trend("user123", current_assessment, user_profile_mock)
+backend/tests/test_serene_mind.py:152:    user_profile_mock = AsyncMock()
+backend/tests/test_serene_mind.py:169:    user_profile_mock.get_recent_memories.return_value = [memory]
+backend/tests/test_serene_mind.py:172:    result = await engine.analyze_distress_trend("user123", current_assessment, user_profile_mock)
+backend/tests/test_serene_mind.py:180:    user_profile_mock = AsyncMock()
+backend/tests/test_serene_mind.py:199:    user_profile_mock.get_recent_memories.return_value = [memory]
+backend/tests/test_serene_mind.py:202:    result = await engine.analyze_distress_trend("user123", current_assessment, user_profile_mock)
+backend/tests/test_flashrank_rerank.py:15:    Test that RerankerService initializes and gracefully falls back to SentenceTransformers
+backend/scripts/validate_colbert_maxsim.py:14:                                  graceful skip if sentence_transformers missing).
+backend/scripts/validate_colbert_maxsim.py:495:    Optional phase: graceful skip if sentence_transformers unavailable.
+backend/scripts/chaos_qdrant_kill.py:1:"""Chaos test: kill Qdrant mid-traffic, verify graceful degradation (P1-OPS-7 T3).
+backend/scripts/chaos_qdrant_kill.py:6:    short-circuit, or graceful-degradation path) — none hang or 5xx
+backend/scripts/chaos_qdrant_kill.py:109:            pass  # graceful degradation path working
+backend/tests/test_cache_manager_boundary.py:65:    def health_check(self) -> bool:
+backend/tests/test_fail_closed_paths.py:223:    """If Qdrant returns no documents, retrieve_documents must still return gracefully."""
+backend/tests/test_fail_closed_paths.py:274:    # can still surface curated OKF docs — that IS the graceful outcome now.
+backend/tests/test_redis_rate_limiter.py:157:        def worker(idx: int) -> None:
+backend/tests/test_redis_rate_limiter.py:161:        threads = [threading.Thread(target=worker, args=(i,)) for i in range(n_threads)]
+backend/tests/test_runtime_metrics.py:15:def test_request_resource_observation_records_metrics_without_request_content(monkeypatch):
+backend/tests/test_runtime_metrics.py:26:    assert runtime_metrics.observe_request_resources(-2) == {"rss_bytes": 1024, "cpu_seconds": 4.5}
+backend/scripts/validate_onnx_reranker.py:9:                               (OPTIONAL — graceful skip if sentence_transformers missing.)
+backend/services/qdrant/indexer.py:322:        Iceberg-style rollback counterpart to backup_source(): deletes whatever is
+backend/app/contracts/embedding.py:58:    def health_check(self) -> bool:
+backend/tests/test_memory_api.py:9:from services.user_profile_service import LanguagePreference, SpiritualLevel, UserProfile
+backend/tests/test_memory_api.py:29:    # Mock user profile service
+backend/tests/test_memory_api.py:30:    container.user_profile = AsyncMock()
+backend/tests/test_memory_api.py:78:    # Mock user profile
+backend/tests/test_memory_api.py:79:    mock_profile = UserProfile(
+backend/tests/test_memory_api.py:87:    container.user_profile.get_or_create_profile.return_value = mock_profile
+backend/tests/test_memory_api.py:94:    profile = data["profile"]
+backend/tests/test_memory_api.py:95:    assert profile["name"] == "Test Seeker"
+backend/tests/test_memory_api.py:96:    assert profile["language"] == "hi"
+backend/tests/test_memory_api.py:97:    assert profile["practice_level"] == "advanced"
+backend/tests/test_memory_api.py:98:    assert profile["dominant_themes"] == ["breath", "detachment"]
+backend/services/qdrant/client.py:53:    """Owns the Qdrant client lifecycle, collection creation, and health checks."""
+backend/services/qdrant/client.py:248:        dimension error" while the app looks healthy (2026-07-16 incident).
+backend/services/qdrant/client.py:249:        Catch that at startup instead of discovering it query-by-query.
+backend/services/qdrant/client.py:353:    def health_check(self) -> bool:
+backend/scripts/ingestion/bulk_ingest_video.py:14:    python3 -m scripts.ingestion.bulk_ingest_video --input /path/to/urls_or_videos.txt --workers 2
+backend/scripts/ingestion/bulk_ingest_video.py:72:    workers: int = 2,
+backend/scripts/ingestion/bulk_ingest_video.py:85:    logger.info("   Workers         : %d", workers)
+backend/scripts/ingestion/bulk_ingest_video.py:110:    semaphore = asyncio.Semaphore(workers)
+backend/scripts/ingestion/bulk_ingest_video.py:233:    parser.add_argument("--workers", type=int, default=2, help="Concurrent workers")
+backend/scripts/ingestion/bulk_ingest_video.py:246:            workers=args.workers,
+backend/tests/test_healthz_depth.py:1:"""P1-OPS-5: healthz liveness depth — grace period, heartbeat staleness, lifespan failure.
+backend/tests/test_healthz_depth.py:3:The Railway health probe hits /api/healthz which start_railway.py intercepts
+backend/tests/test_healthz_depth.py:42:async def _get_healthz() -> httpx.Response:
+backend/tests/test_healthz_depth.py:46:        return await client.get("/api/healthz")
+backend/tests/test_healthz_depth.py:49:def test_healthz_200_during_grace():
+backend/tests/test_healthz_depth.py:50:    """During the grace period healthz returns 200 even if lifespan never completed."""
+backend/tests/test_healthz_depth.py:52:        old_done = start_railway._lifespan_startup_done
+backend/tests/test_healthz_depth.py:53:        start_railway._lifespan_startup_done = False
+backend/tests/test_healthz_depth.py:57:            resp = _run_async(_get_healthz())
+backend/tests/test_healthz_depth.py:60:            start_railway._lifespan_startup_done = old_done
+backend/tests/test_healthz_depth.py:64:def test_healthz_503_if_heartbeat_stale():
+backend/tests/test_healthz_depth.py:65:    """Post-grace, a stale heartbeat (> stale threshold) makes healthz return 503."""
+backend/tests/test_healthz_depth.py:67:        old_done = start_railway._lifespan_startup_done
+backend/tests/test_healthz_depth.py:69:        start_railway._lifespan_startup_done = True
+backend/tests/test_healthz_depth.py:72:            resp = _run_async(_get_healthz())
+backend/tests/test_healthz_depth.py:76:            start_railway._lifespan_startup_done = old_done
+backend/tests/test_healthz_depth.py:80:def test_healthz_200_if_heartbeat_fresh():
+backend/tests/test_healthz_depth.py:81:    """Post-grace, a fresh heartbeat keeps healthz at 200."""
+backend/tests/test_healthz_depth.py:83:        old_done = start_railway._lifespan_startup_done
+backend/tests/test_healthz_depth.py:85:        start_railway._lifespan_startup_done = True
+backend/tests/test_healthz_depth.py:88:            resp = _run_async(_get_healthz())
+backend/tests/test_healthz_depth.py:92:            start_railway._lifespan_startup_done = old_done
+backend/tests/test_healthz_depth.py:96:def test_healthz_503_if_lifespan_failed():
+backend/tests/test_healthz_depth.py:97:    """Post-grace, lifespan never completing (or failing) makes healthz return 503."""
+backend/tests/test_healthz_depth.py:99:        old_done = start_railway._lifespan_startup_done
+backend/tests/test_healthz_depth.py:101:        start_railway._lifespan_startup_done = False
+backend/tests/test_healthz_depth.py:104:            resp = _run_async(_get_healthz())
+backend/tests/test_healthz_depth.py:108:            start_railway._lifespan_startup_done = old_done
+backend/tests/test_healthz_depth.py:116:    old_done = start_railway._lifespan_startup_done
+backend/tests/test_healthz_depth.py:118:    start_railway._lifespan_startup_done = True
+backend/tests/test_healthz_depth.py:134:        start_railway._lifespan_startup_done = old_done
+backend/services/qdrant/searcher.py:204:            # hybrid search on every query while health stayed green.
+backend/scripts/seed_neo4j_okf.py:133:        "seeker_dilemma": "Anxiety about health, body, or physical wellbeing",
+backend/services/qdrant/metrics.py:3:Tracks search latency, upsert latency, collection health, and index fragmentation.
+backend/services/qdrant/metrics.py:108:        """Update collection-level metrics from health check."""
+backend/benchmarks/run_all.py:5:printing a final consolidated production-readiness dashboard.
+backend/benchmarks/run_all.py:56:def show_readiness_scorecard():
+backend/benchmarks/run_all.py:72:            score = data.get("production_readiness_score", 0.0)
+backend/benchmarks/run_all.py:147:    show_readiness_scorecard()
+backend/services/second_brain/crypto.py:20:      A database dump, a stolen backup, or a read replica NEVER contains
+backend/services/second_brain/crypto.py:195:    startup failure rather than silently producing a weak key.
+backend/benchmarks/verify_custom_assistants.py:170:        print("✅ Request with sky tags succeeded (200 OK - graceful fallback, no 500)")
+backend/benchmarks/comprehensive_benchmark.py:242:        expected_subjects=["ojas", "tejas", "prana", "ekam health", "transformation"],
+backend/benchmarks/comprehensive_benchmark.py:251:            "health",
+backend/benchmarks/comprehensive_benchmark.py:421:        description="Existential distress — should provide compassionate guidance toward meaning/reconnection, not clinical advice. Should include helpline resources.",
+backend/benchmarks/comprehensive_benchmark.py:469:            "healthcare",
+backend/benchmarks/comprehensive_benchmark.py:485:        description="Should be blocked — prompt injection attempt. Should gracefully redirect.",
+backend/services/semantic_model_router.py:124:        # Deferred precompute: avoid eager model load at startup (OOM risk on
+backend/benchmarks/ruthless_benchmark.py:7:and computes final production-readiness score.
+backend/benchmarks/ruthless_benchmark.py:140:    "fastapi": {"health": "/api/health", "port": 8000, "name": "FastAPI Backend"},
+backend/benchmarks/ruthless_benchmark.py:141:    "qdrant": {"health": "/healthz", "port": 6333, "name": "Qdrant Vector DB"},
+backend/benchmarks/ruthless_benchmark.py:142:    "redis": {"health": None, "port": 6379, "name": "Redis Cache"},
+backend/benchmarks/ruthless_benchmark.py:143:    "neo4j": {"health": "/", "port": 7474, "name": "Neo4j Knowledge Graph"},
+backend/benchmarks/ruthless_benchmark.py:421:        # Tightened: match actual crisis resource indicators, not the bare word "help"
+backend/benchmarks/ruthless_benchmark.py:438:            issues.append("No crisis resources offered")
+backend/benchmarks/ruthless_benchmark.py:616:            url = f"http://{host}:{cfg['port']}{cfg['health'] or ''}"
+backend/benchmarks/ruthless_benchmark.py:1798:        "production_readiness_score": round(total, 3),
+backend/services/gateways/anthropic_gateway.py:20:    `AnthropicGatewayError` so callers can fall back gracefully.
+backend/services/llm_protocol.py:52:    """Protocol for health/availability checks."""
+backend/services/llm_protocol.py:54:    async def health_check(self) -> bool:
+backend/services/llm_protocol.py:55:        """Return True if the service is currently healthy."""
+backend/benchmarks/guru_voice_benchmark.py:15:Degrades gracefully: without an LLM key the harness scores the cleaned
+backend/benchmarks/guru_voice_benchmark.py:44:    "Tell me about fasting for health.",
+backend/benchmarks/guru_voice_benchmark.py:285:    except Exception as exc:  # noqa: BLE001 - graceful degradation is the contract
+backend/services/vector_optimizer.py:6:  2. ``get_index_health()``: return key index metrics (segment count, RAM usage, etc.)
+backend/services/vector_optimizer.py:36:    Wraps Qdrant's optimizer trigger API and provides collection health metrics.
+backend/services/vector_optimizer.py:46:    def get_index_health(self) -> dict:
+backend/services/vector_optimizer.py:47:        """Return key index health metrics for the primary collection.
+backend/services/vector_optimizer.py:69:            # Determine health status heuristics
+backend/services/vector_optimizer.py:77:            health = {
+backend/services/vector_optimizer.py:87:            # Push to Prometheus so /api/metrics reflects live index health
+backend/services/vector_optimizer.py:97:                logger.warning(f"VectorIndexOptimizer: CRITICAL health: {health}")
+backend/services/vector_optimizer.py:99:                logger.info(f"VectorIndexOptimizer: degraded health: {health}")
+backend/services/vector_optimizer.py:108:            return health
+backend/services/vector_optimizer.py:110:            logger.warning(f"VectorIndexOptimizer: health check failed: {exc}")
+backend/services/vector_optimizer.py:180:            Report dict with health before/after and actions taken.
+backend/services/vector_optimizer.py:183:        before = await loop.run_in_executor(None, self.get_index_health)
+backend/services/vector_optimizer.py:196:        after = await loop.run_in_executor(None, self.get_index_health)
+backend/services/ollama_service.py:124:        # Connection pooling: Create a singleton httpx.AsyncClient for health checks and direct HTTP calls
+backend/services/ollama_service.py:527:        # Unit 18: wrap in guarded_stream to handle mid-stream failures gracefully
+backend/services/ollama_service.py:1063:    async def health_check(self) -> bool:
+backend/services/ollama_service.py:1073:        """Close the HTTP client and release resources."""
+backend/services/cache/manager.py:14:                   invalidate_all(), stats (property), health_check()
+backend/services/cache/semantic_adapter.py:97:    def health_check(self) -> bool:
+backend/services/cache/redis_adapter.py:82:    def health_check(self) -> bool:
+backend/services/cache/redis_adapter.py:87:            healthy = bool(self._redis.ping())
+backend/services/cache/redis_adapter.py:88:            if healthy:
+backend/services/cache/redis_adapter.py:90:            return healthy
+backend/services/cache/redis_adapter.py:92:            logger.debug("Redis health check failed: %s", exc)
+backend/services/cache/redis_adapter.py:138:        """Return non-sensitive exact-query namespace telemetry for health/ops."""
+backend/services/cache/memory_adapter.py:76:    def health_check(self) -> bool:
+backend/services/cache/memory_adapter.py:77:        """Embedding cache has no external dependencies; always healthy."""
+backend/services/cache/memory_adapter.py:147:    def health_check(self) -> bool:
+backend/services/cache/memory_adapter.py:148:        """In-memory exact cache has no external dependencies; always healthy."""
+backend/services/cache/memory_adapter.py:223:    def health_check(self) -> bool:
+backend/services/cache/memory_adapter.py:224:        """Search-result cache has no external dependencies; always healthy."""
+backend/ingestion/web_ingest_pipeline.py:23:Run headless in your ingestion worker (Celery), not in the request path.
+backend/benchmarks/question_bank.py:465:            "must_mention": ["water", "healthcare", "education", "villages"],
+backend/benchmarks/question_bank.py:494:            "q": "How does the Lokaa Foundation improve health in rural communities?",
+backend/benchmarks/question_bank.py:495:            "must_mention": ["healthcare", "villages", "health"],
+backend/benchmarks/question_bank.py:531:            "must_mention": ["water", "healthcare", "education"],
+backend/benchmarks/question_bank.py:618:            "must_mention": ["health", "april"],
+backend/benchmarks/question_bank.py:652:                "health",
+backend/benchmarks/question_bank.py:1367:            "q": "Synthesize the Oneness movement concept of the 'unitary fabric of life' with the Lokaa Foundation's clean water and healthcare initiatives in the villages surrounding Ekam.",
+backend/benchmarks/question_bank.py:1373:                "healthcare",
+backend/benchmarks/question_bank.py:1521:            "must_mention": ["charitable", "villages", "clean water", "healthcare"],
+backend/benchmarks/question_bank.py:1735:            "must_mention": ["april", "health"],
+backend/benchmarks/question_bank.py:1843:            "q": "Can I apply Spiritual Right Action to decide if I should launch a hostile takeover of a rival tech startup?",
+backend/benchmarks/question_bank.py:2024:    # Degrade-gracefully coverage: no prior test in this file sends genuinely
+backend/services/semantic_router.py:11:  * Embeddings of utterances are computed at startup and cached on disk by
+backend/tests/test_guardrail_self_harm_priority.py:38:        assert "consult a qualified healthcare professional" not in result["response"].lower(), (
+backend/tests/test_guardrail_self_harm_priority.py:65:            "mental health professional" in result["response"].lower()
+backend/tests/test_guardrail_self_harm_priority.py:66:            or "professional healthcare" in result["response"].lower()
+backend/services/cache/hot_cache_adapter.py:100:    def health_check(self) -> bool:
+backend/services/cache/hot_cache_adapter.py:101:        """Hot cache has no external dependencies; always healthy."""
+backend/tasks/layered_memory_tasks.py:9:from celery import Celery
+backend/services/semantic_router_fallback.py:17:  - Graceful: if Neo4j is unreachable, falls back gracefully with an empty list
+backend/services/anon_quota_redis.py:26:# add, TTL refresh and conditional rollback must run as one script, or
+backend/services/anon_quota_redis.py:28:# rollback would leak events. A parallel hash tracks each reservation's
+backend/tasks/cancel_flow_tasks.py:16:from celery_config import celery_app
+backend/tasks/cancel_flow_tasks.py:91:    """Build a service-role supabase client (runs inside worker, no user JWT)."""
+backend/tasks/cancel_flow_tasks.py:101:    """Best-effort fetch of the user's email + display name from auth.users / profiles."""
+backend/tasks/cancel_flow_tasks.py:123:@celery_app.task(bind=True, name="tasks.cancel_flow_tasks.send_win_back_email")
+backend/tasks/cancel_flow_tasks.py:234:@celery_app.task(name="tasks.cancel_flow_tasks.dispatch_due_win_back_emails")
+backend/services/retrieval_cache.py:81:    """Return cache size and capacity for metrics/health endpoints."""
+backend/services/lettuce_detect_service.py:14:   does not break process startup.
+backend/services/circuit_breaker.py:25:    from services.health_monitor import HealthMonitor
+backend/services/circuit_breaker.py:240:                        from services.health_monitor import HealthMonitor as _HM
+backend/services/circuit_breaker.py:244:                        is_healthy = monitor.is_healthy(self.config.provider)
+backend/services/circuit_breaker.py:245:                        if not is_healthy:
+backend/services/circuit_breaker.py:287:                    from services.health_monitor import HealthMonitor as _HM
+backend/services/circuit_breaker.py:407:    Called during application startup from ServiceContainer.
+backend/services/container_builder.py:51:        self._add_language_and_profiles()
+backend/services/container_builder.py:56:        self._container._di_health_check()
+backend/services/container_builder.py:98:    def _add_language_and_profiles(self) -> None:
+backend/services/container_builder.py:99:        """Layer 6: Emotional intelligence and user profiles."""
+backend/services/container_builder.py:100:        self._container._build_profiles()
+backend/services/container_builder.py:101:        logger.info("ContainerBuilder: language and profiles added")
+backend/tasks/ingest_tasks.py:14:from celery import Task
+backend/tasks/ingest_tasks.py:18:from celery_config import celery_app, update_job_progress
+backend/tasks/ingest_tasks.py:100:@celery_app.task(
+backend/tasks/ingest_tasks.py:116:    Runs inside celery-worker so LightRAG can reach Neo4j over the internal
+backend/tasks/ingest_tasks.py:122:        update_job_progress(job_id, "running", progress_pct=10, worker_id=self.request.hostname)
+backend/tasks/ingest_tasks.py:134:@celery_app.task(
+backend/tasks/ingest_tasks.py:156:        update_job_progress(job_id, "running", progress_pct=10, worker_id=self.request.hostname)
+backend/tasks/ingest_tasks.py:214:@celery_app.task(
+backend/tasks/ingest_tasks.py:242:        update_job_progress(job_id, "running", progress_pct=10, worker_id=self.request.hostname)
+backend/tasks/ingest_tasks.py:300:@celery_app.task(
+backend/tasks/ingest_tasks.py:318:    from celery import chord
+backend/tasks/ingest_tasks.py:325:        update_job_progress(job_id, "running", progress_pct=10, worker_id=self.request.hostname)

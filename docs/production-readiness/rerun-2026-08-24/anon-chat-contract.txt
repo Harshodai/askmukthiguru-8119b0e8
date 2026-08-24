@@ -1,0 +1,499 @@
+backend/scripts/eval/run_ragas_eval.py-107-    """Mint a fresh signed anon session token (resolve_anon_identity() rejects a
+backend/scripts/eval/run_ragas_eval.py-108-    bare client-chosen session_id in production). Fetched per question so the
+backend/scripts/eval/run_ragas_eval.py-109-    per-session anon quota (settings.anon_quota_messages, default 5) doesn't
+backend/scripts/eval/run_ragas_eval.py-110-    throttle a 50-question golden-set run."""
+backend/scripts/eval/run_ragas_eval.py-111-    from app.config import settings
+backend/scripts/eval/run_ragas_eval.py-112-    from rag.timeout_utils import timeout_with_margin
+backend/scripts/eval/run_ragas_eval.py-113-
+backend/scripts/eval/run_ragas_eval.py-114-    r = await client.post(
+backend/scripts/eval/run_ragas_eval.py:115:        "/api/auth/anon-session",
+backend/scripts/eval/run_ragas_eval.py-116-        timeout=timeout_with_margin(settings.benchmark_anon_session_timeout),
+backend/scripts/eval/run_ragas_eval.py-117-    )
+backend/scripts/eval/run_ragas_eval.py-118-    r.raise_for_status()
+backend/scripts/eval/run_ragas_eval.py-119-    return r.json()["token"]
+backend/scripts/eval/run_ragas_eval.py-120-
+backend/scripts/eval/run_ragas_eval.py-121-
+backend/scripts/eval/run_ragas_eval.py-122-async def run_evaluation(endpoint: str, output_file: str | None = None) -> dict[str, Any]:
+backend/scripts/eval/run_ragas_eval.py-123-    url_error = _validate_endpoint(endpoint)
+backend/scripts/eval/run_ragas_eval.py-124-    if url_error:
+backend/scripts/eval/run_ragas_eval.py-125-        raise ValueError(url_error)
+backend/scripts/eval/run_ragas_eval.py-126-    golden_set = load_golden_set()
+backend/scripts/eval/run_ragas_eval.py-127-    print(f"Loaded {len(golden_set)} golden evaluation questions.")
+backend/scripts/eval/run_ragas_eval.py-128-    print(f"Targeting endpoint: {endpoint}")
+backend/scripts/eval/run_ragas_eval.py-129-
+backend/scripts/eval/run_ragas_eval.py-130-    results = []
+backend/scripts/eval/run_ragas_eval.py-131-    category_scores: dict[str, list[dict]] = {}
+backend/scripts/eval/run_ragas_eval.py-132-
+backend/scripts/eval/run_ragas_eval.py-133-    from app.config import settings
+backend/scripts/eval/run_ragas_eval.py-134-    from rag.timeout_utils import timeout_with_margin
+backend/scripts/eval/run_ragas_eval.py-135-
+backend/scripts/eval/run_ragas_eval.py-136-    async with httpx.AsyncClient(
+backend/scripts/eval/run_ragas_eval.py-137-        base_url=endpoint,
+backend/scripts/eval/run_ragas_eval.py-138-        timeout=timeout_with_margin(settings.benchmark_chat_timeout),
+backend/scripts/eval/run_ragas_eval.py-139-        follow_redirects=False,
+backend/scripts/eval/run_ragas_eval.py-140-    ) as client:
+backend/scripts/eval/run_ragas_eval.py-141-        for idx, item in enumerate(golden_set, 1):
+backend/scripts/eval/run_ragas_eval.py-142-            q_id = item["id"]
+backend/scripts/eval/run_ragas_eval.py-143-            question = item["question"]
+backend/scripts/eval/run_ragas_eval.py-144-            category = item["category"]
+backend/scripts/eval/run_ragas_eval.py-145-            should_abstain = item.get("should_abstain", False)
+backend/scripts/eval/run_ragas_eval.py-146-            expected_keywords = item.get("expected_keywords", [])
+backend/scripts/eval/run_ragas_eval.py-147-            expected_citations = item.get("expected_citations", [])
+backend/scripts/eval/run_ragas_eval.py-148-
+backend/scripts/eval/run_ragas_eval.py-149-            start_time = time.time()
+backend/scripts/eval/run_ragas_eval.py-150-            status_code = 0
+--
+backend/app/api/endpoints/auth.py-2-
+backend/app/api/endpoints/auth.py-3-from app.config import settings
+backend/app/api/endpoints/auth.py-4-from schemas.user import UserCreate, UserRead, UserUpdate
+backend/app/api/endpoints/auth.py-5-from services.auth_service import auth_backend, fastapi_users, issue_anon_session_token
+backend/app/api/endpoints/auth.py-6-
+backend/app/api/endpoints/auth.py-7-router = APIRouter()
+backend/app/api/endpoints/auth.py-8-
+backend/app/api/endpoints/auth.py-9-
+backend/app/api/endpoints/auth.py:10:@router.post("/anon-session", tags=["auth"])
+backend/app/api/endpoints/auth.py-11-async def anon_session():
+backend/app/api/endpoints/auth.py-12-    """M5: Issue a server-side signed anonymous session token.
+backend/app/api/endpoints/auth.py-13-
+backend/app/api/endpoints/auth.py-14-    Returns ``{"session_id": "anon:<id>", "token": "<payload>.<sig>"}``. The
+backend/app/api/endpoints/auth.py-15-    client echoes ``token`` back as the ``X-Session-Id`` header (or
+backend/app/api/endpoints/auth.py-16-    ``session_id`` body field on POST) so resolve_anon_identity() can verify
+backend/app/api/endpoints/auth.py-17-    the HMAC and derive a per-session identity. Unsigned/tampered tokens are
+backend/app/api/endpoints/auth.py-18-    rejected with 400 at the resolve step.
+backend/app/api/endpoints/auth.py-19-    """
+backend/app/api/endpoints/auth.py-20-    return issue_anon_session_token()
+backend/app/api/endpoints/auth.py-21-
+backend/app/api/endpoints/auth.py-22-
+backend/app/api/endpoints/auth.py-23-router.include_router(
+backend/app/api/endpoints/auth.py-24-    fastapi_users.get_auth_router(auth_backend),
+backend/app/api/endpoints/auth.py-25-    prefix="/jwt",
+backend/app/api/endpoints/auth.py-26-    tags=["auth"],
+backend/app/api/endpoints/auth.py-27-)
+backend/app/api/endpoints/auth.py-28-
+backend/app/api/endpoints/auth.py-29-if not settings.disable_public_registration:
+backend/app/api/endpoints/auth.py-30-    register_router = fastapi_users.get_register_router(UserRead, UserCreate)
+backend/app/api/endpoints/auth.py-31-    # NOTE: Do NOT use Depends(limiter.limit(...)) here — slowapi's limit() returns a
+backend/app/api/endpoints/auth.py-32-    # Callable that Pydantic v2 cannot serialise to OpenAPI JSON schema, crashing
+backend/app/api/endpoints/auth.py-33-    # /openapi.json with PydanticInvalidForJsonSchema: core_schema.CallableSchema.
+backend/app/api/endpoints/auth.py-34-    # Rate limiting for this router is handled by the global slowapi middleware.
+backend/app/api/endpoints/auth.py-35-    router.include_router(
+backend/app/api/endpoints/auth.py-36-        register_router,
+backend/app/api/endpoints/auth.py-37-        tags=["auth"],
+backend/app/api/endpoints/auth.py-38-    )
+backend/app/api/endpoints/auth.py-39-else:
+backend/app/api/endpoints/auth.py-40-
+backend/app/api/endpoints/auth.py-41-    @router.post("/register", tags=["auth"])
+backend/app/api/endpoints/auth.py-42-    async def register_disabled():
+backend/app/api/endpoints/auth.py-43-        raise HTTPException(status_code=403, detail="Public registration is disabled.")
+backend/app/api/endpoints/auth.py-44-
+backend/app/api/endpoints/auth.py-45-
+--
+backend/services/auth_service.py-638-                f"get_optional_user: auth failed for provided token ({e.detail}); falling back to anonymous"
+backend/services/auth_service.py-639-            )
+backend/services/auth_service.py-640-        return {"id": "anonymous", "email": None, "is_anonymous": True}
+backend/services/auth_service.py-641-
+backend/services/auth_service.py-642-
+backend/services/auth_service.py-643-# --- M5: Server-side signed anonymous session tokens -------------------------
+backend/services/auth_service.py-644-#
+backend/services/auth_service.py-645-# Anonymous identity is no longer client-asserted. The server issues a signed
+backend/services/auth_service.py:646:# token at POST /api/auth/anon-session; the client echoes it back via
+backend/services/auth_service.py-647-# X-Session-Id (header) or session_id (POST body). resolve_anon_identity()
+backend/services/auth_service.py-648-# verifies the HMAC and rejects unsigned/tampered tokens in production.
+backend/services/auth_service.py-649-#
+backend/services/auth_service.py-650-# Token format:  <base64url(payload16)>.<base64url(hmac_sha256(payload))>
+backend/services/auth_service.py-651-# Storage identity: anon:<base64url(payload)>   (the existing "anon:" prefix)
+backend/services/auth_service.py-652-#
+backend/services/auth_service.py-653-# Invariant L-K3-1: all secret comparisons use hmac.compare_digest — never ==.
+backend/services/auth_service.py-654-
+backend/services/auth_service.py-655-
+backend/services/auth_service.py-656-def _anon_hmac_key() -> bytes:
+backend/services/auth_service.py-657-    """Return the HMAC key bytes for anonymous session tokens.
+backend/services/auth_service.py-658-
+backend/services/auth_service.py-659-    settings.anon_session_hmac_secret is guaranteed non-empty by the config
+backend/services/auth_service.py-660-    validator (validate_anon_session_secret): in production it must be set
+backend/services/auth_service.py-661-    explicitly; in dev it falls back to a value derived from jwt_secret.
+backend/services/auth_service.py-662-    """
+backend/services/auth_service.py-663-    secret = getattr(settings, "anon_session_hmac_secret", None) or ""
+backend/services/auth_service.py-664-    if not secret:
+backend/services/auth_service.py-665-        # Defensive: should never trigger because the config validator
+backend/services/auth_service.py-666-        # populates the value, but fail-closed rather than silently use "".
+backend/services/auth_service.py-667-        raise RuntimeError("anon_session_hmac_secret is not configured")
+backend/services/auth_service.py-668-    return secret.encode("utf-8")
+backend/services/auth_service.py-669-
+backend/services/auth_service.py-670-
+backend/services/auth_service.py-671-def issue_anon_session_token() -> dict:
+backend/services/auth_service.py-672-    """Mint a fresh anonymous session token (server-side issuance).
+backend/services/auth_service.py-673-
+backend/services/auth_service.py-674-    Returns ``{"session_id": "anon:<id>", "token": "<id>.<sig>"}`` where
+backend/services/auth_service.py-675-    ``<id>`` is base64url(16 random bytes) from secrets.token_urlsafe.
+backend/services/auth_service.py-676-    """
+backend/services/auth_service.py-677-    payload = secrets.token_urlsafe(16)  # ~128 bits of entropy
+backend/services/auth_service.py-678-    sig = hmac.new(_anon_hmac_key(), payload.encode("utf-8"), hashlib.sha256).digest()
+backend/services/auth_service.py-679-    sig_b64 = base64.urlsafe_b64encode(sig).rstrip(b"=").decode("ascii")
+backend/services/auth_service.py-680-    token = f"{payload}.{sig_b64}"
+backend/services/auth_service.py-681-    return {"session_id": f"anon:{payload}", "token": token}
+--
+backend/services/auth_service.py-705-    return f"anon:{payload}"
+backend/services/auth_service.py-706-
+backend/services/auth_service.py-707-
+backend/services/auth_service.py-708-def resolve_anon_identity(user: dict, session_id: str | None) -> dict:
+backend/services/auth_service.py-709-    """Derive a per-session identity for anonymous (incognito) users.
+backend/services/auth_service.py-710-
+backend/services/auth_service.py-711-    Without this, every incognito user shares user_id="anonymous", which breaks
+backend/services/auth_service.py-712-    job ownership isolation and telemetry granularity. The frontend obtains a
+backend/services/auth_service.py:713:    server-signed token from POST /api/auth/anon-session and echoes it back as
+backend/services/auth_service.py-714-    session_id in the request body (POST) or X-Session-Id header (GET).
+backend/services/auth_service.py-715-
+backend/services/auth_service.py-716-    M5: ``session_id`` is now the signed token form ``<payload>.<sig>``. We
+backend/services/auth_service.py-717-    verify the HMAC and rewrite the user id to ``anon:<payload>``. Tampered or
+backend/services/auth_service.py-718-    unsigned tokens are rejected with 400. In non-production (dev/test), the
+backend/services/auth_service.py-719-    bare ``anon:<id>`` form is still accepted as an escape hatch so legacy
+backend/services/auth_service.py-720-    tests that fabricate identities directly keep working.
+backend/services/auth_service.py-721-
+backend/services/auth_service.py-722-    Authenticated users are returned unchanged.
+backend/services/auth_service.py-723-    """
+backend/services/auth_service.py-724-    if not user or not user.get("is_anonymous"):
+backend/services/auth_service.py-725-        return user
+backend/services/auth_service.py-726-    sid = (session_id or "").strip()
+backend/services/auth_service.py-727-    if not sid:
+backend/services/auth_service.py-728-        return user
+backend/services/auth_service.py-729-
+backend/services/auth_service.py-730-    # Signed token path: "<payload>.<sig>".
+backend/services/auth_service.py-731-    if "." in sid:
+backend/services/auth_service.py-732-        anon_id = verify_anon_session_token(sid)
+backend/services/auth_service.py-733-        return {**user, "id": anon_id}
+backend/services/auth_service.py-734-
+backend/services/auth_service.py-735-    # Bare "anon:<id>" path — dev/test escape hatch ONLY. In production a
+backend/services/auth_service.py-736-    # caller supplying an unsigned id is rejected: anyone could otherwise
+backend/services/auth_service.py-737-    # claim a victim's identity by asserting their session id verbatim.
+backend/services/auth_service.py-738-    if sid.startswith("anon:"):
+backend/services/auth_service.py-739-        if getattr(settings, "is_production", True):
+backend/services/auth_service.py-740-            raise HTTPException(
+backend/services/auth_service.py-741-                status_code=400,
+backend/services/auth_service.py-742-                detail="Invalid anonymous session token",
+backend/services/auth_service.py-743-            )
+backend/services/auth_service.py-744-        return {**user, "id": sid}
+backend/services/auth_service.py-745-
+backend/services/auth_service.py-746-    # Anything else (legacy raw session ids without the anon: prefix) —
+backend/services/auth_service.py-747-    # reject in production, also reject in dev to avoid silently widening
+backend/services/auth_service.py-748-    # the accepted shape. The signed-token flow is the only sanctioned path.
+--
+backend/app/orchestrator.py-29-from rag.memory import normalize_session_id
+backend/app/orchestrator.py-30-
+backend/app/orchestrator.py-31-logger = logging.getLogger(__name__)
+backend/app/orchestrator.py-32-
+backend/app/orchestrator.py-33-# Module-level coalescer for concurrent RAG pipeline deduplication
+backend/app/orchestrator.py-34-_coalescer = build_coalescer(redis_url=getattr(settings, "redis_url", None), ttl=60.0)
+backend/app/orchestrator.py-35-
+backend/app/orchestrator.py-36-
+backend/app/orchestrator.py:37:class ChatRequestOrchestrator:
+backend/app/orchestrator.py-38-    """Thin orchestrator that delegates pipeline work to PipelineCoordinator."""
+backend/app/orchestrator.py-39-
+backend/app/orchestrator.py-40-    def __init__(self, container: ServiceContainer) -> None:
+backend/app/orchestrator.py-41-        self.container = container
+backend/app/orchestrator.py-42-        self.coordinator = PipelineCoordinator(container)
+backend/app/orchestrator.py-43-        self.telemetry_sink = SupabaseTelemetrySink()
+backend/app/orchestrator.py-44-
+backend/app/orchestrator.py-45-    async def orchestrate(
+backend/app/orchestrator.py-46-        self,
+backend/app/orchestrator.py-47-        request: Request,
+backend/app/orchestrator.py-48-        chat_body: ChatRequest,
+backend/app/orchestrator.py-49-        background_tasks: BackgroundTasks,
+backend/app/orchestrator.py-50-        user: dict,
+backend/app/orchestrator.py-51-    ) -> ChatResponse:
+backend/app/orchestrator.py-52-        """Execute full pipeline and log telemetry."""
+backend/app/orchestrator.py-53-        user_msg = chat_body.user_message.strip()
+backend/app/orchestrator.py-54-        preferred_lang = chat_body.language or "en"
+backend/app/orchestrator.py-55-        user_id = user.get("id", "anonymous") if user else "anonymous"
+backend/app/orchestrator.py-56-        session_id = normalize_session_id(chat_body.session_id, user_id)
+backend/app/orchestrator.py-57-        assistant_slug = chat_body.assistant.slug if chat_body.assistant else None
+backend/app/orchestrator.py-58-
+backend/app/orchestrator.py-59-        if not user_msg:
+backend/app/orchestrator.py-60-            raise HTTPException(status_code=400, detail="Message cannot be empty")
+backend/app/orchestrator.py-61-
+backend/app/orchestrator.py-62-        if len(user_msg) > settings.max_input_length:
+backend/app/orchestrator.py-63-            raise HTTPException(
+backend/app/orchestrator.py-64-                status_code=400,
+backend/app/orchestrator.py-65-                detail=f"Message too long. Please keep it under {settings.max_input_length} characters.",
+backend/app/orchestrator.py-66-            )
+backend/app/orchestrator.py-67-
+backend/app/orchestrator.py-68-        is_benchmark = is_benchmark_request(request)
+backend/app/orchestrator.py-69-
+backend/app/orchestrator.py-70-        # Coalesce identical concurrent RAG pipelines (e.g. double-submit) to avoid
+backend/app/orchestrator.py-71-        # redundant LLM calls. Scoped to user+session so two different users never
+backend/app/orchestrator.py-72-        # share a personalized result, and hashed with sha256 (not hash()) since
+--
+backend/app/schemas/__init__.py-76-    include_reflection: bool = Field(
+backend/app/schemas/__init__.py-77-        default=True, description="Allow one bounded reflective follow-up when safety permits"
+backend/app/schemas/__init__.py-78-    )
+backend/app/schemas/__init__.py-79-    action_depth: Literal["none", "one_step"] = Field(
+backend/app/schemas/__init__.py-80-        default="one_step", description="Maximum optional action depth"
+backend/app/schemas/__init__.py-81-    )
+backend/app/schemas/__init__.py-82-
+backend/app/schemas/__init__.py-83-
+backend/app/schemas/__init__.py:84:class ChatRequest(BaseModel):
+backend/app/schemas/__init__.py-85-    """Chat API request body — matches frontend's sendMessage format."""
+backend/app/schemas/__init__.py-86-
+backend/app/schemas/__init__.py-87-    messages: list[MessagePayload] = Field(..., description="Conversation history")
+backend/app/schemas/__init__.py-88-    user_message: str = Field(
+backend/app/schemas/__init__.py-89-        ..., min_length=1, max_length=10000, description="Current user message"
+backend/app/schemas/__init__.py-90-    )
+backend/app/schemas/__init__.py-91-    session_id: Optional[str] = Field(None, description="Optional session ID")
+backend/app/schemas/__init__.py-92-    meditation_step: int = Field(default=0, description="Current meditation step (0 = none)")
+backend/app/schemas/__init__.py-93-    language: Optional[str] = Field(default="en", description="Preferred language")
+backend/app/schemas/__init__.py-94-    incognito: bool = Field(
+backend/app/schemas/__init__.py-95-        default=False,
+backend/app/schemas/__init__.py-96-        description="Ephemeral privacy mode; disables persistence, memory, and shared reuse.",
+backend/app/schemas/__init__.py-97-    )
+backend/app/schemas/__init__.py-98-    response_preferences: ResponsePreferences = Field(
+backend/app/schemas/__init__.py-99-        default_factory=ResponsePreferences,
+backend/app/schemas/__init__.py-100-        description="Explicit response-form preferences; disabled from persistence in incognito.",
+backend/app/schemas/__init__.py-101-    )
+backend/app/schemas/__init__.py-102-    last_serene_mind_at: Optional[float] = Field(
+backend/app/schemas/__init__.py-103-        default=None,
+backend/app/schemas/__init__.py-104-        description="Unix timestamp of the user's last completed Serene Mind session (client-reported)",
+backend/app/schemas/__init__.py-105-    )
+backend/app/schemas/__init__.py-106-    assistant: Optional[AssistantContext] = Field(
+backend/app/schemas/__init__.py-107-        default=None,
+backend/app/schemas/__init__.py-108-        description="Optional assistant context to scope persona and retrieval",
+backend/app/schemas/__init__.py-109-    )
+backend/app/schemas/__init__.py-110-    attachment_context: Optional[str] = Field(
+backend/app/schemas/__init__.py-111-        default=None,
+backend/app/schemas/__init__.py-112-        max_length=8000,
+backend/app/schemas/__init__.py-113-        description=(
+backend/app/schemas/__init__.py-114-            "Ephemeral, pre-extracted evidence from user attachments. The upload route "
+backend/app/schemas/__init__.py-115-            "returns this value; it is never persisted or indexed automatically."
+backend/app/schemas/__init__.py-116-        ),
+backend/app/schemas/__init__.py-117-    )
+backend/app/schemas/__init__.py-118-
+backend/app/schemas/__init__.py-119-    @model_validator(mode="before")
+--
+backend/app/config.py-506-    # Gate Swagger/OpenAPI docs. Disabled in production to avoid exposing the full API schema.
+backend/app/config.py-507-    show_swagger: bool = False
+backend/app/config.py-508-    # Explicit opt-in for the X-Test-Key backdoor strategy. NEVER enable in production.
+backend/app/config.py-509-    enable_test_auth: bool = False
+backend/app/config.py-510-    jwt_secret: Optional[str] = None  # Shared with Supabase for token validation
+backend/app/config.py-511-    jwt_private_key: Optional[str] = None  # Private key PEM for RS256 token signing
+backend/app/config.py-512-    jwt_public_key: Optional[str] = None  # Public key PEM for RS256 token verification
+backend/app/config.py-513-    # M5: HMAC secret for server-side signed anonymous session tokens
+backend/app/config.py:514:    # (POST /api/auth/anon-session). REQUIRED in production — the app refuses to
+backend/app/config.py-515-    # start if empty when IS_PRODUCTION=true. In dev/test it falls back to a
+backend/app/config.py-516-    # value derived from jwt_secret so existing tests pass without config.
+backend/app/config.py-517-    anon_session_hmac_secret: Optional[str] = None
+backend/app/config.py-518-    supabase_jwt_audience: str = "authenticated"
+backend/app/config.py-519-    benchmark_secret: Optional[str] = None
+backend/app/config.py-520-    # Benchmarks (ragas_eval.py) default their live --endpoint to this value
+backend/app/config.py-521-    # instead of reading the env directly, so the endpoint is validated the same
+backend/app/config.py-522-    # way as every other settings-sourced URL.
+backend/app/config.py-523-    benchmark_endpoint: str = "http://localhost:8000"
+backend/app/config.py-524-    # Comma-separated or JSON-list of HTTPS hostnames allowed to receive the
+backend/app/config.py-525-    # X-Test-Key benchmark secret (non-loopback targets only — see
+backend/app/config.py-526-    # benchmarks/ragas_eval.py::_validate_endpoint).
+backend/app/config.py-527-    benchmark_test_key_allowed_hosts: Annotated[list[str], NoDecode] = []
+backend/app/config.py-528-    benchmark_anon_session_timeout: float = Field(default=15.0, gt=0.0)
+backend/app/config.py-529-    benchmark_chat_timeout: float = Field(default=180.0, gt=0.0)
+backend/app/config.py-530-
+backend/app/config.py-531-    @field_validator("benchmark_test_key_allowed_hosts", mode="before")
+backend/app/config.py-532-    @classmethod
+backend/app/config.py-533-    def _parse_benchmark_test_key_allowed_hosts(cls, v: Any) -> Any:
+backend/app/config.py-534-        if isinstance(v, str):
+backend/app/config.py-535-            try:
+backend/app/config.py-536-                return json.loads(v)
+backend/app/config.py-537-            except (ValueError, json.JSONDecodeError):
+backend/app/config.py-538-                return [h.strip() for h in v.split(",") if h.strip()]
+backend/app/config.py-539-        return v
+backend/app/config.py-540-
+backend/app/config.py-541-    # P1-SEC-1 (T4): Defense-in-depth admin allowlist. Comma-separated admin
+backend/app/config.py-542-    # user UUIDs. When non-empty, an AAL2 superuser MUST also be in this list
+backend/app/config.py-543-    # to reach admin/ingest/kg admin endpoints. Empty (default) = not enforced
+backend/app/config.py-544-    # (dev convenience; in prod set to the real admin UUIDs). The service_role
+backend/app/config.py-545-    # sentinel UUID is never in this list, so it is blocked even if aal2 were
+backend/app/config.py-546-    # somehow attached to its token.
+backend/app/config.py-547-    admin_user_ids: str = ""
+backend/app/config.py-548-    # M3: server-side persona allowlist. Comma-separated assistant slugs the
+backend/app/config.py-549-    # backend will honour as client-supplied personas. A request carrying a
+--
+backend/app/config.py-1299-        if not self.anon_session_hmac_secret:
+backend/app/config.py-1300-            if self.is_production:
+backend/app/config.py-1301-                raise ValueError(
+backend/app/config.py-1302-                    "anon_session_hmac_secret is required in production. "
+backend/app/config.py-1303-                    "Set it to a high-entropy random string (>= 32 bytes)."
+backend/app/config.py-1304-                )
+backend/app/config.py-1305-            # Dev/test fallback: derive a stable key from jwt_secret. Tests
+backend/app/config.py-1306-            # set JWT_SECRET in conftest.py, so this always has a value.
+backend/app/config.py:1307:            base = self.jwt_secret or "dev-anon-session-fallback-key"
+backend/app/config.py-1308-            import hashlib
+backend/app/config.py-1309-
+backend/app/config.py-1310-            self.anon_session_hmac_secret = (
+backend/app/config.py-1311-                "anon_hmac_" + hashlib.sha256((base + "::anon_session").encode()).hexdigest()
+backend/app/config.py-1312-            )
+backend/app/config.py-1313-        return self
+backend/app/config.py-1314-
+backend/app/config.py-1315-    @model_validator(mode="after")
+backend/app/config.py-1316-    def validate_api_keys(self):
+backend/app/config.py-1317-        """Fail-fast on missing required API keys for the active provider."""
+backend/app/config.py-1318-        # CENTRALIZED FALLBACK: If sarvam_30b_endpoint is provided, make sure we fallback base_url and api_key
+backend/app/config.py-1319-        if getattr(self, "sarvam_30b_endpoint", None):
+backend/app/config.py-1320-            if not getattr(self, "sarvam_api_key", "") and getattr(
+backend/app/config.py-1321-                self, "sarvam_30b_api_key", None
+backend/app/config.py-1322-            ):
+backend/app/config.py-1324-            if getattr(self, "sarvam_base_url", "") == "https://api.sarvam.ai/v1":
+backend/app/config.py-1325-                self.sarvam_base_url = self.sarvam_30b_endpoint
+backend/app/config.py-1326-
+backend/app/config.py-1327-        # Sanitize redis_url to strip 'default:' username if present (fixes Celery/Redis connection issues)
+backend/app/config.py-1328-        redis_url = getattr(self, "redis_url", "") or ""
+backend/app/config.py-1329-        if "@" in redis_url:
+backend/app/config.py-1330-            prefix = "rediss://" if redis_url.startswith("rediss://") else "redis://"
+backend/app/config.py-1331-            parts = redis_url.split("@", 1)
+backend/app/config.py-1332-            auth_part = parts[0].replace(prefix, "")
+backend/app/config.py-1333-            if ":" in auth_part:
+backend/app/config.py-1334-                username, password = auth_part.split(":", 1)
+backend/app/config.py-1335-                if username == "default":
+backend/app/config.py-1336-                    self.redis_url = f"{prefix}:{password}@{parts[1]}"
+backend/app/config.py-1337-
+backend/app/config.py-1338-        provider = self.llm_provider.lower()
+backend/app/config.py-1339-        required_keys = {
+backend/app/config.py-1340-            "sarvam_cloud": "sarvam_api_key",
+backend/app/config.py-1341-            "openrouter": "openrouter_api_key",
+backend/app/config.py-1342-            "nim": "nim_api_key",
+--
+backend/tests/test_wiring_invariants.py-165-        "REGRESSION: Settings fields are declared but never read (unowned):\n  - "
+backend/tests/test_wiring_invariants.py-166-        + "\n  - ".join(sorted(missing))
+backend/tests/test_wiring_invariants.py-167-    )
+backend/tests/test_wiring_invariants.py-168-
+backend/tests/test_wiring_invariants.py-169-
+backend/tests/test_wiring_invariants.py-170-# --- Part (b): auth dependency on every non-probe route --------------------
+backend/tests/test_wiring_invariants.py-171-
+backend/tests/test_wiring_invariants.py-172-# Routes intentionally unauthenticated. Probing/infra/documentation endpoints,
+backend/tests/test_wiring_invariants.py:173:# plus /api/auth/anon-session which ISSUES anonymous tokens.
+backend/tests/test_wiring_invariants.py-174-PROBE_ROUTES: set[str] = {
+backend/tests/test_wiring_invariants.py-175-    "/api/health",
+backend/tests/test_wiring_invariants.py-176-    "/api/healthz",
+backend/tests/test_wiring_invariants.py-177-    "/api/readyz",
+backend/tests/test_wiring_invariants.py-178-    "/",
+backend/tests/test_wiring_invariants.py-179-    "/docs",
+backend/tests/test_wiring_invariants.py-180-    "/openapi.json",
+backend/tests/test_wiring_invariants.py-181-    "/redoc",
+backend/tests/test_wiring_invariants.py-182-    "/api/health/mfa",
+backend/tests/test_wiring_invariants.py-183-    "/api/metrics",
+backend/tests/test_wiring_invariants.py:184:    "/api/auth/anon-session",
+backend/tests/test_wiring_invariants.py-185-}
+backend/tests/test_wiring_invariants.py-186-
+backend/tests/test_wiring_invariants.py-187-# Non-probe routes that are legitimately auth-less, with justification.
+backend/tests/test_wiring_invariants.py-188-PUBLIC_ROUTES: dict[str, str] = {
+backend/tests/test_wiring_invariants.py-189-    "/docs/oauth2-redirect": "Swagger UI infra (docs already probe-public)",
+backend/tests/test_wiring_invariants.py-190-    "/api/auth/register": "Registration stub returns 501 — must stay reachable pre-auth",
+backend/tests/test_wiring_invariants.py-191-    "/api/health/services": "Alias of /api/health — service readiness, no user data",
+backend/tests/test_wiring_invariants.py-192-    "/api/ready": "Kubernetes readiness probe (503 when not ready)",
+backend/tests/test_wiring_invariants.py-193-    "/api/memory/knowledge-graph": "Docstring: anonymous access allowed when no credentials; public /knowledge-graph page",
+backend/tests/test_wiring_invariants.py-194-    "/api/memory/knowledge-graph/export": "Public KG export — same auth policy as the graph itself",
+backend/tests/test_wiring_invariants.py-195-    "/api/teachings/tips": "Docstring: 'Public: current wisdom tips'",
+backend/tests/test_wiring_invariants.py-196-    "/api/support/contact": "Public support contact form (no user context needed)",
+backend/tests/test_wiring_invariants.py-197-    "/api/waitlist/": "Placeholder — returns 501 Not Implemented",
+backend/tests/test_wiring_invariants.py-198-    "/api/capabilities": "Public non-secret capability manifest for clients and operational checks",
+backend/tests/test_wiring_invariants.py-199-    "/.well-known/jwks.json": "JWKS must be public for JWT signature verification",
+backend/tests/test_wiring_invariants.py-200-    "/api/compliance/eu-ai-act/status": "EU AI Act transparency and compliance public status",
+backend/tests/test_wiring_invariants.py-201-    "/api/compliance/provenance/manifest/{artifact_id:path}": "Public provenance manifest query",
+backend/tests/test_wiring_invariants.py-202-    "/api/compliance/provenance/search": "Public provenance query/search endpoint",
+backend/tests/test_wiring_invariants.py-203-}
+backend/tests/test_wiring_invariants.py-204-
+backend/tests/test_wiring_invariants.py-205-# Markers looked up in a dependency callable's source. Includes the canonical
+backend/tests/test_wiring_invariants.py-206-# audit markers plus the codebase's real auth entry points (module-level
+backend/tests/test_wiring_invariants.py-207-# AuthBridge instance, Supabase user deps, admin gates).
+backend/tests/test_wiring_invariants.py-208-_AUTH_SOURCE_MARKERS: tuple[str, ...] = (
+backend/tests/test_wiring_invariants.py-209-    "require_scoped_identity",
+backend/tests/test_wiring_invariants.py-210-    "require_aal2",
+backend/tests/test_wiring_invariants.py-211-    "require_admin",
+backend/tests/test_wiring_invariants.py-212-    "get_authenticated_user",
+backend/tests/test_wiring_invariants.py-213-    "AuthBridge",
+backend/tests/test_wiring_invariants.py-214-    "resolve_anon_identity",
+backend/tests/test_wiring_invariants.py-215-    "auth_bridge",
+backend/tests/test_wiring_invariants.py-216-    "get_current_user_from_supabase",
+backend/tests/test_wiring_invariants.py-217-    "get_optional_user",
+backend/tests/test_wiring_invariants.py-218-    "_require_admin",
+backend/tests/test_wiring_invariants.py-219-    "_authed_user_id",
+--
+backend/tests/test_wiring_invariants.py-256-    dependant = getattr(route, "dependant", None)
+backend/tests/test_wiring_invariants.py-257-    if dependant is not None:
+backend/tests/test_wiring_invariants.py-258-        walk(getattr(dependant, "dependencies", []) or [])
+backend/tests/test_wiring_invariants.py-259-    return calls
+backend/tests/test_wiring_invariants.py-260-
+backend/tests/test_wiring_invariants.py-261-
+backend/tests/test_wiring_invariants.py-262-def _has_auth_dep(route) -> bool:
+backend/tests/test_wiring_invariants.py-263-    """True if the route resolves some caller identity: Supabase user, optional
+backend/tests/test_wiring_invariants.py:264:    user (with anon-session scoping), AAL2/MFA admin gate, FastAPI-Users
+backend/tests/test_wiring_invariants.py-265-    authenticator, or the AuthBridge family."""
+backend/tests/test_wiring_invariants.py-266-    for call in _route_dep_callables(route):
+backend/tests/test_wiring_invariants.py-267-        name = getattr(call, "__qualname__", str(call))
+backend/tests/test_wiring_invariants.py-268-        if any(marker in name for marker in _AUTH_NAME_MARKERS):
+backend/tests/test_wiring_invariants.py-269-            return True
+backend/tests/test_wiring_invariants.py-270-        try:
+backend/tests/test_wiring_invariants.py-271-            src = inspect.getsource(call)
+backend/tests/test_wiring_invariants.py-272-        except (OSError, TypeError):
+backend/tests/test_wiring_invariants.py-273-            src = ""
+backend/tests/test_wiring_invariants.py-274-        if any(marker in src for marker in _AUTH_SOURCE_MARKERS):
+backend/tests/test_wiring_invariants.py-275-            return True
+backend/tests/test_wiring_invariants.py-276-    return False
+backend/tests/test_wiring_invariants.py-277-
+backend/tests/test_wiring_invariants.py-278-
+backend/tests/test_wiring_invariants.py-279-def test_every_non_probe_route_has_auth_dependency():
+backend/tests/test_wiring_invariants.py-280-    """Regression net: any route added without an auth dependency fails."""
+backend/tests/test_wiring_invariants.py-281-    from app.main import app  # matches test_authz_regression's build pattern
+backend/tests/test_wiring_invariants.py-282-
+backend/tests/test_wiring_invariants.py-283-    offenders: list[str] = []
+backend/tests/test_wiring_invariants.py-284-    for route in app.routes:
+backend/tests/test_wiring_invariants.py-285-        path = getattr(route, "path", "")
+backend/tests/test_wiring_invariants.py-286-        methods = getattr(route, "methods", None) or set()
+backend/tests/test_wiring_invariants.py-287-        if not methods or path.startswith("/static"):
+backend/tests/test_wiring_invariants.py-288-            continue  # Mounts/WebSocket — no HTTP auth surface
+backend/tests/test_wiring_invariants.py-289-        if methods.issubset({"OPTIONS", "HEAD"}):
+backend/tests/test_wiring_invariants.py-290-            continue
+backend/tests/test_wiring_invariants.py-291-        if path in PROBE_ROUTES or path in PUBLIC_ROUTES:
+backend/tests/test_wiring_invariants.py-292-            continue
+backend/tests/test_wiring_invariants.py-293-        if not _has_auth_dep(route):
+backend/tests/test_wiring_invariants.py-294-            endpoint = getattr(getattr(route, "endpoint", None), "__name__", "?")
+backend/tests/test_wiring_invariants.py-295-            offenders.append(f"{path} {sorted(methods)} -> {endpoint}")
+backend/tests/test_wiring_invariants.py-296-
+backend/tests/test_wiring_invariants.py-297-    assert not offenders, (
+backend/tests/test_wiring_invariants.py-298-        "REGRESSION: the following non-probe routes lack any auth dependency"
+backend/tests/test_wiring_invariants.py-299-        " (add an identity dependency, or justify them in PUBLIC_ROUTES):\n  - "
+--
+backend/tests/test_anon_session_signed.py-1-"""M5: behavioral tests for server-side signed anonymous session tokens.
+backend/tests/test_anon_session_signed.py-2-
+backend/tests/test_anon_session_signed.py-3-Locks in:
+backend/tests/test_anon_session_signed.py:4:  - POST /api/auth/anon-session issues a signed token (status 200).
+backend/tests/test_anon_session_signed.py-5-  - The signed token resolves an anonymous identity via resolve_anon_identity.
+backend/tests/test_anon_session_signed.py-6-  - Tampered signatures are rejected with 400.
+backend/tests/test_anon_session_signed.py-7-  - Bare "anon:<id>" is rejected with 400 in production, accepted in dev.
+backend/tests/test_anon_session_signed.py-8-  - The resolve step never trusts an unsigned id asserted by the client.
+backend/tests/test_anon_session_signed.py-9-
+backend/tests/test_anon_session_signed.py-10-Invariant L-K3-1: comparisons use hmac.compare_digest (verified by code
+backend/tests/test_anon_session_signed.py-11-inspection of verify_anon_session_token — these tests exercise behavior).
+backend/tests/test_anon_session_signed.py-12-"""
+backend/tests/test_anon_session_signed.py-13-
+backend/tests/test_anon_session_signed.py-14-from __future__ import annotations
+backend/tests/test_anon_session_signed.py-15-
+backend/tests/test_anon_session_signed.py-16-import pytest
+backend/tests/test_anon_session_signed.py-17-from fastapi import HTTPException
+backend/tests/test_anon_session_signed.py-18-from fastapi.testclient import TestClient
+backend/tests/test_anon_session_signed.py-19-
+backend/tests/test_anon_session_signed.py-20-from app.main import app
+backend/tests/test_anon_session_signed.py-21-from services.auth_service import (
+backend/tests/test_anon_session_signed.py-22-    issue_anon_session_token,
+backend/tests/test_anon_session_signed.py-23-    resolve_anon_identity,
+backend/tests/test_anon_session_signed.py-24-    verify_anon_session_token,
+backend/tests/test_anon_session_signed.py-25-)
+backend/tests/test_anon_session_signed.py-26-
+backend/tests/test_anon_session_signed.py-27-client = TestClient(app)
+backend/tests/test_anon_session_signed.py-28-
+backend/tests/test_anon_session_signed.py-29-_ANON_USER = {"id": "anonymous", "email": None, "is_anonymous": True}
+backend/tests/test_anon_session_signed.py-30-
+backend/tests/test_anon_session_signed.py-31-
+backend/tests/test_anon_session_signed.py-32-def test_issue_anon_session_endpoint_returns_signed_token():
+backend/tests/test_anon_session_signed.py:33:    """POST /api/auth/anon-session returns 200 with {session_id, token} where
+backend/tests/test_anon_session_signed.py-34-    token contains a '.' (signed form) and session_id carries the anon: prefix."""
+backend/tests/test_anon_session_signed.py:35:    resp = client.post("/api/auth/anon-session")
+backend/tests/test_anon_session_signed.py-36-    assert resp.status_code == 200, resp.text
+backend/tests/test_anon_session_signed.py-37-    body = resp.json()
+backend/tests/test_anon_session_signed.py-38-    assert "session_id" in body and "token" in body
+backend/tests/test_anon_session_signed.py-39-    assert body["session_id"].startswith("anon:")

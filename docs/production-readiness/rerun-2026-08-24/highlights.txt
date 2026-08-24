@@ -1,0 +1,720 @@
+===== ai_evaluation.txt =====
+backend/tests/__pycache__/test_cache_stage_faithfulness.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_cache_stage_faithfulness.cpython-312.pyc
+backend/tests/__pycache__/test_citation_extractor.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_citation_extractor.cpython-312.pyc
+backend/tests/__pycache__/test_citation_marker_remap.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_citation_marker_remap.cpython-312.pyc
+backend/tests/__pycache__/test_citation_service.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_citation_service.cpython-312.pyc
+backend/tests/__pycache__/test_citation_threshold.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_citation_threshold.cpython-312.pyc
+backend/tests/__pycache__/test_clickable_citations.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_clickable_citations.cpython-312.pyc
+backend/tests/__pycache__/test_crag_confidence_skip.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_crag_confidence_skip.cpython-312.pyc
+backend/tests/__pycache__/test_translation_citation_markers.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_translation_citation_markers.cpython-312.pyc
+backend/tests/test_cache_stage_faithfulness.py
+backend/tests/test_citation_extractor.py
+backend/tests/test_citation_marker_remap.py
+backend/tests/test_citation_service.py
+backend/tests/test_citation_threshold.py
+backend/tests/test_clickable_citations.py
+backend/tests/test_crag_confidence_skip.py
+backend/tests/test_translation_citation_markers.py
+backend/services/confidence_scorer.py:7:  faithfulness        25%  — LettuceDetect / lexical overlap score
+backend/services/confidence_scorer.py:34:    "faithfulness": 0.25,
+backend/services/confidence_scorer.py:43:# Tuned so a high-faithfulness, contradiction-free, well-sourced answer
+backend/services/confidence_scorer.py:197:        # Signal 2: faithfulness from LettuceDetect / lexical overlap (0–1)
+backend/services/confidence_scorer.py:198:        faithfulness_sig = float(state.get("faithfulness_score") or verification.get("score", 0.0))
+backend/services/confidence_scorer.py:199:        faithfulness_sig = max(0.0, min(1.0, faithfulness_sig))
+backend/services/confidence_scorer.py:201:        # Signal 3: CoVe pass ratio (0–1); proxy from faithfulness if absent
+backend/services/confidence_scorer.py:204:        if cove_sig == 0.0 and faithfulness_sig > 0.0:
+backend/services/confidence_scorer.py:205:            cove_sig = faithfulness_sig * 0.9
+backend/services/confidence_scorer.py:231:            "faithfulness": faithfulness_sig,
+backend/services/confidence_scorer.py:270:        faithfulness = float(state.get("faithfulness_score") or verification.get("score", 0.0))
+===== anon-chat-contract.txt =====
+backend/scripts/eval/run_ragas_eval.py-108-    bare client-chosen session_id in production). Fetched per question so the
+backend/scripts/eval/run_ragas_eval.py-123-    url_error = _validate_endpoint(endpoint)
+backend/scripts/eval/run_ragas_eval.py-124-    if url_error:
+backend/scripts/eval/run_ragas_eval.py-125-        raise ValueError(url_error)
+backend/scripts/eval/run_ragas_eval.py-147-            expected_citations = item.get("expected_citations", [])
+backend/services/auth_service.py-648-# verifies the HMAC and rejects unsigned/tampered tokens in production.
+backend/services/auth_service.py-660-    validator (validate_anon_session_secret): in production it must be set
+backend/services/auth_service.py-667-        raise RuntimeError("anon_session_hmac_secret is not configured")
+backend/services/auth_service.py-675-    ``<id>`` is base64url(16 random bytes) from secrets.token_urlsafe.
+backend/services/auth_service.py-677-    payload = secrets.token_urlsafe(16)  # ~128 bits of entropy
+backend/services/auth_service.py-679-    sig_b64 = base64.urlsafe_b64encode(sig).rstrip(b"=").decode("ascii")
+backend/services/auth_service.py-718-    unsigned tokens are rejected with 400. In non-production (dev/test), the
+backend/services/auth_service.py-735-    # Bare "anon:<id>" path — dev/test escape hatch ONLY. In production a
+backend/services/auth_service.py-739-        if getattr(settings, "is_production", True):
+backend/services/auth_service.py-747-    # reject in production, also reject in dev to avoid silently widening
+backend/app/config.py-506-    # Gate Swagger/OpenAPI docs. Disabled in production to avoid exposing the full API schema.
+backend/app/config.py-508-    # Explicit opt-in for the X-Test-Key backdoor strategy. NEVER enable in production.
+backend/app/config.py:514:    # (POST /api/auth/anon-session). REQUIRED in production — the app refuses to
+backend/app/config.py-515-    # start if empty when IS_PRODUCTION=true. In dev/test it falls back to a
+backend/app/config.py-516-    # value derived from jwt_secret so existing tests pass without config.
+backend/app/config.py-537-            except (ValueError, json.JSONDecodeError):
+backend/app/config.py-1300-            if self.is_production:
+backend/app/config.py-1301-                raise ValueError(
+backend/app/config.py-1302-                    "anon_session_hmac_secret is required in production. "
+backend/app/config.py-1305-            # Dev/test fallback: derive a stable key from jwt_secret. Tests
+backend/app/config.py:1307:            base = self.jwt_secret or "dev-anon-session-fallback-key"
+backend/app/config.py-1317-        """Fail-fast on missing required API keys for the active provider."""
+backend/app/config.py-1318-        # CENTRALIZED FALLBACK: If sarvam_30b_endpoint is provided, make sure we fallback base_url and api_key
+backend/app/config.py-1334-                username, password = auth_part.split(":", 1)
+backend/app/config.py-1336-                    self.redis_url = f"{prefix}:{password}@{parts[1]}"
+backend/app/config.py-1339-        required_keys = {
+backend/tests/test_wiring_invariants.py-166-        + "\n  - ".join(sorted(missing))
+backend/tests/test_wiring_invariants.py-177-    "/api/readyz",
+backend/tests/test_wiring_invariants.py-189-    "/docs/oauth2-redirect": "Swagger UI infra (docs already probe-public)",
+backend/tests/test_wiring_invariants.py-192-    "/api/ready": "Kubernetes readiness probe (503 when not ready)",
+===== backend.txt =====
+backend/app/contracts/errors.py
+backend/app/core/errors.py
+backend/app/security_utils.py
+backend/rag/nodes/citation_extractor.py
+backend/services/citation_service.py
+backend/services/cost_tracker.py
+backend/services/semantic_router_fallback.py
+backend/services/translation/citation_markers.py
+--- TODO/FIXME/HACK ---
+backend/rag/resolve_followup.py:232:        return {}  # Graceful fallback — proceed with original question
+backend/rag/meditation.py:8:  - Null Object Pattern: format_meditation_response returns a context-aware fallback
+backend/rag/states.py:176:    # Final (13 writer nodes across casual/distress/fallback/format lanes)
+backend/rag/graph_builder.py:31:    pass
+backend/rag/node_llm_config.py:49:    "handle_fallback": {"effort": "low", "timeout": 10, "model": None, "max_tokens": None},
+backend/rag/node_llm_config.py:76:    "handle_fallback": {"effort": "low", "timeout": 10, "model": None, "max_tokens": None},
+backend/services/push_service.py:85:    except Exception as e:  # import error or init failure
+backend/rag/prompts/rag.py:423:# Shared constant for context_engineer and generation fallback paths.
+backend/rag/self_correction.py:25:        raise NotImplementedError
+backend/rag/self_correction.py:41:        state["use_fallback"] = True
+backend/app/telemetry_db.py:149:        method: 'semantic', 'heuristic', or 'fallback'.
+backend/app/telemetry_db.py:531:            # Default fallback
+backend/rag/tree_navigator.py:155:        pass
+backend/app/security_utils.py:431:        self._fallback = ExponentialBackoffRateLimiter(
+backend/app/security_utils.py:437:        self._fallback_active = False
+backend/app/security_utils.py:439:        # fallback mode (0.0 = never attempted; see _maybe_reconnect).
+backend/app/security_utils.py:448:    # fallback mode (seconds). Redis outage at boot would otherwise leave
+backend/app/security_utils.py:449:    # _fallback_active True forever with no recovery path.
+backend/app/security_utils.py:453:        """Retry Redis periodically while in fallback mode.
+backend/app/security_utils.py:456:        would otherwise leave the limiter on the process-local fallback
+backend/app/security_utils.py:458:        successful ping _connect() resets _fallback_active and the Redis
+backend/app/security_utils.py:459:        path resumes. If Redis is still down, _fallback_active stays True
+backend/app/security_utils.py:460:        and the fallback limiter keeps being used (fail-open unchanged).
+backend/app/security_utils.py:462:        if not self._fallback_active:
+backend/app/security_utils.py:481:            self._fallback_active = False
+backend/app/security_utils.py:482:        except Exception as exc:
+===== browser-live-chat.txt =====
+Submitted the harmless prompt “What is stillness?” through the rendered textarea. The browser created a new turn and displayed the user message, AI-generated state, Thinking state, a live search status for Ekam, a stop control, and a daily-teaching opt-in prompt. This confirms the browser-to-backend request path begins and produces streaming/progress UI in the current local stack. A completed final answer, citations, and final grounding state were not captured before this checkpoint; do not treat this as completed answer-quality evidence.
+The pre-existing conversation visible before submission included a “What is stillness?” turn labelled “Reflective guidance” with “No grounded teaching was found for this response; treat it as reflective guidance.” This is consistent with the repository’s fail-closed distinction between grounded teaching and reflective guidance, but it is not a quantitative faithfulness result.
+After the streamed turn settled, the live browser displayed `ERR_UNKNOWN`, “Something went wrong”, and “Failed to fetch”. The technical detail identified the cause as “An unexpected error occurred while preparing the reply”, with Retry available. The user message remained visible, but no final answer or citations were produced. This is a fresh confirmed live-runtime failure in the local Docker stack, despite `/api/healthz` returning alive and `/api/health` returning `ready:false` because `runtime_artifacts.missing_required` contained `okf_compiled`. The browser failure is therefore consistent with serving readiness being blocked by missing curated artifacts, but the exact backend exception still requires container-log correlation.
+===== compose-config.txt =====
+===== cost_performance.txt =====
+=== TRACK: cost_performance ===
+docs/archive/admin_video_script.md:23:**Visual:** Admin Overview page. KPI cards visible: Queries, Total Seekers, p50/p95 latency, Hallucination rate, Serene Mind triggered, Thumbs-up rate, Estimated cost, Error rate.
+docs/archive/admin_video_script.md:25:**VO:** "Every query is measured — volume, latency, cost, and the number that matters most: hallucination rate. This isn't a black box. It's a live instrument panel."
+docs/archive/admin_video_script.md:27:**Click cue:** Hover briefly over the Hallucination rate card (tooltip built in). **Do not linger on p95 latency or Error rate** — live numbers right now are 60.29s p95 and 16.3% error rate, both far outside your own SPEC_DEV targets (<3s, and implicitly low error rate). Framing the shot on the Hallucination rate (0.0%) and Queries/Total Seekers is honest and still strong; parking the camera on the other two would be showing a stakeholder audience a problem, not a feature. **Your call before we record: fix/investigate those numbers first, silently crop the shot to avoid them, or show everything unfiltered because "ruthless" transparency is the brand. I won't decide this one for you.**
+docs/archive/admin_video_script.md:33:**Visual:** Queries page — live table of real chat queries with latency, model, prompt version, and status per row.
+docs/archive/admin_video_script.md:80:1. Overview page — KPI cards (Queries/Seekers/Hallucination rate only — see latency/error-rate flag above)
+docs/archive/admin_video_script.md:89:- **p95 latency (60.29s) / error rate (16.3%):** live numbers, both well outside SPEC_DEV's stated targets. Decide: crop the shot, fix the underlying issue first, or show it anyway.
+docs/LOAD_TEST_RESULTS.md:22:| `/healthz` sustained | p95 latency | < 500 ms |
+docs/LOAD_TEST_RESULTS.md:23:| `/healthz` sustained | p99 latency | < 1500 ms |
+docs/DATA_QUALITY_AUDIT.md:38:    - **In-Memory Cache**: Redis key-value cache layer to bypass RAG execution on exact query hits.
+docs/DATA_QUALITY_AUDIT.md:44:- Performs langdetect checks for the `language` field (costs $0).
+docs/DATA_QUALITY_AUDIT.md:56:| **Query Latency (Cache Hit)** | N/A (No cache) | **<10ms** | ✅ Instant |
+docs/DATA_QUALITY_AUDIT.md:57:| **Query Latency (Cold Run)** | 12s - 25s (LightRAG timeout issues) | **3s - 5s** (Tighter GraphRAG timeouts) | ✅ Fast |
+docs/translation_qa_checklist.md:16:This means translation latency only delays the *AI request*, not what the user sees in their own bubble or the input field.
+docs/INGESTION_ARCHITECTURE.md:58:1. **Free-first**: Tiers 1–3 use free/open-source components. Tier 4 (Supadata) is opt-in and cost-bearing — it is an explicit fallback, not a default. Paid options (Supadata, OpenAI Whisper API) are labeled as optional upgrades.
+docs/top_to_bottom_quality_review.md:11:The implementation pass closed those two visible failures and several consistency gaps. The Wisdom Map now fails soft to a clearly labelled 10-node, 11-relationship guided example with a `Retry live map` action. Streaming fetch failures now map to the existing network recovery experience. Attachment limits are defined once and enforced consistently by both the parent chat state and the composer. Second Brain context is now injected as scored, freshness-aware, explicitly untrusted data rather than as bare bullets. The global font now resolves through the canonical token variable, and the token stylesheet is imported at the actual application entrypoint.
+docs/top_to_bottom_quality_review.md:35:| Knowledge Graph | Public graph remained indefinitely on `Loading wisdom map…` with a cold local backend. | Added a bounded fallback that renders `DEMO_DATA`, labels it as an example map, and exposes `Retry live map`. | Visual browser check showed 10 concepts, 11 relationships, graph controls, and retry action. Frontend build passed. |
+docs/top_to_bottom_quality_review.md:39:| Typography | `body` hard-coded `Inter` while the canonical token stylesheet was not actually imported. | Imported `design-tokens.css` from `index.css` and applied `var(--font-sans)` to `body`. | TypeScript check, build, and visual reload passed. |
+docs/top_to_bottom_quality_review.md:46:| Frontend TypeScript | Passed | The shared attachment module, KG fallback, chat error classification, and font-token changes type-check. |
+docs/top_to_bottom_quality_review.md:51:| Local chat browser check | Partial pass | Composer, stop control, streaming status, retry, details, citations/provenance, edit, save-to-memory, and share controls rendered. The local API endpoint was unavailable. |
+docs/top_to_bottom_quality_review.md:52:| Local Wisdom Map browser check | Passed after fix | Cold backend now produces a usable guided example and retry control instead of indefinite loading. |
+docs/top_to_bottom_quality_review.md:57:The current `prepare_user_memory` seam is correctly positioned upstream of graph generation and already merges Second Brain, profile memory, semantic memory, and a fresh persona summary. The next improvement should be a single bounded context budget rather than separate best-effort calls that can each consume 200 ms. A practical policy is to retrieve candidate memories concurrently, deduplicate them by canonical subject, score relevance × confidence × freshness, and allocate a fixed token budget across core facts, episodic context, Second Brain items, persona summary, and graph evidence.
+docs/top_to_bottom_quality_review.md:65:The current UI is already substantially closer to Claude/Manus than a basic chat: it shows progress pills, supports stop, maintains partial checkpoints, offers retry, edit, regenerate, citations, provenance, memory-save, note-save, share, voice, attachments, and responsive layouts. The next high-value UX step is a durable session transport. Direct SSE remains vulnerable to refreshes, tab changes, Wi-Fi transitions, and cancellation/resume conflicts.[3]
+docs/archive/PROD_READINESS_FINAL.md:28:- Cloudflare page rules: cache HTML for 5min, static assets for 30d, bypass `/auth` and `/api`.
+docs/COST_EFFECTIVENESS_AUDIT_2026-08-22.md:11:AskMukthiGuru is currently **functionally cost-controlled but not cost-efficient enough to scale without further measurement**. The largest measured cost driver is memory, not CPU, network, or volume storage. The latest recorded Railway snapshot shows **$29.6933 of current-period usage** against the **$30 hard limit**, with a **$55.2651 forecast**. The memory share is approximately **94%**, leaving negligible headroom for broad public traffic. The cache-pruning release produced a measured working-set reduction, but a sustained invoice reduction has not yet been proven.
+docs/COST_EFFECTIVENESS_AUDIT_2026-08-22.md:13:The most economically attractive safe work is memory reduction and cache/accounting instrumentation. A sustained **1 GB reduction is worth approximately $10 per month**, and a sustained **2 GB reduction approximately $20 per month**, using Railway’s official resource rate [1]. However, the current production evidence does not prove that ONNX INT8 would save one or two GB, nor that it would preserve retrieval quality. It therefore remains correctly gated. Neo4j schema mutation and broader graph concurrency have no demonstrated cost payback yet: the remote graph is healthy, current Neo4j CPU is low, and no controlled graph-on versus graph-off experiment has established either a quality lift or a lower cost per successful answer.
+docs/COST_EFFECTIVENESS_AUDIT_2026-08-22.md:21:| Memory | **Approximately 94% of current usage** | **94%** | Not available in this snapshot | Dominant cost driver and first optimization target |
+docs/COST_EFFECTIVENESS_AUDIT_2026-08-22.md:26:The current billing window was reported as 2026-08-11 through 2026-09-11 in the captured Railway snapshot. Its present usage was approximately 98.98% of the configured $30 hard limit, with a forecast of $55.2651. The application’s configured monthly cost envelope is $36, so the forecast is approximately 53.5% above that application-level envelope. These are workspace-level values; the exact billing window and project allocation should be re-read before using this figure for an operational budget decision.
+docs/COST_EFFECTIVENESS_AUDIT_2026-08-22.md:39:The backend is the principal known memory target, followed by Neo4j’s page-cache/runtime floor. The worker is already economically efficient and should not be optimized by reducing concurrency until ingestion SLA and queue throughput are measured. The historical health probe reported Neo4j latency of 47 ms, Qdrant 37 ms, and Redis 36 ms with queue size zero; these healthy dependency checks do not imply that removing any dependency would be safe or cost-positive.
+docs/COST_EFFECTIVENESS_AUDIT_2026-08-22.md:41:After the FlagEmbedding-only cache-pruning release, live SSH observations reported `/app/.cache/huggingface` at approximately `2.3–2.7G`, process RSS around `2.78–3.02 GiB`, and cgroup current around `4.26–4.40 GB`. The unused ONNX snapshot was absent while the required PyTorch model remained. These are point-in-time post-release observations, not a replacement for the historical 30-minute service-metrics window and not proof of reduced invoice spend.
+docs/COST_EFFECTIVENESS_AUDIT_2026-08-22.md:45:The 30-minute route window recorded 141 successful `/api/chat` responses, 3 client errors, and no 5xx responses, with p50 approximately 3.62 seconds and p95 approximately 4.05 seconds. It is not valid to divide the entire month-to-date Railway bill by those 141 benchmark requests and call the result a per-request production cost, because the invoice includes idle service memory, databases, prior traffic, and benchmark-independent workload.
+docs/COST_EFFECTIVENESS_AUDIT_2026-08-22.md:47:As a planning scenario only, if the observed 282 chat requests per hour were sustained for 30 days, that would represent approximately 203,040 requests per month. Dividing the latest Railway forecast of $54.76 by that hypothetical volume gives approximately **$0.27 per 1,000 requests**, or **$0.00027 per request**, before external model-provider charges. This scenario is not a measured user unit cost; at lower traffic, the always-on memory floor makes the cost per request materially higher.
+docs/COST_EFFECTIVENESS_AUDIT_2026-08-22.md:49:## Component-level cost-effectiveness
+docs/COST_EFFECTIVENESS_AUDIT_2026-08-22.md:53:| Backend resident memory | Largest known cost driver; approximately 6.77 GB average in the latest window, with a 13.63 GB reported maximum | Every sustained GB removed is approximately $10/month; 2–3 GB would be approximately $20–$30/month | Measure heap/model residency before changing runtime |
+docs/COST_EFFECTIVENESS_AUDIT_2026-08-22.md:54:| Neo4j | Approximately 2.40 GB memory and 0.003 vCPU average in the latest window | Schema indexes may improve latency but can increase storage/page-cache pressure; no proven invoice saving | Do not mutate schema yet |
+===== database.txt =====
+supabase/functions/delete-my-account/index.ts
+supabase/migrations/20260627130000_tenant_rls.sql
+supabase/migrations/20260710000000_add_guru_memories_missing_columns.sql
+supabase/migrations/20260711000000_enable_rls_on_all_tables.sql
+supabase/migrations/20260714000000_harden_rls_and_security_invoker.sql
+supabase/migrations/20260715000000_harden_linter_warnings.sql
+supabase/migrations/20260722000000_add_citation_verification_columns.sql
+supabase/migrations/20260724080000_harden_security_and_rls_lints.sql
+supabase/migrations/20260730000000_verify_rls_with_check.sql
+supabase/migrations/20260804000001_add_with_check_to_tenant_rls.sql
+supabase/migrations/20260805000004_source_release_rollback.sql
+supabase/migrations/20260805000003_source_releases.sql:36:ALTER TABLE public.source_releases ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260805000003_source_releases.sql:38:GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.source_releases TO service_role;
+supabase/migrations/20260601050554_d184ca2a-1755-4713-9b5a-6572499cdf09.sql:29:ALTER TABLE realtime.messages ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260626062100_create_router_decisions.sql:26:ALTER TABLE public.router_decisions ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260627130000_tenant_rls.sql:9:-- were recreated with WITH CHECK by 20260804000001 — the DROP removes whichever
+supabase/migrations/20260627130000_tenant_rls.sql:30:ALTER TABLE public.chat_queries ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260627130000_tenant_rls.sql:32:CREATE POLICY tenant_isolation ON public.chat_queries
+supabase/migrations/20260627130000_tenant_rls.sql:38:ALTER TABLE public.chat_responses ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260627130000_tenant_rls.sql:40:CREATE POLICY tenant_isolation ON public.chat_responses
+supabase/migrations/20260627130000_tenant_rls.sql:46:ALTER TABLE public.retrieval_events ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260627130000_tenant_rls.sql:48:CREATE POLICY tenant_isolation ON public.retrieval_events
+supabase/migrations/20260627130000_tenant_rls.sql:54:ALTER TABLE public.guru_core_memory ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260627130000_tenant_rls.sql:56:CREATE POLICY tenant_isolation ON public.guru_core_memory
+supabase/migrations/20260627130000_tenant_rls.sql:62:ALTER TABLE public.guru_memories ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260627130000_tenant_rls.sql:64:CREATE POLICY tenant_isolation ON public.guru_memories
+supabase/migrations/20260627130000_tenant_rls.sql:70:ALTER TABLE public.guru_session_summaries ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260627130000_tenant_rls.sql:72:CREATE POLICY tenant_isolation ON public.guru_session_summaries
+supabase/migrations/20260702150000_staging_quality_queue.sql:31:ALTER TABLE public.staging_quality_queue ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260724054031_41ce0885-a2cf-4301-9911-516ba2b8d26a.sql:13:-- CREATE POLICY "Authenticated users can delete teachings" ON storage.objects
+supabase/migrations/20260724054031_41ce0885-a2cf-4301-9911-516ba2b8d26a.sql:14:--   FOR DELETE USING (bucket_id = 'daily-teachings' AND auth.role() = 'authenticated');
+supabase/migrations/20260509180000_secure_realtime.sql:21:ALTER TABLE realtime.messages ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260509180000_secure_realtime.sql:32:ALTER TABLE public.daily_teachings ENABLE ROW LEVEL SECURITY;
+supabase/migrations/20260516191000_fix_telemetry_and_seed.sql:12:-- DELETE FROM public.user_profiles WHERE user_id = '00000000-0000-0000-0000-000000000000';
+supabase/migrations/20260516191000_fix_telemetry_and_seed.sql:13:-- DELETE FROM public.user_roles WHERE user_id = '00000000-0000-0000-0000-000000000000';
+===== distress-job-poll.txt =====
+strict-transport-security: max-age=31536000; includeSubDomains
+content-security-policy: default-src 'self'; script-src 'self' 'nonce-R4dYMW97gV7qmKCMKdentA' https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://api.sarvam.ai https://*.supabase.co wss://*.supabase.co; frame-ancestors 'none';
+{"job_id":"job_30c878b85fd1","status":"completed","created_at":1787580537.3667042,"started_at":1787580537.3726313,"completed_at":1787580538.5879152,"user_id":"anon:DgwDhSt6H8idmOc8O_0bNA","result":{"response":"I can feel that you're going through something deeply painful right now. You are not alone, and your life matters deeply. 🙏\n\nPlease reach out to a crisis helpline:\n• India: National Emergency Services 112\n• International: 988 Suicide & Crisis Lifeline 988\n\nWhile you wait, may I guide you through a calming Serene Mind breathing practice? It can help settle the storm within. 🕊️","intent":"DISTRESS","meditation_step":0,"citations":[],"blocked":true,"block_reason":"Off-topic: self_harm","proactive_serene_mind":null,"faithfulness_score":1.0,"relevancy_score":null,"confidence_score":null,"verification":null,"hallucination_flag":false,"cache_hit":false,"trace_id":"721bb331-2d47-4813-aa46-1fc7b8f37510","latency_ms":1145,"node_timings":{},"evaluation_trace":null,"citations_verified":null,"orphan_citations_stripped":null,"model_used":null,"model_provider":null,"route_decision":"distress","query_tier":null,"follow_up_suggestions":[],"audio_url":null,"kg_concept_nodes":[],"daily_practice_card":null,"guidance_plan":null,"answer_evidence":null,"grounding_state":"safety_redirect","release_manifest":{"release_id":"rel-dev-c1-pgemini-flash-budget-v1","policy_version":"gemini-flash-budget-v1","schema_version":"1.0.0"},"provenance_manifest":null,"ai_provenance":null},"error":null}
+===== docker-status.txt =====
+===== docs_agent_ready.txt =====
+=== TRACK: docs_agent_ready ===
+./.agents/skills/building-llms-for-production/cheatsheet.md
+./.agents/skills/building-llms-for-production/glossary.md
+./.agents/skills/building-llms-for-production/patterns.md
+./.agents/skills/building-llms-for-production/skill.md
+./.agents/skills/llms-in-production/cheatsheet.md
+./.agents/skills/llms-in-production/glossary.md
+./.agents/skills/llms-in-production/patterns.md
+./.agents/skills/llms-in-production/skill.md
+./.claude/tasks/clickable-citations.md
+./.claude/tasks/cost_spike_investigation_aug2026.md
+./.claude/tasks/docker_and_latency_cleanup.md
+./.claude/tasks/edge_case_security_latency_quality_plan.md
+./.claude/tasks/fix-security-and-quality-issues.md
+./.claude/tasks/LATENCY_OPTIMIZATION.md
+./.claude/tasks/production_audit_fixes.md
+./.claude/tasks/production_benchmark_20260820.md
+./.claude/tasks/production_hardening_and_audit_fixes.md
+./.claude/tasks/production_readiness_plan.md
+./.claude/tasks/production_readiness_playbook.md
+./.claude/tasks/production-hardening-reconciliation.md
+./.claude/tasks/ruthless_production_audit_plan.md
+./.claude/tasks/ruthless-productionization.md
+./.claude/tasks/security-fixes.md
+./.opencode/node_modules/msgpackr/SECURITY.md
+./.opencode/plans/emergent-security-audit.md
+./.opencode/plans/ruthless-system-error-and-enhancement.md
+./.opencode/plans/technical-debt-security-audit.md
+README.md:3:> **Active release baseline — verified 2026-08-12.** The supported frontend gate is `npm run build`; source lint is expected to have zero errors; `npm audit --omit=dev` must be clean. See the [release evidence pack](docs/operations/release-evidence-pack.md) for the complete safety, documentation, and privileged-integration checklist. Historical counts elsewhere in this document are architectural context, not live service assertions.
+AGENTS.md:14:- Local validation in the sandbox is dependency-limited: do not install packages. `py_compile`, the regex safety gate, `git diff --check`, and the corpus guard are valid local gates; `pytest` and dependency-complete tests must run in CI or the production/test image.
+AGENTS.md:24:- Curated `/app/memory/okf/compiled.json` and `/app/data/doctrine_lexicon.json` remain absent. Do not manufacture placeholders, activate ONNX/RRF/DBSF, mutate Neo4j schema, widen graph concurrency, or modify `scripts/ingestion/corpus/` without approved audited artifacts and held-out evidence.
+AGENTS.md:36:- The local backend health response was HTTP 200 with `ready=true,status=degraded`; the only reported degraded component was optional OCR. Local Qdrant data, absent OKF compiled artifacts, and local provider configuration remain non-equivalent to the deployed production environment. Do not claim a production retest from these results. No Railway deployment was started.
+AGENTS.md:140:- **Embedding warm-up canary** (`main.py`): Fires ONNX encoder before `startup_complete=True`. Validates dimension contract (logs ERROR if dim != `settings.embedding_dimension`).
+AGENTS.md:162:- **PERF-2 DOCUMENTED** (`app/api/chat.py`): `asyncio.to_thread()` wrapping of sync Supabase client is the correct pattern. Added `# PERF-2 TODO: migrate to async Postgres client` to track technical debt.
+AGENTS.md:166:- **CODE-2 PARTIAL** (`app/api/admin.py`): Moved `datetime/timedelta/UTC` to module-level imports; removed redundant inline `from app.telemetry_db import get_kpis, get_node_latencies` (already at module top). Added comment explaining remaining intentional lazy-loads (circular import avoidance for celery tasks, cost tracker, prompt store).
+===== frontend.txt =====
+src/admin/components/AdminErrorBoundary.tsx
+src/admin/lib/mockData.test.ts
+src/admin/lib/mockData.ts
+src/components/chat/ChatErrorBanner.tsx
+src/components/chat/CitationPanel.tsx
+src/components/chat/ErrorCodePanel.tsx
+src/components/common/ChatErrorBoundary.tsx
+src/components/common/RootErrorBoundary.tsx
+src/lib/chat/errors.ts
+src/lib/chatErrorBus.ts
+src/pages/AuthLatencyDashboard.tsx
+src/pages/ResetPasswordPage.tsx
+src/test/chat/errors.test.ts
+--- hook warnings ---
+7:  59:17  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+10:  126:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+13:  215:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+14:  230:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+15:  377:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+16:  401:14  warning  Fast refresh only works when a file only exports components. Move your React context(s) to a separate file                      react-refresh/only-export-components
+17:  404:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+20:   63:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+21:  137:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+22:  144:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+25:  63:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+28:  412:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+31:  59:17  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+34:  6:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+37:  21:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+40:  13:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+43:  37:7  warning  Fast refresh only works when a file only exports components. Move your component(s) to a separate file  react-refresh/only-export-components
+46:  94:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+49:  24:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+52:  25:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+53:  34:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+===== highlights.txt =====
+backend/tests/__pycache__/test_cache_stage_faithfulness.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_cache_stage_faithfulness.cpython-312.pyc
+backend/tests/__pycache__/test_citation_extractor.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_citation_extractor.cpython-312.pyc
+backend/tests/__pycache__/test_citation_marker_remap.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_citation_marker_remap.cpython-312.pyc
+backend/tests/__pycache__/test_citation_service.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_citation_service.cpython-312.pyc
+backend/tests/__pycache__/test_citation_threshold.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_citation_threshold.cpython-312.pyc
+backend/tests/__pycache__/test_clickable_citations.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_clickable_citations.cpython-312.pyc
+backend/tests/__pycache__/test_crag_confidence_skip.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_crag_confidence_skip.cpython-312.pyc
+backend/tests/__pycache__/test_translation_citation_markers.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_translation_citation_markers.cpython-312.pyc
+backend/tests/test_cache_stage_faithfulness.py
+backend/tests/test_citation_extractor.py
+backend/tests/test_citation_marker_remap.py
+backend/tests/test_citation_service.py
+backend/tests/test_citation_threshold.py
+backend/tests/test_clickable_citations.py
+backend/tests/test_crag_confidence_skip.py
+backend/tests/test_translation_citation_markers.py
+backend/services/confidence_scorer.py:7:  faithfulness        25%  — LettuceDetect / lexical overlap score
+backend/services/confidence_scorer.py:34:    "faithfulness": 0.25,
+backend/services/confidence_scorer.py:43:# Tuned so a high-faithfulness, contradiction-free, well-sourced answer
+backend/services/confidence_scorer.py:197:        # Signal 2: faithfulness from LettuceDetect / lexical overlap (0–1)
+backend/services/confidence_scorer.py:198:        faithfulness_sig = float(state.get("faithfulness_score") or verification.get("score", 0.0))
+backend/services/confidence_scorer.py:199:        faithfulness_sig = max(0.0, min(1.0, faithfulness_sig))
+backend/services/confidence_scorer.py:201:        # Signal 3: CoVe pass ratio (0–1); proxy from faithfulness if absent
+backend/services/confidence_scorer.py:204:        if cove_sig == 0.0 and faithfulness_sig > 0.0:
+backend/services/confidence_scorer.py:205:            cove_sig = faithfulness_sig * 0.9
+backend/services/confidence_scorer.py:231:            "faithfulness": faithfulness_sig,
+backend/services/confidence_scorer.py:270:        faithfulness = float(state.get("faithfulness_score") or verification.get("score", 0.0))
+===== infrastructure.txt =====
+./.github/workflows/backup-drill-reminder.yml
+./.github/workflows/nightly-rls.yml
+./.github/workflows/security-audit.yml
+./.tmp_release_evidence/todo_program/phase5/alerting-rules.yml
+./.tmp_release_evidence/todo_program/phase5/docker-compose.prod.yml
+./.tmp_release_evidence/todo_program/phase5/Dockerfile
+./.tmp_release_evidence/todo_program/phase5/Dockerfile.railway
+./backend/evaluation/rubrics/citation_correctness.yaml
+./backend/evaluation/rubrics/crosslingual_faithfulness.yaml
+./docs/production/railway_hindi_repeat_timing_2026-08-22.md
+./docs/production/railway_hindi_stage_timing_smoke_2026-08-22.json
+./docs/production/railway_internal_hindi_smoke_2026-08-22.txt
+./docs/production/railway_postflush_latency_evidence_2026-08-22.md
+./docs/production/railway_retrieval_fix_evidence_2026-08-22.md
+./docs/production/railway_stage_timing_health_browser_2026-08-22.md
+./k8s/helm/mukthiguru/values-production.yaml
+Dockerfile:6:#   - 2 uvicorn workers for concurrency under production load
+docker-compose.prod.yml:85:        condition: service_healthy
+docker-compose.prod.yml:87:        condition: service_healthy
+backend/celery_config.py:27:# production still wants the real async worker split.
+backend/celery_config.py:77:    # task_reject_on_worker_lost=True; transient errors are retried via autoretry_for.
+backend/celery_config.py:120:        "status": "healthy",
+backend/app/telemetry_db.py:796:        logger.error(f"Failed to get retrieval health: {e}")
+backend/app/telemetry_db.py:1390:            status = "healthy"
+backend/app/telemetry_db.py:1409:        logger.error(f"Failed to get ingestion health: {e}")
+infrastructure/prometheus/alerting-rules.yml:31:      # SLO 2 — /api/health ready > 99.5%
+infrastructure/prometheus/alerting-rules.yml:34:          sum(rate(health_check_total{result="not_ready"}[5m]))
+infrastructure/prometheus/alerting-rules.yml:43:          description: "More than 0.5% of /api/health probes return not_ready in a 15m window."
+infrastructure/prometheus/alerting-rules.yml:44:          runbook: "docs/runbooks/ALERTING.md#healthreadyslopage"
+k8s/helm/mukthiguru/values-production.yaml:7:replicaCount: 3
+k8s/helm/mukthiguru/values-production.yaml:14:  resources:
+k8s/helm/mukthiguru/values-production.yaml:27:  resources:
+k8s/helm/mukthiguru/values-production.yaml:58:      resource:
+k8s/helm/mukthiguru/values-production.yaml:64:      resource:
+k8s/helm/mukthiguru/values-production.yaml:99:  resources:
+===== job-contracts.txt =====
+backend/celery_config.py-134-    error_message: str = None,
+backend/celery_config.py-152-        if error_message:
+backend/celery_config.py-153-            updates["error_message"] = error_message
+backend/celery_config.py:162:        logging.getLogger(__name__).warning(f"Job progress update failed for {job_id}: {e}")
+backend/app/api/chat.py-460-        from app.services.job_queue import QueueFullError
+backend/app/api/chat.py-480-        except QueueFullError:
+backend/app/api/chat.py-487-                    "error": "Too Many Requests",
+backend/app/api/chat.py-500-                    raise HTTPException(status_code=500, detail=job.get("error", "Pipeline failed"))
+backend/app/api/chat.py-665-        from app.services.job_queue import QueueFullError
+backend/app/api/chat.py-685-        except QueueFullError:
+backend/app/api/chat.py-692-                    "error": "Too Many Requests",
+backend/app/api/chat.py-767-                            yield "event: error\ndata: Pipeline failed\n\n"
+backend/app/api/chat.py-770-                            yield "event: error\ndata: Job cancelled\n\n"
+backend/app/api/chat.py-776-                            # A terminal done entry was already delivered from
+backend/app/api/chat.py-783-                            fallback = json.dumps(
+backend/app/api/chat.py-784-                                {"grounding_state": "system_error"}
+backend/app/api/chat.py-786-                            yield f"event: done\\ndata: {fallback}\\n\\n"
+backend/app/api/chat.py-796-                            fallback = last_done_data or json.dumps(
+backend/app/api/chat.py-797-                                {"grounding_state": "system_error"}
+backend/app/api/chat.py-799-                            yield f"{event_id}event: done\ndata: {fallback}\n\n"
+backend/app/api/chat.py-801-                        if data == "__ERROR__":
+backend/app/api/chat.py-802-                            yield f"{event_id}event: error\ndata: Pipeline failed\n\n"
+backend/tasks/contextual_reingest_task.py:24:            update_job_progress(job_id, "failed", error_message=str(exc))
+backend/tasks/contextual_reingest_task.py-51-    skip_processed: bool = True,
+backend/tasks/contextual_reingest_task.py-67-                skip_processed=skip_processed,
+backend/tasks/contextual_reingest_task.py:82:            update_job_progress(job_id, "failed", error_message=str(exc))
+backend/tasks/contextual_reingest_task.py-126-        _r.delete("contextual_reingest:running")
+backend/app/services/job_queue.py-88-            except TimeoutError:
+backend/app/services/job_queue.py-89-                logger.error("Redis ping timed out after 5s — connection may be stalled")
+===== knowledge_graph.txt =====
+src/App.tsx:320:              <Route path="/knowledge-graph" element={<Suspense fallback={<BrandedSpinner />}><KnowledgeGraphPage /></Suspense>} />
+tests/e2e/full-regression.spec.ts:6: * ship broken — chat round-trips, the newer /second-brain & /knowledge-graph
+tests/e2e/security-aal2.spec.ts:15: * suite targets routes that require an authenticated identity.
+scripts/extract_okf_from_stores.py:330:        logger.warning("Neo4j not configured — skipping entity query")
+scripts/extract_okf_from_stores.py:339:                auth=(settings.neo4j_user, settings.neo4j_password),
+scripts/extract_okf_from_stores.py:362:        logger.warning("Neo4j entity fetch failed: %s", exc)
+scripts/extract_okf_from_stores.py:382:                            "Low memory available (%d MB) — bypassing LightRAG queries to prevent SIGKILL",
+scripts/extract_okf_from_stores.py:402:                logger.debug("LightRAG query skipped for %r: %s", q, exc)
+scripts/extract_okf_from_stores.py:404:        logger.warning("LightRAG unavailable: %s", exc)
+scripts/extract_okf_from_stores.py:434:    When ``skip_heavy`` is True (dry-run), Neo4j & LightRAG are skipped —
+scripts/extract_okf_from_stores.py:468:    # Fetch Neo4j entities — skip in dry-run to avoid heavyweight service init
+scripts/extract_okf_from_stores.py:511:    # Gather LightRAG context for each cluster (parallel async) — skip in dry-run
+scripts/extract_okf_from_stores.py:746:    # 2. Cluster by topic (skip Neo4j/LightRAG in dry-run — avoid OOM)
+backend/services/confidence_scorer.py:90:    `citations` may be plain URL strings (pre-format_final_answer graph
+scripts/migrate_data.py:76:        logger.warning(f"⚠️  LightRAG init failed (Graph RAG will be skipped): {e}")
+backend/services/humanizer.py:152:    citations survive humanization.  Paragraph boundaries are preserved
+scripts/benchmarks/production_end_to_end_benchmark.py:398:        ("/api/memory/knowledge-graph", [200, 401, 403]),
+backend/services/guru_brain/guru_kg_service.py:108:                    f"GuruKGService: Neo4j Cypher write failed ({exc}), stored in graph memory fallback."
+backend/services/guru_brain/guru_kg_service.py:188:        # Fallback in-memory graph traversal
+scripts/apply_offline_translations_mr.py:387:    "Couldn't load graph: {{error}}": "आलेख लोड करू शकलो नाही: {{error}}",
+src/lib/healingCourses.ts:141:    subtitle: 'For anger, resentment and broken relationships.',
+scripts/ingestion/verify_ingestion_quality.py:98:                check(f"lightrag_vdb_{vdb_suffix}", False, "Collection missing")
+scripts/check_docker_health.py:33:    NEO4J_PASSWORD = settings.neo4j_password
+scripts/check_docker_health.py:106:async def check_neo4j_health(config: dict, password: str) -> Tuple[bool, str]:
+scripts/check_docker_health.py:120:        return True, "Neo4j is healthy"
+scripts/dump_all_stores.py:65:        logger.warning("Neo4j not configured — skipping export")
+scripts/dump_all_stores.py:74:                auth=(settings.neo4j_user, settings.neo4j_password),
+scripts/dump_all_stores.py:105:        logger.error(f"Failed to fetch Neo4j data: {e}")
+scripts/dump_all_stores.py:124:        logger.warning(f"Could not load LightRAG KV stores: {e}")
+scripts/backup/snapshot_manager.py:7:  2. Neo4j (Graph Database APOC cypher streams via Docker cypher-shell)
+scripts/backup/snapshot_manager.py:30:NEO4J_CONTAINER = "mukthiguru-neo4j"
+scripts/backup/snapshot_manager.py:37:NEO4J_BACKUP_PATH = os.path.join(BACKUP_DIR, "neo4j", "backup.cypher")
+scripts/backup/snapshot_manager.py:184:# ─── Neo4j Backup & Restore ────────────────────────────────────────────────────
+scripts/backup/snapshot_manager.py:187:def backup_neo4j():
+scripts/backup/snapshot_manager.py:188:    """Stream out a plain cypher backup from Neo4j APOC export."""
+===== memory.txt =====
+tests/e2e/prelaunch-sweep.spec.ts:43:const DESTRUCTIVE = /sign\s*out|log\s*out|delete|remove|clear|reset|cancel|leave|discard/i;
+scripts/ml_locales_part2.py:41:        "deleted": "കുറിപ്പ് ഇല്ലാതാക്കി",
+scripts/ml_locales_part2.py:84:        "forgetWarning": "ഭാവി സംഭാഷണങ്ങളിൽ ഗുരു ഇനി ഇത് പരാമർശിക്കില്ല. ഇത് പഴയപടിയാക്കാൻ കഴിയില്ല.",
+scripts/ml_locales_part2.py:251:                "delete_immediately": "ഉടനടി ഇല്ലാതാക്കുക"
+scripts/ml_locales_part2.py:256:                "delete_immediately": "ഗ്രേസ് പിരീഡ് ഇല്ല; ഉടനടി ഇല്ലാതാക്കപ്പെടും."
+scripts/ml_locales_part2.py:294:        "deleteEverything": "എല്ലാം ഇല്ലാതാക്കുക",
+scripts/ml_locales_part2.py:300:        "deleteTitle": "എല്ലാ ആത്മപരിശോധനകളും ഇല്ലാതാക്കണോ?",
+scripts/ml_locales_part2.py:301:        "deleteWarning": "ഇത് നിങ്ങളുടെ ആത്മപരിശോധനകളിലെ ഓരോ ഇനത്തിന്റെ എൻക്രിപ്ഷൻ കീയും ശാശ്വതമായി നശിപ്പിക്കുന്നു. ഇത് ആർക്കും പഴയപടിയാക്കാൻ കഴിയില്ല.",
+scripts/ml_locales_part2.py:369:            "deleteAll": "എല്ലാ സംഭാഷണങ്ങളും ഇല്ലാതാക്കുക",
+backend/app/telemetry/__init__.py:3:The per-stage event-bus (events.py/publisher.py/sinks.py) was deleted --
+tests/e2e/seeker-journey.spec.ts:313:            user_id: 'mock-user-uuid',
+backend/app/telemetry_db.py:19:from app.security_utils import validate_iso_date, validate_session_id, validate_user_id
+src/pages/SecondBrainPage.tsx:69:          title: t('brain.loadError', "Couldn't load your reflections"),
+src/pages/SecondBrainPage.tsx:138:        title: t('brain.couldNotDelete', "Couldn't delete"),
+src/pages/SecondBrainPage.tsx:207:      toast({ title: t('brain.permanentlyDeleted', "Reflections permanently deleted.") });
+src/pages/SecondBrainPage.tsx:210:        title: t('brain.couldNotDeleteVault', "Couldn't delete vault"),
+src/pages/SecondBrainPage.tsx:248:              {t('brain.privateModeIntro', "Private Mode is on — enter your passphrase to unlock your reflections for this session. It's never sent anywhere except this one request, and never stored.")}
+src/pages/SecondBrainPage.tsx:277:                <p className="text-sm text-muted-foreground mt-1">We could not load your reflections. Your data has not been deleted.</p>
+src/pages/SecondBrainPage.tsx:389:                <ShieldAlert className="w-4 h-4 mr-1" /> {t('brain.deleteEverything', "Delete Everything")}
+src/pages/SecondBrainPage.tsx:402:            {t('brain.enablePrivateWarning', "Once enabled, your reflections are encrypted with a key derived from this passphrase. We will never see it, and if you forget it, your reflections cannot be recovered by anyone, including us. This is by design.")}
+src/pages/SecondBrainPage.tsx:428:            <DialogTitle>{t('brain.deleteTitle', "Delete all reflections?")}</DialogTitle>
+src/pages/SecondBrainPage.tsx:431:            {t('brain.deleteWarning', "This permanently destroys the encryption key for every item in your reflections. This cannot be undone by anyone.")}
+src/pages/SecondBrainPage.tsx:438:              {t('brain.deleteEverything', "Delete Everything")}
+supabase/functions/memory-embed/index.ts:68:    console.error("[memory-embed] embed failed", e);
+backend/app/chat_engine.py:284:            logger.error(f"Pipeline timeout for user {user_id}")
+scripts/generate_complete_as.py:45:        "delete": "মচক",
+scripts/generate_complete_as.py:384:        "deleteAccountPrompt": "একাউণ্ট মচি পেলাওক",
+scripts/generate_complete_as.py:385:        "deleteAccountWarning": "এই কাৰ্য্য পুনৰুদ্ধাৰ কৰিব নোৱাৰি।",
+scripts/generate_complete_as.py:644:        "deleteConv": "কথোপকথন মচক",
+scripts/generate_complete_as.py:645:        "deleteTitle": "কথোপকথন মচি পেলাবনে?",
+scripts/generate_complete_as.py:646:        "deleteWarning": "এই কাৰ্য্য পুনৰুদ্ধাৰ কৰিব নোৱাৰি আৰু আপোনাৰ শিক্ষাৰ ইতিহাস হেৰাই যাব।",
+scripts/generate_complete_as.py:675:        "deleteConfirm": "এই নোট মচি পেলাবনে?",
+scripts/generate_complete_as.py:676:        "deleteWarning": "এই কাৰ্য্য পুনৰুদ্ধাৰ কৰিব নোৱাৰি।",
+scripts/generate_complete_as.py:684:        "deleteAll": "সকলো নোট মচক",
+scripts/generate_complete_as.py:685:        "deleteAllConfirm": "আপোনাৰ সকলো অধ্যয়ন নোট মচিবলৈ নিশ্চিতনে?",
+===== mobile.txt =====
+src/pages/AuthLatencyDashboard.tsx:124:            If Google sign-in is consistently slow, check: network throttling, third-party cookies blocked,
+src/lib/chatStorage.ts:47:export type MessageErrorKind = 'network' | 'unauthorized' | 'rate_limited' | 'quota_exceeded' | 'server_error' | 'timeout' | 'connection_refused' | 'dns_failure' | 'backend_down' | 'telemetry_failed' | 'circuit_breaker' | 'unknown';
+src/lib/authTelemetry.ts:182:    run.steps.push({ name: 'run_error', status: 'error', startedAt: Date.now(), durationMs: null, error });
+src/pages/MFAChallengePage.tsx:13: * auth endpoints or partial network coverage.
+src/pages/AuthPage.tsx:552:      recordStep('oauth_init', supabaseError ? 'error' : 'ok', Math.round(performance.now() - initT0), {
+src/pages/AuthPage.tsx:597:      recordStep('oauth_init', supabaseError ? 'error' : 'ok', Math.round(performance.now() - initT0), {
+src/pages/AuthPage.tsx:637:      recordStep('oauth_init', supabaseError ? 'error' : 'ok', Math.round(performance.now() - initT0), {
+src/pages/AuthPage.tsx:740:        const { error: oauthError } = await supabase.auth.signInWithOAuth({
+src/pages/AuthPage.tsx:744:        if (!oauthError) return;
+src/lib/chat/transport.ts:332:      let code: AIErrorCode = 'network';
+src/lib/chat/transport.ts:337:      } else if (err instanceof TypeError && /fetch|network/i.test(message)) {
+src/lib/chat/telemetry.ts:29:    console.warn('[telemetry] network error', e);
+src/lib/chatErrorBus.ts:32:  network: { code: 'NET_OFFLINE', nextStep: 'Check your connection, then retry.' },
+src/lib/chatErrorBus.ts:36:  dns_failure: { code: 'DNS_FAIL', nextStep: 'Could not resolve the server address. Check your network.' },
+src/lib/chat/streaming.ts:197:    (err as RichError).errorCode = 'network';
+src/hooks/useSpeechRecognition.ts:193:        'network': 'Network error occurred. Please check your connection.',
+src/hooks/useSpeechRecognition.ts:311:              throw new Error('No speech detected. Please try again.');
+src/hooks/useSpeechRecognition.ts:321:            const msg = (err as Error).message || 'Failed to process speech input';
+src/hooks/useSpeechRecognition.ts:361:          setError('Failed to start speech recognition');
+src/hooks/useWebPush.ts:119:      setState({ supported: true, permission: 'granted', subscribed: true, loading: false, error: null });
+src/hooks/useWebPush.ts:133:      await supabase.from('push_subscriptions').delete().eq('endpoint', endpoint);
+src/components/chat/ErrorCodePanel.tsx:19:    network: t('chat.errorCauseNetwork'),
+src/components/chat/ChatInterface.tsx:1356:          const streamErrorCode = err?.errorCode || (streamOffline ? 'network' : undefined);
+src/components/chat/ChatInterface.tsx:1359:            (streamErrorCode === 'network' || streamErrorCode === 'unknown');
+src/components/chat/ChatInterface.tsx:1570:    const isOffline = !navigator.onLine || String(error).toLowerCase().includes('network') || String(error).toLowerCase().includes('fetch');
+src/components/chat/ChatInterface.tsx:1572:      errObj?.errorCode || (isOffline ? 'network' : 'unknown'),
+src/test/backendUrl.test.ts:8:  Capacitor: { isNativePlatform: mockIsNativePlatform },
+src/test/admin/hooks/useSeedDemo.test.tsx:56:  it('surfaces network/rpc errors', async () => {
+src/test/admin/hooks/useSeedDemo.test.tsx:58:    mocks.rpc.mockResolvedValue({ data: null, error: new Error('network down') });
+src/test/admin/hooks/useSeedDemo.test.tsx:65:    expect(toast.error).toHaveBeenCalledWith('Seed failed: network down');
+src/components/meditation/useMeditationAudio.ts:47:        console.error('[useMeditationAudio] failed to load src=', el.src, 'error code=', el.error?.code, 'network state=', el.networkState, 'ready state=', el.readyState);
+src/components/meditation/GuidedMeditationFlow.tsx:437:                    // Skip hang up to its ~30s network timeout instead of
+src/admin/lib/mockData.ts:203:         buckets[bIdx].latencies.push(query.latency_ms);
+src/admin/lib/mockData.ts:384:    if (judgeGood && rating < 0) disagreements.push({ id: r.id, kind: "judge_good_user_bad", faithfulness: r.faithfulness, response_text: r.response_text || "" });
+src/admin/lib/mockData.ts:385:    else if (!judgeGood && rating > 0) disagreements.push({ id: r.id, kind: "judge_bad_user_good", faithfulness: r.faithfulness, response_text: r.response_text || "" });
+===== observability.txt =====
+docs/OOM_RAILWAY_INCIDENT.md:9:- `railway.json`: `deploy.limits.memory` raised `4Gi` → `6Gi` (Railway bills actual usage, not this cap, so no cost increase unless real usage grows to fill it). The 6Gi cap is the single source of truth and is enforced via `_memory_note` in `railway.json` (P1-OPS-9).
+docs/OOM_RAILWAY_INCIDENT.md:65:2. **Bump Railway memory**: Change `railway.json` → `memory: "8Gi"` (cost increase).
+docs/COMPREHENSIVE_SYSTEM_SPEC.md:122:| `/auth/latency` | `AuthLatencyDashboard` | [AuthLatencyDashboard.tsx](file:///Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/src/pages/AuthLatencyDashboard.tsx) | Latency monitoring dashboard |
+docs/COMPREHENSIVE_SYSTEM_SPEC.md:133:| `/admin/quality` | `QualityPage` | [QualityPage.tsx](file:///Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/src/admin/pages/QualityPage.tsx) | Faithfulness, relevancy metrics, RAGAS heatmaps |
+docs/COMPREHENSIVE_SYSTEM_SPEC.md:143:| `/admin/alerts` | `AlertsPage` | [AlertsPage.tsx](file:///Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/src/admin/pages/AlertsPage.tsx) | Alert rule setup for latency or error rate anomalies |
+docs/COMPREHENSIVE_SYSTEM_SPEC.md:183:Yields objects matching: `{ type: 'token' | 'status' | 'done' | 'error', content?: string, stage?: string }`.
+docs/COMPREHENSIVE_SYSTEM_SPEC.md:452:- `guru_request_latency_seconds` (Histogram): Latency of each request.
+docs/COMPREHENSIVE_SYSTEM_SPEC.md:453:- `rag_latency_seconds` (Histogram): Node-by-node execution latency.
+docs/COMPREHENSIVE_SYSTEM_SPEC.md:500:- **Ragas ([explodinggradients/ragas](https://github.com/explodinggradients/ragas))**: Evaluates RAG pipelines on metrics including context recall, context precision, faithfulness, and answer relevance.
+docs/COMPREHENSIVE_SYSTEM_SPEC.md:609:3. **Secrets Detection**: Checks files for committed keys, tokens, or plaintext passwords.
+docs/COMPREHENSIVE_SYSTEM_SPEC.md:646:2. **Use Simple Guardrails**: Complex guardrail frameworks add latency and dependency bloat. Zero-shot regex combined with structured schemas (Instructor) is faster and more reliable.
+docs/COMPREHENSIVE_SYSTEM_SPEC.md:664:20. **Optimize Graph Requests**: Use `only_need_context` to bypass graph synthesis steps and reduce latency.
+docs/skill-enhancements.md:83:After graph execution, neutral LLM judge scores: helpfulness, faithfulness, safety, spiritual-appropriateness (1-5 each). Writes to Supabase for dashboarding.
+docs/skill-enhancements.md:88:Read active prompt version from Supabase PromptStore per request (with in-memory cache fallback). Add experiment ID to cost tracking for prompt version → score → cost correlation.
+docs/skill-enhancements.md:95:**Files**: `backend/guardrails/chain.py`, `backend/services/cost_tracker.py`
+docs/skill-enhancements.md:194:When p95 latency >15s for FACTUAL intent, auto-switch from deep → standard graph strategy. Emit LATENCY_DEGRADED metric.
+docs/skill-enhancements.md:214:Instrument each LLM provider with OTel spans: model, temperature, prompt hash, latency, token count, error type. Enables provider-level latency heatmaps.
+docs/skill-enhancements.md:327:**50. P95/P99 Latency SLO Tracking per Node** (`backend/rag/states.py`, `backend/app/metrics.py`)
+docs/skill-enhancements.md:328:- Ch3 of DDIA: Add percentile-based latency tracking to `node_timings` in GraphState
+docs/skill-enhancements.md:384:| 1 | P90/P99 hybrid search pipeline | 3-5x latency improvement on 80% of queries | Medium | pipeline_coordinator.py |
+docs/REFERENCE_DEVELOPMENT_GUIDE.md:32:Was calling `self.generate(...)` which routes to the main DeepSeek-R1 model (60s timeout, 1024 max tokens). Now calls `self._generate_fast(...)` (fast classifier model, 30s timeout, 256 tokens). Old line preserved as a comment per the "do not delete" rule.
+docs/REFERENCE_DEVELOPMENT_GUIDE.md:119:        # Bigger token budget + double-pass verification for complex queries.
+docs/REFERENCE_DEVELOPMENT_GUIDE.md:130:**Cheap interim win**: at minimum, change the alias so `query_tier == "deep"` flows the DEEP_PATH_CONFIG (which already overrides `generate_answer` to sarvam-105b with 90s/2048 tokens). The state machinery exists — wire it.
+docs/REFERENCE_DEVELOPMENT_GUIDE.md:188:`retrieve_documents` already emits "Searching knowledge base..." (pre-existing). `generate_answer` already streams tokens. **Total: 9 of 19 nodes now emit progress.**
+docs/REFERENCE_DEVELOPMENT_GUIDE.md:204:Perceived latency: the user is engaged continuously from 100ms onward instead of staring at a blank screen for 12-30 seconds.
+docs/REFERENCE_DEVELOPMENT_GUIDE.md:233:  }' | python3 -c "import sys,json; r=json.load(sys.stdin); print('tier:', r.get('query_tier'), 'latency_ms:', r.get('latency_ms'), 'node_timings:', r.get('node_timings'))"
+docs/REFERENCE_DEVELOPMENT_GUIDE.md:239:- Overall `latency_ms`: under 15000 ms warm
+docs/REFERENCE_DEVELOPMENT_GUIDE.md:254:- `p95_latency_ms` — primary KPI
+docs/REFERENCE_DEVELOPMENT_GUIDE.md:278:print("get latency ms:", (time.time()-t0)*1000)
+docs/REFERENCE_DEVELOPMENT_GUIDE.md:320:4. **"Add Prometheus + Grafana before fixing latency"** — Don't decorate what isn't working yet. Latency first, observability second.
+docs/PRODUCT_OPPORTUNITIES.md:23:| F2 | Admin dashboard | `src/admin/lib/api.ts` + 8 pages import from `src/admin/lib/mockData` — **write actions** (`promoteAdmin`, `demoteAdmin`, `upsertAlertRule`, `triggerReingest`, `activatePromptVersion`, `deleteGoldenQuestion`, `upsertGoldenQuestion`, `listLogs`) resolve to mock. `ALLOW_MOCK = DEV && VITE_ALLOW_MOCK`, but the imports mean these admin surfaces are mock-shaped and several may be no-ops against a real backend. | 🔴 | Audit each `mockData` import: confirm a real backend endpoint exists and is called in prod; delete the mock path or gate it hard. An admin who "promotes an admin" and it silently mocks is a trust bug. | opus |
+docs/PRODUCT_OPPORTUNITIES.md:75:- Auth is mature: MFA (`MFAChallengePage`, `TwoFactorSettings`), diagnostics, latency dashboard.
+docs/PRODUCT_OPPORTUNITIES.md:242:- `start_railway.py` fail-fast on missing/wildcard `FORWARDED_ALLOW_IPS`; lifespan cleanup hardened (`pump=None` init, `global _last_heartbeat`).
+docs/PRODUCT_OPPORTUNITIES.md:268:- 3 pre-existing backend test failures depend on HF model revision `3a90cc8b42f5acec95e57c1e2433ba3b71ba9eef` which 404s — **partially resolved 2026-08-01**: tokenizer and all 7 registry models are now pinned to valid SHAs (`_MODEL_REVISIONS`); only the ONNX encoder (`gpahal/bge-m3-onnx-int8`) has no hardcoded revision (hash 404s) and relies on the Docker pre-baked snapshot + `HF_REVISION` env — the remaining failures likely still hit that path. Mock model loading in tests or resolve a valid encoder SHA.
+backend/SEMANTIC_ROUTER_PLAN.md:27:- Log every routing decision: `query`, `tier`, `max_similarity`, `latency_ms`
+===== pip-audit.txt =====
+===== product.txt =====
+README.md:50:- **GDPR Privacy Controls**: Full user control via `DELETE /api/memory/reflections` and `POST /api/memory/forget`.
+README.md:208:The chat composer accepts text and office documents (`.txt`, Markdown, CSV/TSV, JSON, XML, HTML, YAML, DOCX, PPTX, XLSX), PDFs, images, audio, and video. Each selected file is sent to `POST /api/chat/upload`, where the backend applies a 10 MB per-file cap and 50 MB combined cap, extracts bounded evidence using PDF/OOXML text extraction, OCR, or local Whisper transcription, and returns an `attachment_context` value for the next chat turn. Upload bytes are not persisted or indexed automatically. The subsequent `/api/chat` or `/api/chat/stream` request carries that context separately from `user_message`; the RAG generation prompt marks it as untrusted evidence and shared caches/coalescing are bypassed or scoped by an attachment digest.
+src/components/chat/ChatInterface.test.tsx:130:vi.mock('@/components/meditation/GuidedMeditationFlow', () => ({
+src/pages/AdminSelfCheckPage.tsx:52:          pass: (diag.roles ?? []).includes("admin"),
+src/pages/AdminSelfCheckPage.tsx:54:        { label: "has_role(admin) = true", pass: !!diag.is_admin },
+src/pages/AdminSelfCheckPage.tsx:86:              ? "✓ All checks passed — you have full admin access."
+src/pages/ProfilePage.tsx:333:      await memoryApi.deleteAll();
+src/pages/ProfilePage.tsx:337:      toast({ title: 'Local data cleared, but memory erasure failed', description: e instanceof Error ? e.message : 'unknown', variant: 'destructive' });
+src/components/profile/MemoryManager.tsx:492:      const msg = err instanceof MemoryApiError ? err.message : 'Could not save core memory.';
+src/components/profile/MemoryManager.tsx:516:      const msg = err instanceof MemoryApiError ? err.message : 'Could not save memory.';
+src/components/profile/MemoryManager.tsx:553:      const msg = err instanceof MemoryApiError ? err.message : 'Could not update memory.';
+src/components/profile/MemoryManager.tsx:573:      const msg = err instanceof MemoryApiError ? err.message : 'Could not forget memory.';
+src/components/profile/MemoryManager.tsx:806:                          {t('memory.consentDesc', 'You can delete anytime.')}
+src/components/profile/MemoryManager.tsx:1617:                    <AlertDialogDescription>{t('memory.clearReflectionsWarning', 'This permanently removes episodic reflections while preserving your core memory.')}</AlertDialogDescription>
+src/components/profile/MemoryManager.tsx:1655:                {t('memory.demoMode', 'Service unavailable — showing sample memories')}
+src/components/profile/MemoryManager.tsx:1838:                                {t('memory.forgetWarning')}
+docs/skill-enhancements.md:88:Read active prompt version from Supabase PromptStore per request (with in-memory cache fallback). Add experiment ID to cost tracking for prompt version → score → cost correlation.
+src/components/ai-elements/prompt-input.tsx:313:  // Cleanup blob URLs on unmount to prevent memory leaks
+docs/PRODUCTION_HOSTING_INDIA.md:67: (Lovable Cloud)        FastAPI                  (healthz, push-send,
+docs/edge-cases-research.md:61:| | **c) Metadata injection** — `raw_user_meta_data` (accessed as `auth.jwt() -> 'user_metadata'` in RLS) is user-writable. Any user can `await supabase.auth.update({ data: { role: "admin" } })` to escalate privileges if RLS trusts this field. |
+docs/edge-cases-research.md:260:| **Mitigation** | Time-slice ingestion to off-peak hours. Use separate compute resources (different container, CPU affinity). Cgroup CPU/memory limits on ingestion containers. Adaptive throttling: reduce ingestion rate when chat latency exceeds threshold. Use message queues for ingestion jobs (consumer-controlled polling). |
+docs/edge-cases-research.md:367:### 3.8 Meditation Step Parsing Errors
+src/components/meditation/useMeditationAudio.ts:13: * - A missing/broken clip (`onerror`) is reported via the returned `audioFailed` flag so the
+src/components/meditation/useMeditationAudio.ts:47:        console.error('[useMeditationAudio] failed to load src=', el.src, 'error code=', el.error?.code, 'network state=', el.networkState, 'ready state=', el.readyState);
+src/components/meditation/useMeditationAudio.ts:97:        if (e instanceof DOMException && e.name !== 'AbortError') console.warn('[useMeditationAudio] play rejected:', e.message);
+src/components/meditation/useMeditationAudio.ts:127:        if (e instanceof DOMException && e.name !== 'AbortError') console.warn('[useMeditationAudio] play rejected:', e.message);
+docs/5W_ANALYSIS_Jul8.md:8:- **Backend**: `memory.py` — KG endpoint with auth fallback; `memory_service_v2.py` — `build_personal_knowledge_graph()` with ontology-only fallback
+docs/5W_ANALYSIS_Jul8.md:47:- **435 total tests pass** (297 backend + 32 graph strategy + 106 API/memory)
+docs/DEPLOY_READINESS.md:13:| **Rate limiting** | `backend/app/core/limiter.py` (slowapi, Redis-backed when `REDIS_URL` set, in-memory fallback), applied via `@limiter.limit(...)` in `app/api/compliance.py` and referenced across `app/api/*` | Health/readiness paths explicitly exempted so Railway health checks never 429 |
+docs/DEPLOY_READINESS.md:16:| **GDPR/compliance surface** | `backend/app/api/compliance.py` — `/api/compliance/audit/sessions/{user_id}` (Art. 15 export, hashed prompts only), `DELETE .../sessions/{user_id}` (Art. 17 erasure), rate-limited | Real, not just a stub — admin-gated, audit-logged |
+docs/DEPLOY_READINESS.md:34:| **RLS explicitly marked pending** | `PRE_LAUNCH_CHECKLIST_PLAN.md` §1.1: "Turn on RLS so your database isn't publicly readable" — Status: ⏳ Pending, with SQL for `profiles`, `user_brain_nodes`, `guru_memories`, `chat_sessions`, `chat_messages`, `push_devices` still to be applied | If Postgres Row-Level Security isn't confirmed enabled with per-table policies, the Supabase anon key (which is legitimately public per Supabase's model) could read/write other users' chat history, memory vault, and profile data. This is a P0 data-breach risk for a companion app storing intimate personal disclosures. |
+docs/DEPLOY_READINESS.md:51:4. **"Serene Mind" distress-aware engine** — `src/components/common/SereneMindProvider.tsx`, `backend/tests/test_serene_mind.py`, `src/pages/guides/SereneMindPracticePage.tsx`: a crisis/distress detection and graceful-disengagement layer (`SECURITY.md`: "distress detection with graceful disengagement") combined with guided meditation flows (`GuidedMeditationFlow.tsx`, `breathTechniques.ts`). This blends therapeutic safety design with the doctrine engine — a narrower "chat with a guru persona" competitor typically has no equivalent safety architecture.
+docs/superpowers/plans/2026-08-17-multi-finding-remediation.md:159:**Findings:** #15 (_prune_empty_sessions protects incoming session), #16 (no in-memory fallback for Redis claim/release), #18 (fix ineffective settings patch).
+docs/PHASE_1_COMPLETE.md:23:- `push_subscriptions` table with RLS (own rows only).
+docs/PHASE_1_COMPLETE.md:24:- `pending_extractions` queue table for memory-extract-drain (fixes prior TS error).
+===== rag.txt =====
+tests/e2e/seeker-journey.spec.ts:112:            'data: {"intent": "CASUAL", "citations": [], "meditation_step": 0}\n\n',
+tests/e2e/security-aal2.spec.ts:151:      body: JSON.stringify({ code: 'mfa_verification_failed', message: 'Invalid MFA code' }),
+tests/e2e/security-aal2.spec.ts:268:      (await page.getByText(/verification code|authenticator|two-factor|2fa/i).count()) > 0 ||
+tests/e2e/security-aal2.spec.ts:282:    const codeInput = page.getByRole('textbox', { name: /verification code/i });
+tests/e2e/security-aal2.spec.ts:288:    await expect(page.getByText(/invalid|wrong|failed|verification failed|mfa verification failed/i)).toBeVisible();
+tests/e2e/chat-scrolling-and-tts.spec.ts:460:            'data: {"intent": "FACTUAL", "citations": ["wisdom-scroll-1"], "meditation_step": 0}\n\n',
+backend/services/confidence_scorer.py:7:  faithfulness        25%  — LettuceDetect / lexical overlap score
+backend/services/confidence_scorer.py:8:  CoVe pass rate      15%  — fraction of claims that passed verification
+backend/services/confidence_scorer.py:10:  source authority    10%  — citation quality heuristic
+backend/services/confidence_scorer.py:34:    "faithfulness": 0.25,
+backend/services/confidence_scorer.py:43:# Tuned so a high-faithfulness, contradiction-free, well-sourced answer
+backend/services/confidence_scorer.py:87:def _source_authority(citations: list) -> float:
+backend/services/confidence_scorer.py:88:    """Heuristic authority score based on citation quality and count.
+backend/services/confidence_scorer.py:90:    `citations` may be plain URL strings (pre-format_final_answer graph
+backend/services/confidence_scorer.py:91:    state) or `{"url", "title"}` dicts (the public citation contract) —
+backend/services/confidence_scorer.py:94:    if not citations:
+backend/services/confidence_scorer.py:104:        (c.get("url") or "") if isinstance(c, dict) else str(c or "") for c in citations
+backend/services/confidence_scorer.py:107:    base = min(1.0, len(citations) / 5.0)
+backend/services/confidence_scorer.py:185:               reranked docs, citations, and contradiction flag.
+backend/services/confidence_scorer.py:197:        # Signal 2: faithfulness from LettuceDetect / lexical overlap (0–1)
+backend/services/confidence_scorer.py:198:        faithfulness_sig = float(state.get("faithfulness_score") or verification.get("score", 0.0))
+backend/services/confidence_scorer.py:199:        faithfulness_sig = max(0.0, min(1.0, faithfulness_sig))
+backend/services/confidence_scorer.py:201:        # Signal 3: CoVe pass ratio (0–1); proxy from faithfulness if absent
+backend/services/confidence_scorer.py:202:        cove_sig = float(verification.get("cove_pass_ratio", 0.0))
+backend/services/confidence_scorer.py:204:        if cove_sig == 0.0 and faithfulness_sig > 0.0:
+backend/services/confidence_scorer.py:205:            cove_sig = faithfulness_sig * 0.9
+backend/services/confidence_scorer.py:218:        # Signal 5: source authority (0–1) — prefer doc-metadata version, fall back to citations
+backend/services/confidence_scorer.py:221:            authority_sig = _source_authority(state.get("citations") or [])
+backend/services/confidence_scorer.py:231:            "faithfulness": faithfulness_sig,
+backend/services/confidence_scorer.py:270:        faithfulness = float(state.get("faithfulness_score") or verification.get("score", 0.0))
+backend/services/confidence_scorer.py:272:        cove = float(verification.get("cove_pass_ratio", 0.0))
+backend/services/confidence_scorer.py:282:            state.get("citations") or []
+backend/services/confidence_scorer.py:290:            "faithfulness": faithfulness,
+backend/services/confidence_scorer.py:304:        if faithfulness < 0.5:
+backend/services/confidence_scorer.py:305:            parts.append(f"low faithfulness={faithfulness:.2f}")
+===== red_team.txt =====
+.github/workflows/lint-test.yml:58:          VITE_SUPABASE_URL: https://mock-supabase.supabase.co
+.github/workflows/lint-test.yml:59:          VITE_SUPABASE_PUBLISHABLE_KEY: mock-anon-key-for-ci-build
+.github/workflows/lint-test.yml:108:        # the benchmark X-Test-Key bypass. Runs from the repo root (this job's
+.github/workflows/lint-test.yml:111:        # AST-based scanner (scripts/security/check_benchmark_backdoor.py):
+.github/workflows/lint-test.yml:123:        run: python3 scripts/security/check_benchmark_backdoor.py
+supabase/functions/telemetry/index.ts:93:    const { data: sessionData, error: sessionErr } = await admin
+supabase/functions/telemetry/index.ts:113:  const { error } = await admin.from("telemetry_events").insert({
+.github/workflows/backup-drill-reminder.yml:39:            - [ ] Smoke tests pass
+supabase/functions/admin-ask/index.ts:11:Answer admin questions about platform metrics (query volume, latency, hallucination rates,
+supabase/functions/admin-ask/index.ts:69:      console.error("[admin-ask] upstream error", r.status, errText);
+supabase/functions/admin-ask/index.ts:76:    console.error("[admin-ask] exception", e);
+src/pages/AuthLatencyDashboard.tsx:153:              <div className="text-right text-muted-foreground">{s.samples}</div>
+src/pages/AuthLatencyDashboard.tsx:226:export default AuthLatencyDashboard;
+.github/workflows/nightly-load.yml:3:# Nightly engineering evidence. A missing benchmark endpoint is NOT silently
+.github/workflows/nightly-load.yml:39:      - name: Boot local stack with mock LLM when no remote URL is configured
+.github/workflows/nightly-load.yml:43:          python backend/scripts/mock_llm_server.py --port 9002 &
+.github/workflows/nightly-load.yml:50:          LLM_PROVIDER=nim NIM_API_KEY=mock NIM_BASE_URL=http://host.docker.internal:9002/v1 \
+.github/workflows/nightly-load.yml:143:      - name: Kill mock LLM
+.github/workflows/prelaunch-gate.yml:52:          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://mock-supabase.supabase.co' }}
+.github/workflows/prelaunch-gate.yml:53:          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || 'mock-anon-key-for-ci-build' }}
+.github/workflows/migration-revert-check.yml:33:            echo "origin/main not available; checking all migration files as fallback." >&2
+.github/workflows/security-audit.yml:47:          if grep "add_header Content-Security-Policy" nginx.conf | grep -qE "localhost|127\.0\.0\.1|cdn\.jsdelivr|gs-extension"; then
+.github/workflows/security-audit.yml:48:            echo "::error::nginx.conf CSP contains a banned domain (localhost/127.0.0.1/cdn.jsdelivr/gs-extension)"
+scripts/migration/dry_run.sql:117:    RAISE EXCEPTION 'DRY-RUN FAIL: app_role enum missing admin/user, got %', vals;
+supabase/functions/delete-my-account/index.ts:36:  admin: SupabaseClient,
+supabase/functions/delete-my-account/index.ts:40:  const { error } = await admin.from(table).delete().eq('user_id', userId);
+supabase/functions/delete-my-account/index.ts:45:  admin: SupabaseClient,
+supabase/functions/delete-my-account/index.ts:48:  const { data: conversations, error: conversationLookupError } = await admin
+supabase/functions/delete-my-account/index.ts:58:    const { error: messageError } = await admin
+supabase/functions/delete-my-account/index.ts:65:  const { error: conversationError } = await admin
+supabase/functions/delete-my-account/index.ts:99:    const admin = createClient(
+supabase/functions/delete-my-account/index.ts:107:    await deleteConversations(admin, userId);
+supabase/functions/delete-my-account/index.ts:134:      await deleteUserRows(admin, table, userId);
+supabase/functions/delete-my-account/index.ts:137:    const { error: meditationError } = await admin
+supabase/functions/delete-my-account/index.ts:143:    const { error: rolesError } = await admin.from('user_roles').delete().eq('user_id', userId);
+===== route-contracts.txt =====
+backend/app/telemetry_db.py:19:from app.security_utils import validate_iso_date, validate_session_id, validate_user_id
+backend/app/security_utils.py:94:def validate_session_id(session_id: Optional[str]) -> Optional[str]:
+backend/app/security_utils.py:100:    if session_id is None:
+backend/app/security_utils.py:102:    session_id = session_id.strip()
+backend/app/security_utils.py:103:    if not session_id:
+backend/app/security_utils.py:105:    if not _SAFE_ID_RE.match(session_id):
+backend/app/security_utils.py:106:        raise ValueError("Invalid session_id format")
+backend/app/security_utils.py:107:    return session_id
+backend/app/api/chat.py:257:    # If session_id is missing or user is anonymous, we force history to be empty.
+backend/app/observability.py:20:DEFAULT_FASTAPI_EXCLUDED_URLS = r"^(?!.*\/api\/chat(?:\/stream)?(?:\?.*)?$).*"
+backend/app/config.py:514:    # (POST /api/auth/anon-session). REQUIRED in production — the app refuses to
+backend/app/config.py:1307:            base = self.jwt_secret or "dev-anon-session-fallback-key"
+backend/app/api/chat.py:257:    # If session_id is missing or user is anonymous, we force history to be empty.
+===== runtime-correlation.txt =====
+=== last 20 minutes matching request/error logs ===
+{"timestamp": "2026-08-24T13:53:33+0000", "level": "WARNING", "logger": "app.assistant_authorization", "message": "Assistant catalog listing failed: ConnectError", "correlation_id": "6a93b5c2"}
+{"timestamp": "2026-08-24T13:53:33+0000", "level": "WARNING", "logger": "app.assistant_authorization", "message": "Assistant catalog listing failed: ConnectError", "correlation_id": "09dbcf87"}
+{"timestamp": "2026-08-24T13:53:33+0000", "level": "WARNING", "logger": "app.assistant_authorization", "message": "Assistant catalog listing failed: ConnectError", "correlation_id": "dd135109"}
+{"timestamp": "2026-08-24T13:53:33+0000", "level": "WARNING", "logger": "app.assistant_authorization", "message": "Assistant catalog listing failed: ConnectError", "correlation_id": "4ae1d4db"}
+{"timestamp": "2026-08-24T13:53:33+0000", "level": "WARNING", "logger": "app.assistant_authorization", "message": "Assistant catalog listing failed: ConnectError", "correlation_id": "0aded68f"}
+{"timestamp": "2026-08-24T13:53:33+0000", "level": "WARNING", "logger": "app.assistant_authorization", "message": "Assistant catalog listing failed: ConnectError", "correlation_id": "8b3bf4eb"}
+{"ready":false,"status":"unhealthy","services":{"qdrant":{"ok":true,"latency_ms":7,"critical":true},"redis":{"ok":true,"latency_ms":6,"critical":true},"neo4j":{"ok":true,"latency_ms":21,"critical":false},"llm":{"ok":true,"latency_ms":47,"critical":true},"embedding":{"ok":true,"latency_ms":0,"critical":true,"dim":1024},"runtime_artifacts":{"ok":false,"latency_ms":0,"critical":true,"missing_required":["okf_compiled"],"present":2,"total":3},"guardrails":{"ok":true,"latency_ms":0,"critical":false,"provider":"lightweight"},"exact_cache":{"ok":true,"latency_ms":0,"critical":false,"keys":0,"nonexpiring_keys":0,"max_keys":10000},"semantic_cache":{"ok":true,"latency_ms":0,"critical":false},"fast_graph":{"ok":true,"latency_ms":0,"critical":true},"standard_graph":{"ok":true,"latency_ms":0,"critical":true},"deep_graph":{"ok":true,"latency_ms":0,"critical":false},"graph_warmup":{"ok":true,"status":"ready","latency_ms":0,"critical":false},"job_queue":{"ok":true,"latency_ms":0,"critical":false,"queue_size":0},"chat_backpressure":{"ok":true,"latency_ms":0,"critical":false,"max_concurrent":20,"in_flight":0,"admission_limited":false},"lightrag":{"ok":true,"latency_ms":0,"critical":true},"ocr":{"ok":true,"latency_ms":0,"critical":false}}}
+===== runtime-smoke.txt =====
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+Content-Security-Policy: default-src 'self'; script-src 'self' https://accounts.google.com https://accounts.google.com/gsi/; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com https://accounts.google.com/gsi/; img-src 'self' data: https://lh3.googleusercontent.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://accounts.google.com; frame-src 'self' https://accounts.google.com; frame-ancestors 'none'; form-action 'self'; base-uri 'self'
+strict-transport-security: max-age=31536000; includeSubDomains
+content-security-policy: default-src 'self'; script-src 'self' 'nonce-_YDpQsF3nHuImp7ERTP6PQ' https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://api.sarvam.ai https://*.supabase.co wss://*.supabase.co; frame-ancestors 'none';
+strict-transport-security: max-age=31536000; includeSubDomains
+content-security-policy: default-src 'self'; script-src 'self' 'nonce-llpICpEor10ah-UjANkFAg' https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://api.sarvam.ai https://*.supabase.co wss://*.supabase.co; frame-ancestors 'none';
+{"ready":false,"status":"unhealthy","services":{"qdrant":{"ok":true,"latency_ms":2,"critical":true},"redis":{"ok":true,"latency_ms":2,"critical":true},"neo4j":{"ok":true,"latency_ms":2,"critical":false},"llm":{"ok":true,"latency_ms":62,"critical":true},"embedding":{"ok":true,"latency_ms":0,"critical":true,"dim":1024},"runtime_artifacts":{"ok":false,"latency_ms":0,"critical":true,"missing_required":["okf_compiled"],"present":2,"total":3},"guardrails":{"ok":true,"latency_ms":0,"critical":false,"provider":"lightweight"},"exact_cache":{"ok":true,"latency_ms":0,"critical":false,"keys":0,"nonexpiring_keys":0,"max_keys":10000},"semantic_cache":{"ok":true,"latency_ms":0,"critical":false},"fast_graph":{"ok":true,"latency_ms":0,"critical":true},"standard_graph":{"ok":true,"latency_ms":0,"critical":true},"deep_graph":{"ok":true,"latency_ms":0,"critical":false},"graph_warmup":{"ok":true,"status":"ready","latency_ms":0,"critical":false},"job_queue":{"ok":true,"latency_ms":0,"critical":false,"queue_size":0},"chat_backpressure":{"ok":true,"latency_ms":0,"critical":false,"max_concurrent":20,"in_flight":0,"admission_limited":false},"lightrag":{"ok":true,"latency_ms":0,"critical":true},"ocr":{"ok":true,"latency_ms":0,"critical":false}}}
+===== security.txt =====
+=== TRACK: security ===
+.github/workflows/backup-drill-reminder.yml
+.github/workflows/nightly-rls.yml
+.github/workflows/security-audit.yml
+backend/tests/__pycache__/test_cache_stage_faithfulness.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_cache_stage_faithfulness.cpython-312.pyc
+backend/tests/__pycache__/test_citation_extractor.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_citation_extractor.cpython-312.pyc
+backend/tests/__pycache__/test_citation_marker_remap.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_citation_marker_remap.cpython-312.pyc
+backend/tests/__pycache__/test_citation_service.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_citation_service.cpython-312.pyc
+backend/tests/__pycache__/test_citation_threshold.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_citation_threshold.cpython-312.pyc
+backend/tests/__pycache__/test_clickable_citations.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_clickable_citations.cpython-312.pyc
+backend/tests/__pycache__/test_cost_tracker.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_cost_tracker.cpython-312.pyc
+backend/tests/__pycache__/test_crag_confidence_skip.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_crag_confidence_skip.cpython-312.pyc
+backend/tests/__pycache__/test_ingestion_security.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_ingestion_security.cpython-312.pyc
+backend/tests/__pycache__/test_latency_optimization.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_latency_optimization.cpython-312.pyc
+backend/tests/__pycache__/test_latency_shortcuts.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_llm_gateway_fallback_exc.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_llm_gateway_fallback_exc.cpython-312.pyc
+backend/tests/__pycache__/test_log_metrics_fallback.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_log_metrics_fallback.cpython-312.pyc
+backend/tests/__pycache__/test_pipeline_fallbacks.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_pipeline_fallbacks.cpython-312.pyc
+backend/tests/__pycache__/test_production_env_preflight.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_production_env_preflight.cpython-312.pyc
+backend/tests/__pycache__/test_production_fixes.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_production_fixes.cpython-312.pyc
+===== testing.txt =====
+backend/tests/__pycache__/test_cache_stage_faithfulness.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_cache_stage_faithfulness.cpython-312.pyc
+backend/tests/__pycache__/test_citation_extractor.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_citation_extractor.cpython-312.pyc
+backend/tests/__pycache__/test_citation_marker_remap.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_citation_marker_remap.cpython-312.pyc
+backend/tests/__pycache__/test_citation_service.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_citation_service.cpython-312.pyc
+backend/tests/__pycache__/test_citation_threshold.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_citation_threshold.cpython-312.pyc
+backend/tests/__pycache__/test_clickable_citations.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_clickable_citations.cpython-312.pyc
+backend/tests/__pycache__/test_cost_tracker.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_cost_tracker.cpython-312.pyc
+backend/tests/__pycache__/test_crag_confidence_skip.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_crag_confidence_skip.cpython-312.pyc
+backend/tests/__pycache__/test_ingestion_security.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_ingestion_security.cpython-312.pyc
+backend/tests/__pycache__/test_latency_optimization.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_latency_optimization.cpython-312.pyc
+backend/tests/__pycache__/test_latency_shortcuts.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_llm_gateway_fallback_exc.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_llm_gateway_fallback_exc.cpython-312.pyc
+backend/tests/__pycache__/test_log_metrics_fallback.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_log_metrics_fallback.cpython-312.pyc
+backend/tests/__pycache__/test_pipeline_fallbacks.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_pipeline_fallbacks.cpython-312.pyc
+backend/tests/__pycache__/test_production_env_preflight.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_production_env_preflight.cpython-312.pyc
+backend/tests/__pycache__/test_production_fixes.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_production_fixes.cpython-312.pyc
+backend/tests/__pycache__/test_security_redteam.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_security_redteam.cpython-312.pyc
+backend/tests/__pycache__/test_translation_citation_markers.cpython-312-pytest-8.4.2.pyc
+backend/tests/__pycache__/test_translation_citation_markers.cpython-312.pyc

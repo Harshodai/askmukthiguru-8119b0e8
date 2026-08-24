@@ -66,7 +66,7 @@ export default defineConfig({
   webServer: process.env.BASE_URL ? undefined : {
     // Local preview is frontend-only. Clear production endpoint overrides so
     // capability probes stay same-origin and do not create false CORS failures.
-    command: 'VITE_BACKEND_URL= VITE_NATIVE_BACKEND= VITE_GOOGLE_CLIENT_ID= npm run build && npm run preview -- --host 127.0.0.1',
+    command: 'VITE_BACKEND_URL= VITE_NATIVE_BACKEND= VITE_GOOGLE_CLIENT_ID= VITE_ENABLE_E2E_DIAGNOSTICS=true npm run build && npm run preview -- --host 127.0.0.1',
     port: 4173,
     reuseExistingServer: !process.env.CI,
   },

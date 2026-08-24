@@ -11,6 +11,7 @@ import asyncio
 import logging
 import statistics
 import time
+
 import httpx
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -48,11 +49,14 @@ async def run_single_query(client: httpx.AsyncClient, url: str, question: str, s
     completion_time = None
     tokens_count = 0
     success = False
+    accepted = False
+    status_code = None
     error_msg = ""
 
     try:
         if stream:
             async with client.stream("POST", endpoint, json=payload, headers=headers, timeout=120.0) as response:
+                status_code = response.status_code
                 if response.status_code == 200:
                     async for chunk in response.aiter_text():
                         if ttft is None:
@@ -61,16 +65,29 @@ async def run_single_query(client: httpx.AsyncClient, url: str, question: str, s
                         tokens_count += len(chunk.split())
                     completion_time = (time.time() - start_time) * 1000
                     success = True
+                elif response.status_code == 202:
+                    # The queue contract returns JSON rather than an SSE stream.
+                    # This is an admission/acknowledgement latency, not completion latency.
+                    await response.aread()
+                    completion_time = (time.time() - start_time) * 1000
+                    ttft = completion_time
+                    success = True
+                    accepted = True
                 else:
                     error_msg = f"HTTP {response.status_code}"
         else:
             response = await client.post(endpoint, json=payload, headers=headers, timeout=120.0)
-            if response.status_code == 200:
+            status_code = response.status_code
+            if response.status_code in (200, 202):
                 success = True
                 completion_time = (time.time() - start_time) * 1000
-                ttft = completion_time  # In non-streamed, TTFT equals completion time
+                ttft = completion_time  # In non-streamed, TTFT equals response/ack time
                 data = response.json()
-                tokens_count = len(data.get("answer", "").split())
+                if response.status_code == 200:
+                    tokens_count = len(data.get("answer", "").split())
+                else:
+                    # 202 means queued; no answer is available at acknowledgement time.
+                    accepted = True
             else:
                 error_msg = f"HTTP {response.status_code}"
     except Exception as e:
@@ -79,6 +96,8 @@ async def run_single_query(client: httpx.AsyncClient, url: str, question: str, s
     return {
         "question": question,
         "success": success,
+        "accepted": accepted,
+        "status_code": status_code,
         "ttft_ms": ttft,
         "completion_ms": completion_time,
         "tokens": tokens_count,
@@ -129,6 +148,8 @@ async def main():
     print(f"Total Test Duration:  {total_test_duration:.2f} seconds")
     print(f"Total Requests Run:   {len(results)}")
     print(f"Successful Requests:  {len(successful_runs)} ({len(successful_runs)/max(1, len(results)):.1%})")
+    print(f"  - Completed (200):   {sum(1 for r in successful_runs if not r['accepted'])}")
+    print(f"  - Queued (202):      {sum(1 for r in successful_runs if r['accepted'])}")
     print(f"Failed Requests:      {len(failed_runs)} ({len(failed_runs)/max(1, len(results)):.1%})")
     
     if failed_runs:
@@ -139,6 +160,8 @@ async def main():
             print(f"  - {err} ({count} occurrences)")
 
     if successful_runs:
+        if any(r["accepted"] for r in successful_runs):
+            print("\nNOTE: 202 latency is queue acknowledgement time; it does not prove pipeline completion.")
         ttfts = [r["ttft_ms"] for r in successful_runs if r["ttft_ms"] is not None]
         completions = [r["completion_ms"] for r in successful_runs if r["completion_ms"] is not None]
         
