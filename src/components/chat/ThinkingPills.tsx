@@ -91,7 +91,7 @@ export const ThinkingPills = ({
         type="button"
         onClick={() => hasSteps && setExpanded((v) => !v)}
         disabled={!hasSteps}
-        className={`group inline-flex items-center gap-2 min-h-[32px] text-sm font-sans text-muted-foreground ${
+        className={`group inline-flex items-center gap-2 min-h-[32px] text-sm font-sans font-medium text-muted-foreground ${
           hasSteps ? 'cursor-pointer' : 'cursor-default'
         }`}
         aria-expanded={expanded}

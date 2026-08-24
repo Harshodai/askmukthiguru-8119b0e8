@@ -99,7 +99,6 @@ const GuidancePlanCard = ({ plan }: { plan: NonNullable<Message["guidancePlan"]>
             <p className="mt-1 text-sm leading-5 text-foreground/85">{plan.reflection_prompt}</p>
           </div>
         )}
-        <p className="mt-2.5 text-[11px] leading-4 text-muted-foreground">{plan.attribution.label}</p>
       </div>
     </div>
   </aside>
@@ -926,14 +925,14 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                   Mind session. Suppressed on crisis/helpline answers like the rest
                   of this footer. */}
               {isGuru && isLastGuru && message.content && !isStreaming && !message.error && !message.content.includes('_Stopped by you._') && !isCrisisAnswer(message.content) && (
-                <div className="mt-3 rounded-2xl border border-ojas/20 bg-gradient-to-br from-ojas/10 to-prana/5 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <div className="text-[13px] font-semibold text-foreground">{t('chat.practiceNudge.title')}</div>
-                    <div className="text-[12px] text-muted-foreground mt-0.5">{t('chat.practiceNudge.body')}</div>
-                  </div>
+                <div
+                  className="mt-2 flex items-center gap-2 text-[12px]"
+                  title={t('chat.practiceNudge.body')}
+                >
+                  <span className="text-muted-foreground">{t('chat.practiceNudge.title')}</span>
                   <button
                     onClick={() => openSereneMind('audio', true)}
-                    className="flex-shrink-0 rounded-full bg-ojas px-4 py-2 text-[12.5px] font-semibold text-primary-foreground hover:bg-ojas-light transition-colors whitespace-nowrap"
+                    className="flex-shrink-0 rounded-full border border-ojas/30 px-2.5 py-1 text-[11px] font-medium text-ojas hover:bg-ojas/10 transition-colors whitespace-nowrap"
                   >
                     {t('chat.practiceNudge.cta')}
                   </button>
@@ -1132,21 +1131,18 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                     {evidenceSupport(message.confidenceScore).label}
                   </span>
                 )}
-                {citations.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setSourcesOpen(true)}
-                    className="shrink-0 rounded-full px-1.5 py-1 text-ojas hover:bg-ojas/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ojas/60"
-                    aria-label="Open response sources"
-                    title="Open response sources"
-                  >
-                    <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
-                  </button>
-                )}
+                {/* "Open sources" trigger lives once, in the REFERENCES accordion
+                    below (same citations.length > 0 gate) — a second identical
+                    button here just duplicated that action. */}
               </div>
             )}
             {isGuru && !isStreaming && <LiveLogisticsCards events={message.liveLogisticsEvents} />}
-            {isGuru && !isStreaming && message.guidancePlan && !isCrisisAnswer(message.content) && (
+            {/* Attribution-only guidance ("Guidance inspired by retrieved teachings")
+                already duplicates the response-provenance grounding badge below —
+                only render this card when it carries actionable content. */}
+            {isGuru && !isStreaming && message.guidancePlan
+              && (message.guidancePlan.action_step || message.guidancePlan.reflection_prompt)
+              && !isCrisisAnswer(message.content) && (
               <GuidancePlanCard plan={message.guidancePlan} />
             )}
             {isGuru && !isStreaming && message.sereneMindOffer?.triggered && !isCrisisAnswer(message.content) && (
