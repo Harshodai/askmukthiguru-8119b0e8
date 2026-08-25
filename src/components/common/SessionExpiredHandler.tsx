@@ -6,8 +6,35 @@ import { useTranslation } from 'react-i18next';
 import type { User } from '@supabase/supabase-js';
 import { clearMeditationResume } from '@/lib/meditationResume';
 import { clearLocalChatData } from '@/lib/chatStorage';
+import { PUSH_DEVICE_STORAGE_KEY } from '@/components/common/PushNotificationsManager';
+import { BACKEND_URL } from '@/lib/backendUrl';
 
 const PROTECTED_PREFIXES = ['/chat', '/profile', '/admin'];
+
+// Deactivate this device's push token server-side before the session is
+// revoked (OH-P1-02 follow-up) — otherwise a logged-out user keeps receiving
+// pushes addressed to them on a device someone else may pick up next.
+// Best-effort: a failure here must never block sign-out itself.
+const unregisterPushDevice = async (): Promise<void> => {
+  const raw = localStorage.getItem(PUSH_DEVICE_STORAGE_KEY);
+  if (!raw || !BACKEND_URL) return;
+  try {
+    const { token } = JSON.parse(raw) as { platform: string; token: string };
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) return;
+    await fetch(`${BACKEND_URL}/api/push/unregister`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ token }),
+    });
+    localStorage.removeItem(PUSH_DEVICE_STORAGE_KEY);
+  } catch (error) {
+    console.warn('[SessionExpiredHandler] push unregister failed:', error);
+  }
+};
 
 // Monkey-patch signOut to track explicit signout events across the app and
 // purge per-user local state (meditation resume payload — P1-FE-15).
@@ -18,6 +45,7 @@ supabase.auth.signOut = async function (...args) {
   void clearLocalChatData().catch((error) => {
     console.warn('[SessionExpiredHandler] local chat purge failed:', error);
   });
+  await unregisterPushDevice();
   return originalSignOut.apply(this, args);
 };
 

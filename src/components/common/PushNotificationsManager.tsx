@@ -8,6 +8,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { BACKEND_URL } from '@/lib/backendUrl';
 
 const TAG = '[PushNotificationsManager]';
+// Read by SessionExpiredHandler's signOut chokepoint so logout can deactivate
+// this device's token server-side (OH-P1-02 follow-up) — the backend
+// /push/unregister endpoint needs the token, which otherwise only ever lives
+// inside the Capacitor plugin's registration callback.
+export const PUSH_DEVICE_STORAGE_KEY = 'mg_push_device';
 // Mirrors public/push-sw.js's allowlist — deep_link is attacker-controllable
 // if the FCM/APNs sender is ever compromised or misconfigured. (OH-P1-06, 2026-08-24)
 const SAFE_DEEP_LINK = /^\/(chat|practices|profile|notebooks|knowledge-graph)(\/[a-zA-Z0-9_-]*)?$/;
@@ -40,7 +45,11 @@ export const PushNotificationsManager = () => {
           headers,
           body: JSON.stringify(body),
         });
-        if (!res.ok) console.warn(TAG, 'register failed:', res.status, await res.text());
+        if (!res.ok) {
+          console.warn(TAG, 'register failed:', res.status, await res.text());
+        } else {
+          localStorage.setItem(PUSH_DEVICE_STORAGE_KEY, JSON.stringify({ platform, token }));
+        }
       } catch (e) {
         console.warn(TAG, 'register error:', e);
       }
