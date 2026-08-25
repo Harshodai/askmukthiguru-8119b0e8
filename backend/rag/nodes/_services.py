@@ -137,6 +137,7 @@ def clear_services() -> None:
         _semantic_cache, \
         _sarvam_cloud, \
         _doctrine_service, \
+        _llm_gateway, \
         _graphrag_fusion
     _ollama = None
     _embedder = None
@@ -149,6 +150,7 @@ def clear_services() -> None:
     _semantic_cache = None
     _sarvam_cloud = None
     _doctrine_service = None
+    _llm_gateway = None
     _graphrag_fusion = None
 
 

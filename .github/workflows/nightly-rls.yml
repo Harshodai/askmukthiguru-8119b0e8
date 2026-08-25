@@ -1,16 +1,17 @@
 # ============================================================
 # Mukthi Guru — Nightly RLS Policy Verification
 # Runs backend/scripts/verify_rls_policies.py against the
-# production Supabase project (ozmjeuqbholoxypfxixb.supabase.co)
-# every night and on manual trigger. Fails CI on policy breach.
+# approved staging Supabase project every night and on manual trigger.
+# The verifier creates synthetic users/rows and fails CI on any policy breach.
+# It refuses production or unspecified remote targets.
 #
-# Required repo secrets:
-#   SUPABASE_URL                    — https://ozmjeuqbholoxypfxixb.supabase.co
+# Required staging-environment secrets:
+#   SUPABASE_URL                    — staging Supabase URL
 #   SUPABASE_SERVICE_ROLE_KEY       — service_role key (admin API only)
 #   SUPABASE_ANON_KEY               — anon/publishable key
 # ============================================================
 
-name: Nightly RLS Check
+name: Nightly Staging RLS Check
 
 on:
   schedule:
@@ -20,8 +21,12 @@ on:
 
 jobs:
   rls:
-    name: Cross-User RLS Policy Verification
+    name: Cross-User Staging RLS Policy Verification
     runs-on: ubuntu-latest
+    environment: staging
+    env:
+      STAGING_ENVIRONMENT: staging
+      ALLOW_STAGING_SYNTHETIC_USERS: '1'
     steps:
       - uses: actions/checkout@v4
 
@@ -33,7 +38,7 @@ jobs:
       - name: Install verifier dependencies
         run: pip install supabase requests
 
-      - name: Run RLS verifier against production
+      - name: Run RLS verifier against staging
         run: python3 backend/scripts/verify_rls_policies.py
         # Script exits 0 on pass, 1 on any policy breach -> fails the job
         env:

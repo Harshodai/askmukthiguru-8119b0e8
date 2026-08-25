@@ -27,6 +27,8 @@ export default tseslint.config(
       "test-results/**",
       "external_repos",
       "external_repos/**",
+      ".claude/worktrees",
+      ".claude/worktrees/**",
       "mcp-servers",
       "mcp-servers/**",
       ".hyperresearch-venv",

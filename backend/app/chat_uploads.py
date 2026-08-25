@@ -162,7 +162,7 @@ async def _extract_media_text(
                 ocr_service.extract_text_from_file(path), timeout=_OCR_TIMEOUT_SECONDS
             )
             return str(result.get("text") or "").strip(), "ocr"
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning("Image OCR timed out for %s after %ss", name, _OCR_TIMEOUT_SECONDS)
             return "", "ocr_timeout"
         except Exception as exc:
@@ -184,7 +184,7 @@ async def _extract_media_text(
                 timeout=_TRANSCRIPTION_TIMEOUT_SECONDS,
             )
             return str(transcript or "").strip(), "transcription"
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning(
                 "Media transcription timed out for %s after %ss", name, _TRANSCRIPTION_TIMEOUT_SECONDS
             )

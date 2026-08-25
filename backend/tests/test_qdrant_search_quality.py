@@ -407,7 +407,13 @@ def test_qdrant_search_quality_baseline_regression(qdrant_searcher, embedding_se
             f"Hybrid NDCG regressed: {current['mean_ndcg']:.3f} (baseline: {baseline_ndcg:.3f})"
         )
 
-    # Update baseline
+    # Baseline updates are an explicit benchmark-authoring action, never a side
+    # effect of staging verification. This keeps CI evidence reproducible and
+    # protects the checked-in baseline from accidental mutation.
+    if os.environ.get("UPDATE_QDRANT_BASELINE", "0").lower() not in {"1", "true", "yes"}:
+        logger.info("Baseline update disabled; retrieval gate ran read-only")
+        return
+
     baseline_path.parent.mkdir(parents=True, exist_ok=True)
     baselines = {}
     if baseline_path.exists():

@@ -27,6 +27,12 @@ DEFAULT_SUPABASE_URL = "http://localhost:54321"
 SUPABASE_URL = os.environ.get("SUPABASE_URL", DEFAULT_SUPABASE_URL).rstrip("/")
 SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
 ANON_KEY = os.environ.get("SUPABASE_ANON_KEY")
+STAGING_ENVIRONMENT = os.environ.get("STAGING_ENVIRONMENT", "")
+ALLOW_STAGING_SYNTHETIC_USERS = os.environ.get("ALLOW_STAGING_SYNTHETIC_USERS", "") == "1"
+
+
+def _is_local_supabase(url: str) -> bool:
+    return url.startswith(("http://localhost:", "http://127.0.0.1:", "http://[::1]:"))
 
 
 def _fail(error: str, details: dict[str, Any] | None = None) -> None:
@@ -88,10 +94,8 @@ def delete_rows(table: str, ids: list[str]) -> None:
     if not ids:
         return
     service_client = create_client(SUPABASE_URL, SERVICE_KEY)
-    try:
-        service_client.table(table).delete().in_("id", ids).execute()
-    except Exception:
-        pass
+    key = "user_id" if table == "user_profiles" else "id"
+    service_client.table(table).delete().in_(key, ids).execute()
 
 
 def _make_test_email(prefix: str) -> str:
@@ -101,6 +105,7 @@ def _make_test_email(prefix: str) -> str:
 
 def run_verification() -> dict[str, Any]:
     failures: list[dict[str, Any]] = []
+    cleanup_failures: list[dict[str, Any]] = []
     seeded_ids: dict[str, list[str]] = {
         "conversations": [],
         "chat_messages": [],
@@ -326,27 +331,38 @@ def run_verification() -> dict[str, Any]:
     for table, ids in seeded_ids.items():
         if ids:
             try:
-                service_client.table(table).delete().in_("id", ids).execute()
-            except Exception:
-                pass
+                delete_rows(table, ids)
+            except Exception as exc:
+                cleanup_failures.append({"table": table, "error": str(exc)})
 
     for user_id in (alice_id, bob_id):
         try:
             delete_user(user_id)
-        except Exception:
-            pass
+        except Exception as exc:
+            cleanup_failures.append({"table": "auth.users", "user_id": user_id, "error": str(exc)})
 
     tables = ["conversations", "chat_messages", "meditation_sessions", "user_profiles"]
     return {
-        "ok": len(failures) == 0,
+        "ok": len(failures) == 0 and len(cleanup_failures) == 0,
         "tests": 12,
         "failures": len(failures),
+        "cleanup_failures": len(cleanup_failures),
         "tables": tables,
         "details": failures,
     }
 
 
 def main() -> int:
+    if not _is_local_supabase(SUPABASE_URL) and not (
+        STAGING_ENVIRONMENT == "staging" and ALLOW_STAGING_SYNTHETIC_USERS
+    ):
+        _fail(
+            "refusing non-local RLS verification target",
+            {
+                "hint": "Set STAGING_ENVIRONMENT=staging and ALLOW_STAGING_SYNTHETIC_USERS=1 for an approved staging project"
+            },
+        )
+
     if not _healthcheck():
         _fail("cannot connect to supabase", {"url": SUPABASE_URL})
 
