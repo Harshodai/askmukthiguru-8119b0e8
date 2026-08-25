@@ -126,4 +126,17 @@ describe('ChatMessage action buttons — a11y', () => {
     expect(toolbar.classList.contains('md:group-focus-within:opacity-100')).toBe(true);
     expect(toolbar.classList.contains('max-md:opacity-100')).toBe(true);
   });
+
+  it('Serene Mind offer card is announced to screen readers via a polite live region', () => {
+    render(
+      <ChatMessage
+        message={makeGuruMessage({ sereneMindOffer: { triggered: true } })}
+      />,
+      { wrapper },
+    );
+
+    const card = screen.getByTestId('serene-mind-offer');
+    expect(card.getAttribute('role')).toBe('status');
+    expect(card.getAttribute('aria-live')).toBe('polite');
+  });
 });

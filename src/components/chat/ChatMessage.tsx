@@ -116,6 +116,8 @@ const SereneMindOfferCard = ({ offer }: { offer: NonNullable<Message["sereneMind
     <aside
       data-testid="serene-mind-offer"
       aria-label="Optional Serene Mind practice"
+      role="status"
+      aria-live="polite"
       className="mt-3 w-full rounded-xl border border-ojas/25 bg-gradient-to-br from-ojas/10 to-card px-3.5 py-3 shadow-sm"
     >
       <div className="flex items-start gap-2">
