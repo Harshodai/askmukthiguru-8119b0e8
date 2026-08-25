@@ -98,6 +98,23 @@ Before production, provision and version `okf_compiled`; require readiness true;
 
 The release must remain **NOT PRODUCTION READY** until those P1 blockers are closed or explicitly accepted by the accountable owner. No deployment, push, Railway mutation, secret operation, or destructive user-data action was performed.
 
+## Since this report: security/correctness fixes (2026-08-25, separate pass)
+
+This report's own blockers (`okf_compiled` missing, retrieval-eval corpus mismatch, browser E2E stall, integration skips, no capacity/restore baseline) are unaffected by this note and remain open — the executive verdict above stands. Separately, a security/correctness audit pass closed 8 items from `docs/production-readiness/OMISSION-HUNT-ADDENDUM-2026-08-24.md`:
+
+- **OH-P0-01** — doctrine-cache citation bypass: entries without structured citations can no longer be served, regardless of loader.
+- **OH-P0-02** — account deletion missed Qdrant/Neo4j/Redis and 3 Postgres tables (`guru_core_memory`, `guru_memories`, `guru_session_summaries`); now purged via a new `DELETE /api/account/purge-memory` endpoint. Verified live against local Qdrant + Postgres.
+- **OH-P1-01** — Docker build-context leak (`backend/data/` wasn't actually excluded despite looking like it was).
+- **OH-P1-02** — push notifications silently reported success with missing FCM/APNs credentials; no unregister endpoint; no stale-token pruning. All three fixed.
+- **OH-P1-03** — `/sw.js` and `/push-sw.js` service-worker scope collision.
+- **OH-P1-05** — two duplicate cron push senders consolidated to one.
+- **OH-P1-06** — push deep-link/URL allowlist (phishing vector) and wildcard CORS on 12 edge functions replaced with an opt-in `ALLOWED_ORIGINS` allowlist.
+- **OH-P1-08** — email-domain allowlist was client-only, bypassable via direct API call; now enforced server-side.
+
+Also fixed, not in the addendum's original list: an OCR/media-transcription wall-clock timeout gap (a crafted file could hang a worker indefinitely), and a RAG refusal-gate gap where the CRAG-exhaustion fallback returned a bare refusal even when retrieval had found real candidate documents.
+
+Full evidence and commit references are in the addendum's "Resolution status" section. This is a different gate from the one this report scores — see that document for detail, not a re-litigation of this report's scorecard.
+
 ## References
 
 [1]: [`src/App.tsx`](src/App.tsx) — frontend route table and compatibility redirects.

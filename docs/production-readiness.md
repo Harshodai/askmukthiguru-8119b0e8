@@ -16,3 +16,7 @@ The code gates are healthy, but release readiness is blocked by missing runtime 
 | Scalability/cost | Red | Local probes were 429/readiness limited; no 10x/100x baseline. |
 
 Green requires a matching rights-approved eval corpus, all critical artifacts, complete deterministic browser and mobile journeys, disposable live integrations, a restore drill with RPO/RTO, and a clean capacity/cost experiment.
+
+## Since this report: security/correctness fixes (2026-08-25, separate pass)
+
+None of the blockers above are closed by this note — `okf_compiled` is still missing, the eval corpus still doesn't match, browser E2E still isn't proven, and no capacity/restore baseline exists. Separately, 8 items from `docs/production-readiness/OMISSION-HUNT-ADDENDUM-2026-08-24.md` (doctrine-cache citation bypass, account-deletion scope, push notification security, auth allowlist enforcement, CORS wildcard) plus an attachment-processing timeout gap and a RAG refusal-gate gap landed on `main`. See that addendum's "Resolution status" section for the full list with evidence. Verdict here stays **RED / NOT READY** — these are different gates.
