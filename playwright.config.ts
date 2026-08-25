@@ -12,8 +12,17 @@ import { existsSync } from 'node:fs';
 // where Bob was never created and hangs on `waitForURL` until timeout.
 // SUPABASE_URL/SUPABASE_ANON_KEY (CI) already take precedence, matching the
 // spec's own discovery order; local `supabase status` is the fallback.
+//
+// Also exports the resolved origin via process.env.E2E_SUPABASE_ORIGIN,
+// inherited by the test-runner worker processes (not just the build's child
+// process) — security-aal2.spec.ts intercepts Supabase Auth network calls
+// with page.route() against a specific origin, and that origin must match
+// whatever the build actually points at or the mocks silently never fire,
+// letting a forged test JWT hit the real (local or prod) Supabase Auth
+// instead of the mocked response the test is asserting against.
 function discoverLocalSupabaseEnv(): string {
   if (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
+    process.env.E2E_SUPABASE_ORIGIN = process.env.SUPABASE_URL.replace(/\/$/, '');
     return `VITE_SUPABASE_URL=${process.env.SUPABASE_URL} VITE_SUPABASE_PUBLISHABLE_KEY=${process.env.SUPABASE_ANON_KEY}`;
   }
   const dockerBin = '/Users/harshodaikolluru/.docker/bin';
@@ -26,6 +35,7 @@ function discoverLocalSupabaseEnv(): string {
     });
     const json = JSON.parse(out.slice(out.indexOf('{')));
     if (json.API_URL && json.ANON_KEY) {
+      process.env.E2E_SUPABASE_ORIGIN = String(json.API_URL).replace(/\/$/, '');
       return `VITE_SUPABASE_URL=${json.API_URL} VITE_SUPABASE_PUBLISHABLE_KEY=${json.ANON_KEY}`;
     }
   } catch {
@@ -45,7 +55,15 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  // Unbounded local parallelism (Playwright's default heuristic, ~half of
+  // CPU cores) reproducibly caused widespread false failures on this
+  // machine: 15 failing specs at full parallelism, all "Test timeout of
+  // 30000ms exceeded" across unrelated features, dropping to 5 (genuine)
+  // at workers=3 — a resource-contention artifact from running many
+  // Chromium instances alongside Docker (backend + local Supabase), not
+  // real bugs. A conservative local cap trades some wall-clock time for
+  // a suite that reports real failures instead of environment noise.
+  workers: process.env.CI ? 1 : 3,
   // Always leave a debuggable trail: HTML report for humans, JSON + JUnit for CI.
   reporter: process.env.CI
     ? [
