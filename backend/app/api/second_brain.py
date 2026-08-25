@@ -19,6 +19,7 @@ vaults the header is simply omitted.
 
 from __future__ import annotations
 
+import hashlib
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
@@ -47,6 +48,18 @@ async def _authed_user_id(user: dict = Depends(get_current_user_from_supabase)) 
     if not user_id or user.get("is_anonymous") or user_id == "anonymous":
         raise HTTPException(status_code=401, detail="Authentication required.")
     return user_id
+
+
+def _derive_unlock_value(passphrase: str) -> str:
+    """Mirror the client-side derivation in src/lib/secondBrainApi.ts
+    (deriveBrainUnlock): every touchpoint that mints or checks a Mode-B KEK
+    must feed the SAME derived value into Argon2id, since the frontend never
+    sends the raw passphrase itself except on this one enable call — every
+    later request (add/list/recall/export) carries only SHA-256(passphrase)
+    via X-Brain-Unlock. Deriving the KEK from the raw passphrase here while
+    unlock() derives it from the header's already-hashed value would wrap
+    the DEK under a KEK the client can never reproduce again."""
+    return hashlib.sha256(passphrase.encode("utf-8")).hexdigest()
 
 
 async def _vault(
@@ -105,7 +118,7 @@ async def enable_session_unlock(
     user_id: str = Depends(_authed_user_id),
 ):
     """Upgrade to owner-blind mode. Irreversible without the passphrase."""
-    return await _svc().enable_session_unlock(user_id, body.passphrase)
+    return await _svc().enable_session_unlock(user_id, _derive_unlock_value(body.passphrase))
 
 
 @router.delete("/brain/vault")
