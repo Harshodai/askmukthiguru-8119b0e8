@@ -207,6 +207,29 @@ async def test_handle_fallback_uses_non_doctrinal_hindi_peace_reflection():
 
 
 @pytest.mark.asyncio
+async def test_handle_fallback_uses_grounded_partial_when_docs_were_retrieved():
+    """A CRAG-exhaustion terminal fallback with real retrieved candidates must
+    surface a cited excerpt instead of a generic 'I don't have that' refusal
+    (retrieved-evidence-miss gate, 2026-08-25)."""
+    state = {
+        "question": "What is the Beautiful State?",
+        "reranked_docs": [
+            {
+                "text": "The Beautiful State is a condition of inner calm and joy.",
+                "source_url": "https://example.com/beautiful-state",
+                "title": "Beautiful State Teaching",
+            }
+        ],
+    }
+    result = await handle_fallback(state, config=None)
+
+    assert result["verification"]["method"] == "grounded_partial_fallback"
+    assert result["citations"] == ["https://example.com/beautiful-state"]
+    assert "grounded partial answer" in result["final_answer"]
+    assert "don't have that specific teaching" not in result["final_answer"]
+
+
+@pytest.mark.asyncio
 async def test_handle_fallback_uses_limited_comparison_explanation():
     """A grading-exhaustion fallback must not erase safe help for a simple comparison."""
     state = {"question": "What is the difference between meditation and contemplation?"}

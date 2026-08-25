@@ -127,6 +127,41 @@ async def handle_fallback(state: GraphState, config: dict = None) -> dict:
     except Exception as exc:
         logger.warning("Terminal peace fallback unavailable; using canonical fallback: %s", exc)
 
+    # CRAG exhausted its rewrite budget without relevant_docs clearing the
+    # grading bar, but retrieval did find candidates — reranked_docs/documents
+    # still hold them even though relevant_docs (the post-grade filtered set)
+    # is empty here. generate_answer already falls back to a grounded partial
+    # answer when a generated draft fails verification post-hoc; this path is
+    # the other terminal route into the same bare-refusal state and had no
+    # equivalent safety valve, so a real retrieved-evidence miss produced a
+    # generic refusal instead of the excerpts that were actually found.
+    try:
+        from rag.nodes.generation import _grounded_partial_answer
+
+        candidate_docs = state.get("reranked_docs") or state.get("documents") or []
+        partial = _grounded_partial_answer(candidate_docs) if candidate_docs else None
+        if partial:
+            partial_answer, partial_citations = partial
+            logger.info(
+                "Terminal fallback: replacing bare refusal with grounded partial from %d candidate doc(s)",
+                len(candidate_docs),
+            )
+            return {
+                "final_answer": partial_answer,
+                "citations": partial_citations,
+                "verification": {
+                    "passed": False,
+                    "method": "grounded_partial_fallback",
+                    "citations_verified": True,
+                },
+                "faithfulness_score": 0.0,
+                "confidence_score": 0.0,
+                "is_faithful": False,
+                "_needs_retry": False,
+            }
+    except Exception as exc:
+        logger.warning("Terminal grounded-partial fallback unavailable; using canonical fallback: %s", exc)
+
     return {
         "final_answer": "I don't have that specific teaching. Please try asking another question."
     }
