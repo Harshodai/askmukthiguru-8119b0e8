@@ -60,6 +60,19 @@ describe('KGConceptMap', () => {
     expect(screen.getByRole('button', { name: /retry live map/i })).toBeInTheDocument();
   });
 
+  it('hides a non-teacher placeholder value in the teacher field instead of rendering it', async () => {
+    const badTeacherData = {
+      nodes: [{ id: 'n1', label: 'Beautiful State', type: 'Concept', teacher: 'base' }],
+      edges: [],
+    };
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve(badTeacherData) })));
+    renderWithI18n(<KGConceptMap initialQuery="beautiful state" />);
+    await act(async () => { await Promise.resolve(); });
+    await advanceSimulation();
+    await waitFor(() => expect(screen.getByLabelText('Beautiful State')).toBeInTheDocument());
+    expect(screen.queryByText('base')).not.toBeInTheDocument();
+  });
+
   it('does not contain off-brand Krishnamurti node in demo data', () => {
     const names = DEMO_DATA.nodes.map((n) => n.label.toLowerCase());
     const teachers = DEMO_DATA.nodes.map((n) => (n.teacher || '').toLowerCase());

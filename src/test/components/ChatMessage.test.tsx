@@ -228,6 +228,23 @@ describe('ChatMessage (regression)', () => {
     expect(screen.queryByText(/Awareness is the beginning of freedom/i)).not.toBeInTheDocument();
   });
 
+  it('renders a safety_redirect crisis message verbatim even with an uncited teacher quote', () => {
+    // DISTRESS_RESPONSES[SEVERE] (backend/services/serene_mind_engine.py) quotes
+    // Sri Krishnaji for comfort and has no citations by design — it's a hardcoded
+    // safety template, not a RAG doctrine claim. It must never be swapped out for
+    // the generic "could not verify" copy, which would hide the crisis helpline
+    // text from someone in acute distress.
+    const message = makeGuruMessage({
+      content:
+        "Sri Krishnaji says: 'When you stop running from your suffering and turn towards it with awareness, transformation begins.'\n\nIf you need to speak with someone right away, please reach out: 988 Suicide & Crisis Lifeline",
+      citations: [],
+      groundingState: 'safety_redirect',
+    });
+    render(<ChatMessage message={message} />, { wrapper });
+    expect(screen.queryByText(/could not verify the quoted teaching/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/988 Suicide & Crisis Lifeline/i)).toBeInTheDocument();
+  });
+
   it("treats ungrounded responses with no linked source as abstained (reflective guidance)", () => {
     // No inline URL: one would be promoted to a fallback citation, routing
     // this into the merged References block instead of response-provenance.

@@ -439,10 +439,14 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
 
     // Attribution integrity: a quoted teacher statement with no linked source
     // must be labelled unverified rather than rendered as doctrine (QA P1).
+    // Exempt safety_redirect (distress/crisis preemption): those are hardcoded
+    // compassionate templates, not RAG-retrieved doctrine, so they're never
+    // citable — but they still legitimately quote a teacher for comfort, and
+    // replacing them silently drops the crisis helpline text they carry.
     const hasUnverifiedAttribution = useMemo(() => {
-      if (!isGuru || citations.length > 0) return false;
+      if (!isGuru || citations.length > 0 || groundingState === 'safety_redirect') return false;
       return /(?:Sri\s+(?:Preethaji|Krishnaji)|Preethaji|Krishnaji)[^.\n]{0,60}["“'']/.test(message.content);
-    }, [isGuru, citations.length, message.content]);
+    }, [isGuru, citations.length, groundingState, message.content]);
 
     const displayContent = useMemo(() => {
       if (!isGuru || citations.length > 0 || !hasUnverifiedAttribution) return message.content;

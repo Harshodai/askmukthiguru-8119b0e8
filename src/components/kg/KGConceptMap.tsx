@@ -59,6 +59,15 @@ const TYPE_COLORS: Record<string, string> = {
 const typeColor = (type: string): string =>
   TYPE_COLORS[type?.toLowerCase()] ?? '#6b7280';
 
+// Data source is only Sri Preethaji & Sri Krishnaji (SPEC_DEV.md). The live
+// /api/kg/subgraph endpoint has been observed returning a literal "base"
+// placeholder in the `teacher` field for graph-relation nodes that aren't
+// attributed to either teacher — rendering that verbatim reads as a broken
+// label floating over the node, so only ever show a recognized teacher name.
+const KNOWN_TEACHERS = new Set(['Sri Preethaji', 'Sri Krishnaji']);
+const isKnownTeacher = (t: string | null | undefined): t is string =>
+  !!t && KNOWN_TEACHERS.has(t);
+
 /** Deterministic hue from teacher — stable colors across renders. */
 const teacherHue = (t: string | null | undefined): number => {
   if (!t) return 210;
@@ -815,7 +824,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
                       strokeDasharray="2,2"
                     />
                   )}
-                  {n.teacher && (
+                  {isKnownTeacher(n.teacher) && (
                     <text
                       textAnchor="middle"
                       dy={`-${r + 10}px`}
