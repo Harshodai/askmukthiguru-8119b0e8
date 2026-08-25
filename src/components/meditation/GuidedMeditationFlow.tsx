@@ -202,9 +202,15 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
     setResumeOffer(null);
   };
 
-  // Main timer
+  // Main timer. Canonical audio normally owns step advancement via
+  // handleAudioTimeUpdate — but if the current step's clip fails to load
+  // (audioFailed), ontimeupdate/onended never fire and the deterministic
+  // timer path above was permanently disabled by usesCanonicalAudio alone,
+  // freezing currentStepIndex/elapsed indefinitely while isPlaying stayed
+  // true. Falling back here keeps steps auto-progressing (with the existing
+  // useMeditationTTS narration fallback) whenever audio can't drive them.
   useEffect(() => {
-    if (usesCanonicalAudio || !isPlaying || isComplete || !step) return;
+    if ((usesCanonicalAudio && !audioFailed) || !isPlaying || isComplete || !step) return;
     const id = setInterval(() => {
       setElapsed((prev) => {
         const next = prev + 1;
@@ -216,7 +222,7 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
       });
     }, 1000);
     return () => clearInterval(id);
-  }, [isPlaying, isComplete, step, usesCanonicalAudio]);
+  }, [isPlaying, isComplete, step, usesCanonicalAudio, audioFailed]);
 
   // Breathing cycle within breathing step
   useEffect(() => {

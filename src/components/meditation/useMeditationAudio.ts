@@ -31,8 +31,22 @@ export function useMeditationAudio(
   const { onTimeUpdate, onEnded, seekTo } = options;
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const preloadRef = useRef<HTMLAudioElement | null>(null);
-  const loadingStepRef = useRef<number>(-1);
-  const [failedStep, setFailedStep] = useState<number | null>(null);
+  const loadingSrcRef = useRef<string | null>(null);
+  // Failure is tracked by audio URL, not step index. GUIDED_STEPS commonly
+  // has every step share one continuous track (see meditationSteps.ts), so a
+  // broken URL is broken for every step referencing it — not just the step
+  // that happened to hit the error first. Indexing by stepIndex let a later
+  // step retry (and reset currentTime to 0) a URL already known dead, and
+  // the stray timeupdate from that retry raced the caller's fallback timer,
+  // snapping progress back to step 0 right at the step boundary.
+  const permanentlyFailedSrcRef = useRef<Set<string>>(new Set());
+  const [failedVersion, setFailedVersion] = useState(0);
+
+  const currentSrc = steps[stepIndex]?.audioSrc;
+  // Recomputed every render from the ref's current contents; failedVersion
+  // only exists to force that recompute when onerror mutates the ref.
+  const audioFailed = !!currentSrc && permanentlyFailedSrcRef.current.has(currentSrc);
+  void failedVersion;
 
   // Lazy-create the audio elements once, on the client.
   useEffect(() => {
@@ -46,7 +60,8 @@ export function useMeditationAudio(
       el.onerror = () => {
         console.error('[useMeditationAudio] failed to load src=', el.src, 'error code=', el.error?.code, 'network state=', el.networkState, 'ready state=', el.readyState);
         el.removeAttribute('src');
-        setFailedStep(loadingStepRef.current);
+        if (loadingSrcRef.current) permanentlyFailedSrcRef.current.add(loadingSrcRef.current);
+        setFailedVersion((v) => v + 1);
       };
       audioRef.current = el;
     }
@@ -64,33 +79,45 @@ export function useMeditationAudio(
 
   // Keep callbacks current; the media element is created once but the flow
   // callbacks change as the active step and practice state change.
+  //
+  // Once the current src has failed, the element can still emit a stray
+  // timeupdate/ended at currentTime=0 — without this guard that reset the
+  // caller's step/elapsed state back to 0.
   useEffect(() => {
     const el = audioRef.current;
     if (!el) return;
-    el.ontimeupdate = () => onTimeUpdate?.(el.currentTime);
-    el.onended = () => onEnded?.();
-  }, [onTimeUpdate, onEnded]);
+    el.ontimeupdate = () => {
+      if (audioFailed) return;
+      onTimeUpdate?.(el.currentTime);
+    };
+    el.onended = () => {
+      if (audioFailed) return;
+      onEnded?.();
+    };
+  }, [onTimeUpdate, onEnded, audioFailed]);
 
-  // Load + fade in current step audio when stepIndex changes.
+  // Load + fade in current step audio when stepIndex (or its src) changes.
   useEffect(() => {
     const el = audioRef.current;
     if (!el) return;
-    const step = steps[stepIndex];
-    const src = step?.audioSrc;
+    const src = currentSrc;
 
-    // No audio for this step → fade out and stop.
-    if (!src) {
+    // No audio for this step, or its src already failed once → fade out and
+    // stay silent rather than retrying a load we know is broken.
+    if (!src || permanentlyFailedSrcRef.current.has(src)) {
       fadeOut(el);
       return;
     }
 
-    // Same src (e.g. React re-render) → do nothing.
+    // Same src already loaded (e.g. steps sharing one continuous track, or a
+    // React re-render) → do nothing; this is what keeps currentTime — and
+    // therefore the caller's cumulative step/elapsed math — continuous
+    // across a multi-step shared track instead of resetting every step.
     if (el.src.endsWith(src)) return;
 
-    loadingStepRef.current = stepIndex;
+    loadingSrcRef.current = src;
     el.src = src;
     el.currentTime = 0;
-    setFailedStep(null);
     el.volume = 0;
     if (isPlaying && !muted) {
       el.play().catch((e) => {
@@ -104,7 +131,7 @@ export function useMeditationAudio(
     if (next && preloadRef.current) {
       preloadRef.current.src = next;
     }
-  }, [steps, stepIndex, isPlaying, muted]);
+  }, [steps, stepIndex, isPlaying, muted, currentSrc]);
 
   // Resume or user-requested seek is applied to the canonical audio timeline.
   useEffect(() => {
@@ -138,7 +165,7 @@ export function useMeditationAudio(
     el.muted = muted;
   }, [muted]);
 
-  return { audioFailed: failedStep === stepIndex };
+  return { audioFailed };
 }
 
 function fadeIn(el: HTMLAudioElement, targetVolume = 1, durationMs = 400) {
