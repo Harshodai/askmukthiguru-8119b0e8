@@ -1,4 +1,40 @@
 import { defineConfig, devices } from '@playwright/test';
+import { execSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+
+// rls-cross-user.spec.ts provisions Alice/Bob directly against local
+// Supabase's Auth REST API (via `npx supabase status`) and that part always
+// worked — but the *browser* signs in through the built frontend bundle,
+// which only knows the Supabase project baked into it at `npm run build`
+// time via VITE_SUPABASE_URL/VITE_SUPABASE_PUBLISHABLE_KEY. Without this,
+// the preview build silently falls back to whatever `.env` picks up (the
+// production project), so the UI tries to sign Bob in against a project
+// where Bob was never created and hangs on `waitForURL` until timeout.
+// SUPABASE_URL/SUPABASE_ANON_KEY (CI) already take precedence, matching the
+// spec's own discovery order; local `supabase status` is the fallback.
+function discoverLocalSupabaseEnv(): string {
+  if (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
+    return `VITE_SUPABASE_URL=${process.env.SUPABASE_URL} VITE_SUPABASE_PUBLISHABLE_KEY=${process.env.SUPABASE_ANON_KEY}`;
+  }
+  const dockerBin = '/Users/harshodaikolluru/.docker/bin';
+  const path = existsSync(dockerBin) ? `${dockerBin}:${process.env.PATH ?? ''}` : process.env.PATH;
+  try {
+    const out = execSync('npx supabase status --output json', {
+      env: { ...process.env, PATH: path },
+      encoding: 'utf8',
+      timeout: 60_000,
+    });
+    const json = JSON.parse(out.slice(out.indexOf('{')));
+    if (json.API_URL && json.ANON_KEY) {
+      return `VITE_SUPABASE_URL=${json.API_URL} VITE_SUPABASE_PUBLISHABLE_KEY=${json.ANON_KEY}`;
+    }
+  } catch {
+    // Local Supabase isn't running — fall through to the build's own
+    // .env default. rls-cross-user.spec.ts will report its own clear
+    // error in that case; every other spec is unaffected either way.
+  }
+  return '';
+}
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -66,7 +102,10 @@ export default defineConfig({
   webServer: process.env.BASE_URL ? undefined : {
     // Local preview is frontend-only. Clear production endpoint overrides so
     // capability probes stay same-origin and do not create false CORS failures.
-    command: 'VITE_BACKEND_URL= VITE_NATIVE_BACKEND= VITE_GOOGLE_CLIENT_ID= VITE_ENABLE_E2E_DIAGNOSTICS=true npm run build && npm run preview -- --host 127.0.0.1',
+    // Point the built bundle at local Supabase when discoverable, so
+    // rls-cross-user.spec.ts's UI sign-in test authenticates against the
+    // same project its Alice/Bob accounts were actually created in.
+    command: `VITE_BACKEND_URL= VITE_NATIVE_BACKEND= VITE_GOOGLE_CLIENT_ID= VITE_ENABLE_E2E_DIAGNOSTICS=true ${discoverLocalSupabaseEnv()} npm run build && npm run preview -- --host 127.0.0.1`,
     port: 4173,
     reuseExistingServer: !process.env.CI,
   },
