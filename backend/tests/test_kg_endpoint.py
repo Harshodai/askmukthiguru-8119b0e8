@@ -13,7 +13,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from app.api.kg import _assert_read_only, _normalize
+from app.api.kg import _assert_read_only, _normalize, _teacher_from_labels, _type_from_labels
 from app.main import app, get_current_user_from_supabase
 
 client = TestClient(app)
@@ -74,6 +74,34 @@ def test_write_bypass_payloads_are_blocked(query):
 def test_legit_reads_pass_the_guard():
     _assert_read_only(_normalize("MATCH (n:Concept) RETURN n LIMIT 10"))
     _assert_read_only(_normalize("CALL db.labels()"))
+
+
+# --------------------------------------------------------------------------
+# _teacher_from_labels / _type_from_labels — a node whose only Neo4j labels
+# are generic LightRAG scaffolding (e.g. "base") must never surface that as
+# a "teacher" attribution in the Wisdom Map UI.
+# --------------------------------------------------------------------------
+
+
+def test_teacher_from_labels_recognizes_known_markers():
+    assert _teacher_from_labels(["Ekam chunk"]) == "Ekam"
+    assert _teacher_from_labels(["J. Krishnamurti"]) == "Sri Krishnaji"
+
+
+def test_teacher_from_labels_hides_generic_scaffolding_labels():
+    assert _teacher_from_labels(["base"]) is None
+    assert _teacher_from_labels(["base", "entity"]) is None
+    assert _teacher_from_labels(None) is None
+
+
+def test_teacher_from_labels_falls_back_to_real_unrecognized_label():
+    assert _teacher_from_labels(["Misc"]) == "Misc"
+
+
+def test_type_from_labels_skips_generic_scaffolding_labels():
+    assert _type_from_labels(["base", "Concept"]) == "Concept"
+    assert _type_from_labels(["base"]) == "base"
+    assert _type_from_labels(None) == "Concept"
 
 
 # --------------------------------------------------------------------------

@@ -330,6 +330,11 @@ class SubgraphResponse(BaseModel):
     count: int
 
 
+# Structural/generic Neo4j labels every LightRAG-written node carries
+# regardless of content — never a teacher name or a meaningful concept type.
+_GENERIC_LABELS = {"base", "entity", "__entity__", "node", "document", "chunk"}
+
+
 def _teacher_from_labels(labels: list[str] | None) -> str | None:
     """Best-effort: surface a teacher/tradition tag from Neo4j labels.
     LightRAG nodes are labelled by source chunk; we look for known teacher markers."""
@@ -341,15 +346,19 @@ def _teacher_from_labels(labels: list[str] | None) -> str | None:
     for key in ("preethaji", "krishnaji", "ekam", "buddha", "osho"):
         if key in joined:
             return key.capitalize()
-    return labels[0] if labels else None
+    # No recognized teacher marker: only ever surface a real label as the
+    # "teacher" if it's not one of the generic structural ones every node
+    # carries — otherwise a plain-vanilla node reports its own scaffolding
+    # (e.g. "base") as if it were a teacher attribution.
+    non_generic = [label for label in labels if label.lower() not in _GENERIC_LABELS]
+    return non_generic[0] if non_generic else None
 
 
 def _type_from_labels(labels: list[str] | None) -> str:
     if not labels:
         return "Concept"
-    generics = {"base", "entity", "__entity__", "node", "document", "chunk"}
     for label in labels:
-        if label.lower() not in generics:
+        if label.lower() not in _GENERIC_LABELS:
             return label
     return labels[0] if labels else "Concept"
 
@@ -580,6 +589,9 @@ if __name__ == "__main__":
     assert _teacher_from_labels(["Ekam chunk"]) == "Ekam"
     assert _teacher_from_labels(["Misc"]) == "Misc"
     assert _teacher_from_labels(["J. Krishnamurti"]) == "Sri Krishnaji"
+    assert _teacher_from_labels(["base"]) is None
+    assert _teacher_from_labels(["base", "entity"]) is None
+    assert _teacher_from_labels(None) is None
 
     def _blocked(q: str) -> bool:
         try:
