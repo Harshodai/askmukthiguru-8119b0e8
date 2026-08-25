@@ -35,6 +35,30 @@ def test_image_without_ocr_does_not_fabricate_content() -> None:
     assert "No extractable text was produced" in result["context"]
 
 
+def test_ocr_timeout_does_not_hang_extraction() -> None:
+    """A slow/hung OCR call must fail closed within bounded time (P1-06, 2026-08-25)."""
+
+    class _SlowOcr:
+        async def extract_text_from_file(self, path: str) -> dict:
+            await asyncio.sleep(3600)
+            return {"text": "should never get here"}
+
+    import app.chat_uploads as chat_uploads
+
+    original_timeout = chat_uploads._OCR_TIMEOUT_SECONDS
+    chat_uploads._OCR_TIMEOUT_SECONDS = 0.05
+    try:
+        result = asyncio.run(
+            extract_chat_attachment(
+                "photo.png", "image/png", b"\x89PNG\r\n\x1a\n", ocr_service=_SlowOcr()
+            )
+        )
+    finally:
+        chat_uploads._OCR_TIMEOUT_SECONDS = original_timeout
+
+    assert result["status"] == "ocr_timeout"
+
+
 def test_combined_upload_limit_fails_closed() -> None:
     with pytest.raises(ValueError, match="50MB"):
         asyncio.run(

@@ -140,6 +140,16 @@ def _extract_pdf_text(path: str) -> str:
     return completed.stdout.decode("utf-8", errors="replace").replace("\x00", "").strip()
 
 
+# A crafted small file (extreme image dimensions via compression, or highly
+# compressed near-silent audio) can take far longer to process than its byte
+# size suggests — neither OCR nor Whisper transcription had a wall-clock
+# bound, so such a file could hang a worker indefinitely (audit P1-06,
+# 2026-08-25). MAX_SINGLE_BYTES already bounds the file size; these bound the
+# processing time for that worst-case file.
+_OCR_TIMEOUT_SECONDS = 30
+_TRANSCRIPTION_TIMEOUT_SECONDS = 60
+
+
 async def _extract_media_text(
     path: str, name: str, mime_type: str, language: str | None, ocr_service: Any
 ) -> tuple[str, str]:
@@ -148,8 +158,13 @@ async def _extract_media_text(
         if ocr_service is None:
             return "", "ocr_unavailable"
         try:
-            result = await ocr_service.extract_text_from_file(path)
+            result = await asyncio.wait_for(
+                ocr_service.extract_text_from_file(path), timeout=_OCR_TIMEOUT_SECONDS
+            )
             return str(result.get("text") or "").strip(), "ocr"
+        except asyncio.TimeoutError:
+            logger.warning("Image OCR timed out for %s after %ss", name, _OCR_TIMEOUT_SECONDS)
+            return "", "ocr_timeout"
         except Exception as exc:
             logger.warning("Image OCR failed for %s: %s", name, exc)
             return "", "ocr_failed"
@@ -159,13 +174,21 @@ async def _extract_media_text(
         or ext in (_ALLOWED_AUDIO_EXTENSIONS | _ALLOWED_VIDEO_EXTENSIONS)
     ):
         try:
-            transcript = await asyncio.to_thread(
-                transcribe_with_whisper,
-                f"chat-upload-{hashlib.sha256(name.encode()).hexdigest()[:12]}",
-                path,
-                language=(language or "en").split("-", 1)[0].lower(),
+            transcript = await asyncio.wait_for(
+                asyncio.to_thread(
+                    transcribe_with_whisper,
+                    f"chat-upload-{hashlib.sha256(name.encode()).hexdigest()[:12]}",
+                    path,
+                    language=(language or "en").split("-", 1)[0].lower(),
+                ),
+                timeout=_TRANSCRIPTION_TIMEOUT_SECONDS,
             )
             return str(transcript or "").strip(), "transcription"
+        except asyncio.TimeoutError:
+            logger.warning(
+                "Media transcription timed out for %s after %ss", name, _TRANSCRIPTION_TIMEOUT_SECONDS
+            )
+            return "", "transcription_timeout"
         except Exception as exc:
             logger.warning("Media transcription failed for %s: %s", name, exc)
             return "", "transcription_failed"
