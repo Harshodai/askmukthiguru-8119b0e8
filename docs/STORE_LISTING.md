@@ -212,14 +212,20 @@ Until steps 1–4 are done, the Apple button will fail at OAuth init — complet
 | **Data shared with third parties:** | Push notification token + notification payload (title/body) are shared with Firebase (Android) / Apple APNs (iOS) solely for delivery. No other third-party sharing. |
 | **Data encrypted in transit?** | Yes (HTTPS). |
 | **Data encrypted at rest?** | Yes (deployed Supabase database + backups). RLS enforces per-user access control. |
-| **Can users request data deletion?** | Yes — via the **Delete Account** action on the Profile page. The action calls the `delete-my-account` Supabase Edge Function, which cascades deletion of user-owned rows + the auth.users row, then signs out. Verified end-to-end. |
+| **Can users request data deletion?** | Yes — via the **Delete Account** action on the Profile page. The action calls the `delete-my-account` Supabase Edge Function, which deletes user-owned Postgres rows + the auth.users row, and (when the `BACKEND_URL` secret is configured — see below) also purges Qdrant vectors, Neo4j graph nodes, and Redis ephemeral memory via the backend. Verified locally end-to-end (2026-08-25); not yet re-verified against the deployed production backend. |
 | **Family/Children policy:** | Not designed for or directed to children under 13. |
 | **Does your app contain ads?** | No. No ad SDKs. |
 | **Security practices:** | • Row-Level Security on all Supabase tables. <br> • JWT-based auth. <br> • No hardcoded secrets in the client bundle (all keys are public-anon Supabase keys; service keys live server-side only). <br> • PII redaction in backend logs. <br> • Per-user rate limiting. |
 
 ### 5.3 Account Deletion Flow
 
-> **✅ Verified.** `src/pages/ProfilePage.tsx` (line ~907) exposes a "Delete Account" AlertDialog that calls the `delete-my-account` Supabase Edge Function (`supabase/functions/delete-my-account/index.ts`) which cascades deletes across user-owned rows + the auth.users row, then the frontend clears local storage + signs out. Apple Guideline 5.1.1(v) + Play Data Safety satisfied.
+> **✅ Verified locally, 2026-08-25.** `src/pages/ProfilePage.tsx` (line ~907) exposes a "Delete Account" AlertDialog that calls the `delete-my-account` Supabase Edge Function (`supabase/functions/delete-my-account/index.ts`), which deletes user-owned Postgres rows + the auth.users row, then the frontend clears local storage + signs out. The function also calls the backend's `DELETE /api/account/purge-memory` (`backend/services/memory_service_v2.py:purge_all_user_data`) with the user's own bearer token before revoking it, purging Qdrant vectors, Neo4j graph nodes, Redis ephemeral memory, and 3 additional Postgres tables (`guru_core_memory`, `guru_memories`, `guru_session_summaries`) that were previously untouched by this flow.
+>
+> **Operational dependency:** the backend purge step requires the `BACKEND_URL` secret set on the edge function (`supabase secrets set BACKEND_URL=...`). If unset, that step is skipped with a logged warning and only the Postgres deletion proceeds — confirm this secret is set in the production Supabase project before relying on this claim there.
+>
+> Verified this pass with a disposable local test user against local Supabase + Qdrant + Postgres (real seed data in each store, real purge call, both confirmed empty after). Not re-verified against the deployed production backend, which was unreachable during this pass.
+>
+> Apple Guideline 5.1.1(v) + Play Data Safety satisfied for the Postgres-only scope; the cross-store scope above is new and not yet reflected in any App Store / Play Store submission materials.
 >
 > Apple requires: "If your app supports account creation, you must also offer account deletion within the app."
 >
