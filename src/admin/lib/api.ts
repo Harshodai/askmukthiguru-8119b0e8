@@ -158,6 +158,23 @@ export async function getQueryTrace(id: string): Promise<QueryTrace> {
   );
 }
 
+// ── Feedback ────────────────────────────────────────────────────────────────
+export interface AdminFeedbackEntry {
+  id: string;
+  user_id: string | null;
+  rating: number;
+  query_text: string;
+  answer_text: string;
+  feedback_text: string;
+  comment: string | null;
+  metadata_json: Record<string, unknown> | null;
+  created_at: string | null;
+}
+
+export async function listFeedback(limit = 100): Promise<AdminFeedbackEntry[]> {
+  return fetchWithAuth(`/api/admin/feedback?limit=${limit}`);
+}
+
 // ── Prompt Versions ─────────────────────────────────────────────────────────
 export async function listPromptVersions(): Promise<PromptVersion[]> {
   return withDevFallback(

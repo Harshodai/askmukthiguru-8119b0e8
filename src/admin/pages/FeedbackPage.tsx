@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { ThumbsUp, ThumbsDown, Filter } from 'lucide-react';
-import { loadAllFeedback, type MessageFeedback } from '@/lib/chatStorage';
+import { useFeedback } from '@/admin/hooks/useAdminData';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -12,7 +12,13 @@ import {
 } from '@/components/ui/select';
 import { fmtDateTime } from '@/admin/lib/formatters';
 
-type FeedbackEntry = { messageId: string } & MessageFeedback;
+type FeedbackEntry = {
+  messageId: string;
+  vote: 'up' | 'down';
+  tags: string[];
+  comment?: string;
+  timestamp: Date;
+};
 
 const ITEMS_PER_PAGE = 10;
 
@@ -20,28 +26,18 @@ const FeedbackPage = () => {
   const [voteFilter, setVoteFilter] = useState<'all' | 'up' | 'down'>('all');
   const [currentPage, setCurrentPage] = useState(1);
 
+  const { data: feedbackRows, isLoading } = useFeedback(200);
+
   const entries = useMemo<FeedbackEntry[]>(() => {
-    try {
-      const raw = loadAllFeedback();
-      if (!raw || typeof raw !== 'object') return [];
-      return Object.entries(raw)
-        .filter(([messageId, fb]) => Boolean(messageId && fb && typeof fb === 'object'))
-        .map(([messageId, fb]) => ({
-          messageId,
-          vote: fb.vote,
-          tags: Array.isArray(fb.tags) ? fb.tags : [],
-          comment: fb.comment,
-          timestamp: fb.timestamp instanceof Date && !Number.isNaN(fb.timestamp.getTime()) ? fb.timestamp : new Date(fb.timestamp || 0),
-        }))
-        .sort((a, b) => {
-          const timeA = a.timestamp instanceof Date ? a.timestamp.getTime() : new Date(a.timestamp || 0).getTime();
-          const timeB = b.timestamp instanceof Date ? b.timestamp.getTime() : new Date(b.timestamp || 0).getTime();
-          return (Number.isNaN(timeB) ? 0 : timeB) - (Number.isNaN(timeA) ? 0 : timeA);
-        });
-    } catch {
-      return [];
-    }
-  }, []);
+    if (!Array.isArray(feedbackRows)) return [];
+    return feedbackRows.map((row) => ({
+      messageId: row.id,
+      vote: row.rating > 0 ? 'up' : 'down',
+      tags: [],
+      comment: row.feedback_text || row.comment || undefined,
+      timestamp: row.created_at ? new Date(row.created_at) : new Date(0),
+    }));
+  }, [feedbackRows]);
 
   const filtered = useMemo(
     () => (voteFilter === 'all' ? entries : (entries ?? []).filter((e) => e?.vote === voteFilter)),
@@ -109,7 +105,9 @@ const FeedbackPage = () => {
       </div>
 
       {/* Table */}
-      {(filtered?.length ?? 0) === 0 ? (
+      {isLoading ? (
+        <div className="text-center py-12 text-muted-foreground">Loading feedback…</div>
+      ) : (filtered?.length ?? 0) === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
           No feedback entries yet. Users can rate guru responses in the chat.
         </div>

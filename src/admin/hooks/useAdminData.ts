@@ -52,6 +52,13 @@ export function usePromptVersions() {
   });
 }
 
+export function useFeedback(limit = 100) {
+  return useQuery({
+    queryKey: ["admin", "feedback", limit],
+    queryFn: () => api.listFeedback(limit),
+  });
+}
+
 export function useModels() {
   return useQuery({ queryKey: ["admin", "models"], queryFn: api.listModels });
 }

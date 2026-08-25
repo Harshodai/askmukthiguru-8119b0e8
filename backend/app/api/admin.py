@@ -47,7 +47,9 @@ from app.telemetry_db import (
     get_trigger_trend,
 )
 from celery_config import celery_app
+from schemas.feedback import FeedbackResponse
 from services.auth_service import require_aal2
+from services.feedback_service import FeedbackService
 
 
 class _AdminActionResult(BaseModel):
@@ -132,6 +134,16 @@ async def fetch_prompts(
     except Exception as e:
         logger.error(f"Failed to fetch prompts: {e}")
         return []
+
+
+@admin_router.get("/feedback", response_model=list[FeedbackResponse])
+async def fetch_admin_feedback(
+    limit: int = 100,
+    user: dict = Depends(_require_admin),
+) -> list[dict[str, Any]]:
+    """Fetch real seeker feedback (feedback_events table) for the admin dashboard."""
+    service = FeedbackService()
+    return await service.get_feedback_history(limit=min(limit, 200))
 
 
 class DoctrineTermUpdate(BaseModel):
@@ -1041,6 +1053,45 @@ async def list_queue_jobs(
 
 
 # ---- OKF management (Phase 5) ----
+def _load_approved_okf_review_titles() -> dict[str, dict[str, Any]]:
+    """Map OKF entry title -> {"by", "at"} for entries a human approved via the
+    review queue. ``approve_okf_entry`` writes the frontmatter ``title`` verbatim
+    from ``entry_json["title"]`` (only the filename gets slugified), so matching
+    on that exact string ties a live markdown entry back to its approval row.
+
+    Degrades to an empty map (never raises) when Supabase is unavailable or the
+    query fails — verification provenance is best-effort, not load-bearing.
+    """
+    from app.telemetry_db import _get_client
+
+    client = _get_client()
+    if not client:
+        return {}
+    try:
+        res = (
+            client.table("okf_review_queue")
+            .select("entry_json,reviewed_by,reviewed_at")
+            .eq("status", "approved")
+            .execute()
+        )
+    except Exception as e:
+        logger.warning("Failed to load approved OKF review rows: %s", e)
+        return {}
+
+    verified: dict[str, dict[str, Any]] = {}
+    for row in res.data or []:
+        entry = row.get("entry_json") or {}
+        title = str(entry.get("title", "")).strip()
+        if not title:
+            continue
+        reviewed_by = row.get("reviewed_by")
+        verified[title] = {
+            "by": f"human:{reviewed_by}" if reviewed_by else "human",
+            "at": row.get("reviewed_at"),
+        }
+    return verified
+
+
 @admin_router.get("/okf")
 async def list_okf_entries(
     type_filter: Optional[str] = Query(None),
@@ -1051,6 +1102,7 @@ async def list_okf_entries(
 
     store = OKFStore()
     entries = store.by_type(type_filter) if type_filter else store.list_entries()
+    verified_by_title = _load_approved_okf_review_titles()
     return {
         "entries": [
             {
@@ -1059,6 +1111,7 @@ async def list_okf_entries(
                 "source": e.source,
                 "tags": e.tags,
                 "body_preview": e.body[:200],
+                "verified": verified_by_title.get(e.title.strip()),
             }
             for e in entries
         ],

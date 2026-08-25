@@ -19,6 +19,7 @@ const mockUseDeadDocs = vi.fn();
 const mockUseSimilarityTrend = vi.fn();
 const mockUseDataStores = vi.fn();
 const mockUseRagFlowGraph = vi.fn();
+const mockUseFeedback = vi.fn();
 
 vi.mock('@/admin/hooks/useAdminData', () => ({
   useKpis: () => mockUseKpis(),
@@ -37,6 +38,7 @@ vi.mock('@/admin/hooks/useAdminData', () => ({
   useSimilarityTrend: () => mockUseSimilarityTrend(),
   useDataStores: () => mockUseDataStores(),
   useRagFlowGraph: (s: string) => mockUseRagFlowGraph(s),
+  useFeedback: (limit?: number) => mockUseFeedback(limit),
 }));
 
 // Mock child components that rely on heavy canvas / charts / SVG
@@ -76,7 +78,6 @@ import RetrievalPage from '@/admin/pages/RetrievalPage';
 import DataSourcesPage from '@/admin/pages/DataSourcesPage';
 import RAGFlowPage from '@/admin/pages/RAGFlowPage';
 import FeedbackPage from '@/admin/pages/FeedbackPage';
-import * as chatStorage from '@/lib/chatStorage';
 
 describe('Admin UX & Resiliency Hardening', () => {
   beforeEach(() => {
@@ -367,8 +368,8 @@ describe('Admin UX & Resiliency Hardening', () => {
   });
 
   describe('7. FeedbackPage', () => {
-    it('renders without crashing when localStorage feedback is empty or corrupt', () => {
-      vi.spyOn(chatStorage, 'loadAllFeedback').mockReturnValue({});
+    it('renders without crashing when the feedback API returns empty or corrupt data', () => {
+      mockUseFeedback.mockReturnValue({ data: [], isLoading: false });
 
       render(
         <MemoryRouter>
@@ -381,13 +382,17 @@ describe('Admin UX & Resiliency Hardening', () => {
     });
 
     it('renders entries with missing tags, string timestamps, and undefined comments', () => {
-      vi.spyOn(chatStorage, 'loadAllFeedback').mockReturnValue({
-        'msg-1234567890': {
-          vote: 'up',
-          tags: undefined as unknown as string[],
-          comment: undefined,
-          timestamp: new Date('2026-08-16T10:00:00Z'),
-        },
+      mockUseFeedback.mockReturnValue({
+        data: [
+          {
+            id: 'msg-1234567890',
+            rating: 1,
+            feedback_text: undefined,
+            comment: undefined,
+            created_at: '2026-08-16T10:00:00Z',
+          },
+        ],
+        isLoading: false,
       });
 
       render(

@@ -1548,6 +1548,20 @@ async def get_query_trace(query_id: str) -> Optional[dict[str, Any]]:
             return None
         query = query_resp.data[0]
 
+        # Fetch the prompt version this query was generated with (old traces
+        # that predate prompt versioning have no prompt_version_id — prompt
+        # stays None for those, matching prior behavior).
+        prompt = None
+        prompt_version_id = query.get("prompt_version_id")
+        if prompt_version_id:
+            prompt_resp = (
+                client.table("prompt_versions")
+                .select("*")
+                .eq("id", prompt_version_id)
+                .execute()
+            )
+            prompt = prompt_resp.data[0] if prompt_resp.data else None
+
         # Fetch corresponding response
         response_resp = (
             client.table("chat_responses").select("*").eq("query_id", query_id).execute()
@@ -1586,11 +1600,20 @@ async def get_query_trace(query_id: str) -> Optional[dict[str, Any]]:
 
         return {
             "query": query,
-            "prompt": None,
+            "prompt": prompt,
             "retrieval": retrieval,
             "response": response,
             "spans": spans,
             "triggers": triggers,
+            # feedback_events.query_id exists in the schema (migration
+            # 20260615044110) but is never populated: feedback_service.py's
+            # create_feedback() and schemas/feedback.py's FeedbackCreate have
+            # no query_id field, and the frontend (submitFeedbackToBackend in
+            # src/lib/chat/transport.ts) never sends one. Every row's
+            # query_id is NULL, so there is nothing real to join against yet
+            # — wiring this up needs a coordinated API-contract + frontend
+            # change to populate query_id at feedback-submission time, not a
+            # fuzzy match on query/answer text here.
             "feedback": None,
             "safety": safety,
         }
