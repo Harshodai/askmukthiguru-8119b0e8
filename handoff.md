@@ -1162,3 +1162,11 @@ Picked up the last genuinely code-fixable item directly (no subagent — scope w
 - Product/legal-decision items (OH-P1-04/07/08/09/P2-02/P1-03) — not code-fixable.
 
 Verdict, still unchanged: **NOT PRODUCTION READY**.
+
+## SESSION UPDATE — 2026-08-25 (continuation 5): closing the git-race gap, stash cleanup
+
+User asked for a full reconciliation pass against the two stash entries left over from the earlier subagent git race. Diffed each stash against current `HEAD` file-by-file rather than trusting the previous pass's summary — found one genuine remaining gap: `playwright.config.ts`'s `workers: 3` cap and `E2E_SUPABASE_ORIGIN` export (from `f5856e93`/`d87114a2`, both already documented above as live-verified) had never actually landed in a commit. Only the *spec-file* half of the `E2E_SUPABASE_ORIGIN` fix was staged when `d87114a2` was made; the config-file half sat uncommitted, got swept into a stash by the same concurrent-reset race, and was missed during the previous reconciliation because that pass focused on files with an active `M` in `git status` rather than diffing every stashed file against `HEAD` individually.
+
+**`f84debbe`** — reapplied both hunks verbatim (byte-identical to the previously-verified version; not re-running the full E2E suite to reverify a straight reapply of already-proven code). Confirmed via `git diff HEAD <stash>` on every file in both stashes that nothing else was missing — the only other non-trivial diffs left were `src/test/admin/AdminPagesResiliency.test.tsx` and `backend/tests/test_admin.py`/`backend/app/telemetry_db.py`, all of which diff *because* `HEAD` is the newer, correct version (the stash held the pre-fix `chatStorage.loadAllFeedback`-based test and the placeholder `get_topic_clusters()`) — confirmed by reading the actual diff content, not just the stat. Both stash entries dropped after confirming zero unique content remained in either.
+
+Verdict, still unchanged: **NOT PRODUCTION READY**. Nothing left to reconcile from the subagent run; every gap that run's git race caused is now closed.
