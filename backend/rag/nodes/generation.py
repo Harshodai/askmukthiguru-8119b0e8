@@ -572,6 +572,26 @@ async def context_engineer(state: GraphState, config: dict = None) -> dict:
             "Focus on deep spiritual transformation."
         )
 
+    # User-selected answer voice (profile setting). Applied here, at generation
+    # time, so citations remain source-qualified — never as a post-hoc rewrite.
+    # "gentle" is the default voice and needs no block.
+    guru_tone = state.get("guru_tone")
+    if guru_tone == "direct":
+        persona += (
+            "\n\n[TONE PREFERENCE: DIRECT]\n"
+            "Style instruction: The user prefers a direct voice. Lead with the core "
+            "teaching in the first sentence, use short declarative sentences, and "
+            "skip softening preambles. Stay compassionate but do not cushion the truth."
+        )
+    elif guru_tone == "poetic":
+        persona += (
+            "\n\n[TONE PREFERENCE: POETIC]\n"
+            "Style instruction: The user prefers a poetic voice. Let the answer breathe: "
+            "use gentle imagery from the teachings (flame, stillness, river, sky), "
+            "rhythmic sentences, and a contemplative cadence — while keeping every "
+            "factual claim grounded in the provided Knowledge."
+        )
+
     # The constitution is 1,183 words ≈ 1,537 tokens. The previous 512-token cap
     # discarded 67% of it, cutting mid-sentence at "You ground every factual claim
     # in the provided context." — so the model never received the ban on invented
