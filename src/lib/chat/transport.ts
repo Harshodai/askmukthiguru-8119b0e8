@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { loadProfile } from '@/lib/profileStorage';
 import { getCurrentConfig } from './config';
 import { getAccessToken, refreshAccessToken } from './auth';
 import { getAnonSessionToken } from './anonSession';
@@ -55,6 +56,8 @@ const buildRequestBody = (
     session_id: sessionId,
     language: getCurrentConfig().language || 'en',
     incognito,
+    // Profile voice preference; backend applies it as a generation-time persona hint.
+    guru_tone: loadProfile().guruTone,
     ...(responsePreferences ? { response_preferences: { mode: responsePreferences.mode, include_practice: responsePreferences.includePractice, include_reflection: responsePreferences.includeReflection, action_depth: responsePreferences.actionDepth } } : {}),
     ...(lastSereneMindAt != null
       ? { last_serene_mind_at: lastSereneMindAt / 1000 }

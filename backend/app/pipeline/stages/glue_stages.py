@@ -301,6 +301,7 @@ class RequestStateStage(Stage):
             state["response_preferences"] = preferences.model_dump(mode="json")
         elif isinstance(preferences, dict):
             state["response_preferences"] = dict(preferences)
+        state["guru_tone"] = getattr(ctx.request, "guru_tone", None)
         ctx.state = state
         return None
 

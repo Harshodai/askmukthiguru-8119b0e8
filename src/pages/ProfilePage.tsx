@@ -442,14 +442,12 @@ const ProfilePage = () => {
           <Tabs value={tab} onValueChange={setTab} className="w-full">
             {/* ── Scrollable tab rail — generous touch targets and sacred minimal background ── */}
             <div className="-mx-4 sm:mx-0 px-4 sm:px-0 overflow-x-auto momentum-scroll no-tap-highlight">
-              <TabsList className="inline-flex w-max sm:w-full sm:grid sm:grid-cols-7 gap-1 mb-7 bg-muted/40 p-1 rounded-full">
+              <TabsList className="inline-flex w-max sm:w-full sm:grid sm:grid-cols-5 gap-1 mb-7 bg-muted/40 p-1 rounded-full">
                 <TabsTrigger value="conversations" className="rounded-full min-h-[44px] text-xs sm:text-sm px-4 sm:px-5 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground/80 hover:text-foreground transition-colors">{t('profile.tabs.conversations', 'Conversations')}</TabsTrigger>
                 <TabsTrigger value="profile" className="rounded-full min-h-[44px] text-xs sm:text-sm px-4 sm:px-5 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground/80 hover:text-foreground transition-colors">{t('profile.tabs.profile', 'Profile')}</TabsTrigger>
                 <TabsTrigger value="stats" className="rounded-full min-h-[44px] text-xs sm:text-sm px-4 sm:px-5 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground/80 hover:text-foreground transition-colors">{t('profile.tabs.insights', 'Insights')}</TabsTrigger>
-                <TabsTrigger value="notes" className="rounded-full min-h-[44px] text-xs sm:text-sm px-4 sm:px-5 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground/80 hover:text-foreground transition-colors">{t('profile.tabs.notes', 'Notes')}</TabsTrigger>
                 <TabsTrigger value="memory" className="rounded-full min-h-[44px] text-xs sm:text-sm px-4 sm:px-5 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground/80 hover:text-foreground transition-colors">{t('profile.tabs.memory', 'Memory')}</TabsTrigger>
                 <TabsTrigger value="settings" className="rounded-full min-h-[44px] text-xs sm:text-sm px-4 sm:px-5 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground/80 hover:text-foreground transition-colors">{t('profile.tabs.settings', 'Settings')}</TabsTrigger>
-                <TabsTrigger value="support" className="rounded-full min-h-[44px] text-xs sm:text-sm px-4 sm:px-5 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground/80 hover:text-foreground transition-colors">{t('profile.tabs.support', 'Support')}</TabsTrigger>
               </TabsList>
             </div>
 
@@ -755,9 +753,6 @@ const ProfilePage = () => {
               </Card>
             </TabsContent>
 
-            <TabsContent value="notes" className="space-y-6 mt-0">
-              <NotesPanel />
-            </TabsContent>
 
             <TabsContent value="conversations" className="space-y-6 mt-0">
               <Card className="rounded-2xl border border-hairline bg-card shadow-sm">
@@ -872,6 +867,9 @@ const ProfilePage = () => {
 
             <TabsContent value="memory" className="space-y-6 mt-0">
               <MemoryManager />
+              <div className="pt-2 border-t border-hairline">
+                <NotesPanel />
+              </div>
             </TabsContent>
 
 
@@ -1171,9 +1169,7 @@ const ProfilePage = () => {
                   </div>
                 </CardContent>
               </Card>
-            </TabsContent>
 
-            <TabsContent value="support" className="space-y-6 mt-0">
               <Card className="rounded-2xl border border-hairline bg-card shadow-sm">
                 <CardHeader className="pb-4">
                   <div className="flex items-center gap-3">
@@ -1255,6 +1251,7 @@ const ProfilePage = () => {
                 </CardContent>
               </Card>
             </TabsContent>
+
           </Tabs>
         </div>
       </div>

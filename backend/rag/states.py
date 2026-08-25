@@ -193,6 +193,8 @@ class GraphState(TypedDict):
     user_id: Optional[str]
     detected_language: Optional[str]
     memory_context: Optional[str]
+    # User-selected answer voice ("gentle" | "direct" | "poetic"); None = default.
+    guru_tone: Optional[str]
     # Ephemeral attachment evidence supplied for the current turn only.
     # It is never persisted as user memory or corpus content automatically.
     attachment_context: Optional[str]

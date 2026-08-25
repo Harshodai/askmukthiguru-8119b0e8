@@ -115,6 +115,14 @@ class ChatRequest(BaseModel):
             "returns this value; it is never persisted or indexed automatically."
         ),
     )
+    guru_tone: Optional[Literal["gentle", "direct", "poetic"]] = Field(
+        default=None,
+        description=(
+            "User-selected answer voice from the profile (gentle is the default and "
+            "adds no style block). Applied as a generation-time persona hint, never "
+            "as a post-hoc rewrite, so citations stay source-qualified."
+        ),
+    )
 
     @model_validator(mode="before")
     @classmethod

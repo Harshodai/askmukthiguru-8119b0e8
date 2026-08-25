@@ -44,10 +44,15 @@ def _is_personalization_eligible(ctx: PipelineContext) -> bool:
     guard's later-in-chain view agree with the same source of truth.
     """
     attachment_context = getattr(ctx.request, "attachment_context", None)
+    # A non-default guru_tone changes the generated answer, so it must bypass
+    # the shared caches for the same reason memory_context does: a direct/poetic
+    # answer must never be replayed to a user who asked with the default voice.
+    guru_tone = getattr(ctx.request, "guru_tone", None)
     return bool(
         ctx.personalization_eligible
         or (ctx.state and ctx.state.get("memory_context"))
         or (isinstance(attachment_context, str) and attachment_context)
+        or guru_tone in ("direct", "poetic")
     )
 
 
