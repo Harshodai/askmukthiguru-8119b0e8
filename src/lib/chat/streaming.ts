@@ -1,6 +1,6 @@
 import { getCurrentConfig } from './config';
 import { getAccessToken, refreshAccessToken } from './auth';
-import { getAnonSessionToken } from './anonSession';
+import { getAnonSessionToken, refreshAnonSessionToken } from './anonSession';
 import { buildAssistantContext } from './assistant';
 import { httpStatusToErrorCode } from './errors';
 import { fetchWithRetry } from './fetchWithRetry';
@@ -65,7 +65,7 @@ export async function* sendMessageStreaming(
 
   // M5: anonymous users must echo a server-signed token, not a
   // client-asserted conversation id (backend rejects unsigned ids).
-  const effectiveSessionId = (await getAnonSessionToken()) ?? sessionId;
+  let effectiveSessionId = (await getAnonSessionToken()) ?? sessionId;
 
   const buildBody = () => JSON.stringify({
     messages: [
@@ -103,6 +103,17 @@ export async function* sendMessageStreaming(
 
   const startMs = Date.now();
   let response = await doFetch(token);
+
+  // A cached anonymous token can expire between reloads. Refresh it once
+  // before surfacing an authentication error; authenticated users retain
+  // the existing access-token refresh path below.
+  if (response.status === 401 && !token) {
+    const refreshedAnon = await refreshAnonSessionToken();
+    if (refreshedAnon) {
+      effectiveSessionId = refreshedAnon;
+      response = await doFetch(token);
+    }
+  }
 
   // Auto-retry on 401 with a refreshed token (mirrors non-stream path)
   if (response.status === 401 && token) {

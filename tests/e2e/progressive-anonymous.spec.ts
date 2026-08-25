@@ -22,7 +22,7 @@ const PUBLIC_CONTENT_ROUTES = [
 for (const route of PUBLIC_CONTENT_ROUTES) {
   test(`public page renders without auth redirect: ${route}`, async ({ page }) => {
     await page.goto(route, { waitUntil: 'networkidle' });
-    const finalPathname = new URL(page.url()).pathname;
+    const finalPathname = new URL(page.url()).pathname.replace(/\/+$/, '') || '/';
     expect(finalPathname, `expected ${route} but redirected to ${finalPathname}`).toBe(route);
     await expect(page.locator('body')).toBeVisible();
     // PublicShell always renders the marketing footer.
@@ -32,7 +32,7 @@ for (const route of PUBLIC_CONTENT_ROUTES) {
 
 test('chat route mounts without auth redirect for anonymous users', async ({ page }) => {
   await page.goto('/chat', { waitUntil: 'networkidle' });
-  const finalPathname = new URL(page.url()).pathname;
+  const finalPathname = new URL(page.url()).pathname.replace(/\/+$/, '') || '/';
   expect(finalPathname).toBe('/chat');
   await expect(page.locator('body')).toBeVisible();
 });

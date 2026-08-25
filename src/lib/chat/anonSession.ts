@@ -32,6 +32,36 @@ async function mintAnonSessionToken(): Promise<string | null> {
   }
 }
 
+async function mintAndCacheAnonSessionToken(): Promise<string | null> {
+  const token = await mintAnonSessionToken();
+  if (token) {
+    try {
+      localStorage.setItem(STORAGE_KEY, token);
+    } catch {
+      // storage unavailable — token still usable this page load
+    }
+  }
+  return token;
+}
+
+async function awaitAnonSessionToken(forceRefresh = false): Promise<string | null> {
+  if (forceRefresh) {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // storage unavailable — minting remains valid for this page load
+    }
+  }
+  if (!inFlight) {
+    inFlight = mintAndCacheAnonSessionToken();
+  }
+  try {
+    return await inFlight;
+  } finally {
+    inFlight = null;
+  }
+}
+
 /** Signed anonymous-session token, or null when the user is authenticated,
  *  the backend cannot mint one, or this browser has no storage. */
 export async function getAnonSessionToken(): Promise<string | null> {
@@ -46,24 +76,16 @@ export async function getAnonSessionToken(): Promise<string | null> {
     // storage unavailable (private mode) — mint per page load
   }
 
-  if (!inFlight) {
-    inFlight = (async () => {
-      const token = await mintAnonSessionToken();
-      if (token) {
-        try {
-          localStorage.setItem(STORAGE_KEY, token);
-        } catch {
-          // storage unavailable — token still usable this page load
-        }
-      }
-      return token;
-    })();
-  }
-  try {
-    return await inFlight;
-  } finally {
-    inFlight = null;
-  }
+  return awaitAnonSessionToken();
+}
+
+/**
+ * Discard the cached token and mint a new one after the backend rejects it.
+ * This is intentionally separate from getAnonSessionToken so a transient 401
+ * does not cause every normal request to mint a new identity.
+ */
+export async function refreshAnonSessionToken(): Promise<string | null> {
+  return awaitAnonSessionToken(true);
 }
 
 /** session id to send on chat/job calls: the signed anon token for

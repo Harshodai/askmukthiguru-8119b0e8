@@ -73,7 +73,7 @@ export const CookieConsentBanner = () => {
                 <Button size="sm" variant="outline" className="h-7 text-[11px] px-2.5" onClick={() => decide('rejected')}>
                   {t('common.reject') === 'common.reject' ? 'Reject' : t('common.reject')}
                 </Button>
-                <Button size="sm" className="h-7 text-[11px] px-2.5 bg-ojas hover:bg-ojas-dark !text-foreground" onClick={() => decide('accepted')}>
+                <Button size="sm" className="h-7 text-[11px] px-2.5 bg-ojas hover:bg-ojas-dark !text-primary-foreground" onClick={() => decide('accepted')}>
                   {t('common.accept') === 'common.accept' ? 'Accept' : t('common.accept')}
                 </Button>
               </div>

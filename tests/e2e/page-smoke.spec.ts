@@ -40,7 +40,7 @@ for (const route of PUBLIC_ROUTES) {
     expect(res?.status(), `HTTP status for ${route}`).toBeLessThan(500);
     // Tolerate redirects to /auth for protected pages.
     await expect(page.locator('body')).toBeVisible();
-    const finalPathname = new URL(page.url()).pathname;
+    const finalPathname = new URL(page.url()).pathname.replace(/\/+$/, '') || '/';
     const protectedRoute = route === '/chat' || route === '/profile' || route.startsWith('/admin/');
     const fatal = errors.filter(
       (e) =>

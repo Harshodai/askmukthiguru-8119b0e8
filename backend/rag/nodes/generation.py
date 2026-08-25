@@ -2228,6 +2228,54 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
                 route_decision="reflective_practice_fallback",
             ),
         }
+    # Fast/tier2 requests already ran the bounded local faithfulness check in
+    # generate_answer. If that check rejects the draft, a second provider call
+    # adds several seconds and can stream an answer that is discarded anyway.
+    # Return the same conservative source-only envelope immediately instead of
+    # retrying generation. Standard/deep requests retain the existing retry
+    # behavior because they have a different verification budget and contract.
+    if (
+        refusal_action == "retry"
+        and query_tier in ("tier2_simple", "fast")
+        and relevant_docs
+    ):
+        partial = _grounded_partial_answer(relevant_docs)
+        if partial:
+            partial_answer, partial_citations = partial
+            partial_citations = _sanitize_citations(partial_citations, docs=relevant_docs)
+            partial_answer = remap_citation_markers(
+                partial_answer, relevant_docs, partial_citations
+            )
+            logger.warning(
+                "Final: fast-tier answer rejected; returning grounded partial evidence without retry"
+            )
+            return {
+                "final_answer": scrub(partial_answer),
+                "citations": partial_citations,
+                "intent": intent,
+                "_needs_retry": False,
+                "is_faithful": False,
+                "hallucination_flag": False,
+                "grounding_state": "grounded",
+                "verification": {
+                    "passed": False,
+                    "method": "grounded_partial_evidence",
+                    "partial": True,
+                },
+                "faithfulness_score": 0.0,
+                "confidence_score": 0.0,
+                "citations_verified": True,
+                "refusal_quality_failure": True,
+                "evaluation_trace": _trace_update(
+                    state,
+                    final_answer_chars=len(partial_answer),
+                    final_citations=partial_citations,
+                    verification_passed=False,
+                    confidence_score=0.0,
+                    route_decision="grounded_partial_fast_tier",
+                ),
+            }
+
     if refusal_action == "retry":
         retry_count = state.get("retry_count", 0)
         if retry_count < 1:

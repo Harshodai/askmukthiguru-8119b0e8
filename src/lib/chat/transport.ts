@@ -2,7 +2,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { loadProfile } from '@/lib/profileStorage';
 import { getCurrentConfig } from './config';
 import { getAccessToken, refreshAccessToken } from './auth';
-import { getAnonSessionToken } from './anonSession';
+import { getAnonSessionToken, refreshAnonSessionToken } from './anonSession';
 import { buildAssistantContext } from './assistant';
 import { httpStatusToErrorCode } from './errors';
 import { recordMetric } from './telemetry';
@@ -138,7 +138,7 @@ export const sendMessage = async (
     const token = await getAccessToken();
     // M5: anonymous users must echo a server-signed token, not a
     // client-asserted conversation id (backend rejects unsigned ids).
-    const effectiveSessionId = (await getAnonSessionToken()) ?? sessionId;
+    let effectiveSessionId = (await getAnonSessionToken()) ?? sessionId;
 
     const buildBody = () => buildRequestBody(
       systemPrompt,
@@ -171,6 +171,17 @@ export const sendMessage = async (
     const startMs = Date.now();
     try {
       let response = await doFetch();
+
+      // A cached anonymous token can expire between reloads. Refresh it once
+      // before surfacing an authentication error; authenticated users retain
+      // the existing access-token refresh path below.
+      if (response.status === 401 && !token) {
+        const refreshedAnon = await refreshAnonSessionToken();
+        if (refreshedAnon) {
+          effectiveSessionId = refreshedAnon;
+          response = await doFetch();
+        }
+      }
 
       // Queue integration: 202 Accepted → poll job endpoint until completed/failed
       if (response.status === 202) {

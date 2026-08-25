@@ -4,13 +4,16 @@ const mocks = vi.hoisted(() => ({
   getSession: vi.fn(),
 }));
 
+const anonMocks = vi.hoisted(() => ({
+  getAnonSessionToken: vi.fn().mockResolvedValue('signed-anon-token'),
+  refreshAnonSessionToken: vi.fn(),
+}));
+
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: { auth: { getSession: mocks.getSession } },
 }));
 
-vi.mock('@/lib/chat/anonSession', () => ({
-  getAnonSessionToken: vi.fn().mockResolvedValue('signed-anon-token'),
-}));
+vi.mock('@/lib/chat/anonSession', () => anonMocks);
 
 import { generateConversationTitle, submitFeedbackToBackend, sendMessage, uploadChatAttachment } from '@/lib/chat/transport';
 import { setAIProvider } from '@/lib/chat/config';
@@ -18,6 +21,8 @@ import { setAIProvider } from '@/lib/chat/config';
 describe('chat/transport helpers', () => {
   beforeEach(() => {
     mocks.getSession.mockResolvedValue({ data: { session: { access_token: 'tok' } } });
+    anonMocks.getAnonSessionToken.mockReset().mockResolvedValue('signed-anon-token');
+    anonMocks.refreshAnonSessionToken.mockReset().mockResolvedValue(null);
     setAIProvider({ provider: 'custom', endpoint: 'http://localhost:8000/api/chat' });
     vi.stubGlobal('fetch', vi.fn());
   });
@@ -120,6 +125,31 @@ describe('chat/transport helpers', () => {
       traceId: 'trace-1',
       queryTier: 'tier2_simple',
     });
+  });
+
+  it('refreshes a stale anonymous token once after a 401', async () => {
+    mocks.getSession.mockResolvedValue({ data: { session: null } });
+    anonMocks.getAnonSessionToken.mockResolvedValue('stale-anon-token');
+    anonMocks.refreshAnonSessionToken.mockResolvedValue('fresh-anon-token');
+    const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        clone: () => ({ json: async () => ({ detail: 'anonymous session expired' }) }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ response: 'recovered' }),
+      });
+
+    const result = await sendMessage([], 'hello');
+
+    expect(result.content).toBe('recovered');
+    expect(anonMocks.refreshAnonSessionToken).toHaveBeenCalledTimes(1);
+    const [, retryOptions] = fetchMock.mock.calls[1];
+    expect(JSON.parse(retryOptions.body).session_id).toBe('fresh-anon-token');
   });
 
   it('sendMessage resolves a host-relative queue poll_url against the backend origin', async () => {
