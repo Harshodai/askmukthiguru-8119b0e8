@@ -1140,10 +1140,25 @@ User asked to use subagents to fix everything still open in this document and up
 Verified after full reconciliation: backend full suite 2437 passed / 31 skipped / 5 pre-existing errors (missing ingestion corpus, unrelated); `test_admin.py` alone run 3x consecutively, 15/15 passed every time, zero 429s. Frontend: 521 passed, 0 failed, production build clean. Also fixed a second, different FeedbackPage test file (`src/test/admin/AdminPagesResiliency.test.tsx`) that none of the agents touched — it mocked the old `chatStorage.loadAllFeedback()` directly rather than going through the `useAdminData` hook layer the other admin test files use, so the localStorage→API rewire broke it without any agent noticing (their own test runs only covered the two hook-layer test files).
 
 ### Remaining deferred items, unchanged
-- `TopicsPage.tsx`'s clustering placeholder (`get_topic_clusters()` always `return []`) — real feature work, no subagent dispatched for it; scope (what clustering algorithm, what data) was never defined.
 - `security-aal2.spec.ts`'s "MFA step-up... bad code shows error" E2E test — still undiagnosed, narrow, deep supabase-js-internals territory.
 - Capacity/load test — still blocked by the primary-checkout/Docker-image drift documented above; not re-attempted this pass.
 - `okf_compiled`/retrieval-corpus, Railway — still the standing carve-out, untouched.
 - Product/legal-decision items from the 2026-08-25 omission-hunt (OH-P1-04, OH-P1-07, OH-P1-08, OH-P1-09, OH-P2-02, P1-03) — none of these are code-fixable; a subagent dispatched at them would just be guessing at someone else's decision, so none were spawned for these.
 
 Verdict, still unchanged: **NOT PRODUCTION READY**. Every genuinely code-fixable item surfaced across this session's several passes is now closed; what remains is the corpus/ingestion gate itself, external-account-gated items, and product/legal calls — none of which a code session can close.
+
+## SESSION UPDATE — 2026-08-25 (continuation 4): TopicsPage clustering closed; workflow note
+
+Picked up the last genuinely code-fixable item directly (no subagent — scope was small enough it was faster and lower-risk to do inline than to dispatch and re-verify).
+
+**`11038c93`** — `get_topic_clusters()` was an explicit placeholder (`return []` unconditionally). Implemented real keyword-frequency grouping: per query, pick its single most distinctive word (stopword-filtered, ties broken toward the *longer* candidate rather than whichever word appeared first — a first-occurrence tie-break was tried first and failed its own regression test, since two phrasings of the same question ("what is the beautiful state" / "how do I return to the beautiful state") don't share a leading word, only their topic noun; length-based tie-break fixed it and both now cluster together as intended). No embeddings, no background job, no new dependency — deliberately: this page's actual job (which subjects seekers ask about, where faithfulness dips) doesn't need real semantic clustering to answer.
+
+**Workflow note per this turn's instruction**: user asked to work in `main` only going forward. This worktree's local branch (`worktree-production-readiness-remediation`) can't literally be renamed/switched to `main` — `main` is already checked out in the primary checkout (`/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8`), and git refuses to check out the same branch in two worktrees at once. In practice this has made no difference: every commit this session has been pushed straight to `origin/main` immediately after landing, with no long-lived divergent branch — that discipline continues.
+
+### Remaining deferred items, unchanged from above
+- `security-aal2.spec.ts`'s MFA bad-code E2E test — still undiagnosed.
+- Capacity/load test — still blocked by the Docker-image drift.
+- `okf_compiled`/retrieval-corpus, Railway — standing carve-out.
+- Product/legal-decision items (OH-P1-04/07/08/09/P2-02/P1-03) — not code-fixable.
+
+Verdict, still unchanged: **NOT PRODUCTION READY**.
