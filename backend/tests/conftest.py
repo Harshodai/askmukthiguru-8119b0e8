@@ -173,6 +173,25 @@ def _close_global_redis_pool():
 
 
 @pytest.fixture(autouse=True)
+def _reset_rate_limiters():
+    # ponytail: app.main._ADMIN_RATE_LIMITER / _AUTH_RATE_LIMITER are module-level
+    # singletons. Redis is unreachable in this test env, so RedisBackedRateLimiter
+    # silently falls back to its in-process ExponentialBackoffRateLimiter (or, if
+    # REDIS_URL has no redis:// scheme, app.main constructs a plain TTLRateLimiter
+    # directly) — either way, request counts accumulate across every test in the
+    # same pytest process with nothing to reset them, causing spurious 429s late
+    # in a full-file run that never reproduce in isolation. Reset before each test.
+    from app.main import _ADMIN_RATE_LIMITER, _AUTH_RATE_LIMITER
+
+    for _limiter in (_ADMIN_RATE_LIMITER, _AUTH_RATE_LIMITER):
+        if hasattr(_limiter, "reset_fallback"):
+            _limiter.reset_fallback()
+        elif hasattr(_limiter, "reset"):
+            _limiter.reset()
+    yield
+
+
+@pytest.fixture(autouse=True)
 def _clear_dependency_overrides():
     # ponytail: app.dependency_overrides is a dict on the single shared `app`
     # object imported by every test module; several tests (test_edge_cases.py,

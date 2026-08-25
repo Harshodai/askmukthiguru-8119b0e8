@@ -273,6 +273,10 @@ class TTLRateLimiter:
             if not q:
                 del self._store[key]
 
+    def reset(self) -> None:
+        """Clear all tracked request timestamps (test isolation hook)."""
+        self._store.clear()
+
 
 import threading
 
@@ -330,6 +334,11 @@ class ExponentialBackoffRateLimiter:
             self._attempts[key] = [a for a in self._attempts[key] if a[0] > cutoff]
             if not self._attempts[key]:
                 del self._attempts[key]
+
+    def reset(self) -> None:
+        """Clear all tracked attempts (test isolation hook)."""
+        with self._lock:
+            self._attempts.clear()
 
 
 _unkeyed_digest_warned = False
@@ -557,6 +566,15 @@ class RedisBackedRateLimiter:
             # fallback limiter so backoff tracking keeps working. Fail-safe,
             # not fail-open, for attempt outcomes.
             self._fallback.record_attempt(key, success, now)
+
+    def reset_fallback(self) -> None:
+        """Clear the process-local fallback limiter's state (test isolation hook).
+
+        Only touches the in-process fallback, never live Redis state — the
+        fallback is what accumulates unbounded within a single pytest
+        process when Redis is unreachable (see backend/tests/conftest.py).
+        """
+        self._fallback.reset()
 
     # ── Redis implementation ─────────────────────────────────────────────────
 
