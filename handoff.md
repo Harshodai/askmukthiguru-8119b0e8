@@ -1170,3 +1170,16 @@ User asked for a full reconciliation pass against the two stash entries left ove
 **`f84debbe`** — reapplied both hunks verbatim (byte-identical to the previously-verified version; not re-running the full E2E suite to reverify a straight reapply of already-proven code). Confirmed via `git diff HEAD <stash>` on every file in both stashes that nothing else was missing — the only other non-trivial diffs left were `src/test/admin/AdminPagesResiliency.test.tsx` and `backend/tests/test_admin.py`/`backend/app/telemetry_db.py`, all of which diff *because* `HEAD` is the newer, correct version (the stash held the pre-fix `chatStorage.loadAllFeedback`-based test and the placeholder `get_topic_clusters()`) — confirmed by reading the actual diff content, not just the stat. Both stash entries dropped after confirming zero unique content remained in either.
 
 Verdict, still unchanged: **NOT PRODUCTION READY**. Nothing left to reconcile from the subagent run; every gap that run's git race caused is now closed.
+
+
+## SESSION UPDATE — 2026-08-25 (continuation 6): ruthless audit remediation
+
+Implemented on isolated branch `ruthless-audit-remediation` from the synchronized `origin/main`, preserving the two pre-existing tracked local edits.
+
+- Ontology extraction now writes relationship evidence plus `reviewed=false` and `review_status='pending'`; cross-teacher reasoning traverses only explicitly approved, confidence-qualified edges. Added admin-only Neo4j review queue, approve, and reject endpoints.
+- OKF extraction now rejects `auto_approve` at the low-level function boundary, the CLI switch is removed, and the repository-root/backend extractor copies remain byte-identical. Admin extraction always stages.
+- Added `20260825090000_deterministic_memory_supersession.sql`: active fact keys, `valid_from`/`valid_to`, active-only memory RPC filtering, and an index. MemoryService and MemoryServiceV2 now supersede reworded contradictions deterministically and preserve old Neo4j nodes as audit history.
+- Fast graph strategy now includes reflection, verification, and citation nodes. Simple tiers retain a bounded local path but no longer structurally bypass reflection or LettuceDetect. LettuceDetect exposes atomic claim support results. Final formatting adds one idempotent inline hedge below faithfulness/confidence floors and avoids the prohibited canned disclaimer. The system prompt now explicitly handles contested evidence by attribution and cautious uncertainty.
+- Focused affected suite: 72 passed, 1 skipped. Post-rebase full backend suite: 2,453 passed, 31 skipped, including all 5 corpus-integrity tests. Frontend: 522 passed, 6 skipped; typecheck and production build passed. Lint passed with 31 pre-existing warnings and zero errors. `git diff --check` and changed-file compilation passed.
+
+Validation is complete. The branch is ready for the final commit and push.

@@ -155,15 +155,16 @@ async def test_add_explicit_temporal_superseding():
     # Mock embedding encode
     mock_embed.encode_single_full.return_value = {"dense": [0.1] * 384}
 
-    # Mock RPC returning a near-duplicate memory target
-    mock_rpc_resp = MagicMock()
-    mock_rpc_resp.data = [{"id": "old-mem-uuid", "similarity": 0.95}]
-    mock_rpc = MagicMock()
-    mock_rpc.execute = MagicMock(return_value=mock_rpc_resp)
-    mock_supabase.rpc.return_value = mock_rpc
+    # Deterministic active fact-key lookup replaces similarity-based merging.
+    mock_memory_table = MagicMock()
+    mock_supabase.table.return_value = mock_memory_table
+    mock_active_resp = MagicMock(data=[{"id": "old-mem-uuid"}])
+    mock_memory_table.select.return_value.eq.return_value.eq.return_value.is_.return_value.execute = MagicMock(
+        return_value=mock_active_resp
+    )
 
     # Mock base class add_explicit (super().add_explicit)
-    mock_add_explicit_resp = {"id": "old-mem-uuid", "content": "Updated content"}
+    mock_add_explicit_resp = {"id": "new-mem-uuid", "content": "Updated content"}
 
     # Set up neo4j driver mock
     mock_driver = MagicMock()
@@ -179,7 +180,12 @@ async def test_add_explicit_temporal_superseding():
         service = MemoryServiceV2(mock_supabase, mock_embed)
         service._get_neo4j = MagicMock(return_value=mock_driver)
 
-        await service.add_explicit("user-123", "Updated content", is_core=False)
+        await service.add_explicit(
+            "user-123",
+            "Updated content",
+            is_core=False,
+            metadata={"fact_key": "user:preference"},
+        )
 
         # Verify super().add_explicit was called
         mock_super_add.assert_called_once()

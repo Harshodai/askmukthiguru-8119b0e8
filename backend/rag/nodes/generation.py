@@ -2719,32 +2719,24 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
             ),
         }
 
-    # Confidence-aware close. The pre-fix code appended a single hardcoded footer
-    # ("*Note: Based on what I found in the teachings…* 🙏") to every moderate-confidence
-    # answer. That literal string showed up in 100% of cached answers and broke the
-    # guru illusion completely (it reads like a database disclaimer, not a teacher
-    # speaking). When `settings.strip_canned_footer` is True (default), we instead
-    # let the generated answer stand on its own — verification + citation telemetry
-    # remains in the response metadata so the frontend can render a confidence chip
-    # without altering the prose itself.
-    strip_footer = getattr(settings, "strip_canned_footer", True)
-    if confidence < 7 and not strip_footer:
-        legacy_caveat = (
-            "\n\n*Note: Based on what I found in the teachings, though I recommend "
-            "exploring Sri Preethaji and Sri Krishnaji's wisdom directly for deeper understanding.* \U0001f64f"
-        )
-        if legacy_caveat not in answer:
-            answer += legacy_caveat
-        logger.info(
-            "Final: Moderate confidence (%s), adding legacy caveat (strip_canned_footer=False).",
-            confidence,
-        )
-    elif confidence < 7:
-        # Surface low confidence in telemetry only — never in the answer text.
-        logger.info(
-            "Final: Moderate confidence (%s); strip_canned_footer=True — telemetry-only.",
-            confidence,
-        )
+    faithfulness_score = state.get("faithfulness_score")
+    if faithfulness_score is None:
+        faithfulness_score = 1.0 if (state.get("verification") or {}).get("passed", False) else 0.0
+
+    # Progressive disclosure: expose uncertainty only below a meaningful
+    # quality bound, without raw scores or the old canned disclaimer. Pair the
+    # hedge with a source/narrow-question next step and make it idempotent.
+    low_confidence = (
+        faithfulness_score < float(getattr(settings, "faithfulness_floor", 0.6))
+        or confidence < float(getattr(settings, "confidence_gating_floor", 6.5))
+    )
+    confidence_hedge = (
+        "The available passages do not support a fully confident conclusion. "
+        "Check the cited sources or ask a narrower question for a more precise reading."
+    )
+    if low_confidence and confidence_hedge not in answer:
+        answer = f"{answer.rstrip()}\n\n{confidence_hedge}"
+        logger.info("Final: low-confidence hedge surfaced inline (confidence=%s)", confidence)
 
     # Citations are returned in the citations field, we do not append them to the answer text.
     pass
@@ -2754,9 +2746,6 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
     # Follow-up suggestions removed per P1-11 (was an extra LLM call per turn)
     follow_up_suggestions: list[str] = []
 
-    faithfulness_score = state.get("faithfulness_score")
-    if faithfulness_score is None:
-        faithfulness_score = 1.0 if (state.get("verification") or {}).get("passed", False) else 0.0
     result = {
         "final_answer": answer,
         "citations": citations,

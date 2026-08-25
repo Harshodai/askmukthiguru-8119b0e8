@@ -60,7 +60,9 @@ def test_fast_graph_compiles(mock_init_services, mock_build_kwargs):
     assert "_map_docs_to_relevant" in nodes
     assert "resolve_followup" not in nodes
     assert "rerank_documents" not in nodes
-    assert "verify_answer" not in nodes
+    assert "reflect_on_answer" in nodes
+    assert "verify_answer" in nodes
+    assert "extract_citations" in nodes
 
 
 def test_standard_graph_compiles(mock_init_services, mock_build_kwargs):

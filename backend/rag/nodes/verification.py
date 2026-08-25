@@ -144,17 +144,9 @@ def check_persona_adherence(answer: str) -> str | None:
 @log_metrics
 async def reflect_on_answer(state: GraphState, config: dict = None) -> dict:
     """Self-Reflection RAG loop with LettuceDetect and self-consistency checking."""
-    if state.get("query_tier") in ("fast", "tier2_simple"):
-        logger.info("Self-Reflection: bypassing for simple query tier")
-        return {"needs_correction": False, "reflection_feedback": None}
-
-    # Skip for standard tier with short answers (< 150 chars)
+    # Persona and faithfulness checks run for every generated answer. Fast/simple
+    # tiers may use the bounded local scorer, but never skip verification structurally.
     answer = state.get("answer", "")
-    if state.get("query_tier") == "standard" and len(answer) < 150:
-        logger.info("Self-Reflection: standard tier with short answer – bypassing")
-        return {"needs_correction": False, "reflection_feedback": None}
-
-    # Persona check MUST run before any bypass — violations always trigger correction
     persona_violation = check_persona_adherence(answer)
     if persona_violation:
         logger.warning(f"Self-Reflection: Persona violation detected — {persona_violation}")

@@ -1132,7 +1132,6 @@ class OkfExtractRequest(BaseModel):
     topic: Optional[str] = None
     video_id: Optional[str] = None
     limit: int = Field(default=20, ge=1, le=100)
-    auto_approve: bool = False
     mode: str = Field(
         default="direct", description="'direct' (run inline) or 'celery' (queue async)"
     )
@@ -1152,7 +1151,7 @@ async def extract_okf_entries(
             target_topic=body.topic,
             target_video_id=body.video_id,
             limit=body.limit,
-            auto_approve=body.auto_approve,
+            auto_approve=False,
         )
         return {"status": "queued", "task_id": task.id, "mode": "celery"}
 
@@ -1163,14 +1162,139 @@ async def extract_okf_entries(
         target_topic=body.topic,
         target_video_id=body.video_id,
         limit=body.limit,
-        auto_approve=body.auto_approve,
+        auto_approve=False,
     )
     return {
         "status": "ok",
         "entries_written": len(paths),
         "paths": [str(p) for p in paths],
-        "mode": "approved" if body.auto_approve else "staging",
+        "mode": "staging",
     }
+
+
+class OntologyReviewRequest(BaseModel):
+    reviewer_notes: Optional[str] = Field(default=None, max_length=4000)
+
+
+def _ontology_driver_or_503():
+    container = get_container()
+    driver = getattr(container, "neo4j_driver", None)
+    if driver is None:
+        raise HTTPException(status_code=503, detail="Ontology graph service unavailable")
+    return driver
+
+
+@admin_router.get("/ontology/review")
+async def list_ontology_review_queue(
+    status: str = Query("pending", pattern="^(pending|approved|rejected|all)$"),
+    limit: int = Query(100, ge=1, le=500),
+    user: dict = Depends(_require_admin),
+) -> list[dict[str, Any]]:
+    """List ontology relationships by review status; legacy edges stay pending."""
+    driver = _ontology_driver_or_503()
+
+    def _read() -> list[dict[str, Any]]:
+        with driver.session() as session:
+            clauses = ["coalesce(r.review_status, 'pending') = $status"]
+            params: dict[str, Any] = {"status": status, "limit": limit}
+            if status == "all":
+                clauses = ["true"]
+            query = f"""
+                MATCH (s:base)-[r]->(o:base)
+                WHERE {' AND '.join(clauses)}
+                RETURN elementId(r) AS relationship_id,
+                       s.entity_id AS subject_id,
+                       s.name AS subject,
+                       type(r) AS relation,
+                       o.entity_id AS object_id,
+                       o.name AS object,
+                       r.confidence AS confidence,
+                       coalesce(r.review_status, 'pending') AS review_status,
+                       coalesce(r.reviewed, false) AS reviewed,
+                       r.evidence AS evidence,
+                       r.source_doc_id AS source_doc_id,
+                       r.source_chunk_id AS source_chunk_id,
+                       r.reviewed_at AS reviewed_at,
+                       r.reviewed_by AS reviewed_by,
+                       r.reviewer_notes AS reviewer_notes
+                ORDER BY r.extracted_at DESC
+                LIMIT $limit
+            """
+            return [dict(record) for record in session.run(query, **params)]
+
+    return await asyncio.to_thread(_read)
+
+
+async def _set_ontology_review_status(
+    relationship_id: str,
+    *,
+    status: str,
+    user: dict,
+    reviewer_notes: Optional[str],
+) -> dict[str, Any]:
+    driver = _ontology_driver_or_503()
+    reviewed = status == "approved"
+
+    def _write() -> dict[str, Any] | None:
+        with driver.session() as session:
+            record = session.run(
+                """
+                MATCH ()-[r]->()
+                WHERE elementId(r) = $relationship_id
+                SET r.reviewed = $reviewed,
+                    r.review_status = $status,
+                    r.reviewed_at = $reviewed_at,
+                    r.reviewed_by = $reviewed_by,
+                    r.reviewer_notes = $reviewer_notes
+                RETURN elementId(r) AS relationship_id,
+                       r.review_status AS review_status,
+                       r.reviewed AS reviewed,
+                       r.reviewed_at AS reviewed_at,
+                       r.reviewed_by AS reviewed_by
+                """,
+                relationship_id=relationship_id,
+                reviewed=reviewed,
+                status=status,
+                reviewed_at=datetime.now(UTC).isoformat(),
+                reviewed_by=str(user.get("id") or ""),
+                reviewer_notes=reviewer_notes,
+            ).single()
+            return dict(record) if record else None
+
+    result = await asyncio.to_thread(_write)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Ontology relationship not found")
+    return result
+
+
+@admin_router.post("/ontology/review/{relationship_id}/approve")
+async def approve_ontology_relationship(
+    relationship_id: str,
+    body: OntologyReviewRequest = Body(default=OntologyReviewRequest()),
+    user: dict = Depends(_require_admin),
+) -> dict[str, Any]:
+    """Make one staged ontology relationship traversable after human review."""
+    return await _set_ontology_review_status(
+        relationship_id,
+        status="approved",
+        user=user,
+        reviewer_notes=body.reviewer_notes,
+    )
+
+
+@admin_router.post("/ontology/review/{relationship_id}/reject")
+async def reject_ontology_relationship(
+    relationship_id: str,
+    body: OntologyReviewRequest = Body(default=OntologyReviewRequest()),
+    user: dict = Depends(_require_admin),
+) -> dict[str, Any]:
+    """Keep one rejected ontology relationship permanently out of retrieval."""
+    return await _set_ontology_review_status(
+        relationship_id,
+        status="rejected",
+        user=user,
+        reviewer_notes=body.reviewer_notes,
+    )
 
 
 class AppSettingsUpdate(BaseModel):

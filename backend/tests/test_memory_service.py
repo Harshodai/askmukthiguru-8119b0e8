@@ -304,11 +304,13 @@ async def test_memory_service_list_memories():
     # Mock for count query
     table_mock.select.side_effect = [select_mock1, select_mock2]
     select_mock1.eq.return_value = eq_mock1
+    eq_mock1.is_.return_value = eq_mock1
     execute_mock1.count = 42
     eq_mock1.execute.return_value = execute_mock1
 
     # Mock for paginated slice query
     select_mock2.eq.return_value = eq_mock2
+    eq_mock2.is_.return_value = eq_mock2
     eq_mock2.order.return_value = order_mock
     order_mock.range.return_value = range_mock
     mock_memories = [{"id": "1", "content": "Sample memory"}]
@@ -339,6 +341,7 @@ async def test_memory_service_compaction(monkeypatch):
     supabase_mock.table.return_value = table_mock
     table_mock.select.return_value = select_mock
     select_mock.eq.return_value = eq_mock
+    eq_mock.is_.return_value = eq_mock
     eq_mock.order.return_value = order_mock
 
     # 16 existing memories to trigger compaction (threshold > 15)
@@ -394,7 +397,7 @@ async def test_memory_service_compaction(monkeypatch):
     await service.compact_memories("a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6")
 
     # Verify interactions
-    table_mock.select.assert_called_with("id, content, source, claim, confidence, summary")
+    table_mock.select.assert_called_with("id, content, source, claim, confidence, summary, fact_key, valid_from")
 
     table_mock.delete.assert_called()
     table_mock.insert.assert_called_with(
@@ -418,42 +421,49 @@ async def test_memory_service_compaction(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_memory_service_add_explicit_episodic_merge():
+async def test_memory_service_add_explicit_episodic_supersedes_fact_key():
     supabase_mock = MagicMock()
     table_mock = MagicMock()
+    select_mock = MagicMock()
+    select_eq_mock = MagicMock()
+    select_key_mock = MagicMock()
+    select_active_mock = MagicMock()
+    insert_mock = MagicMock()
+    insert_execute_mock = MagicMock()
     update_mock = MagicMock()
-    execute_mock = MagicMock()
-    rpc_mock = MagicMock()
-    rpc_execute_mock = MagicMock()
+    update_eq_mock = MagicMock()
+    update_in_mock = MagicMock()
+    update_execute_mock = MagicMock()
 
     supabase_mock.table.return_value = table_mock
+    table_mock.select.return_value = select_mock
+    select_mock.eq.return_value = select_eq_mock
+    select_eq_mock.eq.return_value = select_key_mock
+    select_key_mock.is_.return_value = select_active_mock
+    select_active_mock.execute.return_value = MagicMock(data=[{"id": "existing-id"}])
+    table_mock.insert.return_value = insert_mock
+    insert_execute_mock.data = [{"id": "new-id", "content": "Updated content"}]
+    insert_mock.execute.return_value = insert_execute_mock
     table_mock.update.return_value = update_mock
-    update_mock.eq.return_value = update_mock
-    update_mock.execute.return_value = execute_mock
-    execute_mock.data = [{"id": "existing-id", "content": "Updated content"}]
-
-    # Mock the RPC call returning a match
-    supabase_mock.rpc.return_value = rpc_mock
-    rpc_mock.execute.return_value = rpc_execute_mock
-    rpc_execute_mock.data = [{"id": "existing-id", "similarity": 0.95}]
+    update_mock.eq.return_value = update_eq_mock
+    update_eq_mock.in_.return_value = update_in_mock
+    update_in_mock.execute.return_value = update_execute_mock
 
     embedding_mock = MagicMock()
     embedding_mock.encode_single_full.return_value = {"dense": [0.2] * 1024}
 
     service = MemoryService(supabase_client=supabase_mock, embedding_service=embedding_mock)
     res = await service.add_explicit(
-        "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", "Felt very connected", is_core=False
+        "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6",
+        "I prefer evening meditation",
+        is_core=False,
+        metadata={"fact_key": "user:preference"},
     )
 
-    supabase_mock.rpc.assert_called_with(
-        "match_user_memories_by_user",
-        {
-            "p_user_id": "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6",
-            "p_query_embedding": [0.2] * 1024,
-            "p_k": 1,
-            "p_min_sim": 0.88,
-        },
-    )
+    inserted = table_mock.insert.call_args.args[0]
+    assert inserted["fact_key"] == "user:preference"
+    assert inserted["valid_from"]
     table_mock.update.assert_called_once()
-    table_mock.insert.assert_not_called()
-    assert res == {"id": "existing-id", "content": "Updated content"}
+    update_eq_mock.in_.assert_called_once_with("id", ["existing-id"])
+    supabase_mock.rpc.assert_not_called()
+    assert res == {"id": "new-id", "content": "Updated content"}

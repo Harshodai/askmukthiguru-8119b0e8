@@ -4,7 +4,7 @@ Proves that:
 - CoVe (via container.llm_gateway.combined_verify / verify_answer) is invoked
   for tier3_complex and tier4_deep when those tiers are not in
   `rag_cove_disabled_for_tiers`.
-- CoVe is skipped for fast/tier2_simple and standard tiers.
+- CoVe is skipped for fast/tier2_simple and standard tiers when local faithfulness is high; local faithfulness still runs.
 - Verification fails closed when no gateway is available.
 """
 
@@ -137,12 +137,13 @@ async def test_cove_called_for_high_tiers(mock_gateway_services, tier):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("tier", ["fast", "tier2_simple"])
 async def test_cove_skipped_for_simple_tiers(mock_gateway_services, tier):
-    gateway, _ = mock_gateway_services
+    gateway, mock_ld = mock_gateway_services
     state = _mock_state(tier)
 
     result = await nodes.verify_answer(state)
 
     gateway.verify_answer.assert_not_called()
+    mock_ld.score_faithfulness.assert_called_once()
     assert result["is_faithful"] is True
     assert result["verification"]["passed"] is True
     assert result["verification"]["details"] == "Bypassed for simple query tier"

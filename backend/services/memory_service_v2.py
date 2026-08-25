@@ -27,7 +27,7 @@ from redis import asyncio as aioredis
 from app.config import settings
 from app.metrics import MEMORY_LRU_EVICTIONS
 from services import kg_analytics
-from services.memory_service import MemoryService
+from services.memory_service import MemoryService, _derive_fact_key
 from services.tenant_context import TenantContext
 
 logger = logging.getLogger(__name__)
@@ -208,32 +208,28 @@ class MemoryServiceV2(MemoryService):
         metadata: Optional[dict[str, Any]] = None,
     ) -> dict[str, Any]:
         """Manually add a memory, and write it to both Supabase and Neo4j."""
-        # Pre-check for duplicate/merge target in Supabase (to handle superseding in Neo4j)
-        merge_target_id: str | None = None
-        if not is_core:
+        # Read active rows for the deterministic fact key before inserting. This
+        # is deliberately independent of embedding similarity so a reworded
+        # contradiction still supersedes the prior Neo4j memory node.
+        superseded_ids: list[str] = []
+        fact_key = _derive_fact_key(content, metadata)
+        if not is_core and fact_key and self._supabase:
             try:
-                emb_dict = await asyncio.to_thread(
-                    self._embedding_service.encode_single_full, content
+                active_result = await asyncio.to_thread(
+                    self._supabase.table("guru_memories")
+                    .select("id")
+                    .eq("user_id", user_id)
+                    .eq("fact_key", fact_key)
+                    .is_("valid_to", "null")
+                    .execute
                 )
-                embedding = emb_dict.get("dense")
-                if embedding and not self._search_disabled:
-                    dup_result = await asyncio.to_thread(
-                        self._supabase.rpc(
-                            "match_user_memories_by_user",
-                            {
-                                "p_user_id": user_id,
-                                "p_query_embedding": embedding,
-                                "p_k": 1,
-                                "p_min_sim": 0.88,
-                            },
-                        ).execute
-                    )
-                    if dup_result and dup_result.data:
-                        first_match = dup_result.data[0]
-                        if isinstance(first_match, dict) and isinstance(first_match.get("id"), str):
-                            merge_target_id = first_match.get("id")
-            except Exception as dup_err:
-                logger.debug(f"Pre-merge duplicate check skipped: {dup_err}")
+                superseded_ids = [
+                    row["id"]
+                    for row in (active_result.data or [])
+                    if isinstance(row, dict) and isinstance(row.get("id"), str)
+                ]
+            except Exception as key_err:
+                logger.warning("Neo4j fact-key lookup unavailable for %s: %s", fact_key, key_err)
 
         # Step 1: Classify if metadata not provided
         classified = metadata
@@ -256,6 +252,28 @@ class MemoryServiceV2(MemoryService):
                 if "related_concepts" not in classified:
                     classified["related_concepts"] = []
 
+        # Classification can supply the fact key when metadata was omitted.
+        # Re-run the same deterministic lookup after classification so the graph
+        # path also supersedes automatically extracted factual memories.
+        fact_key = _derive_fact_key(content, classified)
+        if not is_core and fact_key and not superseded_ids and self._supabase:
+            try:
+                active_result = await asyncio.to_thread(
+                    self._supabase.table("guru_memories")
+                    .select("id")
+                    .eq("user_id", user_id)
+                    .eq("fact_key", fact_key)
+                    .is_("valid_to", "null")
+                    .execute
+                )
+                superseded_ids = [
+                    row["id"]
+                    for row in (active_result.data or [])
+                    if isinstance(row, dict) and isinstance(row.get("id"), str)
+                ]
+            except Exception as key_err:
+                logger.warning("Neo4j classified fact-key lookup unavailable for %s: %s", fact_key, key_err)
+
         # Step 2: Save to Supabase (using updated base implementation)
         res = await super().add_explicit(
             user_id, content, is_core, source, run_compaction, classified
@@ -274,22 +292,23 @@ class MemoryServiceV2(MemoryService):
                     state_cat = classified.get("state_category") or "Neutral"
                     rel_concepts = classified.get("related_concepts") or []
 
-                    # If merging, generate a new UUID for the Neo4j node so we preserve the old node
-                    new_mem_id = merge_target_id if merge_target_id else mem_id
+                    # Keep the newly inserted memory node as the canonical
+                    # current value; old nodes remain for audit/history only.
+                    new_mem_id = mem_id
 
                     def _write_neo4j():
                         with driver.session() as session:
-                            if merge_target_id:
-                                # 1. Mark old memory node as superseded
-                                session.run(
-                                    """
-                                    MATCH (m:GlobalMemory {id: $old_id})
-                                    SET m.is_superseded = true,
-                                        m.decay_score = 0.05
-                                    """,
-                                    old_id=merge_target_id,
-                                )
-                                # 2. Create the new memory node, and link to User + old memory node
+                            if superseded_ids:
+                                for old_id in superseded_ids:
+                                    session.run(
+                                        """
+                                        MATCH (m:GlobalMemory {id: $old_id})
+                                        SET m.is_superseded = true,
+                                            m.decay_score = 0.05
+                                        """,
+                                        old_id=old_id,
+                                    )
+
                                 session.run(
                                     """
                                     MERGE (u:User {tenant_id: $tenant_id, id: $user_id})
@@ -302,7 +321,8 @@ class MemoryServiceV2(MemoryService):
                                         m.tenant_id = $tenant_id
                                     MERGE (u)-[:HAS_MEMORY]->(m)
                                     WITH m
-                                    MATCH (old:GlobalMemory {id: $old_id})
+                                    UNWIND $old_ids AS old_id
+                                    MATCH (old:GlobalMemory {id: old_id})
                                     MERGE (old)-[:SUPERSEDED_BY]->(m)
                                     """,
                                     user_id=user_id,
@@ -311,7 +331,7 @@ class MemoryServiceV2(MemoryService):
                                     insight=insight,
                                     state_category=state_cat,
                                     tenant_id=tenant_id,
-                                    old_id=merge_target_id,
+                                    old_ids=superseded_ids,
                                 )
                                 target_mem_id = new_mem_id
                             else:

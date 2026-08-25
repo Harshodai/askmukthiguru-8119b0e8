@@ -21,6 +21,11 @@ logger = logging.getLogger(__name__)
 _cache_ttl_seconds = 300
 _neo4j_query_cache: TTLCache = TTLCache(maxsize=500, ttl=_cache_ttl_seconds)
 
+
+def _approved_edge_confidence_floor() -> float:
+    """Return the configured floor for traversable ontology relationships."""
+    return float(getattr(settings, "ontology_confidence_threshold", 0.7))
+
 # Prefer the process-wide Container driver. Standalone tests/scripts retain a
 # bounded fallback driver, but never create one per request.
 _driver = None
@@ -173,6 +178,8 @@ async def cross_teacher_reasoning(state: GraphState, config: dict = None) -> dic
         return {}
 
     # Query Neo4j for relationships between these teachers and common concepts.
+    # Only explicitly approved edges above the configured confidence floor are
+    # traversable. Legacy edges without review metadata are intentionally excluded.
     # Split by whether BOTH teachers resolve to a rollout_enabled TeacherDomain
     # (see domain/spiritual_ontology.py) -- only licensed pairs are injected as
     # citable doctrine; anything else is relabeled as an external reference.
@@ -184,11 +191,26 @@ async def cross_teacher_reasoning(state: GraphState, config: dict = None) -> dic
             def _query_paths(tx):
                 # Find concepts that both teachers expound
                 cypher = """
-                MATCH (t1:Teacher)-[:EXPOUNDS]->(c:Concept)<-[:EXPOUNDS]-(t2:Teacher)
-                WHERE t1.name IN $teachers AND t2.name IN $teachers AND t1.name <> t2.name
+                MATCH (t1:Teacher)-[r1:EXPOUNDS]->(c:Concept)<-[r2:EXPOUNDS]-(t2:Teacher)
+                WHERE t1.name IN $teachers
+                  AND t2.name IN $teachers
+                  AND t1.name <> t2.name
+                  AND coalesce(r1.reviewed, false) = true
+                  AND coalesce(r2.reviewed, false) = true
+                  AND coalesce(r1.review_status, 'pending') = 'approved'
+                  AND coalesce(r2.review_status, 'pending') = 'approved'
+                  AND toFloat(coalesce(r1.confidence, 0.0)) >= $confidence_floor
+                  AND toFloat(coalesce(r2.confidence, 0.0)) >= $confidence_floor
                 RETURN t1.name AS teacher1, t2.name AS teacher2, c.name AS concept, c.description AS description
                 """
-                return [dict(record) for record in tx.run(cypher, teachers=teachers)]
+                return [
+                    dict(record)
+                    for record in tx.run(
+                        cypher,
+                        teachers=teachers,
+                        confidence_floor=_approved_edge_confidence_floor(),
+                    )
+                ]
 
             driver = _get_driver()
             if driver is None:

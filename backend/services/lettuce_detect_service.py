@@ -50,6 +50,10 @@ _LETTUCE_MODEL_REVISION = (
 )
 
 
+def _split_claims(text: str) -> list[str]:
+    return [s.strip() for s in re.split(r"(?<=[.!?])\s+", text) if len(s.strip()) > 10]
+
+
 class LettuceDetectService:
     """Faithfulness scorer with a real span-level detector behind a flag.
 
@@ -222,6 +226,10 @@ class LettuceDetectService:
                 "score": 1.0,
                 "details": f"real LettuceDetect: no hallucinated spans ({duration:.1f}ms)",
                 "unsupported_sentences": [],
+                "claims": [
+                    {"text": claim, "score": 1.0, "supported": True}
+                    for claim in _split_claims(clean_answer)
+                ],
             }
 
         max_conf = max(
@@ -229,6 +237,23 @@ class LettuceDetectService:
             default=0.0,
         )
         span_texts = [p.get("text", "") for p in predictions]
+        claims = []
+        for claim in _split_claims(clean_answer):
+            claim_lower = claim.lower()
+            claim_spans = [
+                p for p in predictions if (p.get("text") or "").lower() in claim_lower
+            ]
+            claim_confidence = max(
+                (float(p.get("confidence", 0.0)) for p in claim_spans),
+                default=0.0,
+            )
+            claims.append(
+                {
+                    "text": claim,
+                    "score": 1.0 - claim_confidence,
+                    "supported": not claim_spans,
+                }
+            )
         return {
             "is_faithful": False,
             "score": 1.0 - max_conf,
@@ -238,6 +263,7 @@ class LettuceDetectService:
                 + " | ".join(f"'{s}'" for s in span_texts if s)
             ),
             "unsupported_sentences": span_texts,
+            "claims": claims,
         }
 
     # ------------------------------------------------------------------
@@ -289,6 +315,7 @@ class LettuceDetectService:
 
         unsupported_sentences = []
         scores = []
+        claims: list[dict[str, object]] = []
 
         if self.embedder and use_semantic:
             try:
@@ -318,7 +345,9 @@ class LettuceDetectService:
                     # "deeksha" cleared over half the bar), weakening the grounding
                     # check it sat inside. Compare raw similarity to the threshold.
                     threshold = getattr(settings, "lettuce_detect_threshold", 0.25)
-                    if max_sim < threshold:
+                    supported = max_sim >= threshold
+                    claims.append({"text": sentence, "score": max_sim, "supported": supported})
+                    if not supported:
                         unsupported_sentences.append((sentence, max_sim))
             except Exception as e:
                 logger.warning(
@@ -328,14 +357,18 @@ class LettuceDetectService:
                 for sentence in sentences:
                     overlap = self._compute_lexical_overlap(sentence, context)
                     scores.append(overlap)
-                    if overlap < 0.45:
+                    supported = overlap >= 0.45
+                    claims.append({"text": sentence, "score": overlap, "supported": supported})
+                    if not supported:
                         unsupported_sentences.append((sentence, overlap))
         else:
             # Word overlap fallback
             for sentence in sentences:
                 overlap = self._compute_lexical_overlap(sentence, context)
                 scores.append(overlap)
-                if overlap < 0.45:
+                supported = overlap >= 0.45
+                claims.append({"text": sentence, "score": overlap, "supported": supported})
+                if not supported:
                     unsupported_sentences.append((sentence, overlap))
 
         avg_score = sum(scores) / len(scores) if scores else 1.0
@@ -359,6 +392,7 @@ class LettuceDetectService:
             "score": avg_score,
             "details": details,
             "unsupported_sentences": [s for s, _ in unsupported_sentences],
+            "claims": claims,
         }
 
     def _compute_lexical_overlap(self, sentence: str, context: str) -> float:

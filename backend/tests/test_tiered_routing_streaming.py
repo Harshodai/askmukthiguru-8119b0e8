@@ -203,10 +203,11 @@ async def test_quality_checks_bypass(mock_services):
         relevant_docs=[{"text": "some teaching " * 30}],
     )
 
-    # reflect_on_answer bypass
+    # Reflection now runs for simple tiers using the bounded local scorer.
     res_reflect = await nodes.reflect_on_answer(state)
     assert res_reflect["needs_correction"] is False
-    assert res_reflect["reflection_feedback"] is None
+    assert res_reflect["reflection_feedback"] == "Answer appears valid and consistent"
+    mock_ld.score_faithfulness.assert_called_once()
 
     # verify_answer bypass
     res_verify = await nodes.verify_answer(state)

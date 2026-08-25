@@ -728,6 +728,11 @@ async def extract_okf(
     chunk_limit: int | None = None,
 ) -> list[Path]:
     """Main extraction pipeline: scan stores → cluster → LLM synthesize → write."""
+    if auto_approve:
+        raise ValueError(
+            "OKF extraction cannot auto-approve generated doctrine; review staged entries first"
+        )
+
     logger.info(
         "OKF extraction start: topic=%s, video=%s, limit=%d, auto=%s, dry=%s",
         target_topic or "any",
@@ -802,17 +807,8 @@ async def extract_okf(
         except Exception as exc:
             logger.error("Entry generation failed for %s: %s", cluster["topic_key"], exc)
 
-    # 4. Compile if auto-approved
-    if auto_approve and written:
-        logger.info("Auto-approve: compiling OKF index")
-        try:
-            from services.memory.compiler import compile_okf
-
-            compile_okf()
-            logger.info("OKF compiled.json updated with %d entries", len(written))
-        except Exception as exc:
-            logger.error("Compile failed: %s", exc)
-
+    # 4. Compilation is intentionally review-driven. The admin approval route
+    # writes reviewed entries to the live directory and compiles the index.
     logger.info(
         "OKF extraction done: %d entries written to %s (staged=%s)",
         len(written),
@@ -836,11 +832,6 @@ def main() -> int:
         "--limit", type=int, default=20, help="Max topic clusters to process (default: 20)"
     )
     p.add_argument(
-        "--auto-approve",
-        action="store_true",
-        help="Write directly to memory/okf/ and trigger compile",
-    )
-    p.add_argument(
         "--dry-run", action="store_true", help="Show what would be generated without writing files"
     )
     p.add_argument(
@@ -859,7 +850,7 @@ def main() -> int:
             target_topic=args.topic,
             target_video_id=args.video_id,
             limit=args.limit,
-            auto_approve=args.auto_approve,
+            auto_approve=False,
             dry_run=args.dry_run,
             chunk_limit=args.chunk_limit,
         )
@@ -868,7 +859,7 @@ def main() -> int:
     if args.dry_run:
         print("Dry run complete — no files written.")
     else:
-        print(f"OKF extraction complete: {len(written)} entries written.")
+        print(f"OKF extraction complete: {len(written)} staged entries written.")
         for p in written:
             print(f"  {p}")
 

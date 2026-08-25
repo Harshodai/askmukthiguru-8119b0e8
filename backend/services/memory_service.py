@@ -1,7 +1,8 @@
 import asyncio
 import logging
 import uuid
-from datetime import UTC
+from datetime import UTC, datetime
+import re
 from typing import Any, Optional
 
 from pydantic import BaseModel, Field
@@ -17,6 +18,31 @@ def _safe_confidence(val: Any, default: float = 0.75) -> float:
         return max(0.0, min(1.0, v))
     except (TypeError, ValueError):
         return default
+
+
+_FACT_KEY_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("lives_in", re.compile(r"\b(?:i|we|user|seeker)\s+(?:live|lives|moved|move)\s+(?:in|to|at)\b", re.I)),
+    ("daily_practice", re.compile(r"\b(?:i|we|user|seeker)\s+(?:practice|practices|do|does)\b", re.I)),
+    ("preference", re.compile(r"\b(?:i|we|user|seeker)\s+(?:prefer|prefers|like|likes|love|loves)\b", re.I)),
+    ("occupation", re.compile(r"\b(?:i|we|user|seeker)\s+(?:work|works|study|studies)\b", re.I)),
+    ("possession", re.compile(r"\b(?:i|we|user|seeker)\s+(?:have|has|own|owns)\b", re.I)),
+)
+
+
+def _derive_fact_key(content: str, metadata: Optional[dict[str, Any]] = None) -> str | None:
+    """Derive a stable subject/relation key; wording and value stay out of key."""
+    metadata = metadata or {}
+    explicit = metadata.get("fact_key")
+    if isinstance(explicit, str) and explicit.strip():
+        return re.sub(r"[^a-z0-9:_-]+", "_", explicit.strip().lower()).strip("_")[:120]
+    candidate = metadata.get("claim") or metadata.get("insight") or content
+    if not isinstance(candidate, str):
+        return None
+    normalized = " ".join(candidate.split())
+    for relation, pattern in _FACT_KEY_PATTERNS:
+        if pattern.search(normalized):
+            return f"user:{relation}"
+    return None
 
 
 class EpisodicMemoryDetail(BaseModel):
@@ -268,39 +294,36 @@ class MemoryService:
                 )
                 return result.data[0] if result and hasattr(result, "data") and result.data else {}
             else:
-                # Episodic memory — merge-or-append:
-                # If a near-duplicate already exists (cosine sim ≥ 0.88) update it in-place;
-                # otherwise insert a fresh row.
-                MERGE_THRESHOLD = 0.88
+                # Episodic memory: embeddings support retrieval only. Contradiction
+                # handling uses a deterministic fact key, never cosine similarity.
                 emb_dict = await asyncio.to_thread(
                     self._embedding_service.encode_single_full, content
                 )
                 embedding = emb_dict["dense"]
-
-                # Check for near-duplicate via the existing semantic-search RPC
-                merge_target_id: str | None = None
-                try:
-                    if not self._search_disabled:
-                        dup_result = await asyncio.to_thread(
-                            self._supabase.rpc(
-                                "match_user_memories_by_user",
-                                {
-                                    "p_user_id": user_id,
-                                    "p_query_embedding": embedding,
-                                    "p_k": 1,
-                                    "p_min_sim": MERGE_THRESHOLD,
-                                },
-                            ).execute
+                fact_key = _derive_fact_key(content, metadata)
+                valid_from = datetime.now(UTC).isoformat()
+                supersede_ids: list[str] = []
+                if fact_key:
+                    try:
+                        active_result = await asyncio.to_thread(
+                            self._supabase.table("guru_memories")
+                            .select("id")
+                            .eq("user_id", user_id)
+                            .eq("fact_key", fact_key)
+                            .is_("valid_to", "null")
+                            .execute
                         )
-                        if dup_result and dup_result.data:
-                            first_match = dup_result.data[0]
-                            # Check if dict and has a string ID to avoid MagicMock matches in tests
-                            if isinstance(first_match, dict):
-                                target_val = first_match.get("id")
-                                if isinstance(target_val, str):
-                                    merge_target_id = target_val
-                except Exception as dup_err:
-                    logger.debug(f"Merge-check skipped (non-fatal): {dup_err}")
+                        supersede_ids = [
+                            row["id"]
+                            for row in (active_result.data or [])
+                            if isinstance(row, dict) and isinstance(row.get("id"), str)
+                        ]
+                    except Exception as key_err:
+                        logger.warning(
+                            "Deterministic memory supersession lookup unavailable for %s: %s",
+                            fact_key,
+                            key_err,
+                        )
 
                 insert_data = {
                     "user_id": user_id,
@@ -316,38 +339,52 @@ class MemoryService:
                     if "summary" in metadata:
                         insert_data["summary"] = metadata["summary"]
                     if "confidence" in metadata:
-                        insert_data["confidence"] = metadata["confidence"]
+                        insert_data["confidence"] = _safe_confidence(metadata["confidence"])
                     if "decay_score" in metadata:
                         insert_data["decay_score"] = metadata["decay_score"]
+                if fact_key:
+                    insert_data["fact_key"] = fact_key
+                    insert_data["valid_from"] = valid_from
 
                 try:
-                    if merge_target_id:
-                        # Merge: update existing row with fresher content/summary
-                        update_payload = {
-                            k: v for k, v in insert_data.items() if k not in ("user_id", "source")
-                        }
-                        result = await asyncio.to_thread(
-                            self._supabase.table("guru_memories")
-                            .update(update_payload)
-                            .eq("id", merge_target_id)
-                            .execute
-                        )
-                        logger.debug(f"Merged memory {merge_target_id} for {user_id}")
-                    else:
-                        result = await asyncio.to_thread(
-                            self._supabase.table("guru_memories").insert(insert_data).execute
-                        )
+                    result = await asyncio.to_thread(
+                        self._supabase.table("guru_memories").insert(insert_data).execute
+                    )
                 except Exception as insert_err:
                     err_str = str(insert_err)
                     # PostgREST schema cache may lack new columns — retry without optional cols
                     if "PGRST204" in err_str or "Could not find" in err_str:
-                        for col in ("claim", "confidence", "decay_score", "summary"):
+                        for col in (
+                            "claim",
+                            "confidence",
+                            "decay_score",
+                            "summary",
+                            "fact_key",
+                            "valid_from",
+                        ):
                             insert_data.pop(col, None)
                         result = await asyncio.to_thread(
                             self._supabase.table("guru_memories").insert(insert_data).execute
                         )
                     else:
                         raise
+
+                if supersede_ids and fact_key:
+                    try:
+                        await asyncio.to_thread(
+                            self._supabase.table("guru_memories")
+                            .update({"valid_to": valid_from})
+                            .eq("user_id", user_id)
+                            .in_("id", supersede_ids)
+                            .execute
+                        )
+                    except Exception as supersede_err:
+                        logger.error(
+                            "Failed to close superseded memories for %s/%s: %s",
+                            user_id,
+                            fact_key,
+                            supersede_err,
+                        )
                 res_data = (
                     result.data[0] if result and hasattr(result, "data") and result.data else {}
                 )
@@ -370,6 +407,7 @@ class MemoryService:
                 self._supabase.table("guru_memories")
                 .select("id", count="exact")
                 .eq("user_id", user_id)
+                .is_("valid_to", "null")
                 .execute
             )
             total = (
@@ -384,9 +422,10 @@ class MemoryService:
             result = await asyncio.to_thread(
                 self._supabase.table("guru_memories")
                 .select(
-                    "id, content, source, created_at, updated_at, summary, claim, confidence, decay_score, metadata"
+                    "id, content, source, created_at, updated_at, summary, claim, confidence, decay_score, metadata, fact_key, valid_from, valid_to"
                 )
                 .eq("user_id", user_id)
+                .is_("valid_to", "null")
                 .order("created_at", desc=True)
                 .range(start, end)
                 .execute
@@ -517,8 +556,9 @@ class MemoryService:
             # 1. Fetch current episodic memories with metadata
             result = await asyncio.to_thread(
                 self._supabase.table("guru_memories")
-                .select("id, content, source, claim, confidence, summary")
+                .select("id, content, source, claim, confidence, summary, fact_key, valid_from")
                 .eq("user_id", user_id)
+                .is_("valid_to", "null")
                 .order("created_at", desc=True)
                 .execute
             )

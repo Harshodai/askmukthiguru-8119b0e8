@@ -376,13 +376,17 @@ class FastGraphStrategy(GraphStrategy):
 
         graph = StateGraph(GraphState)
 
-        # Core fast-path nodes  (resolve_followup removed for speed)
+        # Core fast-path nodes (resolve_followup removed for speed). The
+        # retrieval shortcut remains, but verification is always present.
         graph.add_node("intent_router", intent_router)
         graph.add_node("handle_distress_check", handle_distress_check)
         graph.add_node("resolve_parallel", resolve_parallel)
         graph.add_node("retrieve_documents", retrieve_documents)
         graph.add_node("_map_docs_to_relevant", _map_docs_to_relevant)
         graph.add_node("generate_answer", generate_answer)
+        graph.add_node("reflect_on_answer", reflect_on_answer)
+        graph.add_node("verify_answer", verify_answer)
+        graph.add_node("extract_citations", extract_citations)
         graph.add_node("format_final_answer", format_final_answer)
 
         # Terminal handlers
@@ -415,7 +419,10 @@ class FastGraphStrategy(GraphStrategy):
         graph.add_edge("web_search", "retrieve_documents")
         graph.add_edge("retrieve_documents", "_map_docs_to_relevant")
         graph.add_edge("_map_docs_to_relevant", "generate_answer")
-        graph.add_edge("generate_answer", "format_final_answer")
+        graph.add_edge("generate_answer", "reflect_on_answer")
+        graph.add_edge("reflect_on_answer", "verify_answer")
+        graph.add_edge("verify_answer", "extract_citations")
+        graph.add_edge("extract_citations", "format_final_answer")
 
         # --- Reject-and-retry loop ---
         graph.add_conditional_edges(

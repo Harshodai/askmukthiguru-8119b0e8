@@ -178,13 +178,22 @@ ON CREATE SET
     r.confidence = $confidence,
     r.extracted_at = $extracted_at,
     r.licensed_domain = $licensed_domain,
-    r.domain_rights_status = $domain_rights_status
+    r.domain_rights_status = $domain_rights_status,
+    r.evidence = $evidence,
+    r.reviewed = false,
+    r.review_status = 'pending',
+    r.reviewed_at = null,
+    r.reviewed_by = null,
+    r.reviewer_notes = null
 ON MATCH SET
     r.extracted_at = $extracted_at,
-    r.confidence = CASE WHEN $confidence > r.confidence THEN $confidence ELSE r.confidence END,
+    r.confidence = CASE WHEN $confidence > coalesce(r.confidence, 0.0) THEN $confidence ELSE r.confidence END,
     r.teacher_id = coalesce(r.teacher_id, $teacher_id),
     r.licensed_domain = coalesce(r.licensed_domain, $licensed_domain),
-    r.domain_rights_status = coalesce(r.domain_rights_status, $domain_rights_status)
+    r.domain_rights_status = coalesce(r.domain_rights_status, $domain_rights_status),
+    r.evidence = coalesce(r.evidence, $evidence),
+    r.reviewed = coalesce(r.reviewed, false),
+    r.review_status = coalesce(r.review_status, 'pending')
 """
 
 
@@ -216,6 +225,7 @@ async def write_extraction_to_neo4j(
     confidence: float = 0.7,
     *,
     triples: Optional[Iterable[dict[str, str]]] = None,
+    source_evidence: Optional[str] = None,
     corpus_id: str = "askmukthiguru",
     teacher_id: Optional[str] = None,
     tenant_id: Optional[str] = None,
@@ -232,6 +242,7 @@ async def write_extraction_to_neo4j(
         confidence: extraction confidence to stamp on nodes + edges.
         triples: optional iterable of {"subject","relation","object"} dicts
             (from triple_extractor.extract_triples) merged in the same pass.
+        source_evidence: optional source text excerpt retained for human review.
 
     Raises:
         OntologyWriteError: if a Neo4j transaction cannot be committed. Callers
@@ -244,6 +255,7 @@ async def write_extraction_to_neo4j(
 
     tenant_id = tenant_id or TenantContext.get() or "default"
     now = datetime.now(UTC).isoformat()
+    evidence = " ".join((source_evidence or source_doc_id or source_chunk_id or "").split())[:12000]
 
     # Collect all entity names from both sources so we MERGE nodes first.
     all_entities: list[str] = list(entities or [])
@@ -324,6 +336,7 @@ async def write_extraction_to_neo4j(
                         extracted_at=now,
                         licensed_domain=licensed_domain,
                         domain_rights_status=domain_rights_status,
+                        evidence=evidence,
                     )
                     written += 1
 
