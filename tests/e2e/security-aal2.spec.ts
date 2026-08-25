@@ -30,7 +30,12 @@ const ROUTE_MATRIX = [
 // are hit directly.
 test.use({ serviceWorkers: 'block' });
 
-const SUPABASE_ORIGIN = 'https://ozmjeuqbholoxypfxixb.supabase.co';
+// Must match whatever Supabase project the preview build actually points at
+// (playwright.config.ts sets E2E_SUPABASE_ORIGIN to the same origin it bakes
+// into VITE_SUPABASE_URL) — otherwise these page.route() mocks target the
+// wrong origin, never intercept, and a forged test JWT hits the real
+// Supabase Auth instance instead.
+const SUPABASE_ORIGIN = process.env.E2E_SUPABASE_ORIGIN ?? 'https://ozmjeuqbholoxypfxixb.supabase.co';
 const STORAGE_KEY = 'sb-ozmjeuqbholoxypfxixb-auth-token';
 
 /** Build a synthetically-signed JWT whose payload contains the requested AAL claim and optional factors. */
