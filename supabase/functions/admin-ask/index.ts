@@ -1,11 +1,7 @@
 // Admin analytics assistant — answers questions using Lovable AI Gateway
 // Requires admin role.
 import { createClient } from "npm:@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { resolveAllowOrigin } from "../_shared/cors.ts";
 
 const SYSTEM = `You are an AI analytics assistant for the AskMukthiGuru admin dashboard.
 Answer admin questions about platform metrics (query volume, latency, hallucination rates,
@@ -13,6 +9,16 @@ costs, Serene Mind triggers, platform health) concisely (2-4 sentences max).
 If you don't have specific data, say so — don't fabricate numbers. Be direct and data-focused.`;
 
 Deno.serve(async (req) => {
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": resolveAllowOrigin(req),
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  };
+  const json = (payload: unknown, status = 200) =>
+    new Response(JSON.stringify(payload), {
+      status,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
@@ -77,10 +83,3 @@ Deno.serve(async (req) => {
     return json({ error: "An error occurred. Please try again." }, 500);
   }
 });
-
-function json(payload: unknown, status = 200) {
-  return new Response(JSON.stringify(payload), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-}

@@ -1,10 +1,5 @@
 import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
+import { resolveAllowOrigin } from '../_shared/cors.ts';
 
 type DeleteTable =
   | 'user_course_progress'
@@ -97,6 +92,11 @@ async function deleteConversations(
 }
 
 Deno.serve(async (req) => {
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': resolveAllowOrigin(req),
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  };
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {

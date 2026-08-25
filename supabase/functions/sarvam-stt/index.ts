@@ -2,13 +2,7 @@
 // POST multipart: file (audio blob), language_code
 // -> { transcript: string, language_code: string }
 import { createClient } from "npm:@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+import { resolveAllowOrigin } from "../_shared/cors.ts";
 
 const SARVAM_STT_URL = "https://api.sarvam.ai/speech-to-text";
 
@@ -28,6 +22,12 @@ const toSarvamLang = (code: string): string => {
 };
 
 Deno.serve(async (req) => {
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": resolveAllowOrigin(req),
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+  };
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {

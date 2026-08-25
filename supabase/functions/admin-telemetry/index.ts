@@ -2,12 +2,7 @@
 // Returns paginated telemetry_events with filters for admin dashboard.
 // Requires admin role (service role key used for queries).
 import { createClient } from "npm:@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+import { resolveAllowOrigin } from "../_shared/cors.ts";
 
 interface TelemetryFilters {
   user_id?: string;
@@ -21,6 +16,11 @@ interface TelemetryFilters {
 }
 
 Deno.serve(async (req: Request) => {
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": resolveAllowOrigin(req),
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+  };
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "method_not_allowed" }), {

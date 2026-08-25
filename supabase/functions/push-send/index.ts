@@ -9,6 +9,7 @@
  */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 import webpush from 'https://esm.sh/web-push@3.6.7';
+import { resolveAllowOrigin } from '../_shared/cors.ts';
 
 // Mirrors public/push-sw.js, PushNotificationsManager.tsx, and
 // backend/schemas/push.py's allowlists. An arbitrary `url` here is a
@@ -18,13 +19,12 @@ const SAFE_DEEP_LINK = /^\/(chat|practices|profile|notebooks|knowledge-graph)(\/
 const sanitizeDeepLink = (url: unknown): string =>
   typeof url === 'string' && SAFE_DEEP_LINK.test(url) ? url : '/chat';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
-
 Deno.serve(async (req) => {
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': resolveAllowOrigin(req),
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  };
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   // Authorization: require either a shared CRON secret (for scheduled invocation)

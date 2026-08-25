@@ -1,11 +1,7 @@
 // Eval runner — executes active golden_questions via Lovable AI, judges faithfulness,
 // writes eval_runs + eval_results. Admin only.
 import { createClient } from "npm:@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { resolveAllowOrigin } from "../_shared/cors.ts";
 
 const ANSWER_SYSTEM = `You are Sri Preethaji & Sri Krishnaji's spiritual guide.
 Answer the seeker's question briefly (2-4 sentences) drawing on the teachings of the Beautiful State.`;
@@ -15,6 +11,16 @@ Return ONLY compact JSON: {"faithfulness":0..1,"answer_relevancy":0..1,"context_
 No prose, no code fences.`;
 
 Deno.serve(async (req) => {
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": resolveAllowOrigin(req),
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  };
+  const json = (payload: unknown, status = 200) =>
+    new Response(JSON.stringify(payload), {
+      status,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
@@ -142,11 +148,4 @@ async function callAI(apiKey: string, messages: Array<{ role: string; content: s
   });
   if (!r.ok) { const body = await r.text().catch(() => ""); console.error("[eval-run] AI gateway", r.status, body); throw new Error(`ai_gateway_${r.status}`); }
   return r.json();
-}
-
-function json(payload: unknown, status = 200) {
-  return new Response(JSON.stringify(payload), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
 }

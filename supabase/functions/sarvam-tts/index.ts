@@ -1,13 +1,7 @@
 // Sarvam TTS proxy — keeps SARVAM_API_KEY server-side.
 // POST { text, target_language_code, speaker? } -> { audio: base64 }
 import { createClient } from "npm:@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+import { resolveAllowOrigin } from "../_shared/cors.ts";
 
 const SARVAM_TTS_URL = "https://api.sarvam.ai/text-to-speech";
 
@@ -26,6 +20,12 @@ const toSarvamLang = (code: string): string => {
 };
 
 Deno.serve(async (req) => {
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": resolveAllowOrigin(req),
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+  };
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {

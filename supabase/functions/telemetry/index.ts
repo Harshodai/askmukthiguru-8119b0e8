@@ -1,12 +1,7 @@
 // Telemetry edge function: stores client-side metrics keyed by user_message_id.
 // verify_jwt = true. Requires authenticated user. Validates ownership of IDs.
 import { createClient } from "npm:@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+import { resolveAllowOrigin } from "../_shared/cors.ts";
 
 interface MetricBody {
   user_message_id?: string;
@@ -19,6 +14,11 @@ interface MetricBody {
 }
 
 Deno.serve(async (req: Request) => {
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": resolveAllowOrigin(req),
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+  };
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "method_not_allowed" }), {

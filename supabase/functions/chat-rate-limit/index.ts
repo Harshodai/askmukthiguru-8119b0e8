@@ -3,12 +3,7 @@
 // In-memory store — adequate for per-edge-instance throttling; users hitting
 // multiple cold starts get effectively the per-instance budget.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-};
+import { resolveAllowOrigin } from '../_shared/cors.ts';
 
 const WINDOW_MS = 60_000;
 const AUTH_LIMIT = 20;
@@ -33,6 +28,11 @@ const consume = (key: string, limit: number) => {
 };
 
 Deno.serve(async (req) => {
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': resolveAllowOrigin(req),
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+  };
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
