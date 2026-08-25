@@ -215,12 +215,22 @@ def backup_neo4j():
                 f.write("// Neo4j Empty Graph State Backup\n")
             return True
 
-        # The query returns cypherStatements column. Let's merge statements.
-        # We strip quotes that cypher-shell wraps around columns if any.
+        # The query returns cypherStatements column, a single string value
+        # that cypher-shell wraps in one leading/trailing quote pair — but
+        # since the value itself contains embedded newlines (one per
+        # statement), it spans many *physical* output lines. Stripping
+        # quotes per-line (checking each line starts AND ends with '"')
+        # never matches for a multi-line value, leaving a stray leading '"'
+        # in the restored file that broke cypher-shell's parser on restore
+        # ("Invalid input '\"CREATE ...'"). The outer quote pair belongs to
+        # the whole value, so strip it once, from the first and last lines.
+        body_lines = lines[1:]
+        if body_lines and body_lines[0].startswith('"'):
+            body_lines[0] = body_lines[0][1:]
+        if body_lines and body_lines[-1].endswith('"'):
+            body_lines[-1] = body_lines[-1][:-1]
         cypher_text = ""
-        for line in lines[1:]:
-            if line.startswith('"') and line.endswith('"'):
-                line = line[1:-1]
+        for line in body_lines:
             cypher_text += line.replace('\\"', '"').replace("\\n", "\n") + "\n"
 
         with open(NEO4J_BACKUP_PATH, "w", encoding="utf-8") as f:
