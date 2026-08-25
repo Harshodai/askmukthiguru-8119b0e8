@@ -35,15 +35,19 @@ export const BackgroundParticles = ({
 }: BackgroundParticlesProps) => {
   // Detect low-power devices, reduced motion, and small viewports.
   // Heavy particle counts with large box-shadow glows were causing scroll
-  // jank and full-page blackouts on mobile (GPU compositor OOM). We now
-  // cap counts aggressively and remove the outer glow ring on mobile.
+  // jank and full-page blackouts (GPU compositor OOM) — originally observed
+  // and "fixed" only for <=768px, but the same blackout reproduces at
+  // ordinary laptop/desktop widths too (40 particles x double blurred
+  // box-shadow is expensive to rasterize regardless of screen size). The
+  // lighter single-glow/lower-count treatment now applies up to 1280px;
+  // only wide desktop keeps the fuller effect, at a reduced count.
   const { effectiveCount, isMobile, prefersReducedMotion } = useMemo(() => {
     if (typeof window === 'undefined') {
-      return { effectiveCount: count ?? 40, isMobile: false, prefersReducedMotion: false };
+      return { effectiveCount: count ?? 24, isMobile: false, prefersReducedMotion: false };
     }
-    const mobile = window.matchMedia('(max-width: 768px)').matches;
+    const mobile = window.matchMedia('(max-width: 1280px)').matches;
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const base = count ?? (mobile ? 14 : 40);
+    const base = count ?? (mobile ? 14 : 24);
     return { effectiveCount: reduced ? 0 : base, isMobile: mobile, prefersReducedMotion: reduced };
   }, [count]);
 
