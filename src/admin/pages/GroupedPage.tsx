@@ -2,6 +2,7 @@ import { Suspense, type ComponentType } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { BrandedSpinner } from '@/components/common/BrandedSpinner';
 
 export interface GroupTab {
   id: string;
@@ -33,7 +34,7 @@ export function GroupedPage({ tabs }: { tabs: GroupTab[] }) {
         </TabsList>
       </Tabs>
 
-      <Suspense fallback={<div className="text-sm text-muted-foreground">Loading…</div>}>
+      <Suspense fallback={<BrandedSpinner />}>
         <Active />
       </Suspense>
     </div>

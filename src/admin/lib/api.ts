@@ -134,6 +134,10 @@ export async function listQueries(
     'listQueries',
     async () => {
       const params = new URLSearchParams({ limit: String(filters.limit || 50) });
+      if (filters.search) params.set('search', filters.search);
+      if (filters.promptVersionId) params.set('prompt_version_id', filters.promptVersionId);
+      if (filters.model) params.set('model', filters.model);
+      if (filters.minJudgeScore != null) params.set('min_judge_score', String(filters.minJudgeScore));
       return await fetchWithAuth(`/api/admin/traces?${params}`);
     },
     () => db.listQueries(filters) as Promise<ChatTrace[]>,
@@ -616,7 +620,7 @@ export async function getCacheMetrics(): Promise<import('@/admin/types').CacheMe
 }
 
 export async function clearCache(): Promise<import('@/admin/types').CacheClearResult> {
-  return fetchWithAuth('/admin/clear-cache', { method: 'POST' });
+  return fetchWithAuth('/api/admin/clear-cache', { method: 'POST' });
 }
 
 // ── Eval runner (admin only) ────────────────────────────────────────────────

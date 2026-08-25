@@ -279,11 +279,31 @@ async def log_query_trace(query_data: dict, response_data: dict) -> None:
         logger.error(f"Failed to log telemetry trace to Supabase: {e}")
 
 
-async def get_recent_traces(limit: int = 50) -> list[dict[str, Any]]:
-    """Fetch recent traces for Admin UI from Supabase."""
+async def get_recent_traces(
+    limit: int = 50,
+    *,
+    search: Optional[str] = None,
+    prompt_version_id: Optional[str] = None,
+    model: Optional[str] = None,
+    min_judge_score: Optional[float] = None,
+) -> list[dict[str, Any]]:
+    """Fetch recent traces for Admin UI from Supabase.
+
+    QueriesPage.tsx's filter bar (search/prompt-version/model/judge-score)
+    used to be forwarded nowhere — the endpoint only ever accepted `limit`,
+    so every filter control silently no-opped against the real backend.
+    Filtering happens in Python after the join+flatten below rather than as
+    embedded PostgREST filters on the nested chat_responses table, which
+    supabase-py doesn't support cleanly. When a filter is active we fetch a
+    wider pool before truncating to `limit` so filtered results aren't
+    starved by the row cap.
+    """
     client = _get_client()
     if not client:
         return []
+
+    any_filter = bool(search or prompt_version_id or model or min_judge_score is not None)
+    fetch_limit = min(500, max(limit * 5, limit)) if any_filter else limit
 
     try:
         # Join chat_queries with chat_responses and trace_spans
@@ -291,7 +311,7 @@ async def get_recent_traces(limit: int = 50) -> list[dict[str, Any]]:
             client.table("chat_queries")
             .select("*, chat_responses(*), trace_spans(*)")
             .order("created_at", desc=True)
-            .limit(limit)
+            .limit(fetch_limit)
             .execute()
         )
 
@@ -313,7 +333,24 @@ async def get_recent_traces(limit: int = 50) -> list[dict[str, Any]]:
                 if "name" not in span and span.get("span_name"):
                     span["name"] = span["span_name"]
             row["spans"] = sorted(spans, key=lambda s: s.get("start_ms", 0))
+
+            if model and row.get("model") != model:
+                continue
+            if prompt_version_id and row.get("prompt_version_id") != prompt_version_id:
+                continue
+            if min_judge_score is not None:
+                faithfulness = row.get("faithfulness")
+                if faithfulness is None or float(faithfulness) < min_judge_score:
+                    continue
+            if search:
+                needle = search.lower()
+                haystack = f"{row.get('query_text') or ''} {row.get('response_text') or ''}".lower()
+                if needle not in haystack:
+                    continue
+
             traces.append(row)
+            if len(traces) >= limit:
+                break
 
         return traces
     except Exception as e:
@@ -1430,7 +1467,10 @@ async def get_prompt_metrics_by_version() -> Any:
         prompts = client.table("prompt_versions").select("*").execute().data or []
         queries = (
             client.table("chat_queries")
-            .select("prompt_version_id, latency_ms, chat_responses(faithfulness, answer_relevancy)")
+            .select(
+                "prompt_version_id, latency_ms, "
+                "chat_responses(faithfulness, answer_relevancy, hallucination_flag)"
+            )
             .execute()
             .data
             or []
@@ -1447,14 +1487,23 @@ async def get_prompt_metrics_by_version() -> Any:
             faith = []
             rel = []
             latencies = []
+            responses = []
             for row in rows:
                 if row.get("latency_ms") is not None:
                     latencies.append(float(row["latency_ms"]))
                 for response in row.get("chat_responses") or []:
+                    responses.append(response)
                     if response.get("faithfulness") is not None:
                         faith.append(float(response["faithfulness"]))
                     if response.get("answer_relevancy") is not None:
                         rel.append(float(response["answer_relevancy"]))
+            hallucination_rate = (
+                sum(1 for r in responses if r.get("hallucination_flag")) / len(responses)
+                if responses
+                else 0
+            )
+            avg_faithfulness = sum(faith) / len(faith) if faith else 0
+            avg_answer_relevancy = sum(rel) / len(rel) if rel else 0
             out.append(
                 {
                     "prompt_version_id": prompt.get("id"),
@@ -1463,8 +1512,16 @@ async def get_prompt_metrics_by_version() -> Any:
                     "active": prompt.get("active"),
                     "query_count": len(rows),
                     "avg_latency_ms": sum(latencies) / len(latencies) if latencies else 0,
-                    "avg_faithfulness": sum(faith) / len(faith) if faith else 0,
-                    "avg_answer_relevancy": sum(rel) / len(rel) if rel else 0,
+                    "avg_faithfulness": avg_faithfulness,
+                    "avg_answer_relevancy": avg_answer_relevancy,
+                    # PromptsPage.tsx's bar chart reads these — mirrors
+                    # mockData.ts::getPromptMetricsByVersion's shape exactly,
+                    # since that's the dev-fallback the frontend was actually
+                    # built and tested against.
+                    "label": f"{prompt.get('name')} v{prompt.get('version')}",
+                    "faithfulness": avg_faithfulness,
+                    "answer_relevancy": avg_answer_relevancy,
+                    "hallucination_rate": hallucination_rate,
                 }
             )
         return out

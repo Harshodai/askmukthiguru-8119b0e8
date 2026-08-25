@@ -74,10 +74,21 @@ admin_router = APIRouter(tags=["admin"])
 @admin_router.get("/traces")
 async def fetch_telemetry_traces(
     limit: int = 50,
+    search: Optional[str] = None,
+    prompt_version_id: Optional[str] = None,
+    model: Optional[str] = None,
+    min_judge_score: Optional[float] = Query(None, ge=0.0, le=1.0),
     user: dict = Depends(_require_admin),
 ) -> list[dict[str, Any]]:
     """Fetch recent traces for Admin UI. Requires admin authentication."""
-    return [trace_summary(trace) for trace in await get_recent_traces(min(limit, 200))]
+    traces = await get_recent_traces(
+        min(limit, 200),
+        search=search,
+        prompt_version_id=prompt_version_id,
+        model=model,
+        min_judge_score=min_judge_score,
+    )
+    return [trace_summary(trace) for trace in traces]
 
 
 @admin_router.get("/traces/{trace_id}")
@@ -1284,7 +1295,7 @@ async def approve_okf_entry(
 @admin_router.post("/okf/review/{review_id}/reject")
 async def reject_okf_entry(
     review_id: str,
-    reviewer_notes: Optional[str] = None,
+    reviewer_notes: Optional[str] = Body(None, embed=True),
     user: dict = Depends(_require_admin),
 ) -> dict[str, Any]:
     """Reject a draft OKF entry (Admin only)."""
@@ -1308,6 +1319,81 @@ async def reject_okf_entry(
     except Exception as e:
         logger.error(f"Failed to reject OKF entry: {e}")
         raise HTTPException(status_code=500, detail="Failed to reject entry. Please try again.")
+
+
+# ---- Ingestion quality staging queue (Apache Iceberg-style staged validation) ----
+# ingest/quality_gate.py's StagingQueue.submit() writes here on Tier-3 reject;
+# StagingQueuePage.tsx expected these routes to exist but they never did — the
+# page 404'd on every load.
+
+
+@admin_router.get("/staging")
+async def list_staging_queue(
+    status: str = Query("pending"),
+    user: dict = Depends(_require_admin),
+) -> list[dict[str, Any]]:
+    """List ingestion content staged for human quality review (Admin only)."""
+    from app.telemetry_db import _get_client
+
+    client = _get_client()
+    if not client:
+        return []
+
+    try:
+        res = (
+            client.table("staging_quality_queue")
+            .select("id, created_at, source_url, quality_score, fail_reasons, content_preview")
+            .eq("status", status)
+            .order("created_at", desc=True)
+            .limit(200)
+            .execute()
+        )
+        return res.data or []
+    except Exception as e:
+        logger.error(f"Failed to list staging queue: {e}")
+        raise HTTPException(status_code=500, detail="Failed to load staging queue.")
+
+
+@admin_router.post("/staging/{staging_id}/review")
+async def review_staging_item(
+    staging_id: str,
+    action: str = Body(..., embed=True, pattern="^(approve|reject)$"),
+    notes: Optional[str] = Body(None, embed=True),
+    user: dict = Depends(_require_admin),
+) -> dict[str, Any]:
+    """Record a human review decision on a staged ingestion item (Admin only).
+
+    Records the decision only — approving does not automatically re-run
+    ingestion for the source; that remains a separate, deliberate step.
+    """
+    from app.telemetry_db import _get_client
+
+    client = _get_client()
+    if not client:
+        raise HTTPException(status_code=503, detail="Data service not available")
+
+    try:
+        res = (
+            client.table("staging_quality_queue")
+            .update(
+                {
+                    "status": "approved" if action == "approve" else "rejected",
+                    "reviewer_notes": notes or "",
+                    "reviewed_at": "now()",
+                    "reviewed_by": user.get("id"),
+                }
+            )
+            .eq("id", staging_id)
+            .execute()
+        )
+        if not res.data:
+            raise HTTPException(status_code=404, detail="Staging item not found")
+        return {"status": "success"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to review staging item: {e}")
+        raise HTTPException(status_code=500, detail="Failed to review item. Please try again.")
 
 
 # ── Admin Logs ────────────────────────────────────────────────────
