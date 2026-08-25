@@ -618,6 +618,29 @@ async def get_current_user_from_supabase(
     raise HTTPException(status_code=401, detail="Authentication required or session expired")
 
 
+# Mirrors src/integrations/supabase/client.ts's ALLOWED_EMAIL_DOMAINS — that
+# check was client-only, so a caller hitting the API directly (never loading
+# AuthPage.tsx) could authenticate with any email domain regardless of the
+# declared beta-access policy (audit finding OH-P1-08, 2026-08-25). This
+# enforces the SAME already-declared policy; it does not change what the
+# policy is or decide whether it should exist.
+_ALLOWED_EMAIL_DOMAINS = {
+    "gmail.com",
+    "googlemail.com",
+    "hotmail.com",
+    "outlook.com",
+    "live.com",
+    "msn.com",
+}
+
+
+def _is_allowed_email_domain(email: str | None) -> bool:
+    if not email or "@" not in email:
+        return False
+    domain = email.rsplit("@", 1)[-1].lower()
+    return domain in _ALLOWED_EMAIL_DOMAINS
+
+
 async def get_optional_user(
     request: Request, token: HTTPAuthorizationCredentials | None = Depends(security)
 ) -> dict:
@@ -627,7 +650,7 @@ async def get_optional_user(
     Falls back to anonymous user when no valid auth token is provided.
     """
     try:
-        return await auth_bridge.get_user(request, token)
+        user = await auth_bridge.get_user(request, token)
     except HTTPException as e:
         # get_user() raises 401 both for "no token" (the case this dependency
         # exists to allow) and for a token that failed validation (e.g.
@@ -638,6 +661,17 @@ async def get_optional_user(
                 f"get_optional_user: auth failed for provided token ({e.detail}); falling back to anonymous"
             )
         return {"id": "anonymous", "email": None, "is_anonymous": True}
+
+    is_privileged = user.get("is_superuser") or user.get("role") == "service_role"
+    if not user.get("is_anonymous") and not is_privileged and not _is_allowed_email_domain(user.get("email")):
+        logger.warning(
+            "get_optional_user: rejecting authenticated user with non-allowlisted email domain"
+        )
+        raise HTTPException(
+            status_code=403,
+            detail="Access restricted to verified @gmail.com, @hotmail.com, or @outlook.com accounts.",
+        )
+    return user
 
 
 # --- M5: Server-side signed anonymous session tokens -------------------------
