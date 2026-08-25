@@ -720,16 +720,110 @@ async def get_safety_events(
         return []
 
 
-async def get_topic_clusters() -> list[dict[str, Any]]:
-    """Get topic clusters."""
+# Common English stopwords plus a few chat-specific filler words that would
+# otherwise dominate every cluster ("what", "does", "teach") without being a
+# real topic signal.
+_TOPIC_STOPWORDS = frozenset(
+    """
+    the a an and or but if then than so is are was were be been being
+    do does did done have has had having will would could should can may
+    might must shall this that these those it its it's i you he she we they
+    what which who whom whose when where why how there here not no yes
+    with without about into onto from for of on in at by as to
+    teach teaches teaching teacher explain explains tell tells me my your
+    please help
+    """.split()
+)
+
+
+def _cluster_keyword(text: str) -> Optional[str]:
+    """Pick the single most distinctive word in a query as a cheap, honest
+    topic proxy — no embedding/ML dependency. Most short natural-language
+    questions never repeat a word, so frequency alone rarely breaks a tie;
+    ties go to the longest candidate, since a longer word is reliably more
+    topic-specific than a short grammatical leader ("return", "after") —
+    this is what makes two different phrasings of the same question (e.g.
+    "what is the beautiful state" / "how do I return to the beautiful
+    state") land in the same cluster instead of splitting on whichever verb
+    happened to come first."""
+    if not isinstance(text, str):
+        return None
+    words = re.findall(r"[a-zA-Z']+", text.lower())
+    counts: dict[str, int] = {}
+    for word in words:
+        if len(word) < 4 or word in _TOPIC_STOPWORDS:
+            continue
+        counts[word] = counts.get(word, 0) + 1
+    if not counts:
+        return None
+    return max(counts, key=lambda w: (counts[w], len(w)))
+
+
+async def get_topic_clusters(limit: int = 500) -> list[dict[str, Any]]:
+    """Group recent queries by their most distinctive keyword.
+
+    A simple, honest topic proxy rather than real embedding-based clustering
+    (no ML dependency, no pre-computed data pipeline to maintain) — good
+    enough to show an admin which subjects seekers are actually asking about
+    and whether faithfulness dips for any of them, which is what this page
+    is for. Real semantic clustering would need a background job and a
+    vector index; this needed neither.
+    """
     client = _get_client()
     if not client:
         return []
 
     try:
-        # This would ideally come from a clustering service or pre-computed data
-        # For now, return empty list as placeholder
-        return []
+        rows = (
+            client.table("chat_queries")
+            .select("id, query_text, chat_responses(faithfulness)")
+            .order("created_at", desc=True)
+            .limit(limit)
+            .execute()
+            .data
+            or []
+        )
+
+        groups: dict[str, dict[str, Any]] = {}
+        for row in rows:
+            query_text = row.get("query_text")
+            keyword = _cluster_keyword(query_text)
+            if not keyword:
+                continue
+            faith_rows = row.get("chat_responses") or []
+            faithfulness = None
+            if faith_rows and isinstance(faith_rows[0].get("faithfulness"), (int, float)):
+                faithfulness = float(faith_rows[0]["faithfulness"])
+
+            group = groups.setdefault(
+                keyword,
+                {"size": 0, "faith_sum": 0.0, "faith_count": 0, "centroid_query": query_text},
+            )
+            group["size"] += 1
+            if faithfulness is not None:
+                group["faith_sum"] += faithfulness
+                group["faith_count"] += 1
+            # Shortest example query reads best as a representative label.
+            if query_text and len(query_text) < len(group["centroid_query"] or ""):
+                group["centroid_query"] = query_text
+
+        clusters = [
+            {
+                "cluster_id": i,
+                "cluster_label": keyword.capitalize(),
+                "size": group["size"],
+                "avg_faithfulness": (
+                    round(group["faith_sum"] / group["faith_count"], 4)
+                    if group["faith_count"]
+                    else 0.0
+                ),
+                "centroid_query": group["centroid_query"],
+            }
+            for i, (keyword, group) in enumerate(
+                sorted(groups.items(), key=lambda kv: kv[1]["size"], reverse=True)[:15]
+            )
+        ]
+        return clusters
     except Exception as e:
         logger.error(f"Failed to get topic clusters: {e}")
         return []

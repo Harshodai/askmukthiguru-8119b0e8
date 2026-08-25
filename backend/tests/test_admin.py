@@ -370,3 +370,51 @@ def test_list_okf_entries_degrades_when_supabase_unavailable(
     assert response.status_code == 200
     data = response.json()
     assert data["entries"][0]["verified"] is None
+
+
+@pytest.mark.asyncio
+@patch("app.telemetry_db._get_client")
+async def test_get_topic_clusters_groups_by_keyword_and_averages_faithfulness(mock_get_client):
+    """TopicsPage.tsx used to always render empty — get_topic_clusters() was
+    an explicit placeholder always returning []. Regression: it must now
+    group real queries by their most distinctive keyword and average
+    faithfulness per group, matching the QueryCluster shape the frontend
+    (and mockData.ts's dev fallback) already expects."""
+    from app.telemetry_db import get_topic_clusters
+
+    mock_supabase = MagicMock()
+    mock_get_client.return_value = mock_supabase
+    mock_supabase.table.return_value.select.return_value.order.return_value.limit.return_value.execute.return_value.data = [
+        {
+            "id": "q1",
+            "query_text": "What is the beautiful state?",
+            "chat_responses": [{"faithfulness": 0.9}],
+        },
+        {
+            "id": "q2",
+            "query_text": "How do I return to the beautiful state after conflict?",
+            "chat_responses": [{"faithfulness": 0.7}],
+        },
+        {
+            "id": "q3",
+            "query_text": "What is Serene Mind?",
+            "chat_responses": [{"faithfulness": 0.8}],
+        },
+    ]
+
+    clusters = await get_topic_clusters()
+
+    by_label = {c["cluster_label"]: c for c in clusters}
+    assert "Beautiful" in by_label
+    assert by_label["Beautiful"]["size"] == 2
+    assert by_label["Beautiful"]["avg_faithfulness"] == pytest.approx(0.8)
+    assert "Serene" in by_label
+    assert by_label["Serene"]["size"] == 1
+
+
+@patch("app.telemetry_db._get_client")
+def test_topic_clusters_route_returns_empty_without_supabase(mock_get_client):
+    mock_get_client.return_value = None
+    response = client.get("/api/admin/topic-clusters")
+    assert response.status_code == 200
+    assert response.json() == []
