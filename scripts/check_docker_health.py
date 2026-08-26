@@ -33,7 +33,7 @@ try:
     NEO4J_PASSWORD = settings.neo4j_password
     NEO4J_USER = settings.neo4j_user
 except Exception:
-    NEO4J_PASSWORD = os.environ.get("NEO4J_PASSWORD", "password")
+    NEO4J_PASSWORD = os.environ.get("NEO4J_PASSWORD", "")
     NEO4J_USER = os.environ.get("NEO4J_USER", "neo4j")
 
 # Configure logging
@@ -105,6 +105,8 @@ async def check_redis_health(config: dict) -> Tuple[bool, str]:
 
 async def check_neo4j_health(config: dict, password: str) -> Tuple[bool, str]:
     """Check Neo4j health."""
+    if not password:
+        return False, "Neo4j health check failed: NEO4J_PASSWORD is not set"
     try:
         driver: AsyncDriver = AsyncGraphDatabase.driver(
             config['url'],

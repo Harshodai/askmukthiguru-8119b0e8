@@ -451,7 +451,7 @@ QUERIES = {
         {
             "q": "Who is Lokaa?",
             "must_mention": ["lokaa", "daughter"],
-            "min_cites": 0,
+            "min_cites": 1,
             "verified": True,
         },
         {
@@ -1381,7 +1381,7 @@ QUERIES = {
         {
             "q": "Mera mind bohot dysfunctional ho gaya hai, hamesha suffering state me rehta hu. Kaise isko beautiful state me badlu?",
             "must_mention": ["suffering state", "beautiful state", "mind", "consciousness"],
-            "min_cites": 0,
+            "min_cites": 1,
         },
         {
             "q": "Mujhe apne business ke liye Spiritual Vision active karna hai. Kya 1st sacred secret help karega?",

@@ -30,7 +30,7 @@ class TimeoutBudget:
     """Tracks remaining pipeline budget and dynamically reduces per-call timeouts."""
 
     def __init__(self, total_budget: float = 120.0):
-        self.total = total_budget
+        self.total = max(0.0, float(total_budget))
         self._start = time.monotonic()
 
     def remaining(self) -> float:
@@ -38,10 +38,10 @@ class TimeoutBudget:
         return max(0.0, self.total - elapsed)
 
     def allocate(self, node_name: str, default_timeout: Optional[float] = None) -> float:
-        """Allocate timeout for a node. Uses remaining budget but allows it to scale up if needed."""
+        """Allocate timeout for a node. Uses remaining budget; fails fast when remaining time is insufficient."""
         rem = self.remaining()
-        # Ensure we have at least a small buffer (e.g., 2.0s) left for the rest of the pipeline
-        available = max(5.0, rem - 2.0)
+        if rem <= 0.0:
+            return 0.0
 
         if default_timeout is None:
             default_timeout = NODE_TIMEOUTS.get(node_name, 30.0)
@@ -53,10 +53,10 @@ class TimeoutBudget:
             if node_name in ["generate_answer"]:
                 default_timeout = max(default_timeout, 90.0)
 
-        return min(default_timeout, available)
+        return max(0.0, min(default_timeout, rem))
 
     def is_exhausted(self) -> bool:
-        return self.remaining() <= 0
+        return self.remaining() <= 0.0
 
 
 budget_var: ContextVar[Optional[TimeoutBudget]] = ContextVar("budget_var", default=None)

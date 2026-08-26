@@ -627,6 +627,138 @@ async def check_infra(base_url: str) -> list[InfraResult]:
     return results
 
 
+async def check_corpus_readiness(
+    base_url: str = "http://localhost:8000",
+    client: Optional[httpx.AsyncClient] = None,
+    raise_on_error: bool = False,
+) -> dict[str, Any]:
+    """Harness guard: Probe Qdrant collection point count and runtime artifacts.
+
+    Aborts immediately with a non-zero exit code (or raises RuntimeError) if
+    the serving Qdrant collection is empty (points_count == 0) or if critical
+    runtime artifacts like okf_compiled are missing. Quality and grounding
+    scores are completely void on an empty corpus.
+    """
+    SEPARATOR_GUARD = "═" * 55
+    print("\n" + SEPARATOR_GUARD)
+    print("  🛡️  Probing serving corpus & runtime artifacts (Harness Guard)")
+    print(SEPARATOR_GUARD)
+
+    # 1. Resolve Qdrant connection info
+    qdrant_url = os.getenv("QDRANT_URL", "http://localhost:6333")
+    qdrant_collection = os.getenv("QDRANT_COLLECTION", "spiritual_wisdom_contextual")
+    qdrant_api_key = os.getenv("QDRANT_API_KEY", "")
+
+    try:
+        from app.config import settings
+
+        if hasattr(settings, "qdrant_url") and settings.qdrant_url:
+            qdrant_url = settings.qdrant_url
+        if hasattr(settings, "qdrant_collection") and settings.qdrant_collection:
+            qdrant_collection = settings.qdrant_collection
+        if hasattr(settings, "qdrant_api_key") and settings.qdrant_api_key:
+            qdrant_api_key = settings.qdrant_api_key
+    except Exception:
+        pass
+
+    # 2. Probe Qdrant collection point count
+    points_count: Optional[int] = None
+    headers = {}
+    if qdrant_api_key:
+        headers["api-key"] = qdrant_api_key
+
+    local_client = client or httpx.AsyncClient(timeout=5.0)
+    should_close = client is None
+
+    try:
+        # First attempt: Direct Qdrant REST probe
+        target_qdrant_url = f"{qdrant_url.rstrip('/')}/collections/{qdrant_collection}"
+        try:
+            r = await local_client.get(target_qdrant_url, headers=headers)
+            if r.status_code == 200:
+                col_data = r.json().get("result", {})
+                if isinstance(col_data, dict):
+                    points_count = col_data.get("points_count")
+                    if points_count is None:
+                        points_count = col_data.get("vectors_count")
+            else:
+                points_count = 0
+        except Exception:
+            # Fallback to checking via health check endpoint if direct Qdrant probe fails
+            pass
+
+        # Second attempt: Health endpoint on backend if direct probe didn't resolve points_count
+        if points_count is None:
+            try:
+                parsed_base = base_url.rstrip("/")
+                hr = await local_client.get(f"{parsed_base}/api/health", timeout=5.0)
+                if hr.status_code < 400:
+                    hdata = hr.json().get("services", {})
+                    qdrant_h = hdata.get("qdrant", {})
+                    if not qdrant_h.get("ok"):
+                        points_count = 0
+                    elif "points" in qdrant_h:
+                        points_count = qdrant_h["points"]
+            except Exception:
+                pass
+    finally:
+        if should_close:
+            await local_client.aclose()
+
+    if points_count is None:
+        points_count = 0
+
+    # 3. Probe runtime artifacts (okf_compiled, doctrine_lexicon)
+    missing_artifacts: list[str] = []
+    try:
+        from app.runtime_artifacts import inspect_runtime_artifacts
+
+        artifact_report = inspect_runtime_artifacts()
+        missing_artifacts = list(artifact_report.get("missing_required", []))
+    except Exception:
+        try:
+            from rag.nodes.retrieval import _OKF_COMPILED_PATH
+
+            if not _OKF_COMPILED_PATH.exists():
+                missing_artifacts.append("okf_compiled")
+        except Exception:
+            default_path = Path("/app/memory/okf/compiled.json")
+            repo_path = Path(__file__).resolve().parents[2] / "memory" / "okf" / "compiled.json"
+            if not default_path.exists() and not repo_path.exists():
+                missing_artifacts.append("okf_compiled")
+
+    # 4. Check for abort conditions
+    reasons = []
+    if points_count <= 0:
+        reasons.append(
+            f"Qdrant collection '{qdrant_collection}' has {points_count} points (points_count must be > 0)"
+        )
+    if "okf_compiled" in missing_artifacts or missing_artifacts:
+        reasons.append(
+            f"Missing required runtime artifacts: {', '.join(missing_artifacts)}"
+        )
+
+    if reasons:
+        error_msg = (
+            "❌ BENCHMARK HARNESS GUARD FAILED: Quality and grounding scores are void on an empty corpus.\n"
+            + "\n".join(f"   • {r}" for r in reasons)
+            + "\n   Abort triggered to prevent vacuous benchmark evaluation."
+        )
+        print(f"\n{'='*70}\n{error_msg}\n{'='*70}\n", file=sys.stderr)
+        if raise_on_error:
+            raise RuntimeError(error_msg)
+        sys.exit(1)
+
+    print(f"  ✅ Harness guard verified: Qdrant collection '{qdrant_collection}' points={points_count}")
+    print(f"  ✅ Runtime artifacts verified (okf_compiled present)")
+    return {
+        "collection": qdrant_collection,
+        "points_count": points_count,
+        "missing_artifacts": missing_artifacts,
+        "status": "ready",
+    }
+
+
 async def flush_caches(base_url: str, skip: bool = False) -> None:
     """Flush Redis + Qdrant semantic cache before running benchmarks.
 
@@ -1863,6 +1995,9 @@ async def main():
 
     print(f"Checking infrastructure on {args.endpoint}...")
     infra = await check_infra(args.endpoint)
+
+    # Harness guard: Probe Qdrant collection point count and runtime artifacts
+    await check_corpus_readiness(args.endpoint)
 
     await flush_caches(args.endpoint, skip=args.no_flush)
 

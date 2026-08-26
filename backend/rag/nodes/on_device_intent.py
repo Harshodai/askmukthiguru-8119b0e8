@@ -271,7 +271,10 @@ def _get_encoder():
     try:
         from sentence_transformers import SentenceTransformer
 
-        _ENCODER = SentenceTransformer("all-MiniLM-L6-v2")
+        try:
+            _ENCODER = SentenceTransformer("all-MiniLM-L6-v2", local_files_only=True)
+        except Exception:
+            _ENCODER = SentenceTransformer("all-MiniLM-L6-v2")
         logger.info("On-device intent classifier: loaded all-MiniLM-L6-v2")
     except Exception as exc:
         logger.warning(f"On-device classifier: sentence-transformers unavailable ({exc})")

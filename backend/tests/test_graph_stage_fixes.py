@@ -359,3 +359,179 @@ async def test_graph_stage_cache_disabled_coarse_factual_tier_rechecks_shape():
     assert mock_selector.await_args.kwargs["query_tier"] is None
     assert mock_deep_graph.ainvoke.called
     assert not mock_fast_graph.ainvoke.called
+
+
+@pytest.mark.asyncio
+async def test_timeout_budget_allocation_no_five_second_floor():
+    """Criteria A3.3: TimeoutBudget must not floor to 5s on exhausted or low budget."""
+    from rag.timeout_utils import TimeoutBudget
+
+    # Budget is 0.0s (already exhausted)
+    budget = TimeoutBudget(total_budget=0.0)
+    assert budget.is_exhausted() is True
+    allocated = budget.allocate("grade_documents", default_timeout=25.0)
+    assert allocated == 0.0, f"Expected 0.0 allocated on exhausted budget, got {allocated}"
+
+    # Budget is 1.5s
+    budget_low = TimeoutBudget(total_budget=1.5)
+    assert budget_low.is_exhausted() is False
+    allocated_low = budget_low.allocate("grade_documents", default_timeout=25.0)
+    assert allocated_low <= 1.5, f"Expected <= 1.5s allocated, got {allocated_low}"
+    assert allocated_low > 0.0
+
+
+@pytest.mark.asyncio
+async def test_graph_stage_admission_deadline_propagation():
+    """Criteria A3.4: Admission deadline propagation fails fast on expired deadline."""
+    import time
+    from unittest.mock import MagicMock
+
+    container = MagicMock()
+    mock_standard_graph = AsyncMock()
+    container.standard_graph = mock_standard_graph
+    container.fast_graph = mock_standard_graph
+    container.deep_graph = mock_standard_graph
+
+    coordinator = PipelineCoordinator(container)
+    coordinator.coalescer = _DirectCoalescer()
+
+    ctx = PipelineContext(
+        container=container,
+        coordinator=coordinator,
+        request=MagicMock(),
+        user_msg="What is the nature of consciousness?",
+        preferred_lang="en",
+        meditation_step=0,
+        session_id="sess-timeout-1",
+        user={"id": "user-1"},
+        is_benchmark=False,
+    )
+    # Set start_time such that pipeline_timeout is already exceeded
+    ctx.start_time = time.time() - (settings.pipeline_timeout + 10.0)
+    ctx.state = {
+        "user_msg_en": ctx.user_msg,
+        "chat_history_en": [],
+        "memory_context": "",
+        "lang_detection": None,
+        "query_tier": "standard",
+        "intent": "QUERY",
+    }
+
+    stage = GraphStage()
+    await stage.run(ctx)
+
+    # Graph ainvoke should NOT be called since deadline was already expired
+    assert not mock_standard_graph.ainvoke.called
+    assert ctx.final_answer == "The Guru took too long to respond. Please try again."
+
+
+@pytest.mark.asyncio
+async def test_agentic_graph_traversal_reuses_injected_ollama_service(monkeypatch):
+    """Criteria A3.2: agentic_graph_traversal must reuse injected container LLM service without instantiating OllamaService."""
+    import sys
+    import rag.nodes.agentic_graph_traversal
+    from rag.nodes import _services
+
+    agt = sys.modules["rag.nodes.agentic_graph_traversal"]
+
+    mock_ollama_instance = AsyncMock()
+    mock_ollama_instance._generate_fast.return_value = '{"action": "DONE", "reasoning": "done"}'
+    monkeypatch.setattr(_services, "_ollama", mock_ollama_instance)
+
+    with patch("services.ollama_service.OllamaService") as mock_ollama_cls:
+        decision = await agt._ask_llm_to_decide(
+            question="Compare karma and samsara",
+            context_summary={"traversal_summary": "summary", "concepts_found": []},
+            step=0,
+            max_steps=3,
+        )
+        # Verify OllamaService was NOT freshly instantiated
+        mock_ollama_cls.assert_not_called()
+        # Verify the injected service was called
+        mock_ollama_instance._generate_fast.assert_called_once()
+        assert decision["action"] == "DONE"
+
+
+@pytest.mark.asyncio
+async def test_grade_documents_ambiguous_band_escalation(monkeypatch):
+    """Criteria A3.5: Default grading to rerank confidence; escalate to LLM only for ambiguous band."""
+    from rag.nodes import _services
+    from rag.nodes.reranking import grade_documents
+
+    mock_ollama = AsyncMock()
+    mock_embedder = MagicMock()
+    monkeypatch.setattr(_services, "_ollama", mock_ollama)
+    monkeypatch.setattr(_services, "_embedder", mock_embedder)
+    monkeypatch.setattr(settings, "crag_skip_confidence", 0.75)
+    monkeypatch.setattr(settings, "rerank_min_score", 0.35)
+
+    # 1. High confidence docs only -> NO LLM call
+    state_high = {
+        "query_tier": "tier3_complex",
+        "question": "What is Ekam?",
+        "reranked_docs": [
+            {"text": "Doc 1", "rerank_score": 0.88, "source_url": "url1"},
+            {"text": "Doc 2", "rerank_score": 0.82, "source_url": "url2"},
+        ],
+    }
+    result_high = await grade_documents(state_high)
+    assert len(result_high["relevant_docs"]) == 2
+    mock_ollama.grade_relevance.assert_not_called()
+    mock_ollama.batch_grade_relevance.assert_not_called()
+
+    # 2. Ambiguous band docs -> LLM grading IS called
+    mock_ollama.grade_relevance = AsyncMock(return_value=[{"relevant": True, "reason": "Good doc"}])
+    state_ambiguous = {
+        "query_tier": "tier3_complex",
+        "question": "What is Ekam?",
+        "reranked_docs": [
+            {"text": "Doc Ambiguous", "rerank_score": 0.55, "source_url": "url3"},
+        ],
+    }
+    result_ambiguous = await grade_documents(state_ambiguous)
+    assert len(result_ambiguous["relevant_docs"]) == 1
+    mock_ollama.grade_relevance.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_retrieval_query_fan_out_limited_to_two(monkeypatch):
+    """Criteria A3.5: Limit deep query fan-out from 6 to 2."""
+    from rag.nodes import _services
+    import rag.nodes as nodes
+
+    mock_embedder = MagicMock()
+    mock_embedder.encode_single_full.return_value = {"dense": [0.1] * 1024, "sparse": {"1": 0.5}}
+    mock_embedder.encode_batch.return_value = {
+        "dense": [[0.1] * 1024, [0.2] * 1024],
+        "sparse": [{"1": 0.5}, {"2": 0.5}],
+    }
+    mock_embedder.instruction = "Retrieve: "
+
+    mock_qdrant = MagicMock()
+    mock_qdrant.search = MagicMock(return_value=[{"text": "Teaching doc", "source_url": "url1", "score": 0.9}])
+
+    monkeypatch.setattr(_services, "_ollama", AsyncMock())
+    monkeypatch.setattr(_services, "_embedder", mock_embedder)
+    monkeypatch.setattr(_services, "_qdrant", mock_qdrant)
+    monkeypatch.setattr(settings, "rag_okf_injection_enabled", False)
+    monkeypatch.setattr(settings, "semantic_cache_enabled", False)
+    monkeypatch.setattr(settings, "retrieval_score_delta_enabled", False)
+    monkeypatch.setattr(settings, "rag_skip_retrieval_expansions", True)
+
+    state = {
+        "question": "Main query",
+        "chat_history": [],
+        "rewritten_query": None,
+        "sub_queries": ["sub1", "sub2", "sub3", "sub4", "sub5"],
+        "selected_clusters": [],
+        "hyde_text": None,
+        "intent": "QUERY",
+        "query_tier": "tier3_complex",
+    }
+
+    res = await nodes.retrieve_documents(state)
+    assert "evaluation_trace" in res
+    retrieval_queries = res["evaluation_trace"].get("retrieval_queries", [])
+    # Must be capped at 2 queries
+    assert len(retrieval_queries) <= 2
+

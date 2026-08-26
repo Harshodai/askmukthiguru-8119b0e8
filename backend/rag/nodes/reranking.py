@@ -191,12 +191,12 @@ async def rerank_documents(state: GraphState, config: dict = None) -> dict:
 @trace_rag_node("grade_documents")
 @log_metrics
 async def grade_documents(state: GraphState, config: dict = None) -> dict:
-    """CRAG: Batch relevance grading of all reranked documents in one LLM call."""
+    """CRAG: Grade documents using rerank score confidence, escalating to LLM grading only for ambiguous scores."""
     ollama = _services._ollama
     embedder = _services._embedder
 
     if state.get("query_tier") in ("fast", "tier2_simple"):
-        reranked_docs = state["reranked_docs"]
+        reranked_docs = state.get("reranked_docs", [])
         relevant = sorted(reranked_docs, key=lambda d: d.get("rerank_score", 0.0), reverse=True)[:3]
         state["grading_reasons"] = ["Simple query bypass" for _ in relevant]
         logger.info(
@@ -211,17 +211,17 @@ async def grade_documents(state: GraphState, config: dict = None) -> dict:
             ),
         }
 
-    reranked_docs = state["reranked_docs"]
-
+    reranked_docs = state.get("reranked_docs", [])
     if not reranked_docs:
         return {"relevant_docs": []}
 
     rerank_scores = [
         d.get("rerank_score") for d in reranked_docs if d.get("rerank_score") is not None
     ]
+    min_score = getattr(settings, "rerank_min_score", 0.35)
+
     if rerank_scores:
         top_score = max(rerank_scores)
-        min_score = settings.rerank_min_score
         if top_score < min_score:
             logger.warning(
                 f"Confidence gate: top rerank score {top_score:.3f} < min {min_score}. "
@@ -249,32 +249,6 @@ async def grade_documents(state: GraphState, config: dict = None) -> dict:
                 f"{before_count} -> {len(reranked_docs)} docs"
             )
 
-    # Adaptive-RAG confidence gate: reranker already confident → skip the LLM
-    # grading round-trip entirely (scores are sigmoid-normalized to [0,1]).
-    # DISTRESS intent is excluded: always continue through the full grading path.
-    skip_conf = getattr(settings, "crag_skip_confidence", 0.75)
-    if skip_conf > 0 and state.get("intent") != "DISTRESS":
-        confident = [d for d in reranked_docs if d.get("rerank_score", 0.0) >= skip_conf]
-        if len(confident) >= 2:
-            relevant = confident[: settings.rag_top_k_rerank]
-            state["grading_reasons"] = ["High-confidence rerank bypass" for _ in relevant]
-            logger.info(
-                f"CRAG batch: {len(confident)} docs >= {skip_conf} rerank confidence, "
-                f"skipping LLM grading, accepted {len(relevant)} docs"
-            )
-            return {
-                "relevant_docs": relevant,
-                "evaluation_trace": _trace_update(
-                    state,
-                    relevant_count=len(relevant),
-                    relevant_sources=_grounded_citation_urls(relevant),
-                    grading_skipped_high_confidence=True,
-                ),
-            }
-
-    await emit_status(config, "Filtering for relevance...")
-    question = state.get("rewritten_query") or state["question"]
-
     intent = state.get("intent", "FACTUAL")
     if intent == "DISTRESS":
         relevant = reranked_docs[:3]
@@ -282,68 +256,118 @@ async def grade_documents(state: GraphState, config: dict = None) -> dict:
         logger.info(
             f"CRAG batch: DISTRESS intent, bypassing grading, accepted {len(relevant)} docs"
         )
-    else:
-        # Grade ALL docs in a single batch LLM call (web + db combined)
-        web_docs = [doc for doc in reranked_docs if doc.get("content_type") == "web_search"]
-        db_docs = [doc for doc in reranked_docs if doc.get("content_type") != "web_search"]
+        return {
+            "relevant_docs": relevant,
+            "evaluation_trace": _trace_update(
+                state,
+                relevant_count=len(relevant),
+                relevant_sources=_grounded_citation_urls(relevant),
+            ),
+        }
 
-        relevant_web = []
-        relevant_db = []
-        all_reasons = []
+    # Adaptive score confidence bands:
+    # 1. High confidence band: score >= skip_conf -> definitely relevant by reranker score
+    # 2. Ambiguous band: score < skip_conf -> escalate to LLM document grading
+    skip_conf = getattr(settings, "crag_skip_confidence", 0.75)
 
-        all_docs = web_docs + db_docs
-        if all_docs:
-            try:
-                doc_texts = [doc["text"] for doc in all_docs]
-                t_out = get_node_timeout("grade_documents", 20.0)
+    high_conf_docs = [d for d in reranked_docs if d.get("rerank_score", 0.0) >= skip_conf]
+    ambiguous_docs = [d for d in reranked_docs if d.get("rerank_score", 0.0) < skip_conf]
+
+    # If all retained docs have high confidence, or skip_conf is exceeded across sufficient docs:
+    if len(ambiguous_docs) == 0 and len(high_conf_docs) > 0:
+        relevant = high_conf_docs[: settings.rag_top_k_rerank]
+        state["grading_reasons"] = ["High-confidence rerank bypass" for _ in relevant]
+        logger.info(
+            f"CRAG batch: all {len(high_conf_docs)} docs >= {skip_conf} rerank confidence, "
+            f"skipping LLM grading, accepted {len(relevant)} docs"
+        )
+        return {
+            "relevant_docs": relevant,
+            "evaluation_trace": _trace_update(
+                state,
+                relevant_count=len(relevant),
+                relevant_sources=_grounded_citation_urls(relevant),
+                grading_skipped_high_confidence=True,
+            ),
+        }
+
+    # Escalate to LLM document grading ONLY for ambiguous docs
+    await emit_status(config, "Filtering for relevance...")
+    question = state.get("rewritten_query") or state["question"]
+
+    relevant_from_ambiguous = []
+    ambiguous_reasons = []
+
+    if ambiguous_docs and ollama is not None:
+        try:
+            doc_texts = [doc["text"] for doc in ambiguous_docs]
+            t_out = get_node_timeout("grade_documents", 20.0)
+            if hasattr(ollama, "grade_relevance"):
                 all_results = await ollama.grade_relevance(
                     question=question, doc_texts=doc_texts, timeout=t_out
                 )
-                for doc, res in zip(all_docs, all_results):
-                    is_web = doc.get("content_type") == "web_search"
-                    if res["relevant"]:
-                        if is_web:
-                            relevant_web.append(doc)
-                        else:
-                            relevant_db.append(doc)
-                    all_reasons.append(res["reason"])
-            except Exception as e:
-                logger.warning(
-                    f"Grading failed for all docs: {e}. Falling back to top-3 reranked docs."
+            elif hasattr(ollama, "batch_grade_relevance"):
+                all_results = await ollama.batch_grade_relevance(
+                    query=question, documents=doc_texts, timeout=t_out
                 )
-                top3 = all_docs[:3]
-                for doc in top3:
-                    if doc.get("content_type") == "web_search":
-                        relevant_web.append(doc)
-                    else:
-                        relevant_db.append(doc)
-                all_reasons = [f"Grading fallback: {e}" for _ in top3]
+            else:
+                all_results = [{"relevant": True, "reason": "Ambiguous doc accepted"}] * len(doc_texts)
 
-        # Compress only the relevant DB documents (do not compress temporal web search results)
-        if relevant_db:
-            try:
-                relevant_db = await asyncio.to_thread(
-                    compress_documents,
-                    question,
-                    relevant_db,
-                    embedder._reranker,
-                    threshold=settings.rerank_floor,
-                    min_sentences=2,
-                )
-            except Exception as e:
-                logger.warning(f"Document compression failed: {e}. Keeping uncompressed.")
+            if isinstance(all_results, list):
+                for doc, res in zip(ambiguous_docs, all_results):
+                    if isinstance(res, dict) and res.get("relevant"):
+                        relevant_from_ambiguous.append(doc)
+                        ambiguous_reasons.append(res.get("reason", "Ambiguous doc verified by LLM"))
+                    elif not isinstance(res, dict):
+                        relevant_from_ambiguous.append(doc)
+                        ambiguous_reasons.append("Ambiguous doc verified")
+            else:
+                relevant_from_ambiguous.extend(ambiguous_docs[:3])
+                ambiguous_reasons.extend(["Ambiguous doc fallback" for _ in ambiguous_docs[:3]])
+        except Exception as e:
+            logger.warning(
+                f"Grading failed for ambiguous docs: {e}. Falling back to top reranked ambiguous docs."
+            )
+            fallback_ambiguous = ambiguous_docs[:3]
+            relevant_from_ambiguous.extend(fallback_ambiguous)
+            ambiguous_reasons.extend([f"Grading fallback: {e}" for _ in fallback_ambiguous])
+    elif ambiguous_docs:
+        relevant_from_ambiguous.extend(ambiguous_docs[:3])
+        ambiguous_reasons.extend(["No LLM available, keeping top ambiguous docs" for _ in ambiguous_docs[:3]])
 
-        relevant = relevant_web + relevant_db
-        state["grading_reasons"] = all_reasons
+    high_conf_reasons = ["High-confidence rerank score" for _ in high_conf_docs]
+    all_reasons = high_conf_reasons + ambiguous_reasons
+    state["grading_reasons"] = all_reasons
+
+    # Combine high confidence docs and LLM-verified ambiguous docs
+    combined_relevant = high_conf_docs + relevant_from_ambiguous
+
+    # Separate web vs db docs for compression
+    web_docs = [doc for doc in combined_relevant if doc.get("content_type") == "web_search"]
+    db_docs = [doc for doc in combined_relevant if doc.get("content_type") != "web_search"]
+
+    # Compress only the relevant DB documents (do not compress temporal web search results)
+    if db_docs and embedder is not None and hasattr(embedder, "_reranker"):
+        try:
+            db_docs = await asyncio.to_thread(
+                compress_documents,
+                question,
+                db_docs,
+                embedder._reranker,
+                threshold=settings.rerank_floor,
+                min_sentences=2,
+            )
+        except Exception as e:
+            logger.warning(f"Document compression failed: {e}. Keeping uncompressed.")
+
+    relevant = (web_docs + db_docs)[: getattr(settings, "rag_top_k_rerank", 5)]
 
     # Compute context sufficiency from grading results (replaces separate check_context_sufficiency node)
-    # Context is sufficient when at least 2 relevant docs exist with reasonable scores,
-    # OR there are any relevant docs with scores above the high-confidence threshold.
     context_sufficient = True
     if relevant:
-        high_conf_docs = [d for d in relevant if d.get("rerank_score", 0.0) >= 0.75]
+        high_docs = [d for d in relevant if d.get("rerank_score", 0.0) >= 0.75]
         moderate_docs = [d for d in relevant if d.get("rerank_score", 0.0) >= 0.5]
-        context_sufficient = len(high_conf_docs) >= 1 or len(moderate_docs) >= 2
+        context_sufficient = len(high_docs) >= 1 or len(moderate_docs) >= 2
     else:
         context_sufficient = False
 
@@ -357,7 +381,7 @@ async def grade_documents(state: GraphState, config: dict = None) -> dict:
 
     logger.info(
         f"CRAG batch: {len(relevant)}/{len(reranked_docs)} docs passed relevance check "
-        f"(context_sufficient={context_sufficient})"
+        f"(high_conf={len(high_conf_docs)}, ambiguous_graded={len(ambiguous_docs)}, context_sufficient={context_sufficient})"
     )
     return {
         "relevant_docs": relevant,
@@ -367,6 +391,8 @@ async def grade_documents(state: GraphState, config: dict = None) -> dict:
             state,
             relevant_count=len(relevant),
             relevant_sources=_grounded_citation_urls(relevant),
+            high_conf_count=len(high_conf_docs),
+            ambiguous_count=len(ambiguous_docs),
         ),
     }
 

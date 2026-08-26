@@ -81,6 +81,7 @@ KNOWN_EXTRA_DEAD: dict[str, str] = {
     "use_qdrant_semantic_cache": "Semantic-cache family — no runtime read",
     "data_audit_strict_mode": "Strict mode toggle for data audit quality gate",
     "verifier_pass_ratio": "Verifier pass ratio threshold config",
+    "rag_parallel_verify": "Legacy parallel verify setting replaced by local NLI claim verification (A2.6)",
 }
 
 # Newly-added settings that must NEVER be flagged dead. If any of these shows

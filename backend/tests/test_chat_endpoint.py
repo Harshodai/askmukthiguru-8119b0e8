@@ -24,6 +24,9 @@ def mock_coalescer():
         patch("app.orchestrator._coalescer.get_or_run", side_effect=dummy_get_or_run),
         patch("app.main.coalescer.get_or_run", side_effect=dummy_get_or_run),
         patch("app.coalescer.build_coalescer", return_value=mock_coalescer_obj),
+        patch("app.pipeline.pipeline_coordinator.get_shared_vector_cache", return_value=None),
+        patch("services.turboquant_cache.get_shared_vector_cache", return_value=None),
+        patch("rag.nodes.on_device_intent._ENCODER", False),
     ):
         yield
 
@@ -95,6 +98,14 @@ def mock_get_container():
         return f"translated_{text}"
 
     mock_container.translation.translate_text = dummy_translate_text
+
+    # Mock Embedding
+    mock_embedder = MagicMock()
+    mock_embedder.embed_query = AsyncMock(return_value=[0.1] * 384)
+    mock_embedder.embed_text = AsyncMock(return_value=[0.1] * 384)
+    mock_embedder.health_check = lambda: True
+    mock_container.embedding_service = mock_embedder
+    mock_container.embedder = mock_embedder
 
     # Mock Qdrant and OCR
     mock_container.qdrant = MagicMock()
@@ -208,7 +219,7 @@ app.dependency_overrides[get_container] = mock_get_container
 @patch("app.main.telemetry_sink.log_query_trace")
 def test_chat_endpoint_success(mock_log_query_trace):
     """Verify that the chat endpoint correctly returns a ChatResponse."""
-    payload = {"user_message": "Hello Mukthi Guru", "session_id": "test-session", "messages": []}
+    payload = {"user_message": "What is mindfulness?", "session_id": "test-session", "messages": []}
     response = client.post("/api/chat", json=payload)
 
     assert response.status_code == 200
@@ -229,19 +240,34 @@ def test_chat_endpoint_empty_message(mock_log_query_trace):
 @patch("app.main.telemetry_sink.log_query_trace")
 def test_chat_endpoint_indic_translation(mock_log_query_trace):
     """Verify that the chat endpoint translates Indic languages to and from English."""
-    payload = {
-        "user_message": "नमस्ते",  # Namaste in Hindi
-        "session_id": "test-session",
-        "messages": [],
-        "language": "hi",
-    }
-    response = client.post("/api/chat", json=payload)
+    from services.language_router import LanguageCode, LanguageDetection
 
-    assert response.status_code == 200
-    data = response.json()
-    assert "response" in data
-    # The pipeline should return the translated final answer
-    assert data["response"] == "translated_This is a mocked response"
+    mock_container = mock_get_container()
+    mock_container.language_router.detect.return_value = LanguageDetection(
+        primary=LanguageCode.HI,
+        confidence=0.9,
+        is_codemixed=False,
+        scripts_detected=["Devanagari"],
+        recommendation="sarvam-30b",
+    )
+
+    try:
+        app.dependency_overrides[get_container] = lambda: mock_container
+        payload = {
+            "user_message": "ध्यान क्या है?",  # What is meditation in Hindi
+            "session_id": "test-session",
+            "messages": [],
+            "language": "hi",
+        }
+        response = client.post("/api/chat", json=payload)
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "response" in data
+        # The pipeline should return the translated final answer
+        assert data["response"] == "translated_This is a mocked response"
+    finally:
+        app.dependency_overrides[get_container] = mock_get_container
 
 
 @patch("app.main.telemetry_sink.log_query_trace")

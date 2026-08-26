@@ -273,14 +273,15 @@ class StandardGraphStrategy(GraphStrategy):
         graph.add_edge("decompose_query", "navigate_and_hyde")
         graph.add_edge("navigate_and_hyde", "retrieve_documents")
 
-        # Agentic graph traversal is invoked only for COMPARATIVE intent.
-        # All other intents route directly to reranking.
+        # Agentic graph traversal is unreviewed for default hot paths; only invoked
+        # when intent is COMPARATIVE and feature flag is explicitly enabled.
         def _route_after_retrieve(state: GraphState) -> str:
-            return (
-                "agentic_graph_traversal"
-                if state.get("intent") == "COMPARATIVE"
-                else "rerank_documents"
-            )
+            if (
+                state.get("intent") == "COMPARATIVE"
+                and getattr(settings, "agentic_graph_traversal_enabled", False)
+            ):
+                return "agentic_graph_traversal"
+            return "rerank_documents"
 
         graph.add_conditional_edges(
             "retrieve_documents",

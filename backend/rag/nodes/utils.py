@@ -638,7 +638,7 @@ async def _llm_retrieval_expansions(state: GraphState) -> list[str]:
         history_lines.append(f"{role}: {content}")
 
     prompt = (
-        "You are the retrieval planner for Mukthi Guru. Generate up to 3 search queries "
+        "You are the retrieval planner for Mukthi Guru. Generate up to 2 search queries "
         "that would help retrieve source teachings for the user's question. Use only "
         "terms implied by the question and conversation history. Do not answer the "
         "question. Do not invent facts. Return one query per line, no numbering.\n\n"
@@ -661,7 +661,7 @@ async def _llm_retrieval_expansions(state: GraphState) -> list[str]:
         cleaned = re.sub(r"^\s*[-*\d.)]+\s*", "", line).strip().strip('"')
         if cleaned and cleaned.lower() != question.lower() and len(cleaned) <= 240:
             queries.append(cleaned)
-    return list(dict.fromkeys(queries))[:3]
+    return list(dict.fromkeys(queries))[:2]
 
 
 def strip_cot(text: str) -> str:

@@ -191,6 +191,7 @@ class LettuceDetectService:
                 "score": 0.0,
                 "details": "Empty input.",
                 "unsupported_sentences": [],
+                "claims": [],
             }
 
         # Strip the source citation block the formatter appends — it is
@@ -202,6 +203,7 @@ class LettuceDetectService:
                 "score": 0.0,
                 "details": "Empty answer after citation strip.",
                 "unsupported_sentences": [],
+                "claims": [],
             }
 
         try:
@@ -286,6 +288,7 @@ class LettuceDetectService:
                 "score": 0.0,
                 "details": "Empty input.",
                 "unsupported_sentences": [],
+                "claims": [],
             }
 
         # Clean answer to remove source citation lists to prevent false negatives
@@ -301,6 +304,7 @@ class LettuceDetectService:
                 "score": 0.0,
                 "details": "No testable sentences.",
                 "unsupported_sentences": [],
+                "claims": [],
             }
 
         # C2: emoji auto-pass branch removed — it bypassed faithfulness scoring unconditionally.

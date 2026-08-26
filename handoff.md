@@ -1183,3 +1183,18 @@ Implemented on isolated branch `ruthless-audit-remediation` from the synchronize
 - Focused affected suite: 72 passed, 1 skipped. Post-rebase full backend suite: 2,453 passed, 31 skipped, including all 5 corpus-integrity tests. Frontend: 522 passed, 6 skipped; typecheck and production build passed. Lint passed with 31 pre-existing warnings and zero errors. `git diff --check` and changed-file compilation passed.
 
 Validation is complete. The branch is ready for the final commit and push.
+
+## SESSION UPDATE — 2026-08-26: latency-at-scale plan
+
+Independent verification of the audit-gap fixes against the pulled code (not the commit messages), plus a live-infra check. Findings and the resulting phased plan: [docs/plans/latency-at-scale-and-correctness-plan-2026-08-26.md](docs/plans/latency-at-scale-and-correctness-plan-2026-08-26.md).
+
+Headline verified facts, all of which invalidate the current benchmark numbers:
+- Serving collection `spiritual_wisdom_contextual` holds **8 points** (the circulating report cited `spiritual_wisdom` = 0 points — that is the legacy collection, not the served one).
+- Neo4j: 112 relationships, **0 reviewed**, so `cross_teacher_reasoning` returns nothing. Review endpoints exist; **no UI is wired** to them.
+- Backend `SUPABASE_URL` → `host.docker.internal:54321` is **connection-refused**; no `guru_memories` table locally. Every benchmark ran with zero memory personalization, and the new supersession is unverified against a real DB.
+- Benchmark `quality_check()` does not measure grounding: **`min_citations == 0` for 231 of 420 cases**, so the citation gate is vacuous for the majority. 26.77% is not a faithfulness number.
+- `semantic_cache_similarity` is 0.90 in config and **0.85 in docker-compose**, below the 0.92 safe floor for factual/RAG — a doctrine-correctness hazard, not just a latency knob.
+- Memory `_derive_fact_key` is relation-only, so "I have anxiety" and "I have a daughter" collide on `user:possession` and the second soft-deletes the first.
+- Backend container still has **no `memory:` limit** (cpus only) — the cause of the OOMKill.
+
+Nothing in this pass was changed in product code; the plan document is the only addition.

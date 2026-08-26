@@ -368,7 +368,7 @@ class PipelineCoordinator:
     ) -> tuple[str, list, str] | None:
         """Check vector cache. Returns (response, citations, intent) or None."""
         vcache = self._ensure_vector_cache()
-        if vcache.size == 0:
+        if vcache is None or vcache.size == 0:
             return None
 
         embedding = await self._embed_query(query_text)

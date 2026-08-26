@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 FAST_MODEL_TIMEOUT = getattr(settings, "agentic_graph_timeout_per_step", 15)
 FAST_MODEL_NAME = getattr(settings, "agentic_graph_fast_model", "nim:meta/llama-3.1-8b-instruct")
 MAX_STEPS = getattr(settings, "agentic_graph_max_steps", 3)
-ENABLED = getattr(settings, "agentic_graph_traversal_enabled", True)
+ENABLED = getattr(settings, "agentic_graph_traversal_enabled", False)
 
 
 async def agentic_graph_traversal(state: GraphState, config: dict = None) -> dict:
@@ -43,7 +43,7 @@ async def agentic_graph_traversal(state: GraphState, config: dict = None) -> dic
     4. OBSERVE: Parse tool response (which includes navigation_hints)
     5. Repeat until DONE, no candidates, or max steps reached
     """
-    if not ENABLED:
+    if not ENABLED and not getattr(settings, "agentic_graph_traversal_enabled", False):
         return {}
 
     intent = state.get("intent", "")
@@ -252,9 +252,13 @@ async def _ask_llm_to_decide(
 ) -> dict[str, Any]:
     """Ask the fast model to decide what to do next in the traversal."""
     try:
-        from services.ollama_service import OllamaService
+        from rag.nodes import _services
 
-        ollama = OllamaService()
+        ollama = _services._ollama
+        if ollama is None:
+            from services.ollama_service import OllamaService
+
+            ollama = OllamaService()
 
         # Build actual entity IDs from traversed context, not just counts.
         traversed_ids = [c.get("entity_id") for c in context_summary.get("concepts_found", [])]

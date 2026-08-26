@@ -173,7 +173,7 @@ services:
       # --- Retrieval Quality ---
       - RERANK_MIN_SCORE=${RERANK_MIN_SCORE:-0.15}
       - SEMANTIC_CACHE_ENABLED=${SEMANTIC_CACHE_ENABLED:-true}
-      - SEMANTIC_CACHE_SIMILARITY=${SEMANTIC_CACHE_SIMILARITY:-0.85}
+      - SEMANTIC_CACHE_SIMILARITY=${SEMANTIC_CACHE_SIMILARITY:-0.92}
       # RAG latency controls are explicit here so Compose overrides are not
       # silently shadowed by values from the root env_file.
       # Preserve the pre-existing local global settings (HyDE=true, two
@@ -270,6 +270,7 @@ services:
     deploy:
       resources:
         limits:
+          memory: 4G
           cpus: '4.0'
     restart: unless-stopped
     volumes: &backend-volumes

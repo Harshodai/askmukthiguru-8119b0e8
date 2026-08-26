@@ -1,7 +1,7 @@
 {
   "manifest_version": "question-bank-latency-v1",
   "source_path": "backend/benchmarks/question_bank.py",
-  "source_sha256": "1adf9d547ffd9ca33c20b63ef57b8291f2938ca138a25028620fd2d06a34f8f6",
+  "source_sha256": "d12ed9cc134756a3829691d8cf98de714ef86a9c8b5d0f8d2305ac373b9a368e",
   "case_count": 420,
   "category_counts": {
     "guardrails_input": 20,
@@ -1669,7 +1669,7 @@
       ],
       "must_mention_any": [],
       "reject_if": [],
-      "min_citations": 0,
+      "min_citations": 1,
       "verified_source_expected": true,
       "needs_web_search": false,
       "severity": null,
@@ -5849,7 +5849,7 @@
       ],
       "must_mention_any": [],
       "reject_if": [],
-      "min_citations": 0,
+      "min_citations": 1,
       "verified_source_expected": false,
       "needs_web_search": false,
       "severity": null,

@@ -121,8 +121,16 @@ async def test_safety_redirect_skips_expensive_verification(mock_gateway_service
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("tier", ["tier3_complex", "tier4_deep"])
-async def test_cove_called_for_high_tiers(mock_gateway_services, tier):
-    gateway, _ = mock_gateway_services
+async def test_cove_called_for_high_tiers_on_suspect_faithfulness(mock_gateway_services, tier):
+    """When local NLI detects suspect claims on complex queries, secondary CoVe is invoked."""
+    gateway, mock_ld = mock_gateway_services
+    mock_ld.score_faithfulness.return_value = {
+        "is_faithful": False,
+        "score": 0.5,
+        "details": "Suspect claims detected",
+        "unsupported_sentences": ["fabricated sentence"],
+        "claims": [{"text": "fabricated sentence", "score": 0.5, "supported": False}],
+    }
     state = _mock_state(tier, answer="answer text " * 20)
 
     result = await nodes.verify_answer(state)
@@ -132,6 +140,29 @@ async def test_cove_called_for_high_tiers(mock_gateway_services, tier):
     assert result["verification"]["passed"] is True
     assert result["confidence_score"] == 8.5
     assert result["faithfulness_score"] == 0.85
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("tier", ["tier3_complex", "tier4_deep"])
+async def test_cove_skipped_for_high_tiers_when_local_nli_passes(mock_gateway_services, tier):
+    """When local NLI claim support passes, expensive secondary CoVe is skipped."""
+    gateway, mock_ld = mock_gateway_services
+    mock_ld.score_faithfulness.return_value = {
+        "is_faithful": True,
+        "score": 0.95,
+        "details": "All claims grounded.",
+        "unsupported_sentences": [],
+        "claims": [{"text": "answer text", "score": 0.95, "supported": True}],
+    }
+    state = _mock_state(tier, answer="answer text " * 20)
+
+    result = await nodes.verify_answer(state)
+
+    gateway.verify_answer.assert_not_called()
+    assert result["is_faithful"] is True
+    assert result["verification"]["passed"] is True
+    assert "claims" in result["verification"]
+    assert len(result["verification"]["claims"]) == 1
 
 
 @pytest.mark.asyncio
@@ -146,7 +177,7 @@ async def test_cove_skipped_for_simple_tiers(mock_gateway_services, tier):
     mock_ld.score_faithfulness.assert_called_once()
     assert result["is_faithful"] is True
     assert result["verification"]["passed"] is True
-    assert result["verification"]["details"] == "Bypassed for simple query tier"
+    assert "claims" in result["verification"]
 
 
 @pytest.mark.asyncio
@@ -159,13 +190,20 @@ async def test_cove_skipped_for_standard_tier(mock_gateway_services):
     gateway.verify_answer.assert_not_called()
     assert result["is_faithful"] is True
     assert result["verification"]["passed"] is True
-    assert result["verification"]["details"] == "Bypassed for standard tier short answer"
+    assert "claims" in result["verification"]
 
 
 @pytest.mark.asyncio
 async def test_cove_disabled_via_settings(monkeypatch, mock_gateway_services):
     """When tier3_complex is added to the disabled list, gateway CoVe is skipped."""
-    gateway, _ = mock_gateway_services
+    gateway, mock_ld = mock_gateway_services
+    mock_ld.score_faithfulness.return_value = {
+        "is_faithful": False,
+        "score": 0.5,
+        "details": "Suspect",
+        "unsupported_sentences": ["bad"],
+        "claims": [{"text": "bad", "score": 0.5, "supported": False}],
+    }
     monkeypatch.setattr(
         "rag.nodes.verification.settings.rag_cove_disabled_for_tiers",
         ["fast", "tier2_simple", "standard", "tier3_complex"],
@@ -175,8 +213,8 @@ async def test_cove_disabled_via_settings(monkeypatch, mock_gateway_services):
     result = await nodes.verify_answer(state)
 
     gateway.verify_answer.assert_not_called()
-    assert result["is_faithful"] is True
-    assert result["verification"]["passed"] is True
+    assert result["is_faithful"] is False
+    assert result["verification"]["passed"] is False
 
 
 @pytest.mark.asyncio
@@ -205,7 +243,14 @@ async def test_cove_falls_back_without_gateway(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_cove_gateway_error_fails_closed(mock_gateway_services):
-    gateway, _ = mock_gateway_services
+    gateway, mock_ld = mock_gateway_services
+    mock_ld.score_faithfulness.return_value = {
+        "is_faithful": False,
+        "score": 0.5,
+        "details": "Suspect",
+        "unsupported_sentences": ["unsupported sentence"],
+        "claims": [{"text": "unsupported sentence", "score": 0.5, "supported": False}],
+    }
     gateway.verify_answer = AsyncMock(side_effect=RuntimeError("gateway down"))
 
     state = _mock_state("tier3_complex", answer="answer text " * 20)

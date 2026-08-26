@@ -167,7 +167,14 @@ class GraphStage(Stage):
             else:
                 initial_state["ab_model"] = "primary"
 
-            budget = TimeoutBudget(total_budget=settings.pipeline_timeout)
+            # Establish admission deadline propagation as remaining time budget
+            elapsed_admission = (
+                max(0.0, time.time() - ctx.start_time)
+                if getattr(ctx, "start_time", 0.0) > 0
+                else 0.0
+            )
+            remaining_budget = max(0.0, float(settings.pipeline_timeout) - elapsed_admission)
+            budget = TimeoutBudget(total_budget=remaining_budget)
             token = budget_var.set(budget)
 
             # Reuse CacheCheckStage's preclassification when available. Direct
@@ -367,10 +374,18 @@ class GraphStage(Stage):
         config_fp = _assistant_config_fingerprint(assistant, is_authed=_is_authed)
         attachment_context = _attachment_context_from_request(chat_body)
         attachment_fp = hashlib.sha256(attachment_context.encode("utf-8")).hexdigest()[:16]
+        elapsed_admission = (
+            max(0.0, time.time() - ctx.start_time)
+            if getattr(ctx, "start_time", 0.0) > 0
+            else 0.0
+        )
+        remaining_timeout = max(0.0, float(settings.pipeline_timeout) - elapsed_admission)
         start_lat = time.time()
         try:
             # P1-BE-7: coalesce key carries a bounded digest, never raw user text.
             lang_code = lang_detection.primary.value if lang_detection else "en"
+            if remaining_timeout <= 0.0:
+                raise TimeoutError("Pipeline admission deadline expired before GraphStage execution")
             result = await asyncio.wait_for(
                 coalescer.get_or_run(
                     _coalesce_key(
@@ -385,11 +400,11 @@ class GraphStage(Stage):
                     ),
                     run,
                 ),
-                timeout=settings.pipeline_timeout,
+                timeout=remaining_timeout,
             )
         except TimeoutError:
             logger.warning(
-                f"Pipeline outer timeout ({settings.pipeline_timeout}s) exceeded. Returning graceful fallback."
+                f"Pipeline deadline ({remaining_timeout:.1f}s remaining of {settings.pipeline_timeout}s) exceeded. Returning graceful fallback."
             )
             fallback = {
                 "final_answer": "The Guru took too long to respond. Please try again.",

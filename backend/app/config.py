@@ -764,7 +764,7 @@ class Settings(BaseSettings):
     # Local measurement control: when enabled, all application cache reads and
     # writes are bypassed so latency samples represent the uncached path.
     latency_benchmark_cache_disabled: bool = False
-    semantic_cache_similarity: float = 0.90  # E3.4: lowered from 0.87/0.92 to improve hit rate
+    semantic_cache_similarity: float = 0.92  # Correctness floor, not a tuning knob: below 0.92 dissimilar queries false-hit and one seeker's answer gets served as doctrine to a different seeker. Do not lower.
     intent_prerouter_cache_hint_enabled: bool = True  # E3.1: hint cache-first for FACTUAL/CASUAL
     semantic_cache_ttl: int = 604800  # Cache TTL in seconds (7 days)
     guardrails_llm_enabled: bool = False  # Toggle LLM-based guardrail checks
@@ -1129,8 +1129,8 @@ class Settings(BaseSettings):
     rag_cove_disabled_for_tiers: list[str] = ["fast", "tier2_simple", "standard"]
     # CoVe compulsory threshold: if faithfulness_score < this, CoVe fires regardless of tier.
     cove_compulsory_threshold: float = 0.6  # same as faithfulness_floor
-    # Agentic Graph Traversal configuration (for COMPARATIVE intent + tier3_complex)
-    agentic_graph_traversal_enabled: bool = True
+    # Agentic Graph Traversal configuration (disabled by default for standard/deep hot paths)
+    agentic_graph_traversal_enabled: bool = False
     agentic_graph_max_steps: int = 3
     agentic_graph_fast_model: str = "nim:meta/llama-3.1-8b-instruct"
     agentic_graph_timeout_per_step: int = 15

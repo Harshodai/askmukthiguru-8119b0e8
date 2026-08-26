@@ -1152,8 +1152,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     knowledge_tags = state.get("knowledge_tags") or []
     embedder = _services._embedder
     qdrant = _services._qdrant
-
-    primary_query_limit = 1 if query_tier in ("fast", "tier2_simple") else 6
+    primary_query_limit = 1 if query_tier in ("fast", "tier2_simple") else 2
     primary_queries = list(dict.fromkeys(sub_queries))[:primary_query_limit]
     # Batch-encode ALL primary queries in ONE encode_batch call.
     # Collapses 6 `_inference_lock` acquisitions into 1 (66.7s -> ~3.5s
@@ -1279,7 +1278,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     )
     retrieval_stage_times["expansion_planner_soft_wait_ms"] = round(soft_wait, 1) if expansion_task is not None else 0.0
     expansion_results: list = []
-    remaining_budget = max(0, 6 - len(primary_queries))
+    remaining_budget = max(0, 2 - len(primary_queries))
     if expansion_queries and remaining_budget > 0:
         # Dedupe against the queries we already ran
         already = set(primary_queries)
@@ -1318,7 +1317,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     retrieval_queries = (
         primary_queries
         + [q for q in (expansion_queries or []) if q not in set(primary_queries)][
-            : max(0, 6 - len(primary_queries))
+            : max(0, 2 - len(primary_queries))
         ]
     )
     all_results = list(primary_results) + list(expansion_results)

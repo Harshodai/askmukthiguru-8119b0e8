@@ -36,6 +36,14 @@ async def _score_faithfulness_bounded(
     semantic: bool = False,
 ) -> dict:
     """Run the local faithfulness scorer under a hard wall-clock budget."""
+    if lettuce_detect is None:
+        return {
+            "score": 0.0,
+            "is_faithful": False,
+            "details": "LettuceDetect service not available",
+            "claims": [],
+            "unsupported_sentences": [],
+        }
     timeout = float(getattr(settings, "faithfulness_verification_timeout", 8.0))
     try:
         return await asyncio.wait_for(
@@ -57,6 +65,8 @@ async def _score_faithfulness_bounded(
             "score": 0.0,
             "is_faithful": False,
             "timed_out": True,
+            "claims": [],
+            "unsupported_sentences": [],
         }
 
 
@@ -235,10 +245,11 @@ async def reflect_on_answer(state: GraphState, config: dict = None) -> dict:
 async def verify_answer(state: GraphState, config: dict = None) -> dict:
     """Enhanced Combined Self-RAG + CoVe verification with actual claim verification.
 
-    CoVe is feature-flagged via `rag_cove_disabled` (default: False = enabled).
-    When faithfulness_score < settings.cove_compulsory_threshold, CoVe fires
-    regardless of query_tier — even fast/tier2 queries are verified if the
-    answer confidence is suspect.
+    Local NLI claim entailment (LettuceDetect) directly informs is_valid and
+    the returned verification dictionary. When claim-level support passes
+    (faithfulness >= settings.faithfulness_floor and no unsupported claims),
+    verification is accepted locally without dispatching an expensive secondary
+    LLM round-trip.
     """
     answer = state.get("answer", "")
     relevant_docs = state.get("relevant_docs", [])
@@ -255,7 +266,11 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
     ):
         return {
             "is_faithful": True,
-            "verification": {"passed": True, "details": "Bounded safety/abstention response; claim verification skipped"},
+            "verification": {
+                "passed": True,
+                "details": "Bounded safety/abstention response; claim verification skipped",
+                "claims": [],
+            },
             "confidence_score": 0.0,
             "faithfulness_score": 0.0,
             "relevancy_score": 0.0,
@@ -272,12 +287,116 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
             "is_faithful": True,
             "no_context": True,
             "grounding_state": "abstained",
-            "verification": {"passed": True, "details": "No content to verify"},
+            "verification": {
+                "passed": True,
+                "details": "No content to verify",
+                "claims": [],
+            },
             "confidence_score": 2.0,
             "faithfulness_score": 0.0,
             "relevancy_score": 0.0,
         }
 
+    context = "\n\n".join(doc_text(doc) for doc in relevant_docs)
+    if not context or len(context.strip()) < 200:
+        logger.warning("Combined verify: context too short — fast-fail")
+        return {
+            "is_faithful": False,
+            "verification": {
+                "passed": False,
+                "details": "Context too short — unverified",
+                "claims": [],
+            },
+            "confidence_score": 0.0,
+            "faithfulness_score": 0.0,
+            "relevancy_score": 0.0,
+        }
+
+    lettuce_detect = _services._lettuce_detect
+    ld_result = state.get("lettuce_detect_result")
+    if ld_result is None:
+        await emit_status(config, "Verifying alignment with the teachings...")
+        ld_result = await _score_faithfulness_bounded(
+            lettuce_detect, question, context, answer, semantic=True
+        )
+    else:
+        logger.info("Combined verify: reusing cached lettuce_detect_result from self-reflection")
+
+    faithfulness_score = float(ld_result.get("score", 0.0))
+    claims = list(ld_result.get("claims", []))
+    unsupported_sentences = list(ld_result.get("unsupported_sentences", []))
+
+    # Evaluate claim-level support
+    unsupported_claims = [c for c in claims if not c.get("supported", False)]
+    has_unsupported_claims = bool(unsupported_claims) or bool(unsupported_sentences)
+    faithfulness_floor = float(getattr(settings, "faithfulness_floor", 0.70))
+    meets_faithfulness_floor = faithfulness_score >= faithfulness_floor
+    claim_level_passed = (
+        bool(ld_result.get("is_faithful", False))
+        and meets_faithfulness_floor
+        and not has_unsupported_claims
+    )
+
+    # A2.6 / A2.7: When claim-level support passes (faithfulness >= settings.faithfulness_floor
+    # and no unsupported critical claims), accept the verification locally without dispatching
+    # an expensive secondary LLM verification round-trip.
+    if claim_level_passed:
+        logger.info(
+            "Combined verify: Local NLI claim entailment passed — "
+            "faithfulness=%.2f (floor=%.2f), claims=%d/%d supported. "
+            "Skipping expensive secondary LLM round-trip.",
+            faithfulness_score,
+            faithfulness_floor,
+            len(claims) - len(unsupported_claims),
+            len(claims),
+        )
+        _conf_state = {
+            **state,
+            "faithfulness_score": faithfulness_score,
+            "verification": {
+                "passed": True,
+                "score": faithfulness_score,
+                "cove_pass_ratio": 1.0,
+                "claims": claims,
+            },
+        }
+        ensemble_score = calculate_confidence(_conf_state)
+        confidence_score = ensemble_score if ensemble_score >= 8.0 else faithfulness_score * 10.0
+        confidence_reason = calculate_confidence_reason(_conf_state) if ensemble_score >= 8.0 else None
+
+        try:
+            VERIFICATION_RESULTS.labels(result="faithful").inc()
+            VERIFICATION_RESULTS.labels(result="pass").inc()
+            CONFIDENCE_SCORES.observe(confidence_score)
+            FAITHFULNESS_SCORE.observe(faithfulness_score)
+            RELEVANCY_SCORE.observe(1.0)
+        except Exception as exc:
+            logger.warning(f"Prometheus metrics failed during verification: {exc}")
+
+        details = (
+            f"Local NLI claim verification passed "
+            f"({len(claims)} claims grounded, score: {faithfulness_score:.2f})"
+            if claims
+            else f"Local NLI verification passed (score: {faithfulness_score:.2f})"
+        )
+
+        return {
+            "is_faithful": True,
+            "verification": {
+                "passed": True,
+                "details": details,
+                "cove_pass_ratio": 1.0,
+                "claims": claims,
+            },
+            "confidence_score": confidence_score,
+            "confidence_reason": confidence_reason,
+            "confidence_calibration_status": confidence_calibration_status(),
+            "faithfulness_score": faithfulness_score,
+            "relevancy_score": 1.0,
+        }
+
+    # When claim-level support fails (low faithfulness score or unsupported claims):
+    # Check if secondary LLM verification via gateway is configured for complex queries.
     cove_enabled_tier = (
         not getattr(settings, "rag_cove_disabled", False)
         and query_tier in ("tier3_complex", "tier4_deep")
@@ -287,234 +406,46 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
         )
     )
 
-    # CoVe is enabled for tier3_complex / tier4_deep when not in the disabled list.
-    # Use the LLM gateway for combined verification; if unavailable or it errors,
-    # fall through to the legacy LettuceDetect path (fail-closed behavior is kept
-    # inside _verify_with_gateway).
-    if cove_enabled_tier:
-        gateway_result = await _verify_with_gateway(state, config)
+    if cove_enabled_tier and _services._llm_gateway is not None:
+        state_with_ld = dict(state)
+        state_with_ld["lettuce_detect_result"] = ld_result
+        gateway_result = await _verify_with_gateway(state_with_ld, config)
         if gateway_result is not None:
+            if "verification" in gateway_result:
+                if not gateway_result["verification"].get("claims"):
+                    gateway_result["verification"]["claims"] = claims
             return gateway_result
-        # If gateway is unavailable, continue to legacy verification below.
 
-    # --- rag_parallel_verify fast-exit (Ruthless Audit Phase 1 TTFT) ---
-    # Skips only the EXPENSIVE CoVe sub-question check (~60s LLM call) for
-    # tier3_complex. It must NOT skip the faithfulness check itself:
-    # LettuceDetect is a local embedding/lexical scorer (no LLM round-trip,
-    # often already computed and cached by reflect_on_answer), so running it
-    # here costs effectively nothing.
-    if getattr(settings, "rag_parallel_verify", True) and query_tier == "tier3_complex":
-        lettuce_detect = _services._lettuce_detect
-        context = "\n\n".join(doc_text(doc) for doc in relevant_docs)
-
-        if not context or len(context.strip()) < 200:
-            logger.warning(
-                "Combined verify: parallel_verify fast-exit — context too short, rejecting"
-            )
-            return {
-                "is_faithful": False,
-                "verification": {
-                    "passed": False,
-                    "details": "Context too short for scoring — unverified (fast-exit)",
-                },
-                "confidence_score": 0.0,
-                "faithfulness_score": 0.0,
-                "relevancy_score": 0.0,
-            }
-
-        ld_result = state.get("lettuce_detect_result")
-        if ld_result is None:
-            ld_result = await _score_faithfulness_bounded(
-                lettuce_detect, question, context, answer
-            )
-        faithfulness_score = ld_result["score"]
-        # Task #41: settings.faithfulness_floor was previously only referenced in
-        # a log/feedback string -- LettuceDetect's strict per-sentence verdict
-        # alone decided is_valid, so a scored-but-under-floor answer (measured:
-        # ~10% of production traffic) still passed. Every branch below reuses
-        # this variable, so gating it here closes the gap for this fast-exit path.
-        is_faithful_ld = (
-            ld_result["is_faithful"] and faithfulness_score >= settings.faithfulness_floor
-        )
-
-        # Only fast-exit when the faithfulness score meets the compulsory CoVe
-        # threshold.  Below that threshold the answer is suspect enough to
-        # warrant the full CoVe sub-question check (~60 s LLM call).
-        cove_compulsory = getattr(settings, "cove_compulsory_threshold", 0.6)
-        if faithfulness_score >= cove_compulsory:
-            logger.info(
-                f"Combined verify: parallel_verify fast-exit for tier3_complex — "
-                f"LettuceDetect faithfulness={faithfulness_score:.2f} ({'YES' if is_faithful_ld else 'NO'}), "
-                f"CoVe/consistency skipped for TTFT"
-            )
-            return {
-                "is_faithful": is_faithful_ld,
-                "verification": {
-                    "passed": is_faithful_ld,
-                    "details": "Parallel verify fast-exit (tier3_complex) — LettuceDetect checked, CoVe skipped",
-                },
-                "confidence_score": (faithfulness_score * 10.0) if is_faithful_ld else 3.0,
-                "faithfulness_score": faithfulness_score,
-                "relevancy_score": faithfulness_score,
-            }
-        logger.info(
-            f"Combined verify: parallel_verify fast-exit GUARDED for tier3_complex — "
-            f"faithfulness={faithfulness_score:.2f} < cove_compulsory={cove_compulsory}, "
-            f"falling through to full CoVe sub-question check"
-        )
-
-    lettuce_detect = _services._lettuce_detect
-    ollama = _services._ollama  # noqa: F841 — preserved per "do not delete" mandate; used by disabled CoVe + self-consistency blocks below
-
-    await emit_status(config, "Verifying alignment with the teachings...")
-    context = "\n\n".join(doc_text(doc) for doc in relevant_docs)
-    if not context or len(context.strip()) < 200:
-        logger.warning("Combined verify: context too short — fast-fail")
-        return {
-            "is_faithful": False,
-            "verification": {"passed": False, "details": "Context too short — unverified"},
-            "confidence_score": 0.0,
-            "faithfulness_score": 0.0,
-            "relevancy_score": 0.0,
-        }
-
-    ld_result = state.get("lettuce_detect_result")
-    if ld_result is None:
-        ld_result = await _score_faithfulness_bounded(
-            lettuce_detect, question, context, answer
-        )
-    else:
-        logger.info("Combined verify: reusing cached lettuce_detect_result from self-reflection")
-    faithfulness_score = ld_result["score"]
-    # Task #41: settings.faithfulness_floor was previously only referenced in a
-    # log/feedback string -- LettuceDetect's strict per-sentence verdict alone
-    # decided is_valid here and in every downstream fast-exit/short-answer
-    # branch and the final is_valid at the bottom of this function, all of
-    # which reuse this variable. Gating it here closes the gap everywhere.
-    is_faithful_ld = ld_result["is_faithful"] and faithfulness_score >= settings.faithfulness_floor
-
-    # Compulsory CoVe: if faithfulness is low enough, fire regardless of tier.
-    cove_compulsory_threshold = getattr(settings, "cove_compulsory_threshold", 0.6)
-    cove_disabled = getattr(settings, "rag_cove_disabled", False)
+    # Compulsory CoVe check with Ollama if configured
+    cove_compulsory_threshold = float(getattr(settings, "cove_compulsory_threshold", 0.6))
+    cove_disabled = bool(getattr(settings, "rag_cove_disabled", False))
     should_run_cove = not cove_disabled and (
-        query_tier == "tier3_complex"
-        or faithfulness_score < cove_compulsory_threshold  # compulsory for ANY tier
+        query_tier in ("tier3_complex", "tier4_deep")
+        or faithfulness_score < cove_compulsory_threshold
     )
 
-    # Skip verbose for fast/simple tier AND high-confidence answers — no latency cost
-    if query_tier in ("fast", "tier2_simple") and faithfulness_score >= cove_compulsory_threshold:
-        logger.info(
-            "Combined verify: fast tier + high faithfulness (%.2f) — bypassing full verification",
-            faithfulness_score,
-        )
-        return {
-            "is_faithful": is_faithful_ld,
-            "verification": {"passed": is_faithful_ld, "details": "Bypassed for simple query tier"},
-            "confidence_score": faithfulness_score * 10.0,
-            "faithfulness_score": faithfulness_score,
-            "relevancy_score": faithfulness_score,
-        }
-
-    # Short-answer skip for standard tier with adequate faithfulness
-    if (
-        query_tier == "standard"
-        and len(answer) < 150
-        and faithfulness_score >= cove_compulsory_threshold
-    ):
-        logger.info("Combined verify: standard tier with short answer + good score — bypassing")
-        # Short-answer fast path: use the multi-signal ensemble so tests with
-        # populated reranked_docs can hit the 8.0 confidence threshold, but
-        # fall back to raw faithfulness when retrieval signals are absent.
-        _conf_state = {
-            **state,
-            "faithfulness_score": faithfulness_score,
-            "verification": {
-                "passed": is_faithful_ld,
-                "cove_pass_ratio": 1.0,
-                "score": faithfulness_score,
-            },
-        }
-        ensemble_score = calculate_confidence(_conf_state)
-        confidence_score = ensemble_score if ensemble_score >= 8.0 else faithfulness_score * 10.0
-        return {
-            "is_faithful": is_faithful_ld,
-            "verification": {
-                "passed": is_faithful_ld,
-                "details": "Bypassed for standard tier short answer",
-            },
-            "confidence_score": confidence_score,
-            "confidence_reason": calculate_confidence_reason(_conf_state)
-            if ensemble_score >= 8.0
-            else None,
-            "faithfulness_score": faithfulness_score,
-            "relevancy_score": faithfulness_score,
-        }
-
-    # tier3_complex fast-exit: LettuceDetect only (skip full CoVe for speed) UNLESS faithfulness is suspect
-    if (
-        getattr(settings, "rag_parallel_verify", True)
-        and query_tier == "tier3_complex"
-        and faithfulness_score >= cove_compulsory_threshold
-    ):
-        logger.info(
-            "Combined verify: parallel_verify fast-exit for tier3_complex — "
-            "LettuceDetect faithfulness=%.2f (PASS), CoVe skipped (adequate score)",
-            faithfulness_score,
-        )
-        return {
-            "is_faithful": is_faithful_ld,
-            "verification": {
-                "passed": is_faithful_ld,
-                "details": "Parallel verify fast-exit (tier3_complex) — LettuceDetect checked, CoVe skipped",
-            },
-            "confidence_score": (faithfulness_score * 10.0) if is_faithful_ld else 3.0,
-            "faithfulness_score": faithfulness_score,
-            "relevancy_score": faithfulness_score,
-        }
-
-    ollama = _services._ollama  # noqa: F841 — used by CoVe sub-question block below
-
-    await emit_status(config, "Verifying alignment with the teachings...")
-
-    # --- CoVe: fires when faithfulness is suspect OR tier3_complex ---
-    cove_failed = False
-    cove_pass_ratio = 1.0  # default when CoVe not run (no claim check)
-    if should_run_cove:
+    cove_failed = True
+    cove_pass_ratio = 0.0
+    cove_details = ""
+    ollama = _services._ollama
+    if should_run_cove and ollama:
         try:
             cove_result = await asyncio.wait_for(
                 _cove_subquestion_check(question, answer, context, ollama),
                 timeout=float(getattr(settings, "cove_verification_timeout", 12.0)),
             )
+            cove_failed = not cove_result["passed"]
+            cove_pass_ratio = float(cove_result.get("ratio", 0.0 if cove_failed else 1.0))
+            cove_details = cove_result.get("details", "")
         except TimeoutError:
             logger.warning("Combined verify: CoVe deadline exceeded; using bounded unverified verdict")
-            cove_result = {
-                "passed": False,
-                "ratio": 0.0,
-                "details": "CoVe deadline exceeded; answer remains unverified",
-            }
-        cove_failed = not cove_result["passed"]
-        claim_verification_passed = not cove_failed
-        claim_verification_details = cove_result["details"]
-        # Preserve the computed ratio from CoVe; keep 0.0 when CoVe fails without a ratio.
-        cove_pass_ratio = float(cove_result.get("ratio", 0.0 if cove_failed else 1.0))
-    else:
-        # Finding #43: non-tier3 queries use lightweight single-claim
-        # check instead of hard-coded pass=True
-        if state.get("query_tier") == "tier3_complex":
-            logger.info("Combined verify: CoVe skipped (disabled by rag_cove_disabled)")
-        claim_verification_passed = is_faithful_ld
-        claim_verification_details = (
-            f"Lightweight claim check (non-tier3): faithful={is_faithful_ld}"
-        )
-    # --- END CoVe ---
-    consistency_check_passed = True
-    consistency_feedback = ""
+            cove_details = "CoVe deadline exceeded"
+        except Exception as e:
+            logger.warning(f"Combined verify: CoVe check failed: {e}")
+            cove_details = f"CoVe error: {e}"
 
-    is_valid = is_faithful_ld and not cove_failed
+    is_valid = claim_level_passed and not cove_failed
 
-    # ── Multi-signal confidence ensemble ──────────────────────────────────
-    # Build an intermediate state snapshot with the signals that are already
-    # computed so calculate_confidence can do weighted aggregation.
     _conf_state = {
         **state,
         "faithfulness_score": faithfulness_score,
@@ -522,49 +453,46 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
             "passed": is_valid,
             "score": faithfulness_score,
             "cove_pass_ratio": cove_pass_ratio,
+            "claims": claims,
         },
     }
     confidence_score = calculate_confidence(_conf_state)
-    confidence_reason = calculate_confidence_reason(_conf_state)
+    confidence_reason = calculate_confidence_reason(_conf_state) if is_valid else None
 
     try:
-        VERIFICATION_RESULTS.labels(result="faithful" if is_faithful_ld else "hallucinated").inc()
+        VERIFICATION_RESULTS.labels(result="faithful" if is_valid else "hallucinated").inc()
         VERIFICATION_RESULTS.labels(result="pass" if is_valid else "fail").inc()
         CONFIDENCE_SCORES.observe(confidence_score)
-    except Exception as exc:
-        logger.warning(f"Prometheus metrics failed during verification: {exc}")
-
-    relevancy_score = 1.0 if is_valid else faithfulness_score
-
-    try:
         FAITHFULNESS_SCORE.observe(faithfulness_score)
-        RELEVANCY_SCORE.observe(relevancy_score)
+        RELEVANCY_SCORE.observe(1.0 if is_valid else faithfulness_score)
     except Exception as exc:
         logger.warning(f"Prometheus metrics failed during verification: {exc}")
 
-    logger.info(
-        f"Combined verify (Enhanced): "
-        f"faithfulness={faithfulness_score:.2f} ({'YES' if is_faithful_ld else 'NO'}), "
-        f"claim_verification={'PASS' if claim_verification_passed else 'FAIL'}, "
-        f"consistency={'PASS' if consistency_check_passed else 'FAIL'}, "
-        f"verdict={'PASS' if is_valid else 'FAIL'}, "
-        f"confidence={confidence_score:.1f}"
+    unsupported_summary = (
+        "; ".join(f"'{c.get('text', '')}'" for c in unsupported_claims)
+        if unsupported_claims
+        else "; ".join(f"'{s}'" for s in unsupported_sentences)
     )
-
-    verification_details = f"Faithfulness: {faithfulness_score:.2f}; {claim_verification_details}; {consistency_feedback}"
+    verification_details = (
+        f"Faithfulness: {faithfulness_score:.2f} (floor={faithfulness_floor:.2f}); "
+        f"Unsupported claims: {unsupported_summary or 'none'}"
+    )
+    if cove_details:
+        verification_details += f"; {cove_details}"
 
     return {
-        "is_faithful": is_faithful_ld,
+        "is_faithful": is_valid,
         "verification": {
             "passed": is_valid,
             "details": verification_details,
             "cove_pass_ratio": cove_pass_ratio,
+            "claims": claims,
         },
         "confidence_score": confidence_score,
         "confidence_reason": confidence_reason,
         "confidence_calibration_status": confidence_calibration_status(),
         "faithfulness_score": faithfulness_score,
-        "relevancy_score": relevancy_score,
+        "relevancy_score": 1.0 if is_valid else faithfulness_score,
     }
 
 
@@ -585,11 +513,14 @@ async def _verify_with_gateway(state: GraphState, config: dict | None) -> dict |
     relevant_docs = state.get("relevant_docs", [])
     context = "\n\n".join(doc_text(doc) for doc in relevant_docs)
 
+    ld_result = state.get("lettuce_detect_result")
+    claims = list(ld_result.get("claims", [])) if isinstance(ld_result, dict) else []
+
     if not context or len(context.strip()) < 200:
         logger.warning("verify_with_gateway: context too short for CoVe verification")
         return {
             "is_faithful": False,
-            "verification": {"passed": False, "details": "Context too short for CoVe verification"},
+            "verification": {"passed": False, "details": "Context too short for CoVe verification", "claims": claims},
             "confidence_score": 0.0,
             "faithfulness_score": 0.0,
             "relevancy_score": 0.0,
@@ -605,7 +536,7 @@ async def _verify_with_gateway(state: GraphState, config: dict | None) -> dict |
         logger.warning("verify_with_gateway: gateway verification exceeded bounded deadline")
         return {
             "is_faithful": False,
-            "verification": {"passed": False, "details": "Gateway CoVe deadline exceeded; answer remains unverified"},
+            "verification": {"passed": False, "details": "Gateway CoVe deadline exceeded; answer remains unverified", "claims": claims},
             "confidence_score": 0.0,
             "faithfulness_score": 0.0,
             "relevancy_score": 0.0,
@@ -614,7 +545,7 @@ async def _verify_with_gateway(state: GraphState, config: dict | None) -> dict |
         logger.error(f"verify_with_gateway: gateway verify_answer failed: {exc}")
         return {
             "is_faithful": False,
-            "verification": {"passed": False, "details": f"Gateway CoVe error: {exc}"},
+            "verification": {"passed": False, "details": f"Gateway CoVe error: {exc}", "claims": claims},
             "confidence_score": 0.0,
             "faithfulness_score": 0.0,
             "relevancy_score": 0.0,
@@ -632,7 +563,7 @@ async def _verify_with_gateway(state: GraphState, config: dict | None) -> dict |
 
     return {
         "is_faithful": is_faithful,
-        "verification": {"passed": passed, "details": details},
+        "verification": {"passed": passed, "details": details, "claims": claims},
         "confidence_score": confidence,
         "faithfulness_score": confidence / 10.0,
         "relevancy_score": 1.0 if passed else confidence / 10.0,

@@ -127,7 +127,10 @@ def test_gating_ignores_non_comparative_simple_tier():
     assert result == {}, "Should bypass traversal for non-COMPARATIVE / non-complex"
 
 
-def test_gating_triggers_for_comparative_tier2():
+def test_gating_triggers_for_comparative_tier2(monkeypatch):
+    from rag.nodes import _services
+    monkeypatch.setattr(_services, "_ollama", None)
+    monkeypatch.setattr(agt, "ENABLED", True)
     # COMPARATIVE + a non-tier3 tier should still trigger (intent gate wins)
     state = _base_state(intent="COMPARATIVE", query_tier="standard")
     # Provide traversal context so we skip the Neo4j init path
@@ -150,7 +153,8 @@ def test_gating_disabled_returns_empty(monkeypatch):
     assert asyncio.run(agt.agentic_graph_traversal(state)) == {}
 
 
-def test_gating_tier3_complex_triggers_without_comparative():
+def test_gating_tier3_complex_triggers_without_comparative(monkeypatch):
+    monkeypatch.setattr(agt, "ENABLED", True)
     state = _base_state(intent="FACTUAL", query_tier="tier3_complex")
     state["graph_traversal_context"] = [
         {"concept_id": "Karma", "node_data": {"entity_id": "Karma", "name": "Karma"}, "step": 0}
@@ -345,7 +349,10 @@ def test_get_graph_traversal_context():
 # --------------------------------------------------------------------------- #
 # Full ReAct loop (mocked LLM + init)
 # --------------------------------------------------------------------------- #
-def test_full_react_loop_first_step_done():
+def test_full_react_loop_first_step_done(monkeypatch):
+    from rag.nodes import _services
+    monkeypatch.setattr(_services, "_ollama", None)
+    monkeypatch.setattr(agt, "ENABLED", True)
     state = _base_state()
     state["graph_traversal_context"] = [
         {
