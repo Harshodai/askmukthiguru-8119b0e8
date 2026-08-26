@@ -7769,3 +7769,7 @@ A loop runner should execute independent checks separately, write one log per ga
 ### L-LATENCY-8. A failed paired wave is a release finding, not a performance result
 - **Finding**: The final cache-disabled n=20-per-fixture wave produced only one eligible row before a `ConnectionResetError` regime; route percentiles were correctly suppressed and no all-tier latency delta was claimed. The full backend suite nevertheless passed `2471 passed, 30 skipped, 1 warning`.
 - **Rule**: Separate code/test validity from runtime benchmark validity. Do not claim a major latency reduction until the same source-matched runtime delivers at least 20 completed, cache-free, cache-hit-free rows in every comparison stratum.
+
+### L-LATENCY-9. Full-bank benchmark load must respect container memory
+- **Finding**: A fresh all-question cache-disabled wave reached at least `complex_multi_hop-0017` before the backend reported `OOMKilled=true`; the runner was stopped and no incomplete output was treated as a finished benchmark.
+- **Rule**: A complete question-bank run is not automatically a safe load test. Schedule bounded category batches with cooldowns, record cgroup/container memory, and stop on OOM or connection resets. Preserve the partial log as a reliability finding, never as a latency gain/loss.
