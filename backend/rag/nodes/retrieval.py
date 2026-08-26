@@ -40,6 +40,7 @@ from .utils import (
     inject_doctrine_keywords,
     log_metrics,
     settings,
+    should_use_hyde,
     stable_document_key,
 )
 
@@ -652,7 +653,11 @@ async def generate_hyde(state: GraphState, config: dict = None) -> dict:
     if state.get("query_tier") in ("fast", "tier2_simple"):
         return {"hyde_text": None}
 
-    if not settings.rag_use_hyde:
+    if not should_use_hyde(state):
+        if settings.rag_use_hyde:
+            logger.info(
+                "HyDE bypass: disabled for Indic request by rag_indic_use_hyde policy"
+            )
         return {"hyde_text": None}
 
     await emit_status(config, "Imagining the shape of the answer...")
@@ -1130,12 +1135,14 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     # query already carries the user's wording and doctrine expansion. Running
     # an additional LLM planner here created avoidable 10–60s tails, especially
     # for code-switched and Indic questions.
+    expansion_outcome = "policy_disabled"
     if (
         query_tier in ("fast", "tier2_simple")
         or getattr(settings, "rag_skip_retrieval_expansions", False)
     ):
         expansion_task = None
     else:
+        expansion_outcome = "pending"
         expansion_task = asyncio.create_task(_llm_retrieval_expansions(state))
 
     chat_history = state.get("chat_history", [])
@@ -1242,15 +1249,35 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     expansion_started = time.perf_counter()
     expansion_queries = []
     if expansion_task is not None:
+        # The planner is an optional recall enhancement, not a prerequisite for
+        # grounded retrieval. Primary Qdrant/BM25 results are already available
+        # here, so a slow provider call must not extend the request tail. The
+        # timeout cancels the task to release the shared LLM queue slot rather
+        # than leaving an orphaned provider request running in the background.
+        soft_wait = max(
+            0.0,
+            float(getattr(settings, "rag_retrieval_expansion_soft_wait_seconds", 0.35)),
+        )
         try:
-            expansion_queries = await expansion_task
+            expansion_queries = await asyncio.wait_for(expansion_task, timeout=soft_wait)
+            expansion_outcome = "completed"
+        except TimeoutError:
+            expansion_outcome = "soft_timeout"
+            logger.info(
+                "LLM retrieval expansion exceeded soft wait budget (%.3fs); "
+                "continuing with primary retrieval",
+                soft_wait,
+            )
+            expansion_queries = []
         except Exception as exp_err:
+            expansion_outcome = "error"
             logger.warning(f"LLM retrieval expansion failed (non-fatal): {exp_err}")
             expansion_queries = []
 
     retrieval_stage_times["expansion_planner_wait_ms"] = round(
         (time.perf_counter() - expansion_started) * 1000, 1
     )
+    retrieval_stage_times["expansion_planner_soft_wait_ms"] = round(soft_wait, 1) if expansion_task is not None else 0.0
     expansion_results: list = []
     remaining_budget = max(0, 6 - len(primary_queries))
     if expansion_queries and remaining_budget > 0:
@@ -1633,6 +1660,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
             retrieval_queries=retrieval_queries,
             retrieved_count=len(all_docs),
             llm_expansion_count=len(expansion_queries),
+            retrieval_expansion_outcome=expansion_outcome,
             retrieved_sources=_grounded_citation_urls(all_docs),
             **graph_trace,
         ),

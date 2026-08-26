@@ -1,4 +1,4 @@
-from __future__ import annotations
+"""Bounded concurrency gate and content-free latency attribution for LLM calls."""
 
 import asyncio
 import logging
@@ -25,6 +25,8 @@ class LLMQueueService:
         self._total_completed = 0
         self._total_failed = 0
         self._wait_times: list[float] = []
+        self._wait_times_by_operation: dict[str, list[float]] = {}
+        self._wait_times_by_priority: dict[str, list[float]] = {}
         self._max_wait_time_log = 100
         self._running = False
         self._workers: list[asyncio.Task] = []
@@ -71,7 +73,41 @@ class LLMQueueService:
         self._workers.clear()
         logger.info("LLMQueueService stopped")
 
-    async def execute(self, priority: LLMPriority, provider_call, *args, **kwargs) -> Any:
+    def _record_wait(self, priority: LLMPriority, operation: str | None, wait_time: float) -> None:
+        """Record bounded, content-free wait attribution for tuning decisions."""
+        self._wait_times.append(wait_time)
+        if len(self._wait_times) > self._max_wait_time_log:
+            self._wait_times.pop(0)
+
+        labels = {
+            "operation": (operation or "unknown").strip()[:64] or "unknown",
+            "priority": priority.name.lower(),
+        }
+        for target, key in (
+            (self._wait_times_by_operation, labels["operation"]),
+            (self._wait_times_by_priority, labels["priority"]),
+        ):
+            values = target.setdefault(key, [])
+            values.append(wait_time)
+            if len(values) > self._max_wait_time_log:
+                values.pop(0)
+
+    @staticmethod
+    def _average_waits(values: dict[str, list[float]]) -> dict[str, float]:
+        return {
+            key: round(sum(samples) / len(samples) * 1000, 2)
+            for key, samples in values.items()
+            if samples
+        }
+
+    async def execute(
+        self,
+        priority: LLMPriority,
+        provider_call,
+        *args,
+        operation: str | None = None,
+        **kwargs,
+    ) -> Any:
         if not self._running:
             return await provider_call(*args, **kwargs)
 
@@ -80,9 +116,7 @@ class LLMQueueService:
 
         async with self._semaphore:
             wait_time = time.monotonic() - wait_start
-            self._wait_times.append(wait_time)
-            if len(self._wait_times) > self._max_wait_time_log:
-                self._wait_times.pop(0)
+            self._record_wait(priority, operation, wait_time)
 
             try:
                 result = await provider_call(*args, **kwargs)
@@ -92,7 +126,14 @@ class LLMQueueService:
                 self._total_failed += 1
                 raise
 
-    async def execute_stream(self, priority: LLMPriority, stream_factory, *args, **kwargs):
+    async def execute_stream(
+        self,
+        priority: LLMPriority,
+        stream_factory,
+        *args,
+        operation: str | None = None,
+        **kwargs,
+    ):
         """Streaming twin of execute(): holds the semaphore for the FULL stream
         lifetime so an in-flight stream counts against max_concurrent.
 
@@ -113,9 +154,7 @@ class LLMQueueService:
 
         async with self._semaphore:
             wait_time = time.monotonic() - wait_start
-            self._wait_times.append(wait_time)
-            if len(self._wait_times) > self._max_wait_time_log:
-                self._wait_times.pop(0)
+            self._record_wait(priority, operation, wait_time)
 
             try:
                 async for chunk in stream_factory(*args, **kwargs):
@@ -130,6 +169,8 @@ class LLMQueueService:
             "max_concurrent": self._max_concurrent,
             "queue_depth": self.queue_depth,
             "avg_wait_time_ms": round(self.avg_wait_time * 1000, 2),
+            "avg_wait_time_by_operation_ms": self._average_waits(self._wait_times_by_operation),
+            "avg_wait_time_by_priority_ms": self._average_waits(self._wait_times_by_priority),
             "total_enqueued": self._total_enqueued,
             "total_completed": self._total_completed,
             "total_failed": self._total_failed,
@@ -144,62 +185,104 @@ class QueuedLLMProvider:
 
     async def generate(self, *args, **kwargs):
         priority = kwargs.pop("priority", LLMPriority.GENERATE)
-        return await self._queue.execute(priority, self._provider.generate, *args, **kwargs)
+        return await self._queue.execute(
+            priority, self._provider.generate, *args, operation="generate", **kwargs
+        )
 
     async def generate_stream(self, *args, **kwargs):
         priority = kwargs.pop("priority", LLMPriority.GENERATE)
         async for chunk in self._queue.execute_stream(
-            priority, self._provider.generate_stream, *args, **kwargs
+            priority,
+            self._provider.generate_stream,
+            *args,
+            operation="generate_stream",
+            **kwargs,
         ):
             yield chunk
 
     async def classify(self, **kwargs):
-        return await self._queue.execute(LLMPriority.CLASSIFY, self._provider.classify, **kwargs)
+        return await self._queue.execute(
+            LLMPriority.CLASSIFY, self._provider.classify, operation="classify", **kwargs
+        )
 
     async def classify_intent_and_complexity(self, **kwargs):
         return await self._queue.execute(
-            LLMPriority.CLASSIFY, self._provider.classify_intent_and_complexity, **kwargs
+            LLMPriority.CLASSIFY,
+            self._provider.classify_intent_and_complexity,
+            operation="classify_intent_and_complexity",
+            **kwargs,
         )
 
     async def classify_distress_structured(self, message: str):
         return await self._queue.execute(
-            LLMPriority.CLASSIFY, self._provider.classify_distress_structured, message
+            LLMPriority.CLASSIFY,
+            self._provider.classify_distress_structured,
+            message,
+            operation="classify_distress_structured",
         )
 
     async def grade_relevance(self, **kwargs):
         return await self._queue.execute(
-            LLMPriority.VERIFY, self._provider.grade_relevance, **kwargs
+            LLMPriority.VERIFY,
+            self._provider.grade_relevance,
+            operation="grade_relevance",
+            **kwargs,
         )
 
     async def check_faithfulness(self, **kwargs):
         return await self._queue.execute(
-            LLMPriority.VERIFY, self._provider.check_faithfulness, **kwargs
+            LLMPriority.VERIFY,
+            self._provider.check_faithfulness,
+            operation="check_faithfulness",
+            **kwargs,
         )
 
     async def verify_answer(self, **kwargs):
-        return await self._queue.execute(LLMPriority.VERIFY, self._provider.verify_answer, **kwargs)
+        return await self._queue.execute(
+            LLMPriority.VERIFY,
+            self._provider.verify_answer,
+            operation="verify_answer",
+            **kwargs,
+        )
 
     async def decompose_query(self, **kwargs):
         return await self._queue.execute(
-            LLMPriority.VERIFY, self._provider.decompose_query, **kwargs
+            LLMPriority.VERIFY,
+            self._provider.decompose_query,
+            operation="decompose_query",
+            **kwargs,
         )
 
     async def rewrite_query(self, **kwargs):
-        return await self._queue.execute(LLMPriority.VERIFY, self._provider.rewrite_query, **kwargs)
+        return await self._queue.execute(
+            LLMPriority.VERIFY,
+            self._provider.rewrite_query,
+            operation="rewrite_query",
+            **kwargs,
+        )
 
     async def generate_hyde(self, **kwargs):
         return await self._queue.execute(
-            LLMPriority.GENERATE, self._provider.generate_hyde, **kwargs
+            LLMPriority.GENERATE,
+            self._provider.generate_hyde,
+            operation="generate_hyde",
+            **kwargs,
         )
 
     async def compress_context(self, **kwargs):
         return await self._queue.execute(
-            LLMPriority.BACKGROUND, self._provider.compress_context, **kwargs
+            LLMPriority.BACKGROUND,
+            self._provider.compress_context,
+            operation="compress_context",
+            **kwargs,
         )
 
     async def translate_text(self, **kwargs):
         return await self._queue.execute(
-            LLMPriority.BACKGROUND, self._provider.translate_text, **kwargs
+            LLMPriority.BACKGROUND,
+            self._provider.translate_text,
+            operation="translate_text",
+            **kwargs,
         )
 
     async def health_check(self):

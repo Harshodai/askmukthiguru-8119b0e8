@@ -29,6 +29,11 @@ from app.pipeline.result import (
 )
 from app.pipeline.stages.base import Stage
 from app.release_manifest import get_release_manifest
+from app.routing_primitives import (
+    GREETING_RE as _GREETING_RE,
+    GREETING_VOCATIVE_RE as _GREETING_VOCATIVE_RE,
+    is_deterministic_greeting,
+)
 
 if TYPE_CHECKING:
     from app.pipeline.stages.context import PipelineContext
@@ -191,11 +196,6 @@ _WARM_GREETINGS = [
     "\U0001f64f Namaste, dear seeker! Like a Soul Sync breath, let us begin with presence. What is in your heart?",
 ]
 
-_GREETING_RE = re.compile(
-    r"^\s*(hi|hello|hey|namaste|pranam|namaskar|namasthe|greetings|"
-    r"good\s*(morning|afternoon|evening|night)|howdy|yo|hola|\U0001f64f)\s*[!.?]*\s*$",
-    re.IGNORECASE,
-)
 
 # Pure greetings are deliberately handled without a provider call.  This keeps
 # the sub-200ms short-circuit honest for supported Indic locales instead of
@@ -317,7 +317,15 @@ class CasualShortCircuitStage(Stage):
         is_indic = ctx.is_indic
         preferred_lang = ctx.preferred_lang
 
-        if _GREETING_RE.match(user_msg_en):
+        if is_deterministic_greeting(user_msg_en):
+            ctx.route_metadata.update(
+                {
+                    "requested_variant": "casual",
+                    "selected_variant": "instant_greeting",
+                    "decision_method": "deterministic_greeting",
+                    "policy_version": getattr(get_release_manifest(), "policy_version", "unknown"),
+                }
+            )
             greeting = _deterministic_greeting(preferred_lang) if is_indic else None
             if greeting is None:
                 greeting = random.choice(_WARM_GREETINGS)
@@ -406,7 +414,12 @@ class ResultAssemblyStage(Stage):
         safety_events = coordinator._build_safety_events(
             ctx.input_check or {}, ctx.output_check or {}
         )
-        spans = coordinator._build_spans(graph_result)
+        spans = coordinator._build_spans(
+            graph_result,
+            ctx.stage_telemetry,
+            ctx.queue_timing,
+            ctx.route_metadata,
+        )
         response_data = coordinator._build_response_data(graph_result, ctx.intent)
         live_logistics_events = [
             doc["live_event"]
@@ -419,7 +432,9 @@ class ResultAssemblyStage(Stage):
             intent=ctx.intent,
             meditation_step=ctx.med_step,
             citations=ctx.citations,
-            trace_id=str(uuid.uuid4()),
+            # Preserve the context trace: stage logs, graph logs, telemetry,
+            # and the public response must be joinable without a second UUID.
+            trace_id=ctx.trace_id,
             latency_ms=latency_ms,
             # The generation node records which gateway/model actually produced
             # the answer (rag/nodes/generation.py route_metadata) — report that,
@@ -477,6 +492,7 @@ class ResultAssemblyStage(Stage):
             ),
             release_manifest=get_release_manifest().to_dict(),
             provenance_context=graph_result.get("provenance_context"),
+            route_metadata=dict(ctx.route_metadata),
         )
 
         # GDPR audit trail (Unit 24) -- previously wired for reads

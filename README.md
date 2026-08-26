@@ -187,6 +187,9 @@ Populate key environment variables in `backend/.env`:
 |---|---|---|
 | `LLM_PROVIDER` | Active LLM provider (`sarvam_cloud`, `openrouter`, `nim`, `ollama`) | `nim` / `sarvam_cloud` |
 | `OPENROUTER_API_KEY` | Key for OpenRouter inference & LightRAG graph extraction | `sk-or-v1-...` |
+| `OPENROUTER_PROVIDER_SORT` | Optional server-side provider ordering (`latency`, `throughput`, or `price`); empty preserves normal OpenRouter load balancing | empty |
+| `OPENROUTER_PREFERRED_MAX_LATENCY_P90` | Optional soft provider preference for p90 latency in seconds; requires provider sorting | `0` (disabled) |
+| `OPENROUTER_PREFERRED_MIN_THROUGHPUT_P90` | Optional soft provider preference for p90 throughput in tokens/second; requires provider sorting | `0` (disabled) |
 | `SARVAM_API_KEY` | Key for Sarvam 30B Indian multilingual LLM & STT | `sarvam-...` |
 | `FORWARDED_ALLOW_IPS` | Non-wildcard proxy allowlist for Railway's `start_railway.py` (uvicorn `forwarded_allow_ips`; startup fails when missing or `*`). Not needed for docker compose (plain uvicorn). | `10.0.0.0/8` (Railway) |
 | `NIM_API_KEY` | Key for Nvidia NIM API catalog (low latency) | `nvapi-...` |
@@ -200,6 +203,12 @@ Populate key environment variables in `backend/.env`:
 | `CELERY_QUEUES` | Comma-separated allowlisted queues for a worker profile; use a maintenance-only profile only after queue/SLA measurement | `ingestion,embedding,indexing,okf,memory` |
 | `CELERY_CONCURRENCY` | Celery worker process concurrency, validated from `1` to `32` | `2` |
 | `WEB_SEARCH_TIMEOUT_SECONDS` | Maximum time for one live-search provider call before fail-open fallback | `12` (maximum `30`) |
+| `RAG_USE_HYDE` | Global hypothetical-document generation switch; adds a provider round trip on eligible complex requests | `true` (runtime-compatible default) |
+| `RAG_INDIC_USE_HYDE` | Opt-in HyDE for non-English/Indic requests; keep off until held-out quality evidence justifies the added tail | `false` |
+| `RAG_MAX_REWRITES` | Global CRAG rewrite retry cap | `2` (runtime-compatible default) |
+| `RAG_INDIC_MAX_REWRITES` | Independent CRAG retry cap for non-English/Indic requests | `1` |
+| `LATENCY_BENCHMARK_CACHE_DISABLED` | Local-only benchmark switch that bypasses all application cache reads and writes; use only when measuring uncached latency | `false` |
+| `RAG_RETRIEVAL_EXPANSION_SOFT_WAIT_SECONDS` | Maximum post-primary-retrieval wait for optional LLM query expansion; slow planner work is cancelled and primary retrieval remains authoritative | `0.35` (maximum `5`) |
 
 ---
 

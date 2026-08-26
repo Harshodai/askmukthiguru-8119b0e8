@@ -48,6 +48,7 @@ class ChatRequestOrchestrator:
         chat_body: ChatRequest,
         background_tasks: BackgroundTasks,
         user: dict,
+        job_id: str | None = None,
     ) -> ChatResponse:
         """Execute full pipeline and log telemetry."""
         user_msg = chat_body.user_message.strip()
@@ -85,6 +86,7 @@ class ChatRequestOrchestrator:
                 session_id=chat_body.session_id,
                 user=user,
                 is_benchmark=is_benchmark,
+                job_id=job_id,
             )
 
         try:
@@ -119,8 +121,9 @@ class ChatRequestOrchestrator:
 
         response_grounding_state = grounding_state_for(result)
         logger.info(
-            "CHAT_STAGE_TIMING trace_id=%s total_ms=%s node_timings=%s cache_hit=%s "
+            "CHAT_STAGE_TIMING job_id=%s trace_id=%s total_ms=%s node_timings=%s cache_hit=%s "
             "query_tier=%s grounding_state=%s provider=%s",
+            job_id or "-",
             result.trace_id,
             result.latency_ms,
             result.node_timings or {},
@@ -269,6 +272,7 @@ async def queue_worker_factory(
                 user=user,
                 is_benchmark=False,
                 stream_queue=stream_queue,
+                job_id=job_id,
             )
         )
         drain_task = asyncio.create_task(
@@ -299,7 +303,13 @@ async def queue_worker_factory(
         from fastapi import BackgroundTasks
 
         fake_bg = BackgroundTasks()
-        response = await orch.orchestrate(fake_request, chat_body, fake_bg, user)
+        response = await orch.orchestrate(
+            fake_request,
+            chat_body,
+            fake_bg,
+            user,
+            job_id=job_id,
+        )
         await fake_bg()
         await _claim_anon_quota(container, user, quota_reservation_id)
         return _response_to_dict(response)
@@ -310,6 +320,14 @@ async def queue_worker_factory(
         logger.error(f"Queue worker: job {job_id} failed: {exc}")
         await _release_anon_quota(container, user, quota_reservation_id)
         return {"error": str(exc)}
+
+
+async def _record_queue_milestone(redis_client, job_id: str, **fields: float | str) -> None:
+    """Persist queue milestones without making stream delivery fail closed."""
+    try:
+        await redis_client.hset(f"job:{job_id}:meta", mapping=fields)
+    except Exception as exc:
+        logger.debug("Queue milestone persistence failed for %s: %s", job_id, exc)
 
 
 async def _drain_stream_to_redis(
@@ -405,7 +423,14 @@ async def _drain_stream_to_redis(
                         },
                         ensure_ascii=False,
                     )
+                    final_published_at = time.time()
                     await r.xadd(stream_key, {"data": final_payload}, maxlen=1000)
+                    await _record_queue_milestone(
+                        r,
+                        job_id,
+                        final_published_at=str(final_published_at),
+                        trace_id=str(getattr(pipeline_result, "trace_id", "")),
+                    )
                     completion_payload = json.dumps(
                         {
                             "event": "done",
@@ -413,7 +438,26 @@ async def _drain_stream_to_redis(
                         },
                         ensure_ascii=False,
                     )
+                done_published_at = time.time()
                 await r.xadd(stream_key, {"data": completion_payload}, maxlen=1000)
+                await _record_queue_milestone(
+                    r,
+                    job_id,
+                    done_published_at=str(done_published_at),
+                )
+                final_timestamp = locals().get("final_published_at")
+                trace_id = str(getattr(locals().get("pipeline_result"), "trace_id", "")) or "-"
+                logger.info(
+                    "QUEUE_STREAM_CORRELATION job_id=%s trace_id=%s final_published_at_s=%s "
+                    "done_published_at_s=%.6f final_to_done_ms=%s",
+                    job_id,
+                    trace_id,
+                    "%.6f" % final_timestamp if final_timestamp is not None else "none",
+                    done_published_at,
+                    "%.1f" % ((done_published_at - final_timestamp) * 1000)
+                    if final_timestamp is not None
+                    else "none",
+                )
                 await r.expire(stream_key, max(600, settings.queue_job_ttl))
             finally:
                 await r.close()

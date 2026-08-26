@@ -7682,3 +7682,90 @@ A loop runner should execute independent checks separately, write one log per ga
 - **What**: The public landing experience presented hardcoded reach and recognition statistics alongside a generic “ancient wisdom + AI” promise, while its most persuasive proof—a first question, an optional short practice, clear scope, source-oriented reflection, and a route to return—was buried or interrupted by a nonfunctional demo surface and a mandatory chat check-in.
 - **Fix applied**: Reframed the homepage around a practical next step; added an explicit three-minute-practice path; replaced unsupported social-proof statistics with observable product principles; turned the explainer placeholder into the working guided tour; strengthened hero contrast; and made the practice-status modal opt-in through `?prepare=1` so conversation remains the default first-value path.
 - **How to prevent**: Before promoting a capability, name the person’s immediate need, give a direct low-friction action, make trust boundaries reviewable in the same journey, and support every proof claim with verified product behavior or approved evidence. Do not introduce enterprise, clinical, security, scale, or outcome claims without the evidence required by `docs/PRODUCT_STORY_AND_ADOPTION.md`.
+
+### L-LATENCY-1. Scope expensive RAG stages by validated language metadata
+- **What**: With the active local runtime (`RAG_USE_HYDE=true`, `RAG_MAX_REWRITES=2`), the Hindi benchmark paid model-backed HyDE and repeated CRAG rewrite tails. A controlled treatment (`RAG_INDIC_USE_HYDE=false`, `RAG_INDIC_MAX_REWRITES=1`, caches disabled) reduced backend latency from 30.001s to 16.121s (-46.3%) on the same Hindi query, n=1 per class.
+- **Fix applied**: Added `rag_indic_use_hyde` and `rag_indic_max_rewrites` settings. Retrieval reuses the already validated `detected_language` field to skip Indic HyDE unless explicitly enabled; CRAG routing caps Indic retries at one while English retains `rag_max_rewrites`. Compose now wires the settings explicitly so env-file precedence is visible and operator overrides work.
+- **Quality boundary**: The treatment preserved the same `grounding_state=abstained`, `verification.method=grounded_partial_fallback`, and `citations_verified=true` metadata for the Hindi sample. This is directional evidence only; enable Indic HyDE or widen the retry cap only after held-out multilingual faithfulness/NDCG evaluation.
+- **How to prevent**: Do not disable grading, citation verification, or abstention to chase latency. Report cache state and sample count with every comparison; n=1 is not a percentile.
+
+### L-LATENCY-2. Cache-mode flags must match the actual factory switch
+- **What**: `SEMANTIC_CACHE_ENABLED=false` did not make the benchmark uncached because the cache factory still constructs exact and semantic adapters from `CACHE_MODE`; a targeted flush also intentionally leaves some in-process/query tiers until restart.
+- **Rule**: Use the repository’s targeted cache-flush procedure and `CACHE_MODE=memory` for genuinely uncached local experiments. Never use a global Redis flush.
+
+### L-LATENCY-3. Wrapper and graph logs need independent interpretation
+- **What**: `CHAT_STAGE_TIMING` node sums omit request-stage and graph-internal waits, while `PIPELINE_STAGE_TIMING` includes the full LangGraph wrapper. Hindi showed a large unexplained graph-internal gap beyond named node timings.
+- **Rule**: Preserve both ledgers and instrument queue/provider/translation waits before attributing a tail to vector retrieval alone.
+
+### L-LATENCY-4. Provider prompt caching is prefill optimization, not decode elimination
+- **What**: Anthropic’s current prompt-caching documentation states that cache hits reuse a prompt prefix and generally improve time-to-first-token for long repeated context, while cache lifetime and supported-provider semantics apply to the specific API path.
+- **Rule**: Treat provider prompt caching as a later gateway experiment. First stabilize request shape/prefixes and measure TTFT versus output decode; do not claim it fixes long generation tails.
+- **Reference**: https://platform.claude.com/docs/en/build-with-claude/prompt-caching
+
+
+## Aug 26, 2026 — Cross-tier latency attribution and route visibility
+
+### L-LATENCY-1. Queue, pipeline, graph, and browser clocks need one join key
+- **What**: The queued worker had durable job timestamps, while stage/graph logs used a trace ID and result assembly generated a second UUID. This made residual latency and short-circuit overhead impossible to attribute reliably; the previous fast-casual probe showed multi-second latency with almost no node timing.
+- **Fix applied**: Queue admission, claim, worker dispatch, result publication, and queued-stream final/done publication are now recorded internally; the worker context carries queue timing and job ID into the pipeline; result assembly preserves `ctx.trace_id`; stage logs include the job ID; queued stream final/done milestones are best-effort and do not alter SSE payloads.
+- **How to prevent**: Every latency sample must join `job_id` (when queued) to one stable `trace_id`, and every budget must distinguish queue wait, pipeline stages, graph wrapper, provider calls, and browser publication. Never infer a missing residual is zero.
+
+### L-LATENCY-2. Reuse one measured preclassification, do not pay the router twice
+- **What**: CacheCheckStage classified the query tier before the graph, and GraphStage independently ran the same on-device classifier. Obvious casual/fast requests could also reach the semantic selector before the deterministic short-circuit.
+- **Fix applied**: CacheCheckStage now reuses the existing on-device classifier to seed tier selection, and GraphStage consumes that result. The change is language-agnostic and preserves the deep/comparison divergence guard; it does not skip safety, evidence, citation, or verification gates.
+- **How to prevent**: Treat classification results as request-scoped immutable facts with an explicit method/reason field. Measure cache-hit and miss behavior separately; do not replace a quality-sensitive route with a string-specific shortcut.
+
+### L-LATENCY-3. Route budgets are hypotheses until repeated samples exist
+- **What**: The 12-route n=1 matrix exposed system-wide residuals, but it cannot establish p50/p95 or justify thresholds. A route catalog now records observational budgets, quality floors, required checks, and a minimum sample count; it is not connected to runtime routing.
+- **How to prevent**: Report sample count and cache mode with every latency result. Suppress percentile claims until the minimum sample count is met, and require held-out multilingual and safety quality gates before enabling adaptive policy control.
+
+
+### L-LATENCY-4. A CASUAL label is not proof of an instant greeting
+- **What**: The `Namaste Guruji` fixture was classified as CASUAL but did not match the exact pure-greeting regex, so it entered the standard/fast graph path and paid a provider call or graph wrapper tail. The earlier route label concealed this distinction.
+- **Fix applied**: Added a bounded, structural vocative-greeting matcher for a known greeting token followed by at most three word-like tokens and no question punctuation. It covers short forms such as `Namaste Guruji` while rejecting substantive questions; it does not broaden safety routing or bypass input/output guardrails.
+- **How to prevent**: Distinguish intent class, deterministic short-circuit eligibility, selected graph variant, and provider execution in telemetry. Do not treat a coarse CASUAL intent as permission to return a canned answer for arbitrary questions.
+
+### L-LATENCY-5. Cache hits must preserve trace identity and route facts
+- **What**: Live logs showed cache-hit stage traces differing from the final chat trace because cache constructors still generated fresh UUIDs, and cache-served results had no internal route manifest.
+- **Fix applied**: Hot, vector, semantic, coordinator-error, and circuit-open results now preserve the request trace where available; cache hits carry bounded internal route metadata while `to_chat_response()` remains unchanged.
+- **How to prevent**: Test trace equality for every short-circuit class, including cache and circuit paths, and keep route diagnostics behind an explicit internal allowlist.
+
+
+## Aug 26, 2026 — Parallel latency reduction lane
+
+### L-LATENCY-1. Optional retrieval planners need a soft deadline
+- **Finding**: The LLM retrieval-expansion planner was launched concurrently with primary retrieval but awaited unconditionally after primary retrieval completed. When primary retrieval was fast, the optional planner became the request tail.
+- **Fix applied**: Added centrally configured `RAG_RETRIEVAL_EXPANSION_SOFT_WAIT_SECONDS` with a 0.35-second default. A planner that misses the budget is cancelled and omitted; primary retrieval, retrieval rails, citations, verification, and abstention remain authoritative.
+- **Rule**: Optional recall work must have its own deadline below the enclosing request budget. Use a generic deadline policy and held-out quality evidence, not language/query hardcodes or unconditional awaits.
+
+### L-LATENCY-2. A semaphore priority enum is not a scheduler
+- **Finding**: The shared LLM queue accepted priority values but used a single semaphore, so classification/generation/verification/background priority was decorative.
+- **Fix applied**: Added bounded, content-free wait attribution by operation and priority for ordinary and streaming calls. Concurrency, full-stream occupancy, and cancellation behavior remain unchanged pending a fairness/load study.
+- **Rule**: Instrument queue wait before changing concurrency or priority. Any future scheduler must prove no starvation of safety classification or verification and must be cancellation-safe.
+
+### L-LATENCY-3. Provider latency preferences require an experiment gate
+- **Finding**: Current OpenRouter documentation supports server-side latency/throughput sorting and soft p90 preferences, but these settings change provider ordering and can disable normal load balancing.
+- **Fix applied**: Added validated opt-in policy fields while keeping defaults unchanged and preserving no-training routing, provider allowlists, pinned models, and fallbacks. A local `sort=latency` trial produced only timeout/disconnect outcomes, so all samples were excluded and the experiment was reverted.
+- **Rule**: Provider routing experiments must be trace-linked, repeated, cache-free, and reversible. A failed or invalid sample set is not a latency result.
+
+### L-LATENCY-4. Route labels must be checked before attributing a bottleneck
+- **Finding**: Several benchmark fixtures labelled standard/deep resolved at runtime to `tier2_simple`. Their long generation tails therefore did not exercise complex-tier planner behavior.
+- **Rule**: Use internal route manifests and trace logs to validate actual selected variants before comparing or attributing latency. Do not infer behavior from fixture names or public `query_tier` alone.
+
+### L-LATENCY-5. Runtime instability invalidates performance samples
+- **Finding**: One post-change benchmark was run during container/model warm-up and yielded connection resets/timeouts; the provider-sort trial also yielded no valid included samples.
+- **Rule**: Persist and exclude all non-completed, cache-uncertain, or disconnected samples. Stabilize the runtime and verify `LATENCY_BENCHMARK_CACHE_DISABLED=true` before collecting new performance evidence. Never convert runtime failures into latency wins or losses.
+
+### L-LATENCY-6. A selected quality tier must survive later intent normalization
+- **Finding**: Cache-disabled query-shape selection correctly identified a comparative request as `deep`, but the graph’s coarse factual intent result later rewrote the state to `tier2_simple`, bypassing deep verification and quality gates.
+- **Fix applied**: GraphStage now lets strong selector evidence override only coarse factual tier hints, and the intent router preserves a stronger upstream `standard`/`deep` tier for non-terminal query intents. Distress, meditation, casual, and guardrail paths retain their explicit safety semantics. Focused routing tests and a live cache-disabled canary confirmed the final comparative tier as `deep`.
+- **Rule**: Treat route selection as a request-scoped quality fact. Later normalization may add safety or intent metadata, but must not silently downgrade the graph’s evidence-backed quality tier.
+
+### L-LATENCY-7. Duplicate deep verification can be removed only after a strict pass
+- **Finding**: The deep graph ran an additional contradiction verifier after standard verification, creating a repeat provider tail even when the first verifier had already returned a strict faithful pass.
+- **Fix applied**: Added a configurable, fail-closed reuse path. It bypasses only when `verification.passed=true`, `is_faithful=true`, and the faithfulness score clears the configured floor; uncertain, partial, failed, missing, or safety-sensitive states still take the full deep gate. Focused tests prove provider and local scorer calls are not skipped on unproven states.
+- **Rule**: Optimize verification by reusing authoritative evidence, never by weakening the evidence threshold or converting abstention into a pass. Keep the switch reversible and measure hit rate separately.
+
+### L-LATENCY-8. A failed paired wave is a release finding, not a performance result
+- **Finding**: The final cache-disabled n=20-per-fixture wave produced only one eligible row before a `ConnectionResetError` regime; route percentiles were correctly suppressed and no all-tier latency delta was claimed. The full backend suite nevertheless passed `2471 passed, 30 skipped, 1 warning`.
+- **Rule**: Separate code/test validity from runtime benchmark validity. Do not claim a major latency reduction until the same source-matched runtime delivers at least 20 completed, cache-free, cache-hit-free rows in every comparison stratum.

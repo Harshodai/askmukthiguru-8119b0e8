@@ -1,0 +1,14 @@
+## REPOSITORY
+head=771b507dd106efffcaeee45575cd00c7f7e5d33a
+origin_main=8d57890f852923b3bff2a1bc320265c2c951b60e
+branch=main
+status_entries=     139
+tracked_diff_files=      30
+
+## CURRENT_PROCESS
+harshodaikolluru 31182   0.1  0.1 436464288  21728   ??  SN   31Jul26  55:19.30 /opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Python -m uvicorn app.main:app --host 127.0.0.1 --port 8001
+
+## HTTP_HEALTH
+{"ready":false,"status":"unhealthy","services":{"qdrant":{"ok":true,"latency_ms":9,"critical":true},"redis":{"ok":true,"latency_ms":8,"critical":true},"neo4j":{"ok":true,"latency_ms":7,"critical":false},"llm":{"ok":true,"latency_ms":94,"critical":true},"embedding":{"ok":false,"latency_ms":0,"critical":true},"guardrails":{"ok":true,"latency_ms":0,"critical":false,"provider":"lightweight"},"exact_cache":{"ok":true,"latency_ms":0,"critical":false},"semantic_cache":{"ok":true,"latency_ms":0,"critical":false},"fast_graph":{"ok":true,"latency_ms":0,"critical":true},"standard_graph":{"ok":true,"latency_ms":0,"critical":true},"deep_graph":{"ok":true,"latency_ms":0,"critical":false},"job_queue":{"ok":true,"latency_ms":0,"critical":false,"queue_size":0},"lightrag":{"ok":false,"latency_ms":0,"critical":true},"ocr":{"ok":true,"latency_ms":1,"critical":false}}}
+## HTTP_LIVENESS
+{"ok":true,"status":"alive"}

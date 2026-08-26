@@ -32,6 +32,9 @@ class DoctrineCacheStage(Stage):
     name = "doctrine_cache"
 
     async def run(self, ctx) -> PipelineResult | None:  # noqa: ANN001  — ctx: PipelineContext
+        if getattr(settings, "latency_benchmark_cache_disabled", False):
+            logger.debug("Doctrine cache disabled for local latency benchmark")
+            return None
         if not getattr(settings, "doctrine_cache_enabled", False):
             return None
         doctrine_cache = getattr(ctx.container, "doctrine_cache", None) if ctx.container else None

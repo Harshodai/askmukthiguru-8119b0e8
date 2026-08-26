@@ -156,6 +156,10 @@ services:
       - OPENROUTER_FAST_MODEL=${OPENROUTER_FAST_MODEL:-meta-llama/Meta-Llama-3.1-8B-Instruct}
       - OPENROUTER_GENERATION_MODEL=${OPENROUTER_GENERATION_MODEL:-}
       - OPENROUTER_CLASSIFY_MODEL=${OPENROUTER_CLASSIFY_MODEL:-}
+      - OPENROUTER_PROVIDER_SORT=${OPENROUTER_PROVIDER_SORT:-}
+      - OPENROUTER_PROVIDER_PARTITION=${OPENROUTER_PROVIDER_PARTITION:-model}
+      - OPENROUTER_PREFERRED_MAX_LATENCY_P90=${OPENROUTER_PREFERRED_MAX_LATENCY_P90:-0}
+      - OPENROUTER_PREFERRED_MIN_THROUGHPUT_P90=${OPENROUTER_PREFERRED_MIN_THROUGHPUT_P90:-0}
       - OPENROUTER_RPM_LIMIT=${OPENROUTER_RPM_LIMIT:-20}
       # --- Nvidia NIM (hosted API Catalog) ---
       - NIM_API_KEY=${NIM_API_KEY:-}
@@ -170,6 +174,17 @@ services:
       - RERANK_MIN_SCORE=${RERANK_MIN_SCORE:-0.15}
       - SEMANTIC_CACHE_ENABLED=${SEMANTIC_CACHE_ENABLED:-true}
       - SEMANTIC_CACHE_SIMILARITY=${SEMANTIC_CACHE_SIMILARITY:-0.85}
+      # RAG latency controls are explicit here so Compose overrides are not
+      # silently shadowed by values from the root env_file.
+      # Preserve the pre-existing local global settings (HyDE=true, two
+      # rewrites) while making the safer Indic policy explicit below.
+      - RAG_USE_HYDE=${RAG_USE_HYDE:-true}
+      - RAG_INDIC_USE_HYDE=${RAG_INDIC_USE_HYDE:-false}
+      - RAG_MAX_REWRITES=${RAG_MAX_REWRITES:-2}
+      - RAG_INDIC_MAX_REWRITES=${RAG_INDIC_MAX_REWRITES:-1}
+      - CACHE_MODE=${CACHE_MODE:-best_effort}
+      - LATENCY_BENCHMARK_CACHE_DISABLED=${LATENCY_BENCHMARK_CACHE_DISABLED:-false}
+      - RAG_RETRIEVAL_EXPANSION_SOFT_WAIT_SECONDS=${RAG_RETRIEVAL_EXPANSION_SOFT_WAIT_SECONDS:-0.35}
       # --- Observability ---
       - ENABLE_CORRELATION_IDS=${ENABLE_CORRELATION_IDS:-true}
       # --- Ollama (only used when LLM_PROVIDER=ollama) ---

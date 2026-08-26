@@ -184,6 +184,46 @@ async def test_cache_check_stage_short_circuits_on_hit(coordinator):
     assert result.cache_hit is True
     assert result.final_answer == "Cached answer."
     assert result.route_decision == "semantic_cache"
+    assert result.trace_id == ctx.trace_id
+    assert result.route_metadata["selected_variant"] == "semantic_cache"
+    assert "route_metadata" not in result.to_chat_response()
+
+
+@pytest.mark.asyncio
+async def test_deterministic_greeting_skips_shared_cache_probes(coordinator):
+    container = coordinator.container
+    ctx = _build_ctx(
+        container,
+        coordinator,
+        user_msg="Namaste Guruji",
+        query_for_embedding="Namaste Guruji",
+    )
+    container.exact_cache.get.reset_mock()
+    container.semantic_cache.get.reset_mock()
+
+    result = await CacheCheckStage().run(ctx)
+
+    assert result is None
+    assert ctx.preclassified_intent == "CASUAL"
+    assert ctx.preclassified_reason == "deterministic_greeting"
+    container.exact_cache.get.assert_not_called()
+    container.semantic_cache.get.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_cache_disabled_bypasses_all_cache_reads(coordinator, monkeypatch):
+    monkeypatch.setattr(settings, "latency_benchmark_cache_disabled", True)
+    container = coordinator.container
+    ctx = _build_ctx(container, coordinator)
+    container.exact_cache.get.reset_mock()
+    container.semantic_cache.get.reset_mock()
+
+    result = await CacheCheckStage().run(ctx)
+
+    assert result is None
+    assert ctx.route_metadata["cache_policy"] == "disabled"
+    container.exact_cache.get.assert_not_called()
+    container.semantic_cache.get.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -386,6 +426,13 @@ async def test_stage_telemetry_includes_metadata(coordinator):
     assert len(ctx.stage_telemetry) == 1
     assert "metadata" in ctx.stage_telemetry[0]
     assert ctx.stage_telemetry[0]["metadata"] == {"probe": 1}
+    assert ctx.stage_telemetry[0]["start_ms"] >= 0
+    assert ctx.stage_telemetry[0]["end_ms"] >= ctx.stage_telemetry[0]["start_ms"]
+
+    spans = coordinator._build_spans({}, ctx.stage_telemetry)
+    assert spans[0]["span_name"] == "pipeline.meta_probe"
+    assert "metadata" not in spans[0]
+    assert spans[0]["duration_ms"] >= 0
 
     ctx = _build_ctx(coordinator.container, coordinator)
     ctx.last_stage_metadata = {"pre_error": True}
@@ -394,6 +441,32 @@ async def test_stage_telemetry_includes_metadata(coordinator):
     assert len(ctx.stage_telemetry) == 1
     assert "metadata" in ctx.stage_telemetry[0]
     assert ctx.stage_telemetry[0]["metadata"] == {"pre_error": True}
+
+
+def test_route_manifest_is_internal_and_allowlisted(coordinator):
+    route = {
+        "requested_variant": "tier2_simple",
+        "selected_variant": "fast",
+        "detected_cache_tier": "fast",
+        "normalized_query_tier": "tier2_simple",
+        "on_device_intent": "CASUAL",
+        "decision_method": "cache_tier_reuse",
+        "policy_version": "release-policy",
+        "raw_prompt": "must never leave the internal boundary",
+    }
+    spans = coordinator._build_spans({}, [], {}, route)
+    route_span = next(span for span in spans if span["span_name"] == "route.decision")
+    assert route_span["attributes"] == {
+        "requested_variant": "tier2_simple",
+        "selected_variant": "fast",
+        "detected_cache_tier": "fast",
+        "normalized_query_tier": "tier2_simple",
+        "on_device_intent": "CASUAL",
+        "decision_method": "cache_tier_reuse",
+        "policy_version": "release-policy",
+    }
+    result = PipelineResult(trace_id="trace", route_metadata=route)
+    assert "route_metadata" not in result.to_chat_response()
 
 
 # ---------------------------------------------------------------------------

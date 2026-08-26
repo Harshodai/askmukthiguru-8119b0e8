@@ -719,6 +719,32 @@ def strip_cot(text: str) -> str:
     return cleaned
 
 
+def is_indic_state(state: GraphState) -> bool:
+    """Return whether graph state represents a non-English request."""
+    language = str(state.get("detected_language") or "en").strip().lower()
+    return bool(language and language.split("-", 1)[0] != "en")
+
+
+def should_use_hyde(state: GraphState) -> bool:
+    """Apply the global HyDE flag plus the conservative Indic override."""
+    if not bool(getattr(settings, "rag_use_hyde", False)):
+        return False
+    if is_indic_state(state) and not bool(
+        getattr(settings, "rag_indic_use_hyde", False)
+    ):
+        return False
+    return True
+
+
+def max_rewrites_for_state(state: GraphState) -> int:
+    """Return the bounded CRAG retry budget for this request state."""
+    configured = max(0, int(getattr(settings, "rag_max_rewrites", 1)))
+    if not is_indic_state(state):
+        return configured
+    indic_cap = max(0, int(getattr(settings, "rag_indic_max_rewrites", 1)))
+    return min(configured, indic_cap)
+
+
 def _generation_kwargs(state: GraphState) -> dict:
     """Bound generation length by routing tier while preserving room for distress care."""
     intent = state.get("intent", "FACTUAL")

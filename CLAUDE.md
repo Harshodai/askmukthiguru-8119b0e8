@@ -599,17 +599,17 @@ The graph nodes have been modularized into `rag/nodes/`:
 **QUERY path (full anti-hallucination chain - `StandardGraphStrategy`/`DeepGraphStrategy`):**
 - `resolve_followup` — resolves pronouns/references from conversation history
 - `decompose_query` — splits complex questions into atomic sub-queries
-- `navigate_and_hyde` — merged parallel pair (cluster selection + HyDE hypothetical answer generation); PageIndex-inspired
+- `navigate_and_hyde` — merged parallel pair (cluster selection + HyDE hypothetical answer generation); PageIndex-inspired. HyDE follows `RAG_USE_HYDE`; non-English/Indic requests require the explicit `RAG_INDIC_USE_HYDE=true` override because the extra provider round trip produced a measured latency tail without held-out quality proof
 - `retrieve_documents` — two-phase hybrid retrieval (RAPTOR summaries + leaf chunks + LightRAG graph + Parent-Child resolution + MMR diversity re-ranking). Expands queries with doctrinal synonyms and injects doctrine keywords
 - `agentic_graph_traversal` — ReAct loop for walking the ontology graph during COMPARATIVE intent or complex queries
 - `rerank_documents` — Cascaded ColBERT + CrossEncoder re-ranking
 - `grade_documents` — CRAG batch relevance grading (single LLM call for all docs); context-sufficiency scoring is inline here (replaces the former separate `check_context_sufficiency` node)
-- Conditional branch: relevant → `enrich_context` | rewrite → `rewrite_query` (max 3x) | fallback → `handle_fallback`
+- Conditional branch: relevant → `enrich_context` | rewrite → `rewrite_query` (global cap `RAG_MAX_REWRITES`; Indic cap `RAG_INDIC_MAX_REWRITES`, default 1) | fallback → `handle_fallback`
 - `enrich_context` — fetches neighbor chunks for broader context
 - `context_engineer` — assembles structured prompt layers (persona, knowledge, user state, instructions)
 - `generate_answer` — inline hint extraction + context-only generation (merged Stimulus RAG + generation)
 - `reflect_on_answer` — Self-Reflection RAG: **LettuceDetect only** (embedding/lexical faithfulness). LLM self-consistency check is **disabled** to save ~45s without quality loss on spiritual paraphrasing
-- Conditional branch: valid → `verify_answer` | needs_correction → `rewrite_query` (max 3x) | exhausted → `handle_fallback`
+- Conditional branch: valid → `verify_answer` | needs_correction → `rewrite_query` (same global/Indic caps) | exhausted → `handle_fallback`
 - `verify_answer` — LettuceDetect faithfulness (threshold **0.6** = `faithfulness_floor`; the doctrine-vocabulary boost was **removed 2026-08-10**, audit S3). **CoVe is tier-gated ON, not disabled** (corrected 2026-08-10): it fires for tier3_complex/tier4_deep and compulsorily for any tier scoring below 0.6 (`rag_cove_disabled=False`; `rag/nodes/verification.py`), and a combined-verification gateway runs ahead of it for the two deepest tiers. Only alternative-answer self-consistency stays disabled. Fast/tier2_simple bypass this node
 - `cross_teacher_reasoning` — when the query names multiple spiritual teachers, queries Neo4j for cross-teacher comparisons (runs after grading)
 - `extract_citations` — maps answer sentences to best-matching retrieved documents (post-verification, before formatting)

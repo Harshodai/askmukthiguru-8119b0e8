@@ -148,6 +148,8 @@ class PipelineResult:
     release_manifest: dict | None = None
     # Retrieval evidence bands produced after all vector/graph channels finalize.
     provenance_context: dict | None = None
+    # Internal-only route facts. Deliberately omitted from to_chat_response().
+    route_metadata: dict = field(default_factory=dict)
 
     def with_latency(self, latency_ms: int) -> PipelineResult:
         """Return a new PipelineResult with updated latency."""
@@ -191,6 +193,7 @@ class PipelineResult:
             verification=self.verification,
             release_manifest=self.release_manifest,
             provenance_context=self.provenance_context,
+            route_metadata=self.route_metadata,
         )
 
     def to_chat_response(self) -> dict[str, Any]:

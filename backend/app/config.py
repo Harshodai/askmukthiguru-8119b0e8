@@ -208,6 +208,12 @@ class Settings(BaseSettings):
     openrouter_policy_id: str = "gemini-flash-budget-v1"
     # Optional comma-separated provider order; empty accepts only privacy-compliant routing.
     openrouter_allowed_providers: str = ""
+    # Optional provider-routing experiment. Empty sort preserves OpenRouter's
+    # normal load balancing; latency/throughput sorting is server-side only.
+    openrouter_provider_sort: str = ""
+    openrouter_provider_partition: str = "model"
+    openrouter_preferred_max_latency_p90: float = Field(default=0.0, ge=0.0, le=300.0)
+    openrouter_preferred_min_throughput_p90: float = Field(default=0.0, ge=0.0, le=10000.0)
     openrouter_require_no_training: bool = True
     openrouter_allow_provider_fallbacks: bool = True
     openrouter_enforce_model_policy: bool = True
@@ -619,6 +625,14 @@ class Settings(BaseSettings):
     rag_chunk_size: int = 1500
     rag_chunk_overlap: int = 200
     rag_use_hyde: bool = False
+    # Indic requests historically paid a full HyDE provider round trip despite
+    # native-language retrieval already being available. Keep this opt-in until
+    # held-out evidence demonstrates a quality benefit, while retaining the
+    # global switch for English and other supported routes.
+    rag_indic_use_hyde: bool = False
+    # Bound retry tails for Indic CRAG requests independently of the global cap.
+    # One rewrite preserves a recovery opportunity without paying repeated tails.
+    rag_indic_max_rewrites: int = Field(default=1, ge=0, le=3)
     rag_context_window: int = 2  # Fetch N chunks before/after each retrieved chunk
     rag_graph_context_cap_chars: int = (
         400  # Max chars for graph summary doc injected into enriched context
@@ -747,6 +761,9 @@ class Settings(BaseSettings):
 
     # --- Semantic Cache ---
     semantic_cache_enabled: bool = True  # Embedding-based semantic caching
+    # Local measurement control: when enabled, all application cache reads and
+    # writes are bypassed so latency samples represent the uncached path.
+    latency_benchmark_cache_disabled: bool = False
     semantic_cache_similarity: float = 0.90  # E3.4: lowered from 0.87/0.92 to improve hit rate
     intent_prerouter_cache_hint_enabled: bool = True  # E3.1: hint cache-first for FACTUAL/CASUAL
     semantic_cache_ttl: int = 604800  # Cache TTL in seconds (7 days)
@@ -1064,6 +1081,10 @@ class Settings(BaseSettings):
     # (sigmoid-normalized [0,1]), skip the LLM grading and sufficiency calls for
     # complex queries — saves 2 serial LLM round-trips. 0 disables.
     crag_skip_confidence: float = 0.75
+    # The deep graph adds a second verifier after standard verification. Skip
+    # only when the first verifier already returned a strict faithful pass;
+    # disable this flag to restore the duplicate contradiction check.
+    deep_gate_skip_on_verified: bool = True
     # --- RAGFlow integration gaps ---
     rag_deep_research_enabled: bool = (
         False  # ponytail: master switch; auto-fires for tier3_complex + standard
@@ -1120,6 +1141,11 @@ class Settings(BaseSettings):
     # retrieve_documents). Saves 1 LLM call on the standard/deep paths. Off by
     # default to avoid changing generation behavior.
     rag_skip_retrieval_expansions: bool = False
+    # Maximum time, after primary retrieval completes, to wait for the optional
+    # expansion planner. A slow planner is cancelled and omitted; primary
+    # retrieval remains authoritative. This is a generic soft deadline rather
+    # than a language/query-specific bypass.
+    rag_retrieval_expansion_soft_wait_seconds: float = Field(default=0.35, ge=0.0, le=5.0)
     # When True, use heuristic pronoun/reference matching instead of an LLM call
     # to detect and contextualize follow-up queries. Saves 1 LLM call per query
     # with chat history. Off by default to avoid changing generation behavior.

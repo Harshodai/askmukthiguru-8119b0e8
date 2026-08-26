@@ -180,3 +180,87 @@ async def test_cancel_after_claim_is_atomic_noop() -> None:
     assert await service.cancel_job(job_id) is False
     assert redis.hashes[f"job:{job_id}:meta"]["status"] == JobStatus.PROCESSING.value
     assert redis.lists["job_queue:pending"] == [job_id]
+
+
+@pytest.mark.asyncio
+async def test_queue_lifecycle_context_is_propagated_and_persisted(monkeypatch) -> None:
+    """Queue timestamps reach the worker context and terminal metadata."""
+    from app.context import queue_timing_var
+    import app.services.job_queue as job_queue_module
+
+    redis = _MemoryRedis()
+    service = JobQueueService("redis://unused")
+    service._redis = redis
+    job_id = "job_timing"
+    redis.hashes[f"job:{job_id}:meta"] = {
+        "status": JobStatus.QUEUED.value,
+        "is_stream": "0",
+        "request_data": json.dumps({"message": "test"}),
+        "created_at": "100.0",
+        "admitted_at": "100.0",
+        "correlation_id": "corr-test",
+    }
+    redis.lists["job_queue:pending"] = [job_id]
+
+    clock = iter([101.0, 102.0, 103.0, 104.0])
+    monkeypatch.setattr(job_queue_module.time, "time", lambda: next(clock))
+    observed: dict = {}
+
+    async def worker_factory(request_data: dict, is_stream: bool, received_job_id: str) -> dict:
+        observed.update(queue_timing_var.get())
+        assert received_job_id == job_id
+        return {"ok": True}
+
+    await service._process_job(job_id, worker_factory, worker_id=1)
+
+    assert observed == {
+        "admitted_at": 100.0,
+        "claimed_at": 102.0,
+        "dispatch_started_at": 103.0,
+        "correlation_id": "corr-test",
+    }
+    metadata = redis.hashes[f"job:{job_id}:meta"]
+    assert metadata["admitted_at"] == "100.0"
+    assert metadata["claimed_at"] == "102.0"
+    assert metadata["dispatch_started_at"] == "103.0"
+    assert metadata["correlation_id"] == "corr-test"
+    assert metadata["result_published_at"] == "104.0"
+    assert metadata["status"] == JobStatus.COMPLETED.value
+    assert queue_timing_var.get() == {}
+
+
+@pytest.mark.asyncio
+async def test_job_poll_projection_omits_internal_lifecycle_fields() -> None:
+    redis = _MemoryRedis()
+    service = JobQueueService("redis://unused")
+    service._redis = redis
+    job_id = "job_projection"
+    redis.hashes[f"job:{job_id}:meta"] = {
+        "status": JobStatus.COMPLETED.value,
+        "created_at": "100.0",
+        "started_at": "101.0",
+        "completed_at": "104.0",
+        "user_id": "anon:test",
+        "admitted_at": "100.0",
+        "claimed_at": "102.0",
+        "dispatch_started_at": "103.0",
+        "result_published_at": "104.0",
+        "correlation_id": "corr-test",
+        "trace_id": "trace-test",
+    }
+    redis.values[f"job:{job_id}:result"] = json.dumps({"response": "safe"})
+
+    public_job = await service.get_job(job_id)
+
+    assert public_job is not None
+    assert public_job["status"] == JobStatus.COMPLETED.value
+    assert public_job["result"] == {"response": "safe"}
+    for internal_key in (
+        "admitted_at",
+        "claimed_at",
+        "dispatch_started_at",
+        "result_published_at",
+        "correlation_id",
+        "trace_id",
+    ):
+        assert internal_key not in public_job

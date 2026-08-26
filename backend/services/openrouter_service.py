@@ -369,8 +369,16 @@ class OpenRouterService:
             headers["anthropic-beta"] = "prompt-caching-2024-07-31"
 
         async def _execute():
+            attempt_started = time.perf_counter()
             client = await self._get_http_client()
             resp = await client.post("/chat/completions", json=payload, headers=headers or None)
+            logger.info(
+                "OPENROUTER_HTTP_TIMING operation=%s model=%s status_class=%s response_ms=%.1f",
+                operation,
+                model,
+                f"{int(getattr(resp, 'status_code', 0)) // 100}xx",
+                (time.perf_counter() - attempt_started) * 1000,
+            )
             resp.raise_for_status()
             return resp.json()
 
@@ -383,7 +391,10 @@ class OpenRouterService:
             )
 
             data = None
+            attempt_count = 0
+            call_started = time.perf_counter()
             async for attempt in retryer:
+                attempt_count += 1
                 with attempt:
                     data = await _execute()
 
@@ -430,10 +441,33 @@ class OpenRouterService:
                 cost_usd=cost_usd,
             )
             await reservation.settle(cost_usd)
+            logger.info(
+                "OPENROUTER_CALL_TIMING operation=%s model=%s attempts=%d total_ms=%.1f "
+                "prompt_tokens=%s completion_tokens=%s cached_tokens=%s cache_write_tokens=%s "
+                "finish_reason=%s",
+                operation,
+                model,
+                attempt_count,
+                (time.perf_counter() - call_started) * 1000,
+                tokens_in,
+                tokens_out,
+                cached_tokens,
+                cache_write_tokens,
+                str(data.get("choices", [{}])[0].get("finish_reason") or "unknown")[:32],
+            )
 
             return content
 
         except Exception as exc:
+            logger.warning(
+                "OPENROUTER_CALL_ERROR_TIMING operation=%s model=%s attempts=%d elapsed_ms=%.1f "
+                "error_type=%s",
+                operation,
+                model,
+                locals().get("attempt_count", 0),
+                (time.perf_counter() - locals().get("call_started", time.perf_counter())) * 1000,
+                type(exc).__name__,
+            )
             # Do NOT count 429 (rate limit) as a circuit breaker failure.
             # 429 is a transient quota signal — the service is up but throttling.
             # Only count service errors (5xx) and non-HTTP failures.
@@ -628,10 +662,16 @@ class OpenRouterService:
         reservation = await self._budget_guard.reserve()
         last_error = None
         stream_usage: dict | None = None
+        stream_started = time.perf_counter()
         for attempt in range(self._max_retries):
+            attempt_started = time.perf_counter()
             try:
                 client = await self._get_http_client()
                 buffer = ""
+                headers_ready_ms = None
+                first_event_ms = None
+                first_token_ms = None
+                finish_reason = "unknown"
 
                 headers = {}
                 if is_anthropic:
@@ -643,9 +683,12 @@ class OpenRouterService:
                     json=payload,
                     headers=headers or None,
                 ) as resp:
+                    headers_ready_ms = (time.perf_counter() - attempt_started) * 1000
                     resp.raise_for_status()
 
                     async for line in resp.aiter_lines():
+                        if first_event_ms is None:
+                            first_event_ms = (time.perf_counter() - attempt_started) * 1000
                         if not line.startswith("data: "):
                             continue
                         data_str = line[6:]
@@ -658,9 +701,13 @@ class OpenRouterService:
                         usage = data.get("usage")
                         if isinstance(usage, dict):
                             stream_usage = usage
-                        delta_msg = data.get("choices", [{}])[0].get("delta", {})
+                        choice = data.get("choices", [{}])[0] or {}
+                        finish_reason = str(choice.get("finish_reason") or finish_reason)[:32]
+                        delta_msg = choice.get("delta", {})
                         delta = delta_msg.get("content") or ""
                         if delta:
+                            if first_token_ms is None:
+                                first_token_ms = (time.perf_counter() - attempt_started) * 1000
                             buffer += delta
                             yield delta
 
@@ -676,9 +723,38 @@ class OpenRouterService:
                     cost_usd=cost_usd or 0.0,
                 )
                 await reservation.settle(cost_usd)
+                logger.info(
+                    "OPENROUTER_STREAM_TIMING operation=%s model=%s attempt=%d status_class=%s "
+                    "headers_ms=%.1f first_event_ms=%s ttft_ms=%s total_ms=%.1f "
+                    "prompt_tokens=%s completion_tokens=%s cached_tokens=%s "
+                    "finish_reason=%s",
+                    operation,
+                    model,
+                    attempt + 1,
+                    f"{int(getattr(resp, 'status_code', 0)) // 100}xx",
+                    headers_ready_ms or 0.0,
+                    "%.1f" % first_event_ms if first_event_ms is not None else "none",
+                    "%.1f" % first_token_ms if first_token_ms is not None else "none",
+                    (time.perf_counter() - stream_started) * 1000,
+                    prompt_tokens,
+                    completion_tokens,
+                    (stream_usage or {}).get("prompt_tokens_details", {}).get("cached_tokens", 0)
+                    if isinstance(stream_usage, dict)
+                    else 0,
+                    finish_reason,
+                )
                 return
 
             except Exception as e:
+                logger.warning(
+                    "OPENROUTER_STREAM_ERROR_TIMING operation=%s model=%s attempt=%d elapsed_ms=%.1f "
+                    "error_type=%s",
+                    operation,
+                    model,
+                    attempt + 1,
+                    (time.perf_counter() - attempt_started) * 1000,
+                    type(e).__name__,
+                )
                 last_error = e
                 is_rate_limit = (
                     isinstance(e, httpx.HTTPStatusError) and e.response.status_code == 429

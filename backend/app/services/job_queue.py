@@ -11,6 +11,8 @@ from typing import Any, Optional
 
 from anyio import Semaphore as AsyncSemaphore
 
+from app.context import correlation_id_var, queue_timing_var
+
 logger = logging.getLogger(__name__)
 
 
@@ -154,6 +156,8 @@ class JobQueueService:
                 "user_id": user_id,
                 "is_stream": "1" if is_stream else "0",
                 "created_at": str(now),
+                "admitted_at": str(now),
+                "correlation_id": str(correlation_id_var.get() or "-")[:128],
                 "request_data": json.dumps(request_data),
             },
         )
@@ -320,17 +324,40 @@ class JobQueueService:
                     "JobQueue worker %s: %s no longer queued — skipping", worker_id, job_id
                 )
                 return
+            claimed_at = time.time()
             request_data = json.loads(meta.get("request_data", "{}"))
-            result = await worker_factory(request_data, is_stream, job_id)
-            if not is_stream:
-                await r.set(f"job:{job_id}:result", json.dumps(result, default=str))
+            dispatch_started_at = time.time()
             await r.hset(
                 f"job:{job_id}:meta",
                 mapping={
-                    "status": JobStatus.COMPLETED.value,
-                    "completed_at": str(time.time()),
+                    "claimed_at": str(claimed_at),
+                    "dispatch_started_at": str(dispatch_started_at),
                 },
             )
+            queue_token = queue_timing_var.set(
+                {
+                    "admitted_at": self._safe_float(meta.get("created_at")) or dispatch_started_at,
+                    "claimed_at": claimed_at,
+                    "dispatch_started_at": dispatch_started_at,
+                    "correlation_id": str(meta.get("correlation_id") or "-")[:128],
+                }
+            )
+            try:
+                result = await worker_factory(request_data, is_stream, job_id)
+            finally:
+                queue_timing_var.reset(queue_token)
+            published_at = time.time()
+            if not is_stream:
+                await r.set(f"job:{job_id}:result", json.dumps(result, default=str))
+            result_trace_id = result.get("trace_id") if isinstance(result, dict) else None
+            completion_mapping = {
+                "status": JobStatus.COMPLETED.value,
+                "completed_at": str(published_at),
+                "result_published_at": str(published_at),
+            }
+            if result_trace_id:
+                completion_mapping["trace_id"] = str(result_trace_id)[:128]
+            await r.hset(f"job:{job_id}:meta", mapping=completion_mapping)
             if not is_stream:
                 await r.expire(f"job:{job_id}:result", self._job_ttl)
             logger.info(f"JobQueue worker {worker_id}: completed {job_id}")

@@ -54,7 +54,8 @@ class StageRunner:
                 status = str(getattr(ctx, "last_stage_status", "success") or "success")[:32]
                 metadata = getattr(ctx, "last_stage_metadata", None)
                 logger.info(
-                    "PIPELINE_STAGE_TIMING trace_id=%s stage=%s status=%s duration_ms=%.2f",
+                    "PIPELINE_STAGE_TIMING job_id=%s trace_id=%s stage=%s status=%s duration_ms=%.2f",
+                    getattr(ctx, "job_id", None) or "-",
                     getattr(ctx, "trace_id", "unknown"),
                     stage_name,
                     status,
@@ -65,10 +66,22 @@ class StageRunner:
                     metadata = None
 
                 if hasattr(ctx, "stage_telemetry"):
+                    start_ms = (
+                        0.0
+                        if not getattr(ctx, "start_time", 0.0)
+                        else max(
+                            0.0,
+                            round((start_ns / 1_000_000) - (ctx.start_time * 1000), 2),
+                        )
+                    )
                     ctx.stage_telemetry.append(
                         {
                             "stage": stage_name,
+                            "job_id": getattr(ctx, "job_id", None),
+                            "trace_id": getattr(ctx, "trace_id", ""),
                             "status": status,
+                            "start_ms": start_ms,
+                            "end_ms": round(start_ms + duration_ms, 2),
                             "duration_ms": duration_ms,
                             "error_code": None,
                             "release_id": release_id,
@@ -89,7 +102,8 @@ class StageRunner:
             except Exception as exc:
                 duration_ms = max(0.0, round((time.time_ns() - start_ns) / 1_000_000, 2))
                 logger.warning(
-                    "PIPELINE_STAGE_TIMING trace_id=%s stage=%s status=error duration_ms=%.2f",
+                    "PIPELINE_STAGE_TIMING job_id=%s trace_id=%s stage=%s status=error duration_ms=%.2f",
+                    getattr(ctx, "job_id", None) or "-",
                     getattr(ctx, "trace_id", "unknown"),
                     stage_name,
                     duration_ms,
@@ -102,10 +116,22 @@ class StageRunner:
                 metadata = getattr(ctx, "last_stage_metadata", None)
 
                 if hasattr(ctx, "stage_telemetry"):
+                    start_ms = (
+                        0.0
+                        if not getattr(ctx, "start_time", 0.0)
+                        else max(
+                            0.0,
+                            round((start_ns / 1_000_000) - (ctx.start_time * 1000), 2),
+                        )
+                    )
                     ctx.stage_telemetry.append(
                         {
                             "stage": stage_name,
+                            "job_id": getattr(ctx, "job_id", None),
+                            "trace_id": getattr(ctx, "trace_id", ""),
                             "status": "error",
+                            "start_ms": start_ms,
+                            "end_ms": round(start_ms + duration_ms, 2),
                             "duration_ms": duration_ms,
                             "error_code": error_code,
                             "release_id": release_id,

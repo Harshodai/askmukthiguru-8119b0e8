@@ -40,6 +40,22 @@ def _provider_list(value: str) -> tuple[str, ...]:
     return providers
 
 
+def _provider_sort(value: str) -> str | None:
+    sort = (value or "").strip().lower()
+    if not sort:
+        return None
+    if sort not in {"latency", "throughput", "price"}:
+        raise ModelPolicyError("openrouter_provider_sort must be latency, throughput, price, or empty")
+    return sort
+
+
+def _provider_partition(value: str) -> str:
+    partition = (value or "model").strip().lower()
+    if partition not in {"model", "none"}:
+        raise ModelPolicyError("openrouter_provider_partition must be model or none")
+    return partition
+
+
 @dataclass(frozen=True)
 class OpenRouterModelPolicy:
     """Validated immutable policy used for every OpenRouter request."""
@@ -50,6 +66,10 @@ class OpenRouterModelPolicy:
     fast_model: str
     classify_model: str
     allowed_providers: tuple[str, ...]
+    provider_sort: str | None
+    provider_partition: str
+    preferred_max_latency_p90: float
+    preferred_min_throughput_p90: float
     require_no_training: bool
     allow_provider_fallbacks: bool
     enforce_model_allowlist: bool
@@ -77,6 +97,16 @@ class OpenRouterModelPolicy:
                 settings.openrouter_classify_model, "openrouter_classify_model"
             ),
             allowed_providers=_provider_list(getattr(settings, "openrouter_allowed_providers", "")),
+            provider_sort=_provider_sort(getattr(settings, "openrouter_provider_sort", "")),
+            provider_partition=_provider_partition(
+                getattr(settings, "openrouter_provider_partition", "model")
+            ),
+            preferred_max_latency_p90=float(
+                getattr(settings, "openrouter_preferred_max_latency_p90", 0.0)
+            ),
+            preferred_min_throughput_p90=float(
+                getattr(settings, "openrouter_preferred_min_throughput_p90", 0.0)
+            ),
             require_no_training=bool(getattr(settings, "openrouter_require_no_training", True)),
             allow_provider_fallbacks=bool(
                 getattr(settings, "openrouter_allow_provider_fallbacks", True)
@@ -100,6 +130,12 @@ class OpenRouterModelPolicy:
             raise ModelPolicyError("generation fallback model must differ from primary model")
         if self.max_tokens_fast < 1 or self.max_tokens_deep < self.max_tokens_fast:
             raise ModelPolicyError("OpenRouter token ceilings are invalid")
+        if self.provider_sort is None and (
+            self.preferred_max_latency_p90 > 0 or self.preferred_min_throughput_p90 > 0
+        ):
+            raise ModelPolicyError(
+                "OpenRouter performance thresholds require openrouter_provider_sort"
+            )
         if self.daily_budget_usd <= 0 or self.monthly_budget_usd < self.daily_budget_usd:
             raise ModelPolicyError("OpenRouter daily/monthly budget configuration is invalid")
 
@@ -132,4 +168,15 @@ class OpenRouterModelPolicy:
             preferences["data_collection"] = "deny"
         if self.allowed_providers:
             preferences["order"] = list(self.allowed_providers)
+        if self.provider_sort:
+            preferences["sort"] = {
+                "by": self.provider_sort,
+                "partition": self.provider_partition,
+            }
+        if self.preferred_max_latency_p90 > 0:
+            preferences["preferred_max_latency"] = {"p90": self.preferred_max_latency_p90}
+        if self.preferred_min_throughput_p90 > 0:
+            preferences["preferred_min_throughput"] = {
+                "p90": self.preferred_min_throughput_p90
+            }
         return preferences

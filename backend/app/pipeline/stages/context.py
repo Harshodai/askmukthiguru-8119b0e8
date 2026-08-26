@@ -39,6 +39,9 @@ class PipelineContext:
     # --- Trace / timing ---
     trace_id: str = ""
     start_time: float = 0.0
+    # Internal correlation only; never projected to ChatResponse/SSE.
+    job_id: str | None = None
+    queue_timing: dict[str, float] = field(default_factory=dict)
 
     # --- Cache precomputation ---
     cache_key: str = ""
@@ -82,6 +85,12 @@ class PipelineContext:
     last_stage_status: str = "success"
     last_stage_metadata: dict | None = None
     stage_telemetry: list[dict[str, Any]] = field(default_factory=list)
+    # Bounded, privacy-safe route facts for internal telemetry. Raw prompts and
+    # graph state must never be stored here.
+    route_metadata: dict[str, Any] = field(default_factory=dict)
 
-    # --- Query tier (set by CacheCheckStage, reused by GraphStage to avoid double LLM call) ---
+    # --- Query tier and preclassification (shared by cache and graph routing) ---
     detected_query_tier: str | None = None
+    preclassified_intent: str | None = None
+    preclassified_tier: str | None = None
+    preclassified_reason: str | None = None

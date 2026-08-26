@@ -11,6 +11,7 @@ import pytest
 import rag.nodes as nodes
 from rag.resolve_followup import resolve_followup
 from rag.states import GraphState
+from rag.nodes.intent import route_after_grading
 
 
 class MockEmbeddingService:
@@ -155,6 +156,58 @@ async def test_hyde_bypass(mock_services):
     )
     res = await nodes.generate_hyde(state)
     assert res["hyde_text"] is None
+
+
+def test_indic_rewrite_budget_is_capped_without_changing_english(monkeypatch):
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "rag_max_rewrites", 2)
+    monkeypatch.setattr(settings, "rag_indic_max_rewrites", 1)
+    hindi_state = GraphState(
+        question="सुंदर अवस्था क्या है?",
+        chat_history=[],
+        request_id="test-indic-rewrite-cap",
+        detected_language="hi",
+        relevant_docs=[],
+        rewrite_count=1,
+        intent="FACTUAL",
+    )
+    english_state = GraphState(
+        question="What is the beautiful state?",
+        chat_history=[],
+        request_id="test-english-rewrite-cap",
+        detected_language="en",
+        relevant_docs=[],
+        rewrite_count=1,
+        intent="FACTUAL",
+    )
+
+    assert route_after_grading(hindi_state) == "fallback"
+    assert route_after_grading(english_state) == "rewrite"
+
+
+@pytest.mark.asyncio
+async def test_indic_hyde_is_opt_in_even_when_global_hyde_is_enabled(mock_services, monkeypatch):
+    mock_ollama, _ = mock_services
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "rag_use_hyde", True)
+    monkeypatch.setattr(settings, "rag_indic_use_hyde", False)
+    mock_ollama.generate_hyde = AsyncMock(
+        side_effect=AssertionError("Indic HyDE should be skipped by default")
+    )
+    state = GraphState(
+        question="सुंदर अवस्था क्या है?",
+        chat_history=[],
+        request_id="test-indic-hyde-policy",
+        query_tier="tier3_complex",
+        detected_language="hi",
+    )
+
+    result = await nodes.generate_hyde(state)
+
+    assert result["hyde_text"] is None
+    mock_ollama.generate_hyde.assert_not_awaited()
 
 
 @pytest.mark.asyncio

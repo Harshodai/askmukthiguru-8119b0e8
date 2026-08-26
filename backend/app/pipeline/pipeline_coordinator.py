@@ -34,6 +34,7 @@ import uuid
 from typing import Any
 
 from app.config import settings
+from app.context import queue_timing_var
 from app.dependencies import ServiceContainer
 from app.metrics import SEARCH_LATENCY_MS, SLO_CHAT_LATENCY
 from app.orchestrator_utils import cache_language_key
@@ -78,6 +79,8 @@ class PipelineCoordinator:
         user: dict | None = None,
         is_benchmark: bool = False,
         stream_queue: Any | None = None,
+        job_id: str | None = None,
+        queue_timing: dict[str, float] | None = None,
     ) -> PipelineResult:
         """Execute the full stage pipeline and return a PipelineResult.
 
@@ -85,6 +88,9 @@ class PipelineCoordinator:
         ``orchestrator.py`` and ``stream_orchestrator.py`` need no changes.
         """
         start_time = time.time()
+        inherited_queue_timing = dict(queue_timing or queue_timing_var.get() or {})
+        if inherited_queue_timing:
+            inherited_queue_timing["pipeline_start_at"] = start_time
         chat_body_messages = (
             [m.model_dump() for m in chat_body.messages] if hasattr(chat_body, "messages") else []
         )
@@ -156,6 +162,8 @@ class PipelineCoordinator:
             stream_queue=stream_queue,
             trace_id=trace_id,
             start_time=start_time,
+            job_id=job_id,
+            queue_timing=inherited_queue_timing,
             cache_key=cache_key,
             query_for_embedding=user_msg,
             is_indic=is_indic,
@@ -229,7 +237,7 @@ class PipelineCoordinator:
             return PipelineResult(
                 final_answer="The Guru is unable to answer this question. Please try again.",
                 intent="ERROR",
-                trace_id=str(uuid.uuid4()),
+                trace_id=trace_id,
                 latency_ms=latency_ms,
                 model_used=None,  # error fallback — no model produced this text
                 model_provider=None,
@@ -531,7 +539,9 @@ class PipelineCoordinator:
             logger.warning(f"is_circuit_open() probe failed, treating circuit as closed: {e}")
             return False
 
-    def _circuit_open_result(self, is_benchmark: bool, start_time: float) -> PipelineResult:
+    def _circuit_open_result(
+        self, is_benchmark: bool, start_time: float, trace_id: str | None = None
+    ) -> PipelineResult:
         """Return an error PipelineResult when the circuit is open."""
         model = getattr(settings, "sarvam_cloud_model", None) or getattr(
             settings, "ollama_model", None
@@ -541,7 +551,7 @@ class PipelineCoordinator:
         return PipelineResult(
             final_answer=msg,
             intent="ERROR",
-            trace_id=str(uuid.uuid4()),
+            trace_id=trace_id or str(uuid.uuid4()),
             latency_ms=latency_ms,
             model_used=model,
             model_provider=getattr(settings, "llm_provider", None),
@@ -607,14 +617,113 @@ class PipelineCoordinator:
         return events
 
     @staticmethod
-    def _build_spans(result: dict) -> list[dict]:
-        metrics = result.get("metrics")
-        if not metrics:
-            return []
-        return [
-            {"span_name": name, "start_ms": 0, "duration_ms": int(duration * 1000)}
-            for name, duration in metrics.items()
-        ]
+    def _build_spans(
+        result: dict,
+        stage_telemetry: list[dict[str, Any]] | None = None,
+        queue_timing: dict[str, float] | None = None,
+        route_metadata: dict[str, Any] | None = None,
+    ) -> list[dict]:
+        """Build a bounded, privacy-safe timing projection.
+
+        ``metrics`` remains supported for node-level timings. StageRunner records
+        relative stage boundaries separately, exposing queue/preparation/assembly
+        gaps without exporting prompts, memory, answers, or arbitrary graph
+        metadata to response consumers or telemetry dashboards.
+        """
+        spans: list[dict] = []
+        metrics = result.get("metrics") or {}
+        for name, duration in metrics.items():
+            try:
+                duration_ms = max(0, int(float(duration) * 1000))
+            except (TypeError, ValueError):
+                continue
+            spans.append(
+                {"span_name": str(name)[:64], "start_ms": 0, "duration_ms": duration_ms}
+            )
+
+        for record in stage_telemetry or []:
+            if not isinstance(record, dict):
+                continue
+            stage = str(record.get("stage") or "unknown")[:64]
+            try:
+                start_ms = max(0.0, float(record.get("start_ms") or 0.0))
+                duration_ms = max(0.0, float(record.get("duration_ms") or 0.0))
+            except (TypeError, ValueError):
+                continue
+            span = {
+                "span_name": f"pipeline.{stage}",
+                "start_ms": round(start_ms, 2),
+                "duration_ms": round(duration_ms, 2),
+                "status": str(record.get("status") or "success")[:32],
+            }
+            error_code = record.get("error_code")
+            if error_code:
+                span["error_code"] = str(error_code)[:64]
+            release_id = record.get("release_id")
+            if release_id:
+                span["release_id"] = str(release_id)[:128]
+            spans.append(span)
+
+        route = route_metadata or {}
+        safe_route = {
+            key: str(route[key])[:128]
+            for key in (
+                "requested_variant",
+                "selected_variant",
+                "detected_cache_tier",
+                "normalized_query_tier",
+                "on_device_intent",
+                "decision_method",
+                "policy_version",
+            )
+            if route.get(key) is not None
+        }
+        if safe_route:
+            spans.append(
+                {
+                    "span_name": "route.decision",
+                    "start_ms": 0,
+                    "duration_ms": 0,
+                    "attributes": safe_route,
+                }
+            )
+
+        # Queue spans are relative to queue admission, while pipeline stages are
+        # relative to pipeline start. Keeping the names explicit avoids implying
+        # a single clock origin and lets offline analysis sum the correct budget.
+        timing = queue_timing or {}
+        try:
+            admitted = float(timing.get("admitted_at"))
+            claimed = float(timing.get("claimed_at"))
+            dispatch = float(timing.get("dispatch_started_at"))
+            pipeline_start = float(timing.get("pipeline_start_at"))
+        except (TypeError, ValueError):
+            admitted = claimed = dispatch = pipeline_start = 0.0
+        if admitted and claimed:
+            spans.append(
+                {
+                    "span_name": "queue.admission_wait",
+                    "start_ms": 0,
+                    "duration_ms": round(max(0.0, (claimed - admitted) * 1000), 2),
+                }
+            )
+        if claimed and dispatch:
+            spans.append(
+                {
+                    "span_name": "queue.worker_dispatch",
+                    "start_ms": 0,
+                    "duration_ms": round(max(0.0, (dispatch - claimed) * 1000), 2),
+                }
+            )
+        if admitted and pipeline_start:
+            spans.append(
+                {
+                    "span_name": "queue.to_pipeline_start",
+                    "start_ms": 0,
+                    "duration_ms": round(max(0.0, (pipeline_start - admitted) * 1000), 2),
+                }
+            )
+        return spans
 
     @staticmethod
     def _build_response_data(result: dict, intent: str) -> dict:

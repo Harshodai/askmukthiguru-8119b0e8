@@ -19,6 +19,7 @@ from app.metrics import CACHE_OPERATIONS, REQUEST_COUNT, SEARCH_PATH_TOTAL
 from app.pipeline.result import PipelineResult
 from app.pipeline.stages.base import Stage
 from app.release_manifest import get_release_manifest
+from app.routing_primitives import is_deterministic_greeting
 from services.hot_cache import hot_cache
 
 if TYPE_CHECKING:
@@ -54,6 +55,23 @@ def _is_personalization_eligible(ctx: PipelineContext) -> bool:
         or (isinstance(attachment_context, str) and attachment_context)
         or guru_tone in ("direct", "poetic")
     )
+
+
+def _cache_route_metadata(ctx: PipelineContext, cache_class: str) -> dict[str, str]:
+    """Return bounded, internal-only route facts for a cache-served response."""
+    metadata = dict(getattr(ctx, "route_metadata", {}) or {})
+    metadata.update(
+        {
+            "requested_variant": str(getattr(ctx, "detected_query_tier", None) or "unknown")[:32],
+            "selected_variant": cache_class[:32],
+            "detected_cache_tier": str(getattr(ctx, "detected_query_tier", None) or "unknown")[:32],
+            "normalized_query_tier": str(getattr(ctx, "preclassified_tier", None) or "unknown")[:32],
+            "on_device_intent": str(getattr(ctx, "preclassified_intent", None) or "unknown")[:32],
+            "decision_method": "cache_hit",
+            "policy_version": str(get_release_manifest().to_dict().get("policy_version", "unknown"))[:128],
+        }
+    )
+    return metadata
 
 
 def _is_assistant_config_present(ctx: PipelineContext) -> bool:
@@ -116,6 +134,10 @@ class CacheCheckStage(Stage):
     name = "cache_check"
 
     async def run(self, ctx: PipelineContext) -> PipelineResult | None:
+        if getattr(settings, "latency_benchmark_cache_disabled", False):
+            ctx.route_metadata["cache_policy"] = "disabled"
+            logger.debug("Cache reads disabled for local latency benchmark")
+            return None
         if ctx.incognito:
             logger.debug("Cache read skipped for incognito request")
             return None
@@ -125,6 +147,21 @@ class CacheCheckStage(Stage):
         is_indic = ctx.is_indic
         preferred_lang = ctx.preferred_lang
         container = ctx.container
+
+        # Pure/vocative greetings are a deterministic observation, not a public
+        # response shortcut at this stage. Guardrails still run later in order.
+        # Seeding the request-scoped classification avoids a duplicate provider
+        # classifier and lets the existing casual short-circuit decide safely.
+        if is_deterministic_greeting(query_text):
+            ctx.preclassified_intent = "CASUAL"
+            ctx.preclassified_tier = "tier2_simple"
+            ctx.preclassified_reason = "deterministic_greeting"
+            ctx.detected_query_tier = "tier2_simple"
+            # Greetings are never valid shared-cache answers (the hot-cache
+            # path already rejects CASUAL/GREETING entries). Skip all cache
+            # probes and continue through the ordinary guardrail and greeting
+            # stages, preserving the safety order and public contract.
+            return None
 
         # Read-side guard (mirror of CacheUpdateStage's write guard below): a query
         # personalized with this user's memory_context must never be served a generic
@@ -169,14 +206,29 @@ class CacheCheckStage(Stage):
         except Exception as _e:
             logger.debug("[cache stage] suppressed non-critical error: %s", _e)
 
-        # Determine query tier and dynamic cache threshold.
-        # Store result on ctx so GraphStage can reuse it — avoids redundant LLM classification.
+        # Determine query tier and dynamic cache threshold once. Reuse the
+        # existing on-device classifier before semantic routing: this keeps
+        # obvious fast/casual requests off the embedding/LLM selector and lets
+        # GraphStage consume the same decision rather than classifying again.
         query_tier = "standard"
-        if container:
+        if container and ctx.preclassified_reason != "deterministic_greeting":
             try:
+                from rag.nodes.on_device_intent import classify_with_reason
                 from app.orchestrator_utils import select_graph_for_query
 
-                query_tier = await select_graph_for_query(query_text, container=container)
+                on_device_result = await asyncio.to_thread(classify_with_reason, query_text)
+                if on_device_result:
+                    ctx.preclassified_intent = str(on_device_result[0])[:32]
+                    ctx.preclassified_tier = str(on_device_result[1])[:32]
+                    ctx.preclassified_reason = str(on_device_result[2])[:64]
+                # The classifier's intent is reusable, but its coarse tier is
+                # not authoritative for complexity. Let the existing selector
+                # combine intent with query-shape, deep-cue, and policy signals.
+                query_tier = await select_graph_for_query(
+                    query_text,
+                    container=container,
+                    detected_intent=ctx.preclassified_intent,
+                )
                 ctx.detected_query_tier = query_tier  # cache for GraphStage
             except Exception as e:
                 logger.warning(f"Failed to determine query tier for cache check: {e}")
@@ -197,17 +249,19 @@ class CacheCheckStage(Stage):
             if cached_intent.upper() in ("CASUAL", "GREETING"):
                 return None
             CACHE_OPERATIONS.labels(cache_type="hot", result="hit").inc()
+            route_metadata = _cache_route_metadata(ctx, "hot_cache")
             result = PipelineResult(
                 final_answer=response,
                 intent=cached_intent,
                 meditation_step=0,
                 citations=citations,
-                trace_id=str(uuid.uuid4()),
+                trace_id=ctx.trace_id,
                 latency_ms=0,
                 model_used=None,  # cached response — no model ran this request
                 model_provider=None,
                 route_decision="hot_cache",
                 cache_hit=True,
+                route_metadata=route_metadata,
                 release_manifest=get_release_manifest().to_dict(),
             )
             ctx.last_stage_status = "cached"
@@ -231,17 +285,19 @@ class CacheCheckStage(Stage):
                         text=final_response, source_lang="en", target_lang=preferred_lang
                     )
 
+                route_metadata = _cache_route_metadata(ctx, "vector_cache_p90")
                 result = PipelineResult(
                     final_answer=final_response,
                     intent=cached_intent,
                     meditation_step=0,
                     citations=citations,
-                    trace_id=str(uuid.uuid4()),
+                    trace_id=ctx.trace_id,
                     latency_ms=0,
                     model_used=None,  # cached response — no model ran this request
                     model_provider=None,
                     route_decision="vector_cache_p90",
                     cache_hit=True,
+                    route_metadata=route_metadata,
                     release_manifest=get_release_manifest().to_dict(),
                 )
                 ctx.last_stage_status = "cached"
@@ -269,17 +325,19 @@ class CacheCheckStage(Stage):
                     text=final_response, source_lang="en", target_lang=preferred_lang
                 )
 
+            route_metadata = _cache_route_metadata(ctx, "semantic_cache")
             result = PipelineResult(
                 final_answer=final_response,
                 intent=cached.get("intent"),
                 meditation_step=cached.get("meditation_step", 0),
                 citations=cached.get("citations", []),
-                trace_id=str(uuid.uuid4()),
+                trace_id=ctx.trace_id,
                 latency_ms=0,
                 model_used=None,  # cached response — no model ran this request
                 model_provider=None,
                 route_decision="semantic_cache",
                 cache_hit=True,
+                route_metadata=route_metadata,
                 release_manifest=get_release_manifest().to_dict(),
             )
             ctx.last_stage_status = "cached"
@@ -293,6 +351,9 @@ class CacheUpdateStage(Stage):
     name = "cache_update"
 
     async def run(self, ctx: PipelineContext) -> PipelineResult | None:
+        if getattr(settings, "latency_benchmark_cache_disabled", False):
+            logger.debug("Cache writes disabled for local latency benchmark")
+            return None
         if ctx.incognito:
             logger.debug("Cache write skipped for incognito request")
             return None

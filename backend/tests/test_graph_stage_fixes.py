@@ -303,3 +303,59 @@ async def test_nim_service_fallback_ignores_model_param():
     kwargs = mock_sarvam._call_api.call_args[1]
     assert kwargs["model"] == getattr(settings, "sarvam_cloud_model", "sarvam-30b")
     assert kwargs["model"] != "meta/llama-3.1-8b-instruct"
+
+
+@pytest.mark.asyncio
+async def test_graph_stage_cache_disabled_coarse_factual_tier_rechecks_shape():
+    """Cache-disabled requests must not let a coarse factual tier hide deep cues."""
+    container = MagicMock()
+    mock_fast_graph = AsyncMock()
+    mock_fast_graph.nodes = {"handle_distress_check": {}, "handle_distress": {}}
+    mock_standard_graph = AsyncMock()
+    mock_deep_graph = AsyncMock()
+    mock_deep_graph.ainvoke.return_value = {
+        "final_answer": "deep answered",
+        "citations": [],
+        "intent": "FACTUAL",
+    }
+    container.fast_graph = mock_fast_graph
+    container.standard_graph = mock_standard_graph
+    container.deep_graph = mock_deep_graph
+    coordinator = PipelineCoordinator(container)
+    coordinator.coalescer = _DirectCoalescer()
+    ctx = PipelineContext(
+        container=container,
+        coordinator=coordinator,
+        request=MagicMock(),
+        user_msg="Compare stillness with the beautiful state and explain how they relate.",
+        preferred_lang="en",
+        meditation_step=0,
+        session_id="sess-deep-shape",
+        user={"id": "user-1"},
+        is_benchmark=True,
+    )
+    # Cache-disabled mode leaves this unset; the graph stage receives only the
+    # coarse on-device factual hint and must re-check query shape.
+    ctx.detected_query_tier = None
+    ctx.preclassified_intent = "FACTUAL"
+    ctx.preclassified_tier = "tier2_simple"
+    ctx.preclassified_reason = "on_device_factual"
+    ctx.state = {
+        "user_msg_en": ctx.user_msg,
+        "chat_history_en": [],
+        "memory_context": "",
+        "lang_detection": None,
+        "query_tier": None,
+        "intent": None,
+    }
+    with patch("rag.nodes.on_device_intent.classify_with_reason") as mock_classify:
+        mock_classify.return_value = ("FACTUAL", "tier2_simple", "on_device_factual")
+        with patch(
+            "app.pipeline.stages.graph_stage.select_graph_for_query",
+            new=AsyncMock(return_value="deep"),
+        ) as mock_selector:
+            await GraphStage().run(ctx)
+    mock_selector.assert_awaited_once()
+    assert mock_selector.await_args.kwargs["query_tier"] is None
+    assert mock_deep_graph.ainvoke.called
+    assert not mock_fast_graph.ainvoke.called

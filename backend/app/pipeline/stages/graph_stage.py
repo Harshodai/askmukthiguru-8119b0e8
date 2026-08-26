@@ -24,6 +24,7 @@ from app.config import settings
 from app.context import correlation_id_var
 from app.orchestrator_utils import get_expected_keywords, select_graph_for_query
 from app.pipeline.result import PipelineResult  # noqa: F401  (re-export hint)
+from app.release_manifest import get_release_manifest
 from app.pipeline.stages.base import Stage
 from rag.graph import create_initial_state
 from rag.timeout_utils import TimeoutBudget, budget_var
@@ -169,15 +170,24 @@ class GraphStage(Stage):
             budget = TimeoutBudget(total_budget=settings.pipeline_timeout)
             token = budget_var.set(budget)
 
-            # Pre-classify intent before graph selection for fast-path routing
-            from rag.nodes.on_device_intent import classify_with_reason
-
+            # Reuse CacheCheckStage's preclassification when available. Direct
+            # stage callers and cache-disabled requests still classify here.
             on_device_started = time.perf_counter()
-            on_device_result = await asyncio.to_thread(classify_with_reason, user_msg_en)
+            if ctx.preclassified_intent:
+                on_device_result = (
+                    ctx.preclassified_intent,
+                    ctx.preclassified_tier or "standard",
+                    ctx.preclassified_reason or "preclassified",
+                )
+            else:
+                from rag.nodes.on_device_intent import classify_with_reason
+
+                on_device_result = await asyncio.to_thread(classify_with_reason, user_msg_en)
             logger.info(
-                "GRAPH_ROUTING_TIMING trace_id=%s phase=on_device_intent duration_ms=%.1f",
+                "GRAPH_ROUTING_TIMING trace_id=%s phase=on_device_intent duration_ms=%.1f reused=%s",
                 ctx.trace_id,
                 (time.perf_counter() - on_device_started) * 1000,
+                bool(ctx.preclassified_intent),
             )
             detected_intent = on_device_result[0] if on_device_result else None
             if detected_intent:
@@ -195,6 +205,7 @@ class GraphStage(Stage):
             # a redundant select_graph_for_query call. Falls back to calling it only
             # if the cache stage didn't run (e.g., cache disabled).
             tier_for_graph = initial_state.get("query_tier", "standard")
+            route_decision_method = "cache_tier_reuse"
             if ctx.detected_query_tier is not None and detected_intent != "DISTRESS":
                 # Fast path: CacheCheckStage already ran select_graph_for_query — reuse result.
                 # Honor the on-device classifier's fast-tier decision; the cache stage runs
@@ -216,12 +227,25 @@ class GraphStage(Stage):
                         else "fast"
                     )
             else:
+                route_decision_method = "graph_selector"
                 graph_selection_started = time.perf_counter()
+                # A coarse factual tier is an admission hint, not a complexity
+                # verdict. Let the selector inspect the full query shape so
+                # comparison, temporal, multi-part, and deep cues can choose
+                # the quality graph. Casual and meditation paths retain their
+                # bounded tier2 route; distress is guarded below on the full
+                # graph.
+                selector_tier = tier_for_graph
+                if detected_intent in ("FACTUAL", "QUERY") and selector_tier in (
+                    "fast",
+                    "tier2_simple",
+                ):
+                    selector_tier = None
                 graph_variant = await select_graph_for_query(
                     user_msg_en,
                     container=container,
                     detected_intent=detected_intent,
-                    query_tier=tier_for_graph,
+                    query_tier=selector_tier,
                 )
                 logger.info(
                     "GRAPH_ROUTING_TIMING trace_id=%s phase=graph_selection variant=%s duration_ms=%.1f",
@@ -274,6 +298,21 @@ class GraphStage(Stage):
                     graph_variant = "standard"
                     selected_graph = container.standard_graph
                     initial_state["query_tier"] = "standard"
+
+            # This manifest is internal-only and intentionally contains enums,
+            # booleans, and a release policy id—not prompts, memory, or graph state.
+            policy_version = get_release_manifest().to_dict().get("policy_version", "unknown")
+            ctx.route_metadata.update(
+                {
+                    "requested_variant": str(ctx.detected_query_tier or tier_for_graph)[:32],
+                    "selected_variant": str(graph_variant)[:32],
+                    "detected_cache_tier": str(ctx.detected_query_tier or "unknown")[:32],
+                    "normalized_query_tier": str(initial_state.get("query_tier") or "unknown")[:32],
+                    "on_device_intent": str(detected_intent or "unknown")[:32],
+                    "decision_method": route_decision_method,
+                    "policy_version": str(policy_version)[:128],
+                }
+            )
             try:
                 import uuid
 

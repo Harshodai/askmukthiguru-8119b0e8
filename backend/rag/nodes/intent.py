@@ -19,7 +19,13 @@ from rag.states import GraphState
 from services.serene_mind_engine import DistressAssessment, DistressLevel
 
 from . import _services
-from .utils import _trace_update, get_node_timeout, log_metrics, settings
+from .utils import (
+    _trace_update,
+    get_node_timeout,
+    log_metrics,
+    max_rewrites_for_state,
+    settings,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -87,12 +93,53 @@ def _map_router_route_to_intent(route_name: str) -> tuple[str, str, bool] | None
     return mapping.get(route_name)
 
 
+def _preserve_upstream_quality_tier(state: GraphState, result: dict) -> dict:
+    """Keep a stronger graph-selection tier from being downgraded by intent labels.
+
+    Cache-disabled requests select a graph from query-shape evidence before the
+    graph's intent node runs. The intent node may then return a coarse factual
+    tier, which previously overwrote the selected tier and silently bypassed
+    grading, verification, or deep-route gates. Only non-terminal query intents
+    may inherit the stronger upstream tier; safety, distress, meditation, and
+    casual handlers keep their own explicit routing semantics.
+    """
+    if not isinstance(result, dict):
+        return result
+    intent = str(result.get("intent") or "").upper()
+    if intent in {"CASUAL", "DISTRESS", "MEDITATION", "MEDITATION_CONTINUE"}:
+        return result
+    upstream = str(state.get("query_tier") or "").lower()
+    proposed = str(result.get("query_tier") or "").lower()
+    rank = {"fast": 0, "tier2_simple": 0, "standard": 1, "tier3_complex": 1, "deep": 2, "tier4_deep": 2}
+    if upstream not in rank or proposed not in rank or rank[upstream] <= rank[proposed]:
+        return result
+    result = dict(result)
+    result["query_tier"] = state["query_tier"]
+    confidence = result.get("confidence_tier")
+    if confidence == "high" and rank[upstream] > 0:
+        result["confidence_tier"] = "low"
+    trace = result.get("evaluation_trace")
+    if isinstance(trace, dict):
+        trace = dict(trace)
+        trace["query_tier"] = state["query_tier"]
+        trace["routing_reason"] = f"{trace.get('routing_reason', 'intent_router')}_upstream_tier_preserved"
+        result["evaluation_trace"] = trace
+    logger.info(
+        "Intent Router: preserved upstream quality tier %s over proposed %s for intent=%s",
+        state["query_tier"],
+        proposed,
+        intent,
+    )
+    return result
+
+
 @trace_rag_node("intent_router")
 @log_metrics
 async def intent_router(state: GraphState, config: dict = None) -> dict:
     """Classify user message -> DISTRESS / QUERY / CASUAL / ADVERSARIAL / SAFETY_VIOLATION."""
     try:
-        return await _intent_router_impl(state, config)
+        result = await _intent_router_impl(state, config)
+        return _preserve_upstream_quality_tier(state, result)
     except Exception:
         logger.exception("Intent router failed, falling back to safe default")
         question = state.get("question", "")
@@ -1441,11 +1488,12 @@ def route_after_grading(state: GraphState) -> str:
     if intent in ["SAFETY_VIOLATION", "ADVERSARIAL"]:
         return "relevant"
 
+    max_rewrites = max_rewrites_for_state(state)
     if relevant:
-        if not context_sufficient and rewrite_count < settings.rag_max_rewrites:
+        if not context_sufficient and rewrite_count < max_rewrites:
             return "rewrite"
         return "relevant"
-    elif rewrite_count < settings.rag_max_rewrites:
+    elif rewrite_count < max_rewrites:
         return "rewrite"
     else:
         return "fallback"

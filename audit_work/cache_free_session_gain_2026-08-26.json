@@ -1,0 +1,70 @@
+{
+  "analysis_version": "cache-free-session-gain-v1",
+  "measurement_rule": "cache_mode=disabled, cache_free_only=true, cache_hit=false, completed samples only",
+  "official_claim_scope": "matched cache-disabled routes only",
+  "baseline_artifact": "latency_cache_disabled_allroutes_r3_summary.json",
+  "post_artifacts": [
+    "latency_cache_disabled_fast_factual_post_soft_deadline_r1_summary.json",
+    "latency_cache_disabled_standard_factual_post_soft_deadline_r1_summary.json",
+    "latency_cache_disabled_deep_comparison_post_soft_deadline_r1_summary.json"
+  ],
+  "matched_routes": [
+    {
+      "route": "fast_factual",
+      "n_pre": 3,
+      "n_post": 3,
+      "backend_pre_ms": 4834.67,
+      "backend_post_ms": 4822.67,
+      "backend_delta_ms": -12.0,
+      "backend_delta_percent": -0.25,
+      "wall_pre_ms": 5042.53,
+      "wall_post_ms": 5111.62,
+      "wall_delta_ms": 69.09,
+      "wall_delta_percent": 1.37,
+      "status": "no_proven_gain"
+    },
+    {
+      "route": "standard_factual",
+      "n_pre": 3,
+      "n_post": 3,
+      "backend_pre_ms": 4849.33,
+      "backend_post_ms": 5063.0,
+      "backend_delta_ms": 213.67,
+      "backend_delta_percent": 4.41,
+      "wall_pre_ms": 5001.07,
+      "wall_post_ms": 5238.86,
+      "wall_delta_ms": 237.79,
+      "wall_delta_percent": 4.75,
+      "status": "no_proven_gain_possible_noise"
+    },
+    {
+      "route": "deep_comparison",
+      "n_pre": 3,
+      "n_post": 3,
+      "backend_pre_ms": 24741.0,
+      "backend_post_ms": 22281.33,
+      "backend_delta_ms": -2459.67,
+      "backend_delta_percent": -9.94,
+      "wall_pre_ms": 24874.05,
+      "wall_post_ms": 22429.12,
+      "wall_delta_ms": -2444.93,
+      "wall_delta_percent": -9.83,
+      "status": "exploratory_matched_gain"
+    }
+  ],
+  "non_comparable_diagnostics": {
+    "greeting_backend_before_ms": 3687.0,
+    "greeting_backend_after_ms": 5.0,
+    "greeting_backend_delta_percent": -99.86,
+    "greeting_wall_before_ms": 3995.16,
+    "greeting_wall_after_ms": 391.14,
+    "reason_excluded": "warm_shared artifacts, not cache-disabled"
+  },
+  "not_claimed": [
+    "all-tier causal improvement",
+    "queue telemetry latency reduction",
+    "OpenRouter latency-sort improvement",
+    "direct comparison of 420-case post-change workload to 36-case route baseline"
+  ],
+  "next_gate": "paired cache-disabled n>=20 per route with exact fixture and quality/safety gates"
+}

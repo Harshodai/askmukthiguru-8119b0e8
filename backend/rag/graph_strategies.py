@@ -466,6 +466,33 @@ async def deep_contradiction_gate(state: GraphState) -> dict:
             "reflection_feedback": "Deep verification skipped: insufficient context",
         }
 
+    # Standard verification already performed a strict faithfulness check.
+    # Reusing it is safe only for an explicit pass above the configured floor;
+    # all uncertain, partial, failed, or missing results still take the full
+    # deep contradiction path below. This removes a redundant provider round
+    # trip on high-confidence answers without weakening abstention semantics.
+    standard_verification = state.get("verification")
+    faithfulness_score = state.get("faithfulness_score")
+    if getattr(settings, "deep_gate_skip_on_verified", False):
+        try:
+            strict_pass = (
+                isinstance(standard_verification, dict)
+                and standard_verification.get("passed") is True
+                and state.get("is_faithful") is True
+                and float(faithfulness_score) >= float(settings.faithfulness_floor)
+            )
+        except (TypeError, ValueError):
+            strict_pass = False
+        if strict_pass:
+            logger.info(
+                "deep_contradiction_gate: reusing strict standard verification (score=%.3f)",
+                float(faithfulness_score),
+            )
+            return {
+                "needs_correction": False,
+                "reflection_feedback": "Deep verification reused strict standard verification",
+            }
+
     from rag.nodes import _services
 
     gateway = _services._llm_gateway

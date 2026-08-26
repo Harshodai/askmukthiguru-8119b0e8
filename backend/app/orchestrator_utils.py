@@ -537,34 +537,44 @@ async def prepare_request_state(
         user_msg_en=user_msg_en,
     )
 
+    # Course assignment is a persistence side effect and is not consumed by the
+    # first-response graph. Keep it eventual and observed instead of making every
+    # chat wait behind another profile read plus Supabase write. The feature flag,
+    # persistable-user gate, shared timeout, and exception boundary are retained.
     recommended_course = None
     if settings.proactive_course_assignment_enabled and _is_persistable_user_id(user_id):
-        try:
-            from services.healing_course_service import maybe_assign_healing_course, trigger_payload
+        from services.healing_course_service import maybe_assign_healing_course
 
-            async def _assign_healing_course():
+        async def _assign_healing_course() -> None:
+            try:
                 recent = await container.user_profile.get_recent_memories(
                     user_id, limit=settings.proactive_course_frequency_window
                 )
                 turn_history = _flatten_emotional_arcs(recent)
                 if not turn_history:
-                    return None
-                return await maybe_assign_healing_course(
+                    return
+                await maybe_assign_healing_course(
                     getattr(container, "supabase_client", None),
                     user_id,
                     turn_history,
                 )
+            except Exception as exc:
+                # This side effect is deliberately non-fatal; its failure must
+                # never turn a completed chat into an error or an unobserved task.
+                logger.warning("Healing course assignment failed (non-fatal): %s", exc)
 
-            # Bounded by the shared pipeline timeout convention (see
-            # rag/timeout_utils.py) so a slow store never stalls the request.
-            result = await asyncio.wait_for(
-                _assign_healing_course(),
-                timeout=get_node_timeout("healing_course", 10.0),
+        try:
+            task = asyncio.create_task(
+                asyncio.wait_for(
+                    _assign_healing_course(),
+                    timeout=get_node_timeout("healing_course", 10.0),
+                )
             )
-            if result:
-                recommended_course = trigger_payload(result["trigger"], result["slug"])
-        except Exception as e:
-            logger.warning(f"Healing course assignment failed (non-fatal): {e}")
+            task.add_done_callback(_observe_background_task_error)
+        except RuntimeError as exc:
+            # No running event loop is only possible in isolated synchronous
+            # callers; preserve the response path rather than blocking or raising.
+            logger.debug("Healing course task not scheduled: %s", exc)
 
     return {
         "user_msg_en": user_msg_en,

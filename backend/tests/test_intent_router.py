@@ -241,3 +241,23 @@ async def test_tier4_deep_cue_promotes_query_tier(monkeypatch):
     assert result["query_tier"] == "tier4_deep"
     assert result["intent"] == "FACTUAL"
     assert result["evaluation_trace"].get("routing_reason") == "tier4_deep_cue"
+
+
+@pytest.mark.asyncio
+async def test_intent_router_preserves_stronger_upstream_quality_tier(monkeypatch):
+    async def _coarse_router(state, config=None):
+        return {
+            "intent": "FACTUAL",
+            "query_tier": "tier2_simple",
+            "confidence_tier": "high",
+            "evaluation_trace": {"routing_reason": "semantic_router_factual"},
+        }
+
+    monkeypatch.setattr(intent_module, "_intent_router_impl", _coarse_router)
+    state = _make_state("Compare stillness with the beautiful state and explain how they relate.")
+    state["query_tier"] = "tier4_deep"
+    result = await intent_module.intent_router(state, config=None)
+    assert result["intent"] == "FACTUAL"
+    assert result["query_tier"] == "tier4_deep"
+    assert result["confidence_tier"] == "low"
+    assert result["evaluation_trace"]["routing_reason"].endswith("_upstream_tier_preserved")

@@ -261,6 +261,7 @@ The current release adds an ephemeral extraction MVP at `POST /api/chat/upload` 
 
 ## Technical Debt / Follow-ups
 
+- **Added 2026-08-26**: Indic RAG latency policy now disables HyDE by default and caps Indic CRAG rewrites at one (`RAG_INDIC_USE_HYDE=false`, `RAG_INDIC_MAX_REWRITES=1`). Local n=1 evidence reduced Hindi backend latency from 30.00s to 16.12s (-46.3%) with the same abstained grounded-partial fallback metadata; run a held-out multilingual faithfulness/NDCG evaluation before enabling Indic HyDE or widening the retry cap.
 - Flip `langhanam_voice_enabled` after a live-LLM benchmark run (OpenRouter key 403 locally).
 - Set repo secrets for nightly RLS workflow; review ephemeral-prod-user cleanup before enabling.
 - Local dev requires service URL overrides (docker hostnames in `.env`) — document in start_local.sh.
