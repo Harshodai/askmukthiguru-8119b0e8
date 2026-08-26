@@ -1,0 +1,254 @@
+--- container settings ---
+USE_FLASHRANK=true
+--- config defaults ---
+101:    llm_max_tokens_fast: int = 800  # casual/standard/fast-route generation ceiling
+102:    llm_max_tokens_deep: int = 1500  # deep/tier3_complex generation ceiling
+106:    node_timeout_fast: int = 15  # reduced from 20
+107:    node_timeout_main: int = 20  # reduced from 90 — prevents 90s hangs on slow Qdrant/Neo4j
+213:    openrouter_provider_sort: str = ""
+214:    openrouter_provider_partition: str = "model"
+215:    openrouter_preferred_max_latency_p90: float = Field(default=0.0, ge=0.0, le=300.0)
+216:    openrouter_preferred_min_throughput_p90: float = Field(default=0.0, ge=0.0, le=10000.0)
+358:    reranker_model: str = "BAAI/bge-reranker-v2-m3"
+359:    # CPU-only deployments (Railway) must NOT run bge-reranker-v2-m3:
+363:    # GPU/MPS path still uses bge-reranker-v2-m3 above.
+364:    reranker_model_cpu: str = "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
+365:    # ONNX INT8 reranker backend (Phase 1 optimization).
+369:    reranker_backend: str = "onnx_int8"
+370:    reranker_onnx_model: str = "temsa/mmarco-mMiniLMv2-L12-H384-v1-onnx-cpu-qint8"
+485:    llm_queue_enabled: bool = True
+486:    llm_queue_max_concurrent: int = 5
+487:    llm_queue_maxsize: int = 50
+623:    rag_top_k_rerank: int = 10
+640:    rerank_min_score: float = 0.35  # Min CrossEncoder score (sigmoid-normalized) to keep a doc
+661:    rerank_score_delta_enabled: bool = True
+670:    bm25_retrieval_enabled: bool = True
+671:    bm25_result_limit: int = 10
+1073:    rerank_threshold_complex: float = 0.01
+1074:    rerank_threshold_simple: float = 0.05
+1075:    rerank_floor: float = 0.3
+1077:    reranker_enabled_for_complex: bool = (
+1078:        True  # Enable cross-encoder reranker for tier3_complex queries
+1080:    # Adaptive-RAG confidence gate: when >=3 reranked docs score at or above this
+1143:    rag_skip_retrieval_expansions: bool = False
+1148:    rag_retrieval_expansion_soft_wait_seconds: float = Field(default=0.35, ge=0.0, le=5.0)
+1416:    def validate_reranker_config(self):
+1417:        """Validate reranker backend compatibility."""
+1418:        # Factory-implemented backends only (see embedding_service._ensure_reranker):
+1422:        valid_rerankers = {"onnx_int8", "flagembedding"}
+1423:        backend_str = (self.reranker_backend or "").lower()
+1424:        if backend_str not in valid_rerankers:
+1426:                f"Invalid reranker_backend '{self.reranker_backend}'. Must be one of {sorted(valid_rerankers)}"
+1428:        self.reranker_backend = backend_str
+1469:            ("llm_queue_max_concurrent", getattr(self, "llm_queue_max_concurrent", None)),
+--- reranker candidates ---
+backend/rag/nodes/reranking.py:22:def _limit_rerank_candidates(documents: list[dict], query_tier: str) -> list[dict]:
+backend/rag/nodes/reranking.py:28:        "Rerank candidate budget: tier=%s %d -> %d documents",
+backend/rag/nodes/reranking.py:36:@trace_rag_node("rerank_documents")
+backend/rag/nodes/reranking.py:38:async def rerank_documents(state: GraphState, config: dict = None) -> dict:
+backend/rag/nodes/reranking.py:39:    """Rerank Documents (CrossEncoder) with adaptive thresholds and MMR."""
+backend/rag/nodes/reranking.py:42:    reranker = _services._reranker
+backend/rag/nodes/reranking.py:47:        return {"reranked_docs": []}
+backend/rag/nodes/reranking.py:58:        if "rerank_score" not in doc:
+backend/rag/nodes/reranking.py:59:            doc["rerank_score"] = 0.70
+backend/rag/nodes/reranking.py:61:    def _apply_rerank_score_cutoff(
+backend/rag/nodes/reranking.py:62:        docs: list[dict], score_key: str = "rerank_score", ratio: float = 0.5
+backend/rag/nodes/reranking.py:64:        if not docs or not getattr(settings, "rerank_score_delta_enabled", False):
+backend/rag/nodes/reranking.py:77:    reranked_db = []
+backend/rag/nodes/reranking.py:81:        base_threshold = getattr(settings, "rerank_min_score", 0.2)
+backend/rag/nodes/reranking.py:83:        simple_floor = max(settings.rerank_threshold_simple, base_threshold - 0.1)
+backend/rag/nodes/reranking.py:85:            max(settings.rerank_threshold_complex, simple_floor) if is_complex else simple_floor
+backend/rag/nodes/reranking.py:96:        rerank_top_k = _TIER_TOP_K.get(query_tier, getattr(settings, "rag_top_k_rerank", 10))
+backend/rag/nodes/reranking.py:98:        # For complex queries: prefer cross-encoder (higher precision) over FlashRank
+backend/rag/nodes/reranking.py:99:        # when reranker_enabled_for_complex is True. FlashRank is ~5× faster but
+backend/rag/nodes/reranking.py:102:            getattr(settings, "reranker_enabled_for_complex", True)
+backend/rag/nodes/reranking.py:106:        rerank_candidates = _limit_rerank_candidates(db_docs, query_tier)
+backend/rag/nodes/reranking.py:107:        if settings.use_flashrank and reranker is not None and not force_cross_encoder:
+backend/rag/nodes/reranking.py:108:            reranked_db = await reranker.rerank(
+backend/rag/nodes/reranking.py:110:                rerank_candidates,
+backend/rag/nodes/reranking.py:111:                top_k=rerank_top_k,
+backend/rag/nodes/reranking.py:115:            reranked_db = await asyncio.to_thread(
+backend/rag/nodes/reranking.py:116:                embedder.cascaded_rerank,
+backend/rag/nodes/reranking.py:118:                rerank_candidates,
+backend/rag/nodes/reranking.py:119:                colbert_top_k=rerank_top_k * 2,
+backend/rag/nodes/reranking.py:120:                cross_top_k=rerank_top_k,
+backend/rag/nodes/reranking.py:124:    # ponytail: Gap 2 — important_kwd post-rerank additive boost.
+backend/rag/nodes/reranking.py:125:    if getattr(settings, "important_kwd_boost_enabled", True) and reranked_db:
+backend/rag/nodes/reranking.py:128:        for doc in reranked_db:
+backend/rag/nodes/reranking.py:134:                doc["rerank_score"] = min(
+backend/rag/nodes/reranking.py:135:                    doc.get("rerank_score", 0.0) + boost_per_term * overlap, 1.0
+backend/rag/nodes/reranking.py:137:        reranked_db.sort(key=lambda d: d.get("rerank_score", 0.0), reverse=True)
+backend/rag/nodes/reranking.py:140:    reranked_db = _apply_rerank_score_cutoff(reranked_db)
+backend/rag/nodes/reranking.py:144:    db_budget = max(0, settings.rag_top_k_retrieval - web_docs_count)
+backend/rag/nodes/reranking.py:145:    if len(reranked_db) > db_budget and db_budget > 0:
+backend/rag/nodes/reranking.py:146:        doc_texts = [doc["text"] for doc in reranked_db]
+backend/rag/nodes/reranking.py:147:        batch_enc = await asyncio.to_thread(embedder.encode_batch, doc_texts)
+backend/rag/nodes/reranking.py:148:        doc_embeddings = batch_enc["dense"]
+backend/rag/nodes/reranking.py:153:        reranked_db = qdrant.mmr_select(
+backend/rag/nodes/reranking.py:155:            documents=reranked_db,
+backend/rag/nodes/reranking.py:157:            top_k=db_budget,
+backend/rag/nodes/reranking.py:161:        reranked_db = []
+backend/rag/nodes/reranking.py:164:    reranked = web_docs + reranked_db
+backend/rag/nodes/reranking.py:167:    # scoring documents (by actual ``rerank_score``) at the first and last
+backend/rag/nodes/reranking.py:170:    if len(reranked) >= 6:
+backend/rag/nodes/reranking.py:171:        sorted_by_score = sorted(reranked, key=lambda d: d.get("rerank_score", 0.0), reverse=True)
+backend/rag/nodes/reranking.py:174:        rest = [d for d in reranked if d is not best and d is not second_best]
+backend/rag/nodes/reranking.py:175:        reranked = [best] + rest + [second_best]
+backend/rag/nodes/reranking.py:179:        f"final={len(reranked)} documents"
+backend/rag/nodes/reranking.py:182:        "reranked_docs": reranked,
+backend/rag/nodes/reranking.py:185:            reranked_count=len(reranked),
+backend/rag/nodes/reranking.py:186:            reranked_sources=_grounded_citation_urls(reranked),
+backend/rag/nodes/reranking.py:194:    """CRAG: Batch relevance grading of all reranked documents in one LLM call."""
+backend/rag/nodes/reranking.py:199:        reranked_docs = state["reranked_docs"]
+backend/rag/nodes/reranking.py:200:        relevant = sorted(reranked_docs, key=lambda d: d.get("rerank_score", 0.0), reverse=True)[:3]
+backend/rag/nodes/reranking.py:203:            f"CRAG batch: simple query tier, bypassing grading, accepted {len(relevant)} docs"
+backend/rag/nodes/reranking.py:214:    reranked_docs = state["reranked_docs"]
+backend/rag/nodes/reranking.py:216:    if not reranked_docs:
+backend/rag/nodes/reranking.py:219:    rerank_scores = [
+backend/rag/nodes/reranking.py:220:        d.get("rerank_score") for d in reranked_docs if d.get("rerank_score") is not None
+backend/rag/nodes/reranking.py:222:    if rerank_scores:
+backend/rag/nodes/reranking.py:223:        top_score = max(rerank_scores)
+backend/rag/nodes/reranking.py:224:        min_score = settings.rerank_min_score
+backend/rag/nodes/reranking.py:227:                f"Confidence gate: top rerank score {top_score:.3f} < min {min_score}. "
+backend/rag/nodes/reranking.py:228:                f"Rejecting {len(reranked_docs)} docs."
+backend/rag/nodes/reranking.py:237:                    top_rerank_score=round(top_score, 4),
+backend/rag/nodes/reranking.py:244:        before_count = len(reranked_docs)
+backend/rag/nodes/reranking.py:245:        reranked_docs = [doc for doc in reranked_docs if doc.get("rerank_score", 0.0) >= crag_floor]
+backend/rag/nodes/reranking.py:246:        if before_count != len(reranked_docs):
+backend/rag/nodes/reranking.py:249:                f"{before_count} -> {len(reranked_docs)} docs"
+backend/rag/nodes/reranking.py:252:    # Adaptive-RAG confidence gate: reranker already confident → skip the LLM
+backend/rag/nodes/reranking.py:257:        confident = [d for d in reranked_docs if d.get("rerank_score", 0.0) >= skip_conf]
+backend/rag/nodes/reranking.py:259:            relevant = confident[: settings.rag_top_k_rerank]
+backend/rag/nodes/reranking.py:260:            state["grading_reasons"] = ["High-confidence rerank bypass" for _ in relevant]
+backend/rag/nodes/reranking.py:262:                f"CRAG batch: {len(confident)} docs >= {skip_conf} rerank confidence, "
+backend/rag/nodes/reranking.py:280:        relevant = reranked_docs[:3]
+backend/rag/nodes/reranking.py:283:            f"CRAG batch: DISTRESS intent, bypassing grading, accepted {len(relevant)} docs"
+backend/rag/nodes/reranking.py:286:        # Grade ALL docs in a single batch LLM call (web + db combined)
+backend/rag/nodes/reranking.py:287:        web_docs = [doc for doc in reranked_docs if doc.get("content_type") == "web_search"]
+backend/rag/nodes/reranking.py:288:        db_docs = [doc for doc in reranked_docs if doc.get("content_type") != "web_search"]
+backend/rag/nodes/reranking.py:312:                    f"Grading failed for all docs: {e}. Falling back to top-3 reranked docs."
+backend/rag/nodes/reranking.py:329:                    embedder._reranker,
+backend/rag/nodes/reranking.py:330:                    threshold=settings.rerank_floor,
+backend/rag/nodes/reranking.py:344:        high_conf_docs = [d for d in relevant if d.get("rerank_score", 0.0) >= 0.75]
+backend/rag/nodes/reranking.py:345:        moderate_docs = [d for d in relevant if d.get("rerank_score", 0.0) >= 0.5]
+backend/rag/nodes/reranking.py:350:    if reranked_docs:
+backend/rag/nodes/reranking.py:354:            RETRIEVAL_RELEVANCE_RATIO.set(len(relevant) / len(reranked_docs))
+backend/rag/nodes/reranking.py:356:            logger.debug("[reranking node] suppressed non-critical error: %s", _e)
+backend/rag/nodes/reranking.py:359:        f"CRAG batch: {len(relevant)}/{len(reranked_docs)} docs passed relevance check "
+backend/services/reranker_service.py:2:Mukthi Guru — FlashRank Reranker Service
+backend/services/reranker_service.py:4:Integrates PrithivirajDamodaran/FlashRank for ultra-fast, lightweight document reranking.
+backend/services/reranker_service.py:8:  - Graceful fallback to sentence-transformers CrossEncoder in case of ONNX or model loading failure.
+backend/services/reranker_service.py:28:    High-performance reranking service utilizing FlashRank (ONNX)
+backend/services/reranker_service.py:29:    with sentence-transformers CrossEncoder fallback.
+backend/services/reranker_service.py:33:        """Initialize the reranker service (lazy-loaded)."""
+backend/services/reranker_service.py:37:        self._fallback_reranker = None
+backend/services/reranker_service.py:40:        logger.info("FlashRank Reranker service initialized (lazy load)")
+backend/services/reranker_service.py:43:        """Eagerly load the reranker model at startup to avoid latency spikes."""
+backend/services/reranker_service.py:44:        logger.info("Warming up reranker service — loading model...")
+backend/services/reranker_service.py:49:        """Ensure that either FlashRank or the fallback CrossEncoder model is loaded."""
+backend/services/reranker_service.py:50:        if self._ranker is not None or self._fallback_reranker is not None:
+backend/services/reranker_service.py:55:            if self._ranker is not None or self._fallback_reranker is not None:
+backend/services/reranker_service.py:60:                    "FlashRank is explicitly disabled in settings. Loading sentence-transformers fallback reranker."
+backend/services/reranker_service.py:75:                        f"Auto-tuning reranker: system={system_platform}, machine={machine}"
+backend/services/reranker_service.py:90:                        # FlashRank model names are exotic; the 404 on download is common.
+backend/services/reranker_service.py:91:                        # Disable for now — cascaded CrossEncoder already works well.
+backend/services/reranker_service.py:94:                            "Skipping FlashRank auto-tune; using cascaded CrossEncoder fallback."
+backend/services/reranker_service.py:97:                logger.info(f"Initializing FlashRank with model: {model_name}")
+backend/services/reranker_service.py:102:                # through to the CrossEncoder fallback (the active path anyway).
+backend/services/reranker_service.py:105:                        "FlashRank model_name resolved to None (non-Apple-Silicon auto-tune). "
+backend/services/reranker_service.py:106:                        "Skipping FlashRank; cascaded CrossEncoder is the active reranker."
+backend/services/reranker_service.py:111:                # Note: FlashRank downloads models to cache folder if not present
+backend/services/reranker_service.py:116:                    f"FlashRank successfully initialized in {duration:.4f}s using {model_name}"
+backend/services/reranker_service.py:122:                    f"❌ Failed to initialize FlashRank reranker (ONNX). Fallback will trigger: {e}",
+backend/services/reranker_service.py:152:        """Load the fallback sentence-transformers CrossEncoder (or ONNX reranker)."""
+backend/services/reranker_service.py:153:        # Phase 1: prefer ONNX INT8 reranker when configured.
+backend/services/reranker_service.py:154:        if settings.reranker_backend == "onnx_int8":
+backend/services/reranker_service.py:156:                from services.onnx_reranker import OnnxReranker
+backend/services/reranker_service.py:159:                self._fallback_reranker = OnnxReranker(model_id=settings.reranker_onnx_model)
+backend/services/reranker_service.py:162:                # (mirrors embedding_service._ensure_reranker line 414-418).
+backend/services/reranker_service.py:163:                self._reranker_outputs_probs = True
+backend/services/reranker_service.py:166:                    "ONNX INT8 reranker loaded in %.4fs: %s",
+backend/services/reranker_service.py:168:                    settings.reranker_onnx_model,
+backend/services/reranker_service.py:174:                    "ONNX reranker load failed (%s); falling back to PyTorch CrossEncoder", e
+backend/services/reranker_service.py:179:            from sentence_transformers import CrossEncoder
+backend/services/reranker_service.py:187:            # On CPU, bge-reranker-v2-m3 costs ~4s/doc (88s for 19 docs, verified in
+backend/services/reranker_service.py:189:            # multilingual reranker for GPU/MPS where it is affordable.
+backend/services/reranker_service.py:190:            model_id = settings.reranker_model_cpu if device == "cpu" else settings.reranker_model
+backend/services/reranker_service.py:191:            logger.info(f"Loading fallback reranker: {model_id} on device: {device}")
+backend/services/reranker_service.py:194:                self._fallback_reranker = CrossEncoder(model_id, device=device)
+backend/services/reranker_service.py:198:                self._fallback_reranker = CrossEncoder(model_id, device=device)
+backend/services/reranker_service.py:200:            logger.info(f"Fallback CrossEncoder loaded successfully in {duration:.4f}s")
+backend/services/reranker_service.py:202:            # PyTorch CrossEncoder returns raw logits — clear the ONNX flag so
+backend/services/reranker_service.py:204:            # _ensure_reranker's _reranker_outputs_probs=False default).
+backend/services/reranker_service.py:205:            self._reranker_outputs_probs = False
+backend/services/reranker_service.py:208:                f"❌ CRITICAL FAILURE: Could not load fallback reranker: {e}", exc_info=True
+backend/services/reranker_service.py:212:    async def rerank(
+backend/services/reranker_service.py:216:        top_k: Optional[int] = None,
+backend/services/reranker_service.py:220:        Rerank documents using FlashRank (ONNX) with sentence-transformers fallback.
+backend/services/reranker_service.py:223:        return await asyncio.to_thread(self._rerank_sync, query, documents, top_k, min_score)
+backend/services/reranker_service.py:232:        if self._fallback_reranker is None:
+backend/services/reranker_service.py:242:            raw_scores = self._fallback_reranker.predict(pairs)
+backend/services/reranker_service.py:245:        # probabilities; sentence-transformers CrossEncoder returns raw logits.
+backend/services/reranker_service.py:246:        # Detected at load time and stored in self._reranker_outputs_probs
+backend/services/reranker_service.py:247:        # (mirrors embedding_service.rerank line 987).
+backend/services/reranker_service.py:248:        outputs_probs = getattr(self, "_reranker_outputs_probs", False)
+backend/services/reranker_service.py:253:        reranked_docs = []
+backend/services/reranker_service.py:257:            doc_copy["rerank_score"] = score
+backend/services/reranker_service.py:258:            doc_copy["rerank_raw_logit"] = float(raw_score)
+backend/services/reranker_service.py:259:            reranked_docs.append(doc_copy)
+backend/services/reranker_service.py:261:        reranked_docs = sorted(reranked_docs, key=lambda d: d["rerank_score"], reverse=True)
+backend/services/reranker_service.py:263:        logger.info(f"CrossEncoder reranked {len(documents)} docs in {duration:.4f}s")
+backend/services/reranker_service.py:265:        above_threshold = [d for d in reranked_docs if d["rerank_score"] >= min_score]
+backend/services/reranker_service.py:267:        if not above_threshold and reranked_docs:
+backend/services/reranker_service.py:268:            above_threshold = reranked_docs[:1]
+backend/services/reranker_service.py:270:                f"All {len(reranked_docs)} docs scored below threshold {min_score}. "
+backend/services/reranker_service.py:271:                f"Keeping top-1 (score={reranked_docs[0]['rerank_score']:.4f})"
+backend/services/reranker_service.py:274:        filtered_count = len(reranked_docs) - len(above_threshold)
+backend/services/reranker_service.py:277:                f"CrossEncoder threshold {min_score}: filtered {filtered_count} docs below threshold"
+backend/services/reranker_service.py:282:    def _rerank_sync(
+backend/services/reranker_service.py:286:        top_k: Optional[int] = None,
+backend/services/reranker_service.py:290:        Synchronous core reranking method.
+backend/services/reranker_service.py:292:        if top_k is None:
+backend/services/reranker_service.py:293:            top_k = settings.rag_top_k_rerank
+backend/services/reranker_service.py:300:        effective_min_score = min_score if min_score is not None else settings.rerank_min_score
+backend/services/reranker_service.py:310:                if self._fallback_reranker is None:
+backend/services/reranker_service.py:314:                    return result[:top_k]
+backend/services/reranker_service.py:316:                logger.error(f"CrossEncoder primary failed, falling back to FlashRank: {e}")
+backend/services/reranker_service.py:326:                rerank_request = RerankRequest(query=query, passages=passages)
+backend/services/reranker_service.py:328:                results = self._ranker.rerank(rerank_request)
+backend/services/reranker_service.py:330:                reranked_docs = []
+backend/services/reranker_service.py:336:                    orig_doc["rerank_score"] = score
+backend/services/reranker_service.py:337:                    orig_doc["rerank_raw_logit"] = score
+backend/services/reranker_service.py:338:                    reranked_docs.append(orig_doc)
+backend/services/reranker_service.py:341:                logger.info(f"FlashRank reranked {len(documents)} docs in {duration:.4f}s")
+backend/services/reranker_service.py:344:                    d for d in reranked_docs if d["rerank_score"] >= effective_min_score
+backend/services/reranker_service.py:347:                if not above_threshold and reranked_docs:
+backend/services/reranker_service.py:348:                    above_threshold = reranked_docs[:1]
+backend/services/reranker_service.py:350:                        f"All {len(reranked_docs)} docs scored below threshold {effective_min_score}. "
+backend/services/reranker_service.py:351:                        f"Keeping top-1 (score={reranked_docs[0]['rerank_score']:.4f})"
+backend/services/reranker_service.py:354:                filtered_count = len(reranked_docs) - len(above_threshold)
+backend/services/reranker_service.py:357:                        f"FlashRank threshold {effective_min_score}: filtered {filtered_count} docs below threshold"
+backend/services/reranker_service.py:360:                return above_threshold[:top_k]
+backend/services/reranker_service.py:364:                    f"FlashRank rerank execution failed, falling back to CrossEncoder: {e}",
+backend/services/reranker_service.py:369:        if self._fallback_reranker is not None:
+backend/services/reranker_service.py:372:                return result[:top_k]
+backend/services/reranker_service.py:375:            f"Reranker: both FlashRank and CrossEncoder backends unavailable/failed for "
+backend/services/reranker_service.py:387:        """Additive ontology-aware rerank boost (Task B2).
+backend/services/reranker_service.py:389:        Composes with the existing ``rerank()`` pipeline: call ``rerank()``
+backend/services/reranker_service.py:390:        first to get ``rerank_score``, then this method to apply the ontology
+backend/services/reranker_service.py:395:        ``label`` attribute). The boost is added to ``rerank_score`` and
+backend/services/reranker_service.py:407:            base = float(doc.get("rerank_score", doc.get("score", 0.0)))
+backend/services/onnx_reranker.py:2:ONNX INT8 CrossEncoder reranker for mmarco-mMiniLMv2-L12-H384-v1.
+backend/services/onnx_reranker.py:4:Drop-in replacement for sentence_transformers.CrossEncoder on CPU.
+backend/services/onnx_reranker.py:8:CrossEncoder models are fine-tuned on *paired* input:
+backend/services/onnx_reranker.py:38:# 2026-08-01 and validated by scripts/validate_onnx_reranker.py (Spearman
+backend/services/onnx_reranker.py:61:    """ONNX INT8 CrossEncoder for document reranking.
+backend/services/onnx_reranker.py:69:        reranker = OnnxReranker()
+backend/services/onnx_reranker.py:70:        scores = reranker.predict([("what is karma?", "Karma is ..."), ...])
+backend/services/onnx_reranker.py:95:                f"Refusing to load unvetted reranker model id '{model_id}'. "
+backend/services/onnx_reranker.py:104:        # Pinned model id + immutable revision (temsa ONNX INT8 reranker),
+backend/services/onnx_reranker.py:105:        # validated by scripts/validate_onnx_reranker.py (Spearman >0.90 gate).
+backend/services/onnx_reranker.py:151:            "Loaded ONNX INT8 reranker: %s  (file=%s, inputs=%s, token_type_ids=%s, outputs=%s)",
+backend/services/onnx_reranker.py:200:            logits = self._session.run(None, feed)[0]  # shape: [batch, 1]
+backend/services/onnx_reranker.py:217:    reranker = OnnxReranker()
+backend/services/onnx_reranker.py:224:    scores = reranker.predict(pairs)

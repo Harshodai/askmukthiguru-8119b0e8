@@ -1,0 +1,7 @@
+benchmark_pid_stopped=41613
+health_status=healthy
+{"ok":true,"status":"alive"}
+{"ready":true,"capabilities":{"schema_version":1,"llm_provider":"openrouter","features":{"chat_generation":"available","retrieval":"available","knowledge_graph":"available","memory_write":"disabled_by_policy","live_information":"disabled_by
+{"timestamp": "2026-08-26T13:16:41+0000", "level": "INFO", "logger": "app.main", "message": "On-device intent warm-up complete: result=none latency=14347ms"}
+{"timestamp": "2026-08-26T13:16:43+0000", "level": "INFO", "logger": "app.main", "message": "=== Server accepting requests ==="}
+INFO:     Application startup complete.

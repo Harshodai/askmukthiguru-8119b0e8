@@ -1,0 +1,47 @@
+{
+  "manifest_version": "question-bank-latency-v1",
+  "source_sha256": "1adf9d547ffd9ca33c20b63ef57b8291f2938ca138a25028620fd2d06a34f8f6",
+  "base_url": "http://localhost:8000",
+  "cache_mode": "disabled",
+  "cache_free_only": true,
+  "runs": 1,
+  "n_rows": 1,
+  "strata": {
+    "in_corpus_doctrine": {
+      "n_total": 1,
+      "n_included": 1,
+      "n_quality_valid": 0,
+      "n_excluded": 0,
+      "exclusion_reasons": {},
+      "observed_query_tiers": {
+        "tier2_simple": 1
+      },
+      "backend_mean_ms": 3153.0,
+      "backend_p50_ms": null,
+      "backend_p95_ms": null,
+      "wall_mean_ms": 3644.03,
+      "wall_p50_ms": null,
+      "wall_p95_ms": null,
+      "percentiles_status": "suppressed_need_20_included"
+    }
+  },
+  "categories": {
+    "doctrine_soul_sync": {
+      "n_total": 1,
+      "n_included": 1,
+      "n_quality_valid": 0,
+      "n_excluded": 0,
+      "exclusion_reasons": {},
+      "observed_query_tiers": {
+        "tier2_simple": 1
+      },
+      "backend_mean_ms": 3153.0,
+      "backend_p50_ms": null,
+      "backend_p95_ms": null,
+      "wall_mean_ms": 3644.03,
+      "wall_p50_ms": null,
+      "wall_p95_ms": null,
+      "percentiles_status": "suppressed_need_20_included"
+    }
+  }
+}

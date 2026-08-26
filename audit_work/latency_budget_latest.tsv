@@ -1,0 +1,5 @@
+label	wall_ms	backend_ms	node_sum_ms	wrapper_gap_ms	wall_minus_backend_ms	query_tier	grounding	verification	cache
+english_simple	6355.0	6113.0	1288.1	4824.9	242.0	tier2_simple	grounded	grounded_partial_evidence	False
+english_stillness	3154.1	3019.0	2954.9	64.1	135.1	tier2_simple	abstained	reflective_meaning_fallback	False
+english_comparison	24186.0	24146.0	14934.2	9211.8	40.0	tier2_simple	grounded	grounded_partial_evidence	False
+hindi	30146.2	30001.0	20524.8	9476.2	145.2	tier3_complex	abstained	grounded_partial_fallback	False

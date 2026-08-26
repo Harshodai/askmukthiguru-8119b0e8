@@ -1,0 +1,94 @@
+--- repo ---
+/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8
+5041dd97e2cfa3c3d9a3eb00d5485e6de7e7254e
+5041dd97e2cfa3c3d9a3eb00d5485e6de7e7254e
+?? " audit_work/cache_disabled_validation_snapshot_2026-08-26.md"
+?? " backend/tests/test_model_policy.py"
+?? askmukthiguru-8119b0e8/audit_work/cache_disabled_validation_snapshot_2026-08-26.md
+?? audit_work/all_question_metrics_freeze_2026-08-26.txt
+?? audit_work/cache_free_session_gain_report_2026-08-26.md
+?? audit_work/compare_latency_runs.py
+?? audit_work/cross_tier_latency_final_report_2026-08-26.md
+?? audit_work/cross_tier_latency_summary.tsv
+?? audit_work/cross_tier_log_correlation_latest.txt
+?? audit_work/cross_tier_parameter_inventory_2026-08-26.md
+?? audit_work/diagnose_route_mismatch.py
+?? audit_work/final_advanced_methods_snapshot.txt
+?? audit_work/final_cross_tier_validation_snapshot_2026-08-26.md
+?? audit_work/final_validation_snapshot.txt
+?? audit_work/free_to_user_adversarial_audit_checkpoint_2026-08-26.md
+?? audit_work/free_to_user_audit_baseline_2026-08-26.md
+?? audit_work/free_to_user_cost_control_assessment_2026-08-26.md
+?? audit_work/free_to_user_inventory_raw.txt
+?? audit_work/free_to_user_openapi.json
+?? audit_work/free_to_user_runtime_readonly.txt
+?? audit_work/free_to_user_security_static.txt
+?? audit_work/github_latency_gems.err
+?? audit_work/github_latency_gems.jsonl
+?? audit_work/internet_skill_latency_sweep.err
+?? audit_work/internet_skill_latency_sweep.json
+?? audit_work/latency_baseline_latest.txt
+?? audit_work/latency_benchmark_distress_20.jsonl
+?? audit_work/latency_benchmark_distress_20_summary.json
+?? audit_work/latency_benchmark_repeated.py
+?? audit_work/latency_budget.py
+?? audit_work/latency_budget_current.tsv
+?? audit_work/latency_budget_latest.tsv
+?? audit_work/latency_cache_disabled_allroutes_r3.jsonl
+?? audit_work/latency_cache_disabled_allroutes_r3_summary.json
+?? audit_work/latency_cache_disabled_core_post_soft_deadline_r1.jsonl
+?? audit_work/latency_cache_disabled_core_post_soft_deadline_r1_summary.json
+?? audit_work/latency_cache_disabled_deep_comparison_post_soft_deadline_r1.jsonl
+?? audit_work/latency_cache_disabled_deep_comparison_post_soft_deadline_r1_summary.json
+?? audit_work/latency_cache_disabled_fast_factual_post_soft_deadline_r1.jsonl
+?? audit_work/latency_cache_disabled_fast_factual_post_soft_deadline_r1_summary.json
+?? audit_work/latency_cache_disabled_fast_factual_provider_latency_sort_r1.jsonl
+?? audit_work/latency_cache_disabled_fast_factual_provider_latency_sort_r1_summary.json
+?? audit_work/latency_cache_disabled_standard_factual_post_soft_deadline_r1.jsonl
+?? audit_work/latency_cache_disabled_standard_factual_post_soft_deadline_r1_summary.json
+?? audit_work/latency_experiment_comparison.md
+?? audit_work/latency_fast_casual_after.jsonl
+?? audit_work/latency_fast_casual_after_summary.json
+?? audit_work/latency_fast_casual_cache_bypass_final.jsonl
+?? audit_work/latency_fast_casual_cache_bypass_final_summary.json
+?? audit_work/latency_fast_casual_final.jsonl
+?? audit_work/latency_fast_casual_final_summary.json
+?? audit_work/latency_fast_casual_narrowed_final.jsonl
+?? audit_work/latency_fast_casual_narrowed_final_summary.json
+?? audit_work/latency_fast_casual_postrestart.jsonl
+?? audit_work/latency_fast_casual_postrestart_summary.json
+?? audit_work/latency_fast_casual_shared_final.jsonl
+?? audit_work/latency_fast_casual_shared_final_summary.json
+?? audit_work/latency_final_report.md
+?? audit_work/latency_log_correlations.txt
+?? audit_work/latency_log_correlations_current.txt
+?? audit_work/latency_postchange_allroutes.jsonl
+?? audit_work/latency_postchange_allroutes_summary.json
+?? audit_work/latency_postselection_allroutes.jsonl
+?? audit_work/latency_postselection_allroutes_summary.json
+?? audit_work/latency_probe.py
+?? audit_work/latency_probe_all_routes.jsonl
+?? audit_work/latency_probe_all_routes.py
+?? audit_work/latency_probe_cross_tier_anchor.jsonl
+?? audit_work/latency_probe_current.jsonl
+?? audit_work/latency_probe_hindi.py
+?? audit_work/latency_probe_hindi_final.jsonl
+?? audit_work/latency_probe_latest.jsonl
+?? audit_work/latency_probe_no_hyde.jsonl
+?? audit_work/latency_probe_no_hyde_genuine.jsonl
+?? audit_work/latency_probe_no_hyde_uncached.jsonl
+?? audit_work/latency_probe_no_hyde_uncached2.jsonl
+?? audit_work/latency_probe_treatment_final.jsonl
+?? audit_work/latency_research.md
+?? audit_work/question_bank_http_status_canary_v1.jsonl
+?? audit_work/question_bank_http_status_canary_v1_summary.json
+--- runtime ---
+status=running health=healthy restart=1 image=backend-backend
+--- healthz ---
+{"ok":true,"status":"alive"}
+--- capabilities ---
+{"ready":true,"capabilities":{"schema_version":1,"llm_provider":"openrouter","features":{"chat_generation":"available","retrieval":"available","knowledge_graph":"available","memory_write":"disabled_by_policy","live_information":"disabled_by_policy","live_logistics":"disabled_by_policy","request_queu
+--- cache env ---
+LATENCY_BENCHMARK_CACHE_DISABLED=true
+LLM_PROVIDER=openrouter
+USE_REQUEST_QUEUE=

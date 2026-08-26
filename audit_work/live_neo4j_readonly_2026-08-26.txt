@@ -1,0 +1,4 @@
+--- NEO4J INDEXES ---
+sh: 1: cypher-shell: not found
+--- NEO4J CARDINALITY ---
+sh: 1: cypher-shell: not found

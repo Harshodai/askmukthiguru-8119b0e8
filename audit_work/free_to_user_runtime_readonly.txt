@@ -1,0 +1,6 @@
+## /api/health
+{"ready":false,"status":"unhealthy","services":{"qdrant":{"ok":true,"latency_ms":35,"critical":true},"redis":{"ok":true,"latency_ms":18,"critical":true},"neo4j":{"ok":true,"latency_ms":64,"critical":false},"llm":{"ok":true,"latency_ms":129,"critical":true},"embedding":{"ok":false,"latency_ms":0,"critical":true},"guardrails":{"ok":true,"latency_ms":0,"critical":false,"provider":"lightweight"},"exact_cache":{"ok":true,"latency_ms":0,"critical":false},"semantic_cache":{"ok":true,"latency_ms":0,"critical":false},"fast_graph":{"ok":true,"latency_ms":0,"critical":true},"standard_graph":{"ok":true,"latency_ms":0,"critical":true},"deep_graph":{"ok":true,"latency_ms":0,"critical":false},"job_queue":{"ok":true,"latency_ms":0,"critical":false,"queue_size":0},"lightrag":{"ok":false,"latency_ms":0,"critical":true},"ocr":{"ok":true,"latency_ms":6,"critical":false}}}
+## /api/healthz
+{"ok":true,"status":"alive"}
+## /api/capabilities
+{"detail":"Not Found"}

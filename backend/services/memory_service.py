@@ -20,29 +20,19 @@ def _safe_confidence(val: Any, default: float = 0.75) -> float:
         return default
 
 
-# Auto-derived fact keys drive (subject, relation) supersession: a new fact
-# with the same key CLOSES the prior one (valid_to set). That is only safe
-# for relations where a person genuinely has one current value — one primary
-# residence, one primary occupation. "daily_practice", "preference", and
-# "possession" are naturally multi-valued ("I have anxiety" and "I have a
-# daughter" are both true at once), so they are deliberately excluded here:
-# auto-keying them previously made the second statement soft-delete the
-# first. Callers that need a real correction on a multi-valued relation can
-# still force one via an explicit `metadata["fact_key"]` (see below) — this
-# only restricts what gets keyed *automatically* from regex matches.
 _SINGLE_VALUED_FACT_KEY_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("lives_in", re.compile(r"\b(?:i|we|user|seeker)\s+(?:live|lives|moved|move)\s+(?:in|to|at)\b", re.I)),
     ("occupation", re.compile(r"\b(?:i|we|user|seeker)\s+(?:work|works|study|studies)\b", re.I)),
 )
+_FACT_KEY_PATTERNS = _SINGLE_VALUED_FACT_KEY_PATTERNS
 
 
 def _derive_fact_key(content: str, metadata: Optional[dict[str, Any]] = None) -> str | None:
-    """Derive a stable subject/relation key for genuinely single-valued facts.
+    """Derive a stable subject/relation key; wording and value stay out of key.
 
-    Wording and value stay out of the key by design (so "I live in Delhi" and
-    "I moved to Chennai" collide and correctly supersede). Multi-valued
-    relations (possession, preference, daily_practice) return None here and
-    are never auto-superseded — see the comment above the pattern table.
+    Only auto-keys genuinely single-valued relations (lives_in, occupation).
+    Multi-valued relations (possession, preference, daily_practice) return None
+    unless an explicit fact_key is passed via metadata.
     """
     metadata = metadata or {}
     explicit = metadata.get("fact_key")

@@ -1,0 +1,80 @@
+--- repo ---
+717b2c8f11823e8b7a1c3fb0814c56fa8f084b1b
+717b2c8f11823e8b7a1c3fb0814c56fa8f084b1b
+?? " audit_work/"
+?? " backend/"
+?? askmukthiguru-8119b0e8/
+?? audit_work/all_question_metrics_freeze_2026-08-26.txt
+?? audit_work/cache_free_session_gain_report_2026-08-26.md
+?? audit_work/cachefree_route_canaries_final_2026-08-26.jsonl
+?? audit_work/cachefree_route_canaries_final_2026-08-26_summary.json
+?? audit_work/compare_latency_runs.py
+?? audit_work/cross_tier_latency_final_report_2026-08-26.md
+?? audit_work/cross_tier_latency_summary.tsv
+?? audit_work/cross_tier_log_correlation_latest.txt
+?? audit_work/cross_tier_parameter_inventory_2026-08-26.md
+?? audit_work/diagnose_route_mismatch.py
+?? audit_work/final_advanced_methods_snapshot.txt
+?? audit_work/final_cross_tier_validation_snapshot_2026-08-26.md
+?? audit_work/final_validation_snapshot.txt
+?? audit_work/free_to_user_adversarial_audit_checkpoint_2026-08-26.md
+?? audit_work/free_to_user_audit_baseline_2026-08-26.md
+?? audit_work/free_to_user_cost_control_assessment_2026-08-26.md
+?? audit_work/free_to_user_inventory_raw.txt
+?? audit_work/free_to_user_openapi.json
+?? audit_work/free_to_user_runtime_readonly.txt
+?? audit_work/free_to_user_security_static.txt
+?? audit_work/github_latency_gems.err
+?? audit_work/github_latency_gems.jsonl
+?? audit_work/internet_skill_latency_sweep.err
+?? audit_work/internet_skill_latency_sweep.json
+?? audit_work/latency_baseline_latest.txt
+?? audit_work/latency_benchmark_distress_20.jsonl
+?? audit_work/latency_benchmark_distress_20_summary.json
+--- runtime ---
+status=running health=healthy restart=0 oom=true image=backend-backend
+--- health ---
+{"ok":true,"status":"alive"}
+{"ready":false,"status":"unhealthy","services":{"qdrant":{"ok":true,"latency_ms":2,"critical":true},"redis":{"ok":true,"latency_ms":2,"critical":true},"neo4j":{"ok":true,"latency_ms":1,"critical":false},"llm":{"ok":true,"latency_ms":41,"critical":true},"embedding":{"ok":true,"latency_ms":0,"critical":true,"dim":1024},"runtime_artifacts":{"ok":false,"latency_ms":0,"critical":true,"missing_required":["okf_compiled"],"present":2,"total":3},"guardrails":{"ok":true,"latency_ms":0,"critical":false,"provider":"lightweight"},"exact_cache":{"ok":true,"latency_ms":0,"critical":false,"keys":0,"nonexpiring_keys":0,"max_keys":10000},"semantic_cache":{"ok":true,"latency_ms":0,"critical":false},"fast_graph":{"ok":true,"latency_ms":0,"critical":true},"standard_graph":{"ok":true,"latency_ms":0,"critical":true},"deep_graph":{"ok":true,"latency_ms":0,"critical":false},"graph_warmup":{"ok":true,"status":"ready","latency_ms":0,"critical":false},"job_queue":{"ok":true,"latency_ms":0,"critical":false,"queue_
+--- relevant env ---
+LATENCY_BENCHMARK_CACHE_DISABLED=true
+LLM_PROVIDER=openrouter
+--- readiness files ---
+absent memory/okf/compiled.json
+present memory/okf
+absent backend/memory/okf/compiled.json
+present backend/data/doctrine_lexicon.json
+--- compose mounts ---
+27:  neo4j:
+40:    volumes:
+41:      - neo4j_data:/data
+69:    volumes:
+70:      - redis_data:/data
+101:  qdrant:
+107:    volumes:
+125:  backend:
+215:      - HF_HOME=/app/model_cache/huggingface
+216:      - TRANSFORMERS_CACHE=/app/model_cache/huggingface
+217:      - SENTENCE_TRANSFORMERS_HOME=/app/model_cache/sentence_transformers
+275:    volumes: &backend-volumes
+277:      - hf_model_cache:/app/.cache
+278:      - ./.model_cache:/app/model_cache
+280:      - telemetry_data:/app/data
+282:      - ./app:/app/app
+283:      - ./rag:/app/rag
+284:      - ./services:/app/services
+285:      - ./guardrails:/app/guardrails
+286:      - ./routers:/app/routers
+287:      - ./schemas:/app/schemas
+288:      - ./tests:/app/tests
+289:      - ./benchmarks:/app/benchmarks
+290:      - ./tasks:/app/tasks
+291:      - ../scripts:/app/scripts
+292:      - ../results:/app/results
+293:      - ../memory:/app/memory
+338:    volumes: *backend-volumes
+382:    volumes:
+384:      - gptcache_data:/data
+410:    volumes:
+436:    volumes:
+461:    volumes:

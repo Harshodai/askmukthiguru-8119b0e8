@@ -1,0 +1,241 @@
+{"timestamp": "2026-08-25T19:20:49+0000", "level": "INFO", "logger": "app.services.job_queue", "message": "JobQueue: enqueued job_8ad72107af29 (stream=False, user=anon:ZtWTaD1XtH2Xmwbq6o2SxQ)", "correlation_id": "2b9f034a"}
+{"timestamp": "2026-08-25T19:20:49+0000", "level": "INFO", "logger": "app.pipeline.stages.stage_runner", "message": "PIPELINE_STAGE_TIMING trace_id=35e1859a-ef98-405d-aad4-b6bedcfe6a28 stage=cache_check status=cached duration_ms=14.70"}
+{"timestamp": "2026-08-25T19:20:49+0000", "level": "INFO", "logger": "app.orchestrator", "message": "CHAT_STAGE_TIMING trace_id=f2cd4ff4-2ae4-4e39-9da6-5c8954029e6b total_ms=16 node_timings={} cache_hit=True query_tier=unknown grounding_state=grounded provider=unknown"}
+{"timestamp": "2026-08-25T19:20:49+0000", "level": "INFO", "logger": "app.services.job_queue", "message": "JobQueue worker 0: completed job_8ad72107af29"}
+{"timestamp": "2026-08-25T19:20:49+0000", "level": "INFO", "logger": "app.middleware.audit", "message": "AUDIT GET /api/jobs/job_8ad72107af29 -> 200 (0.124s)"}
+INFO:     192.168.65.1:38864 - "GET /api/jobs/job_8ad72107af29 HTTP/1.1" 200 OK
+{"timestamp": "2026-08-25T19:20:49+0000", "level": "INFO", "logger": "app.services.job_queue", "message": "JobQueue: enqueued job_f3f7d4605cf6 (stream=False, user=anon:fxj2yhx7cB4U4NUdIk35lw)", "correlation_id": "5e1a5027"}
+{"timestamp": "2026-08-25T19:20:49+0000", "level": "INFO", "logger": "app.middleware.audit", "message": "AUDIT GET /api/jobs/job_f3f7d4605cf6 -> 200 (0.011s)"}
+INFO:     192.168.65.1:43955 - "GET /api/jobs/job_f3f7d4605cf6 HTTP/1.1" 200 OK
+{"timestamp": "2026-08-25T19:20:50+0000", "level": "INFO", "logger": "app.middleware.audit", "message": "AUDIT GET /api/jobs/job_f3f7d4605cf6 -> 200 (0.006s)"}
+INFO:     192.168.65.1:50679 - "GET /api/jobs/job_f3f7d4605cf6 HTTP/1.1" 200 OK
+{"timestamp": "2026-08-25T19:20:50+0000", "level": "INFO", "logger": "app.middleware.audit", "message": "AUDIT GET /api/jobs/job_f3f7d4605cf6 -> 200 (0.005s)"}
+INFO:     192.168.65.1:47263 - "GET /api/jobs/job_f3f7d4605cf6 HTTP/1.1" 200 OK
+{"timestamp": "2026-08-25T19:20:50+0000", "level": "INFO", "logger": "app.pipeline.stages.stage_runner", "message": "PIPELINE_STAGE_TIMING trace_id=8a6ea10c-d5b4-420e-a766-969bc9e1246c stage=cache_check status=success duration_ms=1017.49"}
+{"timestamp": "2026-08-25T19:20:50+0000", "level": "INFO", "logger": "app.pipeline.stages.stage_runner", "message": "PIPELINE_STAGE_TIMING trace_id=8a6ea10c-d5b4-420e-a766-969bc9e1246c stage=request_state status=success duration_ms=0.51"}
+{"timestamp": "2026-08-25T19:20:50+0000", "level": "INFO", "logger": "app.pipeline.stages.stage_runner", "message": "PIPELINE_STAGE_TIMING trace_id=8a6ea10c-d5b4-420e-a766-969bc9e1246c stage=input_guardrails status=success duration_ms=2.89"}
+{"timestamp": "2026-08-25T19:20:50+0000", "level": "INFO", "logger": "app.pipeline.stages.stage_runner", "message": "PIPELINE_STAGE_TIMING trace_id=8a6ea10c-d5b4-420e-a766-969bc9e1246c stage=circuit_breaker status=success duration_ms=0.11"}
+{"timestamp": "2026-08-25T19:20:50+0000", "level": "INFO", "logger": "app.pipeline.stages.stage_runner", "message": "PIPELINE_STAGE_TIMING trace_id=8a6ea10c-d5b4-420e-a766-969bc9e1246c stage=doctrine_cache status=success duration_ms=0.01"}
+{"timestamp": "2026-08-25T19:20:50+0000", "level": "INFO", "logger": "app.pipeline.stages.stage_runner", "message": "PIPELINE_STAGE_TIMING trace_id=8a6ea10c-d5b4-420e-a766-969bc9e1246c stage=casual_short_circuit status=success duration_ms=0.01"}
+{"timestamp": "2026-08-25T19:20:50+0000", "level": "INFO", "logger": "app.pipeline.stages.stage_runner", "message": "PIPELINE_STAGE_TIMING trace_id=8a6ea10c-d5b4-420e-a766-969bc9e1246c stage=distress_detection status=success duration_ms=0.50"}
+{"timestamp": "2026-08-25T19:20:50+0000", "level": "INFO", "logger": "app.pipeline.stages.stage_runner", "message": "PIPELINE_STAGE_TIMING trace_id=8a6ea10c-d5b4-420e-a766-969bc9e1246c stage=bounded_comparison_short_circuit status=success duration_ms=0.02"}
+{"timestamp": "2026-08-25T19:20:50+0000", "level": "INFO", "logger": "app.pipeline.stages.graph_stage", "message": "GRAPH_ROUTING_TIMING trace_id=8a6ea10c-d5b4-420e-a766-969bc9e1246c phase=on_device_intent duration_ms=0.4"}
+{"timestamp": "2026-08-25T19:20:50+0000", "level": "INFO", "logger": "rag.nodes.retrieval", "message": "RETRIEVAL_STAGE_TIMING trace_id=unknown query_tier=tier2_simple stages={'prepare_ms': 4.4, 'encode_ms': 0.2, 'primary_retrieval_ms': 19.5, 'bm25_wait_ms': 0.0, 'expansion_planner_wait_ms': 0.0, 'total_logged_ms': 38.1}"}
+{"timestamp": "2026-08-25T19:20:50+0000", "level": "INFO", "logger": "app.middleware.audit", "message": "AUDIT GET /api/jobs/job_f3f7d4605cf6 -> 200 (0.001s)"}
+INFO:     192.168.65.1:36281 - "GET /api/jobs/job_f3f7d4605cf6 HTTP/1.1" 200 OK
+{"timestamp": "2026-08-25T19:20:51+0000", "level": "INFO", "logger": "app.middleware.audit", "message": "AUDIT GET /api/jobs/job_f3f7d4605cf6 -> 200 (0.002s)"}
+INFO:     192.168.65.1:59194 - "GET /api/jobs/job_f3f7d4605cf6 HTTP/1.1" 200 OK
+{"timestamp": "2026-08-25T19:20:51+0000", "level": "INFO", "logger": "app.middleware.audit", "message": "AUDIT GET /api/jobs/job_f3f7d4605cf6 -> 200 (0.002s)"}
+INFO:     192.168.65.1:64126 - "GET /api/jobs/job_f3f7d4605cf6 HTTP/1.1" 200 OK
+{"timestamp": "2026-08-25T19:20:51+0000", "level": "INFO", "logger": "app.middleware.audit", "message": "AUDIT GET /api/jobs/job_f3f7d4605cf6 -> 200 (0.005s)"}
+INFO:     192.168.65.1:27210 - "GET /api/jobs/job_f3f7d4605cf6 HTTP/1.1" 200 OK
+{"timestamp": "2026-08-25T19:20:51+0000", "level": "INFO", "logger": "app.middleware.audit", "message": "AUDIT GET /api/jobs/job_f3f7d4605cf6 -> 200 (0.002s)"}
+INFO:     192.168.65.1:21777 - "GET /api/jobs/job_f3f7d4605cf6 HTTP/1.1" 200 OK
+{"timestamp": "2026-08-25T19:20:52+0000", "level": "INFO", "logger": "app.middleware.audit", "message": "AUDIT GET /api/jobs/job_f3f7d4605cf6 -> 200 (0.003s)"}
+INFO:     192.168.65.1:47680 - "GET /api/jobs/job_f3f7d4605cf6 HTTP/1.1" 200 OK
+{"timestamp": "2026-08-25T19:20:52+0000", "level": "INFO", "logger": "app.middleware.audit", "message": "AUDIT GET /api/jobs/job_f3f7d4605cf6 -> 200 (0.006s)"}
+INFO:     192.168.65.1:47497 - "GET /api/jobs/job_f3f7d4605cf6 HTTP/1.1" 200 OK
+{"timestamp": "2026-08-25T19:20:52+0000", "level": "INFO", "logger": "app.middleware.audit", "message": "AUDIT GET /api/jobs/job_f3f7d4605cf6 -> 200 (0.001s)"}
+INFO:     192.168.65.1:46603 - "GET /api/jobs/job_f3f7d4605cf6 HTTP/1.1" 200 OK
+{"timestamp": "2026-08-25T19:20:52+0000", "level": "INFO", "logger": "app.middleware.audit", "message": "AUDIT GET /api/jobs/job_f3f7d4605cf6 -> 200 (0.004s)"}
+INFO:     192.168.65.1:29406 - "GET /api/jobs/job_f3f7d4605cf6 HTTP/1.1" 200 OK
+{"timestamp": "2026-08-25T19:20:53+0000", "level": "INFO", "logger": "app.middleware.audit", "message": "AUDIT GET /api/jobs/job_f3f7d4605cf6 -> 200 (0.005s)"}
+INFO:     192.168.65.1:53254 - "GET /api/jobs/job_f3f7d4605cf6 HTTP/1.1" 200 OK
+{"timestamp": "2026-08-25T19:20:53+0000", "level": "INFO", "logger": "app.middleware.audit", "message": "AUDIT GET /api/jobs/job_f3f7d4605cf6 -> 200 (0.005s)"}
+INFO:     192.168.65.1:24643 - "GET /api/jobs/job_f3f7d4605cf6 HTTP/1.1" 200 OK
+{"timestamp": "2026-08-25T19:20:53+0000", "level": "INFO", "logger": "app.middleware.audit", "message": "AUDIT GET /api/jobs/job_f3f7d4605cf6 -> 200 (0.003s)"}
+INFO:     192.168.65.1:53925 - "GET /api/jobs/job_f3f7d4605cf6 HTTP/1.1" 200 OK
+{"timestamp": "2026-08-25T19:20:53+0000", "level": "INFO", "logger": "app.middleware.audit", "message": "AUDIT GET /api/jobs/job_f3f7d4605cf6 -> 200 (0.003s)"}
+INFO:     192.168.65.1:63979 - "GET /api/jobs/job_f3f7d4605cf6 HTTP/1.1" 200 OK
+{"timestamp": "2026-08-25T19:20:54+0000", "level": "INFO", "logger": "app.middleware.audit", "message": "AUDIT GET /api/jobs/job_f3f7d4605cf6 -> 200 (0.005s)"}
+INFO:     192.168.65.1:40598 - "GET /api/jobs/job_f3f7d4605cf6 HTTP/1.1" 200 OK
+{"timestamp": "2026-08-25T19:20:54+0000", "level": "INFO", "logger": "app.middleware.audit", "message": "AUDIT GET /api/jobs/job_f3f7d4605cf6 -> 200 (0.003s)"}
+INFO:     192.168.65.1:44270 - "GET /api/jobs/job_f3f7d4605cf6 HTTP/1.1" 200 OK
+{"timestamp": "2026-08-25T19:20:54+0000", "level": "INFO", "logger": "app.middleware.audit", "message": "AUDIT GET /api/jobs/job_f3f7d4605cf6 -> 200 (0.004s)"}
+INFO:     192.168.65.1:20308 - "GET /api/jobs/job_f3f7d4605cf6 HTTP/1.1" 200 OK
+{"timestamp": "2026-08-25T19:20:55+0000", "level": "INFO", "logger": "app.middleware.audit", "message": "AUDIT GET /api/jobs/job_f3f7d4605cf6 -> 200 (0.059s)"}
+INFO:     192.168.65.1:51520 - "GET /api/jobs/job_f3f7d4605cf6 HTTP/1.1" 200 OK
+INFO:     192.168.65.1:53057 - "GET /api/jobs/job_f3f7d4605cf6 HTTP/1.1" 200 OK
+{"timestamp": "2026-08-25T19:20:55+0000", "level": "INFO", "logger": "app.middleware.audit", "message": "AUDIT GET /api/jobs/job_f3f7d4605cf6 -> 200 (0.008s)"}
+{"timestamp": "2026-08-25T19:20:55+0000", "level": "INFO", "logger": "app.middleware.audit", "message": "AUDIT GET /api/jobs/job_f3f7d4605cf6 -> 200 (0.004s)"}
+INFO:     192.168.65.1:34634 - "GET /api/jobs/job_f3f7d4605cf6 HTTP/1.1" 200 OK
+INFO:     192.168.65.1:54855 - "GET /api/jobs/job_f3f7d4605cf6 HTTP/1.1" 200 OK
+{"timestamp": "2026-08-25T19:20:55+0000", "level": "INFO", "logger": "app.middleware.audit", "message": "AUDIT GET /api/jobs/job_f3f7d4605cf6 -> 200 (0.005s)"}
+{"timestamp": "2026-08-25T19:20:56+0000", "level": "INFO", "logger": "app.pipeline.stages.graph_stage", "message": "GRAPH_ROUTING_TIMING trace_id=8a6ea10c-d5b4-420e-a766-969bc9e1246c phase=graph_invoke variant=fast duration_ms=5684.9"}
+{"timestamp": "2026-08-25T19:20:56+0000", "level": "INFO", "logger": "app.middleware.audit", "message": "AUDIT GET /api/jobs/job_f3f7d4605cf6 -> 200 (0.003s)"}
+INFO:     192.168.65.1:52877 - "GET /api/jobs/job_f3f7d4605cf6 HTTP/1.1" 200 OK
+{"timestamp": "2026-08-25T19:20:56+0000", "level": "INFO", "logger": "app.pipeline.stages.stage_runner", "message": "PIPELINE_STAGE_TIMING trace_id=8a6ea10c-d5b4-420e-a766-969bc9e1246c stage=langgraph status=success duration_ms=5689.12"}
+{"timestamp": "2026-08-25T19:20:56+0000", "level": "INFO", "logger": "app.pipeline.stages.stage_runner", "message": "PIPELINE_STAGE_TIMING trace_id=8a6ea10c-d5b4-420e-a766-969bc9e1246c stage=meditation_gen status=success duration_ms=0.03"}
+{"timestamp": "2026-08-25T19:20:56+0000", "level": "INFO", "logger": "app.pipeline.stages.stage_runner", "message": "PIPELINE_STAGE_TIMING trace_id=8a6ea10c-d5b4-420e-a766-969bc9e1246c stage=translation status=success duration_ms=0.02"}
+{"timestamp": "2026-08-25T19:20:56+0000", "level": "INFO", "logger": "app.pipeline.stages.stage_runner", "message": "PIPELINE_STAGE_TIMING trace_id=8a6ea10c-d5b4-420e-a766-969bc9e1246c stage=tone_adapter status=success duration_ms=0.01"}
+{"timestamp": "2026-08-25T19:20:56+0000", "level": "INFO", "logger": "app.pipeline.stages.stage_runner", "message": "PIPELINE_STAGE_TIMING trace_id=8a6ea10c-d5b4-420e-a766-969bc9e1246c stage=output_guardrails status=success duration_ms=0.39"}
+{"timestamp": "2026-08-25T19:20:56+0000", "level": "INFO", "logger": "app.pipeline.stages.stage_runner", "message": "PIPELINE_STAGE_TIMING trace_id=8a6ea10c-d5b4-420e-a766-969bc9e1246c stage=memory_save status=success duration_ms=0.03"}
+{"timestamp": "2026-08-25T19:20:56+0000", "level": "INFO", "logger": "app.pipeline.stages.stage_runner", "message": "PIPELINE_STAGE_TIMING trace_id=8a6ea10c-d5b4-420e-a766-969bc9e1246c stage=cache_update status=success duration_ms=0.05"}
+{"timestamp": "2026-08-25T19:20:56+0000", "level": "INFO", "logger": "app.pipeline.stages.stage_runner", "message": "PIPELINE_STAGE_TIMING trace_id=8a6ea10c-d5b4-420e-a766-969bc9e1246c stage=result_assembly status=success duration_ms=1.47"}
+{"timestamp": "2026-08-25T19:20:56+0000", "level": "INFO", "logger": "app.orchestrator", "message": "CHAT_STAGE_TIMING trace_id=42e0d385-441e-456f-869c-f99693244e41 total_ms=6712 node_timings={'intent_router': 0.2, 'retrieve_documents': 38.2, 'generate_answer': 4160.4, 'reflect_on_answer': 1114.2, 'verify_answer': 0.3} cache_hit=False query_tier=tier2_simple grounding_state=abstained provider=openrouter"}
+{"timestamp": "2026-08-25T19:20:56+0000", "level": "INFO", "logger": "app.services.job_queue", "message": "JobQueue worker 0: completed job_f3f7d4605cf6"}
+{"timestamp": "2026-08-25T19:20:56+0000", "level": "INFO", "logger": "app.middleware.audit", "message": "AUDIT GET /api/jobs/job_f3f7d4605cf6 -> 200 (0.006s)"}
+INFO:     192.168.65.1:45118 - "GET /api/jobs/job_f3f7d4605cf6 HTTP/1.1" 200 OK
+{"timestamp": "2026-08-25T19:20:56+0000", "level": "INFO", "logger": "app.services.job_queue", "message": "JobQueue: enqueued job_0438374a3eb8 (stream=False, user=anon:ynSLFTslI_j5iiDcfjHe5Q)", "correlation_id": "7bd5a35e"}
+{"timestamp": "2026-08-25T19:20:56+0000", "level": "INFO", "logger": "app.pipeline.stages.stage_runner", "message": "PIPELINE_STAGE_TIMING trace_id=79e790cf-9f39-46d5-b8b2-18e3a338c856 stage=cache_check status=cached duration_ms=11.11"}
+{"timestamp": "2026-08-25T19:20:56+0000", "level": "INFO", "logger": "app.orchestrator", "message": "CHAT_STAGE_TIMING trace_id=93d6461e-671e-47b4-b5fb-df42ef07d8b0 total_ms=11 node_timings={} cache_hit=True query_tier=unknown grounding_state=grounded provider=unknown"}
+{"timestamp": "2026-08-25T19:20:56+0000", "level": "INFO", "logger": "app.services.job_queue", "message": "JobQueue worker 1: completed job_0438374a3eb8"}
+{"timestamp": "2026-08-25T19:20:56+0000", "level": "INFO", "logger": "app.middleware.audit", "message": "AUDIT GET /api/jobs/job_0438374a3eb8 -> 200 (0.003s)"}
+INFO:     192.168.65.1:20886 - "GET /api/jobs/job_0438374a3eb8 HTTP/1.1" 200 OK
+{"timestamp": "2026-08-25T19:20:57+0000", "level": "INFO", "logger": "app.pipeline.stages.stage_runner", "message": "PIPELINE_STAGE_TIMING trace_id=a4e094bd-1c03-4bdd-9e28-58677fcada1e stage=cache_check status=success duration_ms=138.05"}
+{"timestamp": "2026-08-25T19:20:57+0000", "level": "INFO", "logger": "app.pipeline.stages.stage_runner", "message": "PIPELINE_STAGE_TIMING trace_id=a4e094bd-1c03-4bdd-9e28-58677fcada1e stage=request_state status=success duration_ms=0.16"}
+{"timestamp": "2026-08-25T19:20:57+0000", "level": "INFO", "logger": "app.pipeline.stages.stage_runner", "message": "PIPELINE_STAGE_TIMING trace_id=a4e094bd-1c03-4bdd-9e28-58677fcada1e stage=input_guardrails status=success duration_ms=54.17"}
+{"timestamp": "2026-08-25T19:20:57+0000", "level": "INFO", "logger": "app.pipeline.stages.stage_runner", "message": "PIPELINE_STAGE_TIMING trace_id=a4e094bd-1c03-4bdd-9e28-58677fcada1e stage=circuit_breaker status=success duration_ms=0.03"}
+{"timestamp": "2026-08-25T19:20:57+0000", "level": "INFO", "logger": "app.pipeline.stages.stage_runner", "message": "PIPELINE_STAGE_TIMING trace_id=a4e094bd-1c03-4bdd-9e28-58677fcada1e stage=doctrine_cache status=success duration_ms=0.01"}
+{"timestamp": "2026-08-25T19:20:57+0000", "level": "INFO", "logger": "app.pipeline.stages.stage_runner", "message": "PIPELINE_STAGE_TIMING trace_id=a4e094bd-1c03-4bdd-9e28-58677fcada1e stage=casual_short_circuit status=success duration_ms=0.00"}
+{"timestamp": "2026-08-25T19:20:57+0000", "level": "INFO", "logger": "app.pipeline.stages.stage_runner", "message": "PIPELINE_STAGE_TIMING trace_id=a4e094bd-1c03-4bdd-9e28-58677fcada1e stage=distress_detection status=success duration_ms=0.16"}
+{"timestamp": "2026-08-25T19:20:57+0000", "level": "INFO", "logger": "app.pipeline.stages.stage_runner", "message": "PIPELINE_STAGE_TIMING trace_id=a4e094bd-1c03-4bdd-9e28-58677fcada1e stage=bounded_comparison_short_circuit status=success duration_ms=0.01"}
+INFO:     192.168.65.1:19284 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+{"timestamp": "2026-08-25T19:20:57+0000", "level": "INFO", "logger": "app.pipeline.stages.graph_stage", "message": "GRAPH_ROUTING_TIMING trace_id=a4e094bd-1c03-4bdd-9e28-58677fcada1e phase=on_device_intent duration_ms=96.8"}
+INFO:     192.168.65.1:37752 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:50906 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:26607 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:62681 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:22766 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:17848 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:45942 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:28304 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:18755 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:28489 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:44112 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:41550 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:19351 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:38535 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:60067 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:44395 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:21733 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:57523 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:38623 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:35381 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:54444 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:57275 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:61579 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:64516 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:40185 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:49762 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:27209 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:53713 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:50974 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:48301 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:48925 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:41749 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:25959 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:60590 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:52084 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:22680 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:35369 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:49054 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:33376 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:27321 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:28376 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:46950 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:19134 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:59976 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:31031 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:46162 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:32641 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:20903 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+{"timestamp": "2026-08-25T19:21:10+0000", "level": "INFO", "logger": "rag.nodes.retrieval", "message": "RETRIEVAL_STAGE_TIMING trace_id=unknown query_tier=tier3_complex stages={'prepare_ms': 10.9, 'encode_ms': 1176.7, 'primary_retrieval_ms': 20.1, 'bm25_wait_ms': 0.0, 'expansion_planner_wait_ms': 0.0, 'total_logged_ms': 1381.7}"}
+INFO:     192.168.65.1:59878 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:46513 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:47102 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:32122 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:59598 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:31633 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:58763 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:50764 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:26856 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:55292 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:41750 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:50289 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:19772 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:63524 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:40119 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:57371 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:50508 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:22046 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:41319 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:64940 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:45959 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:64317 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:17930 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:63218 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:62919 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:29966 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:34317 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:31401 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:48438 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:42950 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:46904 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:38742 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+{"timestamp": "2026-08-25T19:21:19+0000", "level": "INFO", "logger": "rag.nodes.retrieval", "message": "RETRIEVAL_STAGE_TIMING trace_id=unknown query_tier=tier3_complex stages={'prepare_ms': 30.4, 'encode_ms': 7.4, 'primary_retrieval_ms': 27.1, 'bm25_wait_ms': 0.0, 'expansion_planner_wait_ms': 620.0, 'total_logged_ms': 737.5}"}
+INFO:     192.168.65.1:27004 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:64241 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:62498 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:38093 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:41278 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:28242 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:23473 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:50986 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:48943 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:44863 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:51259 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:62894 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:42007 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:33665 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:64795 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:29159 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:49333 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:26550 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:44011 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:57120 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:36612 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:22305 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:42982 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:37103 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:53090 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:31270 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:64680 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:20558 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:64332 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:27487 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:26626 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:23078 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:65086 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:24989 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+{"timestamp": "2026-08-25T19:21:29+0000", "level": "INFO", "logger": "rag.nodes.retrieval", "message": "RETRIEVAL_STAGE_TIMING trace_id=unknown query_tier=tier3_complex stages={'prepare_ms': 26.3, 'encode_ms': 2.7, 'primary_retrieval_ms': 17.7, 'bm25_wait_ms': 0.0, 'expansion_planner_wait_ms': 635.3, 'total_logged_ms': 715.4}"}
+INFO:     192.168.65.1:16898 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:64589 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:21130 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:19884 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:41744 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:30780 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:50980 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:40672 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:37791 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:60560 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:43044 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:45092 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:24609 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:17707 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:58684 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:34181 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:58271 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:43780 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+INFO:     192.168.65.1:57835 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK
+{"timestamp": "2026-08-25T19:21:34+0000", "level": "INFO", "logger": "app.pipeline.stages.graph_stage", "message": "GRAPH_ROUTING_TIMING trace_id=a4e094bd-1c03-4bdd-9e28-58677fcada1e phase=graph_invoke variant=standard duration_ms=37750.2"}
+{"timestamp": "2026-08-25T19:21:34+0000", "level": "INFO", "logger": "app.pipeline.stages.stage_runner", "message": "PIPELINE_STAGE_TIMING trace_id=a4e094bd-1c03-4bdd-9e28-58677fcada1e stage=langgraph status=success duration_ms=37849.52"}
+{"timestamp": "2026-08-25T19:21:34+0000", "level": "INFO", "logger": "app.pipeline.stages.stage_runner", "message": "PIPELINE_STAGE_TIMING trace_id=a4e094bd-1c03-4bdd-9e28-58677fcada1e stage=meditation_gen status=success duration_ms=0.03"}
+{"timestamp": "2026-08-25T19:21:34+0000", "level": "INFO", "logger": "app.pipeline.stages.stage_runner", "message": "PIPELINE_STAGE_TIMING trace_id=a4e094bd-1c03-4bdd-9e28-58677fcada1e stage=translation status=success duration_ms=1.37"}
+{"timestamp": "2026-08-25T19:21:34+0000", "level": "INFO", "logger": "app.pipeline.stages.stage_runner", "message": "PIPELINE_STAGE_TIMING trace_id=a4e094bd-1c03-4bdd-9e28-58677fcada1e stage=tone_adapter status=success duration_ms=0.01"}
+{"timestamp": "2026-08-25T19:21:34+0000", "level": "INFO", "logger": "app.pipeline.stages.stage_runner", "message": "PIPELINE_STAGE_TIMING trace_id=a4e094bd-1c03-4bdd-9e28-58677fcada1e stage=output_guardrails status=success duration_ms=0.21"}
+{"timestamp": "2026-08-25T19:21:34+0000", "level": "INFO", "logger": "app.pipeline.stages.stage_runner", "message": "PIPELINE_STAGE_TIMING trace_id=a4e094bd-1c03-4bdd-9e28-58677fcada1e stage=memory_save status=success duration_ms=0.04"}
+{"timestamp": "2026-08-25T19:21:34+0000", "level": "INFO", "logger": "app.pipeline.stages.stage_runner", "message": "PIPELINE_STAGE_TIMING trace_id=a4e094bd-1c03-4bdd-9e28-58677fcada1e stage=cache_update status=success duration_ms=0.06"}
+{"timestamp": "2026-08-25T19:21:34+0000", "level": "INFO", "logger": "app.pipeline.stages.stage_runner", "message": "PIPELINE_STAGE_TIMING trace_id=a4e094bd-1c03-4bdd-9e28-58677fcada1e stage=result_assembly status=success duration_ms=0.96"}
+{"timestamp": "2026-08-25T19:21:34+0000", "level": "INFO", "logger": "app.orchestrator", "message": "CHAT_STAGE_TIMING trace_id=2c8cfb55-48c1-47a9-9cdc-a055e1faf7d4 total_ms=38044 node_timings={'intent_router': 963.1, 'decompose_query': 2904.5, 'generate_hyde': 7504.8, 'retrieve_documents': 715.6, 'rerank_documents': 1171.9, 'grade_documents': 1100.4, 'rewrite_query': 2826.1, 'enrich_context': 61.3, 'context_engineer': 0.4, 'generate_answer': 3164.7, 'reflect_on_answer': 2.0} cache_hit=False query_tier=tier3_complex grounding_state=abstained provider=openrouter"}
+INFO:     192.168.65.1:25896 - "GET /api/jobs/job_4787177124ca HTTP/1.1" 200 OK

@@ -1,0 +1,261 @@
+QDRANT SERVICE
+backend/services/qdrant/metrics.py:1:"""Qdrant observability: metrics collection and Prometheus exposure.
+backend/services/qdrant/metrics.py:3:Tracks search latency, upsert latency, collection health, and index fragmentation.
+backend/services/qdrant/metrics.py:9:from collections.abc import Callable
+backend/services/qdrant/metrics.py:25:class QdrantSearchMetrics:
+backend/services/qdrant/metrics.py:32:    collection_size_vectors: int
+backend/services/qdrant/metrics.py:33:    collection_size_mb: float
+backend/services/qdrant/metrics.py:39:class QdrantMetricsCollector:
+backend/services/qdrant/metrics.py:62:            self.collection_size_gauge = Gauge(
+backend/services/qdrant/metrics.py:63:                "qdrant_collection_size_vectors",
+backend/services/qdrant/metrics.py:64:                "Total vectors in collection",
+backend/services/qdrant/metrics.py:105:    def update_collection_stats(
+backend/services/qdrant/metrics.py:108:        """Update collection-level metrics from health check."""
+backend/services/qdrant/metrics.py:110:            self.collection_size_gauge.set(size_vectors)
+backend/services/qdrant/metrics.py:135:            collection_size_vectors=0,  # Updated via update_collection_stats
+backend/services/qdrant/metrics.py:136:            collection_size_mb=0,
+backend/services/qdrant/neighbor.py:18:class QdrantNeighborLookup:
+backend/services/qdrant/neighbor.py:21:    def __init__(self, client: QdrantClient, collection: str) -> None:
+backend/services/qdrant/neighbor.py:23:        self._collection = collection
+backend/services/qdrant/neighbor.py:40:                collection_name=self._collection,
+backend/services/qdrant/neighbor.py:41:                scroll_filter=Filter(
+backend/services/qdrant/neighbor.py:49:                with_payload=True,
+backend/services/qdrant/neighbor.py:53:            neighbors = sorted(results, key=lambda x: x.payload.get("chunk_index", 0))
+backend/services/qdrant/neighbor.py:57:                    "text": hit.payload.get("text", ""),
+backend/services/qdrant/neighbor.py:58:                    "source_url": hit.payload.get("source_url", ""),
+backend/services/qdrant/neighbor.py:59:                    "title": hit.payload.get("title", ""),
+backend/services/qdrant/neighbor.py:60:                    "chunk_index": hit.payload.get("chunk_index", 0),
+backend/services/qdrant/neighbor.py:61:                    "raptor_level": hit.payload.get("raptor_level", 0),
+backend/services/qdrant/neighbor.py:62:                    "is_neighbor": hit.payload.get("chunk_index") != chunk_index,
+backend/services/qdrant/raptor.py:23:class QdrantRaptorStore:
+backend/services/qdrant/raptor.py:27:        self, client: QdrantClient, collection: str, utils: Optional[QdrantUtils] = None
+backend/services/qdrant/raptor.py:30:        self._collection = collection
+backend/services/qdrant/raptor.py:58:                query_res = self._client.query_points(
+backend/services/qdrant/raptor.py:59:                    collection_name=self._collection,
+backend/services/qdrant/raptor.py:62:                    query_filter=Filter(must=scope_conditions),
+backend/services/qdrant/raptor.py:64:                    with_payload=True,
+backend/services/qdrant/raptor.py:69:                    collection_name=self._collection,
+backend/services/qdrant/raptor.py:70:                    scroll_filter=Filter(must=scope_conditions),
+backend/services/qdrant/raptor.py:72:                    with_payload=True,
+backend/services/qdrant/raptor.py:77:                payload = point.payload or {}
+backend/services/qdrant/raptor.py:78:                text = payload.get("text", "")
+backend/services/qdrant/raptor.py:83:                        "cluster_id": payload.get("cluster_id", 0),
+backend/services/qdrant/raptor.py:85:                        "topic_label": payload.get("topic_label", ""),
+backend/services/qdrant/raptor.py:86:                        "titles": payload.get("titles", []),
+backend/services/qdrant/raptor.py:87:                        "source_urls": payload.get("source_urls", []),
+backend/services/qdrant/searcher.py:1:"""Qdrant hybrid/dense search with metadata filtering."""
+backend/services/qdrant/searcher.py:25:from services.qdrant.filters import QdrantFilterBuilder
+backend/services/qdrant/searcher.py:63:class QdrantSearcher:
+backend/services/qdrant/searcher.py:64:    """Hybrid and dense retrieval with metadata filtering hooks."""
+backend/services/qdrant/searcher.py:67:        self, client: QdrantClient, collection: str, utils: Optional[QdrantUtils] = None
+backend/services/qdrant/searcher.py:70:        self._collection = collection
+backend/services/qdrant/searcher.py:72:        self._filter_builder = QdrantFilterBuilder()
+backend/services/qdrant/searcher.py:76:    def search(
+backend/services/qdrant/searcher.py:91:        When ``teacher_id`` is provided, a ``must`` filter on the ``teacher_id``
+backend/services/qdrant/searcher.py:92:        payload field is applied, enabling per-teacher content isolation
+backend/services/qdrant/searcher.py:93:        (payload-based multitenancy).
+backend/services/qdrant/searcher.py:110:        # Build filter conditions. Tenant and corpus scope are mandatory for every search.
+backend/services/qdrant/searcher.py:111:        filter_conditions = [
+backend/services/qdrant/searcher.py:116:            filter_conditions.append(
+backend/services/qdrant/searcher.py:120:            filter_conditions.append(
+backend/services/qdrant/searcher.py:124:            filter_conditions.append(
+backend/services/qdrant/searcher.py:128:            filter_conditions.append(
+backend/services/qdrant/searcher.py:135:            filter_conditions.append(
+backend/services/qdrant/searcher.py:140:        # never a mandatory filter. Legacy chunks without graph metadata remain
+backend/services/qdrant/searcher.py:145:        # Metadata filters for retrieval-quality improvements + assistants
+backend/services/qdrant/searcher.py:153:            filter_conditions.append(
+backend/services/qdrant/searcher.py:157:            filter_conditions.append(
+backend/services/qdrant/searcher.py:161:            filter_conditions.append(
+backend/services/qdrant/searcher.py:167:                filter_conditions.append(
+backend/services/qdrant/searcher.py:171:                filter_conditions.append(FieldCondition(key="tags", match=MatchAny(any=tag_values)))
+backend/services/qdrant/searcher.py:173:            filter_conditions.append(
+backend/services/qdrant/searcher.py:178:        filter_conditions.extend(tag_must)
+backend/services/qdrant/searcher.py:179:        search_filter = Filter(
+backend/services/qdrant/searcher.py:180:            must=filter_conditions if filter_conditions else None,
+backend/services/qdrant/searcher.py:198:        dense_search_params = self._dense_quantization_search_params()
+backend/services/qdrant/searcher.py:216:                        filter=search_filter,
+backend/services/qdrant/searcher.py:223:                        filter=search_filter,
+backend/services/qdrant/searcher.py:228:                    graph_filter = Filter(
+backend/services/qdrant/searcher.py:229:                        must=list(filter_conditions),
+backend/services/qdrant/searcher.py:246:                            filter=graph_filter,
+backend/services/qdrant/searcher.py:250:                results = self._client.query_points(
+backend/services/qdrant/searcher.py:251:                    collection_name=self._collection,
+backend/services/qdrant/searcher.py:255:                    with_payload=True,
+backend/services/qdrant/searcher.py:262:                    query_vector, internal_limit, search_filter, dense_search_params
+backend/services/qdrant/searcher.py:266:                query_vector, internal_limit, search_filter, dense_search_params
+backend/services/qdrant/searcher.py:270:                    graph_filter = Filter(
+backend/services/qdrant/searcher.py:271:                        must=list(filter_conditions),
+backend/services/qdrant/searcher.py:283:                    graph_results = self._client.query_points(
+backend/services/qdrant/searcher.py:284:                        collection_name=self._collection,
+backend/services/qdrant/searcher.py:288:                        query_filter=graph_filter,
+backend/services/qdrant/searcher.py:290:                        with_payload=True,
+backend/services/qdrant/searcher.py:297:        # converting payloads into generation-ready documents. This remains a
+backend/services/qdrant/searcher.py:302:            payload = hit.payload or {}
+backend/services/qdrant/searcher.py:303:            if self._utils.is_poisoned_node(payload.get("text", "")):
+backend/services/qdrant/searcher.py:305:            if is_blocked_source(payload):
+backend/services/qdrant/searcher.py:312:                "text": hit.payload.get("text", ""),
+backend/services/qdrant/searcher.py:313:                "source_url": hit.payload.get("source_url", ""),
+backend/services/qdrant/searcher.py:314:                "title": hit.payload.get("title", ""),
+backend/services/qdrant/searcher.py:315:                "content_type": hit.payload.get("content_type", ""),
+backend/services/qdrant/searcher.py:316:                "source_type": hit.payload.get("source_type", hit.payload.get("content_type", "")),
+backend/services/qdrant/searcher.py:317:                "language": hit.payload.get("language", "en"),
+backend/services/qdrant/searcher.py:318:                "tags": hit.payload.get("tags", []),
+backend/services/qdrant/searcher.py:319:                "chunk_index": hit.payload.get("chunk_index", 0),
+backend/services/qdrant/searcher.py:320:                "raptor_level": hit.payload.get("raptor_level", 0),
+backend/services/qdrant/searcher.py:322:                "parent_id": hit.payload.get("parent_id"),
+backend/services/qdrant/searcher.py:323:                "parent_text": hit.payload.get("parent_text"),
+backend/services/qdrant/searcher.py:324:                "is_child": hit.payload.get("is_child", False),
+backend/services/qdrant/searcher.py:325:                "speaker": hit.payload.get("speaker", "Unknown"),
+backend/services/qdrant/searcher.py:326:                "topic": hit.payload.get("topic", "Spiritual"),
+backend/services/qdrant/searcher.py:327:                "teacher_id": hit.payload.get("teacher_id", ""),
+backend/services/qdrant/searcher.py:328:                "licensed_domain": hit.payload.get("licensed_domain", ""),
+backend/services/qdrant/searcher.py:329:                "domain_rights_status": hit.payload.get("domain_rights_status", ""),
+backend/services/qdrant/searcher.py:330:                "tenant_id": hit.payload.get("tenant_id", ""),
+backend/services/qdrant/searcher.py:331:                "corpus_id": hit.payload.get("corpus_id", ""),
+backend/services/qdrant/searcher.py:332:                "entity_ids": hit.payload.get("entity_ids", []),
+backend/services/qdrant/searcher.py:333:                "graph_node_ids": hit.payload.get("graph_node_ids", []),
+backend/services/qdrant/searcher.py:334:                "context_cluster_ids": hit.payload.get("context_cluster_ids", []),
+backend/services/qdrant/searcher.py:335:                "source_segment_ids": hit.payload.get("source_segment_ids", []),
+backend/services/qdrant/searcher.py:336:                "ontology_version": hit.payload.get("ontology_version"),
+backend/services/qdrant/searcher.py:337:                "entity_resolution_confidence": hit.payload.get("entity_resolution_confidence"),
+backend/services/qdrant/searcher.py:338:                "chunk_id": hit.payload.get("chunk_id") or hit.id,
+backend/services/qdrant/searcher.py:344:    def _merge_filter(
+backend/services/qdrant/searcher.py:345:        base_filter: Optional[Filter],
+backend/services/qdrant/searcher.py:349:        """Merge extra must/should conditions into ``base_filter``.
+backend/services/qdrant/searcher.py:353:        must = list(base_filter.must) if base_filter and base_filter.must else []
+backend/services/qdrant/searcher.py:355:        must_not = list(base_filter.must_not) if base_filter and base_filter.must_not else None
+backend/services/qdrant/searcher.py:356:        should = list(base_filter.should) if base_filter and base_filter.should else []
+backend/services/qdrant/searcher.py:365:    def _dense_quantization_search_params(self) -> Optional[SearchParams]:
+backend/services/qdrant/searcher.py:366:        """Return search params with rescore + oversampling for non-scalar quantizers.
+backend/services/qdrant/searcher.py:368:        Scalar INT8 is Qdrant's default quantization baseline and does not need
+backend/services/qdrant/searcher.py:372:        if settings.qdrant_quantization == "scalar_int8":
+backend/services/qdrant/searcher.py:375:            quantization=QuantizationSearchParams(
+backend/services/qdrant/searcher.py:377:                oversampling=settings.qdrant_quantization_oversampling,
+backend/services/qdrant/searcher.py:385:        search_filter,
+backend/services/qdrant/searcher.py:390:            results = self._client.query_points(
+backend/services/qdrant/searcher.py:391:                collection_name=self._collection,
+backend/services/qdrant/searcher.py:395:                query_filter=search_filter,
+backend/services/qdrant/searcher.py:398:                else self._dense_quantization_search_params(),
+backend/services/qdrant/searcher.py:399:                with_payload=True,
+backend/services/qdrant/searcher.py:404:            # omits the vector name — it causes 400 Bad Request on collections
+backend/services/qdrant/client.py:1:"""Qdrant client connection and collection management."""
+backend/services/qdrant/client.py:52:class QdrantClientManager:
+backend/services/qdrant/client.py:53:    """Owns the Qdrant client lifecycle, collection creation, and health checks."""
+backend/services/qdrant/client.py:55:    # Every payload index that must exist for retrieval, filtering, and BM25 search.
+backend/services/qdrant/client.py:56:    # Shared between fresh-creation and existing-collection/race-handler paths.
+backend/services/qdrant/client.py:75:        collection: Optional[str] = None,
+backend/services/qdrant/client.py:104:        # Use tenant context for collection name to support multi-tenancy
+backend/services/qdrant/client.py:105:        if collection:
+backend/services/qdrant/client.py:106:            self._collection = collection
+backend/services/qdrant/client.py:108:            from services.tenant_context import get_tenant_collection
+backend/services/qdrant/client.py:110:            self._collection = get_tenant_collection(settings.qdrant_collection)
+backend/services/qdrant/client.py:119:    def collection(self) -> str:
+backend/services/qdrant/client.py:120:        return self._collection
+backend/services/qdrant/client.py:127:    def _build_quantization_config(quantization: str):
+backend/services/qdrant/client.py:128:        """Build Qdrant quantization_config from settings.qdrant_quantization.
+backend/services/qdrant/client.py:131:        schema exactly. ``always_ram=True`` keeps the quantized index in RAM
+backend/services/qdrant/client.py:134:        q = quantization.lower()
+backend/services/qdrant/client.py:161:                    f"Unsupported turboquant setting: {quantization}. "
+backend/services/qdrant/client.py:171:            f"Unsupported qdrant_quantization: {quantization}. "
+backend/services/qdrant/client.py:175:    def init_collection(self) -> None:
+backend/services/qdrant/client.py:176:        """Create collection with named dense + sparse vectors if it doesn't exist."""
+backend/services/qdrant/client.py:178:            collections = self._client.get_collections().collections
+backend/services/qdrant/client.py:179:            existing = [c.name for c in collections]
+backend/services/qdrant/client.py:181:            if self._collection not in existing:
+backend/services/qdrant/client.py:183:                    self._client.create_collection(
+backend/services/qdrant/client.py:184:                        collection_name=self._collection,
+backend/services/qdrant/client.py:197:                        hnsw_config=HnswConfigDiff(
+backend/services/qdrant/client.py:202:                        quantization_config=self._build_quantization_config(
+backend/services/qdrant/client.py:203:                            settings.qdrant_quantization
+backend/services/qdrant/client.py:205:                        on_disk_payload=True,
+backend/services/qdrant/client.py:211:                            f"Collection already exists (concurrent create): {self._collection}"
+backend/services/qdrant/client.py:213:                        self._verify_collection_dimension()
+backend/services/qdrant/client.py:221:                    self._ensure_existing_collection_indexes()
+backend/services/qdrant/client.py:224:                        self._client.create_payload_index(
+backend/services/qdrant/client.py:225:                            collection_name=self._collection,
+backend/services/qdrant/client.py:230:                        f"Created collection: {self._collection} "
+backend/services/qdrant/client.py:234:                logger.info(f"Collection exists: {self._collection}")
+backend/services/qdrant/client.py:235:                self._verify_collection_dimension()
+backend/services/qdrant/client.py:236:                self._ensure_existing_collection_indexes()
+backend/services/qdrant/client.py:240:    def _verify_collection_dimension(self) -> None:
+backend/services/qdrant/client.py:241:        """Fail loud if the existing collection's dense-vector size disagrees with config.
+backend/services/qdrant/client.py:243:        A collection is created once with whatever dimension was active at the
+backend/services/qdrant/client.py:244:        time (see init_collection above) and never migrated. If
+backend/services/qdrant/client.py:251:        get_collection() itself is intentionally unguarded here: get_collections()
+backend/services/qdrant/client.py:252:        already succeeded earlier in init_collection(), so a failure now is a real
+backend/services/qdrant/client.py:254:        (init_collection()'s own try/except re-raises anything that isn't a benign
+backend/services/qdrant/client.py:257:        (unnamed collection) or a dict of named VectorParams (our own collections use
+backend/services/qdrant/client.py:259:        collection is possible) — so only that narrow lookup is guarded.
+backend/services/qdrant/client.py:261:        existing = self._client.get_collection(self._collection)
+backend/services/qdrant/client.py:270:                f"Could not read vector dimension shape for collection "
+backend/services/qdrant/client.py:271:                f"'{self._collection}' (dense={self._dimension}d): {shape_err}. "
+backend/services/qdrant/client.py:273:                f"fix the collection schema or recreate it."
+backend/services/qdrant/client.py:277:                f"Qdrant collection '{self._collection}' is {actual_dim}-dim but "
+backend/services/qdrant/client.py:279:                f"search will fail until this is resolved — recreate the collection "
+backend/services/qdrant/client.py:283:    def _ensure_existing_collection_indexes(self) -> None:
+backend/services/qdrant/client.py:284:        """Idempotently create payload indexes on an existing collection.
+backend/services/qdrant/client.py:286:        Called from both the existing-collection path and the concurrent-create
+backend/services/qdrant/client.py:293:                self._client.create_payload_index(
+backend/services/qdrant/client.py:294:                    collection_name=self._collection,
+backend/services/qdrant/client.py:299:                    f"Created {field_name} index on existing collection: {self._collection}"
+backend/services/qdrant/client.py:304:                    logger.info(f"{field_name} index already exists on {self._collection}")
+backend/services/qdrant/client.py:312:        filter_cond: Optional[Any] = None,
+backend/services/qdrant/client.py:316:        Uses Qdrant's scroll with text-matching filter for keyword retrieval.
+backend/services/qdrant/client.py:321:        text_filter = Filter(must=[FieldCondition(key="text", match=MatchText(text=query))])
+backend/services/qdrant/client.py:322:        # Combine with existing filter if provided
+backend/services/qdrant/client.py:323:        combined = text_filter
+backend/services/qdrant/client.py:324:        if filter_cond:
+backend/services/qdrant/client.py:326:                must=[text_filter, filter_cond]
+backend/services/qdrant/client.py:327:                if isinstance(filter_cond, Filter)
+backend/services/qdrant/client.py:328:                else text_filter.must + [filter_cond]
+backend/services/qdrant/client.py:333:                collection_name=self._collection,
+backend/services/qdrant/client.py:334:                scroll_filter=combined,
+backend/services/qdrant/client.py:336:                with_payload=True,
+backend/services/qdrant/client.py:342:                    "content": r.payload.get("text", ""),
+backend/services/qdrant/client.py:343:                    "score": _bm25_overlap_score(query, r.payload.get("text", "")),
+backend/services/qdrant/client.py:344:                    "metadata": {k: v for k, v in r.payload.items() if k != "text"},
+backend/services/qdrant/client.py:354:        """Check if Qdrant is reachable and collection exists."""
+backend/services/qdrant/client.py:356:            self._client.get_collections()
+backend/services/qdrant/client.py:380:        cfg = QdrantClientManager._build_quantization_config(setting)
+backend/services/qdrant/client.py:388:            QdrantClientManager._build_quantization_config(setting)
+backend/services/qdrant/__init__.py:4:- client: connection and collection management
+backend/services/qdrant/__init__.py:6:- searcher: hybrid/dense retrieval with metadata filtering
+backend/services/qdrant/__init__.py:9:- filters: reusable Qdrant filter builders
+backend/services/qdrant/__init__.py:15:from services.qdrant.filters import QdrantFilterBuilder
+backend/services/qdrant/multitenancy_guard.py:9:from collections.abc import Callable
+backend/services/qdrant/multitenancy_guard.py:21:    """Decorator: enforce that search/upsert includes teacher_id or tenant filter.
+backend/services/qdrant/multitenancy_guard.py:25:        def search(self, query_vector, teacher_id=None, **kwargs):
+backend/services/qdrant/source_policy.py:4:legacy vector collection during a staged reingestion or deletion drill, but it
+backend/services/qdrant/source_policy.py:13:from collections.abc import Iterable
+backend/services/qdrant/source_policy.py:57:def filter_blocked_sources(documents: Iterable[dict]) -> tuple[list[dict], int]:
+backend/services/qdrant/source_policy.py:73:__all__ = ["filter_blocked_sources", "is_blocked_source"]
+backend/services/qdrant/utils.py:19:class QdrantUtils:
+backend/services/qdrant/utils.py:76:        Build (must, must_not) tag filter conditions.
+backend/services/qdrant/mmr.py:12:class QdrantMMR:
+backend/services/qdrant/indexer.py:22:from services.tenant_context import TenantContext, get_tenant_collection
+backend/services/qdrant/indexer.py:56:class QdrantIndexer:
+backend/services/qdrant/indexer.py:59:    def __init__(self, client: QdrantClient, collection: Optional[str] = None) -> None:
+backend/services/qdrant/indexer.py:62:        if collection:
+backend/services/qdrant/indexer.py:63:            self._collection = collection
+backend/services/qdrant/indexer.py:65:            # Use tenant context for collection name to support multi-tenancy
+backend/services/qdrant/indexer.py:66:            self._collection = get_tenant_collection(settings.qdrant_collection)
+backend/services/qdrant/indexer.py:107:        from services.text_quality_filter import select_clean
+backend/services/qdrant/indexer.py:113:                "(collection=%s). First: %r in %r",
+backend/services/qdrant/indexer.py:116:                self._collection,
+backend/services/qdrant/indexer.py:130:                "(collection=%s) — nothing written",
+backend/services/qdrant/indexer.py:131:                self._collection,
+backend/services/qdrant/indexer.py:142:        # see and the per-chunk filter cannot.
+backend/services/qdrant/indexer.py:144:        from services.text_quality_filter import collapse_repeats, is_repeat_alarm
+backend/services/qdrant/indexer.py:165:                "texts (collection=%s). Worst: %d copies of %r from source %r.%s",
+backend/services/qdrant/indexer.py:168:                self._collection,
+backend/services/qdrant/indexer.py:185:                        collection_name=self._collection,
+backend/services/qdrant/indexer.py:219:            payload = {"text": text, **meta}
+backend/services/qdrant/indexer.py:222:            # Qdrant payload filters and GraphRAG provenance share one contract.
+backend/services/qdrant/indexer.py:224:                if _field in payload and payload[_field] is None:
+backend/services/qdrant/indexer.py:225:                    payload[_field] = []
+backend/services/qdrant/indexer.py:226:                elif _field in payload and not isinstance(payload[_field], list):
+backend/services/qdrant/indexer.py:227:                    payload[_field] = [payload[_field]]
+backend/services/qdrant/indexer.py:228:            payload.setdefault("tenant_id", TenantContext.get() or settings.default_tenant_id)
+backend/services/qdrant/indexer.py:229:            payload.setdefault("corpus_id", settings.default_corpus_id)
+backend/services/qdrant/indexer.py:230:            # Task #17 rights gate (services/qdrant/searcher.py) mandatorily filters on
+backend/services/qdrant/indexer.py:237:            payload.setdefault("domain_rights_status", "licensed")

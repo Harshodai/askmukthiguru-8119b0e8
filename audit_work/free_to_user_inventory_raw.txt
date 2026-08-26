@@ -1,0 +1,255 @@
+## FRONTEND ROUTE DECLARATIONS
+218:          <RouteTracker />
+219:          <Routes>
+225:                <Route path="/admin/login" element={
+228:                <Route path="/admin" element={
+231:                  <Route index element={<AdminRoute><OverviewPage /></AdminRoute>} />
+234:                  <Route path="queries" element={<AdminRoute><GroupedPage tabs={[
+239:                  <Route path="retrieval" element={<Navigate to="/admin/queries?tab=retrieval" replace />} />
+240:                  <Route path="quality" element={<Navigate to="/admin/queries?tab=quality" replace />} />
+243:                  <Route path="content" element={<AdminRoute><GroupedPage tabs={[
+249:                  <Route path="daily-teaching" element={<Navigate to="/admin/content" replace />} />
+250:                  <Route path="teaching-tips" element={<Navigate to="/admin/content?tab=teaching-tips" replace />} />
+251:                  <Route path="topics" element={<Navigate to="/admin/content?tab=topics" replace />} />
+252:                  <Route path="okf" element={<Navigate to="/admin/content?tab=okf" replace />} />
+255:                  <Route path="evals" element={<AdminRoute><GroupedPage tabs={[
+259:                  <Route path="prompts" element={<Navigate to="/admin/evals?tab=prompts" replace />} />
+262:                  <Route path="alerts" element={<AdminRoute><GroupedPage tabs={[
+266:                  <Route path="triggers" element={<Navigate to="/admin/alerts?tab=triggers" replace />} />
+269:                  <Route path="ingestion" element={<AdminRoute><GroupedPage tabs={[
+274:                  <Route path="queue" element={<Navigate to="/admin/ingestion?tab=queue" replace />} />
+275:                  <Route path="cache" element={<Navigate to="/admin/ingestion?tab=cache" replace />} />
+278:                  <Route path="telemetry" element={<AdminRoute><GroupedPage tabs={[
+283:                  <Route path="logs" element={<Navigate to="/admin/telemetry?tab=logs" replace />} />
+284:                  <Route path="monitoring" element={<Navigate to="/admin/telemetry?tab=monitoring" replace />} />
+286:                  <Route path="data-sources" element={<AdminRoute><DataSourcesPage /></AdminRoute>} />
+287:                  <Route path="rag-flow" element={<AdminRoute><RAGFlowPage /></AdminRoute>} />
+288:                  <Route path="feedback" element={<AdminRoute><FeedbackPage /></AdminRoute>} />
+289:                  <Route path="settings" element={<AdminRoute><SettingsPage /></AdminRoute>} />
+290:                  <Route path="admins" element={<AdminRoute><AdminsPage /></AdminRoute>} />
+291:                  <Route path="self-check" element={<AdminRoute><AdminSelfCheckPage /></AdminRoute>} />
+298:            <Route element={<DebugLayout />}>
+299:              <Route path="/" element={<Suspense fallback={<BrandedSpinner />}><Index /></Suspense>} />
+300:              <Route path="/auth" element={<Suspense fallback={<BrandedSpinner />}><AuthPage /></Suspense>} />
+301:              <Route path="/auth/mfa" element={<Suspense fallback={<BrandedSpinner />}><MFAChallengePage /></Suspense>} />
+304:                  <Route path="/auth/diagnostics" element={<Suspense fallback={<BrandedSpinner />}><AuthDiagnosticsPage /></Suspense>} />
+305:                  <Route path="/auth/latency" element={<Suspense fallback={<BrandedSpinner />}><AuthLatencyDashboard /></Suspense>} />
+306:                  <Route path="/test-tts" element={<Suspense fallback={<BrandedSpinner />}><TTSVerificationPage /></Suspense>} />
+309:              <Route path="/reset-password" element={<Suspense fallback={<BrandedSpinner />}><ResetPasswordPage /></Suspense>} />
+310:              <Route path="/privacy" element={<Suspense fallback={<BrandedSpinner />}><PrivacyPage /></Suspense>} />
+311:              <Route path="/terms" element={<Suspense fallback={<BrandedSpinner />}><TermsPage /></Suspense>} />
+312:              <Route path="/chat" element={<Suspense fallback={<BrandedSpinner />}><ChatPage /></Suspense>} />
+313:              <Route path="/profile" element={<Suspense fallback={<BrandedSpinner />}><ProfilePage /></Suspense>} />
+314:              <Route path="/practices" element={<Suspense fallback={<BrandedSpinner />}><PracticesPage /></Suspense>} />
+315:              <Route path="/practices/:slug" element={<Suspense fallback={<BrandedSpinner />}><PracticeDetailPage /></Suspense>} />
+317:              <Route path="/guides" element={<Navigate to="/guides/spirit-guides" replace />} />
+318:              <Route path="/support" element={<Navigate to="/profile?tab=support" replace />} />
+319:              <Route path="/guides/spirit-guides" element={<Suspense fallback={<BrandedSpinner />}><SpiritGuidesPage /></Suspense>} />
+320:              <Route path="/guides/ai-spiritual-companion" element={<Suspense fallback={<BrandedSpinner />}><AiSpiritualCompanionPage /></Suspense>} />
+321:              <Route path="/guides/beautiful-state-meditation" element={<Suspense fallback={<BrandedSpinner />}><BeautifulStateMeditationPage /></Suspense>} />
+322:              <Route path="/guides/serene-mind-practice" element={<Suspense fallback={<BrandedSpinner />}><SereneMindPracticePage /></Suspense>} />
+323:              <Route path="/guides/self-centric-thinking" element={<Suspense fallback={<BrandedSpinner />}><SelfCentricThinkingPage /></Suspense>} />
+324:              <Route path="/guides/spiritual-guide-for-anxiety" element={<Suspense fallback={<BrandedSpinner />}><SpiritualGuideForAnxietyPage /></Suspense>} />
+325:              <Route path="/guides/suffering-to-beautiful-state" element={<Suspense fallback={<BrandedSpinner />}><SufferingToBeautifulStatePage /></Suspense>} />
+326:              <Route path="/notebooks" element={<Suspense fallback={<BrandedSpinner />}><StudyNotebookPage /></Suspense>} />
+327:              <Route path="/knowledge-graph" element={<Suspense fallback={<BrandedSpinner />}><KnowledgeGraphPage /></Suspense>} />
+328:              <Route path="/wisdom-map" element={<Navigate to="/knowledge-graph" replace />} />
+329:              <Route path="/second-brain" element={<Suspense fallback={<BrandedSpinner />}><SecondBrainPage /></Suspense>} />
+330:              <Route path="/reflections" element={<Navigate to="/second-brain" replace />} />
+331:              <Route path="*" element={<Suspense fallback={<BrandedSpinner />}><NotFound /></Suspense>} />
+
+## BACKEND ROUTER MOUNTS
+1023:app.include_router(auth_router, prefix="/api/auth")
+1024:app.include_router(admin_router, prefix="/api/admin")
+1025:app.include_router(feedback_router, prefix="/api")
+1026:app.include_router(health_router, prefix="")
+1027:app.include_router(capabilities_router, prefix="/api")
+1028:app.include_router(cache_metrics_router, prefix="/api")
+1029:app.include_router(chat_router, prefix="/api")
+1030:app.include_router(assistants_router, prefix="/api")
+1031:app.include_router(ingest_router, prefix="/api")
+1032:app.include_router(speech_router, prefix="/api")
+1033:app.include_router(profile_router, prefix="/api")
+1034:app.include_router(memory_router, prefix="/api")
+1035:app.include_router(teachings_router, prefix="/api")
+1036:app.include_router(support_router, prefix="/api")
+1037:app.include_router(waitlist_router, prefix="/api")
+1038:app.include_router(notebooks_router, prefix="/api")
+1039:app.include_router(srs_router, prefix="/api")
+1040:app.include_router(push_router, prefix="/api")
+1041:app.include_router(cancel_flow_router, prefix="/api")
+1042:app.include_router(compliance_router)
+1043:app.include_router(retention_router)
+1044:app.include_router(metrics_router)
+1045:app.include_router(healing_course_router)
+1048:app.include_router(kg_router, prefix="/api")
+1052:app.include_router(second_brain_router, prefix="/api")
+1056:app.include_router(job_router)
+1061:app.include_router(trace_router)
+1064:@app.get("/.well-known/jwks.json", tags=["auth"])
+1134:@app.get("/")
+
+## COMPOSE SERVICES
+27:  neo4j:
+56:  redis:
+84:  jaeger:
+101:  qdrant:
+125:  backend:
+305:  celery-worker:
+343:  frontend:
+371:  gptcache-server:
+404:  prometheus:
+430:  alertmanager:
+450:  grafana:
+475:  gptcache_data:
+477:  qdrant_data:
+479:  neo4j_data:
+481:  redis_data:
+483:  hf_model_cache:
+485:  telemetry_data:
+487:  prometheus_data:
+489:  alertmanager_data:
+491:  grafana_data:
+
+## PACKAGE DEPENDENCY HEADERS
+2:  "name": "askmukthiguru",
+3:  "private": true,
+4:  "version": "0.0.0",
+5:  "type": "module",
+6:  "packageManager": "npm@10.9.8",
+7:  "scripts": {
+8:    "dev": "vite",
+9:    "build": "vite build && node scripts/prerender-seo.mjs",
+10:    "build:seo": "vite build && node scripts/prerender-seo.mjs",
+11:    "build:dev": "vite build --mode development",
+12:    "lint": "eslint .",
+13:    "typecheck": "tsc -b --pretty false",
+14:    "preview": "vite preview",
+15:    "test": "vitest run",
+16:    "test:watch": "vitest",
+17:    "test:e2e": "playwright test",
+18:    "test:e2e:ui": "playwright test --ui",
+19:    "build:mobile": "vite build --mode mobile",
+20:    "cap:sync": "npm run build:mobile && npx cap sync android && npx cap sync ios",
+21:    "cap:sync:android": "npm run build:mobile && npx cap sync android",
+22:    "cap:sync:ios": "npm run build:mobile && npx cap sync ios",
+23:    "cap:open:android": "npx cap open android",
+24:    "cap:open:ios": "npx cap open ios",
+25:    "test:security": "playwright test tests/e2e/security-aal2.spec.ts",
+26:    "verify:rls": "node scripts/security/verify_rls.mjs",
+27:    "bundle:check": "node scripts/check-bundle-budget.mjs"
+29:  "dependencies": {
+30:    "@capacitor/app": "^8.1.0",
+31:    "@capacitor/cli": "^8.4.1",
+32:    "@capacitor/core": "^8.4.1",
+33:    "@capacitor/device": "^8.0.2",
+34:    "@capacitor/preferences": "^8.0.1",
+35:    "@capacitor/push-notifications": "^8.1.1",
+36:    "@hookform/resolvers": "^3.10.0",
+37:    "@radix-ui/react-accordion": "^1.2.11",
+38:    "@radix-ui/react-alert-dialog": "^1.1.14",
+39:    "@radix-ui/react-aspect-ratio": "^1.1.7",
+40:    "@radix-ui/react-avatar": "^1.1.10",
+41:    "@radix-ui/react-checkbox": "^1.3.2",
+42:    "@radix-ui/react-collapsible": "^1.1.11",
+43:    "@radix-ui/react-context-menu": "^2.2.15",
+44:    "@radix-ui/react-dialog": "^1.1.14",
+45:    "@radix-ui/react-dropdown-menu": "^2.1.15",
+46:    "@radix-ui/react-hover-card": "^1.1.14",
+47:    "@radix-ui/react-label": "^2.1.7",
+48:    "@radix-ui/react-menubar": "^1.1.15",
+49:    "@radix-ui/react-navigation-menu": "^1.2.13",
+50:    "@radix-ui/react-popover": "^1.1.14",
+51:    "@radix-ui/react-progress": "^1.1.7",
+52:    "@radix-ui/react-radio-group": "^1.3.7",
+53:    "@radix-ui/react-scroll-area": "^1.2.9",
+54:    "@radix-ui/react-select": "^2.2.5",
+55:    "@radix-ui/react-separator": "^1.1.7",
+56:    "@radix-ui/react-slider": "^1.3.5",
+57:    "@radix-ui/react-slot": "^1.2.3",
+58:    "@radix-ui/react-switch": "^1.2.5",
+59:    "@radix-ui/react-tabs": "^1.1.12",
+60:    "@radix-ui/react-toast": "^1.2.14",
+61:    "@radix-ui/react-toggle": "^1.1.9",
+62:    "@radix-ui/react-toggle-group": "^1.1.10",
+63:    "@radix-ui/react-tooltip": "^1.2.7",
+64:    "@sentry/react": "^10.65.0",
+65:    "@streamdown/cjk": "^1.0.3",
+66:    "@streamdown/code": "^1.1.1",
+67:    "@streamdown/math": "^1.0.2",
+68:    "@streamdown/mermaid": "^1.0.2",
+69:    "@supabase/supabase-js": "^2.110.8",
+70:    "@tanstack/react-query": "^5.83.0",
+71:    "@testing-library/dom": "^10.4.1",
+72:    "@xyflow/react": "^12.11.1",
+73:    "ai": "^7.0.16",
+74:    "class-variance-authority": "^0.7.1",
+75:    "clsx": "^2.1.1",
+76:    "cmdk": "^1.1.1",
+77:    "date-fns": "^3.6.0",
+78:    "embla-carousel-react": "^8.6.0",
+79:    "framer-motion": "^12.33.0",
+80:    "headroom-ai": "^0.22.4",
+81:    "html-to-image": "^1.11.13",
+82:    "i18next": "^26.3.6",
+83:    "i18next-browser-languagedetector": "^8.2.1",
+84:    "input-otp": "^1.4.2",
+85:    "lucide-react": "^0.462.0",
+86:    "motion": "^12.42.2",
+87:    "nanoid": "^5.1.16",
+88:    "next-themes": "^0.3.0",
+89:    "react": "^18.3.1",
+90:    "react-circular-progressbar": "^2.2.0",
+91:    "react-day-picker": "^8.10.1",
+92:    "react-dom": "^18.3.1",
+93:    "react-hook-form": "^7.61.1",
+94:    "react-i18next": "^17.0.9",
+95:    "react-markdown": "^10.1.0",
+96:    "react-resizable-panels": "^2.1.9",
+97:    "react-router-dom": "7.18.2",
+98:    "recharts": "^2.15.4",
+99:    "remark-gfm": "^4.0.1",
+100:    "sonner": "^1.7.4",
+101:    "streamdown": "^2.5.0",
+102:    "tailwind-merge": "^2.6.0",
+103:    "tailwindcss-animate": "^1.0.7",
+104:    "use-stick-to-bottom": "^1.1.6",
+105:    "vaul": "^0.9.9",
+106:    "web-vitals": "^5.3.0",
+107:    "zod": "^3.25.76"
+109:  "devDependencies": {
+110:    "@axe-core/playwright": "^4.12.1",
+111:    "@capacitor/android": "^8.4.1",
+112:    "@capacitor/ios": "^8.4.1",
+113:    "@eslint/js": "^9.32.0",
+114:    "@playwright/test": "^1.60.0",
+115:    "@tailwindcss/typography": "^0.5.16",
+116:    "@testing-library/jest-dom": "^6.6.0",
+117:    "@testing-library/react": "^16.0.0",
+118:    "@types/node": "^22.16.5",
+119:    "@types/react": "^18.3.23",
+120:    "@types/react-dom": "^18.3.7",
+121:    "@vitejs/plugin-react-swc": "^4.3.3",
+122:    "@vitest/coverage-v8": "^4.1.10",
+123:    "autoprefixer": "^10.4.21",
+124:    "axe-core": "^4.12.1",
+125:    "eslint": "^9.32.0",
+126:    "eslint-plugin-react-hooks": "^5.2.0",
+127:    "eslint-plugin-react-refresh": "^0.4.20",
+128:    "globals": "^15.15.0",
+129:    "jsdom": "^20.0.3",
+130:    "playwright": "^1.60.0",
+131:    "postcss": "^8.5.6",
+132:    "rollup-plugin-visualizer": "^7.0.1",
+133:    "tailwindcss": "^3.4.17",
+134:    "typescript": "^5.8.3",
+135:    "typescript-eslint": "^8.38.0",
+136:    "vite": "^8.0.16",
+137:    "vitest": "^4.1.10"
+
+## PYTHON MANIFESTS
+backend/requirements-optional-ml.txt
+backend/requirements.txt
+backend/pyproject.toml
+backend/requirements-dev.txt
+backend/requirements-gpu.txt

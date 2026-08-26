@@ -1,0 +1,39 @@
+{
+  "manifest_version": "question-bank-latency-v1",
+  "source_sha256": "1adf9d547ffd9ca33c20b63ef57b8291f2938ca138a25028620fd2d06a34f8f6",
+  "base_url": "http://localhost:8000",
+  "cache_mode": "disabled",
+  "cache_free_only": true,
+  "runs": 1,
+  "n_rows": 2,
+  "strata": {
+    "safety_governance": {
+      "n_total": 2,
+      "n_included": 2,
+      "n_quality_valid": 2,
+      "n_excluded": 0,
+      "exclusion_reasons": {},
+      "observed_query_tiers": {
+        "unknown": 2
+      },
+      "backend_mean_ms": 3.0,
+      "wall_mean_ms": 600.12,
+      "percentiles_status": "suppressed_need_20_included"
+    }
+  },
+  "categories": {
+    "guardrails_input": {
+      "n_total": 2,
+      "n_included": 2,
+      "n_quality_valid": 2,
+      "n_excluded": 0,
+      "exclusion_reasons": {},
+      "observed_query_tiers": {
+        "unknown": 2
+      },
+      "backend_mean_ms": 3.0,
+      "wall_mean_ms": 600.12,
+      "percentiles_status": "suppressed_need_20_included"
+    }
+  }
+}
