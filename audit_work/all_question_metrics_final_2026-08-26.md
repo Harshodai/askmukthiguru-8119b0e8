@@ -109,6 +109,22 @@ The clean earlier matched exploratory deep comparison reported **24,741.00 ms to
 
 The route correction makes a direct comparison to old deep-comparison rows invalid because those rows often executed as `tier2_simple`. The corrected stable canary completed cache-free at **31,742 ms backend / 40,806 ms wall**, with `query_tier=deep`, `grounding_state=abstained`, `verification.passed=false`, and verified citations. It proves route correctness and honest quality gating, not a latency gain.
 
+## Fresh cache-disabled route canaries
+
+After a clean backend restart, the cache-disabled flag was verified inside the backend container as `LATENCY_BENCHMARK_CACHE_DISABLED=true`. The bounded canary set completed all seven requested route kinds with `cache_hit=false`, `status=completed`, and the backend remained healthy. These are single observations, not route percentiles.
+
+| Fixture | Backend ms | Wall ms | Observed route/tier | Grounding / safety | Interpretation vs prior baseline mean |
+|---|---:|---:|---|---|---|
+| fast_casual greeting | 5 | 426.46 | `instant_greeting` / none | abstained; CASUAL | deterministic path working; not comparable to provider-backed factual traffic |
+| fast factual | 4,932 | 5,203.44 | query / `tier2_simple` | grounded partial | +8.00% exploratory single sample |
+| standard factual | 17,887 | 17,978.69 | query / `deep` | abstained partial | +263.00%; fixture was promoted to deep, so not like-for-like |
+| deep comparison | 17,071 | 17,165.36 | query / `deep` | abstained partial; citations verified | +2.00%; route is now correct, but n=1 |
+| Hindi simple | 9,503 | 9,792.84 | query / `tier3_complex` | abstained partial; citations verified | -33.00%; n=1 and observed tier differs |
+| Telugu simple | 36,523 | 36,582.51 | query / `tier3_complex` | abstained partial; citations verified | +72.00%; n=1 and observed tier differs |
+| distress | 0 | 267.29 | distress / none | safety redirect | deterministic safety path working |
+
+The canary matrix demonstrates that cache-disabled execution works on the clean runtime for greeting, factual, standard/deep, Indic, and distress paths. It does **not** establish a major gain: only repeated matched route strata with n>=20 can do that, and the full-bank attempt previously hit OOM.
+
 ## Final conclusion
 
 The free core is protected and the routing/verification fixes are implemented. The main unresolved issues are low strict quality validity, deep/multilingual tails, provider capacity, and local container memory. A future benchmark must use bounded category batches, cooldowns, cgroup memory capture, and separate 429/reset accounting before any major latency claim or further concurrency change.
