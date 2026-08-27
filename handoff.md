@@ -280,5 +280,39 @@ aa2e0cf7    latency audit evidence, memory_service fix
 
 1. **Kong unhealthy health check** — Reconfigure healthcheck path from `/` to `/status` in docker-compose.yml if needed.
 2. **yt-dlp missing** — Install with `brew install yt-dlp` if you want Tier 3 audio transcription for the 18 missing corpus sources.
-3. **OKF auto-approve=False** — OKF writes to staging only. Set `auto_approve=True` in `_okf_extract_for_video()` call in `pipeline.py` to push directly to production.
+3. ~~**OKF auto-approve=False**~~ **STALE, corrected 2026-08-27**: `auto_approve` no longer exists as a working option. A later commit (`ec3c7d0a`) made `extract_okf_from_stores.py`'s auto-approve path raise `ValueError` unconditionally -- OKF staging now requires human review via `POST /api/admin/okf/review/{id}/approve` before anything reaches `compiled.json`. Do not attempt to re-enable `auto_approve=True`; that bypass was removed deliberately as a review-gate closure, not an oversight.
 4. **Neo4j CE limitation** — Community Edition can't create separate databases; falls back to default DB. Not a bug — works fine.
+
+---
+
+## 14. SESSION UPDATE — 2026-08-27 (evening): the real ingestion-collapse root cause, plus reconciliation with a parallel session
+
+Two full ingestion runs collapsed catastrophically after this handoff was written (5/487 and 5/586 succeeded, the rest rejected as spurious "not valid JSON"). Root-caused end to end rather than just retried with different parameters:
+
+### The real bug: OpenRouterService's rate limiter was per-instance, not global
+`services/openrouter_service.py`'s `_rpm_lock`/`_request_count`/`_window_start` were instance attributes. Ingestion creates ~53 separate `OpenRouterService()` instances across quality-gate scoring, contextual chunking, LightRAG, and OKF extraction -- each enforced `OPENROUTER_RPM_LIMIT` independently, so real aggregate traffic to OpenRouter ran far above whatever value was configured, no matter how low. This is why `OPENROUTER_RPM_LIMIT=120` (this handoff's own documented re-run command, item 12 above) AND the "safe" code default of `20` both tripped the OpenRouter circuit breaker within minutes. **Fixed**: rate-limit state is now class-level, shared across every instance -- one real counter enforces the configured limit process-wide. Regression test: `test_openrouter_rate_limit_is_shared_across_instances`.
+
+### Downstream symptom: quality-gate silently mistook provider degradation for bad content
+`ingest/quality_gate.py`'s `LLMQualityScorer` fed the circuit breaker's canned "graceful degradation" fallback text (`"I'm here and listening..."` / `"I'm currently experiencing a temporary connectivity issue..."`) straight to its JSON parser, which just logged a warning and returned `QUALITY_UNKNOWN: LLM response was not valid JSON` -- a *permanent* quarantine verdict for what was actually a *transient* provider hiccup. This is what turned "OpenRouter is briefly overloaded" into "370+ of 428 videos permanently rejected as low quality." **Fixed**: detects the two fixed fallback strings, retries up to 3x with backoff (breakers self-recover on a timer) before quarantining. If it still fails after retries, the reason is now honestly `"provider degraded (circuit breaker open) after retries"`, not a misleading JSON-parse message.
+
+### A second, unrelated bug found via this same investigation
+`SemanticCacheAdapter._redis_key` (`services/cache/semantic_adapter.py`) was missing `@staticmethod` but called as `self._redis_key(scope, point_id)` -- every real get/put/invalidate call raised `TypeError`, so the semantic cache never actually cached anything despite the 17 existing tests passing (none of them called the method through an instance, only via `inspect.signature()`). **Fixed independently by two parallel sessions this evening** (this one, and commit `7532263b`'s "P0-1") -- strong convergent confirmation it was real. That commit also added a hard startup assertion enforcing `SEMANTIC_CACHE_SIMILARITY >= 0.92`.
+
+### A merge-time regression, found and fixed before push
+Merging in `7532263b`'s P0-6 fix (a new blanket `no_context_short_circuit` fast-path in `generation.py`, added to skip expensive verification when there's genuinely nothing retrieved) broke the pre-existing non-doctrinal "reflective peace-meaning" fallback for Hindi queries about the meaning of peace -- the new early-return intercepted before that more specific handler could run, replacing a warm bounded reflection with a cold generic "couldn't find teachings" message. **Fixed**: excluded that one recognized content-gap case from the short-circuit.
+
+### Also fixed this session
+- Memory fact-key auto-derivation (`services/memory_service.py`) collapsed distinct multi-valued facts onto the same key (`"I have anxiety"` / `"I have a daughter"` both derived `user:possession`, so the second silently retired the first). Narrowed to single-valued relations only (`lives_in`, `occupation`).
+- `test_corpus_hallucination_integrity.py`'s 5 hard assertions had been replaced with `pytest.skip()` when the 745-package corpus directory doesn't exist in this worktree. Rather than re-weaken vs re-break, symlinked `scripts/ingestion/corpus` to the primary checkout's real corpus (same fix already applied to `transcripts/`) -- the test now runs for real (5 passed, not skipped).
+- `services/multi_provider_llm.py`'s hardcoded `google/gemini-flash-1.5-8b` (decommissioned, 404 on every call) was independently fixed by a parallel session's commit `5780e59b` with a different model choice than mine; kept theirs on merge since it's coordinated with `config.py`'s freshly-updated primary/fallback model pair.
+
+### NEW finding, unresolved -- needs your attention, not a code fix
+After all the above fixes landed and ingestion was relaunched clean (workers=4, RPM=20, zero circuit-breaker trips from the rate-limiter bug), OpenRouter started returning **`402 Payment Required`** on a meaningful fraction of calls (31+ occurrences observed). This is a billing/credits issue on the OpenRouter account, not a bug in this codebase -- every fix above is confirmed working correctly (the quality-gate now honestly reports `"provider degraded"` instead of masking a 402 as `"not valid JSON"`), but ingestion cannot complete at full throughput until the account has credit. Check the OpenRouter dashboard.
+
+### Current ingestion state (as of this update)
+Running detached (survives Claude session death: `~/mukthiguru-ingest-ops/run_ingest.sh` launched via `nohup`, `~/mukthiguru-ingest-ops/watchdog.sh` writes `status.tsv` every 60s and a `final_report.md` on completion, `caffeinate -i -s` prevents sleep). Input list rebuilt at `~/mukthiguru-ingest-ops/all_ingest_urls.txt` (586 URLs, reconstructed from local transcript frontmatter after a machine reboot wiped `/tmp/all_ingest_urls.txt` -- `/tmp` does not survive a macOS reboot, a durability lesson for any future long-running job: never put durable state there). Qdrant `spiritual_wisdom_contextual` and Neo4j both non-empty and growing, gated by real OpenRouter capacity/credits now, not a code bug.
+
+### Operational lessons for the next session
+- **Restart after editing code the running process already imported.** Python doesn't hot-reload; a fix landed in a file mid-run does nothing until the process is relaunched. Caught this exact mistake once this session -- fixed `quality_gate.py`, forgot to relaunch, watched the old bug run for another 25 minutes before noticing.
+- **A reboot kills everything `caffeinate` doesn't protect against.** `caffeinate -i` (or `-i -s`) prevents sleep, not a reboot. `/tmp` is wiped on reboot; anything that must survive one belongs under `$HOME`.
+- **Before trusting a "0 rejected reason" or "0 entries" number from any monitoring script you wrote this session, re-verify the path/scope it's actually reading** -- two false alarms this session (RAPTOR summaries, OKF staging count) turned out to be the watchdog script pointing at the wrong location, not real pipeline failures.
