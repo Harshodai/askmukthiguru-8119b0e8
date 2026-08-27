@@ -2084,7 +2084,15 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
         or route_decision == "no_context_short_circuit"
         or grounding_state == "abstained"
         or ver_method == "no_context_short_circuit"
+    ) and not (
+        not state.get("relevant_docs")
+        and _generic_peace_meaning_request(state.get("question", ""))
     ):
+        # The blanket no-context fast path must not preempt the more specific
+        # non-doctrinal peace-meaning reflection below (line ~2394) -- that
+        # handler exists precisely because a flat "couldn't find teachings"
+        # message is a worse user experience for this one narrow, recognized
+        # content gap than a bounded reflective answer.
         logger.info("Final: no-context short-circuit/abstained fast path without retry")
         return {
             "final_answer": scrub(answer),

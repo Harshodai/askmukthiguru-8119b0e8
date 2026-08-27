@@ -449,7 +449,10 @@ class TestWebSearchNode:
         state = {"question": "test"}
         result = await web_search_node(state)
 
-        assert result == {"web_search_results": []}
+        # @log_metrics wraps every node and always adds metrics/node_timings.
+        assert {k: v for k, v in result.items() if k not in ("metrics", "node_timings")} == {
+            "web_search_results": []
+        }
 
     @patch("rag.nodes._services")
     async def test_web_search_node_uses_rewritten_query(self, mock_services, monkeypatch):

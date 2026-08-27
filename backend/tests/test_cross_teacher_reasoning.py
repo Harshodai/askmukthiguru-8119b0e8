@@ -33,8 +33,10 @@ def _reset_cross_teacher_module_state():
 async def test_cross_teacher_reasoning_skipped_for_single_teacher():
     state = GraphState(question="What is Sadhguru's view on Karma?", relevant_docs=[])
     result = await cross_teacher_reasoning(state)
-    # Should skip since only Sadhguru is mentioned
-    assert result == {}
+    # Should skip since only Sadhguru is mentioned. @log_metrics wraps every
+    # node and always adds metrics/node_timings, so a skip is an otherwise-
+    # empty payload, not a literally empty dict.
+    assert {k: v for k, v in result.items() if k not in ("metrics", "node_timings")} == {}
 
 
 @pytest.mark.asyncio

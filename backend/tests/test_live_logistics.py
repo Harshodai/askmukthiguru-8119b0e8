@@ -145,4 +145,7 @@ async def test_non_logistics_intent_never_invokes_live_search(monkeypatch):
     monkeypatch.setattr(settings, "live_logistics_enabled", True)
     monkeypatch.setattr(nodes._services, "_web_search", OfficialSearch())
     result = await web_search_node({"intent": "FACTUAL", "question": "What is Soul Sync?"})
-    assert result == {"web_search_results": []}
+    # @log_metrics wraps every node and always adds metrics/node_timings.
+    assert {k: v for k, v in result.items() if k not in ("metrics", "node_timings")} == {
+        "web_search_results": []
+    }
