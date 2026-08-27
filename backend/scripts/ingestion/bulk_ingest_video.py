@@ -23,8 +23,11 @@ import asyncio
 import logging
 import sys
 import time
+import os
 from pathlib import Path
 from typing import Any, Optional
+
+import neo4j as _neo4j_lib
 
 # Bootstrap backend import path
 BACKEND_DIR = Path(__file__).resolve().parents[2]
@@ -96,16 +99,48 @@ async def bulk_ingest_async(
     checkpoint = IngestionCheckpoint(filepath=str(STATE_FILE))
     okf_tasks: list[asyncio.Task] = []
 
+    # Ensure local Supabase host fallback
+    if not os.environ.get("SUPABASE_URL"):
+        os.environ["SUPABASE_URL"] = "http://localhost:54321"
+
     # Instantiate services
     qdrant_svc = QdrantService()
     embedder_svc = EmbeddingService()
     llm_svc = OpenRouterService()
 
+    # --- Neo4j driver (for ontology/entity writes via write_extraction_to_neo4j) ---
+    _neo4j_driver = None
+    try:
+        neo4j_uri = os.environ.get("NEO4J_URI", "bolt://localhost:7687")
+        neo4j_pass = os.environ.get("NEO4J_PASSWORD", "mukthiguru_neo4j_pass")
+        _neo4j_driver = _neo4j_lib.GraphDatabase.driver(
+            neo4j_uri, auth=("neo4j", neo4j_pass)
+        )
+        logger.info("Neo4j driver connected for ontology writes")
+    except Exception as _e:
+        logger.warning("Neo4j unavailable — graph writes disabled: %s", _e)
+
+    # --- LightRAG service (dual-level graph+vector index) ---
+    _lightrag_svc = None
+    try:
+        from services.lightrag_service import LightRAGService
+        _lightrag_svc = LightRAGService()
+        logger.info("LightRAG service ready for ingestion")
+    except Exception as _e:
+        logger.warning("LightRAG unavailable — KG layer skipped: %s", _e)
+
     pipeline = IngestionPipeline(
         qdrant_service=qdrant_svc,
         embedding_service=embedder_svc,
         ollama_service=llm_svc,
+        neo4j_driver=_neo4j_driver,
+        lightrag_service=_lightrag_svc,
     )
+
+    # Lower RAPTOR cluster_size: default 8 skips short discourses (3-5 chunks)
+    if hasattr(pipeline, '_raptor') and pipeline._raptor is not None:
+        pipeline._raptor._cluster_size = 3
+        logger.info("RAPTOR cluster_size -> 3 (enables short-video tree build)")
 
     semaphore = asyncio.Semaphore(workers)
     stats = {"succeeded": 0, "skipped": 0, "failed": 0, "okf_queued": 0}

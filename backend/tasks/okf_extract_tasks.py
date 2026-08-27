@@ -47,17 +47,23 @@ def extract_okf_entries(
         if str(_base) not in sys.path:
             sys.path.insert(0, str(_base))
 
-        from scripts.extract_okf_from_stores import extract_okf
-
-        paths = asyncio.run(
-            extract_okf(
-                target_topic=target_topic,
-                target_video_id=target_video_id,
-                limit=limit,
-                auto_approve=auto_approve,
-                chunk_limit=chunk_limit,
-            )
+        import concurrent.futures as _cf
+        _coro = extract_okf(
+            target_topic=target_topic,
+            target_video_id=target_video_id,
+            limit=limit,
+            auto_approve=auto_approve,
+            chunk_limit=chunk_limit,
         )
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+        if loop and loop.is_running():
+            with _cf.ThreadPoolExecutor(max_workers=1) as _pool:
+                paths = _pool.submit(asyncio.run, _coro).result(timeout=120)
+        else:
+            paths = asyncio.run(_coro)
 
         mode = "approved" if auto_approve else "staging"
         logger.info(
