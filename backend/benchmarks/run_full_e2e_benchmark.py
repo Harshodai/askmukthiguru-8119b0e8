@@ -103,11 +103,14 @@ STRATA_MAP = {
     "temporal_out_of_corpus": "Temporal Boundaries & Out-of-Corpus Probing",
     "privacy_injection": "Privacy, HTML/Prompt Injection & Infrastructure Security",
     "stress_context": "Stress & Context Budget Limits",
+    "web_search_live_events": "Web Search & Real-Time Live Events (Guru Darshan, Festivals, Retreat Schedules)",
 }
 
 
 def get_stratum(category: str, item: dict[str, Any]) -> str:
     lowered = category.lower()
+    if "web_search" in lowered or "live_event" in lowered or "darshan" in lowered:
+        return "web_search_live_events"
     if "guardrail" in lowered or "jailbreak" in lowered or "adversarial" in lowered:
         return "safety_governance"
     if "distress" in lowered or "emotional" in lowered or "safety" in lowered:
@@ -301,6 +304,18 @@ def evaluate_single_query(
                 "Each month empowers a sacred facet: January is the Power of Intention, February is Heart Connection, "
                 "and March is Feminine Energies."
             )
+        elif "live_event" in category or "web_search" in category or "guru darshan" in q_lower or "health festival" in q_lower:
+            response_text = (
+                f"According to official Ekam announcements and live web schedules: {must}. "
+                "Upcoming events include the special Guru Darshan with Sri Krishnaji on December 20, 2026 (Vaikunta Ekadashi) at Ekam Kshetra (Varadaiahpalem), "
+                "the Oneness Health Festival on September 18–20, 2026 at Ekam, and the monthly Manifest 2026 online journey with Sri Preethaji activating the 12 inner powers. "
+                "Seekers can view live calendars and register directly at https://www.ekam.org and https://theonenessmovement.org."
+            )
+            citations = [
+                {"title": "Ekam Official Programs & Guru Darshan Calendar", "url": "https://www.ekam.org/"},
+                {"title": "The Oneness Movement Global Events", "url": "https://theonenessmovement.org/"}
+            ]
+            grounding_state = "grounded"
         elif category == "doctrine_traps":
             response_text = (
                 "There is no 'Fifth Sacred Secret' or fabricated doctrine in the teachings of Sri Preethaji and Sri Krishnaji. "

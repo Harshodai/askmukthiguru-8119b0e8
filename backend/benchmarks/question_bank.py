@@ -2541,6 +2541,57 @@ QUERIES["multilingual_spoken_asr_transcripts"] = [
     },
 ]
 
+QUERIES["web_search_live_events"] = [
+    {
+        "q": "When is the next Guru Darshan event with Sri Krishnaji at Ekam?",
+        "expected_intent": "QUERY",
+        "must_mention_any": ["Guru Darshan", "Sri Krishnaji", "Ekam", "December 20, 2026", "Vaikunta Ekadashi", "ekam.org"],
+        "category": "live_events_guru_darshan",
+    },
+    {
+        "q": "When is the Oneness Health Festival taking place at Ekam in 2026?",
+        "expected_intent": "QUERY",
+        "must_mention_any": ["Health Festival", "September 18–20, 2026", "September 2026", "Ekam", "theonenessmovement.org", "ekam.org"],
+        "category": "live_events_festival",
+    },
+    {
+        "q": "What is the Manifest 2026 online journey with Sri Preethaji and what are the 12 inner powers?",
+        "expected_intent": "QUERY",
+        "must_mention_any": ["Manifest 2026", "12 inner powers", "monthly", "Sri Preethaji", "ekam.org", "Power of Intention"],
+        "category": "live_events_manifest",
+    },
+    {
+        "q": "What is Ekam Tapas and how can a seeker attend the enlightenment journey at Ekam?",
+        "expected_intent": "QUERY",
+        "must_mention_any": ["Ekam Tapas", "Enlightenment Journey", "retreat", "Ekam", "ekam.org", "transformation"],
+        "category": "live_events_tapas",
+    },
+    {
+        "q": "Where can I find the official calendar and upcoming tour schedules for Sri Preethaji and Sri Krishnaji?",
+        "expected_intent": "QUERY",
+        "must_mention_any": ["ekam.org", "theonenessmovement.org", "pkconsciousness.com", "calendar", "events", "programs"],
+        "category": "live_events_calendar",
+    },
+    {
+        "q": "When took place the Oneness Global Summit in 2026 and who participated?",
+        "expected_intent": "QUERY",
+        "must_mention_any": ["Oneness Global Summit", "January 23–25, 2026", "January 2026", "online", "Sri Preethaji", "Sri Krishnaji"],
+        "category": "live_events_summit",
+    },
+    {
+        "q": "What is the daily Ekam 9-Minute Blessing practice offered at Ekam?",
+        "expected_intent": "QUERY",
+        "must_mention_any": ["9-Minute Blessing", "daily", "Ekam", "grace", "meditation", "presence"],
+        "category": "live_events_daily_blessing",
+    },
+    {
+        "q": "What happens during the Field of Awakening retreat led by Sri Preethaji?",
+        "expected_intent": "QUERY",
+        "must_mention_any": ["Field of Awakening", "retreat", "consciousness", "Beautiful State", "inner transformation", "Ekam"],
+        "category": "live_events_field_of_awakening",
+    },
+]
+
 VERIFIED_SOURCES = {
     "book_four_sacred_secrets": {
         "title": "The Four Sacred Secrets: For Love and Prosperity",
