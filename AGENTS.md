@@ -1,6 +1,24 @@
 # Agentic Lessons & Environment Context
 
-> **Active operating status — reviewed 2026-08-23.** This file contains binding repository invariants alongside dated lessons and handoffs. For a conflict, current source configuration, scoped instructions, and approved runbooks prevail; preserve historical notes as provenance rather than treating their dated measurements as live state.
+> **Active operating status — reviewed 2026-08-27.** This file contains binding repository invariants alongside dated lessons and handoffs. For a conflict, current source configuration, scoped instructions, and approved runbooks prevail; preserve historical notes as provenance rather than treating their dated measurements as live state.
+
+### Corpus ingestion handoff — Aug 27, 2026
+- **Ingestion running**: PID tracked in `/tmp/ingest_migrate.pid`, log at `/tmp/ingest_migrate.log`. 487 sources (438 MIGRATE + 49 MIGRATE_THEN_VERIFY), 4 workers, target `spiritual_wisdom_contextual` at `http://localhost:6333`. Resume is automatic via Redis checkpoint (`IngestionCheckpoint` tenant=`oneness`).
+- **MIGRATE_THEN_VERIFY verification**: All 49 MTV sources verified 100% VERIFIED_OK (genuine Krishnaji/Preethaji teachings, publicly accessible). Results at `/tmp/mtv_verification_results.json`.
+- **Local transcript cache**: 469 of 487 sources projected from `scripts/ingestion/corpus/<video_id>/transcript.md` to `transcripts/<video_id>.md` (repo root) with fresh mtime. `fetch_transcript_hybrid` Tier-1 reads from here. 18 sources missing from corpus fall through to YouTube caption API.
+- **Staleness invariant**: `PRE_EXTRACTED_MAX_AGE_SKIP=30 days`. Always `touch` projected transcripts before running ingestion or they will be skipped and fall back to live YouTube API.
+- **LLM provider for ingestion**: Use `OpenRouterService` (cloud-only mode, `OLLAMA_CLOUD_ONLY=true`). `bulk_ingest_video.py` was fixed from `OllamaService` → `OpenRouterService`. `LLM_PROVIDER=openrouter` env required.
+- **Host-side ingestion command** (run from `backend/`):
+  ```bash
+  QDRANT_URL=http://localhost:6333 QDRANT_COLLECTION=spiritual_wisdom_contextual \
+  NEO4J_URI=bolt://localhost:7687 NEO4J_PASSWORD=mukthiguru_neo4j_pass \
+  REDIS_URL="redis://:mukthiguru_redis_pass@localhost:6379/0" \
+  OPENROUTER_API_KEY=<key-from-backend/.env> LLM_PROVIDER=openrouter \
+  .venv/bin/python3 -m scripts.ingestion.bulk_ingest_video --input /tmp/all_ingest_urls.txt --workers 4
+  ```
+- **REFETCH phase (232 sources)**: NOT YET STARTED. Separate phase — these sources need fresh YouTube transcript fetch because local corpus transcripts are marked `needs_refetch`. Start after MIGRATE phase completes.
+- **Supabase Docker stack**: Running under `COMPOSE_PROFILES=supabase`. All 5 services up. `supabase_auth_admin` and `authenticator` role passwords were set manually via `psql -U supabase_admin -h localhost`. Kong gateway at `http://localhost:54321`.
+- **Commits**: `7cbda3af` (OpenRouter fix), `8b24bacd` (Supabase compose), pushed to `origin/main`.
 
 ### Fresh audit invariants — Aug 21, 2026
 - The standard graph can terminate at `handle_fallback` after CRAG rewrite exhaustion, bypassing `generate_answer`, `format_final_answer`, and their quality-gated fallback logic. For bounded product cases, inspect `route_after_grading` and terminal nodes; `final_answer` plus reducer-preserved citations and `verification=null` is the diagnostic signature.
