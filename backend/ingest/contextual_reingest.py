@@ -461,6 +461,44 @@ class ContextualReingestEngine:
         self._ensure_target_collection()
 
         processed: set[str] = set(self._state.get(_STATE_KEY, [])) if skip_processed else set()
+
+        # --- L-INGEST-3: Cross-validate local state against actual Qdrant state ---
+        # If the target collection is empty (e.g. after a manual data wipe) but the
+        # local ingestion_state.json claims sources are processed, the state file is
+        # stale. This is the same bug class as dual-checkpoint desync (IngestionCheckpoint
+        # has two independent Redis namespaces; this is a third, file-based namespace).
+        # Silently skipping all sources while reporting "0 chunks" is a phantom success.
+        # See backend/docs/INGESTION_SAFETY.md, Rule #3.
+        if skip_processed and processed:
+            try:
+                from qdrant_client import QdrantClient
+                from app.config import settings
+
+                _qc = QdrantClient(
+                    url=getattr(settings, "qdrant_url", "http://localhost:6333"),
+                    api_key=getattr(settings, "qdrant_api_key", None),
+                    timeout=5,
+                )
+                _info = _qc.get_collection(self._target_collection)
+                if _info.points_count == 0:
+                    logger.warning(
+                        "L-INGEST-3: Target collection %r has 0 points but "
+                        "ingestion_state.json claims %d sources processed — "
+                        "state file is STALE after data wipe. "
+                        "Clearing local state and reprocessing all sources.",
+                        self._target_collection,
+                        len(processed),
+                    )
+                    processed = set()
+                    self._state[_STATE_KEY] = []
+                    self._save_state()
+            except Exception as exc:
+                logger.warning(
+                    "Could not cross-validate target collection state: %s — "
+                    "trusting local state file (may skip sources if Qdrant was wiped)",
+                    exc,
+                )
+
         sources = self._list_source_groups(source_url=source_url, limit=limit)
 
         # Build a dict of all candidate sources so we can report skipped ones.

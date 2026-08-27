@@ -1794,7 +1794,21 @@ class IngestionPipeline:
                 try:
                     topics = json.loads(array_match.group(0))
                     if isinstance(topics, list) and topics:
-                        return [str(t).strip() for t in topics if str(t).strip()]
+                        # L-INGEST-1: Every LLM-generated topic label must pass
+                        # clean_topic_label() before persistence — even on the
+                        # JSON happy path. The 2026-08-01 audit found 29.4% of
+                        # live corpus poisoned because this gate only ran in the
+                        # fallback path. A graceful-degradation string or CoT
+                        # leak that parses as valid JSON would slip through.
+                        # See backend/docs/INGESTION_SAFETY.md, Rule #1.
+                        from services.text_quality_filter import clean_topic_label
+
+                        validated = []
+                        for t in topics:
+                            label = clean_topic_label(str(t).strip())
+                            if label:
+                                validated.append(label)
+                        return validated if validated else ["Spiritual"]
                 except json.JSONDecodeError:
                     pass
 

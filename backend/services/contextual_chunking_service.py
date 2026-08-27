@@ -162,20 +162,86 @@ class ContextualChunkingService:
         index: int,
         source_label: str,
     ) -> str:
-        """Generate context for a single chunk, respecting the concurrency semaphore."""
+        """Generate context for a single chunk, respecting the concurrency semaphore.
+
+        .. rubric:: Safety gates (L-INGEST-1 / L-INGEST-2)
+
+        Three contamination vectors can poison the ``[Context: ...]`` header:
+
+        1. **Sarvam reasoning leak** — reasoning-tuned models (Sarvam-105b,
+           DeepSeek-R1) emit chain-of-thought ("The user wants me to...") when
+           ``operation`` is not set, because the default reasoning tier is
+           ``medium``. Fixed by passing ``operation="summarize"`` which maps
+           to ``low`` reasoning via Sarvam's built-in tiering.
+
+        2. **Provider graceful-degradation** — OpenRouter/NIM return a canned
+           "temporary connection issue" string instead of raising. That string
+           would be prepended as a context header and embedded as doctrine.
+
+        3. **Generic LLM artifacts** — markdown scaffolding, self-references,
+           instruction echoes.
+
+        All three are caught by ``find_artifact()`` (which now includes
+        ``is_graceful_degradation()``). On detection: one retry, then
+        fall back to unenriched chunk (never chunk loss).
+
+        Affected providers: OpenRouter, NIM, Sarvam, Ollama.
+        See ``backend/docs/INGESTION_SAFETY.md``.
+        """
+        from services.text_quality_filter import find_artifact
+
         async with self._sem:
             try:
                 prompt = _CONTEXTUAL_PROMPT.format(
                     document=truncated_doc,
                     chunk=chunk[:2_000],  # Don't send huge chunks verbatim
                 )
+
                 context_text = await self._llm.generate(
                     system_prompt=_CONTEXTUAL_SYSTEM,
                     user_prompt=prompt,
-                    timeout=20,  # Short timeout — context generation should be fast
+                    timeout=20,
                     max_retries=1,
+                    # L-INGEST-1: Tag operation so Sarvam's reasoning tiering
+                    # uses low reasoning (not medium default), preventing CoT
+                    # leaks like "The user wants me to..." in context headers.
+                    operation="summarize",
                 )
-                context_text = context_text.strip()
+                context_text = (context_text or "").strip()
+
+                # L-INGEST-1 / L-INGEST-2: Validate context before prepending.
+                # find_artifact() catches CoT leaks, graceful-degradation, and
+                # ASR loops — all three vectors that can poison [Context: ...]
+                artifact = find_artifact(context_text)
+                if artifact:
+                    logger.warning(
+                        "ContextualChunkingService: chunk %d context contaminated "
+                        "(%s) — retrying once",
+                        index,
+                        artifact,
+                    )
+                    # One corrective retry with tighter prompt
+                    context_text = await self._llm.generate(
+                        system_prompt=(
+                            _CONTEXTUAL_SYSTEM
+                            + " Do NOT include any reasoning, analysis, or meta-commentary."
+                        ),
+                        user_prompt=prompt,
+                        timeout=20,
+                        max_retries=0,
+                        operation="summarize",
+                    )
+                    context_text = (context_text or "").strip()
+                    artifact = find_artifact(context_text)
+                    if artifact:
+                        logger.warning(
+                            "ContextualChunkingService: chunk %d still contaminated "
+                            "after retry (%s) — using unenriched chunk",
+                            index,
+                            artifact,
+                        )
+                        return chunk  # Fallback: unenriched, never chunk loss
+
                 if not context_text:
                     return chunk
                 return f"[Context: {context_text}]\n{chunk}"

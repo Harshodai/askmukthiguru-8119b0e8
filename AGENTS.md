@@ -1,6 +1,15 @@
 # Agentic Lessons & Environment Context
 
-> **Active operating status — reviewed 2026-08-27.** This file contains binding repository invariants alongside dated lessons and handoffs. For a conflict, current source configuration, scoped instructions, and approved runbooks prevail; preserve historical notes as provenance rather than treating their dated measurements as live state.
+> **Active operating status — reviewed 2026-08-28.** This file contains binding repository invariants alongside dated lessons and handoffs. For a conflict, current source configuration, scoped instructions, and approved runbooks prevail; preserve historical notes as provenance rather than treating their dated measurements as live state.
+
+### Ingestion Safety Invariants — Aug 28, 2026
+These are **binding repository invariants** for all LLM-to-Qdrant persistence paths. Violation is a P0 bug. Full reference: `backend/docs/INGESTION_SAFETY.md`. Lessons: `L-INGEST-1`, `L-INGEST-2`, `L-INGEST-3` in `lessons.md`.
+
+1. **Every LLM `.generate()` output reaching Qdrant MUST pass `find_artifact()`** (from `services.text_quality_filter`). This includes: chunk text, topic labels, RAPTOR summaries, context headers (`[Context: ...]`), potential questions, and OKF entries. `find_artifact()` catches three contamination vectors: (a) CoT reasoning leaks from Sarvam-105b / DeepSeek-R1, (b) provider graceful-degradation canned strings from OpenRouter / NIM, (c) ASR decoder loops. Adding a new LLM call site in `backend/ingest/` or `backend/services/` that writes to Qdrant without this gate is a P0 bug.
+
+2. **Provider graceful-degradation returns content, not exceptions** — `OpenRouterService._graceful_degradation()` and `NimService._graceful_degradation()` return "I'm currently experiencing a temporary connection issue..." instead of raising. Correct for live chat, catastrophic for ingestion. As of Aug 28, `is_graceful_degradation()` is wired into `find_artifact()` itself, so all callers of `find_artifact` / `is_clean` / `select_clean` automatically catch it.
+
+3. **Every idempotency checkpoint MUST cross-validate against actual data store state.** Three independent layers exist: (a) Redis `IngestionCheckpoint` (URL-keyed + content-hash-keyed), (b) local `ingestion_state.json` (`contextual_reingest.py`). After wiping Qdrant/Neo4j, you MUST clear ALL checkpoint layers or the survivor will silently short-circuit with phantom `{"status": "success", "chunks_indexed": 0}`. `contextual_reingest.py` now auto-detects stale state by cross-checking Qdrant `points_count`.
 
 ### Corpus ingestion handoff — Aug 27, 2026
 - **Ingestion running**: PID tracked in `/tmp/ingest_migrate.pid`, log at `/tmp/ingest_migrate.log`. 487 sources (438 MIGRATE + 49 MIGRATE_THEN_VERIFY), 4 workers, target `spiritual_wisdom_contextual` at `http://localhost:6333`. Resume is automatic via Redis checkpoint (`IngestionCheckpoint` tenant=`oneness`).

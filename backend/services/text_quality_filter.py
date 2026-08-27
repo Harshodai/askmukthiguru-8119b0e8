@@ -125,14 +125,60 @@ def has_repetition_loop(text: str) -> str | None:
 def find_artifact(text: str) -> str | None:
     """Return the matched artifact span, or ``None`` when *text* is clean.
 
-    Covers both contamination vectors found in the audit: LLM chain-of-thought
-    (pattern match) and ASR decoder loops (repetition counter).
+    Covers **all three** contamination vectors found in audits:
+
+    1. **LLM chain-of-thought** (regex pattern match) — reasoning-tuned models
+       (Sarvam-105b, DeepSeek-R1) leak "The user wants me to..." into generated
+       context headers, topic labels, and RAPTOR summaries.
+
+    2. **ASR decoder loops** (repetition counter) — Whisper emits one token on
+       repeat over silence segments.
+
+    3. **Provider graceful-degradation fallbacks** (marker match) — OpenRouter /
+       NIM ``_graceful_degradation()`` returns a canned "I'm currently
+       experiencing a temporary connection issue..." string INSTEAD OF RAISING
+       when the provider call fails.  Correct behavior for a live chat reply,
+       but catastrophic when the same code path is reused at ingestion time:
+       the canned string reaches Qdrant verbatim as fake ``[Context: ...]``,
+       ``[Potential Questions: ...]``, or RAPTOR summary content.
+
+    .. rubric:: HARD RULE (L-INGEST-2)
+
+       Every LLM ``.generate()`` output that reaches Qdrant MUST pass through
+       this function before persistence.  Adding a new LLM call site in
+       ``backend/ingest/`` or ``backend/services/`` that writes to Qdrant
+       without calling ``find_artifact`` / ``is_clean`` / ``select_clean``
+       is a **P0 bug** — see ``backend/docs/INGESTION_SAFETY.md``.
+
+    Affected providers: OpenRouterService, NimService, SarvamService, OllamaService.
     """
     if not text:
         return None
+
+    # --- Vector 3: Provider graceful-degradation canned fallback ---
+    # Must check BEFORE regex patterns because the canned string is a complete
+    # sentence that may not match any chain-of-thought pattern.
+    # Import here to avoid circular imports (constants.py is lightweight).
+    # Fallback to inline check when running standalone (self-check mode).
+    try:
+        from app.constants import is_graceful_degradation
+    except ImportError:
+        # Standalone execution (python services/text_quality_filter.py) — inline
+        # the marker check so the self-check works without the full app package.
+        _GD_MARKER = "temporary connect"
+
+        def is_graceful_degradation(t: str) -> bool:
+            return bool(t) and _GD_MARKER in t.lower()
+
+    if is_graceful_degradation(text):
+        return f"graceful-degradation fallback: {text[:80]!r}"
+
+    # --- Vector 1: LLM chain-of-thought / reasoning artifacts ---
     match = _ARTIFACT_RE.search(text)
     if match:
         return match.group(0).strip()
+
+    # --- Vector 2: ASR decoder loop ---
     loop = has_repetition_loop(text)
     if loop:
         return f"repetition loop: {loop!r}"
@@ -271,6 +317,9 @@ if __name__ == "__main__":  # runnable self-check
         "Sadhana is a term in the teaching. a common transcription error where a space is omitted.",
         "[RAPTOR Level: 1 | Topic: Simple, Foundational Presence]",
         '*   "Ego and Control" - This gets to the *why* behind the flawed view.',
+        # L-INGEST-2: Provider graceful-degradation canned strings (OpenRouter / NIM)
+        "I'm currently experiencing a temporary connectivity issue. Please try again in a moment.",
+        "I'm here and listening. Due to a temporary connection issue, I need a moment to reconnect.",
     ]
     doctrine = [
         "In a beautiful state, you are powerful enough to help yourself and help others around you.",
@@ -281,6 +330,12 @@ if __name__ == "__main__":  # runnable self-check
         assert not is_clean(t), f"MISSED artifact: {t!r}"
     for t in doctrine:
         assert is_clean(t), f"FALSE POSITIVE on doctrine: {t!r}"
+
+    # Verify graceful-degradation is specifically caught by find_artifact
+    gd_result = find_artifact("I'm currently experiencing a temporary connectivity issue.")
+    assert gd_result is not None and "graceful-degradation" in gd_result, (
+        f"find_artifact must catch graceful-degradation strings, got: {gd_result!r}"
+    )
 
     keep, rejected = select_clean([poison[0], poison[1], doctrine[0]])
     assert keep == [2], keep
@@ -294,4 +349,5 @@ if __name__ == "__main__":  # runnable self-check
 
     print(f"patterns: {len(_ARTIFACT_PATTERNS)}")
     print(f"poison detected: {len(poison)}/{len(poison)}  false positives: 0/{len(doctrine)}")
+    print(f"graceful-degradation detection: PASS")
     print("text_quality_filter self-check OK")

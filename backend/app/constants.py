@@ -128,10 +128,27 @@ REASONING_EFFORT_DEFAULTS = {
 }
 
 # Models per provider
+# ⚠ DEPRECATED — Aug 28, 2026 — ZERO CONSUMERS IN CODEBASE ⚠
+#
+# This dict was intended as the canonical source of model names per provider, but
+# every live code path (ingestion, chat, classification) reads from settings.*_model
+# (sourced from .env), NOT from this dict. It is retained ONLY as documentation of
+# the provider model landscape.
+#
+# HARD RULE: If you need a model name at runtime, use settings (e.g.
+# settings.sarvam_cloud_model, settings.openrouter_model). NEVER read from
+# PROVIDER_MODELS — it is not kept in sync with .env and will silently give
+# you a stale/wrong model. If you must reference defaults, do:
+#     getattr(settings, "sarvam_cloud_model", "sarvam-105b")
+#
+# Historical note: The original "sarvam-30b" values were deprecated when the
+# Sarvam API migrated to sarvam-105b. The .env was updated but this dict was
+# not, creating a latent config divergence. No live bug resulted ONLY because
+# nothing reads this dict.
 PROVIDER_MODELS = {
     LLMProvider.SARVAM_CLOUD: {
-        "default": "sarvam-30b",
-        "classify": "sarvam-30b",
+        "default": "sarvam-105b",    # was "sarvam-30b" (deprecated model)
+        "classify": "sarvam-105b",   # was "sarvam-30b" (deprecated model)
         "complex": "sarvam-105b",
     },
     LLMProvider.OLLAMA: {

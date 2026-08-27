@@ -1,3 +1,20 @@
+## Aug 28, 2026 — Ingestion Pipeline Hardening (Three Root-Cause Bug Classes)
+
+### L-INGEST-1. Every LLM `.generate()` output reaching Qdrant MUST pass `find_artifact()`
+- **What**: A 2026-08-01 corpus audit found 13.7% of 89,061 live Qdrant chunks contaminated with LLM chain-of-thought, reasoning scaffolding, and provider fallback strings embedded as retrievable doctrine. Root cause: multiple LLM call sites (topic labels, RAPTOR summaries, context headers, OKF entries) persisted raw LLM output without any quality gate.
+- **Fix applied**: `services.text_quality_filter.find_artifact()` is now the universal gate. It detects: (a) CoT regex patterns from Sarvam-105b/DeepSeek-R1, (b) ASR decoder loops, (c) provider graceful-degradation canned strings. Wired into: `pipeline.py:_extract_topics` (JSON happy path), `raptor.py:build_tree` (after faithfulness gate), `contextual_chunking_service.py:_enrich_one` (with retry + fallback), `extract_okf_from_stores.py:_call_llm` + `_write_okf_entry`.
+- **Rule**: Adding a new `llm.generate()` call site in `backend/ingest/` or `backend/services/` that writes to Qdrant without calling `find_artifact` / `is_clean` / `select_clean` is a **P0 bug**. See `backend/docs/INGESTION_SAFETY.md`, Rule #1.
+
+### L-INGEST-2. Provider graceful-degradation returns content, not exceptions — ingestion MUST treat it as an error
+- **What**: `OpenRouterService._graceful_degradation()` and `NimService._graceful_degradation()` return a canned "I'm currently experiencing a temporary connection issue..." string INSTEAD OF RAISING when the provider call fails. Correct for live chat, catastrophic for ingestion: the canned string reached Qdrant verbatim as fake `[Context: ...]`, `[Potential Questions: ...]`, and RAPTOR summary content.
+- **Fix applied**: `is_graceful_degradation()` (from `app.constants`) is now wired directly into `find_artifact()` — the universal quality gate. Any caller of `find_artifact` / `is_clean` / `select_clean` automatically catches it. The canonical marker is `GRACEFUL_DEGRADATION_MARKER = "temporary connect"`.
+- **Rule**: Ingestion code MUST treat a graceful-degradation return as an error, not content. The provider can't raise (would break live chat), so the fix is at the consumer side. Affected providers: OpenRouter, NIM. OllamaService raises `ModelUnavailableError` (safe). See `backend/docs/INGESTION_SAFETY.md`, Rule #2.
+
+### L-INGEST-3. Every idempotency checkpoint MUST cross-validate against actual data store state
+- **What**: The ingestion pipeline has three independent idempotency layers: (a) Redis `IngestionCheckpoint` with two namespaces (URL-keyed outer, content-hash-keyed inner), (b) local `ingestion_state.json` in `contextual_reingest.py`. If Qdrant/Neo4j is wiped but any checkpoint layer persists, the survivor silently short-circuits and returns `{"status": "success", "chunks_indexed": 0}` — a phantom success with zero real work, logging "✅ Success".
+- **Fix applied**: `contextual_reingest.py:reingest()` now cross-validates `ingestion_state.json` against the target Qdrant collection's `points_count`. If collection has 0 points but state file claims N sources processed, the state file is cleared and all sources are reprocessed.
+- **Rule**: When wiping Qdrant/Neo4j data, you MUST also clear: (1) Redis IngestionCheckpoint (both namespaces), (2) local `ingestion_state.json`, (3) any per-source "already indexed" flags. Cross-validation against actual data store state is mandatory. See `backend/docs/INGESTION_SAFETY.md`, Rule #3.
+
 ## Aug 27, 2026 — Productionization & Corpus Ingestion Remediation
 
 ### L-PROD-22. Line-by-Line Doctrinal Audit & Anti-Swapping Invariant

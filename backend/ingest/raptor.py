@@ -109,6 +109,30 @@ class RaptorIndexer:
             logger.info("RAPTOR: no summaries survived the faithfulness gate")
             return 0
 
+        # --- L-INGEST-1 / L-INGEST-2: Quality gate for LLM artifacts & degradation ---
+        # The faithfulness gate above catches hallucination *relative to source
+        # chunks* but NOT provider graceful-degradation canned strings ("temporary
+        # connection issue...") or reasoning-model CoT leaks ("The user wants me
+        # to..."). Those are semantically plausible summaries that pass cosine
+        # faithfulness but are not doctrine. find_artifact() (which now includes
+        # is_graceful_degradation) is the universal gate.
+        # Affected providers: OpenRouter, NIM, Sarvam, Ollama.
+        # See backend/docs/INGESTION_SAFETY.md, Rules #1 and #2.
+        from services.text_quality_filter import select_clean
+
+        artifact_keep, artifact_rejected = select_clean(s["text"] for s in summaries)
+        if artifact_rejected:
+            logger.warning(
+                "RAPTOR: rejected %d/%d summary texts with LLM artifacts/degradation: %s",
+                len(artifact_rejected),
+                len(summaries),
+                [r[1] for r in artifact_rejected[:3]],
+            )
+        summaries = [summaries[i] for i in artifact_keep]
+        if not summaries:
+            logger.info("RAPTOR: no summaries survived artifact quality gate")
+            return 0
+
         # Step 5: Index summaries as level-1 nodes (with sparse vectors for hybrid search)
         # Level/topic are already carried as `raptor_level`/`topic` metadata below —
         # stamping them into the text too duplicates that and, worse, matches the
