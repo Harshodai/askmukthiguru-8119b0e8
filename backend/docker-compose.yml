@@ -602,7 +602,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 384M
+          memory: 512M
           cpus: '0.5'
 
 volumes:
