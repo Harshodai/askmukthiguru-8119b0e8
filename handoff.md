@@ -246,7 +246,7 @@ grep -c "OKF 5-Node Arc extraction queued" /tmp/ingest_migrate.log
 ## 11. Git Commits (This Session)
 
 ```
-[pending]   fix: wire Neo4j+LightRAG; fix OKF asyncio.run; lower RAPTOR to 3 chunks
+279ffbe9    fix(ingestion): wire Neo4j and LightRAG, fix OKF asyncio loop collision, tune RAPTOR cluster size
 9697adf2    docs: Aug 27 corpus ingestion handoff in AGENTS.md
 7cbda3af    fix: use OpenRouterService in bulk_ingest_video (cloud-only mode)
 8b24bacd    feat: add local Supabase Docker stack to docker-compose (profile: supabase)
@@ -259,12 +259,14 @@ aa2e0cf7    latency audit evidence, memory_service fix
 
 | File | What Changed |
 |---|---|
-| `backend/scripts/ingestion/bulk_ingest_video.py` | OllamaService→OpenRouter; wire Neo4j+LightRAG; RAPTOR threshold 8→3; SUPABASE_URL host override |
+| `backend/scripts/ingestion/bulk_ingest_video.py` | OllamaService→OpenRouter; wire Neo4j+LightRAG; RAPTOR threshold 8→3; SUPABASE_URL host override; OpenRouter RPM elevated to 120 for bulk throughput |
 | `backend/tasks/okf_extract_tasks.py` | Fix asyncio.run() nested loop crash via ThreadPoolExecutor |
+| `memory/okf/compiled.json` | Compiled 1024-dim BGE-M3 index covering all 52 canonical teachings |
+| `memory/okf/{sri-preethaji,sri-krishnaji,shared}/*.md` | 52 canonical OKF transformation arcs organized into teacher subdirectories |
 | `backend/docker-compose.yml` | Added 5 Supabase services under `profiles: [supabase]` |
 | `backend/supabase/kong.yml` | Kong declarative config (NEW) |
 | `AGENTS.md` | Aug 27 ingestion invariants handoff |
-| `handoff.md` | This file (NEW) |
+| `handoff.md` | Complete handoff document |
 | `transcripts/*.md` (469 files) | Projected from corpus/, gitignored |
 
 ---

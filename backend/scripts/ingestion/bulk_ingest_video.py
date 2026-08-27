@@ -103,10 +103,14 @@ async def bulk_ingest_async(
     if not os.environ.get("SUPABASE_URL"):
         os.environ["SUPABASE_URL"] = "http://localhost:54321"
 
+    # Ingestion throughput optimization: elevate RPM limit for bulk operations
+    rpm_limit = int(os.environ.get("OPENROUTER_RPM_LIMIT", "120"))
+
     # Instantiate services
     qdrant_svc = QdrantService()
     embedder_svc = EmbeddingService()
     llm_svc = OpenRouterService()
+    llm_svc._rpm_limit = rpm_limit
 
     # --- Neo4j driver (for ontology/entity writes via write_extraction_to_neo4j) ---
     _neo4j_driver = None
