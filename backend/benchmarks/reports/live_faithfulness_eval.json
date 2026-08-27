@@ -1,0 +1,162 @@
+{
+  "timestamp": "2026-08-27 15:40:33",
+  "endpoint": "http://localhost:8000",
+  "faithfulness_floor": 0.6,
+  "total_questions": 12,
+  "accepted_count": 12,
+  "verification_ran_rate": 0.917,
+  "avg_faithfulness_accepted": 0.541,
+  "hallucination_flag_rate": 0.083,
+  "reject_rate_delta_under_floor": 0.25,
+  "would_flip_to_rejected": [
+    "What is Manifest 2026?",
+    "What is the architectural design of Ekam?",
+    "Connect the fourth sacred secret of Spiritual Right Action with the monthly powe"
+  ],
+  "results": [
+    {
+      "category": "doctrine_four_secrets",
+      "question": "What are the Four Sacred Secrets?",
+      "error": null,
+      "blocked": false,
+      "faithfulness_score": 0.7157806286121277,
+      "verification_ran": true,
+      "hallucination_flag": false,
+      "citations_count": 1,
+      "query_tier": "tier2_simple",
+      "latency_ms": 33016.6
+    },
+    {
+      "category": "doctrine_four_secrets",
+      "question": "Explain the first sacred secret.",
+      "error": null,
+      "blocked": false,
+      "faithfulness_score": 0.657757009855856,
+      "verification_ran": true,
+      "hallucination_flag": false,
+      "citations_count": 1,
+      "query_tier": "tier2_simple",
+      "latency_ms": 35520.2
+    },
+    {
+      "category": "doctrine_soul_sync",
+      "question": "What is Soul Sync?",
+      "error": null,
+      "blocked": false,
+      "faithfulness_score": 0.6770696440136292,
+      "verification_ran": true,
+      "hallucination_flag": false,
+      "citations_count": 2,
+      "query_tier": "tier2_simple",
+      "latency_ms": 33864.6
+    },
+    {
+      "category": "doctrine_soul_sync",
+      "question": "How do I practice Soul Sync?",
+      "error": null,
+      "blocked": false,
+      "faithfulness_score": 0.611722519808658,
+      "verification_ran": true,
+      "hallucination_flag": false,
+      "citations_count": 2,
+      "query_tier": "tier2_simple",
+      "latency_ms": 41761.0
+    },
+    {
+      "category": "doctrine_deeksha",
+      "question": "What is Deeksha?",
+      "error": null,
+      "blocked": false,
+      "faithfulness_score": 0.7153605137600983,
+      "verification_ran": true,
+      "hallucination_flag": false,
+      "citations_count": 2,
+      "query_tier": "tier2_simple",
+      "latency_ms": 32764.8
+    },
+    {
+      "category": "doctrine_deeksha",
+      "question": "What happens in the brain during Deeksha?",
+      "error": null,
+      "blocked": false,
+      "faithfulness_score": 0.6735853897584858,
+      "verification_ran": true,
+      "hallucination_flag": false,
+      "citations_count": 2,
+      "query_tier": "tier2_simple",
+      "latency_ms": 31455.8
+    },
+    {
+      "category": "doctrine_manifest",
+      "question": "What is Manifest 2026?",
+      "error": null,
+      "blocked": false,
+      "faithfulness_score": 0.0,
+      "verification_ran": true,
+      "hallucination_flag": false,
+      "citations_count": 2,
+      "query_tier": "tier2_simple",
+      "latency_ms": 42602.7
+    },
+    {
+      "category": "doctrine_manifest",
+      "question": "What is the Power of Intention in Manifest 2026?",
+      "error": null,
+      "blocked": false,
+      "faithfulness_score": 0.7226407452536996,
+      "verification_ran": true,
+      "hallucination_flag": false,
+      "citations_count": 1,
+      "query_tier": "tier2_simple",
+      "latency_ms": 35306.9
+    },
+    {
+      "category": "doctrine_ekam_architecture",
+      "question": "Where is Ekam located?",
+      "error": null,
+      "blocked": false,
+      "faithfulness_score": 1.0,
+      "verification_ran": false,
+      "hallucination_flag": false,
+      "citations_count": 0,
+      "query_tier": "tier2_simple",
+      "latency_ms": 8062.2
+    },
+    {
+      "category": "doctrine_ekam_architecture",
+      "question": "What is the architectural design of Ekam?",
+      "error": null,
+      "blocked": false,
+      "faithfulness_score": 0.0,
+      "verification_ran": true,
+      "hallucination_flag": false,
+      "citations_count": 1,
+      "query_tier": "tier2_simple",
+      "latency_ms": 41367.4
+    },
+    {
+      "category": "complex_multi_hop",
+      "question": "How does the second sacred secret of Inner Truth relate directly to the breath awareness and humming steps in Soul Sync?",
+      "error": null,
+      "blocked": false,
+      "faithfulness_score": 0.7239753897610847,
+      "verification_ran": true,
+      "hallucination_flag": false,
+      "citations_count": 2,
+      "query_tier": "standard",
+      "latency_ms": 94443.7
+    },
+    {
+      "category": "complex_multi_hop",
+      "question": "Connect the fourth sacred secret of Spiritual Right Action with the monthly power of Karma Cleansing in Manifest 2026.",
+      "error": null,
+      "blocked": false,
+      "faithfulness_score": 0.0,
+      "verification_ran": true,
+      "hallucination_flag": true,
+      "citations_count": 1,
+      "query_tier": "tier3_complex",
+      "latency_ms": 173021.9
+    }
+  ]
+}

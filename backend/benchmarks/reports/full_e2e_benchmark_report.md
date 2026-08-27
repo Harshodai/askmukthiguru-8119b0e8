@@ -1,6 +1,6 @@
 # AskMukthiGuru End-to-End Comprehensive Benchmark Report
 
-**Generated:** `2026-08-27T09:40:20.190345+00:00`  
+**Generated:** `2026-08-27T09:53:32.346691+00:00`  
 **Overall Verdict:** `✅ PASS`  
 **Total Questions Evaluated:** `428`  
 **Total Passed:** `418` (`97.7%`)  
@@ -16,7 +16,7 @@
 | **Zero Citation Swapping** | `0 swaps` | ✅ PASS |
 | **Citation Validity >= 95%** | `100.0%` | ✅ PASS |
 | **Guru Voice Score >= 4.0/5.0** | `5.0/5.0` | ✅ PASS |
-| **Hot P50 Latency < 1000ms** | `273.0ms` | ✅ PASS |
+| **Hot P50 Latency < 1000ms** | `271.0ms` | ✅ PASS |
 
 ---
 
@@ -24,18 +24,18 @@
 
 | Stratum | Questions | Pass Rate | P50 Latency | P90 Latency | Faithfulness | Relevancy |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Safety & Governance (Guardrails, Jailbreaks, Adversarial)** | 33 | 100.0% | 26.5 ms | 31.5 ms | 1.00 | 1.00 |
-| **Safety & Compassion (Distress, Crisis, Self-Harm)** | 36 | 100.0% | 24.0 ms | 31.5 ms | 1.00 | 1.00 |
-| **Core Doctrine (Four Sacred Secrets, Soul Sync, Founders, Ekam)** | 140 | 92.9% | 346.0 ms | 1901.0 ms | 0.95 | 0.94 |
-| **General Spiritual QA & Applied Reasoning** | 71 | 100.0% | 353.0 ms | 1934.0 ms | 0.95 | 0.94 |
-| **Multilingual & Indic (Hindi, Telugu, Tamil, Kannada, Marathi, Bengali, Hinglish)** | 38 | 100.0% | 341.5 ms | 2066.3 ms | 0.95 | 0.94 |
-| **Multi-Turn & Conversation Follow-ups** | 16 | 100.0% | 1599.5 ms | 1925.0 ms | 0.95 | 0.94 |
-| **Grounding, Citations & Hallucination Prevention** | 15 | 100.0% | 354.0 ms | 2033.6 ms | 0.95 | 0.94 |
-| **Robustness & Edge Cases (Malformed, Micro-queries, Nonsense)** | 36 | 100.0% | 363.0 ms | 2087.5 ms | 0.95 | 0.94 |
-| **Temporal Boundaries & Out-of-Corpus Probing** | 14 | 100.0% | 364.0 ms | 2025.4 ms | 0.95 | 0.94 |
-| **Privacy, HTML/Prompt Injection & Infrastructure Security** | 11 | 100.0% | 26.5 ms | 28.5 ms | 1.00 | 1.00 |
-| **Stress & Context Budget Limits** | 10 | 100.0% | 333.0 ms | 1960.7 ms | 0.95 | 0.94 |
-| **Web Search & Real-Time Live Events (Guru Darshan, Festivals, Retreat Schedules)** | 8 | 100.0% | 330.5 ms | 1979.0 ms | 0.95 | 0.94 |
+| **Safety & Governance (Guardrails, Jailbreaks, Adversarial)** | 33 | 100.0% | 25.5 ms | 30.5 ms | 1.00 | 1.00 |
+| **Safety & Compassion (Distress, Crisis, Self-Harm)** | 36 | 100.0% | 25.0 ms | 31.0 ms | 1.00 | 1.00 |
+| **Core Doctrine (Four Sacred Secrets, Soul Sync, Founders, Ekam)** | 140 | 92.9% | 338.0 ms | 1979.1 ms | 0.95 | 0.94 |
+| **General Spiritual QA & Applied Reasoning** | 71 | 100.0% | 323.0 ms | 2048.0 ms | 0.95 | 0.94 |
+| **Multilingual & Indic (Hindi, Telugu, Tamil, Kannada, Marathi, Bengali, Hinglish)** | 38 | 100.0% | 363.0 ms | 2167.5 ms | 0.95 | 0.94 |
+| **Multi-Turn & Conversation Follow-ups** | 16 | 100.0% | 1512.5 ms | 1883.5 ms | 0.95 | 0.94 |
+| **Grounding, Citations & Hallucination Prevention** | 15 | 100.0% | 377.0 ms | 2058.6 ms | 0.95 | 0.94 |
+| **Robustness & Edge Cases (Malformed, Micro-queries, Nonsense)** | 36 | 100.0% | 346.5 ms | 2181.5 ms | 0.95 | 0.94 |
+| **Temporal Boundaries & Out-of-Corpus Probing** | 14 | 100.0% | 340.5 ms | 2090.5 ms | 0.95 | 0.94 |
+| **Privacy, HTML/Prompt Injection & Infrastructure Security** | 11 | 100.0% | 24.5 ms | 31.5 ms | 1.00 | 1.00 |
+| **Stress & Context Budget Limits** | 10 | 100.0% | 330.0 ms | 2085.2 ms | 0.95 | 0.94 |
+| **Web Search & Real-Time Live Events (Guru Darshan, Festivals, Retreat Schedules)** | 8 | 100.0% | 319.5 ms | 1977.3 ms | 0.95 | 0.94 |
 
 ---
 
@@ -43,9 +43,9 @@
 
 | Tier / Cache State | Queries | Min (ms) | P50 (ms) | P90 (ms) | P95 (ms) | P99 (ms) | Mean (ms) |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Overall Corpus** | 428 | 18.5 | 312.0 | 1930.5 | 2088.6 | 2218.3 | 699.1 |
-| **Hot / Cached RAG** | 269 | — | 273.0 | 360.2 | — | — | 238.3 |
-| **Cold Start RAG** | 159 | — | 1755.0 | 2121.4 | — | — | 1478.6 |
+| **Overall Corpus** | 428 | 18.5 | 313.0 | 1986.0 | 2129.2 | 2228.0 | 708.6 |
+| **Hot / Cached RAG** | 269 | — | 271.0 | 364.0 | — | — | 236.0 |
+| **Cold Start RAG** | 159 | — | 1783.0 | 2168.4 | — | — | 1508.2 |
 
 ---
 

@@ -1,0 +1,2835 @@
+{
+  "generated_at": "2026-08-01T10:14:11.706069+00:00",
+  "collection": "spiritual_wisdom",
+  "scanned": 4000,
+  "contaminated": 1172,
+  "rate": 0.293,
+  "by_reason": {
+    "llm_artifact": 958,
+    "asr_repetition_loop": 214
+  },
+  "buckets": {
+    "partial": 145,
+    "total_loss": 30,
+    "trace": 3,
+    "clean": 110
+  },
+  "sources": [
+    {
+      "source_url": "https://www.youtube.com/watch?v=o_eg6YTifRE",
+      "total": 132,
+      "poisoned": 68,
+      "pct": 0.5152,
+      "bucket": "partial",
+      "samples": [
+        "repetition loop: 'that means that your inhalation' :: The teaching is a long list of the word \"streets\".",
+        "**Analyze :: The central teaching is a disciplined breathing practice involving an inhalation for four seconds repeated for eight cyc"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=69IrsSXeBTg",
+      "total": 36,
+      "poisoned": 32,
+      "pct": 0.8889,
+      "bucket": "total_loss",
+      "samples": [
+        "repetition loop: 'take eight conscious breaths. take' :: The core instruction is to take eight conscious breaths.",
+        "repetition loop: 'take eight conscious breaths. take' :: *   `Take eight conscious breaths.` (repeated even more)"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=X1mtpheWDhs",
+      "total": 52,
+      "poisoned": 28,
+      "pct": 0.5385,
+      "bucket": "partial",
+      "samples": [
+        "repetition loop: 'forgive them for all the' :: *   Proposition 8: The first word of the sentence should be capitalized.",
+        "repetition loop: 'forgive them for all the' :: 3. Add a comma before \"and\" in the final clause for better readability."
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=8mmungGgDNw",
+      "total": 24,
+      "poisoned": 23,
+      "pct": 0.9583,
+      "bucket": "total_loss",
+      "samples": [
+        "**Analyze :: *   It suggests that to overcome addiction, one must address the underlying pain, not just the addiction itself.",
+        "**Brainstorm :: 3.  **Brainstorming Propositions based on the word \"stage\":**"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=hh61tFdyX8c",
+      "total": 26,
+      "poisoned": 23,
+      "pct": 0.8846,
+      "bucket": "total_loss",
+      "samples": [
+        "**Deconstruct :: *   The word itself, \"Center,\" implies a focal point, a core, a point of balance, a source, a beginning and an end.",
+        "**Deconstruct :: *   The word \"No\" appears between each repetition."
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=zGhlBQ8iWl4",
+      "total": 34,
+      "poisoned": 21,
+      "pct": 0.6176,
+      "bucket": "partial",
+      "samples": [
+        "*   \"fight agai\" - This :: *   Clause 2: \"Return each on a new line prefixed with '- '.\"",
+        "*   \"fight agai\" - This :: *   This text has two distinct clauses or ideas."
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=n3UBbCXJaJ0",
+      "total": 22,
+      "poisoned": 20,
+      "pct": 0.9091,
+      "bucket": "total_loss",
+      "samples": [
+        "repetition loop: '-> looks okay. * \"this' :: *   `* \"It is because you are part of the Earth, and Earth is a part of you.\" -> Looks okay. *`",
+        "repetition loop: '-> looks okay. * \"this' :: 3.  You don't experience it as a struggle against hostile forces of the world."
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=kMc_kat7YLE",
+      "total": 73,
+      "poisoned": 20,
+      "pct": 0.274,
+      "bucket": "partial",
+      "samples": [
+        "**Analyze :: The label 'Divine' is correct.",
+        "**Analyze :: The word 'Divine' is correct."
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=XK2Wna2YG6Y",
+      "total": 22,
+      "poisoned": 19,
+      "pct": 0.8636,
+      "bucket": "total_loss",
+      "samples": [
+        "repetition loop: 'that your soul is that' :: Each moment is a gift.",
+        "repetition loop: 'that your soul is that' :: *   `leave it.` -> This is a bit ambiguous. It could be a typo, or it could be part of a larger, unstated context. Given"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=kYVY4_zxLVQ",
+      "total": 16,
+      "poisoned": 15,
+      "pct": 0.9375,
+      "bucket": "total_loss",
+      "samples": [
+        "**Brainstorm :: 3.  **Brainstorming Propositions based on Interpretations:**",
+        "**Analyze :: I'll read through the provided text and identify the distinct points being made."
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=smrj15-QOAI",
+      "total": 34,
+      "poisoned": 15,
+      "pct": 0.4412,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: *   **Constraint:** The propositions must be \"independent\" and \"self-contained.\" This means each one should be a complet",
+        "2.  **Deconstruct the Input :: `         *   `* \"ts relevance\": This is a fragment...`         *   `[Source: smrj15-QOAI | Topic: sacred]`         *   "
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=pmSPHJfg3AU",
+      "total": 46,
+      "poisoned": 15,
+      "pct": 0.3261,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: : [Outcome/Theme].     *   \"Namaste and Love Nature\" also fits, but it's more of a list.      *   I'll go with a slightl",
+        "**Deconstruct :: *   Let's reconsider. What if \"dia.\" is a name? \"Dia. My husband.\" This is the most plausible interpretation. \"Dia\" is a"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=9-NMv5E-18s",
+      "total": 47,
+      "poisoned": 15,
+      "pct": 0.3191,
+      "bucket": "partial",
+      "samples": [
+        "**Analyze :: The seeker becomes free of tamas by practicing the dharma of the senses and renouncing the fruits of action, empowered b",
+        "*   \"Mahisha\" - This :: *   \"Mahisha\" - This is a proper noun, a label."
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=V2WQ20Ocw_o",
+      "total": 24,
+      "poisoned": 13,
+      "pct": 0.5417,
+      "bucket": "partial",
+      "samples": [
+        "**Analyze :: 1.  **Analyze the User's Request:**",
+        "**Deconstruct :: *   **Constraint:** The propositions must be \"independent\" and \"self-contained.\" This means each one should be a complet"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=1nhXsnx5--Y",
+      "total": 33,
+      "poisoned": 13,
+      "pct": 0.3939,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: ` - This looks like a data field. The key is \"So\".     *   `*   \"1. **Deconstruct the Request:**\"` - This is a meta-inst",
+        "I need to extract :: *   The propositions must be \"independent\" and \"self-contained.\" This is the key constraint. It means I can't just list "
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=r_l2RNcSPPA",
+      "total": 48,
+      "poisoned": 13,
+      "pct": 0.2708,
+      "bucket": "partial",
+      "samples": [
+        "2.  **Analyze the Input :: 2.  **Analyze the Input Sentence:**",
+        "**Deconstruct :: The spiritual path is a quest for awakening, enlightenment, and a higher state of consciousness, involving seeing realit"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=owC8E_G2fY4",
+      "total": 74,
+      "poisoned": 13,
+      "pct": 0.1757,
+      "bucket": "partial",
+      "samples": [
+        "The user is asking :: *   The user is asking me to *act* as if this fragment *is* a spiritual teaching. They're not asking me to correct it or",
+        "**Analyze :: 1.  **Analyze the User's Request:**"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=cI7D2aO34yw",
+      "total": 12,
+      "poisoned": 12,
+      "pct": 1.0,
+      "bucket": "total_loss",
+      "samples": [
+        "**Deconstruct :: *   The text is about the value of seclusion.",
+        "**Deconstruct :: *   `and \"solitude\" are repeated. I'll keep them.` -> This is a comment about the word \"solitude.\" The core idea is that"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=1w-IStuMl3M",
+      "total": 13,
+      "poisoned": 12,
+      "pct": 0.9231,
+      "bucket": "total_loss",
+      "samples": [
+        "Let me analyze :: 4. \"Deeksha\" is a spiritual practice.",
+        "**Deconstruct :: *   \"Sri Preethaji\" -> \"Sri Preethaji\" (This is a non-correction. It's the same. The text says \"not misheard as...\" but "
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=VTx4G0KEuUE",
+      "total": 36,
+      "poisoned": 12,
+      "pct": 0.3333,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: *   **Lesson 4: Resilience/Adaptation.** Viruses evolve. They force us (and other species) to adapt, to innovate, to dev",
+        "**Analyze :: 1.  **Analyze the User's Request:**"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=nUrc8O7Avvk",
+      "total": 45,
+      "poisoned": 12,
+      "pct": 0.2667,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: *   A standalone word, perhaps meant to be interpreted metaphorically. Given the context of \"discrimination and separati",
+        "**Analyze :: 1.  **Analyze the User's Request:**"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=UZHSssZflFQ",
+      "total": 11,
+      "poisoned": 11,
+      "pct": 1.0,
+      "bucket": "total_loss",
+      "samples": [
+        "The user wants me to :: *   **Names/Terms to Correct:**",
+        "The user wants me to :: *   There's some repetitive, almost nonsensical text at the end (\"They're not allowed to streamline the richness of rich"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=zCnqQBfyXa4",
+      "total": 22,
+      "poisoned": 11,
+      "pct": 0.5,
+      "bucket": "partial",
+      "samples": [
+        "**Synthesiz :: ` - This is a meta-tag, likely from a data source. It explicitly states the overall theme is \"peace\".         *   `*   *",
+        "repetition loop: 'heritage heritage heritage heritage heritage' :: *   \"We inherit a legacy.\" (Good, uses a synonym)."
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=AviNwtN1luo",
+      "total": 30,
+      "poisoned": 11,
+      "pct": 0.3667,
+      "bucket": "partial",
+      "samples": [
+        "**Refine :: 4.  **Refine and Make them \"Independent and Self-Contained\":**",
+        "*   \"...your organization is not all about profit...\" - This :: *   \"...your organization is not all about profit...\" - This is the first part of the observation. It's a negative state"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=AyUE-2Uh5Vg",
+      "total": 38,
+      "poisoned": 11,
+      "pct": 0.2895,
+      "bucket": "partial",
+      "samples": [
+        "*   \"He is living his Dharma\" - This :: *   \"He is living his Dharma\" - This is a complete proposition. It states a fact about the subject.",
+        "**Deconstruct :: *   This is incomplete. It's a dependent clause. It's trying to say something like \"So, we are living in very *difficult"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=idoWVpnJz-Y",
+      "total": 38,
+      "poisoned": 11,
+      "pct": 0.2895,
+      "bucket": "partial",
+      "samples": [
+        "**Analyze :: 1.  **Analyze the User's Request:**",
+        "**Synthesiz :: *   The fragment \"and wisdom\" suggests that this quality (wisdom) is a result or a characteristic of being a father."
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=aSNQUkuyB18",
+      "total": 62,
+      "poisoned": 11,
+      "pct": 0.1774,
+      "bucket": "partial",
+      "samples": [
+        "**Step 1 :: *   **Step 1: Acknowledge the problem.** I need to start by explaining *why* this is difficult. The text is fragmented a",
+        "comma-separated list :: This seems to be the most faithful interpretation of the entire prompt, including the contradictory parts. It uses the d"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=vIUY446FVPw",
+      "total": 82,
+      "poisoned": 11,
+      "pct": 0.1341,
+      "bucket": "partial",
+      "samples": [
+        "**Analyze :: The core teaching is a statement of being in the when, a concept emphasized by its repeated source. This wisdom points t",
+        "repetition loop: 'streets streets streets streets streets' :: *   The text is: \"Let me go through the text and identify the errors: 1. Homophones and misheard words: - \"streets stree"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=O1VkNuEChD4",
+      "total": 10,
+      "poisoned": 10,
+      "pct": 1.0,
+      "bucket": "total_loss",
+      "samples": [
+        "**Analyze :: *   \"New line\": Each one gets its own line.",
+        "**Analyze :: *   **Core Task:** Decompose a spiritual teaching into independent, self-contained propositions."
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=81fCD_f4exU",
+      "total": 10,
+      "poisoned": 10,
+      "pct": 1.0,
+      "bucket": "total_loss",
+      "samples": [
+        "**Deconstruct :: 3.  Punctuation and capitalization for readability.",
+        "**Deconstruct :: *   **Subject:** \"he\" (a person, a spiritual seeker, a god, etc.)."
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=cHAJiF2byzg",
+      "total": 10,
+      "poisoned": 10,
+      "pct": 1.0,
+      "bucket": "total_loss",
+      "samples": [
+        "repetition loop: '* **\"the whole thing is' :: *   **Core Task:** Decompose a spiritual teaching into independent, self-contained propositions.",
+        "**Analyze :: 1.  **Analyze the User's Request:** The user wants me to \"decompose the following spiritual teaching into independent, s"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=0k5f8G9uXqY",
+      "total": 11,
+      "poisoned": 10,
+      "pct": 0.9091,
+      "bucket": "total_loss",
+      "samples": [
+        "The user wants me to :: 3.  \"Little did we imagine that a flat earth would also mean a global epidemic, a pandemic.\"",
+        "The user wants me to :: *   **Decomposition:** How to make this a self-contained proposition?"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=pPHQMD3w9-s",
+      "total": 26,
+      "poisoned": 10,
+      "pct": 0.3846,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: 1.  **Deconstruct the Request:**",
+        "I need to extract :: *   The propositions must be \"independent\" and \"self-contained.\" This is the key constraint. It means I can't just copy-"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=qQmrTz6i2x4",
+      "total": 26,
+      "poisoned": 10,
+      "pct": 0.3846,
+      "bucket": "partial",
+      "samples": [
+        "**Analyze :: 1.  **Analyze the User's Request:**",
+        "**Analyze :: *   A neologism or a term from a specific, obscure spiritual tradition."
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=UJM00IqGKtc",
+      "total": 27,
+      "poisoned": 10,
+      "pct": 0.3704,
+      "bucket": "partial",
+      "samples": [
+        "*   \"Ego and Control\" - This :: *   **Interpretation A (Literal):** The user literally meant \"n y\" as the teaching. I should try to find a spiritual mea",
+        "2.  **Analyze the Input :: *   It could be a typo for \"herself\" or \"theirs\" (universal connection, oneness)."
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=LrMyaDh_MSo",
+      "total": 42,
+      "poisoned": 10,
+      "pct": 0.2381,
+      "bucket": "partial",
+      "samples": [
+        "The user is asking :: `). This is a key point. The user is asking me to *create* a label for a *hypothetical* cluster of teachings.     *   **",
+        "2.  **Deconstruct the Input :: 2.  **Deconstruct the Input: \"eness Ch\"**"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=Fbd7ln2i9dw",
+      "total": 50,
+      "poisoned": 10,
+      "pct": 0.2,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: 1.  **Deconstruct the Request:**",
+        "2.  **Deconstruct the Input :: *   The original is a command. To make it a proposition, I need to rephrase it."
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=aDQhPZUnDqA",
+      "total": 9,
+      "poisoned": 9,
+      "pct": 1.0,
+      "bucket": "total_loss",
+      "samples": [
+        "**Deconstruct :: *   \"Ekam\" (misheard as \"Ekam\", \"Ekam\", \"Ekam\", \"ekam\", \"ekam\", \"ekam\")",
+        "**Deconstruct :: *   Let's break down the structure of each line/unit:"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=IGryscyFmV8",
+      "total": 10,
+      "poisoned": 9,
+      "pct": 0.9,
+      "bucket": "total_loss",
+      "samples": [
+        "The user wants me to :: *   **Source Material:** A specific teaching about \"provided text, specifically focusing on: 1. Homophones and misheard ",
+        "The user wants me to :: The \"teaching\" isn't a spiritual message like \"Be kind.\" It's a set of instructions for me, the AI, on how to process a "
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=hwNlLB1sze0",
+      "total": 10,
+      "poisoned": 9,
+      "pct": 0.9,
+      "bucket": "total_loss",
+      "samples": [
+        "**Deconstruct :: 1.  **Deconstruct the Request:**",
+        "**Deconstruct :: *   `with the most likely intended name. The prompt says \"Preetaj and I\". I'll correct it to \"Preethaji and I\" to match "
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=GfAMCHC6_ek",
+      "total": 10,
+      "poisoned": 9,
+      "pct": 0.9,
+      "bucket": "total_loss",
+      "samples": [
+        "**Analyze :: *   \"...that's not it.\" - The author of the original text (or the process) is rejecting this partial match as the target",
+        "**Analyze :: *   **Output Prefix:** Each line must start with \"- \"."
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=I6yC-aUQUvw",
+      "total": 19,
+      "poisoned": 9,
+      "pct": 0.4737,
+      "bucket": "partial",
+      "samples": [
+        "comma-separated list :: *   \"How have we been creating our own suffering?\" (Excellent, core Buddhist/Stoic/spiritual concept)",
+        "comma-separated list :: *   They want me to *create* a plausible spiritual teaching that starts with \"How have\" and then decompose *that* teachi"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=vy09aBxslx0",
+      "total": 22,
+      "poisoned": 9,
+      "pct": 0.4091,
+      "bucket": "partial",
+      "samples": [
+        "The user wants me to :: The teaching opens with \"Namaste,\" a respectful salutation, to introduce the concept of \"mystic secrets.\" The central th",
+        "**Analyze :: 1.  **Analyze the User's Request:**"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=tOi1Ho5Kwhk",
+      "total": 28,
+      "poisoned": 9,
+      "pct": 0.3214,
+      "bucket": "partial",
+      "samples": [
+        "*   \"The most direct fix is to remove the noise.\" - This :: *   \"The most direct fix is to remove the noise.\" - This specifies *how* to fix it.",
+        "**Analyze :: 1.  **Analyze the User's Request:**"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=dqUq_a0DyLs",
+      "total": 28,
+      "poisoned": 9,
+      "pct": 0.3214,
+      "bucket": "partial",
+      "samples": [
+        "**Synthesiz :: ` - This is a fragment, likely part of a larger sentence.         *   `* \"We must teach our children to respect th` - An",
+        "The user is asking :: *   The \"spiritual teaching\" is actually the *set of instructions* provided in the prompt itself. The user is asking me "
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=3EqnSkAzfIg",
+      "total": 33,
+      "poisoned": 9,
+      "pct": 0.2727,
+      "bucket": "partial",
+      "samples": [
+        "a common transcription error :: Sadhana is a term in the teaching.",
+        "*   \"Shukhaushala\" - This :: Words that sound alike can be easily confused, leading to misinterpretation."
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=JRlaAip4kmk",
+      "total": 8,
+      "poisoned": 8,
+      "pct": 1.0,
+      "bucket": "total_loss",
+      "samples": [
+        "**Deconstruct :: *   The text starts with \"of a body.\" This could be interpreted as \"The subject is the body\" or \"The topic is the body.\"",
+        "**Deconstruct :: *   The phrase \"of a body\" seems to be a fragment, perhaps a title or a starting point."
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=qtG8c2zhn7A",
+      "total": 8,
+      "poisoned": 8,
+      "pct": 1.0,
+      "bucket": "total_loss",
+      "samples": [
+        "**Deconstruct :: *   Brahman is the one indivisible field of consciousness.",
+        "**Deconstruct :: 10. Brahma (repeated many times)"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=hcNDrMy6gCE",
+      "total": 8,
+      "poisoned": 8,
+      "pct": 1.0,
+      "bucket": "total_loss",
+      "samples": [
+        "**Deconstruct :: *   **Input:** A block of text.",
+        "The user wants me to :: The user wants me to decompose a spiritual teaching into independent, self-contained propositions."
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=PLVPL1dXKc0",
+      "total": 9,
+      "poisoned": 8,
+      "pct": 0.8889,
+      "bucket": "total_loss",
+      "samples": [
+        "**Analyze :: *   **Core Task:** Decompose a spiritual teaching into independent, self-contained propositions.",
+        "**Analyze :: *   **Task:** Fix transcription errors."
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=UrVvSqKYU8c",
+      "total": 10,
+      "poisoned": 8,
+      "pct": 0.8,
+      "bucket": "total_loss",
+      "samples": [
+        "**Analyze :: *   `Okay, so the \"Specific Terms\" list is a bit of a red herring for this particular text. I'll focus on the other two ",
+        "**Analyze :: *   Part A: Kundalini rises along the ladder of consciousness."
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=y4ZR5U8VuQY",
+      "total": 10,
+      "poisoned": 8,
+      "pct": 0.8,
+      "bucket": "total_loss",
+      "samples": [
+        "**Deconstruct :: *   \"* `अरे यू विल इमर्ज एस न्यू वनस` -> `Are you will emerge, S, new, ones` (Correcting \"एस\" to \"S\", \"इमर्ज\" to \"emerge",
+        "repetition loop: '\"a full demo of new' :: *   `a, full, demo, of, new, world, education, the` -> \"A full demo of new world education the.\" This is still a bit jum"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=6-GWHR9_iSU",
+      "total": 22,
+      "poisoned": 8,
+      "pct": 0.3636,
+      "bucket": "partial",
+      "samples": [
+        "The user is asking :: *   The user is asking me to take this *process* and turn it into propositions.",
+        "**Deconstruct :: *   **Input:** A specific piece of text: \"strings and quarks, to the visible level of objects and bodies, to the macro l"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=jy4hcpUSBms",
+      "total": 24,
+      "poisoned": 8,
+      "pct": 0.3333,
+      "bucket": "partial",
+      "samples": [
+        "**Synthesiz :: ` format.     *   **Item 1:** `[Source: | Topic: beyond the dark forces of suffering]`         *   Core concepts: \"beyon",
+        "2.  **Analyze the Input :: 2.  **Analyze the Input \"Teaching\":**"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=7lggUuJtZXY",
+      "total": 26,
+      "poisoned": 8,
+      "pct": 0.3077,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: 1.  **Deconstruct the User's Request:**",
+        "2.  **Deconstruct the Input :: \". This is a bit meta. The *topic* is literally given in the prompt itself. The *teachings* are what I need to label.   "
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=hqre34QIMZg",
+      "total": 30,
+      "poisoned": 8,
+      "pct": 0.2667,
+      "bucket": "partial",
+      "samples": [
+        "**Analyze :: 1.  **Analyze the User's Request:** The user wants me to act as a \"spiritual teachings summarizer.\" The core task is to ",
+        "**Brainstorm :: 3.  **Brainstorming Propositions (The \"Decomposition\" Phase):**"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=KTlY-lHs_Ew",
+      "total": 33,
+      "poisoned": 8,
+      "pct": 0.2424,
+      "bucket": "partial",
+      "samples": [
+        "**Brainstorm :: 4.  **Brainstorm Potential Spiritual Interpretations:**",
+        "**Analyze :: ` - This is metadata, not the content itself. It's a bit cryptic. \"Undergraduation\" is an unusual term. It could mean a "
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=QAnRefsK-3Y",
+      "total": 35,
+      "poisoned": 8,
+      "pct": 0.2286,
+      "bucket": "partial",
+      "samples": [
+        "**Analyze :: 1.  **Analyze the User's Request:**",
+        "**Deconstruct :: *   **Input:** \"erceives organi\" (This looks like a truncated or misspelled version of something. The user probably mean"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=l6svaRx35TI",
+      "total": 36,
+      "poisoned": 8,
+      "pct": 0.2222,
+      "bucket": "partial",
+      "samples": [
+        "*   \"Who, over Theodora...\" - This :: *   \"Who, over Theodora...\" - This is very strange. \"Who\" is a pronoun, but it's used as a subject. \"over Theodora\" is a",
+        "**Synthesiz :: 2.  **Initial Analysis of the Input Text:**"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=pTnZt0SqDFM",
+      "total": 36,
+      "poisoned": 8,
+      "pct": 0.2222,
+      "bucket": "partial",
+      "samples": [
+        "The user wants me to :: *   I need to interpret the *intent* of the user, not just the literal, broken text. The user wants me to take the conce",
+        "**Synthesiz :: *   **Interpretation B (Conceptual):** The user is trying to express a spiritual idea that involves \"the\" (perhaps a div"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=o6X1TVEFHAY",
+      "total": 43,
+      "poisoned": 8,
+      "pct": 0.186,
+      "bucket": "partial",
+      "samples": [
+        "**Analyze :: 1.  **Analyze the User's Request:**",
+        "**Synthesiz :: ` - This is a key phrase. \"State of Being\" is a common spiritual concept.     *   `* Input: \"o be a struggle for you\"` -"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=mNM-x9RFMcE",
+      "total": 9,
+      "poisoned": 7,
+      "pct": 0.7778,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: *   \"But the instructions say 'fix errors', not 'delete errors'.\" - A constraint or rule.",
+        "2.  **Analyze the Input :: 2.  **Analyze the Input Text:**"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=OWMBvMlGWTA",
+      "total": 13,
+      "poisoned": 7,
+      "pct": 0.5385,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: 1.  **Deconstruct the Request:**",
+        "**Deconstruct :: 1.  **Deconstruct the Request:**"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=2JL1ZgMS7nY",
+      "total": 16,
+      "poisoned": 7,
+      "pct": 0.4375,
+      "bucket": "partial",
+      "samples": [
+        "**Conclusion :: *   **Conclusion on the Rules:** The rules are for a task that is *not* the one I've been asked to perform. The user has",
+        "**Deconstruct :: *   This seems like a fragment. \"construction\" could be a heading or a stray word. \"It removes the repetition\" is a comp"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=Z7w7soyXmHs",
+      "total": 19,
+      "poisoned": 7,
+      "pct": 0.3684,
+      "bucket": "partial",
+      "samples": [
+        "2.  **Deconstruct the Input :: 2.  **Deconstruct the Input Text:**",
+        "**Deconstruct :: *   **Key Constraint:** The propositions must be \"independent\" and \"self-contained.\" This means they should be able to s"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=obK5uqYXOJU",
+      "total": 19,
+      "poisoned": 7,
+      "pct": 0.3684,
+      "bucket": "partial",
+      "samples": [
+        "**Brainstorm :: `.     *   The process involves:         *   Taking a long list of sentences.         *   Identifying the \"core proposit",
+        "**Deconstruct :: *   The last sentence is cut off: \"Our dear Grandmother Earth through all those eventful years appears to have set in mo"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=HtmLQkxj8ec",
+      "total": 23,
+      "poisoned": 7,
+      "pct": 0.3043,
+      "bucket": "partial",
+      "samples": [
+        "I need to extract :: *   The propositions must be *independent* and *self-contained*. This is the key constraint. It means I can't just copy ",
+        "**Analyze :: *   \"Deeksha\" -> \"Deeksha\" (Same as above.)"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=odNtpKqbCQo",
+      "total": 27,
+      "poisoned": 7,
+      "pct": 0.2593,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: *   **Key Concept:** \"Independent, self-contained propositions.\" This means each line should be a complete thought or st",
+        "2.  **Analyze the Input :: 2.  **Analyze the Input Sentence:**"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=5hNCT4duOgc",
+      "total": 28,
+      "poisoned": 7,
+      "pct": 0.25,
+      "bucket": "partial",
+      "samples": [
+        "2.  **Interpret the Input :: 2.  **Interpret the Input \"hs and\":**",
+        "**Brainstorm :: ` - This seems to be the core theme. The key words are \"healed\" and \"healthy\".         *   `1. Deconstruct the User's Re"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=Gdd-5uWUW5w",
+      "total": 31,
+      "poisoned": 7,
+      "pct": 0.2258,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: *   So, the full, intended phrase is probably something like: \"Consciousness, conflicts and confrontations between famil",
+        "**Deconstruct :: *   ...but they are the hardest to end."
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=1kS_mQaBLdg",
+      "total": 33,
+      "poisoned": 7,
+      "pct": 0.2121,
+      "bucket": "partial",
+      "samples": [
+        "**Brainstorm :: 3.  **Brainstorming Propositions based on the Synthesized Idea:**",
+        "2.  **Deconstruct the Input :: 2.  **Deconstruct the Input String:**"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=Qr_pw4E-REk",
+      "total": 37,
+      "poisoned": 7,
+      "pct": 0.1892,
+      "bucket": "partial",
+      "samples": [
+        "I need to identify :: *   The propositions must be \"independent\" and \"self-contained.\" This is the key constraint. It means I can't just break",
+        "*   \"erms that aren't there.\" - This :: *   \"erms that aren't there.\" - This is a fragment. It's incomplete. It could be part of a larger sentence, but as it st"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=ftFDBaH7RFg",
+      "total": 6,
+      "poisoned": 6,
+      "pct": 1.0,
+      "bucket": "total_loss",
+      "samples": [
+        "repetition loop: '* \"becomes\" vs. \"becoms\" (not' :: *   The list is a bit messy. It has bullet points, asterisks, and some explanatory text. I need to clean this up and foc",
+        "repetition loop: '* \"becomes\" vs. \"becoms\" (not' :: *   **Input:** A block of text. It's not a coherent teaching. It's a list of notes, possibly from a mind map or a draft."
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=UbCEX5KBbPw",
+      "total": 7,
+      "poisoned": 6,
+      "pct": 0.8571,
+      "bucket": "total_loss",
+      "samples": [
+        "**Deconstruct :: *   The first item, \"-> 'A reminder of all the tastes of life.' (Fine).\", is a bit meta. It's a comment *about* a teachi",
+        "The user wants me to :: 1. \"Ugadi is the day you create your new inner universe.\" - This is a complete proposition."
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=bSyewSnu2Ak",
+      "total": 15,
+      "poisoned": 6,
+      "pct": 0.4,
+      "bucket": "partial",
+      "samples": [
+        "Let me analyze :: I need to decompose the given spiritual teaching into independent, self-contained propositions. Let me analyze what's pr",
+        "comma-separated list :: 1. The phrase \"Namaste Our\" should be corrected to \"Namaste. Our\" or \"Namaste. Our\"."
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=Js7ongWaW64",
+      "total": 17,
+      "poisoned": 6,
+      "pct": 0.3529,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: *   **Input:** A specific teaching: \"bit stark. How about \"disappointment falls off from the consciousness, not otherwis",
+        "**Deconstruct :: `         *   `\"1. Add a comma after 'consciousness'.\"`  2.  **Deconstruct the \"Cluster\":**     *   What is the *actual*"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=RFx74Q6Oq2c",
+      "total": 26,
+      "poisoned": 6,
+      "pct": 0.2308,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: 3.  **Deconstruct the Fragment:**",
+        "2.  **Deconstruct the Input :: 2.  **Deconstruct the Input Sentence:**"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=Vt_CjAdzebM",
+      "total": 52,
+      "poisoned": 6,
+      "pct": 0.1154,
+      "bucket": "partial",
+      "samples": [
+        "comma-separated list :: The word \"Om\" is suggested as a potential replacement.",
+        "**Analyze :: Within the spiritual framework of `Ekam`, the sound 'ül' is a profound manifestation of pure potential. This sacred soun"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=jK7-PPBXwr4",
+      "total": 66,
+      "poisoned": 6,
+      "pct": 0.0909,
+      "bucket": "partial",
+      "samples": [
+        "**Synthesiz :: The user's prompt is a task.",
+        "comma-separated list :: An event or action in one part of a system can influence the entire system."
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=k5RDNv-CH9M",
+      "total": 6,
+      "poisoned": 5,
+      "pct": 0.8333,
+      "bucket": "total_loss",
+      "samples": [
+        "repetition loop: '* \"memories\" -> \"memories\" (correct)' :: *   **Core Task:** Decompose a spiritual teaching into independent, self-contained propositions.",
+        "repetition loop: '* \"memories\" -> \"memories\" (correct)' :: *   **Key Concept:** \"Spiritual teaching.\" The input is a list of words, not a coherent paragraph. The task is to *infer"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=F_yRNKupugs",
+      "total": 9,
+      "poisoned": 5,
+      "pct": 0.5556,
+      "bucket": "partial",
+      "samples": [
+        "2.  **Analyze the Input :: 2.  **Analyze the Input Text:**",
+        "**Deconstruct :: The body's primal, non-discriminatory focus is survival. It remains indifferent to external attributes like beauty and a"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=gQiIwfA3mlk",
+      "total": 11,
+      "poisoned": 5,
+      "pct": 0.4545,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: *   \"Similarly, when you are in a beautiful state, you are wordlessly communicating to the universe that you are open to",
+        "**Synthesiz :: 4.  **Format:** Each proposition must be on a new line, prefixed with '- '."
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=38-NgBAet1c",
+      "total": 16,
+      "poisoned": 5,
+      "pct": 0.3125,
+      "bucket": "partial",
+      "samples": [
+        "**Analyze :: *   Subject: Domestic violence (or the experience of it).",
+        "**Deconstruct :: 3.  **Deconstruct the (Assumed) Statement: \"Domestic violence is experienced.\"**"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=y2ZgKdt4Cj0",
+      "total": 17,
+      "poisoned": 5,
+      "pct": 0.2941,
+      "bucket": "partial",
+      "samples": [
+        "I need to extract :: *   \"Spiritual teaching\": This is the *context*, but the actual text to be decomposed is the garbled sentence. I need to",
+        "**Deconstruct :: 1.  **Deconstruct the User's Request:**     *   **Core Task:** Summarize the provided text into a single, cohesive parag"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=BkM7IcqUaj0",
+      "total": 17,
+      "poisoned": 5,
+      "pct": 0.2941,
+      "bucket": "partial",
+      "samples": [
+        "The user has provided :: *   It ends with a rhetorical question: \"how can any ancient code provide answers for life that is always current and fl",
+        "**Synthesiz :: *   There are two specific \"parameters\" or steps for making good decisions."
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=owXqW04b08o",
+      "total": 18,
+      "poisoned": 5,
+      "pct": 0.2778,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: *   **Key Constraint:** The propositions must be \"independent\" and \"self-contained.\" This means each one should be a com",
+        "**Deconstruct :: She is revered as the divine embodiment of knowledge, wisdom, and the arts, holding the status of *Adi Shakti*, the prim"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=6rLvPzNyLRw",
+      "total": 19,
+      "poisoned": 5,
+      "pct": 0.2632,
+      "bucket": "partial",
+      "samples": [
+        "*   \"our brain.\" - This :: *   \"our brain.\" - This is the subject. It's about the mind, consciousness, thought.",
+        "**Deconstruct :: *   This is not a \"spiritual teaching.\" It's a neuroscientific term. It's likely a typo or a misunderstanding of the use"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=aJIunwxx3NI",
+      "total": 19,
+      "poisoned": 5,
+      "pct": 0.2632,
+      "bucket": "partial",
+      "samples": [
+        "**Synthesiz :: *   The word \"the\" before \"old one\" implies a specific, singular old lifestyle, but the next part \"So many change\" broad",
+        "**Analyze :: The ultimate pursuit, an experience of being one, is the oldest human endeavor, defined as enlightenment which is freedo"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=Vr3PS2DdbDU",
+      "total": 21,
+      "poisoned": 5,
+      "pct": 0.2381,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: *   **Key Constraint:** The propositions must be \"independent\" and \"self-contained.\" This means each one should be a com",
+        "**Analyze :: *   The propositions must be \"independent\" and \"self-contained\"."
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=Ji-hdW1t30g",
+      "total": 21,
+      "poisoned": 5,
+      "pct": 0.2381,
+      "bucket": "partial",
+      "samples": [
+        "2.  **Analyze the Input :: 2.  **Analyze the Input \"Teaching\":**",
+        "**Analyze :: 1.  **Analyze the User's Request:**"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=4LIZkNHlNaM",
+      "total": 23,
+      "poisoned": 5,
+      "pct": 0.2174,
+      "bucket": "partial",
+      "samples": [
+        "Let me analyze :: Let me analyze this spiritual teaching and decompose it into independent, self-contained propositions. I'll need to iden",
+        "2.  **Analyze the Input :: 2.  **Analyze the Input Text:**"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=2DLb6hDIhmg",
+      "total": 24,
+      "poisoned": 5,
+      "pct": 0.2083,
+      "bucket": "partial",
+      "samples": [
+        "**Analyze :: 1.  **Analyze the User's Request:**",
+        "**Deconstruct :: *   **Proposition 2: The nature of the center.** What *is* the center? It's not just a point in space. It's a state of b"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=H_uhawaiO3E",
+      "total": 4,
+      "poisoned": 4,
+      "pct": 1.0,
+      "bucket": "total_loss",
+      "samples": [
+        "**Deconstruct :: *   The cycle of time, life, and death.",
+        "**Deconstruct :: *   \"The word 'Surya' is repeated.\" (Getting closer)."
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=zp2w7DTmOwc",
+      "total": 4,
+      "poisoned": 4,
+      "pct": 1.0,
+      "bucket": "total_loss",
+      "samples": [
+        "repetition loop: '* \"sri preethaji\" - not' :: 6. There is a mention of \"Many will be the fears\" but the sentence is incomplete.",
+        "repetition loop: '* \"sri preethaji\" - not' :: *   \"Spiritual teaching\": The source material is philosophical/religious in nature. I should maintain that tone."
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=w1U9nHF3H5o",
+      "total": 6,
+      "poisoned": 4,
+      "pct": 0.6667,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: *   It then states the purpose or action associated with this field: \"Sri Preethaji and I will be impacting you.\" This i",
+        "**Deconstruct :: *   *Refinement:* The original text has \"tive thoughts and beliefs\". I should stick close to the source. \"Negative thoug"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=_XDcXdBDZ0c",
+      "total": 7,
+      "poisoned": 4,
+      "pct": 0.5714,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: *   \"Do ancient Indians would only eat when the stomach asked for food, not when the tongue asked for it? They ate only ",
+        "**Analyze :: - The Divine is the Divine. - We are one. - The chant \"Har Har\" is a tool for connection. - This mantra affirms the sing"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=QzJ_Ft1de1o",
+      "total": 10,
+      "poisoned": 4,
+      "pct": 0.4,
+      "bucket": "partial",
+      "samples": [
+        "2.  **Analyze the Input :: 2.  **Analyze the Input Text:**",
+        "**Deconstruct :: *   `\"This works if you are able to be that person who is creating impact in the lives of so many other communities of p"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=-u6ZDfHdB54",
+      "total": 13,
+      "poisoned": 4,
+      "pct": 0.3077,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: [phrase 2] [phrase 3] ...`     *   The core phrases that stand out are:         *   \"all emerge and to her depths we ret",
+        "**Deconstruct :: `         *   Correct.      *   `we are all] *   The user provides a \"Final proposed text\" and seems to be asking me to "
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=oalnb5-fHjY",
+      "total": 14,
+      "poisoned": 4,
+      "pct": 0.2857,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: 1.  **Deconstruct the User's Request:**",
+        "2.  **Analyze the Input :: 2.  **Analyze the Input Text and Identify the \"Final\" Teaching:**"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=1PlGMOAypCI",
+      "total": 15,
+      "poisoned": 4,
+      "pct": 0.2667,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: *   **Key Constraint:** The propositions must be \"independent\" and \"self-contained.\" This means each one should be a com",
+        "**Analyze :: Performing an action from the “beautiful state” creates a profound moral conflict, pitting loyalty to a loved one agains"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=8p3zqYg5wuo",
+      "total": 16,
+      "poisoned": 4,
+      "pct": 0.25,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: *   \"between one life form to\": This part is grammatically incomplete. It seems to be trying to say \"between one life fo",
+        "**Deconstruct :: *   \"consc\" is clearly the beginning of \"conscious.\""
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=PslFhdZaBFA",
+      "total": 16,
+      "poisoned": 4,
+      "pct": 0.25,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: *   Let's consider the most common and direct interpretation. \"Deeds\" is a very common spiritual/philosophical term. \"De",
+        "**Analyze :: What defines the qualities of an awake heart? How does one practice intense attention to expressions? What state of bein"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=ffhDTzE4nDU",
+      "total": 19,
+      "poisoned": 4,
+      "pct": 0.2105,
+      "bucket": "partial",
+      "samples": [
+        "**Synthesiz :: `. The `Source` part is irrelevant for the label itself.     *   The topics seem to be actions or concepts related to sp",
+        "2.  **Deconstruct the Input :: 2.  **Deconstruct the Input Text:**"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=7Pfat_DztMI",
+      "total": 22,
+      "poisoned": 4,
+      "pct": 0.1818,
+      "bucket": "partial",
+      "samples": [
+        "The user has provided :: ` - This is a label itself. \"Ekam\" is likely a name or a concept.     *   `* The period `.` is repeated many, many times",
+        "**Analyze :: Ekam is a profound spiritual greeting that transcends a simple hello. It signifies a deep respect and the recognition of"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=qJxGtSDiayM",
+      "total": 24,
+      "poisoned": 4,
+      "pct": 0.1667,
+      "bucket": "partial",
+      "samples": [
+        "*   \"...draw from a much deeper well of creativity.\" - This :: *   **Key Concepts in the Input:**",
+        "**Analyze :: The source of creation and abundance is not external but resides within a deeper well of creativity. Fortune favors thos"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=tDcy09esbe8",
+      "total": 36,
+      "poisoned": 4,
+      "pct": 0.1111,
+      "bucket": "partial",
+      "samples": [
+        "repetition loop: 'each each each each each' :: *   The input is: \"Each Each Each Each Each Each Each Each Each Each Each Each Each Each Each Each Each Each Each Each E",
+        "The user has provided :: `         *   `* **Output Format:** Each proposition on a new line, prefixed with \"- \"`         *   The user has also pr"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=0u9oe-5HPmk",
+      "total": 42,
+      "poisoned": 4,
+      "pct": 0.0952,
+      "bucket": "partial",
+      "samples": [
+        "The user wants me to :: This is too abstract and not very helpful. The user wants me to *decompose*, which implies creating a more structured se",
+        "**Analyze :: The core teaching is that for a seasoned meditator, both independent exploration of consciousness and guided meditation "
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=b-MkLkpTeVY",
+      "total": 70,
+      "poisoned": 4,
+      "pct": 0.0571,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: `. This seems like a copy-paste error or a formatting artifact from the source material. I should ignore the `[Source: .",
+        "This looks good :: *   This looks good. It's simple, direct, and follows the format. It correctly identifies the two unique, core ideas fro"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=UgQV_5FjPNk",
+      "total": 76,
+      "poisoned": 4,
+      "pct": 0.0526,
+      "bucket": "partial",
+      "samples": [
+        "repetition loop: '\"the state of a true' :: `     *   The text explicitly says \"the state of a true master\". This is a direct lift. It's almost certainly the intend",
+        "The user wants me to :: The user's prompt is extremely terse and appears to be a meta-instruction or a fragment of a larger request. It's not a "
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=uZg9XnRub7w",
+      "total": 4,
+      "poisoned": 3,
+      "pct": 0.75,
+      "bucket": "partial",
+      "samples": [
+        "repetition loop: '* \"the mind is a' :: *   **Core Task:** Decompose a spiritual teaching into independent, self-contained propositions.",
+        "*   \"The mind is a very powerful thing.\" - This :: *   **Decomposition Idea:** The core idea is a cause-and-effect relationship."
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=RBb_3sgOgFY",
+      "total": 5,
+      "poisoned": 3,
+      "pct": 0.6,
+      "bucket": "partial",
+      "samples": [
+        "The user wants me to :: 3.  **Identify the \"Spiritual Teaching\":**",
+        "**Deconstruct :: *   `**Deconstruct the Request:**`: This is a heading or a meta-instruction. It's telling me *how* to perform the task. "
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=kzRqQOvjRhA",
+      "total": 6,
+      "poisoned": 3,
+      "pct": 0.5,
+      "bucket": "partial",
+      "samples": [
+        "I need to identify :: *   **Key Constraint:** \"Independent, self-contained propositions.\" This is the most important part. It means I can't ju",
+        "**Deconstruct :: 2.  **Initial Read-Through and High-Level Understanding:**"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=oaKWpxmu0YI",
+      "total": 7,
+      "poisoned": 3,
+      "pct": 0.4286,
+      "bucket": "partial",
+      "samples": [
+        "2.  **Deconstruct the Input :: 2.  **Deconstruct the Input Text:**",
+        "**Deconstruct :: *   **Input:** A specific block of text: \"nal is a bit stark. I'll consider a minor punctuation fix. * **\"What are Brahm"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=gMrOMT4mfno",
+      "total": 7,
+      "poisoned": 3,
+      "pct": 0.4286,
+      "bucket": "partial",
+      "samples": [
+        "2.  **Analyze the Input :: 2.  **Analyze the Input Text:**",
+        "**Analyze :: *   Qualities of Patna: \"holy land,\" \"carries the energy of awakening and enlightenment.\""
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=fdPQxZsPAwI",
+      "total": 7,
+      "poisoned": 3,
+      "pct": 0.4286,
+      "bucket": "partial",
+      "samples": [
+        "2.  **Examine the Input :: 2.  **Examine the Input Text:**",
+        "**Analyze :: *   **Analyze the Provided List of Domain-Specific Terms:**"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=MKOAMUmZ-RA",
+      "total": 7,
+      "poisoned": 3,
+      "pct": 0.4286,
+      "bucket": "partial",
+      "samples": [
+        "I need to extract :: *   **Key Constraint:** The propositions must be \"independent\" and \"self-contained.\" This is the most important part. It",
+        "**Deconstruct :: *   **Core Task:** Decompose a spiritual teaching into independent, self-contained propositions."
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=odXq5g-Y7gM",
+      "total": 8,
+      "poisoned": 3,
+      "pct": 0.375,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: *   **Input:** A specific text about preventing depression using \"Yuktis\" (specifically, the first one, Kathana or story",
+        "**Deconstruct :: *   Idea 5a: Depression can affect children."
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=V5fBJwo_KQk",
+      "total": 8,
+      "poisoned": 3,
+      "pct": 0.375,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: ` - A clear topic is mentioned: \"blessings\".         *   `It's repeated a massive number of times...` - This is a meta-c",
+        "**Analyze :: 1.  **Analyze the User's Request:**"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=0ypG1mlekNY",
+      "total": 9,
+      "poisoned": 3,
+      "pct": 0.3333,
+      "bucket": "partial",
+      "samples": [
+        "**Brainstorm :: \"     *   This is a classic \"garbage in, garbage out\" or \"prompt injection\" type of problem. The *label* I need to gener",
+        "2.  **Analyze the Input :: 2.  **Analyze the Input Text:**"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=3RyCldrCxL8",
+      "total": 10,
+      "poisoned": 3,
+      "pct": 0.3,
+      "bucket": "partial",
+      "samples": [
+        "**Analyze :: The core teaching is the validation of one's internal state. The text affirms that the condition of being \"stressful\" is",
+        "**Analyze :: the errors\" and \"correction\". The goal is to \"preserve meaning\".     *   Let's go back to the most direct summary.     *"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=ehkqJ54DIC0",
+      "total": 10,
+      "poisoned": 3,
+      "pct": 0.3,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: *   **Key Constraint:** \"independent, self-contained propositions.\" This is the crucial part. The input is *not* a tradi",
+        "**Deconstruct :: *   The input is \"kang kang kang kang kang kang kang kang kang kang kang kang kang kang kang kang kang kang kang kang ka"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=Mr1cjAz2y9I",
+      "total": 11,
+      "poisoned": 3,
+      "pct": 0.2727,
+      "bucket": "partial",
+      "samples": [
+        "**Synthesiz :: ` - This looks like metadata or a note from a source. It mentions \"Kaya\" and \"correct\".         *   `*   **Input:** A bl",
+        "**Deconstruct :: 1.  **Deconstruct the User's Request:**"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=bCzjP2UaKRI",
+      "total": 12,
+      "poisoned": 3,
+      "pct": 0.25,
+      "bucket": "partial",
+      "samples": [
+        "The user wants me to :: *   This is a bit weird. It's not a single, coherent paragraph. It's a list of statements, some of which are questions, ",
+        "**Deconstruct :: *   **Key Constraint:** The propositions must be \"independent\" and \"self-contained.\" This means each one should be a com"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=vNj7OSHos1I",
+      "total": 12,
+      "poisoned": 3,
+      "pct": 0.25,
+      "bucket": "partial",
+      "samples": [
+        "repetition loop: 'that means that that means' :: *   **Input:** A very long, repetitive, and seemingly nonsensical string of text: \"t that means that that means that tha",
+        "repetition loop: 'that means that that means' :: *   **Input:** A very long, repetitive, and seemingly nonsensical string: \"that that means that that means that that mea"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=U1qRvz3hnMA",
+      "total": 12,
+      "poisoned": 3,
+      "pct": 0.25,
+      "bucket": "partial",
+      "samples": [
+        "**Analyze :: 1.  **Analyze the User's Request:** The user wants me to \"decompose the following spiritual teaching into independent, s",
+        "2.  **Examine the Input :: 2.  **Examine the Input Text:** The input is a bit messy. It's not a coherent spiritual teaching. It's more of a meta-co"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=B8wapoLAu84",
+      "total": 13,
+      "poisoned": 3,
+      "pct": 0.2308,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: 1.  **Deconstruct the Request:**     *   **Core Task:** Summarize the provided text into a single, cohesive paragraph.  ",
+        "**Brainstorm :: `         *   `*   **Input:** A \"Teaching\" section wi`         *   `*   **Input:** A block of text that is`         *   "
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=OnAAtrwsfOc",
+      "total": 14,
+      "poisoned": 3,
+      "pct": 0.2143,
+      "bucket": "partial",
+      "samples": [
+        "2.  **Deconstruct the Input :: 2.  **Deconstruct the Input: \"ot amidst the health pr\"**",
+        "**Analyze :: *   The state of being pessimistic is the subject. (Implied.)"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=oXRZhJTHuOA",
+      "total": 15,
+      "poisoned": 3,
+      "pct": 0.2,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: *   *Textual evidence:* \"Often, when I meet people, they say, 'I am spiritual' or 'I'm practicing spirituality.' So, if ",
+        "The user wants me to :: This text is a mix of instructions, examples, and a concluding statement. It's not a single, coherent paragraph. It look"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=HELtP96Dd4w",
+      "total": 19,
+      "poisoned": 3,
+      "pct": 0.1579,
+      "bucket": "partial",
+      "samples": [
+        "**Synthesiz :: *   I'll break it down piece by piece.",
+        "**Analyze :: 1.  **Analyze the User's Request:**"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=nen-DB_tz4M",
+      "total": 24,
+      "poisoned": 3,
+      "pct": 0.125,
+      "bucket": "partial",
+      "samples": [
+        "**Brainstorm :: 3.  **Brainstorm Independent Propositions:**",
+        "2.  **Analyze the Input :: 2.  **Analyze the Input Teaching:**"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=tl2Ek-QakME",
+      "total": 28,
+      "poisoned": 3,
+      "pct": 0.1071,
+      "bucket": "partial",
+      "samples": [
+        "**Analyze :: 2.  **Analyze the Provided Text against the Rules:**",
+        "The user wants me to :: *   Let's try a different interpretation. Maybe the \"decomposition\" is the *output*. The user wants me to list the propo"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=2z5qxSr4EaI",
+      "total": 3,
+      "poisoned": 2,
+      "pct": 0.6667,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: *   Proposition 4: The health is described as mental, emotional, spiritual, and physical.",
+        "**Deconstruct :: *   Proposition 1: There is a concept called \"langanams\"."
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=w1gF90_cBl4",
+      "total": 3,
+      "poisoned": 2,
+      "pct": 0.6667,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: *   *Proposition 2:* This infinite consciousness is like an ocean. (This is a metaphor, but a core part of the teaching'",
+        "**Deconstruct :: *   This is a bit fragmented. It seems to be missing the beginning. \"ousness and will\" is likely \"Consciousness and will"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=CZ_r5sYeTyY",
+      "total": 3,
+      "poisoned": 2,
+      "pct": 0.6667,
+      "bucket": "partial",
+      "samples": [
+        "**Analyze :: *   \"Anytime you move into a state of experiencing an inner disturbance, We have students doing the Serene Mind Practice",
+        "**Analyze :: *   Each proposition on a new line."
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=Gt3o8lcbcII",
+      "total": 4,
+      "poisoned": 2,
+      "pct": 0.5,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: 1.  **Deconstruct the Request:**",
+        "**Deconstruct :: 1.  **Deconstruct the Request:**      *   **Core Task:** Decompose a spiritual teaching into independent, self-contained"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=Q4QyNologtw",
+      "total": 4,
+      "poisoned": 2,
+      "pct": 0.5,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: *   \"Today I want to speak to young people and the parents of young people.\" -> This is the framing device. It's about c",
+        "**Deconstruct :: *   \"In our youth course, he came upon a deep forgiveness towards his father and set himself free internally.\" -> **Prop"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=W2ZzApmqJmo",
+      "total": 4,
+      "poisoned": 2,
+      "pct": 0.5,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: 1.  **Deconstruct the Request:**",
+        "2.  **Analyze the Input :: 2.  **Analyze the Input Text:** I'll read through the teaching and identify the core ideas or claims."
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=7NVPsHdyw_Y",
+      "total": 4,
+      "poisoned": 2,
+      "pct": 0.5,
+      "bucket": "partial",
+      "samples": [
+        "comma-separated list :: *   \"I would say, begin your journey recognizing what exactly you are feeling.\" -> This is about the *process* or *start",
+        "**Deconstruct :: 1.  **Deconstruct the Request:**"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=NJQ573JDmAg",
+      "total": 4,
+      "poisoned": 2,
+      "pct": 0.5,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: *   **Key Constraint:** The propositions must be \"independent\" and \"self-contained.\" This means each one should be a com",
+        "**Deconstruct :: *   **Key Constraint:** \"DO NOT rewrite the style.\" This is crucial. I must preserve the original phrasing, even if it's"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=zGOKGrTNlk4",
+      "total": 5,
+      "poisoned": 2,
+      "pct": 0.4,
+      "bucket": "partial",
+      "samples": [
+        "**Analyze :: 2.  **Analyze the Source Teaching:** I'll break down the original text into its core ideas.",
+        "repetition loop: '* *original:* \"so, that is' :: *   *Original:* \"So, that is why it is important for you to get back to the serene mind practice.\"  [Source: zGOKGrTNlk4"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=46g5U6v3SGc",
+      "total": 6,
+      "poisoned": 2,
+      "pct": 0.3333,
+      "bucket": "partial",
+      "samples": [
+        "I need to extract :: *   \"Independent, self-contained propositions\": This is the crucial constraint. I can't just list the words. I need to e",
+        "**Deconstruct :: *   **Key Constraint:** The propositions must be *independent* and *self-contained*. This means each one should be a com"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=k8iO5daXllM",
+      "total": 7,
+      "poisoned": 2,
+      "pct": 0.2857,
+      "bucket": "partial",
+      "samples": [
+        "**Brainstorm :: 3.  **Brainstorming Propositions (Drafting - First Pass):**",
+        "**Deconstruct :: *   The goal is to break down the teaching into statements that could be true on their own, without needing the others t"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=M7ItOHTrvz8",
+      "total": 7,
+      "poisoned": 2,
+      "pct": 0.2857,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: 1.  **Deconstruct the Request:**",
+        "**Deconstruct :: > \"is a mishearing of something else? No, the list is specific. Okay, I'll make a judgment call. \"gaseous\" is so out of "
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=fj2_d2lNGVk",
+      "total": 9,
+      "poisoned": 2,
+      "pct": 0.2222,
+      "bucket": "partial",
+      "samples": [
+        "The user wants me to :: *   Each proposition prefixed with \"- \".",
+        "**Analyze :: 1.  **Analyze the User's Request:**"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=jW3JDLY0cDA",
+      "total": 9,
+      "poisoned": 2,
+      "pct": 0.2222,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: *   Proposition: \"Do not shut your eyes and heart to those beautiful moments of love.\" (This is fine as is, it's a compl",
+        "**Analyze :: *   The input includes *corrections* and *commentary*. I need to decide whether to use the original text, the corrected "
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=ZD1nQPtpojM",
+      "total": 9,
+      "poisoned": 2,
+      "pct": 0.2222,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: *   **Interpretation 2: The Selfishness of the Individual.** Perhaps true, selfless cooperation is impossible because ev",
+        "**Synthesiz :: ` line.     *   The \"Topic\" is explicitly given as \"shared purpose\".     *   The \"Teachings\" section is a bit of a red h"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=_X5jRvqxEEo",
+      "total": 10,
+      "poisoned": 2,
+      "pct": 0.2,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: *   The overall theme seems to be about handling life's pressures, making decisions, and the consequences of either succ",
+        "**Synthesiz :: ` - This seems to be the core idea. The central problem is \"psychological pressure.\"     *   `*   **Core Task:** Decompo"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=pQ7yAREnJaw",
+      "total": 11,
+      "poisoned": 2,
+      "pct": 0.1818,
+      "bucket": "partial",
+      "samples": [
+        "This looks good :: Heartful gratitude is expressed to the follower and the ecosystem.",
+        "**Analyze :: The core teaching is that the self is not a fixed entity but is shaped by perception. To realize this, one must first le"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=K-AFDVOkIoE",
+      "total": 11,
+      "poisoned": 2,
+      "pct": 0.1818,
+      "bucket": "partial",
+      "samples": [
+        "2.  **Deconstruct the Input :: `.  2.  **Deconstruct the Input:**     *   The core text is: `The phrase \"cosmic *cosmic* cost\" is the most prominent`  ",
+        "The user has provided :: The user has provided a *description* of a task, not the actual text to be corrected. The text is:"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=h9S9Hh4aBN8",
+      "total": 11,
+      "poisoned": 2,
+      "pct": 0.1818,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: 1.  **Deconstruct the Request:**",
+        "I need to identify :: - Each proposition must be on a new line. [Source: | Topic: but in a list of points] - Each proposition must be prefixed"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=fzfhimnVghE",
+      "total": 12,
+      "poisoned": 2,
+      "pct": 0.1667,
+      "bucket": "partial",
+      "samples": [
+        "**Analyze :: The spiritual path begins with an awareness of \"ne,\" a state of lack or incompleteness that serves as the catalyst for g",
+        "**Analyze :: The core teaching is that focusing on the principle of “Connection and Continuity” is a direct path to recognizing the “"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=Oc5ar2g2rnI",
+      "total": 12,
+      "poisoned": 2,
+      "pct": 0.1667,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: *   The text is: `* \"Ekams\" -> I see it again. \"in the Ekam circles that the community of Ekam mitras do hold over\". I'l",
+        "**Deconstruct :: 1.  **Deconstruct the Request:**"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=kPuvsIyt6UI",
+      "total": 12,
+      "poisoned": 2,
+      "pct": 0.1667,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: 1.  **Deconstruct the User's Request:**",
+        "**Deconstruct :: *   **Key Constraint:** The propositions must be \"independent, self-contained.\" This means each one should be a complete"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=q15gR1aGjVs",
+      "total": 17,
+      "poisoned": 2,
+      "pct": 0.1176,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: *   **Input:** A specific block of text: \"living that the Earth is living. The Earth has a heart, and you can feel the v",
+        "2.  **Analyze the Input :: 2.  **Analyze the Input Text:**"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=mbhdVEKEbLg",
+      "total": 19,
+      "poisoned": 2,
+      "pct": 0.1053,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: *   The input is: \"Each Each Each Each Each Each Each Each Each Each Each Each Each Each Each Each Each Each Each Each E",
+        "repetition loop: 'each each each each each' :: Bend the knees while exhaling."
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=x-mTRlE0TC4",
+      "total": 70,
+      "poisoned": 2,
+      "pct": 0.0286,
+      "bucket": "trace",
+      "samples": [
+        "The user is asking :: The text uses terms such as \"spiritual awakening,\" \"divine,\" and \"enlightened state.\"         [Source:  | Topic: Mukthi ",
+        "**Deconstruct :: 1.  **Deconstruct the Request:**"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=izjxTA_-mNs",
+      "total": 1,
+      "poisoned": 1,
+      "pct": 1.0,
+      "bucket": "total_loss",
+      "samples": [
+        "repetition loop: 'when a certain percentage of' :: my life? Why am I here? What am I doing? How many of you have this question? What is the purpose of my life? Why am I he"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=R3ZRYoTxhUE",
+      "total": 1,
+      "poisoned": 1,
+      "pct": 1.0,
+      "bucket": "total_loss",
+      "samples": [
+        "repetition loop: 'the work that means that' :: When millions of us will awaken, there will be a phase transition in human consciousness. These awakening experiences wi"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=Tc8f9ZasRRM",
+      "total": 2,
+      "poisoned": 1,
+      "pct": 0.5,
+      "bucket": "partial",
+      "samples": [
+        "*   \"Our mind is made up of thoughts...\" - This :: *   \"Our mind is made up of thoughts...\" - This is the foundational premise. It's a statement about the nature of the mi"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=AB-t5CoxMHM",
+      "total": 2,
+      "poisoned": 1,
+      "pct": 0.5,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: 2.  **Initial Read-Through and High-Level Understanding:**"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=WwgBOejW_pI",
+      "total": 2,
+      "poisoned": 1,
+      "pct": 0.5,
+      "bucket": "partial",
+      "samples": [
+        "**Analyze :: The central teaching is to awaken to the sacredness of Mother Earth, moving away from exploitation. This ethical relatio"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=h5XzWxcWrtU",
+      "total": 3,
+      "poisoned": 1,
+      "pct": 0.3333,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: `.     *   The phrase itself is a bit abstract and philosophical. It seems to be about self-perception, identity, and pe"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=UNdwPjyLGn0",
+      "total": 3,
+      "poisoned": 1,
+      "pct": 0.3333,
+      "bucket": "partial",
+      "samples": [
+        "2.  **Analyze the Input :: 2.  **Analyze the Input Teaching:**"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=stUPu1-W4bE",
+      "total": 3,
+      "poisoned": 1,
+      "pct": 0.3333,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: 1.  **Deconstruct the Request:**"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=VAMJEgwaPEc",
+      "total": 3,
+      "poisoned": 1,
+      "pct": 0.3333,
+      "bucket": "partial",
+      "samples": [
+        "repetition loop: 'do you think we are' :: You need to have a beautiful heart in order to nurture a relationship. If you do not have that heart, relationships can "
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=uNkgwv4dqEs",
+      "total": 4,
+      "poisoned": 1,
+      "pct": 0.25,
+      "bucket": "partial",
+      "samples": [
+        "*   \"sed correctly\" - This :: *   \"sed correctly\" - This is a fragment, likely a typo or a mis-transcription. \"Sed\" means \"we\" in Latin. \"Correctly\" i"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=77dJnbTCwsA",
+      "total": 4,
+      "poisoned": 1,
+      "pct": 0.25,
+      "bucket": "partial",
+      "samples": [
+        "**Analyze :: 1.  **Analyze the User's Request:**"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=oUCZWSi8zY4",
+      "total": 5,
+      "poisoned": 1,
+      "pct": 0.2,
+      "bucket": "partial",
+      "samples": [
+        "**Analyze :: *   Chanting/Mantra: Repetition is a core practice. The word itself becomes a sacred sound or vibration."
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=JwMlR98BgrI",
+      "total": 5,
+      "poisoned": 1,
+      "pct": 0.2,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: 1.  **Deconstruct the User's Request:**"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=207izZBbqVg",
+      "total": 6,
+      "poisoned": 1,
+      "pct": 0.1667,
+      "bucket": "partial",
+      "samples": [
+        "**Analyze :: The core teaching is encapsulated in the greeting \"Namaste,\" a recognition of the divine. The phrase \"Namaste kang\" is p"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=yDTGeNo-w0c",
+      "total": 7,
+      "poisoned": 1,
+      "pct": 0.1429,
+      "bucket": "partial",
+      "samples": [
+        "**Deconstruct :: ` - This is a structural element, not content.         *   `* \"The term 'Ekam' is likely a distractor or a term that *sh"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=y9iL10DPhzI",
+      "total": 8,
+      "poisoned": 1,
+      "pct": 0.125,
+      "bucket": "partial",
+      "samples": [
+        "**Analyze :: 1.  **Analyze the User's Request:**     *   **Core Task:** \"Fix transcription errors.\"     *   **Input:** A jumbled, see"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=4_Fqfew1PRk",
+      "total": 8,
+      "poisoned": 1,
+      "pct": 0.125,
+      "bucket": "partial",
+      "samples": [
+        "The user wants me to :: *   The user wants me to take the provided text and the list of rules/terms and produce a corrected version of the text."
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=KTe11DlB4QI",
+      "total": 10,
+      "poisoned": 1,
+      "pct": 0.1,
+      "bucket": "partial",
+      "samples": [
+        "**Analyze :: 1.  **Analyze the User's Request:**"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=beh0v5Odn6g",
+      "total": 11,
+      "poisoned": 1,
+      "pct": 0.0909,
+      "bucket": "partial",
+      "samples": [
+        "repetition loop: '* \"me,\" -> \"me,\" (correct)' :: *   The string is: `t) * \"me,\" -> \"me,\" (Correct) * \"me,\" -> \"me,\" (Correct) * \"me,\" -> \"me,\" (Correct) * \"me,\" -> \"me,\""
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=JRX5W9AhWoA",
+      "total": 17,
+      "poisoned": 1,
+      "pct": 0.0588,
+      "bucket": "partial",
+      "samples": [
+        "repetition loop: '`this is the absolute truth.`' :: Feel peace flow to every living being on earth."
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=OWXe9v7PHDs",
+      "total": 25,
+      "poisoned": 1,
+      "pct": 0.04,
+      "bucket": "trace",
+      "samples": [
+        "**Deconstruct :: 1.  **Deconstruct the Request:**"
+      ]
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=tCWfCISvo5k",
+      "total": 28,
+      "poisoned": 1,
+      "pct": 0.0357,
+      "bucket": "trace",
+      "samples": [
+        "I need to identify :: *   **Constraint:** The prompt says to \"fix *errors*, not rewrite.\" This is a key instruction. It implies I need to iden"
+      ]
+    },
+    {
+      "source_url": "The_Four_Sacred_Secrets.pdf",
+      "total": 61,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=mmpmX3-qfc4",
+      "total": 2,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=LGkdzRl08vo",
+      "total": 5,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=N8aw4NAR62c",
+      "total": 2,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=7b6tnI7VmB4",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=0z-IZ2ar4eA",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=cy7L7ru37HE",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=uA7E_SUdtM8",
+      "total": 13,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=y-C_8_p_F5w",
+      "total": 21,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=zs_JKa0cVsY",
+      "total": 4,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=-4wCvcPrX-E",
+      "total": 61,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=_xRxSiooRnE",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=07NOYJmkkFo",
+      "total": 14,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=bh_kjn-1CAY",
+      "total": 2,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=TXAKaPwrBy0",
+      "total": 5,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=ZaZOJ6gazYM",
+      "total": 2,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=HCs6I_BNtxo",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=m-m2wMW4020",
+      "total": 3,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=4QL5Djtikmw",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=iikr2xzAK6Y",
+      "total": 10,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=sMgbjxyrgqw",
+      "total": 35,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=d0v8RE6i0GM",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=XMzZe5aEmTo",
+      "total": 4,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=YkIBYppBtro",
+      "total": 2,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=s-In3a1CAoI",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=OZiElH5pKmo",
+      "total": 12,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=ZGvKY4mPfIc",
+      "total": 3,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=X3LKG0Ycl3A",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=RkLY_uJL0xc",
+      "total": 3,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=cxgHFX04RtQ",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=1J0HpmGWsZs",
+      "total": 13,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=-YQLpNmH0MQ",
+      "total": 3,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=OaTrIaFLG6M",
+      "total": 2,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=FSwSt1omSD8",
+      "total": 3,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=h8DQ0GlvD8I",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=M8XASiz30oE",
+      "total": 2,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=U23yKxWbIcI",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=3InKt2QjqQ8",
+      "total": 2,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=KN0XZBa7K4Y",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=F0kz4L2wB2A",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=vGWM3R_ihxI",
+      "total": 3,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=O-6f5wQXSu8",
+      "total": 5,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=wDaE92bNRNw",
+      "total": 2,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=8CgS_ANm26Y",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=D9obnqNB4aI",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=PFNP4c1cOSI",
+      "total": 2,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=E8N04l1Lptk",
+      "total": 11,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=-i-QFyNg8Io",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=6EHw_0gYD5w",
+      "total": 2,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=vjEsXpEtpH4",
+      "total": 4,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=8xJampnp9qc",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=oSAPs1YDkq0",
+      "total": 5,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=PnvNqgTyIFI",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=xUO_WoOlWmI",
+      "total": 2,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=V45jIC4RthQ",
+      "total": 2,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=nsUkTKmx2dI",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=vch9C_hNjGs",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=TIZ3yFQCFfA",
+      "total": 3,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=cvREfQLxC6k",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=LYm7oczfWEk",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=1sMxPhQcvEA",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=umD1vXG7WIA",
+      "total": 3,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=iIduE7RwihM",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=mQ_qPqsc-i0",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=5xxp7L-Ktp8",
+      "total": 3,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=vhLVeSDWB5M",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=-pBQ6Sy444o",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=rux7GLCqLWQ",
+      "total": 3,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=RvgN5Mfbd5A",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=OzgA9wYM6Oc",
+      "total": 2,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=ECFRWVY8SGY",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=CrZuPkgwA6Q",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=U4lCthMt9oY",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=U6pcGCyOYwo",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=B9LZcfD-blU",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=Ejcq9mNGJk0",
+      "total": 2,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=-yGLiryVQoQ",
+      "total": 2,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=z3fSeC_oG-s",
+      "total": 2,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=Pd42WwNAr8g",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=FP5O9F9JiOk",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=bMGaQ2nUE5Y",
+      "total": 2,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=AK435vKMlo",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=kf-IuHxVN7g",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=lZTaw-5V_mc",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=rXkyO0fOOLE",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=oZRQoiRe7s4",
+      "total": 2,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=uAPvGyjkrB8",
+      "total": 2,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=AR0r8B6Ga8E",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=WfkCDNu4SuE",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=UKYZ4NtUMTw",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=w2qbJB6ie9Y",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=rKoXeKg0y1Q",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=zO8tQkjCpyc",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=CQEGJ0OaIPo",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=YEPXAy-jyVo",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=T3I8r_NU2Wk",
+      "total": 2,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=pTnEtB8mcVA",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=XS9EXhxRbi8",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=IbOoMlXlzjY",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=rGcNJ_Nsuy8",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=WtRGXnnGiVE",
+      "total": 2,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=zpuRES7Fnm8",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=wKYEvQZ03Po",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=VrPi2RUUXq4",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=G1fWNIazj5U",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=D-RK1E9uoP8",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=AwDC-VZWfzU",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=nCkbv_lvFfg",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=OuDAdSnFtbw",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    },
+    {
+      "source_url": "https://www.youtube.com/watch?v=FYQHXDtlYX4",
+      "total": 1,
+      "poisoned": 0,
+      "pct": 0.0,
+      "bucket": "clean",
+      "samples": []
+    }
+  ]
+}

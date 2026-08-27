@@ -48,6 +48,8 @@ def extract_okf_entries(
             sys.path.insert(0, str(_base))
 
         import concurrent.futures as _cf
+        from scripts.extract_okf_from_stores import extract_okf
+
         _coro = extract_okf(
             target_topic=target_topic,
             target_video_id=target_video_id,

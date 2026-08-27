@@ -1,0 +1,1906 @@
+{
+  "collection": "spiritual_wisdom",
+  "golden_version": "v1",
+  "n_queries": 68,
+  "recall_at_k": {
+    "1": 0.0735,
+    "5": 0.1618,
+    "10": 0.2647,
+    "25": 0.5147,
+    "50": 0.5441
+  },
+  "embed_latency_ms": {
+    "mean": 1466.0,
+    "p50": 1304.3,
+    "p95": 1771.9
+  },
+  "search_latency_ms": {
+    "mean": 100.2,
+    "p50": 91.7,
+    "p95": 169.6
+  },
+  "detail": [
+    {
+      "id": "doctrine_four_secrets-000",
+      "query": "What are the Four Sacred Secrets?",
+      "hit_at_10": true,
+      "hit_at_50": true,
+      "n_gold_sources": 1,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=AK435vKMlo",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=tl2Ek-QakME",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=rRs__D_3mKY",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "The_Four_Sacred_Secrets.pdf",
+        "The_Four_Sacred_Secrets.pdf"
+      ],
+      "gold_sources": [
+        "The_Four_Sacred_Secrets.pdf"
+      ],
+      "embed_ms": 9574.2,
+      "search_ms": 224.1
+    },
+    {
+      "id": "doctrine_four_secrets-001",
+      "query": "Explain the first sacred secret.",
+      "hit_at_10": false,
+      "hit_at_50": true,
+      "n_gold_sources": 16,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=zGhlBQ8iWl4",
+        "https://www.youtube.com/watch?v=AK435vKMlo",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c"
+      ],
+      "gold_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=38-NgBAet1c",
+        "https://www.youtube.com/watch?v=4_Fqfew1PRk",
+        "https://www.youtube.com/watch?v=8mmungGgDNw",
+        "https://www.youtube.com/watch?v=AxlmYK0B9Yw",
+        "https://www.youtube.com/watch?v=EpReLy7g6WM",
+        "https://www.youtube.com/watch?v=IGryscyFmV8",
+        "https://www.youtube.com/watch?v=K-AFDVOkIoE",
+        "https://www.youtube.com/watch?v=LrMyaDh_MSo",
+        "https://www.youtube.com/watch?v=Tc8f9ZasRRM"
+      ],
+      "embed_ms": 1448.8,
+      "search_ms": 144.1
+    },
+    {
+      "id": "doctrine_four_secrets-002",
+      "query": "What is the second secret about Inner Truth?",
+      "hit_at_10": true,
+      "hit_at_50": true,
+      "n_gold_sources": 29,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18"
+      ],
+      "gold_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=-4wCvcPrX-E",
+        "https://www.youtube.com/watch?v=0u9oe-5HPmk",
+        "https://www.youtube.com/watch?v=38-NgBAet1c",
+        "https://www.youtube.com/watch?v=4LIZkNHlNaM",
+        "https://www.youtube.com/watch?v=6rLvPzNyLRw",
+        "https://www.youtube.com/watch?v=AyUE-2Uh5Vg",
+        "https://www.youtube.com/watch?v=Gdd-5uWUW5w",
+        "https://www.youtube.com/watch?v=KTlY-lHs_Ew",
+        "https://www.youtube.com/watch?v=LrMyaDh_MSo"
+      ],
+      "embed_ms": 1527.0,
+      "search_ms": 120.1
+    },
+    {
+      "id": "doctrine_four_secrets-003",
+      "query": "How does Universal Intelligence work?",
+      "hit_at_10": false,
+      "hit_at_50": true,
+      "n_gold_sources": 22,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=dR7olu353VY",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=AK435vKMlo",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=ClbKAXVvzzo",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=0u9oe-5HPmk",
+        "https://www.youtube.com/watch?v=0u9oe-5HPmk",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c"
+      ],
+      "gold_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=-yGLiryVQoQ",
+        "https://www.youtube.com/watch?v=0ypG1mlekNY",
+        "https://www.youtube.com/watch?v=1nhXsnx5--Y",
+        "https://www.youtube.com/watch?v=3RyCldrCxL8",
+        "https://www.youtube.com/watch?v=ACvOem_B-Ek",
+        "https://www.youtube.com/watch?v=AR0r8B6Ga8E",
+        "https://www.youtube.com/watch?v=F9Vo4fezmcE",
+        "https://www.youtube.com/watch?v=Gw4Ng9FKJyY",
+        "https://www.youtube.com/watch?v=IGryscyFmV8"
+      ],
+      "embed_ms": 1164.6,
+      "search_ms": 169.6
+    },
+    {
+      "id": "doctrine_four_secrets-004",
+      "query": "What is Spiritual Right Action?",
+      "hit_at_10": false,
+      "hit_at_50": true,
+      "n_gold_sources": 2,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=AK435vKMlo",
+        "https://www.youtube.com/watch?v=Ji-hdW1t30g",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=HCs6I_BNtxo",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=nUrc8O7Avvk",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=sCiK7ABPcrw"
+      ],
+      "gold_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=1PlGMOAypCI"
+      ],
+      "embed_ms": 1560.0,
+      "search_ms": 109.8
+    },
+    {
+      "id": "doctrine_four_secrets-005",
+      "query": "What is a 'beautiful state' according to the book?",
+      "hit_at_10": true,
+      "hit_at_50": true,
+      "n_gold_sources": 210,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=kMc_kat7YLE",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=UgQV_5FjPNk",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=nwQaU-agzFE",
+        "https://www.youtube.com/watch?v=AK435vKMlo",
+        "https://www.youtube.com/watch?v=UgQV_5FjPNk",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c"
+      ],
+      "gold_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=-4wCvcPrX-E",
+        "https://www.youtube.com/watch?v=-u6ZDfHdB54",
+        "https://www.youtube.com/watch?v=-yGLiryVQoQ",
+        "https://www.youtube.com/watch?v=07NOYJmkkFo",
+        "https://www.youtube.com/watch?v=0k5f8G9uXqY",
+        "https://www.youtube.com/watch?v=0u9oe-5HPmk",
+        "https://www.youtube.com/watch?v=0ypG1mlekNY",
+        "https://www.youtube.com/watch?v=1J0HpmGWsZs",
+        "https://www.youtube.com/watch?v=1PlGMOAypCI"
+      ],
+      "embed_ms": 1499.7,
+      "search_ms": 117.5
+    },
+    {
+      "id": "doctrine_four_secrets-006",
+      "query": "What is the focus of the chapter on Inner Truth?",
+      "hit_at_10": false,
+      "hit_at_50": false,
+      "n_gold_sources": 1,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=7b6tnI7VmB4",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=nwQaU-agzFE",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=AK435vKMlo",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18"
+      ],
+      "gold_sources": [
+        "The_Four_Sacred_Secrets.pdf"
+      ],
+      "embed_ms": 1423.0,
+      "search_ms": 94.4
+    },
+    {
+      "id": "doctrine_four_secrets-007",
+      "query": "How can I access Universal Intelligence to change my destiny?",
+      "hit_at_10": false,
+      "hit_at_50": true,
+      "n_gold_sources": 11,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=oSAPs1YDkq0",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=3EqnSkAzfIg",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=AK435vKMlo"
+      ],
+      "gold_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=0ypG1mlekNY",
+        "https://www.youtube.com/watch?v=1nhXsnx5--Y",
+        "https://www.youtube.com/watch?v=3RyCldrCxL8",
+        "https://www.youtube.com/watch?v=8Lp2qPXYix4",
+        "https://www.youtube.com/watch?v=ACvOem_B-Ek",
+        "https://www.youtube.com/watch?v=J81diFHJqWw",
+        "https://www.youtube.com/watch?v=MmiI3xo5Ju4",
+        "https://www.youtube.com/watch?v=V2WQ20Ocw_o",
+        "https://www.youtube.com/watch?v=jGG6-a4IrNw"
+      ],
+      "embed_ms": 1806.5,
+      "search_ms": 91.7
+    },
+    {
+      "id": "doctrine_four_secrets-008",
+      "query": "Explain the blueprint for behavior in Spiritual Right Action.",
+      "hit_at_10": false,
+      "hit_at_50": true,
+      "n_gold_sources": 1,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=Ji-hdW1t30g",
+        "https://www.youtube.com/watch?v=AK435vKMlo",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=sCiK7ABPcrw",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=HCs6I_BNtxo",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c"
+      ],
+      "gold_sources": [
+        "The_Four_Sacred_Secrets.pdf"
+      ],
+      "embed_ms": 1633.1,
+      "search_ms": 120.8
+    },
+    {
+      "id": "doctrine_four_secrets-009",
+      "query": "What happens when we are engrossed in ourselves according to the secrets?",
+      "hit_at_10": true,
+      "hit_at_50": true,
+      "n_gold_sources": 3,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=nwQaU-agzFE",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=hUmlujE6SN0",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=UlOt31lBhLY",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=sCiK7ABPcrw",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c"
+      ],
+      "gold_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=NMjYsvaOOQM",
+        "https://www.youtube.com/watch?v=UlOt31lBhLY"
+      ],
+      "embed_ms": 1358.4,
+      "search_ms": 117.5
+    },
+    {
+      "id": "doctrine_four_secrets-011",
+      "query": "What year was The Four Sacred Secrets published?",
+      "hit_at_10": true,
+      "hit_at_50": true,
+      "n_gold_sources": 6,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=AK435vKMlo",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=rRs__D_3mKY",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=tl2Ek-QakME",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "The_Four_Sacred_Secrets.pdf",
+        "The_Four_Sacred_Secrets.pdf"
+      ],
+      "gold_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=36rdT1bFOk0",
+        "https://www.youtube.com/watch?v=FYQHXDtlYX4",
+        "https://www.youtube.com/watch?v=YZaEmcxvYvc",
+        "https://www.youtube.com/watch?v=bHd9dYS6UiU",
+        "https://www.youtube.com/watch?v=pTw6RbHzm-U"
+      ],
+      "embed_ms": 1165.5,
+      "search_ms": 67.5
+    },
+    {
+      "id": "doctrine_four_secrets-012",
+      "query": "How does the second secret help with stress?",
+      "hit_at_10": true,
+      "hit_at_50": true,
+      "n_gold_sources": 18,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=hUmlujE6SN0",
+        "https://www.youtube.com/watch?v=VAMJEgwaPEc",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=y9iL10DPhzI",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=eozUm89Kk9k",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c"
+      ],
+      "gold_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=38-NgBAet1c",
+        "https://www.youtube.com/watch?v=6rLvPzNyLRw",
+        "https://www.youtube.com/watch?v=KTlY-lHs_Ew",
+        "https://www.youtube.com/watch?v=Qr_pw4E-REk",
+        "https://www.youtube.com/watch?v=UgQV_5FjPNk",
+        "https://www.youtube.com/watch?v=_X5jRvqxEEo",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=b-MkLkpTeVY",
+        "https://www.youtube.com/watch?v=kMc_kat7YLE"
+      ],
+      "embed_ms": 1009.6,
+      "search_ms": 68.5
+    },
+    {
+      "id": "doctrine_four_secrets-013",
+      "query": "What is the definition of Spiritual Vision?",
+      "hit_at_10": false,
+      "hit_at_50": false,
+      "n_gold_sources": 9,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=HCs6I_BNtxo",
+        "https://www.youtube.com/watch?v=AK435vKMlo",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Vt_CjAdzebM",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c"
+      ],
+      "gold_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=38-NgBAet1c",
+        "https://www.youtube.com/watch?v=4_Fqfew1PRk",
+        "https://www.youtube.com/watch?v=8mmungGgDNw",
+        "https://www.youtube.com/watch?v=IGryscyFmV8",
+        "https://www.youtube.com/watch?v=K-AFDVOkIoE",
+        "https://www.youtube.com/watch?v=LrMyaDh_MSo",
+        "https://www.youtube.com/watch?v=VAMJEgwaPEc",
+        "https://www.youtube.com/watch?v=tl2Ek-QakME"
+      ],
+      "embed_ms": 1231.6,
+      "search_ms": 147.1
+    },
+    {
+      "id": "doctrine_four_secrets-014",
+      "query": "How does the book describe the connection between inner states and outer reality?",
+      "hit_at_10": false,
+      "hit_at_50": true,
+      "n_gold_sources": 24,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=sCiK7ABPcrw",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=UgQV_5FjPNk",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=eumRL5DfFzM",
+        "https://www.youtube.com/watch?v=sCiK7ABPcrw",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=0u9oe-5HPmk"
+      ],
+      "gold_sources": [
+        "https://www.youtube.com/watch?v=-4wCvcPrX-E",
+        "https://www.youtube.com/watch?v=5hNCT4duOgc",
+        "https://www.youtube.com/watch?v=8p3zqYg5wuo",
+        "https://www.youtube.com/watch?v=AviNwtN1luo",
+        "https://www.youtube.com/watch?v=AyUE-2Uh5Vg",
+        "https://www.youtube.com/watch?v=Fbd7ln2i9dw",
+        "https://www.youtube.com/watch?v=HELtP96Dd4w",
+        "https://www.youtube.com/watch?v=KTlY-lHs_Ew",
+        "https://www.youtube.com/watch?v=OWXe9v7PHDs",
+        "https://www.youtube.com/watch?v=PslFhdZaBFA"
+      ],
+      "embed_ms": 1771.9,
+      "search_ms": 153.3
+    },
+    {
+      "id": "doctrine_four_secrets-016",
+      "query": "Does the book provide a blueprint for behavior?",
+      "hit_at_10": false,
+      "hit_at_50": false,
+      "n_gold_sources": 1,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=AK435vKMlo",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c"
+      ],
+      "gold_sources": [
+        "The_Four_Sacred_Secrets.pdf"
+      ],
+      "embed_ms": 1453.0,
+      "search_ms": 125.5
+    },
+    {
+      "id": "doctrine_four_secrets-017",
+      "query": "How do Sri Preethaji and Sri Krishnaji define connection in the book?",
+      "hit_at_10": true,
+      "hit_at_50": true,
+      "n_gold_sources": 51,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=88NOQTz5_yI",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=AK435vKMlo",
+        "https://www.youtube.com/watch?v=vARTudIEq30",
+        "https://www.youtube.com/watch?v=bCzjP2UaKRI",
+        "https://www.youtube.com/watch?v=x-mTRlE0TC4"
+      ],
+      "gold_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=38-NgBAet1c",
+        "https://www.youtube.com/watch?v=3RyCldrCxL8",
+        "https://www.youtube.com/watch?v=3weAVHuSCxg",
+        "https://www.youtube.com/watch?v=4_Fqfew1PRk",
+        "https://www.youtube.com/watch?v=5hNCT4duOgc",
+        "https://www.youtube.com/watch?v=8Xy8xsLIgAU",
+        "https://www.youtube.com/watch?v=AviNwtN1luo",
+        "https://www.youtube.com/watch?v=AyUE-2Uh5Vg",
+        "https://www.youtube.com/watch?v=E8N04l1Lptk"
+      ],
+      "embed_ms": 1226.6,
+      "search_ms": 68.8
+    },
+    {
+      "id": "doctrine_four_secrets-018",
+      "query": "What is the relationship between the third secret and manifestation?",
+      "hit_at_10": false,
+      "hit_at_50": true,
+      "n_gold_sources": 6,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=hUmlujE6SN0",
+        "https://www.youtube.com/watch?v=AK435vKMlo",
+        "https://www.youtube.com/watch?v=nwQaU-agzFE",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18"
+      ],
+      "gold_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=0ypG1mlekNY",
+        "https://www.youtube.com/watch?v=1nhXsnx5--Y",
+        "https://www.youtube.com/watch?v=3RyCldrCxL8",
+        "https://www.youtube.com/watch?v=V2WQ20Ocw_o",
+        "https://www.youtube.com/watch?v=tCWfCISvo5k"
+      ],
+      "embed_ms": 1210.6,
+      "search_ms": 103.9
+    },
+    {
+      "id": "doctrine_four_secrets-019",
+      "query": "Explain the four secrets in a single sentence each.",
+      "hit_at_10": false,
+      "hit_at_50": false,
+      "n_gold_sources": 1,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=AK435vKMlo",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c"
+      ],
+      "gold_sources": [
+        "The_Four_Sacred_Secrets.pdf"
+      ],
+      "embed_ms": 1470.9,
+      "search_ms": 92.3
+    },
+    {
+      "id": "doctrine_founders-021",
+      "query": "Who is Lokaa?",
+      "hit_at_10": false,
+      "hit_at_50": false,
+      "n_gold_sources": 1,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=AK435vKMlo",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=6-GWHR9_iSU",
+        "https://www.youtube.com/watch?v=6-GWHR9_iSU",
+        "https://www.youtube.com/watch?v=6-GWHR9_iSU"
+      ],
+      "gold_sources": [
+        "The_Four_Sacred_Secrets.pdf"
+      ],
+      "embed_ms": 1737.7,
+      "search_ms": 100.1
+    },
+    {
+      "id": "doctrine_founders-025",
+      "query": "Who founded the Oneness Movement?",
+      "hit_at_10": false,
+      "hit_at_50": true,
+      "n_gold_sources": 3,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=rXkyO0fOOLE",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=y9iL10DPhzI",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=y9iL10DPhzI",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=y9iL10DPhzI",
+        "https://www.youtube.com/watch?v=AK435vKMlo"
+      ],
+      "gold_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=UlOt31lBhLY",
+        "https://www.youtube.com/watch?v=w2qbJB6ie9Y"
+      ],
+      "embed_ms": 1261.6,
+      "search_ms": 158.5
+    },
+    {
+      "id": "doctrine_founders-026",
+      "query": "What is the relationship between Lokaa and the founders?",
+      "hit_at_10": false,
+      "hit_at_50": false,
+      "n_gold_sources": 1,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=zGhlBQ8iWl4",
+        "https://www.youtube.com/watch?v=AK435vKMlo",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=nwQaU-agzFE",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=x-mTRlE0TC4",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=HCs6I_BNtxo",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c"
+      ],
+      "gold_sources": [
+        "The_Four_Sacred_Secrets.pdf"
+      ],
+      "embed_ms": 1540.6,
+      "search_ms": 88.0
+    },
+    {
+      "id": "doctrine_founders-027",
+      "query": "Where is the Lokaa Foundation based?",
+      "hit_at_10": false,
+      "hit_at_50": true,
+      "n_gold_sources": 6,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=AK435vKMlo",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=vy09aBxslx0",
+        "https://www.youtube.com/watch?v=UgQV_5FjPNk",
+        "https://www.youtube.com/watch?v=pmSPHJfg3AU"
+      ],
+      "gold_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=1imcyoNUO-A",
+        "https://www.youtube.com/watch?v=VAMJEgwaPEc",
+        "https://www.youtube.com/watch?v=vARTudIEq30",
+        "https://www.youtube.com/watch?v=wDaE92bNRNw",
+        "https://www.youtube.com/watch?v=x-mTRlE0TC4"
+      ],
+      "embed_ms": 1234.5,
+      "search_ms": 83.9
+    },
+    {
+      "id": "doctrine_founders-028",
+      "query": "How does the Lokaa Foundation improve health in rural communities?",
+      "hit_at_10": false,
+      "hit_at_50": false,
+      "n_gold_sources": 1,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=3EqnSkAzfIg",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=zGhlBQ8iWl4",
+        "https://www.youtube.com/watch?v=AK435vKMlo",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18"
+      ],
+      "gold_sources": [
+        "https://www.youtube.com/watch?v=vARTudIEq30"
+      ],
+      "embed_ms": 1412.4,
+      "search_ms": 76.8
+    },
+    {
+      "id": "doctrine_founders-029",
+      "query": "What is the vision of Sri Preethaji and Sri Krishnaji for humanity?",
+      "hit_at_10": false,
+      "hit_at_50": true,
+      "n_gold_sources": 10,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=dR7olu353VY",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=AK435vKMlo",
+        "https://www.youtube.com/watch?v=IGryscyFmV8",
+        "https://www.youtube.com/watch?v=88NOQTz5_yI",
+        "https://www.youtube.com/watch?v=x-mTRlE0TC4"
+      ],
+      "gold_sources": [
+        "https://www.youtube.com/watch?v=1kS_mQaBLdg",
+        "https://www.youtube.com/watch?v=HELtP96Dd4w",
+        "https://www.youtube.com/watch?v=I6yC-aUQUvw",
+        "https://www.youtube.com/watch?v=OWXe9v7PHDs",
+        "https://www.youtube.com/watch?v=UgQV_5FjPNk",
+        "https://www.youtube.com/watch?v=_XDcXdBDZ0c",
+        "https://www.youtube.com/watch?v=b-MkLkpTeVY",
+        "https://www.youtube.com/watch?v=jK7-PPBXwr4",
+        "https://www.youtube.com/watch?v=owC8E_G2fY4",
+        "https://www.youtube.com/watch?v=q15gR1aGjVs"
+      ],
+      "embed_ms": 1281.7,
+      "search_ms": 63.4
+    },
+    {
+      "id": "doctrine_founders-031",
+      "query": "What is the co-founders' philosophy on wealth and success?",
+      "hit_at_10": true,
+      "hit_at_50": true,
+      "n_gold_sources": 11,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=Yf4Pld6UEdg",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=3EqnSkAzfIg",
+        "https://www.youtube.com/watch?v=hUmlujE6SN0",
+        "https://www.youtube.com/watch?v=AK435vKMlo",
+        "https://www.youtube.com/watch?v=sCiK7ABPcrw",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=R5jh4Ss4fKA"
+      ],
+      "gold_sources": [
+        "https://www.youtube.com/watch?v=1kS_mQaBLdg",
+        "https://www.youtube.com/watch?v=3EqnSkAzfIg",
+        "https://www.youtube.com/watch?v=QAnRefsK-3Y",
+        "https://www.youtube.com/watch?v=idoWVpnJz-Y",
+        "https://www.youtube.com/watch?v=oXRZhJTHuOA",
+        "https://www.youtube.com/watch?v=owC8E_G2fY4",
+        "https://www.youtube.com/watch?v=qQmrTz6i2x4",
+        "https://www.youtube.com/watch?v=sMgbjxyrgqw",
+        "https://www.youtube.com/watch?v=smrj15-QOAI",
+        "https://www.youtube.com/watch?v=vy09aBxslx0"
+      ],
+      "embed_ms": 1362.6,
+      "search_ms": 83.2
+    },
+    {
+      "id": "doctrine_founders-032",
+      "query": "How do Sri Preethaji and Sri Krishnaji describe the oneness of humanity?",
+      "hit_at_10": false,
+      "hit_at_50": false,
+      "n_gold_sources": 1,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=88NOQTz5_yI",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=AK435vKMlo",
+        "https://www.youtube.com/watch?v=vARTudIEq30",
+        "https://www.youtube.com/watch?v=OWMBvMlGWTA",
+        "https://www.youtube.com/watch?v=md0y8j1SxBk"
+      ],
+      "gold_sources": [
+        "The_Four_Sacred_Secrets.pdf"
+      ],
+      "embed_ms": 1419.0,
+      "search_ms": 85.6
+    },
+    {
+      "id": "doctrine_founders-033",
+      "query": "Who is Lokaa's daughter?",
+      "hit_at_10": false,
+      "hit_at_50": false,
+      "n_gold_sources": 1,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=AK435vKMlo",
+        "https://www.youtube.com/watch?v=DmzZPgTh7_M",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=3EqnSkAzfIg"
+      ],
+      "gold_sources": [
+        "The_Four_Sacred_Secrets.pdf"
+      ],
+      "embed_ms": 1297.1,
+      "search_ms": 174.2
+    },
+    {
+      "id": "doctrine_founders-035",
+      "query": "Explain Oneness philosophy in the context of the co-founders.",
+      "hit_at_10": false,
+      "hit_at_50": false,
+      "n_gold_sources": 1,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=sCiK7ABPcrw",
+        "https://www.youtube.com/watch?v=AK435vKMlo",
+        "https://www.youtube.com/watch?v=wDaE92bNRNw",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=y9iL10DPhzI",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=rXkyO0fOOLE",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=y9iL10DPhzI",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c"
+      ],
+      "gold_sources": [
+        "The_Four_Sacred_Secrets.pdf"
+      ],
+      "embed_ms": 1524.6,
+      "search_ms": 79.5
+    },
+    {
+      "id": "doctrine_founders-037",
+      "query": "Do the founders believe that inner peace changes outer reality?",
+      "hit_at_10": true,
+      "hit_at_50": true,
+      "n_gold_sources": 24,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=0u9oe-5HPmk",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=UgQV_5FjPNk",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=AK435vKMlo",
+        "https://www.youtube.com/watch?v=sCiK7ABPcrw"
+      ],
+      "gold_sources": [
+        "https://www.youtube.com/watch?v=-4wCvcPrX-E",
+        "https://www.youtube.com/watch?v=5hNCT4duOgc",
+        "https://www.youtube.com/watch?v=8p3zqYg5wuo",
+        "https://www.youtube.com/watch?v=AviNwtN1luo",
+        "https://www.youtube.com/watch?v=AyUE-2Uh5Vg",
+        "https://www.youtube.com/watch?v=Fbd7ln2i9dw",
+        "https://www.youtube.com/watch?v=HELtP96Dd4w",
+        "https://www.youtube.com/watch?v=KTlY-lHs_Ew",
+        "https://www.youtube.com/watch?v=OWXe9v7PHDs",
+        "https://www.youtube.com/watch?v=PslFhdZaBFA"
+      ],
+      "embed_ms": 1608.5,
+      "search_ms": 147.2
+    },
+    {
+      "id": "doctrine_founders-038",
+      "query": "How does Lokaa Foundation ensure clean water in villages?",
+      "hit_at_10": false,
+      "hit_at_50": true,
+      "n_gold_sources": 3,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=AK435vKMlo",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=obK5uqYXOJU",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=3EqnSkAzfIg"
+      ],
+      "gold_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=rRs__D_3mKY",
+        "https://www.youtube.com/watch?v=x-mTRlE0TC4"
+      ],
+      "embed_ms": 1460.3,
+      "search_ms": 107.3
+    },
+    {
+      "id": "doctrine_founders-039",
+      "query": "Summarize the co-founders' global spiritual contribution.",
+      "hit_at_10": true,
+      "hit_at_50": true,
+      "n_gold_sources": 76,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=3EqnSkAzfIg",
+        "https://www.youtube.com/watch?v=AK435vKMlo",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18"
+      ],
+      "gold_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=-u6ZDfHdB54",
+        "https://www.youtube.com/watch?v=0k5f8G9uXqY",
+        "https://www.youtube.com/watch?v=3EqnSkAzfIg",
+        "https://www.youtube.com/watch?v=3RyCldrCxL8",
+        "https://www.youtube.com/watch?v=4LIZkNHlNaM",
+        "https://www.youtube.com/watch?v=4_Fqfew1PRk",
+        "https://www.youtube.com/watch?v=5xxp7L-Ktp8",
+        "https://www.youtube.com/watch?v=6-GWHR9_iSU",
+        "https://www.youtube.com/watch?v=7Pfat_DztMI"
+      ],
+      "embed_ms": 1502.0,
+      "search_ms": 84.4
+    },
+    {
+      "id": "doctrine_manifest-041",
+      "query": "What is the Power of Intention in Manifest 2026?",
+      "hit_at_10": false,
+      "hit_at_50": false,
+      "n_gold_sources": 2,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=XS9EXhxRbi8",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=xUO_WoOlWmI",
+        "https://www.youtube.com/watch?v=AK435vKMlo",
+        "https://www.youtube.com/watch?v=XS9EXhxRbi8",
+        "https://www.youtube.com/watch?v=xUO_WoOlWmI",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18"
+      ],
+      "gold_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=dR7olu353VY"
+      ],
+      "embed_ms": 1187.3,
+      "search_ms": 60.1
+    },
+    {
+      "id": "doctrine_manifest-042",
+      "query": "What is the Power of Deeksha in Manifest 2026?",
+      "hit_at_10": false,
+      "hit_at_50": false,
+      "n_gold_sources": 1,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=AR0r8B6Ga8E",
+        "https://www.youtube.com/watch?v=AR0r8B6Ga8E",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=hF3NZH-UX0Y",
+        "https://www.youtube.com/watch?v=AK435vKMlo",
+        "https://www.youtube.com/watch?v=EpReLy7g6WM",
+        "https://www.youtube.com/watch?v=Pd42WwNAr8g",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c"
+      ],
+      "gold_sources": [
+        "The_Four_Sacred_Secrets.pdf"
+      ],
+      "embed_ms": 1089.5,
+      "search_ms": 75.0
+    },
+    {
+      "id": "doctrine_manifest-045",
+      "query": "Which month represents the Power of Gratitude?",
+      "hit_at_10": false,
+      "hit_at_50": true,
+      "n_gold_sources": 2,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=7b6tnI7VmB4",
+        "https://www.youtube.com/watch?v=VrPi2RUUXq4",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=bMGaQ2nUE5Y",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=oSAPs1YDkq0",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=oSAPs1YDkq0"
+      ],
+      "gold_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=HpoWKtIcTcw"
+      ],
+      "embed_ms": 1201.0,
+      "search_ms": 68.9
+    },
+    {
+      "id": "doctrine_manifest-048",
+      "query": "Which month corresponds to the Power of Health?",
+      "hit_at_10": false,
+      "hit_at_50": false,
+      "n_gold_sources": 4,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=oSAPs1YDkq0",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=oSAPs1YDkq0",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=sMgbjxyrgqw",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=AK435vKMlo"
+      ],
+      "gold_sources": [
+        "https://www.youtube.com/watch?v=UbCEX5KBbPw",
+        "https://www.youtube.com/watch?v=_KtWOkUsy1w",
+        "https://www.youtube.com/watch?v=btbKcsb9Dzw",
+        "https://www.youtube.com/watch?v=mJOReEqkgMM"
+      ],
+      "embed_ms": 1650.5,
+      "search_ms": 115.8
+    },
+    {
+      "id": "doctrine_manifest-052",
+      "query": "What is the power for May in Manifest 2026?",
+      "hit_at_10": false,
+      "hit_at_50": true,
+      "n_gold_sources": 37,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=0u9oe-5HPmk",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Fbd7ln2i9dw",
+        "https://www.youtube.com/watch?v=AK435vKMlo",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=V45jIC4RthQ",
+        "https://www.youtube.com/watch?v=UJM00IqGKtc"
+      ],
+      "gold_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=-yGLiryVQoQ",
+        "https://www.youtube.com/watch?v=0Fa4Wyv0GOk",
+        "https://www.youtube.com/watch?v=0ypG1mlekNY",
+        "https://www.youtube.com/watch?v=1nhXsnx5--Y",
+        "https://www.youtube.com/watch?v=3RyCldrCxL8",
+        "https://www.youtube.com/watch?v=3qEON3iXjNM",
+        "https://www.youtube.com/watch?v=4eV8OvVEm6A",
+        "https://www.youtube.com/watch?v=8CgS_ANm26Y",
+        "https://www.youtube.com/watch?v=ACvOem_B-Ek"
+      ],
+      "embed_ms": 1405.8,
+      "search_ms": 151.4
+    },
+    {
+      "id": "doctrine_manifest-055",
+      "query": "Which power is celebrated in August?",
+      "hit_at_10": false,
+      "hit_at_50": false,
+      "n_gold_sources": 1,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=0u9oe-5HPmk",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Fbd7ln2i9dw",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=V45jIC4RthQ",
+        "https://www.youtube.com/watch?v=AK435vKMlo",
+        "https://www.youtube.com/watch?v=nwQaU-agzFE"
+      ],
+      "gold_sources": [
+        "The_Four_Sacred_Secrets.pdf"
+      ],
+      "embed_ms": 1755.1,
+      "search_ms": 116.5
+    },
+    {
+      "id": "doctrine_manifest-057",
+      "query": "What represents November's focus in Manifest 2026?",
+      "hit_at_10": false,
+      "hit_at_50": false,
+      "n_gold_sources": 2,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=nwQaU-agzFE",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=AK435vKMlo",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c"
+      ],
+      "gold_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=HpoWKtIcTcw"
+      ],
+      "embed_ms": 1428.0,
+      "search_ms": 101.7
+    },
+    {
+      "id": "doctrine_deeksha-060",
+      "query": "What is Deeksha?",
+      "hit_at_10": false,
+      "hit_at_50": false,
+      "n_gold_sources": 1,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=EpReLy7g6WM",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=OWXe9v7PHDs",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=AR0r8B6Ga8E",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=AR0r8B6Ga8E",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=hF3NZH-UX0Y",
+        "https://www.youtube.com/watch?v=AK435vKMlo"
+      ],
+      "gold_sources": [
+        "The_Four_Sacred_Secrets.pdf"
+      ],
+      "embed_ms": 962.5,
+      "search_ms": 48.5
+    },
+    {
+      "id": "doctrine_deeksha-063",
+      "query": "How does Deeksha affect the frontal lobe?",
+      "hit_at_10": false,
+      "hit_at_50": false,
+      "n_gold_sources": 3,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=EpReLy7g6WM",
+        "https://www.youtube.com/watch?v=OWXe9v7PHDs",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=AR0r8B6Ga8E",
+        "https://www.youtube.com/watch?v=hF3NZH-UX0Y",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Y7p7jHP0Ii0",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c"
+      ],
+      "gold_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=RFx74Q6Oq2c",
+        "https://www.youtube.com/watch?v=XsbGYVBY92c"
+      ],
+      "embed_ms": 1135.5,
+      "search_ms": 125.7
+    },
+    {
+      "id": "doctrine_deeksha-067",
+      "query": "Can I receive Deeksha online?",
+      "hit_at_10": true,
+      "hit_at_50": true,
+      "n_gold_sources": 9,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=AR0r8B6Ga8E",
+        "https://www.youtube.com/watch?v=AK435vKMlo",
+        "https://www.youtube.com/watch?v=AR0r8B6Ga8E",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=EpReLy7g6WM",
+        "https://www.youtube.com/watch?v=DBUJH5f6rjU",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=OWXe9v7PHDs",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c"
+      ],
+      "gold_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=4LIZkNHlNaM",
+        "https://www.youtube.com/watch?v=AR0r8B6Ga8E",
+        "https://www.youtube.com/watch?v=Lst4MvxPCx4",
+        "https://www.youtube.com/watch?v=dR7olu353VY",
+        "https://www.youtube.com/watch?v=kMc_kat7YLE",
+        "https://www.youtube.com/watch?v=kf-IuHxVN7g",
+        "https://www.youtube.com/watch?v=vARTudIEq30",
+        "https://www.youtube.com/watch?v=wDaE92bNRNw"
+      ],
+      "embed_ms": 1441.3,
+      "search_ms": 91.9
+    },
+    {
+      "id": "doctrine_deeksha-068",
+      "query": "What is the main spiritual goal of Deeksha?",
+      "hit_at_10": true,
+      "hit_at_50": true,
+      "n_gold_sources": 111,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=EpReLy7g6WM",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=AR0r8B6Ga8E",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=OWXe9v7PHDs",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Y7p7jHP0Ii0",
+        "https://www.youtube.com/watch?v=AR0r8B6Ga8E",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c"
+      ],
+      "gold_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=-4wCvcPrX-E",
+        "https://www.youtube.com/watch?v=0u9oe-5HPmk",
+        "https://www.youtube.com/watch?v=1kS_mQaBLdg",
+        "https://www.youtube.com/watch?v=1sMxPhQcvEA",
+        "https://www.youtube.com/watch?v=207izZBbqVg",
+        "https://www.youtube.com/watch?v=3RyCldrCxL8",
+        "https://www.youtube.com/watch?v=4LIZkNHlNaM",
+        "https://www.youtube.com/watch?v=5RcKCxfLEHM",
+        "https://www.youtube.com/watch?v=5qA5ibrq9NU"
+      ],
+      "embed_ms": 1708.8,
+      "search_ms": 78.4
+    },
+    {
+      "id": "doctrine_deeksha-071",
+      "query": "Is Deeksha an energy transfer?",
+      "hit_at_10": false,
+      "hit_at_50": false,
+      "n_gold_sources": 5,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=EpReLy7g6WM",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=AR0r8B6Ga8E",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Y7p7jHP0Ii0",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Pd42WwNAr8g",
+        "https://www.youtube.com/watch?v=AR0r8B6Ga8E",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c"
+      ],
+      "gold_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=-4wCvcPrX-E",
+        "https://www.youtube.com/watch?v=VAMJEgwaPEc",
+        "https://www.youtube.com/watch?v=ffhDTzE4nDU",
+        "https://www.youtube.com/watch?v=kf-IuHxVN7g"
+      ],
+      "embed_ms": 1271.5,
+      "search_ms": 61.7
+    },
+    {
+      "id": "doctrine_deeksha-073",
+      "query": "What is the alternative name for Deeksha?",
+      "hit_at_10": false,
+      "hit_at_50": false,
+      "n_gold_sources": 2,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=EpReLy7g6WM",
+        "https://www.youtube.com/watch?v=OWXe9v7PHDs",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=AR0r8B6Ga8E",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=hF3NZH-UX0Y",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Y7p7jHP0Ii0"
+      ],
+      "gold_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=_KtWOkUsy1w"
+      ],
+      "embed_ms": 1061.2,
+      "search_ms": 103.1
+    },
+    {
+      "id": "doctrine_deeksha-075",
+      "query": "Does Deeksha activate the frontal lobes?",
+      "hit_at_10": false,
+      "hit_at_50": false,
+      "n_gold_sources": 8,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=EpReLy7g6WM",
+        "https://www.youtube.com/watch?v=OWXe9v7PHDs",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=AR0r8B6Ga8E",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=avCLyAi9DeY",
+        "https://www.youtube.com/watch?v=hF3NZH-UX0Y",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c"
+      ],
+      "gold_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=KB_rdqB-sVw",
+        "https://www.youtube.com/watch?v=RFx74Q6Oq2c",
+        "https://www.youtube.com/watch?v=TN9W-Jc7qZc",
+        "https://www.youtube.com/watch?v=VAMJEgwaPEc",
+        "https://www.youtube.com/watch?v=XsbGYVBY92c",
+        "https://www.youtube.com/watch?v=a78n3v1aDMg",
+        "https://www.youtube.com/watch?v=r3iE2gDwIEk"
+      ],
+      "embed_ms": 1313.3,
+      "search_ms": 85.9
+    },
+    {
+      "id": "doctrine_deeksha-077",
+      "query": "Can Deeksha accelerate spiritual awakening?",
+      "hit_at_10": false,
+      "hit_at_50": true,
+      "n_gold_sources": 3,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=EpReLy7g6WM",
+        "https://www.youtube.com/watch?v=AR0r8B6Ga8E",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=vZGe4g66rw4",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=AR0r8B6Ga8E",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=AR0r8B6Ga8E",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c"
+      ],
+      "gold_sources": [
+        "https://www.youtube.com/watch?v=qQmrTz6i2x4",
+        "https://www.youtube.com/watch?v=sMgbjxyrgqw",
+        "https://www.youtube.com/watch?v=x-mTRlE0TC4"
+      ],
+      "embed_ms": 1436.3,
+      "search_ms": 77.0
+    },
+    {
+      "id": "doctrine_soul_sync-080",
+      "query": "What is Soul Sync?",
+      "hit_at_10": true,
+      "hit_at_50": true,
+      "n_gold_sources": 8,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=VAMJEgwaPEc",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Q_CMuXKuvoU",
+        "https://www.youtube.com/watch?v=tAFtaCF5a30",
+        "https://www.youtube.com/watch?v=VAMJEgwaPEc",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=GQZ7A4fvts4",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c"
+      ],
+      "gold_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=7Pfat_DztMI",
+        "https://www.youtube.com/watch?v=GQZ7A4fvts4",
+        "https://www.youtube.com/watch?v=VAMJEgwaPEc",
+        "https://www.youtube.com/watch?v=XK2Wna2YG6Y",
+        "https://www.youtube.com/watch?v=beh0v5Odn6g",
+        "https://www.youtube.com/watch?v=o_eg6YTifRE",
+        "https://www.youtube.com/watch?v=x-mTRlE0TC4"
+      ],
+      "embed_ms": 1072.7,
+      "search_ms": 84.0
+    },
+    {
+      "id": "doctrine_soul_sync-082",
+      "query": "What is the second step of Soul Sync?",
+      "hit_at_10": false,
+      "hit_at_50": false,
+      "n_gold_sources": 2,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=VAMJEgwaPEc",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=Q_CMuXKuvoU",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c"
+      ],
+      "gold_sources": [
+        "https://www.youtube.com/watch?v=5qA5ibrq9NU",
+        "https://www.youtube.com/watch?v=QpmmGqGoo-8"
+      ],
+      "embed_ms": 1304.3,
+      "search_ms": 178.2
+    },
+    {
+      "id": "doctrine_soul_sync-086",
+      "query": "What is the purpose of the Humming step in Soul Sync?",
+      "hit_at_10": false,
+      "hit_at_50": false,
+      "n_gold_sources": 1,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=VAMJEgwaPEc",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=AK435vKMlo",
+        "https://www.youtube.com/watch?v=zO8tQkjCpyc",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Q_CMuXKuvoU",
+        "https://www.youtube.com/watch?v=VAMJEgwaPEc",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=XmkNwgkMC3U"
+      ],
+      "gold_sources": [
+        "https://www.youtube.com/watch?v=o_eg6YTifRE"
+      ],
+      "embed_ms": 2347.3,
+      "search_ms": 107.5
+    },
+    {
+      "id": "doctrine_soul_sync-087",
+      "query": "What do we visualize during the Golden Light step of Soul Sync?",
+      "hit_at_10": false,
+      "hit_at_50": false,
+      "n_gold_sources": 1,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=VAMJEgwaPEc",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Q_CMuXKuvoU",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=VAMJEgwaPEc",
+        "https://www.youtube.com/watch?v=tAFtaCF5a30",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=AK435vKMlo"
+      ],
+      "gold_sources": [
+        "https://www.youtube.com/watch?v=JRX5W9AhWoA"
+      ],
+      "embed_ms": 1700.0,
+      "search_ms": 91.4
+    },
+    {
+      "id": "doctrine_soul_sync-088",
+      "query": "What is the role of the Intention step in Soul Sync?",
+      "hit_at_10": true,
+      "hit_at_50": true,
+      "n_gold_sources": 32,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=VAMJEgwaPEc",
+        "https://www.youtube.com/watch?v=Q_CMuXKuvoU",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=VAMJEgwaPEc",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=AK435vKMlo",
+        "https://www.youtube.com/watch?v=1kS_mQaBLdg"
+      ],
+      "gold_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=1kS_mQaBLdg",
+        "https://www.youtube.com/watch?v=7Pfat_DztMI",
+        "https://www.youtube.com/watch?v=7lggUuJtZXY",
+        "https://www.youtube.com/watch?v=AviNwtN1luo",
+        "https://www.youtube.com/watch?v=AyUE-2Uh5Vg",
+        "https://www.youtube.com/watch?v=BkM7IcqUaj0",
+        "https://www.youtube.com/watch?v=I6yC-aUQUvw",
+        "https://www.youtube.com/watch?v=KTlY-lHs_Ew",
+        "https://www.youtube.com/watch?v=LrMyaDh_MSo"
+      ],
+      "embed_ms": 1067.9,
+      "search_ms": 50.5
+    },
+    {
+      "id": "doctrine_soul_sync-089",
+      "query": "What finger movement is used to count breaths in Soul Sync?",
+      "hit_at_10": true,
+      "hit_at_50": true,
+      "n_gold_sources": 4,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=VAMJEgwaPEc",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=zO8tQkjCpyc",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=zO8tQkjCpyc",
+        "https://www.youtube.com/watch?v=XmkNwgkMC3U",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=XmkNwgkMC3U"
+      ],
+      "gold_sources": [
+        "https://www.youtube.com/watch?v=5Tdb7hBwX88",
+        "https://www.youtube.com/watch?v=M_BYTcsLQuY",
+        "https://www.youtube.com/watch?v=utRatnFr-S8",
+        "https://www.youtube.com/watch?v=zO8tQkjCpyc"
+      ],
+      "embed_ms": 1108.7,
+      "search_ms": 138.9
+    },
+    {
+      "id": "doctrine_soul_sync-090",
+      "query": "Is Soul Sync a morning ritual?",
+      "hit_at_10": false,
+      "hit_at_50": true,
+      "n_gold_sources": 13,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=VAMJEgwaPEc",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Q_CMuXKuvoU",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=VAMJEgwaPEc",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=zGhlBQ8iWl4",
+        "https://www.youtube.com/watch?v=tAFtaCF5a30",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c"
+      ],
+      "gold_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=4LIZkNHlNaM",
+        "https://www.youtube.com/watch?v=7Pfat_DztMI",
+        "https://www.youtube.com/watch?v=E8N04l1Lptk",
+        "https://www.youtube.com/watch?v=HELtP96Dd4w",
+        "https://www.youtube.com/watch?v=KTlY-lHs_Ew",
+        "https://www.youtube.com/watch?v=UZHSssZflFQ",
+        "https://www.youtube.com/watch?v=VTx4G0KEuUE",
+        "https://www.youtube.com/watch?v=oXRZhJTHuOA",
+        "https://www.youtube.com/watch?v=pmSPHJfg3AU"
+      ],
+      "embed_ms": 1107.1,
+      "search_ms": 79.7
+    },
+    {
+      "id": "doctrine_soul_sync-092",
+      "query": "Does Soul Sync help manifest desires?",
+      "hit_at_10": true,
+      "hit_at_50": true,
+      "n_gold_sources": 59,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=UgQV_5FjPNk",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=VAMJEgwaPEc",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=nwQaU-agzFE",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Yf4Pld6UEdg",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c"
+      ],
+      "gold_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=-4wCvcPrX-E",
+        "https://www.youtube.com/watch?v=-yGLiryVQoQ",
+        "https://www.youtube.com/watch?v=1kS_mQaBLdg",
+        "https://www.youtube.com/watch?v=1nhXsnx5--Y",
+        "https://www.youtube.com/watch?v=3RyCldrCxL8",
+        "https://www.youtube.com/watch?v=7Pfat_DztMI",
+        "https://www.youtube.com/watch?v=7lggUuJtZXY",
+        "https://www.youtube.com/watch?v=9-NMv5E-18s",
+        "https://www.youtube.com/watch?v=ACvOem_B-Ek"
+      ],
+      "embed_ms": 1067.7,
+      "search_ms": 52.3
+    },
+    {
+      "id": "doctrine_soul_sync-093",
+      "query": "What is the third step of Soul Sync about?",
+      "hit_at_10": true,
+      "hit_at_50": true,
+      "n_gold_sources": 28,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Q_CMuXKuvoU",
+        "https://www.youtube.com/watch?v=VAMJEgwaPEc",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=VAMJEgwaPEc",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=AK435vKMlo"
+      ],
+      "gold_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=07NOYJmkkFo",
+        "https://www.youtube.com/watch?v=2z5qxSr4EaI",
+        "https://www.youtube.com/watch?v=7Pfat_DztMI",
+        "https://www.youtube.com/watch?v=EFJZ2l5Rc10",
+        "https://www.youtube.com/watch?v=Fbd7ln2i9dw",
+        "https://www.youtube.com/watch?v=I6yC-aUQUvw",
+        "https://www.youtube.com/watch?v=JRX5W9AhWoA",
+        "https://www.youtube.com/watch?v=Qr_pw4E-REk",
+        "https://www.youtube.com/watch?v=RkLY_uJL0xc"
+      ],
+      "embed_ms": 1439.5,
+      "search_ms": 160.9
+    },
+    {
+      "id": "doctrine_soul_sync-095",
+      "query": "Who created Soul Sync?",
+      "hit_at_10": false,
+      "hit_at_50": true,
+      "n_gold_sources": 3,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=VAMJEgwaPEc",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Q_CMuXKuvoU",
+        "https://www.youtube.com/watch?v=GQZ7A4fvts4",
+        "https://www.youtube.com/watch?v=tAFtaCF5a30",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=VAMJEgwaPEc",
+        "https://www.youtube.com/watch?v=AK435vKMlo",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c"
+      ],
+      "gold_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=UlOt31lBhLY",
+        "https://www.youtube.com/watch?v=w2qbJB6ie9Y"
+      ],
+      "embed_ms": 1113.3,
+      "search_ms": 68.5
+    },
+    {
+      "id": "doctrine_soul_sync-096",
+      "query": "Can I do Soul Sync while sitting in a chair?",
+      "hit_at_10": false,
+      "hit_at_50": true,
+      "n_gold_sources": 2,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=VAMJEgwaPEc",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=VAMJEgwaPEc",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Q_CMuXKuvoU",
+        "https://www.youtube.com/watch?v=tAFtaCF5a30",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c"
+      ],
+      "gold_sources": [
+        "https://www.youtube.com/watch?v=5Tdb7hBwX88",
+        "https://www.youtube.com/watch?v=7Pfat_DztMI"
+      ],
+      "embed_ms": 1176.4,
+      "search_ms": 96.0
+    },
+    {
+      "id": "doctrine_soul_sync-097",
+      "query": "Is humming part of Soul Sync?",
+      "hit_at_10": false,
+      "hit_at_50": false,
+      "n_gold_sources": 2,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=VAMJEgwaPEc",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=tAFtaCF5a30",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Q_CMuXKuvoU",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=zO8tQkjCpyc",
+        "https://www.youtube.com/watch?v=XmkNwgkMC3U",
+        "https://www.youtube.com/watch?v=VAMJEgwaPEc",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c"
+      ],
+      "gold_sources": [
+        "https://www.youtube.com/watch?v=5qA5ibrq9NU",
+        "https://www.youtube.com/watch?v=QpmmGqGoo-8"
+      ],
+      "embed_ms": 1312.8,
+      "search_ms": 161.3
+    },
+    {
+      "id": "doctrine_soul_sync-098",
+      "query": "How does Soul Sync shift brain states?",
+      "hit_at_10": false,
+      "hit_at_50": true,
+      "n_gold_sources": 1,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=VAMJEgwaPEc",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Q_CMuXKuvoU",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=y9iL10DPhzI",
+        "https://www.youtube.com/watch?v=VAMJEgwaPEc",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=VAMJEgwaPEc",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c"
+      ],
+      "gold_sources": [
+        "https://www.youtube.com/watch?v=x-mTRlE0TC4"
+      ],
+      "embed_ms": 1243.1,
+      "search_ms": 83.9
+    },
+    {
+      "id": "doctrine_ekam_architecture-107",
+      "query": "How does Ekam represent a Surya Yantra?",
+      "hit_at_10": true,
+      "hit_at_50": true,
+      "n_gold_sources": 2,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=sZXuNv0L8YA",
+        "https://www.youtube.com/watch?v=s-In3a1CAoI",
+        "https://www.youtube.com/watch?v=AK435vKMlo",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=x-mTRlE0TC4",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=AR0r8B6Ga8E"
+      ],
+      "gold_sources": [
+        "https://www.youtube.com/watch?v=MX7tos4L1jQ",
+        "https://www.youtube.com/watch?v=sZXuNv0L8YA"
+      ],
+      "embed_ms": 1081.1,
+      "search_ms": 51.6
+    },
+    {
+      "id": "doctrine_ekam_architecture-110",
+      "query": "What is the Ekam World Peace Festival?",
+      "hit_at_10": false,
+      "hit_at_50": true,
+      "n_gold_sources": 7,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=x-mTRlE0TC4",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=AK435vKMlo",
+        "https://www.youtube.com/watch?v=vhLVeSDWB5M",
+        "https://www.youtube.com/watch?v=OZiElH5pKmo",
+        "https://www.youtube.com/watch?v=_fi53IYfitg"
+      ],
+      "gold_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=HtmLQkxj8ec",
+        "https://www.youtube.com/watch?v=JRX5W9AhWoA",
+        "https://www.youtube.com/watch?v=j66VV2XKBJk",
+        "https://www.youtube.com/watch?v=rRs__D_3mKY",
+        "https://www.youtube.com/watch?v=rXkyO0fOOLE",
+        "https://www.youtube.com/watch?v=vARTudIEq30"
+      ],
+      "embed_ms": 1074.7,
+      "search_ms": 60.3
+    },
+    {
+      "id": "doctrine_ekam_architecture-111",
+      "query": "What is the theme of Day 1 of the Ekam World Peace Festival?",
+      "hit_at_10": false,
+      "hit_at_50": false,
+      "n_gold_sources": 2,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=x-mTRlE0TC4",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=AK435vKMlo",
+        "https://www.youtube.com/watch?v=x-mTRlE0TC4",
+        "https://www.youtube.com/watch?v=x-mTRlE0TC4",
+        "https://www.youtube.com/watch?v=x-mTRlE0TC4"
+      ],
+      "gold_sources": [
+        "https://www.youtube.com/watch?v=5daxvIoDLVU",
+        "https://www.youtube.com/watch?v=tLNsDEp-JcA"
+      ],
+      "embed_ms": 1108.4,
+      "search_ms": 61.2
+    },
+    {
+      "id": "doctrine_ekam_architecture-112",
+      "query": "What is the theme of Day 2 of the Ekam World Peace Festival?",
+      "hit_at_10": false,
+      "hit_at_50": false,
+      "n_gold_sources": 2,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=x-mTRlE0TC4",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=AK435vKMlo",
+        "https://www.youtube.com/watch?v=BkM7IcqUaj0",
+        "https://www.youtube.com/watch?v=x-mTRlE0TC4",
+        "https://www.youtube.com/watch?v=BkM7IcqUaj0"
+      ],
+      "gold_sources": [
+        "https://www.youtube.com/watch?v=5daxvIoDLVU",
+        "https://www.youtube.com/watch?v=tLNsDEp-JcA"
+      ],
+      "embed_ms": 1178.9,
+      "search_ms": 127.4
+    },
+    {
+      "id": "doctrine_ekam_architecture-113",
+      "query": "What is the theme of Day 3 of the Ekam World Peace Festival?",
+      "hit_at_10": false,
+      "hit_at_50": false,
+      "n_gold_sources": 2,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=AK435vKMlo",
+        "https://www.youtube.com/watch?v=x-mTRlE0TC4",
+        "https://www.youtube.com/watch?v=vy09aBxslx0",
+        "https://www.youtube.com/watch?v=x-mTRlE0TC4",
+        "https://www.youtube.com/watch?v=x-mTRlE0TC4"
+      ],
+      "gold_sources": [
+        "https://www.youtube.com/watch?v=5daxvIoDLVU",
+        "https://www.youtube.com/watch?v=tLNsDEp-JcA"
+      ],
+      "embed_ms": 1199.6,
+      "search_ms": 44.5
+    },
+    {
+      "id": "doctrine_ekam_architecture-114",
+      "query": "What is the theme of Day 4 of the Ekam World Peace Festival?",
+      "hit_at_10": false,
+      "hit_at_50": false,
+      "n_gold_sources": 2,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=AK435vKMlo",
+        "https://www.youtube.com/watch?v=x-mTRlE0TC4",
+        "https://www.youtube.com/watch?v=x-mTRlE0TC4",
+        "https://www.youtube.com/watch?v=x-mTRlE0TC4",
+        "https://www.youtube.com/watch?v=x-mTRlE0TC4"
+      ],
+      "gold_sources": [
+        "https://www.youtube.com/watch?v=5daxvIoDLVU",
+        "https://www.youtube.com/watch?v=tLNsDEp-JcA"
+      ],
+      "embed_ms": 1220.5,
+      "search_ms": 87.6
+    },
+    {
+      "id": "doctrine_ekam_architecture-115",
+      "query": "What is the theme of Day 5 of the Ekam World Peace Festival?",
+      "hit_at_10": false,
+      "hit_at_50": false,
+      "n_gold_sources": 2,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=HCs6I_BNtxo",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=AK435vKMlo",
+        "https://www.youtube.com/watch?v=x-mTRlE0TC4",
+        "https://www.youtube.com/watch?v=x-mTRlE0TC4",
+        "https://www.youtube.com/watch?v=x-mTRlE0TC4"
+      ],
+      "gold_sources": [
+        "https://www.youtube.com/watch?v=5daxvIoDLVU",
+        "https://www.youtube.com/watch?v=tLNsDEp-JcA"
+      ],
+      "embed_ms": 1201.8,
+      "search_ms": 87.1
+    },
+    {
+      "id": "doctrine_ekam_architecture-116",
+      "query": "What is the theme of Day 6 of the Ekam World Peace Festival?",
+      "hit_at_10": false,
+      "hit_at_50": false,
+      "n_gold_sources": 1,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=x-mTRlE0TC4",
+        "https://www.youtube.com/watch?v=AK435vKMlo",
+        "https://www.youtube.com/watch?v=x-mTRlE0TC4",
+        "https://www.youtube.com/watch?v=x-mTRlE0TC4",
+        "https://www.youtube.com/watch?v=x-mTRlE0TC4"
+      ],
+      "gold_sources": [
+        "https://www.youtube.com/watch?v=5daxvIoDLVU"
+      ],
+      "embed_ms": 1100.4,
+      "search_ms": 45.8
+    },
+    {
+      "id": "doctrine_ekam_architecture-117",
+      "query": "What is the theme of Day 7 of the Ekam World Peace Festival?",
+      "hit_at_10": false,
+      "hit_at_50": false,
+      "n_gold_sources": 2,
+      "top_sources": [
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=x-mTRlE0TC4",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=Rusm0REkN8c",
+        "https://www.youtube.com/watch?v=AK435vKMlo",
+        "https://www.youtube.com/watch?v=x-mTRlE0TC4",
+        "https://www.youtube.com/watch?v=VTx4G0KEuUE",
+        "https://www.youtube.com/watch?v=x-mTRlE0TC4"
+      ],
+      "gold_sources": [
+        "https://www.youtube.com/watch?v=5daxvIoDLVU",
+        "https://www.youtube.com/watch?v=tLNsDEp-JcA"
+      ],
+      "embed_ms": 1235.1,
+      "search_ms": 68.1
+    }
+  ]
+}
