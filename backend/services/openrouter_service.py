@@ -14,7 +14,7 @@ import logging
 import re
 import time
 from collections.abc import AsyncIterator, Mapping
-from typing import Any, Optional
+from typing import Any, ClassVar, Optional
 
 import httpx
 from anyio import Lock as AsyncLock
@@ -76,6 +76,19 @@ _OPENROUTER_FALLBACK_RATES_PER_MILLION: dict[str, tuple[float, float]] = {
 class OpenRouterService:
     """Gateway to all LLM operations via OpenRouter Cloud API."""
 
+    # Rate-limit state is intentionally CLASS-level (shared by every
+    # instance), not instance-level. Ingestion creates one fresh
+    # OpenRouterService per component -- quality-gate scoring, contextual
+    # chunking, LightRAG, OKF extraction -- ~53 instances in a single run.
+    # With instance-level state each one enforced settings.openrouter_rpm_limit
+    # independently, so real aggregate traffic to the OpenRouter API ran far
+    # above the configured limit and tripped the circuit breaker within
+    # minutes even at a "safe" RPM value (live-confirmed 2026-08-27). One
+    # shared counter enforces the real process-wide limit.
+    _shared_rpm_lock: ClassVar[Optional[AsyncLock]] = None
+    _shared_request_count: ClassVar[int] = 0
+    _shared_window_start: ClassVar[float] = 0.0
+
     def __init__(self) -> None:
         self._policy = OpenRouterModelPolicy.from_settings(settings)
         self._budget_guard = OpenRouterBudgetGuard.from_settings(settings, self._policy)
@@ -100,10 +113,12 @@ class OpenRouterService:
             CircuitBreakerProvider.OPENROUTER.value, self._circuit
         )
 
-        # Rate limiting state
-        self._rpm_lock = AsyncLock()
-        self._request_count = 0
-        self._window_start = time.time()
+        # Rate limiting state -- shared across all instances, see the
+        # class-level docstring above. Lazily create the shared lock once;
+        # every subsequent instance reuses it instead of getting its own.
+        if OpenRouterService._shared_rpm_lock is None:
+            OpenRouterService._shared_rpm_lock = AsyncLock()
+            OpenRouterService._shared_window_start = time.time()
 
         # Connection pooling: AsyncClient
         self._http_client: Optional[httpx.AsyncClient] = None
@@ -146,28 +161,43 @@ class OpenRouterService:
                 logger.info("OpenRouter HTTP client closed")
 
     async def _enforce_rate_limit(self) -> None:
-        """Enforce RPM limits before querying OpenRouter API."""
+        """Enforce RPM limits before querying OpenRouter API.
+
+        Uses the CLASS-level shared counter (see class docstring) so the
+        limit is enforced against real aggregate traffic across every
+        OpenRouterService instance in this process, not per-instance.
+        """
         now = time.time()
-        async with self._rpm_lock:
-            if now - self._window_start >= 60:
-                self._window_start = now
-                self._request_count = 0
-            if self._request_count >= self._rpm_limit:
-                delay = 60.0 - (now - self._window_start)
+        async with OpenRouterService._shared_rpm_lock:
+            if now - OpenRouterService._shared_window_start >= 60:
+                OpenRouterService._shared_window_start = now
+                OpenRouterService._shared_request_count = 0
+            if OpenRouterService._shared_request_count >= self._rpm_limit:
+                delay = 60.0 - (now - OpenRouterService._shared_window_start)
                 if delay > 0:
                     logger.warning(f"OpenRouter rate limit hit — sleeping {delay:.1f}s")
                     await asyncio.sleep(delay)
-                    self._window_start = time.time()
-                    self._request_count = 0
-            self._request_count += 1
+                    OpenRouterService._shared_window_start = time.time()
+                    OpenRouterService._shared_request_count = 0
+            OpenRouterService._shared_request_count += 1
 
     async def _record_rate_limit_response(self) -> None:
         """Adjust rate limiter after receiving a 429 response."""
         now = time.time()
-        async with self._rpm_lock:
-            self._request_count = self._rpm_limit
-            delay = 60.0 - (now - self._window_start)
+        async with OpenRouterService._shared_rpm_lock:
+            OpenRouterService._shared_request_count = self._rpm_limit
+            delay = 60.0 - (now - OpenRouterService._shared_window_start)
             logger.warning(f"OpenRouter returned 429 — rate limiter exhausted for {delay:.1f}s")
+
+    @classmethod
+    def reset_shared_rate_limiter(cls) -> None:
+        """Reset the process-wide rate-limit counter. Test-isolation hook:
+        since the state is class-level (see class docstring), it otherwise
+        accumulates across every instance and every test in one pytest run.
+        """
+        cls._shared_rpm_lock = None
+        cls._shared_request_count = 0
+        cls._shared_window_start = 0.0
 
     async def _graceful_degradation(self, messages: list[dict], operation: str = "fallback") -> str:
         """Return a graceful fallback response when OpenRouter is unavailable.

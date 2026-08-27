@@ -125,6 +125,7 @@ class SemanticCacheAdapter(ICacheRepository):
             tenant_id=TenantContext.get() or "default", corpus_id=settings.default_corpus_id
         )
 
+    @staticmethod
     def _redis_key(scope: CorpusScope, point_id: str) -> str:
         teacher = scope.teacher_id or "all"
         return f"mukthiguru:semcache:{scope.tenant_id}:{scope.corpus_id}:{teacher}:{point_id}"

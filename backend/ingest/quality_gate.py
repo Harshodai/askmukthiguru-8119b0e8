@@ -416,37 +416,86 @@ Respond ONLY with valid JSON, no markdown:
 }"""
 
 
+
+# openrouter_service.py:_graceful_degradation and nim_service.py's mirrored
+# fallback both emit one of exactly these two fixed strings when the circuit
+# breaker is open or a call is exhausted-retry, with no metadata crossing the
+# call boundary to distinguish that from a genuine LLM answer. Without this
+# check, LLMQualityScorer treats every degraded response as a permanent
+# "not valid JSON" quality failure and quarantines otherwise-good content —
+# observed live: 370 of 428 ingestion rejections in one run traced to exactly
+# this (2026-08-27).
+_DEGRADED_FALLBACK_PREFIXES = (
+    "I'm currently experiencing a temporary connectivity issue with my knowledge base.",
+    "I'm here and listening. However, I'm experiencing a temporary connection issue",
+)
+
+
+def _is_degraded_fallback(raw: str) -> bool:
+    """True if `raw` is a canned provider-degradation string, not a real answer."""
+    stripped = raw.strip()
+    return any(stripped.startswith(prefix) for prefix in _DEGRADED_FALLBACK_PREFIXES)
+
+
 class LLMQualityScorer:
     """LLM-powered quality scoring with structured JSON output."""
 
     def __init__(self, llm_service: Any):
         self._llm = llm_service
         self._timeout = 30  # seconds per LLM call
+        self._max_attempts = 3  # bounded retry on provider degradation only
 
     async def score(self, text: str, source_url: str = "") -> tuple[int, list[str]]:
         """
         Returns (score 0-100, reasons).
         Samples 3 strategic positions (start, middle, end) to avoid blowing context.
+        Retries (with backoff) when the provider returns a degraded-fallback
+        string instead of a real answer -- circuit breakers self-recover on a
+        timer, so a transient open state should not permanently quarantine
+        genuinely good content.
         """
         sample = self._sample_text(text, sample_size=800, positions=3)
         prompt = f"Text to evaluate (sampled from: {source_url or 'unknown'}):\n---\n{sample}\n---"
 
-        try:
-            raw = await asyncio.wait_for(
-                self._llm.generate(
-                    system_prompt=QUALITY_PROMPT,
-                    user_prompt=prompt,
-                    temperature=0.0,
-                ),
-                timeout=self._timeout,
-            )
+        for attempt in range(1, self._max_attempts + 1):
+            try:
+                raw = await asyncio.wait_for(
+                    self._llm.generate(
+                        system_prompt=QUALITY_PROMPT,
+                        user_prompt=prompt,
+                        temperature=0.0,
+                    ),
+                    timeout=self._timeout,
+                )
+            except TimeoutError:
+                logger.warning("LLM quality score timed out — quarantining as UNKNOWN")
+                return 0, ["QUALITY_UNKNOWN: LLM timeout; manual review required"]
+            except Exception as e:
+                logger.warning("LLM quality scoring failed — quarantining as UNKNOWN: %s", e)
+                return 0, [f"QUALITY_UNKNOWN: LLM scoring unavailable: {e}"]
+
+            if _is_degraded_fallback(raw):
+                if attempt < self._max_attempts:
+                    logger.warning(
+                        "LLM quality scorer got a degraded-provider fallback "
+                        "(circuit breaker likely open) — retrying (%d/%d)",
+                        attempt,
+                        self._max_attempts,
+                    )
+                    await asyncio.sleep(2.0 * attempt)
+                    continue
+                logger.warning(
+                    "LLM quality scorer still degraded after %d attempts — "
+                    "quarantining as UNKNOWN",
+                    self._max_attempts,
+                )
+                return 0, [
+                    "QUALITY_UNKNOWN: provider degraded (circuit breaker open) after retries"
+                ]
+
             return self._parse_json_response(raw)
-        except TimeoutError:
-            logger.warning("LLM quality score timed out — quarantining as UNKNOWN")
-            return 0, ["QUALITY_UNKNOWN: LLM timeout; manual review required"]
-        except Exception as e:
-            logger.warning("LLM quality scoring failed — quarantining as UNKNOWN: %s", e)
-            return 0, [f"QUALITY_UNKNOWN: LLM scoring unavailable: {e}"]
+
+        return 0, ["QUALITY_UNKNOWN: exhausted retries"]  # unreachable
 
     def _parse_json_response(self, raw: str) -> tuple[int, list[str]]:
         import json

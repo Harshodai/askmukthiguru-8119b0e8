@@ -283,6 +283,85 @@ def test_llm_quality_malformed_json_is_explicit_unknown():
 
 
 @pytest.mark.asyncio
+async def test_llm_quality_scorer_retries_past_transient_provider_degradation():
+    """Regression: a circuit-breaker-open fallback string from openrouter_service
+    or nim_service used to be fed straight to the JSON parser and permanently
+    quarantined as QUALITY_UNKNOWN -- observed live to cause 370 of 428
+    ingestion rejections in one run when the breaker tripped mid-run (2026-08-27).
+    A transient degradation should be retried, not treated as a permanent
+    parse failure, since circuit breakers self-recover on a timer.
+    """
+    from ingest.quality_gate import LLMQualityScorer
+
+    calls = {"n": 0}
+
+    class RecoveringLLM:
+        async def generate(self, **kwargs):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                return (
+                    "I'm here and listening. However, I'm experiencing a temporary "
+                    "connection issue with my backend services. Please try again shortly."
+                )
+            return '{"score": 85, "verdict": "PASS", "is_spiritual": true, "coherence": "high", "reasons": []}'
+
+    scorer = LLMQualityScorer(RecoveringLLM())
+    scorer._max_attempts = 3
+    import ingest.quality_gate as qg
+
+    async def no_sleep(_seconds):
+        return None
+
+    original_sleep = qg.asyncio.sleep
+    qg.asyncio.sleep = no_sleep
+    try:
+        score, reasons = await scorer.score(
+            "A sufficiently long spiritual teaching about consciousness and presence."
+        )
+    finally:
+        qg.asyncio.sleep = original_sleep
+
+    assert calls["n"] == 2, "should have retried once after the degraded response"
+    assert score == 85
+    assert reasons == []
+
+
+@pytest.mark.asyncio
+async def test_llm_quality_scorer_quarantines_after_persistent_degradation():
+    """If the provider stays degraded across every retry, quarantine as
+    UNKNOWN with a distinct reason -- must not silently pass, and must not
+    be confused with a genuine malformed-JSON response.
+    """
+    from ingest.quality_gate import LLMQualityScorer
+
+    class AlwaysDegradedLLM:
+        async def generate(self, **kwargs):
+            return (
+                "I'm currently experiencing a temporary connectivity issue with my "
+                "knowledge base. Please try your question again in a few moments. "
+                "I'll be happy to help you once I'm fully connected."
+            )
+
+    scorer = LLMQualityScorer(AlwaysDegradedLLM())
+    import ingest.quality_gate as qg
+
+    async def no_sleep(_seconds):
+        return None
+
+    original_sleep = qg.asyncio.sleep
+    qg.asyncio.sleep = no_sleep
+    try:
+        score, reasons = await scorer.score(
+            "A sufficiently long spiritual teaching about consciousness and presence."
+        )
+    finally:
+        qg.asyncio.sleep = original_sleep
+
+    assert score == 0
+    assert any("degraded" in reason.lower() for reason in reasons)
+
+
+@pytest.mark.asyncio
 async def test_cove_thresholds_and_verdicts(monkeypatch):
     from rag.nodes.verification import _cove_subquestion_check
 

@@ -85,6 +85,32 @@ class FakeResponse429:
 
 
 @pytest.mark.asyncio
+async def test_openrouter_rate_limit_is_shared_across_instances(monkeypatch):
+    """Regression: OpenRouterService used to enforce settings.openrouter_rpm_limit
+    per INSTANCE, not process-wide. Ingestion creates ~53 separate instances
+    (quality-gate scoring, contextual chunking, LightRAG, OKF extraction), so
+    each capped itself at the configured RPM independently while real aggregate
+    traffic to OpenRouter ran far above it -- live-confirmed to trip the
+    circuit breaker within minutes even at a "safe" RPM value (2026-08-27).
+    Two separate instances must now draw from one shared counter.
+    """
+    OpenRouterService.reset_shared_rate_limiter()
+    monkeypatch.setattr(settings, "openrouter_rpm_limit", 2)
+
+    service_a = OpenRouterService()
+    service_b = OpenRouterService()
+
+    await service_a._enforce_rate_limit()
+    await service_b._enforce_rate_limit()
+
+    assert OpenRouterService._shared_request_count == 2
+    # Same lock object shared across instances, not one each.
+    assert service_a._shared_rpm_lock is service_b._shared_rpm_lock
+
+    OpenRouterService.reset_shared_rate_limiter()
+
+
+@pytest.mark.asyncio
 async def test_openrouter_429_does_not_retry_same_model(monkeypatch):
     """A 429 must fail fast to graceful degradation, not burn retries against the
     same exhausted quota (that quota won't refill within a few seconds of backoff)."""

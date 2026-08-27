@@ -188,6 +188,14 @@ def _reset_rate_limiters():
             _limiter.reset_fallback()
         elif hasattr(_limiter, "reset"):
             _limiter.reset()
+
+    # OpenRouterService's RPM counter is CLASS-level (shared across every
+    # instance, on purpose -- see services/openrouter_service.py's class
+    # docstring), so it also accumulates across every test in the same
+    # pytest process unless reset here.
+    from services.openrouter_service import OpenRouterService
+
+    OpenRouterService.reset_shared_rate_limiter()
     yield
 
 

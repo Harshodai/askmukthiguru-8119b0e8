@@ -63,6 +63,25 @@ class TestSemanticCacheSchema:
 
             _ = QdrantSemanticCache
 
+    def test_redis_key_is_callable_on_an_instance(self) -> None:
+        """Regression: ``_redis_key`` was defined without ``@staticmethod`` but
+        called as ``self._redis_key(scope, point_id)`` — Python binds ``self``
+        into the first positional slot, so every real call (get/put/invalidate)
+        raised ``TypeError: _redis_key() takes 2 positional arguments but 3
+        were given`` and the semantic cache never actually cached anything.
+        Signature inspection alone (see the other tests in this file) cannot
+        catch this class of bug: it only fires on an actual bound call.
+        """
+        from services.cache.semantic_adapter import SemanticCacheAdapter
+        from rag.corpus_scope import CorpusScope
+
+        scope = CorpusScope(tenant_id="t1", corpus_id="c1")
+        instance = SemanticCacheAdapter.__new__(SemanticCacheAdapter)
+
+        key = instance._redis_key(scope, "point-1")
+
+        assert key == "mukthiguru:semcache:t1:c1:all:point-1"
+
     def test_legacy_service_still_importable(self) -> None:
         from services.semantic_cache import SemanticCacheService
 
