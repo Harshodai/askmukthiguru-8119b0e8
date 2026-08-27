@@ -207,9 +207,11 @@ services:
       - NEO4J_USER=neo4j
       - NEO4J_PASSWORD=${NEO4J_PASSWORD:?NEO4J_PASSWORD must be set}
       # Embedding models (downloaded on first run)
-      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-intfloat/multilingual-e5-small}
-      - EMBEDDING_DIMENSION=${EMBEDDING_DIMENSION:-384}
-      - RERANKER_MODEL=BAAI/bge-reranker-v2-m3
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-BAAI/bge-m3}
+      - EMBEDDING_DIMENSION=${EMBEDDING_DIMENSION:-1024}
+      - EMBEDDING_BACKEND=${EMBEDDING_BACKEND:-onnx_int8}
+      - RERANKER_BACKEND=${RERANKER_BACKEND:-onnx_int8}
+      - RERANKER_MODEL=cross-encoder/ms-marco-MiniLM-L-6-v2
       # Model cache on overlay filesystem (NOT on hf_model_cache volume)
       # to avoid Docker Desktop gRPC-FUSE mmap failures on large .safetensors files.
       - HF_HOME=/app/model_cache/huggingface
@@ -591,15 +593,15 @@ services:
       KONG_DECLARATIVE_CONFIG: /var/lib/kong/kong.yml
       KONG_DNS_ORDER: LAST,A,CNAME
       KONG_PLUGINS: request-transformer,cors,key-auth,acl,basic-auth
-      KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 160k
-      KONG_NGINX_PROXY_PROXY_BUFFERS: 64 160k
+      KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 16k
+      KONG_NGINX_PROXY_PROXY_BUFFERS: 8 16k
     volumes:
       - ./supabase/kong.yml:/var/lib/kong/kong.yml:ro
     deploy:
       resources:
         limits:
-          memory: 256M
-          cpus: '0.25'
+          memory: 384M
+          cpus: '0.5'
 
 volumes:
   gptcache_data:
