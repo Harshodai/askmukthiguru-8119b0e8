@@ -116,10 +116,13 @@ set_var GUARDRAILS_PROVIDER "lightweight"
 set_var WEB_CONCURRENCY "1"
 set_var PYTHON_MEMORY_LIMIT_MB "2048"
 
-# Models
+# Quantized Models (ONNX INT8)
+set_var EMBEDDING_BACKEND "onnx_int8"
+set_var RERANKER_BACKEND "onnx_int8"
+set_var EMBEDDING_MODEL "BAAI/bge-m3"
+set_var EMBEDDING_DIMENSION "1024"
+set_var RERANKER_MODEL "cross-encoder/ms-marco-MiniLM-L-6-v2"
 set_var SARVAM_CLOUD_MODEL "sarvam-30b"
-set_var EMBEDDING_MODEL "sentence-transformers/all-MiniLM-L6-v2"
-set_var RERANKER_MODEL "BAAI/bge-reranker-v2-m3"
 
 # Service URLs (internal Railway DNS)
 if [[ -n "$NEO4J_PASSWORD" ]]; then

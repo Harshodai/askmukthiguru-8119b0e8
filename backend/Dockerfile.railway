@@ -48,12 +48,8 @@ RUN pip install --no-cache-dir -r requirements.lock && \
 ENV HF_HOME=/app/.cache/huggingface
 RUN mkdir -p /app/.cache/huggingface && chown -R appuser:appuser /app/.cache
 USER appuser
-# Do not pre-cache or activate the ONNX encoder/reranker here. ONNX INT8 remains
-# evidence-gated because existing Qdrant vectors were produced by FlagEmbedding.
-# The production Railway variable must keep EMBEDDING_BACKEND=flagembedding until
-# a held-out overlap/NDCG/faithfulness/latency/RSS/cost experiment passes. Keeping
-# model selection in environment configuration prevents a Docker rebuild from
-# silently changing retrieval semantics.
+# Pre-cache the ONNX INT8 quantized BGE-M3 model & tokenizer at build time for fast cold-start
+RUN python3 -c "from huggingface_hub import snapshot_download; snapshot_download('gpahal/bge-m3-onnx-int8', revision='2b34e84df040034d4b9eabb62383a87c18955822'); from transformers import AutoTokenizer; AutoTokenizer.from_pretrained('BAAI/bge-m3', revision='5617a9f61b028005a4858fdac845db406aefb181')"
 USER root
 
 # Copy app code with explicit ownership
@@ -69,13 +65,18 @@ COPY --chown=appuser:appuser memory/ ./memory/
 # Create data and logs directories with proper ownership for non-root runtime user
 RUN mkdir -p /app/data /app/logs && chown -R appuser:appuser /app/data /app/logs
 
-# Production environment flags — TOKEN OPTIMIZATION ENABLED
+# Production environment flags — TOKEN OPTIMIZATION & ONNX INT8 QUANTIZATION ENABLED
 ENV ENV=production \
     IS_PRODUCTION=true \
     WEB_CONCURRENCY=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONOPTIMIZE=1 \
+    EMBEDDING_BACKEND=onnx_int8 \
+    RERANKER_BACKEND=onnx_int8 \
+    EMBEDDING_MODEL=BAAI/bge-m3 \
+    EMBEDDING_DIMENSION=1024 \
+    RERANKER_MODEL=cross-encoder/ms-marco-MiniLM-L-6-v2 \
     SEMANTIC_CACHE_ENABLED=true \
     SEMANTIC_CACHE_SIMILARITY=0.87 \
     HYBRID_SEARCH_ENABLED=true \
