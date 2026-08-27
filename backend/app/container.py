@@ -149,14 +149,9 @@ class ServiceContainer:
         self.anon_quota_service = AnonQuotaService(redis_url=getattr(settings, "redis_url", None))
 
         # Initialize Supabase client early for dynamic settings loading
-        from supabase import create_client
+        from app.telemetry_db import _get_client as get_supa_client
 
-        self.supabase_client = None
-        if settings.supabase_url and settings.supabase_key:
-            try:
-                self.supabase_client = create_client(settings.supabase_url, settings.supabase_key)
-            except Exception as e:
-                logger.error(f"Failed to initialize Supabase client early: {e}")
+        self.supabase_client = get_supa_client()
 
     def _build_vector_services(self) -> None:
         """Layer 2: Embedding, semantic-router, and Guru Brain vector/KG services."""

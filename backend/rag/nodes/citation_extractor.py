@@ -11,6 +11,7 @@ import logging
 import re
 from typing import Optional
 
+from rag.nodes.utils import log_metrics
 from rag.states import GraphState
 
 logger = logging.getLogger(__name__)
@@ -44,6 +45,7 @@ def _is_youtube_url(source: str) -> bool:
     return "youtube.com" in source.lower() or "youtu.be" in source.lower()
 
 
+@log_metrics
 def extract_citations(state: GraphState) -> dict:
     """Map answer sentences to best-matching retrieved documents."""
     answer: str = state.get("answer") or state.get("final_answer") or ""  # type: ignore
@@ -66,48 +68,49 @@ def extract_citations(state: GraphState) -> dict:
         best_score = 0.0
         for doc in docs:
             text = doc.get("text", "")
-            score = _jaccard(sent, text[:500])
+            score = _jaccard(sent, text)
             if score > best_score:
                 best_score = score
                 best_doc = doc
         if best_doc and best_score > 0.15:
             meta = best_doc.get("metadata", {}) or {}
-            title = meta.get("title", "")
 
-            # Select first candidate that is a valid HTTP(S) URL
+            # Extract valid HTTP(S) URL checking both top-level and metadata
             url = ""
-            for cand in (meta.get("source_url"), meta.get("url"), meta.get("source")):
+            for cand in (
+                best_doc.get("source_url"),
+                best_doc.get("url"),
+                meta.get("source_url"),
+                meta.get("url"),
+                best_doc.get("source"),
+                meta.get("source"),
+            ):
                 if cand and str(cand).startswith(("http://", "https://")):
                     url = str(cand)
                     break
 
-            source_for_yt = url or meta.get("source", "")
+            # Extract clean title from document or metadata
+            title = str(
+                best_doc.get("title")
+                or meta.get("title")
+                or best_doc.get("topic")
+                or meta.get("topic")
+                or ""
+            ).strip()
 
-            # Skip citations from YouTube videos with video ID as title (metadata extraction failed)
-            if _is_youtube_url(source_for_yt) and _is_youtube_video_id_title(title):
-                logger.debug(
-                    f"Skipping citation from YouTube video with ID-only title: {title}",
-                    extra={"request_id": state.get("request_id")},
-                )
-                continue
-
-            # For YouTube videos, also verify title relevance to answer
-            # to avoid citing videos that only match on incidental word overlap
-            if _is_youtube_url(source_for_yt) and title:
-                title_relevance = _jaccard(sent, title)
-                if title_relevance < 0.05:
-                    logger.debug(
-                        f"Skipping YouTube citation - title '{title}' not relevant to answer (score: {title_relevance:.3f})",
-                        extra={"request_id": state.get("request_id")},
-                    )
-                    continue
-
-            doc_identifier = url or meta.get("title") or meta.get("source", "unknown")
+            doc_identifier = (
+                url
+                or meta.get("source")
+                or best_doc.get("source")
+                or title
+                or "Spiritual Discourse"
+            )
 
             citations.append(
                 {
                     "doc_id": doc_identifier,
                     "source_url": url,
+                    "url": url,
                     "title": title or meta.get("source", "Spiritual Teaching"),
                     "quote": sent,
                     "span_in_answer": sent,

@@ -197,7 +197,7 @@ services:
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
       # Qdrant runs as a sibling container
       - QDRANT_URL=http://qdrant:6333
-      - QDRANT_COLLECTION=${QDRANT_COLLECTION:-spiritual_wisdom}
+      - QDRANT_COLLECTION=${QDRANT_COLLECTION:-spiritual_wisdom_contextual}
       - QDRANT_LOCAL_PATH=
       # Supabase
       - SUPABASE_URL=${SUPABASE_URL:-http://host.docker.internal:54321}
@@ -281,6 +281,8 @@ services:
       - ./.model_cache:/app/model_cache
       # Persist SQLite telemetry database
       - telemetry_data:/app/data
+      # Persist compliance and audit logs
+      - logs_data:/app/logs
       # Mount backend code and scripts for live-reloading/direct execution
       - ./app:/app/app
       - ./rag:/app/rag
@@ -615,6 +617,8 @@ volumes:
   hf_model_cache:
     driver: local
   telemetry_data:
+    driver: local
+  logs_data:
     driver: local
   prometheus_data:
     driver: local

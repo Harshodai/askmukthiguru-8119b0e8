@@ -532,6 +532,17 @@ async def lifespan(app: FastAPI):
         "Lifespan: release manifest validated (release_id=%s)", get_release_manifest().release_id
     )
 
+    # Safety assertion: semantic cache similarity floor must not drop below 0.92 in production
+    cache_similarity = getattr(settings, "semantic_cache_similarity", 0.92)
+    if cache_similarity < 0.92:
+        msg = (
+            f"semantic_cache_similarity={cache_similarity} is below the 0.92 correctness floor. "
+            "Below 0.92 dissimilar queries false-hit and serve incorrect answers."
+        )
+        logger.error("Startup safety assertion failed: %s", msg)
+        if os.environ.get("ENVIRONMENT") != "test":
+            raise RuntimeError(msg)
+
     # Register a global shutdown_scheduler noop so cleanup always works
     def shutdown_scheduler():
         return None

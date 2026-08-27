@@ -578,6 +578,7 @@ def _adaptive_parent_excerpt(query: str, parent_text: str, max_chars: int = 1500
 
 
 @trace_rag_node("navigate_and_hyde")
+@log_metrics
 async def navigate_and_hyde(state: GraphState, config: dict = None) -> dict:
     """Run ``navigate_knowledge_tree`` and ``generate_hyde`` in parallel.
 

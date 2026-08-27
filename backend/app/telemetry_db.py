@@ -97,12 +97,27 @@ def _quality_snapshot(response_rows: list[dict[str, Any]], feedback_rows: list[d
     }
 
 
-def _get_client() -> Client:
-    """Initialize Supabase client."""
+from supabase.client import ClientOptions
+
+_cached_supabase_client: Optional[Client] = None
+
+
+def _get_client() -> Optional[Client]:
+    """Initialize Supabase client with a fast 4s timeout and singleton caching."""
+    global _cached_supabase_client
+    if _cached_supabase_client is not None:
+        return _cached_supabase_client
+
     if not settings.supabase_key:
         logger.warning("SUPABASE_KEY is not set. Telemetry will be disabled.")
         return None
-    return create_client(settings.supabase_url, settings.supabase_key)
+    try:
+        opts = ClientOptions(postgrest_client_timeout=4, storage_client_timeout=4)
+        _cached_supabase_client = create_client(settings.supabase_url, settings.supabase_key, options=opts)
+        return _cached_supabase_client
+    except Exception as e:
+        logger.warning("Failed to initialize Supabase client: %s", e)
+        return None
 
 
 async def init_telemetry_db():
@@ -171,11 +186,14 @@ async def log_router_decision(
     }
 
     try:
-        client.table("router_decisions").insert(decision_payload).execute()
+        def _sync_insert():
+            client.table("router_decisions").insert(decision_payload).execute()
+
+        await asyncio.wait_for(asyncio.to_thread(_sync_insert), timeout=2.0)
         logger.debug(f"Logged router decision {trace_id} to telemetry")
         return trace_id
     except Exception as e:
-        logger.warning(f"Failed to log router decision to telemetry: {e}")
+        logger.debug(f"Failed to log router decision to telemetry (non-fatal): {e}")
         return None
 
 

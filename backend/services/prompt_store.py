@@ -308,7 +308,15 @@ class PromptStore:
             return 0
 
         seeded = 0
-        existing_names = set(self.list_prompt_names())
+        client = _get_client()
+        if not client:
+            return 0
+
+        try:
+            existing_names = set(self.list_prompt_names())
+        except Exception:
+            return 0
+
         for attr_name in dir(module):
             if not attr_name.isupper():
                 continue
@@ -317,14 +325,18 @@ class PromptStore:
                 continue
             if attr_name in existing_names:
                 continue
-            self.save(
-                name=attr_name,
-                content=value,
-                description=f"Auto-seeded from {module_name}",
-                author="system",
-                activate=True,
-            )
-            seeded += 1
+            try:
+                self.save(
+                    name=attr_name,
+                    content=value,
+                    description=f"Auto-seeded from {module_name}",
+                    author="system",
+                    activate=True,
+                )
+                seeded += 1
+            except Exception as e:
+                logger.debug(f"PromptStore: skipping auto-seed of {attr_name} due to write failure: {e}")
+                break
 
         logger.info(f"PromptStore: seeded {seeded} prompts from {module_name}")
         return seeded

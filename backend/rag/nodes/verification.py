@@ -154,6 +154,20 @@ def check_persona_adherence(answer: str) -> str | None:
 @log_metrics
 async def reflect_on_answer(state: GraphState, config: dict = None) -> dict:
     """Self-Reflection RAG loop with LettuceDetect and self-consistency checking."""
+    verification = state.get("verification") or {}
+    ver_method = verification.get("method") if isinstance(verification, dict) else None
+    if (
+        state.get("route_decision") == "no_context_short_circuit"
+        or (state.get("evaluation_trace") or {}).get("route_decision") == "no_context_short_circuit"
+        or ver_method == "no_context_short_circuit"
+    ):
+        return {
+            "is_valid": True,
+            "needs_correction": False,
+            "grounding_state": "abstained",
+            "verification": {"passed": True, "method": "no_context_short_circuit"},
+        }
+
     # Persona and faithfulness checks run for every generated answer. Fast/simple
     # tiers may use the bounded local scorer, but never skip verification structurally.
     answer = state.get("answer", "")
@@ -251,6 +265,20 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
     verification is accepted locally without dispatching an expensive secondary
     LLM round-trip.
     """
+    verification = state.get("verification") or {}
+    ver_method = verification.get("method") if isinstance(verification, dict) else None
+    if (
+        state.get("route_decision") == "no_context_short_circuit"
+        or (state.get("evaluation_trace") or {}).get("route_decision") == "no_context_short_circuit"
+        or ver_method == "no_context_short_circuit"
+    ):
+        return {
+            "is_valid": True,
+            "needs_correction": False,
+            "grounding_state": "abstained",
+            "verification": {"passed": True, "method": "no_context_short_circuit"},
+        }
+
     answer = state.get("answer", "")
     relevant_docs = state.get("relevant_docs", [])
     query_tier = state.get("query_tier", "standard")

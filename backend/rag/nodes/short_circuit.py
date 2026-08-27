@@ -77,6 +77,7 @@ async def rewrite_query(state: GraphState, config: dict = None) -> dict:
 
 
 @trace_rag_node("handle_fallback")
+@log_metrics
 async def handle_fallback(state: GraphState, config: dict = None) -> dict:
     """Return a bounded, honest fallback without discarding safe general help."""
     await emit_status(config, "Preparing a graceful response...")

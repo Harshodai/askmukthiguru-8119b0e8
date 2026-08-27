@@ -11,6 +11,7 @@ from app.config import settings
 from app.tracing import trace_rag_node
 from domain.spiritual_ontology import resolve_teacher_domain
 from rag.nodes.retrieval import _screen_prompt_injection
+from rag.nodes.utils import log_metrics
 from rag.states import GraphState
 
 logger = logging.getLogger(__name__)
@@ -106,6 +107,7 @@ def _build_doc(relationships: list[str], *, licensed: bool) -> dict | None:
 
 
 @trace_rag_node("cross_teacher_reasoning")
+@log_metrics
 async def cross_teacher_reasoning(state: GraphState, config: dict = None) -> dict:
     """
     RAG Node for Cross-Teacher comparisons.

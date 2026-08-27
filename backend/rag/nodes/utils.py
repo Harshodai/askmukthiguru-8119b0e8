@@ -1088,9 +1088,90 @@ def log_metrics(func):
     the error is caught, logged, and a fallback result is returned instead of
     crashing the entire pipeline.
     """
+    import inspect
+
+    if not inspect.iscoroutinefunction(func):
+
+        @functools.wraps(func)
+        def sync_wrapper(state: GraphState, *args, **kwargs):
+            start = time.time()
+            node_name = func.__name__
+            request_id = state.get("request_id")
+            log_extra = {"request_id": request_id} if request_id else {}
+
+            try:
+                result = func(state, *args, **kwargs)
+            except Exception as e:
+                duration = time.time() - start
+                duration_ms = round(duration * 1000, 1)
+                logger.error(
+                    f"Node '{node_name}' failed after {duration:.4f}s ({duration_ms}ms): {e}",
+                    extra=log_extra,
+                    exc_info=True,
+                )
+                from app.metrics import NODE_ERROR_TOTAL, NODE_FALLBACK_TOTAL
+
+                try:
+                    NODE_ERROR_TOTAL.labels(node=node_name).inc()
+                    NODE_FALLBACK_TOTAL.labels(node=node_name).inc()
+                except Exception as _e:
+                    logger.debug("[rag utils] suppressed non-critical error: %s", _e)
+                fallback = {
+                    "error": str(e),
+                    "node": node_name,
+                    "fallback": True,
+                    "node_timings": {node_name: duration_ms},
+                }
+                result = {
+                    "relevant_docs": state.get("relevant_docs") or [],
+                    "reranked_docs": state.get("reranked_docs") or [],
+                    "documents": state.get("documents") or [],
+                    "answer": state.get("answer"),
+                    "citations": state.get("citations") or [],
+                    "final_answer": state.get("final_answer"),
+                }
+                result.update(fallback)
+
+                _persist_trace_span(
+                    request_id, node_name, start, duration_ms, "error", {"error": str(e)}
+                )
+                return result
+
+            duration = time.time() - start
+            duration_ms = round(duration * 1000, 1)
+
+            logger.info(
+                f"Node '{node_name}' finished in {duration:.4f}s ({duration_ms}ms)", extra=log_extra
+            )
+
+            try:
+                PIPELINE_STAGE_LATENCY.labels(stage=node_name).observe(duration)
+            except Exception as _e:
+                logger.debug("[rag utils] suppressed non-critical error: %s", _e)
+
+            metrics = state.get("metrics") or {}
+            metrics[node_name] = duration
+
+            node_timings_update = {node_name: duration_ms}
+
+            if isinstance(result, dict):
+                existing_metrics = result.get("metrics", {})
+                existing_metrics.update(metrics)
+                result["metrics"] = existing_metrics
+                existing_timings = result.get("node_timings", {})
+                existing_timings.update(node_timings_update)
+                result["node_timings"] = existing_timings
+
+            _persist_trace_span(
+                request_id, node_name, start, duration_ms, "ok", {"query_tier": state.get("query_tier")}
+            )
+
+            return result
+
+        return sync_wrapper
 
     @functools.wraps(func)
-    async def wrapper(state: GraphState, *args, **kwargs):
+    async def async_wrapper(state: GraphState, *args, **kwargs):
         start = time.time()
         node_name = func.__name__
         request_id = state.get("request_id")
@@ -1113,20 +1194,6 @@ def log_metrics(func):
                 NODE_FALLBACK_TOTAL.labels(node=node_name).inc()
             except Exception as _e:
                 logger.debug("[rag utils] suppressed non-critical error: %s", _e)
-            # Unit 9: guarantee downstream nodes (e.g. verify_answer,
-            # format_final_answer) do not KeyError when the previous node failed.
-            #
-            # IMPORTANT: return only this small delta, never `dict(state)`.
-            # LangGraph's default channels accept at most one write per
-            # super-step. decompose_query and navigate_and_hyde fan out in
-            # PARALLEL from the same predecessor — if both fail (e.g. both hit
-            # the same LLM rate limit) and each echoes the *entire* state back
-            # (including untouched keys like "question"), LangGraph sees two
-            # writes to the same channel in one step and raises
-            # InvalidUpdateError, turning a graceful per-node fallback into a
-            # hard 500 for the whole request. Only echo the specific fields
-            # this fallback needs to guarantee, preserving already-populated
-            # values from state so earlier progress isn't lost.
             fallback = {
                 "error": str(e),
                 "node": node_name,
@@ -1181,7 +1248,7 @@ def log_metrics(func):
 
         return result
 
-    return wrapper
+    return async_wrapper
 
 
 def _require_state(state: GraphState, required: list[str]) -> Optional[dict]:

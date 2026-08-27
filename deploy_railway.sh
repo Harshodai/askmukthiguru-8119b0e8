@@ -123,6 +123,7 @@ set_var EMBEDDING_MODEL "BAAI/bge-m3"
 set_var EMBEDDING_DIMENSION "1024"
 set_var RERANKER_MODEL "cross-encoder/ms-marco-MiniLM-L-6-v2"
 set_var SARVAM_CLOUD_MODEL "sarvam-30b"
+set_var QDRANT_COLLECTION "spiritual_wisdom_contextual"
 
 # Service URLs (internal Railway DNS)
 if [[ -n "$NEO4J_PASSWORD" ]]; then

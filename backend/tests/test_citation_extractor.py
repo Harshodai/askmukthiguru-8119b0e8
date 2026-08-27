@@ -26,14 +26,14 @@ def test_jaccard_empty() -> None:
 def test_with_no_docs_returns_empty() -> None:
     state = {"answer": "Some answer.", "relevant_docs": []}
     result = extract_citations(state)
-    assert result == {"citations": []}
+    assert result["citations"] == []
 
 
 @pytest.mark.unit
 def test_with_no_answer_returns_empty() -> None:
     state = {"answer": "", "relevant_docs": [{"text": "doc", "metadata": {}}]}
     result = extract_citations(state)
-    assert result == {"citations": []}
+    assert result["citations"] == []
 
 
 @pytest.mark.unit

@@ -54,7 +54,7 @@ class SemanticCacheAdapter(ICacheRepository):
         self._embedder = embedding_service
         self._ttl = ttl if ttl is not None else getattr(settings, "semantic_cache_ttl", _CACHE_TTL)
         self._collection = f"mukthi_semantic_cache_{settings.embedding_dimension}d"
-        self._threshold = getattr(settings, "semantic_cache_similarity", 0.78)
+        self._threshold = getattr(settings, "semantic_cache_similarity", 0.92)
         self._hits = 0
         self._misses = 0
         self._redis = None
@@ -125,6 +125,7 @@ class SemanticCacheAdapter(ICacheRepository):
             tenant_id=TenantContext.get() or "default", corpus_id=settings.default_corpus_id
         )
 
+    @staticmethod
     def _redis_key(scope: CorpusScope, point_id: str) -> str:
         teacher = scope.teacher_id or "all"
         return f"mukthiguru:semcache:{scope.tenant_id}:{scope.corpus_id}:{teacher}:{point_id}"

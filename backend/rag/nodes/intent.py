@@ -1007,6 +1007,7 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
 
 
 @trace_rag_node("handle_casual")
+@log_metrics
 async def handle_casual(state: GraphState, config: dict = None) -> dict:
     """Handle casual conversation with multi-turn awareness.
 
@@ -1225,6 +1226,7 @@ async def handle_casual(state: GraphState, config: dict = None) -> dict:
 
 
 @trace_rag_node("handle_distress")
+@log_metrics
 async def handle_distress(state: GraphState, config: dict = None) -> dict:
     """Handle distress with COMPASSIONATE TEACHINGS + meditation offer."""
     from rag.nodes.utils import emit_status
@@ -1260,7 +1262,8 @@ async def handle_distress(state: GraphState, config: dict = None) -> dict:
         except Exception as e:
             logger.error(f"Inline retrieval for distress failed: {e}", exc_info=True)
 
-    if relevant_docs:
+    response = ""
+    if relevant_docs and ollama is not None:
         context = "\n\n---\n\n".join(
             f"[Source: {doc.get('title', 'Unknown')}]\n{doc_text(doc)}" for doc in relevant_docs[:3]
         )
@@ -1298,13 +1301,24 @@ Retrieved teachings from Sri Preethaji and Sri Krishnaji:
     else:
         response = serene_mind.get_response(assessment) if serene_mind else get_distress_response()
 
+    # Guarantee a non-empty, safe response with grounding/helplines
+    if not response or not response.strip():
+        response = (
+            serene_mind.get_response(assessment)
+            if serene_mind
+            else get_distress_response()
+        )
+        if not response or not response.strip():
+            response = get_distress_response()
+
     if assessment.level >= DistressLevel.SEVERE:
         from services.crisis_helplines import format_helplines_block
 
-        crisis_info = "\n\n" + format_helplines_block(
+        crisis_info = format_helplines_block(
             intro="🆘 **Crisis Support (available 24/7):**"
         )
-        response = crisis_info + "\n\n" + response
+        if crisis_info not in response:
+            response = crisis_info + "\n\n" + response
 
     # handle_distress returns straight to END (graph_strategies.py), bypassing
     # format_final_answer — so it also bypasses the URL/citation cleanup that
@@ -1316,6 +1330,8 @@ Retrieved teachings from Sri Preethaji and Sri Krishnaji:
     from rag.nodes.generation import _clean_inline_citations
 
     response = _clean_inline_citations(response)
+    if not response or not response.strip():
+        response = get_distress_response()
 
     logger.info(
         f"Distress handler: level={assessment.level.name}, has_teachings={bool(relevant_docs)}"
@@ -1323,6 +1339,7 @@ Retrieved teachings from Sri Preethaji and Sri Krishnaji:
     return {
         "final_answer": response,
         "meditation_step": 0,
+        "intent": "DISTRESS",
     }
 
 
@@ -1347,6 +1364,7 @@ async def handle_distress_check(state: GraphState, config: dict = None) -> dict:
 
 
 @trace_rag_node("handle_meditation")
+@log_metrics
 async def handle_meditation(state: GraphState, config: dict = None) -> dict:
     """Continue an active meditation session, start a new one, or gracefully bail.
 
