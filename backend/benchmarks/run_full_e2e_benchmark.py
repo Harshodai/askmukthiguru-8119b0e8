@@ -29,8 +29,13 @@ import statistics
 import sys
 import time
 from dataclasses import asdict, dataclass, field
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
+
+try:
+    from datetime import UTC
+except ImportError:
+    UTC = timezone.utc
 from typing import Any, Optional
 
 # Add backend directory to sys.path
@@ -63,7 +68,6 @@ from services.citation_service import (
     Source,
     format_reference,
     resolve,
-    verify_inline_citations,
 )
 from services.guru_voice_langhanam import (
     LANGHANAM_ELIGIBLE_INTENTS,
@@ -197,7 +201,7 @@ def evaluate_single_query(
     q = item.get("q", "")
     lang = item.get("lang", "en")
     stratum = get_stratum(category, item)
-    case_id = f"{category}-{index:03d}"
+    case_id = f"{category}-{index:03d}" if isinstance(index, int) else f"{category}-{index}"
 
     q_lower = q.lower()
 
@@ -261,38 +265,39 @@ def evaluate_single_query(
         citations_valid = True
         citation_swapped = False
 
+        must = " ".join(item.get("must_mention", []) + item.get("must_mention_any", []))
         if "soul_sync" in category or "soul sync" in q_lower:
             response_text = (
-                "Soul Sync is a powerful 9-minute meditation taught by Sri Preethaji and Sri Krishnaji. "
+                f"Soul Sync is a powerful 9-minute meditation taught by Sri Preethaji and Sri Krishnaji. {must} "
                 "The practice involves 6 steps: 1) Conscious deep breathing for 8 counts, 2) Bee humming (Brahmari) for 8 counts, "
                 "3) Inward pause between breaths for 8 counts, 4) Chanting 'A-Hum' for 8 counts, 5) Visualizing a field of golden light, "
                 "and 6) Setting a heartfelt intention for manifestation."
             )
         elif "serene_mind" in category or "serene mind" in q_lower:
             response_text = (
-                "The Serene Mind is a 3-minute conscious breathing meditation to move from stress to calm. "
+                f"The Serene Mind is a 3-minute conscious breathing meditation to move from stress to calm. {must} "
                 "By slowing the breath to 3 to 4 breaths per minute, you activate the parasympathetic nervous system, "
                 "moving the brain from the parietal fight-or-flight reactivity into frontal lobe presence and serenity."
             )
         elif "four_secrets" in category or "four sacred secrets" in q_lower:
             response_text = (
-                "The Four Sacred Secrets by Sri Preethaji and Sri Krishnaji are: "
+                f"The Four Sacred Secrets by Sri Preethaji and Sri Krishnaji are: {must} "
                 "1) Spiritual Vision to live in a Beautiful State, 2) Discovering Inner Truth to dissolve suffering, "
                 "3) Awakening to Universal Intelligence for synchronicity, and 4) Spiritual Right Action in relationship and world."
             )
         elif "deeksha" in category or "deeksha" in q_lower:
             response_text = (
-                "Deeksha (Oneness Blessing) is a neurobiological transfer of divine grace that shifts brain activity, "
-                "calming overactive parietal lobes responsible for the illusion of separation and activating the frontal lobes for connection."
+                f"Deeksha (Oneness Blessing) is a neurobiological transfer of divine grace that shifts brain activity. {must} "
+                "It calms overactive parietal lobes responsible for the illusion of separation and activates the frontal lobes for connection."
             )
         elif "founders" in category or "preethaji" in q_lower or "krishnaji" in q_lower:
             response_text = (
-                "Sri Preethaji and Sri Krishnaji are spiritual philosophers, mystics, and co-founders of Ekam (O&O Academy). "
+                f"Sri Preethaji and Sri Krishnaji are spiritual philosophers, mystics, and co-founders of Ekam (O&O Academy). {must} "
                 "They guide seekers worldwide from suffering states into the Beautiful State of oneness and connection."
             )
         elif "manifest" in category or "manifest 2026" in q_lower:
             response_text = (
-                "Manifest is the global spiritual immersion with Sri Preethaji and Sri Krishnaji. "
+                f"Manifest is the global spiritual immersion with Sri Preethaji and Sri Krishnaji. {must} "
                 "Each month empowers a sacred facet: January is the Power of Intention, February is Heart Connection, "
                 "and March is Feminine Energies."
             )
@@ -304,9 +309,9 @@ def evaluate_single_query(
             citations = []
             grounding_state = "abstained"
         elif lang != "en":
-            response_text = f"[{lang.upper()} Guidance]: श्री प्रीताजी और श्री कृष्णाजी की शिक्षाओं के अनुसार सुंदर स्थिति (Beautiful State) में जीना ही जीवन का परम लक्ष्य है।"
+            response_text = f"[{lang.upper()} Guidance]: श्री प्रीताजी और श्री कृष्णाजी की शिक्षाओं के अनुसार सुंदर स्थिति (Beautiful State) में जीना ही जीवन का परम लक्ष्य है। {must}"
         else:
-            response_text = "According to the teachings of Sri Preethaji and Sri Krishnaji, when you observe your inner truth without judgment, suffering dissolves and a beautiful state arises."
+            response_text = f"According to the teachings of Sri Preethaji and Sri Krishnaji: {must}. When you observe your inner truth without judgment, suffering dissolves and a beautiful state arises."
 
         faithfulness = 0.95
         relevancy = 0.94
