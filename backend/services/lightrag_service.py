@@ -504,14 +504,16 @@ class LightRAGService:
         Supported Modes: 'local' (entities), 'global' (community summaries), 'hybrid' (both)
         """
         # ponytail: 5min TTL cache for identical queries
+        cache_disabled = getattr(settings, "latency_benchmark_cache_disabled", False)
         cache_key = hashlib.md5(
             f"{query}:{mode}:{only_need_context}".encode(), usedforsecurity=False
         ).hexdigest()
-        with self._cache_lock:
-            cached = self._query_cache.get(cache_key)
-        if cached is not None:
-            logger.info("LightRAG cache hit for query")
-            return cached
+        if not cache_disabled:
+            with self._cache_lock:
+                cached = self._query_cache.get(cache_key)
+            if cached is not None:
+                logger.info("LightRAG cache hit for query")
+                return cached
 
         if not self._circuit.can_execute():
             logger.warning("Circuit breaker OPEN for lightrag — skipping graph query.")
@@ -533,8 +535,9 @@ class LightRAGService:
             result = await self.rag.aquery(
                 query, param=QueryParam(mode=mode, only_need_context=only_need_context)
             )
-            with self._cache_lock:
-                self._query_cache[cache_key] = result
+            if not cache_disabled:
+                with self._cache_lock:
+                    self._query_cache[cache_key] = result
             self._circuit.record_success()
             return result
         except Exception as e:
@@ -546,8 +549,9 @@ class LightRAGService:
                     result = await self.rag.aquery(
                         query, param=QueryParam(mode=mode, only_need_context=only_need_context)
                     )
-                    with self._cache_lock:
-                        self._query_cache[cache_key] = result
+                    if not cache_disabled:
+                        with self._cache_lock:
+                            self._query_cache[cache_key] = result
                     self._circuit.record_success()
                     return result
                 except Exception as retry_err:

@@ -119,11 +119,24 @@ async def _get_anon_session_token(client: httpx.AsyncClient) -> str:
     return r.json()["token"]
 
 
-async def run_evaluation(endpoint: str, output_file: str | None = None) -> dict[str, Any]:
+async def run_evaluation(
+    endpoint: str,
+    output_file: str | None = None,
+    limit_per_category: int | None = None,
+) -> dict[str, Any]:
     url_error = _validate_endpoint(endpoint)
     if url_error:
         raise ValueError(url_error)
     golden_set = load_golden_set()
+    if limit_per_category:
+        counts: dict[str, int] = {}
+        filtered_set = []
+        for item in golden_set:
+            cat = item.get("category", "default")
+            if counts.get(cat, 0) < limit_per_category:
+                filtered_set.append(item)
+                counts[cat] = counts.get(cat, 0) + 1
+        golden_set = filtered_set
     print(f"Loaded {len(golden_set)} golden evaluation questions.")
     print(f"Targeting endpoint: {endpoint}")
 
@@ -294,6 +307,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--out", default="scripts/eval/eval_report.json", help="Output JSON report file"
     )
+    parser.add_argument(
+        "--limit-per-category",
+        type=int,
+        default=None,
+        help="Optional limit on number of questions evaluated per category",
+    )
     args = parser.parse_args()
 
-    asyncio.run(run_evaluation(args.endpoint, args.out))
+    asyncio.run(run_evaluation(args.endpoint, args.out, args.limit_per_category))

@@ -153,9 +153,10 @@ services:
       # --- OpenRouter (free tier for simple queries) ---
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
       - USE_OPENROUTER_FOR_SIMPLE=${USE_OPENROUTER_FOR_SIMPLE:-true}
-      - OPENROUTER_FAST_MODEL=${OPENROUTER_FAST_MODEL:-meta-llama/Meta-Llama-3.1-8B-Instruct}
-      - OPENROUTER_GENERATION_MODEL=${OPENROUTER_GENERATION_MODEL:-}
-      - OPENROUTER_CLASSIFY_MODEL=${OPENROUTER_CLASSIFY_MODEL:-}
+      - OPENROUTER_FAST_MODEL=${OPENROUTER_FAST_MODEL:-meta-llama/llama-3.1-8b-instruct}
+      - OPENROUTER_GENERATION_MODEL=${OPENROUTER_GENERATION_MODEL:-google/gemini-2.5-flash}
+      - OPENROUTER_GENERATION_MODEL_FALLBACK=${OPENROUTER_GENERATION_MODEL_FALLBACK:-google/gemini-3.6-flash}
+      - OPENROUTER_CLASSIFY_MODEL=${OPENROUTER_CLASSIFY_MODEL:-meta-llama/llama-3.1-8b-instruct}
       - OPENROUTER_PROVIDER_SORT=${OPENROUTER_PROVIDER_SORT:-}
       - OPENROUTER_PROVIDER_PARTITION=${OPENROUTER_PROVIDER_PARTITION:-model}
       - OPENROUTER_PREFERRED_MAX_LATENCY_P90=${OPENROUTER_PREFERRED_MAX_LATENCY_P90:-0}
@@ -197,7 +198,7 @@ services:
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
       # Qdrant runs as a sibling container
       - QDRANT_URL=http://qdrant:6333
-      - QDRANT_COLLECTION=${QDRANT_COLLECTION:-spiritual_wisdom}
+      - QDRANT_COLLECTION=${QDRANT_COLLECTION:-spiritual_wisdom_contextual}
       - QDRANT_LOCAL_PATH=
       # Supabase
       - SUPABASE_URL=${SUPABASE_URL:-http://host.docker.internal:54321}
@@ -281,6 +282,8 @@ services:
       - ./.model_cache:/app/model_cache
       # Persist SQLite telemetry database
       - telemetry_data:/app/data
+      # Persist compliance and audit logs
+      - logs_data:/app/logs
       # Mount backend code and scripts for live-reloading/direct execution
       - ./app:/app/app
       - ./rag:/app/rag
@@ -600,7 +603,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 384M
+          memory: 512M
           cpus: '0.5'
 
 volumes:
@@ -615,6 +618,8 @@ volumes:
   hf_model_cache:
     driver: local
   telemetry_data:
+    driver: local
+  logs_data:
     driver: local
   prometheus_data:
     driver: local

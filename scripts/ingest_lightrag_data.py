@@ -226,8 +226,9 @@ async def main():
         _max_scroll_retries = 5
         while _scroll_retries < _max_scroll_retries:
             try:
+                target_coll = os.getenv("QDRANT_COLLECTION", settings.qdrant_collection)
                 scroll_res, next_offset = qdrant_svc._client.scroll(
-                    collection_name="spiritual_wisdom",
+                    collection_name=target_coll,
                     limit=batch_size,
                     offset=next_offset,
                     with_payload=True,

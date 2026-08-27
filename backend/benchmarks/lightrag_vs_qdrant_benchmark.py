@@ -167,6 +167,7 @@ async def run_benchmark():
     import random
 
     random.seed(42)
+    random.shuffle(test_cases)
     test_cases = test_cases[: min(SAMPLE_SIZE, len(test_cases))]
 
     print(f"Running LightRAG vs Qdrant benchmark on {len(test_cases)} queries...")

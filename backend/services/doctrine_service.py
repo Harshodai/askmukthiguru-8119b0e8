@@ -35,6 +35,7 @@ class DoctrineService:
 
     async def get_doctrine(self, assistant_slug: str) -> dict[str, Any]:
         """Fetch and cache doctrine metadata for an assistant."""
+        import asyncio
         now = time.time()
 
         # Check cache
@@ -45,23 +46,28 @@ class DoctrineService:
         client = self._get_client()
         if client:
             try:
-                # Run query synchronously (supabase client is sync/threaded)
-                res = (
-                    client.table("assistant_doctrines")
-                    .select("*")
-                    .eq("assistant_slug", assistant_slug)
-                    .execute()
-                )
-                if res.data:
+                def _fetch():
+                    return (
+                        client.table("assistant_doctrines")
+                        .select("*")
+                        .eq("assistant_slug", assistant_slug)
+                        .execute()
+                    )
+
+                res = await asyncio.wait_for(asyncio.to_thread(_fetch), timeout=1.5)
+                if res and getattr(res, "data", None):
                     doc = res.data[0]
                     self._cache[assistant_slug] = doc
                     self._last_fetch[assistant_slug] = now
                     return doc
             except Exception as e:
-                logger.warning(f"Failed to fetch doctrine from DB for {assistant_slug}: {e}")
+                logger.debug(f"Failed to fetch doctrine from DB for {assistant_slug} (non-fatal): {e}")
 
-        # Return cached fallback or empty
-        return self._cache.get(assistant_slug, {"synonyms_json": {}, "canonical_terms": []})
+        # Return cached fallback and cache negative hit for TTL to prevent blocking next turns
+        fallback = {"synonyms_json": {}, "canonical_terms": []}
+        self._cache[assistant_slug] = fallback
+        self._last_fetch[assistant_slug] = now
+        return fallback
 
     async def inject_doctrine_keywords(self, query: str, assistant_slug: str) -> str:
         """Enhance query with canonical terms if variants are found in the query."""

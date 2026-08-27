@@ -48,7 +48,9 @@ logger = logging.getLogger(__name__)
 # -----------------------------------------------------------------------
 # Configuration
 # -----------------------------------------------------------------------
-_DEFAULT_AUDIT_DIR = Path(os.environ.get("COMPLIANCE_AUDIT_DIR", "/var/log/mukthi-guru"))
+_DEFAULT_AUDIT_DIR = Path(
+    os.environ.get("COMPLIANCE_AUDIT_DIR", "/app/logs" if Path("/app").exists() else "logs")
+)
 _AUDIT_FILE_PREFIX = "compliance_audit"
 _MAX_RESPONSE_PREVIEW = 500
 
@@ -96,7 +98,10 @@ class ComplianceLogger:
                 f"ComplianceLogger: cannot create {self._audit_dir}: {exc}. Falling back to ./logs/"
             )
             self._audit_dir = Path("logs")
-            self._audit_dir.mkdir(parents=True, exist_ok=True)
+            try:
+                self._audit_dir.mkdir(parents=True, exist_ok=True)
+            except OSError:
+                pass
 
     # ---- Session API ----
 
@@ -108,12 +113,21 @@ class ComplianceLogger:
 
     def write_record(self, record: dict) -> None:
         """Append a single audit record to today's JSONL file."""
-        path = _get_audit_path(self._audit_dir)
         try:
+            path = _get_audit_path(self._audit_dir)
+            path.parent.mkdir(parents=True, exist_ok=True)
             with path.open("a", encoding="utf-8") as f:
                 f.write(json.dumps(record, ensure_ascii=False) + "\n")
         except OSError as exc:
-            logger.error(f"ComplianceLogger: failed to write audit record: {exc}")
+            try:
+                fallback_path = _get_audit_path(Path("logs"))
+                fallback_path.parent.mkdir(parents=True, exist_ok=True)
+                with fallback_path.open("a", encoding="utf-8") as f:
+                    f.write(json.dumps(record, ensure_ascii=False) + "\n")
+            except OSError as fallback_exc:
+                logger.error(
+                    f"ComplianceLogger: failed to write audit record: {exc} (fallback failed: {fallback_exc})"
+                )
 
     # ---- High-level convenience API ----
 

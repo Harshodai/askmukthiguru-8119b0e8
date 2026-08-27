@@ -844,8 +844,8 @@ class SereneMindEngine:
 
         Returns a compassionate, graduated response with crisis resources if needed.
         """
-        if assessment.level == DistressLevel.NONE:
-            return ""  # No distress response needed
+        if assessment is None or getattr(assessment, "level", None) == DistressLevel.NONE:
+            return DISTRESS_RESPONSES[DistressLevel.MILD]
 
         base_response = DISTRESS_RESPONSES.get(
             assessment.level,

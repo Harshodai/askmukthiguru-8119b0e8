@@ -1,0 +1,213 @@
+{
+  "generated_at": "2026-07-31T07:57:59.083865+00:00",
+  "config": {
+    "langhanam_voice_enabled": false,
+    "guru_voice_mode": "prompt",
+    "gate_score": 4.0,
+    "llm_provider": "unavailable"
+  },
+  "degraded": true,
+  "degrade_reason": "HTTPStatusError: Client error '403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403",
+  "judge": {
+    "llm_available": false,
+    "method": "rule-based only"
+  },
+  "rubric": {
+    "direct_address": [
+      "Uses direct address: I want you to, Listen, Try this",
+      1.0
+    ],
+    "sanskrit_terms": [
+      "Uses Sanskrit terms naturally",
+      1.0
+    ],
+    "indian_english": [
+      "Has Indian-English phrasing",
+      1.0
+    ],
+    "no_fillers": [
+      "No American fillers",
+      1.0
+    ],
+    "single_teaching": [
+      "Does not combine unrelated sources",
+      1.0
+    ],
+    "rhythm": [
+      "Short rhythmic sentences with repetition allowed",
+      1.0
+    ]
+  },
+  "queries": [
+    {
+      "query": "What is langhanam?",
+      "variant_a_prompt": {
+        "response": "If you want mental, emotional, spiritual and physical health, practice langhanam.\nOur ancients in India used one very simple principle. They called it langhanam.\nLanghanam means fasting — fasting is the ultimate medicine.\nListen to the end before you come to any conclusion.",
+        "rule_scores": {
+          "direct_address": 1.0,
+          "sanskrit_terms": 1.0,
+          "indian_english": 1.0,
+          "no_fillers": 1.0,
+          "single_teaching": 1.0,
+          "rhythm": 1.0
+        },
+        "rule_mean": 5.0
+      },
+      "variant_b_adapter": {
+        "response": "If you want mental, emotional, spiritual and physical health, practice langhanam.\nOur ancients in India used one very simple principle. They called it langhanam.\nLanghanam means fasting — fasting is the ultimate medicine.\nListen to the end before you come to any conclusion.",
+        "rule_scores": {
+          "direct_address": 1.0,
+          "sanskrit_terms": 1.0,
+          "indian_english": 1.0,
+          "no_fillers": 1.0,
+          "single_teaching": 1.0,
+          "rhythm": 1.0
+        },
+        "rule_mean": 5.0
+      }
+    },
+    {
+      "query": "How do I stop negative thoughts?",
+      "variant_a_prompt": {
+        "response": "If you want mental, emotional, spiritual and physical health, practice langhanam.\nOur ancients in India used one very simple principle. They called it langhanam.\nLanghanam means fasting — fasting is the ultimate medicine.\nListen to the end before you come to any conclusion.\n\nThe first langhanam is fasting from food. Eat only when your digestive fire actually burns and asks for it, not when your tongue asks. This will also give some rest to the one cooking at home.\nDigest most effectively when your breath flows strongly through your right nostril, because of the solar energy flow.\nPractice any kind of fasting you can. Intermittent fasting, water fasting, or soup fasting. Even animals fast when they are sick.",
+        "rule_scores": {
+          "direct_address": 1.0,
+          "sanskrit_terms": 1.0,
+          "indian_english": 1.0,
+          "no_fillers": 1.0,
+          "single_teaching": 1.0,
+          "rhythm": 1.0
+        },
+        "rule_mean": 5.0
+      },
+      "variant_b_adapter": {
+        "response": "If you want mental, emotional, spiritual and physical health, practice langhanam.\nOur ancients in India used one very simple principle. They called it langhanam.\nLanghanam means fasting — fasting is the ultimate medicine.\nListen to the end before you come to any conclusion.\n\nThe first langhanam is fasting from food. Eat only when your digestive fire actually burns and asks for it, not when your tongue asks. This will also give some rest to the one cooking at home.\nDigest most effectively when your breath flows strongly through your right nostril, because of the solar energy flow.\nPractice any kind of fasting you can. Intermittent fasting, water fasting, or soup fasting. Even animals fast when they are sick.",
+        "rule_scores": {
+          "direct_address": 1.0,
+          "sanskrit_terms": 1.0,
+          "indian_english": 1.0,
+          "no_fillers": 1.0,
+          "single_teaching": 1.0,
+          "rhythm": 1.0
+        },
+        "rule_mean": 5.0
+      }
+    },
+    {
+      "query": "Tell me about fasting for health.",
+      "variant_a_prompt": {
+        "response": "If you want mental, emotional, spiritual and physical health, practice langhanam.\nOur ancients in India used one very simple principle. They called it langhanam.\nLanghanam means fasting — fasting is the ultimate medicine.\nListen to the end before you come to any conclusion.\n\nThe first langhanam is fasting from food. Eat only when your digestive fire actually burns and asks for it, not when your tongue asks. This will also give some rest to the one cooking at home.\nDigest most effectively when your breath flows strongly through your right nostril, because of the solar energy flow.\nPractice any kind of fasting you can. Intermittent fasting, water fasting, or soup fasting. Even animals fast when they are sick.\n\nThe second langhanam is fasting from breath. Every cell is an engine powered by the intake of breath. Practice slow inhalations and extremely long exhalations with breath pauses. Your thoughts will become more positive.",
+        "rule_scores": {
+          "direct_address": 1.0,
+          "sanskrit_terms": 1.0,
+          "indian_english": 1.0,
+          "no_fillers": 1.0,
+          "single_teaching": 1.0,
+          "rhythm": 1.0
+        },
+        "rule_mean": 5.0
+      },
+      "variant_b_adapter": {
+        "response": "If you want mental, emotional, spiritual and physical health, practice langhanam.\nOur ancients in India used one very simple principle. They called it langhanam.\nLanghanam means fasting — fasting is the ultimate medicine.\nListen to the end before you come to any conclusion.\n\nThe first langhanam is fasting from food. Eat only when your digestive fire actually burns and asks for it, not when your tongue asks. This will also give some rest to the one cooking at home.\nDigest most effectively when your breath flows strongly through your right nostril, because of the solar energy flow.\nPractice any kind of fasting you can. Intermittent fasting, water fasting, or soup fasting. Even animals fast when they are sick.\n\nThe second langhanam is fasting from breath. Every cell is an engine powered by the intake of breath. Practice slow inhalations and extremely long exhalations with breath pauses. Your thoughts will become more positive.",
+        "rule_scores": {
+          "direct_address": 1.0,
+          "sanskrit_terms": 1.0,
+          "indian_english": 1.0,
+          "no_fillers": 1.0,
+          "single_teaching": 1.0,
+          "rhythm": 1.0
+        },
+        "rule_mean": 5.0
+      }
+    },
+    {
+      "query": "How do I speak more powerfully?",
+      "variant_a_prompt": {
+        "response": "If you want mental, emotional, spiritual and physical health, practice langhanam.\nOur ancients in India used one very simple principle. They called it langhanam.\nLanghanam means fasting — fasting is the ultimate medicine.\nListen to the end before you come to any conclusion.\n\nThe first langhanam is fasting from food. Eat only when your digestive fire actually burns and asks for it, not when your tongue asks. This will also give some rest to the one cooking at home.\nDigest most effectively when your breath flows strongly through your right nostril, because of the solar energy flow.\nPractice any kind of fasting you can. Intermittent fasting, water fasting, or soup fasting. Even animals fast when they are sick.\n\nThe second langhanam is fasting from breath. Every cell is an engine powered by the intake of breath. Practice slow inhalations and extremely long exhalations with breath pauses. Your thoughts will become more positive.\n\nThe third langhanam is fasting from hurtful and pessimistic speech. Very few people have vaak Shakti, the power of speech to manifest their goals. Speak words that are true, that cause joy to others, in a pleasing tone. Your vaak Shakti grows.",
+        "rule_scores": {
+          "direct_address": 1.0,
+          "sanskrit_terms": 1.0,
+          "indian_english": 1.0,
+          "no_fillers": 1.0,
+          "single_teaching": 1.0,
+          "rhythm": 1.0
+        },
+        "rule_mean": 5.0
+      },
+      "variant_b_adapter": {
+        "response": "If you want mental, emotional, spiritual and physical health, practice langhanam.\nOur ancients in India used one very simple principle. They called it langhanam.\nLanghanam means fasting — fasting is the ultimate medicine.\nListen to the end before you come to any conclusion.\n\nThe first langhanam is fasting from food. Eat only when your digestive fire actually burns and asks for it, not when your tongue asks. This will also give some rest to the one cooking at home.\nDigest most effectively when your breath flows strongly through your right nostril, because of the solar energy flow.\nPractice any kind of fasting you can. Intermittent fasting, water fasting, or soup fasting. Even animals fast when they are sick.\n\nThe second langhanam is fasting from breath. Every cell is an engine powered by the intake of breath. Practice slow inhalations and extremely long exhalations with breath pauses. Your thoughts will become more positive.\n\nThe third langhanam is fasting from hurtful and pessimistic speech. Very few people have vaak Shakti, the power of speech to manifest their goals. Speak words that are true, that cause joy to others, in a pleasing tone. Your vaak Shakti grows.",
+        "rule_scores": {
+          "direct_address": 1.0,
+          "sanskrit_terms": 1.0,
+          "indian_english": 1.0,
+          "no_fillers": 1.0,
+          "single_teaching": 1.0,
+          "rhythm": 1.0
+        },
+        "rule_mean": 5.0
+      }
+    },
+    {
+      "query": "What should I do when I feel restless?",
+      "variant_a_prompt": {
+        "response": "If you want mental, emotional, spiritual and physical health, practice langhanam.\nOur ancients in India used one very simple principle. They called it langhanam.\nLanghanam means fasting — fasting is the ultimate medicine.\nListen to the end before you come to any conclusion.\n\nThe first langhanam is fasting from food. Eat only when your digestive fire actually burns and asks for it, not when your tongue asks. This will also give some rest to the one cooking at home.\nDigest most effectively when your breath flows strongly through your right nostril, because of the solar energy flow.\nPractice any kind of fasting you can. Intermittent fasting, water fasting, or soup fasting. Even animals fast when they are sick.\n\nThe second langhanam is fasting from breath. Every cell is an engine powered by the intake of breath. Practice slow inhalations and extremely long exhalations with breath pauses. Your thoughts will become more positive.\n\nThe third langhanam is fasting from hurtful and pessimistic speech. Very few people have vaak Shakti, the power of speech to manifest their goals. Speak words that are true, that cause joy to others, in a pleasing tone. Your vaak Shakti grows.\n\nThe fourth langhanam is fasting from movement. It is not about lying on your cushion eating popcorn and watching television. Sit still. Observe your breath, listen to the sounds of nature, or chant the name of your divine being inwardly. Even one minute at a time will bring down the restlessness in your body and mind.",
+        "rule_scores": {
+          "direct_address": 1.0,
+          "sanskrit_terms": 1.0,
+          "indian_english": 1.0,
+          "no_fillers": 1.0,
+          "single_teaching": 1.0,
+          "rhythm": 1.0
+        },
+        "rule_mean": 5.0
+      },
+      "variant_b_adapter": {
+        "response": "If you want mental, emotional, spiritual and physical health, practice langhanam.\nOur ancients in India used one very simple principle. They called it langhanam.\nLanghanam means fasting — fasting is the ultimate medicine.\nListen to the end before you come to any conclusion.\n\nThe first langhanam is fasting from food. Eat only when your digestive fire actually burns and asks for it, not when your tongue asks. This will also give some rest to the one cooking at home.\nDigest most effectively when your breath flows strongly through your right nostril, because of the solar energy flow.\nPractice any kind of fasting you can. Intermittent fasting, water fasting, or soup fasting. Even animals fast when they are sick.\n\nThe second langhanam is fasting from breath. Every cell is an engine powered by the intake of breath. Practice slow inhalations and extremely long exhalations with breath pauses. Your thoughts will become more positive.\n\nThe third langhanam is fasting from hurtful and pessimistic speech. Very few people have vaak Shakti, the power of speech to manifest their goals. Speak words that are true, that cause joy to others, in a pleasing tone. Your vaak Shakti grows.\n\nThe fourth langhanam is fasting from movement. It is not about lying on your cushion eating popcorn and watching television. Sit still. Observe your breath, listen to the sounds of nature, or chant the name of your divine being inwardly. Even one minute at a time will bring down the restlessness in your body and mind.",
+        "rule_scores": {
+          "direct_address": 1.0,
+          "sanskrit_terms": 1.0,
+          "indian_english": 1.0,
+          "no_fillers": 1.0,
+          "single_teaching": 1.0,
+          "rhythm": 1.0
+        },
+        "rule_mean": 5.0
+      }
+    },
+    {
+      "query": "Explain the four langhanams.",
+      "variant_a_prompt": {
+        "response": "If you want mental, emotional, spiritual and physical health, practice langhanam.\nOur ancients in India used one very simple principle. They called it langhanam.\nLanghanam means fasting — fasting is the ultimate medicine.\nListen to the end before you come to any conclusion.\n\nThe first langhanam is fasting from food. Eat only when your digestive fire actually burns and asks for it, not when your tongue asks. This will also give some rest to the one cooking at home.\nDigest most effectively when your breath flows strongly through your right nostril, because of the solar energy flow.\nPractice any kind of fasting you can. Intermittent fasting, water fasting, or soup fasting. Even animals fast when they are sick.\n\nThe second langhanam is fasting from breath. Every cell is an engine powered by the intake of breath. Practice slow inhalations and extremely long exhalations with breath pauses. Your thoughts will become more positive.\n\nThe third langhanam is fasting from hurtful and pessimistic speech. Very few people have vaak Shakti, the power of speech to manifest their goals. Speak words that are true, that cause joy to others, in a pleasing tone. Your vaak Shakti grows.\n\nThe fourth langhanam is fasting from movement. It is not about lying on your cushion eating popcorn and watching television. Sit still. Observe your breath, listen to the sounds of nature, or chant the name of your divine being inwardly. Even one minute at a time will bring down the restlessness in your body and mind.\n\nLanghanam is power. Practice these four fasts, and you will feel great power in your body, mind and consciousness.",
+        "rule_scores": {
+          "direct_address": 1.0,
+          "sanskrit_terms": 1.0,
+          "indian_english": 1.0,
+          "no_fillers": 1.0,
+          "single_teaching": 1.0,
+          "rhythm": 1.0
+        },
+        "rule_mean": 5.0
+      },
+      "variant_b_adapter": {
+        "response": "If you want mental, emotional, spiritual and physical health, practice langhanam.\nOur ancients in India used one very simple principle. They called it langhanam.\nLanghanam means fasting — fasting is the ultimate medicine.\nListen to the end before you come to any conclusion.\n\nThe first langhanam is fasting from food. Eat only when your digestive fire actually burns and asks for it, not when your tongue asks. This will also give some rest to the one cooking at home.\nDigest most effectively when your breath flows strongly through your right nostril, because of the solar energy flow.\nPractice any kind of fasting you can. Intermittent fasting, water fasting, or soup fasting. Even animals fast when they are sick.\n\nThe second langhanam is fasting from breath. Every cell is an engine powered by the intake of breath. Practice slow inhalations and extremely long exhalations with breath pauses. Your thoughts will become more positive.\n\nThe third langhanam is fasting from hurtful and pessimistic speech. Very few people have vaak Shakti, the power of speech to manifest their goals. Speak words that are true, that cause joy to others, in a pleasing tone. Your vaak Shakti grows.\n\nThe fourth langhanam is fasting from movement. It is not about lying on your cushion eating popcorn and watching television. Sit still. Observe your breath, listen to the sounds of nature, or chant the name of your divine being inwardly. Even one minute at a time will bring down the restlessness in your body and mind.\n\nLanghanam is power. Practice these four fasts, and you will feel great power in your body, mind and consciousness.",
+        "rule_scores": {
+          "direct_address": 1.0,
+          "sanskrit_terms": 1.0,
+          "indian_english": 1.0,
+          "no_fillers": 1.0,
+          "single_teaching": 1.0,
+          "rhythm": 1.0
+        },
+        "rule_mean": 5.0
+      }
+    }
+  ],
+  "summary": {
+    "variant_a_prompt_mean": 5.0,
+    "variant_b_adapter_mean": 5.0,
+    "winner": "prompt",
+    "gate_met": false,
+    "variant_a_prompt_judge_mean": null,
+    "variant_b_adapter_judge_mean": null
+  }
+}

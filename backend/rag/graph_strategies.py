@@ -151,6 +151,12 @@ async def resolve_parallel(state: GraphState, config: dict = None) -> dict:
 
 
 def route_after_formatting(state: GraphState) -> str:
+    if (
+        state.get("route_decision") == "no_context_short_circuit"
+        or (state.get("evaluation_trace") or {}).get("route_decision") == "no_context_short_circuit"
+        or state.get("grounding_state") == "abstained"
+    ):
+        return "end"
     if state.get("_needs_retry", False) and state.get("retry_count", 0) < 2:
         return "retry_generate"
     return "end"

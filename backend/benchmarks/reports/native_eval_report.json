@@ -1,0 +1,10 @@
+[
+  {
+    "query": "I had a slightly stressful day at work. What should I do?",
+    "category": "emotional_gradients",
+    "security_score": 0.0,
+    "precision": 1.0,
+    "faithfulness": 1.0,
+    "latency_s": 0.0
+  }
+]

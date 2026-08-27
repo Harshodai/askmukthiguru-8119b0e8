@@ -111,17 +111,11 @@ class MultiProviderLLMService:
                 api_key_env="OPENROUTER_API_KEY",
                 base_url="https://openrouter.ai/api/v1",
                 models=[
-                    "meta-llama/Meta-Llama-3.1-8B-Instruct",
-                    "mistralai/mixtral-8x7b-instruct",
-                    "gpt-4o-mini",
+                    "google/gemini-2.5-flash",
+                    "meta-llama/llama-3.1-8b-instruct",
+                    "google/gemini-3.6-flash",
                 ],
-                # google/gemini-flash-1.5-8b was decommissioned on OpenRouter
-                # (404 on every call, live-confirmed 2026-08-27) -- every
-                # multi-provider call paid a wasted failed round-trip before
-                # falling through. Replaced with the same fast/cheap 8B-class
-                # model config.py already uses and confirms live-valid
-                # (openrouter_fast_model / openrouter_classify_model).
-                default_model="meta-llama/Meta-Llama-3.1-8B-Instruct",
+                default_model="google/gemini-2.5-flash",
                 rpm=200,
                 timeout=30.0,
             ),

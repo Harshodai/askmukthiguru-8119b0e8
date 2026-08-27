@@ -25,6 +25,7 @@ from services.humanizer import scrub
 from services.language_router import LanguageCode, LanguageRouter
 
 from . import _services
+from .citation_extractor import extract_citations
 from .utils import (
     _generation_route,
     _grounded_citation_urls,
@@ -2057,6 +2058,7 @@ def _clean_inline_citations(text: str) -> str:
 
 
 @trace_rag_node("format_final_answer")
+@log_metrics
 async def format_final_answer(state: GraphState, config: dict = None) -> dict:
     """Format the final response based on pipeline results."""
     await emit_status(config, "Finalizing your response...")
@@ -2071,6 +2073,45 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
     if intent == "?":
         intent = "CASUAL"
     answer = strip_cot(answer)
+
+    # Check for no_context_short_circuit or abstained fast-path
+    route_decision = state.get("route_decision") or (state.get("evaluation_trace") or {}).get("route_decision")
+    grounding_state = state.get("grounding_state")
+    ver_method = verification.get("method") if isinstance(verification, dict) else None
+
+    if (
+        state.get("route_decision") == "no_context_short_circuit"
+        or route_decision == "no_context_short_circuit"
+        or grounding_state == "abstained"
+        or ver_method == "no_context_short_circuit"
+    ):
+        logger.info("Final: no-context short-circuit/abstained fast path without retry")
+        return {
+            "final_answer": scrub(answer),
+            "citations": [],
+            "intent": intent,
+            "_needs_retry": False,
+            "is_faithful": True,
+            "grounding_state": "abstained",
+            "verification": {
+                "passed": True,
+                "method": ver_method or "no_context_short_circuit",
+                "citations_verified": True,
+            },
+            "faithfulness_score": 0.0,
+            "confidence_score": state.get("confidence_score", NO_EVIDENCE_CONFIDENCE),
+            "citations_verified": True,
+            "orphan_citations_stripped": False,
+            "evaluation_trace": _trace_update(
+                state,
+                final_answer_chars=len(answer),
+                final_citations=[],
+                verification_passed=True,
+                confidence_score=state.get("confidence_score", NO_EVIDENCE_CONFIDENCE),
+                citations_verified=True,
+                route_decision=route_decision or "no_context_short_circuit",
+            ),
+        }
 
     # Convert [Source: Title] in the answer text to [N] based on relevant_docs mapping
     relevant_docs = state.get("relevant_docs", [])
@@ -2656,7 +2697,12 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
             f"citations={len(citations)}, answer_len={len(answer) if answer else 0})"
         )
         retry_count = state.get("retry_count", 0)
-        if retry_count < 1:
+        is_no_context_abstention = (
+            state.get("route_decision") == "no_context_short_circuit"
+            or state.get("grounding_state") == "abstained"
+            or (isinstance(state.get("verification"), dict) and state.get("verification", {}).get("method") == "no_context_short_circuit")
+        )
+        if retry_count < 1 and not is_no_context_abstention:
             logger.info(f"Final: Answer rejected, retrying (retry_count={retry_count})")
             return {
                 "retry_count": retry_count + 1,

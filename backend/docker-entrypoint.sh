@@ -13,9 +13,14 @@ if [ "$(id -u)" -eq 0 ]; then
     # Also fix permissions for the SQLite telemetry DB volume if it exists
     mkdir -p /app/data
     chown -R appuser:appuser /app/data || echo "Warning: Could not chown /app/data"
+
+    # Ensure compliance and audit logs directory is writable by appuser
+    mkdir -p /app/logs
+    chown -R appuser:appuser /app/logs || echo "Warning: Could not chown /app/logs"
 else
     echo "Running as non-root user $(id -un); skipping chown operations."
     mkdir -p /app/data
+    mkdir -p /app/logs
 fi
 
 # Detect available CPU cores and set worker count

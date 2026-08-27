@@ -8,12 +8,14 @@ from datetime import UTC, datetime, timedelta
 from app.config import settings
 from app.schemas import LiveLogisticsEvent
 from app.tracing import trace_rag_node
+from rag.nodes.utils import log_metrics
 from rag.states import GraphState
 
 logger = logging.getLogger(__name__)
 
 
 @trace_rag_node("web_search")
+@log_metrics
 async def web_search_node(state: GraphState, config: dict = None) -> dict:
     """Fetch official event, schedule, and booking results only.
 

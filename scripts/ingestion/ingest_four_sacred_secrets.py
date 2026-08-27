@@ -46,21 +46,23 @@ def flatten_tree(nodes, parent_title="", level=0, cluster_id=1):
         text = node.get("text", "").strip()
         summary = node.get("summary", "").strip()
 
+        BOOK_CANONICAL_URL = "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319"
+
         # If there's meaningful text, create child paragraph chunks linked to this parent text
         if text:
             parent_id = str(uuid.uuid4())
             child_paragraphs = child_splitter.split_text(text)
 
             # Prepend contextual header for UI provenance
-            header = f"[Source: The_Four_Sacred_Secrets.pdf | Chapter: {context_title}]\n"
+            header = f"[Source: The Four Sacred Secrets | Chapter: {context_title}]\n"
 
             for child_index, child_text in enumerate(child_paragraphs):
                 chunks.append(
                     {
                         "text": header + child_text,
                         "metadata": {
-                            "source_url": "The_Four_Sacred_Secrets.pdf",
-                            "title": context_title,
+                            "source_url": BOOK_CANONICAL_URL,
+                            "title": f"The Four Sacred Secrets — {context_title}",
                             "speaker": "Sri Preethaji & Sri Krishnaji",
                             "topic": "Spiritual",
                             "content_type": "book",
@@ -77,13 +79,13 @@ def flatten_tree(nodes, parent_title="", level=0, cluster_id=1):
 
         # If there's a summary, add it as a Level 1 (Summary) chunk (no parent-child mapping needed)
         if summary:
-            header = f"[Source: The_Four_Sacred_Secrets.pdf | Chapter Summary: {context_title}]\n"
+            header = f"[Source: The Four Sacred Secrets | Chapter Summary: {context_title}]\n"
             chunks.append(
                 {
                     "text": header + summary,
                     "metadata": {
-                        "source_url": "The_Four_Sacred_Secrets.pdf",
-                        "title": f"Summary: {context_title}",
+                        "source_url": BOOK_CANONICAL_URL,
+                        "title": f"Summary: The Four Sacred Secrets — {context_title}",
                         "speaker": "Sri Preethaji & Sri Krishnaji",
                         "topic": "Spiritual",
                         "content_type": "summary",
@@ -110,18 +112,18 @@ def flatten_tree(nodes, parent_title="", level=0, cluster_id=1):
 
 
 def main():
-    json_path = os.path.abspath(
-        os.path.join(
-            os.path.dirname(__file__),
-            "..",
-            "..",
-            "results",
-            "The_Four_Sacred_Secrets_structure.json",
-        )
-    )
-    if not os.path.exists(json_path):
-        print(f"Error: JSON structure not found at {json_path}")
-        print("Please run 'bash run_pageindex_sarvam.sh' first to generate the structure.")
+    candidate_paths = [
+        os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "results", "The_Four_Sacred_Secrets_structure.json")),
+        os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "backend", "data", "book", "The_Four_Sacred_Secrets_structure.json")),
+    ]
+    json_path = None
+    for p in candidate_paths:
+        if os.path.exists(p):
+            json_path = p
+            break
+
+    if not json_path:
+        print(f"Error: JSON structure not found in candidates: {candidate_paths}")
         return
 
     print("Initializing Qdrant and Embeddings...")

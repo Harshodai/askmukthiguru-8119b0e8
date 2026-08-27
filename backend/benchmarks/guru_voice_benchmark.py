@@ -231,10 +231,10 @@ async def _run_variant(
             system_prompt = render_langhanam_system_prompt(base_system_prompt)
             answer = await _generate(query, system_prompt, provider)
         elif variant == "adapter":
-            from rag.nodes.guru_tone_adapter import apply_langhanam_tone
+            from services.guru_voice_langhanam import strip_fillers
 
             raw = await _generate(query, base_system_prompt, provider)
-            answer = apply_langhanam_tone(raw)
+            answer = strip_fillers(raw)
         else:
             answer = await _generate(query, base_system_prompt, provider)
         results.append(await _score_response(query, answer, provider))
