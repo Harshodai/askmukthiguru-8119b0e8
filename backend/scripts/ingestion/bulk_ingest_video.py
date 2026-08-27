@@ -33,7 +33,7 @@ sys.path.insert(0, str(BACKEND_DIR))
 from ingest.handlers.checkpoint import IngestionCheckpoint
 from ingest.pipeline import IngestionPipeline, _okf_extract_for_video
 from services.embedding_service import EmbeddingService
-from services.ollama_service import OllamaService
+from services.openrouter_service import OpenRouterService
 from services.qdrant_service import QdrantService
 
 logging.basicConfig(
@@ -99,7 +99,7 @@ async def bulk_ingest_async(
     # Instantiate services
     qdrant_svc = QdrantService()
     embedder_svc = EmbeddingService()
-    llm_svc = OllamaService()
+    llm_svc = OpenRouterService()
 
     pipeline = IngestionPipeline(
         qdrant_service=qdrant_svc,
