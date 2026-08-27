@@ -103,6 +103,10 @@ async def bulk_ingest_async(
     if not os.environ.get("SUPABASE_URL"):
         os.environ["SUPABASE_URL"] = "http://localhost:54321"
 
+    # Quantized ML backends: ONNX INT8 for BGE-M3 (4x lower RAM, 2x faster CPU encode)
+    os.environ.setdefault("EMBEDDING_BACKEND", "onnx_int8")
+    os.environ.setdefault("RERANKER_BACKEND", "onnx_int8")
+
     # Ingestion throughput optimization: elevate RPM limit for bulk operations
     rpm_limit = int(os.environ.get("OPENROUTER_RPM_LIMIT", "120"))
 

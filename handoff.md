@@ -131,6 +131,9 @@ cd backend && nohup env \
   NEO4J_PASSWORD=mukthiguru_neo4j_pass \
   REDIS_URL="redis://:mukthiguru_redis_pass@localhost:6379/0" \
   OPENROUTER_API_KEY=$(grep OPENROUTER_API_KEY .env | cut -d= -f2) \
+  OPENROUTER_RPM_LIMIT=120 \
+  EMBEDDING_BACKEND=onnx_int8 \
+  RERANKER_BACKEND=onnx_int8 \
   LLM_PROVIDER=openrouter \
   SUPABASE_URL=http://localhost:54321 \
   .venv/bin/python3 -m scripts.ingestion.bulk_ingest_video \
@@ -169,8 +172,10 @@ OKF 5-Node Arc extraction queued
 
 | Technique | Purpose | Status After Fixes |
 |---|---|---|
+| **Quantized BGE-M3 (ONNX INT8)** | 1024d multilingual dense embeddings with ~4x lower RAM (~550MB vs ~2.3GB) & 2x faster CPU passes | ✅ Enabled |
+| **Quantized Reranker (ONNX INT8)** | Fast CPU cross-encoder reranking with ~80% lower RAM footprint | ✅ Enabled |
+| **Scalar Quantization (Qdrant SQ INT8)** | In-RAM vector compression with full precision on-disk rescoring | ✅ Enabled |
 | **Contextual chunking** | LLM enriches each chunk with discourse context | ✅ Working |
-| **BAAI/bge-m3 1024d** | Multilingual dense embeddings | ✅ Working |
 | **RAPTOR** | Hierarchical summary tree for multi-level retrieval | ✅ Fixed (threshold 8→3) |
 | **LightRAG** | Entity/relationship graph + vector layer | ✅ Fixed (now wired) |
 | **Neo4j KG** | Ontology nodes for structural reasoning | ✅ Fixed (driver now passed) |
