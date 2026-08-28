@@ -1,0 +1,45 @@
+/* Mobile conversation polish inspired by current ChatGPT interaction patterns.
+   Keep MukthiGuru's visual identity while reducing control density on small screens. */
+@media (max-width: 639px) {
+  /* The composer should sit above the gesture area and remain visually quiet. */
+  form[role='form'][aria-label] {
+    border-radius: 22px !important;
+    box-shadow: 0 8px 30px hsl(var(--foreground) / 0.08) !important;
+  }
+
+  /* Language/TTS controls are secondary on mobile; keep them accessible from
+     the composer action menu rather than occupying a separate toolbar row. */
+  div:has(> form[role='form'][aria-label]) > div:first-child {
+    display: none !important;
+  }
+
+  /* Keep the primary mobile footer compact: assistant identity is secondary,
+     while add-actions, dictation and send/stop remain immediately reachable. */
+  form[role='form'][aria-label] footer > div:first-child > button:first-child {
+    display: none !important;
+  }
+
+  form[role='form'][aria-label] textarea {
+    font-size: 16px !important;
+    min-height: 40px !important;
+    padding-left: 14px !important;
+    padding-right: 14px !important;
+  }
+
+  form[role='form'][aria-label] footer {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+    padding-bottom: max(8px, env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  form[role='form'][aria-label] footer button {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  form[role='form'][aria-label] {
+    transition: none !important;
+  }
+}
