@@ -1,0 +1,22 @@
+/* Mobile conversation polish. Preserve AskMukthiGuru's warm Ojas/Prana identity while reducing control density. */
+@media (max-width: 639px) {
+  form[role='form'][aria-label] {
+    border-radius: 22px !important;
+    box-shadow: 0 8px 30px hsl(var(--foreground) / 0.08) !important;
+  }
+  div:has(> form[role='form'][aria-label]) > div:first-child { display: none !important; }
+  form[role='form'][aria-label] footer > div:first-child > button:first-child { display: none !important; }
+  form[role='form'][aria-label] textarea {
+    font-size: 16px !important;
+    min-height: 40px !important;
+    padding-left: 14px !important;
+    padding-right: 14px !important;
+  }
+  form[role='form'][aria-label] footer {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+    padding-bottom: max(8px, env(safe-area-inset-bottom, 0px)) !important;
+  }
+  form[role='form'][aria-label] footer button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+}
+@media (prefers-reduced-motion: reduce) { form[role='form'][aria-label] { transition: none !important; } }
