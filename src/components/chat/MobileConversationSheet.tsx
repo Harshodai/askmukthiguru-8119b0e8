@@ -1,5 +1,5 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, Plus, Flame, MessageCircle, Trash2, EyeOff,
@@ -37,6 +37,7 @@ export const MobileConversationSheet = ({
 }: MobileConversationSheetProps) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const closeRef = useRef<HTMLButtonElement>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeTab, setActiveTab] = useState<'chat' | 'explore'>('chat');
   const [query, setQuery] = useState('');
@@ -46,7 +47,17 @@ export const MobileConversationSheet = ({
     loadConversations().then(setConversations);
     setActiveTab('chat');
     setQuery('');
+    requestAnimationFrame(() => closeRef.current?.focus());
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, onClose]);
 
   const handleDeleteConversation = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -105,63 +116,173 @@ export const MobileConversationSheet = ({
     <AnimatePresence>
       {isOpen && (
         <>
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="fixed inset-0 z-50 bg-foreground/20 backdrop-blur-sm" />
           <motion.div
-            initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
-            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-            role="dialog" aria-modal="true" aria-label={t('chat.openConversations')}
-            className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border rounded-t-3xl max-h-[90dvh] flex flex-col overflow-hidden shadow-2xl safe-bottom"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="fixed inset-0 z-50 bg-foreground/25 backdrop-blur-[2px]"
+            aria-hidden="true"
+          />
+
+          <motion.aside
+            initial={{ x: '-100%' }}
+            animate={{ x: 0 }}
+            exit={{ x: '-100%' }}
+            transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+            role="dialog"
+            aria-modal="true"
+            aria-label={t('chat.openConversations')}
+            className="fixed left-0 top-0 bottom-0 z-50 w-[min(88vw,22rem)] bg-card border-r border-border shadow-2xl flex flex-col overflow-hidden safe-x"
           >
-            <div className="flex justify-center pt-2.5 pb-1 flex-shrink-0" aria-hidden="true"><div className="w-9 h-1 rounded-full bg-border" /></div>
-            <div className="px-4 pt-2 pb-3 border-b border-border flex-shrink-0">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-9 h-9 rounded-full overflow-hidden ring-1 ring-ojas/30 shadow-sm flex-shrink-0"><img src={gurusPhoto} alt="" className="w-full h-full object-cover" /></div>
-                  <div className="min-w-0"><h2 className="font-semibold text-foreground text-sm truncate">{t('nav.appName')}</h2><p className="text-[11px] text-muted-foreground truncate">{t('chat.yourSpiritualCompanion')}</p></div>
+            <div className="flex items-center justify-between gap-3 px-4 pt-[max(0.75rem,env(safe-area-inset-top,0px))] pb-3 border-b border-border/70">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-9 h-9 rounded-xl overflow-hidden ring-1 ring-ojas/30 shadow-sm bg-muted shrink-0">
+                  <img src={gurusPhoto} alt="" className="w-full h-full object-cover" />
                 </div>
-                <button onClick={onClose} aria-label="Close menu" className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl hover:bg-muted transition-colors"><X className="w-5 h-5 text-muted-foreground" /></button>
+                <div className="min-w-0">
+                  <h2 className="font-semibold text-sm text-foreground truncate">{t('nav.appName')}</h2>
+                  <p className="text-[11px] text-muted-foreground truncate">{t('chat.yourSpiritualCompanion')}</p>
+                </div>
               </div>
-              <div className="flex gap-1 mt-2.5 p-1 bg-muted/60 rounded-xl">
-                <button onClick={() => setActiveTab('chat')} className={`flex-1 min-h-[42px] flex items-center justify-center gap-1.5 rounded-lg text-sm font-medium transition-all ${activeTab === 'chat' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}><MessageSquare className="w-3.5 h-3.5" />{t('chat.tabChat', 'Chat')}</button>
-                <button onClick={() => setActiveTab('explore')} data-tour="mobile-explore-tab" className={`flex-1 min-h-[42px] flex items-center justify-center gap-1.5 rounded-lg text-sm font-medium transition-all ${activeTab === 'explore' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}><LayoutGrid className="w-3.5 h-3.5" />{t('chat.tabExplore', 'Explore')}</button>
-              </div>
+              <button
+                ref={closeRef}
+                onClick={onClose}
+                aria-label="Close menu"
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ojas/60"
+              >
+                <X className="w-5 h-5 text-muted-foreground" />
+              </button>
             </div>
-            <div className="flex-1 overflow-y-auto scrollbar-spiritual pb-[calc(1rem+env(safe-area-inset-bottom,0px))] overscroll-contain">
+
+            <div className="p-3 border-b border-border/60">
+              <button
+                onClick={() => { onNewConversation(); onClose(); }}
+                className="w-full min-h-[48px] flex items-center gap-3 px-3.5 py-2.5 rounded-2xl bg-ojas/10 border border-ojas/20 hover:border-ojas/40 hover:bg-ojas/15 active:scale-[0.99] transition-all"
+              >
+                <div className="w-8 h-8 rounded-full bg-ojas/20 flex items-center justify-center shrink-0">
+                  <Plus className="w-4 h-4 text-ojas" />
+                </div>
+                <div className="text-left min-w-0">
+                  <p className="font-medium text-sm text-foreground">{t('chat.newConversation')}</p>
+                  <p className="text-xs text-muted-foreground truncate">{t('chat.startFreshWithGurus')}</p>
+                </div>
+              </button>
+            </div>
+
+            <div className="px-3 pt-3">
+              <label className="relative block">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/70" aria-hidden="true" />
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder={t('chat.searchConversations', 'Search conversations')}
+                  aria-label={t('chat.searchConversations', 'Search conversations')}
+                  className="w-full h-11 rounded-xl bg-muted/50 border border-border/60 pl-9 pr-3 text-sm outline-none focus:border-ojas/40 focus:ring-2 focus:ring-ojas/10 placeholder:text-muted-foreground/60"
+                />
+              </label>
+            </div>
+
+            <div className="flex gap-1 mx-3 mt-3 p-1 bg-muted/50 rounded-xl">
+              <button
+                onClick={() => setActiveTab('chat')}
+                className={`flex-1 min-h-[42px] flex items-center justify-center gap-1.5 rounded-lg text-sm font-medium transition-all ${activeTab === 'chat' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}
+              >
+                <MessageSquare className="w-3.5 h-3.5" />
+                {t('chat.tabChat', 'Chat')}
+              </button>
+              <button
+                onClick={() => setActiveTab('explore')}
+                data-tour="mobile-explore-tab"
+                className={`flex-1 min-h-[42px] flex items-center justify-center gap-1.5 rounded-lg text-sm font-medium transition-all ${activeTab === 'explore' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+                {t('chat.tabExplore', 'Explore')}
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto overscroll-contain scrollbar-spiritual px-3 py-3 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
               <AnimatePresence mode="wait">
                 {activeTab === 'chat' ? (
-                  <motion.div key="chat-tab" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.16 }} className="p-4 space-y-3">
-                    <button onClick={() => { onNewConversation(); onClose(); }} className="w-full min-h-[48px] flex items-center gap-3 px-3.5 py-2.5 rounded-2xl bg-ojas/10 border border-ojas/20 hover:border-ojas/40 hover:bg-ojas/15 active:scale-[0.99] transition-all group">
-                      <div className="w-9 h-9 rounded-full bg-ojas/20 flex items-center justify-center flex-shrink-0"><Plus className="w-4 h-4 text-ojas" /></div>
-                      <div className="text-left min-w-0"><p className="font-medium text-foreground text-sm">{t('chat.newConversation')}</p><p className="text-xs text-muted-foreground truncate">{t('chat.startFreshWithGurus')}</p></div>
-                    </button>
-                    <label className="relative block">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/70" aria-hidden="true" />
-                      <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('chat.searchConversations', 'Search conversations')} aria-label={t('chat.searchConversations', 'Search conversations')} className="w-full h-11 rounded-xl bg-muted/50 border border-border/60 pl-9 pr-3 text-sm outline-none focus:border-ojas/40 focus:ring-2 focus:ring-ojas/10 placeholder:text-muted-foreground/60" />
-                    </label>
+                  <motion.div key="chat-tab" initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }} transition={{ duration: 0.14 }}>
                     <MeditationStats />
+                    <div className="mt-4 mb-2 px-1 text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">
+                      {query ? t('chat.searchResults', 'Results') : t('chat.recentConversations')}
+                    </div>
                     {Object.keys(groupedConversations).length > 0 ? (
-                      <div><p className="text-[11px] text-muted-foreground uppercase tracking-wider mb-2 font-semibold px-1">{query ? t('chat.searchResults', 'Results') : t('chat.recentConversations')}</p><div className="space-y-4">
-                        {Object.entries(groupedConversations).map(([timeGroup, convs]) => <div key={timeGroup}><p className="text-xs text-muted-foreground/70 mb-1.5 px-1">{timeGroup}</p><div className="space-y-1">
-                          {convs.map((conv) => <motion.div key={conv.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} role="button" tabIndex={0} aria-label={`Open conversation: ${conv.preview || 'New conversation'}`} className={`min-h-[52px] flex items-center gap-3 px-2.5 py-1.5 rounded-xl cursor-pointer transition-colors group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ojas ${conv.id === currentConversationId ? 'bg-ojas/12 border border-ojas/25' : 'hover:bg-muted/60 border border-transparent'}`} onClick={() => handleSelectConversation(conv)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSelectConversation(conv); } }}>
-                            <MessageCircle className="w-4 h-4 text-muted-foreground flex-shrink-0" /><div className="flex-1 min-w-0"><p className="text-sm text-foreground truncate">{conv.preview || t('chat.newConversation')}</p><p className="text-[11px] text-muted-foreground">{t('chat.messagesCount', { count: conv.messageCount })}</p></div>
-                            <button onClick={(e) => handleDeleteConversation(conv.id, e)} aria-label="Delete conversation" className="min-w-[40px] min-h-[40px] flex items-center justify-center rounded-lg opacity-40 hover:opacity-100 active:opacity-100 hover:bg-destructive/10 transition-all sm:opacity-0 sm:group-hover:opacity-60"><Trash2 className="w-3.5 h-3.5 text-destructive" /></button>
-                          </motion.div>)}
-                        </div></div>)}
+                      <div className="space-y-3">
+                        {Object.entries(groupedConversations).map(([timeGroup, convs]) => (
+                          <section key={timeGroup}>
+                            <p className="text-xs text-muted-foreground/70 mb-1.5 px-1">{timeGroup}</p>
+                            <div className="space-y-0.5">
+                              {convs.map((conv) => (
+                                <motion.div
+                                  key={conv.id}
+                                  initial={{ opacity: 0 }}
+                                  animate={{ opacity: 1 }}
+                                  role="button"
+                                  tabIndex={0}
+                                  aria-label={`Open conversation: ${conv.preview || 'New conversation'}`}
+                                  className={`min-h-[52px] flex items-center gap-3 px-2.5 py-1.5 rounded-xl cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ojas ${conv.id === currentConversationId ? 'bg-ojas/12 border border-ojas/25' : 'border border-transparent hover:bg-muted/60'}`}
+                                  onClick={() => handleSelectConversation(conv)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                      e.preventDefault();
+                                      handleSelectConversation(conv);
+                                    }
+                                  }}
+                                >
+                                  <MessageCircle className="w-4 h-4 text-muted-foreground shrink-0" />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm text-foreground truncate">{conv.preview || t('chat.newConversation')}</p>
+                                    <p className="text-[11px] text-muted-foreground">{t('chat.messagesCount', { count: conv.messageCount })}</p>
+                                  </div>
+                                  <button
+                                    onClick={(e) => handleDeleteConversation(conv.id, e)}
+                                    aria-label="Delete conversation"
+                                    className="min-w-[40px] min-h-[40px] flex items-center justify-center rounded-lg opacity-40 hover:opacity-100 active:opacity-100 hover:bg-destructive/10 transition-all"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                                  </button>
+                                </motion.div>
+                              ))}
+                            </div>
+                          </section>
+                        ))}
                       </div>
-                    ) : <div className="flex flex-col items-center justify-center py-10 gap-2 text-center"><MessageCircle className="w-8 h-8 text-muted-foreground/30" /><p className="text-sm text-muted-foreground/60">{query ? t('chat.noSearchResults', 'No matching conversations') : t('desktopSidebar.noConversations')}</p></div>}
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-10 gap-2 text-center">
+                        <MessageCircle className="w-8 h-8 text-muted-foreground/30" />
+                        <p className="text-sm text-muted-foreground/60">{query ? t('chat.noSearchResults', 'No matching conversations') : t('desktopSidebar.noConversations')}</p>
+                      </div>
+                    )}
                   </motion.div>
                 ) : (
-                  <motion.div key="explore-tab" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.16 }} className="p-4 space-y-2">
-                    <p className="text-[11px] text-muted-foreground/70 uppercase tracking-widest font-semibold px-1 pb-1">{t('desktopSidebar.explore', 'Explore')}</p>
-                    {exploreItems.map(({ id, icon: Icon, label, description, onClick, color, tour }) => <button key={id} onClick={onClick} data-tour={tour} className={`w-full min-h-[60px] flex items-center gap-3 p-3 rounded-2xl border transition-all text-left active:scale-[0.99] ${color === 'amber' ? 'bg-amber-950/10 border-amber-600/20 hover:bg-amber-950/20' : 'bg-muted/35 border-border/40 hover:bg-ojas/10 hover:border-ojas/30'}`}>
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${color === 'amber' ? 'bg-amber-950/20' : 'bg-ojas/15'}`}><Icon className={`w-4 h-4 ${color === 'amber' ? 'text-amber-600' : 'text-ojas'}`} /></div>
-                      <div className="min-w-0 flex-1"><p className="text-sm font-medium text-foreground leading-tight">{label}</p><p className="text-[11px] text-muted-foreground mt-0.5 leading-snug line-clamp-1">{description}</p></div>
-                    </button>)}
+                  <motion.div key="explore-tab" initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }} transition={{ duration: 0.14 }} className="space-y-2">
+                    <p className="px-1 pb-1 text-[11px] uppercase tracking-widest font-semibold text-muted-foreground/70">
+                      {t('desktopSidebar.explore', 'Explore')}
+                    </p>
+                    {exploreItems.map(({ id, icon: Icon, label, description, onClick, color, tour }) => (
+                      <button
+                        key={id}
+                        onClick={onClick}
+                        data-tour={tour}
+                        className={`w-full min-h-[60px] flex items-center gap-3 p-3 rounded-2xl border transition-all text-left active:scale-[0.99] ${color === 'amber' ? 'bg-amber-950/10 border-amber-600/20 hover:bg-amber-950/20' : 'bg-muted/35 border-border/40 hover:bg-ojas/10 hover:border-ojas/30'}`}
+                      >
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${color === 'amber' ? 'bg-amber-950/20' : 'bg-ojas/15'}`}>
+                          <Icon className={`w-4 h-4 ${color === 'amber' ? 'text-amber-600' : 'text-ojas'}`} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-foreground leading-tight">{label}</p>
+                          <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug line-clamp-1">{description}</p>
+                        </div>
+                      </button>
+                    ))}
                   </motion.div>
                 )}
               </AnimatePresence>
             </div>
-          </motion.div>
+          </motion.aside>
         </>
       )}
     </AnimatePresence>
