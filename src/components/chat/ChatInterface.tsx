@@ -33,6 +33,7 @@ import {
 import { telemetryEvents } from '@/lib/telemetryEvents';
 import { ChatErrorBanner } from './ChatErrorBanner';
 import { AiTransparencyBanner } from '@/components/compliance/AiTransparencyBanner';
+import { hapticAudio } from '@/lib/audio/hapticAudio';
 
 
 import { derivePrePracticeInsights } from '@/lib/profileStorage';
@@ -1409,6 +1410,7 @@ openSereneMind('audio');
     }
 
     if (streamingWorked) {
+      hapticAudio.playCompletionChime();
       if (!isIncognito) maybeSummarize();
       return;
     }

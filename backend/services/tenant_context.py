@@ -109,30 +109,23 @@ def get_tenant_collection(base_collection: str, tenant_id: Optional[str] = None)
 # -----------------------------------------------------------------------
 
 
-def get_tenant_id_from_user(user: dict) -> str:
+def get_tenant_id_from_user(user: dict | None) -> str:
     """Extract the tenant ID from an authenticated user dict.
 
     Priority (first non-empty wins):
-      1. ``user["tenant_id"]`` if the JWT carries an explicit tenant claim
-      2. ``user["id"]`` (Supabase user UUID → per-user tenant isolation)
-      3. ``"default"`` (legacy fallback)
+      1. ``user["tenant_id"]`` or ``user["app_metadata"]["tenant_id"]``
+      2. ``_LEGACY_TENANT`` ("default")
 
-    In a multi-tenant SaaS, orgs would be modelled as separate Supabase projects
-    or as a custom ``tenant_id`` claim. For now we use the user ID as the tenant.
-
-    DORMANT PATH WARNING: this only fires when ``request.state.user`` is set,
-    and nothing in the codebase currently sets it (confirmed via full-repo
-    grep) -- ``set_tenant_from_request`` therefore always falls through to
-    ``_LEGACY_TENANT`` in production today. If a future change ever populates
-    ``request.state.user`` for an authenticated caller, this branch activates
-    and TenantContext.get() returns their Supabase UUID instead of the legacy
-    tenant -- every CorpusScope(tenant_id=TenantContext.get() or ...) call
-    then scopes retrieval to a tenant_id no ingested Qdrant point carries,
-    silently zeroing RAG retrieval for every authenticated user (the same
-    failure shape as the tenant/corpus outage fixed this session, just
-    dormant rather than live, and via the authenticated path specifically).
+    CRIT-P0: Do NOT fall back to user["id"] (Supabase user UUID).
+    Corpus retrieval must scope to the shared doctrine tenant ("default" / "oneness"),
+    while per-user isolation is handled separately in Postgres/SecondBrain vaults.
     """
-    return user.get("tenant_id") or user.get("id") or _LEGACY_TENANT
+    if not isinstance(user, dict):
+        return _LEGACY_TENANT
+    tenant_id = user.get("tenant_id") or user.get("app_metadata", {}).get("tenant_id")
+    if isinstance(tenant_id, str) and tenant_id.strip():
+        return tenant_id.strip()
+    return _LEGACY_TENANT
 
 
 async def set_tenant_from_request(request: Request) -> None:

@@ -28,10 +28,40 @@ from services.auth_service import get_current_user_from_supabase
 from services.sarvam_service import SarvamCloudService
 from services.watermarking_service import WatermarkingService
 from services.whisper_local_service import transcribe_with_whisper
+from app.security_utils import RedisBackedRateLimiter, is_benchmark_request
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Speech"])
+
+_STT_RATE_LIMITER = RedisBackedRateLimiter(
+    redis_url=settings.redis_url,
+    ttl=60.0,
+    max_requests=10,
+    backoff_base=2.0,
+    backoff_multiplier=2.0,
+)
+_TTS_RATE_LIMITER = RedisBackedRateLimiter(
+    redis_url=settings.redis_url,
+    ttl=60.0,
+    max_requests=10,
+    backoff_base=2.0,
+    backoff_multiplier=2.0,
+)
+
+
+def _check_speech_rate_limit(request: Request, limiter_instance: RedisBackedRateLimiter, endpoint: str, user: dict | None = None) -> None:
+    if is_benchmark_request(request):
+        return
+    client_ip = request.client.host if request.client else "unknown"
+    entity_id = (user.get("id") if user else None) or client_ip
+    allowed, retry_after = limiter_instance.is_allowed(f"speech:{endpoint}:{entity_id}")
+    if not allowed:
+        raise HTTPException(
+            status_code=429,
+            detail="Speech rate limit exceeded. Please try again later.",
+            headers={"Retry-After": str(int(retry_after or 60))},
+        )
 
 
 class SpeechTTSRequest(BaseModel):
@@ -41,7 +71,6 @@ class SpeechTTSRequest(BaseModel):
 
 
 @router.post("/speech/stt")
-@limiter.limit("10/minute")
 async def speech_to_text_endpoint(
     request: Request,
     file: UploadFile = File(...),
@@ -53,6 +82,7 @@ async def speech_to_text_endpoint(
     """
     Transcribe uploaded audio file using Sarvam Cloud STT or fallback to local Whisper.
     """
+    _check_speech_rate_limit(request, _STT_RATE_LIMITER, "stt", user)
     MAX_AUDIO_BYTES = 25 * 1024 * 1024
     ALLOWED_AUDIO_TYPES = {
         "audio/webm",
@@ -160,7 +190,6 @@ async def speech_to_text_endpoint(
 
 
 @router.post("/speech/tts")
-@limiter.limit("10/minute")
 async def text_to_speech_endpoint(
     request: Request,
     req: SpeechTTSRequest,
@@ -170,6 +199,7 @@ async def text_to_speech_endpoint(
     """
     Generate speech from text using Sarvam Cloud TTS.
     """
+    _check_speech_rate_limit(request, _TTS_RATE_LIMITER, "tts", user)
     api_key = settings.sarvam_api_key
     if not api_key or api_key.startswith("sk_dummy") or len(api_key) <= 10:
         raise HTTPException(

@@ -657,7 +657,33 @@ async def _call_llm(system: str, user: str) -> str:
                 logger.info("LLM: generated %d chars via OpenRouter", len(text))
                 return text.strip()
     except Exception as exc:
-        logger.warning("OpenRouter LLM failed: %s — trying Ollama", exc)
+        logger.warning("OpenRouter LLM failed: %s — trying Sarvam", exc)
+
+    # Fallback: Sarvam Cloud
+    try:
+        from services.sarvam_service import SarvamCloudService
+
+        sarvam = SarvamCloudService()
+        text = await sarvam.generate(
+            system_prompt=system,
+            user_prompt=user,
+            temperature=0.3,
+            operation="okf_extraction",
+        )
+        if text:
+            from services.text_quality_filter import find_artifact
+
+            artifact = find_artifact(text)
+            if artifact:
+                logger.warning(
+                    "LLM output from Sarvam contains artifact %r — trying next provider",
+                    artifact,
+                )
+            else:
+                logger.info("LLM: generated %d chars via Sarvam", len(text))
+                return text.strip()
+    except Exception as exc:
+        logger.warning("Sarvam LLM failed: %s — trying Ollama", exc)
 
     # Final fallback: Ollama (local — always available if ollama serve is running)
     try:
@@ -672,6 +698,7 @@ async def _call_llm(system: str, user: str) -> str:
         )
         if text:
             from services.text_quality_filter import find_artifact
+
             artifact = find_artifact(text)
             if artifact:
                 logger.warning(

@@ -287,6 +287,7 @@ class SarvamHTTPGateway:
                 "summarize",
                 "keyword",
                 "extract",
+                "correction",
             )
             complex_tags = (
                 "complex",

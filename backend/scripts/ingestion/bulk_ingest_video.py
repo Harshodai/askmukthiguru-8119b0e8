@@ -113,8 +113,16 @@ async def bulk_ingest_async(
     # Instantiate services
     qdrant_svc = QdrantService()
     embedder_svc = EmbeddingService()
-    llm_svc = OpenRouterService()
-    llm_svc._rpm_limit = rpm_limit
+    llm_provider = os.environ.get("LLM_PROVIDER", "openrouter").lower()
+    if llm_provider in ("sarvam", "sarvam_cloud"):
+        from services.sarvam_service import SarvamCloudService
+
+        llm_svc = SarvamCloudService()
+        logger.info("Using SarvamCloudService as LLM provider for ingestion")
+    else:
+        llm_svc = OpenRouterService()
+        llm_svc._rpm_limit = rpm_limit
+        logger.info("Using OpenRouterService as LLM provider for ingestion")
 
     # --- Neo4j driver (for ontology/entity writes via write_extraction_to_neo4j) ---
     _neo4j_driver = None

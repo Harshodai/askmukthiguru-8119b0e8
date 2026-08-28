@@ -52,9 +52,12 @@ logger = logging.getLogger(__name__)
 # When in doubt, leave it out — a false positive deletes doctrine.
 _ARTIFACT_PATTERNS: tuple[str, ...] = (
     # -- markdown task scaffolding emitted by a reasoning model --
-    r"\*\*\s*(?:Analyze|Analyse|Conclusion|Deconstruct|Synthesiz|Refine|Brainstorm)",
+    r"(?:\*\*|\b)\s*(?:\d+[\s.)]+)?(?:\*\*)?\s*(?:Analyze|Analyse|Conclusion|Deconstruct|Synthesiz|Refine|Brainstorm)\b",
     r"\*\*\s*Step\s*\d",
-    r"^\s*\d+\.\s+\*\*[A-Z][a-z]+ the (?:Input|Text|Sentence|Rules)",
+    r"^\s*\d+[\s.)]+(?:\*\*)?[A-Z][a-z]+ the (?:Input|Text|Sentence|Rules|User|Request|Prompt)",
+    r"^\s*\*\s+\*\*(?:Source Material|Core Problem|Key Concept|Persona|Primary Theme|Underlying Issue|Direct Answer)\s*:\*\*",
+    r"\bDeconstruct the (?:User|Input|Text|Sentence|Rules|Request|Prompt)\b",
+    r"\b(?:Analyze|Analyse) the (?:User|Input|Text|Sentence|Rules|Request|Prompt)\b",
     # -- explicit self-reference to the prompt / task --
     r"\bI(?:'ve| have) been asked to\b",
     r"\bMy task is to\b",
@@ -317,6 +320,8 @@ if __name__ == "__main__":  # runnable self-check
         "Sadhana is a term in the teaching. a common transcription error where a space is omitted.",
         "[RAPTOR Level: 1 | Topic: Simple, Foundational Presence]",
         '*   "Ego and Control" - This gets to the *why* behind the flawed view.',
+        # Numbered bold reasoning scaffolding
+        "**1. Deconstruct the User's Request**\n* **Source Material:** A personal, emotional question",
         # L-INGEST-2: Provider graceful-degradation canned strings (OpenRouter / NIM)
         "I'm currently experiencing a temporary connectivity issue. Please try again in a moment.",
         "I'm here and listening. Due to a temporary connection issue, I need a moment to reconnect.",

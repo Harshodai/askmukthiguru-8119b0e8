@@ -21,26 +21,34 @@ configure_threading()
 from celery import Celery
 from kombu import Exchange, Queue
 
-REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+def _derive_celery_url(base_url: str) -> str:
+    """Ensure Celery uses DB 1 if default DB 0 was supplied in REDIS_URL."""
+    if "@" in base_url:
+        prefix = "rediss://" if base_url.startswith("rediss://") else "redis://"
+        parts = base_url.split("@", 1)
+        auth_part = parts[0].replace(prefix, "")
+        if ":" in auth_part:
+            username, password = auth_part.split(":", 1)
+            if username == "default":
+                base_url = f"{prefix}:{password}@{parts[1]}"
+    if base_url.endswith("/0"):
+        return base_url[:-2] + "/1"
+    return base_url
+
+
+CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL") or _derive_celery_url(
+    os.environ.get("REDIS_URL", "redis://localhost:6379/1")
+)
 # Local dev: run .delay() calls synchronously in the backend process itself,
 # no separate celery-worker container needed. Off by default -- Railway
 # production still wants the real async worker split.
 CELERY_TASK_ALWAYS_EAGER = os.environ.get("CELERY_TASK_ALWAYS_EAGER", "false").lower() == "true"
-# Sanitize redis_url to strip 'default:' username if present (fixes Celery/Kombu connection issues)
-if "@" in REDIS_URL:
-    prefix = "rediss://" if REDIS_URL.startswith("rediss://") else "redis://"
-    parts = REDIS_URL.split("@", 1)
-    auth_part = parts[0].replace(prefix, "")
-    if ":" in auth_part:
-        username, password = auth_part.split(":", 1)
-        if username == "default":
-            REDIS_URL = f"{prefix}:{password}@{parts[1]}"
 
 
 celery_app = Celery(
     "mukthi_guru",
-    broker=REDIS_URL,
-    backend=REDIS_URL,
+    broker=CELERY_BROKER_URL,
+    backend=CELERY_BROKER_URL,
     include=[
         "tasks.ingest_tasks",
         "tasks.layered_memory_tasks",

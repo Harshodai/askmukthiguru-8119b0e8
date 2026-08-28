@@ -76,18 +76,34 @@ export const PracticesSection = () => {
                 </button>
                 <Link
                   to={`/practices/${p.slug}`}
-                  className="glass-card-hover p-5 h-full flex flex-col group"
+                  className="relative p-5 h-full flex flex-col group rounded-3xl border border-border/40 bg-card/80 backdrop-blur-md hover:border-saffron-gold/50 transition-all duration-300 shadow-sm hover:shadow-xl hover:-translate-y-1 overflow-hidden"
                 >
-                  <div className="w-11 h-11 rounded-xl bg-ojas/15 flex items-center justify-center mb-3">
-                    <Icon className="w-5 h-5 text-ojas" />
+                  {/* Breath Pacing Orb on Hover */}
+                  <motion.div
+                    animate={{
+                      scale: [1, 1.4, 1],
+                      opacity: [0.08, 0.22, 0.08],
+                    }}
+                    transition={{
+                      duration: 6,
+                      repeat: Infinity,
+                      ease: 'easeInOut',
+                    }}
+                    className="absolute -right-12 -top-12 w-36 h-36 rounded-full bg-saffron-gold blur-2xl pointer-events-none group-hover:opacity-40 transition-opacity"
+                  />
+
+                  <div className="w-12 h-12 rounded-2xl bg-saffron-gold/15 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                    <Icon className="w-6 h-6 text-saffron-gold" />
                   </div>
-                  <h3 className="font-semibold text-foreground pr-6">{p.title}</h3>
-                  <p className="text-xs text-muted-foreground mt-1 flex-1">{p.tagline}</p>
-                  <div className="flex items-center justify-between mt-4 text-[11px] text-muted-foreground">
-                    <span className="inline-flex items-center gap-1">
-                      <Clock className="w-3 h-3" /> {p.durationLabel}
+                  <h3 className="font-serif text-lg font-bold text-foreground pr-6">{p.title}</h3>
+                  <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed flex-1">{p.tagline}</p>
+                  <div className="flex items-center justify-between mt-5 pt-3 border-t border-border/40 text-xs text-muted-foreground">
+                    <span className="inline-flex items-center gap-1.5 font-mono">
+                      <Clock className="w-3.5 h-3.5 text-saffron-gold" /> {p.durationLabel}
                     </span>
-                    <ArrowRight className="w-4 h-4 text-ojas group-hover:translate-x-0.5 transition-transform" />
+                    <span className="inline-flex items-center gap-1 text-saffron-gold font-semibold text-xs group-hover:translate-x-1 transition-transform">
+                      Practice <ArrowRight className="w-3.5 h-3.5" />
+                    </span>
                   </div>
                 </Link>
               </motion.div>

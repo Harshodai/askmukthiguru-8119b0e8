@@ -24,6 +24,9 @@ import { CitationPanel, type Citation } from './CitationPanel';
 import { LiveLogisticsCards } from './LiveLogisticsCards';
 import { EuAiBadge } from '@/components/compliance/EuAiBadge';
 import { ProvenanceDrawer } from '@/components/compliance/ProvenanceDrawer';
+import { CitationBadge, DiscourseVideoModal, type DiscourseCitation } from './CitationCard';
+import { SacredPracticeWidget } from './SacredPracticeWidget';
+import { ReflectionChips } from './ReflectionChips';
 
 interface ChatMessageProps {
   message: Message;
@@ -464,6 +467,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
     const [noteSaved, setNoteSaved] = useState(false);
     const [sourcesOpen, setSourcesOpen] = useState(false);
     const [provenanceOpen, setProvenanceOpen] = useState(false);
+    const [activeVideoCitation, setActiveVideoCitation] = useState<DiscourseCitation | null>(null);
     const editTextareaRef = useRef<HTMLTextAreaElement>(null);
 
     // Auto-resize + cursor-end when editing opens or text changes
@@ -778,19 +782,23 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                               const match = typeof href === 'string' ? href.match(/^#cite-(\d+)$/) : null;
                               if (match) {
                                 const n = parseInt(match[1], 10);
+                                const citationData = (message.citations ?? [])[n - 1];
+                                const discourseCitation: DiscourseCitation = {
+                                  index: n,
+                                  url: citationData?.url || '#',
+                                  title: citationData?.title || citationData?.source || 'Sacred Discourse Teaching',
+                                  speaker: 'Ekams Wisdom',
+                                  startTimestamp: citationData?.timestampSeconds,
+                                  quote: citationData?.textSnippet || citationData?.quote,
+                                };
                                 return (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.preventDefault();
+                                  <CitationBadge
+                                    citation={discourseCitation}
+                                    onOpenVideoModal={(c) => {
+                                      setActiveVideoCitation(c);
                                       onCitationClick?.(message.id, n - 1);
                                     }}
-                                    className="inline-flex items-center justify-center align-super mx-[1px] px-[5px] min-w-[18px] h-[18px] rounded-md text-[10px] font-semibold tabular-nums bg-ojas/10 text-ojas border border-ojas/30 hover:bg-ojas/20 hover:border-ojas/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ojas transition-colors"
-                                    aria-label={`Show source ${n} in the sources panel`}
-                                    title={`Source ${n} — click to open in Sources`}
-                                  >
-                                    {n}
-                                  </button>
+                                  />
                                 );
                               }
                               return (
@@ -1339,6 +1347,13 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                 message={message}
               />
             )}
+
+            {/* Timestamped YouTube Discourse Video Player Modal */}
+            <DiscourseVideoModal
+              isOpen={!!activeVideoCitation}
+              onClose={() => setActiveVideoCitation(null)}
+              citation={activeVideoCitation}
+            />
           </div>
 
         </motion.div>

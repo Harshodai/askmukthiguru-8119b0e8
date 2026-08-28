@@ -82,6 +82,9 @@ import { clearResponsePreferences } from '@/lib/chat/responsePreferences';
 import { MemoryManager } from '@/components/profile/MemoryManager';
 import { NotesPanel } from '@/components/profile/NotesPanel';
 import { ProfileStatTiles } from '@/components/profile/ProfileStatTiles';
+import { SadhanaHeatmap } from '@/components/profile/SadhanaHeatmap';
+import { StreakMilestoneCard } from '@/components/profile/StreakMilestoneCard';
+import { FamiliarityProgressWheel } from '@/components/profile/FamiliarityProgressWheel';
 import { TwoFactorSettings } from '@/components/auth/TwoFactorSettings';
 import { useToast } from '@/hooks/use-toast';
 import { useTheme } from '@/hooks/useTheme';
@@ -613,6 +616,25 @@ const ProfilePage = () => {
             </TabsContent>
 
             <TabsContent value="stats" className="space-y-6 mt-0">
+              <StreakMilestoneCard
+                currentStreak={stats?.streakDays || 0}
+                longestStreak={stats?.longestStreakDays || stats?.streakDays || 0}
+              />
+
+              <SadhanaHeatmap sessions={sessions} weeksToShow={24} />
+
+              <FamiliarityProgressWheel
+                level={
+                  form.familiarityLevel === 'advanced'
+                    ? 'advanced_meditator'
+                    : form.familiarityLevel === 'practitioner'
+                    ? 'practitioner'
+                    : 'seeker'
+                }
+                totalConversations={metrics?.totalConversations || 0}
+                totalReflections={metrics?.totalReflections || 0}
+              />
+
               <ProfileStatTiles stats={stats} sessions={sessions} />
 
               <Card className="rounded-2xl border border-hairline bg-card shadow-sm">

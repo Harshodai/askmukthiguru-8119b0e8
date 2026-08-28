@@ -3011,6 +3011,8 @@ class IngestionPipeline:
                 logger.warning(f"Contextual enrichment failed (non-fatal): {e}")
 
         # Step 2: Hypothetical question augmentation
+        from services.text_quality_filter import find_artifact
+
         augmented = []
         for i, chunk in enumerate(chunks):
             try:
@@ -3019,8 +3021,21 @@ class IngestionPipeline:
                         "Generate 2-3 brief hypothetical questions that this spiritual teaching answers.",
                         chunk,
                         max_tokens=100,
+                        operation="summarize",
                     )
-                    augmented.append(f"{chunk}\n\n[Potential Questions: {questions}]")
+                    cleaned_q = (questions or "").strip()
+                    if (
+                        cleaned_q
+                        and "?" in cleaned_q
+                        and not cleaned_q.startswith(("*", "-", "#", "**"))
+                        and find_artifact(cleaned_q) is None
+                    ):
+                        augmented.append(f"{chunk}\n\n[Potential Questions: {cleaned_q}]")
+                    else:
+                        logger.warning(
+                            f"Hypothetical questions for chunk {i} failed positive validation or contained artifact — preserving clean chunk"
+                        )
+                        augmented.append(chunk)
                 else:
                     augmented.append(chunk)
             except Exception as e:

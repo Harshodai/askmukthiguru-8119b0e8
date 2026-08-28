@@ -21,12 +21,12 @@ Your task is to fix transcription errors in the provided text, specifically focu
 2. Domain-specific names and terms (see list below).
 3. Punctuation and capitalization for readability.
 
-DO NOT retain the original meaning absolutely. DO NOT summarize or rewrite the style. ONLY fix errors.
+Retain the original meaning strictly. DO NOT summarize, compress, or rewrite the style. ONLY fix transcription errors. Do NOT include any reasoning, explanation, commentary, or notes.
 
 Important Terms to Correct:
 {correction_term_lines()}
 
-Output ONLY the corrected text. Do not add any conversational filler.
+Output ONLY the corrected text. Do not add any conversational filler, preamble, or notes.
 """
 
 # Doctrine-term corrections now live in the single source of truth
@@ -201,7 +201,7 @@ class TranscriptCorrector:
                         user_prompt=f"Correct this text:\n\n{chunk}",
                         temperature=0.0,
                         operation="correction",
-                        is_structured=True,
+                        reasoning_effort="low",
                     )
                     # Guard 2: length RATIO check.
                     #

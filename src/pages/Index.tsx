@@ -4,6 +4,7 @@ import { HeroSection } from '@/components/landing/HeroSection';
 import { MeetTheGurusSection } from '@/components/landing/MeetTheGurusSection';
 import { HowItWorksSection } from '@/components/landing/HowItWorksSection';
 import { PracticesSection } from '@/components/landing/PracticesSection';
+import { WisdomGraphPreview } from '@/components/landing/WisdomGraphPreview';
 import { SampleWisdomSection } from '@/components/landing/SampleWisdomSection';
 import { AboutMeditationSection } from '@/components/landing/AboutMeditationSection';
 import { SafetyPillarsSection } from '@/components/landing/SafetyPillarsSection';
@@ -82,6 +83,7 @@ const Index = () => {
       <MeetTheGurusSection />
       <HowItWorksSection />
       <PracticesSection />
+      <WisdomGraphPreview />
       <SampleWisdomSection />
       <AboutMeditationSection />
       <SafetyPillarsSection />

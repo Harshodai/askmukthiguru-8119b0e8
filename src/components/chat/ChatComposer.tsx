@@ -29,6 +29,8 @@ import {
   PromptInputTools,
 } from '@/components/ai-elements/prompt-input';
 
+import { hapticAudio } from '@/lib/audio/hapticAudio';
+
 interface ChatComposerProps {
   inputValue: string;
   inputRef: React.RefObject<HTMLTextAreaElement | null>;
@@ -179,6 +181,7 @@ export function ChatComposer({
 
   const handleFormSubmit = (_message: PromptInputMessage, e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    hapticAudio.playDispatchChime();
     onSubmit(e);
   };
 
