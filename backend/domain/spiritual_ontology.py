@@ -210,14 +210,61 @@ CANONICAL_ENTITY_ALIASES: dict[str, str] = {
     "amma bhagavan": "Sri Amma Bhagavan",
     "sri preethaji": "Sri Preethaji",
     "sri krishnaji": "Sri Krishnaji",
-    # Organizations
+    # Organizations / Sacred Centers
     "o&o": "O&O Academy",
     "o and o academy": "O&O Academy",
     "o and o": "O&O Academy",
-    # Practices
+    "oo academy": "O&O Academy",
+    "ekam": "Ekam",
+    "ekam world": "Ekam",
+    "ekam world centre": "Ekam",
+    "ekam world center": "Ekam",
+    "world centre for enlightenment": "Ekam",
+    "world center for enlightenment": "Ekam",
+    # Core States & Philosophical Concepts
+    "beautiful state": "Beautiful State",
+    "the beautiful state": "Beautiful State",
+    "blissful state": "Beautiful State",
+    "state of bliss": "Beautiful State",
+    "state of calm": "Beautiful State",
+    "state of joy": "Beautiful State",
+    "no-stress state": "Beautiful State",
+    "beautiful_state": "Beautiful State",
+    "suffering state": "Suffering State",
+    "the suffering state": "Suffering State",
+    "state of suffering": "Suffering State",
+    "painful state": "Suffering State",
+    "state of pain": "Suffering State",
+    "stressful state": "Suffering State",
+    "suffering_state": "Suffering State",
+    "aham": "Aham",
+    "ahamkara": "Aham",
+    "ahamkar": "Aham",
+    "sense of i": "Aham",
+    "ego-self": "Aham",
+    "i-ness": "Aham",
+    # Core Teachings & Sacred Treatises
+    "four sacred secrets": "Four Sacred Secrets",
+    "4 sacred secrets": "Four Sacred Secrets",
+    "the four sacred secrets": "Four Sacred Secrets",
+    "the four secrets": "Four Sacred Secrets",
+    "sacred secrets": "Four Sacred Secrets",
+    # Practices, Meditations & Transmissions
     "breath awareness": "Breath Awareness",
     "soul sync": "Soul Sync",
+    "soul synchronization": "Soul Sync",
+    "soul sync meditation": "Soul Sync",
+    "breath meditation": "Soul Sync",
     "serene mind": "Serene Mind",
+    "serene mind practice": "Serene Mind",
+    "serene mind meditation": "Serene Mind",
+    "conscious breathing": "Serene Mind",
+    "deeksha": "Deeksha",
+    "diksha": "Deeksha",
+    "oneness blessing": "Deeksha",
+    "divine blessing": "Deeksha",
+    "energy transmission": "Deeksha",
+    "sacred transfer": "Deeksha",
     "japa": "Japa",
     # Texts / traditions
     "bhagavad gita": "Bhagavad Gita",
@@ -321,6 +368,8 @@ def resolve_teacher_domain(entity_name: str) -> Optional[TeacherDomain]:
 
 def normalize_entity_name(name: str) -> str:
     """Normalize entity name: strip whitespace, collapse inner spaces."""
+    if not name:
+        return ""
     return " ".join(name.strip().split())
 
 
@@ -342,9 +391,15 @@ def canonical_entity_id(name: str) -> str:
     canonical id. Falls back to the (unstripped) normalized name when no
     alias matches, so unmapped entities keep their original entity_id.
     """
+    if not name:
+        return ""
     normalized = normalize_entity_name(name)
     stripped = _HONORIFIC_SUFFIX_RE.sub("", _HONORIFIC_PREFIX_RE.sub("", normalized)).strip()
-    return CANONICAL_ENTITY_ALIASES.get(stripped.lower(), normalized)
+    return (
+        CANONICAL_ENTITY_ALIASES.get(stripped.lower())
+        or CANONICAL_ENTITY_ALIASES.get(normalized.lower())
+        or normalized
+    )
 
 
 @dataclass

@@ -116,8 +116,8 @@ class OpenRouterModelPolicy:
             ),
             max_tokens_fast=int(settings.llm_max_tokens_fast),
             max_tokens_deep=int(settings.llm_max_tokens_deep),
-            daily_budget_usd=float(getattr(settings, "openrouter_daily_budget_usd", 0.25)),
-            monthly_budget_usd=float(getattr(settings, "openrouter_monthly_budget_usd", 6.0)),
+            daily_budget_usd=float(getattr(settings, "openrouter_daily_budget_usd", 10.0)),
+            monthly_budget_usd=float(getattr(settings, "openrouter_monthly_budget_usd", 100.0)),
         )
         policy.validate()
         return policy

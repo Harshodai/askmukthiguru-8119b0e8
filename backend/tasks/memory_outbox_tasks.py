@@ -5,12 +5,10 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from celery import Celery
-
 from app.config import settings
-from celery_config import REDIS_URL
+from celery_config import REDIS_URL, celery_app
 
-app = Celery(broker=REDIS_URL, backend=REDIS_URL)
+app = celery_app
 logger = logging.getLogger(__name__)
 
 
@@ -134,7 +132,12 @@ async def _drain_once(limit: int = 50) -> dict[str, int]:
     return {"claimed": len(rows), "processed": processed, "failed": failed}
 
 
-@app.task(bind=True, max_retries=0, soft_time_limit=120)
+@app.task(
+    bind=True,
+    name="tasks.memory_outbox_tasks.drain_memory_outbox",
+    max_retries=0,
+    soft_time_limit=120,
+)
 def drain_memory_outbox(self) -> dict[str, int]:
     """Process at most 50 durable memory writes. Safe across worker replicas."""
     return asyncio.run(_drain_once())

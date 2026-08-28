@@ -121,6 +121,7 @@ celery_app.conf.task_routes = {
     "tasks.okf_compile_tasks.compile_okf_index": {"queue": "okf"},
     "tasks.okf_extract_tasks.extract_okf_entries": {"queue": "okf"},
     "tasks.memory_outbox_tasks.drain_memory_outbox": {"queue": "memory"},
+    "tasks.layered_memory_tasks.process_batched_memories": {"queue": "memory"},
 }
 
 

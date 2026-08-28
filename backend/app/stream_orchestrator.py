@@ -130,6 +130,15 @@ class ChatStreamRequestOrchestrator:
             completed = False
             try:
                 yield "event: status\ndata: Query received, starting pipeline…\n\n"
+                initial_stage = json.dumps(
+                    {
+                        "node": "input_guardrail",
+                        "step": 1,
+                        "total_steps": 8,
+                        "strategy": "standard",
+                    }
+                )
+                yield f"event: stage\ndata: {initial_stage}\n\n"
 
                 HEARTBEAT_INTERVAL = 5.0
                 while True:
@@ -181,6 +190,8 @@ class ChatStreamRequestOrchestrator:
                     if isinstance(item, dict):
                         event_type = item.get("event", "status")
                         event_data = item.get("data", "")
+                        if isinstance(event_data, (dict, list)):
+                            event_data = json.dumps(event_data)
                         yield f"event: {event_type}\ndata: {event_data}\n\n"
                     elif isinstance(item, str):
                         if not _ttft_recorded:

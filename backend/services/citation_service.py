@@ -197,6 +197,168 @@ def strip_orphan_markers(answer: str, context_items: list[Any]) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Citation N-Gram Verification Protocol (8-word continuous match)
+# ---------------------------------------------------------------------------
+
+_QUOTE_RE = re.compile(r'["“]([^"”]+)["”]|[\'‘]([^\'’]+)[\'’]')
+
+
+def extract_verbatim_quotes(text: str, min_words: int = 2) -> list[str]:
+    """Extract quoted phrases from text (supporting straight and curly quotes)."""
+    if not text:
+        return []
+    quotes = []
+    for match in _QUOTE_RE.finditer(text):
+        q = (match.group(1) or match.group(2) or "").strip()
+        if len(q.split()) >= min_words:
+            quotes.append(q)
+    return quotes
+
+
+def _normalize_words(text: str) -> list[str]:
+    """Normalize text into lowercased alphanumeric words."""
+    if not text:
+        return []
+    return re.findall(r"\b\w+\b", text.lower())
+
+
+def check_continuous_ngram_match(quote: str, source_text: str, n: int = 8) -> bool:
+    """Check if quote has an n-word continuous verbatim match in source_text.
+
+    If the quote has fewer than n words, checks if the entire normalized quote
+    appears continuously in the normalized source_text.
+    If the quote has >= n words, checks if ANY continuous n-word sequence from the
+    quote appears verbatim in the normalized source_text.
+    """
+    quote_words = _normalize_words(quote)
+    source_words = _normalize_words(source_text)
+
+    if not quote_words or not source_words:
+        return False
+
+    q_len = len(quote_words)
+    s_len = len(source_words)
+
+    if q_len < n:
+        if q_len > s_len:
+            return False
+        # Check if entire quote_words appears continuously in source_words
+        target = tuple(quote_words)
+        for i in range(s_len - q_len + 1):
+            if tuple(source_words[i : i + q_len]) == target:
+                return True
+        return False
+
+    # For q_len >= n: check if any continuous n-gram appears in source_words
+    source_ngrams = {
+        tuple(source_words[i : i + n])
+        for i in range(s_len - n + 1)
+    }
+
+    for i in range(q_len - n + 1):
+        gram = tuple(quote_words[i : i + n])
+        if gram in source_ngrams:
+            return True
+
+    return False
+
+
+def verify_quote_ngram_fidelity(quote: str, source_text: str, n: int = 8) -> dict[str, Any]:
+    """Compute detailed continuous n-gram matching metrics for a verbatim quote."""
+    quote_words = _normalize_words(quote)
+    source_words = _normalize_words(source_text)
+
+    if not quote_words or not source_words:
+        return {
+            "quote": quote,
+            "quote_word_count": len(quote_words),
+            "matched": False,
+            "match_ratio": 0.0,
+            "matched_ngrams_count": 0,
+            "total_ngrams_count": max(0, len(quote_words) - n + 1) if len(quote_words) >= n else 1,
+        }
+
+    q_len = len(quote_words)
+    s_len = len(source_words)
+
+    if q_len < n:
+        matched = check_continuous_ngram_match(quote, source_text, n=n)
+        return {
+            "quote": quote,
+            "quote_word_count": q_len,
+            "matched": matched,
+            "match_ratio": 1.0 if matched else 0.0,
+            "matched_ngrams_count": 1 if matched else 0,
+            "total_ngrams_count": 1,
+        }
+
+    source_ngrams = {
+        tuple(source_words[i : i + n])
+        for i in range(s_len - n + 1)
+    }
+
+    total_ngrams = q_len - n + 1
+    matched_count = 0
+    for i in range(total_ngrams):
+        gram = tuple(quote_words[i : i + n])
+        if gram in source_ngrams:
+            matched_count += 1
+
+    match_ratio = matched_count / total_ngrams if total_ngrams > 0 else 0.0
+    return {
+        "quote": quote,
+        "quote_word_count": q_len,
+        "matched": matched_count > 0,
+        "match_ratio": match_ratio,
+        "matched_ngrams_count": matched_count,
+        "total_ngrams_count": total_ngrams,
+    }
+
+
+def verify_citation_ngrams(answer: str, context_items: list[Any], n: int = 8) -> dict[str, Any]:
+    """Extract quoted text and verify each quote against retrieved context items.
+
+    Returns a verification dict with boolean pass/fail status and breakdown per quote.
+    """
+    quotes = extract_verbatim_quotes(answer)
+    if not quotes:
+        return {
+            "verified": True,
+            "quotes_checked": 0,
+            "quotes_passed": 0,
+            "details": [],
+        }
+
+    combined_source_text = " ".join(
+        (
+            item.get("text", "") or item.get("content", "") or item.get("source_text", "")
+            if isinstance(item, dict)
+            else getattr(item, "text", "") or getattr(item, "content", "")
+        )
+        for item in context_items
+    )
+
+    details = []
+    all_passed = True
+    passed_count = 0
+
+    for q in quotes:
+        res = verify_quote_ngram_fidelity(q, combined_source_text, n=n)
+        details.append(res)
+        if res["matched"]:
+            passed_count += 1
+        else:
+            all_passed = False
+
+    return {
+        "verified": all_passed,
+        "quotes_checked": len(quotes),
+        "quotes_passed": passed_count,
+        "details": details,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Self-test
 # ---------------------------------------------------------------------------
 
@@ -240,3 +402,14 @@ if __name__ == "__main__":
     assert "[[CITE:9]]" not in cleaned_orphan
     assert cleaned_orphan == ""
     print("[[CITE:N]] marker support OK")
+
+    # 8-word continuous n-gram verification test
+    raw_transcript = (
+        "Every moment of your life you are living either in a beautiful state "
+        "or in a suffering state. There is no third state."
+    )
+    exact_quote = "Every moment of your life you are living either in a beautiful state"
+    assert check_continuous_ngram_match(exact_quote, raw_transcript, n=8) is True
+    hallucinated_quote = "Every single person always lives happily in spiritual ecstasy forever and ever"
+    assert check_continuous_ngram_match(hallucinated_quote, raw_transcript, n=8) is False
+    print("8-word continuous ngram verification self-test OK")

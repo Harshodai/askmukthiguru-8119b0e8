@@ -167,6 +167,13 @@ export type StreamChunk =
   | { type: 'final'; text: string }
   | { type: 'status'; text: string; jobId?: string }
   | {
+      type: 'stage';
+      node: string;
+      step: number;
+      total_steps: number;
+      strategy?: string;
+    }
+  | {
       type: 'done';
       intent: string;
       citations: Citation[];

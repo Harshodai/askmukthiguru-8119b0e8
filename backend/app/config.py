@@ -78,6 +78,13 @@ class Settings(BaseSettings):
     sarvam_max_tokens: int = (
         4096  # Hard output-token ceiling applied by SarvamHTTPGateway to every generation call
     )
+    # --- Sarvam Spend & Budget Guard ---
+    sarvam_daily_budget_usd: float = Field(default=10.0, gt=0)
+    sarvam_monthly_budget_usd: float = Field(default=100.0, gt=0)
+    sarvam_budget_guard_enabled: bool = True
+    sarvam_max_request_cost_usd: float = Field(default=0.05, gt=0)
+    sarvam_chat_reserve_ratio: float = Field(default=0.7, ge=0.0, le=1.0)
+
     # Per-call HTTP timeout. NIM/OpenRouter have low server-side limits; 45s provides
     # adequate headroom while keeping total pipeline latency acceptable.
     # Must be smaller than pipeline_timeout.
@@ -217,10 +224,10 @@ class Settings(BaseSettings):
     openrouter_require_no_training: bool = True
     openrouter_allow_provider_fallbacks: bool = True
     openrouter_enforce_model_policy: bool = True
-    openrouter_daily_budget_usd: float = Field(default=0.25, gt=0)
-    openrouter_monthly_budget_usd: float = Field(default=6.0, gt=0)
-    # Redis-backed cross-replica reservation guard. Enable only after Redis health and budget drill pass.
-    openrouter_budget_guard_enabled: bool = False
+    openrouter_daily_budget_usd: float = Field(default=10.0, gt=0)
+    openrouter_monthly_budget_usd: float = Field(default=100.0, gt=0)
+    # Redis-backed cross-replica reservation guard. Default enabled with $10 daily / $100 monthly ceilings.
+    openrouter_budget_guard_enabled: bool = True
     openrouter_max_request_cost_usd: float = Field(default=0.03, gt=0)
     openrouter_budget_fail_closed: bool = True
 
@@ -473,7 +480,8 @@ class Settings(BaseSettings):
     # Max concurrent in-flight /api/chat (and /api/chat/v2, /api/chat/stream)
     # requests per replica. Exhausted → immediate 503 + Retry-After (no queueing).
     # Must be ≥1; zero or negative is rejected at startup by Pydantic validation.
-    max_concurrent_chat: int = Field(default=20, ge=1)
+    # Set to 8 to align with realistic 60 RPM Sarvam limits for 8-step Standard path.
+    max_concurrent_chat: int = Field(default=8, ge=1)
 
     # --- Request Queue (Phase 1A — horizontal scaling) ---
     # When True, incoming requests are enqueued to Redis Streams and

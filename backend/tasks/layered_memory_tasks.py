@@ -6,11 +6,9 @@ import logging
 import os
 import time
 
-from celery import Celery
+from celery_config import REDIS_URL, celery_app
 
-REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
-app = Celery(broker=REDIS_URL, backend=REDIS_URL)
-
+app = celery_app
 logger = logging.getLogger(__name__)
 
 TURN_THRESHOLD = 5
@@ -18,7 +16,12 @@ IDLE_TIMEOUT = 600
 TURN_REDIS_PREFIX = "turn_counter:"
 
 
-@app.task(bind=True, max_retries=2, soft_time_limit=120)
+@app.task(
+    bind=True,
+    name="tasks.layered_memory_tasks.process_batched_memories",
+    max_retries=2,
+    soft_time_limit=120,
+)
 def process_batched_memories(self) -> dict:
     """Scan users with accumulated turns, trigger L3 persona + skill refresh."""
     try:

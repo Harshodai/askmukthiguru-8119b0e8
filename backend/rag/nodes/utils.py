@@ -33,6 +33,11 @@ settings = SettingsProxy()
 from datetime import UTC
 
 from app.metrics import PIPELINE_STAGE_LATENCY
+from domain.spiritual_ontology import (
+    CANONICAL_ENTITY_ALIASES,
+    canonical_entity_id,
+    normalize_entity_name,
+)
 from rag.states import GraphState
 from rag.timeout_utils import get_node_timeout
 from services.rankers import _reciprocal_rank_fusion
@@ -43,24 +48,113 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Phase-2 / Truth-3: SSE status emission helper
+# Phase-2 / Truth-3: SSE status & bounded stage emission helpers
 # ---------------------------------------------------------------------------
-async def emit_status(config: Optional[dict], message: str) -> None:
+STANDARD_NODE_STAGES: dict[str, tuple[int, int, str]] = {
+    "input_guardrail": (1, 8, "standard"),
+    "intent_router": (1, 8, "standard"),
+    "handle_distress_check": (1, 8, "standard"),
+    "resolve_parallel": (1, 8, "standard"),
+    "resolve_followup": (2, 8, "standard"),
+    "decompose_query": (3, 8, "standard"),
+    "navigate_and_hyde": (3, 8, "standard"),
+    "retrieve_documents": (3, 8, "standard"),
+    "agentic_graph_traversal": (3, 8, "standard"),
+    "rerank_documents": (4, 8, "standard"),
+    "grade_documents": (5, 8, "standard"),
+    "cross_teacher_reasoning": (5, 8, "standard"),
+    "enrich_context": (6, 8, "standard"),
+    "context_engineer": (6, 8, "standard"),
+    "rewrite_query": (3, 8, "standard"),
+    "generate_answer": (7, 8, "standard"),
+    "reflect_on_answer": (7, 8, "standard"),
+    "verify_answer": (8, 8, "standard"),
+    "extract_citations": (8, 8, "standard"),
+    "format_final_answer": (8, 8, "standard"),
+    "handle_casual": (2, 2, "fast"),
+    "handle_distress": (2, 2, "fast"),
+    "handle_meditation": (2, 2, "fast"),
+    "handle_fallback": (8, 8, "standard"),
+    "web_search": (3, 8, "standard"),
+}
+
+STATUS_MESSAGE_TO_STAGE: dict[str, dict[str, Any]] = {
+    "Checking message safety...": {"node": "input_guardrail", "step": 1, "total_steps": 8, "strategy": "standard"},
+    "Understanding your question...": {"node": "intent_router", "step": 1, "total_steps": 8, "strategy": "standard"},
+    "Connecting this to your previous question...": {"node": "resolve_followup", "step": 2, "total_steps": 8, "strategy": "standard"},
+    "Breaking the question into deeper parts...": {"node": "decompose_query", "step": 3, "total_steps": 8, "strategy": "standard"},
+    "Imagining the shape of the answer...": {"node": "navigate_and_hyde", "step": 3, "total_steps": 8, "strategy": "standard"},
+    "Searching knowledge base...": {"node": "retrieve_documents", "step": 3, "total_steps": 8, "strategy": "standard"},
+    "Walking the teaching graph...": {"node": "retrieve_documents", "step": 3, "total_steps": 8, "strategy": "standard"},
+    "Ranking the most relevant teachings...": {"node": "rerank_documents", "step": 4, "total_steps": 8, "strategy": "standard"},
+    "Filtering for relevance...": {"node": "grade_documents", "step": 5, "total_steps": 8, "strategy": "standard"},
+    "Gathering surrounding context...": {"node": "enrich_context", "step": 6, "total_steps": 8, "strategy": "standard"},
+    "Rephrasing the question for better retrieval...": {"node": "rewrite_query", "step": 3, "total_steps": 8, "strategy": "standard"},
+    "Composing the response...": {"node": "generate_answer", "step": 7, "total_steps": 8, "strategy": "standard"},
+    "Reviewing the response for clarity...": {"node": "reflect_on_answer", "step": 7, "total_steps": 8, "strategy": "standard"},
+    "Verifying alignment with the teachings...": {"node": "verify_answer", "step": 8, "total_steps": 8, "strategy": "standard"},
+    "Finalizing your response...": {"node": "format_final_answer", "step": 8, "total_steps": 8, "strategy": "standard"},
+    "Saying hello...": {"node": "handle_casual", "step": 2, "total_steps": 2, "strategy": "fast"},
+    "Holding space for what you're feeling...": {"node": "handle_distress", "step": 2, "total_steps": 2, "strategy": "fast"},
+    "Guiding you into the practice...": {"node": "handle_meditation", "step": 2, "total_steps": 2, "strategy": "fast"},
+    "Preparing a graceful response...": {"node": "handle_fallback", "step": 8, "total_steps": 8, "strategy": "standard"},
+}
+
+
+async def emit_stage(
+    config: Optional[dict],
+    node: str,
+    step: Optional[int] = None,
+    total_steps: Optional[int] = None,
+    strategy: str = "standard",
+) -> None:
+    """
+    Push an SSE `event: stage` frame onto the stream queue if available.
+    Payload: { "node": node_name, "step": step_index, "total_steps": total_steps, "strategy": strategy }
+    """
+    if config is None:
+        return
+    try:
+        if hasattr(config, "get"):
+            configurable = config.get("configurable", {}) or {}
+        elif hasattr(config, "configurable"):
+            configurable = config.configurable or {}
+        else:
+            return
+        q = configurable.get("stream_queue")
+        if q is None:
+            return
+
+        if step is None or total_steps is None:
+            stage_info = STANDARD_NODE_STAGES.get(node)
+            if stage_info:
+                step = step or stage_info[0]
+                total_steps = total_steps or stage_info[1]
+                strategy = strategy or stage_info[2]
+            else:
+                step = step or 1
+                total_steps = total_steps or 8
+
+        payload = {
+            "node": node,
+            "step": step,
+            "total_steps": total_steps,
+            "strategy": strategy,
+        }
+        await q.put({"event": "stage", "data": payload})
+    except Exception:
+        pass
+
+
+async def emit_status(config: Optional[dict], message: str, node: Optional[str] = None) -> None:
     """
     Push an SSE `event: status` frame onto the stream queue if the orchestrator
-    provided one via LangGraph's `configurable`.
+    provided one via LangGraph's `configurable`. Also emits matching bounded `event: stage`.
 
     Safe to call from any node. No-op when:
       - config is None (non-streaming /api/chat path)
       - config has no stream_queue (graph compiled without queue)
       - queue is full / not a Queue (defensive)
-
-    Pattern mirror of `rag/nodes/retrieval.py:retrieve_documents` lines 248-255,
-    extracted so the other 17 nodes can opt in with a single line.
-
-    Why this matters: between `retrieve_documents` (which already emits) and
-    `generate_answer` (which streams tokens), the user otherwise stares at a
-    blank screen for 8-30 seconds while decompose/grade/verify run silently.
     """
     if config is None:
         return
@@ -75,6 +169,19 @@ async def emit_status(config: Optional[dict], message: str) -> None:
         if q is None:
             return
         await q.put({"event": "status", "data": message})
+
+        # Also emit matching bounded stage event
+        if node:
+            await emit_stage(config, node=node)
+        elif message in STATUS_MESSAGE_TO_STAGE:
+            stage_meta = STATUS_MESSAGE_TO_STAGE[message]
+            await emit_stage(
+                config,
+                node=stage_meta["node"],
+                step=stage_meta["step"],
+                total_steps=stage_meta["total_steps"],
+                strategy=stage_meta["strategy"],
+            )
     except Exception:
         # Status emission must never break the pipeline.
         pass
@@ -446,6 +553,16 @@ DOCTRINE_SYNONYMS: dict[str, list[str]] = {
         "calm mind",
         "peaceful mind",
         "tranquil mind",
+    ],
+    "aham": [
+        "aham",
+        "ahamkara",
+        "ahamkar",
+        "ego",
+        "i-ness",
+        "sense of i",
+        "ego-self",
+        "self-identity",
     ],
     "three questions": [
         "three questions",

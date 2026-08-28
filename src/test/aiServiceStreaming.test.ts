@@ -1,19 +1,19 @@
 import { describe, it, expect } from 'vitest';
-import { mapStatusToLabel } from '@/components/chat/ThinkingPills';
+import { mapStatusToLabel, mapNodeToLabel } from '@/components/chat/ThinkingPills';
 import type { StreamChunk } from '@/lib/aiService';
 
 /**
- * These tests verify the mapping between backend pipeline SSE status
+ * These tests verify the mapping between backend pipeline SSE status & stage
  * events and the UI labels shown in ThinkingPills.
  */
 describe('SSE status → ThinkingPills label mapping', () => {
   const EXPECTED_MAPPINGS: [string, string][] = [
     ['Checking message safety...', 'Safety check'],
-    ['Understanding your question...', 'Understanding'],
-    ['Searching knowledge base...', 'Searching wisdom'],
-    ['Composing response...', 'Composing'],
-    ['Generating answer...', 'Generating'],
-    ['Verifying answer...', 'Verifying'],
+    ['Understanding your question...', 'Understanding query'],
+    ['Searching knowledge base...', 'Searching sacred wisdom'],
+    ['Composing response...', 'Composing guidance'],
+    ['Generating answer...', 'Synthesizing wisdom'],
+    ['Verifying answer...', 'Verifying sacred teachings'],
   ];
 
   it.each(EXPECTED_MAPPINGS)(
@@ -23,18 +23,25 @@ describe('SSE status → ThinkingPills label mapping', () => {
     },
   );
 
-  it('handles unknown status by stripping trailing dots', () => {
-    // The current mapStatusToLabel returns 'Processing' for any unknown status
-    expect(mapStatusToLabel('Rewriting query...')).toBe('Processing');
-  });
-
-  it('returns unknown status as-is when no trailing dots', () => {
-    // The current mapStatusToLabel returns 'Processing' for any unknown status
-    expect(mapStatusToLabel('Complete')).toBe('Processing');
+  it('handles unknown status by returning default label', () => {
+    expect(mapStatusToLabel('Rewriting query...')).toBe('Contemplating');
+    expect(mapStatusToLabel('Complete')).toBe('Contemplating');
   });
 
   it('covers all 6 known backend stages', () => {
     expect(EXPECTED_MAPPINGS.length).toBe(6);
+  });
+});
+
+describe('Graph node → ThinkingPills label mapping', () => {
+  it('maps node names to user-facing labels', () => {
+    expect(mapNodeToLabel('input_guardrail')).toBe('Safety check');
+    expect(mapNodeToLabel('intent_router')).toBe('Understanding query');
+    expect(mapNodeToLabel('retrieve_documents')).toBe('Searching sacred wisdom');
+    expect(mapNodeToLabel('rerank_documents')).toBe('Refining relevance');
+    expect(mapNodeToLabel('grade_documents')).toBe('Filtering relevance');
+    expect(mapNodeToLabel('generate_answer')).toBe('Composing guidance');
+    expect(mapNodeToLabel('verify_answer')).toBe('Verifying sacred teachings');
   });
 });
 
@@ -43,6 +50,21 @@ describe('StreamChunk type discriminated union', () => {
     const chunk: StreamChunk = { type: 'token', text: 'hello' };
     expect(chunk.type).toBe('token');
     expect(chunk.text).toBe('hello');
+  });
+
+  it('stage chunk carries node, step, total_steps, and strategy', () => {
+    const chunk: StreamChunk = {
+      type: 'stage',
+      node: 'retrieve_documents',
+      step: 3,
+      total_steps: 8,
+      strategy: 'standard',
+    };
+    expect(chunk.type).toBe('stage');
+    expect(chunk.node).toBe('retrieve_documents');
+    expect(chunk.step).toBe(3);
+    expect(chunk.total_steps).toBe(8);
+    expect(chunk.strategy).toBe('standard');
   });
 
   it('done chunk carries intent, citations, meditationStep', () => {

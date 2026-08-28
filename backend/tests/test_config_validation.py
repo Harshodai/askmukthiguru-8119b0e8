@@ -70,12 +70,28 @@ def test_max_concurrent_chat_rejects_zero_and_negative():
 
 
 def test_max_concurrent_chat_accepts_positive():
-    """max_concurrent_chat accepts any positive integer."""
+    """max_concurrent_chat accepts any positive integer and defaults to 8."""
+    s_default = Settings()
+    assert s_default.max_concurrent_chat == 8
+
     s = Settings(max_concurrent_chat=1)
     assert s.max_concurrent_chat == 1
 
     s = Settings(max_concurrent_chat=20)
     assert s.max_concurrent_chat == 20
+
+
+def test_spend_guard_defaults():
+    """Verify spend guard default enablement and daily/monthly ceilings."""
+    s = Settings()
+    assert s.openrouter_budget_guard_enabled is True
+    assert s.openrouter_daily_budget_usd == 10.0
+    assert s.openrouter_monthly_budget_usd == 100.0
+
+    assert s.sarvam_budget_guard_enabled is True
+    assert s.sarvam_daily_budget_usd == 10.0
+    assert s.sarvam_monthly_budget_usd == 100.0
+    assert s.sarvam_chat_reserve_ratio == 0.7
 
 
 def test_embedding_dimension_validation():

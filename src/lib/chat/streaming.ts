@@ -246,6 +246,31 @@ export async function* sendMessageStreaming(
           continue;
         }
 
+        // Yield stage events for bounded graph node completion
+        if (currentEvent === 'stage') {
+          currentEvent = 'message';
+          try {
+            const stageData = JSON.parse(payload);
+            if (
+              stageData &&
+              typeof stageData.node === 'string' &&
+              typeof stageData.step === 'number' &&
+              typeof stageData.total_steps === 'number'
+            ) {
+              yield {
+                type: 'stage',
+                node: stageData.node,
+                step: stageData.step,
+                total_steps: stageData.total_steps,
+                strategy: stageData.strategy,
+              };
+            }
+          } catch {
+            // Ignore malformed stage payload
+          }
+          continue;
+        }
+
         // Handle the authoritative normalized answer emitted after raw tokens.
         if (currentEvent === 'final') {
           currentEvent = 'message';

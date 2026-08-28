@@ -149,6 +149,10 @@ services:
       - SARVAM_REASONING_EFFORT_FAST=${SARVAM_REASONING_EFFORT_FAST:-low}
       - SARVAM_REASONING_EFFORT_COMPLEX=${SARVAM_REASONING_EFFORT_COMPLEX:-high}
       - SARVAM_RPM_LIMIT=${SARVAM_RPM_LIMIT:-60}
+      - SARVAM_DAILY_BUDGET_USD=${SARVAM_DAILY_BUDGET_USD:-10.0}
+      - SARVAM_MONTHLY_BUDGET_USD=${SARVAM_MONTHLY_BUDGET_USD:-100.0}
+      - SARVAM_MAX_REQUEST_COST_USD=${SARVAM_MAX_REQUEST_COST_USD:-0.05}
+      - SARVAM_BUDGET_GUARD_ENABLED=${SARVAM_BUDGET_GUARD_ENABLED:-true}
       - SERENE_MIND_ENABLED=${SERENE_MIND_ENABLED:-true}
       # --- OpenRouter (free tier for simple queries) ---
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
@@ -162,6 +166,11 @@ services:
       - OPENROUTER_PREFERRED_MAX_LATENCY_P90=${OPENROUTER_PREFERRED_MAX_LATENCY_P90:-0}
       - OPENROUTER_PREFERRED_MIN_THROUGHPUT_P90=${OPENROUTER_PREFERRED_MIN_THROUGHPUT_P90:-0}
       - OPENROUTER_RPM_LIMIT=${OPENROUTER_RPM_LIMIT:-20}
+      - OPENROUTER_DAILY_BUDGET_USD=${OPENROUTER_DAILY_BUDGET_USD:-10.0}
+      - OPENROUTER_MONTHLY_BUDGET_USD=${OPENROUTER_MONTHLY_BUDGET_USD:-100.0}
+      - OPENROUTER_MAX_REQUEST_COST_USD=${OPENROUTER_MAX_REQUEST_COST_USD:-0.03}
+      - OPENROUTER_BUDGET_GUARD_ENABLED=${OPENROUTER_BUDGET_GUARD_ENABLED:-true}
+      - OPENROUTER_BUDGET_FAIL_CLOSED=${OPENROUTER_BUDGET_FAIL_CLOSED:-true}
       # --- Nvidia NIM (hosted API Catalog) ---
       - NIM_API_KEY=${NIM_API_KEY:-}
       - NIM_BASE_URL=${NIM_BASE_URL:-https://integrate.api.nvidia.com/v1}
@@ -244,6 +253,7 @@ services:
       # Server
       - HOST=0.0.0.0
       - PORT=8000
+      - MAX_CONCURRENT_CHAT=${MAX_CONCURRENT_CHAT:-8}
       # Workers: default to 1 worker for development to prevent OOM errors on resource-limited
       # Docker hosts. Can be scaled up in production by setting WEB_CONCURRENCY env var.
       - WEB_CONCURRENCY=${WEB_CONCURRENCY:-1}
@@ -286,6 +296,7 @@ services:
       - logs_data:/app/logs
       # Mount backend code and scripts for live-reloading/direct execution
       - ./app:/app/app
+      - ./domain:/app/domain
       - ./rag:/app/rag
       - ./services:/app/services
       - ./guardrails:/app/guardrails
@@ -326,7 +337,7 @@ services:
     command: >
       celery -A celery_config worker
       --loglevel=info
-      --queues=transcription,embedding,indexing,ingestion,okf
+      --queues=transcription,embedding,indexing,ingestion,okf,memory
       --concurrency=${CELERY_CONCURRENCY:-1}
     depends_on:
       redis:

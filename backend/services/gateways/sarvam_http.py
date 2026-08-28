@@ -104,10 +104,13 @@ class SarvamHTTPGateway:
             )
             self._circuit = DefaultCircuitBreaker(sarvam_config)
 
-        # Rate limiting
+        # Rate limiting & Chat Priority Reservation
         self._last_request_time = 0.0
         self._rate_limit_lock = AsyncLock()
         self._max_tokens_limit = getattr(settings, "sarvam_max_tokens", 4096)
+        self._active_chat_requests = 0
+        self._chat_state_lock = AsyncLock()
+        self._chat_reserve_ratio = float(getattr(settings, "sarvam_chat_reserve_ratio", 0.7))
 
         # Spend reservation budget guard
         from services.llm_budget_guard import LLMBudgetGuard
@@ -208,6 +211,43 @@ class SarvamHTTPGateway:
                 logger.info(f"HTTP client initialised with pool {limits}")
             return self._http_client
 
+    def _is_chat_priority(
+        self,
+        *,
+        priority: Optional[str] = None,
+        is_chat: Optional[bool] = None,
+        operation: str = "generate",
+    ) -> bool:
+        """Classify whether a request receives chat priority reservation.
+
+        Interactive chat requests (user conversation, reasoning, grading, verification)
+        receive priority reservation and execute without queue starvation.
+        Background worker tasks (batch ingestion, offline indexing, memory rollups)
+        yield when chat requests are active and operate within unreserved RPM headroom.
+        """
+        if is_chat is not None:
+            return is_chat
+        if priority is not None:
+            return priority.lower() in ("chat", "interactive", "high", "user", "realtime")
+        op = (operation or "").lower()
+        background_ops = (
+            "background",
+            "batch",
+            "ingest",
+            "ingestion",
+            "offline",
+            "l1_extract",
+            "l2_compress",
+            "l3_persona",
+            "skill_gen",
+            "entity_resolution",
+            "topic_extraction",
+            "summarize_batch",
+        )
+        if any(bg in op for bg in background_ops):
+            return False
+        return True
+
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
@@ -221,18 +261,53 @@ class SarvamHTTPGateway:
         temperature: float = 0.1,
         stream: bool = False,
         operation: str = "generate",
+        priority: Optional[str] = None,
+        is_chat: Optional[bool] = None,
         **kwargs,
     ) -> str:
         """Execute an HTTP POST to /chat/completions.
 
-        Includes retry logic, circuit breaker, rate limiting, and
-        self-healing parameter adjustments.
+        Includes retry logic, circuit breaker, rate limiting with chat priority reservation,
+        and self-healing parameter adjustments.
 
         max_tokens=0 (default) uses the current _max_tokens_limit which
         is dynamically lowered on 400 tier-exceeded responses. Callers may
         pass an explicit value but it is silently clamped to _max_tokens_limit
         so requests always stay within the subscription tier.
         """
+        is_chat_req = self._is_chat_priority(priority=priority, is_chat=is_chat, operation=operation)
+        if is_chat_req:
+            async with self._chat_state_lock:
+                self._active_chat_requests += 1
+
+        try:
+            return await self._call_inner(
+                messages=messages,
+                model=model,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                stream=stream,
+                operation=operation,
+                is_chat_req=is_chat_req,
+                **kwargs,
+            )
+        finally:
+            if is_chat_req:
+                async with self._chat_state_lock:
+                    self._active_chat_requests = max(0, self._active_chat_requests - 1)
+
+    async def _call_inner(
+        self,
+        *,
+        messages: list[dict],
+        model: str,
+        max_tokens: int = 0,
+        temperature: float = 0.1,
+        stream: bool = False,
+        operation: str = "generate",
+        is_chat_req: bool = True,
+        **kwargs,
+    ) -> str:
         # Resolve and clamp max_tokens against the subscription tier limit.
         effective_max = max_tokens if max_tokens > 0 else self._max_tokens_limit
         effective_max = min(effective_max, self._max_tokens_limit)
@@ -393,13 +468,38 @@ class SarvamHTTPGateway:
                         span = None
 
                     try:
-                        # Rate limiting
-                        rpm_limit = float(os.environ.get("SARVAM_RPM_LIMIT", "60"))
+                        # Rate limiting with chat priority reservation
+                        rpm_limit = float(
+                            os.environ.get(
+                                "SARVAM_RPM_LIMIT",
+                                str(getattr(settings, "sarvam_rpm_limit", 60)),
+                            )
+                        )
                         if rpm_limit > 0:
+                            # Background worker calls yield while interactive chat requests are in-flight or waiting
+                            if not is_chat_req:
+                                while True:
+                                    async with self._chat_state_lock:
+                                        chat_active = self._active_chat_requests > 0
+                                    if not chat_active:
+                                        break
+                                    logger.debug(
+                                        "Background Sarvam call yielding to active interactive chat request"
+                                    )
+                                    await asyncio.sleep(0.05)
+
                             async with self._rate_limit_lock:
                                 now = time.time()
                                 elapsed = now - self._last_request_time
-                                min_interval = 60.0 / rpm_limit
+                                effective_rpm = (
+                                    rpm_limit
+                                    if is_chat_req
+                                    else max(
+                                        1.0,
+                                        rpm_limit * max(0.1, 1.0 - self._chat_reserve_ratio),
+                                    )
+                                )
+                                min_interval = 60.0 / effective_rpm
                                 if elapsed < min_interval:
                                     sleep_time = min_interval - elapsed
                                     self._last_request_time = now + sleep_time
@@ -407,7 +507,9 @@ class SarvamHTTPGateway:
                                     sleep_time = 0.0
                                     self._last_request_time = now
                             if sleep_time > 0:
-                                logger.info(f"Rate limiting: sleeping {sleep_time:.2f}s")
+                                logger.info(
+                                    f"Rate limiting ({'chat' if is_chat_req else 'background'}): sleeping {sleep_time:.2f}s"
+                                )
                                 await asyncio.sleep(sleep_time)
 
                         # Spend budget reservation

@@ -56,7 +56,7 @@ import { FloatingParticles } from '../landing/FloatingParticles';
 import { DailyTeaching } from './DailyTeaching';
 import { ChatEmptyState } from './ChatEmptyState';
 import { ConversationSourcesPanel } from './ConversationSourcesPanel';
-import { ThinkingPills, type PipelineStep, mapStatusToLabel } from './ThinkingPills';
+import { ThinkingPills, type PipelineStep, mapStatusToLabel, mapNodeToLabel } from './ThinkingPills';
 import { QueuedMessagesTray, type QueuedMessage } from './QueuedMessagesTray';
 import { useThinkingStatus } from '@/hooks/useThinkingStatus';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
@@ -1049,7 +1049,7 @@ export const ChatInterface = () => {
 
         // Show pipeline thinking pills — start with Safety check active immediately to eliminate blank gap
         setPipelineSteps([
-          { id: 'step-0', label: 'Safety check', status: 'active' as const }
+          { id: 'step-1', label: 'Safety check', status: 'active' as const, step: 1, totalSteps: 8, node: 'input_guardrail' }
         ]);
         setShowPipeline(true);
 
@@ -1115,6 +1115,48 @@ export const ChatInterface = () => {
         let streamedModelProvider: string | null = null;
         let streamedQueryTier: string | null = null;
         for await (const chunk of stream) {
+          if (chunk.type === 'stage') {
+            setShowInstantPill(false);
+            setPendingQuery('');
+            const label = mapNodeToLabel(chunk.node);
+            setPipelineSteps((prev) => {
+              // De-duplicate if last step has the same label or node
+              if (
+                prev.length > 0 &&
+                (prev[prev.length - 1].label === label || prev[prev.length - 1].node === chunk.node)
+              ) {
+                return prev.map((s, idx) =>
+                  idx === prev.length - 1
+                    ? {
+                        ...s,
+                        status: 'active' as const,
+                        step: chunk.step,
+                        totalSteps: chunk.total_steps,
+                        node: chunk.node,
+                        label,
+                      }
+                    : s
+                );
+              }
+              // Mark all previous steps as done
+              const updated = prev.map((s) =>
+                s.status === 'active' ? { ...s, status: 'done' as const } : s
+              );
+              return [
+                ...updated,
+                {
+                  id: `step-${chunk.step}`,
+                  label,
+                  status: 'active' as const,
+                  step: chunk.step,
+                  totalSteps: chunk.total_steps,
+                  node: chunk.node,
+                },
+              ];
+            });
+            continue;
+          }
+
           if (chunk.type === 'status') {
             if (chunk.jobId) {
               currentJobIdRef.current = chunk.jobId;
