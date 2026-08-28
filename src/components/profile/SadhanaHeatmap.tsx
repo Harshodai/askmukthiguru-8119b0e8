@@ -26,38 +26,38 @@ interface SadhanaHeatmapProps {
 const STATE_CONFIG: Record<ConsciousnessState, { label: string; bg: string; border: string; glow: string; text: string }> = {
   beautiful_state: {
     label: 'Beautiful State',
-    bg: 'bg-emerald-500/80',
-    border: 'border-emerald-400/40',
-    glow: 'rgba(16, 185, 129, 0.4)',
-    text: 'text-emerald-400',
+    bg: 'bg-[hsl(var(--ojas-gold)/0.78)]',
+    border: 'border-[hsl(var(--ojas-gold-light)/0.42)]',
+    glow: 'hsl(var(--ojas-gold) / 0.30)',
+    text: 'text-[hsl(var(--ojas-gold-dark))]',
   },
   witnessing: {
     label: 'Witnessing Presence',
-    bg: 'bg-violet-500/80',
-    border: 'border-violet-400/40',
-    glow: 'rgba(139, 92, 246, 0.4)',
-    text: 'text-violet-400',
+    bg: 'bg-[hsl(var(--prana-blue)/0.78)]',
+    border: 'border-[hsl(var(--prana-blue-light)/0.42)]',
+    glow: 'hsl(var(--prana-blue) / 0.30)',
+    text: 'text-[hsl(var(--prana-blue-dark))]',
   },
   sadhana: {
     label: 'Dedicated Sadhana',
-    bg: 'bg-amber-500/85',
-    border: 'border-amber-400/40',
-    glow: 'rgba(245, 158, 11, 0.4)',
-    text: 'text-amber-400',
+    bg: 'bg-[hsl(var(--ojas-gold-light)/0.86)]',
+    border: 'border-[hsl(var(--ojas-gold)/0.45)]',
+    glow: 'hsl(var(--ojas-gold-light) / 0.32)',
+    text: 'text-[hsl(var(--ojas-gold-dark))]',
   },
   conflict_transformed: {
     label: 'Conflict Transmuted',
-    bg: 'bg-rose-500/80',
-    border: 'border-rose-400/40',
-    glow: 'rgba(244, 63, 94, 0.4)',
-    text: 'text-rose-400',
+    bg: 'bg-[hsl(var(--destructive)/0.76)]',
+    border: 'border-[hsl(var(--destructive)/0.40)]',
+    glow: 'hsl(var(--destructive) / 0.28)',
+    text: 'text-[hsl(var(--destructive))]',
   },
   neutral: {
     label: 'No Practice Recorded',
-    bg: 'bg-zinc-800/40',
-    border: 'border-zinc-800/60',
+    bg: 'bg-muted/40',
+    border: 'border-border/40',
     glow: 'transparent',
-    text: 'text-zinc-500',
+    text: 'text-muted-foreground',
   },
 };
 
@@ -144,11 +144,10 @@ export const SadhanaHeatmap: React.FC<SadhanaHeatmapProps> = ({ sessions, weeksT
 
   return (
     <div className="rounded-3xl border border-border/50 bg-card/80 backdrop-blur-md p-6 space-y-5 shadow-sm">
-      {/* Header & Filter Pills */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-saffron-gold" />
+            <Calendar className="w-4 h-4 text-ojas" />
             <h3 className="text-base font-serif font-semibold text-foreground tracking-tight">
               Sadhana & Consciousness Matrix
             </h3>
@@ -158,7 +157,6 @@ export const SadhanaHeatmap: React.FC<SadhanaHeatmapProps> = ({ sessions, weeksT
           </p>
         </div>
 
-        {/* State Filters */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
           {(['all', 'beautiful_state', 'witnessing', 'sadhana'] as const).map((filterKey) => (
             <button
@@ -166,7 +164,7 @@ export const SadhanaHeatmap: React.FC<SadhanaHeatmapProps> = ({ sessions, weeksT
               onClick={() => setSelectedFilter(filterKey)}
               className={`px-2.5 py-1 rounded-full text-[11px] font-medium border transition-all shrink-0 ${
                 selectedFilter === filterKey
-                  ? 'bg-saffron-gold/15 border-saffron-gold text-saffron-gold shadow-sm'
+                  ? 'bg-ojas/15 border-ojas text-ojas shadow-sm'
                   : 'border-border/60 text-muted-foreground hover:bg-muted/40'
               }`}
             >
@@ -176,11 +174,9 @@ export const SadhanaHeatmap: React.FC<SadhanaHeatmapProps> = ({ sessions, weeksT
         </div>
       </div>
 
-      {/* Heatmap Grid Canvas */}
       <TooltipProvider delayDuration={100}>
         <div className="overflow-x-auto pb-2 -mx-2 px-2">
           <div className="inline-flex gap-1.5 items-center">
-            {/* Day of week labels */}
             <div className="grid grid-rows-7 gap-1.5 pr-2 select-none">
               {daysOfWeek.map((day, idx) => (
                 <span key={idx} className="h-3.5 w-3.5 text-[9px] text-muted-foreground/60 flex items-center justify-center font-mono">
@@ -189,7 +185,6 @@ export const SadhanaHeatmap: React.FC<SadhanaHeatmapProps> = ({ sessions, weeksT
               ))}
             </div>
 
-            {/* Weeks Columns */}
             <div className="flex gap-1.5">
               {weeks.map((week, wIdx) => (
                 <div key={wIdx} className="grid grid-rows-7 gap-1.5">
@@ -211,10 +206,10 @@ export const SadhanaHeatmap: React.FC<SadhanaHeatmapProps> = ({ sessions, weeksT
                                 : isMatch
                                 ? 'bg-muted/30 border-transparent'
                                 : 'bg-muted/10 border-transparent opacity-25'
-                            } ${isToday ? 'ring-1 ring-saffron-gold' : ''}`}
+                            } ${isToday ? 'ring-1 ring-ojas' : ''}`}
                           />
                         </TooltipTrigger>
-                        <TooltipContent side="top" className="rounded-xl bg-zinc-950/95 border-zinc-800 p-3 shadow-xl space-y-1.5 text-xs">
+                        <TooltipContent side="top" className="rounded-xl bg-card/95 border-hairline p-3 shadow-xl space-y-1.5 text-xs backdrop-blur-md">
                           <div className="flex items-center justify-between gap-4 font-mono text-[10px] text-muted-foreground">
                             <span>{day.date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                             <Badge variant="outline" className={`text-[9px] uppercase px-1.5 py-0 ${cfg.text} border-current/30`}>
@@ -246,19 +241,18 @@ export const SadhanaHeatmap: React.FC<SadhanaHeatmapProps> = ({ sessions, weeksT
         </div>
       </TooltipProvider>
 
-      {/* Heatmap Legend & Summary */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-border/40 text-xs">
         <div className="flex items-center gap-4 flex-wrap text-muted-foreground">
           <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500/80 shadow-[0_0_6px_rgba(16,185,129,0.4)]" />
+            <span className="w-2.5 h-2.5 rounded-sm bg-ojas/80" />
             <span className="text-[11px]">Beautiful State</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-sm bg-amber-500/85 shadow-[0_0_6px_rgba(245,158,11,0.4)]" />
+            <span className="w-2.5 h-2.5 rounded-sm bg-[hsl(var(--ojas-gold-light)/0.85)]" />
             <span className="text-[11px]">Sadhana</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-sm bg-violet-500/80 shadow-[0_0_6px_rgba(139,92,246,0.4)]" />
+            <span className="w-2.5 h-2.5 rounded-sm bg-prana" />
             <span className="text-[11px]">Witnessing</span>
           </div>
         </div>
@@ -268,7 +262,7 @@ export const SadhanaHeatmap: React.FC<SadhanaHeatmapProps> = ({ sessions, weeksT
           <span>•</span>
           <span>{summaryStats.totalHours} hrs total</span>
           <span>•</span>
-          <span className="text-emerald-400 font-semibold">{summaryStats.beautifulStateRatio}% Beautiful State</span>
+          <span className="text-ojas font-semibold">{summaryStats.beautifulStateRatio}% Beautiful State</span>
         </div>
       </div>
     </div>
