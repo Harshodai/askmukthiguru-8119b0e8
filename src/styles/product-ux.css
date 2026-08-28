@@ -25,7 +25,6 @@
   letter-spacing: -0.01em;
 }
 
-/* Conversation reading rhythm: open, quiet, and content-first. */
 .message-bubble {
   max-width: 100%;
   scroll-margin-top: 88px;
@@ -50,7 +49,6 @@
   box-shadow: var(--shadow-sm) !important;
 }
 
-/* Composer: floating, soft, and visually anchored to Ojas. */
 form[role="form"][aria-label] {
   border-color: hsl(var(--hairline)) !important;
   background: hsl(var(--card) / 0.90) !important;
@@ -85,7 +83,6 @@ form[role="form"][aria-label] footer button:hover {
     box-shadow: inset 2px 0 0 hsl(var(--ojas-gold));
   }
 
-  /* Keep the desktop chat centered and readable without introducing a card around the transcript. */
   .message-bubble > div {
     max-width: 100%;
   }
@@ -192,7 +189,6 @@ main > .max-w-4xl.mx-auto > div:first-child {
     border-radius: 999px;
   }
 
-  /* Mobile chat remains almost entirely canvas + conversation + composer. */
   .message-bubble {
     margin-bottom: 0.15rem;
   }
