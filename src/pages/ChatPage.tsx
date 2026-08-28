@@ -17,7 +17,8 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { GuidedTour } from '@/components/onboarding/GuidedTour';
-import { PRODUCTION_DOMAIN, PRODUCTION_OG_IMAGE, buildCanonical } from '@/lib/domain';
+import { PRODUCTION_OG_IMAGE, buildCanonical } from '@/lib/domain';
+import '@/styles/mobile-chat-ux.css';
 
 const LAST_SEEN_KEY = 'askmukthiguru_last_seen';
 const TOUR_COMPLETED_KEY = 'askmukthiguru_tour_completed';
@@ -60,52 +61,40 @@ const ChatPage = () => {
     },
   });
 
-  // Auto-show the tour once for a new authenticated user. Dismissing the tour
-  // counts as onboarding so a returning user is never trapped by a recurring
-  // modal; the explicit "Take a Tour" action clears both keys and restarts it.
   useEffect(() => {
     if (loading) return;
-    // Demo mode only when explicitly enabled at build time — never via
-    // query string or localStorage (was an auth-bypass vector in dev).
     if (import.meta.env.VITE_ENABLE_DEMO_AUTH === 'true' && (window.location.search.includes('demo=true') || localStorage.getItem('demo_mode') === 'true')) {
       setTourOpen(false);
       return;
     }
     const onboarded = localStorage.getItem(ONBOARDED_KEY) === '1';
     const tourDone = localStorage.getItem(TOUR_COMPLETED_KEY) === '1';
-
-    // Show tour for authenticated users only; never prompt anonymous users to onboard.
     const shouldShow = !!user && !tourDone && !onboarded;
     if (shouldShow) {
       localStorage.setItem(ONBOARDED_KEY, '1');
       localStorage.setItem(TOUR_SHOWN_COUNT_KEY, '1');
-      // Small delay so the chat UI renders before the tour positions itself
       const t = setTimeout(() => setTourOpen(true), 600);
       return () => clearTimeout(t);
     }
   }, [loading, user]);
 
-  // Listen for 'tour:restart' custom event (dispatched by UserMenu "Take a Tour")
   useEffect(() => {
     const handleRestartTour = () => {
       localStorage.removeItem(TOUR_COMPLETED_KEY);
       localStorage.removeItem(TOUR_SHOWN_COUNT_KEY);
       localStorage.removeItem(ONBOARDED_KEY);
       setTourOpen(false);
-      // Re-open after a tick so state resets cleanly
       setTimeout(() => setTourOpen(true), 80);
     };
     window.addEventListener('tour:restart', handleRestartTour);
     return () => window.removeEventListener('tour:restart', handleRestartTour);
   }, []);
 
-  /** "Got it" — the user finished the tour; never show it again. */
   const handleTourComplete = () => {
     localStorage.setItem(TOUR_COMPLETED_KEY, '1');
     setTourOpen(false);
   };
 
-  /** Skip / Escape — persist dismissal so it does not interrupt later sessions. */
   const handleTourDismiss = () => {
     localStorage.setItem(ONBOARDED_KEY, '1');
     localStorage.setItem(TOUR_COMPLETED_KEY, '1');
@@ -138,15 +127,11 @@ const ChatPage = () => {
   }, [loading, isAnonymous]);
 
   const handleContinue = () => {
-    if (lastConversationId) {
-      navigate(`/chat?conversation=${lastConversationId}`);
-    }
+    if (lastConversationId) navigate(`/chat?conversation=${lastConversationId}`);
     setShowContinuePrompt(false);
   };
 
-  const handleDismiss = () => {
-    setShowContinuePrompt(false);
-  };
+  const handleDismiss = () => setShowContinuePrompt(false);
 
   if (loading) {
     return (
@@ -162,9 +147,6 @@ const ChatPage = () => {
   return (
     <PrePracticeGate>
       <h1 className="sr-only">{t('chat.srOnlyTitle')}</h1>
-      {/* The banner is a sibling of a full-height ChatInterface, so it has to
-          share the viewport with it — otherwise it pushes the chat (and the
-          sidebar footer / user menu) below the fold whenever it appears. */}
       <div className="h-dvh flex flex-col">
         <BackendHealthBanner />
         <ChatInterface />
@@ -174,14 +156,10 @@ const ChatPage = () => {
         <DialogContent className="sm:max-w-md">
           <DialogHeader className="gap-2">
             <DialogTitle className="text-center">{t('chat.continueTitle')}</DialogTitle>
-            <DialogDescription className="text-center">
-              {t('chat.continueDescription')}
-            </DialogDescription>
+            <DialogDescription className="text-center">{t('chat.continueDescription')}</DialogDescription>
           </DialogHeader>
           <div className="flex flex-col sm:flex-row gap-3 mt-4">
-            <Button variant="outline" onClick={handleDismiss} className="flex-1">
-              {t('chat.stayHere')}
-            </Button>
+            <Button variant="outline" onClick={handleDismiss} className="flex-1">{t('chat.stayHere')}</Button>
             <Button onClick={handleContinue} className="flex-1 bg-ojas hover:bg-ojas-light gap-2">
               {t('chat.continueBtn')} <ArrowRight className="w-4 h-4" />
             </Button>
