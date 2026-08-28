@@ -1,60 +1,93 @@
 /* AskMukthiGuru product UX layer
-   Shared across the web chat and authenticated profile surfaces.
+   Shared across the web chat and authenticated surfaces.
    Visual language: warm sanctuary + Ojas gold + Prana blue + calm typography.
    Interaction reference: modern AI chat products, without copying their branding. */
 
-/* ---------- Shared surfaces ---------- */
-[data-testid="chat-header-simplified"],
-main > .max-w-4xl.mx-auto {
+/* ---------- Shared chat surface ---------- */
+.chat-interface,
+[data-testid="chat-header-simplified"] {
   color-scheme: light;
 }
 
-.dark [data-testid="chat-header-simplified"],
-.dark main > .max-w-4xl.mx-auto {
+.dark .chat-interface,
+.dark [data-testid="chat-header-simplified"] {
   color-scheme: dark;
 }
 
-/* ---------- Desktop chat ---------- */
+[data-testid="chat-header-simplified"] {
+  background: hsl(var(--card) / 0.78) !important;
+  border-bottom-color: hsl(var(--hairline)) !important;
+  box-shadow: 0 1px 0 hsl(var(--foreground) / 0.025);
+}
+
+[data-testid="chat-header-simplified"] [data-testid="chat-header-wordmark"] {
+  font-family: var(--font-serif);
+  letter-spacing: -0.01em;
+}
+
+/* Conversation reading rhythm: open, quiet, and content-first. */
+.message-bubble {
+  max-width: 100%;
+  scroll-margin-top: 88px;
+  margin-bottom: 0.35rem;
+}
+
+.message-bubble > div > div.bg-chat-user {
+  background: hsl(var(--chat-user-bubble)) !important;
+  color: hsl(var(--chat-user-foreground)) !important;
+  border: 1px solid hsl(var(--ojas-gold) / 0.08);
+  box-shadow: var(--shadow-sm);
+}
+
+.message-bubble > div > div:not(.bg-chat-user) {
+  background: transparent;
+}
+
+[data-testid="guidance-plan"],
+[data-testid="serene-mind-offer"] {
+  background: linear-gradient(135deg, hsl(var(--ojas-gold) / 0.09), hsl(var(--card) / 0.92)) !important;
+  border-color: hsl(var(--ojas-gold) / 0.22) !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+/* Composer: floating, soft, and visually anchored to Ojas. */
+form[role="form"][aria-label] {
+  border-color: hsl(var(--hairline)) !important;
+  background: hsl(var(--card) / 0.90) !important;
+  box-shadow: var(--shadow-lg) !important;
+  backdrop-filter: blur(18px);
+}
+
+form[role="form"][aria-label] textarea {
+  color: hsl(var(--foreground));
+  caret-color: hsl(var(--ojas-gold-dark));
+}
+
+form[role="form"][aria-label] textarea::selection {
+  background: hsl(var(--ojas-gold) / 0.22);
+}
+
+form[role="form"][aria-label] footer button:hover {
+  background-color: hsl(var(--ojas-gold) / 0.08);
+}
+
+/* ---------- Desktop workspace ---------- */
 @media (min-width: 640px) {
-  [data-testid="chat-header-simplified"] {
-    background: hsl(var(--card) / 0.78) !important;
-    border-bottom-color: hsl(var(--hairline)) !important;
-    box-shadow: 0 1px 0 hsl(var(--foreground) / 0.025);
+  [data-sidebar="sidebar"] {
+    background: hsl(var(--card) / 0.72) !important;
+    border-right-color: hsl(var(--hairline)) !important;
+    backdrop-filter: blur(16px);
   }
 
-  [data-testid="chat-header-simplified"] [data-testid="chat-header-wordmark"] {
-    font-family: var(--font-serif);
-    letter-spacing: -0.01em;
+  [data-sidebar="menu-button"][data-active="true"] {
+    background: hsl(var(--ojas-gold) / 0.10) !important;
+    color: hsl(var(--ojas-gold-dark)) !important;
+    box-shadow: inset 2px 0 0 hsl(var(--ojas-gold));
   }
 
-  /* Let responses breathe while keeping the reading column focused. */
-  .message-bubble {
-    max-width: 100%;
-  }
-
+  /* Keep the desktop chat centered and readable without introducing a card around the transcript. */
   .message-bubble > div {
-    scroll-margin-top: 88px;
-  }
-
-  /* The user's turn should feel like a warm, intentional accent—not a generic blue bubble. */
-  .message-bubble > div > div.bg-chat-user {
-    background: hsl(var(--chat-user-bubble)) !important;
-    color: hsl(var(--chat-user-foreground)) !important;
-    border: 1px solid hsl(var(--ojas-gold) / 0.08);
-    box-shadow: var(--shadow-sm);
-  }
-
-  /* Keep assistant answers visually quiet; Ojas appears as accents rather than a filled block. */
-  .message-bubble > div > div:not(.bg-chat-user) {
-    background: transparent;
-  }
-
-  /* Calm source/action surfaces. */
-  [data-testid="guidance-plan"],
-  [data-testid="serene-mind-offer"] {
-    background: linear-gradient(135deg, hsl(var(--ojas-gold) / 0.09), hsl(var(--card) / 0.92)) !important;
-    border-color: hsl(var(--ojas-gold) / 0.22) !important;
-    box-shadow: var(--shadow-sm) !important;
+    max-width: 100%;
   }
 }
 
@@ -132,15 +165,18 @@ main > .max-w-4xl.mx-auto h3 {
   letter-spacing: -0.015em;
 }
 
-/* Make the profile hero read as a welcoming seeker identity card. */
 main > .max-w-4xl.mx-auto > div:first-child {
   background:
     radial-gradient(circle at 10% 0%, hsl(var(--ojas-gold) / 0.12), transparent 38%),
     linear-gradient(135deg, hsl(var(--card) / 0.96), hsl(var(--card) / 0.82)) !important;
 }
 
-/* ---------- Mobile profile ---------- */
+/* ---------- Mobile ---------- */
 @media (max-width: 639px) {
+  form[role="form"][aria-label] {
+    border-radius: 22px !important;
+  }
+
   main > .max-w-4xl.mx-auto {
     padding-top: 1rem !important;
     padding-bottom: calc(2rem + env(safe-area-inset-bottom, 0px)) !important;
@@ -156,21 +192,21 @@ main > .max-w-4xl.mx-auto > div:first-child {
     border-radius: 999px;
   }
 
-  /* Horizontal tab rail should feel native instead of like a desktop tab strip. */
-  main > .max-w-4xl.mx-auto [role="tablist"] + * {
-    margin-top: 0;
+  /* Mobile chat remains almost entirely canvas + conversation + composer. */
+  .message-bubble {
+    margin-bottom: 0.15rem;
   }
 
-  main > .max-w-4xl.mx-auto .rounded-2xl,
-  main > .max-w-4xl.mx-auto .rounded-3xl {
-    box-shadow: none;
+  form[role="form"][aria-label] {
+    box-shadow: 0 8px 30px hsl(var(--foreground) / 0.10) !important;
+    padding-bottom: max(0px, env(safe-area-inset-bottom, 0px));
   }
 }
 
-/* ---------- Reduced motion ---------- */
 @media (prefers-reduced-motion: reduce) {
   main > .max-w-4xl.mx-auto [role="tab"],
-  .message-bubble > div > div {
+  .message-bubble > div > div,
+  form[role="form"][aria-label] {
     transition: none !important;
   }
 }
