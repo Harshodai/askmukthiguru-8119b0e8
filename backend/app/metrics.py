@@ -576,3 +576,9 @@ ANON_QUOTA_DEGRADED_MODE = Counter(
     "Total anonymous quota operations processed in degraded in-memory mode due to Redis outage/failure",
     ["event"],
 )
+
+INGEST_QUALITY_GATE_REJECTIONS_TOTAL = Counter(
+    "ingest_quality_gate_rejections_total",
+    "Total count of ingestion items rejected by data quality gate",
+    ["reason", "tier"],
+)

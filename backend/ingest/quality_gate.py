@@ -644,6 +644,7 @@ class DataQualityGate:
         # ── Tier 1: Deterministic ──────────────────────────────────────────
         t1_ok, t1_penalty, t1_reasons = self._deterministic.check(text, source_url)
         if not t1_ok:
+            self._record_rejection_metric(t1_reasons, tier=1)
             result = QualityResult(
                 passed=False,
                 score=0,
@@ -691,6 +692,7 @@ class DataQualityGate:
 
         # ── Tier 3: Staging if failed ─────────────────────────────────────
         if not passed:
+            self._record_rejection_metric(all_reasons, tier=tier)
             result.staging_id = await self._staging.submit(
                 source_url, text[:500], final_score, all_reasons, content_hash
             )
@@ -701,6 +703,32 @@ class DataQualityGate:
             logger.info(f"Quality gate PASS: {source_url} score={final_score}/100")
 
         return result
+
+    @staticmethod
+    def _record_rejection_metric(reasons: list[str], tier: int) -> None:
+        """Increment INGEST_QUALITY_GATE_REJECTIONS_TOTAL counter with classified reason label."""
+        try:
+            from app.metrics import INGEST_QUALITY_GATE_REJECTIONS_TOTAL
+
+            primary = reasons[0] if reasons else "unknown"
+            if "TOO_SHORT" in primary:
+                reason_label = "too_short"
+            elif "HIGH_HTML_RATIO" in primary:
+                reason_label = "high_html_ratio"
+            elif "HIGH_REPETITION_RATIO" in primary:
+                reason_label = "high_repetition_ratio"
+            elif "QUALITY_UNKNOWN" in primary:
+                reason_label = "scorer_unknown"
+            elif "artifact" in primary.lower():
+                reason_label = "artifact_detected"
+            else:
+                reason_label = "low_spiritual_score"
+
+            INGEST_QUALITY_GATE_REJECTIONS_TOTAL.labels(
+                reason=reason_label, tier=str(tier)
+            ).inc()
+        except Exception as e:
+            logger.debug(f"Failed to record rejection metric (non-fatal): {e}")
 
     async def run_chunks(
         self, chunks: list[str], source_url: str = ""

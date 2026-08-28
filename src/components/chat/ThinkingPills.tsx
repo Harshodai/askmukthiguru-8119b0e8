@@ -22,16 +22,17 @@ export const mapStatusToLabel = (raw: string): string => {
   const lower = raw.toLowerCase();
   if (lower.includes('queued')) return 'Queued';
   if (lower.includes('still processing') || lower.includes('heartbeat')) return 'heartbeat';
-  if (lower.includes('safety') || lower.includes('message safety')) return 'Safety check';
-  if (lower.includes('understanding') || lower.includes('translating') || lower.includes('language'))
-    return 'Understanding';
-  if (lower.includes('searching') || lower.includes('knowledge base') || lower.includes('retrieving'))
-    return 'Searching wisdom';
-  if (lower.includes('generat')) return 'Generating';
-  if (lower.includes('composing') || lower.includes('analyz')) return 'Composing';
-  if (lower.includes('verif')) return 'Verifying';
+  if (lower.includes('safety') || lower.includes('guardrail') || lower.includes('message safety')) return 'Safety check';
+  if (lower.includes('understanding') || lower.includes('translating') || lower.includes('language') || lower.includes('resolve_followup'))
+    return 'Understanding query';
+  if (lower.includes('searching') || lower.includes('knowledge base') || lower.includes('retriev') || lower.includes('neo4j') || lower.includes('graph'))
+    return 'Searching sacred wisdom';
+  if (lower.includes('rerank')) return 'Refining relevance';
+  if (lower.includes('generat') || lower.includes('synthesiz')) return 'Synthesizing wisdom';
+  if (lower.includes('composing') || lower.includes('analyz')) return 'Composing guidance';
+  if (lower.includes('verif') || lower.includes('faithfulness') || lower.includes('grounding')) return 'Verifying sacred teachings';
   if (lower.includes('query received') || lower.includes('starting pipeline')) return 'Safety check';
-  return 'Processing';
+  return 'Contemplating';
 };
 
 export const ThinkingPills = ({

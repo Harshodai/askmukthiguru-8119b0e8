@@ -109,6 +109,10 @@ class SarvamHTTPGateway:
         self._rate_limit_lock = AsyncLock()
         self._max_tokens_limit = getattr(settings, "sarvam_max_tokens", 4096)
 
+        # Spend reservation budget guard
+        from services.llm_budget_guard import LLMBudgetGuard
+        self._budget_guard = LLMBudgetGuard.from_settings(settings, provider="sarvam")
+
         # Connection pooling
         self._http_client: httpx.AsyncClient | None = None
         self._http_client_lock = AsyncLock()
@@ -406,14 +410,21 @@ class SarvamHTTPGateway:
                                 logger.info(f"Rate limiting: sleeping {sleep_time:.2f}s")
                                 await asyncio.sleep(sleep_time)
 
+                        # Spend budget reservation
+                        reservation = await self._budget_guard.reserve()
+
                         # Execute HTTP call
                         client = await self._get_http_client()
-                        resp = await client.post(
-                            f"{self._base_url}/chat/completions",
-                            headers=headers,
-                            json=payload,
-                            timeout=self._timeout,
-                        )
+                        try:
+                            resp = await client.post(
+                                f"{self._base_url}/chat/completions",
+                                headers=headers,
+                                json=payload,
+                                timeout=self._timeout,
+                            )
+                        except Exception:
+                            await reservation.settle(None)
+                            raise
 
                         # Self-healing on 400 (tier limit)
                         if resp.status_code == 400:
@@ -529,6 +540,15 @@ class SarvamHTTPGateway:
                                 acc.provider = "sarvam"
                         except Exception as e:
                             logger.warning(f"Failed to record token usage: {e}")
+
+                        # Settle budget reservation with estimated/reported token cost
+                        try:
+                            usage = data.get("usage", {})
+                            tokens = (usage.get("prompt_tokens") or 0) + (usage.get("completion_tokens") or 0)
+                            actual_cost_usd = (tokens / 1000.0) * 0.0001
+                            await reservation.settle(actual_cost_usd)
+                        except Exception as settle_err:
+                            logger.debug(f"Budget settlement failed (non-fatal): {settle_err}")
 
                         if span_ctx is not None:
                             span_ctx.__exit__(None, None, None)

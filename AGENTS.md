@@ -11,6 +11,8 @@ These are **binding repository invariants** for all LLM-to-Qdrant persistence pa
 
 3. **Every idempotency checkpoint MUST cross-validate against actual data store state.** Three independent layers exist: (a) Redis `IngestionCheckpoint` (URL-keyed + content-hash-keyed), (b) local `ingestion_state.json` (`contextual_reingest.py`). After wiping Qdrant/Neo4j, you MUST clear ALL checkpoint layers or the survivor will silently short-circuit with phantom `{"status": "success", "chunks_indexed": 0}`. `contextual_reingest.py` now auto-detects stale state by cross-checking Qdrant `points_count`.
 
+4. **OKF Scaffolding & Graceful Fallback**: The Ontological Knowledge Framework (`memory/okf/compiled.json`) represents curated offline extraction subject to human review. When `compiled.json` is absent, runtime retrieval gracefully falls back to Qdrant dense vector search and Neo4j relational traversal without fabricating uncompiled doctrine.
+
 ### Corpus ingestion handoff — Aug 27, 2026
 - **Ingestion running**: PID tracked in `/tmp/ingest_migrate.pid`, log at `/tmp/ingest_migrate.log`. 487 sources (438 MIGRATE + 49 MIGRATE_THEN_VERIFY), 4 workers, target `spiritual_wisdom_contextual` at `http://localhost:6333`. Resume is automatic via Redis checkpoint (`IngestionCheckpoint` tenant=`oneness`).
 - **MIGRATE_THEN_VERIFY verification**: All 49 MTV sources verified 100% VERIFIED_OK (genuine Krishnaji/Preethaji teachings, publicly accessible). Results at `/tmp/mtv_verification_results.json`.

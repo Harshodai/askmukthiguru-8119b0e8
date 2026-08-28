@@ -39,6 +39,8 @@ def _derive_celery_url(base_url: str) -> str:
 CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL") or _derive_celery_url(
     os.environ.get("REDIS_URL", "redis://localhost:6379/1")
 )
+REDIS_URL = CELERY_BROKER_URL
+
 # Local dev: run .delay() calls synchronously in the backend process itself,
 # no separate celery-worker container needed. Off by default -- Railway
 # production still wants the real async worker split.

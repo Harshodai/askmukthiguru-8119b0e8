@@ -237,3 +237,49 @@ def test_ingest_video_audio_fallback_enriches_missing_metadata(mock_pipeline, mo
     kwargs = embed_args.kwargs
     assert kwargs["title"] == "Enriched Title"
     assert kwargs["speaker"] == "Sri Preethaji"
+
+
+def test_ingestion_persisted_content_passes_find_artifact_gate(mock_pipeline):
+    """P0-2: Verify that every chunk reaching the storage persist boundary passes find_artifact()."""
+    from services.text_quality_filter import find_artifact
+
+    clean_chunks = [
+        "In the Beautiful State of consciousness, you experience inner peace and oneness with life.",
+        "When the mind is free from the grip of the self-centric thinking, joy arises naturally.",
+    ]
+
+    # Mock embedder and Qdrant
+    mock_pipeline._embedder.encode_batch = MagicMock(
+        return_value={"dense": [[0.1] * 1024, [0.2] * 1024], "sparse": [None, None]}
+    )
+    mock_pipeline._qdrant.upsert_chunks = MagicMock(return_value=2)
+    mock_pipeline._qdrant.check_source_exists = MagicMock(return_value=False)
+
+    # Ingest clean chunks
+    mock_pipeline._embed_and_index(
+        chunks=clean_chunks,
+        title="Beautiful State Teaching",
+        content_type="video",
+        speaker="Sri Krishnaji",
+        topic="Meditation",
+        source_url="https://youtube.com/watch?v=clean123",
+        video_id="clean123",
+    )
+
+    # Verify that all chunk texts actually written to Qdrant pass find_artifact
+    assert mock_pipeline._qdrant.upsert_chunks.called
+    persisted_chunks = mock_pipeline._qdrant.upsert_chunks.call_args[0][0]
+    for chunk in persisted_chunks:
+        chunk_text = chunk if isinstance(chunk, str) else chunk.get("text", "")
+        assert find_artifact(chunk_text) is None, f"Persisted chunk failed find_artifact: {chunk_text}"
+
+    # Verify poison patterns are caught by find_artifact
+    poison_samples = [
+        "I have been asked to analyze the user request and think step-by-step.",
+        "I'm currently experiencing a temporary connection issue. Please try again in a few moments.",
+        "this is an asr repeat loop this is an asr repeat loop this is an asr repeat loop this is an asr repeat loop extra trailing words for length",
+        "RAPTOR Level: 2 summary of spiritual wisdom",
+    ]
+    for poison in poison_samples:
+        assert find_artifact(poison) is not None, f"Poison sample not caught by filter: {poison}"
+

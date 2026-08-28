@@ -261,7 +261,8 @@ async def query_neo4j_subgraph(
                             candidates.add(record["target"])
             return subgraph_context, list(candidates)
 
-        res, candidates = await asyncio.to_thread(_run)
+        timeout = float(getattr(settings, "lightrag_retrieval_timeout", 30))
+        res, candidates = await asyncio.wait_for(asyncio.to_thread(_run), timeout=timeout)
         if res:
             candidate_str = (
                 f"\n[Next-Step Traversal Candidates]: {', '.join(sorted(candidates))}"
@@ -269,6 +270,10 @@ async def query_neo4j_subgraph(
                 else ""
             )
             return "\n[Targeted Subgraph Context]:\n" + "\n".join(res) + candidate_str
+    except asyncio.TimeoutError:
+        logger.warning(
+            f"Neo4j targeted subgraph query timed out after {getattr(settings, 'lightrag_retrieval_timeout', 30)}s; falling back to vector retrieval"
+        )
     except Exception as e:
         logger.warning(f"Failed to fetch Neo4j targeted subgraph: {e}")
     return ""

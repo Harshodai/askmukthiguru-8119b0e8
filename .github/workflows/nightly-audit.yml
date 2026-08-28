@@ -1,0 +1,37 @@
+name: Nightly Corpus & Knowledge Audit
+
+on:
+  schedule:
+    - cron: '0 3 * * *'  # 03:00 UTC every night
+  workflow_dispatch:
+
+jobs:
+  audit:
+    name: Run Corpus & Safety Audits
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install pytest
+
+      - name: Run Corpus Text Quality & Artifact Forensics
+        run: |
+          cd backend
+          python -m pytest tests/test_ingestion_pipeline.py -v
+          python -m pytest tests/test_neo4j_subgraph_timeout.py -v
+          python -m pytest tests/test_llm_budget_guard.py -v
+        env:
+          PYTHONPATH: backend

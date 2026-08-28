@@ -1372,12 +1372,14 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
                 "evaluation_trace": {"abstention_reason": "no retrieved context or memory"},
             }
 
-        # Build user prompt — include memory context if available
+        # Build user prompt — include memory context and graph relationships if available
+        rel = layers.get("relationships") or layers.get("graph_context") or ""
+        rel_block = f"Ontology & Graph Relationships:\n{rel}" if rel.strip() else ""
         context_block = f"Context:\n{knowledge}" if knowledge.strip() else ""
         memory_block = (
             f"Personal Context (from your previous interactions):\n{memory}" if memory else ""
         )
-        context_section = "\n\n".join(filter(None, [context_block, memory_block, attachment_block]))
+        context_section = "\n\n".join(filter(None, [context_block, rel_block, memory_block, attachment_block]))
         user_prompt = (
             (
                 f"{context_section}\n\n"
@@ -1392,8 +1394,9 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
     elif layers:
         # Abstention guard: if both retrieved context and memory are empty, don't hallucinate.
         _knowledge = layers.get("knowledge", "").strip()
+        _relationships = (layers.get("relationships") or layers.get("graph_context") or "").strip()
         _memory = (state.get("memory_context") or "").strip()
-        if not _knowledge and not _memory and not attachment_context:
+        if not _knowledge and not _relationships and not _memory and not attachment_context:
             logger.warning(
                 "generate_answer tier3: empty context + no memory — returning humble abstention"
             )
@@ -1420,8 +1423,10 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
         if lang_suffix:
             system_prompt += f"\n\n{lang_suffix}"
 
+        rel_section = f"RELATIONSHIPS & DOCTRINE ONTOLOGY (sacred graph):\n{_relationships}\n\n" if _relationships else ""
         user_prompt = (
             f"KNOWLEDGE (retrieved teachings):\n{_knowledge}\n\n"
+            f"{rel_section}"
             f"USER STATE:\n{layers['user_state']}\n\n"
             f"{attachment_block}\n\n"
             f"QUESTION: {question}"

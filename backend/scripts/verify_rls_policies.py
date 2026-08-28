@@ -327,6 +327,57 @@ def run_verification() -> dict[str, Any]:
     except Exception as exc:
         failures.append({"table": "user_profiles", "error": str(exc)})
 
+    # user_streaks
+    try:
+        streak_resp = (
+            service_client.table("user_streaks")
+            .insert(
+                {
+                    "user_id": alice_id,
+                    "current_streak": 5,
+                    "longest_streak": 10,
+                    "total_practice_days": 12,
+                }
+            )
+            .execute()
+        )
+        if streak_resp.data:
+            seeded_ids["user_streaks"] = [alice_id]
+
+        bob_select = bob_client.table("user_streaks").select("*").eq("user_id", alice_id).execute()
+        bob_update = (
+            bob_client.table("user_streaks")
+            .update({"current_streak": 0})
+            .eq("user_id", alice_id)
+            .execute()
+        )
+        bob_delete = bob_client.table("user_streaks").delete().eq("user_id", alice_id).execute()
+
+        if bob_select.data:
+            failures.append(
+                {"table": "user_streaks", "op": "select", "expected": [], "got": bob_select.data}
+            )
+        if bob_update.data:
+            failures.append(
+                {
+                    "table": "user_streaks",
+                    "op": "update",
+                    "expected": 0,
+                    "got": len(bob_update.data),
+                }
+            )
+        if bob_delete.data:
+            failures.append(
+                {
+                    "table": "user_streaks",
+                    "op": "delete",
+                    "expected": 0,
+                    "got": len(bob_delete.data),
+                }
+            )
+    except Exception as exc:
+        failures.append({"table": "user_streaks", "error": str(exc)})
+
     # Cleanup rows before deleting users so FKs don't block.
     for table, ids in seeded_ids.items():
         if ids:
@@ -341,10 +392,10 @@ def run_verification() -> dict[str, Any]:
         except Exception as exc:
             cleanup_failures.append({"table": "auth.users", "user_id": user_id, "error": str(exc)})
 
-    tables = ["conversations", "chat_messages", "meditation_sessions", "user_profiles"]
+    tables = ["conversations", "chat_messages", "meditation_sessions", "user_profiles", "user_streaks"]
     return {
         "ok": len(failures) == 0 and len(cleanup_failures) == 0,
-        "tests": 12,
+        "tests": 15,
         "failures": len(failures),
         "cleanup_failures": len(cleanup_failures),
         "tables": tables,
