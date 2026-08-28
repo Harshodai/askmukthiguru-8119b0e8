@@ -42,9 +42,10 @@ async def test_set_tenant_from_request_populates_tenant_context():
 
 
 @pytest.mark.asyncio
-async def test_set_tenant_from_request_falls_back_to_user_id():
+async def test_set_tenant_from_request_falls_back_to_oneness_and_sets_user_id():
     request = Request({"type": "http", "method": "POST", "path": "/api/chat"})
     request.state.user = {"id": "user-abc", "email": "seeker@example.com"}
     await set_tenant_from_request(request)
-    assert TenantContext.get() == "user-abc"
+    assert TenantContext.get() == "oneness"
+    assert TenantContext.get_user_id() == "user-abc"
     assert TenantContext.get_email() == "seeker@example.com"

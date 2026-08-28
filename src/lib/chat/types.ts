@@ -94,6 +94,9 @@ export interface Citation {
   title?: string | null;
   quote?: string;
   channel_name?: string;
+  source?: string;
+  timestampSeconds?: number;
+  textSnippet?: string;
 }
 
 export interface AIResponse {

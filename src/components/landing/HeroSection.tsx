@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useState, useEffect } from 'react';
-import { motion, MotionConfig } from 'framer-motion';
+import { motion, MotionConfig, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Play, Sparkles, Cloud, Activity, Compass, Heart } from 'lucide-react';
 import heroImage from '@/assets/hero-spiritual.webp';

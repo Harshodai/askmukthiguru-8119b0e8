@@ -13,7 +13,7 @@ import {
   X,
   Youtube,
 } from 'lucide-react';
-import { Citation } from '@/lib/api';
+import type { Citation } from '@/lib/chat/types';
 
 interface ChunkItem {
   id: string;
