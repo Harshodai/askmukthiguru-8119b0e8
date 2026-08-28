@@ -57,6 +57,7 @@ import { DailyTeaching } from './DailyTeaching';
 import { ChatEmptyState } from './ChatEmptyState';
 import { ConversationSourcesPanel } from './ConversationSourcesPanel';
 import { ThinkingPills, type PipelineStep, mapStatusToLabel } from './ThinkingPills';
+import { QueuedMessagesTray, type QueuedMessage } from './QueuedMessagesTray';
 import { useThinkingStatus } from '@/hooks/useThinkingStatus';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { useTextToSpeech } from '@/hooks/useTextToSpeech';
@@ -286,6 +287,13 @@ export const ChatInterface = () => {
   const [showInstantPill, setShowInstantPill] = useState(false);
   // E6.2: the just-sent user query, surfaced in the optimistic placeholder pill.
   const [pendingQuery, setPendingQuery] = useState<string>('');
+  // Message queueing state (Claude/Manus style): Allows seekers to queue follow-up prompts while streaming
+  const [queuedMessages, setQueuedMessages] = useState<QueuedMessage[]>([]);
+  const queuedMessagesRef = useRef<QueuedMessage[]>([]);
+  useEffect(() => {
+    queuedMessagesRef.current = queuedMessages;
+  }, [queuedMessages]);
+
   const { teaching: dailyTeaching } = useDailyTeaching();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -801,6 +809,7 @@ export const ChatInterface = () => {
     baseMessages?: Message[];
     historyMessages?: Message[];
     bypassCache?: boolean;
+    forceImmediate?: boolean;
   };
   type SubmitEvent = React.FormEvent | React.KeyboardEvent<HTMLTextAreaElement> | React.MouseEvent;
 
@@ -813,7 +822,28 @@ export const ChatInterface = () => {
       e.preventDefault();
     }
     const textToSend = overrideText ?? inputValue;
-    // Race condition fix: if already streaming/typing, abort previous request before starting new one
+    if (!textToSend.trim()) {
+      return;
+    }
+
+    // Message queueing (Claude / Manus style): If currently generating and not forced immediate, enqueue!
+    if ((isTyping || isStreaming) && !options.forceImmediate) {
+      const newQueued: QueuedMessage = {
+        id: generateId(),
+        text: textToSend.trim(),
+        attachedFiles: attachedFiles.length > 0 ? attachedFiles.map((f) => ({ name: f.name, content: f.content })) : undefined,
+        timestamp: Date.now(),
+      };
+      setQueuedMessages((prev) => [...prev, newQueued]);
+      if (!overrideText) {
+        setInputValue('');
+        setAttachedFiles([]);
+      }
+      hapticAudio.playTapTick();
+      return;
+    }
+
+    // If forced immediate or new turn: if active, abort previous request before starting new one
     if (isTyping || isStreaming) {
       streamControllerRef.current?.abort();
       if (currentJobIdRef.current) {
@@ -826,9 +856,6 @@ export const ChatInterface = () => {
       setShowInstantPill(false);
       streamControllerRef.current = null;
       currentJobIdRef.current = null;
-    }
-    if (!textToSend.trim()) {
-      return;
     }
 
     // Anonymous quota gate: once the backend has refused a message, don't keep
@@ -1412,6 +1439,18 @@ openSereneMind('audio');
     if (streamingWorked) {
       hapticAudio.playCompletionChime();
       if (!isIncognito) maybeSummarize();
+
+      // Auto-dequeue and dispatch next queued message if available (Claude/Manus style)
+      const remainingQueue = queuedMessagesRef.current;
+      if (remainingQueue.length > 0) {
+        const nextMsg = remainingQueue[0];
+        setQueuedMessages((prev) => prev.slice(1));
+        setTimeout(() => {
+          submitImpl(undefined, nextMsg.text, {
+            forceImmediate: true,
+          });
+        }, 350);
+      }
       return;
     }
 
@@ -1594,6 +1633,17 @@ openSereneMind('audio');
     setIsTyping(false);
     setShowInstantPill(false);
     maybeSummarize();
+
+    const remainingQueue = queuedMessagesRef.current;
+    if (remainingQueue.length > 0) {
+      const nextMsg = remainingQueue[0];
+      setQueuedMessages((prev) => prev.slice(1));
+      setTimeout(() => {
+        submitImplRef.current(undefined, nextMsg.text, {
+          forceImmediate: true,
+        });
+      }, 350);
+    }
   }
 };
 
@@ -1609,6 +1659,38 @@ const handleSubmit = useCallback(
     submitImplRef.current(e, overrideText, options),
   [],
 );
+
+const handleSendNowQueued = useCallback((id: string) => {
+  const target = queuedMessagesRef.current.find((m) => m.id === id);
+  if (!target) return;
+  setQueuedMessages((prev) => prev.filter((m) => m.id !== id));
+  streamControllerRef.current?.abort();
+  if (currentJobIdRef.current) {
+    fetch(`/api/jobs/${currentJobIdRef.current}`, { method: 'DELETE' }).catch(() => {});
+  }
+  setIsTyping(false);
+  setIsStreaming(false);
+  submitImplRef.current(undefined, target.text, { forceImmediate: true });
+}, []);
+
+const handleEditQueued = useCallback((id: string) => {
+  const target = queuedMessagesRef.current.find((m) => m.id === id);
+  if (!target) return;
+  setInputValue(target.text);
+  if (target.attachedFiles) {
+    setAttachedFiles(target.attachedFiles.map((f, i) => ({ id: `att-${i}`, ...f })));
+  }
+  setQueuedMessages((prev) => prev.filter((m) => m.id !== id));
+  inputRef.current?.focus();
+}, []);
+
+const handleRemoveQueued = useCallback((id: string) => {
+  setQueuedMessages((prev) => prev.filter((m) => m.id !== id));
+}, []);
+
+const handleClearAllQueued = useCallback(() => {
+  setQueuedMessages([]);
+}, []);
 
 const handleSuggestionClick = (text: string) => {
   // On mobile, show a preview bottom-sheet so the user can see/edit the full
@@ -2211,6 +2293,13 @@ return (
             userTurnHistory={userTurnHistory}
             onAskGuru={(prompt) => handleSubmit(undefined, prompt)}
             onOpenSereneMind={() => openSereneMind('audio')}
+          />
+          <QueuedMessagesTray
+            queue={queuedMessages}
+            onSendNow={handleSendNowQueued}
+            onEdit={handleEditQueued}
+            onRemove={handleRemoveQueued}
+            onClearAll={handleClearAllQueued}
           />
           <ChatComposer
             inputValue={inputValue}

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Youtube, Play, Clock, Quote, Sparkles, ExternalLink, X } from 'lucide-react';
+import { Youtube, Play, Clock, Quote, Sparkles, ExternalLink, X, BookOpen, Search } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 
 export interface DiscourseCitation {
@@ -17,9 +17,14 @@ export interface DiscourseCitation {
 interface CitationBadgeProps {
   citation: DiscourseCitation;
   onOpenVideoModal: (citation: DiscourseCitation) => void;
+  onOpenSearchModal?: (citation: DiscourseCitation) => void;
 }
 
-export const CitationBadge: React.FC<CitationBadgeProps> = ({ citation, onOpenVideoModal }) => {
+export const CitationBadge: React.FC<CitationBadgeProps> = ({
+  citation,
+  onOpenVideoModal,
+  onOpenSearchModal,
+}) => {
   const [hovered, setHovered] = useState(false);
 
   const formatTimestamp = (sec?: number) => {
@@ -33,7 +38,13 @@ export const CitationBadge: React.FC<CitationBadgeProps> = ({ citation, onOpenVi
     <span className="relative inline-block align-super" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
       <button
         type="button"
-        onClick={() => onOpenVideoModal(citation)}
+        onClick={() => {
+          if (onOpenSearchModal) {
+            onOpenSearchModal(citation);
+          } else {
+            onOpenVideoModal(citation);
+          }
+        }}
         className="mx-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-md border border-saffron-gold/40 bg-saffron-gold/10 px-1 font-mono text-[10px] font-semibold text-saffron-gold transition-all hover:scale-110 hover:bg-saffron-gold/20 focus:outline-none"
       >
         {citation.index}
@@ -74,13 +85,25 @@ export const CitationBadge: React.FC<CitationBadgeProps> = ({ citation, onOpenVi
               </p>
             )}
 
-            <button
-              type="button"
-              onClick={() => onOpenVideoModal(citation)}
-              className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-xl bg-saffron-gold/15 py-1.5 text-xs font-medium text-saffron-gold hover:bg-saffron-gold/25 transition-colors"
-            >
-              <Play className="h-3 w-3 fill-current" /> Watch Discourse Segment
-            </button>
+            <div className="mt-2.5 grid grid-cols-2 gap-1.5">
+              <button
+                type="button"
+                onClick={() => onOpenVideoModal(citation)}
+                className="flex items-center justify-center gap-1 rounded-xl bg-saffron-gold/15 py-1.5 text-xs font-medium text-saffron-gold hover:bg-saffron-gold/25 transition-colors"
+              >
+                <Play className="h-3 w-3 fill-current" /> Video
+              </button>
+
+              {onOpenSearchModal && (
+                <button
+                  type="button"
+                  onClick={() => onOpenSearchModal(citation)}
+                  className="flex items-center justify-center gap-1 rounded-xl bg-white/10 py-1.5 text-xs font-medium text-white hover:bg-white/15 transition-colors"
+                >
+                  <Search className="h-3 w-3" /> Inspect
+                </button>
+              )}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

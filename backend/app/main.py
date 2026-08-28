@@ -1071,6 +1071,10 @@ from app.trace_dashboard import router as trace_router
 
 app.include_router(trace_router)
 
+from app.api.search_routes import router as search_router
+
+app.include_router(search_router)
+
 
 @app.get("/.well-known/jwks.json", tags=["auth"])
 async def get_jwks():

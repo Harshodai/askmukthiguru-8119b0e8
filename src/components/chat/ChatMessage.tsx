@@ -25,6 +25,7 @@ import { LiveLogisticsCards } from './LiveLogisticsCards';
 import { EuAiBadge } from '@/components/compliance/EuAiBadge';
 import { ProvenanceDrawer } from '@/components/compliance/ProvenanceDrawer';
 import { CitationBadge, DiscourseVideoModal, type DiscourseCitation } from './CitationCard';
+import { LinkSearchModal } from './LinkSearchModal';
 import { SacredPracticeWidget } from './SacredPracticeWidget';
 import { ReflectionChips } from './ReflectionChips';
 
@@ -468,6 +469,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
     const [sourcesOpen, setSourcesOpen] = useState(false);
     const [provenanceOpen, setProvenanceOpen] = useState(false);
     const [activeVideoCitation, setActiveVideoCitation] = useState<DiscourseCitation | null>(null);
+    const [activeSearchCitation, setActiveSearchCitation] = useState<DiscourseCitation | null>(null);
     const editTextareaRef = useRef<HTMLTextAreaElement>(null);
 
     // Auto-resize + cursor-end when editing opens or text changes
@@ -796,6 +798,10 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                                     citation={discourseCitation}
                                     onOpenVideoModal={(c) => {
                                       setActiveVideoCitation(c);
+                                      onCitationClick?.(message.id, n - 1);
+                                    }}
+                                    onOpenSearchModal={(c) => {
+                                      setActiveSearchCitation(c);
                                       onCitationClick?.(message.id, n - 1);
                                     }}
                                   />
@@ -1353,6 +1359,17 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
               isOpen={!!activeVideoCitation}
               onClose={() => setActiveVideoCitation(null)}
               citation={activeVideoCitation}
+            />
+
+            {/* In-Situ Link & Wisdom Inspector Modal */}
+            <LinkSearchModal
+              isOpen={!!activeSearchCitation}
+              onClose={() => setActiveSearchCitation(null)}
+              citation={activeSearchCitation}
+              onPlayVideo={(c) => {
+                setActiveSearchCitation(null);
+                setActiveVideoCitation(c as DiscourseCitation);
+              }}
             />
           </div>
 

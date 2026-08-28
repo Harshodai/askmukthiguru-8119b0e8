@@ -7,7 +7,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
 import {
-  Send, Square, Flame, Sparkles, Plus, Mic, Volume2, X, FileText,
+  Send, Square, Flame, Sparkles, Plus, Mic, Volume2, X, FileText, CornerDownLeft,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -377,21 +377,36 @@ export function ChatComposer({
               </Button>
             )}
             {(isStreaming || isTyping) ? (
-              <PromptInputSubmit
-                type="button"
-                size="icon-sm"
-                onClick={onStop}
-                className="min-h-[44px] min-w-[44px] sm:h-8 sm:w-8 rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20 flex items-center justify-center"
-                aria-label={t('chat.stop')}
-                status="streaming"
-              >
-                <Square className="w-4 h-4 fill-current" />
-              </PromptInputSubmit>
+              <div className="flex items-center gap-1.5">
+                <PromptInputSubmit
+                  type="button"
+                  size="icon-sm"
+                  onClick={onStop}
+                  className="min-h-[44px] min-w-[44px] sm:h-8 sm:w-8 rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20 flex items-center justify-center"
+                  aria-label={t('chat.stop')}
+                  title="Stop generating"
+                >
+                  <Square className="w-3.5 h-3.5 fill-current" />
+                </PromptInputSubmit>
+
+                {inputValue.trim() && (
+                  <PromptInputSubmit
+                    type="submit"
+                    size="icon-sm"
+                    className="min-h-[44px] sm:h-9 px-3 rounded-xl bg-saffron-gold text-zinc-950 hover:bg-amber-400 font-semibold text-xs shadow-md transition-all flex items-center gap-1.5"
+                    aria-label="Queue message"
+                    title="Queue follow-up message"
+                  >
+                    <CornerDownLeft className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Queue</span>
+                  </PromptInputSubmit>
+                )}
+              </div>
             ) : (
               <PromptInputSubmit
                 type="submit"
                 size="icon-sm"
-                disabled={!inputValue.trim() || isTyping || isStreaming || isAwaitingSereneMind || isQuotaExceeded || isUploading}
+                disabled={!inputValue.trim() || isAwaitingSereneMind || isQuotaExceeded || isUploading}
                 className="min-h-[44px] min-w-[44px] sm:h-9 sm:w-9 rounded-xl bg-ojas text-white hover:bg-ojas-dark disabled:opacity-40 disabled:cursor-not-allowed shadow-sm hover:shadow-md transition-all flex items-center justify-center"
                 aria-label={t('chat.send') === 'chat.send' ? 'Send message' : t('chat.send')}
               >
