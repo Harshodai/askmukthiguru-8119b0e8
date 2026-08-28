@@ -1,4 +1,5 @@
 import '@/styles/mobile-chat-ux.css';
+import '@/styles/product-ux.css';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { PanelLeft, PanelLeftClose, Home, Download, Library, EyeOff } from 'lucide-react';
