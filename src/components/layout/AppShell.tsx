@@ -1,3 +1,4 @@
+import '@/styles/product-ux.css';
 import { useTranslation } from 'react-i18next';
 import { ReactNode, useEffect, useState } from 'react';
 import {
