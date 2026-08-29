@@ -22,6 +22,7 @@ import httpx
 from anyio import Lock as AsyncLock
 
 from app.config import settings
+from app.llm_tracing import record_llm_result
 from services.circuit_breaker import DefaultCircuitBreaker
 from services.sarvam_exceptions import CircuitOpenException, NonRetryableError, QuotaExceededError
 
@@ -319,6 +320,9 @@ class SarvamHTTPGateway:
             )
             span = self._start_llm_span(model=model, operation=operation, attempt=0)
             self._record_span_exception(span, exc)
+            # Must end explicitly: _start_llm_span uses start_span(), not a
+            # context manager, so without this the span is never exported.
+            self._end_llm_span(span)
             raise exc
 
         # 2. Build headers (api-subscription-key is set per attempt from a
@@ -451,14 +455,19 @@ class SarvamHTTPGateway:
                 while True:
                     span_ctx = None
                     if tracer is not None:
+                        # OTel GenAI semantic conventions (gen_ai.*), matching
+                        # app/llm_tracing.py. These were project-local `llm.*`
+                        # names until 2026-08-29; Langfuse and other GenAI-aware
+                        # backends key off `gen_ai.*` and silently ignored the
+                        # old ones, so Sarvam's tokens/cost never reached any
+                        # dashboard. See docs/architecture/llm-observability-design.md.
                         span_ctx = tracer.start_as_current_span(
-                            "llm.sarvam.chat",
+                            f"{operation} {model}",
                             attributes={
-                                "llm.provider": "sarvam",
-                                "llm.system": "sarvam",
-                                "llm.model_name": model,
-                                "llm.operation": operation,
-                                "llm.request.attempt": attempt_num,
+                                "gen_ai.system": "sarvam",
+                                "gen_ai.request.model": model,
+                                "gen_ai.operation.name": operation,
+                                "gen_ai.request.attempt": attempt_num,
                             },
                         )
 
@@ -603,11 +612,14 @@ class SarvamHTTPGateway:
                         if span is not None:
                             span.set_attribute("http.status_code", resp.status_code)
                             usage = data.get("usage", {})
-                            span.set_attribute("llm.token_count.prompt", usage.get("prompt_tokens"))
-                            span.set_attribute(
-                                "llm.token_count.completion", usage.get("completion_tokens")
+                            # Shared recorder so Sarvam and OpenRouter emit an
+                            # identical attribute shape (gen_ai.usage.*).
+                            record_llm_result(
+                                span,
+                                tokens_in=usage.get("prompt_tokens"),
+                                tokens_out=usage.get("completion_tokens"),
+                                response_model=data.get("model"),
                             )
-                            span.set_attribute("llm.token_count.total", usage.get("total_tokens"))
 
                         choice = data.get("choices", [{}])[0]
                         content = (choice.get("message", {}) or {}).get("content", "") or ""
@@ -767,23 +779,38 @@ class SarvamHTTPGateway:
 
     @staticmethod
     def _start_llm_span(model: str, operation: str, attempt: int):
-        class FakeSpan:
-            def __enter__(self):
-                return self
+        """
+        Start a standalone GenAI span. The CALLER OWNS ITS LIFECYCLE and must
+        call `_end_llm_span()` -- an OTel span that is never ended is never
+        exported, which silently dropped this path's telemetry until 2026-08-29.
 
-            def __exit__(self, *args):
-                pass
-
-            pass
-
+        Returns None (not a stub object) when OpenTelemetry is unavailable. It
+        previously returned a `FakeSpan` implementing only __enter__/__exit__,
+        which is an incomplete substitute for a real span: any caller doing
+        `if span is not None: span.set_attribute(...)` would AttributeError with
+        otel absent. None keeps one honest contract -- every consumer here
+        already no-ops on None.
+        """
         if not _has_otel:
-            return FakeSpan()
+            return None
 
-        tracer = trace.get_tracer("sarvam")
-        span = tracer.start_span(f"llm.{operation}")
-        span.set_attribute("llm.model", model)
-        span.set_attribute("llm.attempt", attempt)
+        tracer = trace.get_tracer("mukthiguru.llm")
+        span = tracer.start_span(f"{operation} {model}")
+        span.set_attribute("gen_ai.system", "sarvam")
+        span.set_attribute("gen_ai.request.model", model)
+        span.set_attribute("gen_ai.operation.name", operation)
+        span.set_attribute("gen_ai.request.attempt", attempt)
         return span
+
+    @staticmethod
+    def _end_llm_span(span) -> None:
+        """End a span from `_start_llm_span`. No-op on None."""
+        if span is None:
+            return
+        try:
+            span.end()
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.debug("Failed to end sarvam llm span: %s", exc)
 
     @staticmethod
     def _record_span_exception(span, exc: Exception) -> None:

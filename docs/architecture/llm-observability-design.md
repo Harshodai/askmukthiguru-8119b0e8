@@ -115,9 +115,14 @@ tracing implementations in the backend:
 
 | Module | Emits | Convention |
 |---|---|---|
-| `app/tracing.py` | `rag.*` node spans (`trace_rag_node`) | project-local |
-| `services/gateways/sarvam_http.py` | `llm.provider`, `llm.model_name`, `llm.token_count.*` | **project-local** |
+| `app/tracing.py` | `rag.*` node spans (`trace_rag_node`) | project-local — *correctly so*, these are pipeline-stage spans, not LLM calls |
+| `services/gateways/sarvam_http.py` | ~~`llm.provider`, `llm.model_name`, `llm.token_count.*`~~ → now `gen_ai.*` | **migrated 2026-08-29, see Resolved below** |
 | `app/llm_tracing.py` (new) | `gen_ai.system`, `gen_ai.request.model`, `gen_ai.usage.*` | **OTel GenAI standard** |
+
+`app/tracing.py` is deliberately left alone: `rag.*` spans describe LangGraph node execution,
+not LLM calls, so the GenAI conventions do not apply to them. Two conventions for two
+genuinely different span kinds is correct; it was one convention for *the same* kind
+(LLM calls, split across two providers) that was the actual defect.
 
 Consequence for phase 2: **Langfuse will parse the OpenRouter spans and ignore the Sarvam
 ones**, because Langfuse keys off the `gen_ai.*` convention. Sarvam's cost and token data
@@ -135,12 +140,28 @@ Two smaller issues in the same file, found while auditing:
   a substitutability trap: any future code that treats a `_start_llm_span()` result like a
   real span will `AttributeError` when OpenTelemetry is absent.
 
-**Recommended follow-up (not done here):** migrate `sarvam_http.py` onto `app/llm_tracing.py`
-and delete `_start_llm_span`/`FakeSpan`. That collapses three conventions to two, fixes the
-unended span, and removes the substitutability trap in one change. It is deliberately not
-bundled into this commit — Sarvam is out of credit and not the configured provider as of
-2026-08-29, and its `_call_inner` is a ~300-line function with hand-rolled span lifecycle
-across four exit paths; that refactor deserves its own change and its own test run.
+### Resolved — 2026-08-29
+
+All three issues above are fixed. Sarvam and OpenRouter now emit an identical span shape:
+
+- **Convention migrated.** `sarvam_http.py`'s main-path span now emits `gen_ai.system`,
+  `gen_ai.request.model`, `gen_ai.operation.name`, `gen_ai.request.attempt`, and is named
+  `"{operation} {model}"` — matching `app/llm_tracing.py` exactly. Token usage now routes
+  through the shared `record_llm_result()` rather than hand-set `llm.token_count.*` keys, so
+  there is one recorder and one attribute shape for both providers.
+- **Unended span fixed.** Added `_end_llm_span()`; the circuit-open path at `_call_inner`
+  now ends the span it starts. `_start_llm_span` documents that the caller owns the
+  lifecycle, since it uses `start_span()` rather than a context manager.
+- **Substitutability trap removed.** `_start_llm_span` returns `None` instead of a
+  `FakeSpan` stub when OpenTelemetry is absent. One honest contract — every consumer in the
+  file already no-ops on `None`, so there is no partial impostor left to misuse.
+
+`tests/test_sarvam_observability.py` pinned the old `llm.*` names and was migrated in the
+same change, so the convention is now enforced by a test rather than by convention alone.
+
+Note the main-path span lifecycle was **not** leaking, contrary to a first reading: every
+`continue` in the self-healing retry loop calls `span_ctx.__exit__`, as do the success and
+exception paths. Only the circuit-open path was affected.
 
 ## SOLID assessment
 

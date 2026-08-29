@@ -101,15 +101,19 @@ async def test_sarvam_call_records_otel_span_attributes(monkeypatch):
 
     assert result == "A gentle answer"
     span = fake_tracer.spans[0]
-    assert span.name == "llm.sarvam.chat"
-    assert span.attributes["llm.provider"] == "sarvam"
-    assert span.attributes["llm.model_name"] == "sarvam-30b"
-    assert span.attributes["llm.operation"] == "generate"
-    assert span.attributes["llm.request.attempt"] == 1
+    # OTel GenAI semantic conventions (migrated from project-local `llm.*` on
+    # 2026-08-29). Langfuse and other GenAI-aware backends key off `gen_ai.*`;
+    # the old names were silently ignored, so Sarvam usage never reached a
+    # dashboard. Must stay identical in shape to the OpenRouter spans emitted
+    # by app/llm_tracing.py.
+    assert span.name == "generate sarvam-30b"
+    assert span.attributes["gen_ai.system"] == "sarvam"
+    assert span.attributes["gen_ai.request.model"] == "sarvam-30b"
+    assert span.attributes["gen_ai.operation.name"] == "generate"
+    assert span.attributes["gen_ai.request.attempt"] == 1
     assert span.attributes["http.status_code"] == 200
-    assert span.attributes["llm.token_count.prompt"] == 12
-    assert span.attributes["llm.token_count.completion"] == 5
-    assert span.attributes["llm.token_count.total"] == 17
+    assert span.attributes["gen_ai.usage.input_tokens"] == 12
+    assert span.attributes["gen_ai.usage.output_tokens"] == 5
 
 
 @pytest.mark.asyncio
