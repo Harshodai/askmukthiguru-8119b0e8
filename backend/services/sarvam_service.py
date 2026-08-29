@@ -139,11 +139,22 @@ class SarvamCloudService:
         else:
             self._http = None
 
+        from services.llm_budget_guard import LLMBudgetGuard
+
+        self._budget_guard = LLMBudgetGuard.from_settings(settings, provider="sarvam")
+
         logger.info(
             f"Sarvam Cloud Service ready — "
             f"gen_model={self._gen_model}, cls_model={self._cls_model}, "
             f"base_url={self._base_url}"
         )
+
+    @staticmethod
+    def _estimate_tokens(text: str) -> int:
+        """Fast heuristic: ~1.3 tokens per word."""
+        if not text:
+            return 0
+        return int(len(text.split()) * 1.3)
 
     async def _get_http_client(self) -> httpx.AsyncClient:
         """Get or create the singleton HTTP client with connection pooling."""
@@ -553,6 +564,9 @@ class SarvamCloudService:
         """Inner body of `generate_stream`, called with the span already open
         so it stays live across every `yield` and across the fallback
         self-calls below (each opens its own span)."""
+        reservation = await self._budget_guard.reserve()
+        stream_usage: dict | None = None
+        finish_reason = "unknown"
         try:
             client = await self._get_http_client()
             yielded_any = False
@@ -577,6 +591,9 @@ class SarvamCloudService:
                         )
                         self._max_tokens_limit = tier_limit
                         kwargs_copy = {**kwargs, "max_tokens": tier_limit}
+                        if span is not None:
+                            span.set_attribute("gen_ai.retry_reason", "tier_limit")
+                        await reservation.settle(None)
                         async for chunk in self.generate_stream(
                             system_prompt, user_prompt, context, **kwargs_copy
                         ):
@@ -584,6 +601,10 @@ class SarvamCloudService:
                         return
                     else:
                         resp.raise_for_status()
+
+                if span is not None:
+                    span.set_attribute("http.status_code", resp.status_code)
+
                 buffer = ""
                 async for line in resp.aiter_lines():
                     if line.startswith("data: "):
@@ -596,7 +617,12 @@ class SarvamCloudService:
                             break
                         try:
                             data = json.loads(data_str)
-                            delta_msg = data.get("choices", [{}])[0].get("delta", {})
+                            usage = data.get("usage")
+                            if isinstance(usage, dict):
+                                stream_usage = usage
+                            choice = data.get("choices", [{}])[0] or {}
+                            finish_reason = str(choice.get("finish_reason") or finish_reason)[:32]
+                            delta_msg = choice.get("delta", {})
                             delta = delta_msg.get("content") or ""
                             reasoning_delta = delta_msg.get("reasoning_content") or ""
                             if delta:
@@ -609,28 +635,52 @@ class SarvamCloudService:
                         except json.JSONDecodeError:
                             pass
 
+                # Token estimation and usage tracking
+                usage = stream_usage or {}
+                prompt_tokens = usage.get("prompt_tokens") or self._estimate_tokens(
+                    str(messages)
+                )
+                completion_tokens = usage.get("completion_tokens") or self._estimate_tokens(
+                    buffer
+                )
+                cost_usd = (prompt_tokens + completion_tokens) / 1000.0 * 0.0001
+
                 # Record streaming token usage in accumulator
                 try:
                     from services.cost_tracker import token_accumulator_var
 
                     acc = token_accumulator_var.get()
                     if acc is not None:
-                        prompt_tokens = int(
-                            sum(len((msg.get("content") or "").split()) for msg in messages) * 1.3
-                        )
-                        completion_tokens = int(len(buffer.split()) * 1.3)
                         acc.tokens_in += prompt_tokens
                         acc.tokens_out += completion_tokens
                         acc.model = model
                         acc.provider = "sarvam"
+                        acc.cost_usd += cost_usd
                 except Exception as e:
                     logger.warning(f"Failed to record stream token usage: {e}")
+
+                await reservation.settle(cost_usd)
+
+                if span is not None:
+                    record_llm_result(
+                        span,
+                        completion=buffer,
+                        prompt=messages,
+                        tokens_in=prompt_tokens,
+                        tokens_out=completion_tokens,
+                        cost_usd=cost_usd,
+                        finish_reason=finish_reason,
+                        response_model=model,
+                    )
 
             self._circuit.record_success()
 
         except Exception as e:
             logger.error(f"Sarvam Cloud streaming failed: {e}")
             self._circuit.record_failure()
+            if span is not None:
+                record_llm_error(span, e)
+            await reservation.settle(None)
             if model != self._gen_model and not locals().get("yielded_any", False):
                 logger.warning(
                     f"Sarvam stream model {model} failed before tokens; falling back to {self._gen_model}."

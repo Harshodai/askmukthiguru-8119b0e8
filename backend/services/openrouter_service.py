@@ -781,11 +781,30 @@ class OpenRouterService:
                     completion_tokens = usage.get("completion_tokens") or self._estimate_tokens(
                         buffer
                     )
+                    prompt_details = usage.get("prompt_tokens_details") or {}
+                    cached_tokens = (
+                        prompt_details.get("cached_tokens")
+                        or usage.get("cache_read_input_tokens")
+                        or 0
+                    )
+                    cache_write_tokens = (
+                        prompt_details.get("cache_write_tokens")
+                        or usage.get("cache_creation_input_tokens")
+                        or 0
+                    )
                     cost_usd = self._usage_cost(usage) if stream_usage is not None else None
+                    cost_for_span = (
+                        cost_usd
+                        if cost_usd is not None
+                        else self._fallback_cost(prompt_tokens, completion_tokens, model)
+                    )
                     self._track_token_usage(
                         tokens_in=prompt_tokens,
                         tokens_out=completion_tokens,
                         model=model,
+                        operation=operation,
+                        cached_tokens=cached_tokens,
+                        cache_write_tokens=cache_write_tokens,
                         cost_usd=cost_usd,
                     )
                     await reservation.settle(cost_usd)
@@ -795,12 +814,8 @@ class OpenRouterService:
                         prompt=messages,
                         tokens_in=prompt_tokens,
                         tokens_out=completion_tokens,
-                        cached_tokens=(stream_usage or {}).get("prompt_tokens_details", {}).get(
-                            "cached_tokens", 0
-                        )
-                        if isinstance(stream_usage, dict)
-                        else 0,
-                        cost_usd=cost_usd,
+                        cached_tokens=cached_tokens,
+                        cost_usd=cost_for_span,
                         finish_reason=finish_reason,
                         response_model=model,
                     )
@@ -819,11 +834,7 @@ class OpenRouterService:
                         (time.perf_counter() - stream_started) * 1000,
                         prompt_tokens,
                         completion_tokens,
-                        (stream_usage or {}).get("prompt_tokens_details", {}).get(
-                            "cached_tokens", 0
-                        )
-                        if isinstance(stream_usage, dict)
-                        else 0,
+                        cached_tokens,
                         finish_reason,
                     )
                     return

@@ -454,6 +454,7 @@ class SarvamHTTPGateway:
                     headers["api-subscription-key"] = _current_key
                 while True:
                     span_ctx = None
+                    current_model = payload.get("model", model)
                     if tracer is not None:
                         # OTel GenAI semantic conventions (gen_ai.*), matching
                         # app/llm_tracing.py. These were project-local `llm.*`
@@ -462,10 +463,10 @@ class SarvamHTTPGateway:
                         # old ones, so Sarvam's tokens/cost never reached any
                         # dashboard. See docs/architecture/llm-observability-design.md.
                         span_ctx = tracer.start_as_current_span(
-                            f"{operation} {model}",
+                            f"{operation} {current_model}",
                             attributes={
                                 "gen_ai.system": "sarvam",
-                                "gen_ai.request.model": model,
+                                "gen_ai.request.model": current_model,
                                 "gen_ai.operation.name": operation,
                                 "gen_ai.request.attempt": attempt_num,
                             },

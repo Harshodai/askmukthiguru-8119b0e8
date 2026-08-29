@@ -14,6 +14,12 @@ class FakeSpan:
     def set_attribute(self, key, value):
         self.attributes[key] = value
 
+    def update_name(self, name):
+        self.name = name
+
+    def set_status(self, status):
+        pass
+
     def record_exception(self, exc):
         self.exceptions.append(exc)
 
@@ -57,6 +63,7 @@ class FakeResponse:
     @staticmethod
     def json():
         return {
+            "model": "sarvam-30b",
             "choices": [{"message": {"content": "A gentle answer"}}],
             "usage": {
                 "prompt_tokens": 12,
@@ -115,6 +122,7 @@ async def test_sarvam_call_records_otel_span_attributes(monkeypatch):
     assert span.attributes["gen_ai.usage.input_tokens"] == 12
     assert span.attributes["gen_ai.usage.output_tokens"] == 5
     assert span.attributes["gen_ai.usage.cost"] == pytest.approx((12 + 5) / 1000.0 * 0.0001)
+    assert span.attributes["gen_ai.response.model"] == "sarvam-30b"
 
 
 @pytest.mark.asyncio
@@ -225,6 +233,7 @@ class QueuedResponse:
         self.status_code = status_code
         self.text = text
         self._payload = payload or {
+            "model": "sarvam-30b",
             "choices": [{"message": {"content": "ok"}}],
             "usage": {"prompt_tokens": 1, "completion_tokens": 1},
         }
@@ -280,8 +289,16 @@ async def test_sarvam_tier_limit_retry_records_reason(monkeypatch):
     )
 
     assert result == "ok"
-    reasons = [s.attributes.get("gen_ai.retry_reason") for s in fake_tracer.spans]
-    assert "tier_limit" in reasons
+    assert len(fake_tracer.spans) == 2
+    # First span failed on 400 tier limit
+    assert fake_tracer.spans[0].attributes.get("gen_ai.retry_reason") == "tier_limit"
+    # Second span succeeded and recorded usage & cost
+    assert fake_tracer.spans[1].attributes.get("gen_ai.retry_reason") is None
+    assert fake_tracer.spans[1].attributes["http.status_code"] == 200
+    assert fake_tracer.spans[1].attributes["gen_ai.usage.input_tokens"] == 1
+    assert fake_tracer.spans[1].attributes["gen_ai.usage.output_tokens"] == 1
+    assert fake_tracer.spans[1].attributes["gen_ai.usage.cost"] == pytest.approx((1 + 1) / 1000.0 * 0.0001)
+    assert fake_tracer.spans[1].attributes["gen_ai.response.model"] == "sarvam-30b"
 
 
 @pytest.mark.asyncio
@@ -316,8 +333,58 @@ async def test_sarvam_context_window_retry_records_reason(monkeypatch):
     )
 
     assert result == "ok"
-    reasons = [s.attributes.get("gen_ai.retry_reason") for s in fake_tracer.spans]
-    assert "context_window" in reasons
+    assert len(fake_tracer.spans) == 2
+    # First span failed on 422 context window reduction
+    assert fake_tracer.spans[0].attributes.get("gen_ai.retry_reason") == "context_window"
+    # Second span succeeded
+    assert fake_tracer.spans[1].attributes.get("gen_ai.retry_reason") is None
+    assert fake_tracer.spans[1].attributes["http.status_code"] == 200
+    assert fake_tracer.spans[1].attributes["gen_ai.usage.cost"] == pytest.approx((1 + 1) / 1000.0 * 0.0001)
+
+
+@pytest.mark.asyncio
+async def test_sarvam_context_window_sarvam_m_upgrade_retry_records_reason(monkeypatch):
+    fake_tracer = FakeTracer()
+    monkeypatch.setattr("services.gateways.sarvam_http.trace", FakeTrace(fake_tracer))
+    monkeypatch.setattr("services.gateways.sarvam_http._has_otel", True)
+
+    class Client(QueuedAsyncClient):
+        _responses = [
+            QueuedResponse(
+                422,
+                text="exceeds the model context window",
+            ),
+            QueuedResponse(200, payload={
+                "model": "sarvam-30b",
+                "choices": [{"message": {"content": "ok"}}],
+                "usage": {"prompt_tokens": 20, "completion_tokens": 10},
+            }),
+        ]
+
+    monkeypatch.setattr(sarvam_service.httpx, "AsyncClient", Client)
+    monkeypatch.setattr(settings, "sarvam_api_key", "test-key")
+    monkeypatch.setattr(settings, "sarvam_cloud_model", "sarvam-m")
+    monkeypatch.setattr(settings, "llm_max_retries", 2)
+
+    service = SarvamCloudService()
+    result = await service._call_api(
+        messages=[{"role": "user", "content": "hello"}],
+        model="sarvam-m",
+        max_tokens=2048,
+        operation="generate",
+    )
+
+    assert result == "ok"
+    assert len(fake_tracer.spans) == 2
+    # First span on sarvam-m failed with context_window retry reason
+    assert fake_tracer.spans[0].attributes.get("gen_ai.retry_reason") == "context_window"
+    assert fake_tracer.spans[0].attributes["gen_ai.request.model"] == "sarvam-m"
+    # Second span upgraded to sarvam-30b and succeeded
+    assert fake_tracer.spans[1].attributes.get("gen_ai.retry_reason") is None
+    assert fake_tracer.spans[1].attributes["gen_ai.request.model"] == "sarvam-30b"
+    assert fake_tracer.spans[1].attributes["http.status_code"] == 200
+    assert fake_tracer.spans[1].attributes["gen_ai.usage.cost"] == pytest.approx((20 + 10) / 1000.0 * 0.0001)
+    assert fake_tracer.spans[1].attributes["gen_ai.response.model"] == "sarvam-30b"
 
 
 @pytest.mark.asyncio
@@ -346,5 +413,197 @@ async def test_sarvam_key_rotation_retry_records_reason(monkeypatch):
     )
 
     assert result == "ok"
-    reasons = [s.attributes.get("gen_ai.retry_reason") for s in fake_tracer.spans]
-    assert "key_rotation" in reasons
+    assert len(fake_tracer.spans) == 2
+    # First span hit 429 and rotated key
+    assert fake_tracer.spans[0].attributes.get("gen_ai.retry_reason") == "key_rotation"
+    # Second span succeeded with rotated key
+    assert fake_tracer.spans[1].attributes.get("gen_ai.retry_reason") is None
+    assert fake_tracer.spans[1].attributes["http.status_code"] == 200
+    assert fake_tracer.spans[1].attributes["gen_ai.usage.cost"] == pytest.approx((1 + 1) / 1000.0 * 0.0001)
+
+
+@pytest.mark.asyncio
+async def test_sarvam_http_gateway_direct_observability_and_cost(monkeypatch):
+    from services.gateways.sarvam_http import SarvamHTTPGateway
+
+    fake_tracer = FakeTracer()
+    monkeypatch.setattr("services.gateways.sarvam_http.trace", FakeTrace(fake_tracer))
+    monkeypatch.setattr("services.gateways.sarvam_http._has_otel", True)
+    monkeypatch.setattr(settings, "sarvam_api_key", "test-key")
+
+    class DirectResponse:
+        status_code = 200
+        text = ""
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {
+                "model": "sarvam-30b",
+                "choices": [{"message": {"content": "direct answer"}}],
+                "usage": {
+                    "prompt_tokens": 50,
+                    "completion_tokens": 25,
+                    "total_tokens": 75,
+                },
+            }
+
+    class DirectAsyncClient:
+        async def post(self, url, headers=None, json=None, **kwargs):
+            return DirectResponse()
+
+    async def mock_get_client():
+        return DirectAsyncClient()
+
+    gateway = SarvamHTTPGateway()
+    monkeypatch.setattr(gateway, "_get_http_client", mock_get_client)
+
+    result = await gateway.call(
+        messages=[{"role": "user", "content": "test question"}],
+        model="sarvam-30b",
+        max_tokens=100,
+        operation="custom_op",
+    )
+
+    assert result == "direct answer"
+    assert len(fake_tracer.spans) == 1
+    span = fake_tracer.spans[0]
+    assert span.name == "custom_op sarvam-30b"
+    assert span.attributes["gen_ai.system"] == "sarvam"
+    assert span.attributes["gen_ai.operation.name"] == "custom_op"
+    assert span.attributes["gen_ai.request.model"] == "sarvam-30b"
+    assert span.attributes["http.status_code"] == 200
+    assert span.attributes["gen_ai.usage.input_tokens"] == 50
+    assert span.attributes["gen_ai.usage.output_tokens"] == 25
+    expected_cost = (50 + 25) / 1000.0 * 0.0001
+    assert span.attributes["gen_ai.response.model"] == "sarvam-30b"
+
+
+@pytest.mark.asyncio
+async def test_sarvam_generate_stream_observability_and_token_tracking(monkeypatch):
+    import opentelemetry.trace
+    from services.cost_tracker import TokenAccumulator, token_accumulator_var
+
+    fake_tracer = FakeTracer()
+    monkeypatch.setattr(opentelemetry.trace, "get_tracer", lambda _name: fake_tracer)
+    monkeypatch.setattr(settings, "sarvam_api_key", "test-key")
+    monkeypatch.setattr(settings, "sarvam_cloud_model", "sarvam-30b")
+
+    class StreamResponse:
+        status_code = 200
+
+        def raise_for_status(self):
+            pass
+
+        async def aiter_lines(self):
+            import json as json_lib
+
+            yield f"data: {json_lib.dumps({'choices': [{'delta': {'content': 'Spiritual '}}]})}"
+            yield f"data: {json_lib.dumps({'choices': [{'delta': {'content': 'wisdom.'}}], 'usage': {'prompt_tokens': 15, 'completion_tokens': 5}})}"
+            yield "data: [DONE]"
+
+    class StreamAsyncClient:
+        def stream(self, method, url, headers=None, json=None, **kwargs):
+            class StreamCtx:
+                async def __aenter__(self):
+                    return StreamResponse()
+
+                async def __aexit__(self, exc_type, exc, tb):
+                    pass
+
+            return StreamCtx()
+
+    async def mock_get_client(self):
+        return StreamAsyncClient()
+
+    monkeypatch.setattr(SarvamCloudService, "_get_http_client", mock_get_client)
+
+    service = SarvamCloudService()
+    accumulator = TokenAccumulator()
+    token = token_accumulator_var.set(accumulator)
+    try:
+        chunks = []
+        async for chunk in service.generate_stream("Be wise.", "What is peace?"):
+            chunks.append(chunk)
+    finally:
+        token_accumulator_var.reset(token)
+
+    assert "".join(chunks) == "Spiritual wisdom."
+    assert len(fake_tracer.spans) == 1
+    span = fake_tracer.spans[0]
+    assert span.attributes["gen_ai.system"] == "sarvam"
+    assert span.attributes["gen_ai.request.model"] == "sarvam-30b"
+    assert span.attributes["gen_ai.operation.name"] == "generate"
+    assert span.attributes["http.status_code"] == 200
+    assert span.attributes["gen_ai.usage.input_tokens"] == 15
+    assert span.attributes["gen_ai.usage.output_tokens"] == 5
+    expected_cost = (15 + 5) / 1000.0 * 0.0001
+    assert span.attributes["gen_ai.usage.cost"] == pytest.approx(expected_cost)
+
+    assert accumulator.tokens_in == 15
+    assert accumulator.tokens_out == 5
+    assert accumulator.cost_usd == pytest.approx(expected_cost)
+
+
+@pytest.mark.asyncio
+async def test_sarvam_generate_stream_fallback_token_estimation_when_usage_omitted(monkeypatch):
+    import opentelemetry.trace
+    from services.cost_tracker import TokenAccumulator, token_accumulator_var
+
+    fake_tracer = FakeTracer()
+    monkeypatch.setattr(opentelemetry.trace, "get_tracer", lambda _name: fake_tracer)
+    monkeypatch.setattr(settings, "sarvam_api_key", "test-key")
+    monkeypatch.setattr(settings, "sarvam_cloud_model", "sarvam-30b")
+
+    class StreamResponseNoUsage:
+        status_code = 200
+
+        def raise_for_status(self):
+            pass
+
+        async def aiter_lines(self):
+            import json as json_lib
+
+            yield f"data: {json_lib.dumps({'choices': [{'delta': {'content': 'Mindful living and calm.'}}]})}"
+            yield "data: [DONE]"
+
+    class StreamAsyncClient:
+        def stream(self, method, url, headers=None, json=None, **kwargs):
+            class StreamCtx:
+                async def __aenter__(self):
+                    return StreamResponseNoUsage()
+
+                async def __aexit__(self, exc_type, exc, tb):
+                    pass
+
+            return StreamCtx()
+
+    async def mock_get_client(self):
+        return StreamAsyncClient()
+
+    monkeypatch.setattr(SarvamCloudService, "_get_http_client", mock_get_client)
+
+    service = SarvamCloudService()
+    accumulator = TokenAccumulator()
+    token = token_accumulator_var.set(accumulator)
+    try:
+        chunks = []
+        async for chunk in service.generate_stream("You are a teacher.", "Explain meditation."):
+            chunks.append(chunk)
+    finally:
+        token_accumulator_var.reset(token)
+
+    assert "".join(chunks) == "Mindful living and calm."
+    assert len(fake_tracer.spans) == 1
+    span = fake_tracer.spans[0]
+    assert span.attributes["gen_ai.system"] == "sarvam"
+    assert span.attributes["gen_ai.request.model"] == "sarvam-30b"
+    assert span.attributes["gen_ai.operation.name"] == "generate"
+    assert span.attributes["gen_ai.usage.input_tokens"] > 0
+    assert span.attributes["gen_ai.usage.output_tokens"] > 0
+    assert span.attributes["gen_ai.usage.cost"] > 0.0
+
+    assert accumulator.tokens_in > 0
+    assert accumulator.tokens_out > 0
+    assert accumulator.cost_usd > 0.0

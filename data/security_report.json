@@ -1,11 +1,11 @@
 {
-  "generated_at": "2026-05-20T05:00:54.084659",
+  "generated_at": "2026-08-29T20:56:35.668186",
   "findings": [
     {
       "category": "Legal",
       "check": "Privacy policy file exists",
       "status": "PASS",
-      "detail": "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/src/pages/PrivacyPage.tsx",
+      "detail": "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/src/test/AdminOverviewPrivacy.test.tsx",
       "fix": ""
     },
     {
@@ -19,15 +19,15 @@
       "category": "Legal",
       "check": "User data deletion capability",
       "status": "PASS",
-      "detail": "Found in 1 location(s)",
+      "detail": "Found in 17 location(s)",
       "fix": ""
     },
     {
       "category": "Legal",
       "check": "PII not logged",
-      "status": "PASS",
-      "detail": "No obvious PII in log statements",
-      "fix": ""
+      "status": "WARN",
+      "detail": "Possible PII in log statements: ['backend/app/api/chat.py', 'backend/app/services/email_service.py']",
+      "fix": "Scrub email/token values from log messages"
     },
     {
       "category": "Legal",
@@ -61,7 +61,7 @@
       "category": "Security",
       "check": "Auth dependency on API routes",
       "status": "PASS",
-      "detail": "Found in 6 route(s)",
+      "detail": "Found in 19 route(s)",
       "fix": ""
     },
     {
@@ -116,15 +116,15 @@
     {
       "category": "Secrets",
       "check": "Password not in API responses",
-      "status": "PASS",
-      "detail": "No password field in response schemas",
-      "fix": ""
+      "status": "WARN",
+      "detail": "'password' field in responses: ['scripts/build_exact_ml.py', 'scripts/build_odia_locale.py']",
+      "fix": "Exclude password/hash fields from all Pydantic response models"
     },
     {
       "category": "Abuse",
       "check": "Rate limiting on API endpoints",
       "status": "PASS",
-      "detail": "Found in 6 location(s)",
+      "detail": "Found in 32 location(s)",
       "fix": ""
     },
     {
@@ -138,14 +138,14 @@
       "category": "Abuse",
       "check": "API spend cap / budget alert",
       "status": "PASS",
-      "detail": "Found: backend/app/main.py",
+      "detail": "Found: backend/app/metrics.py",
       "fix": ""
     },
     {
       "category": "Abuse",
       "check": "Bot protection on auth",
       "status": "PASS",
-      "detail": "Found: scripts/security_audit.py",
+      "detail": "Found: backend/app/api/support.py",
       "fix": ""
     },
     {
@@ -214,8 +214,8 @@
   ],
   "summary": {
     "total": 30,
-    "pass": 30,
-    "warn": 0,
+    "pass": 28,
+    "warn": 2,
     "fail": 0
   }
 }

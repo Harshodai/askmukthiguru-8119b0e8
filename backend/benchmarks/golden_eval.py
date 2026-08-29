@@ -59,7 +59,7 @@ def groundedness(query: str, answer: str, context: str, has_citations: bool) -> 
     No citations means no context to be grounded in -- score 0.0 rather than
     falling back to comparing the answer against itself (ctx == ans in that
     case), which would score a hallucinated zero-citation answer ~1.0."""
-    if not has_citations:
+    if not has_citations or not context or not context.strip():
         return 0.0
     try:
         from services.lettuce_detect_service import LettuceDetectService  # type: ignore
@@ -71,7 +71,7 @@ def groundedness(query: str, answer: str, context: str, has_citations: bool) -> 
         # ponytail: lexical fallback mirrors LettuceDetect's own fallback
         ans = set(answer.lower().split())
         ctx = set(context.lower().split())
-        if not ans:
+        if not ans or not ctx:
             return 0.0
         return len(ans & ctx) / len(ans) if ans else 0.0
 
@@ -123,17 +123,18 @@ def refusal_correctness(answer: str, expected_intent: str) -> float:
 def score_item(item: dict[str, Any], resp: dict[str, Any]) -> dict[str, float]:
     ans = resp.get("response") or resp.get("answer") or ""
     cites = resp.get("citations", []) or []
-    ctx = " ".join(c.get("text") or c.get("snippet") or "" for c in cites)
+    ctx = " ".join(c.get("text") or c.get("snippet") or "" for c in cites).strip()
+    query = item.get("query") or item.get("question", "")
     dims = {
-        "groundedness": groundedness(item["query"], ans, ctx, has_citations=bool(cites)),
+        "groundedness": groundedness(query, ans, ctx, has_citations=bool(cites) and bool(ctx)),
         "doctrinal_consistency": doctrinal_consistency(
             ans, item.get("must_mention", []), item.get("reject_if", [])
         ),
-        "tone": tone(ans, item["expected_intent"]),
+        "tone": tone(ans, item.get("expected_intent", "")),
         "citation_correctness": citation_correctness(
             cites, item.get("expected_links") or item.get("must_mention") or []
         ),
-        "refusal_correctness": refusal_correctness(ans, item["expected_intent"]),
+        "refusal_correctness": refusal_correctness(ans, item.get("expected_intent", "")),
     }
     return dims
 
@@ -169,10 +170,14 @@ def main() -> int:
         items = items[: args.smoke]
 
     def fetch(it: dict[str, Any]) -> dict[str, Any]:
+        q = it.get("query") or it.get("question", "")
+        if not q:
+            print(f"[FAIL] {it.get('id', '<unknown>')}: item has neither query nor question", file=sys.stderr)
+            return {}
         try:
-            return call_backend(backend_url, token, it["query"])
+            return call_backend(backend_url, token, q)
         except Exception as e:
-            print(f"[FAIL] {it['id']}: {e}", file=sys.stderr)
+            print(f"[FAIL] {it.get('id', '<unknown>')}: {e}", file=sys.stderr)
             return {}
 
     # ponytail: bounded thread pool, not asyncio -- call_backend is a sync

@@ -27,6 +27,7 @@ from __future__ import annotations
 import contextlib
 import functools
 import logging
+import sys
 from collections.abc import Callable
 from typing import Any, Optional
 
@@ -101,7 +102,7 @@ async def rag_span(
         span.set_status(trace.StatusCode.ERROR, str(exc))
         raise
     finally:
-        span_ctx.__exit__(None, None, None)
+        span_ctx.__exit__(*sys.exc_info())
 
 
 def trace_rag_node(node_name: str):
@@ -156,7 +157,7 @@ def trace_rag_node(node_name: str):
                 span.set_status(trace.StatusCode.ERROR, str(exc))
                 raise
             finally:
-                span_ctx.__exit__(None, None, None)
+                span_ctx.__exit__(*sys.exc_info())
 
         return wrapper
 

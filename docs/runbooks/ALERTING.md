@@ -44,4 +44,4 @@ Same triage as above but lower urgency (6h window). Verify the trend over the pr
 
 ## Synthetic alert test (T5)
 
-Local staging: `docker compose up -d prometheus alertmanager` (add to compose if absent), then simulate a 10s latency by pausing the backend container (`docker pause backend`) — the `ChatLatencySLOPage` burn rule will fire within ~2-3 min (`for: 0m` + group_wait 30s). Verify the alert appears in Prometheus UI (`http://localhost:9090`), then `docker unpause backend`.
+Local staging: `docker compose up -d prometheus alertmanager` (add to compose if absent), then simulate a 10s latency by pausing the backend container (`docker pause backend`) — the `ChatLatencySLOPage` burn rule will fire within ~2-3 min (`for: 2m` + group_wait 30s). Verify the alert appears in Prometheus UI (`http://localhost:9090`), then `docker unpause backend`.

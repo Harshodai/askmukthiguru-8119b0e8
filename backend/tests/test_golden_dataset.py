@@ -6,14 +6,19 @@
 """
 
 import json
+import os
 import subprocess
 import sys
 from collections import Counter
 from pathlib import Path
 
 BACKEND = Path(__file__).resolve().parent.parent
+if str(BACKEND) not in sys.path:
+    sys.path.insert(0, str(BACKEND))
+
 DATASET = BACKEND / "evaluation" / "golden_dataset.json"
 EVAL = BACKEND / "benchmarks" / "golden_eval.py"
+RUN_GOLDEN_EVAL = BACKEND / "evaluation" / "run_golden_eval.py"
 
 
 def test_dataset_valid_and_populated():
@@ -57,8 +62,68 @@ def test_golden_eval_requires_flag():
     assert r.returncode == 2  # missing required flag -> usage error
 
 
+def test_golden_eval_fails_without_backend_url():
+    env = {k: v for k, v in os.environ.items() if k != "BACKEND_URL"}
+    r = subprocess.run(
+        [sys.executable, str(EVAL), "--smoke", "1"],
+        capture_output=True,
+        text=True,
+        env=env,
+        timeout=30,
+    )
+    assert r.returncode == 1
+    assert "BACKEND_URL not set, eval skipped" in r.stderr
+
+
+def test_run_golden_eval_fails_without_backend_url(tmp_path):
+    env = {k: v for k, v in os.environ.items() if k != "BACKEND_URL"}
+    out_file = tmp_path / "report.json"
+    r = subprocess.run(
+        [
+            sys.executable,
+            str(RUN_GOLDEN_EVAL),
+            "--dataset",
+            str(DATASET),
+            "--out",
+            str(out_file),
+        ],
+        capture_output=True,
+        text=True,
+        env=env,
+        timeout=30,
+    )
+    assert r.returncode == 1
+    assert "BACKEND_URL not set, eval skipped" in r.stderr
+
+
+def test_groundedness_zero_citations_and_empty_context():
+    from benchmarks.golden_eval import groundedness
+
+    # Closes the hallucination 1.0 loophole where answers without citations or context were compared against themselves
+    assert groundedness("query", "hallucinated answer without context", "", has_citations=False) == 0.0
+    assert groundedness("query", "hallucinated answer without context", "   ", has_citations=False) == 0.0
+    assert groundedness("query", "hallucinated answer", "some context", has_citations=False) == 0.0
+    assert groundedness("query", "hallucinated answer", "", has_citations=True) == 0.0
+    assert groundedness("query", "hallucinated answer", "   ", has_citations=True) == 0.0
+
+
+def test_groundedness_positive_lexical_fallback():
+    from benchmarks.golden_eval import groundedness
+
+    score = groundedness(
+        query="what is soul sync?",
+        answer="soul sync is a meditation practice of conscious breath",
+        context="soul sync is a meditation practice focusing on conscious breath and stillness",
+        has_citations=True,
+    )
+    assert score > 0.5
+
+
 if __name__ == "__main__":
     test_dataset_valid_and_populated()
     test_golden_eval_cli_parses()
     test_golden_eval_requires_flag()
-    print("OK: golden dataset + eval CLI")
+    test_golden_eval_fails_without_backend_url()
+    test_groundedness_zero_citations_and_empty_context()
+    test_groundedness_positive_lexical_fallback()
+    print("OK: golden dataset + eval CLI tests pass")

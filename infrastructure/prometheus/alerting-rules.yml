@@ -2,18 +2,27 @@ groups:
   - name: mukthiguru-slo
     rules:
       # SLO 1 — Chat p95 latency < 8s
-      # Burn-rate multi-window: >2x over 1h → page; >1x over 6h → warn.
+      # Burn-rate multi-window: >2x burn rate (>10% latency violations) over 1h (long) and 5m (short) → page; >1x over 6h → warn.
       - alert: ChatLatencySLOPage
         expr: |
-          histogram_quantile(0.95, sum(rate(slo_latency_seconds_bucket[2m])) by (le))
-            / histogram_quantile(0.95, sum(rate(slo_latency_seconds_bucket[10m])) by (le)) > 1.02
-        for: 0m
+          (
+            (sum(rate(slo_latency_seconds_count[1h])) - sum(rate(slo_latency_seconds_bucket{le="8.0"}[1h])))
+              / (sum(rate(slo_latency_seconds_count[1h])) + 1e-9)
+            > 0.10
+          )
+          and
+          (
+            (sum(rate(slo_latency_seconds_count[5m])) - sum(rate(slo_latency_seconds_bucket{le="8.0"}[5m])))
+              / (sum(rate(slo_latency_seconds_count[5m])) + 1e-9)
+            > 0.10
+          )
+        for: 2m
         labels:
           severity: page
           team: oncall
         annotations:
           summary: "Chat p95 latency budget burning (page)"
-          description: "p95 chat latency trending above the 8s SLO over a 1h burn window."
+          description: "Chat latency budget burning at >2x rate (>10% requests >8s) across 1h and 5m windows."
           runbook: "docs/runbooks/ALERTING.md#chatlatencyslopage"
 
       - alert: ChatLatencySLOHigh

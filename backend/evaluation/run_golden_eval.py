@@ -137,11 +137,11 @@ def main() -> int:
         print(f"[WARN] RAGAS unavailable ({e}); falling back to heuristic concept-overlap.")
         # Heuristic: fraction of must_mention concepts present in answer,
         # penalised when reject_if tokens are present. This is ONE signal
-        # (keyword_overlap_score) reused for all four metric slots below --
+        # (concept_overlap_score) reused for all four metric slots below --
         # there is no judge LLM wired in CI (no judge API key is set), so
         # faithfulness/relevancy/context_precision/context_recall are NOT
         # independent RAGAS scores here, despite the variable names.
-        scoring_method = "keyword_overlap_fallback"
+        scoring_method = "concept_overlap_fallback"
         hits, total = 0, 0
         for it, ans in zip(items, answers, strict=False):
             must = it.get("must_mention", [])
@@ -156,11 +156,11 @@ def main() -> int:
                     total += 1
                     if c.lower() in ans.lower():
                         hits += 1
-        keyword_overlap_score = hits / total if total else 0.0
-        faithfulness_score = keyword_overlap_score
-        relevancy_score = keyword_overlap_score
-        context_precision_score = keyword_overlap_score
-        context_recall_score = keyword_overlap_score
+        concept_overlap_score = hits / total if total else 0.0
+        faithfulness_score = concept_overlap_score
+        relevancy_score = concept_overlap_score
+        context_precision_score = concept_overlap_score
+        context_recall_score = concept_overlap_score
 
     faithfulness_pass = faithfulness_score >= args.faithfulness_min
     relevancy_pass = relevancy_score >= args.relevancy_min
@@ -176,11 +176,13 @@ def main() -> int:
             None
             if scoring_method == "ragas"
             else (
-                "keyword_overlap_fallback: faithfulness/answer_relevancy/"
-                "context_precision/context_recall are all the SAME keyword_overlap_score "
-                "signal, not independent RAGAS metrics (no judge LLM key set in CI)."
+                "concept_overlap_fallback: RAGAS is uninstalled or judge LLM API key is not configured in CI. "
+                "Faithfulness, answer_relevancy, context_precision, and context_recall all reflect the "
+                "heuristic concept_overlap_score (% of must_mention concepts present without reject_if tokens), "
+                "rather than independent LLM-judged RAGAS metrics."
             )
         ),
+        "concept_overlap_score": concept_overlap_score if scoring_method != "ragas" else None,
         "faithfulness": faithfulness_score,
         "answer_relevancy": relevancy_score,
         "context_precision": context_precision_score,

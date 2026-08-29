@@ -68,25 +68,36 @@ jobs:
         run: |
           if [ ! -f eval_report.json ]; then
             echo "### 🪷 RAGAS Eval Gate — no report produced" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "⚠️ Evaluation did not produce \`eval_report.json\`. Ensure \`BACKEND_URL\` is configured and reachable." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
           python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
           import json, os
           r = json.load(open("eval_report.json"))
           def mark(p): return "✅" if p else "❌"
+          def fmt(v):
+              if v is None: return "N/A"
+              try: return f"{float(v):.3f}"
+              except Exception: return str(v)
+
           lines = [
               "### 🪷 RAGAS Eval Gate",
               "",
+              f"**Scoring Method:** `{r.get('scoring_method', 'unknown')}`",
+              "",
               "| metric | value | threshold | pass |",
               "|---|---|---|---|",
-              f"| faithfulness | {r.get('faithfulness'):.3f} | {os.environ['FAITHFULNESS_THRESHOLD']} | {mark(r.get('faithfulness_pass'))} |",
-              f"| answer_relevancy | {r.get('answer_relevancy'):.3f} | {os.environ['ANSWER_RELEVANCY_THRESHOLD']} | {mark(r.get('relevancy_pass'))} |",
-              f"| context_precision | {r.get('context_precision'):.3f} | {os.environ['CONTEXT_PRECISION_THRESHOLD']} | {mark(r.get('context_precision_pass'))} |",
-              f"| context_recall | {r.get('context_recall'):.3f} | {os.environ['CONTEXT_RECALL_THRESHOLD']} | {mark(r.get('context_recall_pass'))} |",
-              f"| source_diversity | {r.get('diversity_violations')} violations | 0 | {mark(r.get('diversity_violations') == 0)} |",
+              f"| faithfulness | {fmt(r.get('faithfulness'))} | {os.environ.get('FAITHFULNESS_THRESHOLD', '')} | {mark(r.get('faithfulness_pass'))} |",
+              f"| answer_relevancy | {fmt(r.get('answer_relevancy'))} | {os.environ.get('ANSWER_RELEVANCY_THRESHOLD', '')} | {mark(r.get('relevancy_pass'))} |",
+              f"| context_precision | {fmt(r.get('context_precision'))} | {os.environ.get('CONTEXT_PRECISION_THRESHOLD', '')} | {mark(r.get('context_precision_pass'))} |",
+              f"| context_recall | {fmt(r.get('context_recall'))} | {os.environ.get('CONTEXT_RECALL_THRESHOLD', '')} | {mark(r.get('context_recall_pass'))} |",
+              f"| source_diversity | {r.get('diversity_violations', 0)} violations | 0 | {mark(r.get('diversity_violations') == 0)} |",
               "",
-              f"Run: {r.get('questions_total')} questions, {r.get('questions_failed')} failed to answer.",
+              f"Run: {r.get('questions_total', 0)} questions, {r.get('questions_failed', 0)} failed to answer.",
           ]
+          if r.get("note"):
+              lines.extend(["", f"> ℹ️ **Note:** {r.get('note')}"])
           print("\n".join(lines))
           PY
         env:
@@ -103,18 +114,22 @@ jobs:
             const fs = require('fs');
             if (!fs.existsSync('eval_report.json')) return;
             const r = JSON.parse(fs.readFileSync('eval_report.json', 'utf8'));
+            const fmt = (v) => (v != null && !isNaN(v)) ? Number(v).toFixed(3) : 'N/A';
             const body = [
               '### 🪷 RAGAS Eval Gate',
               '',
+              `**Scoring Method:** \`${r.scoring_method || 'unknown'}\``,
+              '',
               `| metric | value | threshold | pass |`,
               `|---|---|---|---|`,
-              `| faithfulness | ${r.faithfulness?.toFixed(3)} | ${process.env.FAITHFULNESS_THRESHOLD} | ${r.faithfulness_pass ? '✅' : '❌'} |`,
-              `| answer_relevancy | ${r.answer_relevancy?.toFixed(3)} | ${process.env.ANSWER_RELEVANCY_THRESHOLD} | ${r.relevancy_pass ? '✅' : '❌'} |`,
-              `| context_precision | ${r.context_precision?.toFixed(3)} | ${process.env.CONTEXT_PRECISION_THRESHOLD} | ${r.context_precision_pass ? '✅' : '❌'} |`,
-              `| context_recall | ${r.context_recall?.toFixed(3)} | ${process.env.CONTEXT_RECALL_THRESHOLD} | ${r.context_recall_pass ? '✅' : '❌'} |`,
-              `| source_diversity | ${r.diversity_violations} violations | 0 | ${r.diversity_violations === 0 ? '✅' : '❌'} |`,
+              `| faithfulness | ${fmt(r.faithfulness)} | ${process.env.FAITHFULNESS_THRESHOLD} | ${r.faithfulness_pass ? '✅' : '❌'} |`,
+              `| answer_relevancy | ${fmt(r.answer_relevancy)} | ${process.env.ANSWER_RELEVANCY_THRESHOLD} | ${r.relevancy_pass ? '✅' : '❌'} |`,
+              `| context_precision | ${fmt(r.context_precision)} | ${process.env.CONTEXT_PRECISION_THRESHOLD} | ${r.context_precision_pass ? '✅' : '❌'} |`,
+              `| context_recall | ${fmt(r.context_recall)} | ${process.env.CONTEXT_RECALL_THRESHOLD} | ${r.context_recall_pass ? '✅' : '❌'} |`,
+              `| source_diversity | ${r.diversity_violations ?? 0} violations | 0 | ${r.diversity_violations === 0 ? '✅' : '❌'} |`,
               '',
-              `Run: ${r.questions_total} questions, ${r.questions_failed} failed to answer.`,
+              `Run: ${r.questions_total ?? 0} questions, ${r.questions_failed ?? 0} failed to answer.`,
+              ...(r.note ? ['', `> ℹ️ **Note:** ${r.note}`] : [])
             ].join('\n');
             github.rest.issues.createComment({
               issue_number: context.issue.number,
