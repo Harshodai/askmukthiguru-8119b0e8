@@ -27,8 +27,7 @@ from __future__ import annotations
 import functools
 import logging
 import os
-from contextlib import contextmanager
-from typing import Any, Iterator, Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -74,82 +73,6 @@ def _flatten_prompt(prompt: Any) -> str:
                 parts.append(str(msg))
         return "\n".join(parts)
     return str(prompt)
-
-
-@contextmanager
-def llm_span(
-    *,
-    operation: str,
-    model: str,
-    provider: str,
-    prompt: Any = None,
-) -> Iterator[Optional[Any]]:
-    """
-    Open a GenAI span around one LLM call.
-
-    Yields the span, or None when tracing is unavailable/disabled — callers must
-    tolerate None (that is the fail-open contract, not an edge case).
-    """
-    try:
-        from opentelemetry import trace
-    except ImportError:
-        yield None
-        return
-
-    try:
-        tracer = trace.get_tracer("mukthiguru.llm")
-        # GenAI convention: "{operation} {model}" (e.g. "chat gemini-2.5-flash").
-        with tracer.start_as_current_span(f"{operation} {model}") as span:
-            try:
-                span.set_attribute("gen_ai.system", provider)
-                span.set_attribute("gen_ai.request.model", model)
-                span.set_attribute("gen_ai.operation.name", operation)
-                if prompt is not None and _content_enabled():
-                    span.set_attribute("gen_ai.prompt", _truncate(_flatten_prompt(prompt)))
-            except Exception as exc:  # pragma: no cover - defensive
-                logger.debug("llm_span attribute set failed: %s", exc)
-            yield span
-    except Exception as exc:  # pragma: no cover - defensive
-        logger.debug("llm_span unavailable, continuing untraced: %s", exc)
-        yield None
-
-
-def record_llm_result(
-    span: Optional[Any],
-    *,
-    prompt: Any = None,
-    completion: Any = None,
-    tokens_in: Optional[int] = None,
-    tokens_out: Optional[int] = None,
-    cached_tokens: Optional[int] = None,
-    cost_usd: Optional[float] = None,
-    finish_reason: Optional[str] = None,
-    response_model: Optional[str] = None,
-) -> None:
-    """Attach LLM call results to a span. No-op when span is None."""
-    if span is None:
-        return
-    try:
-        if tokens_in is not None:
-            span.set_attribute("gen_ai.usage.input_tokens", int(tokens_in))
-        if tokens_out is not None:
-            span.set_attribute("gen_ai.usage.output_tokens", int(tokens_out))
-        if cached_tokens is not None:
-            span.set_attribute("gen_ai.usage.cached_input_tokens", int(cached_tokens))
-        if cost_usd is not None:
-            # Not a GenAI-convention key; Langfuse reads this one for cost rollup.
-            span.set_attribute("gen_ai.usage.cost", float(cost_usd))
-        if finish_reason is not None:
-            span.set_attribute("gen_ai.response.finish_reasons", [str(finish_reason)])
-        if response_model is not None:
-            span.set_attribute("gen_ai.response.model", str(response_model))
-        if _content_enabled():
-            if prompt is not None:
-                span.set_attribute("gen_ai.prompt", _truncate(_flatten_prompt(prompt)))
-            if completion is not None:
-                span.set_attribute("gen_ai.completion", _truncate(str(completion)))
-    except Exception as exc:  # pragma: no cover - defensive
-        logger.debug("record_llm_result failed: %s", exc)
 
 
 def current_llm_span() -> Optional[Any]:
@@ -229,6 +152,44 @@ def traced_llm_call(provider: str):
     return decorator
 
 
+def record_llm_result(
+    span: Optional[Any],
+    *,
+    prompt: Any = None,
+    completion: Any = None,
+    tokens_in: Optional[int] = None,
+    tokens_out: Optional[int] = None,
+    cached_tokens: Optional[int] = None,
+    cost_usd: Optional[float] = None,
+    finish_reason: Optional[str] = None,
+    response_model: Optional[str] = None,
+) -> None:
+    """Attach LLM call results to a span. No-op when span is None."""
+    if span is None:
+        return
+    try:
+        if tokens_in is not None:
+            span.set_attribute("gen_ai.usage.input_tokens", int(tokens_in))
+        if tokens_out is not None:
+            span.set_attribute("gen_ai.usage.output_tokens", int(tokens_out))
+        if cached_tokens is not None:
+            span.set_attribute("gen_ai.usage.cached_input_tokens", int(cached_tokens))
+        if cost_usd is not None:
+            # Not a GenAI-convention key; Langfuse reads this one for cost rollup.
+            span.set_attribute("gen_ai.usage.cost", float(cost_usd))
+        if finish_reason is not None:
+            span.set_attribute("gen_ai.response.finish_reasons", [str(finish_reason)])
+        if response_model is not None:
+            span.set_attribute("gen_ai.response.model", str(response_model))
+        if _content_enabled():
+            if prompt is not None:
+                span.set_attribute("gen_ai.prompt", _truncate(_flatten_prompt(prompt)))
+            if completion is not None:
+                span.set_attribute("gen_ai.completion", _truncate(str(completion)))
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.debug("record_llm_result failed: %s", exc)
+
+
 def record_llm_error(span: Optional[Any], exc: BaseException) -> None:
     """Mark a span as failed. No-op when span is None."""
     if span is None:
@@ -260,9 +221,7 @@ if __name__ == "__main__":
     assert flat == "user: hi\nsystem: be kind", flat
     assert _flatten_prompt("plain") == "plain"
 
-    # Fail-open: must yield (possibly None) and never raise, then no-op cleanly.
-    with llm_span(operation="chat", model="m", provider="p", prompt="hello") as span:
-        record_llm_result(span, completion="hi", tokens_in=1, tokens_out=2, cost_usd=0.01)
+    # Fail-open: every recorder must no-op cleanly on a None span.
     record_llm_result(None, completion="ignored")
     record_llm_error(None, ValueError("ignored"))
     set_llm_request(None, model="m", operation="chat")

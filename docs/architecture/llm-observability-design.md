@@ -103,7 +103,53 @@ one more destination.
   propagated onto spans; Phase 1 emits per-call cost only.
 - Prompt versioning / playground / dataset-eval features are Langfuse-application features,
   unavailable until Phase 2 actually runs.
-- `SarvamCloudService` is not yet instrumented (OpenRouter is the configured provider as of
-  2026-08-29); it needs the same two-line treatment when it returns to use.
+## Correction — Sarvam *is* already instrumented (2026-08-29)
+
+An earlier revision of this document claimed `SarvamCloudService` was uninstrumented. That
+was wrong. `services/gateways/sarvam_http.py` has had its own LLM span implementation since
+before this work: `_start_llm_span()` (line ~769) plus an inline
+`tracer.start_as_current_span("llm.sarvam.chat", ...)` on the main call path (line ~452).
+
+The real problem is not absence, it is **divergence**. There are now three parallel
+tracing implementations in the backend:
+
+| Module | Emits | Convention |
+|---|---|---|
+| `app/tracing.py` | `rag.*` node spans (`trace_rag_node`) | project-local |
+| `services/gateways/sarvam_http.py` | `llm.provider`, `llm.model_name`, `llm.token_count.*` | **project-local** |
+| `app/llm_tracing.py` (new) | `gen_ai.system`, `gen_ai.request.model`, `gen_ai.usage.*` | **OTel GenAI standard** |
+
+Consequence for phase 2: **Langfuse will parse the OpenRouter spans and ignore the Sarvam
+ones**, because Langfuse keys off the `gen_ai.*` convention. Sarvam's cost and token data
+would silently not appear in any dashboard. That is a real defect the moment Sarvam becomes
+the active provider again.
+
+Two smaller issues in the same file, found while auditing:
+- `_start_llm_span()` uses `tracer.start_span()` (manual lifecycle) on the circuit-open path
+  at line ~320 and never calls `.end()`. **An OTel span that is never ended is never
+  exported**, so that path's span is created, annotated, and silently dropped. The main path
+  is unaffected — it uses `start_as_current_span` with explicit `__exit__` calls.
+- Its `FakeSpan` no-op stub implements only `__enter__`/`__exit__`, not `set_attribute`.
+  This is currently harmless (the main path's `span` comes from `span_ctx.__enter__()` or is
+  `None`, never a `FakeSpan`, and `_record_span_exception` guards with `hasattr`), but it is
+  a substitutability trap: any future code that treats a `_start_llm_span()` result like a
+  real span will `AttributeError` when OpenTelemetry is absent.
+
+**Recommended follow-up (not done here):** migrate `sarvam_http.py` onto `app/llm_tracing.py`
+and delete `_start_llm_span`/`FakeSpan`. That collapses three conventions to two, fixes the
+unended span, and removes the substitutability trap in one change. It is deliberately not
+bundled into this commit — Sarvam is out of credit and not the configured provider as of
+2026-08-29, and its `_call_inner` is a ~300-line function with hand-rolled span lifecycle
+across four exit paths; that refactor deserves its own change and its own test run.
+
+## SOLID assessment
+
+| Principle | Verdict |
+|---|---|
+| **SRP** | Partially violated *across modules*, not within them — three modules each own a slice of "trace an LLM call". The fix is consolidation (above), not splitting `llm_tracing.py` further; internally it is one cohesive concern. |
+| **OCP** | Satisfied. Adding a provider is `@traced_llm_call("<provider>")` — extension by parameter, no modification of the tracing module. |
+| **LSP** | The `FakeSpan` stub in `sarvam_http.py` is a latent violation (incomplete substitute for a real span). `app/llm_tracing.py` avoids it by returning `None` and making every consumer explicitly `None`-tolerant, so there is no partial impostor to misuse. |
+| **ISP** | Satisfied. `set_llm_request` / `record_llm_result` / `record_llm_error` are separate small functions; a caller uses only the ones it has data for, rather than implementing one wide interface. |
+| **DIP** | Deliberately not applied. A `TracingPort` protocol with adapters was considered and rejected: tracing here is fail-open cross-cutting infrastructure with exactly one implementation, so a port would add an indirection layer with no second implementer and no testing benefit (the module already no-ops without OTel installed). Revisit only if a genuine second backend appears that OTLP export cannot serve. |
 
 [genai]: https://opentelemetry.io/docs/specs/semconv/gen-ai/
