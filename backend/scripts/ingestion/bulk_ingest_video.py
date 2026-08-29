@@ -230,7 +230,7 @@ async def bulk_ingest_async(
                             except Exception as okf_err:
                                 logger.warning("         └─ OKF dispatch note: %s", okf_err)
 
-                    return {"source": src, "status": "success", "result": res}
+                    return {"source": src, "status": "success", "chunks": chunks, "summaries": summaries}
                 else:
                     stats["failed"] += 1
                     msg = res.get("message", "Unknown error")

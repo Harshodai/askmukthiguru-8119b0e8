@@ -316,3 +316,64 @@ Running detached (survives Claude session death: `~/mukthiguru-ingest-ops/run_in
 - **Restart after editing code the running process already imported.** Python doesn't hot-reload; a fix landed in a file mid-run does nothing until the process is relaunched. Caught this exact mistake once this session -- fixed `quality_gate.py`, forgot to relaunch, watched the old bug run for another 25 minutes before noticing.
 - **A reboot kills everything `caffeinate` doesn't protect against.** `caffeinate -i` (or `-i -s`) prevents sleep, not a reboot. `/tmp` is wiped on reboot; anything that must survive one belongs under `$HOME`.
 - **Before trusting a "0 rejected reason" or "0 entries" number from any monitoring script you wrote this session, re-verify the path/scope it's actually reading** -- two false alarms this session (RAPTOR summaries, OKF staging count) turned out to be the watchdog script pointing at the wrong location, not real pipeline failures.
+
+---
+
+## 2026-08-29 update — provider switch, quarantine-detector false positive, launch-script bugs, swap leak
+
+### Provider switch: Sarvam → OpenRouter
+Sarvam Cloud confirmed out of credit (`insufficient_quota_error`, live probe). OpenRouter confirmed real balance (`/api/v1/auth/key` → `usage=$11.8`, no hard limit). `~/mukthiguru-ingest-ops/run_ingest.sh` now exports `LLM_PROVIDER=openrouter`, `OPENROUTER_RPM_LIMIT=120`. `bulk_ingest_video.py` already defaulted to OpenRouter — only the ops script env var needed changing.
+
+### Quarantine-detector false positive — corpus was never actually contaminated
+`backend/services/text_quality_filter.py`'s artifact regex had one bare-word alternative (`\bConclusion\b` with no markdown-shape anchor) added by an unrelated earlier commit (`1fbc8153`). It matched ordinary doctrine prose containing the word "conclusion" ("...this chunk is the closing blessing and conclusion of a guided meditation..."). Fixed in commit `d0b695a3` — restricted that alternative to the bold-markdown form only (the other three anchored forms were already precise). Full corpus rescanned after the fix: **1268/1268 clean, zero purges needed** — nothing was ever actually corrupted, the detector was wrong. Any process that started before `10:41:03` on 2026-08-29 was running the stale, over-broad regex — verify `ps -o lstart` against `git log` before trusting a live process reflects this fix.
+
+### Two silent-launch-failure bugs found tonight, both fixed
+1. **`setsid` does not exist on macOS.** Every relaunch attempt via `nohup setsid bash run_ingest.sh ... &` silently exited 1 before Python ever started — no log line, no error surfaced to the caller unless you specifically checked the shell's own exit code. **Fix:** launch via `screen -dmS ingest bash -c '...'` instead. `screen` is preinstalled on macOS; `setsid`/`tmux`/`dtach` are not.
+2. **`run_ingest.sh` `cd`s into `backend/` before invoking Python, breaking a relative `--input` path.** Passing `--input all_ingest_urls.txt` (relative) fails silently (`EXIT=1`, "Please provide --input" in the log) once the script has already `cd`'d. **Fix:** always pass the absolute path: `/Users/harshodaikolluru/mukthiguru-ingest-ops/all_ingest_urls.txt`.
+
+Correct launch command going forward:
+```bash
+cd ~/mukthiguru-ingest-ops
+screen -dmS ingest bash -c 'caffeinate -i bash run_ingest.sh /Users/harshodaikolluru/mukthiguru-ingest-ops/all_ingest_urls.txt <WORKERS> /Users/harshodaikolluru/mukthiguru-ingest-ops/ingest_full.log "--disable-okf"'
+screen -ls   # confirms the "ingest" session; screen -r ingest to attach, Ctrl-A D to detach
+```
+
+### Swap climbs steadily regardless of worker count — looks like a per-video leak, not a worker-count problem
+- workers=4: swap climbed 9.4GB→13.7GB (10GB→14GB total, macOS auto-grew the swapfile) over ~15 minutes, free RAM dropped to ~73MB. Killed manually before OOM.
+- Relaunched at workers=2 (PID under `screen -dmS ingest`, started ~11:57): swap climbed again, 9.2GB→12.8GB (10GB→14GB total) over ~20 minutes — same trend, just slower.
+- **This means workers=2 is not a fix, only a mitigation.** Something per-video isn't being released (candidate suspects, not yet investigated: ONNX embedding/reranker session objects, the OpenRouter httpx client pool, LightRAG's per-call graph state, or RAPTOR's clustering buffers — nobody has profiled this yet).
+- **Safety net added:** `~/mukthiguru-ingest-ops/watchdog.sh` now has a `swap_pct()` check in its 60s loop — at ≥90% swap used it sends `SIGTERM` to the ingester, logs to `swap_kill.flag`, and exits its own loop (which also triggers the existing final-report generation). This exists specifically because a Claude session is not guaranteed to be watching — the ingestion + watchdog run as OS-level `screen`/`nohup` processes independent of any Claude session, but until this fix, nothing would have stopped a swap-driven OOM if no one was watching.
+- **If you're picking this up fresh:** check `~/mukthiguru-ingest-ops/swap_kill.flag` first — if it exists, the watchdog already killed a run for you. Redis checkpointing means it's always safe to just relaunch (already-ingested videos are skipped). Before relaunching, actually profile the leak rather than continuing to relaunch-and-hope — `py-spy dump`/`memory_profiler` on the ingester mid-run would tell you which stage is holding memory.
+
+### Current live state (as of this update, ~12:2x on 2026-08-29)
+- Ingestion: workers=2, `screen -dmS ingest`, log `~/mukthiguru-ingest-ops/ingest_full.log` (cumulative across all runs today — scope any progress/tally query with `awk '/HH:MM/,0'` using this run's start time, ~11:57).
+- Watchdog: `nohup bash watchdog.sh` (now with the swap kill-switch above), writes `status.tsv` / `final_report.md` on exit.
+- Qdrant `spiritual_wisdom_contextual`: ~3250 points and growing.
+- OKF extraction and the book re-ingest (`ingest_four_sacred_secrets.py`) are still deferred, not yet re-scheduled in the current primary-checkout setup (the old `ingest_book_after.sh` referenced the now-deleted worktree and needs checking/rewriting before use, same as `run_ingest.sh`/`watchdog.sh` needed).
+- Deferred by explicit user agreement: swap the LightRAG extraction classify model (currently `meta-llama/llama-3.1-8b-instruct`, producing non-fatal `"Complete delimiter can not be found"` warnings on structured-output parsing) to something stronger — only after this ingestion run completes.
+
+### Operational lesson added tonight
+**A background launch command's own exit code is signal, not noise — check it, don't just check whether *something* with a plausible name shows up in `pgrep` a few seconds later.** Both bugs above (`setsid` missing, relative path) produced an instant `Exit code 1` from the very shell call that launched them; that was dismissed twice as an unrelated race condition before being read literally. `pgrep` matching a short-lived wrapper process is not the same as the actual workload running.
+
+### STOPPED — 2026-08-29T07:09:22Z, swap kill-switch fired
+`~/mukthiguru-ingest-ops/swap_kill.flag` exists: `SWAP_KILL at 2026-08-29T07:09:22Z (swap 90%) -- terminating ingester to prevent OOM. Redis checkpoint preserved, safe to resume at lower workers.` Confirmed clean stop — neither `bulk_ingest_video` nor `watchdog.sh` running anymore. Progress at stop: `[117/586]` this run's position marker (cumulative log, not the true remaining count — many earlier entries were checkpoint-skipped instantly on relaunch).
+
+### ROOT CAUSE FOUND AND FIXED — 2026-08-29, ~12:50 IST
+`scripts/ingestion/bulk_ingest_video.py`'s `bulk_ingest_async()` built `tasks = [ingest_one(src, idx) for ...]` for **all** sources up front and awaited them with a single `asyncio.gather(*tasks, return_exceptions=True)`. `asyncio.gather` holds every task's return value until the *entire* gather resolves — so each video's full result dict (`{"source": ..., "status": "success", "result": res}`, where `res` includes `hyper_extract_result` — the LLM-extracted entities/relationships list) stayed referenced in memory for the rest of the 586-video run. This is why memory grew steadily with progress **independent of worker count** — workers=4 just filled it faster than workers=2, neither was the actual cause.
+
+Confirmed nothing downstream ever reads this: `bulk_ingest_async()`'s `results` list only feeds the function's own final `{"status": "complete", "stats": stats, "results": results}` return value, and `__main__`'s `asyncio.run(bulk_ingest_async(...))` discards that return value entirely — the accumulation was pure waste.
+
+**Fix:** the success-path return in `ingest_one()` now carries only `{"source": src, "status": "success", "chunks": chunks, "summaries": summaries}` — small ints, not the full `res` payload. Verified live: relaunched at workers=2, swap held flat at ~7.8GB across 6+ minutes / multiple videos (previously climbed ~200-300MB/min at the same worker count). No further `swap_kill.flag` trigger since the fix landed.
+
+If swap starts climbing again after this fix, the leak has a second source — don't assume this fully explains it forever, re-check `status.tsv`'s trend over a longer window before ruling it settled.
+
+### Self-healing supervisor added — 2026-08-29, ~12:59 IST
+`~/mukthiguru-ingest-ops/supervisor.sh` now owns the launch/relaunch loop, fully OS-level (`nohup`), no Claude session dependency:
+- Launches the ingester under `screen -dmS ingest`, arms `watchdog.sh` if not already running, waits for the screen session to end.
+- On end: checks the log (scoped to this attempt's start timestamp) for `"BULK INGESTION RUN COMPLETED"` — if found, writes `supervisor_done.flag` and stops.
+- If not complete: checks for `swap_kill.flag` (swap-kill death) → waits 120s to let memory actually drain before retrying; any other death → waits 30s and retries.
+- Caps at 15 attempts; if exhausted, writes `supervisor_gaveup.flag` — that's the one signal a human genuinely needs to look, everything else is self-recovering.
+- Redis checkpointing (`IngestionCheckpoint`) makes every retry a clean resume — no duplicate work.
+
+**To check status without a Claude session:** `tail ~/mukthiguru-ingest-ops/supervisor.log`, or check for `supervisor_done.flag` / `supervisor_gaveup.flag` in `~/mukthiguru-ingest-ops/`.
+**To stop it deliberately:** `pkill -f supervisor.sh && screen -S ingest -X quit && pkill -f bulk_ingest_video` — killing just the screen session alone will get auto-relaunched by the supervisor, that's the point.
