@@ -52,7 +52,15 @@ logger = logging.getLogger(__name__)
 # When in doubt, leave it out — a false positive deletes doctrine.
 _ARTIFACT_PATTERNS: tuple[str, ...] = (
     # -- markdown task scaffolding emitted by a reasoning model --
-    r"(?:\*\*|\b)\s*(?:\d+[\s.)]+)?(?:\*\*)?\s*(?:Analyze|Analyse|Conclusion|Deconstruct|Synthesiz|Refine|Brainstorm)\b",
+    # The bare `\b` alternative (word-boundary with no `**`/numbering anchor)
+    # was found live 2026-08-29: it matched ordinary prose containing the word
+    # "conclusion" ("...this chunk is the closing blessing and conclusion of a
+    # guided meditation...") -- real doctrine, not scaffolding. These words are
+    # common in genuine spiritual teaching text; only the markdown-heading
+    # SHAPE (bold, or a numbered-list item) is the actual artifact signal.
+    # Lines 57/59/60 below already anchor the "Deconstruct/Analyze the X" and
+    # numbered-heading cases precisely, so this line only needs the bold form.
+    r"\*\*\s*(?:\d+[\s.)]+)?(?:\*\*)?\s*(?:Analyze|Analyse|Conclusion|Deconstruct|Synthesiz|Refine|Brainstorm)\b",
     r"\*\*\s*Step\s*\d",
     r"^\s*\d+[\s.)]+(?:\*\*)?[A-Z][a-z]+ the (?:Input|Text|Sentence|Rules|User|Request|Prompt)",
     r"^\s*\*\s+\*\*(?:Source Material|Core Problem|Key Concept|Persona|Primary Theme|Underlying Issue|Direct Answer)\s*:\*\*",
