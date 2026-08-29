@@ -34,6 +34,13 @@ def _is_retryable_openrouter_error(exc: BaseException) -> bool:
 
 from app.config import settings
 from app.constants import CircuitBreakerProvider
+from app.llm_tracing import (
+    current_llm_span,
+    record_llm_error,
+    record_llm_result,
+    set_llm_request,
+    traced_llm_call,
+)
 from app.model_policy import OpenRouterModelPolicy
 from app.openrouter_budget import OpenRouterBudgetGuard
 from rag.prompts import (
@@ -307,6 +314,7 @@ class OpenRouterService:
         except Exception as exc:
             logger.warning(f"Failed to record openrouter token usage: {exc}")
 
+    @traced_llm_call("openrouter")
     async def _call_api(
         self,
         messages: list[dict],
@@ -470,6 +478,22 @@ class OpenRouterService:
                 cache_write_tokens=cache_write_tokens,
                 cost_usd=cost_usd,
             )
+            # Same values the OPENROUTER_CALL_TIMING log line below carries, but
+            # as a queryable span (plus prompt/completion when LLM_TRACE_CONTENT
+            # is on). See docs/architecture/llm-observability-design.md.
+            _span = current_llm_span()
+            set_llm_request(_span, model=model, operation=operation)
+            record_llm_result(
+                _span,
+                completion=content,
+                prompt=messages,
+                tokens_in=tokens_in,
+                tokens_out=tokens_out,
+                cached_tokens=cached_tokens,
+                cost_usd=cost_usd,
+                finish_reason=data.get("choices", [{}])[0].get("finish_reason"),
+                response_model=data.get("model"),
+            )
             await reservation.settle(cost_usd)
             logger.info(
                 "OPENROUTER_CALL_TIMING operation=%s model=%s attempts=%d total_ms=%.1f "
@@ -489,6 +513,7 @@ class OpenRouterService:
             return content
 
         except Exception as exc:
+            record_llm_error(current_llm_span(), exc)
             logger.warning(
                 "OPENROUTER_CALL_ERROR_TIMING operation=%s model=%s attempts=%d elapsed_ms=%.1f "
                 "error_type=%s",
