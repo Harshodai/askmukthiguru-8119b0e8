@@ -17,7 +17,8 @@ backend/benchmarks/ragas_eval.py for the RAGAS faithfulness/relevancy path
 
 Usage:
   python backend/benchmarks/golden_eval.py --smoke 20      # 20-question subset
-  python backend/benchmarks/golden_eval.py --full           # all 319
+  python backend/benchmarks/golden_eval.py --full           # all questions (589 as of writing)
+  python backend/benchmarks/golden_eval.py --full --concurrency 20
 """
 
 from __future__ import annotations
@@ -26,10 +27,13 @@ import argparse
 import json
 import os
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
 import httpx
+
+DEFAULT_CONCURRENCY = 10
 
 BACKEND_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BACKEND_ROOT))
@@ -49,9 +53,14 @@ def call_backend(url: str, token: str | None, question: str) -> dict[str, Any]:
     return r.json()
 
 
-def groundedness(query: str, answer: str, context: str) -> float:
+def groundedness(query: str, answer: str, context: str, has_citations: bool) -> float:
     """Reuse LettuceDetectService when the embedding service is importable;
-    otherwise fall back to lexical overlap (the service's own fallback path)."""
+    otherwise fall back to lexical overlap (the service's own fallback path).
+    No citations means no context to be grounded in -- score 0.0 rather than
+    falling back to comparing the answer against itself (ctx == ans in that
+    case), which would score a hallucinated zero-citation answer ~1.0."""
+    if not has_citations:
+        return 0.0
     try:
         from services.lettuce_detect_service import LettuceDetectService  # type: ignore
 
@@ -68,6 +77,10 @@ def groundedness(query: str, answer: str, context: str) -> float:
 
 
 def doctrinal_consistency(answer: str, must_mention: list[str], reject_if: list[str]) -> float:
+    # Known follow-up (audit finding #17): ~44% of golden_dataset.json rows carry
+    # neither must_mention nor reject_if, so they auto-score 1.0 here regardless
+    # of the answer -- that's a data-labeling gap in the dataset, not a scoring
+    # bug. Needs labeling, not a code fix.
     if not must_mention and not reject_if:
         return 1.0
     a = answer.lower()
@@ -110,9 +123,9 @@ def refusal_correctness(answer: str, expected_intent: str) -> float:
 def score_item(item: dict[str, Any], resp: dict[str, Any]) -> dict[str, float]:
     ans = resp.get("response") or resp.get("answer") or ""
     cites = resp.get("citations", []) or []
-    ctx = " ".join(c.get("text") or c.get("snippet") or "" for c in cites) or ans
+    ctx = " ".join(c.get("text") or c.get("snippet") or "" for c in cites)
     dims = {
-        "groundedness": groundedness(item["query"], ans, ctx),
+        "groundedness": groundedness(item["query"], ans, ctx, has_citations=bool(cites)),
         "doctrinal_consistency": doctrinal_consistency(
             ans, item.get("must_mention", []), item.get("reject_if", [])
         ),
@@ -132,6 +145,13 @@ def main() -> int:
     p.add_argument("--full", action="store_true", help="run all queries")
     p.add_argument("--out", type=Path, default=Path("golden_eval_report.json"))
     p.add_argument("--threshold", type=float, default=THRESHOLD_GATE)
+    p.add_argument(
+        "--concurrency",
+        type=int,
+        default=int(os.environ.get("GOLDEN_EVAL_CONCURRENCY", DEFAULT_CONCURRENCY)),
+        help="bounded parallel backend calls (sequential calls over the full "
+        "589-question set blow the CI time budget)",
+    )
     args = p.parse_args()
 
     if not args.full and not args.smoke:
@@ -139,24 +159,34 @@ def main() -> int:
         return 2
 
     backend_url = os.environ.get("BACKEND_URL")
+    if not backend_url:
+        print("BACKEND_URL not set, eval skipped", file=sys.stderr)
+        return 1
     token = os.environ.get("BACKEND_TOKEN")
     data = json.loads(args.dataset.read_text())
     items = data["items"]
     if args.smoke:
         items = items[: args.smoke]
 
+    def fetch(it: dict[str, Any]) -> dict[str, Any]:
+        try:
+            return call_backend(backend_url, token, it["query"])
+        except Exception as e:
+            print(f"[FAIL] {it['id']}: {e}", file=sys.stderr)
+            return {}
+
+    # ponytail: bounded thread pool, not asyncio -- call_backend is a sync
+    # httpx call and this is I/O-bound, so threads are enough to keep the
+    # full 589-question set inside the CI timeout without a rewrite.
+    with ThreadPoolExecutor(max_workers=max(1, args.concurrency)) as pool:
+        responses = list(pool.map(fetch, items))
+
     per_item = []
     dim_sums: dict[str, float] = {}
     failed = 0
-    for it in items:
-        try:
-            resp = call_backend(backend_url, token, it["query"]) if backend_url else {}
-        except Exception as e:
-            print(f"[FAIL] {it['id']}: {e}", file=sys.stderr)
-            failed += 1
-            resp = {}
+    for it, resp in zip(items, responses, strict=True):
         if not resp:
-            # No backend: score 0.0 (CI gate will fail until backend is wired)
+            failed += 1
             dims = {
                 k: 0.0
                 for k in (

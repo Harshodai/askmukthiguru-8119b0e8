@@ -34,6 +34,7 @@ from datetime import UTC, datetime
 from typing import Optional
 
 from app.config import settings
+from app.sanitization import sanitize_log_input
 
 logger = logging.getLogger(__name__)
 
@@ -184,12 +185,12 @@ class PromptStore:
                 raise RuntimeError("Insert returned empty data")
             row = data[0]
         except Exception as e:
-            logger.error(f"PromptStore: save failed for '{name}' v{ver}: {e}")
+            logger.error(f"PromptStore: save failed for '{sanitize_log_input(name)}' v{sanitize_log_input(ver)}: {e}")
             raise
 
         pv = _row_to_pv(row)
         logger.info(
-            f"PromptStore: saved '{name}' v{ver} "
+            f"PromptStore: saved '{sanitize_log_input(name)}' v{sanitize_log_input(ver)} "
             f"({'active' if activate else 'inactive'}, len={len(content)})"
         )
         return pv
@@ -212,7 +213,7 @@ class PromptStore:
                 return None
             return _row_to_pv(res.data[0])
         except Exception as e:
-            logger.error(f"PromptStore: get_active failed for '{name}': {e}")
+            logger.error(f"PromptStore: get_active failed for '{sanitize_log_input(name)}': {e}")
             return None
 
     def get_version(self, name: str, version: str) -> Optional[PromptVersion]:
@@ -232,7 +233,7 @@ class PromptStore:
                 return None
             return _row_to_pv(res.data[0])
         except Exception as e:
-            logger.error(f"PromptStore: get_version failed for '{name}' v{version}: {e}")
+            logger.error(f"PromptStore: get_version failed for '{sanitize_log_input(name)}' v{sanitize_log_input(version)}: {e}")
             return None
 
     def list_versions(self, name: str) -> list[PromptVersion]:
@@ -249,7 +250,7 @@ class PromptStore:
             )
             return [_row_to_pv(r) for r in (res.data or [])]
         except Exception as e:
-            logger.error(f"PromptStore: list_versions failed for '{name}': {e}")
+            logger.error(f"PromptStore: list_versions failed for '{sanitize_log_input(name)}': {e}")
             return []
 
     def list_prompt_names(self) -> list[str]:
@@ -284,7 +285,7 @@ class PromptStore:
                 .execute()
             )
             if not res.data:
-                logger.warning(f"PromptStore: rollback failed — '{name}' v{version} not found")
+                logger.warning(f"PromptStore: rollback failed — '{sanitize_log_input(name)}' v{sanitize_log_input(version)} not found")
                 return None
 
             client.table("prompt_versions").update({"active": False}).eq("name", name).execute()
@@ -292,7 +293,7 @@ class PromptStore:
                 "version", version
             ).execute()
 
-            logger.info(f"PromptStore: rolled back '{name}' to v{version}")
+            logger.info(f"PromptStore: rolled back '{sanitize_log_input(name)}' to v{sanitize_log_input(version)}")
             return self.get_active(name)
         except Exception as e:
             logger.error(f"PromptStore: rollback failed: {e}")

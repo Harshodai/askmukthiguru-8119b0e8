@@ -234,6 +234,9 @@ class _Encoder:
 # ---------------------------------------------------------------------------
 
 
+_default_router_instance: IntentSemanticRouter | None = None
+
+
 class IntentSemanticRouter:
     """Embeddings-first intent router, configured entirely via YAML.
 
@@ -253,10 +256,12 @@ class IntentSemanticRouter:
         self._primed = False
 
     @classmethod
-    @lru_cache(maxsize=1)
     def get_default(cls) -> IntentSemanticRouter:
         """Singleton accessor — preserves the in-process centroid cache."""
-        return cls()
+        global _default_router_instance
+        if _default_router_instance is None:
+            _default_router_instance = cls()
+        return _default_router_instance
 
     # ---- primitives ----
 

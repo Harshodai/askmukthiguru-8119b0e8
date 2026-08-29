@@ -33,6 +33,7 @@ from pydantic import BaseModel, Field
 from app.config import settings
 from app.dependencies import get_container
 from app.language_utils import guardrail_text_for
+from app.sanitization import sanitize_log_input
 from app.security_utils import TTLRateLimiter
 from domain.spiritual_ontology import ONTOLOGY_VERSION, SEED_CONCEPTS, SEED_RELATIONS
 from services.auth_service import (  # auth guard
@@ -62,7 +63,7 @@ _KG_QUERY_SEMAPHORE = asyncio.Semaphore(getattr(settings, "kg_max_concurrent_que
 _KG_SUBGRAPH_RATE_LIMITER = TTLRateLimiter(ttl=60.0, max_requests=30)
 
 
-_COMMENT_RE = re.compile(r"//[^\n]*|/\*.*?\*/", re.S)
+_COMMENT_RE = re.compile(r"//[^\r\n]*|/\*[^*]*\*+(?:[^/*][^*]*\*+)*", re.S)
 _WS_RE = re.compile(r"\s+")
 
 # Word-boundary denylist, checked against every token in the WHOLE normalized
@@ -89,7 +90,7 @@ _WRITE_TOKENS = {
 # Read-only CALL subprocedures this endpoint explicitly allows: schema
 # inspection plus the n10s inference hook documented above.
 _ALLOWED_CALLS = re.compile(
-    r"^CALL\s+(db\.(labels|relationshiptypes|propertykeys|schema\.visualization|"
+    r"^CALL\s+(?:db\.(?:labels|relationshiptypes|propertykeys|schema\.visualization|"
     r"indexes|constraints)|n10s\.inference\.\w+)\s*\(",
     re.I,
 )
@@ -273,7 +274,7 @@ async def kg_sparql(req: SparqlRequest, user=Depends(require_aal2)) -> SparqlRes
         async with _KG_QUERY_SEMAPHORE:
             columns, rows = await asyncio.wait_for(asyncio.to_thread(_run), timeout=timeout_s)
     except TimeoutError:
-        logger.warning("kg/sparql query timed out (>%.0fs) user=%s", timeout_s, uid)
+        logger.warning("kg/sparql query timed out (>%.0fs) user=%s", timeout_s, sanitize_log_input(str(uid)))
         raise HTTPException(status_code=504, detail="Query timed out.")
     except HTTPException:
         raise
@@ -285,11 +286,11 @@ async def kg_sparql(req: SparqlRequest, user=Depends(require_aal2)) -> SparqlRes
 
     logger.info(
         "kg_audit user=%s len=%d rows=%d ms=%.0f query=%s",
-        uid,
+        sanitize_log_input(str(uid)),
         len(normalized),
         len(rows),
         (time.monotonic() - started) * 1000,
-        normalized[:300],
+        sanitize_log_input(normalized[:300]),
     )
 
     # Inference hook: when requested, document that n10s.inference.nodesLabelled

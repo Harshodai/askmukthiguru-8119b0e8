@@ -6,6 +6,7 @@ import logging
 import re
 import unicodedata
 from typing import Optional
+from urllib.parse import urlparse
 
 from fastapi import (
     APIRouter,
@@ -21,6 +22,7 @@ from pydantic import BaseModel, Field
 
 from app.core.limiter import limiter
 from app.dependencies import ServiceContainer, get_container
+from app.sanitization import sanitize_log_input
 from app.security_utils import is_valid_youtube_url
 from ingest.image_loader import is_image_url
 from services.auth_service import require_aal2
@@ -85,7 +87,17 @@ async def ingest_endpoint(
             status_code=400, detail=f"URL rejected by security guardrails: {url_reason}"
         )
 
-    is_yt = "youtube.com" in url or "youtu.be" in url
+    try:
+        parsed_url = urlparse(url)
+        host = (parsed_url.hostname or "").lower()
+        is_yt = (
+            host == "youtube.com"
+            or host.endswith(".youtube.com")
+            or host == "youtu.be"
+            or host.endswith(".youtu.be")
+        )
+    except Exception:
+        is_yt = False
     if is_yt:
         if not is_valid_youtube_url(url):
             raise HTTPException(status_code=400, detail="Invalid YouTube URL format.")
@@ -510,6 +522,10 @@ async def ingest_task_status_endpoint(
                 if db_status and result.state not in _CELERY_TERMINAL:
                     resp.status = _DB_STATUS_MAP.get(db_status, resp.status)
     except Exception as e:
-        logger.debug(f"Supabase lookup for task {task_id} failed: {e}")
+        logger.debug(
+            "Supabase lookup for task %s failed: %s",
+            sanitize_log_input(task_id),
+            type(e).__name__,
+        )
 
     return resp

@@ -58,9 +58,8 @@ def main() -> int:
 
     backend_url = os.environ.get("BACKEND_URL")
     if not backend_url:
-        print("BACKEND_URL not set; skipping (treating as pass for first-time setup).")
-        args.out.write_text(json.dumps({"skipped": True}))
-        return 0
+        print("BACKEND_URL not set, eval skipped", file=sys.stderr)
+        return 1
     token = os.environ.get("BACKEND_TOKEN")
 
     items = json.loads(args.dataset.read_text())["items"]
@@ -104,6 +103,7 @@ def main() -> int:
             print(f"[DIVERSITY] {it['id']}: top-3 citations not diverse enough")
 
     # RAGAS scoring (deferred import so script runs without ragas in dev)
+    scoring_method = "ragas"
     faithfulness_score = 0.0
     relevancy_score = 0.0
     context_precision_score = 0.0
@@ -136,7 +136,12 @@ def main() -> int:
     except Exception as e:
         print(f"[WARN] RAGAS unavailable ({e}); falling back to heuristic concept-overlap.")
         # Heuristic: fraction of must_mention concepts present in answer,
-        # penalised when reject_if tokens are present.
+        # penalised when reject_if tokens are present. This is ONE signal
+        # (keyword_overlap_score) reused for all four metric slots below --
+        # there is no judge LLM wired in CI (no judge API key is set), so
+        # faithfulness/relevancy/context_precision/context_recall are NOT
+        # independent RAGAS scores here, despite the variable names.
+        scoring_method = "keyword_overlap_fallback"
         hits, total = 0, 0
         for it, ans in zip(items, answers, strict=False):
             must = it.get("must_mention", [])
@@ -151,10 +156,11 @@ def main() -> int:
                     total += 1
                     if c.lower() in ans.lower():
                         hits += 1
-        faithfulness_score = hits / total if total else 0.0
-        relevancy_score = faithfulness_score
-        context_precision_score = faithfulness_score
-        context_recall_score = faithfulness_score
+        keyword_overlap_score = hits / total if total else 0.0
+        faithfulness_score = keyword_overlap_score
+        relevancy_score = keyword_overlap_score
+        context_precision_score = keyword_overlap_score
+        context_recall_score = keyword_overlap_score
 
     faithfulness_pass = faithfulness_score >= args.faithfulness_min
     relevancy_pass = relevancy_score >= args.relevancy_min
@@ -165,6 +171,16 @@ def main() -> int:
     report = {
         "questions_total": len(items),
         "questions_failed": failed,
+        "scoring_method": scoring_method,
+        "note": (
+            None
+            if scoring_method == "ragas"
+            else (
+                "keyword_overlap_fallback: faithfulness/answer_relevancy/"
+                "context_precision/context_recall are all the SAME keyword_overlap_score "
+                "signal, not independent RAGAS metrics (no judge LLM key set in CI)."
+            )
+        ),
         "faithfulness": faithfulness_score,
         "answer_relevancy": relevancy_score,
         "context_precision": context_precision_score,

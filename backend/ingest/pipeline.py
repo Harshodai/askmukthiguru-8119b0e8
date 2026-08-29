@@ -611,7 +611,18 @@ class IngestionPipeline:
         # === Route to correct loader ===
         from app.security_utils import is_valid_youtube_url
 
-        is_yt = "youtube.com" in url or "youtu.be" in url
+        try:
+            parsed_url = urllib.parse.urlparse(url)
+            host = (parsed_url.hostname or "").lower()
+            is_yt = (
+                host == "youtube.com"
+                or host.endswith(".youtube.com")
+                or host == "youtu.be"
+                or host.endswith(".youtu.be")
+            )
+        except Exception:
+            is_yt = False
+
         if is_yt and not is_valid_youtube_url(url):
             return {
                 "status": "error",
@@ -2586,16 +2597,29 @@ class IngestionPipeline:
         # Hierarchical Source Tagging (Audit V2 Section 6.1.3)
         source_tag = "source:file"
         if source_url:
-            src_lower = source_url.lower()
-            if "youtube.com" in src_lower or "youtu.be" in src_lower:
+            try:
+                parsed_src = urllib.parse.urlparse(source_url.strip())
+                src_host = (parsed_src.hostname or "").lower()
+            except Exception:
+                src_host = ""
+            if (
+                src_host == "youtube.com"
+                or src_host.endswith(".youtube.com")
+                or src_host == "youtu.be"
+                or src_host.endswith(".youtu.be")
+            ):
                 source_tag = "source:youtube"
-            elif "instagram.com" in src_lower:
+            elif src_host == "instagram.com" or src_host.endswith(".instagram.com"):
                 source_tag = "source:instagram"
-            elif "tiktok.com" in src_lower:
+            elif src_host == "tiktok.com" or src_host.endswith(".tiktok.com"):
                 source_tag = "source:tiktok"
-            elif "twitter.com" in src_lower or "x.com" in src_lower:
+            elif (
+                src_host in ("twitter.com", "x.com")
+                or src_host.endswith(".twitter.com")
+                or src_host.endswith(".x.com")
+            ):
                 source_tag = "source:twitter"
-            elif src_lower.startswith("http"):
+            elif source_url.lower().startswith("http"):
                 from ingest.image_loader import is_image_url
 
                 if is_image_url(source_url):

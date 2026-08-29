@@ -31,7 +31,7 @@ from app.core.user_usage_monitor import get_user_monitor
 from app.dependencies import ServiceContainer, get_container
 from app.grounding import grounding_state_for
 from app.release_manifest import get_release_manifest
-from app.sanitization import sanitize_user_input
+from app.sanitization import sanitize_log_input, sanitize_user_input
 from app.schemas import ChatRequest, ChatResponse, MessagePayload
 from app.security_utils import is_benchmark_request
 from services.anon_quota_port import QuotaResult
@@ -307,12 +307,16 @@ async def populate_server_side_history(
             db_messages.append(MessagePayload(role=role, content=content))
 
         chat_body.messages = db_messages
-        logger.info(f"Loaded {len(chat_body.messages)} messages for session {chat_body.session_id}")
+        logger.info(
+            "Loaded %d messages for session %s",
+            len(chat_body.messages),
+            sanitize_log_input(chat_body.session_id),
+        )
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error loading chat history from database: {e}")
+        logger.error("Error loading chat history from database: %s", type(e).__name__)
         raise HTTPException(status_code=500, detail="Failed to load conversation history")
 
 
@@ -924,7 +928,11 @@ async def get_breath_teaching(
             )
 
     except Exception as e:
-        logger.warning(f"Breath teaching generation failed for {technique_id}: {e}")
+        logger.warning(
+            "Breath teaching generation failed for %s: %s",
+            sanitize_log_input(technique_id),
+            type(e).__name__,
+        )
 
     if not teaching:
         if technique_id == "serene_mind":

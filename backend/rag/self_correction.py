@@ -87,4 +87,8 @@ class SelfCorrectionOrchestrator:
                     state = await strategy.repair(state, exc)
 
         # All retries exhausted
-        raise last_error
+        if last_error is not None:
+            raise last_error
+        raise RuntimeError(
+            f"[SelfCorrection] Retries exhausted after {self.max_retries} attempts"
+        )

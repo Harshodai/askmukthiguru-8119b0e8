@@ -93,16 +93,15 @@ const friendlyError = (err: Error | { message: string }): string => {
 const generateNonce = (): string => {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   let nonce = '';
-  if (typeof window !== 'undefined' && window.crypto) {
+  const cryptoObj = typeof window !== 'undefined' ? window.crypto : (typeof crypto !== 'undefined' ? crypto : null);
+  if (cryptoObj?.getRandomValues) {
     const values = new Uint32Array(16);
-    window.crypto.getRandomValues(values);
+    cryptoObj.getRandomValues(values);
     for (let i = 0; i < values.length; i++) {
       nonce += chars[values[i] % chars.length];
     }
-  } else {
-    for (let i = 0; i < 16; i++) {
-      nonce += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
+  } else if (cryptoObj?.randomUUID) {
+    nonce = cryptoObj.randomUUID().replace(/-/g, '').slice(0, 16);
   }
   return nonce;
 };
@@ -335,11 +334,14 @@ const AuthPage = () => {
       } catch { /* non-fatal */ }
       recordStep('session_hydrate', 'ok', Math.round(performance.now() - hydrateT0));
 
-      const redirectPath = intendedPathParam || sessionStorage.getItem('auth_redirect_path');
-      if (redirectPath) {
-        sessionStorage.removeItem('auth_redirect_path');
-        recordStep('navigate', 'ok', 0, { meta: { to: redirectPath } });
-        navigate(redirectPath, { replace: true });
+      const rawRedirect = intendedPathParam || sessionStorage.getItem('auth_redirect_path');
+      sessionStorage.removeItem('auth_redirect_path');
+      const isSafeRelativePath = (url: string | null | undefined): url is string =>
+        Boolean(url && url.startsWith('/') && !url.startsWith('//') && !url.includes('\\'));
+
+      if (isSafeRelativePath(rawRedirect)) {
+        recordStep('navigate', 'ok', 0, { meta: { to: rawRedirect } });
+        navigate(rawRedirect, { replace: true });
         endAuthRun('ok');
         ensureInBackground();
         return;

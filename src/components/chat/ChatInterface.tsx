@@ -232,7 +232,7 @@ export const ChatInterface = () => {
     setAttachedFiles(prev => [
       ...prev,
       {
-        id: Math.random().toString(36).substring(2, 9),
+        id: crypto.randomUUID(),
         name,
         content,
       }

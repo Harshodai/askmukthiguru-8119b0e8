@@ -15,11 +15,24 @@ _CORRELATION_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 # Allow printable ASCII + common Indic / multilingual ranges, but strip control chars
 # and HTML-like tags to prevent injection.
 _USER_INPUT_CONTROL_RE = re.compile(r"[\x00-\x08\x0b-\x0c\x0e-\x1f\x7f-\x9f]")
-_USER_INPUT_HTML_RE = re.compile(r"<[^>]+>")
 _USER_INPUT_SCRIPT_RE = re.compile(
-    r"(javascript:|data:text/html|on\w+\s*=|\\x[0-9a-fA-F]{2}|\\u[0-9a-fA-F]{4})",
+    r"(?:javascript:|data:text/html|\bon[a-zA-Z]{1,32}\s*=|\\x[0-9a-fA-F]{2}|\\u[0-9a-fA-F]{4})",
     re.IGNORECASE,
 )
+
+
+def _strip_html(text: str) -> str:
+    """Linear-time character scan to remove HTML tags without ReDoS risk."""
+    parts = []
+    in_tag = False
+    for char in text:
+        if char == "<":
+            in_tag = True
+        elif char == ">" and in_tag:
+            in_tag = False
+        elif not in_tag:
+            parts.append(char)
+    return "".join(parts)
 
 
 def sanitize_session_id(value: Optional[str]) -> str:
@@ -77,8 +90,8 @@ def sanitize_user_input(text: Optional[str], max_length: int = 2000) -> str:
     # 1. Control characters
     cleaned = _USER_INPUT_CONTROL_RE.sub("", cleaned)
 
-    # 2. HTML tags
-    cleaned = _USER_INPUT_HTML_RE.sub("", cleaned)
+    # 2. HTML tags (linear-time scan)
+    cleaned = _strip_html(cleaned)
 
     # 3. Script / event handler vectors
     cleaned = _USER_INPUT_SCRIPT_RE.sub("", cleaned)
@@ -88,3 +101,13 @@ def sanitize_user_input(text: Optional[str], max_length: int = 2000) -> str:
 
     # 5. Length cap
     return cleaned[:max_length]
+
+
+def sanitize_log_input(text: Optional[str] = "") -> str:
+    """
+    Sanitize input for log statements to prevent log injection (CWE-117).
+    Removes carriage returns and replaces newlines with spaces, capped at 500 chars.
+    """
+    if text is None:
+        return ""
+    return str(text).replace("\r", "").replace("\n", " ")[:500]

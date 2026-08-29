@@ -105,7 +105,7 @@ def _save_to_disk(
     attachment_paths: Optional[list[str]],
 ) -> bool:
     try:
-        storage_dir = Path(settings.support_storage_path)
+        storage_dir = Path(settings.support_storage_path).resolve()
         storage_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
         try:
             os.chmod(storage_dir, 0o700)
@@ -121,8 +121,11 @@ def _save_to_disk(
             "category": category,
             "attachments": attachment_paths or [],
         }
-        safe_email = re.sub(r"[^A-Za-z0-9_.-]", "_", from_email.replace("@", "_at_"))[:180]
-        path = storage_dir / f"{ts}_{safe_email}.json"
+        file_uuid = uuid.uuid4().hex
+        filename = f"{ts}_{file_uuid}.json"
+        path = (storage_dir / filename).resolve()
+        if not path.is_relative_to(storage_dir):
+            raise ValueError(f"Path traversal detected: {path}")
         with path.open("w", encoding="utf-8") as f:
             json.dump(entry, f, indent=2)
         try:
@@ -135,7 +138,9 @@ def _save_to_disk(
         )
         for stale in files[settings.support_storage_max_entries :]:
             try:
-                stale.unlink()
+                stale_resolved = stale.resolve()
+                if stale_resolved.is_relative_to(storage_dir):
+                    stale_resolved.unlink()
             except OSError:
                 logger.warning("Failed to prune stale support message %s", stale)
         logger.info("Support message saved to %s", path)

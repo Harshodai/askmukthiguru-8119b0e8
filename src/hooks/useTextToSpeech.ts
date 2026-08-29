@@ -39,7 +39,7 @@ const splitIntoSentences = (text: string): string[] => {
   if (!text.trim()) return [];
   // Split on sentence terminators followed by space or end of string, preserving the delimiter.
   return text
-    .split(/(?<=[.!?।?\n])\s+/)
+    .split(/(?<=[.!?।\n])\s+/)
     .map((s) => s.trim())
     .filter(Boolean);
 };

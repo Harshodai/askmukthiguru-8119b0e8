@@ -32,6 +32,12 @@ import httpx
 from anyio import Lock as AsyncLock
 
 from app.config import settings
+from app.llm_tracing import (
+    llm_span,
+    record_llm_error,
+    record_llm_result,
+    set_llm_request,
+)
 from rag.prompts import (
     BATCH_GRADE_PROMPT,
     COMBINED_VERIFICATION_PROMPT,
@@ -511,6 +517,42 @@ class SarvamCloudService:
                 "Sarvam API circuit breaker is OPEN in generate_stream — failing fast"
             )
 
+        operation = kwargs.get("operation", "generate")
+        # GenAI span for the streaming call path — this method previously had
+        # zero span instrumentation despite being the live /api/chat/stream
+        # LLM call. Opened manually (not via a decorator) since it must stay
+        # open across every `yield`. See docs/architecture/llm-observability-design.md.
+        with llm_span("sarvam") as _span:
+            set_llm_request(_span, model=model, operation=operation)
+            async for chunk in self._stream_chunks(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                context=context,
+                messages=messages,
+                headers=headers,
+                payload=payload,
+                model=model,
+                span=_span,
+                **kwargs,
+            ):
+                yield chunk
+
+    async def _stream_chunks(
+        self,
+        *,
+        system_prompt: str,
+        user_prompt: str,
+        context: str,
+        messages: list[dict],
+        headers: dict,
+        payload: dict,
+        model: str,
+        span,
+        **kwargs,
+    ) -> AsyncIterator[str]:
+        """Inner body of `generate_stream`, called with the span already open
+        so it stays live across every `yield` and across the fallback
+        self-calls below (each opens its own span)."""
         try:
             client = await self._get_http_client()
             yielded_any = False

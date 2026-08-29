@@ -81,10 +81,10 @@ _DENIED_PRIVATE_PREFIXES = (
 def _extract_youtube_channel_id(url: str) -> Optional[str]:
     """Extract YouTube channel ID from various URL formats."""
     parsed = urlparse(url)
-    host = parsed.hostname or ""
+    host = (parsed.hostname or "").lower()
 
     # youtube.com/channel/UCxxx
-    if host.endswith("youtube.com"):
+    if host == "youtube.com" or host.endswith(".youtube.com"):
         path = parsed.path
         if path.startswith("/channel/"):
             return path.split("/channel/")[1].split("/")[0]
@@ -104,22 +104,23 @@ def _validate_url(url: str) -> str:
     parsed = urlparse(url)
     if parsed.scheme not in ("http", "https"):
         raise ValueError(f"URL scheme must be http or https: {url}")
-    host = parsed.hostname or ""
+    host = (parsed.hostname or "").lower()
     if any(host.startswith(p) for p in _DENIED_PRIVATE_PREFIXES):
         raise ValueError(f"Private/internal address denied: {url}")
     if parsed.username or parsed.password:
         raise ValueError(f"Embedded credentials not allowed: {url}")
     # Domain allowlist check
-    if host not in _ALLOWED_DOMAINS and not host.endswith(".youtube.com"):
+    is_allowed_youtube = host == "youtube.com" or host.endswith(".youtube.com")
+    if host not in _ALLOWED_DOMAINS and not is_allowed_youtube:
         raise ValueError(f"Domain not allowed: {host}")
     # YouTube channel ownership validation
-    if host.endswith("youtube.com") or host == "youtu.be":
+    if is_allowed_youtube or host == "youtu.be" or host.endswith(".youtu.be"):
         channel_id = _extract_youtube_channel_id(url)
         if channel_id and channel_id not in _ALLOWED_CHANNEL_IDS:
             raise ValueError(f"YouTube channel not allowed: {channel_id}")
         if channel_id is None:
             # Cannot verify channel ownership - reject unverified URLs
-            if host.endswith("youtube.com"):
+            if is_allowed_youtube:
                 path = parsed.path
                 if (
                     path.startswith("/c/")
@@ -129,7 +130,7 @@ def _validate_url(url: str) -> str:
                     raise ValueError(
                         "YouTube custom URL or watch URL without channel parameter not allowed; use /channel/UCxxx format"
                     )
-            if host == "youtu.be":
+            if host == "youtu.be" or host.endswith(".youtu.be"):
                 raise ValueError(
                     "YouTube short URL (youtu.be) cannot be verified for channel ownership; use full /channel/UCxxx URL"
                 )

@@ -42,7 +42,7 @@ def short_text(value: object, limit: int = 240) -> str:
 
 def _memory_fingerprint(parts: Iterable[object]) -> str:
     joined = "|".join(str(part or "") for part in parts)
-    return hashlib.sha1(joined.encode("utf-8"), usedforsecurity=False).hexdigest()[:12]
+    return hashlib.sha256(joined.encode("utf-8")).hexdigest()[:12]
 
 
 def build_memory_context(

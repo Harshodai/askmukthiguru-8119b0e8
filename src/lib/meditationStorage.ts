@@ -51,7 +51,7 @@ const MeditationSessionSchema = z.object({
  * Generate a unique session ID
  */
 export const generateSessionId = (): string => {
-  return `med_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+  return `med_${Date.now()}_${crypto.randomUUID()}`;
 };
 
 /**

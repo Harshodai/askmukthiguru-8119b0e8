@@ -53,7 +53,9 @@ def retry_with_backoff(max_retries=3, initial_delay=1):
                     delay *= 2
 
             logger.error(f"Qdrant {func.__name__} failed after {max_retries} attempts.")
-            raise last_exception
+            if last_exception is not None:
+                raise last_exception
+            raise RuntimeError(f"Qdrant {func.__name__} failed after {max_retries} attempts.")
 
         return wrapper
 

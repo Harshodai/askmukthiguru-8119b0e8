@@ -11,6 +11,8 @@ on:
       - 'backend/services/**'
       - 'backend/evaluation/**'
       - 'backend/app/main.py'
+      - 'backend/app/pipeline/**'
+      - 'backend/app/config.py'
       - 'backend/evaluation/golden_dataset.json'
   schedule:
     - cron: '0 2 * * *' # 02:00 UTC nightly
@@ -60,6 +62,38 @@ jobs:
         with:
           name: eval-report
           path: eval_report.json
+
+      - name: Write results to job summary
+        if: always()
+        run: |
+          if [ ! -f eval_report.json ]; then
+            echo "### 🪷 RAGAS Eval Gate — no report produced" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json, os
+          r = json.load(open("eval_report.json"))
+          def mark(p): return "✅" if p else "❌"
+          lines = [
+              "### 🪷 RAGAS Eval Gate",
+              "",
+              "| metric | value | threshold | pass |",
+              "|---|---|---|---|",
+              f"| faithfulness | {r.get('faithfulness'):.3f} | {os.environ['FAITHFULNESS_THRESHOLD']} | {mark(r.get('faithfulness_pass'))} |",
+              f"| answer_relevancy | {r.get('answer_relevancy'):.3f} | {os.environ['ANSWER_RELEVANCY_THRESHOLD']} | {mark(r.get('relevancy_pass'))} |",
+              f"| context_precision | {r.get('context_precision'):.3f} | {os.environ['CONTEXT_PRECISION_THRESHOLD']} | {mark(r.get('context_precision_pass'))} |",
+              f"| context_recall | {r.get('context_recall'):.3f} | {os.environ['CONTEXT_RECALL_THRESHOLD']} | {mark(r.get('context_recall_pass'))} |",
+              f"| source_diversity | {r.get('diversity_violations')} violations | 0 | {mark(r.get('diversity_violations') == 0)} |",
+              "",
+              f"Run: {r.get('questions_total')} questions, {r.get('questions_failed')} failed to answer.",
+          ]
+          print("\n".join(lines))
+          PY
+        env:
+          FAITHFULNESS_THRESHOLD: ${{ env.FAITHFULNESS_THRESHOLD }}
+          ANSWER_RELEVANCY_THRESHOLD: ${{ env.ANSWER_RELEVANCY_THRESHOLD }}
+          CONTEXT_PRECISION_THRESHOLD: ${{ env.CONTEXT_PRECISION_THRESHOLD }}
+          CONTEXT_RECALL_THRESHOLD: ${{ env.CONTEXT_RECALL_THRESHOLD }}
 
       - name: Comment summary on PR
         if: github.event_name == 'pull_request' && always()

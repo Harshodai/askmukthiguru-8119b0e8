@@ -22,6 +22,7 @@ from app.dependencies import ServiceContainer
 from app.orchestrator import _stream_done_metadata
 from app.pipeline import PipelineCoordinator
 from app.release_manifest import get_release_manifest
+from app.sanitization import sanitize_log_input
 from app.schemas import ChatRequest
 from app.security_utils import is_benchmark_request
 from app.telemetry_sink import SupabaseTelemetrySink
@@ -145,7 +146,8 @@ class ChatStreamRequestOrchestrator:
                     disconnect_check = request.is_disconnected()
                     if inspect.isawaitable(disconnect_check) and await disconnect_check:
                         logger.info(
-                            "SSE client disconnected; cancelling pipeline for user %s", user_id
+                            "SSE client disconnected; cancelling pipeline for user %s",
+                            sanitize_log_input(str(user_id)),
                         )
                         return
                     if pipeline_task.done() and stream_queue.empty():
@@ -251,7 +253,10 @@ class ChatStreamRequestOrchestrator:
                 result = await pipeline_task
                 completed = True
             except TimeoutError:
-                logger.error(f"Pipeline timeout for user {user_id}: message='{user_msg[:60]}...'")
+                logger.error(
+                    f"Pipeline timeout for user {sanitize_log_input(str(user_id))}: "
+                    f"message='{sanitize_log_input(user_msg[:60])}...'"
+                )
                 yield "event: error\ndata: The Guru took too long to respond. Please try again.\n\n"
                 return
             except Exception as e:

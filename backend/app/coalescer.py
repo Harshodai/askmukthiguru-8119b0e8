@@ -20,6 +20,8 @@ except ImportError:
 
 from prometheus_client import Counter, Histogram
 
+from app.sanitization import sanitize_log_input
+
 COLLAPSED_REQUESTS = Counter("request_collapsed_total", "In-flight requests collapsed")
 COALESCER_LATENCY = Histogram("coalescer_wait_seconds", "Time spent waiting for shared result")
 
@@ -122,7 +124,10 @@ class RedisCoalescer:
 
         # Wait for result from leader
         COLLAPSED_REQUESTS.inc()
-        logger.info(f"Collapsing request for key: {key}, waiting for leader to complete")
+        logger.info(
+            "Collapsing request for key: %s, waiting for leader to complete",
+            sanitize_log_input(key),
+        )
         with COALESCER_LATENCY.time():
             result = await self._wait_for_result(result_key, lock_key, coro_func)
         return result
@@ -167,7 +172,11 @@ class RedisCoalescer:
             try:
                 await self._redis.delete(lock_key)
             except Exception as e:  # noqa: BLE001
-                logger.debug("Coalescer: failed to delete lock key %s: %s", lock_key, e)
+                logger.debug(
+                    "Coalescer: failed to delete lock key %s: %s",
+                    sanitize_log_input(lock_key),
+                    type(e).__name__,
+                )
 
     @staticmethod
     def _serialize_result(result: typing.Any) -> str:
@@ -260,7 +269,7 @@ class RedisCoalescer:
                     if data:
                         return self._deserialize_result(json.loads(data))
             except Exception as e:
-                logger.warning(f"Error during blpop blocking wait: {e}")
+                logger.warning("Error during blpop blocking wait: %s", type(e).__name__)
                 await asyncio.sleep(0.1)
                 waited += 0.1
                 continue
@@ -268,7 +277,10 @@ class RedisCoalescer:
             waited += block_timeout
 
         # Timeout exceeded — run independently
-        logger.warning(f"Coalesce timeout for {result_key}, running independently")
+        logger.warning(
+            "Coalesce timeout for %s, running independently",
+            sanitize_log_input(result_key),
+        )
         return await coro_func()
 
     async def close(self):

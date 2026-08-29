@@ -464,7 +464,12 @@ class EmbeddingService:
                 f"Tried: {', '.join(FALLBACK_CHAIN)}. Last error: {last_error}",
                 exc_info=True,
             )
-            raise last_error
+            if last_error is not None:
+                raise last_error
+            raise RuntimeError(
+                f"Failed to load a {required_dim}-dim-compatible embedding model. "
+                f"Tried: {', '.join(FALLBACK_CHAIN)}"
+            )
 
     def _prune_unused_hf_variants(self, model_name: str) -> None:
         """Remove unused model variants from the serving cache after load.
@@ -767,7 +772,9 @@ class EmbeddingService:
                 f"All {max_retries} attempts to encode dense failed. Raising last error: {last_err}"
             )
             self._circuit.record_failure()
-            raise last_err
+            if last_err is not None:
+                raise last_err
+            raise RuntimeError(f"All {max_retries} attempts to encode dense failed.")
 
     async def encode_async(self, texts: list[str]) -> list[list[float]]:
         """Async GIL-escape wrapper for encode(). Safe to await in FastAPI handlers."""
@@ -963,7 +970,9 @@ class EmbeddingService:
                 f"All {max_retries} attempts to encode batch failed. Raising last error: {last_err}"
             )
             self._circuit.record_failure()
-            raise last_err
+            if last_err is not None:
+                raise last_err
+            raise RuntimeError(f"All {max_retries} attempts to encode batch failed.")
 
     async def encode_batch_async(self, texts: list[str]) -> dict:
         """Async GIL-escape wrapper for encode_batch(). Frees event loop during encoding."""
@@ -1085,7 +1094,9 @@ class EmbeddingService:
                 f"All {max_retries} attempts to encode_with_colbert failed. "
                 f"Raising last error: {last_err}"
             )
-            raise last_err
+            if last_err is not None:
+                raise last_err
+            raise RuntimeError(f"All {max_retries} attempts to encode_with_colbert failed.")
 
     # ------------------------------------------------------------------
     # Late chunking (plan §6.3 / arXiv:2409.04701)

@@ -38,6 +38,7 @@ from dataclasses import asdict, dataclass
 from typing import Any, Literal, Optional
 
 from app.config import settings
+from app.sanitization import sanitize_log_input
 
 logger = logging.getLogger(__name__)
 
@@ -276,10 +277,10 @@ async def assign_course_if_needed(
     try:
         existing = await asyncio.to_thread(_select_active)
     except Exception as e:
-        logger.warning(f"Healing course active-check failed for {user_id}: {e}")
+        logger.warning(f"Healing course active-check failed for {sanitize_log_input(str(user_id))}: {e}")
         return None
     if existing and getattr(existing, "data", None):
-        logger.info(f"Healing course skipped for {user_id} — active course already exists")
+        logger.info(f"Healing course skipped for {sanitize_log_input(str(user_id))} — active course already exists")
         return None
 
     slug = course_slug_for_signal(trigger.signal)
@@ -303,10 +304,13 @@ async def assign_course_if_needed(
     try:
         await asyncio.to_thread(_upsert)
     except Exception as e:
-        logger.warning(f"Healing course upsert failed for {user_id}: {e}")
+        logger.warning(f"Healing course upsert failed for {sanitize_log_input(str(user_id))}: {e}")
         return None
 
-    logger.info(f"Healing course '{slug}' assigned to {user_id} ({trigger.pattern})")
+    logger.info(
+        f"Healing course '{sanitize_log_input(str(slug))}' assigned to "
+        f"{sanitize_log_input(str(user_id))} ({sanitize_log_input(str(trigger.pattern))})"
+    )
     return {"slug": slug, "trigger": trigger}
 
 

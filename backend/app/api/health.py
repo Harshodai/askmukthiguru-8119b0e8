@@ -17,6 +17,7 @@ from app.dependencies import ServiceContainer, get_container
 from app.metrics import HEALTH_CHECK_TOTAL, metrics_endpoint
 from app.runtime_artifacts import inspect_runtime_artifacts
 from app.runtime_metrics import observe_queue_depths
+from app.sanitization import sanitize_log_input
 from services.auth_service import get_current_user_from_supabase, require_aal2
 
 router = APIRouter(tags=["Health"])
@@ -128,11 +129,12 @@ async def health_endpoint(container: ServiceContainer = Depends(get_container)) 
                 "error": "timeout",
             }
         except Exception as exc:
+            logger.exception("Health check failed for %s: %s", name, exc)
             results[name] = {
                 "ok": False,
                 "latency_ms": int((time.perf_counter() - s) * 1000),
                 "critical": critical,
-                "error": str(exc)[:200],
+                "error": "Service check failed",
             }
 
     # Infrastructure
@@ -170,11 +172,12 @@ async def health_endpoint(container: ServiceContainer = Depends(get_container)) 
                 f"dim {dim} != configured {settings.embedding_dimension}"
             )
     except Exception as exc:
+        logger.exception("Embedding health check failed: %s", exc)
         results["embedding"] = {
             "ok": False,
             "latency_ms": 0,
             "critical": True,
-            "error": str(exc)[:200],
+            "error": "Embedding check failed",
         }
 
     # Curated knowledge inputs are a critical readiness dependency. Keep the
@@ -470,7 +473,7 @@ async def circuit_breaker_reset_endpoint(
             extra={
                 "provider": provider,
                 "previous_state": previous_state,
-                "operator_id": operator_id,
+                "operator_id": sanitize_log_input(operator_id),
                 "action": "circuit_breaker_reset",
             },
         )

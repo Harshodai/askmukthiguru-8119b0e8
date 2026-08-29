@@ -46,6 +46,7 @@ from app.dependencies import ServiceContainer
 from app.grounding import grounding_state_for
 from app.metrics import TTFT_SECONDS
 from app.release_manifest import get_release_manifest
+from app.sanitization import sanitize_log_input
 from app.schemas import ChatRequest
 from rag.memory import normalize_session_id
 
@@ -281,7 +282,7 @@ class ChatEngine:
                 else await coalescer.get_or_run(coalesce_key, _run)
             )
         except TimeoutError:
-            logger.error(f"Pipeline timeout for user {user_id}")
+            logger.error("Pipeline timeout for user %s", sanitize_log_input(user_id))
             raise HTTPException(
                 status_code=504,
                 detail="The Guru took too long to respond. Please try again.",

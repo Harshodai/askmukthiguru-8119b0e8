@@ -17,15 +17,17 @@ from services.ocr_service import OCRService
 
 logger = logging.getLogger(__name__)
 
-# Regex patterns for image URL detection
+# Regex patterns for image URL detection - linear, non-backtracking
 IMAGE_EXTENSIONS = re.compile(
-    r"\.(jpg|jpeg|png|webp|gif|bmp|tiff|svg)(\?.*)?$",
+    r"\.(?:jpe?g|png|webp|gif|bmp|tiff?|svg)(?:[?#]|$)",
     re.IGNORECASE,
 )
 
 
 def is_image_url(url: str) -> bool:
     """Check if a URL points to an image based on extension or content-type hint."""
+    if not url:
+        return False
     return bool(IMAGE_EXTENSIONS.search(url))
 
 

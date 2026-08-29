@@ -10,6 +10,7 @@ from typing import Any, Optional
 from fastapi import HTTPException
 
 from app.assistant_registry import AssistantScope, resolve_assistant_scope
+from app.sanitization import sanitize_log_input
 
 logger = logging.getLogger(__name__)
 
@@ -111,7 +112,11 @@ async def _load_db_assistant(slug: str, container: Any) -> tuple[Optional[dict[s
         )
         return assistant_row, _row(scope_response)
     except Exception as exc:
-        logger.warning("Assistant catalog lookup failed for slug=%s: %s", slug, type(exc).__name__)
+        logger.warning(
+            "Assistant catalog lookup failed for slug=%s: %s",
+            sanitize_log_input(slug),
+            type(exc).__name__,
+        )
         return None, None
 
 
@@ -140,7 +145,11 @@ async def _has_access(assistant_row: dict[str, Any], user: Optional[dict[str, An
         )
         return bool(_row(response))
     except Exception as exc:
-        logger.warning("Assistant access lookup failed for user=%s: %s", uid, type(exc).__name__)
+        logger.warning(
+            "Assistant access lookup failed for user=%s: %s",
+            sanitize_log_input(uid),
+            type(exc).__name__,
+        )
         return False
 
 

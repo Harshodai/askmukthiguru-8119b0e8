@@ -95,7 +95,10 @@ const MFAChallengePage = () => {
       if (vErr) throw vErr;
       const redirectPath = sessionStorage.getItem('auth_redirect_path');
       sessionStorage.removeItem('auth_redirect_path');
-      navigate(redirectPath || '/chat', { replace: true });
+      const safeRedirect = redirectPath && redirectPath.startsWith('/') && !redirectPath.startsWith('//') && !redirectPath.includes('\\')
+        ? redirectPath
+        : '/chat';
+      navigate(safeRedirect, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Verification failed.');
     } finally {

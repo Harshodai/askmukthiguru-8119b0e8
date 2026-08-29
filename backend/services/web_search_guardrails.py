@@ -25,6 +25,8 @@ import re
 from dataclasses import dataclass, field
 from urllib.parse import urlparse
 
+from app.sanitization import sanitize_log_input
+
 logger = logging.getLogger(__name__)
 
 # ─── Configuration ───────────────────────────────────────────────────────────
@@ -232,7 +234,7 @@ def check_url_safety(url: str) -> tuple[bool, str]:
         if len(parts) == 2:
             tld = parts[1].lower()
             if tld in _SUSPICIOUS_TLDS:
-                logger.warning(f"Suspicious TLD detected: {tld} in {url}")
+                logger.warning(f"Suspicious TLD detected: {sanitize_log_input(tld)} in {sanitize_log_input(url)}")
                 # Don't block, just flag for logging
 
         # Block URLs with credentials
@@ -468,13 +470,13 @@ def apply_result_guardrails(result: dict) -> tuple[bool, dict, list[str]]:
     # Step 1: URL safety check
     ok, reason = check_url_safety(url)
     if not ok:
-        logger.warning(f"URL blocked by safety guardrail: {url} — {reason}")
+        logger.warning(f"URL blocked by safety guardrail: {sanitize_log_input(url)} — {reason}")
         return False, {}, ["url_blocked"]
 
     # Step 2: URL scheme validation
     ok, reason = validate_url_scheme(url)
     if not ok:
-        logger.warning(f"URL scheme blocked: {url} — {reason}")
+        logger.warning(f"URL scheme blocked: {sanitize_log_input(url)} — {reason}")
         return False, {}, ["bad_scheme"]
 
     from app.config import settings
@@ -488,7 +490,7 @@ def apply_result_guardrails(result: dict) -> tuple[bool, dict, list[str]]:
 
     # Step 5: Score threshold
     if score < settings.web_search_result_min_score:
-        logger.debug(f"Result scored too low ({score:.2f}), filtering out: {url}")
+        logger.debug(f"Result scored too low ({score:.2f}), filtering out: {sanitize_log_input(url)}")
         return False, {}, flags + ["low_score"]
 
     sanitized = {
@@ -512,7 +514,7 @@ def log_search_audit(
 
     audit_entry = {
         "event": "web_search",
-        "user_id": user_id or "anonymous",
+        "user_id": sanitize_log_input(user_id) if user_id else "anonymous",
         "query_length": len(query),
         "results_count": results_count,
         "flags": flags or [],

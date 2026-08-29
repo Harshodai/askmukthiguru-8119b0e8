@@ -9,6 +9,7 @@ from functools import lru_cache
 from typing import Any, Optional
 
 from app.config import settings
+from app.sanitization import sanitize_log_input
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +91,7 @@ def validate_assistant_slug(slug: Optional[str]) -> Optional[str]:
         return None
     if slug in _allowed_slugs():
         return slug
-    logger.info("Rejecting non-allowlisted assistant slug %r.", slug)
+    logger.info("Rejecting non-allowlisted assistant slug %s.", sanitize_log_input(slug))
     return None
 
 
@@ -103,9 +104,9 @@ def resolve_assistant_scope(slug: Optional[str]) -> AssistantScope | None:
         return None
     scope = _scope_registry().get(validated)
     if scope is None:
-        logger.error("Allowlisted assistant slug %r has no configured scope", validated)
+        logger.error("Allowlisted assistant slug %s has no configured scope", sanitize_log_input(validated))
         return None
     if scope.rights_status != "approved" or not scope.rollout_enabled:
-        logger.warning("Assistant scope %r is not currently approved for rollout", validated)
+        logger.warning("Assistant scope %s is not currently approved for rollout", sanitize_log_input(validated))
         return None
     return scope

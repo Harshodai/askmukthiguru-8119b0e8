@@ -17,6 +17,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.config import settings
 from app.core.limiter import limiter
+from app.sanitization import sanitize_log_input
 from services.auth_service import get_current_user_from_supabase, require_aal2
 
 logger = logging.getLogger(__name__)
@@ -351,7 +352,11 @@ async def submit_exit_survey(
     except HTTPException:
         raise
     except Exception as e:
-        logger.warning(f"exit_surveys insert failed for {uid}: {e}")
+        logger.warning(
+            "exit_surveys insert failed for %s: %s",
+            sanitize_log_input(uid),
+            type(e).__name__,
+        )
         # Non-fatal: still return the mapped offer so the UI can continue.
 
     _churn_metrics.surveys_completed += 1
@@ -400,7 +405,11 @@ async def handle_save_offer(
     except HTTPException:
         raise
     except Exception as e:
-        logger.warning(f"save_offers insert failed for {uid}: {e}")
+        logger.warning(
+            "save_offers insert failed for %s: %s",
+            sanitize_log_input(uid),
+            type(e).__name__,
+        )
 
     if payload.accepted:
         _churn_metrics.saves_via_offer += 1
@@ -442,7 +451,11 @@ async def confirm_cancellation(
                 {"responded_to": True, "response_type": "saved"}
             ).eq("user_id", uid).execute()
         except Exception as e:
-            logger.warning(f"exit_surveys update (aborted) failed for {uid}: {e}")
+            logger.warning(
+                "exit_surveys update (aborted) failed for %s: %s",
+                sanitize_log_input(uid),
+                type(e).__name__,
+            )
         _churn_metrics.saves_via_survey += 1
         return CancelStatusResponse(
             status="cancelled_aborted",
@@ -479,7 +492,11 @@ async def confirm_cancellation(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"cancellations insert failed for {uid}: {e}")
+        logger.error(
+            "cancellations insert failed for %s: %s",
+            sanitize_log_input(uid),
+            type(e).__name__,
+        )
         raise HTTPException(status_code=503, detail="Failed to schedule cancellation.")
 
     # Enqueue the 4 win-back emails via Celery (fire-and-forget, 120s headroom).
@@ -498,7 +515,11 @@ async def confirm_cancellation(
             )
     except Exception as e:
         # Non-fatal: daily beat task will pick up due emails as a safety net.
-        logger.warning(f"Win-back email enqueue failed for {uid}: {e}")
+        logger.warning(
+            "Win-back email enqueue failed for %s: %s",
+            sanitize_log_input(uid),
+            type(e).__name__,
+        )
 
     return CancelStatusResponse(
         status="cancelled_confirmed",
@@ -541,7 +562,11 @@ async def cancel_status(
                 message="Cancellation record found.",
             )
     except Exception as e:
-        logger.warning(f"cancel-status lookup failed for {uid}: {e}")
+        logger.warning(
+            "cancel-status lookup failed for %s: %s",
+            sanitize_log_input(uid),
+            type(e).__name__,
+        )
     return CancelStatusResponse(status="none", message="No cancellation on record.")
 
 
@@ -590,13 +615,20 @@ async def reactivate_account(
             else:
                 _churn_metrics.reactivations_30d += 1
         else:
-            logger.warning("reactivate: no scheduled cancellation found for %s", uid)
+            logger.warning(
+                "reactivate: no scheduled cancellation found for %s",
+                sanitize_log_input(uid),
+            )
             return CancelStatusResponse(
                 status="none",
                 message="No active cancellation found to reactivate.",
             )
     except Exception as e:
-        logger.warning(f"reactivate failed for {uid}: {e}")
+        logger.warning(
+            "reactivate failed for %s: %s",
+            sanitize_log_input(uid),
+            type(e).__name__,
+        )
         return CancelStatusResponse(
             status="error",
             message="Reactivation failed. Please try again later.",

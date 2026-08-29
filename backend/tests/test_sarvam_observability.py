@@ -114,6 +114,7 @@ async def test_sarvam_call_records_otel_span_attributes(monkeypatch):
     assert span.attributes["http.status_code"] == 200
     assert span.attributes["gen_ai.usage.input_tokens"] == 12
     assert span.attributes["gen_ai.usage.output_tokens"] == 5
+    assert span.attributes["gen_ai.usage.cost"] == pytest.approx((12 + 5) / 1000.0 * 0.0001)
 
 
 @pytest.mark.asyncio
@@ -217,3 +218,133 @@ async def test_sarvam_reasoning_content_fallback(monkeypatch):
 
     # Content should fall back to reasoning_content
     assert result == "This is reasoning that serves as fallback."
+
+
+class QueuedResponse:
+    def __init__(self, status_code, text="", payload=None):
+        self.status_code = status_code
+        self.text = text
+        self._payload = payload or {
+            "choices": [{"message": {"content": "ok"}}],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 1},
+        }
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            raise Exception(f"status {self.status_code}")
+
+    def json(self):
+        return self._payload
+
+
+class QueuedAsyncClient:
+    def __init__(self, *args, **kwargs):
+        pass
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        return False
+
+    async def post(self, url, headers=None, json=None, **kwargs):
+        return self._responses.pop(0)
+
+
+@pytest.mark.asyncio
+async def test_sarvam_tier_limit_retry_records_reason(monkeypatch):
+    fake_tracer = FakeTracer()
+    monkeypatch.setattr("services.gateways.sarvam_http.trace", FakeTrace(fake_tracer))
+    monkeypatch.setattr("services.gateways.sarvam_http._has_otel", True)
+
+    class Client(QueuedAsyncClient):
+        _responses = [
+            QueuedResponse(
+                400,
+                text="exceeds the maximum allowed for max_tokens for your subscription tier free: 2048",
+            ),
+            QueuedResponse(200),
+        ]
+
+    monkeypatch.setattr(sarvam_service.httpx, "AsyncClient", Client)
+    monkeypatch.setattr(settings, "sarvam_api_key", "test-key")
+    monkeypatch.setattr(settings, "sarvam_cloud_model", "sarvam-30b")
+    monkeypatch.setattr(settings, "llm_max_retries", 2)
+
+    service = SarvamCloudService()
+    result = await service._call_api(
+        messages=[{"role": "user", "content": "hello"}],
+        model="sarvam-30b",
+        max_tokens=64,
+        operation="generate",
+    )
+
+    assert result == "ok"
+    reasons = [s.attributes.get("gen_ai.retry_reason") for s in fake_tracer.spans]
+    assert "tier_limit" in reasons
+
+
+@pytest.mark.asyncio
+async def test_sarvam_context_window_retry_records_reason(monkeypatch):
+    fake_tracer = FakeTracer()
+    monkeypatch.setattr("services.gateways.sarvam_http.trace", FakeTrace(fake_tracer))
+    monkeypatch.setattr("services.gateways.sarvam_http._has_otel", True)
+
+    class Client(QueuedAsyncClient):
+        _responses = [
+            QueuedResponse(
+                422,
+                text=(
+                    "prompt_tokens (100) + max_tokens (4096) = 4196 exceeds the "
+                    "model context window of 4096"
+                ),
+            ),
+            QueuedResponse(200),
+        ]
+
+    monkeypatch.setattr(sarvam_service.httpx, "AsyncClient", Client)
+    monkeypatch.setattr(settings, "sarvam_api_key", "test-key")
+    monkeypatch.setattr(settings, "sarvam_cloud_model", "sarvam-30b")
+    monkeypatch.setattr(settings, "llm_max_retries", 2)
+
+    service = SarvamCloudService()
+    result = await service._call_api(
+        messages=[{"role": "user", "content": "hello"}],
+        model="sarvam-30b",
+        max_tokens=4096,
+        operation="generate",
+    )
+
+    assert result == "ok"
+    reasons = [s.attributes.get("gen_ai.retry_reason") for s in fake_tracer.spans]
+    assert "context_window" in reasons
+
+
+@pytest.mark.asyncio
+async def test_sarvam_key_rotation_retry_records_reason(monkeypatch):
+    fake_tracer = FakeTracer()
+    monkeypatch.setattr("services.gateways.sarvam_http.trace", FakeTrace(fake_tracer))
+    monkeypatch.setattr("services.gateways.sarvam_http._has_otel", True)
+
+    class Client(QueuedAsyncClient):
+        _responses = [
+            QueuedResponse(429, text="rate limited"),
+            QueuedResponse(200),
+        ]
+
+    monkeypatch.setattr(sarvam_service.httpx, "AsyncClient", Client)
+    monkeypatch.setattr(settings, "sarvam_api_key", "test-key-1,test-key-2")
+    monkeypatch.setattr(settings, "sarvam_cloud_model", "sarvam-30b")
+    monkeypatch.setattr(settings, "llm_max_retries", 2)
+
+    service = SarvamCloudService()
+    result = await service._call_api(
+        messages=[{"role": "user", "content": "hello"}],
+        model="sarvam-30b",
+        max_tokens=64,
+        operation="generate",
+    )
+
+    assert result == "ok"
+    reasons = [s.attributes.get("gen_ai.retry_reason") for s in fake_tracer.spans]
+    assert "key_rotation" in reasons

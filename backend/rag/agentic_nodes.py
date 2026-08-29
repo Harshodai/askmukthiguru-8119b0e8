@@ -86,4 +86,8 @@ class SelfCorrectionNode(NodeCommand):
                 )
                 state.setdefault("__correction_context__", []).append(str(exc))
 
-        raise last_error
+        if last_error is not None:
+            raise last_error
+        raise RuntimeError(
+            f"[SelfCorrection] {self._wrapped.name} failed after {self._max_retries} attempts"
+        )

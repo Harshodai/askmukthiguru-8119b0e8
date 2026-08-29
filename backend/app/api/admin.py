@@ -352,8 +352,8 @@ async def get_data_stores_endpoint(
     try:
         result["qdrant"] = await asyncio.to_thread(container.qdrant.get_stats)
     except Exception as e:
-        result["qdrant"]["error"] = str(e)
-        logger.warning(f"Failed to query Qdrant: {e}")
+        result["qdrant"]["error"] = "Failed to query Qdrant"
+        logger.exception("Failed to query Qdrant: %s", e)
 
     # ── Neo4j ───────────────────────────────────────────────────────────
     try:
@@ -384,8 +384,8 @@ async def get_data_stores_endpoint(
         else:
             result["neo4j"]["error"] = "Neo4j driver not available"
     except Exception as e:
-        result["neo4j"]["error"] = str(e)
-        logger.warning(f"Failed to query Neo4j: {e}")
+        result["neo4j"]["error"] = "Failed to query Neo4j"
+        logger.exception("Failed to query Neo4j: %s", e)
 
     # ── LightRAG ────────────────────────────────────────────────────────
     try:
@@ -397,8 +397,8 @@ async def get_data_stores_endpoint(
             result["lightrag"]["chunk_token_size"] = getattr(lr.rag, "chunk_token_size", None)
             result["lightrag"]["cache_size"] = len(lr._query_cache)
     except Exception as e:
-        result["lightrag"]["error"] = str(e)
-        logger.warning(f"Failed to query LightRAG: {e}")
+        result["lightrag"]["error"] = "Failed to query LightRAG"
+        logger.exception("Failed to query LightRAG: %s", e)
 
     return result
 

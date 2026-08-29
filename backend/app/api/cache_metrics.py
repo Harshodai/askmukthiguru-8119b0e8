@@ -100,8 +100,8 @@ async def clear_cache(
         hot_cache.clear()
         results["hot"] = "cleared"
     except Exception as e:
-        results["hot"] = f"error: {e}"
-        logger.warning("hot cache clear failed: %s", e)
+        results["hot"] = "error"
+        logger.exception("hot cache clear failed: %s", e)
 
     # 2. Exact cache (Redis)
     try:
@@ -111,8 +111,8 @@ async def clear_cache(
         else:
             results["exact"] = "not available"
     except Exception as e:
-        results["exact"] = f"error: {e}"
-        logger.warning("exact cache clear failed: %s", e)
+        results["exact"] = "error"
+        logger.exception("exact cache clear failed: %s", e)
 
     # 3. Semantic cache (Qdrant)
     try:
@@ -122,8 +122,8 @@ async def clear_cache(
         else:
             results["semantic"] = "not available"
     except Exception as e:
-        results["semantic"] = f"error: {e}"
-        logger.warning("semantic cache clear failed: %s", e)
+        results["semantic"] = "error"
+        logger.exception("semantic cache clear failed: %s", e)
 
     return JSONResponse(
         {

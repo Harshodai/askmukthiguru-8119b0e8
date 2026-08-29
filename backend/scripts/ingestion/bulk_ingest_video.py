@@ -26,6 +26,7 @@ import time
 import os
 from pathlib import Path
 from typing import Any, Optional
+from urllib.parse import urlparse
 
 import neo4j as _neo4j_lib
 
@@ -213,7 +214,8 @@ async def bulk_ingest_async(
                     # Trigger OKF 5-Node Transformation Arc extraction
                     if enable_okf:
                         video_id = None
-                        if "youtube.com" in src or "youtu.be" in src:
+                        src_host = (urlparse(src).hostname or "").lower() if src else ""
+                        if src_host in ("youtube.com", "youtu.be", "www.youtube.com") or src_host.endswith(".youtube.com"):
                             from ingest.youtube_loader import extract_video_id
 
                             video_id = extract_video_id(src)

@@ -16,6 +16,7 @@ from typing import Any, Optional
 from supabase import Client, create_client
 
 from app.config import get_settings
+from app.sanitization import sanitize_log_input
 from app.security_utils import validate_iso_date, validate_session_id, validate_user_id
 
 logger = logging.getLogger(__name__)
@@ -190,7 +191,7 @@ async def log_router_decision(
             client.table("router_decisions").insert(decision_payload).execute()
 
         await asyncio.wait_for(asyncio.to_thread(_sync_insert), timeout=2.0)
-        logger.debug(f"Logged router decision {trace_id} to telemetry")
+        logger.debug(f"Logged router decision {sanitize_log_input(str(trace_id))} to telemetry")
         return trace_id
     except Exception as e:
         logger.debug(f"Failed to log router decision to telemetry (non-fatal): {e}")
@@ -291,7 +292,7 @@ async def log_query_trace(query_data: dict, response_data: dict) -> None:
                 )
             client.table("trigger_events").insert(trigger_payloads).execute()
 
-        logger.debug(f"Successfully logged trace {query_data['id']} to Supabase")
+        logger.debug(f"Successfully logged trace {sanitize_log_input(str(query_data.get('id')))} to Supabase")
 
     except Exception as e:
         logger.error(f"Failed to log telemetry trace to Supabase: {e}")
@@ -535,7 +536,7 @@ async def log_ingestion_run(run_data: dict) -> None:
         # Filter out None values to let Postgres defaults kick in
         payload = {k: v for k, v in payload.items() if v is not None}
         client.table("ingestion_runs").insert(payload).execute()
-        logger.info(f"Successfully logged ingestion run {run_data.get('id')} to Supabase")
+        logger.info(f"Successfully logged ingestion run {sanitize_log_input(str(run_data.get('id')))} to Supabase")
     except Exception as e:
         logger.error(f"Failed to log ingestion run to Supabase: {e}")
 
@@ -1730,7 +1731,7 @@ async def get_query_trace(query_id: str) -> Optional[dict[str, Any]]:
             "safety": safety,
         }
     except Exception as e:
-        logger.error(f"Failed to get query trace {query_id}: {e}")
+        logger.error(f"Failed to get query trace {sanitize_log_input(str(query_id))}: {e}")
         return None
 
 

@@ -23,6 +23,7 @@ from app.dependencies import ServiceContainer
 from app.grounding import grounding_state_for
 from app.pipeline import PipelineCoordinator
 from app.release_manifest import get_release_manifest
+from app.sanitization import sanitize_log_input
 from app.schemas import ChatRequest, ChatResponse
 from app.security_utils import is_benchmark_request
 from app.telemetry_sink import SupabaseTelemetrySink
@@ -96,7 +97,11 @@ class ChatRequestOrchestrator:
                 else await _coalescer.get_or_run(_coalesce_key, _run_pipeline)
             )
         except TimeoutError:
-            logger.error(f"Pipeline timeout for user {user_id}: message='{user_msg[:60]}...'")
+            logger.error(
+                "Pipeline timeout for user %s: message='%s...'",
+                sanitize_log_input(user_id),
+                sanitize_log_input(user_msg[:60]),
+            )
             raise HTTPException(
                 status_code=504,
                 detail="The Guru took too long to respond. Please try again.",

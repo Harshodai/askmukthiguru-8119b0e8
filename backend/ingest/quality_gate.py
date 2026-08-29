@@ -22,6 +22,7 @@ import re
 from dataclasses import dataclass, field
 from functools import lru_cache
 from typing import Any, Optional
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
@@ -162,13 +163,24 @@ class DeterministicChecker:
         """Detect if the URL points to a short video format (Reel/Short/TikTok)."""
         if not url:
             return False
-        url_lower = url.lower()
-        return (
-            "shorts/" in url_lower
-            or "reel/" in url_lower
-            or "tiktok.com" in url_lower
-            or "instagram.com" in url_lower
-        )
+        try:
+            parsed = urlparse(url.strip())
+            host = (parsed.hostname or "").lower()
+            path = parsed.path.lower()
+            if (
+                host == "youtube.com"
+                or host.endswith(".youtube.com")
+                or host == "youtu.be"
+                or host.endswith(".youtu.be")
+            ):
+                return "shorts/" in path
+            if host == "instagram.com" or host.endswith(".instagram.com"):
+                return "reel/" in path or "reels/" in path
+            if host == "tiktok.com" or host.endswith(".tiktok.com"):
+                return True
+        except Exception:
+            pass
+        return False
 
     def check(self, text: str, source_url: str = "") -> tuple[bool, int, list[str]]:
         """

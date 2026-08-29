@@ -11,6 +11,7 @@ lives in the existing functions in youtube_loader.py and supadata.py.
 
 import logging
 from typing import Optional
+from urllib.parse import urlparse
 
 from ingest.sources.supadata import fetch_transcript_supadata
 from ingest.youtube_loader import extract_video_id, fetch_transcript_hybrid
@@ -22,7 +23,19 @@ class YouTubeIngestionService:
     """Orchestrates the multi-tier YouTube transcript fallback chain."""
 
     def can_handle(self, url: str) -> bool:
-        return "youtube.com" in url or "youtu.be" in url
+        if not url:
+            return False
+        try:
+            parsed = urlparse(url.strip())
+            host = (parsed.hostname or "").lower()
+            return (
+                host == "youtube.com"
+                or host.endswith(".youtube.com")
+                or host == "youtu.be"
+                or host.endswith(".youtu.be")
+            )
+        except Exception:
+            return False
 
     def get_source_id(self, url: str) -> str:
         vid = extract_video_id(url)

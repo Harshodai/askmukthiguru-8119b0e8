@@ -36,6 +36,7 @@ from app.config import settings
 from app.constants import CircuitBreakerProvider
 from app.llm_tracing import (
     current_llm_span,
+    llm_span,
     record_llm_error,
     record_llm_result,
     set_llm_request,
@@ -718,121 +719,153 @@ class OpenRouterService:
         last_error = None
         stream_usage: dict | None = None
         stream_started = time.perf_counter()
-        for attempt in range(self._max_retries):
-            attempt_started = time.perf_counter()
-            try:
-                client = await self._get_http_client()
-                buffer = ""
-                headers_ready_ms = None
-                first_event_ms = None
-                first_token_ms = None
-                finish_reason = "unknown"
+        # GenAI span for the streaming call path — mirrors _call_api's shape
+        # (gen_ai.system/request.model/usage.*) but opened manually since the
+        # decorator can't wrap an async generator across many yields. See
+        # docs/architecture/llm-observability-design.md.
+        with llm_span("openrouter") as _span:
+            set_llm_request(_span, model=model, operation=operation)
+            for attempt in range(self._max_retries):
+                attempt_started = time.perf_counter()
+                try:
+                    client = await self._get_http_client()
+                    buffer = ""
+                    headers_ready_ms = None
+                    first_event_ms = None
+                    first_token_ms = None
+                    finish_reason = "unknown"
 
-                headers = {}
-                if is_anthropic:
-                    headers["anthropic-beta"] = "prompt-caching-2024-07-31"
+                    headers = {}
+                    if is_anthropic:
+                        headers["anthropic-beta"] = "prompt-caching-2024-07-31"
 
-                async with client.stream(
-                    "POST",
-                    "/chat/completions",
-                    json=payload,
-                    headers=headers or None,
-                ) as resp:
-                    headers_ready_ms = (time.perf_counter() - attempt_started) * 1000
-                    resp.raise_for_status()
+                    async with client.stream(
+                        "POST",
+                        "/chat/completions",
+                        json=payload,
+                        headers=headers or None,
+                    ) as resp:
+                        headers_ready_ms = (time.perf_counter() - attempt_started) * 1000
+                        resp.raise_for_status()
 
-                    async for line in resp.aiter_lines():
-                        if first_event_ms is None:
-                            first_event_ms = (time.perf_counter() - attempt_started) * 1000
-                        if not line.startswith("data: "):
-                            continue
-                        data_str = line[6:]
-                        if data_str.strip() == "[DONE]":
-                            break
-                        try:
-                            data = json.loads(data_str)
-                        except json.JSONDecodeError:
-                            continue
-                        usage = data.get("usage")
-                        if isinstance(usage, dict):
-                            stream_usage = usage
-                        choice = data.get("choices", [{}])[0] or {}
-                        finish_reason = str(choice.get("finish_reason") or finish_reason)[:32]
-                        delta_msg = choice.get("delta", {})
-                        delta = delta_msg.get("content") or ""
-                        if delta:
-                            if first_token_ms is None:
-                                first_token_ms = (time.perf_counter() - attempt_started) * 1000
-                            buffer += delta
-                            yield delta
+                        async for line in resp.aiter_lines():
+                            if first_event_ms is None:
+                                first_event_ms = (time.perf_counter() - attempt_started) * 1000
+                            if not line.startswith("data: "):
+                                continue
+                            data_str = line[6:]
+                            if data_str.strip() == "[DONE]":
+                                break
+                            try:
+                                data = json.loads(data_str)
+                            except json.JSONDecodeError:
+                                continue
+                            usage = data.get("usage")
+                            if isinstance(usage, dict):
+                                stream_usage = usage
+                            choice = data.get("choices", [{}])[0] or {}
+                            finish_reason = str(choice.get("finish_reason") or finish_reason)[:32]
+                            delta_msg = choice.get("delta", {})
+                            delta = delta_msg.get("content") or ""
+                            if delta:
+                                if first_token_ms is None:
+                                    first_token_ms = (time.perf_counter() - attempt_started) * 1000
+                                buffer += delta
+                                yield delta
 
-                self._circuit.record_success()
-                usage = stream_usage or {}
-                prompt_tokens = usage.get("prompt_tokens") or self._estimate_tokens(str(messages))
-                completion_tokens = usage.get("completion_tokens") or self._estimate_tokens(buffer)
-                cost_usd = self._usage_cost(usage) if stream_usage is not None else None
-                self._track_token_usage(
-                    tokens_in=prompt_tokens,
-                    tokens_out=completion_tokens,
-                    model=model,
-                    cost_usd=cost_usd or 0.0,
-                )
-                await reservation.settle(cost_usd)
-                logger.info(
-                    "OPENROUTER_STREAM_TIMING operation=%s model=%s attempt=%d status_class=%s "
-                    "headers_ms=%.1f first_event_ms=%s ttft_ms=%s total_ms=%.1f "
-                    "prompt_tokens=%s completion_tokens=%s cached_tokens=%s "
-                    "finish_reason=%s",
-                    operation,
-                    model,
-                    attempt + 1,
-                    f"{int(getattr(resp, 'status_code', 0)) // 100}xx",
-                    headers_ready_ms or 0.0,
-                    "%.1f" % first_event_ms if first_event_ms is not None else "none",
-                    "%.1f" % first_token_ms if first_token_ms is not None else "none",
-                    (time.perf_counter() - stream_started) * 1000,
-                    prompt_tokens,
-                    completion_tokens,
-                    (stream_usage or {}).get("prompt_tokens_details", {}).get("cached_tokens", 0)
-                    if isinstance(stream_usage, dict)
-                    else 0,
-                    finish_reason,
-                )
-                return
-
-            except Exception as e:
-                logger.warning(
-                    "OPENROUTER_STREAM_ERROR_TIMING operation=%s model=%s attempt=%d elapsed_ms=%.1f "
-                    "error_type=%s",
-                    operation,
-                    model,
-                    attempt + 1,
-                    (time.perf_counter() - attempt_started) * 1000,
-                    type(e).__name__,
-                )
-                last_error = e
-                is_rate_limit = (
-                    isinstance(e, httpx.HTTPStatusError) and e.response.status_code == 429
-                )
-                if is_rate_limit:
-                    await self._record_rate_limit_response()
-                    wait = min(2**attempt, 8)
-                    logger.warning(
-                        f"OpenRouter streaming 429 — retry {attempt + 1}/{self._max_retries} after {wait}s"
+                    self._circuit.record_success()
+                    usage = stream_usage or {}
+                    prompt_tokens = usage.get("prompt_tokens") or self._estimate_tokens(
+                        str(messages)
                     )
-                    await asyncio.sleep(wait)
-                else:
-                    self._circuit.record_failure()
-                    logger.error(f"OpenRouter streaming failed: {e}")
-                    raise
+                    completion_tokens = usage.get("completion_tokens") or self._estimate_tokens(
+                        buffer
+                    )
+                    cost_usd = self._usage_cost(usage) if stream_usage is not None else None
+                    self._track_token_usage(
+                        tokens_in=prompt_tokens,
+                        tokens_out=completion_tokens,
+                        model=model,
+                        cost_usd=cost_usd,
+                    )
+                    await reservation.settle(cost_usd)
+                    record_llm_result(
+                        _span,
+                        completion=buffer,
+                        prompt=messages,
+                        tokens_in=prompt_tokens,
+                        tokens_out=completion_tokens,
+                        cached_tokens=(stream_usage or {}).get("prompt_tokens_details", {}).get(
+                            "cached_tokens", 0
+                        )
+                        if isinstance(stream_usage, dict)
+                        else 0,
+                        cost_usd=cost_usd,
+                        finish_reason=finish_reason,
+                        response_model=model,
+                    )
+                    logger.info(
+                        "OPENROUTER_STREAM_TIMING operation=%s model=%s attempt=%d status_class=%s "
+                        "headers_ms=%.1f first_event_ms=%s ttft_ms=%s total_ms=%.1f "
+                        "prompt_tokens=%s completion_tokens=%s cached_tokens=%s "
+                        "finish_reason=%s",
+                        operation,
+                        model,
+                        attempt + 1,
+                        f"{int(getattr(resp, 'status_code', 0)) // 100}xx",
+                        headers_ready_ms or 0.0,
+                        "%.1f" % first_event_ms if first_event_ms is not None else "none",
+                        "%.1f" % first_token_ms if first_token_ms is not None else "none",
+                        (time.perf_counter() - stream_started) * 1000,
+                        prompt_tokens,
+                        completion_tokens,
+                        (stream_usage or {}).get("prompt_tokens_details", {}).get(
+                            "cached_tokens", 0
+                        )
+                        if isinstance(stream_usage, dict)
+                        else 0,
+                        finish_reason,
+                    )
+                    return
 
-        if not self._circuit.can_execute():
-            raise CircuitOpenException(
-                provider="openrouter",
-                message="Circuit breaker OPEN in generate_stream",
+                except Exception as e:
+                    logger.warning(
+                        "OPENROUTER_STREAM_ERROR_TIMING operation=%s model=%s attempt=%d elapsed_ms=%.1f "
+                        "error_type=%s",
+                        operation,
+                        model,
+                        attempt + 1,
+                        (time.perf_counter() - attempt_started) * 1000,
+                        type(e).__name__,
+                    )
+                    last_error = e
+                    is_rate_limit = (
+                        isinstance(e, httpx.HTTPStatusError) and e.response.status_code == 429
+                    )
+                    if is_rate_limit:
+                        await self._record_rate_limit_response()
+                        wait = min(2**attempt, 8)
+                        logger.warning(
+                            f"OpenRouter streaming 429 — retry {attempt + 1}/{self._max_retries} after {wait}s"
+                        )
+                        await asyncio.sleep(wait)
+                    else:
+                        self._circuit.record_failure()
+                        logger.error(f"OpenRouter streaming failed: {e}")
+                        record_llm_error(_span, e)
+                        raise
+
+            if not self._circuit.can_execute():
+                raise CircuitOpenException(
+                    provider="openrouter",
+                    message="Circuit breaker OPEN in generate_stream",
+                )
+            logger.error(
+                f"OpenRouter streaming exhausted {self._max_retries} retries: {last_error}"
             )
-        logger.error(f"OpenRouter streaming exhausted {self._max_retries} retries: {last_error}")
-        raise last_error or Exception("Streaming failed after all retries")
+            final_error = last_error or Exception("Streaming failed after all retries")
+            record_llm_error(_span, final_error)
+            raise final_error
 
     # -----------------------------------------------------------------------
     # Classification / RAG Operations

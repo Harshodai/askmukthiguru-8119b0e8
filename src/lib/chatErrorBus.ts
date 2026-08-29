@@ -53,7 +53,7 @@ export const chatErrorBus = {
     lastAt = now;
     const mapped = CODE_BY_KIND[err.kind] ?? CODE_BY_KIND.unknown;
     current = {
-      id: `${now}-${Math.random().toString(36).slice(2, 8)}`,
+      id: `${now}-${crypto.randomUUID()}`,
       at: now,
       code: err.code ?? mapped.code,
       nextStep: err.nextStep ?? mapped.nextStep,

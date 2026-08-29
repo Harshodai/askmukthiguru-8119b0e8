@@ -77,24 +77,31 @@ async def rag_span(
     try:
         from opentelemetry import trace
 
-        with tracer.start_as_current_span(name) as span:
-            try:
-                if tenant_id:
-                    span.set_attribute("rag.tenant_id", tenant_id)
-                if model:
-                    span.set_attribute("llm.model", model)
-                for k, v in extra_attrs.items():
-                    if isinstance(v, (str, int, float, bool)):
-                        span.set_attribute(f"rag.{k}", v)
-                yield span
-            except Exception as exc:
-                span.record_exception(exc)
-                span.set_status(trace.StatusCode.ERROR, str(exc))
-                raise
+        span_ctx = tracer.start_as_current_span(name)
+        span = span_ctx.__enter__()
     except Exception as exc:
         # Span creation itself failed — don't break the RAG pipeline
         logger.debug(f"tracing: span creation for '{name}' failed: {exc}")
         yield None
+        return
+
+    try:
+        if tenant_id:
+            span.set_attribute("rag.tenant_id", tenant_id)
+        if model:
+            span.set_attribute("llm.model", model)
+        for k, v in extra_attrs.items():
+            if isinstance(v, (str, int, float, bool)):
+                span.set_attribute(f"rag.{k}", v)
+        yield span
+    except Exception as exc:
+        # Real exception from the wrapped body — record it and let it propagate
+        # to the caller unchanged (never swallow or convert it here).
+        span.record_exception(exc)
+        span.set_status(trace.StatusCode.ERROR, str(exc))
+        raise
+    finally:
+        span_ctx.__exit__(None, None, None)
 
 
 def trace_rag_node(node_name: str):
@@ -126,23 +133,30 @@ def trace_rag_node(node_name: str):
             try:
                 from opentelemetry import trace
 
-                with tracer.start_as_current_span(f"rag.{node_name}") as span:
-                    span.set_attribute("rag.node", node_name)
-                    if state_keys:
-                        span.set_attribute("rag.state_keys", state_keys[:200])
-                    try:
-                        result = await func(*args, **kwargs)
-                        return result
-                    except Exception as exc:
-                        span.record_exception(exc)
-                        span.set_status(trace.StatusCode.ERROR, str(exc))
-                        raise
+                span_ctx = tracer.start_as_current_span(f"rag.{node_name}")
+                span = span_ctx.__enter__()
             except Exception as exc:
-                if "span" not in str(exc):  # Re-raise non-span errors
-                    raise
-                # Span setup failed — run the node without tracing
+                # Span setup itself failed — run the node without tracing.
+                # This must never re-run func: a failure here happens before
+                # func is ever called.
                 logger.debug(f"tracing: span setup for node '{node_name}' failed: {exc}")
                 return await func(*args, **kwargs)
+
+            try:
+                span.set_attribute("rag.node", node_name)
+                if state_keys:
+                    span.set_attribute("rag.state_keys", state_keys[:200])
+                result = await func(*args, **kwargs)
+                return result
+            except Exception as exc:
+                # Real exception from the node — record it and let it
+                # propagate unchanged. Never swallow or trigger a retry
+                # based on the exception's message text.
+                span.record_exception(exc)
+                span.set_status(trace.StatusCode.ERROR, str(exc))
+                raise
+            finally:
+                span_ctx.__exit__(None, None, None)
 
         return wrapper
 

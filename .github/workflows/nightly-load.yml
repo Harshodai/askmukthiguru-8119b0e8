@@ -46,9 +46,9 @@ jobs:
             curl -sf http://127.0.0.1:9002/ >/dev/null && break
             sleep 1
           done
-          docker compose up -d qdrant redis
+          docker compose -f backend/docker-compose.yml up -d qdrant redis
           LLM_PROVIDER=nim NIM_API_KEY=mock NIM_BASE_URL=http://host.docker.internal:9002/v1 \
-            docker compose up -d backend
+            docker compose -f backend/docker-compose.yml up -d backend
           for i in $(seq 1 60); do
             curl -sf http://127.0.0.1:8000/api/healthz >/dev/null && break
             sleep 2

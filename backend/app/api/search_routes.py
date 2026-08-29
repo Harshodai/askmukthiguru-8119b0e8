@@ -8,6 +8,7 @@ Provides:
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 import re
 from typing import Any, Optional
 from urllib.parse import parse_qs, urlparse
@@ -17,6 +18,7 @@ from pydantic import BaseModel, Field
 from qdrant_client.http import models as qmodels
 
 from app.dependencies import ServiceContainer, get_container
+from app.sanitization import sanitize_log_input
 from app.security_utils import is_benchmark_request
 from services.auth_service import get_optional_user, resolve_anon_identity
 from services.web_search_service import WebSearchService
@@ -36,16 +38,19 @@ def _extract_video_id(url: str) -> Optional[str]:
     if not url:
         return None
     parsed = urlparse(url)
+    vid = None
     if parsed.hostname in ("www.youtube.com", "youtube.com"):
         if parsed.path == "/watch":
             qs = parse_qs(parsed.query)
-            return qs.get("v", [None])[0]
+            vid = qs.get("v", [None])[0]
         elif parsed.path.startswith("/embed/"):
-            return parsed.path.split("/embed/")[1].split("?")[0]
+            vid = parsed.path.split("/embed/")[1].split("?")[0]
         elif parsed.path.startswith("/v/"):
-            return parsed.path.split("/v/")[1].split("?")[0]
+            vid = parsed.path.split("/v/")[1].split("?")[0]
     elif parsed.hostname in ("youtu.be", "www.youtu.be"):
-        return parsed.path.lstrip("/").split("?")[0]
+        vid = parsed.path.lstrip("/").split("?")[0]
+    if vid and re.match(r"^[A-Za-z0-9_-]{1,64}$", vid):
+        return vid
     return None
 
 
@@ -113,28 +118,41 @@ async def inspect_source(
                     "raptor_level": payload.get("raptor_level", 0),
                 })
     except Exception as exc:
-        logger.warning(f"Failed to scroll Qdrant for source {clean_url}: {exc}")
+        logger.warning(f"Failed to scroll Qdrant for source {sanitize_log_input(clean_url)}: {exc}")
 
     # Fallback to local projected transcript cache if Qdrant points not populated
-    if not chunks and video_id:
-        import os
-        possible_paths = [
-            f"transcripts/{video_id}.md",
-            f"/app/transcripts/{video_id}.md",
-            f"../transcripts/{video_id}.md",
-            f"scripts/ingestion/corpus/{video_id}/transcript.md",
-            f"/app/scripts/ingestion/corpus/{video_id}/transcript.md",
+    if not chunks and video_id and re.match(r"^[A-Za-z0-9_-]{1,64}$", video_id):
+        candidate_bases = [
+            Path("transcripts").resolve(),
+            Path("/app/transcripts").resolve(),
+            Path("../transcripts").resolve(),
+            Path("scripts/ingestion/corpus").resolve(),
+            Path("/app/scripts/ingestion/corpus").resolve(),
         ]
-        for p in possible_paths:
-            if os.path.isfile(p):
-                try:
-                    with open(p, "r", encoding="utf-8") as f:
+        candidate_paths = [
+            Path("transcripts") / f"{video_id}.md",
+            Path("/app/transcripts") / f"{video_id}.md",
+            Path("../transcripts") / f"{video_id}.md",
+            Path("scripts/ingestion/corpus") / video_id / "transcript.md",
+            Path("/app/scripts/ingestion/corpus") / video_id / "transcript.md",
+        ]
+        for p in candidate_paths:
+            try:
+                resolved_p = p.resolve()
+                if not any(
+                    resolved_p.is_relative_to(base)
+                    for base in candidate_bases
+                    if base.exists()
+                ):
+                    continue
+                if resolved_p.is_file():
+                    with resolved_p.open("r", encoding="utf-8") as f:
                         raw_content = f.read()
-                    
+
                     title_match = re.search(r"^#\s+(.+)$", raw_content, re.MULTILINE)
                     if title_match:
                         source_title = title_match.group(1).strip()
-                    
+
                     speaker = "Sri Krishnaji / Sri Preethaji"
                     speaker_match = re.search(r"\*\*Speaker:\*\*\s*(.+)$", raw_content, re.MULTILINE)
                     if speaker_match:
@@ -143,7 +161,7 @@ async def inspect_source(
                     transcript_body = raw_content
                     if "## Transcript" in raw_content:
                         transcript_body = raw_content.split("## Transcript", 1)[1].strip()
-                    
+
                     paragraphs = [para.strip() for para in transcript_body.split("\n\n") if para.strip()]
                     for i, para in enumerate(paragraphs):
                         chunks.append({
@@ -156,8 +174,8 @@ async def inspect_source(
                             "raptor_level": 0,
                         })
                     break
-                except Exception as file_err:
-                    logger.warning(f"Error reading transcript file {p}: {file_err}")
+            except Exception as file_err:
+                logger.warning(f"Error reading transcript file {sanitize_log_input(str(p))}: {file_err}")
 
     # Sort chunks by raptor_level asc, then chunk_index asc
     chunks.sort(key=lambda c: (c.get("raptor_level", 0), c.get("chunk_index", 0)))

@@ -43,6 +43,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Optional
 
+from app.sanitization import sanitize_log_input
+
 logger = logging.getLogger(__name__)
 
 
@@ -150,7 +152,10 @@ class ABTestRouter:
         config = self._experiments.get(experiment_name)
 
         if config is None:
-            logger.debug(f"ABTestRouter: unknown experiment '{experiment_name}'; using fallback")
+            logger.debug(
+                "ABTestRouter: unknown experiment '%s'; using fallback",
+                sanitize_log_input(experiment_name),
+            )
             return ABTestResult(
                 experiment_name=experiment_name,
                 user_id=user_id,
@@ -162,7 +167,10 @@ class ABTestRouter:
             )
 
         if not config.is_active:
-            logger.debug(f"ABTestRouter: experiment '{experiment_name}' inactive; using control")
+            logger.debug(
+                "ABTestRouter: experiment '%s' inactive; using control",
+                sanitize_log_input(experiment_name),
+            )
             return ABTestResult(
                 experiment_name=experiment_name,
                 user_id=user_id,
@@ -173,38 +181,44 @@ class ABTestRouter:
                 assignment_hash="",
             )
 
-        # Deterministic hash: SHA-256(user_id + experiment_name) → float in [0, 1)
-        hash_input = f"{user_id}:{experiment_name}".encode()
-        digest = hashlib.sha256(hash_input).hexdigest()
-        # Use first 8 hex chars as a 32-bit integer → normalize to [0, 1)
-        hash_val = int(digest[:8], 16) / 0xFFFFFFFF
+        # Hash(user_id + salt + experiment_name) -> uniform float in [0, 1)
+        raw = f"{user_id}:{self._salt}:{experiment_name}".encode("utf-8")
+        hash_hex = hashlib.sha256(raw).hexdigest()
+        hash_int = int(hash_hex[:8], 16)
+        scale = hash_int / 0xFFFFFFFF
 
-        # Weighted selection
+        # Cumulative weight lookup
         cumulative = 0.0
-        selected_idx = 0
-        for i, weight in enumerate(config.weights):
+        selected_variant = config.variants[-1]  # fallback
+        selected_index = len(config.variants) - 1
+
+        for i, (variant, weight) in enumerate(zip(config.variants, config.weights)):
             cumulative += weight
-            if hash_val < cumulative:
-                selected_idx = i
+            if scale < cumulative:
+                selected_variant = variant
+                selected_index = i
                 break
 
-        variant = config.variants[selected_idx]
-        result = ABTestResult(
-            experiment_name=experiment_name,
-            user_id=user_id,
-            variant=variant,
-            variant_index=selected_idx,
-            is_control=(selected_idx == 0),
-            experiment_type=config.experiment_type,
-            assignment_hash=digest[:16],
-        )
+        is_control = selected_variant == config.control
 
         logger.debug(
-            f"ABTestRouter: user={user_id[:8]}... → "
-            f"experiment={experiment_name} variant={variant} "
-            f"(hash={digest[:8]}, val={hash_val:.4f})"
+            "ABTestRouter: user='%s' experiment='%s' scale=%.4f -> variant='%s' (control=%s)",
+            sanitize_log_input(user_id),
+            sanitize_log_input(experiment_name),
+            scale,
+            sanitize_log_input(selected_variant),
+            is_control,
         )
-        return result
+
+        return ABTestResult(
+            experiment_name=experiment_name,
+            user_id=user_id,
+            variant=selected_variant,
+            variant_index=selected_index,
+            is_control=is_control,
+            experiment_type=config.experiment_type,
+            assignment_hash=hash_hex[:16],
+        )
 
     def list_experiments(self) -> list[dict]:
         """Return summary of all registered experiments."""

@@ -11,6 +11,8 @@ import logging
 import re
 from typing import Optional
 
+from urllib.parse import urlparse
+
 from rag.nodes.utils import log_metrics
 from rag.states import GraphState
 
@@ -42,7 +44,17 @@ def _is_youtube_url(source: str) -> bool:
     """Check if source is a YouTube URL."""
     if not source:
         return False
-    return "youtube.com" in source.lower() or "youtu.be" in source.lower()
+    try:
+        parsed = urlparse(source.strip())
+        host = (parsed.hostname or "").lower()
+        return (
+            host == "youtube.com"
+            or host.endswith(".youtube.com")
+            or host == "youtu.be"
+            or host.endswith(".youtu.be")
+        )
+    except Exception:
+        return False
 
 
 @log_metrics

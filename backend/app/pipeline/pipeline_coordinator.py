@@ -41,6 +41,7 @@ from app.orchestrator_utils import cache_language_key
 from app.pipeline.result import PipelineResult
 from app.pipeline.stages import PipelineContext, StageRunner, build_default_pipeline
 from app.release_manifest import get_release_manifest
+from app.sanitization import sanitize_log_input
 from rag.memory import normalize_session_id
 from services.health_monitor import HealthMonitor
 from services.tenant_context import TenantContext
@@ -197,9 +198,9 @@ class PipelineCoordinator:
         except TimeoutError:
             logger.error(
                 "Pipeline timed out for user %s: query_token='%s' trace='%s'",
-                user_id,
+                sanitize_log_input(str(user_id)),
                 _query_token(user_msg),
-                trace_id,
+                sanitize_log_input(str(trace_id)),
             )
             latency_ms = int((time.time() - start_time) * 1000)
             return PipelineResult(
@@ -215,9 +216,9 @@ class PipelineCoordinator:
         except Exception:
             logger.exception(
                 "Pipeline crashed for user %s: query_token='%s' trace='%s'",
-                user_id,
+                sanitize_log_input(str(user_id)),
                 _query_token(user_msg),
-                trace_id,
+                sanitize_log_input(str(trace_id)),
             )
             latency_ms = int((time.time() - start_time) * 1000)
             return PipelineResult(
@@ -288,7 +289,7 @@ class PipelineCoordinator:
             # failure must stay visible in logs.
             logger.debug(
                 "Personalization probe failed for user %s, returning conservative True: %s",
-                user_id,
+                sanitize_log_input(str(user_id)),
                 exc,
             )
             return True
@@ -314,7 +315,7 @@ class PipelineCoordinator:
                 logger.debug(
                     "user_profile.get_recent_memories probe failed for user %s, "
                     "treating as has-memory: %s",
-                    user_id,
+                    sanitize_log_input(str(user_id)),
                     exc,
                 )
                 return True
@@ -327,7 +328,7 @@ class PipelineCoordinator:
                 # a failed probe cannot prove absence
                 logger.debug(
                     "memory_service.get_core probe failed for user %s, treating as has-memory: %s",
-                    user_id,
+                    sanitize_log_input(str(user_id)),
                     exc,
                 )
                 return True

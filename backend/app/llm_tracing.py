@@ -27,6 +27,7 @@ from __future__ import annotations
 import functools
 import logging
 import os
+from contextlib import contextmanager
 from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
@@ -150,6 +151,30 @@ def traced_llm_call(provider: str):
         return wrapper
 
     return decorator
+
+
+@contextmanager
+def llm_span(provider: str):
+    """Context-manager sibling of `traced_llm_call`, for call sites a plain
+    decorator can't wrap — an async generator that yields many times (SSE
+    token streaming) while the span must stay open across every yield.
+    Same fail-open contract: a broken tracer yields None instead of raising.
+    """
+    try:
+        from opentelemetry import trace
+
+        tracer = trace.get_tracer("mukthiguru.llm")
+        cm = tracer.start_as_current_span(f"llm {provider}")
+    except Exception:  # pragma: no cover - defensive
+        yield None
+        return
+
+    with cm as span:
+        try:
+            span.set_attribute("gen_ai.system", provider)
+        except Exception:  # pragma: no cover - defensive
+            pass
+        yield span
 
 
 def record_llm_result(

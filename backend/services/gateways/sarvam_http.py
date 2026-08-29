@@ -548,6 +548,8 @@ class SarvamHTTPGateway:
                                 logger.warning(f"Tier limit hit; capping max_tokens → {tier_limit}")
                                 self._max_tokens_limit = tier_limit
                                 payload["max_tokens"] = tier_limit
+                                if span is not None:
+                                    span.set_attribute("gen_ai.retry_reason", "tier_limit")
                                 if span_ctx is not None:
                                     span_ctx.__exit__(None, None, None)
                                 continue  # retry immediately within while loop
@@ -563,6 +565,8 @@ class SarvamHTTPGateway:
                                 )
                                 payload["model"] = "sarvam-30b"
                                 payload["max_tokens"] = min(payload.get("max_tokens", 4096), 4096)
+                                if span is not None:
+                                    span.set_attribute("gen_ai.retry_reason", "context_window")
                                 if span_ctx is not None:
                                     span_ctx.__exit__(None, None, None)
                                 continue  # retry immediately within while loop
@@ -579,6 +583,8 @@ class SarvamHTTPGateway:
                                             f"Context exceeded; reducing max_tokens → {allowed}"
                                         )
                                         payload["max_tokens"] = allowed
+                                        if span is not None:
+                                            span.set_attribute("gen_ai.retry_reason", "context_window")
                                         if span_ctx is not None:
                                             span_ctx.__exit__(None, None, None)
                                         continue  # retry immediately within while loop
@@ -593,6 +599,8 @@ class SarvamHTTPGateway:
                                 _tried_key_indices.add(new_index)
                                 headers["api-subscription-key"] = new_key
                                 logger.warning("Sarvam 429 — rotated API key, retrying immediately")
+                                if span is not None:
+                                    span.set_attribute("gen_ai.retry_reason", "key_rotation")
                                 if span_ctx is not None:
                                     span_ctx.__exit__(None, None, None)
                                 continue
@@ -608,16 +616,21 @@ class SarvamHTTPGateway:
                         resp.raise_for_status()
 
                         data = resp.json()
+                        usage_for_span = data.get("usage", {})
+                        actual_cost_usd = (
+                            (usage_for_span.get("prompt_tokens") or 0)
+                            + (usage_for_span.get("completion_tokens") or 0)
+                        ) / 1000.0 * 0.0001
 
                         if span is not None:
                             span.set_attribute("http.status_code", resp.status_code)
-                            usage = data.get("usage", {})
                             # Shared recorder so Sarvam and OpenRouter emit an
                             # identical attribute shape (gen_ai.usage.*).
                             record_llm_result(
                                 span,
-                                tokens_in=usage.get("prompt_tokens"),
-                                tokens_out=usage.get("completion_tokens"),
+                                tokens_in=usage_for_span.get("prompt_tokens"),
+                                tokens_out=usage_for_span.get("completion_tokens"),
+                                cost_usd=actual_cost_usd,
                                 response_model=data.get("model"),
                             )
 
@@ -657,9 +670,6 @@ class SarvamHTTPGateway:
 
                         # Settle budget reservation with estimated/reported token cost
                         try:
-                            usage = data.get("usage", {})
-                            tokens = (usage.get("prompt_tokens") or 0) + (usage.get("completion_tokens") or 0)
-                            actual_cost_usd = (tokens / 1000.0) * 0.0001
                             await reservation.settle(actual_cost_usd)
                         except Exception as settle_err:
                             logger.debug(f"Budget settlement failed (non-fatal): {settle_err}")

@@ -17,6 +17,7 @@ from app.config import settings
 from app.core.limiter import limiter
 from app.dependencies import ServiceContainer, get_container
 from app.language_utils import detect_message_lang
+from app.sanitization import sanitize_log_input
 from app.schemas.compliance_provenance import (
     AIProvenanceManifest,
     ArtifactModality,
@@ -144,11 +145,11 @@ async def speech_to_text_endpoint(
                     transcript = result.get("transcript", "")
                     detected_lang = result.get("language_code", language_code or "en-IN")
                     logger.info(
-                        f"Sarvam STT returned transcript: {transcript} (lang: {detected_lang})"
+                        f"Sarvam STT returned transcript: {sanitize_log_input(transcript)} (lang: {sanitize_log_input(str(detected_lang))})"
                     )
                     return {"transcript": transcript, "language_code": detected_lang}
                 else:
-                    logger.error(f"Sarvam STT failed with status {resp.status_code}: {resp.text}")
+                    logger.error(f"Sarvam STT failed with status {resp.status_code}: {sanitize_log_input(resp.text)}")
         except Exception as e:
             logger.error(f"Error calling Sarvam STT: {e}")
 
@@ -315,7 +316,7 @@ async def text_to_speech_endpoint(
                 else:
                     raise Exception("Sarvam TTS returned empty audio list")
             else:
-                logger.error(f"Sarvam TTS failed with status {resp.status_code}: {resp.text}")
+                logger.error(f"Sarvam TTS failed with status {resp.status_code}: {sanitize_log_input(resp.text)}")
                 raise HTTPException(
                     status_code=502, detail="Speech synthesis failed. Please try again."
                 )

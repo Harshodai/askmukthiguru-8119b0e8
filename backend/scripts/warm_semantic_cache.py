@@ -35,6 +35,24 @@ def _collect_sample_queries() -> list[str]:
     return deduped[:120]
 
 
+import re
+
+from app.sanitization import sanitize_log_input
+
+
+def _redact_secrets(text: str) -> str:
+    """Redact bearer tokens, auth tokens, API keys, or secret headers from log output."""
+    if not text:
+        return ""
+    redacted = re.sub(r"(?i)(bearer\s+)[A-Za-z0-9_\-\.]+", r"\1[REDACTED]", str(text))
+    redacted = re.sub(
+        r"(?i)(api[_-]?key|secret|password|auth[_-]?token|token|authorization)\s*[:=]\s*['\"]?[A-Za-z0-9_\-\.]+['\"]?",
+        r"\1=[REDACTED]",
+        redacted,
+    )
+    return redacted
+
+
 async def warm() -> int:
     """Run all sample queries through the chat endpoint and populate cache."""
     import time
@@ -63,9 +81,10 @@ async def warm() -> int:
                 if resp.status_code == 200:
                     cached += 1
             except Exception as exc:
-                print(f"  Query {i + 1} failed: {exc}")
+                clean_exc = sanitize_log_input(_redact_secrets(str(exc)))
+                print(f"  Query {i + 1} failed: {clean_exc}")
             dur = time.time() - start
-            print(f"  [{i + 1}/{len(queries)}] {q[:50]}... ({dur:.1f}s)")
+            print(f"  [{i + 1}/{len(queries)}] Query processed ({dur:.1f}s)")
     print(f"Done. {cached}/{len(queries)} responses cached.")
     return cached
 

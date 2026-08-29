@@ -251,7 +251,7 @@ const LazyYouTube = ({ videoId, url }: { videoId: string; url: string }) => {
     // Use an off-screen probe element so the visible iframe is the only DOM node.
     let probeContainer: HTMLDivElement | null = null;
     if (window.YT?.Player) {
-      const containerId = `yt-probe-${videoId}-${Math.random().toString(36).slice(2, 8)}`;
+      const containerId = `yt-probe-${videoId}-${crypto.randomUUID()}`;
       probeContainer = document.createElement('div');
       probeContainer.id = containerId;
       probeContainer.style.cssText = 'position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;';
@@ -451,7 +451,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
     // replacing them silently drops the crisis helpline text they carry.
     const hasUnverifiedAttribution = useMemo(() => {
       if (!isGuru || citations.length > 0 || groundingState === 'safety_redirect') return false;
-      return /(?:Sri\s+(?:Preethaji|Krishnaji)|Preethaji|Krishnaji)[^.\n]{0,60}["“'']/.test(message.content);
+      return /(?:Sri\s+(?:Preethaji|Krishnaji)|Preethaji|Krishnaji)[^.\n]{0,60}["“'”’]/.test(message.content);
     }, [isGuru, citations.length, groundingState, message.content]);
 
     const displayContent = useMemo(() => {
@@ -550,7 +550,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
       [message.content]);
     const sentences = useMemo(() => {
       if (!plainText) return [];
-      return plainText.split(/(?<=[.!?।?\n])\s+/).map((s) => s.trim()).filter(Boolean);
+      return plainText.split(/(?<=[.!?।\n])\s+/).map((s) => s.trim()).filter(Boolean);
     }, [plainText]);
     const handleSpeak = useCallback(() => {
       if (isSpeaking) {

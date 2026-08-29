@@ -393,7 +393,7 @@ def create_default_breakers() -> dict[str, DefaultCircuitBreaker]:
 
     breakers = {}
 
-    for provider in CircuitBreakerProvider:
+    for provider in list(CircuitBreakerProvider):
         config = CircuitBreakerConfig.from_provider(provider.value)
         breakers[provider.value] = DefaultCircuitBreaker(config)
 

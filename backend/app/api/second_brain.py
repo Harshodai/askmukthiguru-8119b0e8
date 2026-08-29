@@ -50,16 +50,19 @@ async def _authed_user_id(user: dict = Depends(get_current_user_from_supabase)) 
     return user_id
 
 
-def _derive_unlock_value(passphrase: str) -> str:
+_UNLOCK_SALT = b"second_brain_vault_unlock_salt"
+
+
+def _derive_unlock_value(passphrase: str, salt: bytes = _UNLOCK_SALT) -> str:
     """Mirror the client-side derivation in src/lib/secondBrainApi.ts
     (deriveBrainUnlock): every touchpoint that mints or checks a Mode-B KEK
     must feed the SAME derived value into Argon2id, since the frontend never
     sends the raw passphrase itself except on this one enable call — every
-    later request (add/list/recall/export) carries only SHA-256(passphrase)
+    later request (add/list/recall/export) carries PBKDF2(passphrase)
     via X-Brain-Unlock. Deriving the KEK from the raw passphrase here while
     unlock() derives it from the header's already-hashed value would wrap
     the DEK under a KEK the client can never reproduce again."""
-    return hashlib.sha256(passphrase.encode("utf-8")).hexdigest()
+    return hashlib.pbkdf2_hmac("sha256", passphrase.encode("utf-8"), salt, 600000).hex()
 
 
 async def _vault(

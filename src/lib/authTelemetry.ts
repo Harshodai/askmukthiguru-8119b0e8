@@ -115,7 +115,7 @@ const log = (msg: string, data?: unknown): void => {
 
 export const startAuthRun = (provider: AuthRun['provider']): AuthRun => {
   const run: AuthRun = {
-    id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+    id: `${Date.now().toString(36)}-${crypto.randomUUID()}`,
     provider,
     startedAt: Date.now(),
     endedAt: null,
