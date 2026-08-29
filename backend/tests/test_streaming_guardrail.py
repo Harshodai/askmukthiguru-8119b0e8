@@ -220,6 +220,11 @@ async def test_stream_disconnect_cancels_pipeline_task() -> None:
             user={"id": "u1"},
         )
         stream = response.body_iterator
+        # Two unconditional yields precede the pipeline-execution loop now: the
+        # original "status" event, plus P1-5's new initial "stage" progress
+        # event (app/stream_orchestrator.py). Both must be drained before the
+        # next __anext__() can observe the disconnect-triggered termination.
+        await stream.__anext__()
         await stream.__anext__()
         await asyncio.wait_for(pipeline_started.wait(), timeout=1)
         request.disconnected = True

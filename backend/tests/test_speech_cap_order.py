@@ -30,6 +30,15 @@ def _make_upload(size: int | None, content: bytes = b"") -> UploadFile:
 @patch("app.api.speech.httpx.AsyncClient")
 async def test_oversized_upload_rejected_before_decode(mock_httpx, mock_whisper):
     request = AsyncMock()
+    # request.headers is real code's Mapping-like, sync .get(). AsyncMock makes
+    # every attribute access recursively async, so request.headers.get(...)
+    # returns an unawaited coroutine instead of a string -- is_benchmark_request()
+    # then compares that coroutine against a real str in hmac.compare_digest and
+    # raises TypeError instead of returning False (surfaces only when
+    # settings.enable_test_auth happens to be True, e.g. leaked from another
+    # test's unpatched settings mutation -- security_utils.py's own docstring
+    # warns about that pattern). A plain dict has the right sync .get().
+    request.headers = {}
     container = AsyncMock()
 
     upload = _make_upload(30 * 1024 * 1024, _OVERSIZED)
@@ -56,6 +65,15 @@ async def test_oversized_upload_rejected_before_decode(mock_httpx, mock_whisper)
 async def test_oversized_body_with_unknown_size_rejected_before_decode(mock_whisper):
     """Content-Length absent (file.size None) — bounded read must 413 anyway."""
     request = AsyncMock()
+    # request.headers is real code's Mapping-like, sync .get(). AsyncMock makes
+    # every attribute access recursively async, so request.headers.get(...)
+    # returns an unawaited coroutine instead of a string -- is_benchmark_request()
+    # then compares that coroutine against a real str in hmac.compare_digest and
+    # raises TypeError instead of returning False (surfaces only when
+    # settings.enable_test_auth happens to be True, e.g. leaked from another
+    # test's unpatched settings mutation -- security_utils.py's own docstring
+    # warns about that pattern). A plain dict has the right sync .get().
+    request.headers = {}
     container = AsyncMock()
 
     upload = _make_upload(None, _OVERSIZED)

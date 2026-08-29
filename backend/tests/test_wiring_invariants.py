@@ -47,6 +47,16 @@ ALLOWED_DEAD_SETTINGS: set[str] = {
     "notebook_rate_limit": "C5: dead, deletion owned by C5",
     "profile_rate_limit": "C5: dead, deletion owned by C5",
     "guardrails_audit_enabled": "C5: dead, deletion owned by C5",
+    # Not actually dead -- read dynamically via getattr(settings, f"{provider}_x", ...)
+    # in LLMBudgetGuard.from_settings (services/llm_budget_guard.py), constructed by
+    # sarvam_http.py:117. The static detector below can't see through the f-string
+    # attribute name, unlike OpenRouterBudgetGuard's static `settings.openrouter_x`
+    # access (app/openrouter_budget.py), which is why only the sarvam_* family needs
+    # this allowlisting and the openrouter_* equivalents don't.
+    "sarvam_budget_guard_enabled": "P0-3: dynamic getattr, see LLMBudgetGuard.from_settings",
+    "sarvam_daily_budget_usd": "P0-3: dynamic getattr, see LLMBudgetGuard.from_settings",
+    "sarvam_monthly_budget_usd": "P0-3: dynamic getattr, see LLMBudgetGuard.from_settings",
+    "sarvam_max_request_cost_usd": "P0-3: dynamic getattr, see LLMBudgetGuard.from_settings",
 }
 
 # Additional dead fields found by the initial scan (S1, 2026-08-11) that are

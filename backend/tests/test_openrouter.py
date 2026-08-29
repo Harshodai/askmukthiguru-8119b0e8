@@ -5,6 +5,18 @@ from services.llm.openrouter_provider import OpenRouterProvider
 from services.openrouter_service import OpenRouterService
 
 
+@pytest.fixture(autouse=True)
+def _disable_budget_guard(monkeypatch):
+    """These tests exercise retry/model-fallback/generation logic, not the
+    Redis-backed spend guard (P0-3, app/openrouter_budget.py) -- that guard is
+    covered by its own tests/test_llm_budget_guard.py. The guard defaults to
+    enabled + fail_closed=True in production (2026-08-29), which is correct
+    there but makes every OpenRouterService() construction here try a real
+    Redis connection and raise OpenRouterBudgetUnavailable with no Redis
+    configured in this test environment."""
+    monkeypatch.setattr(settings, "openrouter_budget_guard_enabled", False)
+
+
 class FakeResponse:
     def __init__(self, status_code=200, data=None):
         self.status_code = status_code

@@ -42,6 +42,12 @@ async def test_text_to_speech_endpoint_provenance_and_watermarking(mock_client_c
     mock_client_cls.return_value = mock_client
 
     request = MagicMock()
+    # request.headers.get("X-Test-Key", "") must return a real str -- an
+    # unconfigured MagicMock's .get() returns a child Mock instead of the
+    # default, and is_benchmark_request() then compares it against a real str
+    # in hmac.compare_digest (TypeError), same root cause as
+    # test_speech_cap_order.py's identical fix.
+    request.headers = {}
     req = SpeechTTSRequest(
         text="Peace begins within the silence of your own heart.",
         target_language_code="hi",

@@ -5,6 +5,14 @@ from services.cost_tracker import TokenAccumulator, token_accumulator_var
 from services.openrouter_service import OpenRouterService
 
 
+@pytest.fixture(autouse=True)
+def _disable_budget_guard(monkeypatch):
+    """These tests exercise token/cost-policy accounting, not the Redis-backed
+    spend guard (P0-3, app/openrouter_budget.py) -- see test_openrouter.py's
+    identical fixture for the full rationale."""
+    monkeypatch.setattr(settings, "openrouter_budget_guard_enabled", False)
+
+
 class _Response:
     def raise_for_status(self):
         return None
