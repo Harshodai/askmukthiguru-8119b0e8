@@ -33,7 +33,7 @@ if not os.getenv("SARVAM_API_KEY") and (not provider or provider == "sarvam_clou
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "backend"))
 
 from services.guru_brain.guru_brain_service import get_guru_brain_service
-from services.guru_brain.tone_extractor import PersonaToneExemplar, ToneExtractor
+from services.guru_brain.tone_extractor import ToneExtractor
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("ingest_guru_tone_podcast")

@@ -6,7 +6,6 @@ Generates 100% key parity with src/locales/en.json (1,077 keys, 0 missing, 0 ext
 
 import json
 import re
-import os
 
 def build_sa_locale():
     sa = {}

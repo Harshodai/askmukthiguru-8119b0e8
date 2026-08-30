@@ -12,9 +12,7 @@ import asyncio
 import functools
 import logging
 import random
-import re
 import time
-import uuid
 from typing import TYPE_CHECKING
 
 from app.config import settings
@@ -30,8 +28,8 @@ from app.pipeline.result import (
 from app.pipeline.stages.base import Stage
 from app.release_manifest import get_release_manifest
 from app.routing_primitives import (
-    GREETING_RE as _GREETING_RE,
-    GREETING_VOCATIVE_RE as _GREETING_VOCATIVE_RE,
+    GREETING_RE as _GREETING_RE,  # noqa: F401
+    GREETING_VOCATIVE_RE as _GREETING_VOCATIVE_RE,  # noqa: F401
     is_deterministic_greeting,
 )
 

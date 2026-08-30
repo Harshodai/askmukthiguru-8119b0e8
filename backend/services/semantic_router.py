@@ -33,7 +33,6 @@ import math
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass
-from functools import lru_cache
 from pathlib import Path
 
 import yaml

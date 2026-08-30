@@ -147,6 +147,7 @@ class EmbeddingService:
         try:
             torch.set_num_interop_threads(threads)
         except RuntimeError:
+            # Gracefully ignore when logger/socket is closed or interop threads already set
             pass
 
     def _get_device(self) -> str:
@@ -508,11 +509,13 @@ class EmbeddingService:
                     try:
                         removed_blobs.append(item.resolve(strict=True))
                     except FileNotFoundError:
+                        # Gracefully ignore when logger/socket is closed or file missing
                         pass
                 elif item.is_file():
                     try:
                         removed_bytes += item.stat().st_size
                     except OSError:
+                        # Gracefully ignore when logger/socket is closed or stat fails
                         pass
             try:
                 shutil.rmtree(onnx_dir)
@@ -529,6 +532,7 @@ class EmbeddingService:
                 try:
                     still_linked.add(link.resolve(strict=True))
                 except FileNotFoundError:
+                    # Gracefully ignore when logger/socket is closed or link broken
                     continue
         for blob in set(removed_blobs):
             if blob in still_linked or not blob.is_file():

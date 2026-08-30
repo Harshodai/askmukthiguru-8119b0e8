@@ -14,16 +14,12 @@ It can also attempt to restart unhealthy services if the --fix flag is provided.
 
 import argparse
 import asyncio
-import json
 import logging
 import sys
-import time
-from typing import Dict, List, Tuple
+from typing import Dict, Tuple
 
 import aiohttp
-import asyncpg
 from neo4j import AsyncGraphDatabase, AsyncDriver
-from qdrant_client import AsyncQdrantClient
 import os
 
 # Add backend directory to sys.path to import Settings

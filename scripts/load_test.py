@@ -25,7 +25,6 @@ Target SLOs:
   - /api/health: always < 200ms
 """
 
-import json
 import os
 import random
 import time

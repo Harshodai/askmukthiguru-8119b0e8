@@ -26,6 +26,19 @@ const ROUTES = [
   '/terms',
 ];
 
+const isGoogleOrYouTubeAccountUrl = (message: string): boolean => {
+  const urls = message.match(/https?:\/\/[^\s"'`<>]+/g);
+  if (!urls) return false;
+  return urls.some((raw) => {
+    try {
+      const { hostname } = new URL(raw);
+      return hostname === 'accounts.google.com' || hostname === 'accounts.youtube.com';
+    } catch {
+      return false;
+    }
+  });
+};
+
 const IGNORABLE = (e: string): boolean =>
   e.includes('React Router Future Flag') ||
   e.includes('Download the React DevTools') ||
@@ -34,8 +47,7 @@ const IGNORABLE = (e: string): boolean =>
   e.includes('ResizeObserver loop') ||
   e.includes('Failed to load resource') ||
   e.includes('503') ||
-  e.includes('accounts.google.com') ||
-  e.includes('accounts.youtube.com') ||
+  isGoogleOrYouTubeAccountUrl(e) ||
   e.includes('requestStorageAccess: Permission denied.') ||
   e.includes('.mp3') ||
   e.includes('useMeditationAudio');

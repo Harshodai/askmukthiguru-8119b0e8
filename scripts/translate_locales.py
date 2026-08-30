@@ -7,7 +7,7 @@ import asyncio
 import logging
 import argparse
 from pathlib import Path
-from typing import Dict, Any, List, Tuple, Set
+from typing import Dict, Any, List, Tuple
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")

@@ -18,7 +18,6 @@ import hashlib
 import json
 import logging
 import re
-import statistics
 import sys
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
@@ -33,7 +32,6 @@ if str(REPO_ROOT / "backend") not in sys.path:
 
 from services.doctrine_terms import (
     apply_corrections_with_ledger,
-    get_whisper_initial_prompt,
     load_doctrine_terms,
 )
 

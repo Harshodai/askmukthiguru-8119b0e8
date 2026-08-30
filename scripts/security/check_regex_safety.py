@@ -12,7 +12,7 @@ import ast
 import re
 import sys
 from pathlib import Path
-from typing import Iterator, Optional, Tuple
+from typing import Iterator, Tuple
 
 ROOT = Path(__file__).resolve().parents[2]
 SCAN_ROOTS = (ROOT / "backend", ROOT / "src", ROOT / "whatsapp_bot")

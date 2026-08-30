@@ -166,23 +166,6 @@ async function selectRows(
   return (await res.json()) as Record<string, unknown>[];
 }
 
-async function insertRow(
-  cfg: SupabaseConfig,
-  token: string,
-  table: string,
-  row: Record<string, unknown>,
-): Promise<Record<string, unknown>> {
-  const res = await fetch(`${cfg.supabaseUrl}/rest/v1/${table}`, {
-    method: 'POST',
-    headers: userHeaders(cfg, token),
-    body: JSON.stringify(row),
-  });
-  if (!res.ok) throw new Error(`insert ${table} failed: ${res.status} ${await res.text()}`);
-  const body = (await res.json()) as Record<string, unknown>[];
-  if (!body?.length) throw new Error(`insert ${table} returned no rows`);
-  return body[0];
-}
-
 async function insertAdminRow(
   cfg: SupabaseConfig,
   table: string,

@@ -642,7 +642,6 @@ except ImportError:
         CanonicalSegment,
         CorpusEngine,
         SpeakerEvidence,
-        compute_sha256,
     )
 
 corpus_engine = CorpusEngine()

@@ -18,7 +18,6 @@ import logging
 import os
 import re
 import sys
-import time
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("backfill_metadata")
@@ -112,6 +111,8 @@ def main() -> int:
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "backend"))
 
     from qdrant_client import QdrantClient
+
+    extract_video_metadata = None
     if not args.language_only:
         from services.metadata_extractor import extract_video_metadata
 
@@ -199,6 +200,8 @@ def main() -> int:
             meta = {"language": lang}
         else:
             try:
+                if extract_video_metadata is None:
+                    from services.metadata_extractor import extract_video_metadata
                 meta = extract_video_metadata(content, vid)
             except Exception as e:
                 logger.error("Failed to extract metadata for %s: %s", vid, e)

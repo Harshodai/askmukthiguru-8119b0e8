@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import argparse, csv, hashlib, json, multiprocessing as mp, re, statistics, sys
+import argparse, csv, hashlib, json, multiprocessing as mp, re, statistics
 from pathlib import Path
 from datetime import datetime, timezone
 

@@ -11,9 +11,7 @@ Run from repo root:
 Only processes files listed in FILES_TO_PROCESS.
 """
 
-import os
 import re
-import json
 from pathlib import Path
 
 SRC = Path("src")

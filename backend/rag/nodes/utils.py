@@ -33,7 +33,7 @@ settings = SettingsProxy()
 from datetime import UTC
 
 from app.metrics import PIPELINE_STAGE_LATENCY
-from domain.spiritual_ontology import (
+from domain.spiritual_ontology import (  # noqa: F401
     CANONICAL_ENTITY_ALIASES,
     canonical_entity_id,
     normalize_entity_name,

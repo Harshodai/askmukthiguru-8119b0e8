@@ -101,6 +101,7 @@ class ComplianceLogger:
             try:
                 self._audit_dir.mkdir(parents=True, exist_ok=True)
             except OSError:
+                # Gracefully ignore when logger/socket is closed
                 pass
 
     # ---- Session API ----

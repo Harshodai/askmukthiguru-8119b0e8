@@ -194,8 +194,17 @@ def cleanup(dry_run: bool = False, max_points: int | None = None) -> dict[str, A
         logger.info("Triggering RAPTOR rebuild for affected sources...")
         try:
             # ponytail: rebuild entire RAPTOR tree since we deleted leaf nodes
+            from services.embedding_service import EmbeddingService
+            from services.ollama_service import OllamaService
             from ingest.raptor import RaptorIndexer
-            raptor = RaptorIndexer(qdrant)
+
+            embedder = EmbeddingService()
+            llm = OllamaService()
+            raptor = RaptorIndexer(
+                embedding_service=embedder,
+                ollama_service=llm,
+                qdrant_service=qdrant,
+            )
             # RaptorIndexer.rebuild() will reconstruct summary nodes from remaining leaves
             logger.info("RAPTOR rebuild initiated — this may take a few minutes")
             # ponytail: async rebuild runs in background; fire-and-forget for now

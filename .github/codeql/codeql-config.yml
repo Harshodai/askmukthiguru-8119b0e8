@@ -1,0 +1,11 @@
+name: "CodeQL Configuration"
+
+queries:
+  - uses: security-extended
+
+paths-ignore:
+  - '.agent/**'
+  - '.agents/**'
+  - 'android/**'
+  - 'ios/**'
+  - 'dist/**'

@@ -35,17 +35,15 @@ os.environ["EMBEDDING_PROVIDER"] = "mock"
 
 import argparse
 import asyncio
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass
 import datetime
 import json
 import logging
-import math
 from pathlib import Path
 import random
-import re
 import statistics
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 # Ensure backend root is on sys.path
 BACKEND_DIR = Path(__file__).resolve().parent.parent

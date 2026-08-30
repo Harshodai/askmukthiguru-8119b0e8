@@ -11,7 +11,7 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import PayloadSchemaType

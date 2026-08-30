@@ -26,10 +26,8 @@ import argparse
 import asyncio
 import json
 import logging
-import os
 import sys
 import time
-import urllib.parse
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 

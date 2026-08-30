@@ -323,13 +323,18 @@ def sanitize_filename(filename, replacement="-"):
 
 def get_pdf_name(pdf_path):
     # Extract PDF name
+    pdf_name = "Untitled"
     if isinstance(pdf_path, str):
         pdf_name = os.path.basename(pdf_path)
+    elif isinstance(pdf_path, Path):
+        pdf_name = pdf_path.name
     elif isinstance(pdf_path, BytesIO):
         pdf_reader = PyPDF2.PdfReader(pdf_path)
         meta = pdf_reader.metadata
         pdf_name = meta.title if meta and meta.title else "Untitled"
         pdf_name = sanitize_filename(pdf_name)
+    elif hasattr(pdf_path, "name") and pdf_path.name:
+        pdf_name = sanitize_filename(str(pdf_path.name))
     return pdf_name
 
 
@@ -447,14 +452,15 @@ def get_page_tokens(pdf_path, model=None, pdf_parser="PyPDF2"):
         return page_list
     elif pdf_parser == "PyMuPDF":
         if isinstance(pdf_path, BytesIO):
-            pdf_stream = pdf_path
-            doc = pymupdf.open(stream=pdf_stream, filetype="pdf")
+            doc = pymupdf.open(stream=pdf_path, filetype="pdf")
         elif (
-            isinstance(pdf_path, str)
-            and os.path.isfile(pdf_path)
-            and pdf_path.lower().endswith(".pdf")
+            isinstance(pdf_path, (str, Path))
+            and os.path.isfile(str(pdf_path))
+            and str(pdf_path).lower().endswith(".pdf")
         ):
-            doc = pymupdf.open(pdf_path)
+            doc = pymupdf.open(str(pdf_path))
+        else:
+            raise ValueError(f"Unsupported or missing PDF file: {pdf_path}")
         page_list = []
         for page in doc:
             page_text = page.get_text()

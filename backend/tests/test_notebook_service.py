@@ -93,7 +93,8 @@ def test_delete_notebook() -> None:
     svc = NotebookService(supabase_client=client)
     asyncio.run(svc.create("u1", "To Delete"))
 
-    assert asyncio.run(svc.delete("u1", "nb1"))
+    deleted = asyncio.run(svc.delete("u1", "nb1"))
+    assert deleted is True
     # Our mock delete is a no-op; it only checks no exception is raised
 
 

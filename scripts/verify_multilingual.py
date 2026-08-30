@@ -19,12 +19,10 @@ Tests:
 from __future__ import annotations
 
 import asyncio
-import json
 import sys
 import time
 from argparse import ArgumentParser
-from dataclasses import dataclass, field
-from typing import Any
+from dataclasses import dataclass
 
 import httpx
 

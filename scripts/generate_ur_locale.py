@@ -5,8 +5,6 @@ Generates src/locales/ur.json with 100% key parity (1,077 keys) with en.json.
 Sacred terms: دھرم, کرم, موکش, ایکم, پریتاجی, کرشناجی, سول سنک, سرین مائنڈ, بیوٹیفل سٹیٹ
 """
 import json
-import os
-import re
 
 ur_data = {
   "distressIndicator": {

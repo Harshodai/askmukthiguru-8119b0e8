@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import argparse, csv, json, statistics
+import argparse, json, statistics
 from collections import Counter
 from pathlib import Path
 

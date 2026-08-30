@@ -10,7 +10,7 @@ import asyncio
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 # Make `backend` importable when run from the repo root.
 _REPO = Path(__file__).resolve().parents[2]

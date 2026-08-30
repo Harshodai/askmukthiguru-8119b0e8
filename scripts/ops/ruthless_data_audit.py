@@ -6,10 +6,7 @@ identifying orphans, duplicates, broken schemas, and cross-database mismatches.
 """
 
 import os
-import sys
 import json
-import argparse
-from collections import defaultdict
 from qdrant_client import QdrantClient
 from neo4j import GraphDatabase
 

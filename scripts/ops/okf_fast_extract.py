@@ -6,12 +6,9 @@ Usage: python3 scripts/ops/okf_fast_extract.py
 
 from __future__ import annotations
 
-import hashlib
-import json
 import logging
 import os
 import re
-import sys
 from pathlib import Path
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")

@@ -1,7 +1,5 @@
 # scripts/build_as_locale.py
 import json
-import re
-import os
 
 def get_all_keys(d, prefix=''):
     keys = {}

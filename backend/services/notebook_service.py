@@ -215,10 +215,19 @@ if __name__ == "__main__":  # ponytail: self-check
 
     async def _demo():
         svc = NotebookService(_MockClient())
-        assert (await svc.create("u1", "My Notebook"))["id"] == "nb1"
-        assert len(await svc.list("u1")) == 1
-        assert (await svc.add_item("u1", "nb1", "q", "a"))["id"] == "nb1"
-        assert await svc.delete("u1", "nb1")
+        created = await svc.create("u1", "My Notebook")
+        if created.get("id") != "nb1":
+            raise RuntimeError(f"Expected id nb1, got {created.get('id')}")
+        items = await svc.list("u1")
+        if len(items) != 1:
+            raise RuntimeError(f"Expected 1 item, got {len(items)}")
+        added = await svc.add_item("u1", "nb1", "q", "a")
+        if added.get("id") != "nb1":
+            raise RuntimeError(f"Expected id nb1, got {added.get('id')}")
+        deleted = await svc.delete("u1", "nb1")
+        if not deleted:
+            raise RuntimeError("Delete notebook failed")
         print("notebook_service OK")
 
     asyncio.run(_demo())
+

@@ -34,7 +34,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "backend"
 from app.container import _create_llm_service
 from rag.nodes.guru_tone_adapter import GuruToneAdapterNode
 from services.guru_brain.guru_brain_service import get_guru_brain_service
-from services.guru_brain.tone_extractor import ToneExtractor
 from services.guru_brain.persona_discriminator import PersonaDiscriminator
 from services.guru_brain.guru_kg_service import GuruKGService
 

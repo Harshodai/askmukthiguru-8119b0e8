@@ -1,6 +1,5 @@
 import csv
 import json
-from collections import Counter
 from pathlib import Path
 
 base=Path('scripts/ingestion/reviews/mantra_audit')

@@ -50,7 +50,6 @@ from scripts.ingestion.corpus_engine import (
     CanonicalSegment,
     CorpusEngine,
     SpeakerEvidence,
-    compute_sha256,
 )
 
 try:

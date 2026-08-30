@@ -1,8 +1,7 @@
 import { useTranslation } from 'react-i18next';
-import { X, Link as LinkIcon, ExternalLink, Play, Youtube } from "lucide-react";
+import { Link as LinkIcon, ExternalLink, Play, Youtube } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { cn } from "@/lib/utils";
 import type { Citation } from "@/lib/chat/types";
 
 export type { Citation };

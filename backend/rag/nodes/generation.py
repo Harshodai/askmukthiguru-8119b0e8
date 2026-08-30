@@ -25,7 +25,6 @@ from services.humanizer import scrub
 from services.language_router import LanguageCode, LanguageRouter
 
 from . import _services
-from .citation_extractor import extract_citations
 from .utils import (
     _generation_route,
     _grounded_citation_urls,

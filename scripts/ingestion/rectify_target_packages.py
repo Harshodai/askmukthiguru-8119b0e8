@@ -12,10 +12,8 @@ rectify_package() from here instead of maintaining a duplicate implementation.
 
 import hashlib
 import json
-import re
 import shutil
 import sys
-import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -23,7 +21,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "backend"))
 sys.path.insert(0, str(REPO_ROOT / "scripts" / "ingestion"))
 
-from services.doctrine_terms import apply_corrections_with_ledger, reload, load_doctrine_terms
+from services.doctrine_terms import apply_corrections_with_ledger, reload
 
 PIPELINE_VERSION = "2.0.0"
 

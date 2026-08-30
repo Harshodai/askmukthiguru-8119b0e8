@@ -1,4 +1,4 @@
-import csv,json,statistics,collections,subprocess,hashlib,datetime
+import csv,json,statistics,collections,hashlib,datetime
 from pathlib import Path
 base=Path('scripts/ingestion/reviews'); out=base/'status_and_corrections'; out.mkdir(parents=True,exist_ok=True)
 rows=list(csv.DictReader(open(base/'sanskrit_mantra_audit/mantra_correction_locations.csv',encoding='utf-8')))

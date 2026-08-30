@@ -20,17 +20,14 @@ import argparse
 import asyncio
 import json
 import logging
-import math
-import os
 import random
 import statistics
 import sys
 import time
-import uuid
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 try:
     from datetime import UTC

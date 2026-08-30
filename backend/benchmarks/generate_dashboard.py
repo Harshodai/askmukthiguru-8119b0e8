@@ -312,6 +312,11 @@ def build_html(ruthless, native, comprehensive, docker_logs, sdlc=None):
 
     # Native RAGAS Evaluator UI
     native_eval_html = ""
+    avg_sec = 0.0
+    avg_prec = 0.0
+    avg_faith = 0.0
+    avg_lat = 0.0
+    native_rows = ""
     if native:
         avg_sec = sum(r.get("security_score", 0.0) for r in native) / len(native)
         avg_prec = sum(r.get("precision", 0.0) for r in native) / len(native)

@@ -18,17 +18,12 @@ Outputs:
 
 from __future__ import annotations
 
-import argparse
-import asyncio
 import json
 import logging
-import math
-import os
 import re
 import statistics
 import sys
-import time
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -36,7 +31,7 @@ try:
     from datetime import UTC
 except ImportError:
     UTC = timezone.utc
-from typing import Any, Optional
+from typing import Any
 
 # Add backend directory to sys.path
 _BACKEND_DIR = Path(__file__).resolve().parents[1]
@@ -44,45 +39,16 @@ if str(_BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(_BACKEND_DIR))
 
 from benchmarks.question_bank import (
-    FOUR_SACRED_SECRETS,
-    MANIFEST_2026_POWERS,
     QUERIES,
-    SERENE_MIND_KNOWN,
-    SOUL_SYNC_STEPS_VERIFIED,
 )
 from benchmarks.ruthless_benchmark import (
-    Verdict,
-    classify_failure,
     keyword_score,
-    meditation_steps_count,
     pct,
     reject_check,
-    safety_check,
-    serene_trigger_detected,
-    tone_score,
-    trajectory_check,
-)
-from services.citation_service import (
-    CitationStyle,
-    CitedAnswer,
-    Source,
-    format_reference,
-    resolve,
 )
 from services.guru_voice_langhanam import (
-    LANGHANAM_ELIGIBLE_INTENTS,
-    REFERENCE_VOICE,
-    contains_sanskrit_terms,
     count_fillers,
-    detect_combined_teachings,
-    has_direct_address,
-    is_voice_eligible,
-    mean_sentence_length,
-    render_langhanam_system_prompt,
-    split_sentences,
-    strip_fillers,
 )
-from app.grounding import grounding_state_for
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("e2e_benchmark")

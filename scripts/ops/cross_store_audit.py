@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """Cross-store audit: LightRAG entities/chunks ↔ Neo4j ↔ Qdrant ↔ working dir."""
 
-import os, sys, json, glob
+import os, json
 from pathlib import Path
-from collections import defaultdict
 
 from qdrant_client import QdrantClient
 from neo4j import GraphDatabase

@@ -43,13 +43,37 @@ try:
 except ImportError:
     UTC = timezone.utc
 from enum import Enum
-from typing import Any
+import re
+from typing import Any, Optional
 
 try:
     import httpx
 except ImportError:
     print("ERROR: pip install httpx")
     sys.exit(1)
+
+
+def _mask_secret(s: Optional[str]) -> str:
+    """Mask secret value for logging."""
+    if not s:
+        return ""
+    if len(s) <= 4:
+        return "***"
+    return f"{s[:3]}***"
+
+
+def _redact_secrets(text: Optional[str]) -> str:
+    """Redact bearer tokens, auth tokens, API keys, or secret headers from log/stdout."""
+    if not text:
+        return ""
+    s = str(text)
+    s = re.sub(r"(?i)(bearer\s+)([A-Za-z0-9_\-\.]{4})[A-Za-z0-9_\-\.]*", r"\1\2***", s)
+    s = re.sub(
+        r"(?i)(api[_-]?key|secret|password|auth[_-]?token|token|authorization)(\s*[:=]\s*['\"]?)([A-Za-z0-9_\-\.]{4})[A-Za-z0-9_\-\.]*(['\"]?)",
+        r"\1\2\3***\4",
+        s,
+    )
+    return s
 
 # ═══════════════════════════════════════════════════════════════════════════
 # CONFIGURATION
@@ -1335,7 +1359,7 @@ async def get_active_prompt_version(url: str, key: str) -> str | None:
                 if data and len(data) > 0:
                     return data[0].get("id")
     except Exception as e:
-        print(f"      ⚠️  Could not retrieve active prompt version from Supabase: {e}")
+        print(f"      ⚠️  Could not retrieve active prompt version from Supabase: {_redact_secrets(str(e))}")
     return None
 
 
@@ -1360,7 +1384,7 @@ async def get_golden_questions(url: str, key: str) -> dict[str, str]:
                     if q and g_id:
                         mapping[q.strip().lower()] = g_id
     except Exception as e:
-        print(f"      ⚠️  Could not retrieve golden questions mapping: {e}")
+        print(f"      ⚠️  Could not retrieve golden questions mapping: {_redact_secrets(str(e))}")
     return mapping
 
 
@@ -1405,10 +1429,10 @@ async def upload_eval_runs_to_supabase(
                     run_id = data[0].get("id")
                     print(f"  🚀 Logged Eval Run UUID: {run_id}")
             else:
-                print(f"  ❌ Failed to insert eval_run: HTTP {r.status_code} - {r.text}")
+                print(f"  ❌ Failed to insert eval_run: HTTP {r.status_code} - {_redact_secrets(r.text)}")
                 return
     except Exception as e:
-        print(f"  ❌ Error uploading eval_run: {e}")
+        print(f"  ❌ Error uploading eval_run: {_redact_secrets(str(e))}")
         return
 
     if not run_id:
@@ -1449,9 +1473,9 @@ async def upload_eval_runs_to_supabase(
                     f"  🚀 Successfully uploaded {len(results_payload)} test results to Supabase!"
                 )
             else:
-                print(f"  ❌ Failed to insert eval_results: HTTP {r.status_code} - {r.text}")
+                print(f"  ❌ Failed to insert eval_results: HTTP {r.status_code} - {_redact_secrets(r.text)}")
     except Exception as e:
-        print(f"  ❌ Error uploading eval_results: {e}")
+        print(f"  ❌ Error uploading eval_results: {_redact_secrets(str(e))}")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -2730,7 +2754,7 @@ async def run_preflight_checks(url: str, test_key: str = None) -> dict:
     }
     for key, val in env_checks.items():
         if val:
-            print(f"       ✅ {key} is set ({val[:8]}...)")
+            print(f"       ✅ {key} is set ({_mask_secret(val)})")
         else:
             print(f"       ⚠️  {key} not set in this shell (may be set in Docker)")
     results["env"] = True  # Non-blocking

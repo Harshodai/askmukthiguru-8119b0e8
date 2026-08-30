@@ -19,7 +19,6 @@ from __future__ import annotations
 import argparse
 import os
 import shutil
-import subprocess
 import sys
 from pathlib import Path
 
@@ -107,7 +106,7 @@ def check_correction_profile() -> bool:
     try:
         if str(BACKEND_DIR) not in sys.path:
             sys.path.insert(0, str(BACKEND_DIR))
-        from services.doctrine_terms import apply_corrections, load_doctrine_terms
+        from services.doctrine_terms import load_doctrine_terms
         terms = load_doctrine_terms()
         print(f"  ✅ doctrine_terms loaded: {len(terms)} canonical entities")
     except Exception as e:
