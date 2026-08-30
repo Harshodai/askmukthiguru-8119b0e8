@@ -35,7 +35,7 @@ jobs:
         run: npm run lint
 
       - name: Unit and integration tests
-        run: npm test -- --runInBand
+        run: npm test
 
       - name: Production build
         run: npm run build
