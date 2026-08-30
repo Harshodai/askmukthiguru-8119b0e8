@@ -1,3 +1,31 @@
+## Aug 30, 2026 — Ruthless Production-Readiness, Epistemic Grounding & CodeQL Remediation
+
+### L-PROD-23. Epistemic Grounding vs. Green-Test QA Mirage
+- **What**: An audit of `SadhanaHeatmap.tsx` revealed that consciousness state classifications (*Beautiful State*, *Witnessing Presence*, *Dedicated Sadhana*) and state percentages (*"78% Beautiful State"*) were computed via calendar loop index modulo arithmetic (`i % 3 === 0`, `i % 5 === 0`) rather than recorded user telemetry. The component had 100% green unit tests and 14-language i18n parity, demonstrating that a green test suite is insufficient if the underlying product behavior is epistemically fraudulent.
+- **Fix applied**: Replaced the fake modulo model with a truthful, data-backed practice intensity model grounded strictly in measured `durationSeconds` and `breathCycles` (Rest: 0m, Gentle: 1-10m, Dedicated: 10-20m, Deep: 20m+). Added `computeLongestStreak` in `meditationMetrics.ts`.
+- **Rule**: Every user-facing badge, chart, heatmap, and metric MUST originate from an explicit database column, verified sensor/log value, or defensible domain equation. Fabricating telemetry via heuristic modulo math is a **P0 epistemic bug**.
+
+### L-SEC-1. Cloud vs. Local Data Erasure Boundary Decoupling
+- **What**: In `ProfilePage.tsx`, clicking "Clear Local Data" invoked `handleDeleteEverything()`, which called `memoryApi.deleteAll()` (`DELETE /api/memory/all`). This permanently destroyed all server-side PostgreSQL reflections, Qdrant vectors, and Neo4j subgraphs across all devices without user intent or disclosure.
+- **Fix applied**: Decoupled into two distinct actions: (1) `handleClearLocalData` strictly resets client-side `localStorage`, `IndexedDB`, and response preferences with zero network calls; (2) `handleEraseCloudMemories` provides a dedicated danger modal requiring typing `"DELETE"` before invoking `memoryApi.deleteAll()`.
+- **Rule**: Device cache clearing MUST NEVER issue destructive backend API calls. Cross-device cloud data destruction requires high-friction confirmation and explicit disclosure.
+
+### L-SEC-2. Repository-Wide CodeQL Code Scanning Zero-Alert Standard
+- **What**: CodeQL security and quality scans flagged 26 vulnerabilities across Python, TypeScript, and mobile platforms (reflected XSS, partial SSRF, CRLF log injection, cleartext credential logging, unvalidated URL substring checks, and insecure randomness).
+- **Fix applied**:
+  - *Reflected XSS*: Applied `html.escape()` on webhook verification responses in `scripts/whatsapp_webhook.py`.
+  - *Partial SSRF*: Enforced strict `urllib.parse.urlparse` scheme and netloc allowlisting (`graph.facebook.com`) in `whatsapp_webhook.py`.
+  - *Log Injection (CWE-117)*: Applied `sanitize_log_input` (stripping `\r` and replacing `\n` with spaces) across `whatsapp_webhook.py`, `email_service.py`, and `extract_okf_from_stores.py`.
+  - *Cleartext Logging*: Implemented `_mask_secret()` and `_redact_secrets()` in benchmark and audit scripts.
+  - *URL Substring Checks*: Replaced naive `includes('youtube.com')` with robust `new URL().hostname` parsing in `LinkSearchModal.tsx` and `prelaunch-sweep.spec.ts`.
+  - *Insecure Randomness*: Replaced `Math.random()` with `crypto.randomUUID()` / RFC4122 v4 generator.
+  - *Path Exclusions*: Created `.github/codeql/codeql-config.yml` excluding vendor/agent tool caches (`.agent/**`).
+- **Rule**: All repository code must compile cleanly with `py_compile`, pass TypeScript strict typecheck, and produce zero CodeQL security alerts.
+
+### L-OBS-1. Scheduled Hallucination Anomaly Detection & Prometheus Scraping
+- **What**: Continuous quality assurance requires automated alerting on hallucination rate spikes and standardized production metric scraping.
+- **Fix applied**: Created `.github/workflows/hallucination-anomaly.yml` (daily 04:00 UTC cron) to execute `hallucination_anomaly.py` and fail CI on threshold breach. Configured `alertmanager.template.yml` with PagerDuty/Slack bindings and `prometheus.prod.yml` with Bearer token authentication against `/api/metrics`.
+
 ## Aug 28, 2026 — Ingestion Pipeline Hardening (Three Root-Cause Bug Classes)
 
 ### L-INGEST-1. Every LLM `.generate()` output reaching Qdrant MUST pass `find_artifact()`
