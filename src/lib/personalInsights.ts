@@ -1,17 +1,9 @@
 /**
  * Personal insights derivation.
  *
- * Replaces the single-sentence "encouragement" pulled from
- * `derivePrePracticeInsights` with a richer, multi-source insight stream:
- *
- *   1. Practice rhythm — week-over-week meditation cadence
- *   2. Time-of-day — when the user actually practices
- *   3. Mood delta — sentiment trajectory across last N sessions
- *   4. Memory echo — recurring themes from the backend memory layer
- *   5. Streak nudge — gentle continuity signal
- *
- * Each source is independent and returns null when it has insufficient data,
- * so the UI can degrade gracefully on fresh accounts.
+ * Every insight is derived only from observed practice/memory data. The copy is
+ * intentionally careful not to turn a proxy signal (for example mood history)
+ * into an unmeasured spiritual-state claim.
  */
 
 import type { MeditationSession } from '@/lib/meditationStorage';
@@ -49,7 +41,6 @@ function startOfDay(d: Date): number {
   return x.getTime();
 }
 
-/** Sessions completed in the trailing `days` days. */
 function sessionsWithin(
   sessions: MeditationSession[],
   days: number,
@@ -113,7 +104,7 @@ function timeOfDayInsight(sessions: MeditationSession[]): PersonalInsight | null
   };
   return {
     kind: 'time_of_day',
-    text: `You tend to find stillness ${labels[dominant[0]]} — your sacred window.`,
+    text: `You tend to find stillness ${labels[dominant[0]]} — a window you return to often.`,
     weight: 5,
   };
 }
@@ -137,21 +128,19 @@ function moodDeltaInsight(sessions: MeditationSession[]): PersonalInsight | null
   if (delta > 0) {
     return {
       kind: 'mood_delta',
-      text: 'Your mood has been lifting across recent sessions. The beautiful state is settling in.',
+      text: 'Your reported mood has been trending lighter across recent sessions.',
       weight: 1,
     };
   }
   return {
     kind: 'mood_delta',
-    text: 'Heavier moods have surfaced lately. Notice them with kindness — they too are passing weather.',
+    text: 'Your reported mood has been heavier across recent sessions. Meeting it gently may help.',
     weight: 1,
   };
 }
 
 function memoryEchoInsight(memories: GuruMemory[]): PersonalInsight | null {
   if (!memories || memories.length === 0) return null;
-  // Pick the highest-confidence non-decayed memory mentioned multiple times
-  // (proxy: highest decay_score × confidence).
   const ranked = [...memories]
     .filter((m) => (m.decay_score ?? 0) > 0.3)
     .sort(
@@ -177,7 +166,6 @@ function streakInsight(sessions: MeditationSession[]): PersonalInsight | null {
   );
   let streak = 0;
   let cursor = startOfDay(new Date());
-  // Allow today to be missing — a streak of yesterday-and-back still counts.
   if (!dayStamps.has(cursor)) cursor -= DAY_MS;
   while (dayStamps.has(cursor)) {
     streak += 1;
@@ -186,7 +174,7 @@ function streakInsight(sessions: MeditationSession[]): PersonalInsight | null {
   if (streak < 3) return null;
   return {
     kind: 'streak',
-    text: `${streak} days of presence in a row. A lineage of small returns.`,
+    text: `${streak} days of completed practice in a row. Small returns add up.`,
     weight: 3,
   };
 }
@@ -205,7 +193,7 @@ export const derivePersonalInsights = ({
     return [
       {
         kind: 'welcome',
-        text: 'Your inner journey is just beginning. Each practice will reveal a new layer.',
+        text: 'Your practice record is just beginning. Each completed session adds a clearer picture of your rhythm.',
         weight: 10,
       },
     ];

@@ -1,52 +1,21 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
-import { SadhanaHeatmap } from '@/components/profile/SadhanaHeatmap';
-import type { NormalizedSession } from '@/lib/meditationMetrics';
+import { getPracticeIntensity } from '@/components/profile/SadhanaHeatmap';
 
-describe('SadhanaHeatmap', () => {
-  it('renders correctly with empty sessions list', () => {
-    render(<SadhanaHeatmap sessions={[]} weeksToShow={4} />);
-    expect(screen.getByText(/Sadhana & Consciousness Matrix/i)).toBeInTheDocument();
-    expect(screen.getByText(/0 days active/i)).toBeInTheDocument();
-    expect(screen.getByText(/0.0 hrs total/i)).toBeInTheDocument();
+describe('Sadhana practice intensity', () => {
+  it('derives intensity only from measured completed minutes', () => {
+    expect(getPracticeIntensity(0)).toBe('rest');
+    expect(getPracticeIntensity(1)).toBe('short');
+    expect(getPracticeIntensity(9)).toBe('short');
+    expect(getPracticeIntensity(10)).toBe('steady');
+    expect(getPracticeIntensity(19)).toBe('steady');
+    expect(getPracticeIntensity(20)).toBe('deep');
+    expect(getPracticeIntensity(90)).toBe('deep');
   });
 
-  it('calculates active days and total hours from completed sessions', () => {
-    const today = new Date();
-    const sessions: NormalizedSession[] = [
-      {
-        at: today,
-        durationSeconds: 1800, // 30 mins -> sadhana state
-        breathCycles: 20,
-        completed: true,
-      },
-      {
-        at: new Date(today.getTime() - 24 * 60 * 60 * 1000), // 1 day ago
-        durationSeconds: 900, // 15 mins
-        breathCycles: 10,
-        completed: true,
-      },
-      {
-        at: new Date(today.getTime() - 48 * 60 * 60 * 1000), // 2 days ago, incomplete
-        durationSeconds: 600,
-        breathCycles: 5,
-        completed: false,
-      },
-    ];
-
-    render(<SadhanaHeatmap sessions={sessions} weeksToShow={4} />);
-    expect(screen.getByText(/2 days active/i)).toBeInTheDocument();
-    expect(screen.getByText(/0.8 hrs total/i)).toBeInTheDocument();
-  });
-
-  it('filters matrix states on filter button click', () => {
-    render(<SadhanaHeatmap sessions={[]} weeksToShow={4} />);
-    const filterButtons = screen.getAllByRole('button');
-    const sadhanaFilter = filterButtons.find((btn) => btn.textContent?.includes('Dedicated Sadhana'));
-    expect(sadhanaFilter).toBeDefined();
-    if (sadhanaFilter) {
-      fireEvent.click(sadhanaFilter);
-      expect(sadhanaFilter.className).toContain('bg-ojas/15');
+  it('never emits Beautiful State, Witnessing, or Conflict Transmuted classifications', () => {
+    const allowed = new Set(['rest', 'short', 'steady', 'deep']);
+    for (const minutes of [0, 3, 8, 10, 15, 20, 45, 90]) {
+      expect(allowed.has(getPracticeIntensity(minutes))).toBe(true);
     }
   });
 });
