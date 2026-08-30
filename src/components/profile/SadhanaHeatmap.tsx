@@ -13,23 +13,36 @@ export interface DayActivity {
   cycles: number;
 }
 
+export type PracticeIntensity = 'rest' | 'short' | 'steady' | 'deep';
+
 interface SadhanaHeatmapProps {
   sessions: NormalizedSession[];
   weeksToShow?: number;
 }
 
-const getIntensityClass = (minutes: number): string => {
-  if (minutes <= 0) return 'bg-muted/30 border-transparent';
-  if (minutes < 10) return 'bg-ojas/35 border-ojas/20';
-  if (minutes < 20) return 'bg-ojas/60 border-ojas/30';
-  return 'bg-ojas border-ojas/40';
+export const getPracticeIntensity = (minutes: number): PracticeIntensity => {
+  if (minutes <= 0) return 'rest';
+  if (minutes < 10) return 'short';
+  if (minutes < 20) return 'steady';
+  return 'deep';
 };
 
-const getIntensityLabel = (minutes: number): string => {
-  if (minutes <= 0) return 'Rest day';
-  if (minutes < 10) return 'Short sit';
-  if (minutes < 20) return 'Steady practice';
-  return 'Deep sadhana';
+export const getIntensityClass = (minutes: number): string => {
+  switch (getPracticeIntensity(minutes)) {
+    case 'rest': return 'bg-muted/30 border-transparent';
+    case 'short': return 'bg-ojas/35 border-ojas/20';
+    case 'steady': return 'bg-ojas/60 border-ojas/30';
+    case 'deep': return 'bg-ojas border-ojas/40';
+  }
+};
+
+export const getIntensityLabel = (minutes: number): string => {
+  switch (getPracticeIntensity(minutes)) {
+    case 'rest': return 'Rest day';
+    case 'short': return 'Short sit';
+    case 'steady': return 'Steady practice';
+    case 'deep': return 'Deep sadhana';
+  }
 };
 
 const calculateCurrentStreak = (weeks: DayActivity[][]): number => {
