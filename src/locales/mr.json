@@ -109,7 +109,11 @@
     "details": "तपशील",
     "redeem": "रिडीम करा",
     "keep": "ठेवा",
-    "gurusName": "— श्री प्रीताजी आणि श्री कृष्णाजी"
+    "gurusName": "— श्री प्रीताजी आणि श्री कृष्णाजी",
+    "securityPrivacy": "सुरक्षा आणि गोपनीयता",
+    "takeTour": "टूर घ्या",
+    "clear": "साफ करा",
+    "erasing": "हटवले जात आहे…"
   },
   "crisisDialog": {
     "heading": "संकट निवारण संसाधने",
@@ -1264,7 +1268,20 @@
     },
     "danger": {
       "subtitle": "तुमचा डेटा निर्यात करा, किंवा तुमचे खाते कायमचे हटवा.",
-      "clearLocalData": "स्थानिक डेटा साफ करायचा का?"
+      "clearLocalData": "स्थानिक डेटा साफ करायचा का?",
+      "clearLocalDataBtn": "स्थानिक डेटा साफ करा",
+      "clearLocalDataTitle": "या डिव्हाइसवरील स्थानिक डेटा साफ करायचा?",
+      "clearLocalDataDesc": "या डिव्हाइसचे कॅश केलेले प्रोफाइल, स्थानिक चॅट इतिहास, ध्यान आकडेवारी आणि प्रतिसाद प्राधान्ये पुसून टाकते. तुमचे खाते आणि जतन केलेल्या क्लाउड आठवणी सुरक्षित राहतील.",
+      "localDataCleared": "स्थानिक डेटा साफ केला",
+      "localDataClearedDesc": "डिव्हाइस प्राधान्ये आणि स्थानिक इतिहास रीसेट केला गेला आहे. तुमचे क्लाउड खाते सुरक्षित आहे.",
+      "eraseCloudMemoriesBtn": "क्लाउड आठवणी मिटवा",
+      "eraseCloudMemoriesTitle": "सर्व क्लाउड ज्ञान आणि आठवणी मिटवायच्या?",
+      "eraseCloudMemoriesDesc": "तुमच्या सर्व डिव्हाइसेसवरील सर्व जतन केलेले चिंतन, मुख्य आठवणी, नोट्स आणि ज्ञान कायमचे पुसून टाकते. हे पूर्ववत केले जाऊ शकत नाही.",
+      "typeDeleteToConfirm": "पुष्टी करण्यासाठी DELETE टाइप करा:",
+      "cloudMemoriesErased": "क्लाउड आठवणी मिटवल्या",
+      "cloudMemoriesErasedDesc": "सर्व चिंतन, नोट्स आणि आध्यात्मिक आठवणी कायमच्या हटवल्या गेल्या आहेत.",
+      "cloudMemoriesEraseFailed": "स्मृती मिटवणे अयशस्वी",
+      "deleteAccountBtn": "खाते हटवा"
     },
     "support": {
       "title": "मदत घ्या",
@@ -1287,6 +1304,45 @@
       "description": "तुमचा अनुभव सुधारण्यासाठी आणि साइट ट्रॅफिकचे विश्लेषण करण्यासाठी आम्ही कुकीज वापरतो. \"स्वीकारा\" क्लिक करून, तुम्ही आमच्या कुकीजच्या वापरास संमती देता.",
       "accept": "स्वीकारा",
       "decline": "नकार द्या"
+    }
+  },
+  "commandPalette": {
+    "searchPlaceholder": "AskMukthiGuru मध्ये शोधा…",
+    "subtitle": "तुमची कार्यक्षेत्रे, संभाषणे, साधना आणि सेटिंग्ज शोधा.",
+    "empty": "त्या शोधाशी काहीही जुळत नाही.",
+    "recentConversations": "अलीकडील संभाषणे",
+    "messages": "संदेश",
+    "quickActions": "जलद कृती",
+    "startSereneMind": "शांत मन ध्यान सुरू करा",
+    "anywhere": "कुठेही",
+    "startNewConversation": "नवीन संभाषण सुरू करा",
+    "navigate": "नेव्हिगेट करा",
+    "chatWithGurus": "गुरूंशी संवाद साधा",
+    "browsePractices": "साधना ब्राउझ करा",
+    "studyNotebooks": "अभ्यास नोटबुक",
+    "wisdomMap": "ज्ञान नकाशा",
+    "myReflections": "माझे चिंतन",
+    "preferencesAndSettings": "प्राधान्ये आणि सेटिंग्ज",
+    "accountAndData": "खाते आणि डेटा",
+    "viewMeditationStats": "ध्यान आकडेवारी पहा"
+  },
+  "sadhana": {
+    "matrixTitle": "साधना आणि चेतना मॅट्रिक्स",
+    "matrixSubtitle": "ध्यान, साक्षीभाव आणि आंतरिक स्थितीच्या प्रभुत्वाचे मागील {{weeks}} आठवडे.",
+    "filterAll": "सर्व दिवस",
+    "minPracticed": "{{minutes}} मिनिटे सराव केला",
+    "sessionCount": "{{count}} सत्रे",
+    "breathCycles": "{{count}} श्वास चक्र",
+    "restDay": "विश्रांती आणि एकत्रीकरण दिवस",
+    "daysActive": "{{count}} दिवस सक्रिय",
+    "hoursTotal": "एकूण {{hours}} तास",
+    "beautifulStateRatio": "{{ratio}}% सुंदर स्थिती",
+    "states": {
+      "beautiful_state": "सुंदर स्थिती",
+      "witnessing": "साक्षी उपस्थिती",
+      "sadhana": "समर्पित साधना",
+      "conflict_transformed": "द्वंद्व रूपांतरित",
+      "neutral": "कोणतीही साधना नोंदवली नाही"
     }
   }
 }

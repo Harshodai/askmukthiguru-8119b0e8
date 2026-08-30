@@ -109,7 +109,11 @@
     "viewAll": "सब कुछ देखें",
     "welcomeSeeker": "स्वागत है, प्रिय भटकते हुए",
     "yesterday": "कल",
-    "gurusName": "— श्री प्रीताजी और श्री कृष्णाजी"
+    "gurusName": "— श्री प्रीताजी और श्री कृष्णाजी",
+    "securityPrivacy": "सुरक्षा और गोपनीयता",
+    "takeTour": "टूर लें",
+    "clear": "साफ़ करें",
+    "erasing": "हटाया जा रहा है…"
   },
   "crisisDialog": {
     "heading": "संकट सहायता संसाधन",
@@ -1208,7 +1212,20 @@
     },
     "danger": {
       "subtitle": "अपना डेटा निर्यात करें, या अपना खाता स्थायी रूप से हटाएं।",
-      "clearLocalData": "स्थानीय डेटा साफ़ करें?"
+      "clearLocalData": "स्थानीय डेटा साफ़ करें?",
+      "clearLocalDataBtn": "स्थानीय डेटा साफ़ करें",
+      "clearLocalDataTitle": "इस डिवाइस पर स्थानीय डेटा साफ़ करें?",
+      "clearLocalDataDesc": "इस डिवाइस के कैश्ड प्रोफ़ाइल, स्थानीय चैट इतिहास, ध्यान सांख्यिकी और प्रतिक्रिया प्राथमिकताओं को हटाता है। आपका खाता और सहेजी गई क्लाउड स्मृतियां सुरक्षित रहेंगी।",
+      "localDataCleared": "स्थानीय डेटा साफ़ किया गया",
+      "localDataClearedDesc": "डिवाइस प्राथमिकताएं और स्थानीय इतिहास रीसेट कर दिए गए हैं। आपका क्लाउड खाता सुरक्षित है।",
+      "eraseCloudMemoriesBtn": "क्लाउड स्मृतियां मिटाएं",
+      "eraseCloudMemoriesTitle": "सभी क्लाउड ज्ञान और स्मृतियां मिटाएं?",
+      "eraseCloudMemoriesDesc": "आपके सभी डिवाइसों से सहेजे गए सभी चिंतन, मुख्य स्मृतियां, नोट्स और ज्ञान को स्थायी रूप से हटा देता है। इसे पूर्ववत नहीं किया जा सकता।",
+      "typeDeleteToConfirm": "पुष्टि के लिए DELETE टाइप करें:",
+      "cloudMemoriesErased": "क्लाउड स्मृतियां मिटा दी गईं",
+      "cloudMemoriesErasedDesc": "सभी चिंतन, नोट्स और आध्यात्मिक स्मृतियां स्थायी रूप से हटा दी गई हैं।",
+      "cloudMemoriesEraseFailed": "स्मृति विलोपन विफल रहा",
+      "deleteAccountBtn": "खाता हटाएं"
     },
     "support": {
       "title": "सहायता से संपर्क करें",
@@ -1246,5 +1263,44 @@
     "thisWeek": "इस सप्ताह",
     "weekSummary": "इस सप्ताह {{minutes}} मिनट",
     "noPracticeThisWeek": "इस सप्ताह कोई अभ्यास नहीं — शांत मन (Serene Mind) से शुरू करें।"
+  },
+  "commandPalette": {
+    "searchPlaceholder": "AskMukthiGuru में खोजें…",
+    "subtitle": "अपने कार्यक्षेत्र, वार्तालाप, साधना और सेटिंग्स खोजें।",
+    "empty": "उस खोज से कुछ भी मेल नहीं खाता।",
+    "recentConversations": "हाल के वार्तालाप",
+    "messages": "संदेश",
+    "quickActions": "त्वरित कार्य",
+    "startSereneMind": "शांत मन ध्यान शुरू करें",
+    "anywhere": "कहीं भी",
+    "startNewConversation": "नया वार्तालाप शुरू करें",
+    "navigate": "नेविगेट करें",
+    "chatWithGurus": "गुरुओं से बात करें",
+    "browsePractices": "अभ्यास ब्राउज़ करें",
+    "studyNotebooks": "अध्ययन नोटबुक",
+    "wisdomMap": "ज्ञान मानचित्र",
+    "myReflections": "मेरे चिंतन",
+    "preferencesAndSettings": "प्राथमिकताएं और सेटिंग्स",
+    "accountAndData": "खाता और डेटा",
+    "viewMeditationStats": "ध्यान सांख्यिकी देखें"
+  },
+  "sadhana": {
+    "matrixTitle": "साधना और चेतना मैट्रिक्स",
+    "matrixSubtitle": "ध्यान, साक्षी भाव और आंतरिक स्थिति की महारत के पिछले {{weeks}} सप्ताह।",
+    "filterAll": "सभी दिन",
+    "minPracticed": "{{minutes}} मिनट अभ्यास किया",
+    "sessionCount": "{{count}} सत्र",
+    "breathCycles": "{{count}} श्वास चक्र",
+    "restDay": "विश्राम और एकीकरण दिवस",
+    "daysActive": "{{count}} दिन सक्रिय",
+    "hoursTotal": "कुल {{hours}} घंटे",
+    "beautifulStateRatio": "{{ratio}}% सुंदर स्थिति",
+    "states": {
+      "beautiful_state": "सुंदर स्थिति",
+      "witnessing": "साक्षी उपस्थिति",
+      "sadhana": "समर्पित साधना",
+      "conflict_transformed": "द्वंद्व रूपांतरित",
+      "neutral": "कोई अभ्यास दर्ज नहीं"
+    }
   }
 }

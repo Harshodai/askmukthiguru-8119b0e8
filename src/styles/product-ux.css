@@ -168,6 +168,24 @@ main > .max-w-4xl.mx-auto > div:first-child {
     linear-gradient(135deg, hsl(var(--card) / 0.96), hsl(var(--card) / 0.82)) !important;
 }
 
+/* Shared workspace surface contract for chat-owned tools. */
+[data-workspace-surface],
+.workspace-surface {
+  background: hsl(var(--card) / 0.78);
+  border: 1px solid hsl(var(--hairline));
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(14px);
+}
+
+/* Search/launcher dialogs should read as part of the sanctuary system. */
+[role='dialog'][data-radix-dialog-content] {
+  border-color: hsl(var(--hairline));
+  background: hsl(var(--card) / 0.97);
+  box-shadow: var(--shadow-lg);
+  backdrop-filter: blur(22px);
+}
+
 /* ---------- Mobile ---------- */
 @media (max-width: 639px) {
   form[role="form"][aria-label] {

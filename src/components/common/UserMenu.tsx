@@ -11,6 +11,8 @@ import {
   Moon,
   Monitor,
   MapPin,
+  ShieldCheck,
+  Compass,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -63,23 +65,22 @@ export const UserMenu = ({ onRestartTour }: UserMenuProps = {}) => {
       <DropdownMenuTrigger asChild>
         <button
           data-tour="profile"
-          className="rounded-full ring-1 ring-border hover:ring-ojas/40 transition-all focus:outline-none focus:ring-2 focus:ring-ojas/60"
+          className="rounded-full ring-1 ring-border hover:ring-ojas/40 transition-all focus:outline-none focus:ring-2 focus:ring-ojas/60 min-w-[44px] min-h-[44px] flex items-center justify-center tap-clean"
           aria-label={t('common.openUserMenu')}
         >
           <Avatar className="w-9 h-9">
-            {profile.avatarDataUrl ? (
-              <AvatarImage src={profile.avatarDataUrl} alt={profile.displayName} />
+            {(profile.avatarDataUrl || profile.avatarUrl) ? (
+              <AvatarImage src={profile.avatarDataUrl ?? profile.avatarUrl ?? ''} alt={profile.displayName} />
             ) : null}
             <AvatarFallback className="bg-ojas text-primary-foreground text-sm font-semibold">
               {getInitials(profile.displayName)}
             </AvatarFallback>
-
           </Avatar>
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel className="flex flex-col">
-          <span className="text-sm font-medium text-foreground">
+      <DropdownMenuContent align="end" sideOffset={8} className="w-64 rounded-2xl border-hairline bg-card/95 backdrop-blur-xl shadow-xl p-1.5">
+        <DropdownMenuLabel className="flex flex-col px-3 py-2.5">
+          <span className="text-sm font-medium text-foreground truncate">
             {profile.displayName}
           </span>
           <span className="text-[11px] text-muted-foreground">
@@ -87,17 +88,24 @@ export const UserMenu = ({ onRestartTour }: UserMenuProps = {}) => {
           </span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => navigate('/profile')}>
-          <User className="w-4 h-4 mr-2" /> {t('nav.profile')}
+        <DropdownMenuItem onClick={() => navigate('/profile')} className="min-h-[40px] rounded-lg">
+          <User className="w-4 h-4 mr-2 text-ojas" /> {t('nav.profile')}
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => navigate('/profile?tab=settings')}>
+        <DropdownMenuItem onClick={() => navigate('/practices')} className="min-h-[40px] rounded-lg">
+          <Compass className="w-4 h-4 mr-2 text-ojas" /> {t('nav.practices')}
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => navigate('/profile?tab=stats')} className="min-h-[40px] rounded-lg">
+          <Flame className="w-4 h-4 mr-2 text-ojas" /> {t('common.insightsStats')}
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => navigate('/chat')} className="min-h-[40px] rounded-lg">
+          <MessageCircle className="w-4 h-4 mr-2 text-prana" /> {t('common.continueChat')}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => navigate('/profile?tab=settings')} className="min-h-[40px] rounded-lg">
           <Settings className="w-4 h-4 mr-2" /> {t('common.settings')}
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => navigate('/chat')}>
-          <MessageCircle className="w-4 h-4 mr-2" /> {t('common.continueChat')}
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => navigate('/profile?tab=stats')}>
-          <Flame className="w-4 h-4 mr-2" /> {t('common.insightsStats')}
+        <DropdownMenuItem onClick={() => navigate('/profile?tab=settings#security')} className="min-h-[40px] rounded-lg">
+          <ShieldCheck className="w-4 h-4 mr-2" /> {t('common.securityPrivacy', 'Security & privacy')}
         </DropdownMenuItem>
         {(
           <DropdownMenuItem
@@ -108,34 +116,34 @@ export const UserMenu = ({ onRestartTour }: UserMenuProps = {}) => {
                 window.dispatchEvent(new CustomEvent('tour:restart'));
               }
             }}
-            className="text-ojas/80 focus:text-ojas"
+            className="min-h-[40px] rounded-lg text-ojas/90 focus:text-ojas"
           >
-            <MapPin className="w-4 h-4 mr-2" /> Take a Tour
+            <MapPin className="w-4 h-4 mr-2" /> {t('common.takeTour', 'Take a Tour')}
           </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />
         <DropdownMenuSub>
-          <DropdownMenuSubTrigger>
+          <DropdownMenuSubTrigger className="min-h-[40px] rounded-lg">
             <ThemeIcon className="w-4 h-4 mr-2" />
             {t('common.theme')}
           </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent>
-            <DropdownMenuItem onClick={() => setTheme('light')}>
+          <DropdownMenuSubContent className="rounded-xl">
+            <DropdownMenuItem onClick={() => setTheme('light')} className="min-h-[40px] rounded-lg">
               <Sun className="w-4 h-4 mr-2" /> {t('common.light')}
               {theme === 'light' && <span className="ml-auto text-ojas">•</span>}
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setTheme('dark')}>
+            <DropdownMenuItem onClick={() => setTheme('dark')} className="min-h-[40px] rounded-lg">
               <Moon className="w-4 h-4 mr-2" /> {t('common.dark')}
               {theme === 'dark' && <span className="ml-auto text-ojas">•</span>}
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setTheme('system')}>
+            <DropdownMenuItem onClick={() => setTheme('system')} className="min-h-[40px] rounded-lg">
               <Monitor className="w-4 h-4 mr-2" /> {t('common.system')}
               {theme === 'system' && <span className="ml-auto text-ojas">•</span>}
             </DropdownMenuItem>
           </DropdownMenuSubContent>
         </DropdownMenuSub>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleExport}>
+        <DropdownMenuItem onClick={handleExport} className="min-h-[40px] rounded-lg">
           <Download className="w-4 h-4 mr-2" /> {t('common.exportData')}
         </DropdownMenuItem>
         <DropdownMenuItem
@@ -146,7 +154,7 @@ export const UserMenu = ({ onRestartTour }: UserMenuProps = {}) => {
             navigate('/auth');
             toast({ title: t('common.signedOut'), description: t('common.signedOutDesc') });
           }}
-          className="text-destructive focus:text-destructive"
+          className="min-h-[40px] rounded-lg text-destructive focus:text-destructive"
         >
           <LogOut className="w-4 h-4 mr-2" /> {t('common.signOut')}
         </DropdownMenuItem>

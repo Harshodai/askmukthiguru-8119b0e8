@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { Calendar } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -62,6 +63,7 @@ const STATE_CONFIG: Record<ConsciousnessState, { label: string; bg: string; bord
 };
 
 export const SadhanaHeatmap: React.FC<SadhanaHeatmapProps> = ({ sessions, weeksToShow = 24 }) => {
+  const { t } = useTranslation();
   const [selectedFilter, setSelectedFilter] = useState<'all' | ConsciousnessState>('all');
 
   const { weeks, summaryStats } = useMemo(() => {
@@ -143,17 +145,17 @@ export const SadhanaHeatmap: React.FC<SadhanaHeatmapProps> = ({ sessions, weeksT
   const daysOfWeek = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
   return (
-    <div className="rounded-3xl border border-border/50 bg-card/80 backdrop-blur-md p-6 space-y-5 shadow-sm">
+    <div className="rounded-3xl border border-hairline bg-card/80 backdrop-blur-md p-6 space-y-5 shadow-sm">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
             <Calendar className="w-4 h-4 text-ojas" />
             <h3 className="text-base font-serif font-semibold text-foreground tracking-tight">
-              Sadhana & Consciousness Matrix
+              {t('sadhana.matrixTitle', 'Sadhana & Consciousness Matrix')}
             </h3>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Trailing {weeksToShow} weeks of meditation, witnessing, and inner state mastery.
+            {t('sadhana.matrixSubtitle', 'Trailing {{weeks}} weeks of meditation, witnessing, and inner state mastery.', { weeks: weeksToShow })}
           </p>
         </div>
 
@@ -168,7 +170,7 @@ export const SadhanaHeatmap: React.FC<SadhanaHeatmapProps> = ({ sessions, weeksT
                   : 'border-border/60 text-muted-foreground hover:bg-muted/40'
               }`}
             >
-              {filterKey === 'all' ? 'All Days' : STATE_CONFIG[filterKey].label}
+              {filterKey === 'all' ? t('sadhana.filterAll', 'All Days') : t(`sadhana.states.${filterKey}`, STATE_CONFIG[filterKey].label)}
             </button>
           ))}
         </div>
@@ -213,22 +215,22 @@ export const SadhanaHeatmap: React.FC<SadhanaHeatmapProps> = ({ sessions, weeksT
                           <div className="flex items-center justify-between gap-4 font-mono text-[10px] text-muted-foreground">
                             <span>{day.date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                             <Badge variant="outline" className={`text-[9px] uppercase px-1.5 py-0 ${cfg.text} border-current/30`}>
-                              {cfg.label}
+                              {t(`sadhana.states.${day.state}`, cfg.label)}
                             </Badge>
                           </div>
                           {day.minutes > 0 ? (
                             <div className="space-y-1">
                               <p className="font-semibold text-foreground text-sm">
-                                {day.minutes} min practiced
+                                {t('sadhana.minPracticed', '{{minutes}} min practiced', { minutes: day.minutes })}
                               </p>
                               <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
-                                <span>{day.sessionsCount} session(s)</span>
+                                <span>{t('sadhana.sessionCount', '{{count}} session(s)', { count: day.sessionsCount })}</span>
                                 <span>•</span>
-                                <span>{day.cycles} breath cycles</span>
+                                <span>{t('sadhana.breathCycles', '{{count}} breath cycles', { count: day.cycles })}</span>
                               </div>
                             </div>
                           ) : (
-                            <p className="text-muted-foreground italic">Rest & Integration Day</p>
+                            <p className="text-muted-foreground italic">{t('sadhana.restDay', 'Rest & Integration Day')}</p>
                           )}
                         </TooltipContent>
                       </Tooltip>
@@ -241,28 +243,28 @@ export const SadhanaHeatmap: React.FC<SadhanaHeatmapProps> = ({ sessions, weeksT
         </div>
       </TooltipProvider>
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-border/40 text-xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-hairline text-xs">
         <div className="flex items-center gap-4 flex-wrap text-muted-foreground">
           <div className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-sm bg-ojas/80" />
-            <span className="text-[11px]">Beautiful State</span>
+            <span className="text-[11px]">{t('sadhana.states.beautiful_state', 'Beautiful State')}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-sm bg-[hsl(var(--ojas-gold-light)/0.85)]" />
-            <span className="text-[11px]">Sadhana</span>
+            <span className="text-[11px]">{t('sadhana.states.sadhana', 'Sadhana')}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-sm bg-prana" />
-            <span className="text-[11px]">Witnessing</span>
+            <span className="text-[11px]">{t('sadhana.states.witnessing', 'Witnessing')}</span>
           </div>
         </div>
 
         <div className="flex items-center gap-4 text-xs font-mono text-muted-foreground">
-          <span>{summaryStats.activeDays} days active</span>
+          <span>{t('sadhana.daysActive', '{{count}} days active', { count: summaryStats.activeDays })}</span>
           <span>•</span>
-          <span>{summaryStats.totalHours} hrs total</span>
+          <span>{t('sadhana.hoursTotal', '{{hours}} hrs total', { hours: summaryStats.totalHours })}</span>
           <span>•</span>
-          <span className="text-ojas font-semibold">{summaryStats.beautifulStateRatio}% Beautiful State</span>
+          <span className="text-ojas font-semibold">{t('sadhana.beautifulStateRatio', '{{ratio}}% Beautiful State', { ratio: summaryStats.beautifulStateRatio })}</span>
         </div>
       </div>
     </div>

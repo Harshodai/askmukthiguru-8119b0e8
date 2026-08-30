@@ -109,7 +109,11 @@
     "details": "ବିବରଣୀ",
     "redeem": "ରିଡିମ୍ କରନ୍ତୁ",
     "keep": "ରଖନ୍ତୁ",
-    "gurusName": "— ଶ୍ରୀ ପ୍ରୀତାଜୀ ଏବଂ ଶ୍ରୀ କୃଷ୍ଣଜୀ"
+    "gurusName": "— ଶ୍ରୀ ପ୍ରୀତାଜୀ ଏବଂ ଶ୍ରୀ କୃଷ୍ଣଜୀ",
+    "securityPrivacy": "Security & privacy",
+    "takeTour": "Take a Tour",
+    "clear": "Clear",
+    "erasing": "Erasing…"
   },
   "crisisDialog": {
     "heading": "ସଙ୍କଟ ସହାୟତା ସମ୍ବଳ",
@@ -1264,7 +1268,20 @@
     },
     "danger": {
       "subtitle": "ଆପଣଙ୍କ ତଥ୍ୟ ରପ୍ତାନି କରନ୍ତୁ, କିମ୍ବା ଆପଣଙ୍କ ଆକାଉଣ୍ଟ୍ ସ୍ଥାୟୀ ଭାବରେ ବିଲୋପ କରନ୍ତୁ।",
-      "clearLocalData": "ସ୍ଥାନୀୟ ତଥ୍ୟ ସଫା କରିବେ କି?"
+      "clearLocalData": "ସ୍ଥାନୀୟ ତଥ୍ୟ ସଫା କରିବେ କି?",
+      "clearLocalDataBtn": "Clear Local Data",
+      "clearLocalDataTitle": "Clear local data on this device?",
+      "clearLocalDataDesc": "Erases this device's cached profile, local chat history, meditation stats, and response preferences. Your account and saved cloud memories remain untouched.",
+      "localDataCleared": "Local data cleared",
+      "localDataClearedDesc": "Device preferences and local history were reset. Your cloud account remains intact.",
+      "eraseCloudMemoriesBtn": "Erase Cloud Memories",
+      "eraseCloudMemoriesTitle": "Erase all cloud wisdom & memories?",
+      "eraseCloudMemoriesDesc": "Permanently erases all saved reflections, core memories, second brain notes, and vector knowledge across all your devices. This cannot be undone.",
+      "typeDeleteToConfirm": "Type DELETE to confirm:",
+      "cloudMemoriesErased": "Cloud memories erased",
+      "cloudMemoriesErasedDesc": "All reflections, second brain notes, and spiritual memories have been permanently deleted.",
+      "cloudMemoriesEraseFailed": "Memory erasure failed",
+      "deleteAccountBtn": "Delete Account"
     },
     "support": {
       "title": "ସହାୟତା ସହିତ ଯୋଗାଯୋଗ କରନ୍ତୁ",
@@ -1287,6 +1304,45 @@
       "description": "ଆପଣଙ୍କ ଅଭିଜ୍ଞତାକୁ ଉନ୍ନତ କରିବା ଏବଂ ସାଇଟ୍ ଟ୍ରାଫିକ୍ ବିଶ୍ଳେଷଣ କରିବା ପାଇଁ ଆମେ କୁକିଜ୍ ବ୍ୟବହାର କରୁ। \"ଗ୍ରହଣ କରନ୍ତୁ\" ଉପରେ କ୍ଲିକ୍ କରି, ଆପଣ କୁକିଜ୍ ବ୍ୟବହାର ପାଇଁ ସମ୍ମତି ଦିଅନ୍ତି।",
       "accept": "ଗ୍ରହଣ କରନ୍ତୁ",
       "decline": "ଅସ୍ୱୀକାର କରନ୍ତୁ"
+    }
+  },
+  "commandPalette": {
+    "searchPlaceholder": "Search AskMukthiGuru…",
+    "subtitle": "Search your workspace, conversations, practices, and settings.",
+    "empty": "Nothing matches that search.",
+    "recentConversations": "Recent conversations",
+    "messages": "messages",
+    "quickActions": "Quick actions",
+    "startSereneMind": "Start Serene Mind meditation",
+    "anywhere": "Anywhere",
+    "startNewConversation": "Start a new conversation",
+    "navigate": "Navigate",
+    "chatWithGurus": "Chat with the Gurus",
+    "browsePractices": "Browse practices",
+    "studyNotebooks": "Study notebooks",
+    "wisdomMap": "Wisdom Map",
+    "myReflections": "My Reflections",
+    "preferencesAndSettings": "Preferences & settings",
+    "accountAndData": "Account & data",
+    "viewMeditationStats": "View meditation stats"
+  },
+  "sadhana": {
+    "matrixTitle": "Sadhana & Consciousness Matrix",
+    "matrixSubtitle": "Trailing {{weeks}} weeks of meditation, witnessing, and inner state mastery.",
+    "filterAll": "All Days",
+    "minPracticed": "{{minutes}} min practiced",
+    "sessionCount": "{{count}} session(s)",
+    "breathCycles": "{{count}} breath cycles",
+    "restDay": "Rest & Integration Day",
+    "daysActive": "{{count}} days active",
+    "hoursTotal": "{{hours}} hrs total",
+    "beautifulStateRatio": "{{ratio}}% Beautiful State",
+    "states": {
+      "beautiful_state": "Beautiful State",
+      "witnessing": "Witnessing Presence",
+      "sadhana": "Dedicated Sadhana",
+      "conflict_transformed": "Conflict Transmuted",
+      "neutral": "No Practice Recorded"
     }
   }
 }

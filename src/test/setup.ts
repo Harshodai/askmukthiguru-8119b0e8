@@ -66,3 +66,11 @@ Object.defineProperty(window, "matchMedia", {
     dispatchEvent: () => {},
   }),
 });
+
+if (typeof window !== 'undefined') {
+  window.HTMLElement.prototype.scrollIntoView = vi.fn();
+  window.Element.prototype.scrollIntoView = vi.fn();
+  window.HTMLMediaElement.prototype.play = vi.fn().mockImplementation(() => Promise.resolve());
+  window.HTMLMediaElement.prototype.pause = vi.fn();
+  window.HTMLMediaElement.prototype.load = vi.fn();
+}

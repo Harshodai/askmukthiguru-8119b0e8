@@ -27,6 +27,7 @@ import {
   CheckCircle2,
   XCircle,
   Globe,
+  Brain,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { normalizeSarvamVoice, SARVAM_VOICES } from '@/lib/sarvamVoices';
@@ -204,9 +205,21 @@ const ProfilePage = () => {
   const [retention, setRetention] = useState<number>(getMaxConversations());
   const [retentionDays, setRetentionDays_] = useState<number>(getRetentionDays());
   const [deleteAllConfirm, setDeleteAllConfirm] = useState<string>('');
+  const [eraseMemoriesOpen, setEraseMemoriesOpen] = useState<boolean>(false);
+  const [eraseMemoriesConfirm, setEraseMemoriesConfirm] = useState<string>('');
+  const [eraseMemoriesLoading, setEraseMemoriesLoading] = useState<boolean>(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [personalInsights, setPersonalInsights] = useState<PersonalInsight[]>([]);
   const [recalledTeachings, setRecalledTeachings] = useState<{ content: string; recall_count: number }[]>([]);
+
+  useEffect(() => {
+    if (window.location.hash === '#security' && tab === 'settings') {
+      const el = document.getElementById('security');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+  }, [tab]);
 
   useEffect(() => {
     let cancelled = false;
@@ -328,19 +341,36 @@ const ProfilePage = () => {
     toast({ title: 'Exported', description: 'Your data was downloaded.' });
   };
 
-  const handleDeleteEverything = async () => {
+  const handleClearLocalData = () => {
     deleteAllData();
     resetProfile();
     clearResponsePreferences();
+    toast({
+      title: t('profile.danger.localDataCleared', 'Local data cleared'),
+      description: t('profile.danger.localDataClearedDesc', 'Device preferences and local history were reset. Your cloud account remains intact.'),
+    });
+  };
+
+  const handleEraseCloudMemories = async () => {
+    if (eraseMemoriesConfirm.trim().toUpperCase() !== 'DELETE') return;
+    setEraseMemoriesLoading(true);
     try {
       await memoryApi.deleteAll();
+      setEraseMemoriesConfirm('');
+      setEraseMemoriesOpen(false);
+      toast({
+        title: t('profile.danger.cloudMemoriesErased', 'Cloud memories erased'),
+        description: t('profile.danger.cloudMemoriesErasedDesc', 'All reflections, second brain notes, and spiritual memories have been permanently deleted.'),
+      });
     } catch (e) {
-      // Local reset already succeeded; surface the server-side failure separately rather than
-      // rolling back what already worked.
-      toast({ title: 'Local data cleared, but memory erasure failed', description: e instanceof Error ? e.message : 'unknown', variant: 'destructive' });
-      return;
+      toast({
+        title: t('profile.danger.cloudMemoriesEraseFailed', 'Memory erasure failed'),
+        description: e instanceof Error ? e.message : 'unknown',
+        variant: 'destructive',
+      });
+    } finally {
+      setEraseMemoriesLoading(false);
     }
-    toast({ title: 'All data cleared', description: 'A fresh profile was created and saved memories were erased.' });
   };
 
   const handleSupportSubmit = async (e: React.FormEvent) => {
@@ -903,9 +933,11 @@ const ProfilePage = () => {
                   </AlertDescription>
                 </Alert>
               )}
-              <TwoFactorSettings
-                onEnrolled={setupMfaRedirect ? () => navigate(setupMfaRedirect, { replace: true }) : undefined}
-              />
+              <div id="security" className="scroll-mt-20">
+                <TwoFactorSettings
+                  onEnrolled={setupMfaRedirect ? () => navigate(setupMfaRedirect, { replace: true }) : undefined}
+                />
+              </div>
               <Card className="rounded-2xl border border-hairline bg-card shadow-sm">
                 <CardHeader className="pb-4">
                   <CardTitle className="text-lg font-serif font-semibold text-foreground">Appearance</CardTitle>
@@ -1104,25 +1136,64 @@ const ProfilePage = () => {
 
                   <div className="pt-4 border-t border-hairline space-y-3">
                     <h4 className="text-[10px] uppercase tracking-[0.14em] font-medium text-destructive/80">Danger Zone</h4>
-                    <div className="flex flex-col sm:flex-row gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button variant="outline" className="flex-1 gap-2 rounded-xl min-h-[44px] border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive">
-                            <Trash2 className="w-4 h-4" /> Clear Local Data
+                          <Button variant="outline" className="gap-2 rounded-xl min-h-[44px] border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive">
+                            <Trash2 className="w-4 h-4" /> {t('profile.danger.clearLocalDataBtn', 'Clear Local Data')}
                           </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent className="rounded-2xl">
                           <AlertDialogHeader>
-                            <AlertDialogTitle>Clear local data?</AlertDialogTitle>
+                            <AlertDialogTitle>{t('profile.danger.clearLocalDataTitle', 'Clear local data on this device?')}</AlertDialogTitle>
                             <AlertDialogDescription>
-                              Erases this device's profile, chat history, meditation stats, response
-                              preferences, and your saved memories. Your account remains. This cannot be undone.
+                              {t('profile.danger.clearLocalDataDesc', "Erases this device's cached profile, local chat history, meditation stats, and response preferences. Your account and saved cloud memories remain untouched.")}
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
-                            <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleDeleteEverything} className="bg-destructive hover:bg-destructive/90 rounded-xl">
-                              Clear
+                            <AlertDialogCancel className="rounded-xl">{t('common.cancel', 'Cancel')}</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleClearLocalData} className="bg-destructive hover:bg-destructive/90 rounded-xl">
+                              {t('common.clear', 'Clear')}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+
+                      <AlertDialog open={eraseMemoriesOpen} onOpenChange={setEraseMemoriesOpen}>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="outline" className="gap-2 rounded-xl min-h-[44px] border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive">
+                            <Brain className="w-4 h-4" /> {t('profile.danger.eraseCloudMemoriesBtn', 'Erase Cloud Memories')}
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent className="rounded-2xl">
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>{t('profile.danger.eraseCloudMemoriesTitle', 'Erase all cloud wisdom & memories?')}</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              {t('profile.danger.eraseCloudMemoriesDesc', 'Permanently erases all saved reflections, core memories, second brain notes, and vector knowledge across all your devices. This cannot be undone.')}
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <div className="py-2 space-y-1.5">
+                            <label htmlFor="erase-cloud-confirm" className="text-xs text-muted-foreground">
+                              {t('profile.danger.typeDeleteToConfirm', 'Type DELETE to confirm:')}
+                            </label>
+                            <Input
+                              id="erase-cloud-confirm"
+                              value={eraseMemoriesConfirm}
+                              onChange={(e) => setEraseMemoriesConfirm(e.target.value)}
+                              placeholder="DELETE"
+                              className="rounded-xl"
+                            />
+                          </div>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel onClick={() => setEraseMemoriesConfirm('')} className="rounded-xl">
+                              {t('common.cancel', 'Cancel')}
+                            </AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={handleEraseCloudMemories}
+                              disabled={eraseMemoriesConfirm.trim().toUpperCase() !== 'DELETE' || eraseMemoriesLoading}
+                              className="bg-destructive hover:bg-destructive/90 rounded-xl"
+                            >
+                              {eraseMemoriesLoading ? t('common.erasing', 'Erasing…') : t('common.confirm', 'Confirm')}
                             </AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
@@ -1130,8 +1201,8 @@ const ProfilePage = () => {
 
                       <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
                         <DialogTrigger asChild>
-                          <Button variant="destructive" className="flex-1 gap-2 rounded-xl min-h-[44px]">
-                            <Trash2 className="w-4 h-4" /> Delete Account
+                          <Button variant="destructive" className="gap-2 rounded-xl min-h-[44px]">
+                            <Trash2 className="w-4 h-4" /> {t('profile.danger.deleteAccountBtn', 'Delete Account')}
                           </Button>
                         </DialogTrigger>
                         <DialogContent className="max-w-md rounded-2xl">
