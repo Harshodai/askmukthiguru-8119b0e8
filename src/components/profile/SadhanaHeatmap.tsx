@@ -1,12 +1,9 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Calendar } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Badge } from '@/components/ui/badge';
 import type { NormalizedSession } from '@/lib/meditationMetrics';
 import { localDayKey } from '@/lib/meditationMetrics';
-
-export type ConsciousnessState = 'beautiful_state' | 'witnessing' | 'sadhana' | 'conflict_transformed' | 'neutral';
 
 export interface DayActivity {
   date: Date;
@@ -14,8 +11,6 @@ export interface DayActivity {
   minutes: number;
   sessionsCount: number;
   cycles: number;
-  state: ConsciousnessState;
-  notesCount: number;
 }
 
 interface SadhanaHeatmapProps {
@@ -23,107 +18,52 @@ interface SadhanaHeatmapProps {
   weeksToShow?: number;
 }
 
-const STATE_CONFIG: Record<ConsciousnessState, { label: string; bg: string; border: string; glow: string; text: string }> = {
-  beautiful_state: {
-    label: 'Beautiful State',
-    bg: 'bg-[hsl(var(--ojas-gold)/0.78)]',
-    border: 'border-[hsl(var(--ojas-gold-light)/0.42)]',
-    glow: 'hsl(var(--ojas-gold) / 0.30)',
-    text: 'text-[hsl(var(--ojas-gold-dark))]',
-  },
-  witnessing: {
-    label: 'Witnessing Presence',
-    bg: 'bg-[hsl(var(--prana-blue)/0.78)]',
-    border: 'border-[hsl(var(--prana-blue-light)/0.42)]',
-    glow: 'hsl(var(--prana-blue) / 0.30)',
-    text: 'text-[hsl(var(--prana-blue-dark))]',
-  },
-  sadhana: {
-    label: 'Dedicated Sadhana',
-    bg: 'bg-[hsl(var(--ojas-gold-light)/0.86)]',
-    border: 'border-[hsl(var(--ojas-gold)/0.45)]',
-    glow: 'hsl(var(--ojas-gold-light) / 0.32)',
-    text: 'text-[hsl(var(--ojas-gold-dark))]',
-  },
-  conflict_transformed: {
-    label: 'Conflict Transmuted',
-    bg: 'bg-[hsl(var(--destructive)/0.76)]',
-    border: 'border-[hsl(var(--destructive)/0.40)]',
-    glow: 'hsl(var(--destructive) / 0.28)',
-    text: 'text-[hsl(var(--destructive))]',
-  },
-  neutral: {
-    label: 'No Practice Recorded',
-    bg: 'bg-muted/40',
-    border: 'border-border/40',
-    glow: 'transparent',
-    text: 'text-muted-foreground',
-  },
-};
-
 export const SadhanaHeatmap: React.FC<SadhanaHeatmapProps> = ({ sessions, weeksToShow = 24 }) => {
-  const [selectedFilter, setSelectedFilter] = useState<'all' | ConsciousnessState>('all');
-
   const { weeks, summaryStats } = useMemo(() => {
     const sessionMap = new Map<string, { totalSec: number; count: number; cycles: number }>();
-    for (const s of sessions) {
-      if (s.completed && s.durationSeconds > 0) {
-        const key = localDayKey(s.at);
-        const cur = sessionMap.get(key) || { totalSec: 0, count: 0, cycles: 0 };
-        sessionMap.set(key, {
-          totalSec: cur.totalSec + s.durationSeconds,
-          count: cur.count + 1,
-          cycles: cur.cycles + s.breathCycles,
-        });
-      }
+    for (const session of sessions) {
+      if (!session.completed || session.durationSeconds <= 0) continue;
+      const key = localDayKey(session.at);
+      const current = sessionMap.get(key) ?? { totalSec: 0, count: 0, cycles: 0 };
+      sessionMap.set(key, {
+        totalSec: current.totalSec + session.durationSeconds,
+        count: current.count + 1,
+        cycles: current.cycles + session.breathCycles,
+      });
     }
 
-    const today = new Date();
     const totalDays = weeksToShow * 7;
+    const today = new Date();
     const start = new Date(today);
     start.setDate(today.getDate() - totalDays + (7 - today.getDay()));
 
     const weeksList: DayActivity[][] = [];
     let currentWeek: DayActivity[] = [];
-    let activeDaysCount = 0;
-    let totalMinutesCount = 0;
-    let beautifulDaysCount = 0;
+    let activeDays = 0;
+    let totalMinutes = 0;
+    let totalSessions = 0;
 
-    for (let i = 0; i < totalDays; i++) {
-      const d = new Date(start);
-      d.setDate(start.getDate() + i);
-      const key = localDayKey(d);
-      const data = sessionMap.get(key);
-      const mins = data ? Math.round(data.totalSec / 60) : 0;
+    for (let i = 0; i < totalDays; i += 1) {
+      const date = new Date(start);
+      date.setDate(start.getDate() + i);
+      const dateKey = localDayKey(date);
+      const data = sessionMap.get(dateKey);
+      const minutes = data ? Math.round(data.totalSec / 60) : 0;
 
-      let state: ConsciousnessState = 'neutral';
-      if (mins > 0) {
-        activeDaysCount++;
-        totalMinutesCount += mins;
-        if (mins >= 20) {
-          state = 'sadhana';
-        } else if (i % 3 === 0) {
-          state = 'beautiful_state';
-          beautifulDaysCount++;
-        } else if (i % 5 === 0) {
-          state = 'witnessing';
-        } else {
-          state = 'beautiful_state';
-          beautifulDaysCount++;
-        }
+      if (minutes > 0) {
+        activeDays += 1;
+        totalMinutes += minutes;
       }
+      totalSessions += data?.count ?? 0;
 
-      const dayActivity: DayActivity = {
-        date: d,
-        dateKey: key,
-        minutes: mins,
-        sessionsCount: data?.count || 0,
-        cycles: data?.cycles || 0,
-        state,
-        notesCount: mins > 0 ? 1 : 0,
-      };
+      currentWeek.push({
+        date,
+        dateKey,
+        minutes,
+        sessionsCount: data?.count ?? 0,
+        cycles: data?.cycles ?? 0,
+      });
 
-      currentWeek.push(dayActivity);
       if (currentWeek.length === 7) {
         weeksList.push(currentWeek);
         currentWeek = [];
@@ -133,102 +73,69 @@ export const SadhanaHeatmap: React.FC<SadhanaHeatmapProps> = ({ sessions, weeksT
     return {
       weeks: weeksList,
       summaryStats: {
-        activeDays: activeDaysCount,
-        totalHours: (totalMinutesCount / 60).toFixed(1),
-        beautifulStateRatio: activeDaysCount > 0 ? Math.round((beautifulDaysCount / activeDaysCount) * 100) : 0,
+        activeDays,
+        totalHours: (totalMinutes / 60).toFixed(1),
+        totalSessions,
       },
     };
   }, [sessions, weeksToShow]);
 
+  const maxMinutes = Math.max(1, ...weeks.flat().map((day) => day.minutes));
   const daysOfWeek = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
   return (
-    <div className="rounded-3xl border border-border/50 bg-card/80 backdrop-blur-md p-6 space-y-5 shadow-sm">
+    <section className="rounded-3xl border border-hairline bg-card/80 backdrop-blur-md p-5 sm:p-6 space-y-5 shadow-sm" aria-label="Meditation practice activity">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-ojas" />
-            <h3 className="text-base font-serif font-semibold text-foreground tracking-tight">
-              Sadhana & Consciousness Matrix
-            </h3>
+            <Calendar className="w-4 h-4 text-ojas" aria-hidden="true" />
+            <h3 className="text-base font-serif font-semibold text-foreground tracking-tight">Sadhana practice activity</h3>
           </div>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Trailing {weeksToShow} weeks of meditation, witnessing, and inner state mastery.
-          </p>
+          <p className="text-xs text-muted-foreground mt-0.5">A truthful view of your completed meditation practice.</p>
         </div>
-
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-          {(['all', 'beautiful_state', 'witnessing', 'sadhana'] as const).map((filterKey) => (
-            <button
-              key={filterKey}
-              onClick={() => setSelectedFilter(filterKey)}
-              className={`px-2.5 py-1 rounded-full text-[11px] font-medium border transition-all shrink-0 ${
-                selectedFilter === filterKey
-                  ? 'bg-ojas/15 border-ojas text-ojas shadow-sm'
-                  : 'border-border/60 text-muted-foreground hover:bg-muted/40'
-              }`}
-            >
-              {filterKey === 'all' ? 'All Days' : STATE_CONFIG[filterKey].label}
-            </button>
-          ))}
+        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+          <span><strong className="text-foreground">{summaryStats.activeDays}</strong> active days</span>
+          <span aria-hidden="true">•</span>
+          <span><strong className="text-foreground">{summaryStats.totalHours}</strong> hrs</span>
         </div>
       </div>
 
       <TooltipProvider delayDuration={100}>
-        <div className="overflow-x-auto pb-2 -mx-2 px-2">
-          <div className="inline-flex gap-1.5 items-center">
-            <div className="grid grid-rows-7 gap-1.5 pr-2 select-none">
-              {daysOfWeek.map((day, idx) => (
-                <span key={idx} className="h-3.5 w-3.5 text-[9px] text-muted-foreground/60 flex items-center justify-center font-mono">
-                  {idx % 2 === 1 ? day : ''}
+        <div className="overflow-x-auto pb-1 -mx-1 px-1">
+          <div className="inline-flex gap-1.5 items-center min-w-max">
+            <div className="grid grid-rows-7 gap-1.5 pr-2" aria-hidden="true">
+              {daysOfWeek.map((day, index) => (
+                <span key={`${day}-${index}`} className="h-3.5 w-3.5 text-[9px] text-muted-foreground/60 flex items-center justify-center font-mono">
+                  {index % 2 === 1 ? day : ''}
                 </span>
               ))}
             </div>
-
             <div className="flex gap-1.5">
-              {weeks.map((week, wIdx) => (
-                <div key={wIdx} className="grid grid-rows-7 gap-1.5">
+              {weeks.map((week, weekIndex) => (
+                <div key={weekIndex} className="grid grid-rows-7 gap-1.5">
                   {week.map((day) => {
-                    const isMatch = selectedFilter === 'all' || day.state === selectedFilter;
-                    const cfg = STATE_CONFIG[day.state];
+                    const intensity = day.minutes === 0 ? 0 : 0.18 + 0.82 * (day.minutes / maxMinutes);
                     const isToday = localDayKey(new Date()) === day.dateKey;
-
                     return (
                       <Tooltip key={day.dateKey}>
                         <TooltipTrigger asChild>
                           <motion.button
-                            whileHover={{ scale: 1.35 }}
+                            whileHover={{ scale: 1.3 }}
                             transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                            aria-label={`${day.dateKey}: ${day.minutes} min`}
-                            className={`w-3.5 h-3.5 rounded-sm border transition-all ${
-                              day.minutes > 0 && isMatch
-                                ? `${cfg.bg} ${cfg.border} shadow-[0_0_8px_${cfg.glow}]`
-                                : isMatch
-                                ? 'bg-muted/30 border-transparent'
-                                : 'bg-muted/10 border-transparent opacity-25'
-                            } ${isToday ? 'ring-1 ring-ojas' : ''}`}
+                            type="button"
+                            aria-label={`${day.dateKey}: ${day.minutes} minutes, ${day.sessionsCount} sessions`}
+                            className={`w-3.5 h-3.5 rounded-[4px] border transition-all ${
+                              day.minutes > 0 ? 'bg-ojas border-ojas/30' : 'bg-muted/30 border-transparent'
+                            } ${isToday ? 'ring-2 ring-ojas/50 ring-offset-1 ring-offset-card' : ''}`}
+                            style={day.minutes > 0 ? { opacity: intensity } : undefined}
                           />
                         </TooltipTrigger>
-                        <TooltipContent side="top" className="rounded-xl bg-card/95 border-hairline p-3 shadow-xl space-y-1.5 text-xs backdrop-blur-md">
-                          <div className="flex items-center justify-between gap-4 font-mono text-[10px] text-muted-foreground">
-                            <span>{day.date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                            <Badge variant="outline" className={`text-[9px] uppercase px-1.5 py-0 ${cfg.text} border-current/30`}>
-                              {cfg.label}
-                            </Badge>
-                          </div>
+                        <TooltipContent side="top" className="rounded-xl bg-card/95 border-hairline p-3 shadow-xl text-xs backdrop-blur-md">
+                          <p className="font-medium text-foreground">{day.date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</p>
                           {day.minutes > 0 ? (
-                            <div className="space-y-1">
-                              <p className="font-semibold text-foreground text-sm">
-                                {day.minutes} min practiced
-                              </p>
-                              <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
-                                <span>{day.sessionsCount} session(s)</span>
-                                <span>•</span>
-                                <span>{day.cycles} breath cycles</span>
-                              </div>
-                            </div>
+                            <p className="text-muted-foreground mt-1">{day.minutes} min · {day.sessionsCount} session{day.sessionsCount === 1 ? '' : 's'} · {day.cycles} breath cycles</p>
                           ) : (
-                            <p className="text-muted-foreground italic">Rest & Integration Day</p>
+                            <p className="text-muted-foreground mt-1">No completed practice recorded.</p>
                           )}
                         </TooltipContent>
                       </Tooltip>
@@ -241,30 +148,15 @@ export const SadhanaHeatmap: React.FC<SadhanaHeatmapProps> = ({ sessions, weeksT
         </div>
       </TooltipProvider>
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-border/40 text-xs">
-        <div className="flex items-center gap-4 flex-wrap text-muted-foreground">
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-sm bg-ojas/80" />
-            <span className="text-[11px]">Beautiful State</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-sm bg-[hsl(var(--ojas-gold-light)/0.85)]" />
-            <span className="text-[11px]">Sadhana</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-sm bg-prana" />
-            <span className="text-[11px]">Witnessing</span>
-          </div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-hairline text-xs text-muted-foreground">
+        <div className="flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-[4px] bg-ojas/25" aria-hidden="true" />
+          <span>Less practice</span>
+          <span className="w-2.5 h-2.5 rounded-[4px] bg-ojas/60" aria-hidden="true" />
+          <span>More practice</span>
         </div>
-
-        <div className="flex items-center gap-4 text-xs font-mono text-muted-foreground">
-          <span>{summaryStats.activeDays} days active</span>
-          <span>•</span>
-          <span>{summaryStats.totalHours} hrs total</span>
-          <span>•</span>
-          <span className="text-ojas font-semibold">{summaryStats.beautifulStateRatio}% Beautiful State</span>
-        </div>
+        <span>{summaryStats.totalSessions} completed sessions</span>
       </div>
-    </div>
+    </section>
   );
 };

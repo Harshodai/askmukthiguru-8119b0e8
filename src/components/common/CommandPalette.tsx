@@ -29,7 +29,6 @@ const practiceIcon: Record<string, typeof Flame> = {
 };
 
 export const CommandPalette = ({ open, onOpenChange, onNavigate }: CommandPaletteProps) => {
-  const { t } = useTranslation();
   const { favorites, isFavorited } = useFavorites();
   const { open: openSereneMind } = useSereneMind();
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -42,7 +41,7 @@ export const CommandPalette = ({ open, onOpenChange, onNavigate }: CommandPalett
     setLoadingConversations(true);
     loadConversations()
       .then((items) => {
-        if (!cancelled) setConversations(items.slice(0, 12));
+        if (!cancelled) setConversations(items.slice(0, 16));
       })
       .catch(() => {
         if (!cancelled) setConversations([]);
