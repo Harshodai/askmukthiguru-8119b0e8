@@ -49,7 +49,7 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        // Sacred Energy Colors
+        // Sacred Energy Colors — all resolved through the canonical token layer.
         ojas: {
           DEFAULT: "hsl(var(--ojas-gold))",
           light: "hsl(var(--ojas-gold-light))",
@@ -70,18 +70,18 @@ export default {
         "saffron-gold": "hsl(var(--saffron-gold))",
         "lotus-rose": "hsl(var(--lotus-rose))",
         "pale-gold": "hsl(var(--pale-gold))",
-        // Serene UI design tokens (namespaced to avoid collisions)
+        // Serene UI aliases intentionally resolve to the same canonical product palette.
         serene: {
-          primary: "#D4A574",
-          secondary: "#7B9E87",
-          accent: "#C9A96E",
-          background: "#FAF7F2",
-          surface: "#FFFFFF",
-          textPrimary: "#2C2420",
-          textSecondary: "#6B5E54",
-          textMuted: "#9B8E84",
-          border: "#E8E0D8",
-          error: "#C47065",
+          primary: "hsl(var(--ojas-gold))",
+          secondary: "hsl(var(--prana-blue))",
+          accent: "hsl(var(--ojas-gold-light))",
+          background: "hsl(var(--background))",
+          surface: "hsl(var(--card))",
+          textPrimary: "hsl(var(--foreground))",
+          textSecondary: "hsl(var(--muted-foreground))",
+          textMuted: "hsl(var(--muted-foreground))",
+          border: "hsl(var(--border))",
+          error: "hsl(var(--destructive))",
         },
       },
       borderRadius: {
@@ -92,8 +92,6 @@ export default {
       fontFamily: {
         sans: ['"Plus Jakarta Sans"', 'Inter', 'sans-serif'],
         display: ['Outfit', 'sans-serif'],
-        // Sacred serif — Cormorant Garamond evokes timelessness / temple manuscripts.
-        // Replaces Playfair Display per the Digital Ashram design system.
         serif: ['"Cormorant Garamond"', 'Georgia', 'serif'],
         sacred: ['"Cormorant Garamond"', 'Georgia', 'serif'],
         mono: ['JetBrains Mono', 'monospace'],
@@ -136,7 +134,6 @@ export default {
           "0%, 100%": { transform: "scale(1)", opacity: "0.5" },
           "50%": { transform: "scale(1.3)", opacity: "0" },
         },
-        // Serene UI keyframes
         breathe: {
           "0%, 100%": { transform: "scale(1)" },
           "50%": { transform: "scale(1.02)" },
@@ -160,7 +157,6 @@ export default {
         "lotus-bloom": "lotus-bloom 1.5s ease-out forwards",
         "petal-sway": "petal-sway 4s ease-in-out infinite",
         "voice-pulse": "voice-pulse 1.5s ease-in-out infinite",
-        // Serene UI animations
         breathe: "breathe 4s ease-in-out infinite",
         "pulse-soft": "pulse-soft 2s ease-in-out infinite",
         "slide-up": "slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1)",
