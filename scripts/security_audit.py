@@ -32,6 +32,33 @@ ROOT = Path(__file__).resolve().parent.parent
 BACKEND = ROOT / "backend"
 FRONTEND_SRC = ROOT / "src"
 
+# ─── Secret redaction helpers ───────────────────────────────────────────────
+
+
+def _mask_secret(val: str | None) -> str:
+    """Mask sensitive secrets/tokens as token[:4] + '***'."""
+    if not val:
+        return ""
+    s = str(val)
+    if len(s) <= 4:
+        return "***"
+    return f"{s[:4]}***"
+
+
+def _redact_secrets(text: str | None) -> str:
+    """Redact bearer tokens, auth tokens, API keys, or secret headers from stdout/reports."""
+    if not text:
+        return ""
+    s = str(text)
+    s = re.sub(r"(?i)(bearer\s+)([A-Za-z0-9_\-\.]{4})[A-Za-z0-9_\-\.]*", r"\1\2***", s)
+    s = re.sub(
+        r"(?i)(api[_-]?key|secret|password|auth[_-]?token|token|authorization)(\s*[:=]\s*['\"]?)([A-Za-z0-9_\-\.]{4})[A-Za-z0-9_\-\.]*(['\"]?)",
+        r"\1\2\3***\4",
+        s,
+    )
+    return s
+
+
 # ─── Result model ────────────────────────────────────────────────────────────
 
 
@@ -48,13 +75,16 @@ findings: list[Finding] = []
 
 
 def record(category, check, status, detail, fix=""):
-    findings.append(Finding(category, check, status, detail, fix))
+    safe_detail = _redact_secrets(detail)
+    safe_fix = _redact_secrets(fix)
+    findings.append(Finding(category, check, status, safe_detail, safe_fix))
     icon = {"PASS": "✅", "WARN": "⚠️ ", "FAIL": "❌"}[status]
     print(f"  {icon} [{status}] {check}")
     if status != "PASS":
-        print(f"       → {detail}")
-        if fix:
-            print(f"       🔧 {fix}")
+        print(f"       → {safe_detail}")
+        if safe_fix:
+            print(f"       🔧 {safe_fix}")
+
 
 
 # ─── 01 Legal & Privacy ──────────────────────────────────────────────────────

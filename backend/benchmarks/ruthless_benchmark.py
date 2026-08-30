@@ -11,6 +11,7 @@ import argparse
 import asyncio
 import json
 import os
+import re
 import socket
 import sys
 import time
@@ -19,6 +20,31 @@ from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import Any, Optional
+
+
+def _mask_secret(val: Optional[str]) -> str:
+    """Mask sensitive secrets/tokens as token[:4] + '***'."""
+    if not val:
+        return ""
+    s = str(val)
+    if len(s) <= 4:
+        return "***"
+    return f"{s[:4]}***"
+
+
+def _redact_secrets(text: Optional[str]) -> str:
+    """Redact bearer tokens, auth tokens, API keys, or secret headers from log/stdout."""
+    if not text:
+        return ""
+    s = str(text)
+    s = re.sub(r"(?i)(bearer\s+)([A-Za-z0-9_\-\.]{4})[A-Za-z0-9_\-\.]*", r"\1\2***", s)
+    s = re.sub(
+        r"(?i)(api[_-]?key|secret|password|auth[_-]?token|token|authorization)(\s*[:=]\s*['\"]?)([A-Za-z0-9_\-\.]{4})[A-Za-z0-9_\-\.]*(['\"]?)",
+        r"\1\2\3***\4",
+        s,
+    )
+    return s
+
 
 try:
     from dotenv import load_dotenv
@@ -555,7 +581,7 @@ async def chat(
                     "status": 422,
                     "data": {},
                     "intent": "UNKNOWN",
-                    "error": f"HTTP 422: {r.text}",
+                    "error": f"HTTP 422: {_redact_secrets(r.text)}",
                 }
             else:
                 if attempt == max_retries:
@@ -573,7 +599,7 @@ async def chat(
                     "status": 0,
                     "data": {},
                     "intent": "UNKNOWN",
-                    "error": str(e),
+                    "error": _redact_secrets(str(e)),
                 }
 
         backoff_time = (2**attempt) * 1.5
@@ -793,16 +819,16 @@ async def flush_caches(base_url: str, skip: bool = False) -> None:
             check=False,
         )
         if result.stdout:
-            print(result.stdout.strip()[-2000:])
+            print(_redact_secrets(result.stdout.strip()[-2000:]))
         if result.stderr:
-            print(result.stderr.strip()[-1000:])
+            print(_redact_secrets(result.stderr.strip()[-1000:]))
         if result.returncode == 0 and "error:" not in result.stdout.lower():
             print("  ✅ Scoped query caches cleared; queues, sessions, quotas, telemetry, and user data were preserved.")
             flushed_any = True
         else:
             print("  ⚠️  Scoped cache utility did not complete cleanly; benchmark will continue without claiming a cold cache.")
     except Exception as e:
-        print(f"  ⚠️  Scoped cache flush skipped: {str(e)[:120]}")
+        print(f"  ⚠️  Scoped cache flush skipped: {_redact_secrets(str(e)[:120])}")
 
     # Derive the host only for the semantic-cache HTTP fallback below.
     parsed = httpx.URL(base_url)
@@ -841,7 +867,7 @@ async def flush_caches(base_url: str, skip: bool = False) -> None:
             else:
                 print(f"  ⚠️  Qdrant delete returned HTTP {r.status_code}.")
     except Exception as e:
-        print(f"  ⚠️  Qdrant flush skipped (not reachable on host: {str(e)[:60]})")
+        print(f"  ⚠️  Qdrant flush skipped (not reachable on host: {_redact_secrets(str(e)[:60])})")
 
     if flushed_any:
         print("  ✨  Cache flush complete — benchmark will run on cold caches.\n")

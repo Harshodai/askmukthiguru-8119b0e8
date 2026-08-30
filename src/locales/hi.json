@@ -1285,8 +1285,8 @@
     "viewMeditationStats": "ध्यान सांख्यिकी देखें"
   },
   "sadhana": {
-    "matrixTitle": "साधना और चेतना मैट्रिक्स",
-    "matrixSubtitle": "ध्यान, साक्षी भाव और आंतरिक स्थिति की महारत के पिछले {{weeks}} सप्ताह।",
+    "matrixTitle": "साधना और अभ्यास मैट्रिक्स",
+    "matrixSubtitle": "सत्यापित ध्यान अभ्यास और श्वास जागरूकता के पिछले {{weeks}} सप्ताह।",
     "filterAll": "सभी दिन",
     "minPracticed": "{{minutes}} मिनट अभ्यास किया",
     "sessionCount": "{{count}} सत्र",
@@ -1294,13 +1294,13 @@
     "restDay": "विश्राम और एकीकरण दिवस",
     "daysActive": "{{count}} दिन सक्रिय",
     "hoursTotal": "कुल {{hours}} घंटे",
-    "beautifulStateRatio": "{{ratio}}% सुंदर स्थिति",
+    "totalSessions": "{{count}} पूर्ण सत्र",
+    "streakStatus": "{{current}} दिन की निरंतरता (सर्वश्रेष्ठ: {{longest}} दिन)",
     "states": {
-      "beautiful_state": "सुंदर स्थिति",
-      "witnessing": "साक्षी उपस्थिति",
-      "sadhana": "समर्पित साधना",
-      "conflict_transformed": "द्वंद्व रूपांतरित",
-      "neutral": "कोई अभ्यास दर्ज नहीं"
+      "gentle": "सौम्य अभ्यास",
+      "dedicated": "समर्पित अभ्यास",
+      "deep": "गहन साधना",
+      "rest": "विश्राम / एकीकरण"
     }
   }
 }

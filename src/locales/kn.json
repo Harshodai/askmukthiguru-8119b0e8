@@ -1326,22 +1326,22 @@
     "viewMeditationStats": "ಧ್ಯಾನ ಅಂಕಿಅಂಶಗಳನ್ನು ವೀಕ್ಷಿಸಿ"
   },
   "sadhana": {
-    "matrixTitle": "ಸಾಧನಾ ಮತ್ತು ಪ್ರಜ್ಞೆಯ ಮ್ಯಾಟ್ರಿಕ್ಸ್",
-    "matrixSubtitle": "ಧ್ಯಾನ, ಸಾಕ್ಷಿ ಭಾವ ಮತ್ತು ಆಂತರಿಕ ಸ್ಥಿತಿಯ ಪಾಂಡಿತ್ಯದ ಹಿಂದಿನ {{weeks}} ವಾರಗಳು.",
+    "matrixTitle": "ಸಾಧನಾ ಮತ್ತು ಅಭ್ಯಾಸ ಮ್ಯಾಟ್ರಿಕ್ಸ್",
+    "matrixSubtitle": "ದೃಢೀಕೃತ ಧ್ಯಾನ ಅಭ್ಯಾಸ ಮತ್ತು ಉಸಿರಾಟದ ಅರಿವಿನ ಹಿಂದಿನ {{weeks}} ವಾರಗಳು.",
     "filterAll": "ಎಲ್ಲಾ ದಿನಗಳು",
-    "minPracticed": "{{minutes}} ನಿಮಿಷ ಅಭ್ಯಾಸ ಮಾಡಲಾಗಿದೆ",
-    "sessionCount": "{{count}} ಸೆಷನ್(ಗಳು)",
+    "minPracticed": "{{minutes}} ನಿಮಿಷಗಳ ಅಭ್ಯಾಸ",
+    "sessionCount": "{{count}} ಅವಧಿ(ಗಳು)",
     "breathCycles": "{{count}} ಉಸಿರಾಟದ ಚಕ್ರಗಳು",
-    "restDay": "ವಿಶ್ರಾಂತಿ ಮತ್ತು ಏಕೀಕರಣ ದಿನ",
-    "daysActive": "{{count}} ದಿನಗಳು ಸಕ್ರಿಯವಾಗಿವೆ",
+    "restDay": "ವಿಶ್ರಾಂತಿ ಮತ್ತು ಸಮನ್ವಯ ದಿನ",
+    "daysActive": "{{count}} ದಿನಗಳು ಸಕ್ರಿಯ",
     "hoursTotal": "ಒಟ್ಟು {{hours}} ಗಂಟೆಗಳು",
-    "beautifulStateRatio": "{{ratio}}% ಸುಂದರ ಸ್ಥಿತಿ",
+    "totalSessions": "{{count}} ಪೂರ್ಣಗೊಂಡ ಅವಧಿಗಳು",
+    "streakStatus": "{{current}} ದಿನಗಳ ಸರಣಿ (ಅತ್ಯುತ್ತಮ: {{longest}} ದಿನಗಳು)",
     "states": {
-      "beautiful_state": "ಸುಂದರ ಸ್ಥಿತಿ",
-      "witnessing": "ಸಾಕ್ಷಿ ಉಪಸ್ಥಿತಿ",
-      "sadhana": "ಸಮರ್ಪಿತ ಸಾಧನಾ",
-      "conflict_transformed": "ಸಂಘರ್ಷ ರೂಪಾಂತರಗೊಂಡಿದೆ",
-      "neutral": "ಯಾವುದೇ ಅಭ್ಯಾಸ ದಾಖಲಾಗಿಲ್ಲ"
+      "gentle": "ಸೌಮ್ಯ ಅಭ್ಯಾಸ",
+      "dedicated": "ಸಮರ್ಪಿತ ಅಭ್ಯಾಸ",
+      "deep": "ಗಹನ ಸಾಧನಾ",
+      "rest": "ವಿಶ್ರಾಂತಿ / ಸಮನ್ವಯ"
     }
   }
 }

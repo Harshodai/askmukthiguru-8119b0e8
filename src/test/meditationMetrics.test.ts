@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   computeMetrics,
   computeStreak,
+  computeLongestStreak,
   dailySeries,
   localDayKey,
   type NormalizedSession,
@@ -76,5 +77,23 @@ describe('meditationMetrics', () => {
     const firstOfAugust = new Date(2026, 7, 1, 21, 0); // 1 Aug
     const now = new Date(2026, 7, 1, 23, 0);
     expect(computeStreak([sit(firstOfAugust, 120), sit(endOfJuly, 120)], now)).toBe(2);
+  });
+
+  it('computes longest streak across historical sessions with gaps', () => {
+    expect(computeLongestStreak([])).toBe(0);
+    expect(computeLongestStreak([sit(daysAgo(0), 120)])).toBe(1);
+
+    // Streak of 3 (days 10, 9, 8), gap on day 7, streak of 4 (days 6, 5, 4, 3)
+    const sessions = [
+      sit(daysAgo(10), 120),
+      sit(daysAgo(9), 120),
+      sit(daysAgo(8), 120),
+      // gap on 7
+      sit(daysAgo(6), 120),
+      sit(daysAgo(5), 120),
+      sit(daysAgo(4), 120),
+      sit(daysAgo(3), 120),
+    ];
+    expect(computeLongestStreak(sessions)).toBe(4);
   });
 });

@@ -1327,22 +1327,22 @@
     "viewMeditationStats": "ध्यान आकडेवारी पहा"
   },
   "sadhana": {
-    "matrixTitle": "साधना आणि चेतना मॅट्रिक्स",
-    "matrixSubtitle": "ध्यान, साक्षीभाव आणि आंतरिक स्थितीच्या प्रभुत्वाचे मागील {{weeks}} आठवडे.",
+    "matrixTitle": "साधना आणि सराव मॅट्रिक्स",
+    "matrixSubtitle": "सत्यापित ध्यान सराव आणि श्वास जागरूकतेचे मागील {{weeks}} आठवडे.",
     "filterAll": "सर्व दिवस",
     "minPracticed": "{{minutes}} मिनिटे सराव केला",
     "sessionCount": "{{count}} सत्रे",
-    "breathCycles": "{{count}} श्वास चक्र",
+    "breathCycles": "{{count}} श्वास चक्रे",
     "restDay": "विश्रांती आणि एकत्रीकरण दिवस",
     "daysActive": "{{count}} दिवस सक्रिय",
     "hoursTotal": "एकूण {{hours}} तास",
-    "beautifulStateRatio": "{{ratio}}% सुंदर स्थिती",
+    "totalSessions": "{{count}} पूर्ण झालेली सत्रे",
+    "streakStatus": "{{current}} दिवस सातत्य (सर्वोत्तम: {{longest}} दिवस)",
     "states": {
-      "beautiful_state": "सुंदर स्थिती",
-      "witnessing": "साक्षी उपस्थिती",
-      "sadhana": "समर्पित साधना",
-      "conflict_transformed": "द्वंद्व रूपांतरित",
-      "neutral": "कोणतीही साधना नोंदवली नाही"
+      "gentle": "सौम्य सराव",
+      "dedicated": "समर्पित सराव",
+      "deep": "गहन साधना",
+      "rest": "विश्रांती / एकत्रीकरण"
     }
   }
 }

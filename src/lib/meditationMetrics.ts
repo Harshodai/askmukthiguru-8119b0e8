@@ -31,6 +31,7 @@ export interface MeditationMetrics {
   totalMinutes: number;
   totalCycles: number;
   streakDays: number;
+  longestStreakDays?: number;
   lastSessionDate: Date | null;
 }
 
@@ -72,6 +73,35 @@ export const computeStreak = (sessions: NormalizedSession[], now: Date = new Dat
   return streak;
 };
 
+export const computeLongestStreak = (sessions: NormalizedSession[]): number => {
+  const dayKeys = Array.from(
+    new Set(sessions.filter(keepsStreakAlive).map((s) => localDayKey(s.at)))
+  ).sort();
+  if (dayKeys.length === 0) return 0;
+
+  let maxStreak = 1;
+  let currentStreak = 1;
+
+  for (let i = 1; i < dayKeys.length; i++) {
+    const [yPrev, mPrev, dPrev] = dayKeys[i - 1].split('-').map(Number);
+    const prevDate = new Date(yPrev, mPrev - 1, dPrev);
+    const expectedNext = new Date(prevDate);
+    expectedNext.setDate(expectedNext.getDate() + 1);
+    const expectedKey = localDayKey(expectedNext);
+
+    if (dayKeys[i] === expectedKey) {
+      currentStreak++;
+      if (currentStreak > maxStreak) {
+        maxStreak = currentStreak;
+      }
+    } else {
+      currentStreak = 1;
+    }
+  }
+
+  return maxStreak;
+};
+
 export const computeMetrics = (
   sessions: NormalizedSession[],
   now: Date = new Date(),
@@ -88,6 +118,7 @@ export const computeMetrics = (
     totalMinutes: Math.round(totalSeconds / 60),
     totalCycles: sits.reduce((a, s) => a + s.breathCycles, 0),
     streakDays: computeStreak(sessions, now),
+    longestStreakDays: computeLongestStreak(sessions),
     lastSessionDate: latest,
   };
 };

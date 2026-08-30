@@ -1,0 +1,215 @@
+name: Hallucination Anomaly Detection
+
+on:
+  schedule:
+    - cron: '0 4 * * *'  # 04:00 UTC daily
+  workflow_dispatch:
+
+env:
+  ANOMALY_HALLUCINATION_RATE_THRESHOLD: '0.05'
+  ANOMALY_FAITHFULNESS_P50_THRESHOLD: '0.80'
+  ANOMALY_LOOKBACK_DAYS: '1'
+
+jobs:
+  anomaly-detection:
+    name: Detect Hallucination Anomalies
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+
+      - name: Run Hallucination Anomaly Check
+        id: anomaly_check
+        continue-on-error: true
+        run: |
+          cd backend
+          python -m scripts.ops.hallucination_anomaly \
+            --lookback-days "${ANOMALY_LOOKBACK_DAYS}" \
+            --out hallucination_anomaly.json
+          echo "exit_code=$?" >> $GITHUB_OUTPUT
+        env:
+          PYTHONPATH: backend
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || secrets.SUPABASE_KEY }}
+          ANOMALY_HALLUCINATION_RATE_THRESHOLD: ${{ env.ANOMALY_HALLUCINATION_RATE_THRESHOLD }}
+          ANOMALY_FAITHFULNESS_P50_THRESHOLD: ${{ env.ANOMALY_FAITHFULNESS_P50_THRESHOLD }}
+          ANOMALY_LOOKBACK_DAYS: ${{ env.ANOMALY_LOOKBACK_DAYS }}
+
+      - name: Upload Anomaly Report Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hallucination-anomaly-report
+          path: backend/hallucination_anomaly.json
+          if-no-files-found: ignore
+
+      - name: Post Anomaly Report to Job Summary
+        if: always()
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json, os
+
+          report_path = "backend/hallucination_anomaly.json"
+          if not os.path.exists(report_path):
+              print("### 🔮 Hallucination Anomaly Detection Report\n")
+              print("⚠️ **Status:** Execution failed before generating `hallucination_anomaly.json`.")
+              print("Please inspect runner logs for dependency or configuration errors.")
+              exit(0)
+
+          try:
+              with open(report_path, "r", encoding="utf-8") as f:
+                  data = json.load(f)
+          except Exception as e:
+              print(f"### 🔮 Hallucination Anomaly Detection Report\n\n❌ **Error parsing report:** {e}")
+              exit(0)
+
+          checked_at = data.get("checked_at", "N/A")
+          lookback_days = data.get("lookback_days", "N/A")
+          window_start = data.get("window_start", "N/A")
+          is_anomaly = data.get("anomaly", False)
+          alerts = data.get("alerts", {})
+          metrics = data.get("metrics", {})
+          thresholds = data.get("thresholds", {})
+
+          if alerts.get("connection_error"):
+              status_badge = "❌ **DATABASE CONNECTION ERROR (FAILED CLOSED)**"
+          elif alerts.get("no_data"):
+              status_badge = "⚠️ **NO RESPONSES IN WINDOW (NORMAL)**"
+          elif is_anomaly:
+              status_badge = "🚨 **ANOMALY DETECTED (ACTION REQUIRED)**"
+          else:
+              status_badge = "✅ **WITHIN NORMAL THRESHOLDS**"
+
+          print("### 🔮 Hallucination Anomaly Detection Report\n")
+          print(f"**Overall Status:** {status_badge}\n")
+          print(f"- **Checked At:** `{checked_at}`")
+          print(f"- **Lookback Window:** `{lookback_days}` day(s) (since `{window_start}`)")
+          print(f"- **Total Responses Evaluated:** `{metrics.get('total_responses', 0)}`")
+          print(f"- **Flagged Responses:** `{metrics.get('flagged_count', 0)}`\n")
+
+          print("| Metric | Observed Value | Threshold | Status |")
+          print("| :--- | :--- | :--- | :--- |")
+
+          rate = metrics.get("hallucination_rate", 0.0)
+          rate_thresh = thresholds.get("hallucination_rate", 0.05)
+          rate_status = "❌ BREACH" if alerts.get("hallucination_rate_spike") else "✅ OK"
+          print(f"| **Hallucination Rate** | `{rate * 100:.2f}%` | `≤ {rate_thresh * 100:.2f}%` | {rate_status} |")
+
+          faith_p50 = metrics.get("faithfulness_p50", 0.0)
+          faith_thresh = thresholds.get("faithfulness_p50", 0.80)
+          faith_status = "❌ BREACH" if alerts.get("faithfulness_p50_drop") else "✅ OK"
+          print(f"| **Faithfulness p50** | `{faith_p50:.3f}` | `≥ {faith_thresh:.3f}` | {faith_status} |")
+
+          faith_mean = metrics.get("faithfulness_mean", 0.0)
+          print(f"| **Faithfulness Mean** | `{faith_mean:.3f}` | N/A | ℹ️ Informational |")
+
+          if is_anomaly:
+              print("\n> 🚨 **Action Required:** Anomaly detected. Check recent chat traces in admin dashboard or runbook `docs/runbooks/ALERTING.md`.")
+          PY
+
+      - name: Alert on Threshold Breach (Slack / Webhook)
+        if: always()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
+        run: |
+          python3 - <<'PY'
+          import json, os, urllib.request
+
+          report_path = "backend/hallucination_anomaly.json"
+          if not os.path.exists(report_path):
+              is_anomaly = True
+              summary = "Hallucination anomaly detector failed to execute."
+          else:
+              try:
+                  with open(report_path, "r", encoding="utf-8") as f:
+                      data = json.load(f)
+                  is_anomaly = data.get("anomaly", False)
+                  metrics = data.get("metrics", {})
+                  rate = metrics.get("hallucination_rate", 0.0) * 100
+                  p50 = metrics.get("faithfulness_p50", 0.0)
+                  summary = (
+                      f"Hallucination Anomaly Detected: Hallucination Rate={rate:.2f}%, "
+                      f"Faithfulness p50={p50:.3f}, Total={metrics.get('total_responses', 0)}"
+                  )
+              except Exception as e:
+                  is_anomaly = True
+                  summary = f"Error reading anomaly report: {e}"
+
+          if not is_anomaly:
+              print("No anomaly detected; skipping external webhook alerts.")
+              exit(0)
+
+          slack_url = os.environ.get("SLACK_WEBHOOK_URL")
+          if slack_url:
+              payload = {
+                  "text": f"🚨 *[AskMukthiGuru Alert]* {summary}\nRunbook: `docs/runbooks/ALERTING.md`"
+              }
+              try:
+                  req = urllib.request.Request(
+                      slack_url,
+                      data=json.dumps(payload).encode("utf-8"),
+                      headers={"Content-Type": "application/json"},
+                      method="POST"
+                  )
+                  urllib.request.urlopen(req, timeout=10)
+                  print("Slack alert dispatched successfully.")
+              except Exception as e:
+                  print(f"Warning: Failed to dispatch Slack alert: {e}")
+
+          webhook_url = os.environ.get("ALERT_WEBHOOK_URL")
+          if webhook_url:
+              payload = {
+                  "event": "hallucination_anomaly",
+                  "summary": summary,
+                  "anomaly": True,
+                  "run_id": os.environ.get("GITHUB_RUN_ID", ""),
+                  "repository": os.environ.get("GITHUB_REPOSITORY", "")
+              }
+              try:
+                  req = urllib.request.Request(
+                      webhook_url,
+                      data=json.dumps(payload).encode("utf-8"),
+                      headers={"Content-Type": "application/json"},
+                      method="POST"
+                  )
+                  urllib.request.urlopen(req, timeout=10)
+                  print("Alert webhook dispatched successfully.")
+              except Exception as e:
+                  print(f"Warning: Failed to dispatch alert webhook: {e}")
+          PY
+
+      - name: Enforce Anomaly Gate Exit Status
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import json, os, sys
+
+          report_path = "backend/hallucination_anomaly.json"
+          if not os.path.exists(report_path):
+              print("❌ Failing workflow: hallucination_anomaly.json was not generated.")
+              sys.exit(1)
+
+          with open(report_path, "r", encoding="utf-8") as f:
+              data = json.load(f)
+
+          if data.get("anomaly"):
+              print("❌ Failing workflow: Hallucination anomaly detected.")
+              sys.exit(1)
+
+          print("✅ Workflow passed: No anomalies detected.")
+          sys.exit(0)
+          PY

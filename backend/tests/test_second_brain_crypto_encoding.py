@@ -3,7 +3,7 @@ from __future__ import annotations
 import base64
 
 import pytest
-from backend.services.second_brain.crypto import derive_server_kek
+from services.second_brain.crypto import derive_server_kek
 
 
 def test_derive_server_kek_accepts_padded_and_unpadded_base64url() -> None:

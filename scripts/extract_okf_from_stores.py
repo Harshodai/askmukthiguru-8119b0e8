@@ -30,6 +30,16 @@ sys.path.insert(0, str(_BACKEND))
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(name)s  %(message)s")
 logger = logging.getLogger(__name__)
 
+
+def _sanitize_log(val: Any, max_len: int = 500) -> str:
+    """Sanitize log input against CRLF and log injection (CWE-117)."""
+    if val is None:
+        return ""
+    cleaned = str(val).replace("\r", "").replace("\n", " ")
+    cleaned = "".join(ch for ch in cleaned if ch.isprintable() or ch == " ")
+    return cleaned[:max_len]
+
+
 # Inside Docker _BACKEND=/app so parent=/ — correct to /app/
 _okf_base = _BACKEND.parent / "memory" / "okf"
 if _BACKEND == Path("/app"):
@@ -324,7 +334,7 @@ async def _gather_qdrant_chunks(limit: int | None = None) -> list[dict]:
     try:
         raw = await asyncio.to_thread(svc.get_all_texts)
     except Exception as exc:
-        logger.error("Qdrant scan failed: %s", exc)
+        logger.error("Qdrant scan failed: %s", _sanitize_log(exc))
         return []
 
     if limit and len(raw) > limit:
@@ -359,9 +369,9 @@ async def _gather_neo4j_entities() -> list[dict[str, str]]:
                 for r in result:
                     entities.append(
                         {
-                            "name": r["name"] or "",
-                            "desc": r["desc"] or "",
-                            "type": r["type"] or "concept",
+                            "name": _sanitize_log(r["name"] or ""),
+                            "desc": _sanitize_log(r["desc"] or ""),
+                            "type": _sanitize_log(r["type"] or "concept"),
                         }
                     )
             return entities
@@ -370,7 +380,7 @@ async def _gather_neo4j_entities() -> list[dict[str, str]]:
         logger.info("Neo4j: %d entities loaded", len(entities))
         return entities
     except Exception as exc:
-        logger.warning("Neo4j entity fetch failed: %s", exc)
+        logger.warning("Neo4j entity fetch failed: %s", _sanitize_log(exc))
         return []
 
 
@@ -396,7 +406,7 @@ async def _gather_lightrag_relationships(
                         return results
                     break
     except Exception as exc:
-        logger.debug("Memory guard check skipped: %s", exc)
+        logger.debug("Memory guard check skipped: %s", _sanitize_log(exc))
 
     try:
         from services.lightrag_service import LightRAGService
@@ -410,9 +420,9 @@ async def _gather_lightrag_relationships(
                 if ctx:
                     results[q] = ctx[:2000]  # ponytail: cap to avoid prompt bloat
             except Exception as exc:
-                logger.debug("LightRAG query skipped for %r: %s", q, exc)
+                logger.debug("LightRAG query skipped for %s: %s", _sanitize_log(q), _sanitize_log(exc))
     except Exception as exc:
-        logger.warning("LightRAG unavailable: %s", exc)
+        logger.warning("LightRAG unavailable: %s", _sanitize_log(exc))
 
     logger.info("LightRAG: %d relationship sets gathered", len(results))
     return results
@@ -449,7 +459,7 @@ async def _get_topic_clusters(
     if target_video_id:
         chunks = [c for c in chunks if target_video_id in c.get("source_url", "")]
         if not chunks:
-            logger.warning("No chunks found for video_id=%s", target_video_id)
+            logger.warning("No chunks found for video_id=%s", _sanitize_log(target_video_id))
             return []
 
     # Group by topic
@@ -533,8 +543,8 @@ async def _get_topic_clusters(
         "Clusters: %d topics (limit=%s, topic=%s, video=%s, skip_heavy=%s)",
         len(clusters),
         limit,
-        target_topic or "any",
-        target_video_id or "any",
+        _sanitize_log(target_topic or "any"),
+        _sanitize_log(target_video_id or "any"),
         skip_heavy,
     )
     return clusters
@@ -625,14 +635,14 @@ async def _call_llm(system: str, user: str) -> str:
             artifact = find_artifact(text)
             if artifact:
                 logger.warning(
-                    "LLM output from multi-provider contains artifact %r — trying next provider",
-                    artifact,
+                    "LLM output from multi-provider contains artifact %s — trying next provider",
+                    _sanitize_log(artifact),
                 )
             else:
                 logger.info("LLM: generated %d chars via multi-provider", len(text))
                 return text.strip()
     except Exception as exc:
-        logger.warning("Multi-provider LLM failed: %s — trying OpenRouter", exc)
+        logger.warning("Multi-provider LLM failed: %s — trying OpenRouter", _sanitize_log(exc))
 
     # Fallback: OpenRouter direct
     try:
@@ -650,14 +660,14 @@ async def _call_llm(system: str, user: str) -> str:
             artifact = find_artifact(text)
             if artifact:
                 logger.warning(
-                    "LLM output from OpenRouter contains artifact %r — trying next provider",
-                    artifact,
+                    "LLM output from OpenRouter contains artifact %s — trying next provider",
+                    _sanitize_log(artifact),
                 )
             else:
                 logger.info("LLM: generated %d chars via OpenRouter", len(text))
                 return text.strip()
     except Exception as exc:
-        logger.warning("OpenRouter LLM failed: %s — trying Sarvam", exc)
+        logger.warning("OpenRouter LLM failed: %s — trying Sarvam", _sanitize_log(exc))
 
     # Fallback: Sarvam Cloud
     try:
@@ -676,14 +686,14 @@ async def _call_llm(system: str, user: str) -> str:
             artifact = find_artifact(text)
             if artifact:
                 logger.warning(
-                    "LLM output from Sarvam contains artifact %r — trying next provider",
-                    artifact,
+                    "LLM output from Sarvam contains artifact %s — trying next provider",
+                    _sanitize_log(artifact),
                 )
             else:
                 logger.info("LLM: generated %d chars via Sarvam", len(text))
                 return text.strip()
     except Exception as exc:
-        logger.warning("Sarvam LLM failed: %s — trying Ollama", exc)
+        logger.warning("Sarvam LLM failed: %s — trying Ollama", _sanitize_log(exc))
 
     # Final fallback: Ollama (local — always available if ollama serve is running)
     try:
@@ -702,14 +712,14 @@ async def _call_llm(system: str, user: str) -> str:
             artifact = find_artifact(text)
             if artifact:
                 logger.warning(
-                    "LLM output from Ollama contains artifact %r — trying next provider",
-                    artifact,
+                    "LLM output from Ollama contains artifact %s — trying next provider",
+                    _sanitize_log(artifact),
                 )
             else:
                 logger.info("LLM: generated %d chars via Ollama", len(text))
                 return text.strip()
     except Exception as exc:
-        logger.warning("Ollama LLM failed: %s", exc)
+        logger.warning("Ollama LLM failed: %s", _sanitize_log(exc))
 
     raise RuntimeError("No LLM provider available — ensure llm_provider is configured")
 
@@ -749,11 +759,11 @@ def _parse_okf_response(raw: str) -> dict[str, Any] | None:
     required = {"type", "title"}
     missing = required - set(frontmatter.keys())
     if missing:
-        logger.warning("Missing frontmatter fields: %s", missing)
+        logger.warning("Missing frontmatter fields: %s", _sanitize_log(missing))
         return None
 
     if frontmatter.get("type") not in _VALID_TYPES:
-        logger.warning("Invalid type %r — defaulting to 'teaching'", frontmatter.get("type"))
+        logger.warning("Invalid type %s — defaulting to 'teaching'", _sanitize_log(frontmatter.get("type")))
         frontmatter["type"] = "teaching"
 
     # Normalise teacher value
@@ -797,8 +807,8 @@ async def extract_okf(
 
     logger.info(
         "OKF extraction start: topic=%s, video=%s, limit=%d, auto=%s, dry=%s",
-        target_topic or "any",
-        target_video_id or "any",
+        _sanitize_log(target_topic or "any"),
+        _sanitize_log(target_video_id or "any"),
         limit,
         auto_approve,
         dry_run,
@@ -831,7 +841,7 @@ async def extract_okf(
             "[%d/%d] Generating OKF entry for: %s (%d chunks)",
             i + 1,
             len(clusters),
-            cluster["topic_key"],
+            _sanitize_log(cluster["topic_key"]),
             cluster["chunk_count"],
         )
 
@@ -839,14 +849,14 @@ async def extract_okf(
 
         if dry_run:
             logger.info("DRY-RUN prompt (system=%d chars, user=%d chars)", len(system), len(user))
-            logger.info("Would write to: %s/%s.md", target_dir, _slug(cluster["topic_key"]))
+            logger.info("Would write to: %s/%s.md", _sanitize_log(target_dir), _sanitize_log(_slug(cluster["topic_key"])))
             continue
 
         try:
             raw = await _call_llm(system, user)
             parsed = _parse_okf_response(raw)
             if not parsed:
-                logger.warning("Failed to parse LLM output for %s — skipping", cluster["topic_key"])
+                logger.warning("Failed to parse LLM output for %s — skipping", _sanitize_log(cluster["topic_key"]))
                 continue
 
             source_url = cluster.get("sources", [""])[0] if cluster.get("sources") else None
@@ -865,16 +875,16 @@ async def extract_okf(
                 directory=target_dir,
             )
             written.append(path)
-            logger.info("  → %s", path)
+            logger.info("  → %s", _sanitize_log(path))
         except Exception as exc:
-            logger.error("Entry generation failed for %s: %s", cluster["topic_key"], exc)
+            logger.error("Entry generation failed for %s: %s", _sanitize_log(cluster["topic_key"]), _sanitize_log(exc))
 
     # 4. Compilation is intentionally review-driven. The admin approval route
     # writes reviewed entries to the live directory and compiles the index.
     logger.info(
         "OKF extraction done: %d entries written to %s (staged=%s)",
         len(written),
-        target_dir,
+        _sanitize_log(target_dir),
         not auto_approve,
     )
     return written

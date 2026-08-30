@@ -1,0 +1,74 @@
+# ==============================================================================
+# AskMukthiGuru — Prometheus Production Scraper & Remote Write Configuration
+#
+# Secret Injection Pattern (envsubst):
+#   envsubst < infrastructure/prometheus/prometheus.prod.yml > /etc/prometheus/prometheus.yml
+#
+# Required Environment Variables:
+#   - PROMETHEUS_BEARER_TOKEN: Bearer token authorized for backend /api/metrics & /metrics
+#   - BACKEND_PROD_HOST: Production hostname (e.g. askmukthiguru-8119b0e8-production.up.railway.app)
+#   - ALERTMANAGER_HOST: Alertmanager endpoint (default: alertmanager:9093)
+#   - GRAFANA_CLOUD_PROMETHEUS_URL: Remote write push URL for Grafana Cloud
+#   - GRAFANA_CLOUD_INSTANCE_ID: Grafana Cloud username / instance ID
+#   - GRAFANA_CLOUD_API_KEY: Grafana Cloud API key / token
+# ==============================================================================
+
+global:
+  scrape_interval: 15s
+  scrape_timeout: 10s
+  evaluation_interval: 15s
+  external_labels:
+    environment: 'production'
+    service: 'askmukthiguru'
+    cluster: 'railway-prod'
+
+rule_files:
+  - "alerting-rules.yml"
+
+alerting:
+  alertmanagers:
+    - scheme: http
+      static_configs:
+        - targets: ['${ALERTMANAGER_HOST:-alertmanager:9093}']
+
+# Remote write metrics to Grafana Cloud Agent / Managed Prometheus
+remote_write:
+  - url: '${GRAFANA_CLOUD_PROMETHEUS_URL}'
+    basic_auth:
+      username: '${GRAFANA_CLOUD_INSTANCE_ID}'
+      password: '${GRAFANA_CLOUD_API_KEY}'
+    queue_config:
+      max_samples_per_send: 1000
+      max_shards: 10
+      capacity: 5000
+
+scrape_configs:
+  # 1. AskMukthiGuru Production API Metrics Scraper (/api/metrics)
+  - job_name: 'askmukthiguru-backend-prod-api'
+    scheme: https
+    metrics_path: '/api/metrics'
+    authorization:
+      type: Bearer
+      credentials: '${PROMETHEUS_BEARER_TOKEN}'
+    static_configs:
+      - targets: ['${BACKEND_PROD_HOST:-askmukthiguru-8119b0e8-production.up.railway.app}']
+    relabel_configs:
+      - target_label: 'instance'
+        replacement: 'railway-backend-prod'
+      - target_label: 'environment'
+        replacement: 'production'
+
+  # 2. AskMukthiGuru Production System & Health Prometheus Metrics (/metrics)
+  - job_name: 'askmukthiguru-backend-prod-system'
+    scheme: https
+    metrics_path: '/metrics'
+    authorization:
+      type: Bearer
+      credentials: '${PROMETHEUS_BEARER_TOKEN}'
+    static_configs:
+      - targets: ['${BACKEND_PROD_HOST:-askmukthiguru-8119b0e8-production.up.railway.app}']
+    relabel_configs:
+      - target_label: 'instance'
+        replacement: 'railway-backend-prod'
+      - target_label: 'environment'
+        replacement: 'production'

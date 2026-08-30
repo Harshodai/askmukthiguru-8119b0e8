@@ -1327,22 +1327,22 @@
     "viewMeditationStats": "View meditation stats"
   },
   "sadhana": {
-    "matrixTitle": "Sadhana & Consciousness Matrix",
-    "matrixSubtitle": "Trailing {{weeks}} weeks of meditation, witnessing, and inner state mastery.",
-    "filterAll": "All Days",
-    "minPracticed": "{{minutes}} min practiced",
-    "sessionCount": "{{count}} session(s)",
-    "breathCycles": "{{count}} breath cycles",
-    "restDay": "Rest & Integration Day",
-    "daysActive": "{{count}} days active",
-    "hoursTotal": "{{hours}} hrs total",
-    "beautifulStateRatio": "{{ratio}}% Beautiful State",
+    "matrixTitle": "সাধনা আৰু অনুশীলন মেট্ৰিস্ক",
+    "matrixSubtitle": "পৰীক্ষিত ধ্যান অনুশীলন আৰু শ্বাস সচেতনতাৰ বিগত {{weeks}} সপ্তাহ।",
+    "filterAll": "সকলো দিন",
+    "minPracticed": "{{minutes}} মিনিট অনুশীলন কৰা হ'ল",
+    "sessionCount": "{{count}} টা অধিবেশন",
+    "breathCycles": "{{count}} টা শ্বাস চক্ৰ",
+    "restDay": "বিশ্রাম আৰু একত্ৰীকৰণ দিন",
+    "daysActive": "{{count}} দিন সক্ৰিয়",
+    "hoursTotal": "মুঠ {{hours}} ঘণ্টা",
+    "totalSessions": "{{count}} টা সম্পূৰ্ণ অধিবেশন",
+    "streakStatus": "{{current}} দিনৰ ধাৰাবাহিকতা (শ্ৰেষ্ঠ: {{longest}} দিন)",
     "states": {
-      "beautiful_state": "Beautiful State",
-      "witnessing": "Witnessing Presence",
-      "sadhana": "Dedicated Sadhana",
-      "conflict_transformed": "Conflict Transmuted",
-      "neutral": "No Practice Recorded"
+      "gentle": "মৃদু অনুশীলন",
+      "dedicated": "উৎসৰ্গিত অনুশীলন",
+      "deep": "গভীৰ সাধনা",
+      "rest": "বিশ্রাম / একত্ৰীকৰণ"
     }
   }
 }

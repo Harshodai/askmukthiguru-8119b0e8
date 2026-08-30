@@ -1290,8 +1290,8 @@
     "viewMeditationStats": "ధ్యాన గణాంకాలను చూడండి"
   },
   "sadhana": {
-    "matrixTitle": "సాధన మరియు చైతన్య మాత్రిక",
-    "matrixSubtitle": "ధ్యానం, సాక్షి భావం మరియు అంతర్గత స్థితిలో నైపుణ్యం యొక్క గత {{weeks}} వారాలు.",
+    "matrixTitle": "సాధన మరియు అభ్యాస మాత్రిక",
+    "matrixSubtitle": "ధృవీకరించబడిన ధ్యాన సాధన మరియు శ్వాస అవగాహన యొక్క గత {{weeks}} వారాలు.",
     "filterAll": "అన్ని రోజులు",
     "minPracticed": "{{minutes}} నిమిషాలు సాధన చేశారు",
     "sessionCount": "{{count}} సెషన్(లు)",
@@ -1299,13 +1299,13 @@
     "restDay": "విశ్రాంతి మరియు సమన్వయ దినం",
     "daysActive": "{{count}} రోజులు చురుకుగా ఉన్నారు",
     "hoursTotal": "మొత్తం {{hours}} గంటలు",
-    "beautifulStateRatio": "{{ratio}}% సుందర స్థితి",
+    "totalSessions": "{{count}} పూర్తయిన సెషన్లు",
+    "streakStatus": "{{current}} రోజుల క్రమం (ఉత్తమ: {{longest}} రోజులు)",
     "states": {
-      "beautiful_state": "సుందర స్థితి",
-      "witnessing": "సాక్షి ఉనికి",
-      "sadhana": "అంకితమైన సాధన",
-      "conflict_transformed": "సంఘర్షణ రూపాంతరం చెందింది",
-      "neutral": "సాధన నమోదు కాలేదు"
+      "gentle": "సాధారణ సాధన",
+      "dedicated": "అంకితమైన సాధన",
+      "deep": "గహన సాధన",
+      "rest": "విశ్రాంతి / సమన్వయం"
     }
   }
 }

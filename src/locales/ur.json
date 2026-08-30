@@ -1327,22 +1327,22 @@
     "viewMeditationStats": "View meditation stats"
   },
   "sadhana": {
-    "matrixTitle": "Sadhana & Consciousness Matrix",
-    "matrixSubtitle": "Trailing {{weeks}} weeks of meditation, witnessing, and inner state mastery.",
-    "filterAll": "All Days",
-    "minPracticed": "{{minutes}} min practiced",
-    "sessionCount": "{{count}} session(s)",
-    "breathCycles": "{{count}} breath cycles",
-    "restDay": "Rest & Integration Day",
-    "daysActive": "{{count}} days active",
-    "hoursTotal": "{{hours}} hrs total",
-    "beautifulStateRatio": "{{ratio}}% Beautiful State",
+    "matrixTitle": "سادھنا اور مشق میٹرکس",
+    "matrixSubtitle": "تصدیق شدہ مراقبہ کی مشق اور سانس کی آگاہی کے پچھلے {{weeks}} ہفتے۔",
+    "filterAll": "تمام دن",
+    "minPracticed": "{{minutes}} منٹ مشق کی",
+    "sessionCount": "{{count}} سیشن",
+    "breathCycles": "{{count}} سانس کے چکر",
+    "restDay": "آرام اور انضمام کا دن",
+    "daysActive": "{{count}} دن فعال",
+    "hoursTotal": "کل {{hours}} گھنٹے",
+    "totalSessions": "{{count}} مکمل سیشنز",
+    "streakStatus": "{{current}} دن کا تسلسل (بہترین: {{longest}} دن)",
     "states": {
-      "beautiful_state": "Beautiful State",
-      "witnessing": "Witnessing Presence",
-      "sadhana": "Dedicated Sadhana",
-      "conflict_transformed": "Conflict Transmuted",
-      "neutral": "No Practice Recorded"
+      "gentle": "ہلکی مشق",
+      "dedicated": "مخصوص مشق",
+      "deep": "گہری سادھنا",
+      "rest": "آرام / انضمام"
     }
   }
 }

@@ -1327,22 +1327,22 @@
     "viewMeditationStats": "View meditation stats"
   },
   "sadhana": {
-    "matrixTitle": "Sadhana & Consciousness Matrix",
-    "matrixSubtitle": "Trailing {{weeks}} weeks of meditation, witnessing, and inner state mastery.",
-    "filterAll": "All Days",
-    "minPracticed": "{{minutes}} min practiced",
-    "sessionCount": "{{count}} session(s)",
-    "breathCycles": "{{count}} breath cycles",
-    "restDay": "Rest & Integration Day",
-    "daysActive": "{{count}} days active",
-    "hoursTotal": "{{hours}} hrs total",
-    "beautifulStateRatio": "{{ratio}}% Beautiful State",
+    "matrixTitle": "ਸਾਧਨਾ ਅਤੇ ਅਭਿਆਸ ਮੈਟ੍ਰਿਕਸ",
+    "matrixSubtitle": "ਤਸਦੀਕਸ਼ੁਦਾ ਧਿਆਨ ਅਭਿਆਸ ਅਤੇ ਸਾਹ ਜਾਗਰੂਕਤਾ ਦੇ ਪਿਛਲੇ {{weeks}} ਹਫ਼ਤੇ।",
+    "filterAll": "ਸਾਰੇ ਦਿਨ",
+    "minPracticed": "{{minutes}} ਮਿੰਟ ਅਭਿਆਸ ਕੀਤਾ",
+    "sessionCount": "{{count}} ਸੈਸ਼ਨ",
+    "breathCycles": "{{count}} ਸਾਹ ਚੱਕਰ",
+    "restDay": "ਆਰਾਮ ਅਤੇ ਏਕੀਕਰਨ ਦਿਨ",
+    "daysActive": "{{count}} ਦਿਨ ਸਰਗਰਮ",
+    "hoursTotal": "ਕੁੱਲ {{hours}} ਘੰਟੇ",
+    "totalSessions": "{{count}} ਪੂਰੇ ਹੋਏ ਸੈਸ਼ਨ",
+    "streakStatus": "{{current}} ਦਿਨ ਦਾ ਸਿਲਸਿਲਾ (ਸਭ ਤੋਂ ਵਧੀਆ: {{longest}} ਦਿਨ)",
     "states": {
-      "beautiful_state": "Beautiful State",
-      "witnessing": "Witnessing Presence",
-      "sadhana": "Dedicated Sadhana",
-      "conflict_transformed": "Conflict Transmuted",
-      "neutral": "No Practice Recorded"
+      "gentle": "ਸਹਿਜ ਅਭਿਆਸ",
+      "dedicated": "ਸਮਰਪਿਤ ਅਭਿਆਸ",
+      "deep": "ਡੂੰਘੀ ਸਾਧਨਾ",
+      "rest": "ਆਰਾਮ / ਏਕੀਕਰਨ"
     }
   }
 }

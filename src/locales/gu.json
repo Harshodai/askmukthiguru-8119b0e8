@@ -1327,22 +1327,22 @@
     "viewMeditationStats": "View meditation stats"
   },
   "sadhana": {
-    "matrixTitle": "Sadhana & Consciousness Matrix",
-    "matrixSubtitle": "Trailing {{weeks}} weeks of meditation, witnessing, and inner state mastery.",
-    "filterAll": "All Days",
-    "minPracticed": "{{minutes}} min practiced",
-    "sessionCount": "{{count}} session(s)",
-    "breathCycles": "{{count}} breath cycles",
-    "restDay": "Rest & Integration Day",
-    "daysActive": "{{count}} days active",
-    "hoursTotal": "{{hours}} hrs total",
-    "beautifulStateRatio": "{{ratio}}% Beautiful State",
+    "matrixTitle": "સાધના અને અભ્યાસ મેટ્રિક્સ",
+    "matrixSubtitle": "ચકાસાયેલ ધ્યાન અભ્યાસ અને શ્વાસ જાગૃતિના પાછલા {{weeks}} અઠવાડિયા.",
+    "filterAll": "બધા દિવસો",
+    "minPracticed": "{{minutes}} મિનિટ અભ્યાસ કર્યો",
+    "sessionCount": "{{count}} સત્ર(ઓ)",
+    "breathCycles": "{{count}} શ્વાસ ચક્ર",
+    "restDay": "વિશ્રામ અને એકીકરણ દિવસ",
+    "daysActive": "{{count}} દિવસ સક્રિય",
+    "hoursTotal": "કુલ {{hours}} કલાક",
+    "totalSessions": "{{count}} પૂર્ણ થયેલ સત્રો",
+    "streakStatus": "{{current}} દિવસની સાતત્યતા (શ્રેષ્ઠ: {{longest}} દિવસ)",
     "states": {
-      "beautiful_state": "Beautiful State",
-      "witnessing": "Witnessing Presence",
-      "sadhana": "Dedicated Sadhana",
-      "conflict_transformed": "Conflict Transmuted",
-      "neutral": "No Practice Recorded"
+      "gentle": "સૌમ્ય અભ્યાસ",
+      "dedicated": "સમર્પિત અભ્યાસ",
+      "deep": "ગહન સાધના",
+      "rest": "વિશ્રામ / એકીકરણ"
     }
   }
 }

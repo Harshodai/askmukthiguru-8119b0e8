@@ -1,15 +1,19 @@
-import os
+import hashlib
+import hmac
+import html
 import json
 import logging
+import os
 import re
-import time
-import hmac
-import hashlib
 import threading
+import time
+import urllib.parse
+from typing import Any
+
 import requests
-from flask import Flask, abort, request, jsonify
-from twilio.twiml.messaging_response import MessagingResponse
+from flask import Flask, abort, jsonify, request
 from twilio.request_validator import RequestValidator
+from twilio.twiml.messaging_response import MessagingResponse
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -17,11 +21,6 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
-
-@app.before_request
-def reject_when_broker_is_disabled():
-    if not WHATSAPP_WEBHOOK_ENABLED:
-        abort(404)
 
 # Configuration (loaded from environment or defaults)
 BACKEND_URL = os.getenv('BACKEND_URL', 'http://localhost:8000')
@@ -34,6 +33,22 @@ PORT = int(os.getenv('PORT', 5000))
 # replay/idempotency, deletion, redaction, and production-runtime controls have
 # passed the release gate. Accidental deployments return 404 for every route.
 WHATSAPP_WEBHOOK_ENABLED = os.getenv('WHATSAPP_WEBHOOK_ENABLED', '').lower() == 'true'
+
+
+@app.before_request
+def reject_when_broker_is_disabled():
+    if not WHATSAPP_WEBHOOK_ENABLED:
+        abort(404)
+
+
+def sanitize_log_input(text: Any, max_length: int = 500) -> str:
+    """Sanitize log input against CRLF and log injection (CWE-117)."""
+    if text is None:
+        return ""
+    cleaned = str(text).replace("\r", "").replace("\n", " ")
+    cleaned = "".join(ch for ch in cleaned if ch.isprintable() or ch == " ")
+    return cleaned[:max_length]
+
 
 def validate_twilio_signature(req) -> bool:
     """Validates X-Twilio-Signature against TWILIO_AUTH_TOKEN."""
@@ -48,6 +63,7 @@ def validate_twilio_signature(req) -> bool:
     post_vars = req.form.to_dict()
     return validator.validate(url, post_vars, signature)
 
+
 def validate_meta_signature(req) -> bool:
     """Validates X-Hub-Signature-256 against META_APP_SECRET."""
     if not META_APP_SECRET:
@@ -57,7 +73,7 @@ def validate_meta_signature(req) -> bool:
     header_sig = req.headers.get('X-Hub-Signature-256', '')
     if not header_sig.startswith('sha256='):
         return False
-    
+
     expected_sig = header_sig[7:]
     raw_body = req.get_data()
     computed_sig = hmac.new(META_APP_SECRET.encode('utf-8'), raw_body, hashlib.sha256).hexdigest()
@@ -75,8 +91,10 @@ _CACHE_LOCK = threading.Lock()
 def _prune_cache():
     with _CACHE_LOCK:
         now = time.time()
-        expired = [sid for sid, data in conversations.items()
-                   if now - data.get("timestamp", 0) > CACHE_TTL_SECONDS]
+        expired = [
+            sid for sid, data in conversations.items()
+            if now - data.get("timestamp", 0) > CACHE_TTL_SECONDS
+        ]
         for sid in expired:
             del conversations[sid]
         if len(conversations) > MAX_CACHE_SIZE:
@@ -122,9 +140,66 @@ def _chunk_text(text: str) -> list[str]:
         return [text]
     return [text[i:i + MAX_MSG_LENGTH] for i in range(0, len(text), MAX_MSG_LENGTH)]
 
+
+_ALLOWED_META_HOST = "graph.facebook.com"
+_PHONE_NUMBER_ID_RE = re.compile(r"^\d{1,32}$")
+
+
+def _send_meta_whatsapp_message(
+    phone_number_id: str,
+    to_number: str,
+    body_text: str,
+    whatsapp_token: str,
+) -> bool:
+    """
+    Safely send WhatsApp message via Meta Cloud API.
+    Strictly validates phone_number_id and destination URL to prevent SSRF (CWE-918).
+    """
+    if not phone_number_id or not _PHONE_NUMBER_ID_RE.match(str(phone_number_id)):
+        logger.error(
+            "Invalid phone_number_id format rejected: %s",
+            sanitize_log_input(phone_number_id),
+        )
+        return False
+
+    safe_phone_id = urllib.parse.quote(str(phone_number_id), safe="")
+    url = f"https://{_ALLOWED_META_HOST}/v18.0/{safe_phone_id}/messages"
+
+    parsed = urllib.parse.urlparse(url)
+    if (
+        parsed.scheme != "https"
+        or parsed.netloc.lower() != _ALLOWED_META_HOST
+        or not parsed.path.startswith("/v18.0/")
+        or not parsed.path.endswith("/messages")
+    ):
+        logger.error("SSRF guard rejected URL: %s", sanitize_log_input(url))
+        return False
+
+    try:
+        meta_response = requests.post(
+            url,
+            json={
+                "messaging_product": "whatsapp",
+                "to": to_number,
+                "text": {"body": body_text},
+            },
+            headers={
+                "Authorization": f"Bearer {whatsapp_token}",
+                "Content-Type": "application/json",
+            },
+            timeout=10,
+        )
+        meta_response.raise_for_status()
+        return True
+    except Exception as exc:
+        logger.error("Failed to send Meta WhatsApp message: %s", sanitize_log_input(exc))
+        return False
+
+
 @app.route('/health', methods=['GET'])
 def health_check():
     return jsonify({"status": "ok", "backend_url": BACKEND_URL}), 200
+
 
 # ── 1. TWILIO WEBHOOK ROUTE ──
 @app.route('/whatsapp/twilio', methods=['POST'])
@@ -136,17 +211,21 @@ def twilio_webhook():
 
     incoming_msg = request.values.get('Body', '').strip()
     from_number = request.values.get('From', '').replace('whatsapp:', '').strip()
-    
+
     if not incoming_msg:
         logger.warning("Received empty message body from Twilio.")
         return '', 200
-        
+
     session_id = f"whatsapp_{from_number}"
-    logger.info(f"Incoming Twilio message from {from_number}: {incoming_msg}")
-    
+    logger.info(
+        "Incoming Twilio message from %s: %s",
+        sanitize_log_input(from_number),
+        sanitize_log_input(incoming_msg),
+    )
+
     # Retrieve last 10 messages for conversation context
     history = get_session_history(session_id)
-    
+
     try:
         response = requests.post(
             f"{BACKEND_URL}/api/chat",
@@ -154,13 +233,13 @@ def twilio_webhook():
                 "messages": history,
                 "user_message": incoming_msg,
                 "session_id": session_id,
-                "language": "en"
+                "language": "en",
             },
             headers={
                 "Authorization": f"Bearer {BACKEND_TOKEN}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
             },
-            timeout=30
+            timeout=30,
         )
 
         if response.status_code == 503:
@@ -197,7 +276,7 @@ def twilio_webhook():
         resp.message("🙏 Unable to reach the Guru. Please check your connection.")
         return str(resp)
     except Exception as e:
-        logger.error(f"Error handling Twilio webhook: {e}", exc_info=True)
+        logger.error("Error handling Twilio webhook: %s", sanitize_log_input(e), exc_info=True)
         resp = MessagingResponse()
         resp.message("🙏 Something went unexpectedly quiet on my end. Could you try again?")
         return str(resp)
@@ -210,13 +289,14 @@ def verify_meta_webhook():
     mode = request.args.get('hub.mode')
     token = request.args.get('hub.verify_token')
     challenge = request.args.get('hub.challenge')
-    
+
     if mode == 'subscribe' and token == VERIFY_TOKEN:
         logger.info("Meta webhook verification successful.")
-        return challenge, 200
+        return html.escape(str(challenge or "")), 200
     else:
         logger.warning("Meta webhook verification failed: Invalid verify token.")
         return 'Forbidden', 403
+
 
 @app.route('/whatsapp/meta', methods=['POST'])
 def meta_webhook():
@@ -226,31 +306,31 @@ def meta_webhook():
         return 'Unauthorized signature', 403
 
     body = request.get_json()
-    logger.info(f"Incoming Meta payload: {json.dumps(body)}")
-    
+    logger.info("Incoming Meta payload: %s", sanitize_log_input(json.dumps(body)))
+
     # Extract message details
     try:
         entry = body.get('entry', [{}])[0]
         changes = entry.get('changes', [{}])[0]
         value = changes.get('value', {})
         message = value.get('messages', [{}])[0]
-        
+
         if not message:
             return 'No message payload', 200
-            
+
         from_number = message.get('from')
         msg_body = message.get('text', {}).get('body', '').strip()
         phone_number_id = value.get('metadata', {}).get('phone_number_id')
-        
+
         if not msg_body or not from_number or not phone_number_id:
             return 'Incomplete payload', 200
-            
+
     except (IndexError, KeyError, AttributeError):
         return 'Ignored non-message event', 200
-        
+
     session_id = f"whatsapp_{from_number}"
     history = get_session_history(session_id)
-    
+
     try:
         response = requests.post(
             f"{BACKEND_URL}/api/chat",
@@ -258,13 +338,13 @@ def meta_webhook():
                 "messages": history,
                 "user_message": msg_body,
                 "session_id": session_id,
-                "language": "en"
+                "language": "en",
             },
             headers={
                 "Authorization": f"Bearer {BACKEND_TOKEN}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
             },
-            timeout=30
+            timeout=30,
         )
 
         if response.status_code == 503:
@@ -291,80 +371,57 @@ def meta_webhook():
             return 'Missing WHATSAPP_TOKEN', 500
 
         for chunk in _chunk_text(ai_response):
-            meta_response = requests.post(
-                f"https://graph.facebook.com/v18.0/{phone_number_id}/messages",
-                json={
-                    "messaging_product": "whatsapp",
-                    "to": from_number,
-                    "text": {"body": chunk}
-                },
-                headers={
-                    "Authorization": f"Bearer {whatsapp_token}",
-                    "Content-Type": "application/json"
-                },
-                timeout=10
+            sent = _send_meta_whatsapp_message(
+                phone_number_id=phone_number_id,
+                to_number=from_number,
+                body_text=chunk,
+                whatsapp_token=whatsapp_token,
             )
-            meta_response.raise_for_status()
+            if not sent:
+                return 'Failed to send WhatsApp message', 500
         return 'OK', 200
 
     except requests.exceptions.Timeout:
         logger.error("Timeout connecting to AskMukthiGuru backend for Meta webhook.")
         whatsapp_token = os.getenv('WHATSAPP_TOKEN')
         if whatsapp_token and 'from_number' in locals() and 'phone_number_id' in locals():
-            try:
-                requests.post(
-                    f"https://graph.facebook.com/v18.0/{phone_number_id}/messages",
-                    json={
-                        "messaging_product": "whatsapp",
-                        "to": from_number,
-                        "text": {"body": "🙏 The Guru is taking longer than usual. Please try again."}
-                    },
-                    headers={"Authorization": f"Bearer {whatsapp_token}", "Content-Type": "application/json"},
-                    timeout=10
-                )
-            except Exception:
-                pass
+            _send_meta_whatsapp_message(
+                phone_number_id=phone_number_id,
+                to_number=from_number,
+                body_text="🙏 The Guru is taking longer than usual. Please try again.",
+                whatsapp_token=whatsapp_token,
+            )
         return '🙏 The Guru is taking longer than usual. Please try again.', 200
     except requests.exceptions.ConnectionError:
         logger.error("Connection error connecting to AskMukthiGuru backend for Meta webhook.")
         whatsapp_token = os.getenv('WHATSAPP_TOKEN')
         if whatsapp_token and 'from_number' in locals() and 'phone_number_id' in locals():
-            try:
-                requests.post(
-                    f"https://graph.facebook.com/v18.0/{phone_number_id}/messages",
-                    json={
-                        "messaging_product": "whatsapp",
-                        "to": from_number,
-                        "text": {"body": "🙏 Unable to reach the Guru. Please check your connection."}
-                    },
-                    headers={"Authorization": f"Bearer {whatsapp_token}", "Content-Type": "application/json"},
-                    timeout=10
-                )
-            except Exception:
-                pass
+            _send_meta_whatsapp_message(
+                phone_number_id=phone_number_id,
+                to_number=from_number,
+                body_text="🙏 Unable to reach the Guru. Please check your connection.",
+                whatsapp_token=whatsapp_token,
+            )
         return '🙏 Unable to reach the Guru. Please check your connection.', 200
     except Exception as e:
-        logger.error(f"Error handling Meta webhook: {e}", exc_info=True)
+        logger.error("Error handling Meta webhook: %s", sanitize_log_input(e), exc_info=True)
         whatsapp_token = os.getenv('WHATSAPP_TOKEN')
         if whatsapp_token and 'from_number' in locals() and 'phone_number_id' in locals():
-            try:
-                requests.post(
-                    f"https://graph.facebook.com/v18.0/{phone_number_id}/messages",
-                    json={
-                        "messaging_product": "whatsapp",
-                        "to": from_number,
-                        "text": {"body": "🙏 Something went unexpectedly quiet on my end. Could you try again?"}
-                    },
-                    headers={"Authorization": f"Bearer {whatsapp_token}", "Content-Type": "application/json"},
-                    timeout=10
-                )
-            except Exception:
-                pass
+            _send_meta_whatsapp_message(
+                phone_number_id=phone_number_id,
+                to_number=from_number,
+                body_text="🙏 Something went unexpectedly quiet on my end. Could you try again?",
+                whatsapp_token=whatsapp_token,
+            )
         return '🙏 Something went unexpectedly quiet on my end. Could you try again?', 200
+
 
 if __name__ == '__main__':
     if not WHATSAPP_WEBHOOK_ENABLED:
-        logger.error('WhatsApp webhook broker is disabled; set WHATSAPP_WEBHOOK_ENABLED=true only after release approval.')
+        logger.error(
+            'WhatsApp webhook broker is disabled; set WHATSAPP_WEBHOOK_ENABLED=true only after release approval.'
+        )
         raise SystemExit(1)
-    logger.info(f"Starting WhatsApp Webhook broker on port {PORT}...")
+    logger.info("Starting WhatsApp Webhook broker on port %s...", sanitize_log_input(PORT))
     app.run(host='0.0.0.0', port=PORT)
+

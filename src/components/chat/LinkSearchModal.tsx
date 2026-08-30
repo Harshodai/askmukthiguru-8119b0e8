@@ -133,7 +133,14 @@ export const LinkSearchModal: React.FC<LinkSearchModalProps> = ({
 
   if (!isOpen || !citation) return null;
 
-  const isYouTube = citation.url.includes('youtube.com') || citation.url.includes('youtu.be');
+  const isYouTube = (() => {
+    try {
+      const hostname = new URL(citation.url).hostname.toLowerCase();
+      return hostname === 'youtube.com' || hostname.endsWith('.youtube.com') || hostname === 'youtu.be';
+    } catch {
+      return false;
+    }
+  })();
 
   // Compute text chunks with highlighted keywords
   const chunksToDisplay = sourceData?.chunks || [];

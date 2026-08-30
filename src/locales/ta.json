@@ -1326,22 +1326,22 @@
     "viewMeditationStats": "தியான புள்ளிவிவரங்களைக் காண்க"
   },
   "sadhana": {
-    "matrixTitle": "சாதனை மற்றும் நனவு அணி",
-    "matrixSubtitle": "தியானம், சாட்சி உணர்வு மற்றும் உள் நிலை தேர்ச்சியின் கடந்த {{weeks}} வாரங்கள்.",
+    "matrixTitle": "சாதனை மற்றும் பயிற்சி அணி",
+    "matrixSubtitle": "சரிபார்க்கப்பட்ட தியானப் பயிற்சி மற்றும் சுவாச விழிப்புணர்வின் கடந்த {{weeks}} வாரங்கள்.",
     "filterAll": "அனைத்து நாட்களும்",
-    "minPracticed": "{{minutes}} நிமிடம் பயிற்சி செய்யப்பட்டது",
+    "minPracticed": "{{minutes}} நிமிடங்கள் பயிற்சி செய்யப்பட்டது",
     "sessionCount": "{{count}} அமர்வு(கள்)",
     "breathCycles": "{{count}} சுவாச சுழற்சிகள்",
     "restDay": "ஓய்வு மற்றும் ஒருங்கிணைப்பு நாள்",
-    "daysActive": "{{count}} நாட்கள் செயலில்",
+    "daysActive": "{{count}} நாட்கள் செயல்பாடு",
     "hoursTotal": "மொத்தம் {{hours}} மணிநேரம்",
-    "beautifulStateRatio": "{{ratio}}% அழகான நிலை",
+    "totalSessions": "{{count}} நிறைவடைந்த அமர்வுகள்",
+    "streakStatus": "{{current}} நாள் தொடர்ச்சி (சிறந்தது: {{longest}} நாட்கள்)",
     "states": {
-      "beautiful_state": "அழகான நிலை",
-      "witnessing": "சாட்சி இருப்பு",
-      "sadhana": "அர்ப்பணிக்கப்பட்ட சாதனை",
-      "conflict_transformed": "முரண்பாடு மாற்றப்பட்டது",
-      "neutral": "எந்த பயிற்சியும் பதிவு செய்யப்படவில்லை"
+      "gentle": "மென்மையான பயிற்சி",
+      "dedicated": "அர்ப்பணிப்பு பயிற்சி",
+      "deep": "ஆழ்ந்த சாதனை",
+      "rest": "ஓய்வு / ஒருங்கிணைப்பு"
     }
   }
 }

@@ -40,17 +40,28 @@ import re
 from app.sanitization import sanitize_log_input
 
 
-def _redact_secrets(text: str) -> str:
+def _mask_secret(val: Optional[str]) -> str:
+    """Mask sensitive secrets/tokens as token[:4] + '***'."""
+    if not val:
+        return ""
+    s = str(val)
+    if len(s) <= 4:
+        return "***"
+    return f"{s[:4]}***"
+
+
+def _redact_secrets(text: Optional[str]) -> str:
     """Redact bearer tokens, auth tokens, API keys, or secret headers from log output."""
     if not text:
         return ""
-    redacted = re.sub(r"(?i)(bearer\s+)[A-Za-z0-9_\-\.]+", r"\1[REDACTED]", str(text))
-    redacted = re.sub(
-        r"(?i)(api[_-]?key|secret|password|auth[_-]?token|token|authorization)\s*[:=]\s*['\"]?[A-Za-z0-9_\-\.]+['\"]?",
-        r"\1=[REDACTED]",
-        redacted,
+    s = str(text)
+    s = re.sub(r"(?i)(bearer\s+)([A-Za-z0-9_\-\.]{4})[A-Za-z0-9_\-\.]*", r"\1\2***", s)
+    s = re.sub(
+        r"(?i)(api[_-]?key|secret|password|auth[_-]?token|token|authorization)(\s*[:=]\s*['\"]?)([A-Za-z0-9_\-\.]{4})[A-Za-z0-9_\-\.]*(['\"]?)",
+        r"\1\2\3***\4",
+        s,
     )
-    return redacted
+    return s
 
 
 async def warm() -> int:

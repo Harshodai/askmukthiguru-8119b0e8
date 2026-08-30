@@ -14,6 +14,7 @@ Usage:
 from __future__ import annotations
 
 import os
+import re
 import sys
 import tempfile
 import time
@@ -21,6 +22,31 @@ from pathlib import Path
 from typing import Optional
 
 import numpy as np
+
+
+def _mask_secret(val: Optional[str]) -> str:
+    """Mask sensitive secrets/tokens as token[:4] + '***'."""
+    if not val:
+        return ""
+    s = str(val)
+    if len(s) <= 4:
+        return "***"
+    return f"{s[:4]}***"
+
+
+def _redact_secrets(text: Optional[str]) -> str:
+    """Redact bearer tokens, auth tokens, API keys, or secret headers from log/stdout."""
+    if not text:
+        return ""
+    s = str(text)
+    s = re.sub(r"(?i)(bearer\s+)([A-Za-z0-9_\-\.]{4})[A-Za-z0-9_\-\.]*", r"\1\2***", s)
+    s = re.sub(
+        r"(?i)(api[_-]?key|secret|password|auth[_-]?token|token|authorization)(\s*[:=]\s*['\"]?)([A-Za-z0-9_\-\.]{4})[A-Za-z0-9_\-\.]*(['\"]?)",
+        r"\1\2\3***\4",
+        s,
+    )
+    return s
+
 
 # Force CPU for baseline (matches production Railway deployment),
 # and disable MPS memory limit to avoid OOM on Apple Silicon.
@@ -277,7 +303,7 @@ def _score_and_report(
         print(f"\n  ⚠ {len(outliers)} queries below {MIN_COS_THRESHOLD} threshold:")
         outliers.sort(key=lambda x: x["cosine"])
         for o in outliers[:10]:
-            print(f"    [{o['cosine']:.4f}] ({o['category']}) {o['text']}")
+            print(f"    [{o['cosine']:.4f}] ({o['category']}) {_redact_secrets(o['text'])}")
     else:
         print(f"\n  ✓ No queries below {MIN_COS_THRESHOLD} threshold")
 
@@ -346,7 +372,7 @@ def main():
                     "delta": delta,
                 }
             )
-            print(f"  ⚠ Delta={delta:.4f}: orig={cs_orig:.4f} para={cs_para:.4f}")
+            print(f"  ⚠ Delta={delta:.4f}: orig={_redact_secrets(cs_orig):.4f} para={_redact_secrets(cs_para):.4f}" if isinstance(cs_orig, str) else f"  ⚠ Delta={delta:.4f}: orig={cs_orig:.4f} para={cs_para:.4f}")
         else:
             print(f"  ✓ Delta={delta:.4f}: orig={cs_orig:.4f} para={cs_para:.4f}")
 

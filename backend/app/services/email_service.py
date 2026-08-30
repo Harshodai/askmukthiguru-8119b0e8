@@ -6,6 +6,7 @@ import os
 import re
 import smtplib
 import time
+import uuid
 from email import encoders
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
@@ -14,6 +15,7 @@ from pathlib import Path
 from typing import Optional
 
 from app.config import settings
+from app.sanitization import sanitize_log_input
 
 logger = logging.getLogger(__name__)
 
@@ -89,10 +91,14 @@ def _send_via_smtp(
             server.login(settings.smtp_user, settings.smtp_password)
             server.send_message(msg)
 
-        logger.info("Support email sent to %s (subject=%s)", to, subject)
+        logger.info(
+            "Support email sent to %s (subject=%s)",
+            sanitize_log_input(to),
+            sanitize_log_input(subject),
+        )
         return True
     except Exception as e:
-        logger.error("Failed to send support email via SMTP: %s", e)
+        logger.error("Failed to send support email via SMTP: %s", sanitize_log_input(e))
         return False
 
 
@@ -142,9 +148,12 @@ def _save_to_disk(
                 if stale_resolved.is_relative_to(storage_dir):
                     stale_resolved.unlink()
             except OSError:
-                logger.warning("Failed to prune stale support message %s", stale)
-        logger.info("Support message saved to %s", path)
+                logger.warning(
+                    "Failed to prune stale support message %s",
+                    sanitize_log_input(stale),
+                )
+        logger.info("Support message saved to %s", sanitize_log_input(path))
         return True
     except Exception as e:
-        logger.error("Failed to save support message to disk: %s", e)
+        logger.error("Failed to save support message to disk: %s", sanitize_log_input(e))
         return False

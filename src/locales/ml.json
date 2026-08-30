@@ -1324,22 +1324,22 @@
     "viewMeditationStats": "View meditation stats"
   },
   "sadhana": {
-    "matrixTitle": "Sadhana & Consciousness Matrix",
-    "matrixSubtitle": "Trailing {{weeks}} weeks of meditation, witnessing, and inner state mastery.",
-    "filterAll": "All Days",
-    "minPracticed": "{{minutes}} min practiced",
-    "sessionCount": "{{count}} session(s)",
-    "breathCycles": "{{count}} breath cycles",
-    "restDay": "Rest & Integration Day",
-    "daysActive": "{{count}} days active",
-    "hoursTotal": "{{hours}} hrs total",
-    "beautifulStateRatio": "{{ratio}}% Beautiful State",
+    "matrixTitle": "സാധന & പരിശീലന മാട്രിക്സ്",
+    "matrixSubtitle": "പരിശോധിച്ച ധ്യാന പരിശീലനത്തിന്റെയും ശ്വാസ ബോധത്തിന്റെയും കഴിഞ്ഞ {{weeks}} ആഴ്ചകൾ.",
+    "filterAll": "എല്ലാ ദിവസങ്ങളും",
+    "minPracticed": "{{minutes}} മിനിറ്റ് പരിശീലിച്ചു",
+    "sessionCount": "{{count}} സെഷൻ(കൾ)",
+    "breathCycles": "{{count}} ശ്വാസ ചക്രങ്ങൾ",
+    "restDay": "വിശ്രമ ദിനം",
+    "daysActive": "{{count}} ദിവസങ്ങൾ സജീവം",
+    "hoursTotal": "ആകെ {{hours}} മണിക്കൂർ",
+    "totalSessions": "{{count}} പൂർത്തിയായ സെഷനുകൾ",
+    "streakStatus": "{{current}} ദിവസത്തെ തുടർച്ച (ഏറ്റവും മികച്ചത്: {{longest}} ദിവസം)",
     "states": {
-      "beautiful_state": "Beautiful State",
-      "witnessing": "Witnessing Presence",
-      "sadhana": "Dedicated Sadhana",
-      "conflict_transformed": "Conflict Transmuted",
-      "neutral": "No Practice Recorded"
+      "gentle": "ലഘുവായ പരിശീലനം",
+      "dedicated": "സമർപ്പിത പരിശീലനം",
+      "deep": "ആഴത്തിലുള്ള സാധന",
+      "rest": "വിശ്രമം / സമന്വയം"
     }
   }
 }

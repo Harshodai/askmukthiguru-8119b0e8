@@ -1327,8 +1327,8 @@
     "viewMeditationStats": "View meditation stats"
   },
   "sadhana": {
-    "matrixTitle": "Sadhana & Consciousness Matrix",
-    "matrixSubtitle": "Trailing {{weeks}} weeks of meditation, witnessing, and inner state mastery.",
+    "matrixTitle": "Sadhana & Practice Matrix",
+    "matrixSubtitle": "Trailing {{weeks}} weeks of verified meditation practice and breath awareness.",
     "filterAll": "All Days",
     "minPracticed": "{{minutes}} min practiced",
     "sessionCount": "{{count}} session(s)",
@@ -1336,13 +1336,13 @@
     "restDay": "Rest & Integration Day",
     "daysActive": "{{count}} days active",
     "hoursTotal": "{{hours}} hrs total",
-    "beautifulStateRatio": "{{ratio}}% Beautiful State",
+    "totalSessions": "{{count}} completed sessions",
+    "streakStatus": "{{current}}d streak (best: {{longest}}d)",
     "states": {
-      "beautiful_state": "Beautiful State",
-      "witnessing": "Witnessing Presence",
-      "sadhana": "Dedicated Sadhana",
-      "conflict_transformed": "Conflict Transmuted",
-      "neutral": "No Practice Recorded"
+      "gentle": "Gentle Practice",
+      "dedicated": "Dedicated Practice",
+      "deep": "Deep Sadhana",
+      "rest": "Rest / Integration"
     }
   }
 }

@@ -1,14 +1,8 @@
 # ==============================================================================
-# AskMukthiGuru — Alertmanager Production Configuration
+# AskMukthiGuru — Alertmanager Secret Template
 #
-# Secret Injection Pattern (envsubst):
-#   envsubst < infrastructure/prometheus/alertmanager.template.yml > infrastructure/prometheus/alertmanager.yml
-#
-# Required Environment Variables:
-#   - PD_SERVICE_KEY: PagerDuty Integration / Routing Key (Events API v2)
-#   - SLACK_WEBHOOK_URL: Slack Incoming Webhook URL (e.g. https://hooks.slack.com/services/...)
-#   - ALERT_WEBHOOK_URL: Optional generic HTTP webhook receiver URL
-#   - SLACK_CHANNEL: Slack alert channel (default: #alerts / #alerts-critical)
+# Process with envsubst:
+#   envsubst < infrastructure/prometheus/alertmanager.template.yml > /etc/alertmanager/alertmanager.yml
 # ==============================================================================
 
 global:
@@ -43,7 +37,6 @@ route:
 
 receivers:
   - name: oncall-pager
-    # PagerDuty Events API v2
     pagerduty_configs:
       - service_key: '${PD_SERVICE_KEY}'
         url: 'https://events.pagerduty.com/v2/enqueue'
@@ -58,7 +51,6 @@ receivers:
           environment: '{{ .CommonLabels.environment }}'
         send_resolved: true
 
-    # Slack Paging Notification
     slack_configs:
       - api_url: '${SLACK_WEBHOOK_URL}'
         channel: '${SLACK_CHANNEL:-#alerts-critical}'
@@ -70,7 +62,6 @@ receivers:
           *Severity:* `{{ .CommonLabels.severity }}` | *Team:* `{{ .CommonLabels.team }}`
           *Runbook:* <{{ .CommonAnnotations.runbook }}|Runbook Link>
 
-    # Generic Alert Webhook
     webhook_configs:
       - url: '${ALERT_WEBHOOK_URL}'
         send_resolved: true

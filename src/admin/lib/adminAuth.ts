@@ -8,19 +8,29 @@ export interface AdminSession {
   loggedInAt: string;
 }
 
+function getSafeSessionStorage(): Storage | null {
+  try {
+    return typeof window !== 'undefined' && window.sessionStorage ? window.sessionStorage : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
- * Verify admin role using Supabase JWT session (not localStorage).
+ * Verify admin role using Supabase JWT session (not storage).
  * Returns true only if a valid Supabase session exists AND user has admin role.
  */
 export async function verifyAdminSession(): Promise<{
   authenticated: boolean;
   session: AdminSession | null;
 }> {
+  const storage = getSafeSessionStorage();
   const {
     data: { session },
   } = await supabase.auth.getSession();
   if (!session?.user) {
-    localStorage.removeItem(STORAGE_KEY);
+    storage?.removeItem(STORAGE_KEY);
+    try { localStorage.removeItem(STORAGE_KEY); } catch {}
     return { authenticated: false, session: null };
   }
 
@@ -31,7 +41,8 @@ export async function verifyAdminSession(): Promise<{
 
   // Type guard: RPC must return boolean true, not truthy/undefined/null
   if (roleOk !== true) {
-    localStorage.removeItem(STORAGE_KEY);
+    storage?.removeItem(STORAGE_KEY);
+    try { localStorage.removeItem(STORAGE_KEY); } catch {}
     return { authenticated: false, session: null };
   }
 
@@ -40,7 +51,8 @@ export async function verifyAdminSession(): Promise<{
     userId: session.user.id,
     loggedInAt: new Date().toISOString(),
   };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(adminSession));
+  storage?.setItem(STORAGE_KEY, JSON.stringify(adminSession));
+  try { localStorage.removeItem(STORAGE_KEY); } catch {}
   return { authenticated: true, session: adminSession };
 }
 
@@ -48,6 +60,7 @@ export async function loginAdmin(
   email: string,
   password: string,
 ): Promise<{ ok: true; session: AdminSession } | { ok: false; error: string }> {
+  const storage = getSafeSessionStorage();
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
@@ -73,19 +86,23 @@ export async function loginAdmin(
     loggedInAt: new Date().toISOString(),
   };
 
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+  storage?.setItem(STORAGE_KEY, JSON.stringify(session));
+  try { localStorage.removeItem(STORAGE_KEY); } catch {}
   return { ok: true, session };
 }
 
 export async function logoutAdmin(): Promise<void> {
+  const storage = getSafeSessionStorage();
   await supabase.auth.signOut();
-  localStorage.removeItem(STORAGE_KEY);
+  storage?.removeItem(STORAGE_KEY);
+  try { localStorage.removeItem(STORAGE_KEY); } catch {}
 }
 
 /** Get cached display info. NOT for auth decisions — use verifyAdminSession() instead. */
 export function getAdminSession(): AdminSession | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const storage = getSafeSessionStorage();
+    const raw = storage?.getItem(STORAGE_KEY);
     if (!raw) return null;
     return JSON.parse(raw) as AdminSession;
   } catch {

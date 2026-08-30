@@ -116,5 +116,23 @@ def test_main_cli_anomaly(tmp_path) -> None:
     assert data["anomaly"] is True
 
 
+def test_run_anomaly_check_connection_error() -> None:
+    with patch("scripts.ops.hallucination_anomaly._fetch_responses", return_value=None):
+        result = run_anomaly_check(lookback_days=1)
+
+    assert result["anomaly"] is True
+    assert result["alerts"]["connection_error"] is True
+
+
+def test_run_anomaly_check_empty_data() -> None:
+    with patch("scripts.ops.hallucination_anomaly._fetch_responses", return_value=[]):
+        result = run_anomaly_check(lookback_days=1)
+
+    assert result["anomaly"] is False
+    assert result["alerts"]["no_data"] is True
+    assert result["metrics"]["total_responses"] == 0
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+

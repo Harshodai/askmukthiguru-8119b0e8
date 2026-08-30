@@ -1720,7 +1720,7 @@ const handleEditQueued = useCallback((id: string) => {
   if (!target) return;
   setInputValue(target.text);
   if (target.attachedFiles) {
-    setAttachedFiles(target.attachedFiles.map((f, i) => ({ id: `att-${i}`, ...f })));
+    setAttachedFiles(target.attachedFiles.map((f) => ({ id: crypto.randomUUID(), ...f })));
   }
   setQueuedMessages((prev) => prev.filter((m) => m.id !== id));
   inputRef.current?.focus();
