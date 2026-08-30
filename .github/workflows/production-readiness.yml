@@ -1,0 +1,70 @@
+name: Production Readiness
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, 'feat/**']
+
+concurrency:
+  group: production-readiness-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend quality gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit and integration tests
+        run: npm test -- --runInBand
+
+      - name: Production build
+        run: npm run build
+
+      - name: Bundle budget
+        run: npm run bundle:check
+
+      - name: Mobile build
+        run: npm run build:mobile
+
+  backend:
+    name: Backend regression gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: python -m pip install --upgrade pip && pip install -r requirements.txt
+
+      - name: Pytest
+        working-directory: backend
+        run: python -m pytest -q
