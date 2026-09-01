@@ -19,8 +19,9 @@ import abc
 import asyncio
 import logging
 from functools import lru_cache
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
+from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import Send
 
@@ -144,7 +145,7 @@ def parallel_start(state: GraphState):
     return [Send("intent_router", state), Send("handle_distress_check", state)]
 
 
-async def resolve_parallel(state: GraphState, config: dict = None) -> dict:
+async def resolve_parallel(state: GraphState, config: Optional[RunnableConfig] = None) -> dict:
     if state.get("parallel_distress_found", False):
         return {"intent": "DISTRESS", "query_tier": "tier2_simple", "confidence_tier": "high"}
     return {}
@@ -197,7 +198,7 @@ class StandardGraphStrategy(GraphStrategy):
     def name(self) -> str:
         return "standard"
 
-    def build(self, **kwargs) -> CompiledStateGraph:
+    def _create_uncompiled_graph(self, **kwargs) -> StateGraph:
         ollama_service = kwargs.get("ollama_service")
         embedding_service = kwargs.get("embedding_service")
         qdrant_service = kwargs.get("qdrant_service")
@@ -343,6 +344,10 @@ class StandardGraphStrategy(GraphStrategy):
         graph.add_edge("handle_meditation", END)
         graph.add_edge("handle_fallback", END)
 
+        return graph
+
+    def build(self, **kwargs) -> CompiledStateGraph:
+        graph = self._create_uncompiled_graph(**kwargs)
         compiled = graph.compile()
         logger.info("LangGraph STANDARD pipeline compiled successfully")
         return compiled
@@ -575,11 +580,7 @@ class DeepGraphStrategy(GraphStrategy):
     def build(self, **kwargs) -> CompiledStateGraph:
         # Ponytail: extend standard wiring with one extra node + conditional edge.
         standard = StandardGraphStrategy()
-        graph = standard.build(**kwargs)
-        if hasattr(graph, "builder"):
-            builder = graph.builder
-        else:
-            builder = graph
+        builder = standard._create_uncompiled_graph(**kwargs)
         builder.add_node("deep_contradiction_gate", deep_contradiction_gate)
 
         def _route_after_verify(state: GraphState) -> str:
@@ -611,7 +612,7 @@ class DeepGraphStrategy(GraphStrategy):
                 "extract": "extract_citations",
             },
         )
-        compiled = builder.compile() if hasattr(builder, "compile") else graph
+        compiled = builder.compile()
         logger.info("LangGraph DEEP pipeline compiled successfully")
         return compiled
 

@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import logging
 import re
+from typing import Optional
+
+from langchain_core.runnables import RunnableConfig
 
 from app.tracing import trace_rag_node
 from rag.meditation import (
@@ -135,7 +138,7 @@ def _preserve_upstream_quality_tier(state: GraphState, result: dict) -> dict:
 
 @trace_rag_node("intent_router")
 @log_metrics
-async def intent_router(state: GraphState, config: dict = None) -> dict:
+async def intent_router(state: GraphState, config: Optional[RunnableConfig] = None) -> dict:
     """Classify user message -> DISTRESS / QUERY / CASUAL / ADVERSARIAL / SAFETY_VIOLATION."""
     try:
         result = await _intent_router_impl(state, config)
@@ -586,7 +589,7 @@ def _compute_complexity_score(question: str, chat_history: list[dict]) -> float:
     return round(min(max(score, 0.0), 1.0), 3)
 
 
-async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
+async def _intent_router_impl(state: GraphState, config: Optional[RunnableConfig] = None) -> dict:
     """Internal implementation of the intent router."""
     from rag.nodes.utils import emit_status
 
@@ -1008,7 +1011,7 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
 
 @trace_rag_node("handle_casual")
 @log_metrics
-async def handle_casual(state: GraphState, config: dict = None) -> dict:
+async def handle_casual(state: GraphState, config: Optional[RunnableConfig] = None) -> dict:
     """Handle casual conversation with multi-turn awareness.
 
     Belt-and-suspenders guard: if the query contains spiritual practice
@@ -1227,7 +1230,7 @@ async def handle_casual(state: GraphState, config: dict = None) -> dict:
 
 @trace_rag_node("handle_distress")
 @log_metrics
-async def handle_distress(state: GraphState, config: dict = None) -> dict:
+async def handle_distress(state: GraphState, config: Optional[RunnableConfig] = None) -> dict:
     """Handle distress with COMPASSIONATE TEACHINGS + meditation offer."""
     from rag.nodes.utils import emit_status
 
@@ -1344,7 +1347,7 @@ Retrieved teachings from Sri Preethaji and Sri Krishnaji:
 
 
 @trace_rag_node("handle_distress_check")
-async def handle_distress_check(state: GraphState, config: dict = None) -> dict:
+async def handle_distress_check(state: GraphState, config: Optional[RunnableConfig] = None) -> dict:
     """Lightweight keyword-based distress check running in parallel with intent_router."""
     question = state.get("question", "")
     serene_mind = _services._serene_mind
@@ -1365,7 +1368,7 @@ async def handle_distress_check(state: GraphState, config: dict = None) -> dict:
 
 @trace_rag_node("handle_meditation")
 @log_metrics
-async def handle_meditation(state: GraphState, config: dict = None) -> dict:
+async def handle_meditation(state: GraphState, config: Optional[RunnableConfig] = None) -> dict:
     """Continue an active meditation session, start a new one, or gracefully bail.
 
     Phase A1.1 fix — three-state behaviour:

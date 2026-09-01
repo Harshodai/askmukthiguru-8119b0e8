@@ -5,6 +5,9 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+from typing import Optional
+
+from langchain_core.runnables import RunnableConfig
 
 from app.tracing import trace_rag_node
 from rag.compressor import cap_to_token_budget
@@ -522,7 +525,7 @@ def classify_user_familiarity(question: str, chat_history: list[dict]) -> str:
 
 @trace_rag_node("context_engineer")
 @log_metrics
-async def context_engineer(state: GraphState, config: dict = None) -> dict:
+async def context_engineer(state: GraphState, config: Optional[RunnableConfig] = None) -> dict:
     """PageIndex-inspired Context Engineering layers Persona, Knowledge, Instructions, and User State.
 
     1.9 Structured Prompt Assembly: context_layers now includes labeled sections for
@@ -992,7 +995,7 @@ def _cite_sentences(
 
 @trace_rag_node("generate_answer")
 @log_metrics
-async def generate_answer(state: GraphState, config: dict = None) -> dict:
+async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = None) -> dict:
     """Generate the final answer with inline hint extraction."""
     _cs = state.get("complexity_score", 0.5)
     question = state.get("rewritten_query") or state["question"]
@@ -2063,7 +2066,7 @@ def _clean_inline_citations(text: str) -> str:
 
 @trace_rag_node("format_final_answer")
 @log_metrics
-async def format_final_answer(state: GraphState, config: dict = None) -> dict:
+async def format_final_answer(state: GraphState, config: Optional[RunnableConfig] = None) -> dict:
     """Format the final response based on pipeline results."""
     await emit_status(config, "Finalizing your response...")
     is_faithful = state.get("is_faithful", False)

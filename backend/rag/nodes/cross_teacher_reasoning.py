@@ -3,8 +3,10 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import logging
+from typing import Optional
 
 from cachetools import TTLCache
+from langchain_core.runnables import RunnableConfig
 from neo4j import GraphDatabase
 
 from app.config import settings
@@ -108,7 +110,7 @@ def _build_doc(relationships: list[str], *, licensed: bool) -> dict | None:
 
 @trace_rag_node("cross_teacher_reasoning")
 @log_metrics
-async def cross_teacher_reasoning(state: GraphState, config: dict = None) -> dict:
+async def cross_teacher_reasoning(state: GraphState, config: Optional[RunnableConfig] = None) -> dict:
     """
     RAG Node for Cross-Teacher comparisons.
     If the question mentions multiple spiritual teachers, it queries Neo4j

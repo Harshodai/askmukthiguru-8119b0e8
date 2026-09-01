@@ -3,10 +3,10 @@ _format_version: "2.1"
 consumers:
   - username: anon
     keyauth_credentials:
-      - key: ${SUPABASE_ANON_KEY:-sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH}
+      - key: ${SUPABASE_ANON_KEY}
   - username: service_role
     keyauth_credentials:
-      - key: ${SUPABASE_KEY:-sb_secret_N7UND0UgjKTVK-Uodkm0Hg_xSvEMPvz}
+      - key: ${SUPABASE_KEY}
 
 acls:
   - consumer: anon

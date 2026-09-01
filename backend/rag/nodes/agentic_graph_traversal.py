@@ -17,6 +17,8 @@ from __future__ import annotations
 import logging
 from typing import Any, Optional
 
+from langchain_core.runnables import RunnableConfig
+
 from app.config import settings
 from rag.prompts import AGENTIC_TRAVERSAL_SYSTEM_PROMPT
 from rag.states import GraphState
@@ -32,7 +34,7 @@ MAX_STEPS = getattr(settings, "agentic_graph_max_steps", 3)
 ENABLED = getattr(settings, "agentic_graph_traversal_enabled", False)
 
 
-async def agentic_graph_traversal(state: GraphState, config: dict = None) -> dict:
+async def agentic_graph_traversal(state: GraphState, config: Optional[RunnableConfig] = None) -> dict:
     """
     ReAct loop for walking the ontology graph during COMPARATIVE intent or complex queries.
 

@@ -17,6 +17,9 @@ Examples:
 """
 
 import logging
+from typing import Optional
+
+from langchain_core.runnables import RunnableConfig
 
 from app.config import settings
 from rag.states import GraphState
@@ -120,7 +123,7 @@ LATEST QUESTION: {question}
 STANDALONE QUESTION:"""
 
 
-async def resolve_followup(state: GraphState, config: dict = None) -> dict:
+async def resolve_followup(state: GraphState, config: Optional[RunnableConfig] = None) -> dict:
     """
     Resolve follow-up queries into standalone questions.
 
