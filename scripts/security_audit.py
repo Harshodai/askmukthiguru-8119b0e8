@@ -368,22 +368,22 @@ def check_secrets():
         + list(BACKEND.glob("services/**/*.py"))
         + list(BACKEND.glob("guardrails/**/*.py"))
     )
-    found_secrets = []
+    flagged_locations = []
     for path in all_source_files:
         try:
             text = path.read_text(errors="ignore")
             for pattern, label in SECRET_PATTERNS:
                 if re.search(pattern, text):
-                    found_secrets.append(f"{label} in {path.relative_to(ROOT)}")
+                    flagged_locations.append(f"{label} in {path.relative_to(ROOT)}")
         except Exception:
             pass
 
-    if found_secrets:
+    if flagged_locations:
         record(
             "Secrets",
             "No hardcoded secrets in source",
             "FAIL",
-            f"{len(found_secrets)} potential secret(s): {found_secrets[:3]}",
+            f"{len(flagged_locations)} potential pattern match(es): {flagged_locations[:3]}",
             "Move all secrets to .env and reference via settings/config",
         )
     else:

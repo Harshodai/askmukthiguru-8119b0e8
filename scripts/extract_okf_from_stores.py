@@ -540,12 +540,12 @@ async def _get_topic_clusters(
             c["lightrag_context"] = ""
 
     logger.info(
-        "Clusters: %d topics (limit=%s, topic=%s, video=%s, skip_heavy=%s)",
+        "Clusters: %d topics (limit=%d, topic=%s, video=%s, skip_heavy=%s)",
         len(clusters),
-        limit,
+        int(limit or 0),
         _sanitize_log(target_topic or "any"),
         _sanitize_log(target_video_id or "any"),
-        skip_heavy,
+        bool(skip_heavy),
     )
     return clusters
 
@@ -809,9 +809,9 @@ async def extract_okf(
         "OKF extraction start: topic=%s, video=%s, limit=%d, auto=%s, dry=%s",
         _sanitize_log(target_topic or "any"),
         _sanitize_log(target_video_id or "any"),
-        limit,
-        auto_approve,
-        dry_run,
+        int(limit or 0),
+        bool(auto_approve),
+        bool(dry_run),
     )
 
     # 1. Gather data from all stores

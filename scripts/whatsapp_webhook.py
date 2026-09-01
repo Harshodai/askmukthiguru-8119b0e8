@@ -155,24 +155,21 @@ def _send_meta_whatsapp_message(
     Safely send WhatsApp message via Meta Cloud API.
     Strictly validates phone_number_id and destination URL to prevent SSRF (CWE-918).
     """
-    if not phone_number_id or not _PHONE_NUMBER_ID_RE.match(str(phone_number_id)):
-        logger.error(
-            "Invalid phone_number_id format rejected: %s",
-            sanitize_log_input(phone_number_id),
-        )
+    clean_id = str(phone_number_id or "").strip()
+    if not clean_id.isdigit() or not _PHONE_NUMBER_ID_RE.match(clean_id):
+        logger.error("Invalid phone_number_id format rejected")
         return False
 
-    safe_phone_id = urllib.parse.quote(str(phone_number_id), safe="")
-    url = f"https://{_ALLOWED_META_HOST}/v18.0/{safe_phone_id}/messages"
+    url = f"https://graph.facebook.com/v18.0/{int(clean_id)}/messages"
 
     parsed = urllib.parse.urlparse(url)
     if (
         parsed.scheme != "https"
-        or parsed.netloc.lower() != _ALLOWED_META_HOST
+        or parsed.netloc.lower() != "graph.facebook.com"
         or not parsed.path.startswith("/v18.0/")
         or not parsed.path.endswith("/messages")
     ):
-        logger.error("SSRF guard rejected URL: %s", sanitize_log_input(url))
+        logger.error("SSRF guard rejected request")
         return False
 
     try:
@@ -192,7 +189,7 @@ def _send_meta_whatsapp_message(
         meta_response.raise_for_status()
         return True
     except Exception as exc:
-        logger.error("Failed to send Meta WhatsApp message: %s", sanitize_log_input(exc))
+        logger.error("Failed to send Meta WhatsApp message: %s", sanitize_log_input(type(exc).__name__))
         return False
 
 
@@ -318,12 +315,14 @@ def meta_webhook():
         if not message:
             return 'No message payload', 200
 
-        from_number = message.get('from')
+        from_number = str(message.get('from') or "").strip()
         msg_body = message.get('text', {}).get('body', '').strip()
-        phone_number_id = value.get('metadata', {}).get('phone_number_id')
+        raw_phone_id = str(value.get('metadata', {}).get('phone_number_id') or "").strip()
 
-        if not msg_body or not from_number or not phone_number_id:
+        if not msg_body or not from_number or not raw_phone_id.isdigit():
             return 'Incomplete payload', 200
+
+        phone_number_id = str(int(raw_phone_id))
 
     except (IndexError, KeyError, AttributeError):
         return 'Ignored non-message event', 200

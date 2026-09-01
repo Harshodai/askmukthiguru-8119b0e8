@@ -19,11 +19,14 @@ const updates = {
 
 for (const [loc, text] of Object.entries(updates)) {
   const file = `src/locales/${loc}.json`;
-  if (!fs.existsSync(file)) continue;
-  const data = JSON.parse(fs.readFileSync(file, 'utf8'));
-  if (data.privacy) {
-    data.privacy.storeChats = text;
-    fs.writeFileSync(file, JSON.stringify(data, null, 2) + '\n');
-    console.log(`Updated ${loc}`);
+  try {
+    const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+    if (data && data.privacy) {
+      data.privacy.storeChats = text;
+      fs.writeFileSync(file, JSON.stringify(data, null, 2) + '\n');
+      console.log(`Updated ${loc}`);
+    }
+  } catch (err) {
+    // Ignore missing or unreadable locale files
   }
 }

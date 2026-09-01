@@ -82,6 +82,12 @@ MAX_MSG_LENGTH = 4096
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s | %(message)s")
 log = logging.getLogger("wa_bot")
 
+
+def sanitize_log_input(val: Any) -> str:
+    """Sanitize user input to prevent log injection (CWE-117)."""
+    return str(val).replace("\r", "").replace("\n", " ")[:200]
+
+
 app = Flask(__name__)
 twilio_validator = RequestValidator(TWILIO_AUTH_TOKEN)
 
@@ -245,9 +251,9 @@ def push_message(phone: str, body: str) -> None:
         client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
         for chunk in _chunk_text(body):
             client.messages.create(body=chunk, from_=TWILIO_FROM, to=phone)
-        log.info(f"Successfully pushed outbound WhatsApp message to {phone}")
+        log.info("Successfully pushed outbound WhatsApp message to %s", sanitize_log_input(phone))
     except Exception as e:
-        log.exception(f"Failed to push message via Twilio client: {e}")
+        log.exception("Failed to push message via Twilio client: %s", sanitize_log_input(e))
 
 
 def poll_job_and_send_whatsapp(phone: str, job_id: str, jwt_token: str) -> None:
@@ -284,21 +290,35 @@ def poll_job_and_send_whatsapp(phone: str, job_id: str, jwt_token: str) -> None:
                     last_serene_at=int(time.time()) if int(result.get("meditation_step") or 0) == 0 else None,
                 )
                 
-                log.info("Job %s completed, pushing response to %s", job_id, phone)
+                log.info(
+                    "Job %s completed, pushing response to %s",
+                    sanitize_log_input(job_id),
+                    sanitize_log_input(phone),
+                )
                 push_message(phone, answer_text)
                 return
                 
             elif status == "failed":
-                log.error("Job %s failed for %s: %s", job_id, phone, job.get("error"))
+                log.error(
+                    "Job %s failed for %s: %s",
+                    sanitize_log_input(job_id),
+                    sanitize_log_input(phone),
+                    sanitize_log_input(job.get("error")),
+                )
                 push_message(phone, FALLBACK_GENERIC)
                 return
                 
         except Exception as e:
-            log.warning(f"Error polling job {job_id} for {phone}: {e}")
+            log.warning(
+                "Error polling job %s for %s: %s",
+                sanitize_log_input(job_id),
+                sanitize_log_input(phone),
+                sanitize_log_input(e),
+            )
             
         time.sleep(1.0)
         
-    log.warning("Job %s timed out for %s", job_id, phone)
+    log.warning("Job %s timed out for %s", sanitize_log_input(job_id), sanitize_log_input(phone))
     push_message(phone, FALLBACK_DOWN)
 
 
@@ -411,14 +431,19 @@ def incoming():
             return _twiml(answer_text)
 
     except requests.Timeout:
-        log.warning("chat timeout for %s", phone)
+        log.warning("chat timeout for %s", sanitize_log_input(phone))
         return _twiml("🙏 The Guru is taking longer than usual. Please try again.")
     except requests.ConnectionError:
-        log.error("chat connection error for %s", phone)
+        log.error("chat connection error for %s", sanitize_log_input(phone))
         return _twiml("🙏 Unable to reach the Guru. Please check your connection.")
     except requests.HTTPError as e:
         sc = e.response.status_code if e.response is not None else 0
-        log.error("chat HTTP %s for %s: %s", sc, phone, e)
+        log.error(
+            "chat HTTP %d for %s: %s",
+            int(sc),
+            sanitize_log_input(phone),
+            sanitize_log_input(e),
+        )
         if sc == 503:
             return _twiml("🙏 The Guru is deep in meditation. Please try again in a moment.")
         if sc == 429:
@@ -427,7 +452,7 @@ def incoming():
             return _twiml("🙏 The Guru needs a moment. Please try again shortly.")
         return _twiml(FALLBACK_GENERIC)
     except Exception:
-        log.exception("chat call failed for %s", phone)
+        log.exception("chat call failed for %s", sanitize_log_input(phone))
         return _twiml(FALLBACK_GENERIC)
 
 

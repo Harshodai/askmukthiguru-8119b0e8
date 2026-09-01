@@ -28,7 +28,7 @@ const IGNORABLE = (e: string, pathname: string): boolean =>
   e.includes('useMeditationAudio') ||
   e.includes('503 (Service Offline)') ||
   e.includes('Failed to load resource') ||
-  (pathname === '/auth' && e.includes('Refused to frame') && e.includes('accounts.google.com'));
+  (pathname === '/auth' && e.includes('Refused to frame') && /accounts\.google\.com(?:\/|$)/.test(e));
 
 function trackErrors(page: Page): string[] {
   const errors: string[] = [];

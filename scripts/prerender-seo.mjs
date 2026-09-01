@@ -360,8 +360,12 @@ function injectMeta(html, route) {
   }
 
   // Remove any prerendered JSON-LD and body blocks from a prior run (idempotency)
-  out = out.replace(/<script\s+type=["']application\/ld\+json["']\s+data-prerendered=["']true["'][^>]*>[\s\S]*?<\/script>\s*/gi, '');
-  out = out.replace(/<div\s+id=["']prerender-seo-content["'][^>]*>[\s\S]*?<\/div>\s*/gi, '');
+  while (/<script\s+type=["']application\/ld\+json["']\s+data-prerendered=["']true["'][^>]*>[\s\S]*?<\/script>\s*/i.test(out)) {
+    out = out.replace(/<script\s+type=["']application\/ld\+json["']\s+data-prerendered=["']true["'][^>]*>[\s\S]*?<\/script>\s*/i, '');
+  }
+  while (/<div\s+id=["']prerender-seo-content["'][^>]*>[\s\S]*?<\/div>\s*/i.test(out)) {
+    out = out.replace(/<div\s+id=["']prerender-seo-content["'][^>]*>[\s\S]*?<\/div>\s*/i, '');
+  }
 
   // Insert a crawler-visible body fallback. main.tsx removes it before React mounts.
   const seoBody = `<div id="prerender-seo-content"><h1>${escapeHtml(h1)}</h1><p>${escapeHtml(route.description)}</p></div>`;

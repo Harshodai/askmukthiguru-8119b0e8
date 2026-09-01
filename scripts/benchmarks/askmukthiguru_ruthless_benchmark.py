@@ -2754,7 +2754,7 @@ async def run_preflight_checks(url: str, test_key: str = None) -> dict:
     }
     for key, val in env_checks.items():
         if val:
-            print(f"       ✅ {key} is set ({_mask_secret(val)})")
+            print(f"       ✅ {key} is set")
         else:
             print(f"       ⚠️  {key} not set in this shell (may be set in Docker)")
     results["env"] = True  # Non-blocking

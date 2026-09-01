@@ -64,7 +64,7 @@ for (const route of PUBLIC_ROUTES) {
         // the page from mounting.
         !e.includes('__cf_bm') &&
         !e.includes('/realtime/v1/websocket') &&
-        !(finalPathname === '/auth' && e.includes('Refused to frame') && e.includes('https://accounts.google.com/')) &&
+        !(finalPathname === '/auth' && e.includes('Refused to frame') && /accounts\.google\.com(?:\/|$)/.test(e)) &&
         !(protectedRoute && finalPathname === '/auth' && /401(?:\s|\()|Unauthorized/i.test(e)),
     );
     expect(fatal, `Uncaught errors on ${route}:\n${fatal.join('\n')}`).toHaveLength(0);
