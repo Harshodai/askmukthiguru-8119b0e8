@@ -3,9 +3,29 @@ name: "CodeQL Configuration"
 queries:
   - uses: security-extended
 
+paths:
+  - backend
+  - src
+  - scripts
+  - supabase
+
 paths-ignore:
   - '.agent/**'
   - '.agents/**'
+  - '.audit_artifacts/**'
+  - '.cursor/**'
+  - '.opencode/**'
+  - '.worktrees/**'
   - 'android/**'
   - 'ios/**'
   - 'dist/**'
+  - 'external_repos/**'
+  - 'mcp-servers/**'
+  - 'research/**'
+  - 'node_modules/**'
+  - 'backend/.venv/**'
+  - 'backend/venv/**'
+  - '**/*.test.ts'
+  - '**/*.test.tsx'
+  - '**/*.spec.ts'
+  - 'backend/tests/**'
