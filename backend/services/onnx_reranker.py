@@ -122,8 +122,16 @@ class OnnxReranker:
             onnx_files[0],
         )
 
+        # Bound thread count: default (0=all cores) oversubscribes when
+        # multiple predict() calls run concurrently via asyncio.to_thread.
+        so = ort.SessionOptions()
+        so.intra_op_num_threads = max(1, (os.cpu_count() or 2) // 2)
+        so.inter_op_num_threads = 1
+        so.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+
         session = ort.InferenceSession(
             str(onnx_path),
+            sess_options=so,
             providers=["CPUExecutionProvider"],
         )
 

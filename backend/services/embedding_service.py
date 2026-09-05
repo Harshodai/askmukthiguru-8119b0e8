@@ -1373,10 +1373,13 @@ class EmbeddingService:
 
         scores = batch_maxsim(query_tokens, doc_tokens_list)
 
+        dense_vecs = encoded["dense"][1:]  # skip query at index 0
+
         scored = []
-        for doc, score in zip(documents, scores):
+        for doc, score, dense_vec in zip(documents, scores, dense_vecs):
             doc_copy = doc.copy()
             doc_copy["colbert_score"] = float(score)
+            doc_copy["_dense_embedding"] = dense_vec  # ponytail: reused by MMR to skip re-encoding
             scored.append(doc_copy)
         scored.sort(key=lambda d: d["colbert_score"], reverse=True)
         logger.info(f"ColBERT MaxSim reranked {len(documents)} -> {len(scored[:top_k])} docs")
@@ -1596,14 +1599,16 @@ class EmbeddingService:
             texts = [doc["text"] for doc in documents]
             try:
                 colbert_results = self._colbert.rerank(query=query, documents=texts, k=top_k)
+                # ponytail: rerank() returns result_index into `texts`/`documents` per RAGatouille's
+                # rerank() contract; lookup by index avoids the O(n^2) full-text equality scan.
                 mapped_docs = []
                 for res in colbert_results:
-                    for doc in documents:
-                        if doc["text"] == res["content"]:
-                            doc_copy = doc.copy()
-                            doc_copy["colbert_score"] = res["score"]
-                            mapped_docs.append(doc_copy)
-                            break
+                    idx = res.get("result_index")
+                    if idx is None or not (0 <= idx < len(documents)):
+                        continue
+                    doc_copy = documents[idx].copy()
+                    doc_copy["colbert_score"] = res["score"]
+                    mapped_docs.append(doc_copy)
                 logger.info(f"ColBERT-only reranked {len(documents)} -> {len(mapped_docs)} docs")
                 return mapped_docs
             except Exception as e:

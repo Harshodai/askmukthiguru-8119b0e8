@@ -90,8 +90,10 @@ def init_services(
     _llm_gateway = llm_gateway
     _graphrag_fusion = graphrag_fusion
 
-    _reranker = RerankerService()
-    _lettuce_detect = LettuceDetectService(embedder)
+    if _reranker is None:
+        _reranker = RerankerService()
+    if _lettuce_detect is None:
+        _lettuce_detect = LettuceDetectService(embedder)
 
     # Inject ollama into follow-up resolver
     set_followup_ollama(ollama)

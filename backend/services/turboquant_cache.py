@@ -63,6 +63,13 @@ class TurboQuantCache:
         self._last_sync: float = 0.0
         self._hits: int = 0
         self._misses: int = 0
+        # ponytail: tombstone evictions and rebuild the index in batches instead
+        # of on every single eviction. TurboQuantIndex has no by-ID delete, so a
+        # rebuild is O(n); batching trades a small staleness window (tombstoned
+        # entries stay counted out of results, but the index isn't reclaimed)
+        # for far fewer full rebuilds under steady-state churn.
+        self._tombstoned: set[int] = set()
+        self._compact_batch = max(1, self._max_size // 10)
 
         if _HAVE_TURBOVEC:
             self._index = TurboQuantIndex(dim=dimension, bit_width=4)
@@ -93,8 +100,10 @@ class TurboQuantCache:
                 self._index.add(vec)
                 self._prepared = False
 
-            # Store full-precision vector in metadata for numpy fallback
-            metadata["_embedding"] = embedding
+            # Full-precision vector only needed for the numpy fallback path;
+            # turbovec already holds a quantized copy in self._index.
+            if not _HAVE_TURBOVEC:
+                metadata["_embedding"] = embedding
             self._metadata[fid] = metadata
             return fid
 
@@ -161,6 +170,8 @@ class TurboQuantCache:
             if score_val < threshold:
                 continue
             fid = all_fids[int(pos)]
+            if fid in self._tombstoned:
+                continue
             meta = self._metadata.get(fid)
             if meta is not None:
                 results.append(
@@ -187,7 +198,7 @@ class TurboQuantCache:
 
     @property
     def size(self) -> int:
-        return len(self._metadata)
+        return len(self._metadata) - len(self._tombstoned)
 
     @property
     def stats(self) -> dict:
@@ -216,16 +227,30 @@ class TurboQuantCache:
 
     def _evict_if_full(self) -> None:
         if self.size >= self._max_size and self._metadata:
-            oldest = min(self._metadata.keys())
-            self._remove_fid(oldest)
+            live = (fid for fid in self._metadata if fid not in self._tombstoned)
+            oldest = min(live, default=None)
+            if oldest is not None:
+                self._remove_fid(oldest)
 
     def _remove_fid(self, fid: int) -> None:
-        self._metadata.pop(fid, None)
-        # TurboQuantIndex uses positional indexing, so we can't remove by FID.
-        # Full rebuild needed. For now, just remove from metadata.
-        if _HAVE_TURBOVEC and self._index is not None:
-            self._reset_index()
-            self._rebuild_from_metadata()
+        # TurboQuantIndex uses positional indexing, so it can't remove by FID
+        # without a full rebuild. Tombstone instead of popping immediately so
+        # index positions (derived from sorted _metadata keys) stay valid, and
+        # only pay the O(n) rebuild once _compact_batch evictions have piled up.
+        if not (_HAVE_TURBOVEC and self._index is not None):
+            # No index to keep positionally aligned; drop immediately.
+            self._metadata.pop(fid, None)
+            return
+        self._tombstoned.add(fid)
+        if len(self._tombstoned) >= self._compact_batch:
+            self._compact()
+
+    def _compact(self) -> None:
+        for fid in self._tombstoned:
+            self._metadata.pop(fid, None)
+        self._tombstoned.clear()
+        self._reset_index()
+        self._rebuild_from_metadata()
 
     def _reset_index(self) -> None:
         if _HAVE_TURBOVEC and self._index is not None:
@@ -289,6 +314,7 @@ class TurboQuantCache:
             self._index = TurboQuantIndex(dim=self._dimension, bit_width=4)
             self._prepared = False
         self._metadata.clear()
+        self._tombstoned.clear()
         self._id_counter = 0
 
 

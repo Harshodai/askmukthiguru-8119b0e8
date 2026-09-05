@@ -4,6 +4,7 @@ import asyncio
 import hashlib
 import logging
 import os
+import re
 import threading
 from typing import Optional
 
@@ -35,6 +36,36 @@ SPIRITUAL_ENTITY_TYPES = [
 ]
 
 logger = logging.getLogger(__name__)
+
+
+def _cache_token_candidates(value_lower: str) -> set[str]:
+    # ponytail: word-boundary tokens, not raw substrings — a cached value
+    # containing "video_123.mp4" indexes as {"video_123", "mp4"} rather than
+    # every substring. _invalidate_cache_for tokenizes source file paths the
+    # same way, so lookups stay consistent. Slightly coarser than a full
+    # substring scan; upgrade to n-grams if that coarseness ever causes a
+    # missed invalidation in practice.
+    return set(re.findall(r"[\w./-]+", value_lower))
+
+
+class _IndexingTTLCache(TTLCache):
+    """TTLCache that maintains a token -> cache_key reverse index on write.
+
+    Single chokepoint: any write (via __setitem__, including plain
+    `cache[key] = value`) updates `token_index` automatically, so
+    _invalidate_cache_for never needs a full linear scan of cache values —
+    it looks up the small set of source tokens directly.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.token_index: dict[str, set[str]] = {}
+
+    def __setitem__(self, key, value):
+        super().__setitem__(key, value)
+        if isinstance(value, str):
+            for token in _cache_token_candidates(value.lower()):
+                self.token_index.setdefault(token, set()).add(key)
 
 _TRANSIENT_OPENROUTER_STATUSES = frozenset({408, 429, 500, 502, 503, 504})
 
@@ -102,11 +133,16 @@ class LightRAGService:
             # ponytail: bounded TTL cache — a plain dict here never evicted expired
             # entries (only skipped them on read), so it grew by one entry per
             # unique query for the life of the process. maxsize caps worst case.
-            self._query_cache: TTLCache = TTLCache(maxsize=2000, ttl=self._cache_ttl_seconds)
+            self._query_cache: _IndexingTTLCache = _IndexingTTLCache(
+                maxsize=2000, ttl=self._cache_ttl_seconds
+            )
             # TTLCache is NOT thread-safe — concurrent asyncio tasks running in the
             # thread pool can race on read/write. An RLock serialises all cache
             # operations without deadlocking (RLock is reentrant).
             self._cache_lock = threading.RLock()
+            # ponytail: token_index entries for TTL-expired cache keys linger
+            # until that token is next invalidated — bounded by maxsize=2000
+            # keys, harmless pop(default) misses. Prune on read if it matters.
             # Provider-agnostic circuit breaker — no dedicated CircuitBreakerProvider
             # entry for lightrag; from_provider() falls back to default thresholds.
             self._circuit = DefaultCircuitBreaker(CircuitBreakerConfig.from_provider("lightrag"))
@@ -579,6 +615,7 @@ class LightRAGService:
                     if not cache_disabled:
                         with self._cache_lock:
                             self._query_cache[cache_key] = result
+                            self._index_cache_value(cache_key, result)
                     self._circuit.record_success()
                     return result
                 except Exception as retry_err:
@@ -673,25 +710,28 @@ class LightRAGService:
         The query cache is keyed by (query, mode, only_need_context) only, so
         exact per-entity targeting is impossible; instead we evict entries
         whose cached result mentions any source file affected by this
-        insertion. Bulk ingestion ticks therefore only invalidate queries
-        that actually overlap the newly written content, instead of dropping
-        the whole cache (cold queries on every tick — P1-BE-2).
+        insertion. `_query_cache` (an `_IndexingTTLCache`) maintains a
+        token -> cache_keys reverse index on every write, so this is an
+        O(source tokens) lookup instead of the full linear scan + substring
+        search of every cache entry this used to do on every ainsert (was
+        O(chunks * cache_size * avg_result_length) during bulk ingestion).
         """
         try:
             source_tokens = set()
             if file_paths:
                 for fp in file_paths if isinstance(file_paths, list) else [file_paths]:
                     if isinstance(fp, str):
-                        source_tokens.add(fp.strip().lower())
+                        for candidate in _cache_token_candidates(fp.strip().lower()):
+                            source_tokens.add(candidate)
                         source_tokens.add(str(fp).split("/")[-1].lower())
             if not source_tokens:
                 return
             with self._cache_lock:
-                for key, value in list(self._query_cache.items()):
-                    if not isinstance(value, str):
+                for token in source_tokens:
+                    keys = self._query_cache.token_index.pop(token, None)
+                    if not keys:
                         continue
-                    value_lower = value.lower()
-                    if any(token and token in value_lower for token in source_tokens):
+                    for key in keys:
                         self._query_cache.pop(key, None)
         except Exception as e:  # invalidation is best-effort, never fatal
             logger.warning(f"LightRAG scoped cache invalidation failed (non-fatal): {e}")

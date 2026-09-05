@@ -198,52 +198,51 @@ async def _resolve_chunk_speakers_with_llm(
         return result
 
     system_prompt = (
-        "You classify the speaker role of a spiritual discourse transcript chunk. "
-        "Respond with ONLY one of: teacher, questioner, translator, narration, unknown. "
+        "You classify the speaker role of each numbered spiritual discourse transcript chunk below. "
+        "Respond with ONLY one line per chunk, in order, formatted exactly as `<number>. <role>` "
+        "where role is one of: teacher, questioner, translator, narration, unknown. "
         "Rules:\n"
         "- teacher: the guru/teacher expounding doctrine or a practice\n"
         "- questioner: a seeker asking a question (often short, interrogative)\n"
         "- translator: someone translating the teacher's words to another language\n"
         "- narration: voiceover, intro, outro, disclaimers\n"
         "- unknown: cannot determine\n"
-        "NEVER respond with a name. ONLY the role token. No punctuation, no explanation."
+        "NEVER respond with a name. ONLY `<number>. <role>` lines, one per chunk, no other text."
     )
+    # Cap each chunk's contribution to the shared prompt (same per-chunk cap as before).
+    user_prompt = "\n\n".join(f"{n}. {chunks[i][:2000]}" for n, i in enumerate(candidate_indices, start=1))
 
-    async def _classify_one(idx: int, chunk: str) -> tuple[int, Optional[str]]:
-        try:
-            _timeout = getattr(settings, "llm_generate_timeout", 60.0)
-            resp = await asyncio.wait_for(
-                llm.generate(
-                    system_prompt=system_prompt,
-                    user_prompt=chunk[:2000],  # cap input length
-                    temperature=0.0,
-                    operation="speaker_role_classification",
-                ),
-                timeout=_timeout,
-            )
-            role = (resp or "").strip().lower()
-            # Sanitize: take first word, must be in allowed set
-            role = role.split()[0] if role else ""
-            if role in _ALLOWED_SPEAKER_ROLES:
-                return idx, role
-            return idx, "unknown"
-        except Exception as e:
-            logger.debug(f"LLM speaker-role classification failed for chunk {idx} (non-fatal): {e}")
-            return idx, "unknown"
-
-    # Bounded concurrency to avoid hammering the LLM
-    semaphore = asyncio.Semaphore(5)
-
-    async def _bounded_classify(idx: int, chunk: str):
-        async with semaphore:
-            return await _classify_one(idx, chunk)
-
-    tasks = [_bounded_classify(i, chunks[i]) for i in candidate_indices]
-    outcomes = await asyncio.gather(*tasks, return_exceptions=True)
-    for outcome in outcomes:
-        if isinstance(outcome, tuple) and len(outcome) == 2:
-            idx, role = outcome
-            result[idx] = role
+    try:
+        _timeout = getattr(settings, "llm_generate_timeout", 60.0)
+        resp = await asyncio.wait_for(
+            llm.generate(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                temperature=0.0,
+                operation="speaker_role_classification",
+            ),
+            timeout=_timeout,
+        )
+        for line in (resp or "").splitlines():
+            line = line.strip()
+            if not line or "." not in line:
+                continue
+            num_str, _, role_str = line.partition(".")
+            role = role_str.strip().lower().split()[0] if role_str.strip() else ""
+            try:
+                n = int(num_str.strip())
+            except ValueError:
+                continue
+            if 1 <= n <= len(candidate_indices) and role in _ALLOWED_SPEAKER_ROLES:
+                result[candidate_indices[n - 1]] = role
+        # Anything the LLM didn't return a valid line for falls back to "unknown".
+        for i in candidate_indices:
+            if result[i] is None:
+                result[i] = "unknown"
+    except Exception as e:
+        logger.debug(f"Batched LLM speaker-role classification failed (non-fatal): {e}")
+        for i in candidate_indices:
+            result[i] = "unknown"
 
     # Fill unclassified (beyond max_chunks or too short) with None
     labeled = sum(1 for r in result if r)
@@ -908,7 +907,8 @@ class IngestionPipeline:
         # Chunk → embed → index (uses adaptive chunking via _split_text)
         self._notify(on_progress, "Chunking and indexing...", 0.55)
         backup_collection = self._backup_before_reindex(url)
-        chunks = self._split_text(
+        chunks = await asyncio.to_thread(
+            self._split_text,
             clean_text,
             title=video_title,
             speaker=video_speaker,
@@ -2135,7 +2135,8 @@ class IngestionPipeline:
                 video_topic = transcript.get("topic", "Spiritual")
                 video_language = transcript.get("language") or None
 
-                chunks = self._split_text(
+                chunks = await asyncio.to_thread(
+                    self._split_text,
                     clean_text,
                     title=video_title,
                     speaker=video_speaker,

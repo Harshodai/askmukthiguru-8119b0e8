@@ -231,12 +231,9 @@ class RerankerService:
     ) -> list[dict[str, Any]] | None:
         if self._fallback_reranker is None:
             return None
-        import gc
-
         import numpy as np
         import torch
 
-        gc.collect()
         pairs = [(query, doc["text"]) for doc in documents]
         with torch.inference_mode():
             raw_scores = self._fallback_reranker.predict(pairs)

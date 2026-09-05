@@ -253,7 +253,10 @@ class PipelineCoordinator:
         if result.cache_hit:
             latency_ms = int((time.time() - start_time) * 1000)
             res = result.with_latency(latency_ms)
-            SLO_CHAT_LATENCY.labels(tier=(res.query_tier or "standard")).observe(
+            # cache hits are inherently the fast path (pinned by
+            # test_cache_hit_observes_slo_latency_once) — "standard" belongs
+            # only to the real-graph-execution fallback below.
+            SLO_CHAT_LATENCY.labels(tier=(res.query_tier or "fast")).observe(
                 latency_ms / 1000.0
             )
             return res

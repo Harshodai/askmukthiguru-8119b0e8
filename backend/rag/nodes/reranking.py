@@ -143,9 +143,15 @@ async def rerank_documents(state: GraphState, config: dict = None) -> dict:
     web_docs_count = len(web_docs)
     db_budget = max(0, settings.rag_top_k_retrieval - web_docs_count)
     if len(reranked_db) > db_budget and db_budget > 0:
-        doc_texts = [doc["text"] for doc in reranked_db]
-        batch_enc = await asyncio.to_thread(embedder.encode_batch, doc_texts)
-        doc_embeddings = batch_enc["dense"]
+        # Reuse dense embeddings ColBERT already computed in cascaded_rerank
+        # (encode_with_colbert) instead of re-encoding identical text.
+        missing_idx = [i for i, doc in enumerate(reranked_db) if "_dense_embedding" not in doc]
+        if missing_idx:
+            missing_texts = [reranked_db[i]["text"] for i in missing_idx]
+            batch_enc = await asyncio.to_thread(embedder.encode_batch, missing_texts)
+            for i, dense_vec in zip(missing_idx, batch_enc["dense"]):
+                reranked_db[i]["_dense_embedding"] = dense_vec
+        doc_embeddings = [doc["_dense_embedding"] for doc in reranked_db]
 
         query_enc = await asyncio.to_thread(embedder.encode_single_full, question)
         query_emb = query_enc["dense"]
