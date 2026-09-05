@@ -1,0 +1,552 @@
+{
+  "created_at": "2026-09-05T04:18:32.605702",
+  "collection": "lightrag_vdb_relationships_baai_bge_m3_1024d",
+  "points": [
+    {
+      "id": "0552a032-8e1d-41bc-90e4-dd69588d9708",
+      "payload": {
+        "id": "rel-4e7b3403559a793307df1c6fb5181995",
+        "workspace_id": "_",
+        "created_at": 1788368024,
+        "src_id": "Analyze",
+        "tgt_id": "respect",
+        "source_id": "chunk-ea161d4959d919eab70db5336291ea9b",
+        "content": "concept exploration\tAnalyze\nrespect\nThe analysis of the request is exploring the concept of respect.",
+        "file_path": "https://www.youtube.com/watch?v=nUrc8O7Avvk"
+      }
+    },
+    {
+      "id": "0cddb245-e080-4b24-a750-75576d2e8d31",
+      "payload": {
+        "id": "rel-4ed37e6432731dbfd644d0aee7ba425d",
+        "workspace_id": "_",
+        "created_at": 1787986449,
+        "src_id": "Krishnaji",
+        "tgt_id": "Umit",
+        "source_id": "chunk-c4cd19f33bd46cd2b46fbf94e7435b96",
+        "content": "person relationship,spiritual influence\tKrishnaji\nUmit\nUmit was influenced by Krishnaji's vision and underwent a spiritual transformation.",
+        "file_path": "unknown_source"
+      }
+    },
+    {
+      "id": "1423183b-2618-4ab8-a2a9-ceb931bf588f",
+      "payload": {
+        "id": "rel-a18f680a96409580ae6e9988a281889d",
+        "workspace_id": "_",
+        "created_at": 1787986448,
+        "src_id": "Krishnaji",
+        "tgt_id": "Universal Intelligence",
+        "source_id": "chunk-c4cd19f33bd46cd2b46fbf94e7435b96",
+        "content": "person relationship,spiritual guidance\tKrishnaji\nUniversal Intelligence\nKrishnaji shared a vision for connecting with Universal Intelligence to achieve peace and heal divisive consciousness.",
+        "file_path": "unknown_source"
+      }
+    },
+    {
+      "id": "31993dc0-9c61-48a1-a391-1bea605cbdd4",
+      "payload": {
+        "id": "rel-e8753aa396d7334b52ae872895c9f820",
+        "workspace_id": "_",
+        "created_at": 1787980600,
+        "src_id": "Krishnaji",
+        "tgt_id": "Sardar Vallabhbhai Patel",
+        "source_id": "chunk-1fa6853e773571adfe387906a0515e8f",
+        "content": "connection,leader inspiration\tKrishnaji\nSardar Vallabhbhai Patel\nKrishnaji mentions Sardar Vallabhbhai Patel as an example of an extrovert and outspoken leader who was driven by his love for an India free of division, poverty, and oppression.",
+        "file_path": "unknown_source"
+      }
+    },
+    {
+      "id": "33b94d2b-f616-4239-ac0a-b7518990b00a",
+      "payload": {
+        "id": "rel-0bc7c8d0ddb27705404d643ca588df18",
+        "workspace_id": "_",
+        "created_at": 1788320456,
+        "src_id": "idoWVpnJz-Y",
+        "tgt_id": "state",
+        "source_id": "chunk-9b9a2285ea22427d7065e0486c8c7d8d",
+        "content": "concept\tidoWVpnJz-Y\nstate\nstate is a concept related to strength analysis.",
+        "file_path": "https://www.youtube.com/watch?v=idoWVpnJz-Y"
+      }
+    },
+    {
+      "id": "357167e3-ae1a-4654-9276-3f317174a2c8",
+      "payload": {
+        "id": "rel-eee80d56815e379a47abcc4aeaaf527c",
+        "workspace_id": "_",
+        "created_at": 1788291603,
+        "src_id": "K-AFDVOkIoE",
+        "tgt_id": "Topic",
+        "source_id": "chunk-bc88599b2cc0e0e6ba38710be1d97ff2",
+        "content": "topic\tK-AFDVOkIoE\nTopic\nThe act of questioning if it's a typo is related to the topic \"for the first time\".",
+        "file_path": "https://www.youtube.com/watch?v=K-AFDVOkIoE"
+      }
+    },
+    {
+      "id": "3668c4b1-d21d-4844-8913-af5fd3096748",
+      "payload": {
+        "id": "rel-43180240dea177ef4ada7f2d46f039db",
+        "workspace_id": "_",
+        "created_at": 1788291826,
+        "src_id": "Other",
+        "tgt_id": "Topic",
+        "source_id": "chunk-8aaf761994dbe6bf088410ca77395015",
+        "content": "topic\tOther\nTopic\nTopic is exploring the uncharted consciousness by themselves without any guidance as well as guided meditations.",
+        "file_path": "https://www.youtube.com/watch?v=0u9oe-5HPmk"
+      }
+    },
+    {
+      "id": "37604b88-8702-45d8-9543-abce62f840cc",
+      "payload": {
+        "id": "rel-c91439bbb6de90c5056f44887597f1a9",
+        "workspace_id": "_",
+        "created_at": 1787980600,
+        "src_id": "Greta Thunberg",
+        "tgt_id": "Krishnaji",
+        "source_id": "chunk-1fa6853e773571adfe387906a0515e8f",
+        "content": "leader inspiration,passion\tGreta Thunberg\nKrishnaji\nKrishnaji mentions Greta Thunberg as an example of a passionate individual who wants to create a difference in the world by addressing the earth's climate.",
+        "file_path": "unknown_source"
+      }
+    },
+    {
+      "id": "39bc5114-19bf-4648-9e7a-0324128a3598",
+      "payload": {
+        "id": "rel-3a60b26f58fb55cebab2cdc03459e889",
+        "workspace_id": "_",
+        "created_at": 1788288584,
+        "src_id": "decompose",
+        "tgt_id": "fortune",
+        "source_id": "chunk-73c442e83c2cfc5ab1fbba7d8ddcd56f",
+        "content": "concept,method\tdecompose\nfortune\nThe concept of the Cycle of Fortune and Misfortune is used to explain the method of breaking down things.",
+        "file_path": "https://www.youtube.com/watch?v=owC8E_G2fY4"
+      }
+    },
+    {
+      "id": "39e33642-7133-4bcf-960e-1752b8211401",
+      "payload": {
+        "id": "rel-b9860cbaf2face31abe736cfa758367b",
+        "workspace_id": "_",
+        "created_at": 1788321263,
+        "src_id": "family",
+        "tgt_id": "shuts the door of abundance",
+        "source_id": "chunk-2330f7feb031f0a9f8cab4870d8d55b5",
+        "content": "effect\tfamily\nshuts the door of abundance\nThe quote implies that disrespected women lead to a lack of abundance in the family.",
+        "file_path": "https://www.youtube.com/watch?v=kYVY4_zxLVQ"
+      }
+    },
+    {
+      "id": "3af4446f-929c-4f70-bd33-fcfe4c5affa8",
+      "payload": {
+        "id": "rel-2f38c32f9c7ecb88ecbc61db6c5dfee7",
+        "workspace_id": "_",
+        "created_at": 1788407639,
+        "src_id": "ego",
+        "tgt_id": "idoWVpnJz-Y",
+        "source_id": "chunk-3a6062991267823f2435b57862ecad84",
+        "content": "concept\tego\nidoWVpnJz-Y\nidoWVpnJz-Y is related to the concept \"Relationship with EGO\".",
+        "file_path": "https://www.youtube.com/watch?v=idoWVpnJz-Y"
+      }
+    },
+    {
+      "id": "3bdf7c11-01b6-45db-86b2-da736cb49075",
+      "payload": {
+        "id": "rel-07b974d4908f456d9877d1d8350f88fe",
+        "workspace_id": "_",
+        "created_at": 1788364608,
+        "src_id": "Topic",
+        "tgt_id": "meaning",
+        "source_id": "chunk-bc6920bcad10d2e35fdde8e4993d870c",
+        "content": "topic meaning,topic relevance\tTopic\nmeaning\nThe topic of the text is related to punctuation and style",
+        "file_path": "https://www.youtube.com/watch?v=-4wCvcPrX-E"
+      }
+    },
+    {
+      "id": "3cd86193-e43b-4dbb-9c1e-669b64e0179b",
+      "payload": {
+        "id": "rel-a1008cfc473c877640edac02d86f46b4",
+        "workspace_id": "_",
+        "created_at": 1788289356,
+        "src_id": "Purpose",
+        "tgt_id": "Topic",
+        "source_id": "chunk-20131d18c8c78642a5ff87565d99a7e8",
+        "content": "purpose,topic\tPurpose\nTopic\nThe",
+        "file_path": "https://www.youtube.com/watch?v=tl2Ek-QakME"
+      }
+    },
+    {
+      "id": "45154de7-c0a2-4ad9-90ce-0d4ccdffd833",
+      "payload": {
+        "id": "rel-15287bde0c75b892aaa26820b045fff5",
+        "workspace_id": "_",
+        "created_at": 1788320763,
+        "src_id": "Topic",
+        "tgt_id": "pPHQMD3w9-s",
+        "source_id": "chunk-126d37733f92bb8cac84061fbc97e3ac",
+        "content": "source information\tTopic\npPHQMD3w9-s\npPHQMD3w9-s is providing information related to the topic of future events.",
+        "file_path": "https://www.youtube.com/watch?v=pPHQMD3w9-s"
+      }
+    },
+    {
+      "id": "47437d3f-70c0-4010-b20e-a3cf5031b0d1",
+      "payload": {
+        "id": "rel-31e43f1c7531ae369a15c3d1e130993e",
+        "workspace_id": "_",
+        "created_at": 1788290145,
+        "src_id": "survival state",
+        "tgt_id": "surviving",
+        "source_id": "chunk-87dfd2868ccd437d37920fdb7db28b98",
+        "content": "struggling,survival state\tsurvival state\nsurviving\nThe survival state is associated with struggling.",
+        "file_path": "https://www.youtube.com/watch?v=vGWM3R_ihxI"
+      }
+    },
+    {
+      "id": "4af791be-a4e6-43bd-bc72-1866a4740753",
+      "payload": {
+        "id": "rel-4be72f7a742e251a83ff538508a3c9e6",
+        "workspace_id": "_",
+        "created_at": 1788321694,
+        "src_id": "Topic",
+        "tgt_id": "you too",
+        "source_id": "chunk-3af5b17ef0eef49e8b876107fe42f92a",
+        "content": "relationship,unspecified\tTopic\nyou too\nThe phrase \"you too\" is used in relation to the \"Topic\" without further context.",
+        "file_path": "https://www.youtube.com/watch?v=pmSPHJfg3AU"
+      }
+    },
+    {
+      "id": "4f719f79-ca96-4f3b-b773-a21e87a8f956",
+      "payload": {
+        "id": "rel-c6d2f01e1cc2ab69bc34695879b81723",
+        "workspace_id": "_",
+        "created_at": 1787986448,
+        "src_id": "Ending Wars",
+        "tgt_id": "Krishnaji",
+        "source_id": "chunk-992c3876a79f857726d6a4369ec095c0",
+        "content": "intention,teacher-student\tEnding Wars\nKrishnaji\nKrishnaji emphasizes the importance of ending wars and promoting oneness among humanity.",
+        "file_path": "unknown_source"
+      }
+    },
+    {
+      "id": "58028700-dad9-41c7-bf88-ba3f3870236a",
+      "payload": {
+        "id": "rel-32551035e3e7ab8526a31c13a6d9f11a",
+        "workspace_id": "_",
+        "created_at": 1788291946,
+        "src_id": "Topic",
+        "tgt_id": "ZD1nQPtpojM",
+        "source_id": "chunk-222e746c23c1e5efcd78c1c97416a54c",
+        "content": "topic,topic relationship\tTopic\nZD1nQPtpojM\nZD1nQPtpojM is related to the topic \"to protect itself\" and implies the need for higher frameworks.",
+        "file_path": "https://www.youtube.com/watch?v=ZD1nQPtpojM"
+      }
+    },
+    {
+      "id": "6e1745d3-9799-4ba7-b0e3-453e09bb3bf2",
+      "payload": {
+        "id": "rel-831a596e631d4126b097308c65af4d65",
+        "workspace_id": "_",
+        "created_at": 1788291107,
+        "src_id": "The idea",
+        "tgt_id": "interconnectedness",
+        "source_id": "chunk-a19be24342510cf6cb2788789d865526",
+        "content": "concept relationship,explores\tThe idea\ninterconnectedness\nThe idea of interconnectedness explores the interconnectedness of things.",
+        "file_path": "https://www.youtube.com/watch?v=9-NMv5E-18s"
+      }
+    },
+    {
+      "id": "7f8910c6-db12-4330-9098-cab1151cd4da",
+      "payload": {
+        "id": "rel-f4e995aa41f3ee3a0ca4124a6b639a43",
+        "workspace_id": "_",
+        "created_at": 1788364800,
+        "src_id": "Aging",
+        "tgt_id": "They",
+        "source_id": "chunk-1efbf033eb2c7db645abf919c98d81c7",
+        "content": "concept relationship,related to\tAging\nThey\nThey are related to aging, which",
+        "file_path": "https://www.youtube.com/watch?v=obK5uqYXOJU"
+      }
+    },
+    {
+      "id": "830fc4d1-1ab5-4e62-92c8-5f7267896ed8",
+      "payload": {
+        "id": "rel-326e4841bc41544663845618b1081aa4",
+        "workspace_id": "_",
+        "created_at": 1788291989,
+        "src_id": "Propositions",
+        "tgt_id": "stress",
+        "source_id": "chunk-c75bf6e1f8c23a149b0648bb3f1609aa",
+        "content": "concept relationship,idea expression\tPropositions\nstress\nPropositions can express distinct ideas related to stress.",
+        "file_path": "https://www.youtube.com/watch?v=r_l2RNcSPPA"
+      }
+    },
+    {
+      "id": "8db76012-a2fa-4732-a62f-a4149f5697cc",
+      "payload": {
+        "id": "rel-da8314c08587fd159d7d1c472cf67a70",
+        "workspace_id": "_",
+        "created_at": 1788364678,
+        "src_id": "family",
+        "tgt_id": "you",
+        "source_id": "chunk-1cb36f0d2ab13a7f052e3e56c57e7216",
+        "content": "personal connection,relationship\tfamily\nyou\nThe text mentions the personal connection between \"you\" and \"family.\"",
+        "file_path": "https://www.youtube.com/watch?v=2JL1ZgMS7nY"
+      }
+    },
+    {
+      "id": "8e9c397b-f207-4e3f-8c0e-d4761abced53",
+      "payload": {
+        "id": "rel-8b1259d207a380ab7b86284a8d925aa5",
+        "workspace_id": "_",
+        "created_at": 1788318661,
+        "src_id": "QAnRefsK-3Y",
+        "tgt_id": "responsibility",
+        "source_id": "chunk-7d8e92c93da3eecefc7f9ab2579405b9",
+        "content": "concept relationship,decomposing a term or source\tQAnRefsK-3Y\nresponsibility\nThe decomposed term or source is related to the concept of responsibility.",
+        "file_path": "https://www.youtube.com/watch?v=QAnRefsK-3Y"
+      }
+    },
+    {
+      "id": "9a9de74a-31ab-4c2d-bfe3-c9ca25d214cb",
+      "payload": {
+        "id": "rel-04302f18bb6e92b378f791d6ce6ac0c1",
+        "workspace_id": "_",
+        "created_at": 1788364928,
+        "src_id": "gratitude",
+        "tgt_id": "repetition",
+        "source_id": "chunk-522433a9f126a3eb33b58de1afeb85cd",
+        "content": "concept relationship,spiritual context\tgratitude\nrepetition\nRepetition is a concept that emphasizes the importance of expressing appreciation",
+        "file_path": "https://www.youtube.com/watch?v=zCnqQBfyXa4"
+      }
+    },
+    {
+      "id": "9ef79a63-8617-4024-b3de-89738e71b05c",
+      "payload": {
+        "id": "rel-d7ad6aa4dcfdd00e5eee3c577321e251",
+        "workspace_id": "_",
+        "created_at": 1787980600,
+        "src_id": "Jadav Payeng",
+        "tgt_id": "Krishnaji",
+        "source_id": "chunk-1fa6853e773571adfe387906a0515e8f",
+        "content": "leader inspiration,passion\tJadav Payeng\nKrishnaji\nKrishnaji mentions Jadav Payeng as an example of a passionate individual who wants to create an entire forest.",
+        "file_path": "unknown_source"
+      }
+    },
+    {
+      "id": "ae342135-8ba8-486d-abfe-524005005fd5",
+      "payload": {
+        "id": "rel-88f8b00197ab52dd3b3ced51e0488259",
+        "workspace_id": "_",
+        "created_at": 1788364607,
+        "src_id": "Source",
+        "tgt_id": "Topic",
+        "source_id": "chunk-60174b9416762436dba4eca9d3aa6e8e<SEP>chunk-271af38328819488e4e9b92a7336f16f<SEP>chunk-f41244a9d3ca1728bd059ae341c99613<SEP>chunk-c8d240978c6bb4400f3c101a8d18aaef<SEP>chunk-911f34a2c79eefe7605048c28c898b9c<SEP>chunk-af63aa31157d422899c00da6878faae9<SEP>chunk-8ad5b64945b61793a0f53efb5e80eaa7<SEP>chunk-cc1b352cf34211d45304f7b385d43726<SEP>chunk-1521faad69ed1ed584fab692a25c8ecc<SEP>chunk-12ab1204e93ac10ee154506f5bb4f16f<SEP>chunk-fdbab558533f08bbf0ffb265d1f51f80<SEP>chunk-7939e33a108c46f31334b3c592f9f0e8<SEP>chunk-f83b273c8bbd7b5291f562fd3680ec2e<SEP>chunk-62ff15b81df182c7cc4bd26d8e2a4ef2<SEP>chunk-1d326d0fa5184bed9d6119c66ca9c98b<SEP>chunk-0cb6391924e4ea0cff4d6f0d57f4dd0a<SEP>chunk-0ce2fbdaf661372f2f6114c996cec621<SEP>chunk-cd1924a66a1a8529fc947bf19eecc4c6<SEP>chunk-9294d977e3bfff4fe04fe4fdfa707624<SEP>chunk-97b90c25a3c816534284ca870a0211b9<SEP>chunk-6c88824c965c68a24eb7f44360046c46<SEP>chunk-0223cd000674829e81a7f72eb0e1f488<SEP>chunk-abaeb5dd2ea8e8390e97449b30a7698e<SEP>chunk-0ee34ba4dbe9abdc2baa49ed30dfbddb<SEP>chunk-72daf11c34b93aab0c59dbfed6501fb6<SEP>chunk-7888f53ab561696dcad6f8fea9f7bc36<SEP>chunk-b0f0c1e792ece211411960da326aff99<SEP>chunk-a8aab8aa73ab85510d68d2f6271fc735<SEP>chunk-e482ec4f39b1f80c9a6b38dca74dc917<SEP>chunk-72d885cf8ea9ab84932562f4019c9689<SEP>chunk-acf4905bc8ea7e8db60301919d8f47ae<SEP>chunk-34c12f6e47adf69b2d8363a3dcbb70c6<SEP>chunk-bac57f828023171b1fb6a6225c911a47<SEP>chunk-20131d18c8c78642a5ff87565d99a7e8<SEP>chunk-6cd00ea02b239d0949988272b93013b7<SEP>chunk-90f5093f9409fa8847f1c6eef5a54849<SEP>chunk-0e5e2418bbdfa59387fc65b646e0261e<SEP>chunk-471d56e56b3bd8bbae4602c7f1851285<SEP>chunk-bc6920bcad10d2e35fdde8e4993d870c",
+        "content": "context,source,subject,topic,topic focus,topic relationship,topic relevance\tSource\nTopic\nThe source of the information is related to the topic of the discussion.<SEP>The source text is about the topic of \"When you listen to all the pessimistic statistics and figures on the big animals going extinct.\"<SEP>The source is a category for the topic or subject of the information.<SEP>Source of information is related to the topic of spiritual development.<SEP>Source is related to the topic through the proposition.<SEP>The source of the text is related to the topic of punctuation and style.",
+        "file_path": "https://www.youtube.com/watch?v=tl2Ek-QakME<SEP>https://www.youtube.com/watch?v=JRX5W9AhWoA<SEP>https://www.youtube.com/watch?v=vIUY446FVPw<SEP>https://www.youtube.com/watch?v=0u9oe-5HPmk<SEP>https://www.youtube.com/watch?v=207izZBbqVg<SEP>https://www.youtube.com/watch?v=-4wCvcPrX-E"
+      }
+    },
+    {
+      "id": "af94485b-c553-416b-89c2-1d453a5c5814",
+      "payload": {
+        "id": "rel-ff767e05ea6c93b9a3e51e9226cd352f",
+        "workspace_id": "_",
+        "created_at": 1788291279,
+        "src_id": "Topic",
+        "tgt_id": "Topic Idea",
+        "source_id": "chunk-37636d645f0b92e10bef129073f296b8",
+        "content": "topic idea\tTopic\nTopic Idea\nTopic is related to the topic idea \"Consistency and Fragility of Inner State.\"",
+        "file_path": "https://www.youtube.com/watch?v=KTlY-lHs_Ew"
+      }
+    },
+    {
+      "id": "ba41c2c0-571a-4460-9f76-755eaa495fa9",
+      "payload": {
+        "id": "rel-f1376c2832efbe8b204ccc354fda71da",
+        "workspace_id": "_",
+        "created_at": 1788321187,
+        "src_id": "Oneness consciousness",
+        "tgt_id": "Other",
+        "source_id": "chunk-0621c140ff8c568d8ebf553cd9c1b29d",
+        "content": "Other\tOneness consciousness\nOther\nOneness consciousness is a state of connection with others, nature, and the Earth.",
+        "file_path": "https://www.youtube.com/watch?v=y9iL10DPhzI"
+      }
+    },
+    {
+      "id": "bdb6f60e-cae2-4ef2-9539-2d191ed26354",
+      "payload": {
+        "id": "rel-ef1e05c80b0a513b7e138a30922b7eea",
+        "workspace_id": "_",
+        "created_at": 1788320579,
+        "src_id": "Analyze",
+        "tgt_id": "Text Correction Expert",
+        "source_id": "chunk-1a2d464bfee70eea6dc700516dab9800",
+        "content": "focus,task\tAnalyze\nText Correction Expert\nAnalyze the User's Request: Fix transcription errors.",
+        "file_path": "https://www.youtube.com/watch?v=8mmungGgDNw"
+      }
+    },
+    {
+      "id": "c41a7fe2-c8c4-4260-8273-21756b8dce58",
+      "payload": {
+        "id": "rel-3658a1f7e67e3f61f4f95532608e51e8",
+        "workspace_id": "_",
+        "created_at": 1788291333,
+        "src_id": "Event",
+        "tgt_id": "Today",
+        "source_id": "chunk-f0c118c558df61dc6432a68266d85011",
+        "content": "request\tEvent\nToday\nThe request is to learn how to make luck happen.",
+        "file_path": "https://www.youtube.com/watch?v=0ypG1mlekNY"
+      }
+    },
+    {
+      "id": "cd79d626-ad71-44dc-bd6c-54ca957dfa23",
+      "payload": {
+        "id": "rel-c10bd3cf2f4ea5c765f35550cb8af7c0",
+        "workspace_id": "_",
+        "created_at": 1787980600,
+        "src_id": "Gandhiji",
+        "tgt_id": "Krishnaji",
+        "source_id": "chunk-1fa6853e773571adfe387906a0515e8f",
+        "content": "connection,leader inspiration\tGandhiji\nKrishnaji\nKrishnaji mentions Gandhiji as an example of a shy and soft leader who was driven by his connection to the suffering of the Indian people in slavery.",
+        "file_path": "unknown_source"
+      }
+    },
+    {
+      "id": "d148711c-1308-4947-ab8e-3ca5c8cf664b",
+      "payload": {
+        "id": "rel-d2f356f2e5a9c21dc10356ae00756b44",
+        "workspace_id": "_",
+        "created_at": 1788368023,
+        "src_id": "Analyze",
+        "tgt_id": "nUrc8O7Avvk",
+        "source_id": "chunk-ea161d4959d919eab70db5336291ea9b",
+        "content": "concept analysis\tAnalyze\nnUrc8O7Avvk\nThe request is being analyzed for understanding and interpretation.",
+        "file_path": "https://www.youtube.com/watch?v=nUrc8O7Avvk"
+      }
+    },
+    {
+      "id": "d23a8edd-7474-4046-a35a-b3ad0225afa6",
+      "payload": {
+        "id": "rel-d1869ca3348cca5fee1d6bab0c5d91ff",
+        "workspace_id": "_",
+        "created_at": 1788368024,
+        "src_id": "Analyze",
+        "tgt_id": "User's Request",
+        "source_id": "chunk-ea161d4959d919eab70db5336291ea9b",
+        "content": "concept application\tAnalyze\nUser's Request\nThe analysis of the request is applying the concept of respect.",
+        "file_path": "https://www.youtube.com/watch?v=nUrc8O7Avvk"
+      }
+    },
+    {
+      "id": "d7dcdedb-d672-4c35-b07a-f47b4ac4310e",
+      "payload": {
+        "id": "rel-e11169c93fe202e9ebbdf956f1e43f8e",
+        "workspace_id": "_",
+        "created_at": 1788318762,
+        "src_id": "The Interplay of Effort and External Forces",
+        "tgt_id": "consciousness",
+        "source_id": "chunk-4dca90187fdcfeb73f68ff36dfabf7ce",
+        "content": "concept relationship,generalization\tThe Interplay of Effort and External Forces\nconsciousness\nThe concept of \"The Interplay of Effort and External Forces\" is a general concept that relates to the idea of consciousness.",
+        "file_path": "https://www.youtube.com/watch?v=smrj15-QOAI"
+      }
+    },
+    {
+      "id": "dacd3e54-b135-4819-b99a-8dde8d354e63",
+      "payload": {
+        "id": "rel-12347a5cb52bb32d6751c03dedfffa78",
+        "workspace_id": "_",
+        "created_at": 1787980600,
+        "src_id": "ISKCON",
+        "tgt_id": "Krishnaji",
+        "source_id": "chunk-1fa6853e773571adfe387906a0515e8f",
+        "content": "spiritual guidance,teacher connection\tISKCON\nKrishnaji\nKrishnaji is connected to ISKCON through their shared role as teachers in the spiritual domain.",
+        "file_path": "unknown_source"
+      }
+    },
+    {
+      "id": "db2f88a8-64ac-4d32-bddb-ebd2b84b55a2",
+      "payload": {
+        "id": "rel-c055e3d6b570d03132be181941c27d48",
+        "workspace_id": "_",
+        "created_at": 1787980600,
+        "src_id": "Kailash Satyarthi",
+        "tgt_id": "Krishnaji",
+        "source_id": "chunk-1fa6853e773571adfe387906a0515e8f",
+        "content": "leader inspiration,passion\tKailash Satyarthi\nKrishnaji\nKrishnaji mentions Kailash Satyarthi as an example of a passionate individual who wants to stand up against child labor.",
+        "file_path": "unknown_source"
+      }
+    },
+    {
+      "id": "e48c9fb0-649b-4e6a-acfe-ded848d3b9b3",
+      "payload": {
+        "id": "rel-d84cdcd692fa27084b93788cd4e28903",
+        "workspace_id": "_",
+        "created_at": 1788291279,
+        "src_id": "KTlY-lHs_Ew",
+        "tgt_id": "Topic",
+        "source_id": "chunk-d594abb8e047161b69dd102b856cfea5<SEP>chunk-37636d645f0b92e10bef129073f296b8",
+        "content": "topic idea\tKTlY-lHs_Ew\nTopic\nKTlY-lHs_Ew is related to the topic idea \"Consistency and Fragility of Inner State.\"",
+        "file_path": "https://www.youtube.com/watch?v=KTlY-lHs_Ew"
+      }
+    },
+    {
+      "id": "e731af3d-e1ff-4a5e-8c69-e7c3d621d2e9",
+      "payload": {
+        "id": "rel-3960a8571c727e02512f3a5fae94e848",
+        "workspace_id": "_",
+        "created_at": 1788288282,
+        "src_id": "The Negation",
+        "tgt_id": "anxiety",
+        "source_id": "chunk-6d741e4b9a42185803bdd1c6822413f9",
+        "content": "absence,concept relationship\tThe Negation\nanxiety\nThe Negation is the absence of anxiety.",
+        "file_path": "https://www.youtube.com/watch?v=qJxGtSDiayM"
+      }
+    },
+    {
+      "id": "e78fea4b-db38-454e-8291-350177e04f62",
+      "payload": {
+        "id": "rel-cba9f7f65b3330ea08a7fa1c9f6e0e95",
+        "workspace_id": "_",
+        "created_at": 1787980530,
+        "src_id": "Krishnaji",
+        "tgt_id": "Sthitha Pragna",
+        "source_id": "chunk-d51f6743a0fbcb33b2fc5996a1d30cc4",
+        "content": "awareness,state of consciousness\tKrishnaji\nSthitha Pragna\nKrishnaji facilitated the speaker's experience of Sthitha Pragna, a state of awareness and clarity.",
+        "file_path": "unknown_source"
+      }
+    },
+    {
+      "id": "e7ffb1dd-71da-40c4-9c6c-d5c717d674bf",
+      "payload": {
+        "id": "rel-d7797d452664d8aee9e476db99a0aecb",
+        "workspace_id": "_",
+        "created_at": 1788320763,
+        "src_id": "Fine",
+        "tgt_id": "Topic",
+        "source_id": "chunk-126d37733f92bb8cac84061fbc97e3ac",
+        "content": "topic discussion\tFine\nTopic\nFine is discussing the topic of future events.",
+        "file_path": "https://www.youtube.com/watch?v=pPHQMD3w9-s"
+      }
+    },
+    {
+      "id": "f2ae7856-48a7-4dc2-8c5a-87f2f5f26f50",
+      "payload": {
+        "id": "rel-eae31d4aacb14d79eb44922b6b3932b3",
+        "workspace_id": "_",
+        "created_at": 1787980600,
+        "src_id": "Krishnaji",
+        "tgt_id": "Sri Amma Bhagavan",
+        "source_id": "chunk-1fa6853e773571adfe387906a0515e8f",
+        "content": "spiritual guidance,teacher connection\tKrishnaji\nSri Amma Bhagavan\nKrishnaji is connected to Sri Amma Bhagavan through their shared role as teachers in the spiritual domain.",
+        "file_path": "unknown_source"
+      }
+    },
+    {
+      "id": "f70f7f65-c783-4df9-8999-92366c47723a",
+      "payload": {
+        "id": "rel-f5c8209ea47334b71619e7675032d917",
+        "workspace_id": "_",
+        "created_at": 1787986448,
+        "src_id": "ACUM World Peace Festival",
+        "tgt_id": "Krishnaji",
+        "source_id": "chunk-992c3876a79f857726d6a4369ec095c0",
+        "content": "event,teacher-student\tACUM World Peace Festival\nKrishnaji\nKrishnaji shares wisdom on world peace and harmony at the ACUM World Peace Festival.",
+        "file_path": "unknown_source"
+      }
+    }
+  ]
+}

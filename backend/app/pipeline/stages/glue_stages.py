@@ -27,11 +27,17 @@ from app.pipeline.result import (
 )
 from app.pipeline.stages.base import Stage
 from app.release_manifest import get_release_manifest
+from app.route_taxonomy import (
+    RoutingProvenance,
+    canonicalize_route_decision,
+    record_routing_decision,
+)
 from app.routing_primitives import (
     GREETING_RE as _GREETING_RE,  # noqa: F401
     GREETING_VOCATIVE_RE as _GREETING_VOCATIVE_RE,  # noqa: F401
     is_deterministic_greeting,
 )
+
 
 if TYPE_CHECKING:
     from app.pipeline.stages.context import PipelineContext
@@ -254,6 +260,16 @@ class BoundedComparisonShortCircuitStage(Stage):
         if preferred_lang != "en" or not _is_bounded_meditation_comparison(question):
             return None
         answer = _bounded_meditation_comparison_answer()
+        record_routing_decision(
+            ctx,
+            RoutingProvenance(
+                layer="BOUNDED_COMPARISON",
+                decision="bounded_comparison_short_circuit",
+                method="limited_comparison_fallback",
+                confidence=1.0,
+                reason="Bounded meditation vs contemplation short-circuit",
+            ),
+        )
         return PipelineResult(
             final_answer=answer,
             intent="COMPARATIVE",
@@ -262,6 +278,12 @@ class BoundedComparisonShortCircuitStage(Stage):
             model_used=None,
             model_provider=None,
             route_decision="bounded_comparison_short_circuit",
+            route_metadata={
+                "requested_variant": "comparative",
+                "selected_variant": "bounded_comparison_short_circuit",
+                "decision_method": "limited_comparison_fallback",
+                "routing_chain": list(getattr(ctx, "routing_chain", [])),
+            },
             query_tier="fast",
             faithfulness_score=0.0,
             hallucination_flag=True,
@@ -324,6 +346,16 @@ class CasualShortCircuitStage(Stage):
                     "policy_version": getattr(get_release_manifest(), "policy_version", "unknown"),
                 }
             )
+            record_routing_decision(
+                ctx,
+                RoutingProvenance(
+                    layer="CASUAL_SHORT_CIRCUIT",
+                    decision="instant_greeting",
+                    method="deterministic_greeting",
+                    confidence=1.0,
+                    reason="Deterministic greeting short-circuit (<200ms)",
+                ),
+            )
             greeting = _deterministic_greeting(preferred_lang) if is_indic else None
             if greeting is None:
                 greeting = random.choice(_WARM_GREETINGS)
@@ -342,9 +374,14 @@ class CasualShortCircuitStage(Stage):
                 model_provider=None,
                 route_decision="instant_greeting",
                 cache_hit=False,
+                route_metadata={
+                    **dict(ctx.route_metadata),
+                    "routing_chain": list(getattr(ctx, "routing_chain", [])),
+                },
                 release_manifest=get_release_manifest().to_dict(),
             )
         return None
+
 
 
 class TranslationStage(Stage):
@@ -425,6 +462,52 @@ class ResultAssemblyStage(Stage):
             if isinstance(doc, dict) and isinstance(doc.get("live_event"), dict)
         ]
 
+        eval_trace = graph_result.get("evaluation_trace") or {}
+        ver_info = graph_result.get("verification") or {}
+        ver_method = ver_info.get("method") if isinstance(ver_info, dict) else None
+
+        raw_route_decision = (
+            graph_result.get("route_decision")
+            or eval_trace.get("route_decision")
+            or (
+                ver_method
+                if ver_method
+                in (
+                    "no_context_short_circuit",
+                    "limited_comparison_fallback",
+                    "grounded_partial_evidence",
+                    "grounded_partial_fallback",
+                    "reflective_peace_meaning_fallback",
+                    "reflective_meaning_fallback",
+                    "reflective_practice_fallback",
+                )
+                else None
+            )
+            or ctx.route_metadata.get("route_decision")
+            or (ctx.intent.lower() if ctx.intent else "error")
+        )
+        resolved_route_decision = canonicalize_route_decision(raw_route_decision)
+
+        # Record final execution layer provenance if not already stamped
+        chain = getattr(ctx, "routing_chain", None)
+        if chain is not None and (not chain or chain[-1].get("decision") != resolved_route_decision):
+            if resolved_route_decision in ("casual", "adversarial", "safety_violation"):
+                layer = "GRAPH_INTENT_ROUTER"
+            elif graph_result:
+                layer = "GRAPH_GENERATION"
+            else:
+                layer = "PIPELINE_COORDINATOR"
+            record_routing_decision(
+                ctx,
+                RoutingProvenance(
+                    layer=layer,
+                    decision=resolved_route_decision,
+                    method=eval_trace.get("routing_reason") or "graph_execution",
+                    confidence=float(response_data.get("confidence_score") or 0.0),
+                    reason="Pipeline result assembly",
+                ),
+            )
+
         ctx.result = PipelineResult(
             final_answer=ctx.final_answer,
             intent=ctx.intent,
@@ -439,13 +522,14 @@ class ResultAssemblyStage(Stage):
             # never the configured default, which can silently diverge from reality.
             model_used=graph_result.get("model_used"),
             model_provider=graph_result.get("model_provider"),
-            route_decision=(ctx.intent.lower() if ctx.intent else "error"),
+            route_decision=resolved_route_decision,
             # Use graph_result as the source of truth for tier/score because it is
             # the output of the LangGraph execution; ctx.state holds the pre-graph
             # input state and may still carry the initial None placeholder.
             query_tier=graph_result.get("query_tier")
             or ctx.state.get("query_tier")
             or ctx.detected_query_tier,
+
             blocked=False,
             cache_hit=False,
             proactive_serene_mind=ctx.state.get("proactive_serene_mind"),
@@ -490,7 +574,10 @@ class ResultAssemblyStage(Stage):
             ),
             release_manifest=get_release_manifest().to_dict(),
             provenance_context=graph_result.get("provenance_context"),
-            route_metadata=dict(ctx.route_metadata),
+            route_metadata={
+                **dict(ctx.route_metadata),
+                "routing_chain": list(getattr(ctx, "routing_chain", [])),
+            },
         )
 
         # GDPR audit trail (Unit 24) -- previously wired for reads

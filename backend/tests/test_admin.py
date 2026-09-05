@@ -211,24 +211,32 @@ def test_review_staging_item_not_found(mock_get_client):
     assert response.status_code == 404
 
 
-@patch("app.telemetry_db._get_client")
-def test_reject_okf_entry_reads_notes_from_json_body(mock_get_client):
+def test_reject_okf_entry_reads_notes_from_json_body(tmp_path, monkeypatch):
     """Regression: reviewer_notes used to be an unannotated query param, so a
     JSON body (what the frontend actually sends) never reached it and every
-    rejection silently recorded reviewer_notes=None."""
-    from unittest.mock import MagicMock
+    rejection silently recorded reviewer_notes=None.
 
-    mock_supabase = MagicMock()
-    mock_get_client.return_value = mock_supabase
-    update_call = mock_supabase.table.return_value.update
-    update_call.return_value.eq.return_value.execute.return_value = MagicMock()
+    Also covers OKF-1 (production audit): the review queue is filesystem-backed
+    (staging/) rather than a Supabase table nothing ever populated."""
+    import services.memory.okf_store as okf_store
+
+    staging_dir = tmp_path / "staging"
+    staging_dir.mkdir()
+    entry = staging_dir / "rev-1.md"
+    entry.write_text(
+        '---\ntype: teaching\ntitle: "Draft Teaching"\nsource: "video-1"\n---\n\nBody text.\n',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(okf_store, "STAGING_DIR", staging_dir)
 
     response = client.post(
-        "/api/admin/okf/review/rev-1/reject", json={"reviewer_notes": "not doctrinal"}
+        "/api/admin/okf/review/rev-1.md/reject", json={"reviewer_notes": "not doctrinal"}
     )
     assert response.status_code == 200
-    payload = update_call.call_args[0][0]
-    assert payload["reviewer_notes"] == "not doctrinal"
+    assert not entry.exists()
+    rejected = staging_dir / "_rejected" / "rev-1.md"
+    assert rejected.exists()
+    assert "not doctrinal" in rejected.read_text(encoding="utf-8")
 
 
 @pytest.mark.asyncio

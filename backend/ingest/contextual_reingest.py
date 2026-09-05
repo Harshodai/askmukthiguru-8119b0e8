@@ -17,16 +17,32 @@ Design choices:
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 import os
+import re
 import tempfile
+import threading
 import time
 import urllib.request
 from collections import defaultdict
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Optional
+
+try:
+    import fcntl
+except ImportError:  # pragma: no cover - non-POSIX platforms
+    fcntl = None
+
+# Cross-instance lock around the state-file read-modify-write path — mirrors
+# ingest/handlers/checkpoint.py's own _FILE_LOCK, which this module does NOT
+# reuse (production-audit finding IC-6): two concurrent reingest processes
+# each held a stale in-memory copy of processed-sources/sections state, and
+# whichever _save_state() call landed last silently discarded the other's
+# already-recorded progress.
+_STATE_FILE_LOCK = threading.Lock()
 
 from qdrant_client import QdrantClient
 
@@ -388,7 +404,20 @@ class ContextualReingestEngine:
         state_file: Optional[Path] = None,
     ) -> None:
         self._source_collection = source_collection or _DEFAULT_SOURCE_COLLECTION
-        self._target_collection = target_collection or f"{self._source_collection}{_TARGET_SUFFIX}"
+        if target_collection is None and self._source_collection.endswith(_TARGET_SUFFIX):
+            # settings.qdrant_collection now defaults to the already-contextual
+            # destination collection (post-migration), not the legacy raw one.
+            # Blindly appending _TARGET_SUFFIX again silently produced
+            # "..._contextual_contextual" — a live 2026-09-03 bug confirmed
+            # against production Qdrant (3 orphan points, duplicate of the
+            # real collection). Restore the original source=spiritual_wisdom
+            # -> target=spiritual_wisdom_contextual intent instead: the
+            # suffix-stripped name is the true raw source, the configured
+            # default is the target.
+            self._target_collection = self._source_collection
+            self._source_collection = self._source_collection[: -len(_TARGET_SUFFIX)]
+        else:
+            self._target_collection = target_collection or f"{self._source_collection}{_TARGET_SUFFIX}"
 
         # Reuse injected services when available; otherwise lazily create.
         self._embedding = embedding_service
@@ -548,17 +577,70 @@ class ContextualReingestEngine:
             logger.warning("Could not load ingestion state file %s: %s", self._state_file, exc)
             return {}
 
+    @contextlib.contextmanager
+    def _file_lock(self):
+        """Serialize state-file read-modify-write across processes (production-
+        audit finding IC-6). Mirrors ingest/handlers/checkpoint.py's own
+        _file_lock: fcntl.flock for cross-process, the module-level
+        _STATE_FILE_LOCK for cross-thread, always acquired in that order."""
+        lock_path = self._state_file.with_suffix(self._state_file.suffix + ".ckpt.lock")
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+        lock_fh = lock_path.open("a+")
+        try:
+            if fcntl is not None:
+                fcntl.flock(lock_fh, fcntl.LOCK_EX)
+            with _STATE_FILE_LOCK:
+                yield
+        finally:
+            try:
+                if fcntl is not None:
+                    fcntl.flock(lock_fh, fcntl.LOCK_UN)
+            finally:
+                lock_fh.close()
+
     def _save_state(self) -> None:
         try:
             self._state_file.parent.mkdir(parents=True, exist_ok=True)
-            # Deduplicate state list
-            existing = self._state.get(_STATE_KEY, [])
-            if isinstance(existing, list):
-                self._state[_STATE_KEY] = list(dict.fromkeys(existing))
-            self._state_file.write_text(
-                json.dumps(self._state, indent=2, ensure_ascii=False),
-                encoding="utf-8",
-            )
+            with self._file_lock():
+                # Reload under the lock and MERGE rather than overwrite — another
+                # process may have written progress since this instance's last
+                # load. List-valued keys (e.g. _STATE_KEY) union; dict-valued keys
+                # (e.g. _STATE_KEY_SECTIONS) merge per-source, then per-section —
+                # a genuinely concurrent write to the SAME section id still last-
+                # write-wins (irreducible without per-section locking), but this
+                # closes the far more common case of two processes progressing on
+                # DIFFERENT sources/sections and clobbering each other's entries.
+                on_disk = self._load_state()
+                merged: dict[str, Any] = dict(on_disk)
+                for key, value in self._state.items():
+                    if key == _STATE_KEY_SECTIONS and isinstance(value, dict):
+                        disk_sections = merged.get(key, {})
+                        if not isinstance(disk_sections, dict):
+                            disk_sections = {}
+                        combined_sections = dict(disk_sections)
+                        for src, done in value.items():
+                            disk_done = combined_sections.get(src)
+                            if isinstance(done, list) and isinstance(disk_done, list):
+                                combined_sections[src] = list(dict.fromkeys(disk_done + done))
+                            else:
+                                combined_sections[src] = done
+                        merged[key] = combined_sections
+                    elif isinstance(value, list) and isinstance(merged.get(key), list):
+                        merged[key] = list(dict.fromkeys(merged[key] + value))
+                    else:
+                        merged[key] = value
+
+                self._state = merged
+                fd, tmp_path = tempfile.mkstemp(
+                    dir=self._state_file.parent, prefix=".ckpt-", suffix=".tmp"
+                )
+                try:
+                    with os.fdopen(fd, "w") as f:
+                        json.dump(merged, f, indent=2, ensure_ascii=False)
+                    os.replace(tmp_path, self._state_file)
+                finally:
+                    with contextlib.suppress(OSError):
+                        os.unlink(tmp_path)
         except Exception as exc:
             logger.warning("Could not save ingestion state file %s: %s", self._state_file, exc)
 
@@ -744,18 +826,50 @@ class ContextualReingestEngine:
         return {src: payloads for src, payloads in groups.items() if payloads}
 
     @staticmethod
-    def _reconstruct_full_text(payloads: list[dict[str, Any]]) -> str:
+    def _strip_contextual_artifacts(txt: str) -> str:
+        """Strip contextual_chunking_service's ``[Context: ...]`` header and
+        pipeline.py's ``[Potential Questions: ...]`` footer so a re-reconstructed
+        document contains the guru's actual words, not extraction machinery.
+
+        Both markers are re-added fresh by ``_contextualize``/normal ingestion
+        on every pass, so any copy already baked into stored text is stale and
+        must come out first — otherwise it survives re-chunking as literal body
+        prose and stacks another generation of header on re-ingest (the QF-1
+        finding: 68.9% of this pipeline's own live output was multiple stitched
+        ``[Context: ...]`` blocks glued together). Loop the edge strips to
+        self-heal payloads that already accumulated more than one generation,
+        and run a bounded global sweep for copies stitched mid-string from
+        already-concatenated payloads.
+        """
+        # Leading [Context: ...] / [Source: ...] header(s) — closing "]" is on
+        # the same line as the opening "[" by construction (single sentence).
+        while txt.startswith("["):
+            first_newline = txt.find("\n")
+            if first_newline != -1 and txt[:first_newline].rstrip().endswith("]"):
+                txt = txt[first_newline + 1 :].lstrip("\n")
+            else:
+                break
+        # Trailing [Potential Questions: ...] footer(s) — content can be
+        # multi-line, so strip from the LAST marker to end of string.
+        while True:
+            idx = txt.rfind("[Potential Questions:")
+            if idx == -1:
+                break
+            tail = txt[idx:]
+            if tail.count("[") == 1 and tail.rstrip().endswith("]"):
+                txt = txt[:idx].rstrip()
+            else:
+                break
+        # Bounded sweep for either marker stitched mid-string (already-corrupted
+        # payloads that went through multiple contaminated re-ingest passes).
+        txt = re.sub(r"\[Context:[^\[\]]*\]", "", txt)
+        txt = re.sub(r"\[Potential Questions:[^\[\]]*\]", "", txt)
+        return txt.strip()
+
+    @classmethod
+    def _reconstruct_full_text(cls, payloads: list[dict[str, Any]]) -> str:
         """Join source chunks in order to reconstruct the full document."""
-        texts = []
-        for p in payloads:
-            txt = p.get("text", "")
-            # Strip the old contextual header if present so re-chunking is clean.
-            if txt.startswith("["):
-                # Remove first line when it is the old [Source: ...] header.
-                first_newline = txt.find("\n")
-                if first_newline != -1 and txt[:first_newline].rstrip().endswith("]"):
-                    txt = txt[first_newline + 1 :]
-            texts.append(txt.strip())
+        texts = [cls._strip_contextual_artifacts(p.get("text", "")) for p in payloads]
         full_doc = "\n\n".join(t for t in texts if t)
         from services.doctrine_terms import apply_corrections
 

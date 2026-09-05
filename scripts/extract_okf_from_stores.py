@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import hashlib
 import logging
 import re
 import sys
@@ -30,16 +31,6 @@ sys.path.insert(0, str(_BACKEND))
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(name)s  %(message)s")
 logger = logging.getLogger(__name__)
 
-
-def _sanitize_log(val: Any, max_len: int = 500) -> str:
-    """Sanitize log input against CRLF and log injection (CWE-117)."""
-    if val is None:
-        return ""
-    cleaned = str(val).replace("\r", "").replace("\n", " ")
-    cleaned = "".join(ch for ch in cleaned if ch.isprintable() or ch == " ")
-    return cleaned[:max_len]
-
-
 # Inside Docker _BACKEND=/app so parent=/ — correct to /app/
 _okf_base = _BACKEND.parent / "memory" / "okf"
 if _BACKEND == Path("/app"):
@@ -47,6 +38,19 @@ if _BACKEND == Path("/app"):
 _OKF_DIR = _okf_base
 _STAGING_DIR = _OKF_DIR / "staging"
 _VALID_TYPES = {"teaching", "practice", "glossary", "qa", "reflection"}
+
+
+def _sanitize_log(val: Any, max_len: int = 200) -> str:
+    """Bounded, control-character safe serialization for diagnostic logs."""
+    if val is None:
+        return ""
+    s = str(val)
+    s = re.sub(r"[\x00-\x1f\x7f-\x9f]", " ", s)
+    s = s.strip()
+    if len(s) > max_len:
+        return s[:max_len] + "..."
+    return s
+
 
 # ── doctrine tags (inlined to avoid ingest.pipeline import → ContainerBuilder OOM) ──
 
@@ -317,6 +321,24 @@ def _write_okf_entry(
     content = "\n".join(fm) + "\n\n# " + title + "\n\n" + body.strip() + "\n"
 
     path = target_dir / f"{_slug(title)}.md"
+    if path.exists():
+        # production-audit finding OKF-2: this used to overwrite unconditionally
+        # — a re-extraction of an already-staged topic silently clobbered the
+        # prior draft with no diff, no version, and (staging/ is untracked) no
+        # way to recover it. If the content is identical this is a no-op
+        # (avoids unbounded duplicate growth on repeat runs); if it differs,
+        # write a content-addressed variant instead of destroying the original.
+        existing = path.read_text(encoding="utf-8")
+        if existing == content:
+            logger.info(f"OKF entry unchanged, skipping rewrite: {path}")
+            return path
+        suffix = hashlib.sha256(content.encode("utf-8")).hexdigest()[:8]
+        variant_path = target_dir / f"{_slug(title)}__{suffix}.md"
+        logger.warning(
+            f"OKF entry for {title!r} already exists with different content — "
+            f"writing variant instead of overwriting: {variant_path}"
+        )
+        path = variant_path
     path.write_text(content, encoding="utf-8")
     return path
 
@@ -420,7 +442,7 @@ async def _gather_lightrag_relationships(
                 if ctx:
                     results[q] = ctx[:2000]  # ponytail: cap to avoid prompt bloat
             except Exception as exc:
-                logger.debug("LightRAG query skipped for %s: %s", _sanitize_log(q), _sanitize_log(exc))
+                logger.debug("LightRAG query skipped for %r: %s", _sanitize_log(q), _sanitize_log(exc))
     except Exception as exc:
         logger.warning("LightRAG unavailable: %s", _sanitize_log(exc))
 
@@ -540,12 +562,12 @@ async def _get_topic_clusters(
             c["lightrag_context"] = ""
 
     logger.info(
-        "Clusters: %d topics (limit=%d, topic=%s, video=%s, skip_heavy=%s)",
+        "Clusters: %d topics (limit=%s, topic=%s, video=%s, skip_heavy=%s)",
         len(clusters),
-        int(limit or 0),
-        _sanitize_log(target_topic or "any"),
-        _sanitize_log(target_video_id or "any"),
-        bool(skip_heavy),
+        limit,
+        target_topic or "any",
+        target_video_id or "any",
+        skip_heavy,
     )
     return clusters
 
@@ -621,9 +643,9 @@ async def _call_llm(system: str, user: str) -> str:
 
     # Try multi-provider LLM first
     try:
-        from services.multi_provider_llm import MultiProviderLLMService
+        from services.multi_provider_llm import MultiProviderLLMService, get_llm_service
 
-        llm = MultiProviderLLMService()
+        llm = get_llm_service()
         result = await llm.generate(
             prompt=f"{system}\n\n{user}",
             max_tokens=2048,
@@ -635,8 +657,8 @@ async def _call_llm(system: str, user: str) -> str:
             artifact = find_artifact(text)
             if artifact:
                 logger.warning(
-                    "LLM output from multi-provider contains artifact %s — trying next provider",
-                    _sanitize_log(artifact),
+                    "LLM output from multi-provider contains artifact %r — trying next provider",
+                    artifact,
                 )
             else:
                 logger.info("LLM: generated %d chars via multi-provider", len(text))
@@ -660,8 +682,8 @@ async def _call_llm(system: str, user: str) -> str:
             artifact = find_artifact(text)
             if artifact:
                 logger.warning(
-                    "LLM output from OpenRouter contains artifact %s — trying next provider",
-                    _sanitize_log(artifact),
+                    "LLM output from OpenRouter contains artifact %r — trying next provider",
+                    artifact,
                 )
             else:
                 logger.info("LLM: generated %d chars via OpenRouter", len(text))
@@ -686,8 +708,8 @@ async def _call_llm(system: str, user: str) -> str:
             artifact = find_artifact(text)
             if artifact:
                 logger.warning(
-                    "LLM output from Sarvam contains artifact %s — trying next provider",
-                    _sanitize_log(artifact),
+                    "LLM output from Sarvam contains artifact %r — trying next provider",
+                    artifact,
                 )
             else:
                 logger.info("LLM: generated %d chars via Sarvam", len(text))
@@ -712,8 +734,8 @@ async def _call_llm(system: str, user: str) -> str:
             artifact = find_artifact(text)
             if artifact:
                 logger.warning(
-                    "LLM output from Ollama contains artifact %s — trying next provider",
-                    _sanitize_log(artifact),
+                    "LLM output from Ollama contains artifact %r — trying next provider",
+                    artifact,
                 )
             else:
                 logger.info("LLM: generated %d chars via Ollama", len(text))
@@ -807,11 +829,11 @@ async def extract_okf(
 
     logger.info(
         "OKF extraction start: topic=%s, video=%s, limit=%d, auto=%s, dry=%s",
-        _sanitize_log(target_topic or "any"),
-        _sanitize_log(target_video_id or "any"),
-        int(limit or 0),
-        bool(auto_approve),
-        bool(dry_run),
+        target_topic or "any",
+        target_video_id or "any",
+        limit,
+        auto_approve,
+        dry_run,
     )
 
     # 1. Gather data from all stores
@@ -849,7 +871,7 @@ async def extract_okf(
 
         if dry_run:
             logger.info("DRY-RUN prompt (system=%d chars, user=%d chars)", len(system), len(user))
-            logger.info("Would write to: %s/%s.md", _sanitize_log(target_dir), _sanitize_log(_slug(cluster["topic_key"])))
+            logger.info("Would write to: %s/%s.md", target_dir, _slug(cluster["topic_key"]))
             continue
 
         try:
@@ -875,16 +897,23 @@ async def extract_okf(
                 directory=target_dir,
             )
             written.append(path)
-            logger.info("  → %s", _sanitize_log(path))
+            logger.info("  → %s", path)
         except Exception as exc:
             logger.error("Entry generation failed for %s: %s", _sanitize_log(cluster["topic_key"]), _sanitize_log(exc))
 
     # 4. Compilation is intentionally review-driven. The admin approval route
     # writes reviewed entries to the live directory and compiles the index.
+    try:
+        from services.multi_provider_llm import close_llm_service
+
+        await close_llm_service()
+    except Exception:
+        pass
+
     logger.info(
         "OKF extraction done: %d entries written to %s (staged=%s)",
         len(written),
-        _sanitize_log(target_dir),
+        target_dir,
         not auto_approve,
     )
     return written

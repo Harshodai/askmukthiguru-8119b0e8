@@ -16,6 +16,7 @@ the auth dependency in the endpoint instead.
 from __future__ import annotations
 
 import inspect
+import re
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -267,10 +268,26 @@ def test_no_admin_route_is_anonymous():
                 offenders.append(
                     f"{path} -> {endpoint.__name__} (missing auth dependency entirely)"
                 )
-            elif has_optional_dep and not has_supabase_dep and "resolve_anon_identity" not in src:
-                offenders.append(
-                    f"{path} -> {endpoint.__name__} (get_optional_user without resolve_anon_identity — anonymous id collision)"
-                )
+            elif has_optional_dep and not has_supabase_dep:
+                # production-audit finding false-confidence-5: a bare substring
+                # check ("resolve_anon_identity" appears ANYWHERE in source)
+                # would pass for a route that imports/mentions the name without
+                # ever calling it or using its return value. Require the call
+                # result to be captured in a variable that is referenced again
+                # afterward (a real usage, not just a mention).
+                call_match = re.search(r"(\w+)\s*=\s*(?:await\s+)?resolve_anon_identity\(", src)
+                if not call_match:
+                    offenders.append(
+                        f"{path} -> {endpoint.__name__} (resolve_anon_identity not called — anonymous id collision)"
+                    )
+                else:
+                    bound_var = call_match.group(1)
+                    uses_after = src[call_match.end() :].count(bound_var)
+                    if bound_var in ("_", "") or uses_after == 0:
+                        offenders.append(
+                            f"{path} -> {endpoint.__name__} "
+                            f"(resolve_anon_identity() result {bound_var!r} never used — anonymous id collision)"
+                        )
 
     assert not offenders, (
         "REGRESSION: the following admin/job routes are missing proper auth/identity:\n  - "

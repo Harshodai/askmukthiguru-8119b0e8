@@ -154,3 +154,35 @@ def test_ensure_encoder_refuses_wrong_dimension_fallback(monkeypatch):
     # Must never silently swap to a wrong-dimension model
     assert settings.embedding_model == "BAAI/bge-m3"
     assert settings.embedding_dimension == 1024
+
+
+def test_ensure_encoder_refuses_primary_that_loads_at_wrong_dimension(monkeypatch):
+    """production-audit finding false-confidence-1: the sibling test above never
+    lets the PRIMARY model load successfully, so it never exercises the S7 fix
+    (embedding_service.py:420-429) — asking the loaded encoder its real
+    ``get_sentence_embedding_dimension()`` int rather than trusting config.
+    That is the exact 2026-07-16 incident: a primary model loads without error
+    but at the wrong dimension. This test makes the primary "load" fine and
+    report a real (wrong) int dimension, so it actually reaches and exercises
+    the introspection branch instead of falling through to the declared-dim
+    fallback path."""
+    from app.config import settings
+    from services.embedding_service import EmbeddingService
+
+    service = EmbeddingService()
+
+    def fake_load_encoder(self, model_name, device):
+        mock_encoder = MagicMock()
+        mock_encoder.get_sentence_embedding_dimension.return_value = 384  # wrong on purpose
+        self._encoder = mock_encoder
+
+    monkeypatch.setattr(EmbeddingService, "_load_encoder", fake_load_encoder)
+    monkeypatch.setattr(EmbeddingService, "_clear_hf_cache_for", lambda self, model_id: None)
+    monkeypatch.setattr(settings, "embedding_model", "BAAI/bge-m3")
+    monkeypatch.setattr(settings, "embedding_dimension", 1024)
+
+    with pytest.raises(ValueError, match="refusing silent dimension swap"):
+        service._ensure_encoder()
+
+    assert settings.embedding_model == "BAAI/bge-m3"
+    assert settings.embedding_dimension == 1024

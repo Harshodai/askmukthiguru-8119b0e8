@@ -88,6 +88,7 @@ class PipelineContext:
     # Bounded, privacy-safe route facts for internal telemetry. Raw prompts and
     # graph state must never be stored here.
     route_metadata: dict[str, Any] = field(default_factory=dict)
+    routing_chain: list[dict] = field(default_factory=list)
 
     # --- Query tier and preclassification (shared by cache and graph routing) ---
     detected_query_tier: str | None = None

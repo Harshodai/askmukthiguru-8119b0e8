@@ -238,7 +238,10 @@ async def query_neo4j_subgraph(
                 WHERE coalesce(r.tenant_id, "{settings.default_tenant_id}") = $tenant_id
                   AND coalesce(r.corpus_id, "askmukthiguru") = $corpus_id
                   AND ($teacher_id IS NULL OR r.teacher_id = $teacher_id)
-                RETURN n1.entity_id AS source, type(r) AS rel, r.description AS desc, n2.entity_id AS target
+                  AND NOT n1:Quarantined AND NOT n2:Quarantined
+                RETURN n1.entity_id AS source, n1.entity_type AS source_type,
+                       type(r) AS rel, r.description AS desc,
+                       n2.entity_id AS target, n2.entity_type AS target_type
                 LIMIT 15
                 """
                 for concept in matched_concepts:
@@ -247,10 +250,30 @@ async def query_neo4j_subgraph(
                         # Domain-rights gate: n1/n2 may resolve to a Teacher entity.
                         # Unlicensed teachers (rollout_enabled=False) are recognized
                         # entities but must never be surfaced as citable doctrine.
+                        #
+                        # This must default-deny, not default-allow: an entity typed
+                        # "teacher" that resolve_teacher_domain() doesn't recognize
+                        # (unregistered name) previously fell through this check
+                        # entirely — confirmed 2026-09-04 against production: 30+
+                        # unregistered teacher-typed nodes (Jesus, Buddha, Einstein,
+                        # Da Vinci, Sardar Vallabhbhai Patel, ...) had no domain to
+                        # resolve to, so `src_domain and not src_domain.rollout_enabled`
+                        # was False for them and they passed through ungated.
                         src_domain = resolve_teacher_domain(record["source"] or "")
                         tgt_domain = resolve_teacher_domain(record["target"] or "")
-                        if (src_domain and not src_domain.rollout_enabled) or (
-                            tgt_domain and not tgt_domain.rollout_enabled
+                        src_unregistered_teacher = (
+                            src_domain is None
+                            and (record.get("source_type") or "").lower() == "teacher"
+                        )
+                        tgt_unregistered_teacher = (
+                            tgt_domain is None
+                            and (record.get("target_type") or "").lower() == "teacher"
+                        )
+                        if (
+                            (src_domain and not src_domain.rollout_enabled)
+                            or (tgt_domain and not tgt_domain.rollout_enabled)
+                            or src_unregistered_teacher
+                            or tgt_unregistered_teacher
                         ):
                             continue
                         desc_str = f" - {record['desc']}" if record.get("desc") else ""
@@ -1112,7 +1135,13 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     except TimeoutError:
         logger.warning("KG ontology expansion timed out; continuing without neighbor terms")
     except Exception as _kg_err:
-        logger.debug(f"KG ontology expansion skipped: {_kg_err}")
+        # production-audit finding OBS-3: this was logger.debug, below the
+        # app's INFO floor (app/main.py logging.basicConfig), so a live Neo4j
+        # outage on this specific path was invisible in production logs —
+        # unlike the LightRAG retrieval path a few hundred lines below, which
+        # logs failures at WARNING. Matching that so a Neo4j-degradation
+        # fallback here is observable, not merely functional.
+        logger.warning(f"KG ontology expansion skipped (Neo4j degraded/unavailable): {_kg_err}")
     retrieval_stage_times["prepare_ms"] = round(
         (time.perf_counter() - preparation_started) * 1000, 1
     )

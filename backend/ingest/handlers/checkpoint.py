@@ -64,16 +64,25 @@ class IngestionCheckpoint:
                 from app.config import settings
 
                 if settings.supabase_url and settings.supabase_key:
-                    self.supabase_client = create_client(
+                    client = create_client(
                         settings.supabase_url, settings.supabase_key
                     )
+                    # Verify auth and access to ingestion_checkpoints table
+                    client.table("ingestion_checkpoints").select("chunk_id").limit(0).execute()
+                    self.supabase_client = client
                     logger.info(
                         f"IngestionCheckpoint: Centralized Supabase backend connected. Tenant: {self.tenant_id}"
                     )
             except Exception as e:
-                logger.warning(
-                    f"IngestionCheckpoint: Supabase connection failed ({e}). Falling back to local JSON."
-                )
+                err_str = str(e)
+                if "401" in err_str or "unauthorized" in err_str.lower() or "credentials" in err_str.lower():
+                    logger.warning(
+                        f"IngestionCheckpoint: Supabase auth failed ({e}). Falling back to local JSON."
+                    )
+                else:
+                    logger.warning(
+                        f"IngestionCheckpoint: Supabase connection failed ({e}). Falling back to local JSON."
+                    )
                 self.supabase_client = None
 
         self.data = self._load()
@@ -220,7 +229,14 @@ class IngestionCheckpoint:
                 ).execute()
                 return
             except Exception as e:
-                logger.error(f"Failed to save checkpoint to Supabase: {e}. Falling back to file.")
+                err_str = str(e)
+                if "401" in err_str or "unauthorized" in err_str.lower() or "credentials" in err_str.lower():
+                    logger.warning(
+                        f"IngestionCheckpoint: Supabase auth failed ({e}). Disabling Supabase and falling back to file."
+                    )
+                    self.supabase_client = None
+                else:
+                    logger.error(f"Failed to save checkpoint to Supabase: {e}. Falling back to file.")
 
         qualified = self._qualify_chunk_id(chunk_id)
         self.processed_chunks.add(qualified)
@@ -237,10 +253,25 @@ class IngestionCheckpoint:
             self._atomic_write(merged)
 
     def is_processed(self, chunk_id: str) -> bool:
+        # A miss at one tier does NOT rule out a checkpoint written to a lower
+        # tier during an earlier outage of a higher one — save() writes to
+        # exactly one tier (first available), never all three, so a clean
+        # "not found" here must fall through to the next tier rather than
+        # returning False outright. Only an explicit failed/error status is
+        # authoritative enough to short-circuit (production-audit finding
+        # checkpoint-multitier-fallback-broken).
         if getattr(self, "redis_client", None):
             try:
                 key = self._get_redis_key(chunk_id)
                 if self.redis_client.exists(key):
+                    val = self.redis_client.get(key)
+                    if val:
+                        try:
+                            data = json.loads(val)
+                            if isinstance(data, dict) and data.get("status") in ("failed", "error"):
+                                return False
+                        except Exception:
+                            pass
                     return True
             except Exception as e:
                 logger.error(f"Failed to check checkpoint in Redis: {e}. Trying Supabase.")
@@ -249,22 +280,72 @@ class IngestionCheckpoint:
             try:
                 res = (
                     self.supabase_client.table("ingestion_checkpoints")
-                    .select("chunk_id")
+                    .select("chunk_id, metadata")
                     .eq("chunk_id", chunk_id)
                     .eq("tenant_id", self.tenant_id)
                     .execute()
                 )
                 if res.data:
+                    row = res.data[0]
+                    meta = row.get("metadata")
+                    if isinstance(meta, dict) and meta.get("status") in ("failed", "error"):
+                        return False
                     return True
             except Exception as e:
-                logger.error(f"Failed to check checkpoint in Supabase: {e}. Falling back to file.")
+                err_str = str(e)
+                if "401" in err_str or "unauthorized" in err_str.lower() or "credentials" in err_str.lower():
+                    logger.warning(
+                        f"IngestionCheckpoint: Supabase auth failed ({e}). Disabling Supabase and falling back to file."
+                    )
+                    self.supabase_client = None
+                else:
+                    logger.error(f"Failed to check checkpoint in Supabase: {e}. Falling back to file.")
 
-        # A Redis/Supabase miss doesn't rule out a checkpoint that was written
-        # to the local-file fallback during an earlier outage of either store.
+        # A Redis/Supabase outage falls back to local-file state.
         # Reload the on-disk state so writes from other instances are visible.
         self.data = self._load()
         self.processed_chunks = self._load_processed_chunks()
-        return self._qualify_chunk_id(chunk_id) in self.processed_chunks
+        qid = self._qualify_chunk_id(chunk_id)
+        if qid in self.processed_chunks:
+            entry = self.data.get(qid)
+            if isinstance(entry, dict) and entry.get("status") in ("failed", "error"):
+                return False
+            return True
+        return False
+
+    def acquire_lock(self, chunk_id: str, ttl_seconds: int = 900) -> bool:
+        """Best-effort reservation so two concurrent ingests of the same
+        source don't both run the full pipeline (production-audit finding
+        IC-1: is_processed()/save() are a read and a much-later unconditional
+        write with no reservation held across the processing window).
+
+        Returns True if the caller now holds the lock (or no Redis is
+        configured, in which case there is no cross-process concurrency to
+        guard against in the first place — file-mode checkpointing is
+        single-process). Returns False if another worker already holds it —
+        the caller should skip this source rather than reprocess it.
+
+        The lease has a TTL so a crashed worker's lock self-expires instead of
+        wedging the source forever; it is NOT a substitute for save() — a
+        caller must still call release_lock() when done (success or failure).
+        """
+        if not getattr(self, "redis_client", None):
+            return True
+        try:
+            key = f"{self._get_redis_key(chunk_id)}:lock"
+            return bool(self.redis_client.set(key, "1", nx=True, ex=ttl_seconds))
+        except Exception as e:
+            logger.warning(f"IngestionCheckpoint.acquire_lock failed (proceeding without lock): {e}")
+            return True
+
+    def release_lock(self, chunk_id: str) -> None:
+        if not getattr(self, "redis_client", None):
+            return
+        try:
+            key = f"{self._get_redis_key(chunk_id)}:lock"
+            self.redis_client.delete(key)
+        except Exception as e:
+            logger.warning(f"IngestionCheckpoint.release_lock failed (will self-expire via TTL): {e}")
 
     def prune_stale_entries(self, active_hashes: list[str]):
         """Remove any entries from checkpoint that are no longer active."""

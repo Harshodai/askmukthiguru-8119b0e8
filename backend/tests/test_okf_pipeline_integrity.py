@@ -115,6 +115,44 @@ def test_extractor_llm_chain_has_all_fallbacks(provider: str):
     )
 
 
+@pytest.mark.asyncio
+async def test_extractor_llm_chain_actually_falls_through_to_ollama(monkeypatch):
+    """production-audit finding false-confidence-4: the sibling test above only
+    greps source text for provider names — it never proves the fallback chain
+    actually EXECUTES. Mock the first three providers to fail/raise and assert
+    Ollama's .generate() is really invoked and its text is what's returned."""
+    import services.multi_provider_llm as multi_provider_llm
+    import services.ollama_service as ollama_service
+    import services.openrouter_service as openrouter_service
+    import services.sarvam_service as sarvam_service
+
+    def raising_get_llm_service():
+        raise RuntimeError("multi-provider down")
+
+    monkeypatch.setattr(multi_provider_llm, "get_llm_service", raising_get_llm_service)
+
+    class _RaisingOpenRouter:
+        async def generate(self, **kwargs):
+            raise RuntimeError("openrouter down")
+
+    monkeypatch.setattr(openrouter_service, "OpenRouterService", _RaisingOpenRouter)
+
+    class _RaisingSarvam:
+        async def generate(self, **kwargs):
+            raise RuntimeError("sarvam down")
+
+    monkeypatch.setattr(sarvam_service, "SarvamCloudService", _RaisingSarvam)
+
+    class _WorkingOllama:
+        async def generate(self, **kwargs):
+            return "ollama fallback text"
+
+    monkeypatch.setattr(ollama_service, "OllamaService", _WorkingOllama)
+
+    result = await extractor._call_llm("system prompt", "user prompt")
+    assert result == "ollama fallback text"
+
+
 def test_extractor_copies_are_identical():
     """Both extractor copies must exist and be identical to prevent runtime drift."""
     repo_root = OKF_DIR.parent.parent

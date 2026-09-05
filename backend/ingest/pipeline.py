@@ -579,9 +579,77 @@ class IngestionPipeline:
         tags: Optional[list[str]] = None,
         assistant_slug: Optional[str] = None,
     ) -> dict:
-        """
-        Main entry point: ingest content from any supported URL.
+        """Main entry point: ingest content from any supported URL.
 
+        Thin telemetry wrapper (production-audit finding OBS-2:
+        log_ingestion_run existed in app/telemetry_db.py but had zero callers
+        anywhere, so the admin Ingestion Health page always read an empty
+        ingestion_runs table). Wraps _ingest_url_impl rather than touching its
+        internal routing (playlist/image/video/PDF/web-article branches each
+        return independently) so every outcome — success, rejection, error, or
+        an uncaught exception — gets one durable, queryable record without
+        having to thread logging through every branch.
+        """
+        import time as _time
+        import uuid as _uuid
+
+        from app.telemetry_db import log_ingestion_run
+
+        run_id = str(_uuid.uuid4())
+        start = _time.time()
+        try:
+            result = await self._ingest_url_impl(
+                url,
+                max_accuracy=max_accuracy,
+                on_progress=on_progress,
+                tags=tags,
+                assistant_slug=assistant_slug,
+            )
+            status = result.get("status", "unknown") if isinstance(result, dict) else "unknown"
+            error_log = result.get("message") if status not in ("success",) and isinstance(result, dict) else None
+            chunks_added = result.get("chunks_indexed", 0) if isinstance(result, dict) else 0
+        except Exception:
+            duration_ms = int((_time.time() - start) * 1000)
+            try:
+                await log_ingestion_run(
+                    {
+                        "id": run_id,
+                        "source": url,
+                        "chunks_added": 0,
+                        "duration_ms": duration_ms,
+                        "status": "error",
+                        "error_log": "Uncaught exception during ingestion (see application logs)",
+                    }
+                )
+            except Exception:
+                pass
+            raise
+
+        duration_ms = int((_time.time() - start) * 1000)
+        try:
+            await log_ingestion_run(
+                {
+                    "id": run_id,
+                    "source": url,
+                    "chunks_added": chunks_added,
+                    "duration_ms": duration_ms,
+                    "status": status,
+                    "error_log": error_log,
+                }
+            )
+        except Exception as telemetry_err:
+            logger.debug("log_ingestion_run failed (non-fatal): %s", telemetry_err)
+        return result
+
+    async def _ingest_url_impl(
+        self,
+        url: str,
+        max_accuracy: bool = False,
+        on_progress: Optional[Callable[[str, float], None]] = None,
+        tags: Optional[list[str]] = None,
+        assistant_slug: Optional[str] = None,
+    ) -> dict:
+        """
         Strategy Pattern: Auto-detect URL type and route to the correct loader.
 
         Args:
@@ -799,6 +867,18 @@ class IngestionPipeline:
                 "summaries_created": 0,
                 "message": "Content already processed. Skipped.",
             }
+        # production-audit finding IC-1: TTL-bound reservation (see ingest_raw_text
+        # for the full rationale) — bounds, doesn't eliminate, the duplicate-work
+        # window between this check and checkpoint.save().
+        if not checkpoint.acquire_lock(self._checkpoint_key(content_hash)):
+            self._notify(on_progress, "Already being processed by another worker. Skipping.", 1.0)
+            return {
+                "status": "success",
+                "source_url": url,
+                "chunks_indexed": 0,
+                "summaries_created": 0,
+                "message": "Already being processed by another worker. Skipped.",
+            }
 
         # Clean & PII redact
         self._notify(on_progress, "Cleaning transcript...", 0.3)
@@ -871,7 +951,12 @@ class IngestionPipeline:
             ]
             summaries_count = await self._raptor.build_tree(chunk_dicts)
             if self._lightrag:
-                await self._lightrag.ainsert(clean_text)
+                if not await self._lightrag.ainsert(clean_text):
+                    logger.warning(
+                        "LightRAG graph extraction incomplete for this source — Qdrant "
+                        "vectors are indexed, but this content will be under-represented "
+                        "in graph traversal until re-ingested (production-audit finding lightrag-1)."
+                    )
         except Exception as e:
             logger.error(f"Downstream step failed for social media {url}, rolling back: {e}")
             self._rollback_reindex(url, backup_collection)
@@ -958,7 +1043,8 @@ class IngestionPipeline:
             tags = list(set(tags + doc_tags))
         content_hash = hashlib.sha256(text.strip().encode("utf-8")).hexdigest()
         checkpoint = IngestionCheckpoint()
-        if checkpoint.is_processed(self._checkpoint_key(content_hash, source_version)):
+        _ckpt_key = self._checkpoint_key(content_hash, source_version)
+        if checkpoint.is_processed(_ckpt_key):
             self._notify(on_progress, "Content already processed. Skipping.", 1.0)
             return {
                 "status": "success",
@@ -966,6 +1052,24 @@ class IngestionPipeline:
                 "chunks_indexed": 0,
                 "summaries_created": 0,
                 "message": "Content already processed. Skipped.",
+            }
+        # production-audit finding IC-1: is_processed()/save() bracket a wide
+        # TOCTOU window (chunking, embedding, RAPTOR, LightRAG, Neo4j all run
+        # in between), so two concurrent calls for the same content both see
+        # "not processed" and both run the full pipeline. This reservation is
+        # TTL-bound rather than explicitly released — this function has many
+        # exit paths (error rollback, several returns), and a lease that
+        # self-expires is a smaller, safer change than threading a matching
+        # release_lock() through every one of them. It bounds the duplicate-
+        # work window to ttl_seconds rather than closing it perfectly.
+        if not checkpoint.acquire_lock(_ckpt_key):
+            self._notify(on_progress, "Already being processed by another worker. Skipping.", 1.0)
+            return {
+                "status": "success",
+                "source_url": source_url,
+                "chunks_indexed": 0,
+                "summaries_created": 0,
+                "message": "Already being processed by another worker. Skipped.",
             }
 
         if not text or not text.strip():
@@ -1096,7 +1200,12 @@ class IngestionPipeline:
             # Step 7: Graph RAG Extraction (Phase 4 Improvement)
             if self._lightrag:
                 self._notify(on_progress, "Extracting knowledge graph...", 0.95)
-                await self._lightrag.ainsert(clean_text)
+                if not await self._lightrag.ainsert(clean_text):
+                    logger.warning(
+                        "LightRAG graph extraction incomplete for this source — Qdrant "
+                        "vectors are indexed, but this content will be under-represented "
+                        "in graph traversal until re-ingested (production-audit finding lightrag-1)."
+                    )
         except Exception as e:
             logger.error(f"Downstream ingestion step failed for {source_url}, rolling back: {e}")
             self._rollback_reindex(source_url, backup_collection)
@@ -1246,6 +1355,18 @@ class IngestionPipeline:
                 "summaries_created": 0,
                 "message": "Content already processed. Skipped.",
             }
+        # production-audit finding IC-1: TTL-bound reservation (see ingest_raw_text
+        # for the full rationale) — bounds, doesn't eliminate, the duplicate-work
+        # window between this check and checkpoint.save().
+        if not checkpoint.acquire_lock(self._checkpoint_key(content_hash, source_version)):
+            self._notify(on_progress, "Already being processed by another worker. Skipping.", 1.0)
+            return {
+                "status": "success",
+                "source_url": url,
+                "chunks_indexed": 0,
+                "summaries_created": 0,
+                "message": "Already being processed by another worker. Skipped.",
+            }
 
         is_ok, reason = is_valid_text_deterministic(raw_text)
         if not is_ok:
@@ -1394,7 +1515,12 @@ class IngestionPipeline:
             # Step 6: Graph RAG Extraction (Phase 4 Improvement)
             if self._lightrag:
                 self._notify(on_progress, "Extracting knowledge graph (LightRAG)...", 0.9)
-                await self._lightrag.ainsert(clean_text)
+                if not await self._lightrag.ainsert(clean_text):
+                    logger.warning(
+                        "LightRAG graph extraction incomplete for this source — Qdrant "
+                        "vectors are indexed, but this content will be under-represented "
+                        "in graph traversal until re-ingested (production-audit finding lightrag-1)."
+                    )
         except Exception as e:
             logger.error(f"Downstream ingestion step failed for {url}, rolling back: {e}")
             self._rollback_reindex(url, backup_collection)
@@ -1517,6 +1643,18 @@ class IngestionPipeline:
                 "chunks_indexed": 0,
                 "summaries_created": 0,
                 "message": "Content already processed. Skipped.",
+            }
+        # production-audit finding IC-1: TTL-bound reservation (see ingest_raw_text
+        # for the full rationale) — bounds, doesn't eliminate, the duplicate-work
+        # window between this check and checkpoint.save().
+        if not checkpoint.acquire_lock(self._checkpoint_key(content_hash, source_version)):
+            self._notify(on_progress, "Already being processed by another worker. Skipping.", 1.0)
+            return {
+                "status": "success",
+                "source_url": url,
+                "chunks_indexed": 0,
+                "summaries_created": 0,
+                "message": "Already being processed by another worker. Skipped.",
             }
 
         # Step 1.15: Deterministic pre-filter to save LLM/API costs
@@ -1700,7 +1838,12 @@ class IngestionPipeline:
                 await self._raptor.build_tree(chunks_data)
 
             if self._lightrag:
-                await self._lightrag.ainsert(clean_text)
+                if not await self._lightrag.ainsert(clean_text):
+                    logger.warning(
+                        "LightRAG graph extraction incomplete for this source — Qdrant "
+                        "vectors are indexed, but this content will be under-represented "
+                        "in graph traversal until re-ingested (production-audit finding lightrag-1)."
+                    )
         except Exception as e:
             logger.error(f"Downstream ingestion step failed for {url}, rolling back: {e}")
             self._rollback_reindex(url, backup_collection)
@@ -2053,7 +2196,12 @@ class IngestionPipeline:
 
                     # Step 6: Graph RAG
                     if self._lightrag:
-                        await self._lightrag.ainsert(clean_text)
+                        if not await self._lightrag.ainsert(clean_text):
+                            logger.warning(
+                                "LightRAG graph extraction incomplete for this source — Qdrant "
+                                "vectors are indexed, but this content will be under-represented "
+                                "in graph traversal until re-ingested (production-audit finding lightrag-1)."
+                            )
                 except Exception as e:
                     logger.error(
                         f"Downstream ingestion step failed for {video['url']}, rolling back: {e}"
@@ -2307,65 +2455,96 @@ class IngestionPipeline:
                             master = node_metrics[0][3]
                             duplicates = [x[3] for x in node_metrics[1:]]
 
+                            # production-audit finding IC-5: this used to run each
+                            # duplicate's merge in an explicit/unmanaged
+                            # session.begin_transaction(), which the Neo4j driver
+                            # does NOT cover with its automatic transient-error
+                            # retry (only managed transactions — execute_write —
+                            # get that). Under concurrent ingestion (see IC-1),
+                            # two processes touching the same "master" node hit
+                            # write-write conflicts with no retry, silently
+                            # dropping that duplicate's merge. execute_write also
+                            # retries the whole function body atomically, so a
+                            # description merge and its DETACH DELETE can't be
+                            # split across a transient failure boundary.
+                            def _merge_one_duplicate(tx, dup, master):
+                                tx.run(
+                                    """
+                                MATCH (dup:base)-[r]->(target)
+                                WHERE elementId(dup) = $dup_id AND elementId(target) <> $master_id
+                                MERGE (master:base)-[new_r:DIRECTED]->(target)
+                                ON CREATE SET new_r = properties(r)
+                                WITH r
+                                DELETE r
+                                """,
+                                    dup_id=dup["id"],
+                                    master_id=master["id"],
+                                )
+
+                                tx.run(
+                                    """
+                                MATCH (source)-[r]->(dup:base)
+                                WHERE elementId(dup) = $dup_id AND elementId(source) <> $master_id
+                                MERGE (source)-[new_r:DIRECTED]->(master:base)
+                                ON CREATE SET new_r = properties(r)
+                                WITH r
+                                DELETE r
+                                """,
+                                    dup_id=dup["id"],
+                                    master_id=master["id"],
+                                )
+
+                                if dup["desc"] and dup["desc"] != master["desc"]:
+                                    combined = master["desc"] + " | " + dup["desc"]
+                                    if len(combined) > 2000:
+                                        combined = combined[:1997] + "..."
+                                    tx.run(
+                                        "MATCH (m:base) WHERE elementId(m) = $master_id SET m.description = $desc",
+                                        master_id=master["id"],
+                                        desc=combined,
+                                    )
+                                    master["desc"] = combined
+
+                                tx.run(
+                                    "MATCH (dup:base) WHERE elementId(dup) = $dup_id DETACH DELETE dup",
+                                    dup_id=dup["id"],
+                                )
+
                             for dup in duplicates:
-                                with session.begin_transaction() as tx:
-                                    tx.run(
-                                        """
-                                    MATCH (dup:base)-[r]->(target)
-                                    WHERE elementId(dup) = $dup_id AND elementId(target) <> $master_id
-                                    MERGE (master:base)-[new_r:DIRECTED]->(target)
-                                    ON CREATE SET new_r = properties(r)
-                                    WITH r
-                                    DELETE r
-                                    """,
-                                        dup_id=dup["id"],
-                                        master_id=master["id"],
-                                    )
-
-                                    tx.run(
-                                        """
-                                    MATCH (source)-[r]->(dup:base)
-                                    WHERE elementId(dup) = $dup_id AND elementId(source) <> $master_id
-                                    MERGE (source)-[new_r:DIRECTED]->(master:base)
-                                    ON CREATE SET new_r = properties(r)
-                                    WITH r
-                                    DELETE r
-                                    """,
-                                        dup_id=dup["id"],
-                                        master_id=master["id"],
-                                    )
-
-                                    if dup["desc"] and dup["desc"] != master["desc"]:
-                                        combined = master["desc"] + " | " + dup["desc"]
-                                        if len(combined) > 2000:
-                                            combined = combined[:1997] + "..."
-                                        tx.run(
-                                            "MATCH (m:base) WHERE elementId(m) = $master_id SET m.description = $desc",
-                                            master_id=master["id"],
-                                            desc=combined,
-                                        )
-                                        master["desc"] = combined
-
-                                    tx.run(
-                                        "MATCH (dup:base) WHERE elementId(dup) = $dup_id DETACH DELETE dup",
-                                        dup_id=dup["id"],
-                                    )
-                                    merged_total += 1
+                                session.execute_write(_merge_one_duplicate, dup, master)
+                                merged_total += 1
 
                         if merged_total > 0:
                             logger.info(
                                 f"Ingestion entity consolidation complete: merged {merged_total} duplicate nodes."
                             )
 
-                        # 2. Prune orphaned nodes (0 relationships)
+                        # 2. Orphan nodes are NOT auto-pruned here (production-audit
+                        # finding IC-5/N4): this used to unconditionally DETACH
+                        # DELETE every node with zero relationships, with no
+                        # discriminating criteria at all. A live audit (N4) sampled
+                        # orphaned entity_ids and found the large majority were
+                        # legitimate doctrine content ("Sri Krishna", "Arjuna",
+                        # "Dancing Meditation") that simply hadn't been linked by
+                        # the (separately narrow — see N1) relationship extractor
+                        # yet — NOT junk. This step was gated behind the same
+                        # unmanaged-transaction step 1 above and so had likely
+                        # never actually completed in production (which is
+                        # consistent with thousands of orphans persisting); fixing
+                        # step 1's reliability without also removing this would
+                        # have turned a latent no-op into an active mass-deletion
+                        # of real content on the very next successful ingestion.
+                        # Deliberate, criteria-based orphan/junk cleanup already
+                        # exists as a separate, human-run, dry-run-first script:
+                        # scripts/ops/purge_junk_entities.py.
                         orphans_res = session.run(
                             "MATCH (n:base) WHERE NOT (n)-[]-() RETURN count(n) as c"
                         ).single()
                         orphans = orphans_res["c"] if orphans_res else 0
                         if orphans > 0:
-                            session.run("MATCH (n:base) WHERE NOT (n)-[]-() DETACH DELETE n")
                             logger.info(
-                                f"Ingestion data cleanup: pruned {orphans} orphaned Neo4j nodes."
+                                f"Ingestion data cleanup: {orphans} orphaned Neo4j node(s) present "
+                                "(not auto-pruned — see scripts/ops/purge_junk_entities.py)."
                             )
 
                         # 3. Clean corrupted types
@@ -2422,6 +2601,14 @@ class IngestionPipeline:
                         )
                     all_cols = {c.name for c in qdrant.get_collections().collections}
                     entity_cols = [c for c in all_cols if c.startswith("lightrag_vdb_entities_")]
+                    # production-audit finding lightrag-2: relationship vectors were
+                    # never synced here, only entities — a relationship whose
+                    # endpoint entity was consolidated/deleted above left a dangling
+                    # vector with no matching Neo4j edge, discoverable via LightRAG's
+                    # vector-first hybrid retrieval even though the graph edge is gone.
+                    relationship_cols = [
+                        c for c in all_cols if c.startswith("lightrag_vdb_relationships_")
+                    ]
 
                     total_deleted_points = 0
                     for col in entity_cols:
@@ -2439,6 +2626,26 @@ class IngestionPipeline:
                                 if ent_name:
                                     if str(ent_name).strip().lower() not in neo4j_entities:
                                         points_to_delete.append(p.id)
+                            if points_to_delete:
+                                qdrant.delete(collection_name=col, points_selector=points_to_delete)
+                                total_deleted_points += len(points_to_delete)
+                    for col in relationship_cols:
+                        cnt = qdrant.count(col, exact=True).count
+                        if cnt > 0:
+                            res_pts, _ = qdrant.scroll(
+                                collection_name=col, limit=min(cnt, 10000), with_payload=True
+                            )
+                            points_to_delete = []
+                            for p in res_pts:
+                                pay = p.payload or {}
+                                src = pay.get("src_id")
+                                tgt = pay.get("tgt_id")
+                                if src is None and tgt is None:
+                                    continue
+                                src_missing = src is None or str(src).strip().lower() not in neo4j_entities
+                                tgt_missing = tgt is None or str(tgt).strip().lower() not in neo4j_entities
+                                if src_missing or tgt_missing:
+                                    points_to_delete.append(p.id)
                             if points_to_delete:
                                 qdrant.delete(collection_name=col, points_selector=points_to_delete)
                                 total_deleted_points += len(points_to_delete)
@@ -2827,6 +3034,9 @@ class IngestionPipeline:
         tags: list[str],
     ) -> None:
         """Best-effort persistence of source metadata to kb_sources telemetry table."""
+        if getattr(self, "_kb_sources_disabled", False):
+            return
+
         try:
             from datetime import datetime
 
@@ -2854,8 +3064,16 @@ class IngestionPipeline:
             client.table("kb_sources").insert(payload).execute()
             logger.debug(f"Recorded kb_sources entry for {source_url}")
         except Exception as e:
-            # Non-fatal: ingestion must succeed even if telemetry table is absent.
-            logger.warning(f"Failed to record kb_sources entry for {source_url}: {e}")
+            # Non-fatal: ingestion must succeed even if telemetry table is absent or unauthenticated.
+            err_str = str(e)
+            if "401" in err_str or "unauthorized" in err_str.lower() or "credentials" in err_str.lower():
+                logger.debug(
+                    "Supabase unauthenticated in _record_kb_source (%s). Disabling kb_sources telemetry for this run.",
+                    e,
+                )
+                self._kb_sources_disabled = True
+            else:
+                logger.warning(f"Failed to record kb_sources entry for {source_url}: {e}")
 
     def _hierarchical_split(
         self, text: str, title: str = "", speaker: str = "", topic: str = ""

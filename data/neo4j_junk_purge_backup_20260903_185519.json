@@ -1,0 +1,3704 @@
+{
+  "created_at": "2026-09-03T18:55:19.437024+00:00",
+  "entries": [
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:620",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "unknown_source",
+        "truncate": "",
+        "description": "CNN is a news organization that reported on DMX's death.",
+        "source_id": "chunk-f92f2431ff24759c43301c07f8d5701a",
+        "created_at": 1787983758,
+        "entity_type": "organization",
+        "entity_id": "CNN"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:621",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "unknown_source",
+        "truncate": "",
+        "description": "BBC is a news organization that reported on DMX's death.",
+        "source_id": "chunk-f92f2431ff24759c43301c07f8d5701a",
+        "created_at": 1787983758,
+        "entity_type": "organization",
+        "entity_id": "BBC"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:873",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "unknown_source",
+        "truncate": "",
+        "description": "Bees are a symbol of the interconnectedness and harmony that exists within the natural world, and are often associated with Mother Earth.",
+        "source_id": "chunk-9432677c72aab482aa8538213bb4d5a0",
+        "created_at": 1788250887,
+        "entity_type": "other",
+        "entity_id": "Bee"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1004",
+      "reasons": "placeholder_description",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "truncate": "",
+        "description": "no terms is a placeholder for the input text, indicating the absence of specific entities or concepts.",
+        "source_id": "chunk-be4791b1b965e51d9c889366d027aa73",
+        "created_at": 1788288063,
+        "entity_type": "other",
+        "entity_id": "no terms"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1009",
+      "reasons": "placeholder_description;short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=sMgbjxyrgqw<SEP>https://www.youtube.com/watch?v=6rLvPzNyLRw",
+        "truncate": "",
+        "description": "* is a placeholder for a proposition in the text.<SEP>The asterisk symbol is an identifier, not an entity.",
+        "source_id": "chunk-90463a47baafe23dfdd385d62620bc43<SEP>chunk-77a924893b1a0c7a1961ea1d61021e70",
+        "created_at": 1788321587,
+        "entity_type": "other",
+        "entity_id": "*"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1021",
+      "reasons": "placeholder_description",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=ffhDTzE4nDU<SEP>https://www.youtube.com/watch?v=Vt_CjAdzebM<SEP>https://www.youtube.com/watch?v=pmSPHJfg3AU<SEP>https://www.youtube.com/watch?v=1kS_mQaBLdg<SEP>https://www.youtube.com/watch?v=KTlY-lHs_Ew<SEP>https://www.youtube.com/watch?v=jK7-PPBXwr4<SEP>https://www.youtube.com/watch?v=77dJnbTCwsA<SEP>https://www.youtube.com/watch?v=kPuvsIyt6UI<SEP>https://www.youtube.com/watch?v=UNdwPjyLGn0<SEP>https://www.youtube.com/watch?v=PslFhdZaBFA<SEP>https://www.youtube.com/watch?v=ZGvKY4mPfIc<SEP>https://www.youtube.com/watch?v=B8wapoLAu84<SEP>https://www.youtube.com/watch?v=5hNCT4duOgc<SEP>https://www.youtube.com/watch?v=pPHQMD3w9-s<SEP>https://www.youtube.com/watch?v=V2WQ20Ocw_o<SEP>https://www.youtube.com/watch?v=l6svaRx35TI<SEP>https://www.youtube.com/watch?v=r_l2RNcSPPA<SEP>https://www.youtube.com/watch?v=tDcy09esbe8<SEP>https://www.youtube.com/watch?v=q15gR1aGjVs<SEP>https://www.youtube.com/watch?v=AviNwtN1luo<SEP>https://www.youtube.com/watch?v=hqre34QIMZg<SEP>https://www.youtube.com/watch?v=HELtP96Dd4w<SEP>https://www.youtube.com/watch?v=aSNQUkuyB18<SEP>https://www.youtube.com/watch?v=tl2Ek-QakME<SEP>https://www.youtube.com/watch?v=y2ZgKdt4Cj0<SEP>https://www.youtube.com/watch?v=JRX5W9AhWoA<SEP>https://www.youtube.com/watch?v=2JL1ZgMS7nY<SEP>https://www.youtube.com/watch?v=zCnqQBfyXa4<SEP>https://www.youtube.com/watch?v=o_eg6YTifRE<SEP>https://www.youtube.com/watch?v=Vr3PS2DdbDU<SEP>https://www.youtube.com/watch?v=hh61tFdyX8c<SEP>https://www.youtube.com/watch?v=38-NgBAet1c<SEP>https://www.youtube.com/watch?v=6rLvPzNyLRw<SEP>https://www.youtube.com/watch?v=qQmrTz6i2x4<SEP>https://www.youtube.com/watch?v=odNtpKqbCQo<SEP>https://www.youtube.com/watch?v=vIUY446FVPw<SEP>https://www.youtube.com/watch?v=X1mtpheWDhs<SEP>https://www.youtube.com/watch?v=0u9oe-5HPmk<SEP>https://www.youtube.com/watch?v=zGhlBQ8iWl4<SEP>https://www.youtube.com/watch?v=ZD1nQPtpojM<SEP>https://www.youtube.com/watch?v=2DLb6hDIhmg<SEP>https://www.youtube.com/watch?v=Gdd-5uWUW5w<SEP>https://www.youtube.com/watch?v=uA7E_SUdtM8<SEP>https://www.youtube.com/watch?v=Z7w7soyXmHs<SEP>https://www.youtube.com/watch?v=AyUE-2Uh5Vg<SEP>https://www.youtube.com/watch?v=6-GWHR9_iSU<SEP>https://www.youtube.com/watch?v=gQiIwfA3mlk<SEP>https://www.youtube.com/watch?v=oXRZhJTHuOA<SEP>https://www.youtube.com/watch?v=UJM00IqGKtc<SEP>https://www.youtube.com/watch?v=nUrc8O7Avvk<SEP>https://www.youtube.com/watch?v=o6X1TVEFHAY<SEP>https://www.youtube.com/watch?v=jy4hcpUSBms<SEP>https://www.youtube.com/watch?v=3EqnSkAzfIg<SEP>https://www.youtube.com/watch?v=x-mTRlE0TC4<SEP>https://www.youtube.com/watch?v=OZiElH5pKmo<SEP>https://www.youtube.com/watch?v=207izZBbqVg<SEP>https://www.youtube.com/watch?v=idoWVpnJz-Y<SEP>https://www.youtube.com/watch?v=-4wCvcPrX-E<SEP>https://www.youtube.com/watch?v=Oc5ar2g2rnI<SEP>https://www.youtube.com/watch?v=obK5uqYXOJU<SEP>https://www.youtube.com/watch?v=K-AFDVOkIoE<SEP>https://www.youtube.com/watch?v=sMgbjxyrgqw<SEP>https://www.youtube.com/watch?v=HtmLQkxj8ec<SEP>https://www.youtube.com/watch?v=7lggUuJtZXY<SEP>https://www.youtube.com/watch?v=NJQ573JDmAg<SEP>https://www.youtube.com/watch?v=iikr2xzAK6Y<SEP>https://www.youtube.com/watch?v=smrj15-QOAI<SEP>https://www.youtube.com/watch?v=Fbd7ln2i9dw<SEP>https://www.youtube.com/watch?v=-yGLiryVQoQ<SEP>https://www.youtube.com/watch?v=b-MkLkpTeVY<SEP>https://www.youtube.com/watch?v=stUPu1-W4bE",
+        "truncate": "",
+        "description": "Topic is a general category or subject that serves as a placeholder for the topic of the discussion, the subject of the proposition, and the topic of the input text. It is a generic term that can refer to any subject or area of interest, emphasizing its fundamental aspect as a placeholder for the topic of the proposition. The topic of the text is an identifier for a specific instance, indicating that the context is clear and the topic is a particular instance within the broader category. Topic is an unspecified topic, suggesting that the context is not clear and the topic is not specifically defined. The topic is a concept, but the context is not clear, indicating that the context is not provided and the topic is not clearly defined. Topic is a subject or area of discussion, emphasizing that the context is not clear and the topic is not specifically defined. The topic is a general category or subject, indicating that the context is not clear and the topic is not specifically defined. The topic is a category that encompasses the topic \"and I would say this manifest would be super empowering for you as a wealth creator,\" suggesting that the context is not clear and the topic is not specifically defined. The text mentions a specific topic, which is an abstract concept. The text discusses the nature of the mind and consciousness<SEP>The text discusses the nature of the mind and consciousness.",
+        "source_id": "chunk-ed6d75323164117d7eccc201e3cf587f<SEP>chunk-60174b9416762436dba4eca9d3aa6e8e<SEP>chunk-271af38328819488e4e9b92a7336f16f<SEP>chunk-f41244a9d3ca1728bd059ae341c99613<SEP>chunk-689b22ef79c01a360a6381491c24b602<SEP>chunk-7e8cda4f981004ec5a3a78fbe8a00572<SEP>chunk-40d2c7efd30269b17ceebb05c49e5b50<SEP>chunk-092d0a3112d902db195a05b82f6a73e2<SEP>chunk-c8d240978c6bb4400f3c101a8d18aaef<SEP>chunk-fc6faf5a6ae92c99c940a3a306c6edfb<SEP>chunk-a070f37d203a857c4a8afc1c2dc31bb0<SEP>chunk-d594abb8e047161b69dd102b856cfea5<SEP>chunk-911f34a2c79eefe7605048c28c898b9c<SEP>chunk-9a0bb78fdab50f1550805551cf08c98b<SEP>chunk-eeaedd79f699cc188df386aa9b2568cc<SEP>chunk-8f47994a92fe7fb52e2eb3ded1960355<SEP>chunk-bae987254bbc4c24f612a3f3ac564598<SEP>chunk-e2d1404b03d49255dd9fcfdd7359f5c1<SEP>chunk-af63aa31157d422899c00da6878faae9<SEP>chunk-8ad5b64945b61793a0f53efb5e80eaa7<SEP>chunk-ccdc61f64dd8ccfbeee78796c8cc23cb<SEP>chunk-8ecd22dc1ba9e529cb7035523efcf994<SEP>chunk-b2b5ac6900952d685a27a8c8242e8f9a<SEP>chunk-cc1b352cf34211d45304f7b385d43726<SEP>chunk-1521faad69ed1ed584fab692a25c8ecc<SEP>chunk-d49c0deb0c0291a587be8b3016364fa6<SEP>chunk-e6dae2321103c03838185bfa92e786dd<SEP>chunk-631858b5ea23730629872aaa5242e1fe<SEP>chunk-c5ca8f4ba2cc68587df7ab75e1f78b2b<SEP>chunk-3211c7aeb0b50e4bbe994927553b8345<SEP>chunk-12ab1204e93ac10ee154506f5bb4f16f<SEP>chunk-fdbab558533f08bbf0ffb265d1f51f80<SEP>chunk-e12974866d4daad9e77680ed2e3dbe88<SEP>chunk-7939e33a108c46f31334b3c592f9f0e8<SEP>chunk-f83b273c8bbd7b5291f562fd3680ec2e<SEP>chunk-62ff15b81df182c7cc4bd26d8e2a4ef2<SEP>chunk-065580f38030c5a483b6017cacea9534<SEP>chunk-52f6085b62d31a1ac8bdd372a4476e1b<SEP>chunk-beb965c2264e7fc84f1cb8c4f6028215<SEP>chunk-1d326d0fa5184bed9d6119c66ca9c98b<SEP>chunk-f7c1789ed66e342c94de9d2755c8fdcc<SEP>chunk-5f62927f26b96636ca7c81812b880b0d<SEP>chunk-56aefda51d18f237f9fd2763d2e4db34<SEP>chunk-26212fe30af95a3a2d693cee01cf33d1<SEP>chunk-0cb6391924e4ea0cff4d6f0d57f4dd0a<SEP>chunk-7022771ac828e28b6b66492a4acda63b<SEP>chunk-0ce2fbdaf661372f2f6114c996cec621<SEP>chunk-b6e5295516e9d34c1a83e53e8e5f27ec<SEP>chunk-844a48788746fa158a70392b6397a95e<SEP>chunk-cd1924a66a1a8529fc947bf19eecc4c6<SEP>chunk-7a1a59bdc36869c8d6fe53180d196bbc<SEP>chunk-32ea5e5cfcf630b83d91e3532476dce1<SEP>chunk-bad08310df16a9de342b49e967f20301<SEP>chunk-b0a8f638631a1ca1b9a14c4bf3915605<SEP>chunk-9294d977e3bfff4fe04fe4fdfa707624<SEP>chunk-f1e17d0af79b3c1fc823899295b04607<SEP>chunk-7016f0543374f257fa77898814897632<SEP>chunk-97b90c25a3c816534284ca870a0211b9<SEP>chunk-6c88824c965c68a24eb7f44360046c46<SEP>chunk-dc9ff3016045a0d3dd5815c33627f7ce<SEP>chunk-2414639c14a33dcfe9776b37f531891d<SEP>chunk-a8f033693ada967fa724d9db429658c9<SEP>chunk-c333c24d9d1c4bd55af85046c99c3097<SEP>chunk-0223cd000674829e81a7f72eb0e1f488<SEP>chunk-977a110bc9fcccfabaf47fbce53f4588<SEP>chunk-abaeb5dd2ea8e8390e97449b30a7698e<SEP>chunk-b1737514901561076b3ce825016f5b43<SEP>chunk-0ee34ba4dbe9abdc2baa49ed30dfbddb<SEP>chunk-72daf11c34b93aab0c59dbfed6501fb6<SEP>chunk-79577e6a097007fc956e5a07ae9305d2<SEP>chunk-60ee13fe418b1d8e69ef001629930daa<SEP>chunk-b193ad34bc3a1b1475737a3bf85e0b67<SEP>chunk-7888f53ab561696dcad6f8fea9f7bc36<SEP>chunk-63585900fa9915f9f17c29e9a682dcbb<SEP>chunk-32fbba66122d4220283e41f5c063e5dc<SEP>chunk-381d272ad609e7cf00bb2a58e8a1f90b<SEP>chunk-d3fa8bf73bec957cf78f44f45c743989<SEP>chunk-1e2c508ecb47fc70ab5cc95634a8b3f9<SEP>chunk-a04a6a2e6d148177a70e9a72a807d0d8<SEP>chunk-c7a2ce7b10f7733105851aa094364169<SEP>chunk-b0f0c1e792ece211411960da326aff99<SEP>chunk-3fc10abaf7a0c32250dc114d093f6cb1<SEP>chunk-a8aab8aa73ab85510d68d2f6271fc735<SEP>chunk-ad6980da01d4833ea6097762e7531d09<SEP>chunk-f849b3c64a6f009196837b16631f2f04<SEP>chunk-3a2a7f557099a5b51f30a63e3dcf62fd<SEP>chunk-8dfbd8ad149d80ecb06a054e72d6aa16<SEP>chunk-a6d344a8d03bb4adf9ac9b216483b9e0<SEP>chunk-e2b62012760212655c1a353993c868ea<SEP>chunk-e482ec4f39b1f80c9a6b38dca74dc917<SEP>chunk-72d885cf8ea9ab84932562f4019c9689<SEP>chunk-e5bef3e8c2fc74ce776e858f6e9171b8<SEP>chunk-8ae733e19f852d005b8dc1724207a755<SEP>chunk-acf4905bc8ea7e8db60301919d8f47ae<SEP>chunk-0107bd22c59490c3e3d044341eb65667<SEP>chunk-34c12f6e47adf69b2d8363a3dcbb70c6<SEP>chunk-611542b5946ca16edfddcb216a2c6b2a<SEP>chunk-3751ca9aad13dfa069025747063fc531<SEP>chunk-fbf3ecf0c80725bdd48cade400cbd5bc<SEP>chunk-bac57f828023171b1fb6a6225c911a47<SEP>chunk-33763be126c585544c7bf5f7624d316d<SEP>chunk-93879019938c57ce2e11f9a61aab424e<SEP>chunk-a2dc53ab7cda751f46763f3d0a5257b6<SEP>chunk-8284e0c6c3849195fbcb1c0294256b91<SEP>chunk-e8f1899f5ba481eb4780eeaf713f738a<SEP>chunk-010a3d9ff62285ec19f8d9980b70977c<SEP>chunk-c78088f6f4da3972ca6c981cfae6ec1d<SEP>chunk-efcd913b765777f301b3acea3c88ed10<SEP>chunk-89445a8c9174e57c6313852cf1e15b6c<SEP>chunk-e0afc8e72bccb4191b28dd476b5a23a8<SEP>chunk-f410df4a553e6ffd305dfbc7fe0f30c0<SEP>chunk-1183413d1efb4d148ba50c4c2deb31e3<SEP>chunk-c488b732937713d32078555856d3619d<SEP>chunk-eeb3579f274defb7e81f50f64718bf26<SEP>chunk-ff3f914ce399d7f23b90f6d243178bb9<SEP>chunk-e9b5168417f8a37144c269aa679f96db<SEP>chunk-ddc7fb827779dc67a993920342e2e32a<SEP>chunk-a13484dc956d1afab5362abc8242878e<SEP>chunk-f08f887eb0ffc292acae58187eb65a83<SEP>chunk-fe646b0bee79629fc9fd993d41d9990c<SEP>chunk-36ef75ba734ec924a9ed37f4df80cbff<SEP>chunk-fdacbe0af0f1df6bd262d63e4c4cfe71<SEP>chunk-13736795497496c6ae4a99291e6fa8d1<SEP>chunk-d955a5280deb7d01676043ed26aa3300<SEP>chunk-0c5a2d1d5cc1d6692f2cecb8b1f5fedf<SEP>chunk-6f6806cec9a6ba426ddd17e77603ea85<SEP>chunk-e93411736990494bd6d1f6f980741581<SEP>chunk-20131d18c8c78642a5ff87565d99a7e8<SEP>chunk-30ada7496ed3ffb6ca29b6284d9d2315<SEP>chunk-6cd00ea02b239d0949988272b93013b7<SEP>chunk-0ebaf90aa93a9187e47a2c69c413979f<SEP>chunk-ee9617fdd5aa9afd63fec5376cb0b51a<SEP>chunk-07be31c5a93b2cef0bc68580010aebff<SEP>chunk-5f374d1216fde6e506c1e35dc6ccb225<SEP>chunk-8737b208f2e8cb55963073615a622484<SEP>chunk-10df8c3bf59b44ed9d558454dfe1731f<SEP>chunk-ff9100b2380870785111d6386ed33387<SEP>chunk-45163b5f28f2204b0fe8a20a7ea7a1bb<SEP>chunk-4493520fd47e3d41a04d3c9ca4b201d8<SEP>chunk-3c7a9c71c09f6fea42b616d62ac5bb6c<SEP>chunk-a4c9ee7faf9090267a6e899b568f4203<SEP>chunk-a87eeee1dc577a68c803cea154be19ff<SEP>chunk-90f5093f9409fa8847f1c6eef5a54849<SEP>chunk-396c43c0d2edf4e6e8bf7d03208e785c<SEP>chunk-37636d645f0b92e10bef129073f296b8<SEP>chunk-80a4a590bb7410921e5c522d9d75d46d<SEP>chunk-70ea40ae26319ed1b6ff3064e7f9e5eb<SEP>chunk-18f53000ec5d11e3b4ae2d29a03cf02d<SEP>chunk-0e5e2418bbdfa59387fc65b646e0261e<SEP>chunk-ba13546c419632e79c12d3ac3e2ccceb<SEP>chunk-bc88599b2cc0e0e6ba38710be1d97ff2<SEP>chunk-7a1abb56fccbe0ed3673d5109d8b08b7<SEP>chunk-c5b4a5bd0704a4abab9cb89b5e590064<SEP>chunk-8aaf761994dbe6bf088410ca77395015<SEP>chunk-a898c4ba4c2f452bc3c09e5170b108af<SEP>chunk-3369776e1ac0c6b92c493065b24c8de3<SEP>chunk-222e746c23c1e5efcd78c1c97416a54c<SEP>chunk-d7deb3d6e9ec444522c92d34ff9c2486<SEP>chunk-3a8df5b1c0f01ecf4750115eacc69997<SEP>chunk-2ea2b6709603f904571158d1357ec4b1<SEP>chunk-92a6100b2ae61dc03e8ee26bdf431bb3<SEP>chunk-b3b05803a1df58aacce550ac156d6303<SEP>chunk-4d51a66951c1dc9f579540d2653e80bb<SEP>chunk-f1d639441ccd4bbc2d6e00202709c69b<SEP>chunk-86a9de9ca7c8657c939735576c146aa7<SEP>chunk-a54b3347a1bc0d07bc39d8ee576a4202<SEP>chunk-c46ca3199bf2e3c85e5f0f57b1f6f3e6<SEP>chunk-234297fdc162f0471e5fb4119b05c86a<SEP>chunk-74385520f0345387d6d66ce9fbf94f7e<SEP>chunk-c3dba4a2f495434e658cc296324d2c1c<SEP>chunk-0f7b6e34dd027bcb6fe3d45938e810df<SEP>chunk-83e2cf87a56e187172804f2e811906c7<SEP>chunk-8a64bfcd74e9e96c32e97811e7401a08<SEP>chunk-cf9301168d746bbd5831484d7a3afc07<SEP>chunk-5d58ee40d642b2019d2faba70bbf23be<SEP>chunk-efd016a4775bcf3f09cad1c585d0ac32<SEP>chunk-3391ffe056095116568b1b0ba974ca65<SEP>chunk-a6f5a4a9d7d2f724fd107d7ceef2ccf8<SEP>chunk-86a1a91dff7478f17341188d1ffada20<SEP>chunk-6a4fe2e555c3c968b6a2cd0d49969525<SEP>chunk-5fd1cb550b256d890aace1ea89c17157<SEP>chunk-15b647bb6f0ae858e7ad44bbb2e4d842<SEP>chunk-a468e9b42867debad5125a7b5e5e96c3<SEP>chunk-126d37733f92bb8cac84061fbc97e3ac<SEP>chunk-3952b0285ade58d090d93ffe9e9263be<SEP>chunk-4d09fef2f300eb5eb215a9479ea13059<SEP>chunk-094e1cdceb5b9433cf8588615d5bf64c<SEP>chunk-aacbec4a252c3e0e4aea34cf6320d974<SEP>chunk-e24374cb3b8677750ca557ee19d3b71a<SEP>chunk-3a5de41f9074e3507bcf7a1cb2d0a168<SEP>chunk-20de7c991108a9a6e893f46808f4181b<SEP>chunk-b0c1fe47a106a570a58020e4ea4a511b<SEP>chunk-3173a8f02e678ae9e8f984c6ecefaa0c<SEP>chunk-19c40385d781ded85720edb766fa0f44<SEP>chunk-0f980a6685f9f1c815df6c42d401b00b<SEP>chunk-5e794261502f670581c6be455b28a8b9<SEP>chunk-8b5c350b200d1dee555e107efafc7997<SEP>chunk-7269a30b8131edd96b09f2f2444575c9<SEP>chunk-77a924893b1a0c7a1961ea1d61021e70<SEP>chunk-4b182cc3e0c9d7029c2f1e0388c6803e<SEP>chunk-a352a376036f531d0d1f41d919cd1dec<SEP>chunk-5a475f986a1655ac7a562f7559c04dc1<SEP>chunk-2a224f256d8a2521a5f28e0e7f110bca<SEP>chunk-3af5b17ef0eef49e8b876107fe42f92a<SEP>chunk-e6e36c2bd8affa231596810eddfef679<SEP>chunk-68457f4a4a9e3305b6dfd8bd11be7e2a<SEP>chunk-2b259504e48f3c045d75777981875282<SEP>chunk-471d56e56b3bd8bbae4602c7f1851285<SEP>chunk-4117639df0245a964223cbac883584cc<SEP>chunk-b0288111a94c9b50d1d3cad0e0d63377<SEP>chunk-2cb1e6eb998706eef31d7865d61d47a6<SEP>chunk-bc6920bcad10d2e35fdde8e4993d870c<SEP>chunk-9e931d9a3d22f48daf38903d2edac683<SEP>chunk-1efbf033eb2c7db645abf919c98d81c7<SEP>chunk-3eb351d5087f22795c1c43606f69fd24<SEP>chunk-59bdbb62f139c8fd2e213a4fa6f563ed<SEP>chunk-19bf91fc96ad0f2bf5cf3b6675ac1e4f<SEP>chunk-a1f7816a34411776903d683656e3da3d<SEP>chunk-3aaa27715d2d63fad67824b1af620984<SEP>chunk-00d983c9a19cfb282664713c90d79149<SEP>chunk-b631c1a169d2ce7a0fbae56e3d143a50<SEP>chunk-881834b6636cdd3e091c4348f475e5d7<SEP>chunk-8405c0d8d0903ec4aa39daa2c029f808<SEP>chunk-900ed787e45474183e9c3ee6ebac74f8<SEP>chunk-2c967653b89a947aefa1bf4b5494a221<SEP>chunk-d4e748aa59c666a4944e35acbee23514<SEP>chunk-a1d70d77305093814a85bc13d4a2bd86<SEP>chunk-3b73ec8aa0792668ab9917dd5c42eb45<SEP>chunk-c9772bc7081abe14def199509f79949f<SEP>chunk-16a8be1277cdbb696b571125ac1dbc5e<SEP>chunk-e36fb4b56d14a427b3fa08280a895b61<SEP>chunk-4c9b93879b8e297e765902b91c760054<SEP>chunk-3347e499ccb4ec471766e316b53c8e13<SEP>chunk-afa3cba2743cb5f89a0e32b460cbd79e<SEP>chunk-e4b5b386e4d168e012487f5797ccbad7<SEP>chunk-e7b77c4225e2efec76a2688fa1dfbdf9<SEP>chunk-ba9e240e10d9dfba92f28eb601115f25<SEP>chunk-947181ed097b63ad1e8c3f3a0591a467<SEP>chunk-683c1007847a950f8c05b61d42a26de0",
+        "created_at": 1788407971,
+        "entity_type": "concept",
+        "entity_id": "Topic"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": "meaning",
+          "direction": "out",
+          "type": "DIRECTED"
+        },
+        {
+          "other_entity_id": "you too",
+          "direction": "out",
+          "type": "DIRECTED"
+        },
+        {
+          "other_entity_id": "pPHQMD3w9-s",
+          "direction": "out",
+          "type": "DIRECTED"
+        },
+        {
+          "other_entity_id": "Fine",
+          "direction": "in",
+          "type": "DIRECTED"
+        },
+        {
+          "other_entity_id": "ZD1nQPtpojM",
+          "direction": "out",
+          "type": "DIRECTED"
+        },
+        {
+          "other_entity_id": "Other",
+          "direction": "in",
+          "type": "DIRECTED"
+        },
+        {
+          "other_entity_id": "K-AFDVOkIoE",
+          "direction": "in",
+          "type": "DIRECTED"
+        },
+        {
+          "other_entity_id": "Topic Idea",
+          "direction": "out",
+          "type": "DIRECTED"
+        },
+        {
+          "other_entity_id": "KTlY-lHs_Ew",
+          "direction": "in",
+          "type": "DIRECTED"
+        },
+        {
+          "other_entity_id": "Purpose",
+          "direction": "in",
+          "type": "DIRECTED"
+        },
+        {
+          "other_entity_id": "Source",
+          "direction": "in",
+          "type": "DIRECTED"
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1024",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=ffhDTzE4nDU<SEP>https://www.youtube.com/watch?v=UJM00IqGKtc<SEP>https://www.youtube.com/watch?v=pTnZt0SqDFM<SEP>https://www.youtube.com/watch?v=-yGLiryVQoQ<SEP>https://www.youtube.com/watch?v=hqre34QIMZg",
+        "truncate": "",
+        "description": "The concept \"or\" is a logical operator and not a named entity.<SEP>The word \"or\" is a logical operator and not a named entity.<SEP>or: \"correct\" view of leadership.<SEP>or is a conjunction that connects alternative possibilities.<SEP>or is a conjunction used to connect different ideas.<SEP>or is an entity that provides additional context or information related to the topic.",
+        "source_id": "chunk-93879019938c57ce2e11f9a61aab424e<SEP>chunk-efd016a4775bcf3f09cad1c585d0ac32<SEP>chunk-75a6c4a019af8b01b54f3c3a030ef6d7<SEP>chunk-3b73ec8aa0792668ab9917dd5c42eb45<SEP>chunk-ba9e240e10d9dfba92f28eb601115f25",
+        "created_at": 1788370477,
+        "entity_type": "other",
+        "entity_id": "or"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1028",
+      "reasons": "hard_junk_type='verb'",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=Fbd7ln2i9dw",
+        "truncate": "",
+        "description": "could is a word that could be part of a sentence.<SEP>The text indicates a possibility or ability.<SEP>The text indicates a possibility or ability.",
+        "source_id": "chunk-be0f66256dcc666abe9176c86f6fe280<SEP>chunk-947181ed097b63ad1e8c3f3a0591a467",
+        "created_at": 1788407515,
+        "entity_type": "verb",
+        "entity_id": "could"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1056",
+      "reasons": "hard_junk_type='adverb';short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=y-C_8_p_F5w<SEP>https://www.youtube.com/watch?v=PslFhdZaBFA<SEP>https://www.youtube.com/watch?v=owC8E_G2fY4<SEP>https://www.youtube.com/watch?v=2DLb6hDIhmg<SEP>https://www.youtube.com/watch?v=UJM00IqGKtc<SEP>https://www.youtube.com/watch?v=HtmLQkxj8ec<SEP>https://www.youtube.com/watch?v=q15gR1aGjVs<SEP>https://www.youtube.com/watch?v=pPHQMD3w9-s",
+        "truncate": "",
+        "description": "The word \"in\" is a preposition that can indicate a location or context. It is used to specify where something is situated or to indicate the time or context in which something occurs. The text mentions \"in\" but does not provide a clear context for this word.",
+        "source_id": "chunk-4034a2e8a61b6d5154752cc6fbfb12cc<SEP>chunk-1183413d1efb4d148ba50c4c2deb31e3<SEP>chunk-0ce2a1c266e2d5db0f77c8109beb5f4b<SEP>chunk-3a8df5b1c0f01ecf4750115eacc69997<SEP>chunk-efd016a4775bcf3f09cad1c585d0ac32<SEP>chunk-a57d2eb49005c0272a2102eb9d0a3da5<SEP>chunk-472ad2a4225fda2a5fa9233959d25be3<SEP>chunk-b58951417dc18bcf3602c75ff7e0321f",
+        "created_at": 1788364847,
+        "entity_type": "adverb",
+        "entity_id": "in"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1061",
+      "reasons": "placeholder_description;short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=Vt_CjAdzebM",
+        "truncate": "",
+        "description": "N/A is a placeholder for a field that is not applicable in this context.",
+        "source_id": "chunk-a2dc53ab7cda751f46763f3d0a5257b6",
+        "created_at": 1788288154,
+        "entity_type": "other",
+        "entity_id": "N/A"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1064",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=fzfhimnVghE",
+        "truncate": "",
+        "description": "Ne is a concept representing the absence that contains everything, which is a paradoxical statement.",
+        "source_id": "chunk-a2edd3b828fdb9efbd52ffb46b9a3d2a<SEP>chunk-064d53f07b90429745031ab0baafc968<SEP>chunk-9c04726a8125f7cc5f585606628ddb13<SEP>chunk-56a060b24a9e2c3719590fa4146c747a<SEP>chunk-aeb04339a9d4a2e305cbf73f8528fa48",
+        "created_at": 1788288154,
+        "entity_type": "other",
+        "entity_id": "Ne"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1071",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=pmSPHJfg3AU<SEP>https://www.youtube.com/watch?v=zGhlBQ8iWl4",
+        "truncate": "",
+        "description": "me is a generic term used in the text.<SEP>The instruction is directed towards the user named \"me\".",
+        "source_id": "chunk-8284e0c6c3849195fbcb1c0294256b91<SEP>chunk-86bc05c0d02c8b0f37377a057604c122",
+        "created_at": 1788288746,
+        "entity_type": "other",
+        "entity_id": "me"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1122",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=1kS_mQaBLdg<SEP>https://www.youtube.com/watch?v=PslFhdZaBFA<SEP>https://www.youtube.com/watch?v=5hNCT4duOgc<SEP>https://www.youtube.com/watch?v=jK7-PPBXwr4<SEP>https://www.youtube.com/watch?v=2DLb6hDIhmg<SEP>https://www.youtube.com/watch?v=tl2Ek-QakME<SEP>https://www.youtube.com/watch?v=38-NgBAet1c<SEP>https://www.youtube.com/watch?v=Fbd7ln2i9dw<SEP>https://www.youtube.com/watch?v=o_eg6YTifRE",
+        "truncate": "",
+        "description": "But is a conjunction used to contrast two ideas, introduce a contrasting idea, and is commonly found in the text. It is categorized under the broader category of \"Other\" in conjunctions.<SEP>but is a conjunction used to contrast or separate ideas.<SEP>The word \"but\" is a conjunction, not a concept.<SEP>but is a conjunction used in the text.<SEP>but is a conjunction used to introduce a contrasting idea. | But is a conjunction used to introduce a contrasting idea.",
+        "source_id": "chunk-e8f1899f5ba481eb4780eeaf713f738a<SEP>chunk-1183413d1efb4d148ba50c4c2deb31e3<SEP>chunk-a13484dc956d1afab5362abc8242878e<SEP>chunk-18f53000ec5d11e3b4ae2d29a03cf02d<SEP>chunk-3a8df5b1c0f01ecf4750115eacc69997<SEP>chunk-f1d639441ccd4bbc2d6e00202709c69b<SEP>chunk-cf9301168d746bbd5831484d7a3afc07<SEP>chunk-6a4fe2e555c3c968b6a2cd0d49969525<SEP>chunk-5fd1cb550b256d890aace1ea89c17157<SEP>chunk-881834b6636cdd3e091c4348f475e5d7<SEP>chunk-d4e748aa59c666a4944e35acbee23514<SEP>chunk-7744e1d7c3d37ead4cacb6f1892ed06c",
+        "created_at": 1788370477,
+        "entity_type": "other",
+        "entity_id": "but"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1123",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=1kS_mQaBLdg",
+        "truncate": "",
+        "description": "are is a verb indicating existence or being.<SEP>are is a verb indicating existence or being.",
+        "source_id": "chunk-e8f1899f5ba481eb4780eeaf713f738a<SEP>chunk-5fd1cb550b256d890aace1ea89c17157",
+        "created_at": 1788320523,
+        "entity_type": "other",
+        "entity_id": "are"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1125",
+      "reasons": "placeholder_description",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=1kS_mQaBLdg<SEP>https://www.youtube.com/watch?v=HtmLQkxj8ec<SEP>https://www.youtube.com/watch?v=sMgbjxyrgqw<SEP>https://www.youtube.com/watch?v=pmSPHJfg3AU<SEP>https://www.youtube.com/watch?v=1nhXsnx5--Y",
+        "truncate": "",
+        "description": "with is a preposition used to indicate possession or association.<SEP>The text mentions \"with,\" which is a preposition.<SEP>with is a preposition used to indicate possession or association.<SEP>with is a preposition.<SEP>With is another concept related to the interpretation of the text.<SEP>The input text is a placeholder for the topic being analyzed, indicating it is a unique identifier or reference to a specific topic or request.",
+        "source_id": "chunk-e8f1899f5ba481eb4780eeaf713f738a<SEP>chunk-a57d2eb49005c0272a2102eb9d0a3da5<SEP>chunk-5fd1cb550b256d890aace1ea89c17157<SEP>chunk-19bf91fc96ad0f2bf5cf3b6675ac1e4f<SEP>chunk-1c761405c4e33453fccd4fcc8fc59267<SEP>chunk-e81d7d6e9082fe37a9f873bff6a8113a",
+        "created_at": 1788370427,
+        "entity_type": "other",
+        "entity_id": "with"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1127",
+      "reasons": "hard_junk_type='possessivepronoun'",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=1kS_mQaBLdg<SEP>https://www.youtube.com/watch?v=y-C_8_p_F5w<SEP>https://www.youtube.com/watch?v=2JL1ZgMS7nY<SEP>https://www.youtube.com/watch?v=7lggUuJtZXY<SEP>https://www.youtube.com/watch?v=iikr2xzAK6Y<SEP>https://www.youtube.com/watch?v=Fbd7ln2i9dw",
+        "truncate": "",
+        "description": "Your is a pronoun used to refer to the speaker or a person being addressed. It is also used in the context of teaching, indicating possession or belonging. The text refers to a person's possession or belonging.",
+        "source_id": "chunk-e8f1899f5ba481eb4780eeaf713f738a<SEP>chunk-1f658bd9112c71c53bea6a054aef2c6c<SEP>chunk-5fd1cb550b256d890aace1ea89c17157<SEP>chunk-1cb36f0d2ab13a7f052e3e56c57e7216<SEP>chunk-da4850306bb6e844430e88d50f094870<SEP>chunk-8405c0d8d0903ec4aa39daa2c029f808<SEP>chunk-947181ed097b63ad1e8c3f3a0591a467",
+        "created_at": 1788407526,
+        "entity_type": "possessivepronoun",
+        "entity_id": "your"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1129",
+      "reasons": "placeholder_description;short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=1kS_mQaBLdg<SEP>https://www.youtube.com/watch?v=5hNCT4duOgc<SEP>https://www.youtube.com/watch?v=owC8E_G2fY4<SEP>https://www.youtube.com/watch?v=zCnqQBfyXa4<SEP>https://www.youtube.com/watch?v=ffhDTzE4nDU<SEP>https://www.youtube.com/watch?v=jK7-PPBXwr4<SEP>https://www.youtube.com/watch?v=nUrc8O7Avvk<SEP>https://www.youtube.com/watch?v=-4wCvcPrX-E<SEP>https://www.youtube.com/watch?v=1nhXsnx5--Y<SEP>https://www.youtube.com/watch?v=UJM00IqGKtc<SEP>https://www.youtube.com/watch?v=pTnZt0SqDFM<SEP>https://www.youtube.com/watch?v=idoWVpnJz-Y<SEP>https://www.youtube.com/watch?v=qQmrTz6i2x4<SEP>https://www.youtube.com/watch?v=pPHQMD3w9-s<SEP>https://www.youtube.com/watch?v=I6yC-aUQUvw",
+        "truncate": "",
+        "description": "The term \"is\" is a versatile verb that can indicate existence or being. It is commonly used in texts to denote the presence of something or the identity of an entity. The phrase \"is\" is also an encoded identifier and a keyword related to the problem of marginalization. The term \"is\" is a general verb, used to connect statements, and it is an other, indicating a different perspective. The text does not provide a clear definition or context for the term \"is.\"<SEP>Other is a placeholder for the text's original content.<SEP>The entity that is not a fragment.<SEP>is is a verb indicating existence or being.<SEP>Other is a verb for the input text.<SEP>is is a common English verb used to indicate existence or connection.",
+        "source_id": "chunk-e8f1899f5ba481eb4780eeaf713f738a<SEP>chunk-a13484dc956d1afab5362abc8242878e<SEP>chunk-0ce2a1c266e2d5db0f77c8109beb5f4b<SEP>chunk-07be31c5a93b2cef0bc68580010aebff<SEP>chunk-ff9100b2380870785111d6386ed33387<SEP>chunk-18f53000ec5d11e3b4ae2d29a03cf02d<SEP>chunk-fe75410db81434e6e25481162f7605c6<SEP>chunk-f1d639441ccd4bbc2d6e00202709c69b<SEP>chunk-3a257250bb863607a8d57c5b1d155790<SEP>chunk-cf9301168d746bbd5831484d7a3afc07<SEP>chunk-e449848fdee64f4b7570ce72afa17d90<SEP>chunk-efd016a4775bcf3f09cad1c585d0ac32<SEP>chunk-75a6c4a019af8b01b54f3c3a030ef6d7<SEP>chunk-2f41eb058025e04d3a581710b6f64349<SEP>chunk-db51901ae1febea3cb4cdd3e1df6954d<SEP>chunk-b58951417dc18bcf3602c75ff7e0321f<SEP>chunk-59bdbb62f139c8fd2e213a4fa6f563ed<SEP>chunk-68a82dbaf273dfcb93450cc00e69c781",
+        "created_at": 1788365237,
+        "entity_type": "other",
+        "entity_id": "is"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1149",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=jK7-PPBXwr4<SEP>https://www.youtube.com/watch?v=-4wCvcPrX-E<SEP>https://www.youtube.com/watch?v=ffhDTzE4nDU",
+        "truncate": "",
+        "description": "fix is an action related to correcting transcription errors.<SEP>fixing is a concept related to the text.<SEP>fix is an action that needs to be performed.<SEP>The word \"fix\" is used in the text.<SEP>The word \"fix\" is used in the input text, which refers to correcting or making amends.<SEP>fix is a concept. | The concept of \"Fix\" is related to the task of fixing transcription errors.",
+        "source_id": "chunk-c78088f6f4da3972ca6c981cfae6ec1d<SEP>chunk-0aa4d5a6ab28a0ade7628e5a3c04751a<SEP>chunk-96dec7e3247366552583156362b36072<SEP>chunk-18f53000ec5d11e3b4ae2d29a03cf02d<SEP>chunk-3369776e1ac0c6b92c493065b24c8de3<SEP>chunk-3a257250bb863607a8d57c5b1d155790",
+        "created_at": 1788318252,
+        "entity_type": "concept",
+        "entity_id": "fix"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1151",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=77dJnbTCwsA<SEP>https://www.youtube.com/watch?v=HtmLQkxj8ec",
+        "truncate": "",
+        "description": "How is a question asking for a method or approach.<SEP>How is a question word used to inquire about a method or procedure.",
+        "source_id": "chunk-efcd913b765777f301b3acea3c88ed10<SEP>chunk-230caa18c9e0a26af11ace66c7d4888b",
+        "created_at": 1788320523,
+        "entity_type": "other",
+        "entity_id": "How"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1169",
+      "reasons": "placeholder_description;short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=RFx74Q6Oq2c<SEP>https://www.youtube.com/watch?v=PslFhdZaBFA<SEP>https://www.youtube.com/watch?v=5hNCT4duOgc<SEP>https://www.youtube.com/watch?v=aSNQUkuyB18<SEP>https://www.youtube.com/watch?v=ffhDTzE4nDU<SEP>https://www.youtube.com/watch?v=qQmrTz6i2x4<SEP>https://www.youtube.com/watch?v=jK7-PPBXwr4<SEP>https://www.youtube.com/watch?v=2DLb6hDIhmg<SEP>https://www.youtube.com/watch?v=07NOYJmkkFo<SEP>https://www.youtube.com/watch?v=q15gR1aGjVs<SEP>https://www.youtube.com/watch?v=V2WQ20Ocw_o<SEP>https://www.youtube.com/watch?v=sMgbjxyrgqw<SEP>https://www.youtube.com/watch?v=Fbd7ln2i9dw<SEP>unknown_source",
+        "truncate": "",
+        "description": "The word \"the\" is a demonstrative pronoun used to refer to a previously mentioned subject, introduce the subject of the statement, point out a specific item, and as a key element in a person. Additionally, \"the\" is an encoded identifier in the input text and is used in the text itself. It is also a concept related to the meaning of 't', a demonstrative pronoun used to refer to a previously mentioned item, and a definite article used in the text. The concept \"the child's consciousness is infused with suffering by the parents\" involves the child's consciousness being affected by the parents' suffering.<SEP>The is a definite article used to introduce a noun. | The is a definite article used to refer to a noun.<SEP>The is a placeholder for a word or phrase that is not provided in the input text.",
+        "source_id": "chunk-2fc2f7fe429ff887b5eb94fce1447d37<SEP>chunk-1183413d1efb4d148ba50c4c2deb31e3<SEP>chunk-a13484dc956d1afab5362abc8242878e<SEP>chunk-6f6806cec9a6ba426ddd17e77603ea85<SEP>chunk-ff9100b2380870785111d6386ed33387<SEP>chunk-a4c9ee7faf9090267a6e899b568f4203<SEP>chunk-18f53000ec5d11e3b4ae2d29a03cf02d<SEP>chunk-3a8df5b1c0f01ecf4750115eacc69997<SEP>chunk-4f3e0ce7fd6af50776a681be20c36210<SEP>chunk-cf9301168d746bbd5831484d7a3afc07<SEP>chunk-472ad2a4225fda2a5fa9233959d25be3<SEP>chunk-277a1cbfc23a117c2fff46e32fc4f033<SEP>chunk-19bf91fc96ad0f2bf5cf3b6675ac1e4f<SEP>chunk-d4e748aa59c666a4944e35acbee23514<SEP>chunk-b80359f350933ad91b63dac9ada8fea6",
+        "created_at": 1788423643,
+        "entity_type": "other",
+        "entity_id": "the"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1199",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=B8wapoLAu84",
+        "truncate": "",
+        "description": "k is a concept related to addiction and intelligence.<SEP>k is a keyword or term that appears in the text.<SEP>k is a concept related to the text, possibly referring to a specific topic or idea.",
+        "source_id": "chunk-6f3b4c4768ef26d4f2e3c9563f6cbd3c<SEP>chunk-906a8a69ca8349d18f84bfd6904356d0<SEP>chunk-c23c43f04e91f82aa2dc58939c6e99d3<SEP>chunk-80e6ed630d0a9530d346bf7456aa023e",
+        "created_at": 1788318724,
+        "entity_type": "other",
+        "entity_id": "k"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1204",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=jK7-PPBXwr4<SEP>https://www.youtube.com/watch?v=2JL1ZgMS7nY",
+        "truncate": "",
+        "description": "web is the context where the effects of actions can be observed.<SEP>web is a general term referring to the internet or the web.",
+        "source_id": "chunk-e0afc8e72bccb4191b28dd476b5a23a8<SEP>chunk-e987d629ffa4b30a866bd4e0747a0104",
+        "created_at": 1788318302,
+        "entity_type": "other",
+        "entity_id": "web"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1217",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=vIUY446FVPw",
+        "truncate": "",
+        "description": "The goal is to live in the now is a concept related to mindfulness and present moment awareness.",
+        "source_id": "chunk-6bd1680bf2e8c051fc8b5c59595b317a",
+        "created_at": 1788288438,
+        "entity_type": "concept",
+        "entity_id": "now"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1219",
+      "reasons": "placeholder_description;short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=cvREfQLxC6k<SEP>https://www.youtube.com/watch?v=pPHQMD3w9-s",
+        "truncate": "",
+        "description": "us is a group or individual that emphasizes the importance of cooperation and unity.<SEP>us is a placeholder for the subject or receiver of the impact.",
+        "source_id": "chunk-2fa2660d866009da6a9c6703acb1f044<SEP>chunk-e9b5168417f8a37144c269aa679f96db",
+        "created_at": 1788288706,
+        "entity_type": "other",
+        "entity_id": "us"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1226",
+      "reasons": "placeholder_description",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=V5fBJwo_KQk<SEP>https://www.youtube.com/watch?v=2JL1ZgMS7nY<SEP>https://www.youtube.com/watch?v=y4ZR5U8VuQY<SEP>https://www.youtube.com/watch?v=jK7-PPBXwr4<SEP>https://www.youtube.com/watch?v=8mmungGgDNw<SEP>https://www.youtube.com/watch?v=owC8E_G2fY4<SEP>https://www.youtube.com/watch?v=38-NgBAet1c<SEP>https://www.youtube.com/watch?v=nen-DB_tz4M<SEP>https://www.youtube.com/watch?v=UJM00IqGKtc<SEP>https://www.youtube.com/watch?v=2DLb6hDIhmg<SEP>https://www.youtube.com/watch?v=smrj15-QOAI<SEP>https://www.youtube.com/watch?v=Z7w7soyXmHs<SEP>https://www.youtube.com/watch?v=OZiElH5pKmo<SEP>https://www.youtube.com/watch?v=K-AFDVOkIoE<SEP>https://www.youtube.com/watch?v=Mr1cjAz2y9I<SEP>https://www.youtube.com/watch?v=obK5uqYXOJU<SEP>https://www.youtube.com/watch?v=nUrc8O7Avvk<SEP>https://www.youtube.com/watch?v=1nhXsnx5--Y",
+        "truncate": "",
+        "description": "Analyze is a process or activity that involves examining or studying something in detail. It can refer to examining or studying a request or problem, a spiritual teaching, or a user's request. The concept of analyzing encompasses examining or studying a variety of inputs, including requests, spiritual teachings, and user interactions. Analyzing user requests is crucial for understanding and addressing their needs. The concept of analyzing is to break down and examine the components of a request to understand its underlying meaning. The word \"Analyze\" is an unspecified word. Analyze is an organization for the text.<SEP>The act of analyzing or examining the nature of suffering is a common practice in spiritual teachings, aimed at understanding and addressing the root causes of suffering.<SEP>The act of analyzing or examining the nature of suffering is a practice that is often used in spiritual teachings to gain deeper insights into the topic.<SEP>Analyze is a process of examining or understanding something in detail.<SEP>The input text is a placeholder for the topic being analyzed, indicating it is a unique identifier or reference to a specific",
+        "source_id": "chunk-fdbab558533f08bbf0ffb265d1f51f80<SEP>chunk-1d326d0fa5184bed9d6119c66ca9c98b<SEP>chunk-20db45764296d0eace7cf87dc9899c36<SEP>chunk-fb7258f3b825546b27fe9df1c2b197f4<SEP>chunk-ee9617fdd5aa9afd63fec5376cb0b51a<SEP>chunk-1849e930ba769f898922f7d25c4805c0<SEP>chunk-b8354a6f56e7fdc3c13634e26fc334c4<SEP>chunk-18038b607abc98614332cb41f85a4567<SEP>chunk-aa185b0daacdaeb46da9f6472bd8e80e<SEP>chunk-24bbbcca10e2b629bf81925bbe757e08<SEP>chunk-2374a2a1ad46c2a4127e927f00d98e54<SEP>chunk-ab62670fbbc56644128fd7bfd98b89db<SEP>chunk-278eeb0b53eb6067b749896efc08113d<SEP>chunk-3211c7aeb0b50e4bbe994927553b8345<SEP>chunk-1a2d464bfee70eea6dc700516dab9800<SEP>chunk-db9828689a3b7c6ed67480cbb9488c82<SEP>chunk-20de7c991108a9a6e893f46808f4181b<SEP>chunk-76e103d9ea200f23d382a139a80e1a8d<SEP>chunk-e6e36c2bd8affa231596810eddfef679<SEP>chunk-3eb351d5087f22795c1c43606f69fd24<SEP>chunk-ba08994e035cb6fc463ea54a0c0324c8<SEP>chunk-16a8be1277cdbb696b571125ac1dbc5e<SEP>chunk-ea161d4959d919eab70db5336291ea9b<SEP>chunk-e81d7d6e9082fe37a9f873bff6a8113a",
+        "created_at": 1788370427,
+        "entity_type": "other",
+        "entity_id": "Analyze"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": "User's Request",
+          "direction": "out",
+          "type": "DIRECTED"
+        },
+        {
+          "other_entity_id": "respect",
+          "direction": "out",
+          "type": "DIRECTED"
+        },
+        {
+          "other_entity_id": "nUrc8O7Avvk",
+          "direction": "out",
+          "type": "DIRECTED"
+        },
+        {
+          "other_entity_id": "Text Correction Expert",
+          "direction": "out",
+          "type": "DIRECTED"
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1229",
+      "reasons": "placeholder_description;short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=V5fBJwo_KQk<SEP>https://www.youtube.com/watch?v=X1mtpheWDhs<SEP>https://www.youtube.com/watch?v=idoWVpnJz-Y",
+        "truncate": "",
+        "description": "The phrase \"it\" is used to refer to the subject of the sentence or the context.<SEP>The statement is about the act of departing from the world and comforting someone in their last days.<SEP>Other is a placeholder for the text's original content.",
+        "source_id": "chunk-6ed585dc6318462d40f91f0e0177e907<SEP>chunk-dadbd223521c439aab2ef8bf24bf25ca<SEP>chunk-cc1b352cf34211d45304f7b385d43726<SEP>chunk-0affb4ae3fd9aca83fe9887478c9a0c0<SEP>chunk-fb7258f3b825546b27fe9df1c2b197f4<SEP>chunk-6022f1d7a9ea67ce4d812a55ca31dd35<SEP>chunk-2f41eb058025e04d3a581710b6f64349",
+        "created_at": 1788321371,
+        "entity_type": "other",
+        "entity_id": "It"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1231",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=V5fBJwo_KQk",
+        "truncate": "",
+        "description": "The phrase \"is\" is used to indicate existence or truth.",
+        "source_id": "chunk-fb7258f3b825546b27fe9df1c2b197f4",
+        "created_at": 1788288452,
+        "entity_type": "other",
+        "entity_id": "Is"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1267",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=w1gF90_cBl4",
+        "truncate": "",
+        "description": "The concept of an end.",
+        "source_id": "chunk-2821aa16e767c203b4fc5ab39d0774bb",
+        "created_at": 1788288487,
+        "entity_type": "concept",
+        "entity_id": "end"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1304",
+      "reasons": "placeholder_description;short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=PslFhdZaBFA<SEP>https://www.youtube.com/watch?v=q15gR1aGjVs<SEP>https://www.youtube.com/watch?v=Js7ongWaW64<SEP>https://www.youtube.com/watch?v=AviNwtN1luo<SEP>https://www.youtube.com/watch?v=o_eg6YTifRE<SEP>https://www.youtube.com/watch?v=7lggUuJtZXY",
+        "truncate": "",
+        "description": "not is a negation used to express the absence of something.<SEP>The word \"not\" is a conjunction used to negate a statement.<SEP>The text is a meta-commentary on a phrase, not a spiritual teaching itself.<SEP>The concept of not being the core teaching is discussed in the context of the Illustrative Example project.<SEP>other is an entity that contrasts with the concept of being, suggesting a state of being.<SEP>Not is a placeholder for the negation.<SEP>Not is a placeholder for the negation. | Not is a negation.",
+        "source_id": "chunk-1183413d1efb4d148ba50c4c2deb31e3<SEP>chunk-2ce19a8e93e721ed08453e5d6ae5933f<SEP>chunk-df0c80d6177856d133abe20105ca3d0e<SEP>chunk-d8610564bacde0f85c7dbdb338c8ebca<SEP>chunk-644c8ebb260efe409d134378d08c6461<SEP>chunk-3aaa27715d2d63fad67824b1af620984",
+        "created_at": 1788365305,
+        "entity_type": "other",
+        "entity_id": "not"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1307",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=ZGvKY4mPfIc",
+        "truncate": "",
+        "description": "EGO is an acronym that stands for \"Ego,\" which is a concept in psychology referring to the part of the self that is concerned with the needs and desires of the individual.",
+        "source_id": "chunk-1250cbaa29b180ae925a14a085827621<SEP>chunk-c488b732937713d32078555856d3619d",
+        "created_at": 1788288538,
+        "entity_type": "other",
+        "entity_id": "EGO"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1339",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=Ji-hdW1t30g<SEP>unknown_source",
+        "truncate": "",
+        "description": "Sin is a moral transgression against a divine order, introducing concepts of guilt, shame, and the need for judgment.<SEP>Sin is defined as an act with agency and governed by the law of cause and effect.<SEP>Sin is a concept related to wrongdoing or breaking religious rules.",
+        "source_id": "chunk-ed6b93b857d66f4aba7388c8d2b20ca9<SEP>chunk-b0a8f638631a1ca1b9a14c4bf3915605<SEP>chunk-0cd90f97c874a2652928ef13bc298344<SEP>chunk-f4014ee05bc1b6499efa60143e9bd45d<SEP>chunk-18a31308416a7af49024e9f3679dcd7b<SEP>chunk-34e8efe28caf28f1fdd6c20f4aaed8ca",
+        "created_at": 1788408030,
+        "entity_type": "concept",
+        "entity_id": "Sin"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1348",
+      "reasons": "hard_junk_type='conjunction';short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=5hNCT4duOgc<SEP>https://www.youtube.com/watch?v=KTlY-lHs_Ew<SEP>https://www.youtube.com/watch?v=UgQV_5FjPNk<SEP>https://www.youtube.com/watch?v=1PlGMOAypCI<SEP>https://www.youtube.com/watch?v=Vr3PS2DdbDU<SEP>https://www.youtube.com/watch?v=Z7w7soyXmHs<SEP>https://www.youtube.com/watch?v=q15gR1aGjVs<SEP>https://www.youtube.com/watch?v=6-GWHR9_iSU<SEP>https://www.youtube.com/watch?v=pPHQMD3w9-s<SEP>https://www.youtube.com/watch?v=UJM00IqGKtc<SEP>https://www.youtube.com/watch?v=Gdd-5uWUW5w<SEP>https://www.youtube.com/watch?v=Fbd7ln2i9dw",
+        "truncate": "",
+        "description": "And is a versatile operator used across various contexts. It can connect two concepts, introduce a topic or challenge in a video or recording, connect parts of a thought, serve as a conjunction to link words, phrases, or clauses, and even be a keyword in specific topics such as \"and inaction\" and \"and that inner state is reflected in your daily life.\"<SEP>and is a conjunction used to connect words or phrases.<SEP>and is a conjunction used to connect two ideas.<SEP>Other is a conjunction for the input text.<SEP>The conjunction \"and\" is a logical operator.<SEP>The text indicates a conjunction between two ideas.<SEP>The text indicates a conjunction between two ideas.",
+        "source_id": "chunk-ff3f914ce399d7f23b90f6d243178bb9<SEP>chunk-ea5d81e2fa79427a45597a5f959b0ee1<SEP>chunk-76b5b9fa17db4085fcf940aa814de648<SEP>chunk-56cd7da11ea7ebb4d8fcee847431c2ee<SEP>chunk-86a9de9ca7c8657c939735576c146aa7<SEP>chunk-c3dba4a2f495434e658cc296324d2c1c<SEP>chunk-472ad2a4225fda2a5fa9233959d25be3<SEP>chunk-6bc8953cd59626e636bdd20954b39997<SEP>chunk-8b5c350b200d1dee555e107efafc7997<SEP>chunk-b58951417dc18bcf3602c75ff7e0321f<SEP>chunk-59bdbb62f139c8fd2e213a4fa6f563ed<SEP>chunk-900ed787e45474183e9c3ee6ebac74f8<SEP>chunk-947181ed097b63ad1e8c3f3a0591a467",
+        "created_at": 1788407515,
+        "entity_type": "conjunction",
+        "entity_id": "and"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1369",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=o_eg6YTifRE<SEP>https://www.youtube.com/watch?v=KTlY-lHs_Ew<SEP>https://www.youtube.com/watch?v=07NOYJmkkFo<SEP>https://www.youtube.com/watch?v=x-mTRlE0TC4",
+        "truncate": "",
+        "description": "do is an action.<SEP>do is a verb that suggests an action.<SEP>do is a concept related to the meaning of 't'.<SEP>what is being asked about in the input text.",
+        "source_id": "chunk-e0616a41c297f2a7645c66534b0dfe6d<SEP>chunk-745be7b7c69735ba8a7b0780cd009612<SEP>chunk-4f3e0ce7fd6af50776a681be20c36210<SEP>chunk-29a1191d328778d42ab991e6ace5fd38",
+        "created_at": 1788365672,
+        "entity_type": "other",
+        "entity_id": "do"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1380",
+      "reasons": "placeholder_description",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=pPHQMD3w9-s",
+        "truncate": "",
+        "description": "impacting is a placeholder for the impact or effect.",
+        "source_id": "chunk-e9b5168417f8a37144c269aa679f96db",
+        "created_at": 1788288706,
+        "entity_type": "other",
+        "entity_id": "impacting"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1381",
+      "reasons": "placeholder_description",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=pPHQMD3w9-s<SEP>https://www.youtube.com/watch?v=7lggUuJtZXY",
+        "truncate": "",
+        "description": "because is a placeholder for the reason or explanation.<SEP>Because is a placeholder for the reason or cause.<SEP>Because is a placeholder for the reason or cause.",
+        "source_id": "chunk-e9b5168417f8a37144c269aa679f96db<SEP>chunk-3aaa27715d2d63fad67824b1af620984",
+        "created_at": 1788365305,
+        "entity_type": "other",
+        "entity_id": "because"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1382",
+      "reasons": "placeholder_description",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=pPHQMD3w9-s<SEP>https://www.youtube.com/watch?v=0ypG1mlekNY<SEP>https://www.youtube.com/watch?v=idoWVpnJz-Y<SEP>unknown_source",
+        "truncate": "",
+        "description": "Today is a placeholder for a specific day or time.<SEP>The event is a request to learn how to make luck happen.<SEP>The event being discussed is the current day.<SEP>The input text describes a day with spiritual significance.<SEP>Today is a noun. | today is a day in the present time.<SEP>today is a day in the present.<SEP>today is a day.<SEP>today is a day of the week.",
+        "source_id": "chunk-583523fa05b8987584550298bb555224<SEP>chunk-2836a56b1014c7bcda7f9474f4614867<SEP>chunk-e9b5168417f8a37144c269aa679f96db<SEP>chunk-f0c118c558df61dc6432a68266d85011<SEP>chunk-2cb1e6eb998706eef31d7865d61d47a6<SEP>chunk-0b3b9413e3a4acbecc07f577488e54e4<SEP>chunk-8d5e59c7db2ddb4e5135e8178ecb05a3",
+        "created_at": 1788410768,
+        "entity_type": "other",
+        "entity_id": "Today"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": "Event",
+          "direction": "in",
+          "type": "DIRECTED"
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1383",
+      "reasons": "placeholder_description",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=pPHQMD3w9-s",
+        "truncate": "",
+        "description": "directly is a placeholder for the action or impact.",
+        "source_id": "chunk-e9b5168417f8a37144c269aa679f96db",
+        "created_at": 1788288706,
+        "entity_type": "other",
+        "entity_id": "directly"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1395",
+      "reasons": "placeholder_description;short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=pPHQMD3w9-s<SEP>https://www.youtube.com/watch?v=-4wCvcPrX-E<SEP>https://www.youtube.com/watch?v=-u6ZDfHdB54",
+        "truncate": "",
+        "description": "all is a placeholder for the entire population or area.<SEP>all is a concept related to the text.<SEP>The phrase \"all emerge and to her depths we return\" is a poetic expression suggesting a journey or journeying towards a deeper understanding or connection with something.<SEP>The phrase \"all emerge and to her depths we return\" is a metaphorical statement about the interconnectedness of all things. | The concept of \"All\" refers to the idea of everything being interconnected and indivisible.<SEP>The other entity.<SEP>All is a concept that is discussed in the text.<SEP>All is a general term used to refer to the speaker's message or the speaker themselves.",
+        "source_id": "chunk-e9b5168417f8a37144c269aa679f96db<SEP>chunk-0aa4d5a6ab28a0ade7628e5a3c04751a<SEP>chunk-7a729e68f41c92bcbdf7d836bc16e3ba<SEP>chunk-b6cd1ce5658b10e65ffc86d5bb720237",
+        "created_at": 1788291331,
+        "entity_type": "other",
+        "entity_id": "all"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1454",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=owC8E_G2fY4<SEP>unknown_source",
+        "truncate": "",
+        "description": "AUM is a sacred syllable in Hinduism and Vedic traditions.<SEP>AUM is a concept associated with the Abundance Festival, representing a spiritual practice.<SEP>AUM is a spiritual concept that is hitting your brain when you are in AUM.",
+        "source_id": "chunk-6ba70b0c855993c185de1f0f779b7f62<SEP>chunk-e7fc7ff9756aa58ef33dbac0d19d3540<SEP>chunk-9f51c25c4ee46c78f6dee3b26d8c659b",
+        "created_at": 1788414860,
+        "entity_type": "other",
+        "entity_id": "AUM"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1498",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=UgQV_5FjPNk<SEP>https://www.youtube.com/watch?v=nUrc8O7Avvk",
+        "truncate": "",
+        "description": "The key to understanding the fundamental state of a true being.<SEP>Key is a term used to emphasize the importance of something. | key is an identifier for a concept.<SEP>key is an independent and self-contained proposition related to Arna.<SEP>key is an",
+        "source_id": "chunk-f723eb9fa4e9e3965a8ed17fce1e9a74<SEP>chunk-ec971eff73e1799900b83bc412cca25c",
+        "created_at": 1788365326,
+        "entity_type": "other",
+        "entity_id": "Key"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1562",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=HELtP96Dd4w",
+        "truncate": "",
+        "description": "G is a concept.",
+        "source_id": "chunk-0c5a2d1d5cc1d6692f2cecb8b1f5fedf",
+        "created_at": 1788289089,
+        "entity_type": "concept",
+        "entity_id": "G"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1631",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=KTlY-lHs_Ew",
+        "truncate": "",
+        "description": "PhD is a concept related to the topic of the text, representing the idea of a higher state of knowledge or understanding.",
+        "source_id": "chunk-10c2c9010e1c1f18e2584dcc40f3e0d3",
+        "created_at": 1788289195,
+        "entity_type": "concept",
+        "entity_id": "PhD"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1746",
+      "reasons": "placeholder_description",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=owC8E_G2fY4<SEP>https://www.youtube.com/watch?v=idoWVpnJz-Y",
+        "truncate": "",
+        "description": "common is an adjective describing the frequency or prevalence of the pattern.<SEP>Other is a placeholder for the text's original content.",
+        "source_id": "chunk-0ce2a1c266e2d5db0f77c8109beb5f4b<SEP>chunk-2f41eb058025e04d3a581710b6f64349",
+        "created_at": 1788321372,
+        "entity_type": "other",
+        "entity_id": "common"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1747",
+      "reasons": "placeholder_description",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=owC8E_G2fY4<SEP>https://www.youtube.com/watch?v=LGkdzRl08vo<SEP>https://www.youtube.com/watch?v=V2WQ20Ocw_o<SEP>https://www.youtube.com/watch?v=1nhXsnx5--Y<SEP>https://www.youtube.com/watch?v=X1mtpheWDhs<SEP>https://www.youtube.com/watch?v=pTnZt0SqDFM<SEP>https://www.youtube.com/watch?v=dqUq_a0DyLs<SEP>unknown_source",
+        "truncate": "",
+        "description": "This is a placeholder for the actual content of the prompt, serving as a reference to the text's content, indicating the subject of the statement. The phrase \"This is an instruction, not part of the teaching itself\" is a statement and not part of the teaching content. The text does not provide a clear definition or context for the term \"This.\" The statement is about the act of departing from the world and comforting someone in their last days. This is a single, complex sentence. It's about the nature of a specific kind of love (parental/grandparental) and its effect on a child's self-perception. This is the time for peace chant, for peace within us as well as peace around us.<SEP>This is the time for peace chant, for peace within us as well as peace around us. | This entity is a demonstrative pronoun used to point out something that is being discussed or previously mentioned. It is commonly used in English to refer to a previously mentioned subject or to point out a specific item in a context. The term \"this\" is often used to emphasize the current focus or to clarify the context of a discussion.<SEP>this is a demonstrative pronoun used to point out something that is being discussed.<SEP>this is a demonstrative pronoun used to point out something previously mentioned.",
+        "source_id": "chunk-0f5679119b31698e3cd28e7ca06dc4a8<SEP>chunk-b82db51f04a25dea4d63529c4ffd83e2<SEP>chunk-0ce2a1c266e2d5db0f77c8109beb5f4b<SEP>chunk-8caf045708bb7e68d7aecda645caeac1<SEP>chunk-a54b3347a1bc0d07bc39d8ee576a4202<SEP>chunk-e449848fdee64f4b7570ce72afa17d90<SEP>chunk-6022f1d7a9ea67ce4d812a55ca31dd35<SEP>chunk-75a6c4a019af8b01b54f3c3a030ef6d7<SEP>chunk-097561cab53f150ada6637bcdab3cecf<SEP>chunk-cd21cac7edd299cb59ba2a0fc8f9ee15",
+        "created_at": 1788452893,
+        "entity_type": "other",
+        "entity_id": "This"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1778",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=y2ZgKdt4Cj0<SEP>https://www.youtube.com/watch?v=owC8E_G2fY4<SEP>https://www.youtube.com/watch?v=AyUE-2Uh5Vg<SEP>https://www.youtube.com/watch?v=hwNlLB1sze0<SEP>https://www.youtube.com/watch?v=pPHQMD3w9-s<SEP>unknown_source",
+        "truncate": "",
+        "description": "The entity \"we\" is a pronoun used in the input text, indicating the perspective of an older self, referring to a group of people who share a common experience or goal, and can also be used to refer to a group of people who are united in a common purpose or goal.<SEP>we is a pronoun used to refer to a group of people.<SEP>We is a pronoun used to refer to a person or people.",
+        "source_id": "chunk-f9226e565e38b47dca75e1327d42c040<SEP>chunk-ee4f46bcee4f19c7cc0dd2c1f59f6ad1<SEP>chunk-0f7b6e34dd027bcb6fe3d45938e810df<SEP>chunk-e077528094c5a6bf1c4da7d2484d8f97<SEP>chunk-61c962076513b7cd343a73115f96454e<SEP>chunk-b58951417dc18bcf3602c75ff7e0321f<SEP>chunk-c0806a4aa1132afb4f686f17c45dd6de<SEP>chunk-89060f0bc10a7757cfc6772f10fd1650<SEP>chunk-5798bb752b00187b105331327f38177b<SEP>chunk-b80359f350933ad91b63dac9ada8fea6",
+        "created_at": 1788423643,
+        "entity_type": "other",
+        "entity_id": "we"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1783",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=-4wCvcPrX-E",
+        "truncate": "",
+        "description": "sum is a concept related to the text.",
+        "source_id": "chunk-0aa4d5a6ab28a0ade7628e5a3c04751a",
+        "created_at": 1788289943,
+        "entity_type": "concept",
+        "entity_id": "sum"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1784",
+      "reasons": "placeholder_description;short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=-4wCvcPrX-E<SEP>https://www.youtube.com/watch?v=y2ZgKdt4Cj0<SEP>https://www.youtube.com/watch?v=V2WQ20Ocw_o<SEP>https://www.youtube.com/watch?v=jy4hcpUSBms<SEP>https://www.youtube.com/watch?v=tl2Ek-QakME<SEP>https://www.youtube.com/watch?v=h5XzWxcWrtU<SEP>https://www.youtube.com/watch?v=7lggUuJtZXY<SEP>https://www.youtube.com/watch?v=h9S9Hh4aBN8<SEP>https://www.youtube.com/watch?v=1nhXsnx5--Y",
+        "truncate": "",
+        "description": "It is a singular subject in the text, a placeholder for the subject or object of the proposition, and a category for the pronoun \"it.\" The phrase \"love and allowing it\" indicates a contrast between \"love\" and \"allowing it,\" while \"it should ignore it\" is a statement. The input text mentions the concept of transcendental consciousness and unity consciousness.<SEP>It is a placeholder for the subject or object of the proposition.<SEP>it is an object or concept being discussed.<SEP>The input text is a placeholder for the topic being analyzed, indicating it is a unique identifier or reference to a specific topic or request.",
+        "source_id": "chunk-0aa4d5a6ab28a0ade7628e5a3c04751a<SEP>chunk-b2489b45215507e95028ee9214541708<SEP>chunk-a54b3347a1bc0d07bc39d8ee576a4202<SEP>chunk-a3f9d30be71c93276006918e8d367273<SEP>chunk-3a257250bb863607a8d57c5b1d155790<SEP>chunk-6a4fe2e555c3c968b6a2cd0d49969525<SEP>chunk-8442dba5c1635fcb378399d9e33037fe<SEP>chunk-3aaa27715d2d63fad67824b1af620984<SEP>chunk-459116fa0f978786d3f93c6cf156bc03<SEP>chunk-e81d7d6e9082fe37a9f873bff6a8113a",
+        "created_at": 1788370427,
+        "entity_type": "other",
+        "entity_id": "it"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1786",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=-4wCvcPrX-E",
+        "truncate": "",
+        "description": "has is a singular subject in the text.",
+        "source_id": "chunk-0aa4d5a6ab28a0ade7628e5a3c04751a",
+        "created_at": 1788289943,
+        "entity_type": "other",
+        "entity_id": "has"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1821",
+      "reasons": "placeholder_description",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=aJIunwxx3NI",
+        "truncate": "",
+        "description": "Original is a placeholder for the original text content. | The original anger is the source of your anger.",
+        "source_id": "chunk-381d272ad609e7cf00bb2a58e8a1f90b<SEP>chunk-9211b2f590badb880303e8e718734e5e",
+        "created_at": 1788290044,
+        "entity_type": "other",
+        "entity_id": "Original"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1824",
+      "reasons": "placeholder_description",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=aJIunwxx3NI<SEP>https://www.youtube.com/watch?v=o6X1TVEFHAY",
+        "truncate": "",
+        "description": "\u201c   *   *\u201d is a placeholder for the original text content.<SEP>\u201c*   *\u201d is a placeholder for the original text content.<SEP>The asterisk symbol is used to denote a list of potential topic ideas.",
+        "source_id": "chunk-9211b2f590badb880303e8e718734e5e<SEP>chunk-3952b0285ade58d090d93ffe9e9263be",
+        "created_at": 1788320877,
+        "entity_type": "other",
+        "entity_id": "*   *"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1852",
+      "reasons": "hard_junk_type='adjective'",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=tDcy09esbe8",
+        "truncate": "",
+        "description": "The concept of \"independent, self-contained propositions\" is an adjective that describes a statement that can be true or false.",
+        "source_id": "chunk-cbd3182e424288a5f7502016510a56cd",
+        "created_at": 1788290113,
+        "entity_type": "adjective",
+        "entity_id": "false"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1868",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=zCnqQBfyXa4<SEP>unknown_source",
+        "truncate": "",
+        "description": "If is a logical condition or statement.<SEP>If is a conditional statement used to express a hypothetical situation.",
+        "source_id": "chunk-07be31c5a93b2cef0bc68580010aebff<SEP>chunk-330c229b9775dad36da206ebfc157ab5",
+        "created_at": 1788408470,
+        "entity_type": "concept",
+        "entity_id": "If"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1870",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=zCnqQBfyXa4",
+        "truncate": "",
+        "description": "my is",
+        "source_id": "chunk-07be31c5a93b2cef0bc68580010aebff",
+        "created_at": 1788290129,
+        "entity_type": "concept",
+        "entity_id": "my"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:1971",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=ffhDTzE4nDU<SEP>https://www.youtube.com/watch?v=tl2Ek-QakME<SEP>https://www.youtube.com/watch?v=UJM00IqGKtc",
+        "truncate": "",
+        "description": "The phrase \"of\" is an encoded identifier.<SEP>Other is a category for the preposition \"of\".<SEP>Other is a preposition for the input text.",
+        "source_id": "chunk-ff9100b2380870785111d6386ed33387<SEP>chunk-6a4fe2e555c3c968b6a2cd0d49969525<SEP>chunk-59bdbb62f139c8fd2e213a4fa6f563ed",
+        "created_at": 1788364876,
+        "entity_type": "other",
+        "entity_id": "of"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:2053",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=6rLvPzNyLRw",
+        "truncate": "",
+        "description": "la is a word that could potentially be related to \"anger\" or another topic.",
+        "source_id": "chunk-4493520fd47e3d41a04d3c9ca4b201d8",
+        "created_at": 1788290670,
+        "entity_type": "other",
+        "entity_id": "la"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:2054",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=6rLvPzNyLRw<SEP>https://www.youtube.com/watch?v=ZD1nQPtpojM",
+        "truncate": "",
+        "description": "law is a concept that could be related to \"anger\" or another topic.<SEP>law is a concept related to the topic \"to protect itself\" and implies the need for higher frameworks.",
+        "source_id": "chunk-4493520fd47e3d41a04d3c9ca4b201d8<SEP>chunk-222e746c23c1e5efcd78c1c97416a54c",
+        "created_at": 1788291942,
+        "entity_type": "other",
+        "entity_id": "law"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:2071",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=-0O6WmxU3pw",
+        "truncate": "",
+        "description": "Eka is a Sanskrit word meaning \"One\" or \"Single\".",
+        "source_id": "chunk-19522f6a0ddc4029a57f1abde5f7d2c6",
+        "created_at": 1788290779,
+        "entity_type": "other",
+        "entity_id": "Eka"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:2113",
+      "reasons": "placeholder_description;short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=UgQV_5FjPNk<SEP>https://www.youtube.com/watch?v=ZD1nQPtpojM",
+        "truncate": "",
+        "description": "The letter 'l' is treated as a proper noun in the text.<SEP>l is a placeholder for \"The frameworks\" or \"Our frameworks\".",
+        "source_id": "chunk-58173bec7ac9f829b72cfa51c1e6ea5b<SEP>chunk-222e746c23c1e5efcd78c1c97416a54c",
+        "created_at": 1788291942,
+        "entity_type": "other",
+        "entity_id": "l"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:2143",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=X1mtpheWDhs",
+        "truncate": "",
+        "description": "He is a male individual.",
+        "source_id": "chunk-ce77326926352a7c47bb2a49044d5832<SEP>chunk-49f6b16747dd1396da0faddfa3ea8890<SEP>chunk-274ae76a48bed44c338073d4a24d760a<SEP>chunk-5baab383769ea33393f76b07d34a78c0<SEP>chunk-0f9934def7b71a5f1166df0b2b2d22fb<SEP>chunk-98e0115fe065f5dab78321b7c772863d<SEP>chunk-0b4b50ece94eb88406439eee33f9f28e<SEP>chunk-f172c02f8863047a4d6f7fc9c4bf0dd3<SEP>chunk-98ab722b9e614468d533918fd66504ed",
+        "created_at": 1788290922,
+        "entity_type": "person",
+        "entity_id": "He"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:2169",
+      "reasons": "hard_junk_type='noun'",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=jK7-PPBXwr4<SEP>https://www.youtube.com/watch?v=7lggUuJtZXY",
+        "truncate": "",
+        "description": "point is a concept that refers to a specific point in the text.<SEP>point is used to indicate a specific instance or location.",
+        "source_id": "chunk-96dec7e3247366552583156362b36072<SEP>chunk-da4850306bb6e844430e88d50f094870",
+        "created_at": 1788365557,
+        "entity_type": "noun",
+        "entity_id": "point"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:2170",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=jK7-PPBXwr4",
+        "truncate": "",
+        "description": "AI is an organization that provides detailed instructions.",
+        "source_id": "chunk-96dec7e3247366552583156362b36072",
+        "created_at": 1788291054,
+        "entity_type": "other",
+        "entity_id": "AI"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:2171",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=jK7-PPBXwr4",
+        "truncate": "",
+        "description": "#3 is a reference to a specific point in the text.",
+        "source_id": "chunk-96dec7e3247366552583156362b36072",
+        "created_at": 1788291054,
+        "entity_type": "other",
+        "entity_id": "#3"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:2182",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=owC8E_G2fY4<SEP>https://www.youtube.com/watch?v=odNtpKqbCQo",
+        "truncate": "",
+        "description": "g is a concept related to the problems discussed in the text.<SEP>g is a specific block of text.",
+        "source_id": "chunk-67b2493e4137e85264db8c79047ea36f<SEP>chunk-c67890a079025c748a9a686c6cbe5222",
+        "created_at": 1788318493,
+        "entity_type": "other",
+        "entity_id": "g"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:2191",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=9-NMv5E-18s",
+        "truncate": "",
+        "description": "The source of the text is provided as \"18s\".",
+        "source_id": "chunk-2f1823d5b8ee5ef4f991619e68f004b9",
+        "created_at": 1788291083,
+        "entity_type": "other",
+        "entity_id": "18s"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:2198",
+      "reasons": "placeholder_description",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=zGhlBQ8iWl4",
+        "truncate": "",
+        "description": "again is an adverb indicating repetition or a second occurrence. | \u201cAgain\u201d is a placeholder for the original text content.",
+        "source_id": "chunk-5f1e2434cd52536ad5e2bac13514a69c",
+        "created_at": 1788291087,
+        "entity_type": "other",
+        "entity_id": "again"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:2217",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=XK2Wna2YG6Y<SEP>unknown_source",
+        "truncate": "",
+        "description": "ISM is an organization that promotes spiritual practices and teachings.<SEP>ISM is an organization that promotes spiritual practices and teachings.<SEP>ISM is an organization that promotes meditation and spiritual practices.",
+        "source_id": "chunk-57a8af4d2e293da118f1861712e6937e<SEP>chunk-55f594d07de7d5c30332e08127a18804<SEP>chunk-3cc000fd8a809a8f1e33b36d1e157918",
+        "created_at": 1788453964,
+        "entity_type": "organization",
+        "entity_id": "ISM"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:2238",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=-u6ZDfHdB54<SEP>unknown_source",
+        "truncate": "",
+        "description": "The phrase \"in her we are one\" is a metaphorical expression suggesting a unity or oneness with something.<SEP>her is a pronoun used to refer to a female person.",
+        "source_id": "chunk-7a729e68f41c92bcbdf7d836bc16e3ba<SEP>chunk-8e58ae3afd2777655e9f263b1b85d120",
+        "created_at": 1788408035,
+        "entity_type": "person",
+        "entity_id": "her"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:2246",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=qQmrTz6i2x4<SEP>https://www.youtube.com/watch?v=mbhdVEKEbLg<SEP>https://www.youtube.com/watch?v=tOi1Ho5Kwhk",
+        "truncate": "",
+        "description": "The Om in the paragraph is a common mantra used in spiritual practices.<SEP>Om is a sacred syllable in Hinduism and Buddhism, often used in yoga practices.<SEP>The concept of Om in the context of sound and chanting.<SEP>Om is a sacred syllable in Hinduism.",
+        "source_id": "chunk-04853834df8aa59c8dac460b12fa6f79<SEP>chunk-b8d18accff7354006bbf1baf5cc50967<SEP>chunk-720d425fb0f6ca6dba336d0e855fbabb<SEP>chunk-203551673f83a677f39376a9ed9854dc<SEP>chunk-396c43c0d2edf4e6e8bf7d03208e785c<SEP>chunk-b006abd5cc1fd52ef26391206a808bf6<SEP>chunk-48e4982ab89df2dcf67fe641fe8fb9de",
+        "created_at": 1788368098,
+        "entity_type": "other",
+        "entity_id": "Om"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:2282",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=-u6ZDfHdB54<SEP>https://www.youtube.com/watch?v=HtmLQkxj8ec<SEP>https://www.youtube.com/watch?v=jK7-PPBXwr4",
+        "truncate": "",
+        "description": "The phrase \"in her we are one\" is a metaphorical statement about the unity of all things.<SEP>The text mentions \"one,\" which is a general term or concept.<SEP>one is a general term referring to a single instance.",
+        "source_id": "chunk-b6cd1ce5658b10e65ffc86d5bb720237<SEP>chunk-a57d2eb49005c0272a2102eb9d0a3da5<SEP>chunk-094e1cdceb5b9433cf8588615d5bf64c",
+        "created_at": 1788321034,
+        "entity_type": "other",
+        "entity_id": "one"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:2295",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=1PlGMOAypCI<SEP>https://www.youtube.com/watch?v=uNkgwv4dqEs<SEP>https://www.youtube.com/watch?v=207izZBbqVg<SEP>https://www.youtube.com/watch?v=hqre34QIMZg<SEP>unknown_source",
+        "truncate": "",
+        "description": "The word \"on\" is a preposition used to indicate a location or surface.<SEP>on is used to indicate the subject of the action.<SEP>on is an unspecified entity.<SEP>On<SEP>On is a preposition indicating the position of something relative to another.",
+        "source_id": "chunk-56cd7da11ea7ebb4d8fcee847431c2ee<SEP>chunk-7923d8478df9f064f5b7808cdf9ba7aa<SEP>chunk-3347e499ccb4ec471766e316b53c8e13<SEP>chunk-e4b5b386e4d168e012487f5797ccbad7<SEP>chunk-b80359f350933ad91b63dac9ada8fea6",
+        "created_at": 1788423643,
+        "entity_type": "other",
+        "entity_id": "on"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:2299",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=smrj15-QOAI<SEP>unknown_source",
+        "truncate": "",
+        "description": "The Sun is the source of wisdom and balance in the context of the Raptor topic.<SEP>Sun is a star in our solar system.",
+        "source_id": "chunk-a8b027dd02b1773a37ba8486e9fa662f<SEP>chunk-5547449109cb0f275a6210752d9582bc",
+        "created_at": 1788410817,
+        "entity_type": "other",
+        "entity_id": "Sun"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:2336",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=jK7-PPBXwr4<SEP>https://www.youtube.com/watch?v=HtmLQkxj8ec<SEP>https://www.youtube.com/watch?v=6-GWHR9_iSU<SEP>https://www.youtube.com/watch?v=K-AFDVOkIoE<SEP>https://www.youtube.com/watch?v=-yGLiryVQoQ<SEP>https://www.youtube.com/watch?v=hqre34QIMZg<SEP>unknown_source",
+        "truncate": "",
+        "description": "The word \"to\" is used in the text. It is a preposition that can indicate the direction or purpose of an action. The term \"to\" is also used to indicate direction or purpose, and it is an entity that provides additional context or information related to the topic.",
+        "source_id": "chunk-18f53000ec5d11e3b4ae2d29a03cf02d<SEP>chunk-cf9301168d746bbd5831484d7a3afc07<SEP>chunk-230caa18c9e0a26af11ace66c7d4888b<SEP>chunk-8b5c350b200d1dee555e107efafc7997<SEP>chunk-3eb351d5087f22795c1c43606f69fd24<SEP>chunk-3b73ec8aa0792668ab9917dd5c42eb45<SEP>chunk-ba9e240e10d9dfba92f28eb601115f25<SEP>chunk-b80359f350933ad91b63dac9ada8fea6",
+        "created_at": 1788423644,
+        "entity_type": "other",
+        "entity_id": "to"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:2476",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=_X5jRvqxEEo<SEP>https://www.youtube.com/watch?v=ffhDTzE4nDU<SEP>https://www.youtube.com/watch?v=pPHQMD3w9-s",
+        "truncate": "",
+        "description": "The text discusses the psychological pressure as the biggest problem.<SEP>The text contains a statement about a proposition.<SEP>So is a word used in the input text.",
+        "source_id": "chunk-49d1ae17e5afa6851b8ed13941bce4e9<SEP>chunk-0fd895fd75eed68d61837dc180eec12a<SEP>chunk-126d37733f92bb8cac84061fbc97e3ac",
+        "created_at": 1788320763,
+        "entity_type": "other",
+        "entity_id": "So"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:2494",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=Vr3PS2DdbDU",
+        "truncate": "",
+        "description": "O&O teachings are teachings provided by the organization, likely spiritual in nature.<SEP>O&O is an organization that provides teachings, likely related to spirituality.",
+        "source_id": "chunk-9eccd4b4ce8292e001130166ac613df1",
+        "created_at": 1788291919,
+        "entity_type": "teachings",
+        "entity_id": "O&O"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:2500",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=o_eg6YTifRE",
+        "truncate": "",
+        "description": "The way is the path we",
+        "source_id": "chunk-449a2205f153dfeeaeaad64f25b46a17<SEP>chunk-2e876f7e7b74f15bccb7c115741a083e<SEP>chunk-32549787e4345616484925cab7d9359f<SEP>chunk-ad10d454a343bd6d520b77cf5b1550f5",
+        "created_at": 1788291955,
+        "entity_type": "concept",
+        "entity_id": "Way"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:2522",
+      "reasons": "hard_junk_type='verb'",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=uNkgwv4dqEs",
+        "truncate": "",
+        "description": "create is the action of creating independent, self-contained propositions.",
+        "source_id": "chunk-7923d8478df9f064f5b7808cdf9ba7aa",
+        "created_at": 1788292049,
+        "entity_type": "verb",
+        "entity_id": "create"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:2526",
+      "reasons": "hard_junk_type='adverb'",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=uNkgwv4dqEs",
+        "truncate": "",
+        "description": "fully is used to emphasize the need for each proposition to be fully understood.",
+        "source_id": "chunk-7923d8478df9f064f5b7808cdf9ba7aa",
+        "created_at": 1788292049,
+        "entity_type": "adverb",
+        "entity_id": "fully"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:2573",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=n3UBbCXJaJ0",
+        "truncate": "",
+        "description": "The concept of becoming a conscious individual includes the management of resources such as gas.",
+        "source_id": "chunk-003b616f8dc7b298378cbc7f1137fc76",
+        "created_at": 1788292138,
+        "entity_type": "category",
+        "entity_id": "gas"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:2596",
+      "reasons": "placeholder_description",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=pmSPHJfg3AU",
+        "truncate": "",
+        "description": "pmSPHJfg3AU is a placeholder for a specific entity or topic in the text.<SEP>pmSPHJfg3AU is a source identifier for a topic related to \"come together\".<SEP>pmSPHJfg3AU is a source for propositions related to Arna.<SEP>The identifier \"pmSPHJfg3AU\" is not provided with any additional context or meaning.<SEP>pmSPHJfg3AU is a source for philosophical content.",
+        "source_id": "chunk-092d0a3112d902db195a05b82f6a73e2<SEP>chunk-b3292b25f394a66638cf1b3b4920ee8b<SEP>chunk-6436a9f7fa4691a5c34527681979fe70<SEP>chunk-7a76577845d062f25a83d879b8de024e<SEP>chunk-f7094beb87167d21a08916b856c2136b<SEP>chunk-cb171100cc7c6ad32cf16624803f4aa3<SEP>chunk-f22bea92fd12f566088c54c29174d6df<SEP>chunk-8d10e131226f82a67e09706c5b591e78<SEP>chunk-c46ca3199bf2e3c85e5f0f57b1f6f3e6<SEP>chunk-aacbec4a252c3e0e4aea34cf6320d974<SEP>chunk-3af5b17ef0eef49e8b876107fe42f92a<SEP>chunk-1c761405c4e33453fccd4fcc8fc59267",
+        "created_at": 1788370362,
+        "entity_type": "other",
+        "entity_id": "pmSPHJfg3AU"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:2618",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=ffhDTzE4nDU",
+        "truncate": "",
+        "description": "The text mentions the phrase \"take a gap.\"",
+        "source_id": "chunk-0fd895fd75eed68d61837dc180eec12a",
+        "created_at": 1788292290,
+        "entity_type": "other",
+        "entity_id": "gap"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:2622",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=q15gR1aGjVs",
+        "truncate": "",
+        "description": "The word \"won\" is a plausible mishearing of \"lost\" in the context of the prompt.<SEP>The word \"won\" is used to indicate a victory or achievement.",
+        "source_id": "chunk-2ce19a8e93e721ed08453e5d6ae5933f<SEP>chunk-472ad2a4225fda2a5fa9233959d25be3",
+        "created_at": 1788320438,
+        "entity_type": "other",
+        "entity_id": "won"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:2629",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=1kS_mQaBLdg",
+        "truncate": "",
+        "description": "Gre is a concept related to the act of moving or walking.",
+        "source_id": "chunk-4d51a66951c1dc9f579540d2653e80bb",
+        "created_at": 1788292317,
+        "entity_type": "concept",
+        "entity_id": "Gre"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:2653",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=1kS_mQaBLdg",
+        "truncate": "",
+        "description": "bit is a general article of speech.",
+        "source_id": "chunk-f1d639441ccd4bbc2d6e00202709c69b",
+        "created_at": 1788292399,
+        "entity_type": "other",
+        "entity_id": "bit"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:2654",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=1kS_mQaBLdg",
+        "truncate": "",
+        "description": "dry is a general adjective.",
+        "source_id": "chunk-f1d639441ccd4bbc2d6e00202709c69b",
+        "created_at": 1788292399,
+        "entity_type": "other",
+        "entity_id": "dry"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:2655",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=1kS_mQaBLdg<SEP>https://www.youtube.com/watch?v=pmSPHJfg3AU",
+        "truncate": "",
+        "description": "too is a general article of speech.<SEP>The word \"too\" is used to emphasize the speaker's shared quality with others.",
+        "source_id": "chunk-f1d639441ccd4bbc2d6e00202709c69b<SEP>chunk-cb87789ff951c499da258603ea8b2098",
+        "created_at": 1788321186,
+        "entity_type": "other",
+        "entity_id": "too"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:2757",
+      "reasons": "hard_junk_type='verbphrase'",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=hh61tFdyX8c",
+        "truncate": "",
+        "description": "The phrase \"fix the phrase\" is a verb phrase indicating an action of correction or stabilization.",
+        "source_id": "chunk-15f2a43d7e87f6d24d4a0e32fb68c2eb",
+        "created_at": 1788318232,
+        "entity_type": "verbphrase",
+        "entity_id": "fix the phrase"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:2770",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=Vt_CjAdzebM",
+        "truncate": "",
+        "description": "Other is a category for words or phrases.",
+        "source_id": "chunk-69462f97d6e65c6fe4582160963eff9f<SEP>chunk-090d7fad51b63c48012bb7cded151167<SEP>chunk-234297fdc162f0471e5fb4119b05c86a",
+        "created_at": 1788318316,
+        "entity_type": "other",
+        "entity_id": "\u00fcl"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:2805",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=5hNCT4duOgc",
+        "truncate": "",
+        "description": "hs stands for \"higher self\" in a spiritual context.",
+        "source_id": "chunk-35d29afae3f378864e82423e5f140d66",
+        "created_at": 1788318408,
+        "entity_type": "other",
+        "entity_id": "hs"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:2860",
+      "reasons": "hard_junk_type='preposition';short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=o_eg6YTifRE<SEP>https://www.youtube.com/watch?v=Fbd7ln2i9dw",
+        "truncate": "",
+        "description": "The path is composed of countless individual steps.<SEP>The phrase \"for four seconds\" is a concept related to time and duration.<SEP>The experience of being on a path is universal.<SEP>The text indicates a purpose or intention.<SEP>The text indicates a purpose or intention.",
+        "source_id": "chunk-381c2356736eaccc615cdbe6889fab71<SEP>chunk-eed7cc229dfe240746a11c3d944f12a4<SEP>chunk-c634f69ec8f8d58207f4a1194ab753df<SEP>chunk-947181ed097b63ad1e8c3f3a0591a467",
+        "created_at": 1788407518,
+        "entity_type": "preposition",
+        "entity_id": "for"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:2861",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=o_eg6YTifRE<SEP>unknown_source",
+        "truncate": "",
+        "description": "The path is composed of countless individual steps.<SEP>The text discusses the recurring nature of anxiety and disappointment, suggesting a need for liberation from the mind and its tendencies.<SEP>Do is a command or request.",
+        "source_id": "chunk-381c2356736eaccc615cdbe6889fab71<SEP>chunk-210e97a80a3f587d135636a4f848ac59<SEP>chunk-8d5e59c7db2ddb4e5135e8178ecb05a3",
+        "created_at": 1788410768,
+        "entity_type": "other",
+        "entity_id": "Do"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:2876",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=LrMyaDh_MSo",
+        "truncate": "",
+        "description": "The air is a natural object that represents the flow of energy.",
+        "source_id": "chunk-4b70cbce7f062a70b868c6faf93d3fce",
+        "created_at": 1788318587,
+        "entity_type": "naturalobject",
+        "entity_id": "air"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:2916",
+      "reasons": "placeholder_description",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=QAnRefsK-3Y",
+        "truncate": "",
+        "description": "This specific string is a placeholder for the decomposed term or source.",
+        "source_id": "chunk-7d8e92c93da3eecefc7f9ab2579405b9",
+        "created_at": 1788318659,
+        "entity_type": "other",
+        "entity_id": "This Specific String"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:2968",
+      "reasons": "hard_junk_type='instantjudgment'",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=nUrc8O7Avvk",
+        "truncate": "",
+        "description": "Instant judgment is a term related to the immediate assessment or evaluation of something without considering the context or details.<SEP>Instant judgment is<SEP>instant judgment is a proposition related to the topic of \"different values\".<SEP>instant judgment is a proposition that contrasts with the Condition.",
+        "source_id": "chunk-51d3f14c26a757a0d6473b2967a4d736<SEP>chunk-635ed79d52e420a3874b84c5efc5c426",
+        "created_at": 1788320686,
+        "entity_type": "instantjudgment",
+        "entity_id": "instant judgment"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:2991",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=1nhXsnx5--Y<SEP>unknown_source",
+        "truncate": "",
+        "description": "The concept of wanting a soul mate in life.<SEP>Why is a question word asking for an explanation or reason.",
+        "source_id": "chunk-a64587c0803c40cd999a84140f223961<SEP>chunk-b80359f350933ad91b63dac9ada8fea6",
+        "created_at": 1788423643,
+        "entity_type": "other",
+        "entity_id": "why"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:2999",
+      "reasons": "placeholder_description",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=kMc_kat7YLE<SEP>https://www.youtube.com/watch?v=pmSPHJfg3AU<SEP>https://www.youtube.com/watch?v=7lggUuJtZXY",
+        "truncate": "",
+        "description": "Constraints are brief and hypothetical, focusing on re-reading and problem presentation.<SEP>Constraints are sets of rules or requirements that must be followed.<SEP>Constraint is an independent and self-contained proposition related to Arna.<SEP>Constraint is a placeholder for the constraint.<SEP>Constraint is a placeholder for the constraint.",
+        "source_id": "chunk-7e8cda4f981004ec5a3a78fbe8a00572<SEP>chunk-c9edab7093390408a3accef0dc092e5e<SEP>chunk-b0085fb7ae5d1e30141a7c46427257db<SEP>chunk-064d53f07b90429745031ab0baafc968<SEP>chunk-eeaedd79f699cc188df386aa9b2568cc<SEP>chunk-e2d1404b03d49255dd9fcfdd7359f5c1<SEP>chunk-ccdc61f64dd8ccfbeee78796c8cc23cb<SEP>chunk-fe289c541b69becb77c74055cabc5dd4<SEP>chunk-b2b5ac6900952d685a27a8c8242e8f9a<SEP>chunk-d12c1ef94f936b57128730f47ea06aab<SEP>chunk-a88e9cf5b7988dc96c727a2b43822bb1<SEP>chunk-7022771ac828e28b6b66492a4acda63b<SEP>chunk-0fb55a5d883afb65f332c65b56d1e16c<SEP>chunk-3ffb4375cd4b7c659fe41e5073ffb620<SEP>chunk-44488c786f719f10a08f5ac2ad47b873<SEP>chunk-b193ad34bc3a1b1475737a3bf85e0b67<SEP>chunk-60ab1da2f79168a090ea6b40bce383ae<SEP>chunk-1505ce935f79016a57b24a0d0b26de6f<SEP>chunk-1e81c698833caae86d7d67a689b3af58<SEP>chunk-7e68c53f86570c94e720b66191748f01<SEP>chunk-aacbec4a252c3e0e4aea34cf6320d974<SEP>chunk-3aaa27715d2d63fad67824b1af620984",
+        "created_at": 1788365305,
+        "entity_type": "other",
+        "entity_id": "Constraint"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:3015",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=hwNlLB1sze0<SEP>https://www.youtube.com/watch?v=owC8E_G2fY4",
+        "truncate": "",
+        "description": "job is a profession or position of employment.<SEP>job is a concept related to employment or career.<SEP>job is a position or employment.<SEP>job is a position or employment.<SEP>job is a position or employment.",
+        "source_id": "chunk-e077528094c5a6bf1c4da7d2484d8f97<SEP>chunk-56424871f854c6e1b70dc81b9d70ede5<SEP>chunk-61c962076513b7cd343a73115f96454e<SEP>chunk-c0806a4aa1132afb4f686f17c45dd6de<SEP>chunk-083d0229fece68011b96655572bc1ded",
+        "created_at": 1788370493,
+        "entity_type": "other",
+        "entity_id": "job"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:3031",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=V2WQ20Ocw_o",
+        "truncate": "",
+        "description": "Law refers to the law of karma, which is the cause of suffering.",
+        "source_id": "chunk-0ec398f4e4476730c1a4acddd5c8f2a3",
+        "created_at": 1788319176,
+        "entity_type": "concept",
+        "entity_id": "Law"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:3046",
+      "reasons": "hard_junk_type='verb'",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=HtmLQkxj8ec<SEP>https://www.youtube.com/watch?v=Fbd7ln2i9dw",
+        "truncate": "",
+        "description": "The text mentions \"connect,\" which is a general term or concept.<SEP>The text implies a connection or communication.<SEP>The text implies a connection or communication.",
+        "source_id": "chunk-a57d2eb49005c0272a2102eb9d0a3da5<SEP>chunk-947181ed097b63ad1e8c3f3a0591a467",
+        "created_at": 1788407515,
+        "entity_type": "verb",
+        "entity_id": "connect"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:3060",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "The_Four_Sacred_Secrets.pdf",
+        "truncate": "",
+        "description": "Dad is a character in the text who is described as Diego's father.",
+        "source_id": "chunk-c57019f64db8dbd66470e3bbd0d2de81",
+        "created_at": 1788319265,
+        "entity_type": "person",
+        "entity_id": "Dad"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:3143",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=Z7w7soyXmHs",
+        "truncate": "",
+        "description": "For the group, the presence of each person is significant.",
+        "source_id": "chunk-b9566d2530a2ecc91640e292c9790423",
+        "created_at": 1788320562,
+        "entity_type": "other",
+        "entity_id": "For"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:3177",
+      "reasons": "hard_junk_type='conjunction';short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=pmSPHJfg3AU",
+        "truncate": "",
+        "description": "et is a conjunction that means \"and,\" indicating a connection to something before it.",
+        "source_id": "chunk-3eb6d5cba7c5a83cef6c771cee227783",
+        "created_at": 1788320683,
+        "entity_type": "conjunction",
+        "entity_id": "et"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:3191",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=QAnRefsK-3Y",
+        "truncate": "",
+        "description": "The art of deconstructing ideas of well-being, responsibility, and action into their fundamental constituent parts.",
+        "source_id": "chunk-23e3394225c482822ecfd911895acb80",
+        "created_at": 1788320774,
+        "entity_type": "concept",
+        "entity_id": "Art"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:3206",
+      "reasons": "hard_junk_type='noun';short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=o_eg6YTifRE<SEP>https://www.youtube.com/watch?v=7lggUuJtZXY",
+        "truncate": "",
+        "description": "The concept \"way\" is related to direction and path.<SEP>way is used to indicate a method or means of doing something.",
+        "source_id": "chunk-eed7cc229dfe240746a11c3d944f12a4<SEP>chunk-da4850306bb6e844430e88d50f094870",
+        "created_at": 1788365557,
+        "entity_type": "noun",
+        "entity_id": "way"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:3277",
+      "reasons": "placeholder_description",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=jK7-PPBXwr4<SEP>https://www.youtube.com/watch?v=7lggUuJtZXY",
+        "truncate": "",
+        "description": "from is a general term indicating origin or source.<SEP>From is a placeholder for the source or<SEP>From is a placeholder for the source or | From is an organization that provides information on \"Sabka namaskar\".",
+        "source_id": "chunk-094e1cdceb5b9433cf8588615d5bf64c<SEP>chunk-3aaa27715d2d63fad67824b1af620984",
+        "created_at": 1788365308,
+        "entity_type": "other",
+        "entity_id": "from"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:3301",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=Ji-hdW1t30g",
+        "truncate": "",
+        "description": "bad is the comparative form of \"good,\" implying a state of being less good.",
+        "source_id": "chunk-2e9f9012ed5dcd28875431949820a43f",
+        "created_at": 1788321146,
+        "entity_type": "other",
+        "entity_id": "bad"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:3305",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=Vt_CjAdzebM<SEP>https://www.youtube.com/watch?v=sMgbjxyrgqw<SEP>https://www.youtube.com/watch?v=x-mTRlE0TC4<SEP>https://www.youtube.com/watch?v=38-NgBAet1c",
+        "truncate": "",
+        "description": "by is a method or means used to achieve something.<SEP>by is a preposition.<SEP>what is being asked about in the input text.<SEP>The input text is a general statement about the power of observation.",
+        "source_id": "chunk-e24374cb3b8677750ca557ee19d3b71a<SEP>chunk-19bf91fc96ad0f2bf5cf3b6675ac1e4f<SEP>chunk-29a1191d328778d42ab991e6ace5fd38<SEP>chunk-55e2c5451f81b2c125c62fd35201cc94",
+        "created_at": 1788365695,
+        "entity_type": "other",
+        "entity_id": "by"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:3327",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=smrj15-QOAI<SEP>unknown_source",
+        "truncate": "",
+        "description": "him is a subject or object that is being referenced or implied in the context.<SEP>him is a pronoun used to refer to a male person.",
+        "source_id": "chunk-c07a1db608a8a5e3ee44680fdad5b48e<SEP>chunk-8e58ae3afd2777655e9f263b1b85d120",
+        "created_at": 1788408035,
+        "entity_type": "person",
+        "entity_id": "him"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:3355",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=hqre34QIMZg",
+        "truncate": "",
+        "description": "top is a term used to indicate the highest or most significant aspect.",
+        "source_id": "chunk-52eeaeb58d7b2bf637d2ef03efb59ef2",
+        "created_at": 1788321281,
+        "entity_type": "other",
+        "entity_id": "top"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:3363",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=sCiK7ABPcrw",
+        "truncate": "",
+        "description": "Eam is a world center for enlightenment.",
+        "source_id": "chunk-f15c470b86b36b990dbf007aac187f64",
+        "created_at": 1788321297,
+        "entity_type": "location",
+        "entity_id": "Eam"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:3374",
+      "reasons": "placeholder_description",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=pTnZt0SqDFM",
+        "truncate": "",
+        "description": "pTnZt0SqDFM is a placeholder for a source or topic, possibly related to a country's health or well-being.<SEP>The organization that provides the source text for the topic.<SEP>The source of the text is provided as \"pTnZt0SqDFM,\" but it is not categorized as a specific entity type.",
+        "source_id": "chunk-43e2a6149cb97c66f12b285d6ced8f40<SEP>chunk-75a6c4a019af8b01b54f3c3a030ef6d7<SEP>chunk-f49f3b495eaa2e97a143aff21240f8b0<SEP>chunk-49079fffb2a47d266f399b21544d6fb5",
+        "created_at": 1788365449,
+        "entity_type": "other",
+        "entity_id": "pTnZt0SqDFM"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:3378",
+      "reasons": "placeholder_description;short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=idoWVpnJz-Y",
+        "truncate": "",
+        "description": "Other is a placeholder for the text's original content.",
+        "source_id": "chunk-2f41eb058025e04d3a581710b6f64349",
+        "created_at": 1788321371,
+        "entity_type": "other",
+        "entity_id": "em"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:3379",
+      "reasons": "placeholder_description",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=idoWVpnJz-Y<SEP>https://www.youtube.com/watch?v=UJM00IqGKtc",
+        "truncate": "",
+        "description": "Other is a placeholder for the text's original content.<SEP>Other is a preposition for the input text. | About is a category of media.",
+        "source_id": "chunk-2f41eb058025e04d3a581710b6f64349<SEP>chunk-59bdbb62f139c8fd2e213a4fa6f563ed",
+        "created_at": 1788364878,
+        "entity_type": "other",
+        "entity_id": "about"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:3390",
+      "reasons": "hard_junk_type='verb'",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=KTlY-lHs_Ew<SEP>https://www.youtube.com/watch?v=Fbd7ln2i9dw",
+        "truncate": "",
+        "description": "pray is a concept related to the topic \"and PhD. So.\"<SEP>pray is an entity that can be categorized under the concept \"pray.\"<SEP>pray is a concept related to the topic.<SEP>The text mentions a prayer.<SEP>The text mentions a prayer.",
+        "source_id": "chunk-c1c42c48478b03fda83c39315d4a32f8<SEP>chunk-4c8ad4befbc42b1394ed2188984adad7<SEP>chunk-947181ed097b63ad1e8c3f3a0591a467",
+        "created_at": 1788407515,
+        "entity_type": "verb",
+        "entity_id": "pray"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:3403",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=X1mtpheWDhs",
+        "truncate": "",
+        "description": "y is an example of a homophone in the text.<SEP>y is likely a typo for \"you\".",
+        "source_id": "chunk-5e794261502f670581c6be455b28a8b9<SEP>chunk-4c9b93879b8e297e765902b91c760054",
+        "created_at": 1788368082,
+        "entity_type": "other",
+        "entity_id": "y"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:3441",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=V2WQ20Ocw_o",
+        "truncate": "",
+        "description": "The concept is \"if the child's consciousness is infused with suffering by the parents.\"",
+        "source_id": "chunk-277a1cbfc23a117c2fff46e32fc4f033",
+        "created_at": 1788321567,
+        "entity_type": "concept",
+        "entity_id": "if"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:3448",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=6rLvPzNyLRw<SEP>https://www.youtube.com/watch?v=XMzZe5aEmTo",
+        "truncate": "",
+        "description": "The word \"Now\" is an identifier, not an entity.<SEP>Other is a category that does not fit into the provided entity types.",
+        "source_id": "chunk-510c74de625674a35dffb4f0f8a8acb0<SEP>chunk-6f90bcd92d07d52aa1d337005e488437<SEP>chunk-6bd1680bf2e8c051fc8b5c59595b317a<SEP>chunk-77a924893b1a0c7a1961ea1d61021e70<SEP>chunk-f3e6d3082d614573195e6700262b6386",
+        "created_at": 1788370397,
+        "entity_type": "other",
+        "entity_id": "Now"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:3626",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=qJxGtSDiayM",
+        "truncate": "",
+        "description": "The input text mentions \"Th\", which is an abbreviation or a placeholder.",
+        "source_id": "chunk-ca03ff5d6779949a7223ad3bc2ae8b6a",
+        "created_at": 1788364813,
+        "entity_type": "other",
+        "entity_id": "Th"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:3631",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=K-AFDVOkIoE",
+        "truncate": "",
+        "description": "The word \"had\" is an unspecified word.",
+        "source_id": "chunk-3eb351d5087f22795c1c43606f69fd24",
+        "created_at": 1788364813,
+        "entity_type": "other",
+        "entity_id": "had"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:3632",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=K-AFDVOkIoE",
+        "truncate": "",
+        "description": "The word \"be\" is an unspecified word.",
+        "source_id": "chunk-3eb351d5087f22795c1c43606f69fd24",
+        "created_at": 1788364813,
+        "entity_type": "other",
+        "entity_id": "be"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:3644",
+      "reasons": "hard_junk_type='adjective'",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=pPHQMD3w9-s",
+        "truncate": "",
+        "description": "entire is an adjective describing something that is complete or whole.",
+        "source_id": "chunk-b58951417dc18bcf3602c75ff7e0321f",
+        "created_at": 1788364843,
+        "entity_type": "adjective",
+        "entity_id": "entire"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:3682",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=zGhlBQ8iWl4<SEP>https://www.youtube.com/watch?v=207izZBbqVg",
+        "truncate": "",
+        "description": "The entity type is classified as \"Other\" due to the nature of the error.<SEP>new is an unspecified entity.",
+        "source_id": "chunk-d471f3d6eb63d5d46da72dc60d1f7b4d<SEP>chunk-3347e499ccb4ec471766e316b53c8e13",
+        "created_at": 1788368123,
+        "entity_type": "other",
+        "entity_id": "new"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:3702",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=AyUE-2Uh5Vg",
+        "truncate": "",
+        "description": "The color red is used to represent the old way of life, as described in the text.",
+        "source_id": "chunk-5a87e1a5495c395c1f267c1a19296c1a",
+        "created_at": 1788365139,
+        "entity_type": "other",
+        "entity_id": "Red"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:3704",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=AyUE-2Uh5Vg",
+        "truncate": "",
+        "description": "The text mentions \"red, or go down another road,\" which is presented as a metaphor for a choice.",
+        "source_id": "chunk-2f709d5a826c4926bfea53c16d58fa6c",
+        "created_at": 1788365139,
+        "entity_type": "color",
+        "entity_id": "red"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:3721",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=sMgbjxyrgqw",
+        "truncate": "",
+        "description": "Can is a modal verb.",
+        "source_id": "chunk-19bf91fc96ad0f2bf5cf3b6675ac1e4f",
+        "created_at": 1788365168,
+        "entity_type": "other",
+        "entity_id": "Can"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:3735",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=I6yC-aUQUvw",
+        "truncate": "",
+        "description": "om is a sacred sound that represents this reality.<SEP>The statement equates the symbol with the truth it points to.<SEP>The symbol \"om\" represents this ultimate reality.<SEP>om is a common Hindu mantra used in spiritual practices.<SEP>om is a sacred syllable in Hinduism and Vedic traditions.",
+        "source_id": "chunk-97e4567cd7918ad94a5574775b410e57<SEP>chunk-68a82dbaf273dfcb93450cc00e69c781<SEP>chunk-70e374fc37716a17a0c3873a96797211<SEP>chunk-071f9b1262387fc4e8bb9e3815a62c39",
+        "created_at": 1788365237,
+        "entity_type": "concept",
+        "entity_id": "om"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:3758",
+      "reasons": "placeholder_description",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=7lggUuJtZXY",
+        "truncate": "",
+        "description": "Does is a placeholder for the verb \"to happen.\"<SEP>Does is a placeholder for the verb \"to happen.\"",
+        "source_id": "chunk-3aaa27715d2d63fad67824b1af620984",
+        "created_at": 1788365305,
+        "entity_type": "other",
+        "entity_id": "does"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:3759",
+      "reasons": "placeholder_description",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=7lggUuJtZXY",
+        "truncate": "",
+        "description": "Happen is a placeholder for the action or event.<SEP>Happen is a placeholder for the action or event.",
+        "source_id": "chunk-3aaa27715d2d63fad67824b1af620984",
+        "created_at": 1788365305,
+        "entity_type": "other",
+        "entity_id": "happen"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:3801",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=1nhXsnx5--Y",
+        "truncate": "",
+        "description": "The concept of \"how\" or method is central to the text's explanation of inner awakening processes.",
+        "source_id": "chunk-7817668dfe7d09d2674ea722a300f42d",
+        "created_at": 1788365415,
+        "entity_type": "concept",
+        "entity_id": "how"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:3821",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=X1mtpheWDhs",
+        "truncate": "",
+        "description": "Kid is an unspecified kid.",
+        "source_id": "chunk-aa287eec0b9137121eb7237b6688281c<SEP>chunk-b631c1a169d2ce7a0fbae56e3d143a50",
+        "created_at": 1788365551,
+        "entity_type": "other",
+        "entity_id": "Kid"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:3822",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=X1mtpheWDhs",
+        "truncate": "",
+        "description": "Kin is an unspecified kin.",
+        "source_id": "chunk-aa287eec0b9137121eb7237b6688281c<SEP>chunk-b631c1a169d2ce7a0fbae56e3d143a50",
+        "created_at": 1788365552,
+        "entity_type": "other",
+        "entity_id": "Kin"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:3825",
+      "reasons": "hard_junk_type='verb'",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=7lggUuJtZXY",
+        "truncate": "",
+        "description": "starting is used to indicate the beginning of an action or process.",
+        "source_id": "chunk-da4850306bb6e844430e88d50f094870",
+        "created_at": 1788365557,
+        "entity_type": "verb",
+        "entity_id": "starting"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:3826",
+      "reasons": "hard_junk_type='verb'",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=7lggUuJtZXY",
+        "truncate": "",
+        "description": "come is used to indicate the arrival or occurrence of something.",
+        "source_id": "chunk-da4850306bb6e844430e88d50f094870",
+        "created_at": 1788365557,
+        "entity_type": "verb",
+        "entity_id": "come"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:3837",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=iikr2xzAK6Y<SEP>https://www.youtube.com/watch?v=tOi1Ho5Kwhk",
+        "truncate": "",
+        "description": "so is a conjunction used to introduce a subordinate clause.<SEP>so is an adverb indicating a strong emotion.",
+        "source_id": "chunk-8405c0d8d0903ec4aa39daa2c029f808<SEP>chunk-891d974a8fcee270db2cdf03803f714b",
+        "created_at": 1788407555,
+        "entity_type": "other",
+        "entity_id": "so"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:3876",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=38-NgBAet1c",
+        "truncate": "",
+        "description": "The input text is a general statement about the power of observation.",
+        "source_id": "chunk-55e2c5451f81b2c125c62fd35201cc94",
+        "created_at": 1788365695,
+        "entity_type": "other",
+        "entity_id": "b"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:3904",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=-yGLiryVQoQ",
+        "truncate": "",
+        "description": "as is a preposition used to introduce a comparison or analogy.",
+        "source_id": "chunk-3b73ec8aa0792668ab9917dd5c42eb45",
+        "created_at": 1788365851,
+        "entity_type": "other",
+        "entity_id": "as"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:3951",
+      "reasons": "placeholder_description",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=Fbd7ln2i9dw",
+        "truncate": "",
+        "description": "Three is a placeholder for a character or concept in the input text.",
+        "source_id": "chunk-00370a2c6f6cec28a3a2d7c8e1b70cb8",
+        "created_at": 1788368038,
+        "entity_type": "other",
+        "entity_id": "Three"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:3952",
+      "reasons": "placeholder_description;short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=Fbd7ln2i9dw",
+        "truncate": "",
+        "description": "His is a placeholder for a personal pronoun in the input text.<SEP>His is a placeholder for a personal pronoun",
+        "source_id": "chunk-00370a2c6f6cec28a3a2d7c8e1b70cb8",
+        "created_at": 1788368038,
+        "entity_type": "other",
+        "entity_id": "His"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:3953",
+      "reasons": "placeholder_description",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=Fbd7ln2i9dw",
+        "truncate": "",
+        "description": "Hold is a placeholder for a concept or action in the input text.",
+        "source_id": "chunk-00370a2c6f6cec28a3a2d7c8e1b70cb8",
+        "created_at": 1788368038,
+        "entity_type": "other",
+        "entity_id": "Hold"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:3955",
+      "reasons": "hard_junk_type='adverb'",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=pPHQMD3w9-s",
+        "truncate": "",
+        "description": "The adverb \"very\" is used to emphasize the self-centered state.",
+        "source_id": "chunk-75d5093b92aecceddf54891bff3f02eb",
+        "created_at": 1788368038,
+        "entity_type": "adverb",
+        "entity_id": "Very"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:3958",
+      "reasons": "placeholder_description;short_orphan_fragment",
+      "node_props": {
+        "file_path": "The_Four_Sacred_Secrets.pdf<SEP>https://www.youtube.com/watch?v=1nhXsnx5--Y",
+        "truncate": "",
+        "description": "The concept of joy is mentioned, suggesting its role in generating a beautiful state.<SEP>The input text is a placeholder for the topic being analyzed, indicating it is a unique identifier or reference to a specific topic or request.",
+        "source_id": "chunk-004544294a191e480bc555567546b887<SEP>chunk-e81d7d6e9082fe37a9f873bff6a8113a",
+        "created_at": 1788370427,
+        "entity_type": "other",
+        "entity_id": "joy"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:4034",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=RFx74Q6Oq2c",
+        "truncate": "",
+        "description": "int is a typo for \"involved,\" \"interested,\" \"intact,\" or similar, fitting the context of a spiritual teaching.",
+        "source_id": "chunk-64567835e5866236bee82f72849d7aef",
+        "created_at": 1788370362,
+        "entity_type": "other",
+        "entity_id": "int"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:4051",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=XMzZe5aEmTo",
+        "truncate": "",
+        "description": "Other is a category that does not fit into the provided entity types.",
+        "source_id": "chunk-f3e6d3082d614573195e6700262b6386",
+        "created_at": 1788370397,
+        "entity_type": "other",
+        "entity_id": "End"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:4057",
+      "reasons": "placeholder_description",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=1nhXsnx5--Y",
+        "truncate": "",
+        "description": "The input text is a placeholder for the topic being analyzed, indicating it is a unique identifier or reference to a specific topic or request.",
+        "source_id": "chunk-e81d7d6e9082fe37a9f873bff6a8113a",
+        "created_at": 1788370427,
+        "entity_type": "other",
+        "entity_id": "explodes"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:4082",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=hqre34QIMZg",
+        "truncate": "",
+        "description": "nor is an entity that provides additional context or information related to the topic.",
+        "source_id": "chunk-ba9e240e10d9dfba92f28eb601115f25",
+        "created_at": 1788370477,
+        "entity_type": "other",
+        "entity_id": "nor"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:4090",
+      "reasons": "hard_junk_type='adverb'",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=Fbd7ln2i9dw",
+        "truncate": "",
+        "description": "The text suggests a continuation of a previous action.<SEP>The text suggests a continuation of a previous action.",
+        "source_id": "chunk-947181ed097b63ad1e8c3f3a0591a467",
+        "created_at": 1788407515,
+        "entity_type": "adverb",
+        "entity_id": "still"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:4102",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=oSAPs1YDkq0",
+        "truncate": "",
+        "description": "Yes is a concept that indicates agreement or affirmation.",
+        "source_id": "chunk-affc85e5553abbce75a19a6dc4e77896",
+        "created_at": 1788407551,
+        "entity_type": "concept",
+        "entity_id": "Yes"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:4107",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=tOi1Ho5Kwhk",
+        "truncate": "",
+        "description": "Sh is an abbreviation for \"Shanti,\" which is a concept related to peace.",
+        "source_id": "chunk-891d974a8fcee270db2cdf03803f714b",
+        "created_at": 1788407555,
+        "entity_type": "other",
+        "entity_id": "Sh"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:4109",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=X1mtpheWDhs",
+        "truncate": "",
+        "description": "Ut is a term that could be part of a spiritual teaching or concept, but its specific meaning is not clear from the given text.",
+        "source_id": "chunk-8aea9103234b9dc92840458e707a5c11",
+        "created_at": 1788407581,
+        "entity_type": "other",
+        "entity_id": "Ut"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:4138",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "https://www.youtube.com/watch?v=idoWVpnJz-Y",
+        "truncate": "",
+        "description": "u is a concept related to the topic \"Relationship with EGO\".",
+        "source_id": "chunk-3a6062991267823f2435b57862ecad84",
+        "created_at": 1788407636,
+        "entity_type": "other",
+        "entity_id": "u"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:4173",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "unknown_source",
+        "truncate": "",
+        "description": "Me is the narrator of the text and the main character in the narrative.",
+        "source_id": "chunk-eb245e34bd5f24ba3d0b3035762011c0<SEP>chunk-9948c82929098640286afe4266a648e0<SEP>chunk-a50e3212667594c159e6d5ced363885a<SEP>chunk-8dfaa6ceabc59a7a0badaeb78f02e9e2",
+        "created_at": 1788408035,
+        "entity_type": "person",
+        "entity_id": "Me"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:4260",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "unknown_source",
+        "truncate": "",
+        "description": "The concept of suffering and its manifestation.<SEP>The concept of aspiration is discussed.",
+        "source_id": "chunk-00790e4929fd51440419c19530668ce8<SEP>chunk-df1fc66d8101136d7d2d0a2edf4e8db2",
+        "created_at": 1788456286,
+        "entity_type": "concept",
+        "entity_id": "See"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:4273",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "unknown_source",
+        "truncate": "",
+        "description": "Car is a vehicle used for transportation.<SEP>The car is a vehicle used by the person giving change to the beggar.",
+        "source_id": "chunk-0d46e74b689cccb6e1a9088891f1fd61<SEP>chunk-ddf683cd703a66307ab0298ce142ea4c",
+        "created_at": 1788409888,
+        "entity_type": "location",
+        "entity_id": "Car"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:4358",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "unknown_source",
+        "truncate": "",
+        "description": "PR is a person who is seeking clarification on the nature of Consciousness and awareness.",
+        "source_id": "chunk-c46c7ec2ab30eb8adfdeb5fc537afc2d",
+        "created_at": 1788409904,
+        "entity_type": "person",
+        "entity_id": "PR"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:4381",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "unknown_source",
+        "truncate": "",
+        "description": "5% of what is happening in you, only 5%, 95% you are completely unaware and unconscious of what's going on in your mind, in your brain, in your heart, in your gut.",
+        "source_id": "chunk-d35c8c8cd6450b83dbadd111d2e912fb",
+        "created_at": 1788409946,
+        "entity_type": "concept",
+        "entity_id": "5%"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:4382",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "unknown_source",
+        "truncate": "",
+        "description": "95% you are completely unaware and unconscious of what's going on in your mind, in your brain, in your heart, in your gut.",
+        "source_id": "chunk-d35c8c8cd6450b83dbadd111d2e912fb",
+        "created_at": 1788409946,
+        "entity_type": "concept",
+        "entity_id": "95%"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:4432",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "unknown_source",
+        "truncate": "",
+        "description": "Die is a verb.",
+        "source_id": "chunk-8d5e59c7db2ddb4e5135e8178ecb05a3",
+        "created_at": 1788410768,
+        "entity_type": "other",
+        "entity_id": "Die"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:4559",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "unknown_source",
+        "truncate": "",
+        "description": "The concept of the universe and its flow into our body and breath.",
+        "source_id": "chunk-2efcd2b7bf0cc693983020f12b2b7452",
+        "created_at": 1788416057,
+        "entity_type": "concept",
+        "entity_id": "sun"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    },
+    {
+      "eid": "4:9b180a69-7941-40a2-9306-d9bdd0c3e222:4685",
+      "reasons": "short_orphan_fragment",
+      "node_props": {
+        "file_path": "unknown_source",
+        "truncate": "",
+        "description": "I'm is a statement expressing a personal opinion.",
+        "source_id": "chunk-b80359f350933ad91b63dac9ada8fea6",
+        "created_at": 1788423641,
+        "entity_type": "other",
+        "entity_id": "I'm"
+      },
+      "labels": [
+        "base"
+      ],
+      "relationships": [
+        {
+          "other_entity_id": null,
+          "direction": "in",
+          "type": null
+        }
+      ]
+    }
+  ]
+}

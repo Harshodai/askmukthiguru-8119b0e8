@@ -15,12 +15,14 @@ from typing import TYPE_CHECKING
 from app.pipeline.result import PipelineResult
 from app.pipeline.stages.base import Stage
 from app.release_manifest import get_release_manifest
+from app.route_taxonomy import RoutingProvenance, record_routing_decision
 from services.serene_mind_engine import (
     DISTRESS_RESPONSES,
     DistressAssessment,
     DistressLevel,
     get_crisis_resource,
 )
+
 
 if TYPE_CHECKING:
     from app.pipeline.stages.context import PipelineContext
@@ -203,6 +205,21 @@ class DistressStage(Stage):
         else:
             response = "\n\n".join(part for part in (resources, prefix, next_step) if part)
         start_time = getattr(ctx, "start_time", time.time())
+        decision_method = (
+            "serene_mind_keyword"
+            if getattr(ctx, "has_distress_keywords", False)
+            else "serene_mind_assessment"
+        )
+        record_routing_decision(
+            ctx,
+            RoutingProvenance(
+                layer="DISTRESS_STAGE",
+                decision="crisis_preempted",
+                method=decision_method,
+                confidence=1.0,
+                reason=f"Acute distress preemption (level={getattr(level, 'name', str(level))})",
+            ),
+        )
         return PipelineResult(
             final_answer=response,
             intent="DISTRESS",
@@ -211,6 +228,13 @@ class DistressStage(Stage):
             model_used=None,
             model_provider=None,
             route_decision="crisis_preempted",
+            route_metadata={
+                "requested_variant": "distress",
+                "selected_variant": "crisis_preempted",
+                "decision_method": decision_method,
+                "distress_level": level.name if hasattr(level, 'name') else str(level),
+                "routing_chain": list(getattr(ctx, "routing_chain", [])),
+            },
             proactive_serene_mind={
                 "triggered": False,
                 "preempted": True,
@@ -225,6 +249,7 @@ class DistressStage(Stage):
             ],
             release_manifest=get_release_manifest().to_dict(),
         )
+
 
     # -- extracted method bodies (verbatim, self -> ctx) --
 

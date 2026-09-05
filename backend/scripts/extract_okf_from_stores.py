@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import hashlib
 import logging
 import re
 import sys
@@ -37,6 +38,19 @@ if _BACKEND == Path("/app"):
 _OKF_DIR = _okf_base
 _STAGING_DIR = _OKF_DIR / "staging"
 _VALID_TYPES = {"teaching", "practice", "glossary", "qa", "reflection"}
+
+
+def _sanitize_log(val: Any, max_len: int = 200) -> str:
+    """Bounded, control-character safe serialization for diagnostic logs."""
+    if val is None:
+        return ""
+    s = str(val)
+    s = re.sub(r"[\x00-\x1f\x7f-\x9f]", " ", s)
+    s = s.strip()
+    if len(s) > max_len:
+        return s[:max_len] + "..."
+    return s
+
 
 # ── doctrine tags (inlined to avoid ingest.pipeline import → ContainerBuilder OOM) ──
 
@@ -307,6 +321,24 @@ def _write_okf_entry(
     content = "\n".join(fm) + "\n\n# " + title + "\n\n" + body.strip() + "\n"
 
     path = target_dir / f"{_slug(title)}.md"
+    if path.exists():
+        # production-audit finding OKF-2: this used to overwrite unconditionally
+        # — a re-extraction of an already-staged topic silently clobbered the
+        # prior draft with no diff, no version, and (staging/ is untracked) no
+        # way to recover it. If the content is identical this is a no-op
+        # (avoids unbounded duplicate growth on repeat runs); if it differs,
+        # write a content-addressed variant instead of destroying the original.
+        existing = path.read_text(encoding="utf-8")
+        if existing == content:
+            logger.info(f"OKF entry unchanged, skipping rewrite: {path}")
+            return path
+        suffix = hashlib.sha256(content.encode("utf-8")).hexdigest()[:8]
+        variant_path = target_dir / f"{_slug(title)}__{suffix}.md"
+        logger.warning(
+            f"OKF entry for {title!r} already exists with different content — "
+            f"writing variant instead of overwriting: {variant_path}"
+        )
+        path = variant_path
     path.write_text(content, encoding="utf-8")
     return path
 
@@ -324,7 +356,7 @@ async def _gather_qdrant_chunks(limit: int | None = None) -> list[dict]:
     try:
         raw = await asyncio.to_thread(svc.get_all_texts)
     except Exception as exc:
-        logger.error("Qdrant scan failed: %s", exc)
+        logger.error("Qdrant scan failed: %s", _sanitize_log(exc))
         return []
 
     if limit and len(raw) > limit:
@@ -359,9 +391,9 @@ async def _gather_neo4j_entities() -> list[dict[str, str]]:
                 for r in result:
                     entities.append(
                         {
-                            "name": r["name"] or "",
-                            "desc": r["desc"] or "",
-                            "type": r["type"] or "concept",
+                            "name": _sanitize_log(r["name"] or ""),
+                            "desc": _sanitize_log(r["desc"] or ""),
+                            "type": _sanitize_log(r["type"] or "concept"),
                         }
                     )
             return entities
@@ -370,7 +402,7 @@ async def _gather_neo4j_entities() -> list[dict[str, str]]:
         logger.info("Neo4j: %d entities loaded", len(entities))
         return entities
     except Exception as exc:
-        logger.warning("Neo4j entity fetch failed: %s", exc)
+        logger.warning("Neo4j entity fetch failed: %s", _sanitize_log(exc))
         return []
 
 
@@ -396,7 +428,7 @@ async def _gather_lightrag_relationships(
                         return results
                     break
     except Exception as exc:
-        logger.debug("Memory guard check skipped: %s", exc)
+        logger.debug("Memory guard check skipped: %s", _sanitize_log(exc))
 
     try:
         from services.lightrag_service import LightRAGService
@@ -410,9 +442,9 @@ async def _gather_lightrag_relationships(
                 if ctx:
                     results[q] = ctx[:2000]  # ponytail: cap to avoid prompt bloat
             except Exception as exc:
-                logger.debug("LightRAG query skipped for %r: %s", q, exc)
+                logger.debug("LightRAG query skipped for %r: %s", _sanitize_log(q), _sanitize_log(exc))
     except Exception as exc:
-        logger.warning("LightRAG unavailable: %s", exc)
+        logger.warning("LightRAG unavailable: %s", _sanitize_log(exc))
 
     logger.info("LightRAG: %d relationship sets gathered", len(results))
     return results
@@ -449,7 +481,7 @@ async def _get_topic_clusters(
     if target_video_id:
         chunks = [c for c in chunks if target_video_id in c.get("source_url", "")]
         if not chunks:
-            logger.warning("No chunks found for video_id=%s", target_video_id)
+            logger.warning("No chunks found for video_id=%s", _sanitize_log(target_video_id))
             return []
 
     # Group by topic
@@ -611,9 +643,9 @@ async def _call_llm(system: str, user: str) -> str:
 
     # Try multi-provider LLM first
     try:
-        from services.multi_provider_llm import MultiProviderLLMService
+        from services.multi_provider_llm import MultiProviderLLMService, get_llm_service
 
-        llm = MultiProviderLLMService()
+        llm = get_llm_service()
         result = await llm.generate(
             prompt=f"{system}\n\n{user}",
             max_tokens=2048,
@@ -632,7 +664,7 @@ async def _call_llm(system: str, user: str) -> str:
                 logger.info("LLM: generated %d chars via multi-provider", len(text))
                 return text.strip()
     except Exception as exc:
-        logger.warning("Multi-provider LLM failed: %s — trying OpenRouter", exc)
+        logger.warning("Multi-provider LLM failed: %s — trying OpenRouter", _sanitize_log(exc))
 
     # Fallback: OpenRouter direct
     try:
@@ -657,7 +689,7 @@ async def _call_llm(system: str, user: str) -> str:
                 logger.info("LLM: generated %d chars via OpenRouter", len(text))
                 return text.strip()
     except Exception as exc:
-        logger.warning("OpenRouter LLM failed: %s — trying Sarvam", exc)
+        logger.warning("OpenRouter LLM failed: %s — trying Sarvam", _sanitize_log(exc))
 
     # Fallback: Sarvam Cloud
     try:
@@ -683,7 +715,7 @@ async def _call_llm(system: str, user: str) -> str:
                 logger.info("LLM: generated %d chars via Sarvam", len(text))
                 return text.strip()
     except Exception as exc:
-        logger.warning("Sarvam LLM failed: %s — trying Ollama", exc)
+        logger.warning("Sarvam LLM failed: %s — trying Ollama", _sanitize_log(exc))
 
     # Final fallback: Ollama (local — always available if ollama serve is running)
     try:
@@ -709,7 +741,7 @@ async def _call_llm(system: str, user: str) -> str:
                 logger.info("LLM: generated %d chars via Ollama", len(text))
                 return text.strip()
     except Exception as exc:
-        logger.warning("Ollama LLM failed: %s", exc)
+        logger.warning("Ollama LLM failed: %s", _sanitize_log(exc))
 
     raise RuntimeError("No LLM provider available — ensure llm_provider is configured")
 
@@ -749,11 +781,11 @@ def _parse_okf_response(raw: str) -> dict[str, Any] | None:
     required = {"type", "title"}
     missing = required - set(frontmatter.keys())
     if missing:
-        logger.warning("Missing frontmatter fields: %s", missing)
+        logger.warning("Missing frontmatter fields: %s", _sanitize_log(missing))
         return None
 
     if frontmatter.get("type") not in _VALID_TYPES:
-        logger.warning("Invalid type %r — defaulting to 'teaching'", frontmatter.get("type"))
+        logger.warning("Invalid type %s — defaulting to 'teaching'", _sanitize_log(frontmatter.get("type")))
         frontmatter["type"] = "teaching"
 
     # Normalise teacher value
@@ -831,7 +863,7 @@ async def extract_okf(
             "[%d/%d] Generating OKF entry for: %s (%d chunks)",
             i + 1,
             len(clusters),
-            cluster["topic_key"],
+            _sanitize_log(cluster["topic_key"]),
             cluster["chunk_count"],
         )
 
@@ -846,7 +878,7 @@ async def extract_okf(
             raw = await _call_llm(system, user)
             parsed = _parse_okf_response(raw)
             if not parsed:
-                logger.warning("Failed to parse LLM output for %s — skipping", cluster["topic_key"])
+                logger.warning("Failed to parse LLM output for %s — skipping", _sanitize_log(cluster["topic_key"]))
                 continue
 
             source_url = cluster.get("sources", [""])[0] if cluster.get("sources") else None
@@ -867,10 +899,17 @@ async def extract_okf(
             written.append(path)
             logger.info("  → %s", path)
         except Exception as exc:
-            logger.error("Entry generation failed for %s: %s", cluster["topic_key"], exc)
+            logger.error("Entry generation failed for %s: %s", _sanitize_log(cluster["topic_key"]), _sanitize_log(exc))
 
     # 4. Compilation is intentionally review-driven. The admin approval route
     # writes reviewed entries to the live directory and compiles the index.
+    try:
+        from services.multi_provider_llm import close_llm_service
+
+        await close_llm_service()
+    except Exception:
+        pass
+
     logger.info(
         "OKF extraction done: %d entries written to %s (staged=%s)",
         len(written),

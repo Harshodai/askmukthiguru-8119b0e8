@@ -102,9 +102,16 @@ def _prov_from_item(item: Any) -> dict[str, Any]:
 
 
 def _text_from(item: Any) -> str:
+    # Reads item.get("text") directly instead of the shared rag.doc_utils.doc_text()
+    # chokepoint — confirmed 2026-09-05 live: a "[Source: ... | Speaker: ... |
+    # Topic: ...]" ingestion tag that doc_text() already strips everywhere else
+    # was still reaching provenance_context.bands.direct_source[].text verbatim
+    # because this second, independent read path bypassed that cleaning.
+    from rag.doc_utils import doc_text as _doc_text
+
     if isinstance(item, dict):
-        return str(item.get("text") or "").strip()
-    return str(getattr(item, "text", "") or "").strip()
+        return _doc_text(item)
+    return _doc_text({"text": str(getattr(item, "text", "") or "")})
 
 
 def _score_from(item: Any) -> float:

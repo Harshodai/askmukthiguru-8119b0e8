@@ -478,10 +478,19 @@ def classify_with_reason(text: str, *, threshold: float = 0.45) -> tuple[str, st
     # the generic DISTRESS keyword otherwise wins the tie against FACTUAL and
     # incorrectly preempts retrieval. Keep this override deliberately narrow:
     # explicit first-person or acute-crisis language still reaches DISTRESS.
-    doctrine_suffering = re.search(
-        r"\b(?:inner\s+truth|truth|meaning|nature)\s+of\s+suffering\b",
-        lower,
-    ) or re.search(r"\bsuffering\s+state\b", lower)
+    doctrine_suffering = (
+        re.search(r"\b(?:inner\s+truth|truth|meaning|nature)\s+of\s+suffering\b", lower)
+        or re.search(r"\bsuffering\s+state\b", lower)
+        # Broadened 2026-09-05: "What does Sri Preethaji teach about overcoming
+        # suffering?" — an equally clear doctrine-lookup phrasing — fell through
+        # the two templates above and still hit the generic DISTRESS keyword,
+        # confirmed live against production. "teach(es)/say(s) about suffering"
+        # and "overcome/transcend/understand suffering" are the same class of
+        # third-person teaching question as the original two templates.
+        or re.search(r"\b(?:teach(?:es|ing)?|says?|shares?)\s+(?:us\s+)?(?:about\s+)?(?:overcoming\s+)?suffering\b", lower)
+        or re.search(r"\b(?:overcome|overcoming|transcend|transcending|understand|understanding|end|ending)\s+suffering\b", lower)
+        or re.search(r"\bfreedom\s+from\s+suffering\b", lower)
+    )
     first_person_distress = re.search(
         r"\b(?:i|im|i'm|my|me)\b.*\b(?:suffer|suffering|pain|hurt|hopeless|die|suicide)\b",
         lower,

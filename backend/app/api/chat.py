@@ -493,6 +493,32 @@ async def chat_endpoint(
                 },
                 headers={"Retry-After": "5"},
             )
+        except Exception as exc:
+            # Live chaos-testing discovery (2026-09-05): JobQueue.enqueue() is
+            # Redis-backed with NO fallback — a Redis outage previously raised
+            # an uncaught redis.exceptions.ConnectionError here, turning into
+            # a generic, cause-hiding HTTP 500 for every chat request. This is
+            # a genuine architectural SPOF (root CLAUDE.md's Redis-degradation
+            # section only documented cache/quota degrading gracefully, not
+            # that the entire chat job queue hard-depends on Redis with none).
+            # An in-memory fallback queue is a real feature, not a hotfix;
+            # until built, at minimum give an honest, retryable 503 instead of
+            # an opaque 500 that looks like an application bug.
+            is_redis_error = "redis" in type(exc).__module__.lower() or "ConnectionError" in type(
+                exc
+            ).__name__
+            if not is_redis_error:
+                raise
+            logger.error(f"Chat job enqueue failed — queue backend unavailable: {exc}")
+            await _release_anon_quota(user, container, quota)
+            return JSONResponse(
+                status_code=503,
+                content={
+                    "error": "Service Temporarily Unavailable",
+                    "detail": "Chat is briefly unavailable. Please try again in a few seconds.",
+                },
+                headers={"Retry-After": "5"},
+            )
 
         if request.query_params.get("wait", "").lower() == "true":
             deadline = time.time() + settings.queue_default_timeout
@@ -695,6 +721,24 @@ async def chat_stream_endpoint(
                 content={
                     "error": "Too Many Requests",
                     "detail": "Server is busy. Please try again shortly.",
+                },
+                headers={"Retry-After": "5"},
+            )
+        except Exception as exc:
+            # See the non-stream enqueue call site above for the full
+            # rationale — same live chaos-testing discovery, same fix.
+            is_redis_error = "redis" in type(exc).__module__.lower() or "ConnectionError" in type(
+                exc
+            ).__name__
+            if not is_redis_error:
+                raise
+            logger.error(f"Chat stream job enqueue failed — queue backend unavailable: {exc}")
+            await _release_anon_quota(user, container, quota)
+            return JSONResponse(
+                status_code=503,
+                content={
+                    "error": "Service Temporarily Unavailable",
+                    "detail": "Chat is briefly unavailable. Please try again in a few seconds.",
                 },
                 headers={"Retry-After": "5"},
             )

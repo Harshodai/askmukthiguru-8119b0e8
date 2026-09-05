@@ -1,6 +1,7 @@
 import asyncio
 import os
 import time
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 import redis
@@ -131,3 +132,62 @@ async def test_redis_coalescer_leader_failure_takeover():
     assert result == {"data": "recovered"}
 
     await coalescer.close()
+
+
+@pytest.mark.asyncio
+async def test_redis_coalescer_degrades_to_memory_on_lock_acquire_failure():
+    """Live chaos-testing discovery (2026-09-05): the lock-acquire SET NX was
+    completely unguarded — a Redis outage raised uncaught from here, the
+    FIRST thing orchestrate() touches per request, so every chat request
+    failed before the pipeline even started. It must instead degrade to the
+    in-memory coalescer and still run the actual work."""
+    coalescer = RedisCoalescer.__new__(RedisCoalescer)
+    coalescer._redis = MagicMock()
+    coalescer._redis.set = AsyncMock(side_effect=redis.exceptions.ConnectionError("refused"))
+    coalescer._ttl = 5
+    coalescer._poll_interval = 0.1
+    coalescer._max_wait = 5
+    coalescer._memory_fallback = None
+
+    async def task():
+        return {"data": "ok"}
+
+    result = await coalescer.get_or_run("degrade_key", task)
+    assert result == {"data": "ok"}
+    assert isinstance(coalescer._memory_fallback, _InMemoryCoalescer)
+
+    # Once degraded, subsequent calls must go straight to the fallback
+    # without touching the dead Redis client again.
+    coalescer._redis.set.reset_mock()
+    result2 = await coalescer.get_or_run("degrade_key_2", task)
+    assert result2 == {"data": "ok"}
+    coalescer._redis.set.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_redis_coalescer_leader_returns_result_when_publish_fails():
+    """Live chaos-testing discovery (2026-09-05): a Redis outage DURING
+    result publication (after the real work already succeeded) used to
+    propagate out of _leader_work and lose the leader's own already-computed
+    good result — publishing for followers is an optimization, never a
+    reason to discard the caller's own answer."""
+    coalescer = RedisCoalescer.__new__(RedisCoalescer)
+    coalescer._redis = MagicMock()
+    coalescer._redis.set = AsyncMock(
+        side_effect=[True, redis.exceptions.ConnectionError("refused mid-publish")]
+    )
+    coalescer._redis.rpush = AsyncMock()
+    coalescer._redis.expire = AsyncMock()
+    coalescer._redis.delete = AsyncMock()
+    coalescer._ttl = 5
+    coalescer._poll_interval = 0.1
+    coalescer._max_wait = 5
+    coalescer._memory_fallback = None
+
+    async def task():
+        return {"data": "computed-successfully"}
+
+    # First .set() call is the lock acquire (succeeds); second is the result
+    # publish (fails) — the leader must still return its own result.
+    result = await coalescer.get_or_run("publish_fail_key", task)
+    assert result == {"data": "computed-successfully"}

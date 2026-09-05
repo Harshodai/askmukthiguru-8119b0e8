@@ -139,6 +139,8 @@ async def test_node_timing_instrumentation_coverage():
     cas_res = await handle_casual(base_state)
     assert "node_timings" in cas_res
     assert "handle_casual" in cas_res["node_timings"]
+    assert cas_res.get("intent") == "CASUAL"
+    assert cas_res.get("route_decision") == "casual"
 
     # 3. handle_distress
     distress_state = {**base_state, "question": "I am feeling overwhelmed and sad."}
@@ -148,17 +150,22 @@ async def test_node_timing_instrumentation_coverage():
         dist_res = await handle_distress(distress_state)
         assert "node_timings" in dist_res
         assert "handle_distress" in dist_res["node_timings"]
+        assert dist_res.get("intent") == "DISTRESS"
+        assert dist_res.get("route_decision") == "distress"
 
     # 4. handle_meditation
     med_state = {**base_state, "question": "Guide me through Soul Sync meditation", "meditation_step": 0}
     med_res = await handle_meditation(med_state)
     assert "node_timings" in med_res
     assert "handle_meditation" in med_res["node_timings"]
+    assert med_res.get("intent") == "MEDITATION"
+    assert med_res.get("route_decision") == "meditation"
 
     # 5. handle_fallback
     fb_res = await handle_fallback(base_state)
     assert "node_timings" in fb_res
     assert "handle_fallback" in fb_res["node_timings"]
+    assert fb_res.get("route_decision") == "no_context_short_circuit"
 
     # 6. cross_teacher_reasoning
     ct_state = {**base_state, "question": "What is the difference between Sadhguru and Sri Krishnaji?"}

@@ -32,8 +32,8 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 # Pre-extracted transcript staleness thresholds (in seconds)
-PRE_EXTRACTED_MAX_AGE_WARN = 7 * 24 * 60 * 60  # 7 days — warn but use
-PRE_EXTRACTED_MAX_AGE_SKIP = 30 * 24 * 60 * 60  # 30 days — skip, re-fetch from YouTube
+PRE_EXTRACTED_MAX_AGE_WARN = getattr(settings, "pre_extracted_max_age_warn", 7 * 24 * 60 * 60)  # 7 days — warn but use
+PRE_EXTRACTED_MAX_AGE_SKIP = getattr(settings, "pre_extracted_max_age_skip", 30 * 24 * 60 * 60)  # 30 days — skip, re-fetch from YouTube
 
 
 def fetch_youtube_title(video_id: str) -> Optional[str]:
@@ -656,65 +656,72 @@ def fetch_transcript_hybrid(
         except Exception as e:
             logger.warning(f"[{video_id}] Error reading transcripts.json: {e}")
 
-    # Check transcripts/{video_id}.md
-    transcript_md_path = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-        "transcripts",
-        f"{video_id}.md",
-    )
-    if os.path.exists(transcript_md_path):
+    # Check local pre-extracted transcript markdown files (transcripts/{video_id}.md, scripts/ingestion/corpus/{video_id}/transcript.md)
+    root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    candidate_md_paths = [
+        os.path.join(root_dir, "transcripts", f"{video_id}.md"),
+        os.path.join(root_dir, "scripts", "ingestion", "corpus", video_id, "transcript.md"),
+        os.path.join(root_dir, "scripts", "ingestion", "transcripts", f"{video_id}.md"),
+    ]
+    for transcript_md_path in candidate_md_paths:
+        if not os.path.exists(transcript_md_path):
+            continue
         try:
             warn, skip = _check_staleness(transcript_md_path, f"{video_id}.md")
-            if not skip:
-                with open(transcript_md_path, encoding="utf-8") as f:
-                    content = f.read()
-                    if "## Transcript" in content:
-                        parts = content.split("## Transcript")
-                        transcript_text = parts[1].strip()
-                        if transcript_text:
-                            logger.info(
-                                f"[{video_id}] Found pre-extracted transcript in {video_id}.md!"
-                            )
-                            # extract title if possible
-                            parsed_title = title
-                            parsed_speaker = ""
-                            parsed_language = ""
-                            for line in content.split("\n"):
-                                if line.startswith("# "):
-                                    parsed_title = line[2:].strip()
-                                elif line.startswith("**Channel:**"):
-                                    parsed_speaker = (
-                                        line.split("**Channel:**", 1)[1].strip().strip("`")
-                                    )
-                                elif line.startswith("**Language:**"):
-                                    parsed_language = (
-                                        line.split("**Language:**", 1)[1].strip().strip("`")
-                                    )
-                            # If parsed title looks like a video ID, fetch real YouTube title via oEmbed
-                            if _is_video_id_title(parsed_title):
-                                yt_title = fetch_youtube_title(video_id)
-                                if yt_title:
-                                    parsed_title = yt_title
-                                    logger.info(
-                                        f"[{video_id}] Fetched real YouTube title via oEmbed: {yt_title}"
-                                    )
-                            return {
-                                "text": transcript_text,
-                                "source_url": source_url,
-                                "title": parsed_title or title,
-                                "speaker": parsed_speaker or speaker,
-                                "topic": topic,
-                                "language": parsed_language or None,
-                                "method": "pre_extracted_md",
-                                "video_id": video_id,
-                                "channel_name": parsed_speaker or None,
-                                "published_at": None,  # Not typically in .md files
-                                "duration": None,
-                                "thumbnail_url": f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg",
-                                "view_count": None,
-                            }
+            if skip:
+                continue
+            with open(transcript_md_path, encoding="utf-8") as f:
+                content = f.read()
+            if "## Transcript" not in content:
+                continue
+            parts = content.split("## Transcript")
+            transcript_text = parts[1].strip()
+            if not transcript_text:
+                continue
+
+            logger.info(
+                f"[{video_id}] Found pre-extracted transcript in {video_id}.md!"
+            )
+            # extract title if possible
+            parsed_title = title
+            parsed_speaker = ""
+            parsed_language = ""
+            for line in content.split("\n"):
+                if line.startswith("# "):
+                    parsed_title = line[2:].strip()
+                elif line.startswith("**Channel:**"):
+                    parsed_speaker = (
+                        line.split("**Channel:**", 1)[1].strip().strip("`")
+                    )
+                elif line.startswith("**Language:**"):
+                    parsed_language = (
+                        line.split("**Language:**", 1)[1].strip().strip("`")
+                    )
+            # If parsed title looks like a video ID, fetch real YouTube title via oEmbed
+            if _is_video_id_title(parsed_title):
+                yt_title = fetch_youtube_title(video_id)
+                if yt_title:
+                    parsed_title = yt_title
+                    logger.info(
+                        f"[{video_id}] Fetched real YouTube title via oEmbed: {yt_title}"
+                    )
+            return {
+                "text": transcript_text,
+                "source_url": source_url,
+                "title": parsed_title or title,
+                "speaker": parsed_speaker or speaker,
+                "topic": topic,
+                "language": parsed_language or None,
+                "method": "pre_extracted_md",
+                "video_id": video_id,
+                "channel_name": parsed_speaker or None,
+                "published_at": None,  # Not typically in .md files
+                "duration": None,
+                "thumbnail_url": f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg",
+                "view_count": None,
+            }
         except Exception as e:
-            logger.warning(f"[{video_id}] Error reading {video_id}.md: {e}")
+            logger.warning(f"[{video_id}] Error reading {transcript_md_path}: {e}")
 
     # ── Step 1: YouTube Captions (Tier 1 + Tier 2) ──
     youtube_text = None

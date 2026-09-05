@@ -46,6 +46,13 @@ from app.telemetry_db import (
     get_trigger_events,
     get_trigger_trend,
 )
+from app.telemetry_db import (
+    get_routing_distribution,
+    get_routing_tier_distribution,
+    get_routing_timeseries,
+    get_routing_layer_stats,
+    get_routing_confidence_heatmap,
+)
 from celery_config import celery_app
 from schemas.feedback import FeedbackResponse
 from services.auth_service import require_aal2
@@ -1378,26 +1385,67 @@ class OkfReviewItem(BaseModel):
     reviewer_notes: Optional[str] = None
 
 
+def _safe_staging_filename(review_id: str) -> str:
+    """Reject anything that isn't a bare ``<slug>.md`` filename (no path
+    separators, no traversal) before it touches the filesystem."""
+    if (
+        not review_id
+        or "/" in review_id
+        or "\\" in review_id
+        or review_id in (".", "..")
+        or not review_id.endswith(".md")
+    ):
+        raise HTTPException(status_code=400, detail="Invalid review id")
+    return review_id
+
+
 @admin_router.get("/okf/review")
 async def list_okf_review_queue(
     status: str = "pending",
     user: dict = Depends(_require_admin),
 ) -> list[dict[str, Any]]:
-    """List items in the OKF review queue (Admin only)."""
-    from app.telemetry_db import _get_client
+    """List items in the OKF review queue (Admin only).
 
-    client = _get_client()
-    if not client:
-        raise HTTPException(status_code=503, detail="Data service not available")
+    Reads directly from the filesystem staging directory that
+    ``scripts/extract_okf_from_stores.py`` (auto_approve=False) writes to.
+    A previous version of this endpoint queried a Supabase
+    ``okf_review_queue`` table that nothing ever inserted into, so the
+    review queue was permanently empty regardless of how much content was
+    staged (production-audit finding OKF-1). ``--auto-approve`` extraction
+    still bypasses review by design; this endpoint covers the default
+    ``auto_approve=False`` path.
+    """
+    from services.memory.okf_store import STAGING_DIR, RESERVED_FILENAMES, _parse_frontmatter
 
-    try:
-        res = client.table("okf_review_queue").select("*").eq("status", status).execute()
-        return res.data or []
-    except Exception as e:
-        logger.error(f"Failed to fetch OKF review queue: {e}")
-        raise HTTPException(
-            status_code=500, detail="Failed to load review queue. Please try again."
-        )
+    base = STAGING_DIR / "_rejected" if status == "rejected" else STAGING_DIR
+    if not base.exists():
+        return []
+
+    items: list[dict[str, Any]] = []
+    for p in sorted(base.glob("*.md")):
+        if p.name in RESERVED_FILENAMES:
+            continue
+        try:
+            text = p.read_text(encoding="utf-8")
+            meta, body = _parse_frontmatter(text)
+            items.append(
+                {
+                    "id": p.name,
+                    "status": status,
+                    "entry_json": {
+                        "type": meta.get("type", ""),
+                        "title": meta.get("title", p.stem),
+                        "source": meta.get("source", ""),
+                        "tags": meta.get("tags", []),
+                        "teacher": meta.get("teacher", "both"),
+                        "body": body,
+                    },
+                    "reviewer_notes": meta.get("reviewer_notes"),
+                }
+            )
+        except Exception as e:
+            logger.warning("Failed to read staged OKF entry %s: %s", p, e)
+    return items
 
 
 @admin_router.post("/okf/review/{review_id}/approve")
@@ -1405,62 +1453,27 @@ async def approve_okf_entry(
     review_id: str,
     user: dict = Depends(_require_admin),
 ) -> dict[str, Any]:
-    """Approve a draft OKF entry, save it as a markdown file, and recompile index (Admin only)."""
-    from app.telemetry_db import _get_client
+    """Approve a staged OKF entry: move it from staging/ into the live bundle
+    and recompile the index (Admin only)."""
+    import shutil
 
-    client = _get_client()
-    if not client:
-        raise HTTPException(status_code=503, detail="Data service not available")
+    from services.memory.okf_store import STAGING_DIR, OKF_DIR
+
+    filename = _safe_staging_filename(review_id)
+    source_path = STAGING_DIR / filename
+    if not source_path.is_file():
+        raise HTTPException(status_code=404, detail="Review entry not found")
 
     try:
-        res = client.table("okf_review_queue").select("*").eq("id", review_id).execute()
-        if not res.data:
-            raise HTTPException(status_code=404, detail="Review entry not found")
-
-        row = res.data[0]
-        entry = row["entry_json"]
-        guru_slug = row.get("guru_slug") or "default"
-
-        title = entry.get("title", "untitled")
-        import string
-
-        valid_chars = f"-_{string.ascii_letters}{string.digits}"
-        slug = "".join(c if c in valid_chars else "-" for c in title.lower().replace(" ", "_"))
-        slug = re.sub(r"-+", "-", slug).strip("-")
-
-        from services.memory.compiler import _OKF_DIR
-
-        target_dir = _OKF_DIR / guru_slug
-        target_dir.mkdir(parents=True, exist_ok=True)
-        target_file = target_dir / f"{slug}.md"
-
-        meta = {
-            "type": entry.get("type", "teaching"),
-            "title": title,
-            "tags": entry.get("tags", []),
-            "source": entry.get("source", ""),
-            "confidence": "high",
-        }
-        import yaml
-
-        yaml_str = yaml.safe_dump(meta, default_flow_style=False)
-        body = entry.get("body", "")
-
-        content = f"---\n{yaml_str}---\n\n{body}\n"
-        target_file.write_text(content, encoding="utf-8")
+        OKF_DIR.mkdir(parents=True, exist_ok=True)
+        target_file = OKF_DIR / filename
+        shutil.move(str(source_path), str(target_file))
 
         from services.memory.compiler import compile_okf
 
         compile_okf()
 
-        client.table("okf_review_queue").update(
-            {
-                "status": "approved",
-                "reviewed_at": "now()",
-                "reviewed_by": user.get("id"),
-            }
-        ).eq("id", review_id).execute()
-
+        logger.info("OKF entry approved by %s: %s -> %s", user.get("id"), filename, target_file)
         return {"status": "success", "file": str(target_file)}
     except HTTPException:
         raise
@@ -1475,24 +1488,35 @@ async def reject_okf_entry(
     reviewer_notes: Optional[str] = Body(None, embed=True),
     user: dict = Depends(_require_admin),
 ) -> dict[str, Any]:
-    """Reject a draft OKF entry (Admin only)."""
-    from app.telemetry_db import _get_client
+    """Reject a staged OKF entry: move it aside so it never reaches
+    compile_okf(), keeping it (and the reviewer's note) for audit rather
+    than deleting it outright (Admin only)."""
+    from services.memory.okf_store import STAGING_DIR, _parse_frontmatter
 
-    client = _get_client()
-    if not client:
-        raise HTTPException(status_code=503, detail="Data service not available")
+    filename = _safe_staging_filename(review_id)
+    source_path = STAGING_DIR / filename
+    if not source_path.is_file():
+        raise HTTPException(status_code=404, detail="Review entry not found")
 
     try:
-        client.table("okf_review_queue").update(
-            {
-                "status": "rejected",
-                "reviewer_notes": reviewer_notes,
-                "reviewed_at": "now()",
-                "reviewed_by": user.get("id"),
-            }
-        ).eq("id", review_id).execute()
+        rejected_dir = STAGING_DIR / "_rejected"
+        rejected_dir.mkdir(parents=True, exist_ok=True)
+        target_path = rejected_dir / filename
 
+        text = source_path.read_text(encoding="utf-8")
+        meta, body = _parse_frontmatter(text)
+        meta["reviewer_notes"] = reviewer_notes or ""
+        meta["rejected_by"] = user.get("id")
+        import yaml
+
+        content = "---\n" + yaml.safe_dump(meta, default_flow_style=False) + "---\n\n" + body + "\n"
+        target_path.write_text(content, encoding="utf-8")
+        source_path.unlink()
+
+        logger.info("OKF entry rejected by %s: %s", user.get("id"), filename)
         return {"status": "success"}
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to reject OKF entry: {e}")
         raise HTTPException(status_code=500, detail="Failed to reject entry. Please try again.")
@@ -1978,3 +2002,51 @@ def _source_release_readiness() -> dict[str, Any]:
             if previous is None or release.activated_at > previous:
                 readiness["last_activated_at"] = release.activated_at
     return readiness
+
+
+# ---- Routing Analytics Endpoints ----
+
+@admin_router.get("/routing/distribution")
+async def routing_distribution(
+    hours: int = Query(24, ge=1, le=720),
+    user: dict = Depends(_require_admin),
+):
+    """Route decision distribution — which layers handle which traffic."""
+    return await get_routing_distribution(hours=hours)
+
+
+@admin_router.get("/routing/tiers")
+async def routing_tiers(
+    hours: int = Query(24, ge=1, le=720),
+    user: dict = Depends(_require_admin),
+):
+    """Query tier (fast/simple/complex/deep) distribution with shadow mode comparison."""
+    return await get_routing_tier_distribution(hours=hours)
+
+
+@admin_router.get("/routing/timeseries")
+async def routing_timeseries(
+    hours: int = Query(24, ge=1, le=720),
+    bucket_minutes: int = Query(60, ge=5, le=1440),
+    user: dict = Depends(_require_admin),
+):
+    """Time-bucketed routing distribution for trend analysis."""
+    return await get_routing_timeseries(hours=hours, bucket_minutes=bucket_minutes)
+
+
+@admin_router.get("/routing/layers")
+async def routing_layers(
+    hours: int = Query(24, ge=1, le=720),
+    user: dict = Depends(_require_admin),
+):
+    """Per-layer routing statistics."""
+    return await get_routing_layer_stats(hours=hours)
+
+
+@admin_router.get("/routing/confidence")
+async def routing_confidence(
+    hours: int = Query(24, ge=1, le=720),
+    user: dict = Depends(_require_admin),
+):
+    """Confidence calibration heatmap with drift alerts."""
+    return await get_routing_confidence_heatmap(hours=hours)

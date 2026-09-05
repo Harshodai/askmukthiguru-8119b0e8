@@ -24,7 +24,42 @@ def _strip_ingestion_headers(text: str) -> str:
         return text
     text = re.sub(r"\[Source:\s*[^\]]*?(?:Speaker:|Topic:)[^\]]*\]", "", text)
     text = re.sub(r"\[RAPTOR\s+Level:\s*\d+\s*\|\s*Topic:\s*[^\]]+\]", "", text)
+    text = _strip_extraction_artifacts(text)
     return text.strip()
+
+
+# Extraction-prompt placeholder text that survived into stored content instead
+# of being filled in or dropped — confirmed live 2026-09-05 in retrieved
+# LightRAG chunks: a blockquote literally reading `"Exact quote from
+# transcript" — Sri Krishnaji`, misattributing a template instruction as a
+# real quote. Same poison class as scripts/ops/heal_neo4j_poison.py (an LLM's
+# own scaffolding leaking into stored content), different location and shape.
+_PLACEHOLDER_QUOTE_RE = re.compile(
+    r'^\s*>?\s*"Exact quote from transcript"\s*(?:—|-)\s*.*$', re.MULTILINE | re.IGNORECASE
+)
+
+
+def _strip_extraction_artifacts(text: str) -> str:
+    """Strip known LLM-extraction-artifact shapes: placeholder quotes and
+    immediately-repeated Markdown headings (the same heading line emitted
+    2+ times in a row — an extraction/summarization retry artifact, not
+    real structure; a document legitimately repeating a heading later after
+    other content is untouched)."""
+    text = _PLACEHOLDER_QUOTE_RE.sub("", text)
+    lines = text.split("\n")
+    deduped: list[str] = []
+    prev_heading: str | None = None
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            deduped.append(line)
+            continue  # blank lines don't break "immediately repeated" adjacency
+        is_heading = bool(re.match(r"^#{1,6}\s+\S", stripped))
+        if is_heading and stripped == prev_heading:
+            continue  # drop the immediate repeat
+        deduped.append(line)
+        prev_heading = stripped if is_heading else None
+    return "\n".join(deduped)
 
 
 import hashlib

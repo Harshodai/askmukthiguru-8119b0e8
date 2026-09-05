@@ -1080,6 +1080,7 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
             "answer": answer,
             "citations": [],
             "citation_reasoning": {},
+            "route_decision": route_decision,
             "is_faithful": True,
             "confidence_score": NO_EVIDENCE_CONFIDENCE,
             "faithfulness_score": 0.0,
@@ -1095,6 +1096,7 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
                 route_decision=route_decision,
             ),
         }
+
 
     router = LanguageRouter()
     lang_suffix = router.get_system_prompt_suffix(LanguageCode(lang))
@@ -1226,6 +1228,7 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
             "answer": answer,
             "citations": [],
             "citation_reasoning": {},
+            "route_decision": route_decision,
             "is_faithful": True,
             "confidence_score": NO_EVIDENCE_CONFIDENCE,
             "faithfulness_score": 0.0,
@@ -1241,6 +1244,7 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
                 route_decision=route_decision,
             ),
         }
+
 
     citations = _grounded_citation_urls(surviving_docs)
 
@@ -2002,11 +2006,16 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
                         "score": faithfulness_score,
                     }
                 except Exception as _ld_err:
-                    logger.warning("Fast-tier faithfulness check failed (non-fatal): %s", _ld_err)
-                    hallucination_flag = False
-                    faithfulness_score = 1.0
-                    confidence_score = 8.0
-                    verification = {"passed": True, "method": "fast_tier_bypass"}
+                    # Fail closed: a check that errors is not a check that passed.
+                    # Do NOT fabricate a measured score here — faithfulness_score
+                    # must stay unmeasured (None) so format_final_answer's gate
+                    # (which distinguishes real scores from "nothing to check")
+                    # can't be tricked into treating this as a verified answer.
+                    logger.warning("Fast-tier faithfulness check failed, failing closed: %s", _ld_err)
+                    hallucination_flag = True
+                    faithfulness_score = None
+                    confidence_score = 0.0
+                    verification = {"passed": False, "method": "fast_tier_error_failclosed"}
 
         output["is_faithful"] = not hallucination_flag
         output["confidence_score"] = confidence_score
@@ -2105,6 +2114,7 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
             "final_answer": scrub(answer),
             "citations": [],
             "intent": intent,
+            "route_decision": route_decision or "no_context_short_circuit",
             "_needs_retry": False,
             "is_faithful": True,
             "grounding_state": "abstained",
@@ -2127,6 +2137,7 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
                 route_decision=route_decision or "no_context_short_circuit",
             ),
         }
+
 
     # Convert [Source: Title] in the answer text to [N] based on relevant_docs mapping
     relevant_docs = state.get("relevant_docs", [])
@@ -2309,6 +2320,7 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
                 "final_answer": scrub(partial_answer),
                 "citations": partial_citations,
                 "intent": intent,
+                "route_decision": "grounded_partial_evidence",
                 "_needs_retry": False,
                 "is_faithful": False,
                 "hallucination_flag": False,
@@ -2328,7 +2340,7 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
                     final_citations=partial_citations,
                     verification_passed=False,
                     confidence_score=0.0,
-                    route_decision="grounded_partial_fast_tier",
+                    route_decision="grounded_partial_evidence",
                 ),
             }
 
@@ -2357,6 +2369,7 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
                 "final_answer": scrub(partial_answer),
                 "citations": partial_citations,
                 "intent": intent,
+                "route_decision": "grounded_partial_evidence",
                 "_needs_retry": False,
                 "is_faithful": False,
                 "hallucination_flag": False,
@@ -2378,6 +2391,7 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
             "final_answer": FALLBACK_RESPONSE,
             "citations": [],
             "intent": intent,
+            "route_decision": "no_context_short_circuit",
             "_needs_retry": False,
             "is_faithful": False,
             "verification": {"passed": False, "method": "refusal_quality_gate"},
@@ -2387,6 +2401,7 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
             "refusal_quality_failure": True,
         }
     if refusal_action == "strip":
+
         logger.warning(
             "Final: removing contradictory trailing refusal from substantive cited answer"
         )
@@ -2504,8 +2519,13 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
         # below (_needs_retry, verification["passed"], verification_passed in
         # the evaluation trace) all read this one value, so they cannot drift
         # apart (the old code could return passed=False while tracing True).
+        # "not measured" only auto-passes for a genuine no-check-attempted state
+        # (faithfulness_score never set). A check that was ATTEMPTED and FAILED
+        # (fast_tier_error_failclosed) must never take this shortcut — that was
+        # exactly how the previous fabricated-score bug bypassed this gate.
+        check_errored = fast_method == "fast_tier_error_failclosed"
         fast_passed = bool(citations_verified) and (
-            not measured or (fast_faithful and fast_score >= floor)
+            (not measured and not check_errored) or (fast_faithful and fast_score >= floor)
         )
 
         if fast_passed:
@@ -2737,7 +2757,9 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
                 "final_answer": scrub(partial_answer),
                 "citations": partial_citations,
                 "intent": intent,
+                "route_decision": "grounded_partial_evidence",
                 "_needs_retry": False,
+
                 "is_faithful": False,
                 "grounding_state": "grounded",
                 "verification": {
@@ -2807,12 +2829,20 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
     # Follow-up suggestions removed per P1-11 (was an extra LLM call per turn)
     follow_up_suggestions: list[str] = []
 
+    resolved_route = (
+        state.get("route_decision")
+        or (state.get("evaluation_trace") or {}).get("route_decision")
+        or (intent.lower() if intent else "query")
+    )
+
     result = {
         "final_answer": answer,
         "citations": citations,
         "intent": intent,
+        "route_decision": resolved_route,
         "follow_up_suggestions": follow_up_suggestions,
         "_needs_retry": False,
+
         "is_faithful": is_faithful if is_faithful is not None else verified,
         "verification": state.get("verification") or {},
         "faithfulness_score": faithfulness_score,

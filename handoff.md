@@ -377,3 +377,88 @@ If swap starts climbing again after this fix, the leak has a second source — d
 
 **To check status without a Claude session:** `tail ~/mukthiguru-ingest-ops/supervisor.log`, or check for `supervisor_done.flag` / `supervisor_gaveup.flag` in `~/mukthiguru-ingest-ops/`.
 **To stop it deliberately:** `pkill -f supervisor.sh && screen -S ingest -X quit && pkill -f bulk_ingest_video` — killing just the screen session alone will get auto-relaunched by the supervisor, that's the point.
+
+---
+
+## 2026-09-05 update — post-audit remediation: re-ingest readiness, Docker vs. bare-host, remaining decisions
+
+Followed the 65-agent production audit (see `lessons.md`, "Sep 4-5, 2026" section) and live chaos testing with a full backend fix pass: both P0s, all 13 P1s, and most P2/P3s fixed and tested; 3 additional Redis-SPOF bugs found by literally killing Redis against a live server (global rate limiter, job queue enqueue, request coalescer) — all fixed, tested, and re-verified live. Two items were deliberately left for a human decision rather than run silently:
+
+### Re-ingestion readiness (the 382 "missing" videos)
+- **List**: `scripts/ingestion/missing_videos_to_reingest.txt` — 382 YouTube URLs recorded as processed in `scripts/ingestion/ingestion_state.json` but with zero chunks currently in live Qdrant `spiritual_wisdom_contextual` (derived by extracting the 11-char video ID from both sides and comparing — the audit's own raw "717 recorded vs 333 live" comparison was comparing two different key formats and was wrong by roughly 2x; see `lessons.md` L-AUDIT-3).
+- **Transcripts: already have them.** Checked `transcripts/`, `scripts/ingestion/transcripts/`, and `backend/data/guru_transcripts/` against the 382 IDs — **381/382 already have a cached transcript file on disk** (`scripts/ingestion/transcripts/<video_id>.md`, mostly). Only **`VAMJEgwaPEc`** needs a fresh fetch. This means re-ingestion does NOT need to re-hit YouTube's caption API for almost the whole batch — the slow, rate-limited, most-likely-to-fail part of ingestion is already done. What's left is running the pipeline itself (LLM transcript correction → quality audit → boundary chunking → contextualization → embedding → Qdrant/Neo4j/LightRAG writes) against text that's already sitting on disk.
+- **Cost check before running**: `backend/.env` currently has `LLM_PROVIDER=openrouter` (paid) at the top level, but `backend/docker-compose.yml`'s `backend` service environment block defaults to `LLM_PROVIDER=${LLM_PROVIDER:-sarvam_cloud}` (Sarvam's free 60RPM tier) unless the shell/compose environment overrides it — these can disagree depending on how the process is launched. Per root `CLAUDE.md`'s own $0-budget constraint, **explicitly set `LLM_PROVIDER=sarvam_cloud` (or `ollama` for fully local/free) before running this batch** rather than trusting whichever value happens to be ambient — don't let 381 videos' worth of correction/audit/contextualization/OKF-extraction calls silently run against the paid OpenRouter tier.
+- **Not yet run.** Waiting on an explicit go-ahead given it's still a multi-hour operation even with transcripts cached (LLM correction + audit + contextualization per video, rate-limited).
+
+### Why chaos testing ran on bare host, and why that's not a permanent constraint
+This session ran the backend via bare `uvicorn` (not `docker compose up`) specifically because chaos testing needed to `docker stop`/`docker start` individual dependency containers (Redis, Neo4j, Qdrant) *while watching the app's behavior from outside* — that requires the app process to sit outside the same compose network it's being tested against, or `docker compose stop redis` would need the backend container itself restarted to reconnect anyway, muddying the test. That's a testing-vantage-point choice, not a limitation of Docker.
+
+**For actual ingestion (not chaos testing), running inside Docker is the correct and default way** — no reason to use bare host for this:
+```bash
+cd backend
+docker compose up -d qdrant redis neo4j   # infra only, if not already up
+# Ollama still runs on the HOST always (see root CLAUDE.md) — never inside Docker.
+LLM_PROVIDER=sarvam_cloud docker compose run --rm backend \
+  python -m scripts.ingestion.bulk_ingest_video \
+  --input scripts/ingestion/missing_videos_to_reingest.txt \
+  --workers 2
+```
+The backend image already `COPY backend/ .`s the whole tree (Dockerfile line 71), so `scripts/ingestion/bulk_ingest_video.py` is present at `/app/scripts/ingestion/bulk_ingest_video.py` inside the container with no extra build step needed. Running it this way also sidesteps the entire class of bare-host problems from the 2026-08-27/29 entries above (macOS `setsid` missing, `QDRANT_URL`/`NEO4J_URI`/`REDIS_URL` needing `localhost` overrides, IPv6-loopback Neo4j resolution race) — inside the compose network, `qdrant`/`neo4j`/`redis` hostnames resolve correctly by default, which is exactly what `.env` already assumes.
+
+The IC-1 fix from this session (Redis `SETNX`-based per-source lock, TTL-bound) also means running this via `docker compose run` (a fresh container each time) is now safe to interrupt and re-run without the double-processing risk that motivated some of the `screen`/`supervisor.sh` babysitting infrastructure in the August entries above — a killed run's in-flight lock self-expires (default 900s) and a re-run picks up cleanly via the existing checkpoint.
+
+### Remaining open items, explicitly deferred (not forgotten)
+1. **Run the 382-video re-ingest** (transcripts ready, command above) — needs a go/no-go and an `LLM_PROVIDER` decision.
+2. **N4 orphan backlog** (~3,330 Neo4j nodes still unlinked) — will shrink automatically as a side effect of #1, since N1's relationship-extraction widening fix applies to every future ingestion; the current backlog only clears for videos that get re-ingested.
+3. **false-confidence-2/3/5 test-rigor items and one duplicate Qdrant chunk (DQL-1)** — lowest value remaining from the original 40-finding audit, explicitly deprioritized under cost pressure this session.
+4. **Gunicorn supervisor vs. raw `uvicorn --workers 1`** — websearch-flagged production best practice, NOT applied: this repo already tried multi-replica on Railway and hit init-timeout failures (see root `CLAUDE.md`), so changing the worker/process model needs a deliberate decision, not a drive-by change.
+5. **Job-queue in-memory fallback (built this session) is single-process only** — fine for the current 1-replica Railway deploy; would need a real shared-fallback design (or accept degraded cross-pod visibility) before any future multi-replica attempt.
+
+---
+
+## 2026-09-05 update (same day, later) — re-ingestion actually launched; Docker disk crisis recurred and was fixed
+
+Attempted the 382-video re-ingest via `docker compose run` first (per the plan above) — it hung indefinitely at "Creating" for even a trivial `echo` command. Root cause: **the exact L-INFRA-1 disk-exhaustion scenario from 2026-08-29 recurred** — host disk was at 97% capacity, 419MB free, `docker info` itself hung for 120s+. `Docker.raw` was 186GB.
+
+**Fix applied (same remedy as before, repeated because the underlying habit — not cleaning up — recurred):**
+1. Freed ~8.2GB from safe, regenerable app caches (`brew cleanup -s`, `go-build`, `com.apple.python`, ShipIt/kimi updater caches, `ms-playwright`) — 419MB → 8.6GB free.
+2. Force-quit Docker Desktop cleanly (`osascript quit`, then `pkill -9` the backend/agent processes when the graceful quit didn't fully land), relaunched fresh (`open -a Docker`) — daemon came back responsive within ~1 attempt this time.
+3. `docker builder prune -f` + `docker image prune -f` (dangling only, **not** `-a`, **not** `--volumes` — same safe subset as the prior incident) freed another ~1.5GB build cache. 129GB of *tagged* images remain reclaimable (`docker image prune -a -f` would get most of it) but was left alone — that's real disk hygiene, not blocking, and wasn't asked for.
+4. Final state: **11GB free**, all compose containers (`qdrant`, `redis`, `neo4j`) healthy, `docker compose ps` clean.
+
+**A second real bug found while launching, unrelated to Docker:** `run_ingest.sh`'s `LLM_PROVIDER=openrouter` (paid) hardcoded export was overridden to `LLM_PROVIDER=ollama` / `OLLAMA_MODEL=qwen2.5:1.5b` / `OLLAMA_CLASSIFY_MODEL=qwen2.5:1.5b` / `OLLAMA_CLOUD_ONLY=false` / `OLLAMA_BASE_URL=http://localhost:11434` (qwen2.5:1.5b is the only fully-local, non-`:cloud` model pulled via `ollama list` — the `:cloud`-tagged ones are Ollama's paid cloud service, not free/local despite the name). Also found: **some files counted as "cached transcripts" in the earlier 381/382 check are actually empty dead-lettered stubs** — e.g. `scripts/ingestion/transcripts/16UXpd5BstM.md` is a 452-byte placeholder recording a prior `HTTP 429 Too Many Requests (YouTube Rate-Limit)` failure, not real content. The pipeline correctly detects this and falls back to a live fetch — which then failed because **`yt-dlp` was not installed on this host at all** (`which yt-dlp` → not found). Fixed: `brew install yt-dlp` (pulled `deno`, `openssl@3`, `python@3.14` as transitive deps). The exact count of how many of the 381 "cached" files are actually dead-lettered stubs vs. real transcripts is unverified — the pipeline handles either case correctly now (real transcript used directly, stub triggers a live re-fetch), so this doesn't block the run, but don't trust a bare `ls`-based transcript-presence check again without grepping for `Quality State: dead_lettered` inside the file.
+
+**Launch command actually used** (bare host via the existing ops script, not `docker compose run` — Docker's networking hostnames still need bare-host env overrides, which `run_ingest.sh` already carries):
+```bash
+cd ~/mukthiguru-ingest-ops
+nohup caffeinate -i bash run_ingest.sh \
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/scripts/ingestion/missing_videos_to_reingest.txt \
+  2 \
+  ~/mukthiguru-ingest-ops/reingest_missing382_<timestamp>.log \
+  "--disable-okf" \
+  > ~/mukthiguru-ingest-ops/reingest_missing382_<timestamp>.log.stdout 2>&1 &
+```
+Confirmed live and progressing: real transcripts found and used, LLM correction running locally against `model=qwen2.5:1.5b` (confirmed in log token-count lines), Redis checkpoint connected (`IngestionCheckpoint: Centralized Redis backend connected. Tenant: oneness`), ~9/382 processed in the first minute.
+
+**Operational lesson (adds to, doesn't replace, L-INFRA-1):** the disk-exhaustion-wedges-Docker failure mode is not a one-time incident — it recurred ~1 week later from ordinary accumulation (image builds, caches). Before starting ANY Docker-dependent multi-hour operation, run `df -h /` first as a matter of course, not only after something hangs. If this keeps recurring, the real fix is a scheduled `docker system prune` habit (safe subset: builder + dangling images, never `-a --volumes`) or a disk-usage alert, not repeating the same manual firefight each time it bites.
+
+---
+
+## 2026-09-05 update (same day, later still) — production Supabase schema drift found and fixed
+
+Triggered by a real production error while applying a combined batch of 26 pending migrations via the Supabase Dashboard SQL Editor: `ERROR: 42P01: relation "public.push_devices" does not exist` when running `20260804000006_add_push_devices_user_id_index.sql` (an index-creation migration, which assumes its table already exists). `supabase migration list` showed that migration's bookkeeping row as **already applied** on production — meaning `supabase_migrations.schema_migrations` and the actual live schema had silently diverged. Root cause never fully pinned down (most likely: an earlier `db push` or manual paste ran inside one transaction that failed partway and rolled back everything *except* the bookkeeping insert, or a bookkeeping-only `migration repair` was run at some point without the matching SQL). Followed the user's explicit "cross check everything" instruction rather than just patching `push_devices` alone.
+
+**Method — local Docker's `mukthiguru-supabase-db` container as ground truth, diffed against production via one-shot SQL run through the Dashboard SQL Editor** (no direct production DB access from this session; nothing on production can be written by the agent directly, only handed to the user to paste):
+1. `SELECT tablename FROM pg_tables WHERE schemaname='public'` locally → 73 tables, embedded as a literal `VALUES` list in a diagnostic query, LEFT JOINed against the same query run on production to find both missing and (checked, found none) extra tables.
+2. Same pattern extended to `pg_proc`/`pg_namespace` for app-defined functions (pgvector's ~90 built-in functions filtered out by name first) and to `pg_class`/`pg_policy` for RLS-enabled + policy-count verification.
+3. Every fix SQL assembled by concatenating the *actual migration files* for the missing objects (not hand-written SQL) and dry-run tested against local Docker first (`docker exec -i mukthiguru-supabase-db psql ... -v ON_ERROR_STOP=1 < fix.sql`) before handing to the user, to catch any ordering/idempotency problem before it hit production.
+
+**Found and fixed, in order:**
+- **9 tables missing on production** despite bookkeeping saying applied: `push_devices`, `user_personas`, `user_scene_blocks`, `user_skills`, `memory_consent_receipts`, `memory_outbox`, `memory_deletion_receipts`, `waitlist_entries`, `source_releases`. All their source `CREATE TABLE IF NOT EXISTS` migrations were concatenated (FK-safe order — only cross-table FK is `memory_outbox.consent_receipt_id → memory_consent_receipts.id`, same file, correct order) into one script, user ran it in the Dashboard, all 9 landed clean.
+- **RLS/policy check** on those 9: 7 have correct owner-scoped policies (1-4 each); `source_releases` and `waitlist_entries` show "RLS on, 0 policies" — **confirmed intentional**, not a gap — both `GRANT ... TO service_role` directly in their migrations with no user-facing policy, meaning only the backend's service-role key can touch them and RLS correctly blocks `anon`/`authenticated` entirely.
+- **2 functions missing on production**: `match_user_memories_by_user` (latest definition lives in `20260825090000_deterministic_memory_supersession.sql`, superseding an earlier version from `20260705000000_fix_memory_service_auth.sql`) and `regenerate_summaries` (`20260804000007_regenerate_summaries_rpc.sql`). Both `CREATE OR REPLACE FUNCTION`, safe to run standalone; user applied both.
+- **Bookkeeping itself needed no repair**: `supabase migration list` shows local==remote timestamps for all 108 migration files — the drift was purely "SQL effects silently missing while the tracking row says applied," never a tracking-table mismatch. No `migration repair` command was needed or run.
+
+**Not exhaustively checked** (diminishing returns, flagged rather than silently skipped): column-by-column and index-by-index diff beyond the three categories above (tables, RLS/policies, functions). Triggers, extensions, and index counts were spot-checked on local only (17 triggers, 186 indexes, 8 extensions — vector, pg_graphql, pgcrypto, pgjwt, supabase_vault, uuid-ossp, pg_stat_statements, plpgsql) to confirm local's own internal consistency as the reference point, not diffed against production. If a future incident points at a specific missing column/index/trigger, extend the same VALUES-list-diff pattern rather than assuming this pass caught everything.
+
+**Reusable pattern for next time this happens:** the three diagnostic SQL files (table crosscheck, function crosscheck, RLS/policy check) plus their fix files are one-shot artifacts in `/tmp/` from this session, not saved to the repo — if production drift is suspected again, regenerate from local Docker (`docker exec mukthiguru-supabase-db psql -U postgres -d postgres -At -c "..."`) rather than assuming last session's snapshot is still current; local's own table/function/index list decays as migrations are added.

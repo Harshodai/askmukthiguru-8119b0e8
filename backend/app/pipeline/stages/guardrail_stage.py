@@ -18,8 +18,10 @@ from app.metrics import REQUEST_LATENCY
 from app.pipeline.result import PipelineResult
 from app.pipeline.stages.base import Stage
 from app.release_manifest import get_release_manifest
+from app.route_taxonomy import RoutingProvenance, record_routing_decision
 
 if TYPE_CHECKING:
+
     from app.pipeline.stages.context import PipelineContext
 
 logger = logging.getLogger(__name__)
@@ -33,8 +35,27 @@ class CircuitBreakerStage(Stage):
     async def run(self, ctx: PipelineContext) -> PipelineResult | None:
         if ctx.coordinator._is_circuit_open():
             ctx.last_stage_status = "error"
+            record_routing_decision(
+                ctx,
+                RoutingProvenance(
+                    layer="INPUT_GUARDRAILS",
+                    decision="error",
+                    method="circuit_breaker_open",
+                    confidence=1.0,
+                    reason="LLM provider circuit breaker open",
+                ),
+            )
             result = ctx.coordinator._circuit_open_result(
                 ctx.is_benchmark, ctx.start_time, trace_id=ctx.trace_id
+            )
+            import dataclasses
+
+            result = dataclasses.replace(
+                result,
+                route_metadata={
+                    **dict(result.route_metadata or {}),
+                    "routing_chain": list(getattr(ctx, "routing_chain", [])),
+                },
             )
             # This stage short-circuits before TranslationStage ever runs -- an
             # Indic user would otherwise get the English fallback verbatim.
@@ -140,6 +161,17 @@ class InputGuardrailStage(Stage):
                 intent, route_decision = "SAFETY_VIOLATION", "blocked"
             else:
                 intent, route_decision = "ERROR", "blocked"
+
+            record_routing_decision(
+                ctx,
+                RoutingProvenance(
+                    layer="INPUT_GUARDRAILS",
+                    decision=route_decision,
+                    method="input_guardrails_blocked",
+                    confidence=1.0,
+                    reason=reason or "Input guardrail triggered",
+                ),
+            )
             return PipelineResult(
                 final_answer=blocked_resp,
                 intent=intent,
@@ -150,9 +182,16 @@ class InputGuardrailStage(Stage):
                 model_used=None,  # blocked before any model ran
                 model_provider=None,
                 route_decision=route_decision,
+                route_metadata={
+                    "requested_variant": "input_check",
+                    "selected_variant": route_decision,
+                    "decision_method": "input_guardrails_blocked",
+                    "routing_chain": list(getattr(ctx, "routing_chain", [])),
+                },
                 release_manifest=get_release_manifest().to_dict(),
             )
         return None
+
 
 
 class OutputGuardrailStage(Stage):

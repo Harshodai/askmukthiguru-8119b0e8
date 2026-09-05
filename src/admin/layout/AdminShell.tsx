@@ -27,6 +27,7 @@ import {
   X,
   BarChart3,
   Layers,
+  GitBranch,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -47,6 +48,7 @@ const NAV = [
   { to: "/admin/evals", label: "Evaluation", icon: ClipboardCheck },
   { to: "/admin/ingestion", label: "Ingestion", icon: Boxes },
   { to: "/admin/telemetry", label: "Observability", icon: Activity },
+  { to: "/admin/routing", label: "Routing", icon: GitBranch },
   { to: "/admin/alerts", label: "Reliability", icon: Bell },
   { to: "/admin/feedback", label: "Feedback", icon: ThumbsUp },
   { to: "/admin/settings", label: "Settings", icon: Settings },

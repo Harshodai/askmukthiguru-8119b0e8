@@ -111,14 +111,35 @@ class RedisCoalescer:
         self._ttl = int(ttl)
         self._poll_interval = 0.1
         self._max_wait = self._ttl  # Don't wait longer than TTL
+        self._memory_fallback: Optional[_InMemoryCoalescer] = None
 
     async def get_or_run(self, key: str, coro_func: typing.Callable[[], typing.Any]):
+        # Live chaos-testing discovery (2026-09-05): the lock-acquire below
+        # was completely unguarded. A Redis outage raised uncaught here — the
+        # FIRST thing orchestrate() touches per request — so every request
+        # failed near-instantly with an opaque error instead of running the
+        # pipeline at all (coalescing is an optimization, not a correctness
+        # requirement; it must never block the request it's trying to help).
+        # Degrade to the single-process in-memory coalescer and stay there,
+        # matching every other Redis-optional path fixed this session.
+        if self._memory_fallback is not None:
+            return await self._memory_fallback.get_or_run(key, coro_func)
+
         tenant_id = TenantContext.get()
         lock_key = f"coalesce:{tenant_id}:lock:{key}"
         result_key = f"coalesce:{tenant_id}:result:{key}"
 
-        # Try to acquire lock (leader election)
-        acquired = await self._redis.set(lock_key, "1", ex=self._ttl + 10, nx=True)
+        try:
+            # Try to acquire lock (leader election)
+            acquired = await self._redis.set(lock_key, "1", ex=self._ttl + 10, nx=True)
+        except Exception as exc:
+            logger.error(
+                f"RedisCoalescer: Redis unreachable ({exc}) — degrading to "
+                f"in-memory coalescing for the remainder of this process's "
+                f"lifetime (single-pod only until next restart)."
+            )
+            self._memory_fallback = _InMemoryCoalescer(ttl=self._ttl)
+            return await self._memory_fallback.get_or_run(key, coro_func)
         if acquired:
             return await self._run_as_leader(coro_func, result_key, lock_key)
 
@@ -147,6 +168,13 @@ class RedisCoalescer:
                 await self._redis.expire(list_key, self._ttl)
             except (TypeError, ValueError) as e:
                 logger.warning(f"Could not serialize coalescer result: {e}")
+            except Exception as e:
+                # Live chaos-testing discovery (2026-09-05): a Redis outage
+                # HERE (after coro_func() already succeeded) used to propagate
+                # out of this function and lose an already-computed, good
+                # result — publishing it for followers is an optimization,
+                # never a reason to throw away the leader's own answer.
+                logger.warning(f"Could not publish coalescer result to Redis (non-fatal): {e}")
             return result
 
         # Create one task covering the complete leader operation, including

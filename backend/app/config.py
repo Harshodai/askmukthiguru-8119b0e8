@@ -262,6 +262,10 @@ class Settings(BaseSettings):
     # 3.1/7 GB peak; raise only with a memory reading, never on reasoning alone.
     reingest_embed_batch_size: int = Field(default=32, ge=1, le=256)
 
+    # Pre-extracted transcript staleness thresholds (in seconds)
+    pre_extracted_max_age_warn: int = Field(default=7 * 24 * 60 * 60, gt=0)
+    pre_extracted_max_age_skip: int = Field(default=30 * 24 * 60 * 60, gt=0)
+
     # --- Gemini translation (layered ahead of Sarvam via OpenRouter) ---
     gemini_translation_enabled: bool = True
     gemini_model: str = "google/gemini-3.6-flash"
@@ -1501,6 +1505,16 @@ class Settings(BaseSettings):
             self.forwarded_allow_ips = ",".join(ips)
             if self.is_production and "*" in ips:
                 raise ValueError("Wildcard '*' in forwarded_allow_ips is forbidden in production")
+        return self
+
+    @model_validator(mode="after")
+    def validate_pre_extracted_max_age(self):
+        """Require pre_extracted_max_age_warn <= pre_extracted_max_age_skip."""
+        if self.pre_extracted_max_age_warn > self.pre_extracted_max_age_skip:
+            raise ValueError(
+                f"pre_extracted_max_age_warn ({self.pre_extracted_max_age_warn}) must be <= "
+                f"pre_extracted_max_age_skip ({self.pre_extracted_max_age_skip})"
+            )
         return self
 
 

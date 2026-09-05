@@ -18,6 +18,7 @@ from app.metrics import CACHE_OPERATIONS, REQUEST_COUNT, SEARCH_PATH_TOTAL
 from app.pipeline.result import PipelineResult
 from app.pipeline.stages.base import Stage
 from app.release_manifest import get_release_manifest
+from app.route_taxonomy import RoutingProvenance, record_routing_decision
 from app.routing_primitives import is_deterministic_greeting
 from services.hot_cache import hot_cache
 
@@ -25,6 +26,7 @@ if TYPE_CHECKING:
     from app.pipeline.stages.context import PipelineContext
 
 logger = logging.getLogger(__name__)
+
 
 
 def _is_personalization_eligible(ctx: PipelineContext) -> bool:
@@ -248,7 +250,18 @@ class CacheCheckStage(Stage):
             if cached_intent.upper() in ("CASUAL", "GREETING"):
                 return None
             CACHE_OPERATIONS.labels(cache_type="hot", result="hit").inc()
+            record_routing_decision(
+                ctx,
+                RoutingProvenance(
+                    layer="CACHE_CHECK",
+                    decision="hot_cache",
+                    method="hot_cache_hit",
+                    confidence=1.0,
+                    reason="In-memory hot cache hit",
+                ),
+            )
             route_metadata = _cache_route_metadata(ctx, "hot_cache")
+            route_metadata["routing_chain"] = list(getattr(ctx, "routing_chain", []))
             result = PipelineResult(
                 final_answer=response,
                 intent=cached_intent,
@@ -284,7 +297,18 @@ class CacheCheckStage(Stage):
                         text=final_response, source_lang="en", target_lang=preferred_lang
                     )
 
+                record_routing_decision(
+                    ctx,
+                    RoutingProvenance(
+                        layer="CACHE_CHECK",
+                        decision="vector_cache_p90",
+                        method="turbovec_vector_hit",
+                        confidence=1.0,
+                        reason="Vector cache fast-path hit",
+                    ),
+                )
                 route_metadata = _cache_route_metadata(ctx, "vector_cache_p90")
+                route_metadata["routing_chain"] = list(getattr(ctx, "routing_chain", []))
                 result = PipelineResult(
                     final_answer=final_response,
                     intent=cached_intent,
@@ -324,7 +348,18 @@ class CacheCheckStage(Stage):
                     text=final_response, source_lang="en", target_lang=preferred_lang
                 )
 
+            record_routing_decision(
+                ctx,
+                RoutingProvenance(
+                    layer="CACHE_CHECK",
+                    decision="semantic_cache",
+                    method="semantic_cache_hit",
+                    confidence=float(threshold),
+                    reason="Exact or semantic cache hit",
+                ),
+            )
             route_metadata = _cache_route_metadata(ctx, "semantic_cache")
+            route_metadata["routing_chain"] = list(getattr(ctx, "routing_chain", []))
             result = PipelineResult(
                 final_answer=final_response,
                 intent=cached.get("intent"),

@@ -318,7 +318,16 @@ TEACHER_DOMAINS: dict[str, TeacherDomain] = {
     "ekam": TeacherDomain(
         domain_id="ekam",
         display_name="Sri Preethaji & Sri Krishnaji (Ekam / O&O Academy)",
-        aliases=["Sri Preethaji", "Sri Krishnaji", "Ekam", "O&O Academy"],
+        # Spelling/honorific variants confirmed live in the Neo4j graph
+        # (2026-09-04 audit) that were resolving to no domain at all —
+        # "Krishnaji" alone, "Shri"/"Sri Sri" honorific variants — meaning
+        # genuine mentions of our own teachers were falling through the
+        # domain-rights gate unrecognized (not blocked, just untracked).
+        aliases=[
+            "Sri Preethaji", "Shri Preethaji", "Sri Sri Preethaji",
+            "Sri Krishnaji", "Shri Krishnaji", "Sri Sri Krishnaji", "Krishnaji",
+            "Ekam", "O&O Academy",
+        ],
         rights_status="licensed",
         graph_namespace="ekam",
         rollout_enabled=True,

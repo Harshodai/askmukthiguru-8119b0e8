@@ -68,6 +68,24 @@ async def _score_faithfulness_bounded(
             "claims": [],
             "unsupported_sentences": [],
         }
+    except Exception as exc:
+        # production-audit finding F2: this used to catch ONLY TimeoutError, so
+        # any other LettuceDetect exception (a bug, an unexpected input shape)
+        # propagated past this function to the generic per-node error boundary
+        # (log_metrics in utils.py), whose fallback dict does not set
+        # is_faithful/verification at all — it just preserves whatever state
+        # already held, which is not the same as an explicit fail-closed
+        # verdict. Return the same unverified shape as the timeout branch so
+        # the caller always gets a real, fail-closed verdict from this
+        # function rather than an uncaught exception.
+        logger.warning("Faithfulness scorer raised %s; returning unverified verdict", exc)
+        return {
+            "score": 0.0,
+            "is_faithful": False,
+            "error": str(exc),
+            "claims": [],
+            "unsupported_sentences": [],
+        }
 
 
 # Persona voice breaks that faithfulness scoring (LettuceDetect) can't catch —

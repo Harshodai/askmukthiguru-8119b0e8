@@ -1225,7 +1225,17 @@ async def handle_casual(state: GraphState, config: Optional[RunnableConfig] = No
             "🙏 Namaste! I am Mukthi Guru, here to walk with you on the "
             "path of spiritual awakening. Please share what is in your heart."
         )
-    return {"final_answer": response}
+    return {
+        "final_answer": response,
+        "intent": "CASUAL",
+        "route_decision": "casual",
+    }
+
+
+# Small/local models paraphrase the "Dear one," persona-voice example into a
+# literal unfilled placeholder ("Dear [User],"/"Dear {Name},") rather than
+# copying it verbatim — see handle_distress below for the confirmed case.
+_PLACEHOLDER_SALUTATION_RE = re.compile(r"^Dear\s*[\[{]\s*\w+\s*[\]}]\s*,", re.IGNORECASE)
 
 
 @trace_rag_node("handle_distress")
@@ -1271,12 +1281,78 @@ async def handle_distress(state: GraphState, config: Optional[RunnableConfig] = 
             f"[Source: {doc.get('title', 'Unknown')}]\n{doc_text(doc)}" for doc in relevant_docs[:3]
         )
 
-        prompt = f"""Based on the provided teachings, compose a deeply compassionate response for a user in emotional distress that:
+        # Persona voice: neither this node nor services/serene_mind_engine.py
+        # tracked which teacher a response should speak as — confirmed
+        # 2026-09-05, zero references to teacher_id/assistant_slug in either
+        # file. Both teachers' names were used interchangeably in hardcoded
+        # templates regardless of which one the question actually named or
+        # which assistant scope (state["teacher_id"], already a GraphState
+        # field — rag/states.py) is serving the request. Persona-consistency
+        # research (multi-persona conversational agents) is unambiguous that
+        # a response should commit to one character's voice per turn rather
+        # than blend/alternate — mirrors the exact query-mention detection
+        # rag/nodes/retrieval.py already uses for OKF teacher-filtered lookup.
+        _lower_q = question.lower()
+        if "sri preethaji" in _lower_q or "preethaji" in _lower_q:
+            voice_teacher = "Sri Preethaji"
+        elif "sri krishnaji" in _lower_q or "krishnaji" in _lower_q:
+            voice_teacher = "Sri Krishnaji"
+        elif state.get("teacher_id") == "sri-preethaji":
+            voice_teacher = "Sri Preethaji"
+        elif state.get("teacher_id") == "sri-krishnaji":
+            voice_teacher = "Sri Krishnaji"
+        else:
+            voice_teacher = "Sri Preethaji or Sri Krishnaji"
+
+        # Keyword routing into this branch is deliberately conservative (a query
+        # merely mentioning "suffering" — this tradition's own core doctrine
+        # term — routes here; see on_device_intent.py's DISTRESS seed list and
+        # its "a false negative costs a person" comment). That recall-first
+        # routing choice is intentional and stays untouched here. What was
+        # missing: the finer-grained assessment computed two lines above
+        # (serene_mind.async_assess_distress) was thrown away for response
+        # framing — a NONE/MILD result (this IS a doctrinal question, not a
+        # person in crisis) still got the full "acknowledge their pain, they
+        # are not alone, guide them through a meditation" crisis-support
+        # script. Recent crisis-detection literature (e.g. the 2026 mental-
+        # health-chatbot risk-detection work) argues risk MONITORING and
+        # response FRAMING should be decoupled precisely so a conservative,
+        # high-recall safety trigger doesn't have to cost every borderline
+        # case a mismatched tone. This branches the *prompt* on that already-
+        # computed signal; it changes nothing about routing, retrieval, or
+        # the SEVERE/CRISIS helpline logic below.
+        # Personalization research (conversational-AI response-quality studies)
+        # converges on: no scripted/generic openers, respond to what THIS
+        # message actually needs. Stated as an explicit negative instruction
+        # here rather than left implicit — the small local model tested
+        # against (qwen2.5:1.5b) free-generates a salutation line if not told
+        # not to (observed: "Dear [User],", "Mukthi Guru, I am deeply
+        # sorry..."); _PLACEHOLDER_SALUTATION_RE below is the last-resort
+        # backstop, this instruction is the first line of defense.
+        _no_scripted_opener = (
+            "Do not open with a salutation or address line of any kind "
+            '(no "Dear ...,", no addressing the user or yourself by name) — '
+            "begin directly with the substance of the response."
+        )
+        if assessment.level <= DistressLevel.MILD:
+            prompt = f"""The user's message mentions a doctrine topic (e.g. suffering) but does not read as a person in acute personal distress — treat this as a genuine question about the teachings, not a crisis. Compose a response that:
+1. Directly answers what was asked, in {voice_teacher}'s own words/teaching where the retrieved context supports it
+2. Stays warm and personal in tone, but does NOT open with crisis-support phrasing ("I'm so sorry you're going through this", "your pain is valid") — that framing is for someone expressing real distress, not someone asking what the teaching says
+3. {_no_scripted_opener}
+4. May close with one brief, low-key offer of a Serene Mind meditation if it fits naturally — not as the centerpiece of the reply
+
+User message: {question}
+
+Retrieved teachings from Sri Preethaji and Sri Krishnaji:
+{context}"""
+        else:
+            prompt = f"""Based on the provided teachings, compose a deeply compassionate response for a user in emotional distress that:
 1. Acknowledges their pain with genuine empathy
 2. Shares the MOST relevant teaching that speaks directly to their situation
-3. Uses Sri Preethaji or Sri Krishnaji's words naturally, as if the guru is speaking directly
+3. Uses {voice_teacher}'s words naturally, as if the guru is speaking directly — commit to this one voice, do not blend both teachers in the same response
 4. Offers to guide them through a Serene Mind meditation
 5. Keeps the tone warm, personal, and non-clinical
+6. {_no_scripted_opener}
 
 User message: {question}
 
@@ -1314,6 +1390,15 @@ Retrieved teachings from Sri Preethaji and Sri Krishnaji:
         if not response or not response.strip():
             response = get_distress_response()
 
+    # A small/local generation model can paraphrase the "Dear one," example in
+    # STIMULUS_RAG_PROMPT's persona voice into a literal unfilled placeholder
+    # ("Dear [User],") instead of copying the given salutation verbatim —
+    # confirmed 2026-09-04 against a real qwen2.5:1.5b response. No template
+    # in this codebase ever emits "[User]"/"{user}" itself, so this is a
+    # generation artifact, not a prompt bug; strip it defensively regardless
+    # of which model produced it.
+    response = _PLACEHOLDER_SALUTATION_RE.sub("Dear one,", response.strip())
+
     if assessment.level >= DistressLevel.SEVERE:
         from services.crisis_helplines import format_helplines_block
 
@@ -1336,6 +1421,19 @@ Retrieved teachings from Sri Preethaji and Sri Krishnaji:
     if not response or not response.strip():
         response = get_distress_response()
 
+    # Same bypass-of-format_final_answer problem as the URL cleanup above:
+    # this path never populated citations, so a distress answer that DID
+    # ground itself in real retrieved teachings (relevant_docs is non-empty
+    # here) still reported citations=[] / evidence_count=0 downstream —
+    # confirmed 2026-09-04: 5 real sources retrieved and used in the prompt,
+    # zero citations in the response. Reuse the same sentence-to-source
+    # matcher the QUERY path uses instead of duplicating that logic.
+    from rag.nodes.citation_extractor import extract_citations
+
+    citations = extract_citations({"final_answer": response, "relevant_docs": relevant_docs}).get(
+        "citations", []
+    )
+
     logger.info(
         f"Distress handler: level={assessment.level.name}, has_teachings={bool(relevant_docs)}"
     )
@@ -1343,6 +1441,8 @@ Retrieved teachings from Sri Preethaji and Sri Krishnaji:
         "final_answer": response,
         "meditation_step": 0,
         "intent": "DISTRESS",
+        "route_decision": "distress",
+        "citations": citations,
     }
 
 
@@ -1428,21 +1528,36 @@ async def handle_meditation(state: GraphState, config: Optional[RunnableConfig] 
             response = f"**{script['title']}**\n\n" + "\n".join(
                 f"{i + 1}. {s}" for i, s in enumerate(script["steps"])
             )
-            return {"final_answer": response, "meditation_step": 0}
+            return {
+                "final_answer": response,
+                "meditation_step": 0,
+                "intent": "MEDITATION",
+                "route_decision": "meditation",
+            }
 
         if "serene mind" in question:
             script = MEDITATION_SCRIPTS["serene_mind"]
             response = f"**{script['title']}**\n\n" + "\n".join(
                 f"{i + 1}. {s}" for i, s in enumerate(script["steps"])
             )
-            return {"final_answer": response, "meditation_step": 0}
+            return {
+                "final_answer": response,
+                "meditation_step": 0,
+                "intent": "MEDITATION",
+                "route_decision": "meditation",
+            }
 
         if "meditation" in question or practice_keyword:
             script = MEDITATION_SCRIPTS["serene_mind"]
             response = f"**{script['title']}**\n\n" + "\n".join(
                 f"{i + 1}. {s}" for i, s in enumerate(script["steps"])
             )
-            return {"final_answer": response, "meditation_step": 0}
+            return {
+                "final_answer": response,
+                "meditation_step": 0,
+                "intent": "MEDITATION",
+                "route_decision": "meditation",
+            }
 
     # ---- Case 2: step is within an active flow (1..MAX_STEP) ----------------
     formatted = format_meditation_response(step)
@@ -1450,6 +1565,8 @@ async def handle_meditation(state: GraphState, config: Optional[RunnableConfig] 
         return {
             "final_answer": formatted,
             "meditation_step": step + 1,
+            "intent": "MEDITATION",
+            "route_decision": "meditation",
         }
 
     # ---- Case 3: step > MAX_STEP — session legitimately complete ------------
@@ -1458,6 +1575,8 @@ async def handle_meditation(state: GraphState, config: Optional[RunnableConfig] 
         return {
             "final_answer": get_meditation_complete_message(),
             "meditation_step": 0,
+            "intent": "MEDITATION",
+            "route_decision": "meditation",
         }
 
     # ---- Case 4: step <= 0, no script keyword, no imperative ----------------
@@ -1482,6 +1601,8 @@ async def handle_meditation(state: GraphState, config: Optional[RunnableConfig] 
         return {
             "final_answer": get_meditation_complete_message(),
             "meditation_step": 0,
+            "intent": "MEDITATION",
+            "route_decision": "meditation",
         }
     soft_fallback = (
         "Beloved, I'm here with you. Would you like to share what's on your "
@@ -1492,6 +1613,7 @@ async def handle_meditation(state: GraphState, config: Optional[RunnableConfig] 
         "final_answer": soft_fallback,
         "meditation_step": 0,
         "intent": "FACTUAL",
+        "route_decision": "factual",
         "_meditation_misroute": True,
     }
 

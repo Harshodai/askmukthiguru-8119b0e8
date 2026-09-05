@@ -119,9 +119,20 @@ class LightRAGService:
 
         logger.info("Initializing LightRAG Service (Neo4j Graph + Qdrant Vector)...")
         # Working directory for LightRAG internal states (e.g., pipeline completion files).
-        # LightRAG's doc-id dedup cache lives here — it must be distinct per Neo4j/Qdrant
-        # target, otherwise a doc already processed against one target is silently marked
-        # "done" and skipped when later processed against a different target.
+        # KNOWN GAP (production-audit finding lightrag-3): per-target isolation is
+        # NOT implemented. This working_dir is a single fixed path regardless of
+        # which Neo4j/Qdrant target is configured, so a doc already processed
+        # against one target would be silently marked "done" and skipped if this
+        # service is later pointed at a different target. The env var that WOULD
+        # provide Qdrant-side isolation (QDRANT_WORKSPACE — read by lightrag's
+        # QdrantVectorDBStorage.__post_init__) is intentionally not set here: this
+        # environment's live collections (lightrag_vdb_entities_baai_bge_m3_1024d
+        # etc.) were created WITHOUT a workspace prefix, so setting QDRANT_WORKSPACE
+        # now would make LightRAG resolve a different (empty) collection name and
+        # orphan the existing graph data — that requires a coordinated migration
+        # (rename the live collections, or backfill under the new name), not a
+        # drive-by env var change. Multi-target deployments need that migration
+        # done first.
         working_dir = os.getenv("LIGHTRAG_WORKING_DIR", "data/lightrag")
         os.makedirs(working_dir, exist_ok=True)
 
@@ -141,8 +152,12 @@ class LightRAGService:
         os.environ["NEO4J_KEEP_ALIVE"] = str(settings.neo4j_keep_alive).lower()
 
         # LightRAG Native Qdrant Configuration
+        # NOTE: QDRANT_COLLECTION is not a variable lightrag's QdrantVectorDBStorage
+        # reads (only QDRANT_URL/QDRANT_API_KEY/QDRANT_WORKSPACE are) — a prior
+        # version of this code set it believing it provided per-target isolation;
+        # it was dead code. See the working_dir comment above for why the actual
+        # isolation mechanism (QDRANT_WORKSPACE) isn't safe to enable here yet.
         os.environ["QDRANT_URL"] = settings.qdrant_url
-        os.environ["QDRANT_COLLECTION"] = f"{settings.qdrant_collection}_lightrag"
         if getattr(settings, "qdrant_api_key", ""):
             os.environ["QDRANT_API_KEY"] = settings.qdrant_api_key
 
@@ -258,7 +273,11 @@ class LightRAGService:
             openrouter = getattr(container, "openrouter", None)
 
             response = ""
-            if openrouter and getattr(settings, "openrouter_api_key", None):
+            if (
+                openrouter
+                and getattr(settings, "openrouter_api_key", None)
+                and settings.llm_provider.lower() != "ollama"
+            ):
                 kwargs["model"] = settings.openrouter_classify_model
                 kwargs["max_tokens"] = min(kwargs.get("max_tokens", 2048), 2048)
 
@@ -564,7 +583,7 @@ class LightRAGService:
 
     async def ainsert(
         self, text: str, file_paths: str | Optional[list[str]] = None, timeout: float = 180.0
-    ):
+    ) -> bool:
         """Insert new content into the graph asynchronously.
 
         Args:
@@ -572,13 +591,23 @@ class LightRAGService:
             file_paths: Optional source file paths for provenance tracking.
             timeout: Maximum seconds to wait for LightRAG internal extraction + merging.
                      Default 180s prevents runaway Sarvam API retry storms from blocking indefinitely.
+
+        Returns:
+            True if extraction completed within the timeout, False if it was
+            skipped (LightRAG inactive, or a timeout). A timed-out insert is
+            NOT retried automatically by this method — callers that want to
+            know (e.g. for logging; LightRAG is enrichment, not the
+            ingestion-blocking critical path — Qdrant is primary) should
+            check this return value instead of assuming success
+            (production-audit finding lightrag-1: this always returned None
+            before, so a timeout was indistinguishable from success).
         """
         if not self._initialized:
             await self.initialize()
 
         if not self.rag:
             logger.warning("LightRAG is not active, skipping graph extraction.")
-            return
+            return False
 
         logger.info(f"Extracting graph entities for inserted text ({len(text)} chars)...")
         try:
@@ -590,11 +619,13 @@ class LightRAGService:
             # overlap); a bulk ingestion tick then no longer drops every
             # unrelated cached query (cold queries on each tick).
             self._invalidate_cache_for(text, file_paths=file_paths)
+            return True
         except TimeoutError:
             logger.warning(
                 f"LightRAG ainsert timed out after {timeout:.0f}s for text ({len(text)} chars). "
                 f"Skipping this chunk — Qdrant vectors are already indexed."
             )
+            return False
         except Exception as e:
             # Check for common initialization error and retry once
             if "JsonDocStatusStorage not initialized" in str(e):
@@ -605,10 +636,12 @@ class LightRAGService:
                         self.rag.ainsert(text, file_paths=file_paths), timeout=timeout
                     )
                     self._invalidate_cache_for(text, file_paths=file_paths)
+                    return True
                 except TimeoutError:
                     logger.warning(
                         f"LightRAG ainsert timed out after retry ({timeout:.0f}s). Skipping."
                     )
+                    return False
             else:
                 raise
 
@@ -621,8 +654,7 @@ class LightRAGService:
         Qdrant vector ingestion is the primary store — graph extraction is bonus.
         """
         try:
-            await self.ainsert(text, file_paths=file_paths, timeout=timeout)
-            return True
+            return await self.ainsert(text, file_paths=file_paths, timeout=timeout)
         except Exception as e:
             logger.error(f"LightRAG safe_ainsert failed (non-fatal): {e}")
             return False

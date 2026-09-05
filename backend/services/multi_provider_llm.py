@@ -1,14 +1,22 @@
 """Multi-Provider LLM Service with Circuit Breakers and Rate Limiting.
 
-Provider stack (priority order):
+Provider stack (priority order, self._provider_priority):
 1. Sarvam Cloud - Primary (best Indic language support, 60 RPM free tier)
 2. OpenRouter - Fallback (200+ models, OpenAI-compatible)
-3. Ollama Local - Emergency (self-hosted, zero latency, privacy)
+
+Corrected 2026-09-05 (production-audit finding UNK-1): there is no Ollama
+tier. This docstring previously claimed a 3rd "Ollama Local - Emergency"
+fallback, but self.providers/self._provider_priority only ever define
+sarvam and openrouter (a third "nim" entry also exists but is not in the
+priority list) — generate() raises RuntimeError("All providers failed") if
+both fail, it does not fall back to a local model. Only used by offline
+ingest tooling (OKF extraction, transcript polishing), not the chat path.
 
 Auto-failover with circuit breaker pattern (3 failures = open, 60s recovery).
 Token bucket rate limiting per provider.
 """
 
+import asyncio
 import os
 import time
 from dataclasses import dataclass
@@ -264,9 +272,20 @@ class MultiProviderLLMService:
                 "usage": data.get("usage", {}),
             }
 
-    async def close(self):
-        if self.session:
+    async def __aenter__(self) -> "MultiProviderLLMService":
+        await self._get_session()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        await self.close()
+
+    async def close(self) -> None:
+        if self.session is not None and not self.session.closed:
             await self.session.close()
+            # Allow underlying SSL transports / connectors to close cleanly
+            await asyncio.sleep(0.001)
+        self.session = None
+        self._init_session = False
 
     def get_provider_status(self) -> dict[str, dict]:
         return {
@@ -288,3 +307,11 @@ def get_llm_service() -> MultiProviderLLMService:
     if _singleton is None:
         _singleton = MultiProviderLLMService()
     return _singleton
+
+
+async def close_llm_service() -> None:
+    """Explicitly shut down and close the global MultiProviderLLMService singleton."""
+    global _singleton
+    if _singleton is not None:
+        await _singleton.close()
+        _singleton = None

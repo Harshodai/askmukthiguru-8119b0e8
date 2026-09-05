@@ -1190,12 +1190,21 @@ def _persist_trace_span(
         async def _insert():
             try:
                 client.table("trace_spans").insert(span_payload).execute()
-            except Exception:
-                pass  # Never break pipeline for telemetry
+            except Exception as insert_err:
+                # Never break the pipeline for telemetry, but a silent swallow
+                # here made a request_id/trace_id mismatch (production-audit
+                # finding OBS-1 — every insert failed the UUID NOT NULL
+                # constraint) invisible for as long as the mismatch existed.
+                logger.debug(
+                    "trace_spans insert failed for query_id=%s node=%s: %s",
+                    request_id,
+                    node_name,
+                    insert_err,
+                )
 
         asyncio.create_task(_insert())
-    except Exception:
-        pass  # Never break pipeline for telemetry
+    except Exception as span_err:
+        logger.debug("_persist_trace_span setup failed for node=%s: %s", node_name, span_err)
 
 
 def log_metrics(func):

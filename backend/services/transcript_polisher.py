@@ -17,7 +17,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Optional
 
-from services.multi_provider_llm import MultiProviderLLMService
+from services.multi_provider_llm import MultiProviderLLMService, get_llm_service
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +46,7 @@ async def polish_transcript(
     if not raw_text or len(raw_text) < 30:
         return raw_text
 
-    svc = llm_service or MultiProviderLLMService()
+    svc = llm_service or get_llm_service()
 
     try:
         prompt = f"{POLISH_SYSTEM_PROMPT}\n\nFormat this raw transcript:\n\n{raw_text}"

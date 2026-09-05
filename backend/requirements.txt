@@ -116,14 +116,22 @@ turbovec>=0.8.0
 #   pip install ragas>=0.2.1
 #   pip install gptcache>=0.1.43
 easyocr>=1.7.2
-gptcache>=0.1.43
+# production-audit finding DEP-1: no upper bound meant an unpinned future
+# install could silently pull an unvetted major with new CVEs. Capped to the
+# resolve already locked in requirements.lock (0.1.44) — not a claim that
+# this version is CVE-clean; docs/production-readiness/FINAL-REPORT.md still
+# lists gptcache as an open dependency-risk item pending a real pip-audit run.
+gptcache>=0.1.43,<0.2.0
 nemoguardrails>=0.11.0
 
 # === OpenTelemetry ===
 opentelemetry-sdk>=1.24.0,<2.0
 opentelemetry-instrumentation-fastapi>=0.45b0,<1.0
 opentelemetry-exporter-otlp>=1.24.0,<2.0
-litellm>=1.24.0
+# production-audit finding DEP-1: same unbounded-range risk as gptcache above;
+# capped to the locked major (1.x, resolves to 1.83.0 in requirements.lock).
+# Still an open dependency-risk item per FINAL-REPORT.md pending pip-audit.
+litellm>=1.24.0,<2.0
 pypdf>=6.13.3,<7.0
 PyYAML>=6.0.0
 openinference-instrumentation-langchain>=0.1.33,<1.0

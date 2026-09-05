@@ -86,6 +86,7 @@ let JobsPage: ComponentType = NoopPage;
 let RAGFlowPage: ComponentType = NoopPage;
 let AdminSelfCheckPage: ComponentType = NoopPage;
 let CachePage: ComponentType = NoopPage;
+let RoutingPage: ComponentType = NoopPage;
 
 
 if (ADMIN_ENABLED) {
@@ -115,6 +116,7 @@ if (ADMIN_ENABLED) {
   RAGFlowPage = lazyWithRetry(() => import("./admin/pages/RAGFlowPage"));
   AdminSelfCheckPage = lazyWithRetry(() => import("./pages/AdminSelfCheckPage"));
   CachePage = lazyWithRetry(() => import("./admin/pages/CachePage"));
+  RoutingPage = lazyWithRetry(() => import("./admin/pages/RoutingPage"));
 }
 
 const queryClient = new QueryClient({
@@ -282,6 +284,8 @@ const App = () => {
                   ]} /></AdminRoute>} />
                   <Route path="logs" element={<Navigate to="/admin/telemetry?tab=logs" replace />} />
                   <Route path="monitoring" element={<Navigate to="/admin/telemetry?tab=monitoring" replace />} />
+
+                  <Route path="routing" element={<AdminRoute><RoutingPage /></AdminRoute>} />
 
                   <Route path="data-sources" element={<AdminRoute><DataSourcesPage /></AdminRoute>} />
                   <Route path="rag-flow" element={<AdminRoute><RAGFlowPage /></AdminRoute>} />

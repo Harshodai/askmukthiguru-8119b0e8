@@ -253,12 +253,12 @@ class PipelineCoordinator:
         if result.cache_hit:
             latency_ms = int((time.time() - start_time) * 1000)
             res = result.with_latency(latency_ms)
-            SLO_CHAT_LATENCY.labels(tier=(res.route_decision or "standard")).observe(
+            SLO_CHAT_LATENCY.labels(tier=(res.query_tier or "fast")).observe(
                 latency_ms / 1000.0
             )
             return res
 
-        SLO_CHAT_LATENCY.labels(tier=(result.route_decision or "standard")).observe(
+        SLO_CHAT_LATENCY.labels(tier=(result.query_tier or "standard")).observe(
             time.time() - start_time
         )
         return result

@@ -231,14 +231,14 @@ async def test_cache_hit_observes_slo_latency_once(coordinator, monkeypatch):
     """PipelineCoordinator.execute observes SLO_CHAT_LATENCY exactly once on a cache hit."""
 
     observes = []
-    orig_observe = SLO_CHAT_LATENCY.labels(tier="semantic_cache").observe
+    orig_observe = SLO_CHAT_LATENCY.labels(tier="fast").observe
 
     def _capture_observe(value):
         observes.append(value)
         return orig_observe(value)
 
     monkeypatch.setattr(
-        SLO_CHAT_LATENCY.labels(tier="semantic_cache"),
+        SLO_CHAT_LATENCY.labels(tier="fast"),
         "observe",
         _capture_observe,
     )
@@ -557,3 +557,129 @@ async def test_memory_stage_skips_all_persistence_when_memory_writes_are_disable
     container.user_profile.save_conversation_memory.assert_not_called()
     container.memory_service.extract_and_write.assert_not_called()
     container.second_brain.unlock.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Routing Taxonomy, Provenance & Hierarchical Resolution Tests
+# ---------------------------------------------------------------------------
+
+
+def test_route_taxonomy_canonicalization():
+    from app.route_taxonomy import RouteDecision, canonicalize_route_decision
+
+    assert canonicalize_route_decision("grounded_partial_fast_tier") == RouteDecision.GROUNDED_PARTIAL.value
+    assert canonicalize_route_decision("grounded_partial_fallback") == RouteDecision.GROUNDED_PARTIAL.value
+    assert canonicalize_route_decision("reflective_peace_meaning_fallback") == RouteDecision.REFLECTIVE_FALLBACK.value
+    assert canonicalize_route_decision("reflective_meaning_fallback") == RouteDecision.REFLECTIVE_FALLBACK.value
+    assert canonicalize_route_decision("reflective_practice_fallback") == RouteDecision.REFLECTIVE_FALLBACK.value
+    assert canonicalize_route_decision("hot_cache") == "hot_cache"
+    assert canonicalize_route_decision(None) == "error"
+    assert canonicalize_route_decision("") == "error"
+
+
+def test_record_routing_decision_populates_chain():
+    from app.route_taxonomy import RoutingProvenance, record_routing_decision
+
+    class DummyContext:
+        def __init__(self):
+            self.routing_chain = []
+
+    ctx = DummyContext()
+    record_routing_decision(
+        ctx,
+        RoutingProvenance(
+            layer="CACHE_CHECK",
+            decision="grounded_partial_fast_tier",
+            method="test_method",
+            confidence=0.95,
+        ),
+    )
+    assert len(ctx.routing_chain) == 1
+    # Decision must be canonicalized
+    assert ctx.routing_chain[0]["decision"] == "grounded_partial_evidence"
+    assert ctx.routing_chain[0]["layer"] == "CACHE_CHECK"
+    assert ctx.routing_chain[0]["confidence"] == 0.95
+
+
+@pytest.mark.asyncio
+async def test_result_assembly_hierarchical_route_resolution(coordinator):
+    from app.pipeline.stages.glue_stages import ResultAssemblyStage
+
+    container = _mock_container()
+    coordinator.container = container
+    ctx = _build_ctx(container, coordinator)
+
+    # Simulate graph execution returning route_decision only inside evaluation_trace
+    ctx.graph_result = {
+        "final_answer": "Extracted excerpt",
+        "intent": "QUERY",
+        "evaluation_trace": {
+            "route_decision": "grounded_partial_fast_tier",
+            "routing_reason": "retrieval_fallback",
+        },
+    }
+    ctx.final_answer = ctx.graph_result["final_answer"]
+    ctx.intent = ctx.graph_result["intent"]
+
+    stage = ResultAssemblyStage()
+    result = await stage.run(ctx)
+
+    assert result is not None
+    # Must resolve and canonicalize to grounded_partial_evidence, NOT fallback to query
+    assert result.route_decision == "grounded_partial_evidence"
+    # routing_chain must contain the provenance
+    assert "routing_chain" in result.route_metadata
+    chain = result.route_metadata["routing_chain"]
+    assert len(chain) >= 1
+    assert chain[-1]["decision"] == "grounded_partial_evidence"
+    assert chain[-1]["layer"] == "GRAPH_GENERATION"
+
+
+@pytest.mark.asyncio
+async def test_circuit_breaker_stage_records_provenance(coordinator):
+    from app.pipeline.stages.guardrail_stage import CircuitBreakerStage
+
+    container = _mock_container()
+    coordinator.container = container
+    ctx = _build_ctx(container, coordinator)
+    coordinator._is_circuit_open = MagicMock(return_value=True)
+
+    stage = CircuitBreakerStage()
+    result = await stage.run(ctx)
+
+    assert result is not None
+    assert result.intent == "ERROR"
+    assert result.route_decision == "error"
+    assert "routing_chain" in result.route_metadata
+    chain = result.route_metadata["routing_chain"]
+    assert len(chain) == 1
+    assert chain[0]["layer"] == "INPUT_GUARDRAILS"
+    assert chain[0]["decision"] == "error"
+    assert chain[0]["method"] == "circuit_breaker_open"
+
+
+@pytest.mark.asyncio
+async def test_result_assembly_casual_maps_to_intent_router(coordinator):
+    from app.pipeline.stages.glue_stages import ResultAssemblyStage
+
+    container = _mock_container()
+    coordinator.container = container
+    ctx = _build_ctx(container, coordinator)
+
+    ctx.graph_result = {
+        "final_answer": "Namaste!",
+        "intent": "CASUAL",
+        "route_decision": "casual",
+    }
+    ctx.final_answer = ctx.graph_result["final_answer"]
+    ctx.intent = ctx.graph_result["intent"]
+
+    stage = ResultAssemblyStage()
+    result = await stage.run(ctx)
+
+    assert result is not None
+    assert result.route_decision == "casual"
+    chain = result.route_metadata["routing_chain"]
+    assert len(chain) >= 1
+    assert chain[-1]["decision"] == "casual"
+    assert chain[-1]["layer"] == "GRAPH_INTENT_ROUTER"

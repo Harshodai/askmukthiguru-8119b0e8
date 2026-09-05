@@ -722,10 +722,6 @@
     "The_Four_Sacred_Secrets.pdf"
   ],
   "metrics": {
-    "The_Four_Sacred_Secrets.pdf": {
-      "latency": 10537.481761932373,
-      "status": "success"
-    },
     "7Pfat_DztMI": {
       "latency": 1356.5429120063782,
       "status": "success",
@@ -3894,14 +3890,6 @@
       "chunks": 14,
       "lightrag_status": "success"
     },
-    "AK435vKMlo": {
-      "latency": 49.28314280509949,
-      "status": "failed",
-      "qdrant_status": "failed",
-      "lightrag_status": "skipped",
-      "error": "Unsupported URL format: https://www.youtube.com/watch?v=AK435vKMlo",
-      "error_category": "transient"
-    },
     "8xJampnp9qc": {
       "latency": 1194.926332950592,
       "status": "success",
@@ -6749,14 +6737,6 @@
       "will_retry": false
     },
     {
-      "video_id": "AK435vKMlo",
-      "error_category": "transient",
-      "error_message": "Unsupported URL format: https://www.youtube.com/watch?v=AK435vKMlo",
-      "attempt_count": 3,
-      "last_attempt_ts": "2026-05-25T13:10:36Z",
-      "will_retry": true
-    },
-    {
       "video_id": "OzKHRjr8nt8",
       "error_category": "permanent",
       "error_message": "Extraction failed",
@@ -7029,5 +7009,26 @@
       "will_retry": false
     }
   ],
-  "contextual_reingest_processed_sources": []
+  "contextual_reingest_processed_sources": [
+    "https://www.youtube.com/watch?v=1e0yk20hF7Y",
+    "https://www.youtube.com/watch?v=0z-IZ2ar4eA",
+    "https://www.youtube.com/watch?v=3RyCldrCxL8"
+  ],
+  "contextual_reingest_processed_sections": {
+    "https://www.youtube.com/watch?v=1e0yk20hF7Y": [
+      "https://www.youtube.com/watch?v=1e0yk20hF7Y"
+    ],
+    "https://www.youtube.com/watch?v=0z-IZ2ar4eA": [
+      "https://www.youtube.com/watch?v=0z-IZ2ar4eA"
+    ],
+    "https://www.youtube.com/watch?v=3RyCldrCxL8": [
+      "https://www.youtube.com/watch?v=3RyCldrCxL8"
+    ],
+    "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319": [
+      "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319#0000",
+      "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319#0001",
+      "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319#0002",
+      "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319#0003"
+    ]
+  }
 }

@@ -517,17 +517,68 @@ class LLMQualityScorer:
         # Find the JSON object
         match = re.search(r"\{.*\}", clean, re.DOTALL)
         if not match:
+            # Fallback: check if score was outputted directly without enclosing object
+            score_match = re.search(r'"?score"?\s*[:=]\s*(\d+)', raw, re.IGNORECASE)
+            if score_match:
+                score = int(score_match.group(1))
+                is_spiritual = True
+                spiritual_match = re.search(
+                    r'"?is_spiritual"?\s*[:=]\s*(true|false)', raw, re.IGNORECASE
+                )
+                if spiritual_match and spiritual_match.group(1).lower() == "false":
+                    is_spiritual = False
+                reasons = ["Extracted score via direct regex fallback"]
+                if not is_spiritual:
+                    reasons.insert(0, "Content not identified as spiritual/philosophical")
+                    score = min(score, 39)
+                return max(0, min(100, score)), reasons
             logger.warning(f"LLM quality response not JSON: {raw[:200]}")
             return 0, ["QUALITY_UNKNOWN: LLM response was not valid JSON"]
 
+        json_str = match.group()
         try:
-            data = json.loads(match.group())
+            data = json.loads(json_str)
             score = int(data.get("score", 50))
             reasons = data.get("reasons", [])
             if not data.get("is_spiritual", True):
                 reasons.insert(0, "Content not identified as spiritual/philosophical")
+                score = min(score, 39)
             return max(0, min(100, score)), reasons
         except (json.JSONDecodeError, ValueError, TypeError) as e:
+            # Resilient JSON repair: remove trailing commas, unescaped chars
+            try:
+                repaired = re.sub(r",\s*([\]}])", r"\1", json_str)
+                data = json.loads(repaired)
+                score = int(data.get("score", 50))
+                reasons = data.get("reasons", [])
+                if not data.get("is_spiritual", True):
+                    reasons.insert(0, "Content not identified as spiritual/philosophical")
+                    score = min(score, 39)
+                logger.info(f"Successfully repaired malformed LLM JSON in quality gate (score={score})")
+                return max(0, min(100, score)), reasons
+            except Exception:
+                pass
+
+            # Regex field extraction fallback
+            score_match = re.search(r'"?score"?\s*[:=]\s*(\d+)', json_str, re.IGNORECASE)
+            if score_match:
+                score = int(score_match.group(1))
+                is_spiritual = True
+                spiritual_match = re.search(
+                    r'"?is_spiritual"?\s*[:=]\s*(true|false)', json_str, re.IGNORECASE
+                )
+                if spiritual_match and spiritual_match.group(1).lower() == "false":
+                    is_spiritual = False
+
+                reasons = ["Extracted score via regex recovery from malformed JSON"]
+                if not is_spiritual:
+                    reasons.insert(0, "Content not identified as spiritual/philosophical")
+                    score = min(score, 39)
+                logger.info(
+                    f"Recovered quality score via regex extractor from malformed JSON (score={score})"
+                )
+                return max(0, min(100, score)), reasons
+
             logger.warning(f"JSON parse error in quality response: {e}")
             return 0, [f"QUALITY_UNKNOWN: JSON parse error: {e}"]
 
@@ -552,6 +603,7 @@ class StagingQueue:
 
     def __init__(self, supabase_client: Optional[Any] = None):
         self._client = supabase_client
+        self._disabled = False
 
     async def submit(
         self,
@@ -565,8 +617,8 @@ class StagingQueue:
         Write to staging_quality_queue. Returns staging ID or None on failure.
         Non-blocking — failure here never blocks ingestion flow.
         """
-        if not self._client:
-            logger.debug("No Supabase client — staging queue write skipped")
+        if not self._client or self._disabled:
+            logger.debug("No Supabase client or staging disabled — staging queue write skipped")
             return None
 
         try:
@@ -592,7 +644,16 @@ class StagingQueue:
             )
             return staging_id
         except Exception as e:
-            logger.warning(f"Staging queue write failed: {e}")
+            err_str = str(e)
+            if "401" in err_str or "unauthorized" in err_str.lower() or "credentials" in err_str.lower():
+                logger.debug(
+                    "Staging queue write skipped (Supabase unauthenticated/401): %s. Disabling staging queue for this run.",
+                    e,
+                )
+                self._client = None
+                self._disabled = True
+            else:
+                logger.warning(f"Staging queue write failed: {e}")
             return None
 
 

@@ -825,3 +825,23 @@ export async function reviewStagingItem(
     body: JSON.stringify({ action, notes }),
   });
 }
+// ── Routing Dashboard ───────────────────────────────────────────────────────
+export async function getRoutingDistribution(hours: number) {
+  return fetchWithAuth(`/api/admin/routing/distribution?hours=${hours}`);
+}
+
+export async function getRoutingTiers(hours: number) {
+  return fetchWithAuth(`/api/admin/routing/tiers?hours=${hours}`);
+}
+
+export async function getRoutingTimeseries(hours: number, bucketMinutes: number = 60) {
+  return fetchWithAuth(`/api/admin/routing/timeseries?hours=${hours}&bucket_minutes=${bucketMinutes}`);
+}
+
+export async function getRoutingLayers(hours: number) {
+  return fetchWithAuth(`/api/admin/routing/layers?hours=${hours}`);
+}
+
+export async function getRoutingConfidence(hours: number) {
+  return fetchWithAuth(`/api/admin/routing/confidence?hours=${hours}`);
+}

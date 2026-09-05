@@ -91,7 +91,7 @@ DOCTRINE_TEMPORAL_PATTERNS: list[str] = [
 # Heuristic simple-query detection (broad, generic phrasing). Consumed via
 # ``re.search`` on the lowercased query.
 HEURISTIC_SIMPLE_PATTERNS: list[str] = [
-    r"^who\bs+",
+    r"^who\b\s+",
     r"^what\bs+(is|are)\b",
     r"^when\b",
     r"^where\b",

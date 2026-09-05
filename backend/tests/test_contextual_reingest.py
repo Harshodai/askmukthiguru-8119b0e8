@@ -224,6 +224,22 @@ def test_task_registration():
     assert contextual_reingest.queue == "ingestion"
 
 
+def test_default_construction_does_not_double_suffix_target():
+    """Regression for the 2026-09-03 bug: settings.qdrant_collection now
+    defaults to the post-migration "spiritual_wisdom_contextual" collection
+    itself, not the legacy raw one. A no-args ContextualReingestEngine() (as
+    both run_pilot.py and tasks/contextual_reingest_task.py construct it)
+    must resolve source=spiritual_wisdom / target=spiritual_wisdom_contextual,
+    never a double-suffixed "spiritual_wisdom_contextual_contextual".
+    """
+    from ingest.contextual_reingest import ContextualReingestEngine
+
+    engine = ContextualReingestEngine()
+    assert engine._source_collection == "spiritual_wisdom"
+    assert engine._target_collection == "spiritual_wisdom_contextual"
+    assert not engine._target_collection.endswith("_contextual_contextual")
+
+
 @pytest.mark.asyncio
 async def test_reingest_source_with_late_chunking_enabled(engine, sample_payloads, monkeypatch):
     from app.config import settings
@@ -491,9 +507,29 @@ def test_late_chunking_never_mixes_pooling_modes():
         "the late-chunking fallback must mean-pool, not fall back to CLS"
     )
     assert "mixed pooling modes" in src, "a mixed-pooling collection must raise, not warn"
-    # The old defect is literally the line `pooling_modes[i] = "mean"` sitting
-    # inside the success branch only; the fix assigns it unconditionally.
-    assert src.count('pooling_modes[i] = "mean"') == 1
+    # production-audit finding false-confidence-2: a bare `src.count(...) == 1`
+    # can't detect the actual regression shape — re-indenting this exact same
+    # line back inside the `if vec and any(vec):` success branch (the original
+    # bug) still produces exactly one textual occurrence. Check the line's
+    # INDENTATION instead: it must sit at the `for` loop's body level (outside
+    # both the if and else blocks), not nested one level deeper inside either.
+    lines = src.splitlines()
+    for_indent = None
+    assignment_indent = None
+    for line in lines:
+        stripped = line.lstrip(" ")
+        indent = len(line) - len(stripped)
+        if stripped.startswith("for i in range(len(dense_vectors)):"):
+            for_indent = indent
+        elif 'pooling_modes[i] = "mean"' in stripped and assignment_indent is None:
+            assignment_indent = indent
+    assert for_indent is not None, "could not locate the late-chunking for-loop in source"
+    assert assignment_indent is not None, 'pooling_modes[i] = "mean" not found'
+    assert assignment_indent == for_indent + 4, (
+        f"pooling_modes[i] assignment is nested at indent {assignment_indent} "
+        f"(loop body is {for_indent + 4}) — it must be unconditional per "
+        "iteration, not confined to the if/else branch above it"
+    )
 
 
 def test_dead_metadata_is_not_written():
@@ -651,3 +687,70 @@ def test_sections_are_written_incrementally_with_resume():
     # Point ids stay unique: chunk_index continues across sections.
     assert "next_index + offset" in src
     assert "next_index += len(section_payloads)" in src, "resume must advance the cursor"
+
+
+@pytest.mark.asyncio
+async def test_reingest_source_resumes_after_simulated_crash(tmp_path):
+    """production-audit finding false-confidence-3: the sibling test above only
+    greps source text — it never actually crashes and resumes a run. Simulate
+    a real crash after section 1 completes, then construct a FRESH engine
+    (as a real process restart would) sharing only the on-disk state file, and
+    verify section 1 is not reprocessed and the source is deleted exactly once
+    across both runs."""
+    from ingest.contextual_reingest import ContextualReingestEngine
+
+    state_file = tmp_path / "ingestion_state.json"
+    source_url = "https://example.com/book"
+    payloads = [
+        {"node_id": "ch1", "text": "chapter one text", "_id": "p1"},
+        {"node_id": "ch2", "text": "chapter two text", "_id": "p2"},
+    ]
+
+    shared_target_service = MagicMock()
+    shared_target_service.check_source_exists.return_value = True
+    shared_target_service.upsert_chunks.return_value = 1
+
+    def make_engine():
+        engine = ContextualReingestEngine(
+            source_collection="spiritual_wisdom",
+            target_collection="spiritual_wisdom_contextual",
+            qdrant_client=MagicMock(),
+            embedding_service=MagicMock(),
+            contextualizer=MagicMock(),
+            state_file=state_file,
+        )
+        engine._target_service = MagicMock(return_value=shared_target_service)
+        return engine
+
+    # --- Run 1: section 1 succeeds, section 2 crashes (uncaught exception) ---
+    engine1 = make_engine()
+
+    async def ingest_unit_run1(src_url, section_payloads, label):
+        if "ch1" in label:
+            return (["chunk1"], [{"chunk_index": 0}], [[0.1] * 4], [None])
+        raise RuntimeError("simulated crash mid-section")
+
+    engine1._ingest_unit = AsyncMock(side_effect=ingest_unit_run1)
+
+    with pytest.raises(RuntimeError, match="simulated crash"):
+        await engine1._reingest_source(source_url, payloads)
+
+    assert shared_target_service.delete_by_source.call_count == 1
+    assert shared_target_service.upsert_chunks.call_count == 1
+
+    # --- Run 2: fresh engine instance (process restart), same state file ---
+    engine2 = make_engine()
+
+    async def ingest_unit_run2(src_url, section_payloads, label):
+        assert "ch1" not in label, "section 1 must not be reprocessed after resume"
+        return (["chunk2"], [{"chunk_index": 0}], [[0.2] * 4], [None])
+
+    engine2._ingest_unit = AsyncMock(side_effect=ingest_unit_run2)
+
+    written = await engine2._reingest_source(source_url, payloads)
+
+    assert written == 1
+    engine2._ingest_unit.assert_awaited_once()
+    # Delete must NOT fire again on resume — still exactly one across both runs.
+    assert shared_target_service.delete_by_source.call_count == 1
+    assert shared_target_service.upsert_chunks.call_count == 2

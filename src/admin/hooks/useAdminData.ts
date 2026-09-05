@@ -235,3 +235,23 @@ export function useOperationsSnapshot() {
     refetchInterval: 30_000,
   });
 }
+
+export function useRoutingDistribution(hours: number) {
+  return useQuery({ queryKey: ["admin", "routing", "distribution", hours], queryFn: () => api.getRoutingDistribution(hours) });
+}
+
+export function useRoutingTiers(hours: number) {
+  return useQuery({ queryKey: ["admin", "routing", "tiers", hours], queryFn: () => api.getRoutingTiers(hours) });
+}
+
+export function useRoutingTimeseries(hours: number, bucketMinutes: number = 60) {
+  return useQuery({ queryKey: ["admin", "routing", "timeseries", hours, bucketMinutes], queryFn: () => api.getRoutingTimeseries(hours, bucketMinutes) });
+}
+
+export function useRoutingLayers(hours: number) {
+  return useQuery({ queryKey: ["admin", "routing", "layers", hours], queryFn: () => api.getRoutingLayers(hours) });
+}
+
+export function useRoutingConfidence(hours: number) {
+  return useQuery({ queryKey: ["admin", "routing", "confidence", hours], queryFn: () => api.getRoutingConfidence(hours) });
+}

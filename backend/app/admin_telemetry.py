@@ -19,6 +19,8 @@ _QUERY_FIELDS = (
     "completion_tokens",
     "cost_estimate",
     "prompt_version_id",
+    "route_decision",
+    "query_tier",
 )
 _RESPONSE_FIELDS = (
     "faithfulness",

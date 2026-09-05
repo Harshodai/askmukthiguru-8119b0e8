@@ -9,6 +9,7 @@ evaluations, and user feedback via Supabase.
 
 import json
 import logging
+import math
 import re
 from datetime import UTC, datetime, timedelta
 from typing import Any, Optional
@@ -16,10 +17,12 @@ from typing import Any, Optional
 from supabase import Client, create_client
 
 from app.config import get_settings
+from app.route_taxonomy import canonicalize_route_decision
 from app.sanitization import sanitize_log_input
 from app.security_utils import validate_iso_date, validate_session_id, validate_user_id
 
 logger = logging.getLogger(__name__)
+
 settings = get_settings()
 
 _REFUSAL_PATTERN = re.compile(
@@ -221,6 +224,8 @@ async def log_query_trace(query_data: dict, response_data: dict) -> None:
             "latency_ms": query_data.get("latency_ms", 0),
             "status": query_data.get("status", "ok"),
             "created_at": query_data["created_at"],
+            "route_decision": query_data.get("route_decision"),
+            "query_tier": query_data.get("query_tier"),
         }
 
         # Filter out None values to let Postgres defaults kick in
@@ -1774,3 +1779,240 @@ async def get_node_latencies(limit: int = 1000) -> list[dict[str, Any]]:
     except Exception as e:
         logger.error(f"Failed to query node latencies: {e}")
         return []
+
+async def get_routing_distribution(hours: int = 24) -> list[dict]:
+    """Route decision distribution from chat_queries over the given window."""
+    client = _get_client()
+    if not client:
+        return []
+    from datetime import datetime, timedelta
+    cutoff = (datetime.now(UTC) - timedelta(hours=hours)).isoformat()
+    try:
+        def _query():
+            # Query chat_queries for route_decision distribution
+            resp = client.table("chat_queries").select(
+                "route_decision, latency_ms"
+            ).gte("created_at", cutoff).not_.is_("route_decision", "null").execute()
+            return resp.data or []
+        rows = await asyncio.wait_for(asyncio.to_thread(_query), timeout=5.0)
+        # Aggregate in Python (Supabase REST doesn't support GROUP BY)
+        from collections import defaultdict
+        agg = defaultdict(lambda: {"count": 0, "total_latency": 0, "latencies": []})
+        for row in rows:
+            raw_rd = row.get("route_decision") or "unknown"
+            rd = canonicalize_route_decision(raw_rd)
+            latency = row.get("latency_ms") or 0
+            agg[rd]["count"] += 1
+            agg[rd]["total_latency"] += latency
+            agg[rd]["latencies"].append(latency)
+        result = []
+        for rd, data in sorted(agg.items(), key=lambda x: x[1]["count"], reverse=True):
+            latencies = sorted(data["latencies"])
+            p95_idx = max(0, min(math.ceil(0.95 * len(latencies)) - 1, len(latencies) - 1)) if latencies else 0
+            result.append({
+                "route_decision": rd,
+                "count": data["count"],
+                "avg_latency_ms": round(data["total_latency"] / data["count"], 1) if data["count"] else 0,
+                "p95_latency_ms": latencies[p95_idx] if latencies else 0,
+            })
+        return result
+    except Exception as e:
+        logger.warning("get_routing_distribution failed: %s", e)
+        return []
+
+async def get_routing_tier_distribution(hours: int = 24) -> list[dict]:
+    """Query tier distribution from router_decisions table."""
+    client = _get_client()
+    if not client:
+        return []
+    from datetime import datetime, timedelta
+    cutoff = (datetime.now(UTC) - timedelta(hours=hours)).isoformat()
+    try:
+        def _query():
+            resp = client.table("router_decisions").select(
+                "tier, method, confidence, shadow_tier"
+            ).gte("created_at", cutoff).execute()
+            return resp.data or []
+        rows = await asyncio.wait_for(asyncio.to_thread(_query), timeout=5.0)
+        from collections import defaultdict
+        agg = defaultdict(lambda: {"count": 0, "total_confidence": 0.0, "shadow_tiers": defaultdict(int)})
+        for row in rows:
+            key = (row.get("tier") or "unknown", row.get("method") or "unknown")
+            agg[key]["count"] += 1
+            agg[key]["total_confidence"] += (row.get("confidence") or 0.0)
+            st = row.get("shadow_tier")
+            if st:
+                agg[key]["shadow_tiers"][st] += 1
+        result = []
+        for (tier, method), data in sorted(agg.items(), key=lambda x: x[1]["count"], reverse=True):
+            entry = {
+                "tier": tier,
+                "method": method,
+                "count": data["count"],
+                "avg_confidence": round(data["total_confidence"] / data["count"], 4) if data["count"] else 0,
+            }
+            if data["shadow_tiers"]:
+                entry["shadow_tier_distribution"] = dict(data["shadow_tiers"])
+            result.append(entry)
+        return result
+    except Exception as e:
+        logger.warning("get_routing_tier_distribution failed: %s", e)
+        return []
+
+async def get_routing_timeseries(hours: int = 24, bucket_minutes: int = 60) -> list[dict]:
+    """Time-bucketed route_decision distribution for chart rendering."""
+    client = _get_client()
+    if not client:
+        return []
+    from datetime import datetime, timedelta
+    cutoff = (datetime.now(UTC) - timedelta(hours=hours)).isoformat()
+    try:
+        def _query():
+            resp = client.table("chat_queries").select(
+                "created_at, route_decision"
+            ).gte("created_at", cutoff).not_.is_("route_decision", "null").order("created_at").execute()
+            return resp.data or []
+        rows = await asyncio.wait_for(asyncio.to_thread(_query), timeout=10.0)
+        from collections import defaultdict
+        buckets = defaultdict(lambda: defaultdict(int))
+        for row in rows:
+            ts = row.get("created_at", "")
+            raw_rd = row.get("route_decision") or "unknown"
+            rd = canonicalize_route_decision(raw_rd)
+            # Truncate to bucket using full epoch flooring
+            try:
+                dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                epoch_sec = int(dt.timestamp())
+                bucket_sec = max(1, bucket_minutes * 60)
+                floored_sec = (epoch_sec // bucket_sec) * bucket_sec
+                bucket_dt = datetime.fromtimestamp(floored_sec, tz=UTC)
+                bucket_key = bucket_dt.isoformat()
+            except (ValueError, AttributeError):
+                continue
+            buckets[bucket_key][rd] += 1
+        result = []
+        for bucket_key in sorted(buckets.keys()):
+            for rd, count in buckets[bucket_key].items():
+                result.append({
+                    "bucket": bucket_key,
+                    "route_decision": rd,
+                    "count": count,
+                })
+        return result
+    except Exception as e:
+        logger.warning("get_routing_timeseries failed: %s", e)
+        return []
+
+async def get_routing_layer_stats(hours: int = 24) -> list[dict]:
+    """Per-layer routing statistics from route_metadata in chat_queries."""
+    client = _get_client()
+    if not client:
+        return []
+    from datetime import datetime, timedelta
+    cutoff = (datetime.now(UTC) - timedelta(hours=hours)).isoformat()
+    try:
+        def _query():
+            resp = client.table("chat_queries").select(
+                "route_decision, latency_ms"
+            ).gte("created_at", cutoff).not_.is_("route_decision", "null").execute()
+            return resp.data or []
+        rows = await asyncio.wait_for(asyncio.to_thread(_query), timeout=5.0)
+        # Categorize route_decisions into layers
+        layer_map = {
+            "hot_cache": "cache_check",
+            "vector_cache_p90": "cache_check",
+            "semantic_cache": "cache_check",
+            "doctrine_cache": "doctrine_cache",
+            "instant_greeting": "casual_short_circuit",
+            "crisis_preempted": "distress_stage",
+            "bounded_comparison_short_circuit": "bounded_comparison",
+            "blocked": "input_guardrails",
+            "safety_violation": "input_guardrails",
+            "distress": "distress_stage",
+            "query": "graph_generation",
+            "factual": "graph_generation",
+            "comparative": "graph_generation",
+            "meditation": "graph_generation",
+            "grounded_partial_evidence": "graph_generation",
+            "limited_comparison_fallback": "graph_generation",
+            "reflective_fallback": "graph_generation",
+            "no_context_short_circuit": "graph_generation",
+            "official_live_web_results": "graph_generation",
+            "casual": "graph_intent_router",
+            "adversarial": "graph_intent_router",
+            "error": "pipeline_coordinator",
+            "timeout": "pipeline_coordinator",
+        }
+        from collections import defaultdict
+        agg = defaultdict(lambda: {"count": 0, "total_latency": 0, "decisions": defaultdict(int)})
+        for row in rows:
+            raw_rd = row.get("route_decision") or "unknown"
+            rd = canonicalize_route_decision(raw_rd)
+            layer = layer_map.get(rd, "graph_intent_router")
+            latency = row.get("latency_ms") or 0
+            agg[layer]["count"] += 1
+            agg[layer]["total_latency"] += latency
+            agg[layer]["decisions"][rd] += 1
+        result = []
+        for layer, data in sorted(agg.items(), key=lambda x: x[1]["count"], reverse=True):
+            top_decisions = sorted(data["decisions"].items(), key=lambda x: x[1], reverse=True)[:5]
+            result.append({
+                "layer": layer,
+                "decision_count": data["count"],
+                "avg_latency_ms": round(data["total_latency"] / data["count"], 1) if data["count"] else 0,
+                "top_decisions": [{"decision": d, "count": c} for d, c in top_decisions],
+            })
+        return result
+    except Exception as e:
+        logger.warning("get_routing_layer_stats failed: %s", e)
+        return []
+
+
+async def get_routing_confidence_heatmap(hours: int = 24) -> list[dict]:
+    """Confidence score distribution per tier/method for calibration monitoring."""
+    client = _get_client()
+    if not client:
+        return []
+    from datetime import datetime, timedelta
+    cutoff = (datetime.now(UTC) - timedelta(hours=hours)).isoformat()
+    try:
+        def _query():
+            resp = client.table("router_decisions").select(
+                "tier, method, confidence"
+            ).gte("created_at", cutoff).execute()
+            return resp.data or []
+        rows = await asyncio.wait_for(asyncio.to_thread(_query), timeout=5.0)
+        from collections import defaultdict
+        heatmap = defaultdict(lambda: defaultdict(int))
+        low_confidence_count = 0
+        total_count = len(rows)
+        for row in rows:
+            tier = row.get("tier") or "unknown"
+            method = row.get("method") or "unknown"
+            conf = row.get("confidence") or 0.0
+            # Bucket confidence into 0.1 increments
+            bucket = f"{int(conf * 10) / 10:.1f}-{int(conf * 10 + 1) / 10:.1f}"
+            key = f"{tier}|{method}"
+            heatmap[key][bucket] += 1
+            if conf < 0.5:
+                low_confidence_count += 1
+        result = []
+        for key, buckets in sorted(heatmap.items()):
+            tier, method = key.split("|", 1)
+            result.append({
+                "tier": tier,
+                "method": method,
+                "buckets": dict(buckets),
+            })
+        # Add alert metadata
+        alert = None
+        if total_count > 0 and (low_confidence_count / total_count) > 0.30:
+            alert = {
+                "level": "warning",
+                "message": f"Confidence drift detected: {low_confidence_count}/{total_count} ({round(low_confidence_count/total_count*100, 1)}%) routing decisions have confidence < 0.5",
+                "low_confidence_pct": round(low_confidence_count / total_count * 100, 1),
+            }
+        return {"heatmap": result, "alert": alert, "total_decisions": total_count}
+    except Exception as e:
+        logger.warning("get_routing_confidence_heatmap failed: %s", e)
+        return {"heatmap": [], "alert": None, "total_decisions": 0}

@@ -8,14 +8,17 @@ returns a pre-canned answer immediately, bypassing all downstream stages.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 
 from app.config import settings
 from app.pipeline.result import PipelineResult
 from app.pipeline.stages.base import Stage
 from app.release_manifest import get_release_manifest
+from app.route_taxonomy import RoutingProvenance, record_routing_decision
 
 logger = logging.getLogger(__name__)
+
 
 
 class DoctrineCacheStage(Stage):
@@ -67,17 +70,38 @@ class DoctrineCacheStage(Stage):
             except Exception as e:
                 logger.warning("DoctrineCache translation failed for Indic request: %s", e)
 
-        logger.info("DoctrineCache fast-path hit for: %s", ctx.user_msg[:60])
+        from app.metrics import CACHE_OPERATIONS
+        CACHE_OPERATIONS.labels(cache_type="doctrine", result="hit").inc()
+
+        query_token = hashlib.sha256(str(ctx.user_msg or "").encode("utf-8")).hexdigest()[:12]
+        logger.info("DoctrineCache fast-path hit for: query_token=%s", query_token)
+
+        record_routing_decision(
+            ctx,
+            RoutingProvenance(
+                layer="DOCTRINE_CACHE",
+                decision="doctrine_cache",
+                method="doctrine_cache_hit",
+                confidence=1.0,
+                reason="Pre-compiled doctrine FAQ cache hit",
+            ),
+        )
         # cache_hit=True also makes the coordinator patch in the real latency.
         # citations come from the matched entry itself — DoctrineCache.lookup()
         # never returns an entry without them (audit finding OH-P0-01).
         return PipelineResult(
             final_answer=answer,
-            intent="doctrine",
+            intent="FACTUAL",
             trace_id=getattr(ctx, "trace_id", "doctrine-hit"),
             latency_ms=0,
             citations=citations,
             route_decision="doctrine_cache",
+            route_metadata={
+                "requested_variant": "doctrine",
+                "selected_variant": "doctrine_cache",
+                "decision_method": "doctrine_cache_hit",
+                "routing_chain": list(getattr(ctx, "routing_chain", [])),
+            },
             cache_hit=True,
             release_manifest=get_release_manifest().to_dict(),
         )

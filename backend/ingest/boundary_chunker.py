@@ -23,6 +23,35 @@ from dataclasses import dataclass
 logger = logging.getLogger(__name__)
 
 
+def _slice_on_word_boundary(text: str, max_size: int) -> list[str]:
+    """Slice ``text`` into pieces of at most ``max_size`` chars, preferring to
+    break at whitespace rather than mid-word.
+
+    Used for punctuation-free runs (raw OCR/ASR text) where sentence/word
+    splitting can't rely on punctuation. Looks back up to 50 chars from the
+    hard cut point for the nearest space; falls back to a raw character cut
+    only when no whitespace is found in that window (still guarantees every
+    piece is <= max_size — this only ever moves the cut point EARLIER).
+    """
+    if len(text) <= max_size:
+        return [text]
+
+    pieces: list[str] = []
+    i = 0
+    n = len(text)
+    lookback_window = 50
+    while i < n:
+        end = min(i + max_size, n)
+        if end < n:
+            lookback_start = max(i, end - lookback_window)
+            space_at = text.rfind(" ", lookback_start, end)
+            if space_at > i:
+                end = space_at + 1
+        pieces.append(text[i:end])
+        i = end
+    return pieces
+
+
 # Abbreviations whose periods should not be treated as sentence terminators.
 # Mixed case is handled by case-insensitive regex.
 _ABBREVIATIONS = {
@@ -268,16 +297,10 @@ class BoundaryChunker:
         """
         A "sentence" with no punctuation to split on (raw OCR/ASR text, run-on
         transcript) can be arbitrarily long and would otherwise become a single
-        oversized chunk. Fall back to character-boundary slicing so every produced
-        piece is <= max_size.
+        oversized chunk. Fall back to word-boundary-aware slicing so every
+        produced piece is <= max_size.
         """
-        if len(sentence) <= self.max_size:
-            return [sentence]
-
-        pieces: list[str] = []
-        for i in range(0, len(sentence), self.max_size):
-            pieces.append(sentence[i : i + self.max_size])
-        return pieces
+        return _slice_on_word_boundary(sentence, self.max_size)
 
     def _carry_overlap(
         self, current_sentences: list[str], bounds: list[ChunkBounds]
@@ -338,10 +361,11 @@ class BoundaryChunker:
         return merged
 
     def _split_long_sentence(self, sentence: str) -> list[str]:
-        """Slice a sentence longer than max_size into max_size character pieces."""
-        if len(sentence) <= self.max_size:
-            return [sentence]
-        return [sentence[i : i + self.max_size] for i in range(0, len(sentence), self.max_size)]
+        """Slice a sentence longer than max_size into <=max_size pieces, preferring
+        word boundaries (production-audit finding F1: raw character slicing could
+        split an entity/doctrine-term reference mid-word with no overlap to
+        recover it, breaking LightRAG's per-chunk entity extraction)."""
+        return _slice_on_word_boundary(sentence, self.max_size)
 
 
 def split_text_at_boundaries(

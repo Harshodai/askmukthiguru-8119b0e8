@@ -21,7 +21,6 @@ from langgraph.errors import GraphRecursionError
 from app.assistant_authorization import resolve_effective_assistant
 from app.assistant_registry import resolve_assistant_scope
 from app.config import settings
-from app.context import correlation_id_var
 from app.orchestrator_utils import get_expected_keywords, select_graph_for_query
 from app.pipeline.result import PipelineResult  # noqa: F401  (re-export hint)
 from app.release_manifest import get_release_manifest
@@ -143,7 +142,18 @@ class GraphStage(Stage):
                 question=user_msg_en,
                 chat_history=chat_history_en,
                 meditation_step=meditation_step,
-                request_id=correlation_id_var.get(),
+                # ctx.trace_id (not the HTTP correlation id) — this is the id that
+                # becomes chat_queries.id (orchestrator.py/stream_orchestrator.py
+                # pass result.trace_id as query_id) and ChatResponse.trace_id.
+                # Node-level telemetry keys off GraphState["request_id"]
+                # (_persist_trace_span writes trace_spans.query_id from it), so
+                # seeding it from the correlation id instead — an unrelated
+                # per-HTTP-request uuid4, truncated to 8 chars by default and
+                # never reconciled with trace_id — made every trace_spans insert
+                # fail the column's UUID NOT NULL constraint and get silently
+                # swallowed, and even a full-length id would never join back to
+                # its chat_queries row (production-audit finding OBS-1).
+                request_id=ctx.trace_id,
                 assistant_slug=requested_slug,
                 knowledge_tags=list(getattr(assistant, "knowledge_tags", []) or []),
                 assistant_system_prompt=_persona,
@@ -408,7 +418,8 @@ class GraphStage(Stage):
             )
             fallback = {
                 "final_answer": "The Guru took too long to respond. Please try again.",
-                "intent": "QUERY",
+                "intent": "TIMEOUT",
+                "route_decision": "timeout",
                 "citations": [],
             }
             ctx.graph_result = fallback

@@ -615,6 +615,16 @@ def _extract_relationships(facts: list[str], entities: list[str]) -> list[tuple[
     every entity pair using the strongest relation verb detected in the fact.
     This mimics the binary edge extraction in GraphRAG/LightRAG but uses
     deterministic heuristics instead of an LLM.
+
+    Co-occurrence also checks each fact paired with the NEXT one (a 2-sentence
+    sliding window), not just a single fact in isolation. Spoken teaching
+    transcripts routinely split a subject and its predicate ("Sri Krishnaji
+    teaches this." / "The breath dissolves the ego.") across adjacent
+    sentences, and same-fact-only co-occurrence was the dominant reason the
+    live Neo4j graph had ~0 typed relationships from this extractor despite
+    entities being found in most chunks (production-audit finding N1). The
+    window stays local (2 sentences) rather than whole-chunk to avoid
+    spurious edges between unrelated ideas.
     """
     if len(entities) < 2:
         return []
@@ -622,14 +632,19 @@ def _extract_relationships(facts: list[str], entities: list[str]) -> list[tuple[
     relationships: list[tuple[str, str, str]] = []
     seen: set[tuple[str, str, str]] = set()
 
-    for fact in facts:
-        present = [entity for entity in entities if entity.lower() in fact.lower()]
+    def present_in(text: str) -> list[str]:
+        low = text.lower()
+        return [entity for entity in entities if entity.lower() in low]
+
+    for index, fact in enumerate(facts):
+        window = fact if index + 1 >= len(facts) else f"{fact} {facts[index + 1]}"
+        present = present_in(window)
         if len(present) < 2:
             continue
 
-        relation = _infer_relation(fact)
-        for index, source in enumerate(present):
-            for target in present[index + 1 :]:
+        relation = _infer_relation(window)
+        for i, source in enumerate(present):
+            for target in present[i + 1 :]:
                 key = (source.lower(), relation.lower(), target.lower())
                 if key not in seen:
                     seen.add(key)

@@ -448,6 +448,86 @@ def test_chat_endpoint_queue_full_releases_reservation():
         app.dependency_overrides[get_container] = mock_get_container
 
 
+def test_chat_endpoint_redis_outage_on_enqueue_returns_503_not_500():
+    """Live chaos-testing discovery (2026-09-05): a Redis outage during
+    job_queue.enqueue() used to raise redis.exceptions.ConnectionError
+    uncaught, producing a generic HTTP 500 with no actionable signal. It must
+    instead return a clean, retryable 503 and release the quota reservation
+    (the interaction never entered the queue)."""
+    import redis.exceptions
+
+    container = mock_get_container()
+
+    dead_queue = MagicMock()
+    dead_queue.enqueue = AsyncMock(
+        side_effect=redis.exceptions.ConnectionError("Connection refused")
+    )
+    container.job_queue = dead_queue
+
+    mock_quota = MagicMock()
+    quota_ok = SimpleNamespace(
+        quota_exceeded=False,
+        remaining=5,
+        total_limit=5,
+        retry_after_seconds=0,
+        reservation_id="res-2",
+    )
+    mock_quota.check_and_record = AsyncMock(return_value=quota_ok)
+    mock_quota.inspect = AsyncMock(return_value=quota_ok)
+    mock_quota.release = AsyncMock()
+    mock_quota.claim = AsyncMock()
+    container.anon_quota_service = mock_quota
+
+    app.dependency_overrides[get_container] = lambda: container
+
+    try:
+        payload = {"user_message": "Hello", "session_id": "test-session", "messages": []}
+        response = client.post("/api/chat", json=payload)
+        assert response.status_code == 503
+        assert "Retry-After" in response.headers
+        mock_quota.release.assert_awaited_once_with(
+            {"id": "test-user-id", "email": "test@example.com"}, "res-2"
+        )
+    finally:
+        app.dependency_overrides[get_container] = mock_get_container
+
+
+def test_chat_endpoint_non_redis_enqueue_error_still_raises():
+    """A bug elsewhere in enqueue() (not a Redis outage) must surface as a
+    real 500, not be silently reclassified as a 503 retry-me response."""
+    container = mock_get_container()
+
+    buggy_queue = MagicMock()
+    buggy_queue.enqueue = AsyncMock(side_effect=ValueError("not a connection problem"))
+    container.job_queue = buggy_queue
+
+    mock_quota = MagicMock()
+    quota_ok = SimpleNamespace(
+        quota_exceeded=False,
+        remaining=5,
+        total_limit=5,
+        retry_after_seconds=0,
+        reservation_id="res-3",
+    )
+    mock_quota.check_and_record = AsyncMock(return_value=quota_ok)
+    mock_quota.inspect = AsyncMock(return_value=quota_ok)
+    mock_quota.release = AsyncMock()
+    mock_quota.claim = AsyncMock()
+    container.anon_quota_service = mock_quota
+
+    app.dependency_overrides[get_container] = lambda: container
+
+    try:
+        payload = {"user_message": "Hello", "session_id": "test-session", "messages": []}
+        # TestClient re-raises unhandled server exceptions by default rather
+        # than converting them to a response — confirming this propagates
+        # (not silently reclassified as our new 503 branch) is the assertion.
+        with pytest.raises(ValueError, match="not a connection problem"):
+            client.post("/api/chat", json=payload)
+    finally:
+        app.dependency_overrides[get_container] = mock_get_container
+
+
 def test_stream_endpoint_queue_full_releases_reservation():
     """Streaming endpoint QueueFullError must also return the reservation."""
     container = mock_get_container()

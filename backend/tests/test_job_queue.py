@@ -264,3 +264,54 @@ async def test_job_poll_projection_omits_internal_lifecycle_fields() -> None:
         "trace_id",
     ):
         assert internal_key not in public_job
+
+
+@pytest.mark.asyncio
+async def test_enqueue_degrades_to_in_memory_fallback_on_redis_outage() -> None:
+    """Production-audit follow-up (2026-09-05 live chaos testing): a Redis
+    outage during enqueue() used to raise redis.exceptions.ConnectionError
+    uncaught, 500ing every /api/chat request. enqueue() must catch a Redis
+    connection error, degrade to the in-memory fallback, and still complete
+    the enqueue — and every subsequent call (get_job, cancel_job) must keep
+    working against that same in-memory state."""
+    import redis.exceptions
+
+    class _DeadRedis:
+        def pipeline(self):
+            raise redis.exceptions.ConnectionError("Connection refused")
+
+    service = JobQueueService("redis://unused")
+    service._redis = _DeadRedis()
+
+    job_id, queue_position = await service.enqueue({"message": "hello"}, "anon:test")
+
+    assert job_id.startswith("job_")
+    assert queue_position == 1
+    assert service._degraded_to_memory is True
+
+    job = await service.get_job(job_id)
+    assert job is not None
+    assert job["status"] == JobStatus.QUEUED.value
+    assert job["user_id"] == "anon:test"
+
+    cancelled = await service.cancel_job(job_id)
+    assert cancelled is True
+    job_after_cancel = await service.get_job(job_id)
+    assert job_after_cancel["status"] == JobStatus.CANCELLED.value
+
+
+@pytest.mark.asyncio
+async def test_enqueue_reraises_non_connection_errors_without_degrading() -> None:
+    """A bug elsewhere (not a Redis outage) must not be silently swallowed
+    into a false 'degraded to memory' state."""
+
+    class _BuggyRedis:
+        def pipeline(self):
+            raise ValueError("not a connection problem")
+
+    service = JobQueueService("redis://unused")
+    service._redis = _BuggyRedis()
+
+    with pytest.raises(ValueError):
+        await service.enqueue({"message": "hello"}, "anon:test")
+    assert service._degraded_to_memory is False

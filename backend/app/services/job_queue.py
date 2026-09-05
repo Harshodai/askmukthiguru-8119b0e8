@@ -28,6 +28,174 @@ class QueueFullError(Exception):
     pass
 
 
+class _InMemoryRedisFallback:
+    """Drop-in async-Redis-shaped fallback for JobQueueService.
+
+    Production-audit follow-up (2026-09-05 live chaos testing): the entire
+    chat job queue was hard-Redis-dependent with no fallback at all — a Redis
+    outage 500'd every request (fixed short-term in app/api/chat.py with a
+    503). This closes the gap properly: implements exactly the subset of the
+    async-Redis interface JobQueueService actually calls (hgetall/hset/set/
+    get/delete/expire/lrem/rpush/llen/lrange/scan/pipeline/eval/ping/close),
+    backed by plain dicts guarded by one asyncio.Lock. `eval` special-cases
+    the two named Lua scripts by identity (module-level constants, same
+    objects the real Redis client is invoked with) to preserve the exact
+    atomic claim/cancel semantics the real script gives.
+
+    Single-process only — like AnonQuotaMemoryAdapter, this does not
+    coordinate across pods/replicas. Once JobQueueService falls back to this,
+    it stays on it for the process lifetime (matching the same "degrade and
+    stay degraded" choice as AnonQuotaRedisAdapter) rather than attempting to
+    detect Redis recovery mid-flight, which would risk split-brain between
+    jobs recorded in each store.
+    """
+
+    def __init__(self) -> None:
+        self._lock = asyncio.Lock()
+        self.hashes: dict[str, dict[str, str]] = {}
+        self.values: dict[str, str] = {}
+        self.lists: dict[str, list[str]] = {}
+
+    async def ping(self) -> bool:
+        return True
+
+    async def close(self) -> None:
+        return None
+
+    async def hgetall(self, key: str) -> dict[str, str]:
+        async with self._lock:
+            return dict(self.hashes.get(key, {}))
+
+    async def hset(self, key: str, *args, mapping: Optional[dict[str, Any]] = None) -> int:
+        async with self._lock:
+            target = self.hashes.setdefault(key, {})
+            if mapping is not None:
+                target.update({str(k): str(v) for k, v in mapping.items()})
+            elif len(args) == 2:
+                target[str(args[0])] = str(args[1])
+            return 1
+
+    async def set(
+        self, key: str, value: str, *, nx: bool = False, ex: Optional[int] = None
+    ) -> bool:
+        async with self._lock:
+            if nx and key in self.values:
+                return False
+            self.values[key] = value
+            return True
+
+    async def get(self, key: str) -> Optional[str]:
+        async with self._lock:
+            return self.values.get(key)
+
+    async def delete(self, key: str) -> int:
+        async with self._lock:
+            self.hashes.pop(key, None)
+            return 1 if self.values.pop(key, None) is not None else 0
+
+    async def expire(self, key: str, seconds: int) -> bool:
+        # Best-effort no-op: this store lives only as long as the process, and
+        # TTL expiry exists in Redis mainly to bound cross-restart storage —
+        # not correctness-critical for an in-memory fallback.
+        return True
+
+    async def rpush(self, key: str, value: str) -> int:
+        async with self._lock:
+            lst = self.lists.setdefault(key, [])
+            lst.append(value)
+            return len(lst)
+
+    async def lrem(self, key: str, count: int, value: str) -> int:
+        async with self._lock:
+            values = self.lists.setdefault(key, [])
+            removed = 0
+            retained: list[str] = []
+            for item in values:
+                if item == value and (count == 0 or removed < count):
+                    removed += 1
+                else:
+                    retained.append(item)
+            self.lists[key] = retained
+            return removed
+
+    async def llen(self, key: str) -> int:
+        async with self._lock:
+            return len(self.lists.get(key, []))
+
+    async def lrange(self, key: str, start: int, end: int) -> list[str]:
+        async with self._lock:
+            values = self.lists.get(key, [])
+            if end == -1:
+                return list(values[start:])
+            return list(values[start : end + 1])
+
+    async def scan(self, cursor: int, match: str = "*", count: int = 100):
+        # Single-pass scan: the in-memory dict is never large enough (bounded
+        # by max_queue + job_ttl-scale job counts on one pod) to need real
+        # cursor-based pagination.
+        async with self._lock:
+            prefix, _, suffix = match.partition("*")
+            keys = [
+                k for k in self.hashes if k.startswith(prefix) and (not suffix or k.endswith(suffix))
+            ]
+            return 0, keys
+
+    def pipeline(self):
+        return _InMemoryPipeline(self)
+
+    async def eval(self, script: str, num_keys: int, *args) -> int:
+        keys = list(args[:num_keys])
+        argv = list(args[num_keys:])
+        async with self._lock:
+            if script is _CANCEL_LUA:
+                meta_key, pending_key = keys
+                expected, new_status, job_id = argv
+                if self.hashes.get(meta_key, {}).get("status") != expected:
+                    return 0
+                self.hashes[meta_key]["status"] = new_status
+                values = self.lists.setdefault(pending_key, [])
+                if job_id in values:
+                    values.remove(job_id)
+                return 1
+            if script is _CLAIM_LUA:
+                meta_key = keys[0]
+                expected, new_status, started_at = argv
+                if self.hashes.get(meta_key, {}).get("status") != expected:
+                    return 0
+                self.hashes.setdefault(meta_key, {})["status"] = new_status
+                self.hashes[meta_key]["started_at"] = started_at
+                return 1
+            raise AssertionError(f"Unknown Lua script in in-memory fallback: {script[:60]!r}")
+
+
+class _InMemoryPipeline:
+    """Buffers hset/expire/rpush calls for one atomic-looking execute(), mirroring
+    the subset of redis.asyncio pipeline usage in JobQueueService.enqueue()."""
+
+    def __init__(self, store: _InMemoryRedisFallback) -> None:
+        self._store = store
+        self._ops: list[tuple[str, tuple, dict]] = []
+
+    def hset(self, *args, **kwargs):
+        self._ops.append(("hset", args, kwargs))
+        return self
+
+    def expire(self, *args, **kwargs):
+        self._ops.append(("expire", args, kwargs))
+        return self
+
+    def rpush(self, *args, **kwargs):
+        self._ops.append(("rpush", args, kwargs))
+        return self
+
+    async def execute(self) -> list:
+        results = []
+        for name, args, kwargs in self._ops:
+            results.append(await getattr(self._store, name)(*args, **kwargs))
+        self._ops.clear()
+        return results
+
+
 # Atomic QUEUED -> CANCELLED transition + pending-list removal. A cancel that
 # races a worker's claim must either win cleanly (job never runs) or lose
 # cleanly (job already claimed) — never overwrite a newer status.
@@ -79,8 +247,11 @@ class JobQueueService:
         self._redis: Any = None
         self._workers: list[asyncio.Task] = []
         self._running = False
+        self._degraded_to_memory = False
 
     async def _get_redis(self):
+        if self._degraded_to_memory:
+            return self._redis
         if self._redis is None:
             import redis.asyncio as aioredis
 
@@ -91,6 +262,33 @@ class JobQueueService:
                 logger.error("Redis ping timed out after 5s — connection may be stalled")
                 raise
         return self._redis
+
+    def _degrade_to_memory(self, exc: Exception) -> None:
+        """Switch to the in-memory fallback store and stay on it.
+
+        Production-audit follow-up (2026-09-05 live chaos testing): a Redis
+        outage AFTER startup used to raise uncaught from inside enqueue(),
+        500ing every /api/chat request (short-term-fixed in app/api/chat.py
+        with a 503; this is the real fix). See _InMemoryRedisFallback's
+        docstring for why this doesn't attempt to detect recovery mid-flight.
+        """
+        if self._degraded_to_memory:
+            return
+        logger.error(
+            f"JobQueue: Redis unreachable ({exc}) — degrading to in-memory "
+            f"job queue for the remainder of this process's lifetime. "
+            f"Cross-pod job visibility and durability across restarts are "
+            f"lost until the next deploy/restart with Redis healthy."
+        )
+        self._redis = _InMemoryRedisFallback()
+        self._degraded_to_memory = True
+
+    @staticmethod
+    def _is_connection_error(exc: Exception) -> bool:
+        module = type(exc).__module__.lower()
+        return "redis" in module and (
+            "ConnectionError" in type(exc).__name__ or "TimeoutError" in type(exc).__name__
+        )
 
     async def start(self, worker_factory: Callable) -> None:
         """Start worker pool.
@@ -138,15 +336,11 @@ class JobQueueService:
     def max_queue(self) -> int:
         return self._max_queue
 
-    async def enqueue(
-        self,
-        request_data: dict,
-        user_id: str,
-        is_stream: bool = False,
-    ) -> tuple[str, int]:
-        """Enqueue a job. Returns (job_id, queue_position). Raises QueueFullError if queue is full."""
-        job_id = f"job_{uuid.uuid4().hex[:12]}"
-        r = await self._get_redis()
+    async def _enqueue_via(self, r: Any, job_id: str, request_data: dict, user_id: str, is_stream: bool) -> int:
+        """The actual write sequence, run against whichever client (real Redis
+        or the in-memory fallback) `r` is. Split out of enqueue() so a Redis
+        connection failure partway through can retry the same sequence
+        against the fallback instead of leaving a half-written job."""
         now = time.time()
         pipe = r.pipeline()
         pipe.hset(
@@ -165,7 +359,27 @@ class JobQueueService:
         pipe.rpush("job_queue:pending", job_id)
         pipe.expire("job_queue:pending", self._job_ttl)
         await pipe.execute()
-        queue_position = await r.llen("job_queue:pending")
+        return await r.llen("job_queue:pending")
+
+    async def enqueue(
+        self,
+        request_data: dict,
+        user_id: str,
+        is_stream: bool = False,
+    ) -> tuple[str, int]:
+        """Enqueue a job. Returns (job_id, queue_position). Raises QueueFullError if queue is full."""
+        job_id = f"job_{uuid.uuid4().hex[:12]}"
+        r = await self._get_redis()
+        try:
+            queue_position = await self._enqueue_via(r, job_id, request_data, user_id, is_stream)
+        except Exception as exc:
+            if self._degraded_to_memory or not self._is_connection_error(exc):
+                raise
+            # production-audit follow-up: retry the SAME write against the
+            # in-memory fallback rather than losing this job entirely.
+            self._degrade_to_memory(exc)
+            r = self._redis
+            queue_position = await self._enqueue_via(r, job_id, request_data, user_id, is_stream)
         if self._queue is None:
             self._queue = asyncio.Queue(maxsize=self._max_queue)
         try:

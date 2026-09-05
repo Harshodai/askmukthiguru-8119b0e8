@@ -88,6 +88,7 @@ async def handle_fallback(state: GraphState, config: dict = None) -> dict:
         return {
             "final_answer": _simple_meditation_comparison_fallback(),
             "citations": [],
+            "route_decision": "limited_comparison_fallback",
             "verification": {
                 "passed": False,
                 "method": "limited_comparison_fallback",
@@ -115,6 +116,7 @@ async def handle_fallback(state: GraphState, config: dict = None) -> dict:
             return {
                 "final_answer": _generic_peace_meaning_fallback(),
                 "citations": [],
+                "route_decision": "reflective_fallback",
                 "verification": {
                     "passed": False,
                     "method": "reflective_peace_meaning_fallback",
@@ -150,6 +152,7 @@ async def handle_fallback(state: GraphState, config: dict = None) -> dict:
             return {
                 "final_answer": partial_answer,
                 "citations": partial_citations,
+                "route_decision": "grounded_partial_evidence",
                 "verification": {
                     "passed": False,
                     "method": "grounded_partial_fallback",
@@ -164,5 +167,6 @@ async def handle_fallback(state: GraphState, config: dict = None) -> dict:
         logger.warning("Terminal grounded-partial fallback unavailable; using canonical fallback: %s", exc)
 
     return {
-        "final_answer": "I don't have that specific teaching. Please try asking another question."
+        "final_answer": "I don't have that specific teaching. Please try asking another question.",
+        "route_decision": "no_context_short_circuit",
     }

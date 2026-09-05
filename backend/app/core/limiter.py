@@ -57,12 +57,33 @@ _rate_limit_storage_uri = os.environ.get("RATE_LIMIT_STORAGE_URI", "").strip()
 _redis_url = os.environ.get("REDIS_URL", "").strip()
 _redis_schemes = ("redis://", "rediss://", "unix://")
 
+
+# Live chaos-testing discovery (2026-09-05, chat production audit): when
+# Redis becomes unreachable AFTER startup (not just a cold-start probe),
+# slowapi's Redis-backed limiter raised redis.exceptions.ConnectionError
+# uncaught from inside the route dependency chain, turning EVERY request —
+# not just rate-limit checks — into an HTTP 500. This directly violated the
+# documented invariant (root CLAUDE.md, "Redis Degradation": no request may
+# fail with 500 on a Redis outage) and was never live-tested before. slowapi
+# has first-class support for exactly this: in_memory_fallback_enabled
+# switches the limiter to a per-pod in-memory backend the first time the
+# configured storage raises, so rate limiting keeps working (just no longer
+# cross-pod) instead of the request itself failing. swallow_errors is the
+# last-resort backstop if even that fallback path raises for some other
+# reason — the request proceeds unlimited rather than 500ing.
+_REDIS_OUTAGE_KWARGS = {
+    "in_memory_fallback_enabled": True,
+    "in_memory_fallback": ["200/minute"],
+    "swallow_errors": True,
+}
+
 if _rate_limit_storage_uri:
     logger.info("Rate limiting uses explicit storage override")
     limiter = Limiter(
         key_func=_rate_limit_key_func,
         storage_uri=_rate_limit_storage_uri,
         default_limits=["200/minute"],
+        **_REDIS_OUTAGE_KWARGS,
     )
 elif _redis_url and _redis_url.lower().startswith(_redis_schemes):
     logger.info("Rate limiting backed by Redis")
@@ -70,6 +91,7 @@ elif _redis_url and _redis_url.lower().startswith(_redis_schemes):
         key_func=_rate_limit_key_func,
         storage_uri=_redis_url,
         default_limits=["200/minute"],  # High default for benchmark key
+        **_REDIS_OUTAGE_KWARGS,
     )
 else:
     if _redis_url:

@@ -37,6 +37,7 @@ Public API:
 from __future__ import annotations
 
 import json
+import asyncio
 import logging
 import os
 import time
@@ -217,9 +218,18 @@ class AnthropicGateway:
             self._session = aiohttp.ClientSession()
         return self._session
 
+    async def __aenter__(self) -> "AnthropicGateway":
+        await self._get_session()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        await self.close()
+
     async def close(self) -> None:
         if self._session is not None and not self._session.closed:
             await self._session.close()
+            await asyncio.sleep(0.001)
+        self._session = None
 
     # ---- request construction ----
 

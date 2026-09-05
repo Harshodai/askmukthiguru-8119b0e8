@@ -176,3 +176,85 @@ def test_checkpoint_json_legacy_keys_migrate_to_default_tenant(tmp_path):
         default_ckpt = IngestionCheckpoint(filepath=str(checkpoint_file))
         assert default_ckpt.tenant_id == "configured-default"
         assert default_ckpt.is_processed("legacy-hash") is True
+
+
+def test_checkpoint_failed_and_error_status_eligible_for_retry(tmp_path):
+    checkpoint_file = tmp_path / "ingest_checkpoint.json"
+
+    with (
+        patch("redis.from_url", side_effect=Exception("Redis down")),
+        patch("supabase.create_client", side_effect=Exception("Supabase down")),
+    ):
+        ckpt = IngestionCheckpoint(filepath=str(checkpoint_file))
+        ckpt.save("success_chunk", {"status": "success", "chunks": 5})
+        ckpt.save("failed_chunk", {"status": "failed", "error": "LLM rate limited"})
+        ckpt.save("error_chunk", {"status": "error", "error": "Connection timeout"})
+
+        assert ckpt.is_processed("success_chunk") is True
+        assert ckpt.is_processed("failed_chunk") is False
+        assert ckpt.is_processed("error_chunk") is False
+
+
+def test_is_processed_falls_through_redis_miss_to_local_file(tmp_path):
+    """production-audit finding checkpoint-multitier-fallback-broken: a clean
+    miss at Redis must fall through to the local-file tier, not short-circuit
+    to False — save() writes to exactly one tier, so a chunk saved to the file
+    fallback during a Redis outage would otherwise be reported unprocessed as
+    soon as Redis answers again."""
+    checkpoint_file = tmp_path / "ingest_checkpoint.json"
+    mock_redis = MagicMock()
+    mock_redis.ping.return_value = True
+    mock_redis.exists.return_value = False  # clean miss, not an error
+
+    with (
+        patch("redis.from_url", return_value=mock_redis),
+        patch("app.config.settings.redis_url", "redis://localhost:6379/0"),
+    ):
+        ckpt = IngestionCheckpoint(filepath=str(checkpoint_file))
+        assert ckpt.redis_client is not None
+        # Written directly to the local-file tier (as if Redis was down at save time).
+        ckpt.data[ckpt._qualify_chunk_id("file_only_chunk")] = {"status": "success"}
+        ckpt.processed_chunks.add(ckpt._qualify_chunk_id("file_only_chunk"))
+        ckpt._atomic_write(ckpt.data)
+
+        assert ckpt.is_processed("file_only_chunk") is True
+
+
+def test_acquire_and_release_lock_via_redis():
+    """production-audit finding IC-1: acquire_lock must use SET NX (not a
+    plain SET) so a second concurrent caller for the same key is refused
+    while the lease is held, and release_lock must clear it for the next
+    reservation."""
+    mock_redis = MagicMock()
+    mock_redis.ping.return_value = True
+    mock_redis.set.return_value = True  # first caller: NX succeeds
+
+    with (
+        patch("redis.from_url", return_value=mock_redis),
+        patch("app.config.settings.redis_url", "redis://localhost:6379/0"),
+    ):
+        ckpt = IngestionCheckpoint()
+        assert ckpt.acquire_lock("source-1") is True
+        _, kwargs = mock_redis.set.call_args
+        assert kwargs.get("nx") is True
+        assert kwargs.get("ex")
+
+        mock_redis.set.return_value = False  # second caller: NX fails, already held
+        assert ckpt.acquire_lock("source-1") is False
+
+        ckpt.release_lock("source-1")
+        mock_redis.delete.assert_called_once()
+
+
+def test_acquire_lock_without_redis_never_blocks():
+    """File-mode checkpointing is single-process, so there is no cross-process
+    concurrency to guard against — acquire_lock must be a no-op success, never
+    a false negative that would wrongly skip a source."""
+    with (
+        patch("redis.from_url", side_effect=Exception("Redis down")),
+        patch("supabase.create_client", side_effect=Exception("Supabase down")),
+    ):
+        ckpt = IngestionCheckpoint()
+        assert ckpt.redis_client is None
+        assert ckpt.acquire_lock("any-source") is True
+        ckpt.release_lock("any-source")  # must not raise
