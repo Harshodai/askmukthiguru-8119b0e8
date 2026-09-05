@@ -289,10 +289,20 @@ async def health_endpoint(container: ServiceContainer = Depends(get_container)) 
     }
 
     # LightRAG
+    # critical=False (2026-09-06, prod-readiness fix): root CLAUDE.md's own
+    # failover invariant documents LightRAG/Neo4j degradation as a graceful
+    # fallback (retrieval drops to pure Qdrant + BM25), not a hard failure —
+    # and rag/nodes/retrieval.py's retrieve_documents always calls
+    # retrieve_for_single_query with lightrag=None regardless, so this
+    # component isn't even reachable from the live chat path today. Marking
+    # it critical meant a single slow Neo4j session at boot (init has a 120s
+    # timeout with no retry) permanently failed /api/health's `ready` flag
+    # for the rest of the process lifetime, which would take an otherwise
+    # healthy pod out of rotation forever under any real readiness probe.
     results["lightrag"] = {
         "ok": not container.lightrag_degraded,
         "latency_ms": 0,
-        "critical": True,
+        "critical": False,
     }
 
     # OCR
