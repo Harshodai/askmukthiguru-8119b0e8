@@ -283,7 +283,13 @@ services:
     deploy:
       resources:
         limits:
-          memory: 4G
+          # Raised 4G->6G (2026-09-05, handoff.md item #6): the container sat
+          # at 99% of the 4G limit at idle startup alone (ONNX embedding +
+          # reranker + BGE-M3 late-chunk backbone, ~2.9G of that is documented
+          # as deliberate in embedding_service.py), leaving zero headroom for
+          # the first real request's additional model loads -> OOM-killed by
+          # the cgroup limit, not a code bug.
+          memory: 6G
           cpus: '4.0'
     restart: unless-stopped
     volumes: &backend-volumes

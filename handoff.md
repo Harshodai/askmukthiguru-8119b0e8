@@ -486,9 +486,79 @@ Ran a `Workflow`-orchestrated pass (Research → Static Review → live Benchmar
 2. **Investigated, no fix needed** — confirmed dead code: both `retrieve_for_single_query` call sites in `retrieval.py` pass `lightrag=None`, so the LightRAG-branch code path containing the `query_neo4j_subgraph` call never executes on the hot chat path today. Matches the CLAUDE.md correction above.
    - **New, found while verifying this fix**: the full suite has 2 pre-existing failures unrelated to any change in this session — `tests/test_okf_pipeline_integrity.py::test_extractor_copies_are_identical` (root `scripts/extract_okf_from_stores.py` was already dirty/diverged from its `backend/scripts/` twin before this session started, per the original session's `git status`) and `tests/test_config_validation.py::test_spend_guard_defaults` (`sarvam_budget_guard_enabled` asserts `True`, gets `False`, with `llm_provider='openrouter'` showing in the `Settings()` repr — looks like env/test-order pollution from another test setting `LLM_PROVIDER` without cleanup, not a real default bug, but unconfirmed). Neither touches this session's diffs. **Needs investigation next session**: run each test in isolation vs. the full suite to confirm order-dependence, and reconcile or intentionally resolve the two extractor copies' drift (root copy differs from its backend twin around an `llm_provider` line) — decide which copy is correct and sync the other.
 
-**Still open — not started:**
-3. **`llm_provider` defaults to `"sarvam_cloud"` (app/config.py:40)**, a paid provider, contradicting root CLAUDE.md's stated $0-budget/free-tier-only constraint — every chat turn's generation + reflection + verification + CoVe + citation calls hit Sarvam Cloud by default unless an operator explicitly sets `LLM_PROVIDER=ollama`. **This is a policy decision, not a bug** — either flip the default to `ollama` to match the documented constraint, or update the constraint in CLAUDE.md/SPEC_DEV.md to reflect that Sarvam Cloud (with its free starter credit) is the actual intended production default. Needs the user's call.
+**Update (2026-09-06) — items 3, 4, 5, 6 addressed:**
+3. **Resolved per explicit user decision**: user said "use sarvam only for now." `backend/.env`'s `LLM_PROVIDER` flipped from `openrouter` to `sarvam_cloud` (local runtime config, not committed — `.env` is gitignored). `app/config.py`'s pydantic-settings default (`"sarvam_cloud"`) was already correct; the drift was only in the local `.env` override.
+4. **Turned out to be a non-issue once #3 landed**: `scripts/extract_okf_from_stores.py` / `backend/scripts/extract_okf_from_stores.py`'s `_call_llm` reads `settings.llm_provider` and tries Sarvam Cloud **first** when it's set to `sarvam_cloud` — the "multi-provider → OpenRouter → Sarvam → Ollama" chain only fires as a failure-fallthrough safety net if that first Sarvam attempt fails or returns an artifact, not as the primary path. No code change needed, no risk to `test_extractor_llm_chain_actually_falls_through_to_ollama`'s pinned ordering.
+5. **One real, isolated data point obtained via Docker** (not the full before/after comparison, but no longer zero data): `POST /api/chat` for "What is the beautiful state?" through the freshly-rebuilt `mukthiguru-backend` container (Sarvam Cloud, `incognito:true`, `cache_hit:false`) completed in **16.6s** wall time, `verification.passed:true`, `grounding_state:grounded`, `faithfulness≈0.73`. Node breakdown: `retrieve_documents` 2086ms, `generate_answer` 1638ms, `reflect_on_answer` 726ms. An earlier bare-host run of the same question came back in 5.2s with a very different breakdown (`retrieve_documents` 127ms, `reflect_on_answer` 3287ms) — the two runs disagree enough that **neither number should be treated as "the" latency**; both were single samples under different resource contention (container CPU/memory limits vs. bare-host, LightRAG's background init still settling). A real benchmark needs multiple runs after the container has fully warmed up, ideally with nothing else competing for the host's RAM/CPU.
+6. **Root-caused and fixed**: the `mukthiguru-backend` container's OOM-kill was **not a code bug** — `docker-compose.yml`'s backend `mem_limit` was 4G, and the container sat at **99.11% of that limit at idle startup alone** (before a single real request), because its own model footprint (ONNX embedding + reranker + the ~2.9GB BGE-M3 late-chunking backbone, which `embedding_service.py`'s own docstring already documents as a deliberate, bounded cost) leaves zero headroom for anything else. Raised to `6G` in `docker-compose.yml`; container now idles at 55% (3.31GiB/6GiB) with real headroom for request-time model loads.
+
+**Still open:** a paid provider, contradicting root CLAUDE.md's stated $0-budget/free-tier-only constraint — every chat turn's generation + reflection + verification + CoVe + citation calls hit Sarvam Cloud by default unless an operator explicitly sets `LLM_PROVIDER=ollama`. **This is a policy decision, not a bug** — either flip the default to `ollama` to match the documented constraint, or update the constraint in CLAUDE.md/SPEC_DEV.md to reflect that Sarvam Cloud (with its free starter credit) is the actual intended production default. Needs the user's call.
 4. **`extract_okf_from_stores.py`'s LLM fallback chain tries 3 paid providers before Ollama** (multi-provider → OpenRouter → Sarvam → Ollama last), even though OKF extraction is a background/batch job that tolerates local-model latency just fine. The obvious fix (reorder to Ollama-first) was rejected because it would break `test_extractor_llm_chain_actually_falls_through_to_ollama`'s pinned ordering assumption and the extractor's byte-identical-copies invariant (both `backend/scripts/` and root `scripts/` copies must change together). **Still an open cost leak** — the right fix is probably a separate code path or config flag for batch/background OKF calls specifically, not a blanket reorder, but nobody has designed that yet.
 5. **Live end-to-end generation latency is still unmeasured.** The benchmark agent's live chat calls all hit `HTTP 402 Payment Required` from OpenRouter (account out of credits), which tripped the circuit breaker — the only successful "chat" response measured was a semantic-cache hit (1.19s), not a fresh generation. **Top up OpenRouter credits (or point the benchmark at Ollama/Sarvam directly) before trusting any future latency claim** — right now there is no real p50/p95 number for this backend post-optimization, only the idle-memory baseline (~944MB RSS) and the datastore snapshot (Qdrant 33.6% of 3GB, Neo4j 57.3% of 2GB, Redis 8.3% of 512MB).
 6. **`mukthiguru-backend` Docker container is not currently running** — found `Exited (137)` (OOM-killed) 4 days ago during this session's benchmark setup. The benchmark ran uvicorn bare-host instead. Investigate why the containerized backend OOM'd before relying on `docker compose up` for the next production-facing test.
 7. One earlier chaos-testing run (discarded, not representative) showed RSS spiking to 3.8GB and CPU to 445% before an OOM-kill, under a misconfigured-DNS retry storm (Docker-internal hostnames used from bare host). Not a live bug in the current config, but worth remembering that a retry storm against an unreachable dependency can balloon memory fast — if a future dependency-outage scenario shows runaway RSS, check for a missing backoff/cap on the retry loop first.
+
+---
+
+## 2026-09-05 update — AGENT HANDOFF: citation-pipeline fix shipped and unit-verified; live A/B still owed
+
+### Done, verified, safe to build on
+Three code fixes landed this pass, all covered by passing tests (63/63 across `test_answer_path_regressions.py`, `test_nodes.py`, `test_retrieval_quality.py`, `test_deep_research.py`, `test_distress_fallback_safety.py`). Full root-cause narrative in `lessons.md`, section "Sep 5, 2026 (later)", entries L-DEEP-1 through L-DEEP-5.
+
+1. **`backend/rag/nodes/retrieval.py`** — `rag_deep_research_enabled`'s gate checked `query_tier == "tier3_complex"` only; comparative/multi-part queries resolve to `query_tier="deep"` instead (confirmed live), so the feature never fired for its own target query class. Fixed to `in ("deep", "tier3_complex")`, matching the pairing convention used everywhere else in the codebase.
+2. **`backend/rag/nodes/deep_research.py`** — `_deep_research_active()` had the same bug with a different wrong pair (`"tier3_complex", "tier4_deep"`, also missing `"deep"`). Fixed to `in ("deep", "tier3_complex", "tier4_deep")`.
+3. **`backend/rag/nodes/generation.py`, `replace_source_match()`** — THE real bug. When the model's `[Source: <title>]` citation didn't string-match a retrieved doc's title/URL, the matcher silently deleted it (`return ""`). A correctly-cited, faithful paragraph (LettuceDetect 0.69-0.78, comfortably above the 0.6 floor) then looked uncited to `_check_grounding`'s per-paragraph rule, and the whole answer was rejected and regenerated from scratch — confirmed live, 8+ regen cycles inside one 261s request. Fixed with a word-overlap fallback against the already-retrieved doc set (cannot invent a source; only re-attributes among docs already verified relevant, so it strengthens grounding rather than weakening it).
+4. Also fixed: a log line that printed a literal `<` regardless of the real comparison (misled debugging), and reverted an earlier-in-session `rag_max_rewrites` 2→3 change (a query rewrite can't fix a downstream citation-matching bug — pure latency cost with zero benefit).
+
+### NOT done — owed, and blocked on environment, not code
+**Live before/after comparison of `rag_deep_research_enabled` (on vs off) was never obtained.** Every attempt this session hit a different environmental failure, not a code problem:
+- Sarvam free-tier quota ran out mid-session (402), then was re-credited by the user and reconfirmed working via a direct `curl` probe to `/v1/chat/completions`.
+- Local Ollama's only free models (`qwen2.5:1.5b`, `llama3.2:1b`) are too weak (1.5B/1B params) to produce a faithful answer on this question class — any "rejection" from them tests the model, not the fix.
+- **Cache contamination**: `cache_key=(language, message)` has no session scoping (deliberate design, see root `CLAUDE.md`'s Caching invariants). Reusing the same test question meant later runs returned cache hits, not fresh generations. **Fix**: always pass `"incognito": true` in the `/api/chat` body for a live test — bypasses both cache read and write.
+- A concurrent peer session's own `ragas_eval.py` benchmark hit the same shared backend and polluted results.
+- Docker Desktop's VM OOM-killed mid-session (confirmed via `~/Library/Containers/com.docker.docker/Data/log/vm/console.log`, an `oom-kills` analytics event and a frozen pause/resume cycle) — a CLI `docker desktop restart` did NOT recover it; needed a manual GUI quit+reopen. Second time this exact failure has hit this session (see the two entries above this one).
+- A reranker auto-tune picked `ms-marco-MultiBERT-L-12` via FlashRank instead of the configured `RERANKER_BACKEND=onnx_int8` default, triggering a ~99MB cold-start download over a slow link (~150-250KB/s) that crashed the backend (resource-tracker leak warning) partway through more than once.
+
+### Exact steps for whoever picks this up next
+```bash
+cd /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend
+
+# 1. Confirm Sarvam has quota (cheap real probe, not just /v1/models):
+curl -s -X POST https://api.sarvam.ai/v1/chat/completions \
+  -H "api-subscription-key: $(grep '^SARVAM_API_KEY' .env | cut -d= -f2)" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"sarvam-105b","messages":[{"role":"user","content":"say hi"}],"max_tokens":5}' \
+  -w "\nHTTP %{http_code}\n"
+# must be 200, not 402
+
+# 2. Confirm no concurrent traffic on port 8000 or peer sessions hitting this backend:
+lsof -i :8000
+ps aux | grep -E "ragas_eval|uvicorn" | grep -v grep
+
+# 3. Launch backend — force onnx_int8 reranker to skip the slow FlashRank download,
+#    capture the REAL pid via lsof (not `$!`, which can report a wrapper-shell pid):
+export LLM_PROVIDER=sarvam_cloud
+export QDRANT_URL=http://localhost:6333
+export NEO4J_URI=bolt://localhost:7687
+export REDIS_URL=redis://:mukthiguru_redis_pass@localhost:6379/0
+export RERANKER_BACKEND=onnx_int8
+export RAG_DEEP_RESEARCH_ENABLED=false   # baseline run
+export RAG_MAX_REWRITES=2
+nohup .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 > /tmp/backend_test.log 2>&1 &
+disown
+sleep 25
+REAL_PID=$(lsof -ti :8000)
+
+# 4. Get a session, then POST with incognito:true (bypasses cache) to /api/chat.
+#    A comparative question routes to query_tier="deep" (the fixed gate) —
+#    e.g. "What is the difference between self-centric thinking and the
+#    beautiful state, and what specific daily practices help someone move
+#    from one to the other?"
+#    Time the request, record latency/citations/verification outcome
+#    (grep the backend log for "LettuceDetect finished" and "Final:").
+
+# 5. Kill this backend, relaunch with RAG_DEEP_RESEARCH_ENABLED=true, repeat step 4
+#    with the SAME question, compare.
+```
+
+**Definition of done for this task**: one clean baseline run + one clean flags-on run, both with `incognito:true`, no cache hits (`cache_hit=False` in the `CHAT_STAGE_TIMING` log line), same model/provider, no concurrent traffic, reporting whether `deep_research` measurably changes the verification outcome (accepted vs. rejected-to-fallback) and by how much latency it costs.
