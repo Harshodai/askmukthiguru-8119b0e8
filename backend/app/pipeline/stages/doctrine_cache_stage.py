@@ -91,7 +91,11 @@ class DoctrineCacheStage(Stage):
         # never returns an entry without them (audit finding OH-P0-01).
         return PipelineResult(
             final_answer=answer,
-            intent="FACTUAL",
+            # Reverted to the pre-existing "doctrine" value (code-review
+            # finding, 2026-09-05): silently renaming to "FACTUAL" risked
+            # breaking any existing consumer checking for the literal string
+            # "doctrine" on this hit path with no compile-time warning.
+            intent="doctrine",
             trace_id=getattr(ctx, "trace_id", "doctrine-hit"),
             latency_ms=0,
             citations=citations,

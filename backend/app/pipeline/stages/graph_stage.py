@@ -418,7 +418,12 @@ class GraphStage(Stage):
             )
             fallback = {
                 "final_answer": "The Guru took too long to respond. Please try again.",
-                "intent": "TIMEOUT",
+                # intent kept as "QUERY" (code-review finding, 2026-09-05):
+                # changing it to "TIMEOUT" risked breaking any downstream
+                # consumer branching on intent=='QUERY' or lacking a case for
+                # a brand-new enum value. route_decision="timeout" below is
+                # additive and carries the same information safely.
+                "intent": "QUERY",
                 "route_decision": "timeout",
                 "citations": [],
             }

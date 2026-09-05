@@ -504,9 +504,11 @@ async def chat_endpoint(
             # An in-memory fallback queue is a real feature, not a hotfix;
             # until built, at minimum give an honest, retryable 503 instead of
             # an opaque 500 that looks like an application bug.
-            is_redis_error = "redis" in type(exc).__module__.lower() or "ConnectionError" in type(
-                exc
-            ).__name__
+            # Module-scoped check only — matching bare "ConnectionError" by name
+            # also caught Python's builtin ConnectionError raised for unrelated
+            # reasons elsewhere in enqueue(), misclassifying real bugs as a
+            # transient Redis outage (code-review finding, 2026-09-05).
+            is_redis_error = "redis" in type(exc).__module__.lower()
             if not is_redis_error:
                 raise
             logger.error(f"Chat job enqueue failed — queue backend unavailable: {exc}")
@@ -727,9 +729,11 @@ async def chat_stream_endpoint(
         except Exception as exc:
             # See the non-stream enqueue call site above for the full
             # rationale — same live chaos-testing discovery, same fix.
-            is_redis_error = "redis" in type(exc).__module__.lower() or "ConnectionError" in type(
-                exc
-            ).__name__
+            # Module-scoped check only — matching bare "ConnectionError" by name
+            # also caught Python's builtin ConnectionError raised for unrelated
+            # reasons elsewhere in enqueue(), misclassifying real bugs as a
+            # transient Redis outage (code-review finding, 2026-09-05).
+            is_redis_error = "redis" in type(exc).__module__.lower()
             if not is_redis_error:
                 raise
             logger.error(f"Chat stream job enqueue failed — queue backend unavailable: {exc}")

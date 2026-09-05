@@ -551,14 +551,22 @@ class LightRAGService:
             logger.info(
                 f"Querying LightRAG graph (mode={mode}, only_need_context={only_need_context})..."
             )
-            result = await self.rag.aquery(
-                query, param=QueryParam(mode=mode, only_need_context=only_need_context)
+            query_timeout = float(getattr(settings, "lightrag_query_timeout_seconds", 30.0))
+            result = await asyncio.wait_for(
+                self.rag.aquery(
+                    query, param=QueryParam(mode=mode, only_need_context=only_need_context)
+                ),
+                timeout=query_timeout,
             )
             if not cache_disabled:
                 with self._cache_lock:
                     self._query_cache[cache_key] = result
             self._circuit.record_success()
             return result
+        except TimeoutError:
+            logger.warning(f"LightRAG query timed out after {query_timeout}s — falling back")
+            self._circuit.record_failure()
+            return ""
         except Exception as e:
             # Check for common initialization error and retry once
             if "JsonDocStatusStorage not initialized" in str(e):
