@@ -185,12 +185,20 @@ class LLMGateway:
 
             if self._primary_model_fallback:
                 try:
+                    # kwargs may already carry a caller-supplied "model" (same
+                    # collision the streaming fallback below already guards
+                    # against with fallback_kwargs.pop("model", None)) —
+                    # without this, a caller-specified model raised
+                    # "generate() got multiple values for keyword argument
+                    # 'model'" here instead of falling back cleanly.
+                    fallback_kwargs = kwargs.copy()
+                    fallback_kwargs.pop("model", None)
                     result = await self._primary.generate(
                         system_prompt,
                         user_prompt,
                         context=context,
                         model=self._primary_model_fallback,
-                        **kwargs,
+                        **fallback_kwargs,
                     )
                     self._primary_breaker.record_success()
                     self.metrics.fallbacks += 1
