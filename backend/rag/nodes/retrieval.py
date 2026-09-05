@@ -838,7 +838,7 @@ async def retrieve_for_single_query(
     ):
         lightrag_index = len(tasks)
         # Use config-driven timeout (prevents 145s spike — see logs/backend.log line 264)
-        t_out = getattr(settings, "lightrag_retrieval_timeout", 30)
+        t_out = getattr(settings, "lightrag_retrieval_timeout", 10)
         # Adaptive graph depth: fast/simple tiers skip community-summary traversal
         graph_mode = "local" if query_tier in ("fast", "tier2_simple") else "hybrid"
         tasks.append(
@@ -1107,41 +1107,31 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     )
     # E4.2: KG-RAG ontology traversal — broaden query with Neo4j neighbors
     # of mentioned concepts (e.g. "karma" -> also retrieve "Dharma", "prarabdha").
-    # Ponytail: one helper, fire-and-forget, non-fatal. Runs alongside synonym
-    # expansion so docs tagged with sub-concepts are also surfaced.
-    try:
+    #
+    # Ruthless-perf-audit fix (2026-09-05): this used to be awaited serially
+    # right here, ahead of the primary retrieval asyncio.gather below — up to
+    # kg_ontology_expansion_timeout (3s) of pure latency on every eligible
+    # request, purely to decide whether to widen the query text. Fired as a
+    # task instead, consumed later (same soft-wait pattern already used for
+    # _llm_retrieval_expansions), and its neighbor-augmented query joins the
+    # existing second-round expansion-results fan-out rather than gating the
+    # primary retrieval's start.
+    kg_expansion_task = None
+    if (
+        getattr(settings, "knowledge_graph_query_enabled", False)
+        and scope.tenant_id == settings.default_tenant_id
+        and scope.corpus_id == settings.default_corpus_id
+        and query_tier not in ("fast", "tier2_simple")
+    ):
         from app.dependencies import get_container
-        from rag.kg_expansion import augment_query, expand_query_with_ontology
 
         _neo4j = getattr(get_container(), "neo4j_driver", None)
-        if (
-            getattr(settings, "knowledge_graph_query_enabled", False)
-            and _neo4j is not None
-            and scope.tenant_id == settings.default_tenant_id
-            and scope.corpus_id == settings.default_corpus_id
-            and query_tier not in ("fast", "tier2_simple")
-        ):
-            # Bounded: this call sits sequentially before the retrieval fan-out
-            # (asyncio.gather below), so an unbounded/degraded Neo4j session
-            # would stall the whole node. It already fails open (returns []),
-            # so a timeout is a pure latency guard, not a behavior change.
-            neighbors = await asyncio.wait_for(
-                expand_query_with_ontology(base_question, _neo4j),
-                timeout=getattr(settings, "kg_ontology_expansion_timeout", 3.0),
+        if _neo4j is not None:
+            from rag.kg_expansion import expand_query_with_ontology
+
+            kg_expansion_task = asyncio.create_task(
+                expand_query_with_ontology(base_question, _neo4j)
             )
-            if neighbors:
-                base_question = augment_query(base_question, neighbors)
-                logger.info(f"KG ontology expansion: +{len(neighbors)} neighbor(s)")
-    except TimeoutError:
-        logger.warning("KG ontology expansion timed out; continuing without neighbor terms")
-    except Exception as _kg_err:
-        # production-audit finding OBS-3: this was logger.debug, below the
-        # app's INFO floor (app/main.py logging.basicConfig), so a live Neo4j
-        # outage on this specific path was invisible in production logs —
-        # unlike the LightRAG retrieval path a few hundred lines below, which
-        # logs failures at WARNING. Matching that so a Neo4j-degradation
-        # fallback here is observable, not merely functional.
-        logger.warning(f"KG ontology expansion skipped (Neo4j degraded/unavailable): {_kg_err}")
     retrieval_stage_times["prepare_ms"] = round(
         (time.perf_counter() - preparation_started) * 1000, 1
     )
@@ -1312,6 +1302,31 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
         (time.perf_counter() - expansion_started) * 1000, 1
     )
     retrieval_stage_times["expansion_planner_soft_wait_ms"] = round(soft_wait, 1) if expansion_task is not None else 0.0
+
+    # Consume the KG ontology-expansion task fired earlier (see comment at its
+    # creation) with its own short, independent soft wait — primary/BM25
+    # results are already available by this point, so a degraded Neo4j
+    # session must not extend the tail either.
+    if kg_expansion_task is not None:
+        kg_soft_wait = getattr(settings, "kg_ontology_expansion_timeout", 3.0)
+        try:
+            neighbors = await asyncio.wait_for(kg_expansion_task, timeout=kg_soft_wait)
+            if neighbors:
+                from rag.kg_expansion import augment_query
+
+                augmented = augment_query(base_question, neighbors)
+                if augmented not in expansion_queries:
+                    expansion_queries = [*expansion_queries, augmented]
+                logger.info(f"KG ontology expansion: +{len(neighbors)} neighbor(s)")
+        except TimeoutError:
+            logger.warning("KG ontology expansion timed out; continuing without neighbor terms")
+        except Exception as _kg_err:
+            # production-audit finding OBS-3: log at WARNING (not DEBUG) so a
+            # live Neo4j outage on this path is observable in production.
+            logger.warning(
+                f"KG ontology expansion skipped (Neo4j degraded/unavailable): {_kg_err}"
+            )
+
     expansion_results: list = []
     remaining_budget = max(0, 2 - len(primary_queries))
     if expansion_queries and remaining_budget > 0:
@@ -1589,12 +1604,20 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
             pass  # non-fatal; OKF must never break retrieval
 
     # RAGFlow Gap 1: adaptive deep-research sufficiency loop.
-    # Auto-fires for tier3_complex + standard; opt-in via rag_deep_research_enabled.
+    # Auto-fires for tier3_complex + deep; opt-in via rag_deep_research_enabled.
     # ponytail: inline call — shortest diff, no new graph node. Non-fatal on failure.
+    # Fixed 2026-09-05: every other query_tier gate in this codebase (verification.py,
+    # generation.py, utils.py, agentic_graph_traversal.py — 15+ call sites) treats
+    # "deep" and "tier3_complex" as the same complexity bucket. This check alone used
+    # tier3_complex only, silently excluding "deep" — the tier that comparative
+    # queries (HEURISTIC_DEEP_PATTERNS: "difference between", "compare", etc., see
+    # app/pipeline/stages/graph_stage.py) actually land on. Confirmed live: a
+    # "what is the difference between X and Y" query got query_tier="deep" and never
+    # triggered this loop even with the flag on.
     deep_research_done = False
     if (
         getattr(settings, "rag_deep_research_enabled", False)
-        and state.get("query_tier") == "tier3_complex"
+        and state.get("query_tier") in ("deep", "tier3_complex")
     ):
         try:
             from rag.nodes.deep_research import conduct_deep_research
