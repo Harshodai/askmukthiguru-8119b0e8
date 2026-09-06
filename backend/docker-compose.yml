@@ -132,6 +132,20 @@ services:
     env_file:
       - ../.env
     environment: &backend-env
+      # Bound numeric-library thread pools (2026-09-06, fix for L-DOCKER-9:
+      # RuntimeError: can't start new thread under load). MKL/OpenBLAS/OMP
+      # each detect the HOST's full core count inside a container rather
+      # than the `cpus: '4.0'` limit below, and each spawns its OWN thread
+      # pool sized to that inflated count — torch, numpy/BLAS, and OpenMP
+      # compounding independently, multiplied across every concurrent
+      # request's embedding/reranking calls, is what actually exhausted the
+      # container's ability to spawn new OS threads, not a Python-level
+      # executor leak (confirmed: cgroup pids.current was only 30 when it
+      # broke, well under any pids limit).
+      - OMP_NUM_THREADS=2
+      - MKL_NUM_THREADS=2
+      - OPENBLAS_NUM_THREADS=2
+      - NUMEXPR_NUM_THREADS=2
       # HF_HUB_OFFLINE removed — Llama Guard needs runtime download; embedding
       # models are pre-cached at build time so they load without network.
       # === LLM Provider ===
