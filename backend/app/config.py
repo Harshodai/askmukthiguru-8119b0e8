@@ -634,6 +634,21 @@ class Settings(BaseSettings):
     rag_top_k_retrieval: int = 20
     rag_top_k_rerank: int = 10
     rag_max_rewrites: int = 1
+    # Opt-in (2026-09-06, L-DOCKER-12 follow-up): on the FIRST verification
+    # failure, try one cheap regenerate (same already-graded retrieved docs,
+    # straight back to generate_answer) before paying for the full CRAG-style
+    # rewrite_query -> retrieve_documents -> rerank -> grade round trip.
+    # Research distinction (Self-RAG improves reasoning over given evidence;
+    # CRAG improves the evidence itself) implies a pure faithfulness/
+    # persona-adherence failure on already-relevant docs is a generation
+    # problem, not a retrieval problem, so re-retrieving the same evidence
+    # rarely helps and costs the single most expensive part of the pipeline
+    # a second time. Consumes the same rag_max_rewrites budget (total worst-
+    # case attempts unchanged) rather than adding an extra attempt on top.
+    # Default False: ships the capability without changing tested production
+    # behavior until verified live (same discipline as the SLO-tier mistake
+    # this session made once already -- do not flip this without an A/B).
+    rag_regenerate_before_rewrite: bool = False
     rag_chunk_size: int = 1500
     rag_chunk_overlap: int = 200
     rag_use_hyde: bool = False
@@ -803,7 +818,7 @@ class Settings(BaseSettings):
     # --- Temperature per Graph Mode (Phase 2.1) ---
     generation_temp_fast: float = 0.3  # Temperature for fast-graph generation
     generation_temp_standard: float = 0.7  # Temperature for standard-graph generation
-    generation_temp_deep: float = 0.9  # Temperature for deep-graph generation
+    generation_temp_deep: float = 0.3  # Deep-graph: lowest temp, highest-stakes queries need max grounding
 
     # --- Context Budget (Phase 3.2) ---
     context_window_total: int = 8192  # Total context window in tokens
@@ -869,7 +884,10 @@ class Settings(BaseSettings):
     # extraction at query time — cap tightly to prevent single-query 30s hangs.
     # For tier2_simple queries, graph_stage.py skips LightRAG entirely.
     lightrag_retrieval_timeout: int = (
-        30  # raised from 3 — KG now has 2,200+ relations, needs 15-25s for real graph traversals
+        # ponytail: lowered 30->10 (2026-09-05) — edge count dropped to 1,271 (27% over
+        # threshold, not the 10x that justified 30s); a 30s tail on a ~150ms Qdrant
+        # branch is disproportionate now. Bump back up if graph traversal quality regresses.
+        10
     )
     # Bound on kg_expansion.expand_query_with_ontology's Neo4j session.run() calls
     # (one per matched concept, no upstream timeout previously) — this call sits
@@ -1069,8 +1087,8 @@ class Settings(BaseSettings):
     lettuce_detect_threshold: float = 0.25
     # S3: when True, use the real LettuceDetect span-level detector
     # (RAGTruth-trained, 14 langs). When False, fall back to the heuristic.
-    # Default False until eval against RAGTruth/FaithBench passes — see audit S3.
-    lettucedetect_enabled: bool = False
+    # Default True — real detector with heuristic fallback on load failure.
+    lettucedetect_enabled: bool = True
     cove_supported_threshold: float = 0.8
     cove_partial_threshold: float = 0.5
     # WHY 0.60: measured LettuceDetect scores for GOOD grounded answers on this

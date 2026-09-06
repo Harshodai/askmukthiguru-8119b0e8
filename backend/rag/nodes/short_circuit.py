@@ -48,6 +48,29 @@ def _clean_rewrite(text: str) -> str:
     return cleaned
 
 
+@trace_rag_node("regenerate_gate")
+@log_metrics
+async def regenerate_gate(state: GraphState, config: dict = None) -> dict:
+    """Opt-in cheap correction: consume one rewrite attempt without re-retrieving.
+
+    A pure faithfulness/persona failure on documents `grade_documents` already
+    judged relevant is a generation problem (Self-RAG territory), not a
+    retrieval problem (CRAG territory) -- see settings.rag_regenerate_before_rewrite
+    docstring in app/config.py. This node exists only to increment
+    `rewrite_count` against the same budget rewrite_query would have consumed,
+    so total worst-case attempts across a request are unchanged; the actual
+    retry happens because this edges straight back to generate_answer with
+    the context already engineered, instead of through retrieve_documents.
+    """
+    rewrite_count = state.get("rewrite_count", 0) + 1
+    await emit_status(config, "Reconsidering the answer for faithfulness...")
+    logger.info(
+        f"Self-RAG regenerate (attempt {rewrite_count}): retrying generation on "
+        "already-graded context instead of re-retrieving"
+    )
+    return {"rewrite_count": rewrite_count}
+
+
 @trace_rag_node("rewrite_query")
 @log_metrics
 async def rewrite_query(state: GraphState, config: dict = None) -> dict:

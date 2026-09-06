@@ -45,6 +45,7 @@ from rag.nodes import (
     intent_router,
     navigate_and_hyde,
     reflect_on_answer,
+    regenerate_gate,
     rerank_documents,
     retrieve_documents,
     rewrite_query,
@@ -137,6 +138,15 @@ def _route_after_reflection(state: GraphState) -> str:
         max_rewrites = getattr(settings, "rag_max_rewrites", 2)
         if state.get("rewrite_count", 0) >= max_rewrites:
             return "fallback"
+        # Opt-in (default off, see app/config.py rag_regenerate_before_rewrite):
+        # on the FIRST correction, try a cheap regenerate against the same
+        # already-graded context before paying for a full CRAG re-retrieval.
+        # Consumes the same rewrite_count budget checked above, so this
+        # cannot increase worst-case total attempts.
+        if getattr(settings, "rag_regenerate_before_rewrite", False) and state.get(
+            "rewrite_count", 0
+        ) == 0:
+            return "regenerate"
         return "rewrite"
     return "verify"
 
@@ -239,6 +249,7 @@ class StandardGraphStrategy(GraphStrategy):
         graph.add_node("grade_documents", grade_documents)
         graph.add_node("enrich_context", enrich_context)
         graph.add_node("rewrite_query", rewrite_query)
+        graph.add_node("regenerate_gate", regenerate_gate)
         graph.add_node("generate_answer", generate_answer)
         graph.add_node("reflect_on_answer", reflect_on_answer)
         graph.add_node("verify_answer", verify_answer)
@@ -317,6 +328,7 @@ class StandardGraphStrategy(GraphStrategy):
         graph.add_edge("context_engineer", "generate_answer")
 
         graph.add_edge("rewrite_query", "retrieve_documents")
+        graph.add_edge("regenerate_gate", "generate_answer")
 
         graph.add_edge("generate_answer", "reflect_on_answer")
         graph.add_conditional_edges(
@@ -324,6 +336,7 @@ class StandardGraphStrategy(GraphStrategy):
             _route_after_reflection,
             {
                 "rewrite": "rewrite_query",
+                "regenerate": "regenerate_gate",
                 "fallback": "handle_fallback",
                 "verify": "verify_answer",
             },

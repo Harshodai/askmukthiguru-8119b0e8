@@ -43,6 +43,7 @@ from .retrieval import (
 )
 from .short_circuit import (
     handle_fallback,
+    regenerate_gate,
     rewrite_query,
 )
 from .utils import (
@@ -145,6 +146,7 @@ __all__ = [
     "verify_answer",
     "extract_citations",
     "rewrite_query",
+    "regenerate_gate",
     "handle_fallback",
     "settings",
     "web_search_node",
