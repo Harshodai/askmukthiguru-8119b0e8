@@ -127,6 +127,8 @@ services:
       context: ..
       dockerfile: backend/Dockerfile
     container_name: mukthiguru-backend
+    labels:
+      - "autoheal=true"
     ports:
       - "8000:8000"
     env_file:
@@ -425,10 +427,20 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import http.client; conn = http.client.HTTPConnection('localhost', 8000, timeout=2); conn.request('GET', '/'); conn.getresponse()\" || exit 1"]
+      # Checks /api/health, not / (2026-09-06, fix for L-DOCKER-11's silent
+      # hang): the root path is a trivial static route that stayed
+      # responsive through a real 7+ minute hang where /api/chat and
+      # /api/health themselves were stuck, because it never touches the
+      # request-processing path that got starved. A healthcheck that can't
+      # detect the one failure mode actually observed in production testing
+      # is worse than no healthcheck -- it hides the outage instead of
+      # surfacing it. timeout=8s bounds a single slow-but-alive response;
+      # 3 consecutive misses (interval 10s) x 8s timeout means a genuine
+      # hang is caught within ~30-54s instead of never.
+      test: ["CMD-SHELL", "python -c \"import http.client; conn = http.client.HTTPConnection('localhost', 8000, timeout=8); conn.request('GET', '/api/health'); r = conn.getresponse(); import sys; sys.exit(0 if r.status < 500 else 1)\" || exit 1"]
       interval: 10s
-      timeout: 5s
-      retries: 5
+      timeout: 10s
+      retries: 3
     restart: unless-stopped
     deploy:
       resources:
@@ -636,6 +648,25 @@ services:
         limits:
           memory: 512M
           cpus: '0.5'
+
+  # Auto-restarts any container labeled autoheal=true when Docker marks it
+  # unhealthy. Added 2026-09-06 (L-DOCKER-11): a correct healthcheck alone
+  # only makes a hang *visible* -- plain `docker compose`/`restart:` only
+  # reacts to a process exiting, never to a healthcheck going unhealthy
+  # while the process is still technically alive (exactly what happened:
+  # backend hung 7+ minutes, stayed "healthy" the whole time under the old
+  # root-path check, and even with the corrected /api/health check would
+  # just sit "unhealthy" forever without something to act on it).
+  autoheal:
+    image: willfarrell/autoheal:latest
+    container_name: mukthiguru-autoheal
+    restart: unless-stopped
+    environment:
+      - AUTOHEAL_CONTAINER_LABEL=autoheal
+      - AUTOHEAL_INTERVAL=10
+      - AUTOHEAL_START_PERIOD=60
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
 
 volumes:
   gptcache_data:
