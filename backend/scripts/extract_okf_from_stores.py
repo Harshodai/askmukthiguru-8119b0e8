@@ -639,9 +639,36 @@ async def _call_llm(system: str, user: str) -> str:
     """Generate OKF entry via the configured LLM provider with auto-failover."""
     from app.config import settings
 
-    getattr(settings, "llm_provider", "sarvam_cloud")
+    provider = getattr(settings, "llm_provider", "sarvam_cloud").lower()
 
-    # Try multi-provider LLM first
+    # Prioritize Sarvam Cloud directly when configured
+    if provider in ("sarvam", "sarvam_cloud"):
+        try:
+            from services.sarvam_service import SarvamCloudService
+
+            sarvam = SarvamCloudService()
+            text = await sarvam.generate(
+                system_prompt=system,
+                user_prompt=user,
+                temperature=0.3,
+                operation="okf_extraction",
+            )
+            if text:
+                from services.text_quality_filter import find_artifact
+
+                artifact = find_artifact(text)
+                if artifact:
+                    logger.warning(
+                        "LLM output from Sarvam contains artifact %r — trying multi-provider",
+                        artifact,
+                    )
+                else:
+                    logger.info("LLM: generated %d chars via Sarvam Cloud", len(text))
+                    return text.strip()
+        except Exception as exc:
+            logger.warning("Sarvam Cloud LLM failed: %s — trying multi-provider", _sanitize_log(exc))
+
+    # Try multi-provider LLM
     try:
         from services.multi_provider_llm import MultiProviderLLMService, get_llm_service
 
