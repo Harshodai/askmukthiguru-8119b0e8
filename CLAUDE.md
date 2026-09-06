@@ -10,8 +10,8 @@ Folder-scoped guidance also exists — `backend/CLAUDE.md` (backend workflow, re
 
 **Mukthi Guru** is a privacy-first, zero-hallucination AI spiritual guide grounded in Sri Preethaji & Sri Krishnaji's teachings. It combines a React frontend chat UI with a Python FastAPI backend running a multi-layer RAG pipeline.
 
-**Constraints from SPEC_DEV.md (non-negotiable):**
-- $0 budget — only free-tier infrastructure (Colab, Qdrant local, Ollama)
+**Constraints from SPEC_DEV.md:**
+- **$0-budget constraint suspended 2026-09-06** (user decision — funding pending; local/free-tier infra remains the fallback, not the requirement). `LLM_PROVIDER=sarvam_cloud` is the current live default (`backend/.env`, `app/config.py`); Sarvam Cloud usage is intentional, not a drift to flag. Re-tighten this constraint (and reconcile `SARVAM_BUDGET_GUARD_ENABLED`/`SARVAM_DAILY_BUDGET_USD`/`SARVAM_MONTHLY_BUDGET_USD` in `backend/.env`) if/when the funding situation changes.
 - All processing is local; zero external API calls at inference
 - Every dependency must be open source (Apache 2.0, MIT, or Meta Community). Approved exceptions for MPL-2.0 dev-only test deps are recorded in `LICENSE-EXCEPTIONS.md`.
 - Target: <1% hallucination rate, <3s response time — **both aspirational and unverified** (see `docs/SPEC_DEV.md` Hallucination Measurement, corrected 2026-08-10: Self-RAG leg is disabled so the compounded rate is ~1.5–6.0%, and `generate_answer` alone has a 90s min timeout)
