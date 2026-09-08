@@ -8214,3 +8214,64 @@ Started as a narrow ask: enable `rag_deep_research_enabled` (an adaptive suffici
 - **Remediation (complete)**: (a) unreachable-blob sweep found only my own stash blobs — session 2's version is definitively unrecoverable from git. (b) Reconstructed the word-overlap fallback from the handoff's precise description (re-attribute among already-retrieved docs, ≥2 shared words, marked as reconstruction in-code), validated 63/63 on the cited suites. (c) Found the actual log line by widening the search (`"faithfulness=%.2f < %.2f"` in the fast-tier rejection warning — hardcoded `<` even when rejection came from citations with the score clearing the floor) and fixed it with the real comparison, extracted as pure `_faithfulness_relation` with a parametrized regression test in `test_answer_path_regressions.py`. Final full suite: **2895 passed** / 23 skipped (2 deselected pre-existing).
 - **Rule**: in a dirty tree, revert a bad edit with the Edit tool (inverse diff), never with `git checkout --`. If someone else's uncommitted work shares the file, checkout is deletion. When reconstruction is the only option, mark it as such in the code comment and validate with the original suites — and say plainly which part could not be restored.
 
+## Sep 8, 2026 — Code Review Remediation: 30+ Findings Across Security, Thread-Safety, and RAG Pipeline
+
+### L-REVIEW-1. `.gitignore *.md` silently breaks markdown tracking — a single rule can orphan all documentation
+- **What**: A commit added `*.md` to `.gitignore` to exclude generated markdown reports, but it caught ALL markdown files — README.md, AGENTS.md, lessons.md, CLAUDE.md, every docs/ file. Untracked files wouldn't show in `git status`, so the break was invisible until someone noticed missing files.
+- **Fix applied**: Removed the `*.md` catch-all from `.gitignore`.
+- **Rule**: Never use `*.md` or other broad glob patterns in `.gitignore` unless you can guarantee no tracked files match. Use specific paths (`docs/generated/*.md`, `scripts/reports/*.md`) instead.
+
+### L-REVIEW-2. Contradiction resolver false-positives from substring entity matching and unscoped numeric extraction
+- **What**: The contradiction resolver used `len > 4` substring matching (`ea in eb or eb in ea`) to detect entity overlap, which caused "peace" to match "inner peace", "world peace", etc. The `_extract_entity_numbers` function extracted ALL small numbers from the full text (step numbers, timestamps, durations) instead of only numbers adjacent to the conflicting entity.
+- **Fix applied**: (a) Added length-ratio guard: shorter string must be >60% the length of the longer one. (b) Replaced `_extract_entity_numbers` with `_extract_adjacent_entity_numbers` that only extracts numbers within 4 tokens of an entity mention. (c) Added `_is_suppressible_conflict` gate: negation asymmetry conflicts are now telemetry-only (not chunk-suppressing).
+- **Rule**: In domain-specific NLP (spiritual teachings, medical, legal), generic substring matching produces false positives. Entity-scoped extraction (adjacent tokens, sentence-level) is mandatory. Negation asymmetry ("X calms the mind" vs "X does not calm the mind") should be surfaced as telemetry, not used for chunk suppression.
+
+### L-REVIEW-3. Thread-safety violations in TTLRateLimiter, EmbeddingCache, and cost_tracker singleton
+- **What**: `TTLRateLimiter` used a plain `deque` without a lock — concurrent `is_allowed()` calls could corrupt the deque's internal state (interleaved `popleft`/`append`). `EmbeddingCache.get()` called `remove()` + `append()` on `_access_order` without holding `_cache_lock`. `get_cost_tracker()` had a double-init race: two threads could both create `CostTracker()`.
+- **Fix applied**: Added `threading.Lock` to `TTLRateLimiter.__init__`, wrapped `is_allowed`/`clear_expired`/`reset` bodies. Wrapped `EmbeddingCache.get()` in `_cache_lock`. Added `_TRACKER_LOCK` with double-checked locking in `get_cost_tracker()`.
+- **Rule**: Any mutable shared state accessed from concurrent threads (async workers, connection pools, background tasks) MUST have a lock or use atomic operations. The pattern: `if singleton is None: with lock: if singleton is None: singleton = create()`. Don't assume "it's Python, the GIL protects me" — the GIL doesn't protect against interleaved method calls on mutable objects.
+
+### L-REVIEW-4. CORS domain bypass via `startswith` in validate_origin_referer
+- **What**: The origin check used `origin.startswith(allowed.rstrip("/") + "/")` which permitted `evil.example.com` when `allowed="https://example.com"` — the attacker's origin starts with the allowed origin's string prefix.
+- **Fix applied**: Replaced with `urlparse` hostname comparison: exact match OR `.endswith("." + allowed_hostname)` (subdomain boundary). Also verified scheme match.
+- **Rule**: CORS origin validation must use hostname-level comparison, never string prefix matching. The `.` delimiter is the domain hierarchy boundary — `evil.com` should NOT match `example.com.evil.com`.
+
+### L-REVIEW-5. Blocking sync reranker call on async event loop
+- **What**: `rerank()` was a sync method calling `self._reranker.predict(pairs)` (ONNX or PyTorch). It was called from `rerank_documents()` (async) via `asyncio.to_thread()`, but `cascaded_rerank()` (also sync) was called the same way. The fix made both methods async natively, with the ONNX path offloaded to `asyncio.to_thread()`.
+- **Fix applied**: Made `rerank()` and `cascaded_rerank()` async. ONNX path: `await asyncio.to_thread(self._reranker.predict, pairs)`. PyTorch path: unchanged (serialized via `_inference_lock`). Updated all callers (`reranking.py`, test mocks, validation scripts, protocol definition).
+- **Rule**: Sync blocking code (CPU-bound ONNX inference, PyTorch scoring) called from async context MUST be offloaded via `asyncio.to_thread()`. Making the method async without offloading still blocks the event loop. Check that all callers (production + test + script) are updated when changing method signatures.
+
+### L-REVIEW-6. Test monkeypatch detection leaking into production code
+- **What**: `retrieval.py` contained a block checking `hasattr(kg_mod, "_orig_expand_query_with_ontology")` — this was test-only infrastructure for detecting monkeypatches, living in production code. Removing it caused a test regression because the test monkeypatched `expand_query_with_ontology` but the production code now resolves `expand_query_via_kg` first.
+- **Fix applied**: Removed the monkeypatch detection block from production. Updated the test to monkeypatch `expand_query_via_kg` (the current production function) instead of `expand_query_with_ontology` (the deprecated wrapper).
+- **Rule**: Test infrastructure (monkeypatch detectors, mock guards, test-only conditions) MUST NOT exist in production code. When removing test infrastructure from production, verify that tests monkeypatch the current production entry points, not historical wrappers.
+
+### L-REVIEW-7. Dedup O(n²) unbounded — no cap on document count before near-duplicate scan
+- **What**: The near-duplicate dedup loop in `context_engineer` scanned all document pairs: for each doc, it compared against all previously seen word-sets. With N documents, this is O(N²) with no cap. A pathological retrieval returning 100+ documents would cause excessive CPU time.
+- **Fix applied**: Added a cap of 30 documents before the scan. Documents exceeding the cap skip dedup with a warning log.
+- **Rule**: Any O(n²) operation over user-influenced data (retrieved documents, uploaded files, query results) MUST have a bounded cap. The cap should be logged as a warning so it's visible in production telemetry.
+
+### L-REVIEW-8. Triple copy-paste telemetry block in stage_runner.py
+- **What**: The `StageRunner.run()` method had 3 nearly identical ~30-line blocks for success/cancelled/error paths, each computing `start_ms`, appending to `stage_telemetry`, and emitting via coordinator. The blocks differed only in `status`, `error_code`, and `metadata`.
+- **Fix applied**: Extracted `_emit_stage_telemetry()` helper function. All 3 blocks replaced with single-line calls passing pre-computed `duration_ms`.
+- **Rule**: When a code block is duplicated 3+ times with only parameter differences, extract a helper. Copy-paste in pipeline/stage code is especially dangerous because each copy must stay in sync — a fix to one block that's missed in another creates silent behavioral divergence.
+
+### L-REVIEW-9. `index_fingerprint` partial contract match and `_as_str` falsy-zero bug
+- **What**: `assert_matches()` compared `dict(contract) == self.payload()` which passes if contract has fewer keys than payload (Python dict equality doesn't require equal key sets — wait, actually it does — but the error message for mismatch was "changed fields" even for key-set mismatches). `_as_str` used `str(value or "")` which treats `0` as falsy, converting it to the fallback string.
+- **Fix applied**: Added explicit key-set equality check before dict comparison, raising `IndexFingerprintError` with "incompatible key set: missing keys: X, extra keys: Y". Fixed `_as_str` to `str(value if value is not None else fallback)`.
+- **Rule**: When comparing contracts/schemas, check key-set equality separately from value equality for clearer error messages. `value or ""` is wrong for numeric fields — use `value if value is not None else fallback` to preserve `0`, `False`, and empty strings.
+
+### L-REVIEW-10. `rerank_async` / `cascaded_rerank_async` wrappers became redundant after making base methods async
+- **What**: After making `rerank()` and `cascaded_rerank()` async natively, the `_async` wrapper methods (`rerank_async`, `cascaded_rerank_async`) became pass-through wrappers: `return await self.rerank(...)`. They were no longer needed but not removed.
+- **Fix applied**: Simplified wrappers to direct forwards. No callers existed outside the embedding service module itself.
+- **Rule**: When making a sync method async, check if async wrappers existed. If they now just forward, simplify them. Dead wrapper layers add confusion about which method is the "real" async entry point.
+
+### L-REVIEW-11. `gc.collect()` on every retry attempt adds 150-600ms overhead to failure paths
+- **What**: Six retry blocks in `embedding_service.py` called `gc.collect()` before every `time.sleep(2)` retry delay. `gc.collect()` forces a full garbage collection cycle (150-600ms on large heaps), wasting time on early retries when the heap is unlikely to be the issue.
+- **Fix applied**: `gc.collect()` now only runs on the last retry attempt (`attempt == max_retries`). Also changed fixed `time.sleep(2)` to exponential backoff `time.sleep(min(2 ** attempt, 8))`.
+- **Rule**: `gc.collect()` is expensive and should only be used as a last resort (final retry), not on every failure. Retry delays should use exponential backoff to reduce load on failing services.
+
+### L-REVIEW-12. Regression testing discipline — always verify fixes on clean tree before claiming zero regressions
+- **What**: After dispatching 6 parallel subagents to fix 30+ issues, 2 test regressions were introduced: (a) `contradiction_resolver` test expected `route_metadata.contradiction_detected` which was removed from `context_engineer`'s return dict, (b) `retrieval` test monkeypatched the wrong function name. Both were caught by running the full test suite.
+- **Fix applied**: Restored `route_metadata` in `context_engineer` return dict (only the redundant top-level `contradiction_detected` was removed). Updated test to monkeypatch `expand_query_via_kg` instead of `expand_query_with_ontology`.
+- **Rule**: After parallel subagent fixes, ALWAYS run the full test suite (not just the files you touched). Subagents may make correct changes that break other subagents' changes or reveal pre-existing coupling. The `git stash` comparison (test on clean tree vs. test with changes) is the definitive way to separate regressions from pre-existing failures.
