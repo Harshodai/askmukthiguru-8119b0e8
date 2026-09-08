@@ -374,6 +374,29 @@ class RerankerService:
         )
         return []
 
+    def teaching_boost(
+        self,
+        documents: list[dict[str, Any]],
+        favorite_teachings: list[str],
+        boost: float = 0.1,
+    ) -> list[dict[str, Any]]:
+        """Additive boost for documents whose source_url matches a favorite teaching."""
+        if not documents or not favorite_teachings:
+            return list(documents)
+        teaching_set = {url.strip().rstrip("/") for url in favorite_teachings if url}
+        if not teaching_set:
+            return list(documents)
+        boosted = []
+        for doc in documents:
+            doc_copy = doc.copy()
+            source = (doc.get("source_url") or "").strip().rstrip("/")
+            if source and source in teaching_set:
+                doc_copy["rerank_score"] = doc_copy.get("rerank_score", 0.0) + boost
+                doc_copy["teaching_boosted"] = True
+            boosted.append(doc_copy)
+        boosted.sort(key=lambda d: d.get("rerank_score", 0.0), reverse=True)
+        return boosted
+
     def ontology_boost(
         self,
         documents: list[dict[str, Any]],

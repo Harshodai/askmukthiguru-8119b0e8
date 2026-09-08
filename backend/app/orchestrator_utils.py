@@ -543,38 +543,42 @@ async def prepare_request_state(
     # persistable-user gate, shared timeout, and exception boundary are retained.
     recommended_course = None
     if settings.proactive_course_assignment_enabled and _is_persistable_user_id(user_id):
-        from services.healing_course_service import maybe_assign_healing_course
+        from services.healing_course_service import (
+            course_slug_for_signal,
+            evaluate_course_trigger,
+            maybe_assign_healing_course,
+        )
 
-        async def _assign_healing_course() -> None:
+        async def _assign_healing_course(turn_history: list) -> None:
             try:
-                recent = await container.user_profile.get_recent_memories(
-                    user_id, limit=settings.proactive_course_frequency_window
-                )
-                turn_history = _flatten_emotional_arcs(recent)
-                if not turn_history:
-                    return
                 await maybe_assign_healing_course(
                     getattr(container, "supabase_client", None),
                     user_id,
                     turn_history,
                 )
             except Exception as exc:
-                # This side effect is deliberately non-fatal; its failure must
-                # never turn a completed chat into an error or an unobserved task.
                 logger.warning("Healing course assignment failed (non-fatal): %s", exc)
 
         try:
+            recent = await container.user_profile.get_recent_memories(
+                user_id, limit=settings.proactive_course_frequency_window
+            )
+            turn_history = _flatten_emotional_arcs(recent)
+            trigger = evaluate_course_trigger(turn_history)
+            if trigger:
+                recommended_course = course_slug_for_signal(trigger.signal)
+
             task = asyncio.create_task(
                 asyncio.wait_for(
-                    _assign_healing_course(),
+                    _assign_healing_course(turn_history),
                     timeout=get_node_timeout("healing_course", 10.0),
                 )
             )
             task.add_done_callback(_observe_background_task_error)
         except RuntimeError as exc:
-            # No running event loop is only possible in isolated synchronous
-            # callers; preserve the response path rather than blocking or raising.
             logger.debug("Healing course task not scheduled: %s", exc)
+        except Exception as exc:
+            logger.debug("Healing course slug pre-evaluation failed (non-fatal): %s", exc)
 
     return {
         "user_msg_en": user_msg_en,

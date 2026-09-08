@@ -163,6 +163,11 @@ async def rerank_documents(state: GraphState, config: dict = None) -> dict:
                 )
         reranked_db.sort(key=lambda d: d.get("rerank_score", 0.0), reverse=True)
 
+    # Teaching boost: prioritize docs from user's favorite teachings
+    favorite_teachings = state.get("favorite_teachings", [])
+    if favorite_teachings and reranked_db:
+        reranked_db = reranker.teaching_boost(reranked_db, favorite_teachings)
+
     # Apply score-delta cutoff to keep fewer but better chunks
     reranked_db = _apply_rerank_score_cutoff(reranked_db)
 
