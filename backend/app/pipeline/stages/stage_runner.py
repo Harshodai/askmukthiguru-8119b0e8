@@ -21,9 +21,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def _emit_stage_telemetry(ctx: "PipelineContext", stage_name: str, start_ns: int, status: str, error_code: str = "", metadata: dict | None = None, release_id: str = "unknown"):
+def _emit_stage_telemetry(ctx: "PipelineContext", stage_name: str, start_ns: int, status: str, duration_ms: float, error_code: str = "", metadata: dict | None = None, release_id: str = "unknown"):
     """Append stage telemetry entry to ctx.stage_telemetry."""
-    duration_ms = max(0.0, round((time.time_ns() - start_ns) / 1_000_000, 2))
     start_ms = (
         0.0
         if not getattr(ctx, "start_time", 0.0)
@@ -94,7 +93,7 @@ class StageRunner:
                     status = "success"
                     metadata = None
 
-                _emit_stage_telemetry(ctx, stage_name, start_ns, status=status, release_id=release_id, metadata=metadata)
+                _emit_stage_telemetry(ctx, stage_name, start_ns, status=status, duration_ms=duration_ms, release_id=release_id, metadata=metadata)
 
                 if coordinator is not None:
                     await coordinator._stage(
@@ -122,7 +121,7 @@ class StageRunner:
                 )
                 _emit_stage_telemetry(
                     ctx, stage_name, start_ns,
-                    status="cancelled", error_code="deadline_cancelled",
+                    status="cancelled", duration_ms=duration_ms, error_code="deadline_cancelled",
                     metadata={"reason": "deadline_or_disconnect"}, release_id=release_id,
                 )
                 if coordinator is not None:
@@ -153,7 +152,7 @@ class StageRunner:
 
                 _emit_stage_telemetry(
                     ctx, stage_name, start_ns,
-                    status="error", error_code=error_code,
+                    status="error", duration_ms=duration_ms, error_code=error_code,
                     metadata=metadata, release_id=release_id,
                 )
 

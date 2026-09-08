@@ -84,6 +84,7 @@ class IndexFingerprint:
         if fingerprint == self.digest and dict(contract) == self.payload():
             return
 
+        # Key-set mismatch is a stronger, clearer error than "changed fields"
         contract_keys = set(contract.keys())
         payload_keys = set(self.payload().keys())
         if contract_keys != payload_keys:
@@ -94,7 +95,9 @@ class IndexFingerprint:
                 issues.append(f"missing keys: {missing}")
             if extra:
                 issues.append(f"extra keys: {extra}")
-            raise ValueError(f"Contract key mismatch: {'; '.join(issues)}")
+            raise IndexFingerprintError(
+                "published index contract has incompatible key set: " + "; ".join(issues)
+            )
 
         changed = sorted(
             key

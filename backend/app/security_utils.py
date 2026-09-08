@@ -17,6 +17,7 @@ import threading
 import time
 from collections import deque
 from typing import Optional
+from urllib.parse import urlparse
 
 # YouTube video ID: exactly 11 characters, alphanumeric, hyphen, underscore
 _YOUTUBE_VIDEO_ID_RE = re.compile(r"^[a-zA-Z0-9_-]{11}$")
@@ -219,7 +220,6 @@ def validate_origin_referer(origin: Optional[str], allowed_origins: list[str]) -
     """
     if not origin:
         return False
-    from urllib.parse import urlparse
 
     origin = origin.strip().lower()
     origin_parsed = urlparse(origin)

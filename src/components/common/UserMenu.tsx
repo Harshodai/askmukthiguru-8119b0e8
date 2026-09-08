@@ -92,13 +92,7 @@ export const UserMenu = ({ onRestartTour }: UserMenuProps = {}) => {
         </DropdownMenuItem>
         {onRestartTour && (
           <DropdownMenuItem
-            onClick={() => {
-              if (onRestartTour) {
-                onRestartTour();
-              } else {
-                window.dispatchEvent(new CustomEvent('tour:restart'));
-              }
-            }}
+            onClick={() => onRestartTour?.()}
             className="min-h-[40px] rounded-lg text-ojas/90 focus:text-ojas"
           >
             <MapPin className="w-4 h-4 mr-2" /> {t('common.takeTour', 'Take a Tour')}
