@@ -34,24 +34,28 @@ logger = logging.getLogger(__name__)
 
 from langgraph.graph.state import CompiledStateGraph
 
+from services.doctrine_service import DoctrineService
 from services.embedding_service import EmbeddingService
+from services.graphrag_fusion import GraphRAGFusion
 from services.lightrag_service import LightRAGService
+from services.llm_gateway import LLMGateway
 from services.ollama_service import OllamaService
 from services.qdrant_service import QdrantService
 from services.serene_mind_engine import SereneMindEngine
+from services.web_search_service import WebSearchService
 
 
 def _init_then_compile(
     strategy_name: str,
-    ollama_service,
-    embedding_service,
-    qdrant_service,
-    lightrag_service,
-    serene_mind_engine=None,
-    web_search=None,
-    doctrine_service=None,
-    llm_gateway=None,
-    graphrag_fusion=None,
+    ollama_service: OllamaService,
+    embedding_service: EmbeddingService,
+    qdrant_service: QdrantService,
+    lightrag_service: LightRAGService,
+    serene_mind_engine: SereneMindEngine | None = None,
+    web_search: WebSearchService | None = None,
+    doctrine_service: DoctrineService | None = None,
+    llm_gateway: LLMGateway | None = None,
+    graphrag_fusion: GraphRAGFusion | None = None,
 ) -> CompiledStateGraph:
     """Inject services into module globals, then return the cached compile.
 
@@ -79,11 +83,11 @@ def build_rag_graph(
     embedding_service: EmbeddingService,
     qdrant_service: QdrantService,
     lightrag_service: LightRAGService,
-    serene_mind_engine: SereneMindEngine = None,
-    web_search=None,
-    doctrine_service=None,
-    llm_gateway=None,
-    graphrag_fusion=None,
+    serene_mind_engine: SereneMindEngine | None = None,
+    web_search: WebSearchService | None = None,
+    doctrine_service: DoctrineService | None = None,
+    llm_gateway: LLMGateway | None = None,
+    graphrag_fusion: GraphRAGFusion | None = None,
 ) -> CompiledStateGraph:
     """
     Build and compile the complete RAG pipeline as a LangGraph.
@@ -110,11 +114,11 @@ def build_fast_graph(
     embedding_service: EmbeddingService,
     qdrant_service: QdrantService,
     lightrag_service: LightRAGService,
-    serene_mind_engine: SereneMindEngine = None,
-    web_search=None,
-    doctrine_service=None,
-    llm_gateway=None,
-    graphrag_fusion=None,
+    serene_mind_engine: SereneMindEngine | None = None,
+    web_search: WebSearchService | None = None,
+    doctrine_service: DoctrineService | None = None,
+    llm_gateway: LLMGateway | None = None,
+    graphrag_fusion: GraphRAGFusion | None = None,
 ) -> CompiledStateGraph:
     """Fast path (Path A): 5-node pipeline for simple factual queries."""
     return _init_then_compile(
@@ -136,11 +140,11 @@ def build_deep_graph(
     embedding_service: EmbeddingService,
     qdrant_service: QdrantService,
     lightrag_service: LightRAGService,
-    serene_mind_engine: SereneMindEngine = None,
-    web_search=None,
-    doctrine_service=None,
-    llm_gateway=None,
-    graphrag_fusion=None,
+    serene_mind_engine: SereneMindEngine | None = None,
+    web_search: WebSearchService | None = None,
+    doctrine_service: DoctrineService | None = None,
+    llm_gateway: LLMGateway | None = None,
+    graphrag_fusion: GraphRAGFusion | None = None,
 ) -> CompiledStateGraph:
     """Deep path: full standard graph with additional verification + CoT nodes."""
     return _init_then_compile(
@@ -258,6 +262,17 @@ def create_initial_state(
         # Web Search
         needs_web_search=False,
         web_search_results=[],
+        # User Profile personalization
+        persisted_spiritual_level=None,
+        total_conversations=0,
+        total_meditations_completed=0,
+        codemix_preference=False,
+        distress_history=[],
+        last_distress_assessment=None,
+        recommended_course=None,
+        updated_spiritual_level=None,
+        topics_of_interest=[],
+        favorite_teachings=[],
         # Per-node timing (R4)
         node_timings={},
         # Production AI reliability trajectory metadata

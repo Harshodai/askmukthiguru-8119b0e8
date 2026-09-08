@@ -10,7 +10,7 @@ from typing import Optional
 from langchain_core.runnables import RunnableConfig
 
 from app.tracing import trace_rag_node
-from rag.compressor import cap_to_token_budget
+from rag.compressor import cap_to_token_budget, estimate_tokens, get_token_ratio
 from rag.doc_utils import doc_text, sort_docs_canonically
 from rag.prompts import (
     CANONICAL_URLS_LOGISTICS,
@@ -412,6 +412,7 @@ def _compute_context_budget(
     memory_context: str,
     tier: str = "standard",
     min_context_tokens: int = 200,
+    language: str = "en",
 ) -> tuple[int, int]:
     if tier in ("deep", "tier3_complex"):
         min_context_tokens = max(min_context_tokens, 500)
@@ -425,9 +426,9 @@ def _compute_context_budget(
     max_budget = max(0, int(max_budget))
     baseline_tokens = max(0, int(baseline_tokens))
     if history_str:
-        baseline_tokens += int(len(history_str.split()) * 1.3)
+        baseline_tokens += estimate_tokens(history_str, language)
     if memory_context:
-        baseline_tokens += int(len(memory_context.split()) * 1.3)
+        baseline_tokens += estimate_tokens(memory_context, language)
 
     if max_budget < min_context_tokens:
         logger.warning(
@@ -575,6 +576,75 @@ def classify_user_familiarity(question: str, chat_history: list[dict]) -> str:
     return result
 
 
+_CLASSIFICATION_TO_LEVEL = {
+    "Seeker": "beginner",
+    "Practitioner": "practitioner",
+    "Advanced Meditator": "seeker",
+}
+
+
+def _compute_blended_spiritual_level(
+    persisted_level: str | None, current_classification: str
+) -> str:
+    """Blend persisted spiritual level with current classification.
+
+    Uses a rank-distance heuristic rather than a fixed weighted blend:
+    - If persisted level is None or beginner, use current classification entirely.
+    - If current classification is more advanced by 2+ ranks, upgrade regardless.
+    - Otherwise, keep persisted level for stability (avoids oscillation).
+
+    This heuristic is more stable than a 70/30 weighted average, which can
+    cause the level to oscillate between ranks on alternating requests.
+    """
+    current_mapped = _CLASSIFICATION_TO_LEVEL.get(current_classification, "beginner")
+    if not persisted_level or persisted_level == "beginner":
+        return current_mapped
+
+    _rank = {"beginner": 0, "explorer": 1, "practitioner": 2, "seeker": 3}
+    p_rank = _rank.get(persisted_level, 0)
+    c_rank = _rank.get(current_mapped, 0)
+
+    if c_rank > p_rank + 1:
+        return current_mapped
+    return persisted_level
+
+
+def _build_experience_block(
+    total_conversations: int, total_meditations: int
+) -> str:
+    """Build the USER EXPERIENCE prompt block."""
+    return (
+        f"\n\n[USER EXPERIENCE: {total_conversations} conversations, "
+        f"{total_meditations} meditations completed]\n"
+        "Style instruction: Tailor depth and vocabulary to the user's journey stage."
+    )
+
+
+def _build_codemix_block(is_codemix: bool) -> str:
+    """Build the CODEMIX_PREFERENCE prompt block."""
+    if not is_codemix:
+        return ""
+    return (
+        "\n\n[CODEMIX_PREFERENCE: true]\n"
+        "Style instruction: The user prefers code-mixed language (Hinglish/Tanglish). "
+        "Feel free to mix English with Hindi/transliterated terms naturally."
+    )
+
+
+def _build_distress_block(distress_history: list[dict] | None) -> str:
+    """Build the RECENT_DISTRESS prompt block from distress history."""
+    if not distress_history:
+        return ""
+    latest = distress_history[-1]
+    ts = latest.get("timestamp", "unknown")
+    level = latest.get("distress_level", "unknown")
+    return (
+        f"\n\n[RECENT_DISTRESS: {ts} (level={level})]\n"
+        "Style instruction: The user has recent distress history. Use a grounding, "
+        "calming tone. Prioritize emotional safety and practical steps."
+    )
+
+
 @trace_rag_node("context_engineer")
 @log_metrics
 async def context_engineer(state: GraphState, config: Optional[RunnableConfig] = None) -> dict:
@@ -604,6 +674,9 @@ async def context_engineer(state: GraphState, config: Optional[RunnableConfig] =
 
     # Dynamic Persona Adaptation based on User Level
     user_level = classify_user_familiarity(state.get("question", ""), chat_history)
+    persisted_level = state.get("persisted_spiritual_level")
+    blended_level = _compute_blended_spiritual_level(persisted_level, user_level)
+    updated_level = blended_level if blended_level != persisted_level else None
     if user_level == "Seeker":
         persona += (
             "\n\n[USER CLASSIFICATION: SEEKER]\n"
@@ -657,6 +730,20 @@ async def context_engineer(state: GraphState, config: Optional[RunnableConfig] =
         state, question=state.get("question", "")
     )
 
+    # Personalization blocks from UserProfile
+    total_convs = state.get("total_conversations", 0)
+    total_meds = state.get("total_meditations_completed", 0)
+    if total_convs > 0 or total_meds > 0:
+        persona += _build_experience_block(total_convs, total_meds)
+
+    is_codemix = state.get("codemix_preference", False)
+    if not is_codemix and detected_language in ("hi", "hinglish"):
+        is_codemix = True
+    persona += _build_codemix_block(is_codemix)
+
+    distress_hist = state.get("distress_history", [])
+    persona += _build_distress_block(distress_hist)
+
     # The constitution is 1,183 words ≈ 1,537 tokens. The previous 512-token cap
     # discarded 67% of it, cutting mid-sentence at "You ground every factual claim
     # in the provided context." — so the model never received the ban on invented
@@ -665,7 +752,7 @@ async def context_engineer(state: GraphState, config: Optional[RunnableConfig] =
     # [USER CLASSIFICATION] block appended just above was discarded 100% of the time.
     # `max_tokens_per_request` is 12000, so the cap was never budget-driven — it was
     # simply too small. Sized to fit the whole constitution plus the style block.
-    persona = cap_to_token_budget(persona, _PERSONA_TOKEN_BUDGET)
+    persona = cap_to_token_budget(persona, _PERSONA_TOKEN_BUDGET, detected_language)
 
     # Layer 2: Knowledge (Retrieved Chunks) — tier-aware budget
     query_tier = state.get("query_tier", "standard")
@@ -774,7 +861,7 @@ async def context_engineer(state: GraphState, config: Optional[RunnableConfig] =
         f"[Source: {doc.get('title', 'Unknown')} | URL: {doc.get('source_url', 'N/A')}]\n{doc_text(doc)}"
         for doc in sort_docs_canonically(knowledge_docs)
     )
-    knowledge = cap_to_token_budget(knowledge, knowledge_budget)
+    knowledge = cap_to_token_budget(knowledge, knowledge_budget, detected_language)
 
     # Layer 3: User State / continuity (capped to 1024 tokens)
     user_state = f"Intent: {intent}\n"
@@ -786,7 +873,7 @@ async def context_engineer(state: GraphState, config: Optional[RunnableConfig] =
         user_state += f"Detected Language: {detected_language}\n"
     if memory_context:
         user_state += f"\n{memory_context}\n"
-    user_state = cap_to_token_budget(user_state, 1024)
+    user_state = cap_to_token_budget(user_state, 1024, detected_language)
 
     # Layer 4: Instructions (capped to 900 tokens)
     _cs = state.get("complexity_score", 0.5)
@@ -838,7 +925,7 @@ async def context_engineer(state: GraphState, config: Optional[RunnableConfig] =
         # Inject instruction in Layer 4 (Instructions)
         instructions += f"\n14. COST STEERING — The conversation history is long. You MUST be extremely concise and answer in under {COST_STEERED_BREVITY_LIMIT} words."
 
-    instructions = cap_to_token_budget(instructions, 900)
+    instructions = cap_to_token_budget(instructions, 900, detected_language)
 
     # -------------------------------------------------------------------------
     # 1.9 Structured Prompt Assembly — labeled sections built from relevant_docs
@@ -857,7 +944,7 @@ async def context_engineer(state: GraphState, config: Optional[RunnableConfig] =
     entities_block = "ENTITIES (source names referenced in Knowledge):\n" + (
         "\n".join(entity_lines) if entity_lines else "None"
     )
-    entities_block = cap_to_token_budget(entities_block, 400)
+    entities_block = cap_to_token_budget(entities_block, 400, detected_language)
 
     # relationships: cross-doc sibling links & LightRAG graph relationship summaries
     source_to_chunks: dict[str, list[int]] = {}
@@ -890,7 +977,7 @@ async def context_engineer(state: GraphState, config: Optional[RunnableConfig] =
     relationships_block = "RELATIONSHIPS (multi-chunk sources & LightRAG graph):\n" + (
         "\n".join(rel_lines) if rel_lines else "None"
     )
-    relationships_block = cap_to_token_budget(relationships_block, 400)
+    relationships_block = cap_to_token_budget(relationships_block, 400, detected_language)
 
     # chunks_meta: compact per-chunk index used by tier3 structured prompt
     chunks_meta_lines: list[str] = []
@@ -906,7 +993,7 @@ async def context_engineer(state: GraphState, config: Optional[RunnableConfig] =
     chunks_meta = "CHUNKS (retrieval index):\n" + (
         "\n".join(chunks_meta_lines) if chunks_meta_lines else "None"
     )
-    chunks_meta = cap_to_token_budget(chunks_meta, 400)
+    chunks_meta = cap_to_token_budget(chunks_meta, 400, detected_language)
 
     context_layers = {
         "persona": persona,
@@ -929,6 +1016,7 @@ async def context_engineer(state: GraphState, config: Optional[RunnableConfig] =
     ret_dict = {
         "context_layers": context_layers,
         "selected_docs": selected_docs,
+        "updated_spiritual_level": updated_level,
         "evaluation_trace": _trace_update(
             state,
             context_chunks_deduplicated=pruned_dups,
@@ -1273,6 +1361,7 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
         history_str=history_str,
         memory_context=state.get("memory_context") or "",
         tier=query_tier,
+        language=lang,
     )
 
     logger.info(
@@ -1285,7 +1374,7 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
         doc_str = (
             f"[Source: {doc.get('title', doc.get('source_url', 'Unknown'))}]\n{doc.get('text', '')}"
         )
-        doc_tokens = int(len(doc_str.split()) * 1.3)
+        doc_tokens = estimate_tokens(doc_str, lang)
         logger.debug(
             f"BUDGET: doc[{idx}] tokens={doc_tokens}, running_sum={current_context_tokens}"
         )
@@ -1293,7 +1382,7 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
             if not truncated_docs:
                 truncated_text = doc.get("text", "")
                 words = truncated_text.split()
-                allowed_words = int((max_context_tokens - current_context_tokens) / 1.3)
+                allowed_words = int((max_context_tokens - current_context_tokens) / get_token_ratio(lang))
                 if allowed_words > 10:
                     truncated_text = " ".join(words[:allowed_words]) + "..."
                     doc_copy = dict(doc)
@@ -1396,15 +1485,15 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
         layers["knowledge"] = context
         # Dynamic context capping to fit within max_budget
 
-        def estimate_tokens(text: str) -> int:
+        def _local_estimate_tokens(text: str) -> int:
             if not text:
                 return 0
-            return int(len(text.split()) * 1.3)
+            return estimate_tokens(text, lang)
 
         sys_p = f"PERSONA:\n{layers.get('persona', '')}\n\nINSTRUCTIONS:\n{layers.get('instructions', '')}"
         if lang_suffix:
             sys_p += f"\n\n{lang_suffix}"
-        sys_tokens = estimate_tokens(sys_p)
+        sys_tokens = _local_estimate_tokens(sys_p)
 
         user_p_template = (
             f"USER STATE:\n{layers.get('user_state', '')}\n\n"
@@ -1413,17 +1502,17 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
         )
         if history_str:
             user_p_template = f"{{history}}\n\n{user_p_template}"
-            base_user_tokens = estimate_tokens(
+            base_user_tokens = _local_estimate_tokens(
                 user_p_template.format(knowledge="", question=question, history=history_str)
             )
         else:
-            base_user_tokens = estimate_tokens(
+            base_user_tokens = _local_estimate_tokens(
                 user_p_template.format(knowledge="", question=question)
             )
 
         allowed_knowledge_tokens = max(0, max_budget - (sys_tokens + base_user_tokens + 250))
         current_knowledge = layers.get("knowledge", "")
-        current_knowledge_tokens = estimate_tokens(current_knowledge)
+        current_knowledge_tokens = _local_estimate_tokens(current_knowledge)
 
         if allowed_knowledge_tokens <= 0:
             logger.warning(
@@ -1440,7 +1529,7 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
                 f"to {allowed_knowledge_tokens} tokens to respect max_budget {max_budget}"
             )
             layers = dict(layers)
-            layers["knowledge"] = cap_to_token_budget(current_knowledge, allowed_knowledge_tokens)
+            layers["knowledge"] = cap_to_token_budget(current_knowledge, allowed_knowledge_tokens, lang)
 
     attachment_context = (state.get("attachment_context") or "").strip()
     attachment_block = (
@@ -1974,7 +2063,7 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
                         for doc in new_relevant_docs
                     ]
                 )
-                layers_copy["knowledge"] = cap_to_token_budget(knowledge, 3072)
+                layers_copy["knowledge"] = cap_to_token_budget(knowledge, 3072, lang)
 
                 system_prompt = (
                     f"PERSONA:\n{layers_copy['persona']}\n\n"
@@ -2324,7 +2413,7 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
     # Convert [Source: Title] in the answer text to [N] based on relevant_docs mapping
     relevant_docs = state.get("relevant_docs", [])
 
-    def replace_source_match(match):
+    def replace_source_match(match: re.Match[str]) -> str:
         title_part = match.group(1).strip()
         title_lower = title_part.lower()
 

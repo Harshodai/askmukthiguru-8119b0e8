@@ -27,6 +27,7 @@ from app.release_manifest import get_release_manifest
 from app.pipeline.stages.base import Stage
 from rag.graph import create_initial_state
 from rag.timeout_utils import TimeoutBudget, budget_var
+from services.user_profile_service import _is_persistable_user_id
 
 if TYPE_CHECKING:
     from app.pipeline.stages.context import PipelineContext
@@ -169,6 +170,29 @@ class GraphStage(Stage):
             attachment_context = _attachment_context_from_request(chat_body)
             initial_state["attachment_context"] = attachment_context or None
             initial_state["expected_keywords"] = get_expected_keywords(user_msg_en)
+
+            # User profile personalization fields for generation prompt
+            _uid = ctx.user_id or "anonymous"
+            _profile = None
+            if (
+                container.user_profile
+                and _is_persistable_user_id(_uid)
+            ):
+                try:
+                    _profile = await container.user_profile.get_or_create_profile(_uid)
+                except Exception as _prof_err:
+                    logger.debug("Profile fetch for personalization failed: %s", _prof_err)
+            if _profile:
+                initial_state["persisted_spiritual_level"] = _profile.spiritual_level.value
+                initial_state["total_conversations"] = _profile.total_conversations
+                initial_state["total_meditations_completed"] = _profile.total_meditations_completed
+                initial_state["codemix_preference"] = _profile.codemix_preference
+                initial_state["last_distress_assessment"] = _profile.last_distress_assessment
+                initial_state["topics_of_interest"] = list(_profile.topics_of_interest or [])
+                initial_state["favorite_teachings"] = list(_profile.favorite_teachings or [])
+            # distress_history is computed by prepare_user_memory in the orchestrator
+            # and passed through PipelineContext.state
+            initial_state["distress_history"] = ctx.state.get("distress_history", [])
             if proactive_data:
                 initial_state["proactive_serene_mind"] = proactive_data
 
@@ -472,4 +496,21 @@ class GraphStage(Stage):
         ctx.intent = intent
         ctx.med_step = result.get("meditation_step", 0)
         ctx.citations = result.get("citations", [])
+
+        # Persist updated spiritual level from generation node's blended classification
+        updated_level = result.get("updated_spiritual_level")
+        if updated_level and container.user_profile and _is_persistable_user_id(ctx.user_id):
+            try:
+                _prof = await container.user_profile.get_or_create_profile(ctx.user_id)
+                from services.user_profile_service import SpiritualLevel
+                _prof.spiritual_level = SpiritualLevel(updated_level)
+                await container.user_profile.update_profile(_prof)
+            except Exception as _persist_err:
+                logger.debug("Spiritual level persistence failed (non-fatal): %s", _persist_err)
+
+        # Capture recommended_course slug for downstream use
+        rc = result.get("recommended_course")
+        if rc:
+            ctx.state["recommended_course"] = rc
+
         return None

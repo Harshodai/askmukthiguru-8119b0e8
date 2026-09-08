@@ -285,3 +285,15 @@ class GraphState(TypedDict):
     lane_budget_ms: Annotated[Optional[int], keep_latest]
     lane_budget_consumed_ms: Annotated[Optional[float], keep_latest]
     retrieval_stage_times: Annotated[Optional[dict], keep_latest]
+
+    # User Profile personalization fields (read from UserProfile, written back after graph)
+    persisted_spiritual_level: Optional[str]
+    total_conversations: int
+    total_meditations_completed: int
+    codemix_preference: bool
+    distress_history: Annotated[list[dict], keep_latest]
+    last_distress_assessment: Optional[dict]
+    recommended_course: Optional[str]
+    updated_spiritual_level: Optional[str]
+    topics_of_interest: list[str]
+    favorite_teachings: list[str]

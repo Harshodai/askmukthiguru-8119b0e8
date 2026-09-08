@@ -105,6 +105,14 @@ _OKF_MIN_KEYWORD_COVERAGE = settings.okf_min_keyword_coverage
 _OKF_KEYWORD_SCORE_CEILING = settings.okf_keyword_score_ceiling
 
 
+def _apply_topic_boost(query: str, topics_of_interest: list[str]) -> str:
+    """Append user's topic interests to query for retrieval expansion."""
+    if not topics_of_interest:
+        return query
+    topic_str = " ".join(topics_of_interest[:5])
+    return f"{query} {topic_str}"
+
+
 def _okf_match(query: str, limit: int = 3, teacher: str | None = None) -> list[dict]:
     """Semantic match via cosine similarity on title embeddings; keyword fallback.
 
@@ -759,6 +767,7 @@ async def retrieve_for_single_query(
     knowledge_tags: Optional[list[str]] = None,
     query_tier: str = "standard",
     query_embedding: Optional[dict] = None,
+    topics_of_interest: Optional[list[str]] = None,
 ) -> list[dict]:
     """Retrieve documents for a single sub-query, decoupled from state.
 
@@ -777,6 +786,9 @@ async def retrieve_for_single_query(
         last_user_msgs = [m["content"] for m in chat_history[-4:] if m.get("role") == "user"]
         if last_user_msgs:
             augmented_query = f"{last_user_msgs[-1]} {query}"
+
+    if topics_of_interest:
+        augmented_query = _apply_topic_boost(augmented_query, topics_of_interest)
 
     query_for_embedding = hyde_text or augmented_query
     if query_embedding is None:
@@ -1619,8 +1631,8 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
                 logger.info("OKF injection: adding %d curated entries", len(okf_docs))
                 all_docs = okf_docs + all_docs
                 raw_docs_copy = okf_docs + raw_docs_copy
-        except Exception:
-            pass  # non-fatal; OKF must never break retrieval
+        except Exception as e:
+            logger.debug("OKF retrieval fallback failed (non-fatal): %s", e)
 
     # RAGFlow Gap 1: adaptive deep-research sufficiency loop.
     # Auto-fires for tier3_complex + deep; opt-in via rag_deep_research_enabled.
