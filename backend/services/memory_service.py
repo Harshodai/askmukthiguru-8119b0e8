@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import uuid
 from datetime import UTC, datetime
@@ -669,8 +670,55 @@ class MemoryService:
 
             logger.info(f"Compacted {len(memories)} memories into {len(compacted_list)} memories.")
 
+            # Artifact gate: skip contaminated LLM outputs (CoT leaks, degradation strings)
+            from services.text_quality_filter import find_artifact
+
+            clean_compacted = []
+            for mem_text in compacted_list:
+                artifact = find_artifact(mem_text)
+                if artifact:
+                    logger.warning("Compaction output contaminated, skipping: %s", artifact)
+                    continue
+                clean_compacted.append(mem_text)
+            compacted_list = clean_compacted
+
+            if not compacted_list:
+                logger.warning(
+                    "All compacted memories contaminated, aborting replacement to avoid data loss."
+                )
+                return
+
+            # Snapshot before destructive compaction (Fix 1)
+            try:
+                snapshot = {
+                    "user_id": user_id,
+                    "memories_json": json.dumps([m for m in memories]),
+                }
+                # Use Supabase RPC for atomic snapshot + cleanup
+                await asyncio.to_thread(
+                    self._supabase.rpc(
+                        "create_compaction_snapshot",
+                        {
+                            "p_user_id": user_id,
+                            "p_memories_json": snapshot["memories_json"],
+                        },
+                    ).execute
+                )
+            except Exception as snap_err:
+                logger.warning("Compaction snapshot failed (non-fatal): %s", snap_err)
+
+            # Metadata preservation (Fix 3): match compacted back to originals by keyword overlap
+            def _extract_keywords(text: str) -> set[str]:
+                _indic = "\u0900-\u097F\u0B80-\u0BFF\u0C00-\u0C7F\u0C80-\u0CFF\u0D00-\u0D7F"
+                return {
+                    w.lower()
+                    for w in re.findall(rf"[a-zA-Z{_indic}]+", text)
+                    if len(w) > 2
+                }
+
+            original_kw_sets = [_extract_keywords(m.get("content", "")) for m in memories]
+
             # Aggregate metadata from original memories for preservation
-            _claims = [m.get("claim", "") for m in memories if m.get("claim")]
             _best_confidence = max(
                 (
                     float(m.get("confidence") or 0)
@@ -682,22 +730,42 @@ class MemoryService:
             _summaries = [m.get("summary", "") for m in memories if m.get("summary")]
             _best_summary = max(_summaries, key=len) if _summaries else ""
 
-            # Generate embeddings for all new compacted memories first
+            # Generate embeddings for all new compacted memories, preserving per-memory metadata
             new_memories_data = []
             for content in compacted_list:
                 emb_dict = await asyncio.to_thread(
                     self._embedding_service.encode_single_full, content
                 )
                 embedding = emb_dict["dense"]
+                content_kw = _extract_keywords(content)
+
+                # Find best-matching original by keyword overlap
+                best_idx = -1
+                best_overlap = 0
+                for i, orig_kw in enumerate(original_kw_sets):
+                    overlap = len(content_kw & orig_kw)
+                    if overlap > best_overlap:
+                        best_overlap = overlap
+                        best_idx = i
+
                 row = {
                     "user_id": user_id,
                     "content": content,
                     "embedding": embedding,
                     "source": "extracted",
                 }
-                if _claims:
-                    row["claim"] = _claims[0]
-                row["confidence"] = _best_confidence
+                # Preserve per-memory fact_key and valid_from from best match
+                if best_idx >= 0:
+                    orig = memories[best_idx]
+                    if orig.get("fact_key"):
+                        row["fact_key"] = orig["fact_key"]
+                    if orig.get("valid_from"):
+                        row["valid_from"] = orig["valid_from"]
+                    if orig.get("claim"):
+                        row["claim"] = orig["claim"]
+                    row["confidence"] = _safe_confidence(orig.get("confidence"), _best_confidence)
+                else:
+                    row["confidence"] = _best_confidence
                 if _best_summary:
                     row["summary"] = _best_summary
                 new_memories_data.append(row)

@@ -217,7 +217,7 @@ class UserProfileService:
                             user_id=row["user_id"],
                             started_at=row["started_at"],
                             messages=json.loads(row["messages"]),
-                            key_insights=row["key_insights"],
+                            key_insights=json.loads(row["key_insights"]) if isinstance(row["key_insights"], str) else (row["key_insights"] or []),
                             emotional_arc=json.loads(row["emotional_arc"]),
                             follow_up_suggestions=row["follow_up_suggestions"],
                         )

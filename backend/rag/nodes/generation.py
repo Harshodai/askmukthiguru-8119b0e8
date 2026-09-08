@@ -517,7 +517,6 @@ def classify_user_familiarity(question: str, chat_history: list[dict]) -> str:
         "దీక్ష",
         "ದೀಕ್ಷೆ",
         "दीक्षा",
-        "दीक्षा",
     ]
     practitioner_terms = [
         "meditation",
