@@ -210,8 +210,11 @@ async def reflect_on_answer(state: GraphState, config: dict = None) -> dict:
     context = "\n\n".join(doc_text(doc) for doc in relevant_docs)
     # Deep verification remains semantic and authoritative below; reflection is
     # a correction hint only, so keep its pass bounded and avoid duplicate CPU
-    # embedding work on complex answers.
-    reflection_semantic = state.get("query_tier") not in ("tier3_complex", "deep")
+    # embedding work on complex answers or when retrieval was already high confidence.
+    reflection_semantic = (
+        state.get("query_tier") not in ("tier3_complex", "deep")
+        and not state.get("high_confidence_retrieval", False)
+    )
     ld_result = await _score_faithfulness_bounded(
         lettuce_detect,
         question,

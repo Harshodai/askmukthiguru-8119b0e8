@@ -36,6 +36,7 @@ from qdrant_client import QdrantClient  # noqa: E402
 
 from services.embedding_service import EmbeddingService  # noqa: E402
 from services.qdrant.searcher import QdrantSearcher  # noqa: E402
+from benchmarks.retrieval_metrics import DEFAULT_KS, summarize_rankings  # noqa: E402
 
 
 def _p(percentile: float, values: list[float]) -> float:
@@ -69,7 +70,7 @@ def main(argv: list[str] | None = None) -> int:
     embed_ms: list[float] = []
     search_ms: list[float] = []
     detail = []
-    hits_at = {k: 0 for k in (1, 5, 10, 25, 50)}
+    rankings: list[tuple[list[str], set[str]]] = []
 
     for i, item in enumerate(items):
         q = item["query"]
@@ -90,9 +91,7 @@ def main(argv: list[str] | None = None) -> int:
         search_ms.append((time.perf_counter() - t0) * 1000)
 
         retrieved_sources = [r.get("source_url", "") for r in results[:50]]
-        for k in hits_at:
-            if any(s in gold_sources for s in retrieved_sources[:k]):
-                hits_at[k] += 1
+        rankings.append((retrieved_sources, gold_sources))
 
         detail.append(
             {
@@ -111,12 +110,14 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  {i + 1}/{len(items)} queries done", flush=True)
 
     n = len(items)
-    recall = {k: round(hits_at[k] / n, 4) if n else 0.0 for k in hits_at}
+    metrics = summarize_rankings(rankings, ks=DEFAULT_KS)
     report = {
         "collection": args.collection,
         "golden_version": golden.get("version"),
         "n_queries": n,
-        "recall_at_k": recall,
+        "recall_at_k": metrics["recall_at_k"],
+        "precision_at_k": metrics["precision_at_k"],
+        "mrr": metrics["mrr"],
         "embed_latency_ms": {
             "mean": round(statistics.mean(embed_ms), 1),
             "p50": round(_p(50, embed_ms), 1),
@@ -130,7 +131,8 @@ def main(argv: list[str] | None = None) -> int:
         "detail": detail,
     }
     args.out.write_text(json.dumps(report, indent=2))
-    print(f"\nrecall@k: {recall}")
+    print(f"\nrecall@k: {report['recall_at_k']}")
+    print(f"precision@k: {report['precision_at_k']} mrr={report['mrr']}")
     print(
         f"embed  ms p50={report['embed_latency_ms']['p50']} p95={report['embed_latency_ms']['p95']}"
     )

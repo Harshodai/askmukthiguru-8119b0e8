@@ -102,8 +102,37 @@ async def rerank_documents(state: GraphState, config: dict = None) -> dict:
             and query_tier == "tier3_complex"
         )
 
+        rerank_bypassed = False
         rerank_candidates = _limit_rerank_candidates(db_docs, query_tier)
-        if settings.use_flashrank and reranker is not None and not force_cross_encoder:
+
+        # §9 & Review §4.5: Selective reranking. If retrieval already produced high confidence
+        # candidates for fast/simple tiers, skip expensive cross-encoder/ColBERT passes.
+        top_initial_score = max(
+            (float(d.get("score") or d.get("similarity") or d.get("rrf_score") or 0.0) for d in rerank_candidates),
+            default=0.0,
+        )
+        bypass_threshold = float(getattr(settings, "rerank_bypass_threshold", 0.85))
+        if (
+            getattr(settings, "rerank_bypass_high_confidence_enabled", True)
+            and query_tier in ("fast", "tier2_simple")
+            and top_initial_score >= bypass_threshold
+        ):
+            logger.info(
+                "Reranking bypassed: high initial retrieval confidence (top=%.3f >= %.3f, tier=%s)",
+                top_initial_score,
+                bypass_threshold,
+                query_tier,
+            )
+            for d in rerank_candidates:
+                if "rerank_score" not in d:
+                    d["rerank_score"] = float(d.get("score") or d.get("similarity") or d.get("rrf_score") or 0.75)
+            reranked_db = sorted(
+                rerank_candidates,
+                key=lambda d: d.get("rerank_score", 0.0),
+                reverse=True,
+            )[:rerank_top_k]
+            rerank_bypassed = True
+        elif settings.use_flashrank and reranker is not None and not force_cross_encoder:
             reranked_db = await reranker.rerank(
                 question,
                 rerank_candidates,
@@ -189,6 +218,7 @@ async def rerank_documents(state: GraphState, config: dict = None) -> dict:
             state,
             reranked_count=len(reranked),
             reranked_sources=_grounded_citation_urls(reranked),
+            rerank_bypassed=rerank_bypassed,
         ),
     }
 
@@ -209,10 +239,12 @@ async def grade_documents(state: GraphState, config: dict = None) -> dict:
         )
         return {
             "relevant_docs": relevant,
+            "high_confidence_retrieval": True,
             "evaluation_trace": _trace_update(
                 state,
                 relevant_count=len(relevant),
                 relevant_sources=_grounded_citation_urls(relevant),
+                high_confidence_retrieval=True,
             ),
         }
 
@@ -288,11 +320,13 @@ async def grade_documents(state: GraphState, config: dict = None) -> dict:
         )
         return {
             "relevant_docs": relevant,
+            "high_confidence_retrieval": True,
             "evaluation_trace": _trace_update(
                 state,
                 relevant_count=len(relevant),
                 relevant_sources=_grounded_citation_urls(relevant),
                 grading_skipped_high_confidence=True,
+                high_confidence_retrieval=True,
             ),
         }
 

@@ -42,7 +42,7 @@ describe('UserMenu', () => {
 
     render(
       <MemoryRouter>
-        <UserMenu />
+        <UserMenu onRestartTour={vi.fn()} />
       </MemoryRouter>
     );
 

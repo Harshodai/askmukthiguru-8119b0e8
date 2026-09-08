@@ -738,6 +738,10 @@ class Settings(BaseSettings):
     use_flashrank: bool = True
     flashrank_model: str = "auto"
     use_cross_encoder_only: bool = False
+    rerank_bypass_high_confidence_enabled: bool = True
+    rerank_bypass_threshold: float = 0.85
+    context_chunk_dedup_enabled: bool = True
+    context_chunk_dedup_threshold: float = 0.85
     use_adaptive_chunking: bool = True
     adaptive_chunking_min_chars: int = 800
     use_proposition_chunking: str = "auto"

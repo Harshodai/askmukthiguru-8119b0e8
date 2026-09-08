@@ -683,6 +683,43 @@ async def context_engineer(state: GraphState, config: Optional[RunnableConfig] =
         and doc.get("source_url") != "knowledge_graph"
     ]
 
+    # Context Engineering (§8): deduplicate exact and near-duplicate chunks before budget packing
+    pruned_dups = 0
+    if getattr(settings, "context_chunk_dedup_enabled", True) and len(knowledge_docs) > 1:
+        deduped_docs: list[dict] = []
+        seen_word_sets: list[set[str]] = []
+        sim_threshold = float(getattr(settings, "context_chunk_dedup_threshold", 0.85))
+
+        for doc in knowledge_docs:
+            raw_text = doc_text(doc).strip()
+            if not raw_text:
+                continue
+            words = set(re.findall(r"\b\w{3,}\b", raw_text.lower()))
+            if not words:
+                deduped_docs.append(doc)
+                continue
+            is_dup = False
+            for seen in seen_word_sets:
+                intersection = len(words & seen)
+                union = len(words | seen)
+                if union > 0 and (intersection / union) >= sim_threshold:
+                    is_dup = True
+                    break
+            if is_dup:
+                pruned_dups += 1
+            else:
+                seen_word_sets.append(words)
+                deduped_docs.append(doc)
+
+        if pruned_dups > 0:
+            logger.info(
+                "Context engineering: pruned %d duplicate/near-duplicate chunks (%d -> %d remain)",
+                pruned_dups,
+                len(knowledge_docs),
+                len(deduped_docs),
+            )
+            knowledge_docs = deduped_docs
+
     # Budget-aware selection: pick which docs survive the token budget by
     # relevance (rerank_score) BEFORE the cache-friendly hash sort, instead of
     # hash-sorting first and blindly truncating the tail — a blind tail-cut
@@ -861,13 +898,17 @@ async def context_engineer(state: GraphState, config: Optional[RunnableConfig] =
         len(rel_lines),
     )
 
-    ret_dict = {"context_layers": context_layers}
+    ret_dict = {
+        "context_layers": context_layers,
+        "selected_docs": selected_docs,
+        "evaluation_trace": _trace_update(
+            state,
+            context_chunks_deduplicated=pruned_dups,
+            context_chunks_selected=len(selected_docs),
+        ),
+    }
     if cost_steered_brevity:
         ret_dict["query_tier"] = "tier2_simple"
-    # Contract: record the docs that actually survived budget-aware selection —
-    # the exact set quoted in ``knowledge``. generate_answer consumes this
-    # field instead of re-deriving its own list from pre-budget relevant_docs.
-    ret_dict["selected_docs"] = selected_docs
 
     return ret_dict
 
@@ -1585,8 +1626,14 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
         gateway = AnthropicGateway.from_settings()
     except AnthropicGatewayError as exc:
         logger.warning(f"AnthropicGateway config error, falling back to legacy LLM: {exc}")
+        route_metadata["fallback_occurred"] = True
+        route_metadata["fallback_reason"] = f"anthropic_config_error: {str(exc)[:100]}"
+        route_metadata["fallback_from_provider"] = "anthropic"
     except Exception as exc:
         logger.warning(f"AnthropicGateway unavailable, falling back to legacy LLM: {exc}")
+        route_metadata["fallback_occurred"] = True
+        route_metadata["fallback_reason"] = f"anthropic_unavailable: {str(exc)[:100]}"
+        route_metadata["fallback_from_provider"] = "anthropic"
 
     used_gateway = False
 
@@ -1687,6 +1734,9 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
             used_gateway = True
         except AnthropicGatewayError as exc:
             logger.warning(f"AnthropicGateway failed, falling back to legacy LLM: {exc}")
+            route_metadata["fallback_occurred"] = True
+            route_metadata["fallback_reason"] = f"anthropic_error: {str(exc)[:100]}"
+            route_metadata["fallback_from_provider"] = "anthropic"
 
     if not used_gateway:
         if ab_model == "krutrim":
@@ -1734,6 +1784,9 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
                         ) or ""
             except Exception as e:
                 logger.error(f"Krutrim generation failed, falling back to Ollama: {e}")
+                route_metadata["fallback_occurred"] = True
+                route_metadata["fallback_reason"] = f"krutrim_error: {str(e)[:100]}"
+                route_metadata["fallback_from_provider"] = "krutrim"
                 if stream_queue:
                     answer = ""
                     async for chunk in ollama.generate_stream(
@@ -1804,6 +1857,12 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
 
             # Use the universal provider (ollama = configured LLM provider)
             # sarvam_cloud is only for STT/TTS/Translation, not for generation
+            prov_name = getattr(ollama, "provider_name", "ollama")
+            route_metadata.setdefault("model_provider", prov_name)
+            route_metadata.setdefault(
+                "model_used",
+                getattr(ollama, "model", getattr(settings, "model_for_generation", "default")),
+            )
             answer = await _generate_with(ollama, add_timeout=True)
             if answer is None:
                 answer = ""
@@ -2014,6 +2073,9 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
             model_used=route_metadata.get("model_used"),
             model_provider=route_metadata.get("model_provider"),
             route_decision=route_metadata.get("route_decision"),
+            fallback_occurred=route_metadata.get("fallback_occurred", False),
+            fallback_reason=route_metadata.get("fallback_reason"),
+            fallback_from_provider=route_metadata.get("fallback_from_provider"),
         ),
     }
     # Fast/tier2 queries skip the full verification node, so run a lightweight
@@ -2940,6 +3002,7 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
             confidence_score=confidence,
             citations_verified=citations_verified,
             orphan_citations_stripped=orphan_citations_stripped,
+            node_timings=dict(state.get("node_timings") or {}),
         ),
     }
     if state.get("intent") == "DISTRESS":

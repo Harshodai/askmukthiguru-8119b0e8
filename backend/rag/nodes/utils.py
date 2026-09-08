@@ -733,6 +733,8 @@ def _inject_canonical_citations(
 
 def _trace_update(state: GraphState, **updates) -> dict:
     trace = dict(state.get("evaluation_trace") or {})
+    if "node_timings" not in updates and state.get("node_timings"):
+        trace.setdefault("node_timings", dict(state.get("node_timings") or {}))
     trace.update(updates)
     return trace
 

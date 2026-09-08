@@ -39,6 +39,12 @@ const isGoogleOrYouTubeAccountUrl = (message: string): boolean => {
   });
 };
 
+const isCiMockSupabaseRealtimeError = (message: string): boolean =>
+  // The E2E build deliberately uses an unreachable mock hostname.  Keep this
+  // narrow so a real Supabase realtime outage still fails the sweep.
+  message.includes('wss://mock-supabase.supabase.co/realtime/') &&
+  message.includes('ERR_NAME_NOT_RESOLVED');
+
 const IGNORABLE = (e: string): boolean =>
   e.includes('React Router Future Flag') ||
   e.includes('Download the React DevTools') ||
@@ -48,6 +54,7 @@ const IGNORABLE = (e: string): boolean =>
   e.includes('Failed to load resource') ||
   e.includes('503') ||
   isGoogleOrYouTubeAccountUrl(e) ||
+  isCiMockSupabaseRealtimeError(e) ||
   e.includes('requestStorageAccess: Permission denied.') ||
   e.includes('.mp3') ||
   e.includes('useMeditationAudio');

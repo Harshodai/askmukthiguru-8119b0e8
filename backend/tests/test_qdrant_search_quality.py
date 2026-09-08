@@ -104,7 +104,8 @@ def qdrant_searcher():
     expected_sources = {
         source
         for query in QdrantSearchQualityTester.GOLDEN_QUERIES
-        for source in query["relevant_sources"]
+        for source in query.get("relevant_sources", [])
+        if source
     }
     try:
         sample_points, _ = client_mgr.client.scroll(
@@ -169,6 +170,7 @@ class QdrantSearchQualityTester:
     GOLDEN_QUERIES = [
         {
             "query": "What is beautiful state?",
+            "category": "factual",
             "relevant_sources": [
                 "beautiful_state_and_health_challenges.md",
                 "beautiful_state_glossary.md",
@@ -177,6 +179,7 @@ class QdrantSearchQualityTester:
         },
         {
             "query": "How do I connect to universal intelligence?",
+            "category": "factual",
             "relevant_sources": [
                 "connecting_to_universal_intelligence.md",
                 "feeling_one_with_universal_intelligence.md",
@@ -185,6 +188,7 @@ class QdrantSearchQualityTester:
         },
         {
             "query": "Dealing with suffering and pain",
+            "category": "factual",
             "relevant_sources": [
                 "finding_truth_in_chaos.md",
                 "inner_truth_and_being.md",
@@ -193,6 +197,7 @@ class QdrantSearchQualityTester:
         },
         {
             "query": "Practice of stillness and meditation",
+            "category": "factual",
             "relevant_sources": [
                 "stillness_and_inner_truth.md",
                 "gentle_spiritual_awakening.md",
@@ -201,11 +206,63 @@ class QdrantSearchQualityTester:
         },
         {
             "query": "Inner peace consciousness awareness",
+            "category": "factual",
             "relevant_sources": [
                 "inner_peace_and_consciousness.md",
                 "universal_intelligence.md",
             ],
             "min_ndcg_threshold": 0.78,
+        },
+        {
+            "query": "Living with deep tranquility and absence of inner conflict",
+            "category": "semantic_paraphrase",
+            "relevant_sources": [
+                "inner_peace_and_consciousness.md",
+                "stillness_and_inner_truth.md",
+            ],
+            "min_ndcg_threshold": 0.75,
+        },
+        {
+            "query": "How does stillness practice relate to connecting with universal intelligence?",
+            "category": "relational",
+            "relevant_sources": [
+                "connecting_to_universal_intelligence.md",
+                "stillness_and_inner_truth.md",
+            ],
+            "min_ndcg_threshold": 0.72,
+        },
+        {
+            "query": "Distinction between the experience of suffering and living in a beautiful state",
+            "category": "comparative",
+            "relevant_sources": [
+                "beautiful_state_and_health_challenges.md",
+                "finding_truth_in_chaos.md",
+            ],
+            "min_ndcg_threshold": 0.72,
+        },
+        {
+            "query": "सुंदर स्थिति और आंतरिक शांति क्या है?",
+            "category": "multilingual_hi",
+            "relevant_sources": [
+                "beautiful_state_and_health_challenges.md",
+                "inner_peace_and_consciousness.md",
+            ],
+            "min_ndcg_threshold": 0.70,
+        },
+        {
+            "query": "సార్వత్రిక మేధస్సుతో ఎలా అనుసంధానం కావాలి?",
+            "category": "multilingual_te",
+            "relevant_sources": [
+                "connecting_to_universal_intelligence.md",
+                "feeling_one_with_universal_intelligence.md",
+            ],
+            "min_ndcg_threshold": 0.70,
+        },
+        {
+            "query": "What are the latest stock market earnings of Microsoft?",
+            "category": "abstention",
+            "relevant_sources": [],
+            "min_ndcg_threshold": 1.0,
         },
     ]
 
@@ -251,6 +308,8 @@ class QdrantSearchQualityTester:
         ideal_relevances = [1.0] * min(len(relevant_sources), k)
         idcg = sum(1.0 / math.log2(i + 2) for i in range(len(ideal_relevances)))
 
+        if not relevant_sources:
+            return 1.0 if not ranked_sources else 0.0
         return dcg / idcg if idcg > 0 else 0.0
 
     def evaluate_strategy(self, strategy: str) -> dict:
@@ -471,6 +530,28 @@ def test_extract_source_filename_precedence():
     assert _extract_source_filename({"source_url": "a.md", "payload": {"url": "b.md"}}) == "a.md"
     assert _extract_source_filename({"payload": {"source_url": "a.md", "url": "b.md"}}) == "a.md"
     assert _extract_source_filename({"payload": {"source": "c.md", "url": "b.md"}}) == "c.md"
+
+
+def test_ndcg_abstention_handling():
+    """Unit: empty relevant sources scores 1.0 when no sources returned, 0.0 when spurious sources returned."""
+    tester = QdrantSearchQualityTester(None, None)
+    assert tester.ndcg_at_k([], []) == 1.0
+    assert tester.ndcg_at_k(["spurious.md"], []) == 0.0
+
+
+def test_golden_queries_category_coverage():
+    """Verify golden queries cover required regression categories (§1.3)."""
+    categories = {q.get("category") for q in QdrantSearchQualityTester.GOLDEN_QUERIES}
+    expected = {
+        "factual",
+        "semantic_paraphrase",
+        "relational",
+        "comparative",
+        "multilingual_hi",
+        "multilingual_te",
+        "abstention",
+    }
+    assert expected.issubset(categories)
 
 
 if __name__ == "__main__":

@@ -42,7 +42,7 @@ export const WisdomGraphPreview: React.FC = () => {
     <section className="py-20 px-4 sm:px-6 relative overflow-hidden bg-background">
       <div className="max-w-6xl mx-auto space-y-10">
         <div className="text-center space-y-3 max-w-2xl mx-auto">
-          <Badge variant="outline" className="text-saffron-gold border-saffron-gold/40 px-3 py-1 text-xs">
+          <Badge variant="outline" className="text-amber-800 dark:text-saffron-gold border-saffron-gold/40 px-3 py-1 text-xs">
             <Network className="w-3.5 h-3.5 mr-1.5" /> 8,750+ Node Doctrinal Ontology
           </Badge>
           <h2 className="text-3xl sm:text-4xl font-serif font-bold tracking-tight text-foreground">
