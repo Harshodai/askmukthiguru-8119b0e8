@@ -558,6 +558,13 @@ class _FailingStage(Stage):
         raise ValueError("Invalid stage operation")
 
 
+class _CancelledStage(Stage):
+    name = "cancelled_stage"
+
+    async def run(self, ctx: PipelineContext) -> PipelineResult | None:
+        raise asyncio.CancelledError
+
+
 @pytest.mark.asyncio
 async def test_stage_runner_records_bounded_telemetry():
     """Verify StageRunner records privacy-safe bounded telemetry for every stage."""
@@ -611,6 +618,27 @@ async def test_stage_runner_records_bounded_error_code():
     assert err_rec["release_id"] == get_release_manifest().release_id
     # Assert privacy: no prompt or sensitive words in telemetry
     assert "password" not in str(err_rec)
+
+
+@pytest.mark.asyncio
+async def test_stage_runner_records_deadline_cancellation_then_propagates():
+    """Cancellation is observable and still releases all outer waiters."""
+    ctx = PipelineContext(
+        container=MagicMock(),
+        coordinator=MagicMock(),
+        request=ChatRequest(user_message="Hello", messages=[]),
+        user_msg="Hello",
+        preferred_lang="en",
+    )
+
+    with pytest.raises(asyncio.CancelledError):
+        await StageRunner.run([_CancelledStage()], ctx)
+
+    assert len(ctx.stage_telemetry) == 1
+    record = ctx.stage_telemetry[0]
+    assert record["status"] == "cancelled"
+    assert record["error_code"] == "deadline_cancelled"
+    assert record["metadata"] == {"reason": "deadline_or_disconnect"}
 
 
 # ---------------------------------------------------------------------------

@@ -32,7 +32,21 @@ jobs:
           pip install httpx pydantic
           # RAGAS optional; golden_eval falls back to LettuceDetect/lexical when absent
 
+      - name: Check live evaluation target
+        id: target
+        env:
+          BACKEND_URL: ${{ secrets.BACKEND_URL }}
+        run: |
+          if [ -n "$BACKEND_URL" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "### Golden Eval Gate not run" >> "$GITHUB_STEP_SUMMARY"
+            echo "No BACKEND_URL secret is configured. This PR received no live quality proof." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Run golden eval (full)
+        if: steps.target.outputs.available == 'true'
         env:
           BACKEND_URL: ${{ secrets.BACKEND_URL }}
           BACKEND_TOKEN: ${{ secrets.BACKEND_TOKEN }}
@@ -50,7 +64,7 @@ jobs:
           path: golden_eval_report.json
 
       - name: Comment summary on PR
-        if: github.event_name == 'pull_request' && always()
+        if: github.event_name == 'pull_request' && steps.target.outputs.available == 'true' && always()
         uses: actions/github-script@v7
         with:
           script: |

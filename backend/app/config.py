@@ -793,6 +793,7 @@ class Settings(BaseSettings):
     # corpus publication drill has created a durable Redis manifest. When true,
     # startup refuses a missing, malformed, or incompatible contract.
     index_contract_enforcement_enabled: bool = False
+    corpus_publication_enforcement_enabled: bool = False
     index_contract_version: str = "v1"
     ingestion_chunking_version: str = "contextual-v2"
     retrieval_metadata_schema_version: str = "v1"

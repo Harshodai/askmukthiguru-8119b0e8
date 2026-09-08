@@ -7,6 +7,7 @@ always returns a result, so a fully-run pipeline yields a PipelineResult.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from typing import TYPE_CHECKING
@@ -99,6 +100,53 @@ class StageRunner:
                     )
                 if result is not None:
                     return result
+            except asyncio.CancelledError:
+                # A request deadline or client disconnect must cancel the
+                # underlying node, not leave invisible work consuming provider
+                # and queue capacity. Record only the bounded reason/status;
+                # never include request text or graph state in telemetry.
+                duration_ms = max(0.0, round((time.time_ns() - start_ns) / 1_000_000, 2))
+                logger.info(
+                    "PIPELINE_STAGE_TIMING job_id=%s trace_id=%s stage=%s "
+                    "status=cancelled duration_ms=%.2f",
+                    getattr(ctx, "job_id", None) or "-",
+                    getattr(ctx, "trace_id", "unknown"),
+                    stage_name,
+                    duration_ms,
+                )
+                if hasattr(ctx, "stage_telemetry"):
+                    start_ms = (
+                        0.0
+                        if not getattr(ctx, "start_time", 0.0)
+                        else max(
+                            0.0,
+                            round((start_ns / 1_000_000) - (ctx.start_time * 1000), 2),
+                        )
+                    )
+                    ctx.stage_telemetry.append(
+                        {
+                            "stage": stage_name,
+                            "job_id": getattr(ctx, "job_id", None),
+                            "trace_id": getattr(ctx, "trace_id", ""),
+                            "status": "cancelled",
+                            "start_ms": start_ms,
+                            "end_ms": round(start_ms + duration_ms, 2),
+                            "duration_ms": duration_ms,
+                            "error_code": "deadline_cancelled",
+                            "release_id": release_id,
+                            "metadata": {"reason": "deadline_or_disconnect"},
+                        }
+                    )
+                if coordinator is not None:
+                    await coordinator._stage(
+                        stage_name,
+                        ctx.trace_id,
+                        start_ns=start_ns,
+                        status="cancelled",
+                        error_type="deadline_cancelled",
+                        metadata={"reason": "deadline_or_disconnect"},
+                    )
+                raise
             except Exception as exc:
                 duration_ms = max(0.0, round((time.time_ns() - start_ns) / 1_000_000, 2))
                 logger.warning(

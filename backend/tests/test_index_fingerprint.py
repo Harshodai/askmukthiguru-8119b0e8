@@ -4,15 +4,18 @@ from __future__ import annotations
 
 import subprocess
 import sys
-from types import SimpleNamespace
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
-from app.index_fingerprint import (
-    IndexFingerprintError,
-    build_index_fingerprint,
+from app.corpus_publication import (
+    CorpusPublicationError,
+    CorpusPublicationManifest,
+    build_publication_record,
+    validate_publication_record,
 )
+from app.index_fingerprint import IndexFingerprintError, build_index_fingerprint
 
 
 def _settings(**overrides):
@@ -80,8 +83,47 @@ def test_index_fingerprint_rejects_tampered_published_contract():
         contract.assert_matches(published)
 
 
+def _publication(contract, **overrides):
+    values = {
+        "manifest_version": "v1",
+        "collection": contract.collection,
+        "corpus_version": contract.corpus_version,
+        "source_manifest_sha256": "a" * 64,
+        "index_fingerprint": contract.digest,
+        "qdrant_points": 10,
+        "qdrant_sources": 2,
+        "graph_required": True,
+        "graph_nodes": 4,
+        "graph_edges": 3,
+    }
+    values.update(overrides)
+    return CorpusPublicationManifest(**values)
+
+
+def test_publication_manifest_requires_vector_and_graph_agreement():
+    contract = build_index_fingerprint(_settings(), collection="spiritual_wisdom_contextual")
+    record = build_publication_record(contract, _publication(contract))
+
+    validate_publication_record(record, contract)
+
+
+def test_publication_manifest_rejects_index_or_graph_drift():
+    contract = build_index_fingerprint(_settings(), collection="spiritual_wisdom_contextual")
+    with pytest.raises(CorpusPublicationError, match="nodes and edges"):
+        build_publication_record(
+            contract, _publication(contract, graph_nodes=0, graph_edges=0)
+        )
+    with pytest.raises(CorpusPublicationError, match="index fingerprint"):
+        build_publication_record(contract, _publication(contract, index_fingerprint="b" * 64))
+
+
 def test_publication_script_requires_explicit_mode():
-    script = Path(__file__).resolve().parents[1] / "scripts" / "ops" / "publish_retrieval_index_contract.py"
+    script = (
+        Path(__file__).resolve().parents[1]
+        / "scripts"
+        / "ops"
+        / "publish_retrieval_index_contract.py"
+    )
     result = subprocess.run(
         [sys.executable, str(script)], capture_output=True, text=True, timeout=30
     )

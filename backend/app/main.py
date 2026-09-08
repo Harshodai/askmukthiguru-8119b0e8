@@ -276,8 +276,9 @@ async def _background_startup_body(container, fastapi_app) -> None:
         _collection = _collection or getattr(settings, "qdrant_collection", "unknown")
         _contract = build_index_fingerprint(settings, collection=_collection)
         _fp_redis_key = f"retrieval_index_contract:{_collection}"
-        _enforce_contract = bool(
-            getattr(settings, "index_contract_enforcement_enabled", False)
+        _enforce_contract = bool(getattr(settings, "index_contract_enforcement_enabled", False))
+        _enforce_publication = bool(
+            getattr(settings, "corpus_publication_enforcement_enabled", False)
         )
 
         # Redis is the durable cross-deploy publication store. The local file
@@ -306,7 +307,16 @@ async def _background_startup_body(container, fastapi_app) -> None:
 
         if _stored_contract is not None:
             try:
-                _contract.assert_matches(_stored_contract)
+                if "publication" in _stored_contract or "index_contract" in _stored_contract:
+                    from app.corpus_publication import validate_publication_record
+
+                    validate_publication_record(_stored_contract, _contract)
+                else:
+                    _contract.assert_matches(_stored_contract)
+                    if _enforce_publication:
+                        raise RuntimeError(
+                            "legacy index contract cannot satisfy corpus publication enforcement"
+                        )
                 logger.info(
                     "Lifespan: retrieval-index contract OK (%s, %s)",
                     _collection,
@@ -318,11 +328,11 @@ async def _background_startup_body(container, fastapi_app) -> None:
                     f"configuration: {_contract_error}. Re-publish only after a complete, "
                     "validated re-index."
                 )
-                if _enforce_contract:
+                if _enforce_contract or _enforce_publication:
                     raise RuntimeError(_message) from _contract_error
                 logger.critical(_message)
         else:
-            if _enforce_contract:
+            if _enforce_contract or _enforce_publication:
                 raise RuntimeError(
                     f"Retrieval index '{_collection}' has no published compatibility contract. "
                     "Run the controlled publication step before enabling this release."
@@ -342,7 +352,10 @@ async def _background_startup_body(container, fastapi_app) -> None:
                 except Exception as _e:
                     logger.debug("[startup/shutdown] suppressed non-critical error: %s", _e)
     except Exception as e:
-        if bool(getattr(settings, "index_contract_enforcement_enabled", False)):
+        if bool(
+            getattr(settings, "index_contract_enforcement_enabled", False)
+            or getattr(settings, "corpus_publication_enforcement_enabled", False)
+        ):
             raise
         logger.warning(f"Lifespan: retrieval-index contract check error (non-critical): {e}")
 
