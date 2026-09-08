@@ -1,19 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import {
-  LogOut,
-  User,
-  Settings,
-  Download,
-  Flame,
-  MessageCircle,
-  Sun,
-  Moon,
-  Monitor,
-  MapPin,
-  ShieldCheck,
-  Compass,
-} from 'lucide-react';
+import { LogOut, User, Settings, Download, Flame, MessageCircle, Sun, Moon, Monitor, MapPin, ShieldCheck, Compass } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,9 +33,7 @@ export const UserMenu = ({ onRestartTour }: UserMenuProps = {}) => {
 
   const handleExport = () => {
     const data = exportAllData();
-    const blob = new Blob([JSON.stringify(data, null, 2)], {
-      type: 'application/json',
-    });
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -80,9 +65,7 @@ export const UserMenu = ({ onRestartTour }: UserMenuProps = {}) => {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" sideOffset={8} className="w-64 rounded-2xl border-hairline bg-card/95 backdrop-blur-xl shadow-xl p-1.5">
         <DropdownMenuLabel className="flex flex-col px-3 py-2.5">
-          <span className="text-sm font-medium text-foreground truncate">
-            {profile.displayName}
-          </span>
+          <span className="text-sm font-medium text-foreground truncate">{profile.displayName}</span>
           <span className="text-[11px] text-muted-foreground">
             {t('common.localProfile')} · {profile.preferredLanguage.toUpperCase()}
           </span>
@@ -91,34 +74,25 @@ export const UserMenu = ({ onRestartTour }: UserMenuProps = {}) => {
         <DropdownMenuItem onClick={() => navigate('/profile')} className="min-h-[40px] rounded-lg">
           <User className="w-4 h-4 mr-2 text-ojas" /> {t('nav.profile')}
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => navigate('/practices')} className="min-h-[40px] rounded-lg">
-          <Compass className="w-4 h-4 mr-2 text-ojas" /> {t('nav.practices')}
-        </DropdownMenuItem>
         <DropdownMenuItem onClick={() => navigate('/profile?tab=stats')} className="min-h-[40px] rounded-lg">
           <Flame className="w-4 h-4 mr-2 text-ojas" /> {t('common.insightsStats')}
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => navigate('/chat')} className="min-h-[40px] rounded-lg">
           <MessageCircle className="w-4 h-4 mr-2 text-prana" /> {t('common.continueChat')}
         </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => navigate('/practices')} className="min-h-[40px] rounded-lg">
+          <Compass className="w-4 h-4 mr-2 text-ojas" /> {t('nav.practices')}
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => navigate('/profile?tab=settings')} className="min-h-[40px] rounded-lg">
           <Settings className="w-4 h-4 mr-2" /> {t('common.settings')}
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => navigate('/profile?tab=settings#security')} className="min-h-[40px] rounded-lg">
-          <ShieldCheck className="w-4 h-4 mr-2" /> {t('common.securityPrivacy', 'Security & privacy')}
+          <ShieldCheck className="w-4 h-4 mr-2" /> Security & privacy
         </DropdownMenuItem>
-        {(
-          <DropdownMenuItem
-            onClick={() => {
-              if (onRestartTour) {
-                onRestartTour();
-              } else {
-                window.dispatchEvent(new CustomEvent('tour:restart'));
-              }
-            }}
-            className="min-h-[40px] rounded-lg text-ojas/90 focus:text-ojas"
-          >
-            <MapPin className="w-4 h-4 mr-2" /> {t('common.takeTour', 'Take a Tour')}
+        {onRestartTour && (
+          <DropdownMenuItem onClick={onRestartTour} className="min-h-[40px] rounded-lg text-ojas/90 focus:text-ojas">
+            <MapPin className="w-4 h-4 mr-2" /> Take a Tour
           </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />

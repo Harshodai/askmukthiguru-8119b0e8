@@ -307,12 +307,56 @@ class LightRAGService:
             # Prevents reasoning model runaway (15+ KB thinking traces, 15-30s latency)
             # from blocking LightRAG keyword extraction and defeating the anti-hallucination pipeline.
             openrouter = getattr(container, "openrouter", None)
+            sarvam = getattr(container, "sarvam_cloud", None) or getattr(container, "sarvam", None)
+            provider = settings.llm_provider.lower()
 
             response = ""
-            if (
+            if provider in ("sarvam", "sarvam_cloud") and (sarvam or getattr(settings, "sarvam_api_key", None)):
+                if not sarvam:
+                    from services.sarvam_service import SarvamCloudService
+                    sarvam = SarvamCloudService()
+                kwargs["model"] = settings.sarvam_cloud_model
+                kwargs["max_tokens"] = min(kwargs.get("max_tokens", 2048), 2048)
+                kwargs["reasoning_effort"] = "none"
+
+                if is_extraction:
+                    kwargs["is_structured"] = True
+                    kwargs["operation"] = "extraction"
+                    logger.info(
+                        f"LightRAG: Routing extraction/keyword task to Sarvam ({settings.sarvam_cloud_model})"
+                    )
+                elif (
+                    "summary" in sys_prompt_str.lower()
+                    or "merge" in sys_prompt_str.lower()
+                    or "summary" in prompt_str.lower()
+                    or "merge" in prompt_str.lower()
+                ):
+                    kwargs["is_structured"] = True
+                    kwargs["operation"] = "summarize"
+                    logger.info(
+                        f"LightRAG: Routing summarization task to Sarvam ({settings.sarvam_cloud_model})"
+                    )
+                else:
+                    logger.info(
+                        f"LightRAG: Routing generic query task to Sarvam ({settings.sarvam_cloud_model})"
+                    )
+
+                try:
+                    response = await sarvam.generate(
+                        system_prompt=system_prompt or "You are a helpful assistant.",
+                        user_prompt=prompt,
+                        context=context,
+                        **kwargs,
+                    )
+                except Exception as e:
+                    logger.warning(
+                        f"LightRAG: Sarvam task failed ({e}), falling back"
+                    )
+                    response = ""
+            elif (
                 openrouter
                 and getattr(settings, "openrouter_api_key", None)
-                and settings.llm_provider.lower() != "ollama"
+                and provider not in ("ollama", "sarvam", "sarvam_cloud")
             ):
                 kwargs["model"] = settings.openrouter_classify_model
                 kwargs["max_tokens"] = min(kwargs.get("max_tokens", 2048), 2048)
@@ -373,34 +417,18 @@ class LightRAGService:
             if not response:
                 provider = settings.llm_provider.lower()
 
-                # For Sarvam Cloud, use classification model to prevent reasoning runaway
-                if provider == "sarvam_cloud":
-                    kwargs["model"] = settings.model_for_classification
+                # For Sarvam Cloud, use Sarvam with reasoning_effort=none
+                if provider in ("sarvam", "sarvam_cloud"):
+                    kwargs["model"] = settings.sarvam_cloud_model
                     kwargs["max_tokens"] = min(kwargs.get("max_tokens", 2048), 2048)
+                    kwargs["reasoning_effort"] = "none"
 
-                    if is_extraction:
-                        kwargs["is_structured"] = True
-                        kwargs["operation"] = "extraction"
-                        logger.info(
-                            f"LightRAG: Routing extraction/keyword task to {settings.model_for_classification} to prevent reasoning runaway"
-                        )
-                    elif (
-                        "summary" in sys_prompt_str.lower()
-                        or "merge" in sys_prompt_str.lower()
-                        or "summary" in prompt_str.lower()
-                        or "merge" in prompt_str.lower()
-                    ):
-                        kwargs["is_structured"] = True
-                        kwargs["operation"] = "summarize"
-                        logger.info(
-                            f"LightRAG: Routing summarization task to {settings.model_for_classification} to prevent reasoning runaway"
-                        )
-                    else:
-                        logger.info(
-                            f"LightRAG: Routing generic query task to {settings.model_for_classification} to prevent reasoning runaway"
-                        )
+                    sarvam_svc = getattr(container, "sarvam_cloud", None) or getattr(container, "sarvam", None)
+                    if not sarvam_svc:
+                        from services.sarvam_service import SarvamCloudService
+                        sarvam_svc = SarvamCloudService()
 
-                    response = await container.ollama.generate(
+                    response = await sarvam_svc.generate(
                         system_prompt=system_prompt or "You are a helpful assistant.",
                         user_prompt=prompt,
                         context=context,

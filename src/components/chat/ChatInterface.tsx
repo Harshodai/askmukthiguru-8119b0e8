@@ -47,6 +47,7 @@ import { hashMessages, getCachedResponse, setCachedResponse, clearResponseCache 
 import { ChatMessage, LazyWisdomCardGenerator } from './ChatMessage';
 import { ChatHeader } from './ChatHeader';
 import type { Citation, ResponsePreferences } from '@/lib/chat/types';
+import { shouldGateSereneMind } from '@/lib/chat/sereneMindGating';
 import { DEFAULT_RESPONSE_PREFERENCES, loadResponsePreferences, saveResponsePreferences, clearResponsePreferences } from '@/lib/chat/responsePreferences';
 import { ScrollToBottomFab } from './ScrollToBottomFab';
 import { MobileConversationSheet } from './MobileConversationSheet';
@@ -1333,8 +1334,15 @@ export const ChatInterface = () => {
                   error: err,
                 },
               ]);
-            } else {
-              // Blocked content → gated Serene Mind (chat locked until completed)
+            } else if (
+              shouldGateSereneMind({
+                blocked: true,
+                blockReason: streamedBlockReason,
+                distressLevel: streamedProactiveSereneMind?.level,
+              })
+            ) {
+              // SEVERE/CRISIS distress only → gated Serene Mind (chat locked until completed).
+              // Generic guardrail blocks fall through below with no modal and no lock.
               const prelude = 'Sri Krishnaji teaches that every obstacle is a teacher. Please do Serene Mind now to continue. You can click the button below, or say "can you open serene mind for me" to begin.';
               setMessages((prev) => [
                 ...prev,
@@ -1353,6 +1361,10 @@ export const ChatInterface = () => {
                 });
 openSereneMind('audio', true);
               }, 7000);
+            } else {
+              // Generic guardrail block (e.g. false-positive on innocuous content):
+              // show the backend message gently with no modal and no chat lock.
+              // The streaming message update above already set its content to fullContent.
             }
           } else if (finalIntent === 'MEDITATION' || finalIntent === 'MEDITATION_CONTINUE') {
             // Voluntary request: open without gating — user asked for it
@@ -1543,7 +1555,17 @@ openSereneMind('audio');
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, blockedMessage]);
-        openSereneMind('audio', true);
+        // Gate (modal + chat lock) only for backend SEVERE/CRISIS distress.
+        // Generic guardrail blocks show the message above with no modal.
+        if (
+          shouldGateSereneMind({
+            blocked: true,
+            blockReason: response.blockReason,
+            distressLevel: response.proactiveSereneMind?.level,
+          })
+        ) {
+          openSereneMind('audio', true);
+        }
       } else {
         const responseError = response.errorCode
           ? buildMessageError(response.errorCode, response.error)

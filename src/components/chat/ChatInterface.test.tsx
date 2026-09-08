@@ -149,7 +149,15 @@ vi.mock('./DailyTeaching', () => ({
 }));
 
 vi.mock('@/components/chat/MessageList', () => ({
-  MessageList: () => <div data-testid="message-list">Messages</div>,
+  MessageList: ({ messages = [] }: { messages?: Array<{ role: string; content: string }> }) => (
+    <div data-testid="message-list">
+      {messages.map((m, idx) => (
+        <div key={idx} data-testid={`message-bubble-${m.role}`}>
+          {m.content}
+        </div>
+      ))}
+    </div>
+  ),
 }));
 
 import { fireEvent, waitFor } from '@testing-library/react';
@@ -222,9 +230,46 @@ describe('ChatInterface', () => {
     });
 
     // Check if the mock message appears in the list
-    // MessageList is mocked as <div data-testid="message-list">Messages</div>
-    // We should probably unmock it or check if it's called with the new messages.
-    // Since it's mocked, we can't see the actual messages inside it easily unless we use props.
-    // Let's improve the MessageList mock to show children or messages.
+  });
+
+  it('renders only one response bubble for streaming blocked response', async () => {
+    vi.mocked(sendMessageStreaming).mockImplementation(() => ({
+      [Symbol.asyncIterator]: async function* () {
+        yield { type: 'token', text: 'Content was blocked by safety policy' };
+        yield {
+          type: 'done',
+          blocked: true,
+          blockReason: 'generic_guardrail',
+          intent: 'QUERY',
+          citations: [],
+          meditationStep: 0,
+          followUpSuggestions: [],
+        };
+      },
+    } as any));
+
+    render(
+      <BrowserRouter>
+        <ChatInterface />
+      </BrowserRouter>
+    );
+
+    await waitFor(() => {
+      expect(setCurrentConversationId).toHaveBeenCalledWith('test-conv-id');
+    });
+
+    const input = screen.getByLabelText('Your message');
+    fireEvent.change(input, { target: { value: 'test blocked query' } });
+    await waitFor(() => {
+      expect(input).toHaveValue('test blocked query');
+    });
+    fireEvent.click(screen.getByLabelText('Send message'));
+
+    await waitFor(() => {
+      const guruBubbles = screen.getAllByTestId('message-bubble-guru');
+      // 1 initial welcome message + 1 response message = 2 guru bubbles (was 3 before duplicate fix)
+      expect(guruBubbles).toHaveLength(2);
+      expect(guruBubbles[1]).toHaveTextContent('Content was blocked by safety policy');
+    });
   });
 });

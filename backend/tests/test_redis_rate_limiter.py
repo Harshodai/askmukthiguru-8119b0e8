@@ -10,6 +10,8 @@ locally authenticated instance (e.g. the docker compose Redis, whose
 credential is not committed here); the default is passwordless localhost.
 """
 
+import asyncio
+import inspect
 import os
 import threading
 
@@ -217,3 +219,127 @@ class TestRedisDownFallback:
         assert allowed is False
         assert retry_after == pytest.approx(1.0)
         assert limiter.is_allowed(key, now=1002.0) == (True, 0.0)
+
+
+def _async_redis_available() -> bool:
+    try:
+        import redis.asyncio as aioredis
+
+        async def _ping() -> bool:
+            client = aioredis.Redis.from_url(
+                REDIS_URL, socket_timeout=0.5, socket_connect_timeout=0.5
+            )
+            try:
+                return bool(await client.ping())
+            finally:
+                try:
+                    await client.aclose()
+                except Exception:
+                    pass
+
+        return bool(asyncio.run(_ping()))
+    except Exception:
+        return False
+
+
+requires_async_redis = pytest.mark.skipif(
+    not _async_redis_available(),
+    reason="async Redis not reachable — set REDIS_URL for an authenticated instance",
+)
+
+
+class TestAsyncRateLimiterPath:
+    """Step 19: auth/admin middleware must await redis.asyncio directly."""
+
+    def test_async_methods_are_coroutines_no_to_thread(self):
+        assert inspect.iscoroutinefunction(RedisBackedRateLimiter.is_allowed_async)
+        assert inspect.iscoroutinefunction(RedisBackedRateLimiter.record_attempt_async)
+        src = inspect.getsource(RedisBackedRateLimiter.is_allowed_async)
+        src += inspect.getsource(RedisBackedRateLimiter.record_attempt_async)
+        src += inspect.getsource(RedisBackedRateLimiter._async_redis_is_allowed)
+        src += inspect.getsource(RedisBackedRateLimiter._async_redis_record_attempt)
+        assert "to_thread" not in src
+        assert "redis.asyncio" in inspect.getsource(RedisBackedRateLimiter._aconnect)
+
+    def test_async_fallback_matches_sync_without_redis(self):
+        limiter = RedisBackedRateLimiter(
+            redis_url="redis://127.0.0.1:1/0",
+            ttl=60.0,
+            max_requests=1,
+            backoff_base=2.0,
+            backoff_multiplier=2.0,
+        )
+        assert limiter._fallback_active is True
+
+        async def _run():
+            first = await limiter.is_allowed_async("async:fallback:1", now=100.0)
+            second = await limiter.is_allowed_async("async:fallback:1", now=100.5)
+            return first, second
+
+        first, second = asyncio.run(_run())
+        assert first == (True, 0.0)
+        assert second[0] is False
+        assert second[1] == pytest.approx(59.5)
+
+    def test_async_path_yields_to_event_loop(self):
+        """A slow Redis must stall only the awaiting coroutine, not the loop."""
+        limiter = RedisBackedRateLimiter(
+            redis_url="redis://127.0.0.1:1/0",
+            ttl=60.0,
+            max_requests=5,
+        )
+        limiter._fallback_active = False
+
+        ticks: list = []
+
+        class _SlowAsyncRedis:
+            async def eval(self, *args):
+                await asyncio.sleep(0.05)
+                return [1, 0]
+
+        limiter._async_redis = _SlowAsyncRedis()
+
+        async def _ticker():
+            for _ in range(5):
+                ticks.append(1)
+                await asyncio.sleep(0.01)
+
+        async def _run():
+            ticker = asyncio.ensure_future(_ticker())
+            result = await limiter.is_allowed_async("async:yield:1", now=1000.0)
+            await ticker
+            return result
+
+        assert asyncio.run(_run()) == (True, 0.0)
+        assert len(ticks) == 5
+
+    @requires_async_redis
+    def test_async_live_redis_uses_asyncio_client(self):
+        import redis
+        import redis.asyncio as aioredis
+
+        limiter = RedisBackedRateLimiter(
+            redis_url=REDIS_URL,
+            ttl=60.0,
+            max_requests=2,
+            backoff_base=2.0,
+            backoff_multiplier=2.0,
+        )
+
+        async def _run():
+            key = "auth_rl:ip:/api/auth/login:203.0.113.99"
+            assert await limiter.is_allowed_async(key, now=1000.0) == (True, 0.0)
+            assert await limiter.is_allowed_async(key, now=1000.0) == (True, 0.0)
+            allowed, retry_after = await limiter.is_allowed_async(key, now=1000.0)
+            assert allowed is False
+            assert retry_after == pytest.approx(60.0)
+            assert isinstance(limiter._async_redis, aioredis.Redis)
+            await limiter.aclose()
+            assert limiter._async_redis is None
+
+        try:
+            asyncio.run(_run())
+        finally:
+            r = redis.Redis.from_url(REDIS_URL, decode_responses=True)
+            digest = _rate_limit_key_digest("auth_rl:ip:/api/auth/login:203.0.113.99")
+            r.delete(f"rl:{digest}", f"rl:fail:{digest}", f"rl:lastfail:{digest}")

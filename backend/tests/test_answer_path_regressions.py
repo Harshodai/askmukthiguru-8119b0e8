@@ -165,3 +165,20 @@ def test_stimulus_prompt_uses_source_aware_founder_voice():
     assert "SOURCE-AWARE FOUNDER VOICE" in STIMULUS_RAG_PROMPT
     assert "exact retrieved quotation" in STIMULUS_RAG_PROMPT
     assert "Never invent first-person founder speech" in STIMULUS_RAG_PROMPT
+
+
+# ---------------------------------------------------------------------------
+# 4. Gate logs must print the real score-vs-floor comparison
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("score", "floor", "expected"),
+    [(0.42, 0.60, "<"), (0.72, 0.60, ">="), (0.60, 0.60, ">=")],
+)
+def test_faithfulness_log_operator_matches_real_comparison(score, floor, expected):
+    """The fast-tier rejection log hardcoded "<", printing "0.72 < 0.60" when
+    the rejection came from citations with the score clearing the floor."""
+    from rag.nodes.generation import _faithfulness_relation
+
+    assert _faithfulness_relation(score, floor) == expected

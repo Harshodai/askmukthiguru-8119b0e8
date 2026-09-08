@@ -353,6 +353,58 @@ def _maybe_apply_langhanam_voice(
     return system_prompt, answer
 
 
+_VOICE_EXEMPLAR_FENCE = (
+    "\n\n[VOICE EXEMPLARS — STYLE ONLY, NOT EVIDENCE]\n"
+    "The Guru Q&A excerpts below govern VOICE alone (cadence, warmth, "
+    "first-person-plural compassionate phrasing). They are NOT doctrine "
+    "sources: never treat a claim appearing only here as grounded, never "
+    "quote them as teachings, and never attach citations to them. Every "
+    "factual claim in your answer must come from the KNOWLEDGE section with "
+    "its own citation, exactly as the citation rules require."
+)
+
+_VOICE_EXEMPLAR_BUDGET_TOKENS = 600
+_VOICE_EXEMPLAR_TIMEOUT_S = 8.0
+
+
+async def _fetch_guru_tone_style_block(state: GraphState, question: str) -> str:
+    """Fetch top-2 Guru Brain exemplars and wrap them in a style-only fence.
+
+    Returns "" unless the feature flag is on, the intent is voice-eligible,
+    and retrieval succeeds within budget. Never raises.
+    """
+    try:
+        if not getattr(settings, "guru_brain_tone_exemplars_enabled", False):
+            return ""
+        if not is_voice_eligible(state.get("intent") or "FACTUAL"):
+            return ""
+        service = _services.get_guru_brain()
+        if service is None or not question.strip():
+            return ""
+        exemplars = await asyncio.wait_for(
+            service.search_tone_exemplars(question, limit=2),
+            timeout=_VOICE_EXEMPLAR_TIMEOUT_S,
+        )
+        if not exemplars:
+            return ""
+        block = _VOICE_EXEMPLAR_FENCE + "\n" + service.format_persona_context(exemplars)
+        return "\n" + cap_to_token_budget(block, _VOICE_EXEMPLAR_BUDGET_TOKENS)
+    except Exception as e:
+        logger.warning("Guru Brain exemplars skipped (non-critical): %s", e)
+        return ""
+
+
+def _faithfulness_relation(score: float, floor: float) -> str:
+    """Render the real score-vs-floor comparison for gate logs.
+
+    Gate rejections can come from the citation check while the score clears
+    the floor (or vice versa); a hardcoded "<" prints e.g. "0.72 < 0.60" and
+    misleads debugging. Restored 2026-09-06 — session 2's uncommitted fix
+    was lost; see handoff.
+    """
+    return "<" if score < floor else ">="
+
+
 def _compute_context_budget(
     max_budget: int,
     baseline_tokens: int,
@@ -594,6 +646,16 @@ async def context_engineer(state: GraphState, config: Optional[RunnableConfig] =
             "rhythmic sentences, and a contemplative cadence — while keeping every "
             "factual claim grounded in the provided Knowledge."
         )
+
+    # Guru Brain tone exemplars (direction-a: style conditioning inside the
+    # single grounded-generation call — never a post-hoc rewrite, so citation
+    # boundaries stay intact and verification still runs after generation).
+    # Gated on settings.guru_brain_tone_exemplars_enabled (default False)
+    # and the same voice-eligibility as Langhanam (CASUAL/GREETING/DISTRESS
+    # excluded). Any failure degrades to the untouched persona.
+    persona += await _fetch_guru_tone_style_block(
+        state, question=state.get("question", "")
+    )
 
     # The constitution is 1,183 words ≈ 1,537 tokens. The previous 512-token cap
     # discarded 67% of it, cutting mid-sentence at "You ground every factual claim
@@ -2162,6 +2224,23 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
                     c_url = c.get("url") if isinstance(c, dict) else str(c)
                     if c_url and url.lower() in c_url.lower():
                         return f"[[CITE:{idx + 1}]]"
+        # Word-overlap fallback (reconstructed 2026-09-06 — session 2's
+        # uncommitted fix was lost to an accidental checkout; see handoff):
+        # re-attribute among already-retrieved docs (cannot invent a source)
+        # when the model's [Source: <title>] doesn't string-match. Without
+        # this, a correctly-cited paragraph looks uncited to per-paragraph
+        # grounding and the whole answer is rejected and regenerated.
+        title_words = {w for w in re.findall(r"\w+", title_lower) if len(w) > 3}
+        if title_words:
+            best_idx, best_overlap = -1, 0
+            for idx, doc in enumerate(relevant_docs):
+                doc_text = ((doc.get("title") or "") + " " + (doc.get("source_url") or "")).lower()
+                doc_words = {w for w in re.findall(r"\w+", doc_text) if len(w) > 3}
+                overlap = len(title_words & doc_words)
+                if overlap > best_overlap:
+                    best_idx, best_overlap = idx, overlap
+            if best_idx >= 0 and best_overlap >= 2:
+                return f"[[CITE:{best_idx + 1}]]"
         return ""  # If no match, strip it so it doesn't leak raw bracket text
 
     answer = re.sub(r"\[Source:\s*([^\]]+)\]", replace_source_match, answer)
@@ -2571,13 +2650,17 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
                 ),
             }
 
+        # Log the real comparison: rejection here can come from the citation
+        # check while the score clears the floor (or vice versa).
+        relation = _faithfulness_relation(fast_score, floor)
         logger.warning(
             "Final: fast-tier answer not accepted (passed=%s, "
-            "citations_verified=%s, faithfulness=%.2f < %.2f, faithful=%s) — "
+            "citations_verified=%s, faithfulness=%.2f %s %.2f, faithful=%s) — "
             "falling through to graduated gating",
             fast_passed,
             citations_verified,
             fast_score,
+            relation,
             floor,
             fast_faithful,
         )

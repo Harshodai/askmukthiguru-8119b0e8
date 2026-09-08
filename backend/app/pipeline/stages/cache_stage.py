@@ -207,42 +207,6 @@ class CacheCheckStage(Stage):
         except Exception as _e:
             logger.debug("[cache stage] suppressed non-critical error: %s", _e)
 
-        # Determine query tier and dynamic cache threshold once. Reuse the
-        # existing on-device classifier before semantic routing: this keeps
-        # obvious fast/casual requests off the embedding/LLM selector and lets
-        # GraphStage consume the same decision rather than classifying again.
-        query_tier = "standard"
-        if container and ctx.preclassified_reason != "deterministic_greeting":
-            try:
-                from rag.nodes.on_device_intent import classify_with_reason
-                from app.orchestrator_utils import select_graph_for_query
-
-                on_device_result = await asyncio.to_thread(classify_with_reason, query_text)
-                if on_device_result:
-                    ctx.preclassified_intent = str(on_device_result[0])[:32]
-                    ctx.preclassified_tier = str(on_device_result[1])[:32]
-                    ctx.preclassified_reason = str(on_device_result[2])[:64]
-                # The classifier's intent is reusable, but its coarse tier is
-                # not authoritative for complexity. Let the existing selector
-                # combine intent with query-shape, deep-cue, and policy signals.
-                query_tier = await select_graph_for_query(
-                    query_text,
-                    container=container,
-                    detected_intent=ctx.preclassified_intent,
-                )
-                ctx.detected_query_tier = query_tier  # cache for GraphStage
-            except Exception as e:
-                logger.warning(f"Failed to determine query tier for cache check: {e}")
-
-        _CACHE_THRESHOLDS = {
-            "fast": 0.82,
-            "tier2_simple": 0.85,
-            "standard": 0.87,
-            "tier3_complex": 0.92,
-            "deep": 0.92,
-        }
-        threshold = _CACHE_THRESHOLDS.get(query_tier, settings.semantic_cache_similarity)
-
         # --- 1. Hot cache (sub-millisecond) ---
         hot_hit = hot_cache.get(cache_key)
         if hot_hit is not None:
@@ -278,6 +242,44 @@ class CacheCheckStage(Stage):
             )
             ctx.last_stage_status = "cached"
             return result
+
+        # Determine query tier and dynamic cache threshold once, AFTER the hot
+        # probe: hot/exact lookups use no threshold, so a hot hit must not pay
+        # classifier/router latency. Reuse the existing on-device classifier
+        # before semantic routing: this keeps obvious fast/casual requests off
+        # the embedding/LLM selector and lets GraphStage consume the same
+        # decision rather than classifying again.
+        query_tier = "standard"
+        if container and ctx.preclassified_reason != "deterministic_greeting":
+            try:
+                from rag.nodes.on_device_intent import classify_with_reason
+                from app.orchestrator_utils import select_graph_for_query
+
+                on_device_result = await asyncio.to_thread(classify_with_reason, query_text)
+                if on_device_result:
+                    ctx.preclassified_intent = str(on_device_result[0])[:32]
+                    ctx.preclassified_tier = str(on_device_result[1])[:32]
+                    ctx.preclassified_reason = str(on_device_result[2])[:64]
+                # The classifier's intent is reusable, but its coarse tier is
+                # not authoritative for complexity. Let the existing selector
+                # combine intent with query-shape, deep-cue, and policy signals.
+                query_tier = await select_graph_for_query(
+                    query_text,
+                    container=container,
+                    detected_intent=ctx.preclassified_intent,
+                )
+                ctx.detected_query_tier = query_tier  # cache for GraphStage
+            except Exception as e:
+                logger.warning(f"Failed to determine query tier for cache check: {e}")
+
+        _CACHE_THRESHOLDS = {
+            "fast": 0.82,
+            "tier2_simple": 0.85,
+            "standard": 0.87,
+            "tier3_complex": 0.92,
+            "deep": 0.92,
+        }
+        threshold = _CACHE_THRESHOLDS.get(query_tier, settings.semantic_cache_similarity)
 
         # --- 2. Vector cache (P90 fast path, sub-ms lookup via TurboVec) ---
         if settings.hybrid_search_enabled:

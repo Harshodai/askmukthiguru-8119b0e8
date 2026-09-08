@@ -107,7 +107,15 @@ class EmbeddingService:
         self._late_chunk_transformer = None
         self._late_chunk_tokenizer = None
         self._lock = threading.Lock()
+        # Guards ONLY the PyTorch/fallback inference path (BGEM3FlagModel,
+        # CrossEncoder, RAGatouille, late-chunk torch backbone), which is not
+        # thread-safe. The ONNX INT8 encoder/reranker paths use
+        # ort.InferenceSession.run(), which is thread-safe for concurrent
+        # calls, and must NOT acquire this lock (else throughput serializes
+        # to one request at a time regardless of worker count).
         self._inference_lock = threading.RLock()
+        # Brief guard for EmbeddingCache.put() on the lock-free ONNX path.
+        self._cache_lock = threading.Lock()
         # REQUIRED for multilingual-e5-large-instruct
         self.instruction = "Given a spiritual teaching, retrieve relevant passages: "
         # Embedding cache to avoid redundant encodes
@@ -575,6 +583,15 @@ class EmbeddingService:
                         shutil.rmtree(match)
                         logger.info(f"Cleared HF cache: {match}")
 
+    def _is_onnx_reranker(self) -> bool:
+        """True when the loaded reranker is the ONNX INT8 backend.
+
+        Matched by class name (not import) so the check stays cheap and
+        import-cycle free. The ONNX reranker's session.run() is thread-safe;
+        the PyTorch CrossEncoder fallback is not.
+        """
+        return type(self._reranker).__name__ == "OnnxReranker"
+
     def _ensure_reranker(self) -> None:
         """Lazy-load the reranker model."""
         if self._reranker is not None:
@@ -707,51 +724,92 @@ class EmbeddingService:
             raise exc
 
         start_time = time.monotonic()
-        with self._inference_lock:
-            self._ensure_encoder()
-            use_onnx = self._onnx_session is not None
+        self._ensure_encoder()
+        use_onnx = self._onnx_session is not None
 
+        if not use_onnx:
+            with self._inference_lock:
+                # Re-snapshot: a concurrent first-load may have installed ONNX.
+                if self._onnx_session is not None:
+                    use_onnx = True
+                else:
+                    return self._encode_torch(texts, start_time)
+
+        if use_onnx:
             max_retries = 3
             last_err = None
             for attempt in range(1, max_retries + 1):
                 try:
-                    if use_onnx:
-                        inputs = self._onnx_tokenizer(
-                            texts,
-                            padding=True,
-                            truncation=True,
-                            return_tensors="np",
-                        )
-                        ort_out = self._onnx_session.run(
-                            None,
-                            {
-                                "input_ids": inputs["input_ids"].astype("int64"),
-                                "attention_mask": inputs["attention_mask"].astype("int64"),
-                            },
-                        )
-                        result = ort_out[0].tolist()
-                    else:
-                        import torch
+                    inputs = self._onnx_tokenizer(
+                        texts,
+                        padding=True,
+                        truncation=True,
+                        return_tensors="np",
+                    )
+                    ort_out = self._onnx_session.run(
+                        None,
+                        {
+                            "input_ids": inputs["input_ids"].astype("int64"),
+                            "attention_mask": inputs["attention_mask"].astype("int64"),
+                        },
+                    )
+                    result = ort_out[0].tolist()
+                    EMBEDDING_LATENCY.labels(operation="encode").observe(
+                        time.monotonic() - start_time
+                    )
+                    self._circuit.record_success()
+                    return result
+                except Exception as e:
+                    last_err = e
+                    EMBEDDING_ERRORS.labels(operation="encode").inc()
+                    logger.warning(
+                        f"Dense embedding failed on attempt {attempt}/{max_retries}: {e}. "
+                        f"Performing garbage collection and retrying in 2 seconds..."
+                    )
+                    import gc
 
-                        with torch.inference_mode():
-                            is_bge_m3 = settings.embedding_model == "BAAI/bge-m3"
-                            if is_bge_m3:
-                                output = self._encoder.encode(
-                                    texts,
-                                    return_dense=True,
-                                    return_sparse=False,
-                                    return_colbert_vecs=False,
-                                )
-                                result = output["dense_vecs"].tolist()
+                    gc.collect()
+                    # time.sleep is intentionally used here: encode() is a sync
+                    # method, always called via encode_async() -> asyncio.to_thread().
+                    # The sleep runs in a worker thread, NOT the event loop.
+                    time.sleep(2)
+
+            logger.error(
+                f"All {max_retries} attempts to encode dense failed. Raising last error: {last_err}"
+            )
+            self._circuit.record_failure()
+            if last_err is not None:
+                raise last_err
+            raise RuntimeError(f"All {max_retries} attempts to encode dense failed.")
+
+    def _encode_torch(self, texts: list[str], start_time: float) -> list[list[float]]:
+        """PyTorch/fallback dense encode. Acquires _inference_lock itself."""
+        with self._inference_lock:
+            max_retries = 3
+            last_err = None
+            for attempt in range(1, max_retries + 1):
+                try:
+                    import torch
+
+                    with torch.inference_mode():
+                        is_bge_m3 = settings.embedding_model == "BAAI/bge-m3"
+                        if is_bge_m3:
+                            output = self._encoder.encode(
+                                texts,
+                                return_dense=True,
+                                return_sparse=False,
+                                return_colbert_vecs=False,
+                            )
+                            result = output["dense_vecs"].tolist()
+                        else:
+                            output = self._encoder.encode(
+                                texts,
+                                normalize_embeddings=True,
+                            )
+                            if isinstance(output, list):
+                                result = output
                             else:
-                                output = self._encoder.encode(
-                                    texts,
-                                    normalize_embeddings=True,
-                                )
-                                if isinstance(output, list):
-                                    result = output
-                                else:
-                                    result = output.tolist()
+                                result = output.tolist()
                     EMBEDDING_LATENCY.labels(operation="encode").observe(
                         time.monotonic() - start_time
                     )
@@ -844,117 +902,163 @@ class EmbeddingService:
             raise exc
 
         start_time = time.monotonic()
-        with self._inference_lock:
-            self._ensure_encoder()
-            use_onnx = self._onnx_session is not None
+        self._ensure_encoder()
+        if self._onnx_session is not None:
+            dense_vecs, sparse_weights = self._encode_batch_onnx(
+                uncached_prefixed_texts, start_time
+            )
+        else:
+            dense_vecs, sparse_weights = self._encode_batch_torch(
+                uncached_prefixed_texts, start_time
+            )
 
+        # Build results in original order
+        dense_results = [None] * len(texts)
+        sparse_results = [None] * len(texts)
+
+        # Fill cached results
+        for idx, emb in cached_embeddings:
+            dense_results[idx] = emb["dense"]
+            sparse_results[idx] = emb["sparse"]
+
+        # Fill newly computed results
+        for i, idx in enumerate(uncached_indices):
+            dense_results[idx] = dense_vecs[i]
+            sparse_results[idx] = sparse_weights[i]
+
+        # Cache the newly computed embeddings (using prefixed text as key)
+        with self._cache_lock:
+            for i, _idx in enumerate(uncached_indices):
+                prefixed_text = uncached_prefixed_texts[i]
+                embedding_result = {
+                    "dense": dense_vecs[i],
+                    "sparse": sparse_weights[i],
+                }
+                self._embed_cache.put(prefixed_text, embedding_result)
+
+        EMBEDDING_LATENCY.labels(operation="encode_batch").observe(
+            time.monotonic() - start_time
+        )
+        self._circuit.record_success()
+        return {
+            "dense": dense_results,
+            "sparse": sparse_results,
+        }
+
+    def _encode_batch_onnx(
+        self, prefixed_texts: list[str], start_time: float
+    ) -> tuple[list, list]:
+        """ONNX INT8 batch encode. Lock-free: session.run() is thread-safe."""
+        from collections import defaultdict
+
+        max_retries = 3
+        last_err = None
+        for attempt in range(1, max_retries + 1):
+            try:
+                inputs = self._onnx_tokenizer(
+                    prefixed_texts,
+                    padding=True,
+                    truncation=True,
+                    return_tensors="np",
+                )
+                ort_out = self._onnx_session.run(
+                    None,
+                    {
+                        "input_ids": inputs["input_ids"].astype("int64"),
+                        "attention_mask": inputs["attention_mask"].astype("int64"),
+                    },
+                )
+                dense_vecs = ort_out[0].tolist()
+                sparse_raw = ort_out[1]
+                input_ids = inputs["input_ids"].tolist()
+                sparse_weights = []
+                unused_tokens = {
+                    self._onnx_tokenizer.cls_token_id,
+                    self._onnx_tokenizer.eos_token_id,
+                    self._onnx_tokenizer.pad_token_id,
+                    self._onnx_tokenizer.unk_token_id,
+                }
+                for row_idx, token_ids in enumerate(input_ids):
+                    weights = sparse_raw[row_idx, :, 0]
+                    result = defaultdict(int)
+                    for w, tid in zip(weights, token_ids):
+                        if tid not in unused_tokens and w > 0:
+                            key = str(tid)
+                            if w > result[key]:
+                                result[key] = w
+                    sparse_weights.append(dict(result))
+                return dense_vecs, sparse_weights
+            except Exception as e:
+                last_err = e
+                EMBEDDING_ERRORS.labels(operation="encode_batch").inc()
+                logger.warning(
+                    f"Embedding failed on attempt {attempt}/{max_retries}: {e}. "
+                    f"Performing garbage collection and retrying in 2 seconds..."
+                )
+                import gc
+
+                gc.collect()
+                # time.sleep is intentionally used here: encode_batch() is a sync
+                # method, always called via encode_batch_async() -> asyncio.to_thread().
+                # The sleep runs in a worker thread, NOT the event loop.
+                time.sleep(2)
+
+        logger.error(
+            f"All {max_retries} attempts to encode batch failed. Raising last error: {last_err}"
+        )
+        self._circuit.record_failure()
+        if last_err is not None:
+            raise last_err
+        raise RuntimeError(f"All {max_retries} attempts to encode batch failed.")
+
+    def _encode_batch_torch(
+        self, prefixed_texts: list[str], start_time: float
+    ) -> tuple[list, list]:
+        """PyTorch/fallback batch encode. Holds _inference_lock throughout."""
+        with self._inference_lock:
+            # Re-snapshot: a concurrent first-load may have installed ONNX.
+            if self._onnx_session is not None:
+                return self._encode_batch_onnx(prefixed_texts, start_time)
             max_retries = 3
             last_err = None
             for attempt in range(1, max_retries + 1):
                 try:
-                    if use_onnx:
-                        from collections import defaultdict
+                    import torch
 
-                        inputs = self._onnx_tokenizer(
-                            uncached_prefixed_texts,
-                            padding=True,
-                            truncation=True,
-                            return_tensors="np",
-                        )
-                        ort_out = self._onnx_session.run(
-                            None,
-                            {
-                                "input_ids": inputs["input_ids"].astype("int64"),
-                                "attention_mask": inputs["attention_mask"].astype("int64"),
-                            },
-                        )
-                        dense_vecs = ort_out[0].tolist()
-                        sparse_raw = ort_out[1]
-                        input_ids = inputs["input_ids"].tolist()
-                        sparse_weights = []
-                        unused_tokens = {
-                            self._onnx_tokenizer.cls_token_id,
-                            self._onnx_tokenizer.eos_token_id,
-                            self._onnx_tokenizer.pad_token_id,
-                            self._onnx_tokenizer.unk_token_id,
-                        }
-                        for row_idx, token_ids in enumerate(input_ids):
-                            weights = sparse_raw[row_idx, :, 0]
-                            result = defaultdict(int)
-                            for w, tid in zip(weights, token_ids):
-                                if tid not in unused_tokens and w > 0:
-                                    key = str(tid)
-                                    if w > result[key]:
-                                        result[key] = w
-                            sparse_weights.append(dict(result))
-                    else:
-                        import torch
-
-                        with torch.inference_mode():
-                            is_bge_m3 = settings.embedding_model == "BAAI/bge-m3"
-                            if is_bge_m3:
+                    with torch.inference_mode():
+                        is_bge_m3 = settings.embedding_model == "BAAI/bge-m3"
+                        if is_bge_m3:
+                            output = self._encoder.encode(
+                                prefixed_texts,
+                                return_dense=True,
+                                return_sparse=True,
+                                return_colbert_vecs=False,
+                            )
+                            dense_vecs = output["dense_vecs"].tolist()
+                            sparse_weights = output["lexical_weights"]
+                        else:
+                            # E5 models: explicitly disable sparse/ColBERT to avoid
+                            # random-weight projection head initialization warning
+                            try:
                                 output = self._encoder.encode(
-                                    uncached_prefixed_texts,
+                                    prefixed_texts,
                                     return_dense=True,
-                                    return_sparse=True,
+                                    return_sparse=False,
                                     return_colbert_vecs=False,
                                 )
                                 dense_vecs = output["dense_vecs"].tolist()
-                                sparse_weights = output["lexical_weights"]
-                            else:
-                                # E5 models: explicitly disable sparse/ColBERT to avoid
-                                # random-weight projection head initialization warning
-                                try:
-                                    output = self._encoder.encode(
-                                        uncached_prefixed_texts,
-                                        return_dense=True,
-                                        return_sparse=False,
-                                        return_colbert_vecs=False,
-                                    )
-                                    dense_vecs = output["dense_vecs"].tolist()
-                                except Exception:
-                                    # Fallback for models that don't support BGE-M3-specific flags
-                                    output = self._encoder.encode(
-                                        uncached_prefixed_texts,
-                                        normalize_embeddings=True,
-                                    )
-                                    if isinstance(output, list):
-                                        dense_vecs = output
-                                    else:
-                                        dense_vecs = output.tolist()
-                                sparse_weights = [{} for _ in uncached_prefixed_texts]
-
-                    # Build results in original order
-                    dense_results = [None] * len(texts)
-                    sparse_results = [None] * len(texts)
-
-                    # Fill cached results
-                    for idx, emb in cached_embeddings:
-                        dense_results[idx] = emb["dense"]
-                        sparse_results[idx] = emb["sparse"]
-
-                    # Fill newly computed results
-                    for i, idx in enumerate(uncached_indices):
-                        dense_results[idx] = dense_vecs[i]
-                        sparse_results[idx] = sparse_weights[i]
-
-                    # Cache the newly computed embeddings (using prefixed text as key)
-                    for i, _idx in enumerate(uncached_indices):
-                        prefixed_text = uncached_prefixed_texts[i]
-                        embedding_result = {
-                            "dense": dense_vecs[i],
-                            "sparse": sparse_weights[i],
-                        }
-                        self._embed_cache.put(prefixed_text, embedding_result)
-
-                    EMBEDDING_LATENCY.labels(operation="encode_batch").observe(
-                        time.monotonic() - start_time
-                    )
-                    self._circuit.record_success()
-                    return {
-                        "dense": dense_results,
-                        "sparse": sparse_results,
-                    }
+                            except Exception:
+                                # Fallback for models that don't support BGE-M3-specific flags
+                                output = self._encoder.encode(
+                                    prefixed_texts,
+                                    normalize_embeddings=True,
+                                )
+                                if isinstance(output, list):
+                                    dense_vecs = output
+                                else:
+                                    dense_vecs = output.tolist()
+                            sparse_weights = [{} for _ in prefixed_texts]
+                    return dense_vecs, sparse_weights
                 except Exception as e:
                     last_err = e
                     EMBEDDING_ERRORS.labels(operation="encode_batch").inc()
@@ -997,79 +1101,124 @@ class EmbeddingService:
             dict with keys 'dense' (list[list[float]]), 'sparse' (list[dict]),
             'colbert' (list[np.ndarray], each shape [n_valid_tokens, 1024]).
         """
-        import numpy as np
-
         if not texts:
             return {"dense": [], "sparse": [], "colbert": []}
 
         start_time = time.monotonic()
-        with self._inference_lock:
-            self._ensure_encoder()
-            use_onnx = self._onnx_session is not None
+        self._ensure_encoder()
+        if self._onnx_session is not None:
+            return self._encode_with_colbert_onnx(texts, start_time)
+        return self._encode_with_colbert_torch(texts, start_time)
 
+    def _encode_with_colbert_onnx(self, texts: list[str], start_time: float) -> dict:
+        """ONNX colbert encode. Lock-free: session.run() is thread-safe."""
+        from collections import defaultdict
+
+        import numpy as np
+
+        max_retries = 3
+        last_err = None
+        for attempt in range(1, max_retries + 1):
+            try:
+                inputs = self._onnx_tokenizer(
+                    texts, padding=True, truncation=True, return_tensors="np"
+                )
+                ort_out = self._onnx_session.run(
+                    None,
+                    {
+                        "input_ids": inputs["input_ids"].astype("int64"),
+                        "attention_mask": inputs["attention_mask"].astype("int64"),
+                    },
+                )
+                dense_vecs = ort_out[0].tolist()
+                sparse_raw = ort_out[1]
+                input_ids = inputs["input_ids"].tolist()
+                sparse_weights = []
+                unused_tokens = {
+                    self._onnx_tokenizer.cls_token_id,
+                    self._onnx_tokenizer.eos_token_id,
+                    self._onnx_tokenizer.pad_token_id,
+                    self._onnx_tokenizer.unk_token_id,
+                }
+                for row_idx, token_ids in enumerate(input_ids):
+                    weights = sparse_raw[row_idx, :, 0]
+                    result = defaultdict(int)
+                    for w, tid in zip(weights, token_ids):
+                        if tid not in unused_tokens and w > 0:
+                            key = str(tid)
+                            if w > result[key]:
+                                result[key] = w
+                    sparse_weights.append(dict(result))
+
+                colbert_raw = ort_out[2]
+                attention_mask = inputs["attention_mask"]
+                colbert_vecs = []
+                for i in range(len(texts)):
+                    tokens_num_i = int(attention_mask[i].sum())
+                    n_valid = tokens_num_i - 1
+                    if n_valid <= 0:
+                        colbert_vecs.append(np.zeros((0, 1024), dtype=np.float32))
+                        continue
+                    colbert_i = colbert_raw[i][:n_valid].astype(np.float32)
+                    colbert_vecs.append(colbert_i)
+
+                EMBEDDING_LATENCY.labels(operation="encode_with_colbert").observe(
+                    time.monotonic() - start_time
+                )
+                return {
+                    "dense": dense_vecs,
+                    "sparse": sparse_weights,
+                    "colbert": colbert_vecs,
+                }
+            except Exception as e:
+                last_err = e
+                EMBEDDING_ERRORS.labels(operation="encode_with_colbert").inc()
+                logger.warning(
+                    f"encode_with_colbert failed on attempt {attempt}/{max_retries}: {e}. "
+                    f"Performing garbage collection and retrying in 2 seconds..."
+                )
+                import gc
+
+                gc.collect()
+                # time.sleep is intentionally used here: encode_with_colbert() is a
+                # sync method, always called via an asyncio.to_thread() wrapper.
+                # The sleep runs in a worker thread, NOT the event loop.
+                time.sleep(2)
+
+        logger.error(
+            f"All {max_retries} attempts to encode_with_colbert failed. "
+            f"Raising last error: {last_err}"
+        )
+        if last_err is not None:
+            raise last_err
+        raise RuntimeError(f"All {max_retries} attempts to encode_with_colbert failed.")
+
+    def _encode_with_colbert_torch(self, texts: list[str], start_time: float) -> dict:
+        """PyTorch colbert encode. Holds _inference_lock throughout."""
+        import numpy as np
+
+        with self._inference_lock:
+            # Re-snapshot: a concurrent first-load may have installed ONNX.
+            if self._onnx_session is not None:
+                return self._encode_with_colbert_onnx(texts, start_time)
             max_retries = 3
             last_err = None
             for attempt in range(1, max_retries + 1):
                 try:
-                    if use_onnx:
-                        from collections import defaultdict
+                    import torch
 
-                        inputs = self._onnx_tokenizer(
-                            texts, padding=True, truncation=True, return_tensors="np"
+                    with torch.inference_mode():
+                        output = self._encoder.encode(
+                            texts,
+                            return_dense=True,
+                            return_sparse=True,
+                            return_colbert_vecs=True,
                         )
-                        ort_out = self._onnx_session.run(
-                            None,
-                            {
-                                "input_ids": inputs["input_ids"].astype("int64"),
-                                "attention_mask": inputs["attention_mask"].astype("int64"),
-                            },
-                        )
-                        dense_vecs = ort_out[0].tolist()
-                        sparse_raw = ort_out[1]
-                        input_ids = inputs["input_ids"].tolist()
-                        sparse_weights = []
-                        unused_tokens = {
-                            self._onnx_tokenizer.cls_token_id,
-                            self._onnx_tokenizer.eos_token_id,
-                            self._onnx_tokenizer.pad_token_id,
-                            self._onnx_tokenizer.unk_token_id,
-                        }
-                        for row_idx, token_ids in enumerate(input_ids):
-                            weights = sparse_raw[row_idx, :, 0]
-                            result = defaultdict(int)
-                            for w, tid in zip(weights, token_ids):
-                                if tid not in unused_tokens and w > 0:
-                                    key = str(tid)
-                                    if w > result[key]:
-                                        result[key] = w
-                            sparse_weights.append(dict(result))
-
-                        colbert_raw = ort_out[2]
-                        attention_mask = inputs["attention_mask"]
-                        colbert_vecs = []
-                        for i in range(len(texts)):
-                            tokens_num_i = int(attention_mask[i].sum())
-                            n_valid = tokens_num_i - 1
-                            if n_valid <= 0:
-                                colbert_vecs.append(np.zeros((0, 1024), dtype=np.float32))
-                                continue
-                            colbert_i = colbert_raw[i][:n_valid].astype(np.float32)
-                            colbert_vecs.append(colbert_i)
-                    else:
-                        import torch
-
-                        with torch.inference_mode():
-                            output = self._encoder.encode(
-                                texts,
-                                return_dense=True,
-                                return_sparse=True,
-                                return_colbert_vecs=True,
-                            )
-                            dense_vecs = output["dense_vecs"].tolist()
-                            sparse_weights = output["lexical_weights"]
-                            colbert_vecs = [
-                                np.array(v, dtype=np.float32) for v in output["colbert_vecs"]
-                            ]
+                        dense_vecs = output["dense_vecs"].tolist()
+                        sparse_weights = output["lexical_weights"]
+                        colbert_vecs = [
+                            np.array(v, dtype=np.float32) for v in output["colbert_vecs"]
+                        ]
 
                     EMBEDDING_LATENCY.labels(operation="encode_with_colbert").observe(
                         time.monotonic() - start_time
@@ -1425,74 +1574,79 @@ class EmbeddingService:
         if not documents:
             return []
 
-        with self._inference_lock:
-            self._ensure_reranker()
-            import gc
+        self._ensure_reranker()
+        import gc
 
+        gc.collect()
+        pairs = [(query, doc["text"]) for doc in documents]
+        if self._is_onnx_reranker():
+            # ONNX INT8 reranker: session.run() is thread-safe, no lock.
+            raw_scores = self._reranker.predict(pairs)
+        else:
+            # PyTorch CrossEncoder fallback: not thread-safe, serialize.
             import torch
 
-            gc.collect()
-            pairs = [(query, doc["text"]) for doc in documents]
-            with torch.inference_mode():
-                raw_scores = self._reranker.predict(pairs)
+            with self._inference_lock:
+                with torch.inference_mode():
+                    raw_scores = self._reranker.predict(pairs)
 
-            # CrossEncoder ms-marco-MiniLM-L-6-v2 returns raw logits (range ~-11 to +4).
-            # Apply sigmoid to normalize to [0,1] probabilities for consistent thresholding.
-            # PHASE-2 / Truth-3: jina-reranker-v2 already returns [0,1] probabilities;
-            # detected at model-load time and stored in self._reranker_outputs_probs.
-            import numpy as np
+        # CrossEncoder ms-marco-MiniLM-L-6-v2 returns raw logits (range ~-11 to +4).
+        # Apply sigmoid to normalize to [0,1] probabilities for consistent thresholding.
+        # PHASE-2 / Truth-3: jina-reranker-v2 already returns [0,1] probabilities;
+        # detected at model-load time and stored in self._reranker_outputs_probs.
+        import numpy as np
 
-            def _sigmoid(x):
-                return 1.0 / (1.0 + np.exp(-x))
+        def _sigmoid(x):
+            return 1.0 / (1.0 + np.exp(-x))
 
-            outputs_probs = getattr(self, "_reranker_outputs_probs", False)
-            for doc, raw_score in zip(documents, raw_scores):
-                rs = float(raw_score)
-                doc["rerank_score"] = rs if outputs_probs else float(_sigmoid(rs))
-                doc["rerank_raw_logit"] = rs
+        outputs_probs = getattr(self, "_reranker_outputs_probs", False)
+        for doc, raw_score in zip(documents, raw_scores):
+            rs = float(raw_score)
+            doc["rerank_score"] = rs if outputs_probs else float(_sigmoid(rs))
+            doc["rerank_raw_logit"] = rs
 
-            # Score distribution logging for debugging
-            if raw_scores is not None and len(raw_scores) > 0:
-                if outputs_probs:
-                    score_arr = np.array([float(s) for s in raw_scores])
-                else:
-                    score_arr = np.array([float(_sigmoid(s)) for s in raw_scores])
-                raw_arr = np.array([float(s) for s in raw_scores])
-                logger.info(
-                    f"Reranker scores ({'native' if outputs_probs else 'sigmoid'}): "
-                    f"min={score_arr.min():.4f}, max={score_arr.max():.4f}, "
-                    f"mean={score_arr.mean():.4f}, median={float(np.median(score_arr)):.4f} | "
-                    f"raw: min={raw_arr.min():.4f}, max={raw_arr.max():.4f}"
-                )
-
-            ranked = sorted(documents, key=lambda d: d["rerank_score"], reverse=True)
-
-            # Apply minimum score threshold
-            effective_min_score = min_score if min_score is not None else settings.rerank_min_score
-            above_threshold = [d for d in ranked if d["rerank_score"] >= effective_min_score]
-
-            if not above_threshold and ranked:
-                # If ALL docs are below threshold, keep the top 1 as minimum
-                above_threshold = ranked[:1]
-                logger.warning(
-                    f"All {len(ranked)} docs scored below threshold {effective_min_score}. "
-                    f"Keeping top-1 (score={ranked[0]['rerank_score']:.4f})"
-                )
-
-            filtered_count = len(ranked) - len(above_threshold)
-            if filtered_count > 0:
-                logger.info(
-                    f"Reranker threshold {effective_min_score}: filtered {filtered_count} docs below threshold"
-                )
-
-            top_docs = above_threshold[:top_k]
-
+        # Score distribution logging for debugging
+        if raw_scores is not None and len(raw_scores) > 0:
+            if outputs_probs:
+                score_arr = np.array([float(s) for s in raw_scores])
+            else:
+                score_arr = np.array([float(_sigmoid(s)) for s in raw_scores])
+            raw_arr = np.array([float(s) for s in raw_scores])
             logger.info(
-                f"Reranked {len(documents)} → {len(top_docs)} docs"
-                + (f". Top score: {top_docs[0]['rerank_score']:.4f}" if top_docs else "")
+                f"Reranker scores ({'native' if outputs_probs else 'sigmoid'}): "
+                f"min={score_arr.min():.4f}, max={score_arr.max():.4f}, "
+                f"mean={score_arr.mean():.4f}, median={float(np.median(score_arr)):.4f} | "
+                f"raw: min={raw_arr.min():.4f}, max={raw_arr.max():.4f}"
             )
 
-            return top_docs
+        ranked = sorted(documents, key=lambda d: d["rerank_score"], reverse=True)
+
+        # Apply minimum score threshold
+        effective_min_score = min_score if min_score is not None else settings.rerank_min_score
+        above_threshold = [d for d in ranked if d["rerank_score"] >= effective_min_score]
+
+        if not above_threshold and ranked:
+            # If ALL docs are below threshold, keep the top 1 as minimum
+            above_threshold = ranked[:1]
+            logger.warning(
+                f"All {len(ranked)} docs scored below threshold {effective_min_score}. "
+                f"Keeping top-1 (score={ranked[0]['rerank_score']:.4f})"
+            )
+
+        filtered_count = len(ranked) - len(above_threshold)
+        if filtered_count > 0:
+            logger.info(
+                f"Reranker threshold {effective_min_score}: filtered {filtered_count} docs below threshold"
+            )
+
+        top_docs = above_threshold[:top_k]
+
+        logger.info(
+            f"Reranked {len(documents)} → {len(top_docs)} docs"
+            + (f". Top score: {top_docs[0]['rerank_score']:.4f}" if top_docs else "")
+        )
+
+        return top_docs
 
     async def rerank_async(
         self,
@@ -1535,21 +1689,23 @@ class EmbeddingService:
                 query, documents, top_k=min(cross_top_k, len(documents))
             )
 
-        with self._inference_lock:
-            self._ensure_reranker()
+        self._ensure_reranker()
 
-            colbert_docs = documents
-            if settings.enable_colbert:
-                try:
-                    colbert_docs = self._colbert_maxsim_rerank(
-                        query, documents, top_k=colbert_top_k
-                    )
-                except Exception as e:
-                    logger.error(
-                        f"ColBERT MaxSim rerank failed: {e}. Falling back to RAGatouille path."
-                    )
-                    colbert_docs = documents[: colbert_top_k * 2]
-            elif len(documents) > colbert_top_k:
+        colbert_docs = documents
+        if settings.enable_colbert:
+            # ONNX-native MaxSim: encode_with_colbert() locks internally per backend.
+            try:
+                colbert_docs = self._colbert_maxsim_rerank(
+                    query, documents, top_k=colbert_top_k
+                )
+            except Exception as e:
+                logger.error(
+                    f"ColBERT MaxSim rerank failed: {e}. Falling back to RAGatouille path."
+                )
+                colbert_docs = documents[: colbert_top_k * 2]
+        elif len(documents) > colbert_top_k:
+            # RAGatouille path: thread-safety unknown, keep serialized.
+            with self._inference_lock:
                 self._ensure_colbert()
                 texts = [doc["text"] for doc in documents]
                 try:
@@ -1574,7 +1730,7 @@ class EmbeddingService:
                     )
                     colbert_docs = documents[: colbert_top_k * 2]
 
-            return self.rerank(query, colbert_docs, top_k=cross_top_k, min_score=min_score)
+        return self.rerank(query, colbert_docs, top_k=cross_top_k, min_score=min_score)
 
     async def cascaded_rerank_async(
         self,

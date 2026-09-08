@@ -125,7 +125,27 @@ def test_publication_script_requires_explicit_mode():
         / "publish_retrieval_index_contract.py"
     )
     result = subprocess.run(
-        [sys.executable, str(script)], capture_output=True, text=True, timeout=30
+        [sys.executable, str(script), "--source-manifest", "dummy.json"],
+        capture_output=True,
+        text=True,
+        timeout=30,
     )
     assert result.returncode == 2
     assert "one of the arguments --dry-run --apply is required" in result.stderr
+
+
+def test_publication_script_requires_source_manifest():
+    script = (
+        Path(__file__).resolve().parents[1]
+        / "scripts"
+        / "ops"
+        / "publish_retrieval_index_contract.py"
+    )
+    result = subprocess.run(
+        [sys.executable, str(script), "--dry-run"],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert result.returncode == 2
+    assert "the following arguments are required: --source-manifest" in result.stderr

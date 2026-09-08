@@ -16,7 +16,10 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - 'backend/requirements.lock'
+      - 'backend/requirements.txt'
       - 'backend/pyproject.toml'
+      - 'LICENSE-EXCEPTIONS.md'
+      - '.github/workflows/dependency-check.yml'
 
 jobs:
   frontend-audit:
@@ -75,6 +78,123 @@ jobs:
           name: pip-audit-report
           path: backend/pip-audit-report.json
           retention-days: 30
+
+  license-compliance:
+    name: License compliance (fail on copyleft)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.lock
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      # Step 28: JS gate. Fails the build on strong-copyleft licenses
+      # (GPL/AGPL/LGPL/CDDL/EPL/EUPL/OSL). MPL-2.0 is NOT in the fail
+      # list — it is audited against LICENSE-EXCEPTIONS.md by the
+      # warn-only step below so the two approved dev-only axe exceptions
+      # (and any future triaged entries) do not break the build.
+      - name: JS license gate (fail on strong copyleft)
+        run: |
+          npx --yes license-checker --summary | tee package-licenses-summary.txt
+          test "${PIPESTATUS[0]}" -eq 0
+          npx --yes license-checker --failOn 'GPL;AGPL;LGPL;CDDL;EPL;EUPL;OSL' --summary
+
+      - name: JS MPL-2.0 cross-check vs LICENSE-EXCEPTIONS.md (warn-only)
+        # Any MPL-2.0 package NOT named in LICENSE-EXCEPTIONS.md is
+        # reported as a ::warning, not a failure, so the baseline stays
+        # green while new MPL introductions stay visible.
+        # lightningcss ships one native binary per OS/arch as separate
+        # optionalDependencies (lightningcss-darwin-arm64, -linux-x64-gnu,
+        # etc, per npm's platform-binary convention). Only the base package
+        # is listed in LICENSE-EXCEPTIONS.md, so a package name matching
+        # <base>-<os>[-<libc>]-<arch> is reduced to <base> before checking,
+        # rather than needing every platform combination enumerated in the
+        # markdown file (2026-09-06 fix — resolved the triage this comment
+        # used to point at).
+        run: |
+          node -e "
+          const fs = require('fs');
+          const { execSync } = require('child_process');
+          const data = JSON.parse(execSync('npx --yes license-checker --json', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }));
+          const exc = fs.readFileSync('LICENSE-EXCEPTIONS.md', 'utf8');
+          const platformSuffix = /-(darwin|linux|win32|freebsd|android)(-\w+)?-(x64|arm64|arm|ia32)$/;
+          // A disjunctive license like '(MPL-2.0 OR Apache-2.0)' already
+          // satisfies the repo's Apache-2.0/MIT policy via the OR branch —
+          // it needs no exception entry at all. Only flag a package whose
+          // license is MPL with no compliant alternative on offer.
+          const hasCompliantAlternative = (lic) => /\bOR\b/.test(lic) && /(Apache-2\.0|Apache License|MIT)/i.test(lic);
+          let unlisted = [];
+          for (const [spec, meta] of Object.entries(data)) {
+            const lic = String(meta.licenses || '');
+            if (lic.includes('MPL') && !hasCompliantAlternative(lic)) {
+              const name = spec.slice(0, spec.lastIndexOf('@'));
+              const baseName = name.replace(platformSuffix, '');
+              if (!exc.includes(name) && !exc.includes(baseName)) unlisted.push(spec + ' [' + lic + ']');
+            }
+          }
+          if (unlisted.length) {
+            console.log('::warning::MPL-2.0 packages not in LICENSE-EXCEPTIONS.md: ' + unlisted.join(', '));
+          } else {
+            console.log('All MPL-2.0 packages are listed in LICENSE-EXCEPTIONS.md.');
+          }
+          "
+
+      - name: Install backend dependencies + pip-licenses
+        working-directory: backend
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.lock
+          pip install pip-licenses
+
+      # Step 28: Python gate. --partial-match so variants like
+      # 'GNU General Public License v3 (GPLv3)' still match 'GPL'.
+      # MPL is intentionally NOT in the fail list (see JS comment).
+      - name: Python license gate (fail on strong copyleft)
+        working-directory: backend
+        run: |
+          pip-licenses --format=json --output-file=python-licenses.json
+          pip-licenses --fail-on="GPL;AGPL;LGPL;Affero General Public License;General Public License;Lesser General Public License;CDDL;Common Development and Distribution;Eclipse Public License;EUPL;European Union Public;OSL;Open Software License" --partial-match
+
+      - name: Python MPL cross-check vs LICENSE-EXCEPTIONS.md (warn-only)
+        working-directory: backend
+        run: |
+          python3 -c "
+          import json, subprocess
+          raw = subprocess.run(['pip-licenses', '--format=json'], capture_output=True, text=True)
+          raw.check_returncode()
+          data = json.loads(raw.stdout or '[]')
+          exc = open('../LICENSE-EXCEPTIONS.md').read()
+          def _has_compliant_alt(lic):
+              lic = lic or ''
+              return ' or ' in lic.lower() and any(x in lic for x in ('Apache Software License', 'Apache-2.0', 'MIT'))
+          unlisted = [f\"{d['Name']}@{d['Version']} [{d['License']}]\" for d in data if 'Mozilla' in (d.get('License') or '') and not _has_compliant_alt(d.get('License')) and d['Name'] not in exc]
+          print('MPL-licensed Python packages not in LICENSE-EXCEPTIONS.md: ' + (', '.join(unlisted) if unlisted else '(none — all listed)'))
+          "
+
+      - name: Upload license reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: license-reports
+          path: |
+            package-licenses-summary.txt
+            backend/python-licenses.json
+          retention-days: 30
+          if-no-files-found: warn
 
   trivy-fs:
     name: Trivy filesystem scan

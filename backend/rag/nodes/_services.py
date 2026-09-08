@@ -23,6 +23,22 @@ _sarvam_cloud: Any = None
 _doctrine_service: Any = None
 _llm_gateway: Any = None
 _graphrag_fusion: Any = None
+_guru_brain: Any = None
+
+
+def set_guru_brain(service: Any) -> None:
+    """Register the Guru Brain tone-exemplar service for generation-time voice.
+
+    Kept outside ``init_services`` so no build_* signature churn is needed;
+    called once from container graph construction. ``None`` disables.
+    """
+    global _guru_brain
+    _guru_brain = service
+
+
+def get_guru_brain() -> Any:
+    """Return the registered Guru Brain service, or None when unavailable."""
+    return _guru_brain
 
 
 # InMemoryCacheAdapter fallback removed (Unit 8) — missing service is now a hard error
@@ -140,7 +156,8 @@ def clear_services() -> None:
         _sarvam_cloud, \
         _doctrine_service, \
         _llm_gateway, \
-        _graphrag_fusion
+        _graphrag_fusion, \
+        _guru_brain
     _ollama = None
     _embedder = None
     _qdrant = None
@@ -154,6 +171,7 @@ def clear_services() -> None:
     _doctrine_service = None
     _llm_gateway = None
     _graphrag_fusion = None
+    _guru_brain = None
 
 
 def get_services_status() -> dict:

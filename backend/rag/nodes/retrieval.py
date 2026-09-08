@@ -11,7 +11,6 @@ from typing import Any, Optional
 from app.metrics import (
     COVERAGE_GAP_TOTAL,
     GUARDRAILS_BLOCKED,
-    LIGHTRAG_TIMEOUT_TOTAL,
     RETRIEVAL_SCORE_HISTOGRAM,
 )
 from app.tracing import trace_rag_node
@@ -305,30 +304,15 @@ async def query_neo4j_subgraph(
 async def query_neo4j_guided_tour(query: str) -> list[dict]:
     """
     Query Neo4j for guided tour/pathway steps.
-    Returns list of dicts representing the steps, or a mock sequence if no graph database is configured/empty.
+    Returns list of dicts representing the steps, or [] when the graph
+    database is unconfigured, unreachable, or has no matching tour so the
+    caller falls through to the honest content-gap refusal path.
     """
     from services.tenant_context import TenantContext
 
     tour_name = "meditation journey"
     if not settings.neo4j_uri:
-        return [
-            {
-                "content": "Step 1: Soul Stage. Focus on the connection with the Universal Intelligence, feeling the expansion of consciousness and dropping all resistance.",
-                "text": "Step 1: Soul Stage. Focus on the connection with the Universal Intelligence, feeling the expansion of consciousness and dropping all resistance.",
-                "title": "Step 1: Soul Stage",
-                "source_url": "neo4j://tour/meditation_journey/step1",
-                "chunk_index": 1,
-                "score": 1.0,
-            },
-            {
-                "content": "Step 2: Serene Mind. Cultivate inner stillness using breathing patterns, settling into a space of quiet observation and deep presence.",
-                "text": "Step 2: Serene Mind. Cultivate inner stillness using breathing patterns, settling into a space of quiet observation and deep presence.",
-                "title": "Step 2: Serene Mind",
-                "source_url": "neo4j://tour/meditation_journey/step2",
-                "chunk_index": 2,
-                "score": 0.9,
-            },
-        ]
+        return []
 
     try:
         from app.dependencies import get_container
@@ -355,7 +339,7 @@ async def query_neo4j_guided_tour(query: str) -> list[dict]:
                             "content": f"Step {record['step_number']}: {record['title']}. {record['description']}",
                             "text": f"Step {record['step_number']}: {record['title']}. {record['description']}",
                             "title": f"Step {record['step_number']}: {record['title']}",
-                            "source_url": f"neo4j://tour/{tour_name}/step{record['step_number']}",
+                            "source_url": "",
                             "chunk_index": record["step_number"],
                             "score": 1.0 - (0.05 * record["step_number"]),
                         }
@@ -368,24 +352,7 @@ async def query_neo4j_guided_tour(query: str) -> list[dict]:
     except Exception as e:
         logger.warning(f"Failed to query Neo4j guided tour: {e}")
 
-    return [
-        {
-            "content": "Step 1: Soul Stage. Focus on the connection with the Universal Intelligence, feeling the expansion of consciousness and dropping all resistance.",
-            "text": "Step 1: Soul Stage. Focus on the connection with the Universal Intelligence, feeling the expansion of consciousness and dropping all resistance.",
-            "title": "Step 1: Soul Stage",
-            "source_url": "neo4j://tour/meditation_journey/step1",
-            "chunk_index": 1,
-            "score": 1.0,
-        },
-        {
-            "content": "Step 2: Serene Mind. Cultivate inner stillness using breathing patterns, settling into a space of quiet observation and deep presence.",
-            "title": "Step 2: Serene Mind",
-            "text": "Step 2: Serene Mind. Cultivate inner stillness using breathing patterns, settling into a space of quiet observation and deep presence.",
-            "source_url": "neo4j://tour/meditation_journey/step2",
-            "chunk_index": 2,
-            "score": 0.9,
-        },
-    ]
+    return []
 
 
 # Module-level semantic cache instance (lazy-initialized)
@@ -465,6 +432,26 @@ def _apply_retrieval_dedup(docs: list[dict]) -> list[dict]:
     except Exception as e:
         logger.warning(f"Retrieval deduplication failed (non-fatal): {e}")
         return docs
+
+
+async def _doc_embeddings_for_mmr(
+    docs: list[dict], doc_texts: list[str], embedder
+) -> list:
+    """Dense embeddings aligned with ``docs`` for MMR selection.
+
+    Reuses the Qdrant-stored vector (``doc["_dense_embedding"]``) when present
+    and encodes only the misses, skipping the embedding inference lock for
+    the hits. A doc without a stored vector falls back to re-encoding, so
+    ranking semantics are unchanged when vectors are absent.
+    """
+    missing_idx = [i for i, doc in enumerate(docs) if not doc.get("_dense_embedding")]
+    if missing_idx:
+        missing_enc = await asyncio.to_thread(
+            embedder.encode_batch, [doc_texts[i] for i in missing_idx]
+        )
+        for i, dense_vec in zip(missing_idx, missing_enc["dense"]):
+            docs[i]["_dense_embedding"] = dense_vec
+    return [doc["_dense_embedding"] for doc in docs]
 
 
 def _bm25_sparse_search(
@@ -828,26 +815,6 @@ async def retrieve_for_single_query(
 
     tasks = [summary_task, chunk_task]
 
-    lightrag_index = -1
-    if (
-        getattr(settings, "knowledge_graph_query_enabled", False)
-        and lightrag
-        and scope.tenant_id == settings.default_tenant_id
-        and scope.corpus_id == settings.default_corpus_id
-        and intent in ["RELATIONAL", "FACTUAL", "QUERY"]
-    ):
-        lightrag_index = len(tasks)
-        # Use config-driven timeout (prevents 145s spike — see logs/backend.log line 264)
-        t_out = getattr(settings, "lightrag_retrieval_timeout", 10)
-        # Adaptive graph depth: fast/simple tiers skip community-summary traversal
-        graph_mode = "local" if query_tier in ("fast", "tier2_simple") else "hybrid"
-        tasks.append(
-            asyncio.wait_for(
-                lightrag.aquery(query, mode=graph_mode, only_need_context=True),
-                timeout=float(t_out),
-            )
-        )
-
     results = await asyncio.gather(*tasks, return_exceptions=True)
     summary_results = results[0] if not isinstance(results[0], Exception) else []
     chunk_results = results[1] if not isinstance(results[1], Exception) else []
@@ -872,57 +839,8 @@ async def retrieve_for_single_query(
 
     chunk_results = resolved_chunks
 
-    # Track LightRAG timeouts
-    if lightrag_index != -1 and isinstance(results[lightrag_index], Exception):
-        try:
-            LIGHTRAG_TIMEOUT_TOTAL.inc()
-        except Exception as _e:
-            logger.debug("[retrieval node] suppressed non-critical error: %s", _e)
-
-    lightrag_results = []
-    if lightrag_index != -1 and results[lightrag_index]:
-        graph_answer = results[lightrag_index]
-        if isinstance(graph_answer, (asyncio.TimeoutError, Exception)):
-            logger.warning(f"LightRAG returned an exception (timeout or error): {graph_answer}")
-            graph_answer = ""
-        if graph_answer and isinstance(graph_answer, str):
-            seen_lg: set[str] = set()
-            deduped_lines: list[str] = []
-            for lg_line in graph_answer.splitlines():
-                key = lg_line.strip()
-                if key and key not in seen_lg:
-                    seen_lg.add(key)
-                    deduped_lines.append(lg_line)
-                elif not key:
-                    deduped_lines.append(lg_line)
-            graph_answer = "\n".join(deduped_lines)
-            lg_node_lines = [line for line in deduped_lines if line.strip()]
-            if len(lg_node_lines) > 50:
-                graph_answer = (
-                    "\n".join(deduped_lines[:50]) + "\n[LightRAG context capped at 5 nodes]"
-                )
-            if intent == "RELATIONAL":
-                subgraph_ctx = await query_neo4j_subgraph(query, scope=scope)
-                if subgraph_ctx:
-                    graph_answer += "\n" + subgraph_ctx
-            # Normalise LightRAG score to Qdrant-comparable range (0.3-0.7)
-            # so it doesn't clobber downstream rankers with an inflated default.
-            lg_richness = min(1.0, len(lg_node_lines) / 20)
-            lg_score = 0.3 + 0.4 * lg_richness
-            lightrag_results.append(
-                {
-                    "text": graph_answer,
-                    "title": "Knowledge Graph (LightRAG)",
-                    "source_url": "knowledge_graph",
-                    "content_type": "graph_summary",
-                    "chunk_index": 0,
-                    "raptor_level": 0,
-                    "score": lg_score,
-                }
-            )
-
     rrf_ranked = _rrf_docs([summary_results, chunk_results], k=60)
-    merged = lightrag_results + rrf_ranked
+    merged = rrf_ranked
 
     seen: set[str] = set()
     deduped: list[dict] = []
@@ -1225,6 +1143,9 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
         except Exception as bm25_err:
             logger.warning(f"BM25 sparse search setup failed (non-fatal): {bm25_err}")
 
+    # Step 20: per-channel sub-status — the static "Searching knowledge base..."
+    # above covers this node's whole 25-133s window, so narrate each channel.
+    await emit_status(config, "Searching dense passages...", node="retrieve_documents")
     primary_started = time.perf_counter()
     primary_results = await asyncio.gather(
         *[
@@ -1259,6 +1180,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     bm25_results: list[dict] = []
     bm25_started = time.perf_counter()
     if bm25_task is not None:
+        await emit_status(config, "Searching keyword index...", node="retrieve_documents")
         try:
             bm25_results = await bm25_task
             logger.info(f"BM25 sparse search returned {len(bm25_results)} results")
@@ -1308,6 +1230,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     # results are already available by this point, so a degraded Neo4j
     # session must not extend the tail either.
     if kg_expansion_task is not None:
+        await emit_status(config, "Expanding with teaching graph...", node="retrieve_documents")
         kg_soft_wait = getattr(settings, "kg_ontology_expansion_timeout", 3.0)
         try:
             neighbors = await asyncio.wait_for(kg_expansion_task, timeout=kg_soft_wait)
@@ -1407,6 +1330,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
 
     if len(all_docs) < 3:
         logger.info(f"Low document count ({len(all_docs)}), triggering broader fallback search...")
+        await emit_status(config, "Broadening the search...", node="retrieve_documents")
         fallback_query = state["question"] if state.get("rewritten_query") else sub_queries[0]
         if query_tier in ("fast", "tier2_simple"):
             try:
@@ -1431,17 +1355,21 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
                 logger.warning("Fast fallback retrieval timed out or failed; continuing with current docs: %s", fallback_err)
                 fallback_results = []
         else:
-            query_embedding = await asyncio.to_thread(embedder.encode_single_full, fallback_query)
-            fallback_results = await asyncio.to_thread(
-                qdrant.search,
-                query_vector=query_embedding["dense"],
-                limit=10,
-                sparse_vector=query_embedding["sparse"],
-                raptor_level=0,
-                cluster_ids=None,
-                knowledge_tags=knowledge_tags,
-                scope=scope,
-            )
+            try:
+                query_embedding = await asyncio.to_thread(embedder.encode_single_full, fallback_query)
+                fallback_results = await asyncio.to_thread(
+                    qdrant.search,
+                    query_vector=query_embedding["dense"],
+                    limit=10,
+                    sparse_vector=query_embedding["sparse"],
+                    raptor_level=0,
+                    cluster_ids=None,
+                    knowledge_tags=knowledge_tags,
+                    scope=scope,
+                )
+            except Exception as fallback_err:
+                logger.warning("Standard fallback retrieval failed; continuing with current docs: %s", fallback_err)
+                fallback_results = []
 
         for doc in fallback_results:
             text_hash = stable_document_key(doc)
@@ -1478,6 +1406,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     if _services._graphrag_fusion is not None and getattr(
         settings, "graphrag_fusion_enabled", False
     ) and graph_plan.mode != "none":
+        await emit_status(config, "Traversing teaching graph...", node="retrieve_documents")
         try:
             fused = await _services._graphrag_fusion.retrieve(
                 base_question,
@@ -1536,8 +1465,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
         question = state.get("rewritten_query") or state["question"]
         doc_texts = [doc["text"] for doc in all_docs]
 
-        batch_enc = await asyncio.to_thread(embedder.encode_batch, doc_texts)
-        doc_embeddings = batch_enc["dense"]
+        doc_embeddings = await _doc_embeddings_for_mmr(all_docs, doc_texts, embedder)
 
         query_enc = await asyncio.to_thread(embedder.encode_single_full, question)
         query_emb = query_enc["dense"]
@@ -1587,6 +1515,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
         "CASUAL",
         "GREETING",
     ):
+        await emit_status(config, "Checking curated teachings...", node="retrieve_documents")
         try:
             # Teacher routing: detect guru mention in query for OKF filtering
             _ql = base_question.lower()

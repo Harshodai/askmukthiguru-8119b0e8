@@ -277,6 +277,10 @@ class TTLRateLimiter:
         """Clear all tracked request timestamps (test isolation hook)."""
         self._store.clear()
 
+    async def is_allowed_async(self, key: str, now: Optional[float] = None) -> bool:
+        """Async alias for use in async middleware (CPU-only, never blocks)."""
+        return self.is_allowed(key, now)
+
 
 import threading
 
@@ -339,6 +343,18 @@ class ExponentialBackoffRateLimiter:
         """Clear all tracked attempts (test isolation hook)."""
         with self._lock:
             self._attempts.clear()
+
+    async def is_allowed_async(
+        self, key: str, now: Optional[float] = None
+    ) -> tuple[bool, float]:
+        """Async alias for use in async middleware (CPU-only, never blocks)."""
+        return self.is_allowed(key, now)
+
+    async def record_attempt_async(
+        self, key: str, success: bool, now: Optional[float] = None
+    ) -> None:
+        """Async alias for use in async middleware (CPU-only, never blocks)."""
+        self.record_attempt(key, success, now)
 
 
 _unkeyed_digest_warned = False
@@ -437,6 +453,10 @@ class RedisBackedRateLimiter:
         self.backoff_multiplier = backoff_multiplier
         self.max_backoff = ttl * 2
         self._redis: Optional[object] = None
+        # Async client for use in async middleware (redis.asyncio mirrors the
+        # sync API 1:1). Lazily created on first async call — construction
+        # stays sync so module import never needs a running event loop.
+        self._async_redis: Optional[object] = None
         self._fallback = ExponentialBackoffRateLimiter(
             ttl=ttl,
             max_requests=max_requests,
@@ -576,6 +596,110 @@ class RedisBackedRateLimiter:
         """
         self._fallback.reset()
 
+    # ── Async interface (redis.asyncio, for async middleware) ────────────────
+    # Mirrors the sync public interface 1:1 so async middleware can await
+    # Redis directly instead of stalling the event loop on the sync client
+    # (or paying thread-pool overhead via asyncio.to_thread).
+
+    async def _aconnect(self) -> None:
+        try:
+            import redis.asyncio as aioredis
+
+            client = aioredis.Redis.from_url(
+                self._redis_url,
+                socket_timeout=0.5,
+                socket_connect_timeout=0.5,
+                decode_responses=True,
+            )
+            await client.ping()
+            old = self._async_redis
+            self._async_redis = client
+            self._fallback_active = False
+            if old is not None:
+                try:
+                    await old.aclose()
+                except Exception:
+                    pass
+        except Exception as exc:
+            import logging
+
+            logging.getLogger(__name__).warning(
+                "RedisBackedRateLimiter: async Redis unavailable (%s) — falling back to process-local limiter",
+                exc,
+            )
+            self._async_redis = None
+            self._fallback_active = True
+
+    async def _async_maybe_reconnect(self) -> None:
+        if not self._fallback_active:
+            # Sync _connect() may have succeeded at import time while no
+            # async client exists yet — create it without a reconnect storm.
+            if self._async_redis is None and self._redis is not None:
+                await self._aconnect()
+            return
+        if time.time() - self._last_reconnect_attempt < self._RECONNECT_INTERVAL:
+            return
+        self._last_reconnect_attempt = time.time()
+        await self._aconnect()
+
+    async def is_allowed_async(
+        self, key: str, now: Optional[float] = None
+    ) -> tuple[bool, float]:
+        """Async variant of :meth:`is_allowed` over ``redis.asyncio``.
+
+        Fallback semantics match the sync path exactly, including the
+        synthetic success record (see the sync comment — deliberate and
+        pinned by TestRedisDownFallback).
+        """
+        now = now or time.time()
+        await self._async_maybe_reconnect()
+        if self._fallback_active or self._async_redis is None:
+            allowed, retry_after = self._fallback.is_allowed(key, now)
+            if allowed:
+                self._fallback.record_attempt(key, True, now)
+            return allowed, retry_after
+
+        try:
+            return await self._async_redis_is_allowed(key, now)
+        except Exception as exc:
+            import logging
+
+            logging.getLogger(__name__).warning(
+                "RedisBackedRateLimiter: async Redis error on is_allowed (%s) — degrading to allow",
+                exc,
+            )
+            # Fail-open on transient Redis error to avoid locking out all users.
+            return True, 0.0
+
+    async def record_attempt_async(
+        self, key: str, success: bool, now: Optional[float] = None
+    ) -> None:
+        """Async variant of :meth:`record_attempt` over ``redis.asyncio``."""
+        now = now or time.time()
+        await self._async_maybe_reconnect()
+        if self._fallback_active or self._async_redis is None:
+            self._fallback.record_attempt(key, success, now)
+            return
+
+        try:
+            await self._async_redis_record_attempt(key, success, now)
+        except Exception as exc:
+            import logging
+
+            logging.getLogger(__name__).debug(
+                "RedisBackedRateLimiter: async record_attempt error: %s", exc
+            )
+            self._fallback.record_attempt(key, success, now)
+
+    async def aclose(self) -> None:
+        """Close the async Redis client, if any (teardown/test hook)."""
+        client, self._async_redis = self._async_redis, None
+        if client is not None:
+            try:
+                await client.aclose()
+            except Exception:
+                pass
+
     # ── Redis implementation ─────────────────────────────────────────────────
 
     # Atomic read+decide+insert for is_allowed. Executed server-side in one
@@ -672,3 +796,46 @@ return {1, 0}
             r.incr(fail_key)
             r.expire(fail_key, int(self.max_backoff) + 1)
             r.set(last_fail_key, str(now), ex=int(self.max_backoff) + 1)
+
+    async def _async_redis_is_allowed(self, key: str, now: float) -> tuple[bool, float]:
+        r = self._async_redis
+        digest = _rate_limit_key_digest(key)
+        zkey = f"rl:{digest}"
+        fail_key = f"rl:fail:{digest}"
+        last_fail_key = f"rl:lastfail:{digest}"
+
+        import uuid
+
+        member = str(uuid.uuid4())
+        result = await r.eval(
+            self._IS_ALLOWED_LUA,
+            3,
+            zkey,
+            fail_key,
+            last_fail_key,
+            now,
+            now - self.ttl,
+            self.max_requests,
+            self.ttl,
+            self.backoff_base,
+            self.backoff_multiplier,
+            self.max_backoff,
+            member,
+        )
+        allowed = int(result[0]) == 1
+        retry_after = float(result[1])
+        return allowed, retry_after
+
+    async def _async_redis_record_attempt(self, key: str, success: bool, now: float) -> None:
+        r = self._async_redis
+        digest = _rate_limit_key_digest(key)
+        if success:
+            # Clear failure counter on success
+            await r.delete(f"rl:fail:{digest}")
+            await r.delete(f"rl:lastfail:{digest}")
+        else:
+            fail_key = f"rl:fail:{digest}"
+            last_fail_key = f"rl:lastfail:{digest}"
+            await r.incr(fail_key)
+            await r.expire(fail_key, int(self.max_backoff) + 1)
+            await r.set(last_fail_key, str(now), ex=int(self.max_backoff) + 1)

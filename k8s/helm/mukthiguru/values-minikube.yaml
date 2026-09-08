@@ -11,12 +11,16 @@ backend:
     repository: mukthiguru-backend
     tag: latest
     pullPolicy: Never
+  # Step-22 root cause 2026-09-06: measured single-replica idle RSS ~4.3GiB
+  # (ONNX BGE-M3 + reranker + LettuceDetect + graph compilation). The old 4Gi
+  # limit here would OOM-kill on this file's own replicaCount:2, same failure
+  # mode found on Railway. Raised to 6Gi to match the measured baseline.
   resources:
     requests:
-      memory: "2Gi"
+      memory: "3Gi"
       cpu: "1"
     limits:
-      memory: "4Gi"
+      memory: "6Gi"
       cpu: "2"
 
 frontend:

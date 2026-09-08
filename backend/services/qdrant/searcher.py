@@ -31,6 +31,30 @@ from services.tenant_context import TenantContext
 logger = logging.getLogger(__name__)
 
 
+def _extract_dense_vector(hit) -> Optional[list[float]]:
+    """Pull the stored dense vector off a Qdrant result point.
+
+    Returns the vector as a plain list when present and dimensionally valid,
+    else None (caller falls back to re-encoding). Named-vector collections
+    expose ``hit.vector`` as ``{"dense": [...], ...}``; unnamed ones as a
+    bare list.
+    """
+    vec = getattr(hit, "vector", None)
+    if vec is None:
+        return None
+    if isinstance(vec, dict):
+        vec = vec.get("dense")
+    if vec is None:
+        return None
+    try:
+        dense = list(vec)
+    except TypeError:
+        return None
+    if not dense or len(dense) != settings.embedding_dimension:
+        return None
+    return dense
+
+
 def retry_with_backoff(max_retries=3, initial_delay=1):
     """Exponential backoff decorator for Qdrant operations."""
 
@@ -255,6 +279,7 @@ class QdrantSearcher:
                     query=FusionQuery(fusion=fusion),
                     limit=internal_limit,
                     with_payload=True,
+                    with_vectors=True,
                 )
                 hits = results.points
                 logger.debug(f"Hybrid search (RRF): {len(hits)} results")
@@ -290,6 +315,7 @@ class QdrantSearcher:
                         query_filter=graph_filter,
                         search_params=dense_search_params,
                         with_payload=True,
+                        with_vectors=True,
                     )
                     hits.extend(graph_results.points)
                 except Exception as exc:
@@ -309,7 +335,7 @@ class QdrantSearcher:
             screened_hits.append(hit)
         hits = screened_hits[:limit]
 
-        return [
+        docs = [
             {
                 "text": hit.payload.get("text", ""),
                 "source_url": hit.payload.get("source_url", ""),
@@ -341,6 +367,13 @@ class QdrantSearcher:
             }
             for hit in hits
         ]
+        # Carry the stored dense vector so MMR/rerank reuse it instead of
+        # re-encoding identical text (skips the embedding inference lock).
+        for doc, hit in zip(docs, hits):
+            dense = _extract_dense_vector(hit)
+            if dense is not None:
+                doc["_dense_embedding"] = dense
+        return docs
 
     @staticmethod
     def _merge_filter(
@@ -399,6 +432,7 @@ class QdrantSearcher:
                 if search_params is not None
                 else self._dense_quantization_search_params(),
                 with_payload=True,
+                with_vectors=True,
             )
             return results.points
         except Exception as e:

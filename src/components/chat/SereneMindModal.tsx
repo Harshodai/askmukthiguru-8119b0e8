@@ -19,7 +19,7 @@ interface SereneMindModalProps {
   onClose: () => void;
   initialTab?: SereneMindTab;
   onComplete?: () => void;
-  isGated?: boolean; // When true: user cannot close until session completes
+  isGated?: boolean; // Step 14: accepted but never traps — close/skip always visible
 }
 
 type BreathPhase = 'idle' | 'inhale' | 'hold1' | 'exhale' | 'hold2' | 'complete';
@@ -156,28 +156,9 @@ export const SereneMindModal = ({ isOpen, onClose, initialTab = 'audio', onCompl
     }
   }, [activeTab, isPlaying]);
 
-  // Prevent tab closure / reload & Escape key closure when Serene Mind is gated and active
-  useEffect(() => {
-    if (isOpen && isGated && phase !== 'complete') {
-      const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-        e.preventDefault();
-        e.returnValue = 'You are in a Serene Mind meditation. Please pause and complete this practice before leaving.';
-        return e.returnValue;
-      };
-      const handleKeyDown = (e: KeyboardEvent) => {
-        if (e.key === 'Escape') {
-          e.preventDefault();
-          e.stopPropagation();
-        }
-      };
-      window.addEventListener('beforeunload', handleBeforeUnload);
-      window.addEventListener('keydown', handleKeyDown, true);
-      return () => {
-        window.removeEventListener('beforeunload', handleBeforeUnload);
-        window.removeEventListener('keydown', handleKeyDown, true);
-      };
-    }
-  }, [isOpen, isGated, phase]);
+  // Step 14: never trap the user — no beforeunload warning, no Escape
+  // interception, even when isGated (SEVERE/CRISIS). The practice is always
+  // skippable via the always-visible close affordances below.
 
   const getPhaseInstruction = () => {
     if (selectedTechnique.id === 'serene_mind') {
@@ -271,7 +252,7 @@ export const SereneMindModal = ({ isOpen, onClose, initialTab = 'audio', onCompl
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="absolute inset-0 bg-background/95 backdrop-blur-xl"
-            onClick={isGated && phase !== 'complete' ? undefined : onClose}
+            onClick={onClose}
           />
 
           <motion.div
@@ -282,16 +263,14 @@ export const SereneMindModal = ({ isOpen, onClose, initialTab = 'audio', onCompl
             className="relative z-10 w-full max-w-lg mx-4"
           >
             <div className="glass-card rounded-3xl bg-card/85 backdrop-blur-xl border border-border/40 shadow-2xl p-6 sm:p-8 text-center max-h-[90vh] overflow-y-auto scrollbar-spiritual">
-              {/* Close Button — hidden/disabled when gated until complete. */}
-              {!(isGated && phase !== 'complete') && (
-                <button
-                  onClick={onClose}
-                  className="absolute top-4 right-4 p-2 rounded-full hover:bg-muted transition-colors"
-                  aria-label={t('common.close')}
-                >
-                  <X className="w-5 h-5 text-muted-foreground" />
-                </button>
-              )}
+              {/* Close Button — always visible, even when gated. */}
+              <button
+                onClick={onClose}
+                className="absolute top-4 right-4 p-2 rounded-full hover:bg-muted transition-colors"
+                aria-label={t('common.close')}
+              >
+                <X className="w-5 h-5 text-muted-foreground" />
+              </button>
 
               {/* Title */}
               <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-ojas/85 mb-1.5">
@@ -368,16 +347,14 @@ export const SereneMindModal = ({ isOpen, onClose, initialTab = 'audio', onCompl
                 <MediaTab mode="video" videoId={SERENE_MIND_VIDEO_ID} url={SERENE_MIND_YOUTUBE_URL} isGated={isGated} onComplete={handleComplete} isPrimary={true} />
               )}
 
-              {/* Gentle escape hatch — hidden/disabled when gated until complete. */}
-              {!(isGated && phase !== 'complete') && (
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="mt-5 text-[11px] text-muted-foreground/80 hover:text-foreground underline underline-offset-2 transition-colors"
-                >
-                  {t('meditation.continueChatting')}
-                </button>
-              )}
+              {/* Gentle escape hatch — always visible, even when gated. */}
+              <button
+                type="button"
+                onClick={onClose}
+                className="mt-5 text-[11px] text-muted-foreground/80 hover:text-foreground underline underline-offset-2 transition-colors"
+              >
+                {t('meditation.continueChatting')}
+              </button>
             </div>
           </motion.div>
         </motion.div>

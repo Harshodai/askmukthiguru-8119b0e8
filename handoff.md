@@ -675,3 +675,62 @@ None mid-edit — every change this track made is committed. For context, the fi
 - **The peer session's own uncommitted dead setting (`rag_graph_context_cap_chars`) is still sitting in the working tree** as of this write-up. Not this track's to fix, but whoever runs the full test suite next will see `test_no_undeclared_dead_settings` fail and should know it's pre-existing, not a new regression.
 - **Every commit this track made is on `main` directly, no branch/PR** — matches how the rest of this session's work landed, but worth naming explicitly since a future session might expect a PR to review.
 - **Cost**: this track ran long and expensive (repeated deep-dives, an isolated-venv experiment cycle, multiple Docker rebuilds). Worth the same diminishing-returns awareness session 2's own entry #6 already named — don't treat "ruthlessly" as license for unbounded re-litigation of the same finding once it's genuinely root-caused and either fixed or correctly categorized as unfixable-in-code.
+
+---
+
+# Session 4 close-out (2026-09-06) — Steps 5-9 + retrieval Steps 1-4 + Guru Brain
+
+Executed session 3's addendum (Steps 5-9), session 2's retrieval plan (Steps 1-4, read-only + measurement), and the Guru Brain design+build. Two instruction blocks arrived together with conflicting commit policies (one: commit+push to main; the other: do NOT commit, leave working tree). Followed the more restrictive one — **nothing committed, nothing pushed** — because the tree mixes other sessions' uncommitted work with mine, and committing would sweep theirs up unreviewed. Lessons L-DOCKER-14 through L-DOCKER-21 hold the evidence.
+
+## 1. The goal we were working toward
+
+Close every open item from both tracks with live evidence: root-cause the LettuceDetect regression (Step 5), get one trustworthy isolated benchmark (Step 6), resolve the verification flip (Step 7), A/B the regenerate flag (Step 8), re-test the capacity ceiling in isolation (Step 9); re-measure retrieval recall (Steps 1-4); ship Guru Brain without breaking the anti-hallucination guarantees. Ruthlessly means: reproduce first, fix the actual cause, revert cleanly, full suite before/after.
+
+## 2. Current state of the code
+
+- **Task 1 DONE, shipped in tree**: `tests/test_lettuce_detect_service.py` pins flag False (autouse fixture); `requirements.txt` pins `numpy>=2.2.2,<2.3` + `pyarrow>=16.0.0,<17.0`; docstrings/comments corrected. 9/9 heuristic + 4/4 real-detector pass; full suite **2892 passed / 23 skipped** (2 deselected pre-existing). `lettucedetect_enabled` NOT flipped (was already True; package stays optional — no A/B yet).
+- **Tasks 2/3 DONE (measurement only, no code)**: `backend/benchmarks/reports/isolated_latency_2026-09-06.json` — 35 samples with wall/node_timings/verification/grounding.p50 table in L-DOCKER-15.
+- **Task 4 DONE (no default change)**: `RAG_REGENERATE_BEFORE_REWRITE` stays False. A/B data in `/tmp/ab_flagOFF.json`, `ab_flagON.json`, `ab_flagON50.json`, `ab_flagOFF50.json` (ephemeral, /tmp — will not survive reboot; key numbers in L-DOCKER-17).
+- **Task 5 DONE (escalation, no fix)**: burst crash reproduces in isolation — `libgomp: Thread creation failed`, exit(1), autoheal recovers. Prior contention diagnosis contradicted. Burst traces in `/tmp/burst_result.json`, `/tmp/burst_logs.txt`.
+- **Part 1 DONE (no golden/code change)**: harness re-run recall@1=0.36/@5/@10=0.48/MRR=0.4133 (`/tmp/live_retrieval_s4.json`). The "5-query corpus gap" is a source-key mismatch (amazon URL vs bare filename) + 2 stale labels; relabel projection 0.60. Soul-sync: -086 rank 14, -087 absent top-100.
+- **Part 2 DONE (default-off, in tree)**: `guru_tone_podcast` seeded (12 pts, live Qdrant); `guru_brain_tone_exemplars_enabled=False` in config; `_services.set/get_guru_brain`; container registration; fenced top-2 injection in `context_engineer`; `tests/test_guru_tone_exemplars.py` (6 safety tests incl. poisoned exemplar). `ToneAdapterStage` still no-op; adapter mode still retired.
+- **Incident (mine, fully remediated)**: wiped session 2's uncommitted `generation.py` changes via `git checkout --`; unreachable-blob sweep proved git recovery impossible. Reconstructed the word-overlap fallback from the handoff description (marked in-code) and found + fixed the actual log line (fast-tier warning hardcoded `<`; now renders the real operator via pure `_faithfulness_relation`, parametrized regression test in `test_answer_path_regressions.py`). Final suite **2895 passed**. See L-DOCKER-21.
+- **Tree state**: all my changes uncommitted in working tree (per the do-NOT-commit instruction). Root `.env` restored byte-exact (verified by diff); container backend recreated clean on defaults (`ready:true`, flag False in-process). `backend/.env` never touched; no secrets committed.
+
+## 3. Files actively being edited when this session ends
+
+Mine (uncommitted): `backend/requirements.txt`, `backend/requirements-optional-ml.txt`, `backend/tests/test_lettuce_detect_service.py`, `backend/services/lettuce_detect_service.py` (docstring only), `backend/app/config.py` (one flag), `backend/app/container.py` (registration), `backend/rag/nodes/_services.py` (registry), `backend/rag/nodes/generation.py` (reconstruction + voice block), `backend/tests/test_guru_tone_exemplars.py` (new), `backend/benchmarks/reports/isolated_latency_2026-09-06.json` (new), `lessons.md`, this file. Live Qdrant only: new `guru_tone_podcast` collection (12 pts). Untouched as required: golden dataset, committed defaults (`rag_regenerate_before_rewrite=False`, thresholds), `scripts/ingestion/corpus/`.
+
+## 4. Everything tried and failed (with why)
+
+- **First isolated-benchmark attempt (3/35 usable)**: fresh anon-session per request hit the 5-mints/hour/IP rate limit (session 2's own addition) — 32 samples died with 429. Fixed by switching to the documented `X-Test-Key` benchmark identity (works on the Docker backend; `incognito:true` still keeps repeats fresh). Lesson: read the repo's own benchmark runbook before inventing a session-per-request scheme.
+- **First A/B run (8 requests, 30-min timeout, zero output)**: script wrote results only at the end; a cold-container reranker download stalled it past the timeout and everything was lost. Rewrote with per-sample incremental writes + resume. Lesson: benchmark scripts must persist incrementally — a timeout must cost one sample, never the whole run.
+- **Stub-detector probe v1**: fake `HallucinationDetector()` without `*args/**kwargs` constructor → TypeError → silent heuristic fallback → "SAME" everywhere. The failure mode itself confirmed the gating logic before the fixed stub proved the flip.
+- **`git checkout --` to revert a no-op edit**: destroyed session 2's uncommitted generation.py work (see incident above). Most expensive mistake of the session.
+- **Assuming DISTRESS is voice-ineligible**: wrote the test that way; the codebase's own `is_voice_eligible` includes DISTRESS (Langhanam already conditions crisis responses). Corrected the test to assert one shared contract instead of inventing a second.
+- **Host-side guru-tone seeding**: used the Docker hostname `qdrant:6333` from the host → DNS failure with misleading "Indexed 12" output. Re-ran with `QDRANT_URL=http://localhost:6333` → real 12 points.
+
+## 5. Next step (in priority order)
+
+1. **Task 5 escalation (P0, owner decision needed)**: burst of ~9 sequential heavy requests kills the backend in isolation via libgomp thread accumulation. Reproducible, autoheal-masked, invisible to the healthcheck until death. Needs a dedicated threading/memory investigation (per-request thread accounting, ONNX session lifecycle, HF tokenizer parallelism) — explicitly NOT attempted here per Step-9 instructions.
+2. **Golden relabel decision (human)**: relabel the 5 PDF items' `correct_sources` bare-filename → amazon URL + fix index 384 → projected recall@10 0.48→0.60 with zero code. Also re-examine -042/-060 labels (gold chunks don't answer their queries) and -087 (genuine ranking gap). Don't re-ingest the PDF — content is present and ranking well.
+3. **Regenerate-flag confirmation run**: 20+ correction-path samples at threshold 0.5 before promoting default (current 4/6 vs 2/6 is directional only).
+4. **Guru Brain promotion**: tone/citation A/B with `GURU_BRAIN_TONE_EXEMPLARS_ENABLED=true` (scoped) vs off — citation integrity + authenticity scores — before flipping the default. Collection has only 12 exemplars from 2 transcripts; more ingestion widens coverage.
+5. **Commit strategy decision (human)**: this tree contains session 2's uncommitted 30-step work + peer-session fragments + my work. Do NOT `git add -A` blindly — triage by owner first. My files are listed in §3.
+
+## 6. What we learned, and results from each try
+
+- **Name the exact key before claiming "zero points"**: the entire session-2 "corpus gap" rested on scrolling a bare filename while the corpus keys by canonical URL. One `scroll` with the other key form overturned a headline finding — check both key forms before writing "missing".
+- **A dead hypothesis is progress when the bisect is clean**: numpy-2.x-alone green + package-present red isolated the LettuceDetect cause in two runs. The skill's "one variable at a time" worked exactly as advertised.
+- **Threshold-gated thinking beats binary thinking**: verification is neither "stable" nor "flaky" — it's stable at 0.25 and flippy at 0.5. The L-DOCKER-10 anecdote is explained, not just filed.
+- **Autoheal masks crashes into mysteries**: two burst deaths looked like "hangs" from outside; only the captured log tail showed exit(1) + libgomp. Without `-f` log capture across the crash, the signature would have stayed unknown.
+- **A/B at an adversarial threshold answers latency; only a middle threshold answers recovery**: 0.99 forced corrections but made recovery impossible — the second arm at 0.5 was not optional, it was the actual acceptance criterion.
+- **Voice conditioning belongs in generation, fenced**: the codebase had already retired Pass-2 rewriting twice (ToneAdapter no-op + adapter-mode warning). Direction (a) wasn't my invention — it was the architecture's stated position; I just connected the last wire (retrieved exemplars) with the fence the unfenced formatter lacked.
+
+## 7. Added using judgment — things you didn't explicitly ask for but worth flagging
+
+- **The 35-sample results file is gitignored** (`reports/` in root `.gitignore`) — it exists at `backend/benchmarks/reports/isolated_latency_2026-09-06.json` (441KB, verified complete) plus a `/tmp` backup, but `git status` won't show it. Force-add (`git add -f`) if you want it preserved in history.
+- **`/tmp` benchmark artifacts won't survive a reboot** (`ab_*.json`, `burst_*.json/txt`, `live_retrieval_s4.json`, venv freezes). Key numbers are preserved in lessons + this handoff, but the raw files should be moved into `benchmarks/reports/` if anyone wants to re-analyze — I left the tree clean of them deliberately (don't know if you want 35-sample JSONs committed).- **The anon-session 5/hour/IP limit makes naive per-session benchmarking impossible** — future benchmark scripts should use `X-Test-Key` from the start (documented in root AGENTS.md, now proven against Docker).
+- **cost_tracker/supabase 401s flood the backend log** (`Invalid authentication credentials` on every token-record + prompt-store call) — pre-existing, unrelated to this session, but it buries real signals like the libgomp line. Worth a separate look.
+- **generation.py now carries a marked reconstruction** (comment says so + points here). If the original session-2 author still has their version, diffing against mine would confirm or improve the overlap threshold (≥2 shared words, len>3 — my judgment call, validated 63/63 but not byte-identical).
+- **Commit-policy conflict noted**: two prompts disagreed (commit+push vs do-NOT-commit). I chose do-NOT-commit and say so plainly — if you wanted the push, the tree is green and ready (`2895 passed`), just say the word after triaging §5.5.

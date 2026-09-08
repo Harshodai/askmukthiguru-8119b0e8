@@ -93,14 +93,17 @@ spec:
               drop: ["ALL"]
 
           # ---- Resource limits: Guaranteed QoS (requests == limits) ----
-          # 4GB RAM = BGE-M3 (1.6GB) + CrossEncoder (0.2GB) + Python overhead
+          # 6GB RAM: Step-22 root cause 2026-09-06 measured single-replica idle
+          # RSS at ~4.3GiB (ONNX BGE-M3 + reranker + LettuceDetect + graph
+          # compilation) - the old ~1.8GB estimate here was falsified. Same
+          # baseline as railway.json's deploy.limits.memory.
           # 2 CPU = 1 for model inference + 1 for FastAPI handlers
           resources:
             requests:
-              memory: "4Gi"
+              memory: "6Gi"
               cpu: "2000m"
             limits:
-              memory: "4Gi"
+              memory: "6Gi"
               cpu: "2000m"
 
           # ---- Env configuration (non-secret) ----

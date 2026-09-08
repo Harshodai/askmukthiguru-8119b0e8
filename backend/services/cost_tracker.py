@@ -111,6 +111,26 @@ _BUDGET_CHECK_INTERVAL_SECONDS = 3600
 # Retry a failed usage read after a short cooldown, not on every request.
 _BUDGET_FAILURE_RETRY_SECONDS = 1.0
 _BUDGET_CHECK_LOCK = Lock()
+# Step 27: over-budget degradation flag per tenant. Set by _maybe_check_budget
+# when projected monthly spend exceeds settings.monthly_cost_budget_usd, cleared
+# when back under budget. Cheapest tier is ollama (self-hosted, rate 0.0) — so
+# over-budget requests degrade to ollama instead of only logging; non-essential
+# endpoints may instead check is_over_budget() and return a graceful
+# "high demand" response.
+_BUDGET_DEGRADED_TENANTS: set[str] = set()
+CHEAPEST_PROVIDER = "ollama"
+
+
+def is_over_budget(tenant_id: str = "default") -> bool:
+    return (tenant_id or "default") in _BUDGET_DEGRADED_TENANTS
+
+
+def resolve_provider_with_budget(
+    preferred_provider: str, tenant_id: str = "default"
+) -> str:
+    if is_over_budget(tenant_id):
+        return CHEAPEST_PROVIDER
+    return preferred_provider
 
 
 @dataclass
@@ -200,6 +220,8 @@ class CostTracker:
         projected_monthly = today_cost * 30
         budget = _non_negative_decimal(settings.monthly_cost_budget_usd)
         if projected_monthly > budget:
+            with _BUDGET_CHECK_LOCK:
+                _BUDGET_DEGRADED_TENANTS.add(tenant_key)
             logger.warning(
                 "Cost budget alert: tenant=%s today=$%.4f projected_monthly=$%.2f "
                 "exceeds budget=$%.2f (~₹3,000/month envelope)",
@@ -224,6 +246,9 @@ class CostTracker:
                     ).execute()
                 except Exception as e:
                     logger.error(f"Failed to write budget alert to alert_events: {e}")
+        else:
+            with _BUDGET_CHECK_LOCK:
+                _BUDGET_DEGRADED_TENANTS.discard(tenant_key)
 
     def get_usage_report(
         self,

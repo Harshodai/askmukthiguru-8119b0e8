@@ -9,7 +9,6 @@ import re
 from app.tracing import trace_rag_node
 from rag.compressor import compress_documents
 from rag.doc_utils import doc_text
-from rag.nodes.retrieval import _screen_prompt_injection
 from rag.states import GraphState
 from rag.timeout_utils import get_node_timeout
 
@@ -421,36 +420,52 @@ async def enrich_context(state: GraphState, config: dict = None) -> dict:
     enriched_docs = []
     seen_hashes = set()
 
-    # Start LightRAG graph query concurrently with context enrichment
-    _lightrag_graph_task = None
-    try:
-        _lightrag_svc = _services._lightrag
-        if _lightrag_svc and getattr(_lightrag_svc, "rag", None):
-            _question = state.get("rewritten_query") or state.get("question", "")
-            if _question:
-                _lightrag_graph_task = asyncio.create_task(
-                    asyncio.wait_for(
-                        _lightrag_svc.aquery(_question, mode="global", only_need_context=True),
-                        timeout=3.0,
-                    )
+    # LightRAG global-graph enrichment: explicitly disabled (2026-09-06).
+    # Previously gated only by `_lightrag_svc.rag` being unset, which happened
+    # to be true in production but was an implementation detail, not an
+    # intentional gate — Step 11's fix to the neighbor-chunk lookup below
+    # introduced a real `await` between this task's creation and its `.done()`
+    # check, which would have let this path fire for the first time had `.rag`
+    # ever become populated. Per the retrieval audit, `mode="global"` runs
+    # LightRAG's community-detection synthesis, which needs typed graph
+    # structure this corpus doesn't have (Neo4j is ~100% generic `DIRECTED`
+    # edges) — not worth the latency risk (up to 3s) for near-zero signal.
+    # Matches the explicit `lightrag=None` disablement already used on the
+    # hot retrieval path (retrieve_for_single_query call sites).
+
+    top_docs = relevant_docs[:3]
+    neighbor_results: dict[int, object] = {}
+    _eligible_idx = [
+        i
+        for i, doc in enumerate(top_docs)
+        if doc.get("source_url")
+        and doc.get("chunk_index") is not None
+        and doc.get("content_type") != "web_search"
+    ]
+    if _eligible_idx:
+        _fetched = await asyncio.gather(
+            *[
+                asyncio.to_thread(
+                    qdrant.get_neighbor_chunks,
+                    top_docs[i].get("source_url"),
+                    top_docs[i].get("chunk_index"),
+                    window=settings.rag_context_window,
                 )
-    except Exception as _lg_exc:
-        logger.debug(f"Enrich context: LightRAG task creation skipped: {_lg_exc}")
+                for i in _eligible_idx
+            ],
+            return_exceptions=True,
+        )
+        neighbor_results = dict(zip(_eligible_idx, _fetched))
 
-    for doc in relevant_docs[:3]:
-        source_url = doc.get("source_url")
-        chunk_index = doc.get("chunk_index")
-
+    for i, doc in enumerate(top_docs):
         # Bypass neighbor lookup for web search results since they are not in Qdrant
-        if source_url and chunk_index is not None and doc.get("content_type") != "web_search":
-            try:
-                neighbors = qdrant.get_neighbor_chunks(
-                    source_url, chunk_index, window=settings.rag_context_window
-                )
-            except Exception as _neighbor_exc:
-                # Circuit-open or transient Qdrant failure: degrade to the
-                # un-enriched doc rather than failing the whole node.
-                logger.debug(f"Neighbor lookup skipped: {_neighbor_exc}")
+        if i in neighbor_results:
+            neighbors = neighbor_results[i]
+            if isinstance(neighbors, Exception) or not neighbors:
+                # Circuit-open or transient Qdrant failure or empty neighbors: degrade to the
+                # un-enriched doc rather than failing or dropping it.
+                if isinstance(neighbors, Exception):
+                    logger.debug(f"Neighbor lookup skipped: {neighbors}")
                 h = hash(doc_text(doc)[:100])
                 if h not in seen_hashes:
                     seen_hashes.add(h)
@@ -472,37 +487,6 @@ async def enrich_context(state: GraphState, config: dict = None) -> dict:
         if h not in seen_hashes:
             seen_hashes.add(h)
             enriched_docs.append(doc)
-
-    # Await LightRAG graph result if the task completed in time
-    if _lightrag_graph_task is not None and not _lightrag_graph_task.done():
-        _lightrag_graph_task.cancel()
-        _lightrag_graph_task = None
-
-    if _lightrag_graph_task is not None:
-        try:
-            graph_ctx = _lightrag_graph_task.result()
-            if graph_ctx and len(graph_ctx.strip()) > 50 and "offline" not in graph_ctx.lower():
-                capped_ctx = graph_ctx.strip()[: settings.rag_graph_context_cap_chars]
-                summary_doc = {
-                    "title": "LightRAG Knowledge Graph Synthesis",
-                    "text": capped_ctx,
-                    "content_type": "lightrag_relationship_summary",
-                    "source_url": "knowledge_graph",
-                    "score": 0.95,
-                }
-                # This node runs after retrieve_documents, so it bypasses that
-                # node's _screen_prompt_injection call unless applied here.
-                if _screen_prompt_injection([summary_doc]):
-                    enriched_docs.insert(0, summary_doc)
-                    logger.info(
-                        "Enrich context: blended LightRAG global graph summary into context"
-                    )
-                else:
-                    logger.warning(
-                        "Enrich context: dropped LightRAG summary failing prompt-injection screen"
-                    )
-        except Exception as exc:
-            logger.warning(f"Enrich context: LightRAG summary fetch skipped (non-critical): {exc}")
 
     logger.info(
         f"Enriched {len(relevant_docs)} -> {len(enriched_docs)} chunks using window={settings.rag_context_window}"

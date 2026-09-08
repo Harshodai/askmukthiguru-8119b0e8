@@ -12,7 +12,7 @@
   },
   "deploy": {
     "healthcheckPath": "/api/healthz",
-    "healthcheckTimeout": 120,
+    "healthcheckTimeout": 330,
     "startCommand": "python start_railway.py",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 5,
@@ -20,9 +20,9 @@
     "overlapSeconds": 120,
     "limits": {
       "cpu": 4000,
-      "memory": "4Gi"
+      "memory": "6Gi"
     },
-    "_memory_note": "Optimized memory footprint: ONNX INT8 quantized BGE-M3 (550MB) + INT8 Reranker (150MB) + In-RAM SQ Qdrant reduces working set from 5.6GB to ~1.2GB, safely fitting inside 4Gi cap.",
-    "_cold_start_note": "P1-OPS-6: overlapSeconds 120 keeps old replica serving while the new one boots. EMBEDDING_BACKEND=onnx_int8 is pre-baked in Dockerfile.railway for instant sub-3s cold boot."
+    "_memory_note": "Step-22 root cause 2026-09-06, measured: single replica idles at ~4.3GiB RSS (docker stats, compose 6Gi cap) - the old ~1.2GB estimate was falsified. Cap raised 4Gi->6Gi (2026-09-06) to match measured need with headroom. N replicas still need N x 6Gi of available cluster capacity.",
+    "_cold_start_note": "Step-22 fix: healthcheckTimeout 330 covers worst-case sequential boot (LightRAG 120s + background init 180s = 300s, plus 30s margin) and matches start_railway.py _GRACE_SECONDS=330. Warm single-replica boot takes ~53s (FAST graph ~26s, LightRAG ~11s, intent/router/embedding warm-ups ~13s); expect slower boots under 2-replica contention. P1-OPS-6: overlapSeconds 120 keeps old replica serving while the new one boots."
   }
 }

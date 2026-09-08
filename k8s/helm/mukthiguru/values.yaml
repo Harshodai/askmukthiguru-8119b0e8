@@ -21,9 +21,12 @@ backend:
     tag: latest
     pullPolicy: IfNotPresent
   port: 8000
+  # Step-22 root cause 2026-09-06: measured single-replica idle RSS ~4.3GiB.
+  # requests raised from 4Gi so the scheduler doesn't under-provision below
+  # actual usage; limits (8Gi) already had headroom.
   resources:
     requests:
-      memory: "4Gi"
+      memory: "6Gi"
       cpu: "2"
     limits:
       memory: "8Gi"

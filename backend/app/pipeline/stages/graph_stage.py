@@ -301,6 +301,7 @@ class GraphStage(Stage):
                     "tier4_deep" if graph_variant == "deep" else "standard"
                 )
 
+            requested_graph_variant = graph_variant
             selected_graph = getattr(container, f"{graph_variant}_graph")
 
             # Verify the fast_graph definition contains the distress/quality-gate nodes before allowing fast routing
@@ -316,13 +317,35 @@ class GraphStage(Stage):
                     selected_graph = container.standard_graph
                     initial_state["query_tier"] = "standard"
 
+            # Warmup-alias honesty: ContainerBuilder aliases standard/deep to
+            # the fast graph object until _warm_optional_graphs swaps in the
+            # real compiled graphs. Reporting "standard"/"deep" while the fast
+            # object actually ran corrupts telemetry/evals, so downgrade the
+            # reported variant (and tier gates) to what actually executes.
+            warmup_downgraded = False
+            if graph_variant in ("standard", "deep"):
+                try:
+                    fast_graph = container.fast_graph
+                except AttributeError:
+                    fast_graph = None
+                if fast_graph is not None and selected_graph is fast_graph:
+                    logger.info(
+                        "Graph warmup alias: requested %s but serving fast graph; reporting fast",
+                        graph_variant,
+                    )
+                    graph_variant = "fast"
+                    initial_state["query_tier"] = "tier2_simple"
+                    warmup_downgraded = True
+
             # This manifest is internal-only and intentionally contains enums,
             # booleans, and a release policy id—not prompts, memory, or graph state.
             policy_version = get_release_manifest().to_dict().get("policy_version", "unknown")
             ctx.route_metadata.update(
                 {
                     "requested_variant": str(ctx.detected_query_tier or tier_for_graph)[:32],
+                    "requested_graph_variant": str(requested_graph_variant)[:32],
                     "selected_variant": str(graph_variant)[:32],
+                    "warmup_downgraded": bool(warmup_downgraded),
                     "detected_cache_tier": str(ctx.detected_query_tier or "unknown")[:32],
                     "normalized_query_tier": str(initial_state.get("query_tier") or "unknown")[:32],
                     "on_device_intent": str(detected_intent or "unknown")[:32],

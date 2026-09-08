@@ -467,7 +467,10 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
     cove_disabled = bool(getattr(settings, "rag_cove_disabled", False))
     should_run_cove = not cove_disabled and (
         query_tier in ("tier3_complex", "tier4_deep")
-        or faithfulness_score < cove_compulsory_threshold
+        or (
+            faithfulness_score < cove_compulsory_threshold
+            and query_tier not in ("fast", "tier2_simple")
+        )
     )
 
     cove_failed = True
@@ -477,7 +480,7 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
     if should_run_cove and ollama:
         try:
             cove_result = await asyncio.wait_for(
-                _cove_subquestion_check(question, answer, context, ollama),
+                _cove_subquestion_check(question, answer, context, ollama, config),
                 timeout=float(getattr(settings, "cove_verification_timeout", 12.0)),
             )
             cove_failed = not cove_result["passed"]
@@ -616,9 +619,15 @@ async def _verify_with_gateway(state: GraphState, config: dict | None) -> dict |
     }
 
 
-async def _cove_subquestion_check(question: str, answer: str, context: str, ollama):
+async def _cove_subquestion_check(
+    question: str, answer: str, context: str, ollama, config: dict | None = None
+):
     """Lightweight CoVe: generate sub-questions and score support.
-    Returns dict with passed, details, and confidence."""
+    Returns dict with passed, details, and confidence.
+
+    Step 20: emits "Checking sub-question N of M..." per sub-question via the
+    existing emit_status mechanism so the tier3/tier4 verification window is
+    not opaque. config is optional (None = non-streaming path, no-op)."""
     try:
         # Generate 2-3 sub-questions from the answer
         prompt = (
@@ -634,7 +643,12 @@ async def _cove_subquestion_check(question: str, answer: str, context: str, olla
         )
         sub_qs = [q.strip() for q in raw.splitlines() if q.strip() and len(q) > 10][:3]
 
-        async def _verify_single_sq(sq: str) -> bool:
+        async def _verify_single_sq(sq: str, idx: int, total: int) -> bool:
+            await emit_status(
+                config,
+                f"Checking sub-question {idx + 1} of {total}...",
+                node="verify_answer",
+            )
             verify_prompt = (
                 "Does the context support a 'yes' answer? Reply only 'yes' or 'no'.\n\n"
                 f"Context:\n{context[:1500]}\n\n"
@@ -653,7 +667,8 @@ async def _cove_subquestion_check(question: str, answer: str, context: str, olla
 
         if sub_qs:
             results = await asyncio.gather(
-                *[_verify_single_sq(sq) for sq in sub_qs], return_exceptions=True
+                *[_verify_single_sq(sq, i, len(sub_qs)) for i, sq in enumerate(sub_qs)],
+                return_exceptions=True,
             )
             supported = sum(1 for r in results if r is True)
         else:

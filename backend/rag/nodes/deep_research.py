@@ -83,7 +83,11 @@ def _deep_research_active(state: dict) -> bool:
         "QUERY",
     ):
         return False
-    return state.get("query_tier") in ("tier3_complex", "tier4_deep") or state.get("intent") == "standard"
+    # Fixed 2026-09-05: was ("tier3_complex", "tier4_deep") only — excluded "deep",
+    # the tier comparative/multi-part queries actually land on (see the matching
+    # fix + comment on the outer gate in rag/nodes/retrieval.py). Confirmed via a
+    # live "difference between X and Y" query that resolved to query_tier="deep".
+    return state.get("query_tier") in ("deep", "tier3_complex", "tier4_deep")
 
 
 async def conduct_deep_research(

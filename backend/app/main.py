@@ -883,7 +883,7 @@ async def auth_rate_limit_middleware(request: Request, call_next):
         client_ip = request.client.host if request.client else "unknown"
         ip_key = f"auth_rl:ip:{request.url.path}:{client_ip}"
 
-        ip_allowed, ip_retry_after = _AUTH_RATE_LIMITER.is_allowed(ip_key)
+        ip_allowed, ip_retry_after = await _AUTH_RATE_LIMITER.is_allowed_async(ip_key)
         if not ip_allowed:
             return JSONResponse(
                 status_code=429,
@@ -900,9 +900,11 @@ async def auth_rate_limit_middleware(request: Request, call_next):
             email = body.get("email") or body.get("username") or ""
             if email:
                 acct_key = f"auth_rl:acct:{email}"
-                acct_allowed, acct_retry_after = _AUTH_RATE_LIMITER.is_allowed(acct_key)
+                acct_allowed, acct_retry_after = await _AUTH_RATE_LIMITER.is_allowed_async(
+                    acct_key
+                )
                 if not acct_allowed:
-                    _AUTH_RATE_LIMITER.record_attempt(ip_key, success=False)
+                    await _AUTH_RATE_LIMITER.record_attempt_async(ip_key, success=False)
                     return JSONResponse(
                         status_code=429,
                         content={
@@ -917,9 +919,9 @@ async def auth_rate_limit_middleware(request: Request, call_next):
         resp = await call_next(request)
 
         success = resp.status_code < 400
-        _AUTH_RATE_LIMITER.record_attempt(ip_key, success=success)
+        await _AUTH_RATE_LIMITER.record_attempt_async(ip_key, success=success)
         if acct_key is not None:
-            _AUTH_RATE_LIMITER.record_attempt(acct_key, success=success)
+            await _AUTH_RATE_LIMITER.record_attempt_async(acct_key, success=success)
         return resp
     return await call_next(request)
 
@@ -933,7 +935,7 @@ async def admin_rate_limit_middleware(request: Request, call_next):
     if request.url.path.startswith(_ADMIN_LIMIT_PATH):
         client_ip = request.client.host if request.client else "unknown"
         key = f"admin_rl:{client_ip}"
-        result = _ADMIN_RATE_LIMITER.is_allowed(key)
+        result = await _ADMIN_RATE_LIMITER.is_allowed_async(key)
         # RedisBackedRateLimiter returns (allowed, retry_after); TTLRateLimiter returns bool.
         allowed = result[0] if isinstance(result, tuple) else result
         retry_after = result[1] if isinstance(result, tuple) else 60

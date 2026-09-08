@@ -24,7 +24,7 @@ interface GuidedMeditationFlowProps {
   customSteps?: MeditationStep[];
   /** Source teaching citation shown when customSteps are active */
   sourceTeaching?: string;
-  /** Crisis/safety paths can gate closing until the practice is complete. */
+  /** Step 14: accepted for compatibility; never blocks closing. */
   isGated?: boolean;
   onComplete?: () => void;
 }
@@ -68,6 +68,8 @@ const clearResume = () => {
 };
 
 export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeaching, isGated = false, onComplete }: GuidedMeditationFlowProps) => {
+  // Step 14: isGated is accepted for API compatibility but never traps the user.
+  void isGated;
   const { t } = useTranslation();
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [elapsed, setElapsed] = useState(0);
@@ -264,7 +266,7 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
   }, [isComplete, onComplete]);
 
   const requestClose = useCallback(() => {
-    if (isGated && !isComplete) return;
+    // Step 14: always skippable — isGated no longer blocks closing.
     // If the user has not started yet, or has finished, close immediately.
     if (!isPlaying && elapsed === 0 && currentStepIndex === 0) {
       onClose();
@@ -277,7 +279,7 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
     // Otherwise ask before abandoning practice.
     setIsPlaying(false);
     setShowCloseConfirm(true);
-  }, [isPlaying, elapsed, currentStepIndex, isComplete, isGated, onClose]);
+  }, [isPlaying, elapsed, currentStepIndex, isComplete, onClose]);
 
   const confirmPauseAndExit = useCallback(() => {
     // Progress is already persisted to localStorage every tick — keep it
@@ -326,16 +328,14 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
         aria-modal="true"
         aria-label="Serene Mind meditation"
       >
-        {/* Close — gated sessions can only close after completion. */}
-        {(!isGated || isComplete) && (
-          <button
-            onClick={requestClose}
-            className="absolute top-4 right-4 p-2 rounded-full hover:bg-muted transition-colors z-10"
-            aria-label={t('common.close')}
-          >
-            <X className="w-5 h-5 text-muted-foreground" />
-          </button>
-        )}
+        {/* Close — always visible, even for gated sessions. */}
+        <button
+          onClick={requestClose}
+          className="absolute top-4 right-4 p-2 rounded-full hover:bg-muted transition-colors z-10"
+          aria-label={t('common.close')}
+        >
+          <X className="w-5 h-5 text-muted-foreground" />
+        </button>
 
         {/* Back Button for post-practice reflection steps */}
         {isComplete && reflectionStep > 0 && reflectionStep < 3 && (

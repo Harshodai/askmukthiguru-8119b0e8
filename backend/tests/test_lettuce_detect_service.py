@@ -2,7 +2,19 @@
 
 from __future__ import annotations
 
+import pytest
+
+from app.config import settings
 from services.lettuce_detect_service import LettuceDetectService
+
+
+@pytest.fixture(autouse=True)
+def _pin_heuristic_path(monkeypatch):
+    """These tests assert heuristic-path contracts (fake embedder scores,
+    lexical overlap, sentence-splitting rules). Pin the flag off so they
+    exercise the heuristic even when the real ``lettucedetect`` package is
+    installed (its verdicts on synthetic fixtures differ by design)."""
+    monkeypatch.setattr(settings, "lettucedetect_enabled", False)
 
 
 class _FakeEmbedder:
