@@ -648,7 +648,7 @@ const ProfilePage = () => {
             <TabsContent value="stats" className="space-y-6 mt-0">
               <StreakMilestoneCard
                 currentStreak={stats?.streakDays || 0}
-                longestStreak={(stats as any)?.longestStreakDays || stats?.streakDays || 0}
+                longestStreak={stats?.longestStreakDays || stats?.streakDays || 0}
               />
 
               <SadhanaHeatmap sessions={sessions} weeksToShow={24} />
@@ -661,8 +661,6 @@ const ProfilePage = () => {
                     ? 'practitioner'
                     : 'seeker'
                 }
-                totalConversations={metrics?.totalConversations || 0}
-                totalReflections={(metrics as any)?.totalReflections || (metrics as any)?.totalMessages || 0}
               />
 
               <ProfileStatTiles stats={stats} sessions={sessions} />

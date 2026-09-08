@@ -18,6 +18,7 @@ export interface MeditationStats {
   totalMinutes: number;
   totalCycles: number;
   streakDays: number;
+  longestStreakDays?: number;
   lastSessionDate: Date | null;
 }
 

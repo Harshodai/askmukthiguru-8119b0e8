@@ -15,7 +15,7 @@ class HapticAudioEngine {
       }
     }
     if (this.ctx && this.ctx.state === 'suspended') {
-      this.ctx.resume().catch(() => {});
+      this.ctx.resume().catch(() => undefined);
     }
     return this.ctx;
   }
@@ -78,7 +78,9 @@ class HapticAudioEngine {
         osc.start(now + idx * 0.03);
         osc.stop(now + 0.5);
       });
-    } catch {}
+    } catch {
+      return;
+    }
   }
 
   /** Subtle button press tick */
@@ -104,7 +106,9 @@ class HapticAudioEngine {
 
       osc.start(now);
       osc.stop(now + 0.03);
-    } catch {}
+    } catch {
+      return;
+    }
   }
 }
 

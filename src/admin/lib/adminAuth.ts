@@ -16,6 +16,15 @@ function getSafeSessionStorage(): Storage | null {
   }
 }
 
+/** This legacy key must not grant access; removal can fail in restricted storage. */
+function removeLegacyLocalSession(): void {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    return;
+  }
+}
+
 /**
  * Verify admin role using Supabase JWT session (not storage).
  * Returns true only if a valid Supabase session exists AND user has admin role.
@@ -30,7 +39,7 @@ export async function verifyAdminSession(): Promise<{
   } = await supabase.auth.getSession();
   if (!session?.user) {
     storage?.removeItem(STORAGE_KEY);
-    try { localStorage.removeItem(STORAGE_KEY); } catch {}
+    removeLegacyLocalSession();
     return { authenticated: false, session: null };
   }
 
@@ -42,7 +51,7 @@ export async function verifyAdminSession(): Promise<{
   // Type guard: RPC must return boolean true, not truthy/undefined/null
   if (roleOk !== true) {
     storage?.removeItem(STORAGE_KEY);
-    try { localStorage.removeItem(STORAGE_KEY); } catch {}
+    removeLegacyLocalSession();
     return { authenticated: false, session: null };
   }
 
@@ -52,7 +61,7 @@ export async function verifyAdminSession(): Promise<{
     loggedInAt: new Date().toISOString(),
   };
   storage?.setItem(STORAGE_KEY, JSON.stringify(adminSession));
-  try { localStorage.removeItem(STORAGE_KEY); } catch {}
+  removeLegacyLocalSession();
   return { authenticated: true, session: adminSession };
 }
 
@@ -87,7 +96,7 @@ export async function loginAdmin(
   };
 
   storage?.setItem(STORAGE_KEY, JSON.stringify(session));
-  try { localStorage.removeItem(STORAGE_KEY); } catch {}
+  removeLegacyLocalSession();
   return { ok: true, session };
 }
 
@@ -95,7 +104,7 @@ export async function logoutAdmin(): Promise<void> {
   const storage = getSafeSessionStorage();
   await supabase.auth.signOut();
   storage?.removeItem(STORAGE_KEY);
-  try { localStorage.removeItem(STORAGE_KEY); } catch {}
+  removeLegacyLocalSession();
 }
 
 /** Get cached display info. NOT for auth decisions — use verifyAdminSession() instead. */
