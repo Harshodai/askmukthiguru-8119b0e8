@@ -25,30 +25,10 @@ sys.path.insert(0, os.path.abspath(os.path.join(__file__, "..", "..", "..")))
 BATCH_SIZE = 100
 COLLECTION = "spiritual_wisdom"
 
-# BCP-47 → internal language code mapping
-_LANG_MAP = {
-    "hi": "hi",  # Hindi
-    "te": "te",  # Telugu
-    "kn": "kn",  # Kannada
-    "ta": "ta",  # Tamil
-    "mr": "mr",  # Marathi
-    "en": "en",  # English
-    "gu": "gu",  # Gujarati (partial coverage)
-    "ml": "ml",  # Malayalam (partial coverage)
-    "bn": "bn",  # Bengali
-    "ur": "ur",  # Urdu
-}
-
 
 def _detect_language(text: str) -> str:
-    """Detect language using langdetect. Falls back to 'en' on error."""
-    try:
-        from langdetect import detect
-
-        code = detect(text[:500])  # first 500 chars is sufficient
-        return _LANG_MAP.get(code, "en")
-    except Exception:
-        return "en"
+    from services.language_detection import detect_language
+    return detect_language(text[:500])["language"]
 
 
 def main() -> None:

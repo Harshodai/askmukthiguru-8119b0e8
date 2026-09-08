@@ -871,27 +871,5 @@ class SereneMindEngine:
         return False
 
     def _detect_language(self, text: str) -> str:
-        """Simple heuristic language detection based on script."""
-        # Check for Devanagari (Hindi, Marathi)
-        if re.search(r"[\u0900-\u097F]", text):
-            return "hi"
-        # Tamil
-        if re.search(r"[\u0B80-\u0BFF]", text):
-            return "ta"
-        # Telugu
-        if re.search(r"[\u0C00-\u0C7F]", text):
-            return "te"
-        # Kannada
-        if re.search(r"[\u0C80-\u0CFF]", text):
-            return "kn"
-        # Bengali
-        if re.search(r"[\u0980-\u09FF]", text):
-            return "bn"
-        # Malayalam
-        if re.search(r"[\u0D00-\u0D7F]", text):
-            return "ml"
-        # Gujarati
-        if re.search(r"[\u0A80-\u0AFF]", text):
-            return "gu"
-        # Default: English
-        return "en"
+        from services.language_detection import detect_language
+        return detect_language(text)["language"]

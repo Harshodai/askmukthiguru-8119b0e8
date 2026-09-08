@@ -16,13 +16,10 @@ import logging
 import os
 import time
 
-from langdetect import DetectorFactory
-from langdetect import detect as langdetect_detect
 from pydantic import BaseModel, Field
 
 from app.config import settings
 
-DetectorFactory.seed = 0
 logger = logging.getLogger(__name__)
 
 CACHE_PATH = os.path.join(
@@ -103,15 +100,8 @@ def _save_cache(cache: dict):
 
 
 def _detect_language(text: str) -> str:
-    """Detect language from first ~500 chars using langdetect."""
-    sample = text[:500].strip()
-    if not sample:
-        return "en"
-    try:
-        return langdetect_detect(sample)
-    except Exception:
-        logger.debug("langdetect failed, defaulting to 'en'")
-        return "en"
+    from services.language_detection import detect_language
+    return detect_language(text[:500])["language"]
 
 
 def _get_openai_compat_config() -> dict:
