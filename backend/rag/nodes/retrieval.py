@@ -1086,13 +1086,6 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
             kg_expand_fn = getattr(kg_mod, "expand_query_via_kg", None) or getattr(
                 kg_mod, "expand_query_with_ontology", None
             )
-            # If a test monkeypatched expand_query_with_ontology:
-            if hasattr(kg_mod, "_orig_expand_query_with_ontology"):
-                if (
-                    kg_mod.expand_query_with_ontology
-                    is not kg_mod._orig_expand_query_with_ontology
-                ):
-                    kg_expand_fn = kg_mod.expand_query_with_ontology
 
             if kg_expand_fn is not None:
                 max_hops = getattr(settings, "kg_max_hops", 2)
@@ -1206,9 +1199,11 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     # above covers this node's whole 25-133s window, so narrate each channel.
     await emit_status(config, "Searching dense passages...", node="retrieve_documents")
     primary_started = time.perf_counter()
-    lane_timeout = min(
-        get_node_timeout("default_main", getattr(settings, "node_timeout_main", 60)),
-        (lane_budget_ms / 1000.0) if retrieval_lane in ("fast", "relational") else 60.0,
+    node_timeout = get_node_timeout("default_main", getattr(settings, "node_timeout_main", 60))
+    lane_timeout = (
+        min(node_timeout, lane_budget_ms / 1000.0)
+        if retrieval_lane == "fast"
+        else node_timeout
     )
     primary_coros = [
         asyncio.wait_for(
@@ -1425,6 +1420,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
             logger.info(f"Low document count ({len(all_docs)}), triggering broader fallback search...")
             await emit_status(config, "Broadening the search...", node="retrieve_documents")
             fallback_query = state["question"] if state.get("rewritten_query") else sub_queries[0]
+            fallback_results: list[dict[str, Any]] = []
             if query_tier in ("fast", "tier2_simple") or retrieval_lane == "fast":
                 remaining_fb_timeout = max(0.1, fast_budget_s - (time.perf_counter() - retrieval_started))
                 try:
@@ -1447,6 +1443,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
                     )
                 except Exception as fallback_err:
                     logger.warning("Fast fallback retrieval timed out or failed; continuing with current docs: %s", fallback_err)
+                    fallback_results = []
             else:
                 try:
                     query_embedding = await asyncio.to_thread(embedder.encode_single_full, fallback_query)

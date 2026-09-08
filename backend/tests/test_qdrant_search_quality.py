@@ -9,6 +9,7 @@ Run manually: python -m pytest tests/test_qdrant_search_quality.py -v
 Baseline: memory/qdrant_quality_baseline.json (updated on success)
 """
 
+import asyncio
 import json
 import logging
 import os
@@ -359,7 +360,7 @@ class QdrantSearchQualityTester:
                 if self._reranker:
                     # services/embedding_service.py:rerank(query, documents, ...) is the
                     # real reranker API — takes {"text": ...} dicts, not raw strings.
-                    results = self._reranker.rerank(query, results)
+                    results = asyncio.run(self._reranker.rerank(query, results))
             else:
                 raise ValueError(f"Unknown strategy: {strategy}")
 

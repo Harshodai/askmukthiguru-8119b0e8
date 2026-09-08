@@ -98,6 +98,13 @@ form[role='form'][aria-label] footer button:hover {
 
 .ask-profile-shell input,
 .ask-profile-shell textarea,
+.ask-profile-shell [role='combobox'] {
+  background: hsl(var(--card) / 0.72) !important;
+  border-color: hsl(var(--hairline)) !important;
+}
+
+.ask-profile-shell input,
+.ask-profile-shell textarea,
 .ask-profile-shell button,
 .ask-profile-shell [role='tab'] {
   -webkit-tap-highlight-color: transparent;

@@ -29,6 +29,7 @@ const practiceIcon: Record<string, typeof Flame> = {
 };
 
 export const CommandPalette = ({ open, onOpenChange, onNavigate }: CommandPaletteProps) => {
+  const { t } = useTranslation();
   const { favorites, isFavorited } = useFavorites();
   const { open: openSereneMind } = useSereneMind();
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -70,16 +71,16 @@ export const CommandPalette = ({ open, onOpenChange, onNavigate }: CommandPalett
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange}>
       <div className="border-b border-border/40 bg-ojas/[0.03] px-4 py-2 text-[11px] text-muted-foreground flex items-center gap-2">
-        <Search className="w-3.5 h-3.5 text-ojas" />
-        <span>Search your workspace, conversations, practices, and settings.</span>
+        <Search className="w-3.5 h-3.5 text-ojas shrink-0" />
+        <span>{t('commandPalette.subtitle', 'Search your workspace, conversations, practices, and settings.')}</span>
       </div>
-      <CommandInput placeholder="Search AskMukthiGuru…" />
+      <CommandInput placeholder={t('commandPalette.searchPlaceholder', 'Search AskMukthiGuru…')} />
       <CommandList>
-        <CommandEmpty>Nothing matches that search.</CommandEmpty>
+        <CommandEmpty>{t('commandPalette.empty', 'Nothing matches that search.')}</CommandEmpty>
 
         {conversationItems.length > 0 && (
           <>
-            <CommandGroup heading="Recent conversations">
+            <CommandGroup heading={t('commandPalette.recentConversations', 'Recent conversations')}>
               {conversationItems.map((conversation) => (
                 <CommandItem
                   key={conversation.id}
@@ -89,7 +90,7 @@ export const CommandPalette = ({ open, onOpenChange, onNavigate }: CommandPalett
                   <MessageCircle className="w-4 h-4 mr-2 text-prana" />
                   <span className="truncate">{conversation.preview}</span>
                   <span className="ml-auto text-[10px] text-muted-foreground shrink-0">
-                    {conversation.messageCount} messages
+                    {conversation.messageCount} {t('commandPalette.messages', 'messages')}
                   </span>
                 </CommandItem>
               ))}
@@ -98,37 +99,39 @@ export const CommandPalette = ({ open, onOpenChange, onNavigate }: CommandPalett
           </>
         )}
 
-        <CommandGroup heading="Quick actions">
+        <CommandGroup heading={t('commandPalette.quickActions', 'Quick actions')}>
           <CommandItem onSelect={handleSereneMind}>
             <Flame className="w-4 h-4 mr-2 text-ojas" />
-            <span>Start Serene Mind meditation</span>
-            <kbd className="ml-auto text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">Anywhere</kbd>
+            <span>{t('commandPalette.startSereneMind', 'Start Serene Mind meditation')}</span>
+            <kbd className="ml-auto text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+              {t('commandPalette.anywhere', 'Anywhere')}
+            </kbd>
           </CommandItem>
           {!loadingConversations && (
             <CommandItem onSelect={() => navigateAndClose('/chat')}>
               <PlusIcon />
-              <span>Start a new conversation</span>
+              <span>{t('commandPalette.startNewConversation', 'Start a new conversation')}</span>
             </CommandItem>
           )}
         </CommandGroup>
 
         <CommandSeparator />
-        <CommandGroup heading="Navigate">
-          <CommandItem onSelect={() => navigateAndClose('/')}><Home className="w-4 h-4 mr-2" /> Home</CommandItem>
-          <CommandItem onSelect={() => navigateAndClose('/chat')}><MessageCircle className="w-4 h-4 mr-2" /> Chat with the Gurus</CommandItem>
+        <CommandGroup heading={t('commandPalette.navigate', 'Navigate')}>
+          <CommandItem onSelect={() => navigateAndClose('/')}><Home className="w-4 h-4 mr-2" /> {t('nav.home', 'Home')}</CommandItem>
+          <CommandItem onSelect={() => navigateAndClose('/chat')}><MessageCircle className="w-4 h-4 mr-2" /> {t('commandPalette.chatWithGurus', 'Chat with the Gurus')}</CommandItem>
           <CommandItem onSelect={() => navigateAndClose('/practices')}>
             <Compass className="w-4 h-4 mr-2" />
-            <span>Browse practices</span>
+            <span>{t('commandPalette.browsePractices', 'Browse practices')}</span>
             {favCount > 0 && <span className="ml-auto inline-flex items-center gap-1 text-[10px] text-ojas font-semibold"><Star className="w-3 h-3 fill-ojas" /> {favCount}</span>}
           </CommandItem>
-          <CommandItem onSelect={() => navigateAndClose('/notebooks')}><BookOpen className="w-4 h-4 mr-2" /> Study notebooks</CommandItem>
-          <CommandItem onSelect={() => navigateAndClose('/knowledge-graph')}><Brain className="w-4 h-4 mr-2" /> Wisdom Map</CommandItem>
-          <CommandItem onSelect={() => navigateAndClose('/second-brain')}><HardDrive className="w-4 h-4 mr-2" /> My Reflections</CommandItem>
-          <CommandItem onSelect={() => navigateAndClose('/profile')}><User className="w-4 h-4 mr-2" /> My Profile</CommandItem>
+          <CommandItem onSelect={() => navigateAndClose('/notebooks')}><BookOpen className="w-4 h-4 mr-2" /> {t('commandPalette.studyNotebooks', 'Study notebooks')}</CommandItem>
+          <CommandItem onSelect={() => navigateAndClose('/knowledge-graph')}><Brain className="w-4 h-4 mr-2" /> {t('commandPalette.wisdomMap', 'Wisdom Map')}</CommandItem>
+          <CommandItem onSelect={() => navigateAndClose('/second-brain')}><HardDrive className="w-4 h-4 mr-2" /> {t('commandPalette.myReflections', 'My Reflections')}</CommandItem>
+          <CommandItem onSelect={() => navigateAndClose('/profile')}><User className="w-4 h-4 mr-2" /> {t('nav.profile', 'My Profile')}</CommandItem>
         </CommandGroup>
 
         <CommandSeparator />
-        <CommandGroup heading="Practices">
+        <CommandGroup heading={t('nav.practices', 'Practices')}>
           {practices.map((p) => {
             const Icon = practiceIcon[p.slug] ?? Sparkles;
             const fav = isFavorited(p.slug);
@@ -139,13 +142,13 @@ export const CommandPalette = ({ open, onOpenChange, onNavigate }: CommandPalett
               </CommandItem>
             );
           })}
-          <CommandItem onSelect={() => navigateAndClose('/profile?tab=stats')}><Sparkles className="w-4 h-4 mr-2" /> View meditation stats</CommandItem>
+          <CommandItem onSelect={() => navigateAndClose('/profile?tab=stats')}><Sparkles className="w-4 h-4 mr-2" /> {t('commandPalette.viewMeditationStats', 'View meditation stats')}</CommandItem>
         </CommandGroup>
 
         <CommandSeparator />
-        <CommandGroup heading="Settings">
-          <CommandItem onSelect={() => navigateAndClose('/profile?tab=settings')}><Settings className="w-4 h-4 mr-2" /> Preferences & settings</CommandItem>
-          <CommandItem onSelect={() => navigateAndClose('/profile?tab=settings')}><User className="w-4 h-4 mr-2" /> Account & data</CommandItem>
+        <CommandGroup heading={t('common.settings', 'Settings')}>
+          <CommandItem onSelect={() => navigateAndClose('/profile?tab=settings')}><Settings className="w-4 h-4 mr-2" /> {t('commandPalette.preferencesAndSettings', 'Preferences & settings')}</CommandItem>
+          <CommandItem onSelect={() => navigateAndClose('/profile?tab=settings')}><User className="w-4 h-4 mr-2" /> {t('commandPalette.accountAndData', 'Account & data')}</CommandItem>
         </CommandGroup>
       </CommandList>
     </CommandDialog>

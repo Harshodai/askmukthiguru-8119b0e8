@@ -543,6 +543,8 @@ class Settings(BaseSettings):
     # instead of reading the env directly, so the endpoint is validated the same
     # way as every other settings-sourced URL.
     benchmark_endpoint: str = "http://localhost:8000"
+    backend_url: Optional[str] = "http://localhost:8000"
+    auth_token: Optional[str] = None
     # Comma-separated or JSON-list of HTTPS hostnames allowed to receive the
     # X-Test-Key benchmark secret (non-loopback targets only — see
     # benchmarks/ragas_eval.py::_validate_endpoint).

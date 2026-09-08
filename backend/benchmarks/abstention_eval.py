@@ -30,6 +30,7 @@ _BACKEND_DIR = Path(__file__).resolve().parent.parent
 if str(_BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(_BACKEND_DIR))
 
+from app.config import settings
 from app.grounding import grounding_state_for
 from guardrails import LightweightGuardrails
 
@@ -220,20 +221,34 @@ def evaluate_response(
     valid_grounding_state = grounding_state in {"abstained", "safety_redirect"}
     zero_citations = (citation_count == 0)
 
+    # Clean refusal or safety redirect check:
+    # A response is a clean refusal if non-empty and matching clean abstention patterns,
+    # or explicitly flagged as safety_redirect.
+    has_clean_refusal = bool(answer and answer.strip()) and any(
+        pattern.search(answer) for pattern in _CLEAN_ABSTENTION_PATTERNS
+    )
+    is_refusal_or_redirect = (
+        bool(answer and answer.strip())
+        and (grounding_state == "safety_redirect" or has_clean_refusal)
+    )
+
     is_correct_abstention = (
         valid_grounding_state
         and zero_citations
         and not has_fabricated_doctrine
+        and is_refusal_or_redirect
     )
 
     # 3. An unsupported claim occurs when:
     # - The system claims doctrine on out-of-domain topics, or
     # - The system marks an unanswerable query as 'grounded', or
-    # - The system hallucinates/attaches citations to an unanswerable query
+    # - The system hallucinates/attaches citations to an unanswerable query, or
+    # - The system provides a direct answer on an unanswerable query without clean refusal/redirect
     is_unsupported_claim = (
         has_fabricated_doctrine
         or (grounding_state == "grounded")
         or (citation_count > 0)
+        or not is_refusal_or_redirect
     )
 
     return AbstentionEvalResult(
@@ -297,15 +312,27 @@ def compute_abstention_metrics(results: list[AbstentionEvalResult]) -> Abstentio
     )
 
 
+EMPTY_CONTEXT_FIXTURE: list[dict[str, Any]] = []
+
+
+def get_empty_context_fixture() -> list[dict[str, Any]]:
+    """Explicit empty-context fixture for tests intentionally validating abstention behavior."""
+    return list(EMPTY_CONTEXT_FIXTURE)
+
+
 async def evaluate_query_in_process(
     question: str,
     guardrails: Optional[LightweightGuardrails] = None,
+    empty_context: bool = False,
+    relevant_docs: Optional[list[dict[str, Any]]] = None,
 ) -> dict[str, Any]:
     """Execute a query locally through guardrails and generation nodes.
 
-    Uses LightweightGuardrails for input filtering and generate_answer for
-    empty-context short circuit, providing deterministic offline evaluation
-    identical to the production pipeline stages.
+    Uses LightweightGuardrails for input filtering.
+    By default, executes the application retrieval graph to observe retrieved
+    context, citations, and grounded state.
+    Preserves an explicit empty-context fixture for tests that intentionally
+    validate offline abstention behavior.
     """
     if guardrails is None:
         guardrails = LightweightGuardrails()
@@ -321,16 +348,41 @@ async def evaluate_query_in_process(
             "intent": input_check.get("reason", "OFF_TOPIC"),
         }
 
-    # Step 2: Retrieval & Generation fast-path
-    # For out-of-domain questions against the spiritual wisdom corpus,
-    # relevant_docs is empty, so generate_answer enters no_context_short_circuit.
+    # Step 2: Application retrieval graph / Generation execution
     from rag.nodes.generation import generate_answer
     from rag.states import GraphState
 
+    if not empty_context and relevant_docs is None:
+        try:
+            from app.dependencies import get_container
+            container = get_container()
+            graph = getattr(container, "standard_graph", None) or getattr(container, "rag_graph", None)
+            if graph is not None:
+                initial_graph_state: GraphState = {
+                    "question": question,
+                    "query_tier": "standard",
+                    "chat_history": [],
+                    "retry_count": 0,
+                    "metrics": {},
+                    "node_timings": {},
+                }
+                res = await graph.ainvoke(initial_graph_state)
+                return {
+                    "answer": res.get("answer", ""),
+                    "grounding_state": res.get("grounding_state", "abstained"),
+                    "citations": res.get("citations", []),
+                    "route_decision": res.get("route_decision", "grounded"),
+                    "verification": res.get("verification", {}),
+                }
+        except Exception as exc:
+            logger.warning("Application retrieval graph execution unavailable (%s); falling back to generation path", exc)
+
+    # Explicit empty-context fixture branch (or fallback when retrieval graph is unavailable)
+    docs = relevant_docs if relevant_docs is not None else get_empty_context_fixture()
     initial_state: GraphState = {
         "question": question,
-        "relevant_docs": [],
-        "documents": [],
+        "relevant_docs": docs,
+        "documents": docs,
         "query_tier": "standard",
         "chat_history": [],
         "retry_count": 0,
@@ -352,6 +404,7 @@ async def run_abstention_evaluation(
     backend_url: Optional[str] = None,
     token: Optional[str] = None,
     dataset: Optional[list[dict[str, Any]]] = None,
+    empty_context: bool = False,
 ) -> AbstentionReport:
     """Run the calibrated abstention evaluation across the question suite.
 
@@ -359,6 +412,7 @@ async def run_abstention_evaluation(
     - runner: custom async callable taking a question string and returning dict.
     - backend_url: HTTP endpoint for remote evaluation.
     - dataset: optional custom list of question items (defaults to HELD_OUT_UNANSWERABLE_QUESTIONS).
+    - empty_context: if True, forces the explicit empty-context fixture for intentional abstention tests.
     """
     questions = dataset or HELD_OUT_UNANSWERABLE_QUESTIONS
     results: list[AbstentionEvalResult] = []
@@ -385,7 +439,9 @@ async def run_abstention_evaluation(
                 resp.raise_for_status()
                 raw_res = resp.json()
         else:
-            raw_res = await evaluate_query_in_process(q, guardrails=guardrails)
+            raw_res = await evaluate_query_in_process(
+                q, guardrails=guardrails, empty_context=empty_context
+            )
 
         elapsed = time.perf_counter() - t0
 
@@ -404,11 +460,12 @@ async def run_abstention_evaluation(
                 citations=citations,
                 citations_verified=raw_res.get("citations_verified"),
                 hallucination_flag=raw_res.get("hallucination_flag", False),
-                verification=raw_res.get("verification"),
+                confidence_score=raw_res.get("confidence_score", 0.0),
+                route_decision=route_decision,
             )
             grounding_state = grounding_state_for(obj)
 
-        eval_result = evaluate_response(
+        result = evaluate_response(
             item=item,
             answer=answer,
             grounding_state=grounding_state,
@@ -416,17 +473,17 @@ async def run_abstention_evaluation(
             route_decision=route_decision,
             latency_s=elapsed,
         )
-        results.append(eval_result)
+        results.append(result)
 
     metrics = compute_abstention_metrics(results)
     return AbstentionReport(metrics=metrics, results=results)
 
 
 def print_report(report: AbstentionReport) -> None:
-    """Print formatted markdown summary of evaluation results."""
+    """Pretty-print the abstention evaluation report."""
     m = report.metrics
     print("\n" + "=" * 72)
-    print("CALIBRATED ABSTENTION EVALUATION REPORT (10 HELD-OUT QUESTIONS)")
+    print("CALIBRATED ABSTENTION EVALUATION REPORT")
     print("=" * 72)
     print(f"Total Queries:             {m.total_queries}")
     print(f"Correct Abstentions:       {m.correct_abstentions}/{m.total_queries} ({m.correct_abstention_rate:.1%})")
@@ -446,8 +503,8 @@ def print_report(report: AbstentionReport) -> None:
 def main() -> int:
     """CLI runner for the calibrated abstention evaluation harness."""
     parser = argparse.ArgumentParser(description="Calibrated Abstention Evaluation Harness")
-    parser.add_argument("--url", default=os.getenv("BACKEND_URL"), help="Backend URL (e.g. http://localhost:8000)")
-    parser.add_argument("--token", default=os.getenv("AUTH_TOKEN"), help="Bearer token for authenticated endpoint")
+    parser.add_argument("--url", default=settings.backend_url, help="Backend URL (e.g. http://localhost:8000)")
+    parser.add_argument("--token", default=settings.auth_token, help="Bearer token for authenticated endpoint")
     parser.add_argument("--json", action="store_true", help="Output JSON report")
     args = parser.parse_args()
 

@@ -764,7 +764,7 @@ class CorrelationIDMiddleware:
         cid = None
         for k, v in headers:
             if k.lower() == b"x-correlation-id":
-                cid = v.decode("utf-8")
+                cid = v.decode("utf-8", errors="replace")
                 break
         if not cid:
             cid = str(uuid.uuid4())[:8]
@@ -836,6 +836,12 @@ _redis_url_for_rl = (
     else None
 )
 
+try:
+    _admin_rl_parts = settings.admin_rate_limit.split("/")
+    _admin_rl_max = int(_admin_rl_parts[0]) if _admin_rl_parts else 60
+except (ValueError, IndexError):
+    _admin_rl_max = 60
+
 if _redis_url_for_rl:
     _AUTH_RATE_LIMITER = RedisBackedRateLimiter(
         redis_url=_redis_url_for_rl,
@@ -847,7 +853,7 @@ if _redis_url_for_rl:
     _ADMIN_RATE_LIMITER = RedisBackedRateLimiter(
         redis_url=_redis_url_for_rl,
         ttl=60.0,
-        max_requests=int(settings.admin_rate_limit.split("/")[0]),
+        max_requests=_admin_rl_max,
     )
     logger.info("Auth/Admin rate limiters: Redis-backed distributed sliding window")
 else:
@@ -859,7 +865,7 @@ else:
         backoff_multiplier=settings.auth_backoff_multiplier,
     )
     _ADMIN_RATE_LIMITER = TTLRateLimiter(
-        ttl=60.0, max_requests=int(settings.admin_rate_limit.split("/")[0])
+        ttl=60.0, max_requests=_admin_rl_max
     )
     logger.warning(
         "Auth/Admin rate limiters: process-local (Redis not configured) — not safe for multi-worker deploy"

@@ -165,7 +165,7 @@ async def test_retrieve_documents_kg_ontology_expansion_times_out(monkeypatch):
         await asyncio.sleep(10)
         return ["Dharma"]
 
-    monkeypatch.setattr("rag.kg_expansion.expand_query_with_ontology", _hangs_forever)
+    monkeypatch.setattr("rag.kg_expansion.expand_query_via_kg", _hangs_forever)
 
     mock_container = MagicMock()
     mock_container.neo4j_driver = object()  # non-None => expansion path is attempted

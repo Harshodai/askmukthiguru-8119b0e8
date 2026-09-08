@@ -686,39 +686,45 @@ async def context_engineer(state: GraphState, config: Optional[RunnableConfig] =
     # Context Engineering (§8): deduplicate exact and near-duplicate chunks before budget packing
     pruned_dups = 0
     if getattr(settings, "context_chunk_dedup_enabled", True) and len(knowledge_docs) > 1:
-        deduped_docs: list[dict] = []
-        seen_word_sets: list[set[str]] = []
-        sim_threshold = float(getattr(settings, "context_chunk_dedup_threshold", 0.85))
-
-        for doc in knowledge_docs:
-            raw_text = doc_text(doc).strip()
-            if not raw_text:
-                continue
-            words = set(re.findall(r"\b\w{3,}\b", raw_text.lower()))
-            if not words:
-                deduped_docs.append(doc)
-                continue
-            is_dup = False
-            for seen in seen_word_sets:
-                intersection = len(words & seen)
-                union = len(words | seen)
-                if union > 0 and (intersection / union) >= sim_threshold:
-                    is_dup = True
-                    break
-            if is_dup:
-                pruned_dups += 1
-            else:
-                seen_word_sets.append(words)
-                deduped_docs.append(doc)
-
-        if pruned_dups > 0:
-            logger.info(
-                "Context engineering: pruned %d duplicate/near-duplicate chunks (%d -> %d remain)",
-                pruned_dups,
+        if len(knowledge_docs) > 30:
+            logger.warning(
+                "Document count %d exceeds dedup cap of 30; skipping near-duplicate dedup",
                 len(knowledge_docs),
-                len(deduped_docs),
             )
-            knowledge_docs = deduped_docs
+        else:
+            deduped_docs: list[dict] = []
+            seen_word_sets: list[set[str]] = []
+            sim_threshold = float(getattr(settings, "context_chunk_dedup_threshold", 0.85))
+
+            for doc in knowledge_docs:
+                raw_text = doc_text(doc).strip()
+                if not raw_text:
+                    continue
+                words = set(re.findall(r"\b\w{3,}\b", raw_text.lower()))
+                if not words:
+                    deduped_docs.append(doc)
+                    continue
+                is_dup = False
+                for seen in seen_word_sets:
+                    intersection = len(words & seen)
+                    union = len(words | seen)
+                    if union > 0 and (intersection / union) >= sim_threshold:
+                        is_dup = True
+                        break
+                if is_dup:
+                    pruned_dups += 1
+                else:
+                    seen_word_sets.append(words)
+                    deduped_docs.append(doc)
+
+            if pruned_dups > 0:
+                logger.info(
+                    "Context engineering: pruned %d duplicate/near-duplicate chunks (%d -> %d remain)",
+                    pruned_dups,
+                    len(knowledge_docs),
+                    len(deduped_docs),
+                )
+                knowledge_docs = deduped_docs
 
     # Contradiction Resolution & Authority Engine (Phase 3 Task 3)
     # Detect conflicts between vector chunks and graph knowledge entities and resolve via authority hierarchy
@@ -731,17 +737,11 @@ async def context_engineer(state: GraphState, config: Optional[RunnableConfig] =
     if getattr(settings, "contradiction_resolution_enabled", True) and knowledge_docs:
         from rag.nodes.contradiction_resolver import resolve_contradictions
 
-        # Collect graph entities from state or relevant_docs
         graph_entities = list(state.get("graph_entities") or [])
         if not graph_entities:
-            for doc in relevant_docs:
-                if (
-                    doc.get("content_type") in ("graph_summary", "lightrag_relationship_summary")
-                    or doc.get("source_url") == "knowledge_graph"
-                    or doc.get("channel") == "graph"
-                    or str(doc.get("source_url", "")).startswith("neo4j://")
-                ):
-                    graph_entities.append(doc)
+            logger.debug(
+                "graph_entities empty — GraphStage may not have run or returned no entities"
+            )
 
         knowledge_docs, contradiction_meta = resolve_contradictions(
             chunks=knowledge_docs,
@@ -939,7 +939,6 @@ async def context_engineer(state: GraphState, config: Optional[RunnableConfig] =
             chosen_authority_rank=contradiction_meta.get("chosen_authority_rank", 1),
         ),
         "contradiction_meta": contradiction_meta,
-        "contradiction_detected": contradiction_meta.get("contradiction_detected", False),
         "route_metadata": {
             "contradiction_detected": contradiction_meta.get("contradiction_detected", False),
             "contradiction_resolved_via": contradiction_meta.get("contradiction_resolved_via", "none"),
@@ -2360,7 +2359,8 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
                 overlap = len(title_words & doc_words)
                 if overlap > best_overlap:
                     best_idx, best_overlap = idx, overlap
-            if best_idx >= 0 and best_overlap >= 2:
+            min_overlap = max(2, len(title_words) // 2)
+            if best_idx >= 0 and best_overlap >= min_overlap:
                 return f"[[CITE:{best_idx + 1}]]"
         return ""  # If no match, strip it so it doesn't leak raw bracket text
 

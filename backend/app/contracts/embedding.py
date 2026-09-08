@@ -32,7 +32,7 @@ class EmbeddingService(Protocol):
         """
         ...
 
-    def cascaded_rerank(
+    async def cascaded_rerank(
         self,
         query: str,
         documents: list[dict[str, Any]],

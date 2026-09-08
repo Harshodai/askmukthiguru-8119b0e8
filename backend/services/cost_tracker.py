@@ -393,12 +393,15 @@ class CostTracker:
 
 # Singleton
 _tracker: Optional[CostTracker] = None
+_TRACKER_LOCK = Lock()
 
 
 def get_cost_tracker() -> CostTracker:
     global _tracker
     if _tracker is None:
-        _tracker = CostTracker()
+        with _TRACKER_LOCK:
+            if _tracker is None:
+                _tracker = CostTracker()
     return _tracker
 
 

@@ -13,6 +13,7 @@ import hmac
 import os
 import re
 import secrets
+import threading
 import time
 from collections import deque
 from typing import Optional
@@ -218,11 +219,23 @@ def validate_origin_referer(origin: Optional[str], allowed_origins: list[str]) -
     """
     if not origin:
         return False
+    from urllib.parse import urlparse
+
     origin = origin.strip().lower()
+    origin_parsed = urlparse(origin)
+    if not origin_parsed.hostname:
+        return False
     for allowed in allowed_origins:
         allowed = allowed.strip().lower()
-        if origin == allowed or origin.startswith(allowed.rstrip("/") + "/"):
-            return True
+        allowed_parsed = urlparse(allowed)
+        if not allowed_parsed.hostname:
+            continue
+        # Exact origin match or subdomain boundary check
+        if origin_parsed.hostname == allowed_parsed.hostname or origin_parsed.hostname.endswith(
+            "." + allowed_parsed.hostname
+        ):
+            if origin_parsed.scheme == allowed_parsed.scheme:
+                return True
     return False
 
 
@@ -248,41 +261,42 @@ class TTLRateLimiter:
         self.ttl = ttl
         self.max_requests = max_requests
         self._store: dict[str, deque] = {}
+        self._lock = threading.Lock()
 
     def is_allowed(self, key: str, now: Optional[float] = None) -> bool:
-        now = now or time.time()
-        ts = self._store.get(key)
-        if ts is None:
-            self._store[key] = deque([now], maxlen=self.max_requests + 1)
+        with self._lock:
+            now = now or time.time()
+            ts = self._store.get(key)
+            if ts is None:
+                self._store[key] = deque([now], maxlen=self.max_requests + 1)
+                return True
+            cutoff = now - self.ttl
+            while ts and ts[0] < cutoff:
+                ts.popleft()
+            if len(ts) >= self.max_requests:
+                return False
+            ts.append(now)
             return True
-        cutoff = now - self.ttl
-        while ts and ts[0] < cutoff:
-            ts.popleft()
-        if len(ts) >= self.max_requests:
-            return False
-        ts.append(now)
-        return True
 
     def clear_expired(self, now: Optional[float] = None) -> None:
-        now = now or time.time()
-        cutoff = now - self.ttl
-        for key in list(self._store.keys()):
-            q = self._store[key]
-            while q and q[0] < cutoff:
-                q.popleft()
-            if not q:
-                del self._store[key]
+        with self._lock:
+            now = now or time.time()
+            cutoff = now - self.ttl
+            for key in list(self._store.keys()):
+                q = self._store[key]
+                while q and q[0] < cutoff:
+                    q.popleft()
+                if not q:
+                    del self._store[key]
 
     def reset(self) -> None:
         """Clear all tracked request timestamps (test isolation hook)."""
-        self._store.clear()
+        with self._lock:
+            self._store.clear()
 
     async def is_allowed_async(self, key: str, now: Optional[float] = None) -> bool:
         """Async alias for use in async middleware (CPU-only, never blocks)."""
         return self.is_allowed(key, now)
-
-
-import threading
 
 
 class ExponentialBackoffRateLimiter:

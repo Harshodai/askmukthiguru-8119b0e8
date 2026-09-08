@@ -140,8 +140,7 @@ async def rerank_documents(state: GraphState, config: dict = None) -> dict:
                 min_score=threshold,
             )
         else:
-            reranked_db = await asyncio.to_thread(
-                embedder.cascaded_rerank,
+            reranked_db = await embedder.cascaded_rerank(
                 question,
                 rerank_candidates,
                 colbert_top_k=rerank_top_k * 2,

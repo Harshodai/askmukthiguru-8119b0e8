@@ -84,6 +84,18 @@ class IndexFingerprint:
         if fingerprint == self.digest and dict(contract) == self.payload():
             return
 
+        contract_keys = set(contract.keys())
+        payload_keys = set(self.payload().keys())
+        if contract_keys != payload_keys:
+            missing = payload_keys - contract_keys
+            extra = contract_keys - payload_keys
+            issues = []
+            if missing:
+                issues.append(f"missing keys: {missing}")
+            if extra:
+                issues.append(f"extra keys: {extra}")
+            raise ValueError(f"Contract key mismatch: {'; '.join(issues)}")
+
         changed = sorted(
             key
             for key in set(self.payload()) | set(contract)
@@ -95,7 +107,7 @@ class IndexFingerprint:
 
 
 def _as_str(value: Any, fallback: str) -> str:
-    value = str(value or "").strip()
+    value = str(value if value is not None else fallback).strip()
     return value or fallback
 
 

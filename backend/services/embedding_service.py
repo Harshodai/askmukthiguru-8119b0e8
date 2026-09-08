@@ -768,11 +768,12 @@ class EmbeddingService:
                     )
                     import gc
 
-                    gc.collect()
+                    if attempt == max_retries:
+                        gc.collect()
                     # time.sleep is intentionally used here: encode() is a sync
                     # method, always called via encode_async() -> asyncio.to_thread().
                     # The sleep runs in a worker thread, NOT the event loop.
-                    time.sleep(2)
+                    time.sleep(min(2 ** attempt, 8))
 
             logger.error(
                 f"All {max_retries} attempts to encode dense failed. Raising last error: {last_err}"
@@ -824,11 +825,12 @@ class EmbeddingService:
                     )
                     import gc
 
-                    gc.collect()
+                    if attempt == max_retries:
+                        gc.collect()
                     # time.sleep is intentionally used here: encode() is a sync
                     # method, always called via encode_async() -> asyncio.to_thread().
                     # The sleep runs in a worker thread, NOT the event loop.
-                    time.sleep(2)
+                    time.sleep(min(2 ** attempt, 8))
 
             logger.error(
                 f"All {max_retries} attempts to encode dense failed. Raising last error: {last_err}"
@@ -871,7 +873,8 @@ class EmbeddingService:
 
         for i, text in enumerate(texts):
             prefixed_text = f"{self.instruction}{text}"
-            cached = self._embed_cache.get(prefixed_text)
+            with self._cache_lock:
+                cached = self._embed_cache.get(prefixed_text)
             if cached is not None:
                 cached_embeddings.append((i, cached))
                 EMBEDDING_CACHE_OPS.labels(result="hit").inc()
@@ -997,11 +1000,12 @@ class EmbeddingService:
                 )
                 import gc
 
-                gc.collect()
+                if attempt == max_retries:
+                    gc.collect()
                 # time.sleep is intentionally used here: encode_batch() is a sync
                 # method, always called via encode_batch_async() -> asyncio.to_thread().
                 # The sleep runs in a worker thread, NOT the event loop.
-                time.sleep(2)
+                time.sleep(min(2 ** attempt, 8))
 
         logger.error(
             f"All {max_retries} attempts to encode batch failed. Raising last error: {last_err}"
@@ -1068,11 +1072,12 @@ class EmbeddingService:
                     )
                     import gc
 
-                    gc.collect()
+                    if attempt == max_retries:
+                        gc.collect()
                     # time.sleep is intentionally used here: encode_batch() is a sync
                     # method, always called via encode_batch_async() -> asyncio.to_thread().
                     # The sleep runs in a worker thread, NOT the event loop.
-                    time.sleep(2)
+                    time.sleep(min(2 ** attempt, 8))
 
             logger.error(
                 f"All {max_retries} attempts to encode batch failed. Raising last error: {last_err}"
@@ -1104,11 +1109,28 @@ class EmbeddingService:
         if not texts:
             return {"dense": [], "sparse": [], "colbert": []}
 
+        if not self._circuit.can_execute():
+            exc = CircuitOpenException(
+                provider="embedding",
+                message="Circuit breaker OPEN for embedding — failing fast",
+            )
+            logger.warning(str(exc))
+            raise exc
+
         start_time = time.monotonic()
         self._ensure_encoder()
-        if self._onnx_session is not None:
-            return self._encode_with_colbert_onnx(texts, start_time)
-        return self._encode_with_colbert_torch(texts, start_time)
+        try:
+            if self._onnx_session is not None:
+                result = self._encode_with_colbert_onnx(texts, start_time)
+            else:
+                result = self._encode_with_colbert_torch(texts, start_time)
+            self._circuit.record_success()
+            return result
+        except CircuitOpenException:
+            raise
+        except Exception:
+            self._circuit.record_failure()
+            raise
 
     def _encode_with_colbert_onnx(self, texts: list[str], start_time: float) -> dict:
         """ONNX colbert encode. Lock-free: session.run() is thread-safe."""
@@ -1179,11 +1201,12 @@ class EmbeddingService:
                 )
                 import gc
 
-                gc.collect()
+                if attempt == max_retries:
+                    gc.collect()
                 # time.sleep is intentionally used here: encode_with_colbert() is a
                 # sync method, always called via an asyncio.to_thread() wrapper.
                 # The sleep runs in a worker thread, NOT the event loop.
-                time.sleep(2)
+                time.sleep(min(2 ** attempt, 8))
 
         logger.error(
             f"All {max_retries} attempts to encode_with_colbert failed. "
@@ -1237,11 +1260,12 @@ class EmbeddingService:
                     )
                     import gc
 
-                    gc.collect()
+                    if attempt == max_retries:
+                        gc.collect()
                     # time.sleep is intentionally used here: encode_with_colbert() is a
                     # sync method, always called via an asyncio.to_thread() wrapper.
                     # The sleep runs in a worker thread, NOT the event loop.
-                    time.sleep(2)
+                    time.sleep(min(2 ** attempt, 8))
 
             logger.error(
                 f"All {max_retries} attempts to encode_with_colbert failed. "
@@ -1552,7 +1576,7 @@ class EmbeddingService:
         """Async GIL-escape wrapper for encode_single_full(). Use in retrieval nodes."""
         return await asyncio.to_thread(self.encode_single_full, text)
 
-    def rerank(
+    async def rerank(
         self,
         query: str,
         documents: list[dict],
@@ -1581,7 +1605,8 @@ class EmbeddingService:
         pairs = [(query, doc["text"]) for doc in documents]
         if self._is_onnx_reranker():
             # ONNX INT8 reranker: session.run() is thread-safe, no lock.
-            raw_scores = self._reranker.predict(pairs)
+            # Offload to thread to avoid blocking the event loop.
+            raw_scores = await asyncio.to_thread(self._reranker.predict, pairs)
         else:
             # PyTorch CrossEncoder fallback: not thread-safe, serialize.
             import torch
@@ -1655,10 +1680,10 @@ class EmbeddingService:
         top_k: Optional[int] = None,
         min_score: Optional[float] = None,
     ) -> list[dict]:
-        """Async GIL-escape wrapper for rerank(). Frees event loop during CrossEncoder scoring."""
-        return await asyncio.to_thread(self.rerank, query, documents, top_k, min_score)
+        """Async wrapper for rerank(). rerank() is now async natively."""
+        return await self.rerank(query, documents, top_k, min_score)
 
-    def cascaded_rerank(
+    async def cascaded_rerank(
         self,
         query: str,
         documents: list[dict],
@@ -1730,7 +1755,7 @@ class EmbeddingService:
                     )
                     colbert_docs = documents[: colbert_top_k * 2]
 
-        return self.rerank(query, colbert_docs, top_k=cross_top_k, min_score=min_score)
+        return await self.rerank(query, colbert_docs, top_k=cross_top_k, min_score=min_score)
 
     async def cascaded_rerank_async(
         self,
@@ -1740,10 +1765,8 @@ class EmbeddingService:
         cross_top_k: int = 5,
         min_score: Optional[float] = None,
     ) -> list[dict]:
-        """Async GIL-escape wrapper for cascaded_rerank(). Use in async retrieval nodes."""
-        return await asyncio.to_thread(
-            self.cascaded_rerank, query, documents, colbert_top_k, cross_top_k, min_score
-        )
+        """Async wrapper for cascaded_rerank(). cascaded_rerank() is now async natively."""
+        return await self.cascaded_rerank(query, documents, colbert_top_k, cross_top_k, min_score)
 
     def _colbert_only_rerank(self, query: str, documents: list[dict], top_k: int = 5) -> list[dict]:
         """ColBERT-only reranking for small candidate sets."""

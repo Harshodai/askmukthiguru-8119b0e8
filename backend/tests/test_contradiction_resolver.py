@@ -153,6 +153,23 @@ class TestConflictDetection:
         assert has_conflict is True
         assert "Numeric claim conflict" in reason
 
+    def test_broad_numbers_unrelated_to_entity_do_not_conflict(self):
+        """Numbers not adjacent to the entity mention must not trigger numeric count conflict."""
+        chunk_a = {
+            "text": "Soul Sync is practiced for 10 minutes to cultivate inner stillness.",
+            "source_type": "canonical_book",
+            "source_url": "The Four Sacred Secrets",
+            "entity_ids": ["soul_sync"],
+        }
+        chunk_b = {
+            "text": "Soul Sync was recorded on channel 5 of the morning discourse.",
+            "source_type": "video_transcript",
+            "source_url": "https://youtube.com/watch?v=abc",
+            "entity_ids": ["soul_sync"],
+        }
+        has_conflict, reason = detect_conflict(chunk_a, chunk_b)
+        assert has_conflict is False
+
     def test_non_conflicting_teachings_pass_cleanly(self):
         """Compatible teachings about same entity must not trigger conflict."""
         chunk_a = {
@@ -234,6 +251,29 @@ class TestResolveContradictions:
         assert filtered[0]["source_url"] == "The Four Sacred Secrets"
         assert filtered[0]["authority_rank"] == 1
         assert filtered[0]["contradiction_status"] == "resolved_authoritative"
+
+    def test_negation_asymmetry_retained_as_telemetry_not_suppressed(self):
+        """Negation asymmetry triggers contradiction telemetry but does NOT suppress chunks."""
+        chunk_a = {
+            "text": "Soul Sync practice calms the mind and aligns consciousness with universal intelligence.",
+            "source_type": "canonical_book",
+            "source_url": "The Four Sacred Secrets",
+            "entity_ids": ["soul_sync"],
+        }
+        chunk_b = {
+            "text": "Soul Sync practice does not calm the mind and cannot align consciousness with intelligence.",
+            "source_type": "secondary_notes",
+            "source_url": "https://blog.com/critique",
+            "entity_ids": ["soul_sync"],
+        }
+
+        filtered, metadata = resolve_contradictions([chunk_a, chunk_b], [])
+
+        assert metadata["contradiction_detected"] is True
+        # Both chunks survive because negation asymmetry is not suppressible
+        assert len(filtered) == 2
+        assert metadata["conflicts_count"] == 1
+        assert "Negation asymmetry" in metadata["conflicts"][0]["reason"]
 
     def test_no_contradiction_emits_clean_telemetry(self):
         """When no contradiction exists, contradiction_detected is False and all chunks survive."""

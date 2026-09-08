@@ -26,7 +26,7 @@ from benchmarks.abstention_eval import (
 @pytest.mark.asyncio
 async def test_calibrated_abstention_evaluation_harness():
     """Verify that all 10 held-out out-of-domain questions cleanly abstain."""
-    report = await run_abstention_evaluation()
+    report = await run_abstention_evaluation(empty_context=True)
 
     assert len(report.results) == 10, "Must evaluate exactly 10 held-out questions"
     assert report.metrics.total_queries == 10
@@ -184,6 +184,29 @@ def test_evaluate_response_detects_unsupported_claims():
     assert res_clean.has_fabricated_doctrine is False
     assert res_clean.is_correct_abstention is True
     assert res_clean.is_unsupported_claim is False
+
+    # Case 5: Direct unsupported answer with abstained grounding state and zero citations
+    res_unsupported = evaluate_response(
+        item=dummy_item,
+        answer="The closing price of Apple stock will be $250 next Friday and you should buy calls.",
+        grounding_state="abstained",
+        citations=[],
+    )
+    assert res_unsupported.has_fabricated_doctrine is False
+    assert res_unsupported.is_correct_abstention is False
+    assert res_unsupported.is_unsupported_claim is True
+
+
+@pytest.mark.asyncio
+async def test_explicit_empty_context_fixture_evaluation():
+    """Verify that empty_context fixture allows intentional offline abstention tests."""
+    from benchmarks.abstention_eval import get_empty_context_fixture
+
+    fixture = get_empty_context_fixture()
+    assert fixture == []
+    report = await run_abstention_evaluation(empty_context=True)
+    assert report.metrics.correct_abstention_rate == 1.0
+    assert report.metrics.unsupported_claim_rate == 0.0
 
 
 def test_metrics_computation_fails_on_violations():

@@ -373,17 +373,73 @@ def detect_conflict(item_a: dict[str, Any], item_b: dict[str, Any]) -> tuple[boo
         words_a = set(re.findall(r"\b\w{4,}\b", text_a)) - {"which", "their", "about", "there", "these", "would"}
         words_b = set(re.findall(r"\b\w{4,}\b", text_b)) - {"which", "their", "about", "there", "these", "would"}
         shared_predicates = (words_a & words_b) - {e.replace(" ", "") for e in common_entities}
-        if len(shared_predicates) >= 2:
+        # Tightened requirement: shared predicates must include a verb-bearing action word
+        if len(shared_predicates) >= 2 and any(_is_verb_predicate(w) for w in shared_predicates):
             return True, f"Negation asymmetry on shared predicates {list(shared_predicates)[:3]} for '{entity_str}'"
 
     # Check for numeric count mismatch on specific entities (e.g. "four sacred secrets" vs "five")
-    numbers_a = _extract_entity_numbers(text_a)
-    numbers_b = _extract_entity_numbers(text_b)
+    numbers_a = _extract_adjacent_entity_numbers(text_a, common_entities)
+    numbers_b = _extract_adjacent_entity_numbers(text_b, common_entities)
     if numbers_a and numbers_b and (numbers_a != numbers_b):
         # Mismatched numbers in text discussing same core entity
         return True, f"Numeric claim conflict on '{entity_str}': {numbers_a} vs {numbers_b}"
 
     return False, ""
+
+
+_VERB_PREDICATE_STEMS = (
+    "calm", "align", "creat", "lead", "caus", "heal", "help", "bring", "teach",
+    "give", "prevent", "practic", "requir", "transform", "awaken", "liberat",
+    "connect", "dissolv", "cultivat", "produc", "achiev", "destroy", "block",
+    "guid", "enabl", "increas", "decreas", "reduc", "improv", "elevat", "harm",
+)
+
+
+def _is_verb_predicate(word: str) -> bool:
+    """Check if a word represents an action or predicate verb."""
+    w = word.lower()
+    if any(w.startswith(stem) for stem in _VERB_PREDICATE_STEMS):
+        return True
+    return w.endswith(("ing", "ed", "es"))
+
+
+def _extract_adjacent_entity_numbers(text: str, entities: set[str]) -> set[int]:
+    """Extract small cardinal numbers that are adjacent to an entity mention.
+
+    Tightens numeric count conflict detection so broad numbers in unrelated
+    clauses (e.g. step numbers, timestamps, durations) do not trigger false conflicts.
+    """
+    if not text or not entities:
+        return set()
+
+    words = re.findall(r"\b\w+\b", text.lower())
+    if not words:
+        return set()
+
+    entity_words: set[str] = set()
+    for ent in entities:
+        for ew in re.findall(r"\b\w+\b", ent.lower()):
+            if len(ew) >= 3:
+                entity_words.add(ew)
+
+    entity_token_positions: set[int] = {
+        idx for idx, w in enumerate(words) if w in entity_words
+    }
+    if not entity_token_positions:
+        return set()
+
+    nums: set[int] = set()
+    for idx, w in enumerate(words):
+        val = None
+        if w in NUMBER_WORDS:
+            val = NUMBER_WORDS[w]
+        elif w.isdigit() and 1 <= int(w) <= 10:
+            val = int(w)
+
+        if val is not None and any(abs(idx - ep) <= 4 for ep in entity_token_positions):
+            nums.add(val)
+
+    return nums
 
 
 def _extract_entity_numbers(text: str) -> set[int]:
@@ -395,6 +451,19 @@ def _extract_entity_numbers(text: str) -> set[int]:
     for m in re.finditer(r"\b([1-9]|10)\b", text):
         nums.add(int(m.group(1)))
     return nums
+
+
+def _is_suppressible_conflict(reason: str) -> bool:
+    """Check if a detected conflict is strong enough to suppress chunks.
+
+    Lexical negation asymmetry and broad numeric mismatches cannot suppress
+    or delete chunks from generation context (preserving them as telemetry/metadata).
+    Suppression is preserved for explicit-flag, relation, attribute, claim-polarity,
+    domain antonyms, and tight entity-adjacent numeric count conflicts.
+    """
+    if not reason or reason.startswith("Negation asymmetry"):
+        return False
+    return True
 
 
 def resolve_contradictions(
@@ -452,9 +521,10 @@ def resolve_contradictions(
             if has_conflict:
                 conflicting_sources.add(chunk_src)
                 conflicting_sources.add(entity_src)
+                can_suppress = _is_suppressible_conflict(reason)
 
                 # Authority comparison: Lower rank number = higher authority (Rank 1 > Rank 3)
-                if entity_rank < chunk_rank:
+                if can_suppress and entity_rank < chunk_rank:
                     # Graph entity has higher authority; vector chunk is suppressed
                     suppressed_chunk_indices.add(chunk_idx)
                     winning_ranks.append(entity_rank)
@@ -474,7 +544,7 @@ def resolve_contradictions(
                         chunk_rank,
                         reason,
                     )
-                elif chunk_rank < entity_rank:
+                elif can_suppress and chunk_rank < entity_rank:
                     # Vector chunk has higher authority; vector chunk is preserved, graph claim demoted
                     winning_ranks.append(chunk_rank)
                     conflicts_detected.append({
@@ -494,8 +564,15 @@ def resolve_contradictions(
                         reason,
                     )
                 else:
-                    # Equal rank tie-break: default to keeping chunk with highest authority rank
-                    winning_ranks.append(chunk_rank)
+                    winning_ranks.append(min(chunk_rank, entity_rank))
+                    conflicts_detected.append({
+                        "entity": list(extract_entity_keys(chunk) & extract_entity_keys(entity)),
+                        "winner_source": chunk_src,
+                        "winner_rank": chunk_rank,
+                        "loser_source": entity_src,
+                        "loser_rank": entity_rank,
+                        "reason": reason,
+                    })
 
     # Phase 2: Detect conflicts among Vector Chunks themselves
     for i, chunk_a in enumerate(chunks):
@@ -515,8 +592,9 @@ def resolve_contradictions(
             if has_conflict:
                 conflicting_sources.add(src_a)
                 conflicting_sources.add(src_b)
+                can_suppress = _is_suppressible_conflict(reason)
 
-                if rank_a < rank_b:
+                if can_suppress and rank_a < rank_b:
                     # chunk_a has higher authority
                     suppressed_chunk_indices.add(j)
                     winning_ranks.append(rank_a)
@@ -528,7 +606,7 @@ def resolve_contradictions(
                         "loser_rank": rank_b,
                         "reason": reason,
                     })
-                elif rank_b < rank_a:
+                elif can_suppress and rank_b < rank_a:
                     # chunk_b has higher authority
                     suppressed_chunk_indices.add(i)
                     winning_ranks.append(rank_b)
@@ -541,7 +619,7 @@ def resolve_contradictions(
                         "reason": reason,
                     })
                     break  # chunk_a is suppressed, stop checking against it
-                else:
+                elif can_suppress:
                     # Equal rank tie-break: higher retrieval score wins
                     score_a = float(chunk_a.get("score") or chunk_a.get("rerank_score") or 0.0)
                     score_b = float(chunk_b.get("score") or chunk_b.get("rerank_score") or 0.0)
@@ -552,6 +630,24 @@ def resolve_contradictions(
                         suppressed_chunk_indices.add(i)
                         winning_ranks.append(rank_b)
                         break
+                    conflicts_detected.append({
+                        "type": "authority_tie",
+                        "entity": list(extract_entity_keys(chunk_a) & extract_entity_keys(chunk_b)),
+                        "chunk_id": chunk_a.get("id", ""),
+                        "entity_id": chunk_b.get("id", ""),
+                        "reason": "equal_authority_rank_tie",
+                    })
+                else:
+                    # Telemetry-only conflict without chunk suppression
+                    winning_ranks.append(min(rank_a, rank_b))
+                    conflicts_detected.append({
+                        "entity": list(extract_entity_keys(chunk_a) & extract_entity_keys(chunk_b)),
+                        "winner_source": src_a,
+                        "winner_rank": rank_a,
+                        "loser_source": src_b,
+                        "loser_rank": rank_b,
+                        "reason": reason,
+                    })
 
     # Construct filtered and annotated chunk list
     filtered_chunks: list[dict[str, Any]] = []

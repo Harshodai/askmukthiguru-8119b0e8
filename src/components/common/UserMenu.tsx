@@ -88,11 +88,20 @@ export const UserMenu = ({ onRestartTour }: UserMenuProps = {}) => {
           <Settings className="w-4 h-4 mr-2" /> {t('common.settings')}
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => navigate('/profile?tab=settings#security')} className="min-h-[40px] rounded-lg">
-          <ShieldCheck className="w-4 h-4 mr-2" /> Security & privacy
+          <ShieldCheck className="w-4 h-4 mr-2" /> {t('common.securityPrivacy', 'Security & privacy')}
         </DropdownMenuItem>
         {onRestartTour && (
-          <DropdownMenuItem onClick={onRestartTour} className="min-h-[40px] rounded-lg text-ojas/90 focus:text-ojas">
-            <MapPin className="w-4 h-4 mr-2" /> Take a Tour
+          <DropdownMenuItem
+            onClick={() => {
+              if (onRestartTour) {
+                onRestartTour();
+              } else {
+                window.dispatchEvent(new CustomEvent('tour:restart'));
+              }
+            }}
+            className="min-h-[40px] rounded-lg text-ojas/90 focus:text-ojas"
+          >
+            <MapPin className="w-4 h-4 mr-2" /> {t('common.takeTour', 'Take a Tour')}
           </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />
