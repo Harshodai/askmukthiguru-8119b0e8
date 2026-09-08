@@ -58,6 +58,12 @@ jobs:
           VITE_SUPABASE_URL: https://mock-supabase.supabase.co
           VITE_SUPABASE_PUBLISHABLE_KEY: mock-anon-key-for-ci-build
 
+      - name: Build mobile frontend
+        run: npm run build:mobile
+        env:
+          VITE_SUPABASE_URL: https://mock-supabase.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: mock-anon-key-for-ci-build
+
       - name: Check bundle budget
         run: npm run bundle:check
 
