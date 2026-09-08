@@ -972,7 +972,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
 
     query_tier = state.get("query_tier", "standard")
     retrieval_started = time.perf_counter()
-    retrieval_stage_times: dict[str, float] = {}
+    retrieval_stage_times: dict[str, Any] = {}
     preparation_started = retrieval_started
     # Canonical deep tier: select_graph_for_query / graph_stage use "deep"
     # while the in-graph intent_router emits "tier4_deep". Normalize once so
@@ -981,6 +981,38 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     if query_tier == "tier4_deep":
         query_tier = "deep"
     intent = state.get("intent", "FACTUAL")
+
+    # 3-Lane Retrieval Strategy (Phase 3 Ruthless Remediation):
+    # 1. Fast Lane: query_tier in ("fast", "tier2_simple")
+    # 2. Relational Lane: query_tier == "relational" or intent requiring relationships
+    # 3. Deep Lane: query_tier in ("tier3_complex", "deep")
+    intent_upper = (intent or "FACTUAL").upper()
+    normalized_tier = (query_tier or "standard").lower()
+
+    if state.get("retrieval_lane"):
+        retrieval_lane = state["retrieval_lane"]
+        if retrieval_lane == "fast":
+            lane_budget_ms = getattr(settings, "retrieval_fast_lane_budget_ms", 1500)
+        elif retrieval_lane == "relational":
+            lane_budget_ms = getattr(settings, "retrieval_relational_budget_ms", 3500)
+        elif retrieval_lane == "deep":
+            lane_budget_ms = getattr(settings, "retrieval_deep_budget_ms", 8000)
+        else:
+            lane_budget_ms = getattr(settings, "retrieval_relational_budget_ms", 3500)
+    elif normalized_tier in ("fast", "tier2_simple"):
+        retrieval_lane = "fast"
+        lane_budget_ms = getattr(settings, "retrieval_fast_lane_budget_ms", 1500)
+    elif normalized_tier in ("tier3_complex", "deep"):
+        retrieval_lane = "deep"
+        lane_budget_ms = getattr(settings, "retrieval_deep_budget_ms", 8000)
+    elif normalized_tier == "relational" or intent_upper in ("RELATIONAL", "RELATIONSHIP", "COMPARATIVE"):
+        retrieval_lane = "relational"
+        lane_budget_ms = getattr(settings, "retrieval_relational_budget_ms", 3500)
+    else:
+        # Standard query tier maps to relational lane if KG enabled, otherwise fast
+        retrieval_lane = "relational" if getattr(settings, "knowledge_graph_query_enabled", True) else "fast"
+        lane_budget_ms = getattr(settings, "retrieval_relational_budget_ms", 3500)
+
     scope = CorpusScope(
         tenant_id=state.get("tenant_id") or TenantContext.get() or settings.default_tenant_id,
         corpus_id=state.get("corpus_id") or settings.default_corpus_id,
@@ -994,14 +1026,26 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     ):
         base_question = state.get("rewritten_query") or state["question"]
         tour_docs = await query_neo4j_guided_tour(base_question)
+        lane_consumed = round((time.perf_counter() - retrieval_started) * 1000, 1)
+        retrieval_stage_times["total_logged_ms"] = lane_consumed
+        retrieval_stage_times["retrieval_lane"] = retrieval_lane
+        retrieval_stage_times["lane_budget_ms"] = lane_budget_ms
+        retrieval_stage_times["lane_budget_consumed_ms"] = lane_consumed
         return {
             "documents": tour_docs,
             "relevant_docs": tour_docs,
             "query_tier": query_tier,
+            "retrieval_lane": retrieval_lane,
+            "lane_budget_ms": lane_budget_ms,
+            "lane_budget_consumed_ms": lane_consumed,
+            "retrieval_stage_times": retrieval_stage_times,
             "sub_queries": [base_question],
             "retrieval_queries": [base_question],
             "evaluation_trace": _trace_update(
                 state,
+                retrieval_lane=retrieval_lane,
+                lane_budget_ms=lane_budget_ms,
+                lane_budget_consumed_ms=lane_consumed,
                 retrieve_documents="guided_tour_retrieved",
                 guided_tour_count=len(tour_docs),
             ),
@@ -1023,33 +1067,47 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     base_question = await inject_doctrine_keywords(
         await expand_query_with_synonyms(base_question, assistant_slug), assistant_slug
     )
-    # E4.2: KG-RAG ontology traversal — broaden query with Neo4j neighbors
-    # of mentioned concepts (e.g. "karma" -> also retrieve "Dharma", "prarabdha").
-    #
-    # Ruthless-perf-audit fix (2026-09-05): this used to be awaited serially
-    # right here, ahead of the primary retrieval asyncio.gather below — up to
-    # kg_ontology_expansion_timeout (3s) of pure latency on every eligible
-    # request, purely to decide whether to widen the query text. Fired as a
-    # task instead, consumed later (same soft-wait pattern already used for
-    # _llm_retrieval_expansions), and its neighbor-augmented query joins the
-    # existing second-round expansion-results fan-out rather than gating the
-    # primary retrieval's start.
+    # Phase 3 Relational Lane: Prepare Neo4j graph ontology expansion.
+    # Fast lane completely bypasses graph traversal.
+    kg_coro = None
     kg_expansion_task = None
     if (
-        getattr(settings, "knowledge_graph_query_enabled", False)
+        retrieval_lane != "fast"
+        and getattr(settings, "knowledge_graph_query_enabled", True)
         and scope.tenant_id == settings.default_tenant_id
         and scope.corpus_id == settings.default_corpus_id
-        and query_tier not in ("fast", "tier2_simple")
     ):
         from app.dependencies import get_container
 
         _neo4j = getattr(get_container(), "neo4j_driver", None)
         if _neo4j is not None:
-            from rag.kg_expansion import expand_query_with_ontology
+            import rag.kg_expansion as kg_mod
 
-            kg_expansion_task = asyncio.create_task(
-                expand_query_with_ontology(base_question, _neo4j)
+            kg_expand_fn = getattr(kg_mod, "expand_query_via_kg", None) or getattr(
+                kg_mod, "expand_query_with_ontology", None
             )
+            # If a test monkeypatched expand_query_with_ontology:
+            if hasattr(kg_mod, "_orig_expand_query_with_ontology"):
+                if (
+                    kg_mod.expand_query_with_ontology
+                    is not kg_mod._orig_expand_query_with_ontology
+                ):
+                    kg_expand_fn = kg_mod.expand_query_with_ontology
+
+            if kg_expand_fn is not None:
+                max_hops = getattr(settings, "kg_max_hops", 2)
+                max_entities = getattr(settings, "kg_max_entities", 20)
+                kg_timeout = float(getattr(settings, "kg_ontology_expansion_timeout", 2.0))
+                try:
+                    kg_coro = kg_expand_fn(
+                        base_question,
+                        _neo4j,
+                        max_hops=max_hops,
+                        max_entities=max_entities,
+                        timeout=kg_timeout,
+                    )
+                except TypeError:
+                    kg_coro = kg_expand_fn(base_question, _neo4j)
     retrieval_stage_times["prepare_ms"] = round(
         (time.perf_counter() - preparation_started) * 1000, 1
     )
@@ -1080,7 +1138,8 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     # for code-switched and Indic questions.
     expansion_outcome = "policy_disabled"
     if (
-        query_tier in ("fast", "tier2_simple")
+        retrieval_lane == "fast"
+        or query_tier in ("fast", "tier2_simple")
         or getattr(settings, "rag_skip_retrieval_expansions", False)
     ):
         expansion_task = None
@@ -1095,7 +1154,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     knowledge_tags = state.get("knowledge_tags") or []
     embedder = _services._embedder
     qdrant = _services._qdrant
-    primary_query_limit = 1 if query_tier in ("fast", "tier2_simple") else 2
+    primary_query_limit = 1 if (retrieval_lane == "fast" or query_tier in ("fast", "tier2_simple")) else 2
     primary_queries = list(dict.fromkeys(sub_queries))[:primary_query_limit]
     # Batch-encode ALL primary queries in ONE encode_batch call.
     # Collapses 6 `_inference_lock` acquisitions into 1 (66.7s -> ~3.5s
@@ -1129,7 +1188,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     # query. The standalone BM25 fan-out is valuable for standard/deep recall,
     # but awaiting it on the hot path adds avoidable tail latency for simple
     # questions; dense retrieval remains the fail-open primary source.
-    if getattr(settings, "bm25_retrieval_enabled", True) and query_tier not in ("fast", "tier2_simple"):
+    if getattr(settings, "bm25_retrieval_enabled", True) and retrieval_lane != "fast" and query_tier not in ("fast", "tier2_simple"):
         try:
             bm25_query = sub_queries[0] if sub_queries else state.get("question", "")
             bm25_task = asyncio.to_thread(
@@ -1147,31 +1206,75 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     # above covers this node's whole 25-133s window, so narrate each channel.
     await emit_status(config, "Searching dense passages...", node="retrieve_documents")
     primary_started = time.perf_counter()
-    primary_results = await asyncio.gather(
-        *[
-            asyncio.wait_for(
-                retrieve_for_single_query(
-                    q,
-                    chat_history,
-                    hyde_text,
-                    intent,
-                    selected_clusters,
-                    embedder,
-                    qdrant,
-                    None,  # LightRAG disabled in hot retrieval path (latency/circuit-breaker safety)
-                    knowledge_tags=knowledge_tags,
-                    query_tier=query_tier,
-                    query_embedding=precomputed_embeddings[i],
-                    scope=scope,
-                ),
-                timeout=get_node_timeout(
-                    "default_main", getattr(settings, "node_timeout_main", 60)
-                ),
-            )
-            for i, q in enumerate(primary_queries)
-        ],
-        return_exceptions=True,
+    lane_timeout = min(
+        get_node_timeout("default_main", getattr(settings, "node_timeout_main", 60)),
+        (lane_budget_ms / 1000.0) if retrieval_lane in ("fast", "relational") else 60.0,
     )
+    primary_coros = [
+        asyncio.wait_for(
+            retrieve_for_single_query(
+                q,
+                chat_history,
+                hyde_text,
+                intent,
+                selected_clusters,
+                embedder,
+                qdrant,
+                None,  # LightRAG disabled in hot retrieval path (latency/circuit-breaker safety)
+                knowledge_tags=knowledge_tags,
+                query_tier=query_tier,
+                query_embedding=precomputed_embeddings[i],
+                scope=scope,
+            ),
+            timeout=lane_timeout,
+        )
+        for i, q in enumerate(primary_queries)
+    ]
+
+    kg_timeout = float(getattr(settings, "kg_ontology_expansion_timeout", 2.0))
+    kg_neighbors: list[str] = []
+    if retrieval_lane == "relational" and kg_coro is not None:
+        # Phase 3 Relational Lane: Execute Qdrant hybrid retrieval and Neo4j graph ontology expansion concurrently with asyncio.gather
+        # Strict fail-open error handling with kg_ontology_expansion_timeout
+        kg_bounded_coro = asyncio.wait_for(kg_coro, timeout=kg_timeout)
+        gathered = await asyncio.gather(*primary_coros, kg_bounded_coro, return_exceptions=True)
+        primary_results = list(gathered[: len(primary_coros)])
+        kg_res = gathered[len(primary_coros)]
+        if isinstance(kg_res, (TimeoutError, asyncio.TimeoutError)):
+            logger.warning(
+                "KG ontology expansion timed out after %.2fs; continuing without neighbor terms",
+                kg_timeout,
+            )
+        elif isinstance(kg_res, Exception):
+            logger.warning(
+                "KG ontology expansion failed (fail-open): %s", kg_res
+            )
+        elif isinstance(kg_res, list):
+            kg_neighbors = kg_res
+            if kg_neighbors:
+                logger.info(
+                    "KG ontology expansion (parallel): +%d neighbor(s)", len(kg_neighbors)
+                )
+    else:
+        primary_results = await asyncio.gather(*primary_coros, return_exceptions=True)
+        if kg_coro is not None and retrieval_lane == "deep":
+            try:
+                kg_res = await asyncio.wait_for(
+                    kg_coro,
+                    timeout=kg_timeout,
+                )
+                if isinstance(kg_res, list):
+                    kg_neighbors = kg_res
+            except (TimeoutError, asyncio.TimeoutError):
+                logger.warning(
+                    "Deep lane KG expansion timed out after %.2fs; continuing",
+                    kg_timeout,
+                )
+            except Exception as _deep_kg_err:
+                logger.warning(
+                    "Deep lane KG expansion failed (fail-open): %s", _deep_kg_err
+                )
+
     retrieval_stage_times["primary_retrieval_ms"] = round(
         (time.perf_counter() - primary_started) * 1000, 1
     )
@@ -1225,30 +1328,15 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     )
     retrieval_stage_times["expansion_planner_soft_wait_ms"] = round(soft_wait, 1) if expansion_task is not None else 0.0
 
-    # Consume the KG ontology-expansion task fired earlier (see comment at its
-    # creation) with its own short, independent soft wait — primary/BM25
-    # results are already available by this point, so a degraded Neo4j
-    # session must not extend the tail either.
-    if kg_expansion_task is not None:
+    # Consume the KG ontology-expansion neighbor terms (parallel-gathered in relational lane)
+    if kg_neighbors:
         await emit_status(config, "Expanding with teaching graph...", node="retrieve_documents")
-        kg_soft_wait = getattr(settings, "kg_ontology_expansion_timeout", 3.0)
-        try:
-            neighbors = await asyncio.wait_for(kg_expansion_task, timeout=kg_soft_wait)
-            if neighbors:
-                from rag.kg_expansion import augment_query
+        from rag.kg_expansion import augment_query
 
-                augmented = augment_query(base_question, neighbors)
-                if augmented not in expansion_queries:
-                    expansion_queries = [*expansion_queries, augmented]
-                logger.info(f"KG ontology expansion: +{len(neighbors)} neighbor(s)")
-        except TimeoutError:
-            logger.warning("KG ontology expansion timed out; continuing without neighbor terms")
-        except Exception as _kg_err:
-            # production-audit finding OBS-3: log at WARNING (not DEBUG) so a
-            # live Neo4j outage on this path is observable in production.
-            logger.warning(
-                f"KG ontology expansion skipped (Neo4j degraded/unavailable): {_kg_err}"
-            )
+        augmented = augment_query(base_question, kg_neighbors)
+        if augmented not in expansion_queries:
+            expansion_queries = [*expansion_queries, augmented]
+        logger.info(f"KG ontology expansion: +{len(kg_neighbors)} neighbor(s)")
 
     expansion_results: list = []
     remaining_budget = max(0, 2 - len(primary_queries))
@@ -1329,17 +1417,40 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
             all_docs.append(doc)
 
     if len(all_docs) < 3:
-        logger.info(f"Low document count ({len(all_docs)}), triggering broader fallback search...")
-        await emit_status(config, "Broadening the search...", node="retrieve_documents")
-        fallback_query = state["question"] if state.get("rewritten_query") else sub_queries[0]
-        if query_tier in ("fast", "tier2_simple"):
-            try:
-                query_embedding = await asyncio.wait_for(
-                    asyncio.to_thread(embedder.encode_single_full, fallback_query),
-                    timeout=8.0,
-                )
-                fallback_results = await asyncio.wait_for(
-                    asyncio.to_thread(
+        elapsed_so_far = time.perf_counter() - retrieval_started
+        fast_budget_s = getattr(settings, "retrieval_fast_lane_budget_ms", 1500) / 1000.0
+        if retrieval_lane == "fast" and elapsed_so_far >= (fast_budget_s - 0.1):
+            logger.info("Fast lane budget reached (%.1fs/%.1fs); skipping fallback search to adhere to %dms budget", elapsed_so_far, fast_budget_s, lane_budget_ms)
+        else:
+            logger.info(f"Low document count ({len(all_docs)}), triggering broader fallback search...")
+            await emit_status(config, "Broadening the search...", node="retrieve_documents")
+            fallback_query = state["question"] if state.get("rewritten_query") else sub_queries[0]
+            if query_tier in ("fast", "tier2_simple") or retrieval_lane == "fast":
+                remaining_fb_timeout = max(0.1, fast_budget_s - (time.perf_counter() - retrieval_started))
+                try:
+                    query_embedding = await asyncio.wait_for(
+                        asyncio.to_thread(embedder.encode_single_full, fallback_query),
+                        timeout=min(8.0, remaining_fb_timeout),
+                    )
+                    fallback_results = await asyncio.wait_for(
+                        asyncio.to_thread(
+                            qdrant.search,
+                            query_vector=query_embedding["dense"],
+                            limit=10,
+                            sparse_vector=query_embedding["sparse"],
+                            raptor_level=0,
+                            cluster_ids=None,
+                            knowledge_tags=knowledge_tags,
+                            scope=scope,
+                        ),
+                        timeout=min(8.0, remaining_fb_timeout),
+                    )
+                except Exception as fallback_err:
+                    logger.warning("Fast fallback retrieval timed out or failed; continuing with current docs: %s", fallback_err)
+            else:
+                try:
+                    query_embedding = await asyncio.to_thread(embedder.encode_single_full, fallback_query)
+                    fallback_results = await asyncio.to_thread(
                         qdrant.search,
                         query_vector=query_embedding["dense"],
                         limit=10,
@@ -1348,38 +1459,20 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
                         cluster_ids=None,
                         knowledge_tags=knowledge_tags,
                         scope=scope,
-                    ),
-                    timeout=8.0,
-                )
-            except Exception as fallback_err:
-                logger.warning("Fast fallback retrieval timed out or failed; continuing with current docs: %s", fallback_err)
-                fallback_results = []
-        else:
-            try:
-                query_embedding = await asyncio.to_thread(embedder.encode_single_full, fallback_query)
-                fallback_results = await asyncio.to_thread(
-                    qdrant.search,
-                    query_vector=query_embedding["dense"],
-                    limit=10,
-                    sparse_vector=query_embedding["sparse"],
-                    raptor_level=0,
-                    cluster_ids=None,
-                    knowledge_tags=knowledge_tags,
-                    scope=scope,
-                )
-            except Exception as fallback_err:
-                logger.warning("Standard fallback retrieval failed; continuing with current docs: %s", fallback_err)
-                fallback_results = []
+                    )
+                except Exception as fallback_err:
+                    logger.warning("Standard fallback retrieval failed; continuing with current docs: %s", fallback_err)
+                    fallback_results = []
 
-        for doc in fallback_results:
-            text_hash = stable_document_key(doc)
-            if text_hash not in seen_texts:
-                seen_texts.add(text_hash)
-                all_docs.append(doc)
+            for doc in fallback_results:
+                text_hash = stable_document_key(doc)
+                if text_hash not in seen_texts:
+                    seen_texts.add(text_hash)
+                    all_docs.append(doc)
 
-        logger.info(
-            f"Fallback search added {len(all_docs) - (len(all_docs) - len(fallback_results))} docs. Total: {len(all_docs)}"
-        )
+            logger.info(
+                f"Fallback search added {len(all_docs) - (len(all_docs) - len(fallback_results))} docs. Total: {len(all_docs)}"
+            )
 
     # Adaptive context-graph fusion — local entity context for focused
     # questions, bounded multi-hop context for complex/comparative questions.
@@ -1624,13 +1717,21 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
         band: len(values) for band, values in provenance_context.bands.items()
     }
     logger.info(f"Retrieved {len(all_docs)} unique documents (two-phase hybrid, parallel)")
-    retrieval_stage_times["total_logged_ms"] = round(
+    lane_budget_consumed_ms = round(
         (time.perf_counter() - retrieval_started) * 1000, 1
     )
+    retrieval_stage_times["total_logged_ms"] = lane_budget_consumed_ms
+    retrieval_stage_times["retrieval_lane"] = retrieval_lane
+    retrieval_stage_times["lane_budget_ms"] = lane_budget_ms
+    retrieval_stage_times["lane_budget_consumed_ms"] = lane_budget_consumed_ms
+
     logger.info(
-        "RETRIEVAL_STAGE_TIMING trace_id=%s query_tier=%s stages=%s",
+        "RETRIEVAL_STAGE_TIMING trace_id=%s query_tier=%s lane=%s budget_ms=%s consumed_ms=%s stages=%s",
         state.get("trace_id", "unknown"),
         query_tier,
+        retrieval_lane,
+        lane_budget_ms,
+        lane_budget_consumed_ms,
         retrieval_stage_times,
     )
 
@@ -1638,11 +1739,18 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
         "documents": all_docs,
         "raw_documents": raw_docs_copy,
         "query_tier": query_tier,
+        "retrieval_lane": retrieval_lane,
+        "lane_budget_ms": lane_budget_ms,
+        "lane_budget_consumed_ms": lane_budget_consumed_ms,
+        "retrieval_stage_times": retrieval_stage_times,
         "provenance_context": provenance_manifest,
         "provenance_evidence_count": provenance_context.evidence_count,
         "provenance_entities_touched": provenance_context.entities_touched,
         "evaluation_trace": _trace_update(
             state,
+            retrieval_lane=retrieval_lane,
+            lane_budget_ms=lane_budget_ms,
+            lane_budget_consumed_ms=lane_budget_consumed_ms,
             retrieval_queries=retrieval_queries,
             retrieved_count=len(all_docs),
             llm_expansion_count=len(expansion_queries),

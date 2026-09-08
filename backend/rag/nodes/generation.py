@@ -720,6 +720,34 @@ async def context_engineer(state: GraphState, config: Optional[RunnableConfig] =
             )
             knowledge_docs = deduped_docs
 
+    # Contradiction Resolution & Authority Engine (Phase 3 Task 3)
+    # Detect conflicts between vector chunks and graph knowledge entities and resolve via authority hierarchy
+    contradiction_meta = {
+        "contradiction_detected": False,
+        "contradiction_resolved_via": "none",
+        "conflicting_sources": [],
+        "chosen_authority_rank": 1,
+    }
+    if getattr(settings, "contradiction_resolution_enabled", True) and knowledge_docs:
+        from rag.nodes.contradiction_resolver import resolve_contradictions
+
+        # Collect graph entities from state or relevant_docs
+        graph_entities = list(state.get("graph_entities") or [])
+        if not graph_entities:
+            for doc in relevant_docs:
+                if (
+                    doc.get("content_type") in ("graph_summary", "lightrag_relationship_summary")
+                    or doc.get("source_url") == "knowledge_graph"
+                    or doc.get("channel") == "graph"
+                    or str(doc.get("source_url", "")).startswith("neo4j://")
+                ):
+                    graph_entities.append(doc)
+
+        knowledge_docs, contradiction_meta = resolve_contradictions(
+            chunks=knowledge_docs,
+            graph_entities=graph_entities,
+        )
+
     # Budget-aware selection: pick which docs survive the token budget by
     # relevance (rerank_score) BEFORE the cache-friendly hash sort, instead of
     # hash-sorting first and blindly truncating the tail — a blind tail-cut
@@ -905,7 +933,19 @@ async def context_engineer(state: GraphState, config: Optional[RunnableConfig] =
             state,
             context_chunks_deduplicated=pruned_dups,
             context_chunks_selected=len(selected_docs),
+            contradiction_detected=contradiction_meta.get("contradiction_detected", False),
+            contradiction_resolved_via=contradiction_meta.get("contradiction_resolved_via", "none"),
+            conflicting_sources=contradiction_meta.get("conflicting_sources", []),
+            chosen_authority_rank=contradiction_meta.get("chosen_authority_rank", 1),
         ),
+        "contradiction_meta": contradiction_meta,
+        "contradiction_detected": contradiction_meta.get("contradiction_detected", False),
+        "route_metadata": {
+            "contradiction_detected": contradiction_meta.get("contradiction_detected", False),
+            "contradiction_resolved_via": contradiction_meta.get("contradiction_resolved_via", "none"),
+            "conflicting_sources": contradiction_meta.get("conflicting_sources", []),
+            "chosen_authority_rank": contradiction_meta.get("chosen_authority_rank", 1),
+        },
     }
     if cost_steered_brevity:
         ret_dict["query_tier"] = "tier2_simple"
@@ -1619,6 +1659,21 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
     )
     route_metadata = generation_kwargs.pop("_route_metadata", {})
 
+    # Propagate contradiction resolution metadata into route_metadata
+    c_meta = state.get("contradiction_meta") or {}
+    if not c_meta:
+        eval_tr = state.get("evaluation_trace") or {}
+        if "contradiction_detected" in eval_tr:
+            c_meta = eval_tr
+    if not c_meta and state.get("route_metadata"):
+        c_meta = state.get("route_metadata") or {}
+    if c_meta:
+        route_metadata["contradiction_detected"] = c_meta.get("contradiction_detected", False)
+        route_metadata["contradiction_resolved_via"] = c_meta.get("contradiction_resolved_via", "none")
+        route_metadata["conflicting_sources"] = c_meta.get("conflicting_sources", [])
+        route_metadata["chosen_authority_rank"] = c_meta.get("chosen_authority_rank", 1)
+
+
     from services.gateways.anthropic_gateway import AnthropicGateway, AnthropicGatewayError
 
     gateway = None
@@ -2076,6 +2131,10 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
             fallback_occurred=route_metadata.get("fallback_occurred", False),
             fallback_reason=route_metadata.get("fallback_reason"),
             fallback_from_provider=route_metadata.get("fallback_from_provider"),
+            contradiction_detected=route_metadata.get("contradiction_detected", False),
+            contradiction_resolved_via=route_metadata.get("contradiction_resolved_via", "none"),
+            conflicting_sources=route_metadata.get("conflicting_sources", []),
+            chosen_authority_rank=route_metadata.get("chosen_authority_rank", 1),
         ),
     }
     # Fast/tier2 queries skip the full verification node, so run a lightweight

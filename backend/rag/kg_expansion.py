@@ -158,29 +158,67 @@ def _find_concepts_in_query(query: str) -> list[str]:
     return found
 
 
-async def expand_query_with_ontology(
+try:
+    from app.config import settings
+except Exception:
+    settings = None
+
+
+async def expand_query_via_kg(
     query: str,
     neo4j_driver: Any,
     *,
-    max_neighbors: int = 10,
+    max_hops: int | None = None,
+    max_entities: int | None = None,
+    timeout: float | None = None,
 ) -> list[str]:
-    """Return ontology-neighbor terms to broaden the query.
+    """Execute Neo4j graph ontology expansion bounded by hops, entity limit, and timeout.
+
+    Concurrently expands concepts mentioned in the query using Neo4j ontology traversal.
+    Strict fail-open error handling ensures a degraded or offline Neo4j never blocks retrieval.
 
     Args:
-        query: The user/sub query string.
+        query: The user or sub-query string.
         neo4j_driver: A neo4j.Driver (sync). Wrapped in asyncio.to_thread.
-            None -> returns [] (graceful skip when Neo4j offline).
-        max_neighbors: Cap on total neighbor terms returned.
+            None -> returns [] (fail-open skip when Neo4j offline).
+        max_hops: Maximum traversal hops (bounded by kg_max_hops, max 2).
+        max_entities: Maximum neighbor entity IDs returned (bounded by kg_max_entities, max 20).
+        timeout: Timeout in seconds for graph query execution (defaults to kg_ontology_expansion_timeout, 2.0s).
 
     Returns:
-        List of neighbor entity_ids (e.g. ["Dharma", "Suffering", ...]).
-        Never raises — logs + returns [] on any failure. De-duplicated.
+        List of distinct neighbor entity IDs (e.g. ["Dharma", "Universal Intelligence"]).
+        Never raises — logs and returns [] on any timeout or failure (fail-open).
     """
     if not query or neo4j_driver is None:
         return []
+
     concepts = _find_concepts_in_query(query)
     if not concepts:
         return []
+
+    default_hops = getattr(settings, "kg_max_hops", 2) if settings else 2
+    default_entities = getattr(settings, "kg_max_entities", 20) if settings else 20
+    default_timeout = getattr(settings, "kg_ontology_expansion_timeout", 2.0) if settings else 2.0
+
+    hops_val = max_hops if max_hops is not None else default_hops
+    hops_clamped = min(max(1, int(hops_val)), 2)
+
+    limit_val = max_entities if max_entities is not None else default_entities
+    limit_clamped = min(max(1, int(limit_val)), 20)
+
+    timeout_val = float(timeout if timeout is not None else default_timeout)
+
+    cypher = (
+        "MATCH (n {entity_id: $concept})-[r]-(neighbor) "
+        "WHERE neighbor.entity_id IS NOT NULL AND neighbor.entity_id <> $concept "
+        "RETURN DISTINCT neighbor.entity_id AS neighbor "
+        "LIMIT $limit"
+    ) if hops_clamped == 1 else (
+        f"MATCH (n {{entity_id: $concept}})-[*1..{hops_clamped}]-(neighbor) "
+        "WHERE neighbor.entity_id IS NOT NULL AND neighbor.entity_id <> $concept "
+        "RETURN DISTINCT neighbor.entity_id AS neighbor "
+        "LIMIT $limit"
+    )
 
     def _run() -> list[str]:
         out: list[str] = []
@@ -188,25 +226,48 @@ async def expand_query_with_ontology(
         with neo4j_driver.session() as session:
             for concept in concepts:
                 try:
-                    result = session.run(_NEIGHBOR_CYPHER, concept=concept)
+                    result = session.run(cypher, concept=concept, limit=limit_clamped)
                     for rec in result:
                         neighbor = rec.get("neighbor")
                         if neighbor and neighbor not in seen and neighbor not in concepts:
                             seen.add(neighbor)
                             out.append(neighbor)
-                            if len(out) >= max_neighbors:
+                            if len(out) >= limit_clamped:
                                 return out
                 except Exception as e:
                     logger.warning(
-                        f"expand_query_with_ontology: cypher failed for '{concept}': {e}"
+                        f"expand_query_via_kg: Cypher failed for '{concept}': {e}"
                     )
         return out
 
     try:
-        return await asyncio.to_thread(_run)
-    except Exception as e:
-        logger.warning(f"expand_query_with_ontology failed: {e}")
+        return await asyncio.wait_for(asyncio.to_thread(_run), timeout=timeout_val)
+    except asyncio.TimeoutError:
+        logger.warning(
+            f"expand_query_via_kg timed out after {timeout_val:.2f}s; continuing without neighbor terms"
+        )
         return []
+    except Exception as e:
+        logger.warning(f"expand_query_via_kg failed (non-fatal): {e}")
+        return []
+
+
+async def expand_query_with_ontology(
+    query: str,
+    neo4j_driver: Any,
+    *,
+    max_neighbors: int = 10,
+) -> list[str]:
+    """Return ontology-neighbor terms to broaden the query (backward compatible)."""
+    return await expand_query_via_kg(
+        query,
+        neo4j_driver,
+        max_hops=1,
+        max_entities=max_neighbors,
+    )
+
+
+_orig_expand_query_with_ontology = expand_query_with_ontology
 
 
 def augment_query(query: str, neighbors: list[str]) -> str:

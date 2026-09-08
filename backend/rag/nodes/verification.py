@@ -212,7 +212,7 @@ async def reflect_on_answer(state: GraphState, config: dict = None) -> dict:
     # a correction hint only, so keep its pass bounded and avoid duplicate CPU
     # embedding work on complex answers or when retrieval was already high confidence.
     reflection_semantic = (
-        state.get("query_tier") not in ("tier3_complex", "deep")
+        state.get("query_tier") not in ("fast", "tier2_simple", "tier3_complex", "deep")
         and not state.get("high_confidence_retrieval", False)
     )
     ld_result = await _score_faithfulness_bounded(

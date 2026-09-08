@@ -35,9 +35,11 @@ def plan_context_graph(
     two hops. Queries without a deterministic entity match stay on Qdrant-only
     retrieval instead of paying graph latency.
     """
+    normalized_tier = (query_tier or "").lower()
+    if normalized_tier in {"fast", "tier2_simple"}:
+        return ContextGraphPlan("none", [], 0, 0, "fast_lane_bypass")
     entities = resolve_concepts_in_query(question)[:8]
     normalized_intent = (intent or "").upper()
-    normalized_tier = (query_tier or "").lower()
     if not entities:
         return ContextGraphPlan("none", [], 0, 0, "no_canonical_entity_match")
     if normalized_intent in {"COMPARATIVE", "RELATIONAL"} or normalized_tier in {

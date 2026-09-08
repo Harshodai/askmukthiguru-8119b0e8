@@ -687,6 +687,14 @@ class Settings(BaseSettings):
     # Keeps high-scoring docs only, preserving diversity for deep/complex tiers.
     rag_context_compression_score_ratio: float = 0.75
 
+    # --- 3-Lane Retrieval Strategy Budgets (Phase 3 Ruthless Remediation) ---
+    retrieval_fast_lane_budget_ms: int = 1500
+    retrieval_relational_budget_ms: int = 3500
+    retrieval_deep_budget_ms: int = 8000
+    kg_max_hops: int = 2
+    kg_max_entities: int = 20
+    contradiction_resolution_enabled: bool = True
+
     # --- Retrieval Quality Gates ---
     retrieval_score_delta_enabled: bool = True
     rerank_score_delta_enabled: bool = True
@@ -910,7 +918,7 @@ class Settings(BaseSettings):
     # (one per matched concept, no upstream timeout previously) — this call sits
     # sequentially before retrieve_documents' async fan-out, so a stalled/contended
     # Neo4j connection blocked the entire retrieval node with no ceiling.
-    kg_ontology_expansion_timeout: float = Field(default=3.0, gt=0.0)
+    kg_ontology_expansion_timeout: float = Field(default=2.0, gt=0.0)
     # Per-query graph traversal enabled — LightRAG now holds 2,200+ relations
     # (well above the original 1,000-edge threshold). Each RELATIONAL/FACTUAL/QUERY
     # uses LightRAG for graph context alongside Qdrant vector search.

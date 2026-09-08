@@ -274,3 +274,14 @@ class GraphState(TypedDict):
     provenance_context: Annotated[Optional[dict], keep_latest]
     provenance_evidence_count: Annotated[int, keep_latest]
     provenance_entities_touched: Annotated[list[str], keep_latest]
+
+    # Contradiction Resolution & Authority Hierarchy (Phase 3 Task 3)
+    contradiction_detected: Annotated[Optional[bool], keep_latest]
+    contradiction_meta: Annotated[Optional[dict], keep_latest]
+    route_metadata: Annotated[dict, add_dicts]
+    graph_entities: Annotated[list[dict], keep_latest]
+    # 3-Lane Retrieval Strategy (Phase 3 Tasks 1 & 2)
+    retrieval_lane: Annotated[Optional[str], keep_latest]
+    lane_budget_ms: Annotated[Optional[int], keep_latest]
+    lane_budget_consumed_ms: Annotated[Optional[float], keep_latest]
+    retrieval_stage_times: Annotated[Optional[dict], keep_latest]
