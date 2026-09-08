@@ -354,6 +354,10 @@ class Settings(BaseSettings):
     #            "intfloat/multilingual-e5-large" (alternative multilingual, 1024-dim)
     #            "sentence-transformers/all-MiniLM-L6-v2" (English-only, 384-dim, fast)
     embedding_model: str = "BAAI/bge-m3"
+    # Immutable BAAI/bge-m3 revision resolved from the Hugging Face API on
+    # 2026-08-01. This is part of the published retrieval-index contract.
+    embedding_model_revision: str = "5617a9f61b028005a4858fdac845db406aefb181"
+    embedding_pooling_mode: str = "mean"
     embedding_dimension: int = 1024
     # "flagembedding" (default, fp32, current production behavior) or
     # "onnx_int8" (~75% smaller resident memory, ~0.989 cosine similarity to
@@ -785,6 +789,14 @@ class Settings(BaseSettings):
     # Governed source publication is opt-in until approval/rollback staging drills pass.
     corpus_release_registry_enabled: bool = False
     corpus_release_fallback_version: int = 1
+    # Published retrieval-index contracts are opt-in until the first production
+    # corpus publication drill has created a durable Redis manifest. When true,
+    # startup refuses a missing, malformed, or incompatible contract.
+    index_contract_enforcement_enabled: bool = False
+    index_contract_version: str = "v1"
+    ingestion_chunking_version: str = "contextual-v2"
+    retrieval_metadata_schema_version: str = "v1"
+    sparse_encoder: str = "bge-m3"
 
     # --- Semantic Cache ---
     semantic_cache_enabled: bool = True  # Embedding-based semantic caching

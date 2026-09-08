@@ -261,22 +261,30 @@ async def _background_startup_body(container, fastapi_app) -> None:
     # Startup is strictly read-only: schema mutations and migrations are handled
     # via the standalone maintenance runner (backend/migrations/maintenance_runner.py).
 
-    # Embedding model drift detection: write/verify model fingerprint
-    # If embedding model changed, all existing vectors are stale — alert on mismatch.
-    logger.info("Lifespan: checking embedding model fingerprint...")
+    # Retrieval-index compatibility contract. A reachable Qdrant collection is
+    # not proof that its vectors were built with this encoder/chunker/corpus.
+    # The explicit publication record is per collection and contains no corpus
+    # text. Enforcement is enabled only after the release runbook has published
+    # the first contract; then a missing or incompatible record fails startup.
+    logger.info("Lifespan: checking published retrieval-index contract...")
     try:
-        import hashlib as _hashlib
         import json as _json
 
-        _embed_model_name = getattr(settings, "embedding_model", "BAAI/bge-m3")
-        _embed_dim = getattr(settings, "embedding_dimension", 1024)
-        _fingerprint = _hashlib.md5(
-            f"{_embed_model_name}:{_embed_dim}".encode(), usedforsecurity=False
-        ).hexdigest()
-        _fp_redis_key = "embedding_model_fingerprint"
+        from app.index_fingerprint import IndexFingerprintError, build_index_fingerprint
 
-        # Use Redis for durable cross-deploy persistence; fall back to /tmp on failure
-        _stored_fp = None
+        _collection = getattr(getattr(container, "qdrant", None), "_collection", None)
+        _collection = _collection or getattr(settings, "qdrant_collection", "unknown")
+        _contract = build_index_fingerprint(settings, collection=_collection)
+        _fp_redis_key = f"retrieval_index_contract:{_collection}"
+        _enforce_contract = bool(
+            getattr(settings, "index_contract_enforcement_enabled", False)
+        )
+
+        # Redis is the durable cross-deploy publication store. The local file
+        # preserves diagnostic visibility for development only; it never
+        # satisfies enforcement because it cannot establish release continuity.
+        _stored_contract = None
+        _redis_available = False
         try:
             import redis as _redis_lib
 
@@ -285,61 +293,58 @@ async def _background_startup_body(container, fastapi_app) -> None:
             )
             _stored_raw = _r.get(_fp_redis_key)
             if _stored_raw:
-                _stored = _json.loads(_stored_raw)
-                _stored_fp = _stored.get("fingerprint")
+                _stored_contract = _json.loads(_stored_raw)
+            _redis_available = True
         except Exception:
             _fp_path = "/tmp/embedding_model_fingerprint.json"
             if __import__("os").path.exists(_fp_path):
                 try:
                     with open(_fp_path) as _f:
-                        _stored = _json.load(_f)
-                        _stored_fp = _stored.get("fingerprint")
+                        _stored_contract = _json.load(_f)
                 except Exception as _e:
                     logger.debug("[startup/shutdown] suppressed non-critical error: %s", _e)
 
-        if _stored_fp is not None:
-            if _stored_fp != _fingerprint:
-                logger.critical(
-                    "⚠️  EMBEDDING MODEL CHANGED: stored=%s current=%s model=%s dim=%d. "
-                    "Full re-indexing of spiritual_wisdom required to avoid retrieval degradation!",
-                    _stored_fp,
-                    _fingerprint,
-                    _embed_model_name,
-                    _embed_dim,
-                )
-            else:
-                logger.info("Lifespan: embedding model fingerprint OK (%s)", _fingerprint[:8])
-        else:
-            # Store fingerprint in Redis (primary) and /tmp (fallback)
+        if _stored_contract is not None:
             try:
-                import redis as _redis_lib2
-
-                _r2 = _redis_lib2.Redis.from_url(
-                    settings.redis_url, socket_timeout=3, socket_connect_timeout=3
+                _contract.assert_matches(_stored_contract)
+                logger.info(
+                    "Lifespan: retrieval-index contract OK (%s, %s)",
+                    _collection,
+                    _contract.digest[:12],
                 )
-                _r2.set(
-                    _fp_redis_key,
-                    _json.dumps(
-                        {"model": _embed_model_name, "dim": _embed_dim, "fingerprint": _fingerprint}
-                    ),
+            except IndexFingerprintError as _contract_error:
+                _message = (
+                    f"Retrieval index '{_collection}' is incompatible with the active "
+                    f"configuration: {_contract_error}. Re-publish only after a complete, "
+                    "validated re-index."
                 )
-            except Exception:
+                if _enforce_contract:
+                    raise RuntimeError(_message) from _contract_error
+                logger.critical(_message)
+        else:
+            if _enforce_contract:
+                raise RuntimeError(
+                    f"Retrieval index '{_collection}' has no published compatibility contract. "
+                    "Run the controlled publication step before enabling this release."
+                )
+            logger.warning(
+                "Lifespan: no published retrieval-index contract for %s; enforcement is disabled",
+                _collection,
+            )
+            # Preserve a development diagnostic without claiming it was a
+            # publication. Operators must explicitly publish to Redis before
+            # enabling the fail-closed setting.
+            if not _redis_available:
                 _fp_path = "/tmp/embedding_model_fingerprint.json"
                 try:
                     with open(_fp_path, "w") as _f:
-                        _json.dump(
-                            {
-                                "model": _embed_model_name,
-                                "dim": _embed_dim,
-                                "fingerprint": _fingerprint,
-                            },
-                            _f,
-                        )
+                        _json.dump(_contract.published_payload(), _f)
                 except Exception as _e:
                     logger.debug("[startup/shutdown] suppressed non-critical error: %s", _e)
-            logger.info("Lifespan: embedding model fingerprint stored (%s)", _fingerprint[:8])
     except Exception as e:
-        logger.warning(f"Lifespan: embedding model drift check error (non-critical): {e}")
+        if bool(getattr(settings, "index_contract_enforcement_enabled", False)):
+            raise
+        logger.warning(f"Lifespan: retrieval-index contract check error (non-critical): {e}")
 
     # Verify multilingual reranker model is cached (fail fast on cold start to surface missing models)
     logger.info("Lifespan: verifying reranker model availability...")
