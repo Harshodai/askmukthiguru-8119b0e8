@@ -35,7 +35,7 @@ SCRIPT_TO_LANG: dict[str, str] = {
     "Arabic": "ur",
 }
 
-HINDU_WORDS: list[str] = [
+HINDI_WORDS: list[str] = [
     "mujhe", "kaise", "karni", "hai", "nahi", "acha", "achha", "theek",
     "bilkul", "kar", "ho", "se", "mein", "main", "mera", "meri", "tere",
     "tum", "aap", "kya", "yeh", "woh", "ek", "do", "teen",
@@ -50,12 +50,24 @@ HINDU_WORDS: list[str] = [
     "kaun", "kab", "kahan", "kyun", "matlab", "sach", "galat",
 ]
 
-_HINDU_PATTERN = re.compile(
-    r"\b(?:" + "|".join(re.escape(w) for w in HINDU_WORDS) + r")\b",
+_HINDI_PATTERN = re.compile(
+    r"\b(?:" + "|".join(re.escape(w) for w in HINDI_WORDS) + r")\b",
     re.IGNORECASE,
 )
 
 _HINGLISH_THRESHOLD = 0.3
+
+TAMIL_WORDS: list[str] = [
+    "enna", "epdi", "yaaru", "ennaachu", "seri", "kadavul", "anbu", "santhosam",
+    "dukkam", "manasu", "uyir", "vaazhkai", "aanandham", "shanthi",
+]
+
+_TAMIL_PATTERN = re.compile(
+    r"\b(?:" + "|".join(re.escape(w) for w in TAMIL_WORDS) + r")\b",
+    re.IGNORECASE,
+)
+
+_TANGLISH_THRESHOLD = 0.3
 
 
 def detect_language(
@@ -93,6 +105,10 @@ def detect_language(
     if hinglish_result:
         return hinglish_result
 
+    tanglish_result = _check_tanglish(text)
+    if tanglish_result:
+        return tanglish_result
+
     if user_preference and user_preference not in ("en", ""):
         return {
             "language": user_preference,
@@ -122,12 +138,32 @@ def _check_hinglish(text: str) -> Optional[dict]:
     words = re.findall(r"[a-zA-Z]+", text.lower())
     if not words:
         return None
-    matches = len(_HINDU_PATTERN.findall(text.lower()))
+    matches = len(_HINDI_PATTERN.findall(text.lower()))
     ratio = matches / len(words)
     if ratio >= _HINGLISH_THRESHOLD:
         confidence = min(0.5 + ratio * 0.5, 0.9)
         return {
             "language": "hi",
+            "confidence": round(confidence, 2),
+            "is_code_switched": True,
+        }
+    return None
+
+
+def _check_tanglish(text: str) -> Optional[dict]:
+    """Check if text is Tanglish (Latin-script Tamil code-mix).
+
+    Returns dict if >30% of words match common Tamil words, else None.
+    """
+    words = re.findall(r"[a-zA-Z]+", text.lower())
+    if not words:
+        return None
+    matches = len(_TAMIL_PATTERN.findall(text.lower()))
+    ratio = matches / len(words)
+    if ratio >= _TANGLISH_THRESHOLD:
+        confidence = min(0.5 + ratio * 0.5, 0.9)
+        return {
+            "language": "ta",
             "confidence": round(confidence, 2),
             "is_code_switched": True,
         }

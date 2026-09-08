@@ -1,7 +1,8 @@
 import logging
-import re
 from dataclasses import dataclass
 from enum import Enum
+
+from services.language_detection import detect_language
 
 logger = logging.getLogger(__name__)
 
@@ -79,108 +80,43 @@ class LanguageRouter:
     ]
 
     def detect(self, text: str) -> LanguageDetection:
-        """Detect language with confidence score."""
+        """Detect language with confidence score.
+
+        Delegates to the shared ``detect_language()`` utility and maps the
+        result into the ``LanguageDetection`` dataclass expected by callers.
+        """
+        result = detect_language(text)
+        lang_code = result["language"]
+        is_code_switched = result["is_code_switched"]
+        confidence = result["confidence"]
         scripts = self._detect_scripts(text)
 
-        # Pure script-based detection
-        if "Devanagari" in scripts:
-            return LanguageDetection(
-                primary=LanguageCode.HI,
-                confidence=0.95,
-                is_codemixed=False,
-                scripts_detected=scripts,
-                recommendation="sarvam-30b-devanagari",
-            )
-        elif "Tamil" in scripts:
-            return LanguageDetection(
-                primary=LanguageCode.TA,
-                confidence=0.95,
-                is_codemixed=False,
-                scripts_detected=scripts,
-                recommendation="sarvam-30b-tamil",
-            )
-        elif "Telugu" in scripts:
-            return LanguageDetection(
-                primary=LanguageCode.TE,
-                confidence=0.95,
-                is_codemixed=False,
-                scripts_detected=scripts,
-                recommendation="sarvam-30b-telugu",
-            )
-        elif "Kannada" in scripts:
-            return LanguageDetection(
-                primary=LanguageCode.KN,
-                confidence=0.95,
-                is_codemixed=False,
-                scripts_detected=scripts,
-                recommendation="sarvam-30b-kannada",
-            )
-        elif "Malayalam" in scripts:
-            return LanguageDetection(
-                primary=LanguageCode.ML,
-                confidence=0.95,
-                is_codemixed=False,
-                scripts_detected=scripts,
-                recommendation="sarvam-30b-malayalam",
-            )
-        elif "Bengali" in scripts:
-            return LanguageDetection(
-                primary=LanguageCode.BN,
-                confidence=0.95,
-                is_codemixed=False,
-                scripts_detected=scripts,
-                recommendation="sarvam-30b-bengali",
-            )
-        elif "Gujarati" in scripts:
-            return LanguageDetection(
-                primary=LanguageCode.GU,
-                confidence=0.95,
-                is_codemixed=False,
-                scripts_detected=scripts,
-                recommendation="sarvam-30b-gujarati",
-            )
-        elif "Gurmukhi" in scripts:
-            return LanguageDetection(
-                primary=LanguageCode.PA,
-                confidence=0.95,
-                is_codemixed=False,
-                scripts_detected=scripts,
-                recommendation="sarvam-30b-punjabi",
-            )
+        # Map shared-utility language code to LanguageCode enum.
+        # detect_language() returns "hi" for both Devanagari Hindi and
+        # Hinglish; "ta" for both Tamil script and Tanglish.
+        # is_code_switched distinguishes the two.
+        if lang_code == "hi" and is_code_switched:
+            primary = LanguageCode.HINGLISH
+        elif lang_code == "ta" and is_code_switched:
+            primary = LanguageCode.TANGLISH
+        elif lang_code == "hi":
+            primary = LanguageCode.HI
+        elif lang_code == "ta":
+            primary = LanguageCode.TA
+        else:
+            try:
+                primary = LanguageCode(lang_code)
+            except ValueError:
+                primary = LanguageCode.EN
 
-        # Code-mixed detection for Roman text
-        text_lower = text.lower()
+        recommendation = f"sarvam-30b-{primary.value}"
 
-        # Count matched vernacular tokens, not regex-list entries. Each list holds
-        # one alternation pattern, so summing matching patterns made the >=2
-        # threshold unreachable for every Roman-script code-mixed message.
-        hinglish_score = len(re.findall(self.HINGLISH_PATTERNS[0], text_lower))
-        tanglish_score = len(re.findall(self.TANGLISH_PATTERNS[0], text_lower))
-
-        if hinglish_score >= 2:
-            return LanguageDetection(
-                primary=LanguageCode.HINGLISH,
-                confidence=min(0.5 + hinglish_score * 0.1, 0.9),
-                is_codemixed=True,
-                scripts_detected=["Latin"],
-                recommendation="sarvam-30b-hinglish",
-            )
-        elif tanglish_score >= 2:
-            return LanguageDetection(
-                primary=LanguageCode.TANGLISH,
-                confidence=min(0.5 + tanglish_score * 0.1, 0.9),
-                is_codemixed=True,
-                scripts_detected=["Latin"],
-                recommendation="sarvam-30b-tanglish",
-            )
-
-        # Default to English
         return LanguageDetection(
-            primary=LanguageCode.EN,
-            confidence=0.8,
-            is_codemixed=False,
-            scripts_detected=["Latin"],
-            recommendation="sarvam-30b",
+            primary=primary,
+            confidence=confidence,
+            is_codemixed=is_code_switched,
+            scripts_detected=scripts,
+            recommendation=recommendation,
         )
 
     def _detect_scripts(self, text: str) -> list[str]:

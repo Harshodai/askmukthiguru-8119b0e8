@@ -164,6 +164,8 @@ class GraphStage(Stage):
             initial_state["detected_language"] = (
                 lang_detection.primary.value if lang_detection else "en"
             )
+            if lang_detection and getattr(lang_detection, "is_codemixed", False):
+                initial_state["codemix_preference"] = True
             initial_state["memory_context"] = memory_context
             # Attachment evidence is a per-turn input, separate from personal memory.
             # The generation layer labels it as untrusted material and never persists it.
