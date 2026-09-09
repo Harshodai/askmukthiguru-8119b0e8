@@ -28,10 +28,6 @@ if TYPE_CHECKING:
     from app.dependencies import ServiceContainer
     from app.schemas import ChatRequest
 
-if TYPE_CHECKING:
-    from app.dependencies import ServiceContainer
-    from app.schemas import ChatRequest
-
 logger = logging.getLogger(__name__)
 
 # Bounded, process-local translation cache. Keys are digests rather than raw

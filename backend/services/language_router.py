@@ -55,18 +55,6 @@ class LanguageRouter:
     - Language routing to appropriate model
     """
 
-    # Unicode script ranges
-    SCRIPT_RANGES = {
-        "Devanagari": ("\u0900", "\u097f"),  # Hindi, Marathi, Sanskrit
-        "Tamil": ("\u0b80", "\u0bff"),
-        "Telugu": ("\u0c00", "\u0c7f"),
-        "Kannada": ("\u0c80", "\u0cff"),
-        "Bengali": ("\u0980", "\u09ff"),
-        "Gujarati": ("\u0a80", "\u0aff"),
-        "Gurmukhi": ("\u0a00", "\u0a7f"),  # Punjabi
-        "Malayalam": ("\u0d00", "\u0d7f"),
-    }
-
     # Code-mixed indicators
     HINGLISH_PATTERNS = [
         r"\b(kya|kaise|kyun|kyunki|agar|lekin|par|aur|nahi|haan|hoon|hai|tha|thi|"
@@ -121,8 +109,9 @@ class LanguageRouter:
 
     def _detect_scripts(self, text: str) -> list[str]:
         """Detect which Unicode scripts are present in text."""
+        from services.language_detection import SCRIPT_RANGES
         scripts = []
-        for script_name, (start, end) in self.SCRIPT_RANGES.items():
+        for script_name, (start, end) in SCRIPT_RANGES.items():
             if any(start <= c <= end for c in text):
                 scripts.append(script_name)
         return scripts

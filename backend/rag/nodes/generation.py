@@ -1,13 +1,8 @@
 """Generation and response formatting nodes.
 
-Missing files that should exist but are absent from the repo:
-- ``backend/rag/nodes/generation.pyi``: no type stub for this module's public API.
-- ``backend/rag/nodes/_generation_config.py``: expected by some import paths but
-  never created; all config lives in ``app.config.settings`` instead.
-- ``backend/data/doctrine_lexicon.json``: referenced in handoff notes as a
-  required curated artifact; currently absent — do not manufacture a placeholder.
-- ``backend/memory/okf/compiled.json``: required OKF compiled index; absent in
-  the deployed archive — see INGESTION_SAFETY.md for ingestion-side rules.
+Handles answer generation, citation injection, grounding verification, and
+response formatting. Delegates LLM calls to provider services via
+``_services.llm_generate()`` and ``_services.llm_classify()``.
 """
 
 from __future__ import annotations

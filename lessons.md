@@ -1,3 +1,77 @@
+## Sep 9, 2026 — Personalization System Fixes
+
+### L-PERS-1. Duplicate TYPE_CHECKING Block in orchestrator_utils.py
+- **What**: `orchestrator_utils.py` had two identical `if TYPE_CHECKING:` blocks (lines 27-33) importing the same symbols. Leftover from a merge or copy-paste.
+- **Fix applied**: Removed the duplicate block; kept the single canonical `TYPE_CHECKING` import.
+- **Rule**: Watch for duplicate import blocks after merges. A second `if TYPE_CHECKING:` is always dead code.
+
+### L-PERS-2. Stale Module Docstring in generation.py
+- **What**: `rag/nodes/generation.py` docstring listed 4 "missing files that should exist but are absent from the repo" — these were reference notes, not actionable items, and the framing was misleading (they are known gaps, not bugs in this module).
+- **Fix applied**: Replaced with an accurate one-line description of what the module does.
+- **Rule**: Module docstrings should describe the module's purpose, not catalog repo-level gaps. Use `docs/engineering-notes/` or `AGENTS.md` for infrastructure status notes.
+
+### L-PERS-3. Dead SCRIPT_RANGES in LanguageRouter
+- **What**: `LanguageRouter` in `language_router.py` carried its own `SCRIPT_RANGES` dict (subset of 8 scripts) while already importing `detect_language` from `language_detection.py` which has the canonical 10-script dict. `_detect_scripts()` used the class attribute, missing Oriya and Arabic ranges.
+- **Fix applied**: Removed the class-level `SCRIPT_RANGES`. `_detect_scripts()` now imports `SCRIPT_RANGES` from `language_detection.py`, consolidating the single source of truth.
+- **Rule**: Never duplicate shared constants across modules. If two modules define the same mapping, the smaller subset silently loses entries (Oriya, Arabic were missing here). Import the canonical one.
+
+### L-PERS-4. Docstring Verification for Personalization Files
+- **What**: Verified docstrings across 11 files touched by personalization tasks (retrieval, memory, orchestrator_utils, language_detection, language_router, healing_course_service, memory_service, reranker_service, graph_stage, states, generation). Found 2 issues (L-PERS-1, L-PERS-2); the rest were accurate.
+- **L-INGEST-1 compliance**: `compact_memories()` in `memory_service.py` already gates LLM output through `find_artifact()` (lines 675-684). `healing_course_service.py` does not write LLM output to Qdrant/memory — it only reads turn history and writes a course slug to Supabase, so no gate is needed.
+- **Rule**: Any LLM call whose output reaches Qdrant or the memory store must gate through `find_artifact()`. Verification-only LLM calls (classification, intent detection) and pure-Supabase writes do not need the gate.
+
+## Sep 8, 2026 — Unified Observability, Cost Optimization & Ponytail Architecture
+
+### L-OBS-2. Unified Observability Aggregator (Ponytail Principle)
+- **What**: 16+ separate observability systems (Prometheus, Supabase telemetry, Jaeger, in-memory traces, cost tracker, runtime metrics, cache metrics, Qdrant metrics, prompt cache telemetry) existed independently with no correlation. Admin console queried Supabase directly, Prometheus scraped `/metrics`, Grafana read Prometheus, Jaeger read OTLP — four systems not linked by trace ID. Many Prometheus metrics were defined but never instrumented (dead metrics).
+- **Fix applied**: Created `unified_observability.py` — a single `ObservabilitySummary` dataclass that aggregates RSS/CPU from `psutil`, KPIs from Supabase `get_kpis()`, cost from `CostTracker.get_usage_report()`, circuit breaker state from the shared registry, and dependency health from container checks. All sub-queries are fail-open (never 500s). Three new admin endpoints: `/observability/summary`, `/observability/health-check`, `/cost-breakdown`. Frontend `ObservabilityDashboard.tsx` auto-refreshes every 30s.
+- **Rule**: New observability signals must be added to the `ObservabilitySummary` dataclass, not as standalone endpoints. One aggregation point, not fifteen. The ponytail principle: one thin wrapper that delegates to existing systems, not a new system.
+
+### L-COST-1. Per-User Budget Guard Prevents Tenant Budget Drain
+- **What**: `CostTracker.record()` writes per-user cost data, but `is_over_budget()` only checked at tenant level. A single abusive or misconfigured user could drain the entire $10/day tenant budget before the tenant-level guard triggered.
+- **Fix applied**: Added `is_user_over_budget(user_id)` using Redis Lua scripts for atomic `ZREMRANGEBYSCORE` + `ZRANGE` sum over a 24h sliding window. Wired into all 3 chat endpoints (`/chat`, `/chat/v2`, `/chat/stream`) after identity resolution but before quota enforcement. Returns 429 with `user_budget_exceeded: true`. Fails open on Redis errors.
+- **Rule**: Cost guards must operate at both tenant and user granularity. Tenant-level guards are necessary but not sufficient — they don't protect against single-user abuse. Redis Lua scripts ensure atomicity without separate lock transactions.
+
+### L-COST-2. Language-Aware Token Estimation Prevents Context Overflow
+- **What**: All token estimation used `words / 1.3` (or `words * 1.3`), calibrated for English. Indic scripts (Devanagari, Telugu, Tamil, Kannada) are denser — tokens are wider, so `words / 1.3` underestimates token count by ~30-40%. This caused silent context overflow where the model received more tokens than the budget intended, leading to truncation or cost overruns.
+- **Fix applied**: Created `estimate_tokens(text, language)` in `rag/compressor.py` with `_SCRIPT_TOKEN_RATIOS` mapping: Latin=1.3, Devanagari/Telugu/Kannada/Tamil=0.8, Bengali/Arabic=0.9. Wired through all 5 LLM services (Sarvam, OpenRouter, NIM, Ollama, base class), `generation.py` context budgeting, and `compressor.py` document truncation. The `base_llm_service._truncate_to_budget` now uses `get_token_ratio()` for the reciprocal.
+- **Rule**: Token estimation is language-dependent. Never use a single ratio across scripts. The shared `estimate_tokens` in `rag/compressor.py` is the canonical implementation — all token counting must delegate to it. Individual service implementations (`_estimate_tokens`) are deprecated wrappers.
+
+### L-MEM-1. Unbounded Dict Growth in Hot Path
+- **What**: `_breath_teaching_cache` in `app/api/chat.py` was a plain `dict` with no TTL or max-size cap. It grew by one entry per unique `technique_id` and was never pruned. Over long-running processes (days), this leaked memory proportional to the number of distinct breathing techniques accessed.
+- **Fix applied**: Replaced with `TTLCache(maxsize=256, ttl=3600)` from `cachetools`. The TTLCache handles both time-based and size-based eviction automatically.
+- **Rule**: Every in-memory cache MUST have both a maxsize and a TTL. `dict` is not a cache — it's a memory leak with a lookup API. Use `cachetools.TTLCache` for bounded, thread-safe, auto-evicting caches.
+
+### L-MEM-2. Connection Pool Sizing for Single-Worker Containers
+- **What**: Default connection pools were sized for multi-worker deployments: Neo4j 20 connections, HTTP 50 connections. With `WEB_CONCURRENCY=1` and `MAX_CONCURRENT_CHAT=8`, these pools allocated memory for connections that would never be used. The 50-connection HTTP pool per service (Sarvam, OpenRouter, NIM) meant up to 150 idle HTTP connections.
+- **Fix applied**: Reduced Neo4j pool from 20→8, HTTP pool from 50→20, LightRAG cache from 2000→1000 entries, embedding cache from 2000→1000 entries. Added Redis `maxmemory 450mb allkeys-lru` for eviction under pressure.
+- **Rule**: Connection pool sizes must be proportional to `WEB_CONCURRENCY * MAX_CONCURRENT_CHAT`, not to theoretical maximum. A single-worker container with 8 concurrent chats needs at most 8-16 connections per pool, not 50.
+
+### L-FE-1. Zustand Over Module-Level Mutable Singletons
+- **What**: AI config (`language`, `aiProvider`) was stored in a module-level mutable object mutated by `setLanguage()` and `setAIProvider()`. Components couldn't observe config changes — they read the value once at mount time and never updated. This caused stale language/provider state after user preference changes.
+- **Fix applied**: Converted to Zustand store (`useAIConfig`) with reactive subscriptions. Backward-compatible exports (`getCurrentConfig()`, `setLanguage()`) still work for non-React consumers via `getState()`.
+- **Rule**: Client-side configuration that affects rendering must use reactive state (Zustand, React context, or signal). Module-level singletons are invisible to React's reconciliation — changes don't trigger re-renders.
+
+### L-FE-2. Force Simulation DOM thrashing
+- **What**: KG Concept Map's force simulation called `setSimHeat(h => h + 1)` on every animation frame (300 ticks), forcing 18,000 React re-renders for a single graph animation. Each re-render reconciled the entire SVG tree.
+- **Fix applied**: Added `nodeRefs` ref map for direct DOM access. Node positions updated via `el.setAttribute('transform', ...)` bypassing React reconciliation. `setSimHeat` throttled from every frame to every 30th frame (~10 re-renders).
+- **Rule**: Animation loops MUST NOT trigger React state updates on every frame. Use refs for direct DOM manipulation during animations; throttle state updates to observation frequency (e.g., 30fps for heat maps).
+
+### L-SEC-3. PII in Browser Console Logs
+- **What**: `AuthPage.tsx` logged `session.user.email` to `console.warn` on domain-blocked sign-in attempts. User email addresses were visible in browser DevTools in production.
+- **Fix applied**: Removed the email from the log message. The log now reads `[Auth] Non-allowed email domain blocked` without the address.
+- **Rule**: Never log PII (email, userId, UUID, session tokens) to browser console. Console logs are visible to anyone with DevTools open and may be captured by error reporting tools. Log domain/category only.
+
+### L-OBS-3. Circuit Breaker Unification Prevents Dual-State Bugs
+- **What**: `MultiProviderLLMService` had its own inline `CircuitBreaker` dataclass that didn't participate in the shared `get_circuit_breaker_registry()`. The inline breaker could be "open" while the shared registry showed "closed" (or vice versa), causing inconsistent health check results and routing decisions.
+- **Fix applied**: Removed inline `CircuitBreaker` and `ProviderState`. Now imports `DefaultCircuitBreaker`, `CircuitBreakerConfig`, `get_circuit_breaker_registry` from the shared framework. Each provider's breaker is registered on init.
+- **Rule**: All circuit breakers MUST use the shared `DefaultCircuitBreaker` from `services/circuit_breaker.py` and register with `get_circuit_breaker_registry()`. Inline breaker implementations create dual-state bugs where health checks and routing see different states.
+
+### L-QUAL-1. Silent Exception Blocks Need Observability
+- **What**: 12+ `except ... : pass` blocks in production code silently swallowed errors without any logging. KG enrichment timeouts in `memory_service_v2.py`, Redis frequency counter failures in `orchestrator.py`, and config import failures in `serene_mind_engine.py` all failed silently. Without logging, these failures were invisible in production — no metric, no trace, no debug output.
+- **Fix applied**: Added `logger.debug(...)` with `exc_info=True` to all silent blocks in `orchestrator.py`, `memory_service_v2.py` (2 sites), and `serene_mind_engine.py`. The `logger.debug` level ensures visibility during troubleshooting without polluting production logs.
+- **Rule**: `except ... : pass` is forbidden in production code. Every exception handler must log at minimum at `logger.debug` level with `exc_info=True`. The only exception is `asyncio.CancelledError` cleanup (standard task cancellation pattern) and `json.JSONDecodeError` in parse fallback chains where `None` is the expected return.
+
 ## Aug 30, 2026 — Ruthless Production-Readiness, Epistemic Grounding & CodeQL Remediation
 
 ### L-PROD-23. Epistemic Grounding vs. Green-Test QA Mirage
@@ -8275,3 +8349,18 @@ Started as a narrow ask: enable `rag_deep_research_enabled` (an adaptive suffici
 - **What**: After dispatching 6 parallel subagents to fix 30+ issues, 2 test regressions were introduced: (a) `contradiction_resolver` test expected `route_metadata.contradiction_detected` which was removed from `context_engineer`'s return dict, (b) `retrieval` test monkeypatched the wrong function name. Both were caught by running the full test suite.
 - **Fix applied**: Restored `route_metadata` in `context_engineer` return dict (only the redundant top-level `contradiction_detected` was removed). Updated test to monkeypatch `expand_query_via_kg` instead of `expand_query_with_ontology`.
 - **Rule**: After parallel subagent fixes, ALWAYS run the full test suite (not just the files you touched). Subagents may make correct changes that break other subagents' changes or reveal pre-existing coupling. The `git stash` comparison (test on clean tree vs. test with changes) is the definitive way to separate regressions from pre-existing failures.
+
+### L-DIST-1. Per-call Redis connection creation = connection leak under load
+- **What**: `cost_tracker.py` created `redis.from_url()` on every `_record_user_cost()` and `is_user_over_budget()` call. Each call opened a new TCP connection to Redis, executed one Lua script, then closed it. Under concurrent load (8-20 concurrent chat requests), this creates dozens of short-lived connections per second, exhausting Redis `maxclients` and causing `ConnectionError` cascades.
+- **Fix applied**: Added `_get_user_cost_redis()` module-level lazy-initialized shared connection with `max_connections=5` pool. Both methods now reuse the shared connection.
+- **Rule**: Redis `from_url()` inside a hot path (called per-request) MUST use a connection pool or shared instance. Creating and closing a connection per call is a connection leak under concurrency. The 5-connection pool is sized for `WEB_CONCURRENCY * MAX_CONCURRENT_CHAT` = `1 * 8 = 8` max concurrent callers.
+
+### L-DIST-2. Retry backoff without jitter = thundering herd on recovery
+- **What**: All retry mechanisms (`base_llm_service.py`, `openrouter_service.py`, `nim_service.py`, `qdrant/indexer.py`, `qdrant/searcher.py`) used fixed exponential backoff (`sleep(delay)` or `wait_exponential(min=1, max=8)`) without jitter. When a service recovers after `recovery_timeout`, all waiting clients retry at exactly the same time (synchronized thundering herd), potentially causing an immediate re-failure.
+- **Fix applied**: Switched tenacity wait strategies from `wait_exponential(multiplier=1, min=1, max=8)` to `wait_exponential_jitter(initial=1, max=8, jitter=1)` in `base_llm_service.py`, `openrouter_service.py`, `nim_service.py`. Added `random.uniform(0, delay)` jitter in `qdrant/indexer.py` and `qdrant/searcher.py`.
+- **Rule**: ALL retry backoff MUST include jitter (randomized delay component). Tenacity provides `wait_exponential_jitter`; manual loops use `random.uniform(0, delay)`. Without jitter, N clients waiting for the same recovery window will all retry at the same instant, causing a thundering herd that re-opens the circuit breaker.
+
+### L-DIST-3. Qdrant circuit breaker already existed — audit false positive
+- **What**: The distributed systems audit flagged Qdrant as having no circuit breaker. In fact, `qdrant_service.py:106-109` already creates a `DefaultCircuitBreaker(CircuitBreakerConfig.from_provider("qdrant"))` and registers it with the global registry. The breaker protects `search()`, `get_neighbor_chunks()`, and `get_summary_nodes()`.
+- **Fix applied**: Removed the redundant `services/qdrant/circuit_breaker.py` module that was created to add the "missing" breaker.
+- **Rule**: Before adding a circuit breaker to a subsystem, check if the service layer (`*_service.py`) already has one. Subsystem modules (`qdrant/searcher.py`, `qdrant/indexer.py`) are lower-level primitives; circuit breaker protection belongs at the service layer that orchestrates them.
