@@ -3,6 +3,7 @@ import os
 from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
+from pydantic import BaseModel, Field
 
 from app.config import settings
 from app.core.feedback_store import FeedbackStore
@@ -112,3 +113,51 @@ async def get_feedback_lessons(
             )
 
     return lessons
+
+
+# ── Simple thumbs up/down endpoint ──────────────────────────────────
+
+
+class RateFeedbackRequest(BaseModel):
+    """Schema for the lightweight thumbs up/down feedback."""
+
+    message_id: str = Field(..., max_length=255)
+    feedback_type: str = Field(..., pattern=r"^(positive|negative)$")
+    query_text: Optional[str] = Field(None, max_length=10000)
+    response_summary: Optional[str] = Field(None, max_length=5000)
+
+
+@router.post("/rate", status_code=201)
+async def rate_feedback(
+    request: Request,
+    body: RateFeedbackRequest,
+    user: Optional[dict] = Depends(get_current_user_from_supabase),
+):
+    """Simple thumbs up/down — stores to feedback_events table."""
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    user_id = user.get("id")
+    client = _get_supabase_client()
+    if not client:
+        raise HTTPException(status_code=503, detail="Service temporarily unavailable")
+
+    row = {
+        "user_id": user_id,
+        "message_id": body.message_id,
+        "feedback_type": body.feedback_type,
+        "query_text": body.query_text,
+        "response_summary": body.response_summary,
+    }
+    try:
+        result = client.table("feedback_events").insert(row).execute()
+        return {"status": "ok", "id": result.data[0]["id"] if result.data else None}
+    except Exception as e:
+        logger.error("Failed to store rate feedback: %s", e)
+        raise HTTPException(status_code=500, detail="Failed to store feedback")
+
+
+def _get_supabase_client():
+    from app.telemetry_db import _get_client as _supa_client
+
+    return _supa_client()

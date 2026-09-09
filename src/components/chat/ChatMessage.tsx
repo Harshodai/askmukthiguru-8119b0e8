@@ -422,6 +422,77 @@ export const LazyWisdomCardGenerator = lazyWithRetry<
 });
 
 
+/**
+ * Lightweight thumbs up/down for every assistant message.
+ * Once clicked, replaces buttons with a "Thanks" text.
+ */
+const FeedbackButtons = ({ messageId, queryText, messageContent }: {
+  messageId: string;
+  queryText?: string;
+  messageContent: string;
+}) => {
+  const [feedback, setFeedback] = useState<'positive' | 'negative' | null>(null);
+
+  const submit = async (type: 'positive' | 'negative') => {
+    setFeedback(type);
+    try {
+      const { getAccessToken } = await import('@/lib/chat/transport');
+      // Use a dynamic import to avoid circular deps; fall back to fetch directly
+      const token = await (getAccessToken as () => Promise<string | null>)().catch(() => null);
+      await fetch('/api/feedback/rate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          message_id: messageId,
+          feedback_type: type,
+          query_text: queryText ?? '',
+          response_summary: messageContent.slice(0, 500),
+        }),
+      });
+    } catch {
+      // best-effort — don't block the UI
+    }
+  };
+
+  if (feedback) {
+    return (
+      <span className="text-[11px] text-muted-foreground/60 italic select-none" data-testid="feedback-thanks">
+        Thanks
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1 opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 max-md:opacity-100 transition-opacity duration-200" data-testid="feedback-buttons">
+      <button
+        type="button"
+        onClick={() => submit('positive')}
+        className="p-0.5 rounded hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
+        title="Helpful"
+        aria-label="Thumbs up"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M7 22H4C3.46957 22 2.96086 21.7893 2.58579 21.4142C2.21071 21.0391 2 20.5304 2 20V13C2 12.4696 2.21071 11.9609 2.58579 11.5858C2.96086 11.2107 3.46957 11 4 11H7M14 9V5C14 4.20435 13.6839 3.44129 13.1213 2.87868C12.5587 2.31607 11.7956 2 11 2L7 11V22H18.28C18.7623 22.0055 19.2304 21.8364 19.5979 21.524C19.9654 21.2116 20.2077 20.7769 20.28 20.3L21.66 11.3C21.7035 11.0134 21.6842 10.7207 21.6033 10.4423C21.5225 10.1638 21.3821 9.90629 21.1919 9.68751C21.0016 9.46873 20.7661 9.29393 20.5016 9.17522C20.2371 9.0565 19.9499 8.99672 19.66 9H14Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </button>
+      <button
+        type="button"
+        onClick={() => submit('negative')}
+        className="p-0.5 rounded hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
+        title="Not helpful"
+        aria-label="Thumbs down"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+          <path d="M17 2H19.67C20.236 1.98999 20.7856 2.18365 21.2142 2.54607C21.6428 2.90849 21.9228 3.41523 22 3.97V10.97C21.9228 11.5248 21.6428 12.0315 21.2142 12.3939C20.7856 12.7563 20.236 12.95 19.67 12.99H17M10 15V19C10 19.7956 10.3161 20.5587 10.8787 21.1213C11.4413 21.6839 12.2044 22 13 22L17 12V2H5.72C5.23767 1.99454 4.76956 2.16359 4.40207 2.47599C4.03457 2.78839 3.79228 3.22309 3.72 3.7L2.34 12.7C2.29651 12.9866 2.31582 13.2793 2.39666 13.5577C2.4775 13.8362 2.6179 14.0937 2.80818 14.3125C2.99846 14.5313 3.23394 14.7061 3.49843 14.8248C3.76292 14.9435 4.05009 15.0033 4.34 15H10Z" />
+        </svg>
+      </button>
+    </span>
+  );
+};
+
 const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
   ({ message, queryText, index = 0, isStreaming = false, isLastGuru = false, onRegenerate, onEditUserMessage, onSubmitEdit, onAction, onCitationClick }, ref) => {
     const { t } = useTranslation();
@@ -942,6 +1013,15 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                     grounding_state: message.groundingState,
                     route_decision: message.queryTier,
                   }}
+                />
+              )}
+
+              {/* Thumbs up/down for every assistant message */}
+              {isGuru && message.content && !isStreaming && !message.error && !message.content.includes('_Stopped by you._') && !isCrisisAnswer(message.content) && (
+                <FeedbackButtons
+                  messageId={message.id}
+                  queryText={queryText}
+                  messageContent={message.content}
                 />
               )}
 

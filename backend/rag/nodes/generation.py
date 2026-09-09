@@ -1,4 +1,14 @@
-"""Generation and response formatting nodes."""
+"""Generation and response formatting nodes.
+
+Missing files that should exist but are absent from the repo:
+- ``backend/rag/nodes/generation.pyi``: no type stub for this module's public API.
+- ``backend/rag/nodes/_generation_config.py``: expected by some import paths but
+  never created; all config lives in ``app.config.settings`` instead.
+- ``backend/data/doctrine_lexicon.json``: referenced in handoff notes as a
+  required curated artifact; currently absent — do not manufacture a placeholder.
+- ``backend/memory/okf/compiled.json``: required OKF compiled index; absent in
+  the deployed archive — see INGESTION_SAFETY.md for ingestion-side rules.
+"""
 
 from __future__ import annotations
 
@@ -883,6 +893,36 @@ async def context_engineer(state: GraphState, config: Optional[RunnableConfig] =
         user_state += f"\n{memory_context}\n"
     user_state = cap_to_token_budget(user_state, 1024, detected_language)
 
+    # Negative feedback signal: if the user recently received 3+ negative ratings,
+    # append an instruction to prioritize directness and citations.
+    user_id = state.get("user_id") or state.get("session_id", "")
+    if user_id:
+        try:
+            from ops.retry_analysis import _get_client as _fb_client
+
+            _fb = _fb_client()
+            if _fb:
+                from datetime import UTC, datetime, timedelta
+
+                _cutoff = (datetime.now(UTC) - timedelta(days=7)).isoformat()
+                _neg_count = (
+                    _fb.table("feedback_events")
+                    .select("id", count="exact")
+                    .eq("user_id", str(user_id))
+                    .eq("feedback_type", "negative")
+                    .gte("created_at", _cutoff)
+                    .execute()
+                    .count
+                    or 0
+                )
+                if _neg_count >= 3:
+                    user_state += (
+                        "\n[PREVIOUS ANSWERS WERE NOT HELPFUL — provide direct, "
+                        "specific answer with citations]\n"
+                    )
+        except Exception:
+            pass  # Non-fatal: degrade gracefully if feedback query fails
+
     # Layer 4: Instructions (capped to 900 tokens)
     _cs = state.get("complexity_score", 0.5)
     if _cs < 0.30:
@@ -1186,8 +1226,9 @@ def _cite_sentences(
                     if score > best_score:
                         best_score = score
                         best_title = title
-            except Exception:
+            except Exception as e:
                 # ponytail: embedder unavailable → fall back to Jaccard path.
+                logger.debug("Embedder unavailable for citation mapping, falling back to Jaccard: %s", e)
                 best_score = 0.0
                 best_title = ""
                 for title, doc_ngrams in doc_data:
