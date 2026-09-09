@@ -753,11 +753,22 @@ async def prepare_user_memory(
     chat_history: list[dict[str, Any]],
     user_msg_en: str = "",
 ) -> tuple[str, list[dict[str, Any]]]:
-    """Fetch user profile and memory context to guide the prompt generation."""
+    """Fetch user profile and memory context to guide the prompt generation.
+
+    Circuit breaker: per-call timeout 500ms, total budget 1500ms.
+    If Second Brain times out, skip it and log warning (don't fail entire memory layer).
+    """
     memory_context = ""
     distress_history: list[dict[str, Any]] = []
     last_query = chat_history[-1]["content"] if chat_history else ""
     recall_query = user_msg_en or last_query
+    _total_started = time.perf_counter()
+    _TOTAL_BUDGET_S = 1.5
+    _PER_CALL_TIMEOUT_S = 0.5
+
+    def _total_budget_remaining() -> float:
+        elapsed = time.perf_counter() - _total_started
+        return max(0.0, _TOTAL_BUDGET_S - elapsed)
 
     if getattr(container, "second_brain", None) is not None and _is_persistable_user_id(user_id):
         try:
@@ -770,7 +781,8 @@ async def prepare_user_memory(
                         user_id, recall_query, vault=vault, limit=5
                     )
 
-            brain_items = await asyncio.wait_for(fetch_second_brain(), timeout=0.200)
+            sb_timeout = min(_PER_CALL_TIMEOUT_S, _total_budget_remaining())
+            brain_items = await asyncio.wait_for(fetch_second_brain(), timeout=sb_timeout)
             if brain_items:
                 brain_block = _format_second_brain_block(
                     brain_items,
@@ -783,7 +795,7 @@ async def prepare_user_memory(
             pass
         except TimeoutError:
             logger.warning(
-                f"Second Brain recall timed out for user {user_id} (exceeded 200ms budget)"
+                f"Second Brain recall timed out for user {user_id} (exceeded per-call budget); skipping"
             )
         except Exception as e:
             logger.warning(f"Second Brain recall failed: {e}")
@@ -824,7 +836,8 @@ async def prepare_user_memory(
                     )
                 return core_m, semantic_m
 
-            core_m, semantic_m = await asyncio.wait_for(fetch_memory_layer(), timeout=0.200)
+            mem_timeout = min(_PER_CALL_TIMEOUT_S, _total_budget_remaining())
+            core_m, semantic_m = await asyncio.wait_for(fetch_memory_layer(), timeout=mem_timeout)
 
             memory_blocks = []
             if core_m:
@@ -871,7 +884,7 @@ async def prepare_user_memory(
 
             # L3 persona context: short, stable user profile summary.
             try:
-                from services.layered_memory.persona_store import get_persona
+                from services.layered_memory.persona_store import get_persona, save_persona
 
                 persona_md, persona_updated_at = await get_persona(
                     container.supabase_client, user_id
@@ -892,11 +905,66 @@ async def prepare_user_memory(
                             if memory_context
                             else persona_block
                         )
+                elif persona_md and not _is_persona_fresh(
+                    persona_updated_at, max_age_days=settings.persona_max_age_days
+                ):
+                    # Stale persona: attempt in-flight refresh from recent memories
+                    try:
+                        from services.layered_memory.l1_extractor import get_recent_atoms
+                        from services.layered_memory.l3_persona_generator import generate_persona
+                        from services.memory_service_v2 import get_service as get_memory_service
+
+                        mem_svc = get_memory_service()
+                        if mem_svc:
+                            atoms = await get_recent_atoms(mem_svc, user_id, limit=30)
+                            if atoms:
+                                refreshed_persona = await generate_persona(
+                                    atoms, existing_persona=persona_md
+                                )
+                                if refreshed_persona and refreshed_persona.strip():
+                                    await save_persona(
+                                        container.supabase_client,
+                                        user_id,
+                                        refreshed_persona,
+                                    )
+                                    persona_lines = [
+                                        ln
+                                        for ln in refreshed_persona.splitlines()
+                                        if ln.strip() and not ln.startswith("#")
+                                    ]
+                                    persona_summary = "\n".join(persona_lines[:8])
+                                    if persona_summary:
+                                        persona_block = (
+                                            f"USER PERSONA SUMMARY:\n{persona_summary}"
+                                        )
+                                        memory_context = (
+                                            f"{memory_context}\n\n{persona_block}"
+                                            if memory_context
+                                            else persona_block
+                                        )
+                    except Exception as refresh_err:
+                        logger.debug("Persona auto-refresh failed (non-fatal): %s", refresh_err)
+                        # Fall through to stale persona with flag
+                        persona_lines = [
+                            ln
+                            for ln in persona_md.splitlines()
+                            if ln.strip() and not ln.startswith("#")
+                        ]
+                        persona_summary = "\n".join(persona_lines[:8])
+                        if persona_summary:
+                            persona_block = (
+                                f"[STALE PERSONA]\nUSER PERSONA SUMMARY:\n{persona_summary}"
+                            )
+                            memory_context = (
+                                f"{memory_context}\n\n{persona_block}"
+                                if memory_context
+                                else persona_block
+                            )
             except Exception as e:
                 logger.warning(f"Persona context injection failed: {e}")
         except TimeoutError:
             logger.warning(
-                f"Memory layer fetch timed out for user {user_id} (exceeded 200ms budget)"
+                f"Memory layer fetch timed out for user {user_id} (exceeded per-call budget); skipping"
             )
         except Exception as e:
             logger.warning(f"Memory layer fetch failed: {e}")

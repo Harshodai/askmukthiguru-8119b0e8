@@ -113,6 +113,42 @@ def _apply_topic_boost(query: str, topics_of_interest: list[str]) -> str:
     return f"{query} {topic_str}"
 
 
+async def personalize_retrieval_query(
+    query: str,
+    user_profile: dict | None,
+    embedding_service=None,
+) -> str:
+    """Personalize retrieval query based on user profile signals.
+
+    Appends topic-of-interest keywords and favorite teacher names to
+    improve retrieval recall for returning users. Spiritual level
+    awareness preserves accessible language for seekers and beginners.
+    """
+    if not user_profile:
+        return query
+
+    personalized = query
+
+    topics = user_profile.get("topics_of_interest") or []
+    if topics:
+        personalized = _apply_topic_boost(personalized, topics[:3])
+
+    favorites = user_profile.get("favorite_teachings") or []
+    if favorites:
+        teacher_names = []
+        for fav in favorites:
+            if isinstance(fav, dict):
+                name = fav.get("teacher") or fav.get("name") or ""
+            else:
+                name = str(fav)
+            if name:
+                teacher_names.append(name)
+        if teacher_names:
+            personalized = f"{personalized} {' '.join(teacher_names[:3])}"
+
+    return personalized
+
+
 def _okf_match(query: str, limit: int = 3, teacher: str | None = None) -> list[dict]:
     """Semantic match via cosine similarity on title embeddings; keyword fallback.
 
@@ -1079,6 +1115,17 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     base_question = await inject_doctrine_keywords(
         await expand_query_with_synonyms(base_question, assistant_slug), assistant_slug
     )
+    # Personalization: append user-interest keywords to improve recall
+    topics_of_interest = state.get("topics_of_interest", [])
+    favorite_teachings = state.get("favorite_teachings", [])
+    if topics_of_interest or favorite_teachings:
+        user_profile = {
+            "topics_of_interest": topics_of_interest,
+            "favorite_teachings": favorite_teachings,
+        }
+        base_question = await personalize_retrieval_query(
+            base_question, user_profile, embedder
+        )
     # Phase 3 Relational Lane: Prepare Neo4j graph ontology expansion.
     # Fast lane completely bypasses graph traversal.
     kg_coro = None

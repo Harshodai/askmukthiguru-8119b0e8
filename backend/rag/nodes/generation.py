@@ -631,16 +631,25 @@ def _build_codemix_block(is_codemix: bool) -> str:
 
 
 def _build_distress_block(distress_history: list[dict] | None) -> str:
-    """Build the RECENT_DISTRESS prompt block from distress history."""
+    """Build the EMOTIONAL TRAJECTORY prompt block from distress history.
+
+    Injects the last 3 distress events so the model can adapt its tone
+    to the user's recent emotional arc, not just the most recent event.
+    """
     if not distress_history:
         return ""
-    latest = distress_history[-1]
-    ts = latest.get("timestamp", "unknown")
-    level = latest.get("distress_level", "unknown")
+    recent = distress_history[-3:] if len(distress_history) > 3 else distress_history
+    trajectory_lines = []
+    for event in recent:
+        ts = event.get("timestamp", "unknown")
+        level = event.get("distress_level", "unknown")
+        trajectory_lines.append(f"{ts} (level={level})")
+    trajectory = " -> ".join(trajectory_lines)
     return (
-        f"\n\n[RECENT_DISTRESS: {ts} (level={level})]\n"
+        f"\n\n[EMOTIONAL TRAJECTORY: {trajectory}]\n"
         "Style instruction: The user has recent distress history. Use a grounding, "
-        "calming tone. Prioritize emotional safety and practical steps."
+        "calming tone. Prioritize emotional safety and practical steps. "
+        "Do not minimize or dismiss their experience."
     )
 
 
