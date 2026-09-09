@@ -251,15 +251,37 @@ def trigger_payload(trigger: CourseTrigger, slug: str) -> dict[str, Any]:
     return {"slug": slug, **asdict(trigger)}
 
 
+def assess_severity(history: list[dict[str, Any]] | None) -> str:
+    """Map emotional arc intensity to severity level.
+
+    Counts distress signals (distress_level >= 1) in recent turn history:
+      1 signal  → mild   (step 1)
+      2-3 signals → moderate (step 2)
+      4+ signals → severe (step 3)
+    """
+    if not history:
+        return "mild"
+    distress_count = sum(1 for t in history if _distress_level(t) >= 1)
+    if distress_count >= 4:
+        return "severe"
+    if distress_count >= 2:
+        return "moderate"
+    return "mild"
+
+
 async def assign_course_if_needed(
     supabase: Any,
     user_id: str,
     trigger: CourseTrigger,
+    *,
+    history: list[dict[str, Any]] | None = None,
 ) -> Optional[dict[str, Any]]:
     """Assign a healing course unless the user already has an active one.
 
-    Returns the assignment payload ({"slug", "trigger"}) on a new assignment,
-    None when skipped (active course exists, no Supabase client, or DB error).
+    Returns the assignment payload ({"slug", "trigger", "severity", "next_step"})
+    on a new assignment, None when skipped (active course exists, no Supabase
+    client, or DB error). If an active course exists, returns next uncompleted
+    step info instead of None.
     """
     if not supabase or not user_id or user_id == "anonymous":
         return None
@@ -267,7 +289,7 @@ async def assign_course_if_needed(
     def _select_active():
         return (
             supabase.table("user_course_progress")
-            .select("course_slug")
+            .select("course_slug, completed_lessons, current_lesson_index")
             .eq("user_id", user_id)
             .eq("status", "active")
             .maybe_single()
@@ -279,16 +301,32 @@ async def assign_course_if_needed(
     except Exception as e:
         logger.warning(f"Healing course active-check failed for {sanitize_log_input(str(user_id))}: {e}")
         return None
-    if existing and getattr(existing, "data", None):
-        logger.info(f"Healing course skipped for {sanitize_log_input(str(user_id))} — active course already exists")
-        return None
 
+    if existing and getattr(existing, "data", None):
+        slug = existing.data.get("course_slug", "")
+        completed = existing.data.get("completed_lessons") or []
+        current = existing.data.get("current_lesson_index") or 0
+        logger.info(
+            f"Healing course skipped for {sanitize_log_input(str(user_id))} — "
+            f"active course '{sanitize_log_input(str(slug))}' exists, next step {current}"
+        )
+        return {
+            "slug": slug,
+            "trigger": trigger,
+            "next_step": current,
+            "completed_lessons": completed,
+            "already_active": True,
+        }
+
+    severity = assess_severity(history)
     slug = course_slug_for_signal(trigger.signal)
+    starting_step = {"mild": 0, "moderate": 1, "severe": 2}.get(severity, 0)
+
     row = {
         "user_id": user_id,
         "course_slug": slug,
         "completed_lessons": [],
-        "current_lesson_index": 0,
+        "current_lesson_index": starting_step,
         "status": "active",
         "assigned_reason": trigger.reason,
         "trigger_signal": trigger.signal,
@@ -309,9 +347,10 @@ async def assign_course_if_needed(
 
     logger.info(
         f"Healing course '{sanitize_log_input(str(slug))}' assigned to "
-        f"{sanitize_log_input(str(user_id))} ({sanitize_log_input(str(trigger.pattern))})"
+        f"{sanitize_log_input(str(user_id))} ({sanitize_log_input(str(trigger.pattern))}) "
+        f"severity={severity} starting_step={starting_step}"
     )
-    return {"slug": slug, "trigger": trigger}
+    return {"slug": slug, "trigger": trigger, "severity": severity, "starting_step": starting_step}
 
 
 async def maybe_assign_healing_course(
@@ -343,7 +382,7 @@ async def maybe_assign_healing_course(
     )
     if trigger is None:
         return None
-    return await assign_course_if_needed(supabase, user_id, trigger)
+    return await assign_course_if_needed(supabase, user_id, trigger, history=history)
 
 
 if __name__ == "__main__":

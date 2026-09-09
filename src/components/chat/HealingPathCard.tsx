@@ -139,6 +139,7 @@ export function HealingPathCard({
   const { progress, enroll, completeLesson } = useHealingCourse();
   const [dismissed, setDismissed] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [stepProgress, setStepProgress] = useState<{ current_step: number; total_steps: number } | null>(null);
   const assignAttemptedRef = useRef<string | null>(null);
   const prevCourseSlugRef = useRef<string | null>(null);
 
@@ -168,6 +169,28 @@ export function HealingPathCard({
     }
     prevCourseSlugRef.current = course?.slug ?? null;
   }, [course?.slug]);
+
+  useEffect(() => {
+    if (!course || !enrolled) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await getAccessToken();
+        const res = await fetch(`${BACKEND_URL}/api/healing-course/${course.slug}/progress`, {
+          credentials: 'include',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled && data.total_steps > 0) {
+          setStepProgress({ current_step: data.current_step, total_steps: data.total_steps });
+        }
+      } catch {
+        // Best-effort — step progress is supplementary.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [course, enrolled]);
 
   useEffect(() => {
     if (!course || enrolled || assignAttemptedRef.current === course.slug) return;
@@ -252,6 +275,12 @@ export function HealingPathCard({
               <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-border/50">
                 <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${pct}%` }} />
               </div>
+            )}
+
+            {enrolled && stepProgress && stepProgress.total_steps > 0 && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Step {stepProgress.current_step + 1} of {stepProgress.total_steps}
+              </p>
             )}
 
             <AnimatePresence initial={false}>

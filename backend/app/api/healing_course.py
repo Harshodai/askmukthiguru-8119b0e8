@@ -1,6 +1,7 @@
 """Healing course API routes.
 
-Two operations over the shared `user_course_progress` table:
+Three operations over the shared `user_course_progress` table and the new
+`user_healing_progress` table:
 
   - POST /api/healing-course/assign  — evaluate a seeker's turn history for a
     distress trigger and assign the matching course (idempotent: a user with an
@@ -8,6 +9,10 @@ Two operations over the shared `user_course_progress` table:
     services.healing_course_service.assign_course_if_needed).
   - POST /api/healing-course/progress — persist lesson progress for a course
     (upsert on user_id + course_slug, mirroring the frontend hook's contract).
+  - POST /api/healing-course/{course_slug}/progress — mark a step as completed,
+    advance current_step, update last_accessed_at.
+  - GET  /api/healing-course/{course_slug}/progress — return current step-level
+    progress for the authenticated user.
 
 The supabase client is built per-request with the caller's JWT so Postgres RLS
 sees auth.uid() (same pattern as app.api.metrics). All assignment-side DB work
@@ -17,6 +22,7 @@ skipped; the endpoint reports that outcome instead of failing the request.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any, Literal
 
@@ -46,6 +52,11 @@ class ProgressUpdateRequest(BaseModel):
     completed_lessons: list[str] = Field(default_factory=list)
     current_lesson_index: int = 0
     status: Literal["active", "completed"] = "active"
+
+
+class StepProgressRequest(BaseModel):
+    step_id: str
+    total_steps: int = Field(default=1, ge=1)
 
 
 def _supabase_client(request: Request) -> Any:
@@ -99,6 +110,93 @@ async def update_progress(
         on_conflict="user_id,course_slug",
     ).execute()
     return {"ok": True}
+
+
+@router.post("/{course_slug}/progress")
+async def mark_step_completed(
+    request: Request,
+    course_slug: str,
+    body: StepProgressRequest,
+    user: dict = Depends(get_current_user_from_supabase),
+) -> dict[str, Any]:
+    """Mark a step as completed and advance current_step."""
+    if user.get("is_anonymous"):
+        raise HTTPException(status_code=403, detail="Sign in to track course progress.")
+    supabase = _supabase_client(request)
+    user_id = user["id"]
+
+    def _upsert_step():
+        existing = (
+            supabase.table("user_healing_progress")
+            .select("completed_steps, current_step")
+            .eq("user_id", user_id)
+            .eq("course_slug", course_slug)
+            .maybe_single()
+            .execute()
+        )
+        completed: list[str] = []
+        if existing and getattr(existing, "data", None):
+            completed = list(existing.data.get("completed_steps") or [])
+
+        if body.step_id not in completed:
+            completed.append(body.step_id)
+        new_step = min(len(completed), body.total_steps - 1)
+
+        supabase.table("user_healing_progress").upsert(
+            {
+                "user_id": user_id,
+                "course_slug": course_slug,
+                "current_step": new_step,
+                "completed_steps": completed,
+                "last_accessed_at": "now()",
+            },
+            on_conflict="user_id,course_slug",
+        ).execute()
+        return {"current_step": new_step, "completed_steps": completed, "total_steps": body.total_steps}
+
+    try:
+        result = await asyncio.to_thread(_upsert_step)
+    except Exception as e:
+        logger.warning(f"Healing step progress upsert failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to save progress.")
+    return {"ok": True, **result}
+
+
+@router.get("/{course_slug}/progress")
+async def get_step_progress(
+    request: Request,
+    course_slug: str,
+    user: dict = Depends(get_current_user_from_supabase),
+) -> dict[str, Any]:
+    """Return current step-level progress for the authenticated user."""
+    if user.get("is_anonymous"):
+        return {"current_step": 0, "completed_steps": [], "total_steps": 0}
+    supabase = _supabase_client(request)
+
+    def _select():
+        return (
+            supabase.table("user_healing_progress")
+            .select("current_step, completed_steps, last_accessed_at")
+            .eq("user_id", user["id"])
+            .eq("course_slug", course_slug)
+            .maybe_single()
+            .execute()
+        )
+
+    try:
+        result = await asyncio.to_thread(_select)
+    except Exception as e:
+        logger.warning(f"Healing step progress fetch failed: {e}")
+        return {"current_step": 0, "completed_steps": [], "total_steps": 0}
+
+    if not result or not getattr(result, "data", None):
+        return {"current_step": 0, "completed_steps": [], "total_steps": 0}
+    row = result.data
+    return {
+        "current_step": row.get("current_step", 0),
+        "completed_steps": row.get("completed_steps") or [],
+        "last_accessed_at": row.get("last_accessed_at"),
+    }
 
 
 if __name__ == "__main__":

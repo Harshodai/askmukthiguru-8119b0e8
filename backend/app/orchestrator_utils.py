@@ -560,10 +560,7 @@ async def prepare_request_state(
                 logger.warning("Healing course assignment failed (non-fatal): %s", exc)
 
         try:
-            recent = await container.user_profile.get_recent_memories(
-                user_id, limit=settings.proactive_course_frequency_window
-            )
-            turn_history = _flatten_emotional_arcs(recent)
+            turn_history = await _build_emotional_arc_turns(container, user_id)
             trigger = evaluate_course_trigger(turn_history)
             if trigger:
                 recommended_course = course_slug_for_signal(trigger.signal)
@@ -597,19 +594,67 @@ async def prepare_request_state(
     }
 
 
+async def _build_emotional_arc_turns(container: Any, user_id: str) -> list[dict[str, Any]]:
+    """Build emotional arc turn list from guru_memories (primary) or conversation_memories (fallback).
+
+    Primary: query guru_memories for episodic memories with state_category.
+    Fallback: if no episodic memories found, read from legacy conversation_memories.
+    """
+    try:
+        memory_svc = getattr(container, "memory_service", None)
+        if memory_svc and hasattr(memory_svc, "get_episodic_memories"):
+            episodic = await memory_svc.get_episodic_memories(user_id, limit=50)
+            if episodic:
+                return _flatten_emotional_arcs(episodic)
+    except Exception as exc:
+        logger.debug("guru_memories emotional arc fetch failed, falling back: %s", exc)
+
+    recent = await container.user_profile.get_recent_memories(
+        user_id, limit=settings.proactive_course_frequency_window
+    )
+    return _flatten_emotional_arcs(recent)
+
+
 def _flatten_emotional_arcs(memories: list) -> list[dict[str, Any]]:
     """Flatten per-conversation emotional arcs into a chronological turn list.
 
-    Each memory's emotional_arc entries carry distress metadata
-    (distress_level, timestamp, signal). Turns are sorted oldest-first so the
-    course trigger evaluator can inspect the most recent frequency_window
-    turns.
+    Primary source: guru_memories with EpisodicMemoryDetail.state_category.
+    Fallback: legacy conversation_memories with emotional_arc entries.
+
+    Each turn carries distress metadata (distress_level, timestamp, signal).
+    Turns are sorted oldest-first so the course trigger evaluator can inspect
+    the most recent frequency_window turns.
     """
     turns: list[dict[str, Any]] = []
+
     for mem in memories or []:
-        arc = getattr(mem, "emotional_arc", None)
-        if isinstance(arc, list):
-            turns.extend(t for t in arc if isinstance(t, dict))
+        if hasattr(mem, "state_category") and getattr(mem, "state_category", None):
+            state = mem.state_category
+            distress_level = 0
+            signal = "general"
+            if state in ("Suffering State", "Shrinking Self", "Destructive Self"):
+                distress_level = 2 if state == "Suffering State" else 3
+                insight = getattr(mem, "insight", "") or ""
+                content = getattr(mem, "content", "") or ""
+                combined = f"{insight} {content}".lower()
+                for kw, sig in [
+                    ("grief", "grief"), ("anxiety", "anxiety"), ("anxious", "anxiety"),
+                    ("anger", "anger"), ("angry", "anger"), ("lonely", "loneliness"),
+                    ("alone", "loneliness"), ("meaningless", "meaninglessness"),
+                ]:
+                    if kw in combined:
+                        signal = sig
+                        break
+            turns.append({
+                "distress_level": distress_level,
+                "signal": signal,
+                "timestamp": getattr(mem, "created_at", 0) or 0,
+            })
+        elif hasattr(mem, "emotional_arc"):
+            arc = getattr(mem, "emotional_arc", None)
+            if isinstance(arc, list):
+                turns.extend(t for t in arc if isinstance(t, dict))
+
     return sorted(turns, key=lambda t: t.get("timestamp") or 0)
 
 
