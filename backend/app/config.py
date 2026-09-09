@@ -185,6 +185,10 @@ class Settings(BaseSettings):
     chat_history_max_messages: int = 20  # Cap conversation context to prevent OOM/timeouts
     max_input_length: int = 2000  # Max user message length in characters
 
+    # --- Chat History Compaction ---
+    chat_history_compaction_threshold: int = 8000  # Total chars before summarization triggers
+    chat_history_compaction_target: int = 2000  # Target summary length in chars
+
     # --- Guardrails ---
     # Provider: "nemo" (NeMo Guardrails), "lightweight" (regex-based), "llama_guard" (Llama Guard 3 1B + Rejection Classifier), "rejection_classifier", "disabled"
     guardrails_provider: str = "nemo"  # Falls back to lightweight if provider unavailable
@@ -339,7 +343,7 @@ class Settings(BaseSettings):
     neo4j_user: str = "neo4j"
     neo4j_password: str = ""
     # One bounded, process-shared driver pool per application process.
-    neo4j_max_connection_pool_size: int = Field(default=20, ge=1, le=200)
+    neo4j_max_connection_pool_size: int = Field(default=8, ge=1, le=200)
     neo4j_connection_timeout_s: float = Field(default=15.0, gt=0, le=300)
     neo4j_connection_acquisition_timeout_s: float = Field(default=15.0, gt=0, le=300)
     neo4j_max_transaction_retry_time_s: float = Field(default=15.0, ge=0, le=300)
@@ -615,6 +619,10 @@ class Settings(BaseSettings):
     # ~USD equivalent of the ₹3,000/month operating envelope (see CLAUDE.md budget note).
     # Fixed conversion, not a live FX lookup — this is a soft alert threshold, not a hard cap.
     monthly_cost_budget_usd: float = 36.0
+    # Per-user daily spend cap. Prevents a single abusive user from draining
+    # the entire tenant budget. Checked via Redis sorted-set sliding window
+    # before each pipeline execution; over-budget users get HTTP 429.
+    user_daily_budget_usd: float = Field(default=0.50, gt=0)
     admin_rate_limit: str = "5/minute"
     auth_backoff_base_seconds: float = 2.0
     auth_backoff_multiplier: float = 2.0
@@ -839,7 +847,7 @@ class Settings(BaseSettings):
     # remains in Redis/Qdrant, so this local cap limits RAM without disabling
     # cross-request semantic reuse. Production currently overrides this to 2000
     # while preserving the same behavior and eviction semantics.
-    embedding_cache_size: int = 2000  # LRU cache size for content-hash embeddings
+    embedding_cache_size: int = 1000  # LRU cache size for content-hash embeddings
     gptcache_max_size: int = 1000  # Bound local exact-match prompt/response retention
 
     # --- Temperature per Graph Mode (Phase 2.1) ---
@@ -967,7 +975,7 @@ class Settings(BaseSettings):
         return self
 
     # --- HTTP Pool Limits ---
-    http_pool_max_connections: int = Field(default=50, gt=0)
+    http_pool_max_connections: int = Field(default=20, gt=0)
     http_pool_max_keepalive: int = Field(default=20, ge=0)
 
     @model_validator(mode="before")
@@ -1000,7 +1008,7 @@ class Settings(BaseSettings):
                 except (ValueError, TypeError, OverflowError):
                     return default
 
-            conn = _parse_int(data.get("http_pool_max_connections"), default=50, min_val=1)
+            conn = _parse_int(data.get("http_pool_max_connections"), default=20, min_val=1)
             keep = _parse_int(data.get("http_pool_max_keepalive"), default=20, min_val=0)
 
             if keep > conn:
