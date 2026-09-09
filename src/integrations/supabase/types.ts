@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.17"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -961,12 +961,15 @@ export type Database = {
           created_at: string
           decay_score: number | null
           embedding: string
+          fact_key: string | null
           id: string
           source: string
           summary: string | null
           tenant_id: string
           updated_at: string
           user_id: string
+          valid_from: string | null
+          valid_to: string | null
         }
         Insert: {
           claim?: string | null
@@ -975,12 +978,15 @@ export type Database = {
           created_at?: string
           decay_score?: number | null
           embedding: string
+          fact_key?: string | null
           id?: string
           source?: string
           summary?: string | null
           tenant_id?: string
           updated_at?: string
           user_id?: string
+          valid_from?: string | null
+          valid_to?: string | null
         }
         Update: {
           claim?: string | null
@@ -989,12 +995,15 @@ export type Database = {
           created_at?: string
           decay_score?: number | null
           embedding?: string
+          fact_key?: string | null
           id?: string
           source?: string
           summary?: string | null
           tenant_id?: string
           updated_at?: string
           user_id?: string
+          valid_from?: string | null
+          valid_to?: string | null
         }
         Relationships: []
       }
@@ -1267,6 +1276,122 @@ export type Database = {
         }
         Relationships: []
       }
+      memory_consent_receipts: {
+        Row: {
+          consent_version: string
+          created_at: string
+          granted: boolean
+          id: string
+          revoked_at: string | null
+          tenant_id: string
+          user_id: string
+        }
+        Insert: {
+          consent_version: string
+          created_at?: string
+          granted?: boolean
+          id?: string
+          revoked_at?: string | null
+          tenant_id?: string
+          user_id: string
+        }
+        Update: {
+          consent_version?: string
+          created_at?: string
+          granted?: boolean
+          id?: string
+          revoked_at?: string | null
+          tenant_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      memory_deletion_receipts: {
+        Row: {
+          deleted_at: string
+          error: string | null
+          id: string
+          status: string
+          store_counts: Json
+          tenant_id: string
+          user_id: string
+        }
+        Insert: {
+          deleted_at?: string
+          error?: string | null
+          id?: string
+          status?: string
+          store_counts?: Json
+          tenant_id?: string
+          user_id: string
+        }
+        Update: {
+          deleted_at?: string
+          error?: string | null
+          id?: string
+          status?: string
+          store_counts?: Json
+          tenant_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      memory_outbox: {
+        Row: {
+          attempts: number
+          consent_receipt_id: string | null
+          created_at: string
+          error: string | null
+          id: string
+          locked_at: string | null
+          locked_by: string | null
+          payload: Json
+          processed_at: string | null
+          session_id: string
+          status: string
+          tenant_id: string
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          consent_receipt_id?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          locked_at?: string | null
+          locked_by?: string | null
+          payload: Json
+          processed_at?: string | null
+          session_id: string
+          status?: string
+          tenant_id?: string
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          consent_receipt_id?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          locked_at?: string | null
+          locked_by?: string | null
+          payload?: Json
+          processed_at?: string | null
+          session_id?: string
+          status?: string
+          tenant_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "memory_outbox_consent_receipt_id_fkey"
+            columns: ["consent_receipt_id"]
+            isOneToOne: false
+            referencedRelation: "memory_consent_receipts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       model_pricing: {
         Row: {
           currency: string | null
@@ -1495,6 +1620,36 @@ export type Database = {
         }
         Relationships: []
       }
+      push_devices: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          platform: string
+          token: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          platform: string
+          token: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          platform?: string
+          token?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       push_subscriptions: {
         Row: {
           auth: string
@@ -1705,6 +1860,51 @@ export type Database = {
           id?: string
           offer_type?: string
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      source_releases: {
+        Row: {
+          activated_at: string | null
+          approved_at: string | null
+          approved_by: string | null
+          content_checksum: string
+          corpus_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          release_version: number
+          source_identity: string
+          source_url: string
+          status: string
+        }
+        Insert: {
+          activated_at?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          content_checksum: string
+          corpus_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          release_version: number
+          source_identity: string
+          source_url: string
+          status?: string
+        }
+        Update: {
+          activated_at?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          content_checksum?: string
+          corpus_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          release_version?: number
+          source_identity?: string
+          source_url?: string
+          status?: string
         }
         Relationships: []
       }
@@ -2204,6 +2404,30 @@ export type Database = {
           },
         ]
       }
+      user_personas: {
+        Row: {
+          content: string
+          id: string
+          tenant_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          id?: string
+          tenant_id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          id?: string
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_profiles: {
         Row: {
           codemix_preference: boolean | null
@@ -2309,6 +2533,87 @@ export type Database = {
         }
         Relationships: []
       }
+      user_scene_blocks: {
+        Row: {
+          compressed_blocks: string
+          ended_at: string | null
+          id: string
+          scene_type: string
+          session_id: string | null
+          started_at: string
+          tenant_id: string
+          turn_count: number
+          turn_range: unknown
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          compressed_blocks: string
+          ended_at?: string | null
+          id?: string
+          scene_type?: string
+          session_id?: string | null
+          started_at?: string
+          tenant_id?: string
+          turn_count?: number
+          turn_range?: unknown
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          compressed_blocks?: string
+          ended_at?: string | null
+          id?: string
+          scene_type?: string
+          session_id?: string | null
+          started_at?: string
+          tenant_id?: string
+          turn_count?: number
+          turn_range?: unknown
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_skills: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          name: string
+          practice_count: number
+          proficiency: number
+          source_atom_ids: string[] | null
+          tenant_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          id?: string
+          name: string
+          practice_count?: number
+          proficiency?: number
+          source_atom_ids?: string[] | null
+          tenant_id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          name?: string
+          practice_count?: number
+          proficiency?: number
+          source_atom_ids?: string[] | null
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_streaks: {
         Row: {
           current_streak: number
@@ -2339,6 +2644,36 @@ export type Database = {
         }
         Relationships: []
       }
+      waitlist_entries: {
+        Row: {
+          consented_at: string
+          email: string
+          email_key: string | null
+          id: string
+          name: string | null
+          source: string | null
+          updated_at: string
+        }
+        Insert: {
+          consented_at?: string
+          email: string
+          email_key?: string | null
+          id?: string
+          name?: string | null
+          source?: string | null
+          updated_at?: string
+        }
+        Update: {
+          consented_at?: string
+          email?: string
+          email_key?: string | null
+          id?: string
+          name?: string | null
+          source?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       v_chat_queries_by_assistant: {
@@ -2363,7 +2698,77 @@ export type Database = {
       }
     }
     Functions: {
+      activate_source_release: {
+        Args: { p_release_id: string }
+        Returns: {
+          activated_at: string | null
+          approved_at: string | null
+          approved_by: string | null
+          content_checksum: string
+          corpus_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          release_version: number
+          source_identity: string
+          source_url: string
+          status: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "source_releases"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      approve_source_release: {
+        Args: { p_approved_by: string; p_release_id: string }
+        Returns: {
+          activated_at: string | null
+          approved_at: string | null
+          approved_by: string | null
+          content_checksum: string
+          corpus_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          release_version: number
+          source_identity: string
+          source_url: string
+          status: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "source_releases"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       brain_touch: { Args: { p_id: string }; Returns: undefined }
+      claim_memory_outbox: {
+        Args: { p_limit?: number; p_worker_id: string }
+        Returns: {
+          attempts: number
+          consent_receipt_id: string | null
+          created_at: string
+          error: string | null
+          id: string
+          locked_at: string | null
+          locked_by: string | null
+          payload: Json
+          processed_at: string | null
+          session_id: string
+          status: string
+          tenant_id: string
+          user_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "memory_outbox"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       demote_admin_by_id: { Args: { _user_id: string }; Returns: Json }
       ensure_profile_and_role: { Args: never; Returns: Json }
       has_role: {
@@ -2389,6 +2794,19 @@ export type Database = {
           similarity: number
         }[]
       }
+      match_user_memories_by_user: {
+        Args: {
+          p_k: number
+          p_min_sim: number
+          p_query_embedding: string
+          p_user_id: string
+        }
+        Returns: {
+          content: string
+          id: string
+          similarity: number
+        }[]
+      }
       promote_admin_by_email: { Args: { _email: string }; Returns: Json }
       record_practice: {
         Args: { p_practice_date?: string; p_user_id: string }
@@ -2400,6 +2818,59 @@ export type Database = {
           milestone_reached: boolean
           total_practice_days: number
         }[]
+      }
+      regenerate_summaries: { Args: { p_user_id: string }; Returns: number }
+      register_source_release: {
+        Args: {
+          p_content_checksum: string
+          p_corpus_id: string
+          p_notes?: string
+          p_source_identity: string
+          p_source_url: string
+        }
+        Returns: {
+          activated_at: string | null
+          approved_at: string | null
+          approved_by: string | null
+          content_checksum: string
+          corpus_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          release_version: number
+          source_identity: string
+          source_url: string
+          status: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "source_releases"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      reject_source_release: {
+        Args: { p_release_id: string }
+        Returns: {
+          activated_at: string | null
+          approved_at: string | null
+          approved_by: string | null
+          content_checksum: string
+          corpus_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          release_version: number
+          source_identity: string
+          source_url: string
+          status: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "source_releases"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       seed_admin_demo: { Args: never; Returns: Json }
       whoami_diagnostics: { Args: never; Returns: Json }
@@ -2422,12 +2893,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2451,11 +2922,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2476,11 +2947,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2501,11 +2972,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2518,11 +2989,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
