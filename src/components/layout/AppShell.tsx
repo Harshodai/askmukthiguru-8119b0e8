@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { returnToOrigin } from '@/lib/workspaceNavigation';
+import { cn } from '@/lib/utils';
 import {
   Sidebar,
   SidebarContent,

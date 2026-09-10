@@ -419,16 +419,16 @@ const ProfilePage = () => {
 
   return (
     <AppShell title={isOnboarding ? "Welcome, Seeker" : "My Profile"}>
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6 safe-x">
+      <div className="profile-focus-flow max-w-2xl mx-auto px-4 sm:px-6 py-5 sm:py-8 space-y-5 safe-x safe-bottom">
         {/* ── Profile hero: avatar, name, email, streak — calm, flat, generous ── */}
         {!isOnboarding && (
-          <div className="rounded-3xl border border-hairline bg-card px-5 py-7 sm:px-8 sm:py-8 flex flex-col sm:flex-row items-center sm:items-center gap-5 sm:gap-7">
+          <section className="rounded-2xl border border-hairline bg-card px-4 py-5 sm:px-6 sm:py-6 flex items-center gap-4 sm:gap-5" aria-labelledby="profile-name">
             <div className="relative shrink-0">
-              <Avatar className="w-[88px] h-[88px] sm:w-24 sm:h-24 ring-1 ring-ojas/20">
+              <Avatar className="w-16 h-16 sm:w-20 sm:h-20 ring-1 ring-ojas/20">
                 {(profile.avatarDataUrl || profile.avatarUrl) ? (
                   <AvatarImage src={profile.avatarDataUrl ?? profile.avatarUrl ?? ''} />
                 ) : null}
-                <AvatarFallback className="bg-muted/60 text-foreground text-2xl font-serif font-normal">
+                <AvatarFallback className="bg-ojas/10 text-ojas text-xl font-semibold">
                   {getInitials(profile.displayName)}
                 </AvatarFallback>
               </Avatar>
@@ -440,18 +440,18 @@ const ProfilePage = () => {
                 <Camera className="w-4 h-4" />
               </button>
             </div>
-            <div className="flex-1 min-w-0 text-center sm:text-left space-y-2.5">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">
+            <div className="flex-1 min-w-0 text-left space-y-1.5">
+              <p className="text-[11px] uppercase tracking-normal font-medium text-muted-foreground">
                 {profile.familiarityLevel || 'Seeker'}
               </p>
-              <h1 className="text-[26px] sm:text-3xl font-serif font-normal text-foreground tracking-tight leading-tight truncate">
+              <h1 id="profile-name" className="text-xl sm:text-2xl font-semibold text-foreground tracking-normal leading-tight truncate">
                 {profile.displayName || 'Seeker'}
               </h1>
               <p className="text-sm text-muted-foreground/80 truncate">
                 {user?.email ?? 'Your sacred journey with Sri Preethaji & Sri Krishnaji'}
               </p>
               {stats && (stats.streakDays > 0 || stats.totalMinutes > 0) && (
-                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-x-5 gap-y-2 pt-1.5">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 pt-1">
                   {stats.streakDays > 0 && (
                     <span className="inline-flex items-center gap-1.5 text-xs text-ojas">
                       <Flame className="w-3.5 h-3.5" />
@@ -467,27 +467,27 @@ const ProfilePage = () => {
                 </div>
               )}
             </div>
-          </div>
+          </section>
 
         )}
 
         <div className="space-y-6">
           <Tabs value={tab} onValueChange={setTab} className="w-full">
-            {/* ── Scrollable tab rail — generous touch targets and sacred minimal background ── */}
+            {/* Compact segmented navigation; scrolls safely on narrow devices. */}
             <div className="-mx-4 sm:mx-0 px-4 sm:px-0 overflow-x-auto momentum-scroll no-tap-highlight">
-              <TabsList className="inline-flex w-max sm:w-full sm:grid sm:grid-cols-5 gap-1 mb-7 bg-muted/40 p-1 rounded-full">
-                <TabsTrigger value="conversations" className="rounded-full min-h-[44px] text-xs sm:text-sm px-4 sm:px-5 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground/80 hover:text-foreground transition-colors">{t('profile.tabs.conversations', 'Conversations')}</TabsTrigger>
-                <TabsTrigger value="profile" className="rounded-full min-h-[44px] text-xs sm:text-sm px-4 sm:px-5 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground/80 hover:text-foreground transition-colors">{t('profile.tabs.profile', 'Profile')}</TabsTrigger>
-                <TabsTrigger value="stats" className="rounded-full min-h-[44px] text-xs sm:text-sm px-4 sm:px-5 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground/80 hover:text-foreground transition-colors">{t('profile.tabs.insights', 'Insights')}</TabsTrigger>
-                <TabsTrigger value="memory" className="rounded-full min-h-[44px] text-xs sm:text-sm px-4 sm:px-5 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground/80 hover:text-foreground transition-colors">{t('profile.tabs.memory', 'Memory')}</TabsTrigger>
-                <TabsTrigger value="settings" className="rounded-full min-h-[44px] text-xs sm:text-sm px-4 sm:px-5 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground/80 hover:text-foreground transition-colors">{t('profile.tabs.settings', 'Settings')}</TabsTrigger>
+              <TabsList className="inline-flex w-max sm:w-full sm:grid sm:grid-cols-5 gap-0 mb-5 bg-muted/50 p-1 rounded-xl">
+                <TabsTrigger value="conversations" className="rounded-lg min-h-[44px] text-xs px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors">{t('profile.tabs.conversations', 'Conversations')}</TabsTrigger>
+                <TabsTrigger value="profile" className="rounded-lg min-h-[44px] text-xs px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors">{t('profile.tabs.profile', 'Profile')}</TabsTrigger>
+                <TabsTrigger value="stats" className="rounded-lg min-h-[44px] text-xs px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors">{t('profile.tabs.insights', 'Insights')}</TabsTrigger>
+                <TabsTrigger value="memory" className="rounded-lg min-h-[44px] text-xs px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors">{t('profile.tabs.memory', 'Memory')}</TabsTrigger>
+                <TabsTrigger value="settings" className="rounded-lg min-h-[44px] text-xs px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors">{t('profile.tabs.settings', 'Settings')}</TabsTrigger>
               </TabsList>
             </div>
 
             <TabsContent value="profile" className="space-y-6 mt-0">
-              <Card className="rounded-2xl border border-hairline bg-card shadow-sm">
+              <Card className="rounded-xl border border-hairline bg-card shadow-none">
                 <CardHeader className="pb-4">
-                  <CardTitle className="text-lg font-serif font-semibold text-foreground">Personal Details</CardTitle>
+                  <CardTitle className="text-lg font-semibold text-foreground">Personal Details</CardTitle>
                   <CardDescription>Tell the Guru about yourself and your spiritual focus.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6 p-5 sm:p-7">
@@ -597,10 +597,9 @@ const ProfilePage = () => {
                   <div
                     data-testid="guidance-preview"
                     aria-live="polite"
-                    className="rounded-2xl border border-hairline bg-muted/30 px-4 py-3.5"
+                    className="rounded-xl border border-hairline bg-muted/30 px-4 py-3.5"
                   >
                     <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                      <Sparkles className="h-4 w-4 text-ojas" aria-hidden="true" />
                       Your guidance preview
                     </div>
                     <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
