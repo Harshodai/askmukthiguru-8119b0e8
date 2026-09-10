@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 from collections import OrderedDict
 
+from services.language_detection import SCRIPT_RANGES
 from services.language_router import LanguageCode, LanguageDetection, LanguageRouter
 
 logger = logging.getLogger(__name__)
@@ -36,7 +37,7 @@ _SCRIPT_TO_LANG = {
     "Arabic": "ur",
 }
 
-_ALL_SCRIPT_RANGES = {**LanguageRouter.SCRIPT_RANGES, **_EXTRA_NON_EN_SCRIPT_RANGES}
+_ALL_SCRIPT_RANGES = {**SCRIPT_RANGES, **_EXTRA_NON_EN_SCRIPT_RANGES}
 
 
 def detect_message_lang(text: str) -> str:

@@ -249,6 +249,10 @@ class Settings(BaseSettings):
     reingest_late_chunking: bool = True
     late_chunk_window_tokens: int = Field(default=2048, gt=2)
     late_chunk_window_batch_size: int = Field(default=4, ge=1)
+    SERVICE_ORCID_MAP: dict[str, str] = {
+        # TODO: Add real ORCID values for contributors
+        # Format: "service_name": "0000-0001-2345-6789"
+    }
     # In-flight contextualizer LLM calls. 8 suits a hosted endpoint (calls are
     # network-bound); _contextualize() clamps it back to 3 for local Ollama,
     # where extra concurrency only queues behind one model.
@@ -308,6 +312,10 @@ class Settings(BaseSettings):
 
     # --- Chunking Strategies ---
     use_boundary_chunker: bool = True  # Respect sentence and verse boundaries
+
+    # --- Guru Brain tone exemplars (Phase E5) ---
+    # Guru Brain tone exemplars — style conditioning inside generation call (not post-hoc rewrite)
+    guru_brain_tone_exemplars_enabled: bool = True
 
     # --- Multi-teacher personality (Phase E5) ---
     # When set, generation prepends a teacher-specific voice instruction.
@@ -1239,7 +1247,7 @@ class Settings(BaseSettings):
     anthropic_extended_thinking_budget_tokens: int = 0
 
     # --- HTTP Connection Pooling ---
-    http_max_connections: int = 100  # Maximum number of HTTP connections in the pool
+    http_max_connections: int = 20  # Maximum number of HTTP connections in the pool
     http_max_keepalive_connections: int = 20  # Maximum number of keepalive connections
     http_keepalive_expiry: float = 30.0  # Keepalive expiry time in seconds
 

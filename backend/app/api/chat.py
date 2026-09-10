@@ -7,9 +7,10 @@ import json
 import logging
 import re
 import time
+from collections.abc import Awaitable, Callable
 from dataclasses import asdict
 from functools import wraps
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import (
     APIRouter,
@@ -21,6 +22,7 @@ from fastapi import (
     Request,
     UploadFile,
 )
+from cachetools import TTLCache
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from app.assistant_authorization import authorize_chat_assistant
@@ -198,7 +200,9 @@ def _get_chat_semaphore() -> asyncio.Semaphore:
     return _chat_semaphore
 
 
-def backpressure_semaphore(func):
+def backpressure_semaphore(
+    func: Callable[..., Awaitable[Any]],
+) -> Callable[..., Awaitable[Any]]:
     """Reject with 503 + Retry-After when the chat concurrency cap is hit.
 
     Uses try-acquire: an exhausted semaphore rejects the request almost
@@ -416,7 +420,7 @@ async def generate_title_endpoint(
     return {"title": fallback}
 
 
-@router.post("/chat")
+@router.post("/chat", response_model=None)
 @limiter.limit(settings.chat_rate_limit)
 @record_token_usage(endpoint="/api/chat")
 @backpressure_semaphore
@@ -427,7 +431,7 @@ async def chat_endpoint(
     user: dict = Depends(get_optional_user),
     container: ServiceContainer = Depends(get_container),
     _tenant=Depends(set_tenant_from_request),
-):
+) -> ChatResponse | JSONResponse:
     """
     Main conversational endpoint.
 
@@ -440,6 +444,21 @@ async def chat_endpoint(
     is_benchmark = is_benchmark_request(request)
 
     user = resolve_anon_identity(user, chat_body.session_id)
+
+    # Per-user daily spend cap — prevent a single abusive user from draining
+    # the entire tenant budget.
+    _check_user_id = user.get("id", "anonymous") if user else "anonymous"
+    if get_cost_tracker().is_user_over_budget(_check_user_id):
+        return JSONResponse(
+            status_code=429,
+            content={
+                "error": "User daily budget exceeded",
+                "detail": "You have reached your daily usage limit. Please try again tomorrow.",
+                "user_budget_exceeded": True,
+            },
+            headers={"Retry-After": "3600"},
+        )
+
     if getattr(chat_body, "assistant", None) is not None:
         await authorize_chat_assistant(chat_body, user, container)
 
@@ -569,7 +588,7 @@ async def chat_v2_endpoint(
     user: dict = Depends(get_optional_user),
     container: ServiceContainer = Depends(get_container),
     _tenant=Depends(set_tenant_from_request),
-):
+) -> ChatResponse:
     """Alternative chat endpoint backed by the ChatEngine facade (C3).
 
     A/B surface for the unified ``app.chat_engine.ChatEngine`` deep-module
@@ -580,6 +599,21 @@ async def chat_v2_endpoint(
     chat_body.user_message = sanitize_user_input(chat_body.user_message, max_length=10000)
     is_benchmark = is_benchmark_request(request)
     user = resolve_anon_identity(user, chat_body.session_id)
+
+    # Per-user daily spend cap — prevent a single abusive user from draining
+    # the entire tenant budget.
+    _check_user_id = user.get("id", "anonymous") if user else "anonymous"
+    if get_cost_tracker().is_user_over_budget(_check_user_id):
+        return JSONResponse(
+            status_code=429,
+            content={
+                "error": "User daily budget exceeded",
+                "detail": "You have reached your daily usage limit. Please try again tomorrow.",
+                "user_budget_exceeded": True,
+            },
+            headers={"Retry-After": "3600"},
+        )
+
     if getattr(chat_body, "assistant", None) is not None:
         await authorize_chat_assistant(chat_body, user, container)
 
@@ -650,7 +684,7 @@ async def chat_v2_endpoint(
     )
 
 
-@router.post("/chat/stream")
+@router.post("/chat/stream", response_model=None)
 @limiter.limit(settings.chat_rate_limit)
 @backpressure_semaphore
 async def chat_stream_endpoint(
@@ -660,7 +694,7 @@ async def chat_stream_endpoint(
     user: dict = Depends(get_optional_user),
     container: ServiceContainer = Depends(get_container),
     _tenant=Depends(set_tenant_from_request),
-):
+) -> JSONResponse | StreamingResponse:
     """
     Streaming chat endpoint using Server-Sent Events (SSE).
 
@@ -673,6 +707,21 @@ async def chat_stream_endpoint(
     is_benchmark = is_benchmark_request(request)
 
     user = resolve_anon_identity(user, chat_body.session_id)
+
+    # Per-user daily spend cap — prevent a single abusive user from draining
+    # the entire tenant budget.
+    _check_user_id = user.get("id", "anonymous") if user else "anonymous"
+    if get_cost_tracker().is_user_over_budget(_check_user_id):
+        return JSONResponse(
+            status_code=429,
+            content={
+                "error": "User daily budget exceeded",
+                "detail": "You have reached your daily usage limit. Please try again tomorrow.",
+                "user_budget_exceeded": True,
+            },
+            headers={"Retry-After": "3600"},
+        )
+
     if getattr(chat_body, "assistant", None) is not None:
         await authorize_chat_assistant(chat_body, user, container)
 
@@ -807,7 +856,8 @@ async def chat_stream_poll(
             while time.time() < deadline:
                 try:
                     results = await r.xread({stream_key: last_id}, count=10, block=2000)
-                except Exception:
+                except Exception as e:
+                    logger.debug("SSE Redis xread failed (retrying): %s", e)
                     await asyncio.sleep(0.5)
                     continue
 
@@ -881,8 +931,8 @@ async def chat_stream_poll(
 
 # === Breath Technique Teaching ===
 
-# Simple 1-hr in-memory cache to avoid repeated LLM calls for the same technique
-_breath_teaching_cache: dict[str, dict] = {}
+# 1-hr TTL, bounded to 256 entries to prevent unbounded memory growth
+_breath_teaching_cache = TTLCache(maxsize=256, ttl=3600)
 
 _TECHNIQUE_QUERIES: dict[str, str] = {
     "serene_mind": "What do Sri Preethaji and Sri Krishnaji teach about conscious breathing and the long exhale as a path to the beautiful state?",
@@ -909,12 +959,10 @@ async def get_breath_teaching(
     The teaching is retrieved via RAG (Qdrant vector search) so it is always grounded
     in the actual ingested teachings — never a hardcoded string.
     """
-    import time as _time
-
-    # Check in-memory cache (1hr TTL)
+    # Check in-memory cache (1hr TTL, managed by TTLCache)
     cached = _breath_teaching_cache.get(technique_id)
-    if cached and (_time.time() - cached["ts"]) < 3600:
-        return {"technique_id": technique_id, "teaching": cached["teaching"], "cached": True}
+    if cached is not None:
+        return {"technique_id": technique_id, "teaching": cached, "cached": True}
 
     query = _TECHNIQUE_QUERIES.get(technique_id, _DEFAULT_TECHNIQUE_QUERY)
 
@@ -995,8 +1043,8 @@ async def get_breath_teaching(
                 "between the suffering state and the beautiful state. Let each breath be a sacred offering."
             )
 
-    # Cache the result
-    _breath_teaching_cache[technique_id] = {"teaching": teaching, "ts": _time.time()}
+    # Cache the result (TTLCache evicts after 1hr or at maxsize)
+    _breath_teaching_cache[technique_id] = teaching
 
     return {"technique_id": technique_id, "teaching": teaching, "cached": False}
 

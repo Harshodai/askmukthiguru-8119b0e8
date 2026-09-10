@@ -111,7 +111,10 @@ def test_assign_skips_when_active_course_exists(monkeypatch):
     try:
         response = client.post("/api/healing-course/assign", json={"history": _DISTRESS_HISTORY})
         assert response.status_code == 200, response.text
-        assert response.json() == {"assigned": False, "course": None}
+        body = response.json()
+        assert body["assigned"] is False
+        assert body["course"]["already_active"] is True
+        assert body["course"]["slug"] == "quieting-anxiety"
         fake.table.return_value.upsert.assert_not_called()
     finally:
         app.dependency_overrides.pop(get_current_user_from_supabase, None)

@@ -365,6 +365,77 @@ def _type_from_labels(labels: list[str] | None) -> str:
 
 
 _KG_SUBGRAPH_RATE_LIMITER = TTLRateLimiter(ttl=60.0, max_requests=30)
+_KG_PERSONAL_RATE_LIMITER = TTLRateLimiter(ttl=60.0, max_requests=15)
+
+
+@router.get("/kg/personal-subgraph", response_model=SubgraphResponse)
+async def kg_personal_subgraph(
+    request: Request,
+    limit: int = Query(50, ge=1, le=100),
+    user: dict = Depends(require_aal2),
+) -> SubgraphResponse:
+    """Return a personal knowledge graph for the authenticated user.
+
+    Uses ``memory_service_v2.build_personal_knowledge_graph(view="personal")``
+    which combines user memories, ontology concepts, and their relationships.
+    Anonymous users receive an empty graph (no personal data available).
+    """
+    remote_addr = request.client.host if request.client else None
+    uid = user.get("id") if isinstance(user, dict) else getattr(user, "id", "anon")
+    limit_key = f"kg_personal:{uid or remote_addr or 'anon'}"
+    if not _KG_PERSONAL_RATE_LIMITER.is_allowed(limit_key):
+        raise HTTPException(status_code=429, detail="Rate limit exceeded. Try again later.")
+
+    if not uid or uid == "anonymous" or user.get("is_anonymous"):
+        return SubgraphResponse(nodes=[], edges=[], query="", count=0)
+
+    container = get_container()
+    memory_svc = getattr(container, "memory_service", None)
+    if memory_svc is None:
+        return SubgraphResponse(nodes=[], edges=[], query="", count=0)
+
+    try:
+        import asyncio
+
+        result = await asyncio.wait_for(
+            asyncio.to_thread(
+                lambda: memory_svc.build_personal_knowledge_graph(uid, view="personal", limit=limit)
+            ),
+            timeout=15.0,
+        )
+    except TimeoutError:
+        logger.warning("kg/personal-subgraph timed out for user=%s", sanitize_log_input(str(uid)))
+        return SubgraphResponse(nodes=[], edges=[], query="", count=0)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("kg/personal-subgraph failed for user=%s: %s", sanitize_log_input(str(uid)), exc)
+        return SubgraphResponse(nodes=[], edges=[], query="", count=0)
+
+    raw_nodes = result.get("nodes", [])
+    raw_edges = result.get("edges", [])
+
+    nodes: list[KGNode] = []
+    for n in raw_nodes:
+        nodes.append(KGNode(
+            id=str(n.get("id", "")),
+            label=str(n.get("label", "")),
+            type=str(n.get("type", "Concept")),
+            teacher=n.get("teacher"),
+        ))
+
+    edges: list[KGEdge] = []
+    for e in raw_edges:
+        edges.append(KGEdge(
+            source=str(e.get("source", "")),
+            target=str(e.get("target", "")),
+            label=e.get("type") or e.get("label"),
+        ))
+
+    return SubgraphResponse(
+        nodes=nodes,
+        edges=edges,
+        query="",
+        count=len(nodes),
+    )
 
 
 @router.get("/kg/subgraph", response_model=SubgraphResponse)

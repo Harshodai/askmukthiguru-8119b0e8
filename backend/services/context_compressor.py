@@ -25,7 +25,7 @@ from app.metrics import (
     CONTEXT_COMPRESSION_RATIO,
     CONTEXT_TOKENS_SAVED,
 )
-from services.language_router import LanguageRouter
+from services.language_detection import SCRIPT_RANGES
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ _EXTRA_INDIC_RANGES = {
     "Oriya": ("\u0b00", "\u0b7f"),  # Odia
 }
 
-_ALL_INDIC_RANGES = {**LanguageRouter.SCRIPT_RANGES, **_EXTRA_INDIC_RANGES}
+_ALL_INDIC_RANGES = {**SCRIPT_RANGES, **_EXTRA_INDIC_RANGES}
 
 # Single-pass, C-speed script presence scan (vs nested any() loops).
 _INDIC_SCRIPT_RE = re.compile(

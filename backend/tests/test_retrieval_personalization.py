@@ -52,8 +52,8 @@ async def test_personalize_limits_topics_to_3():
     profile = {"topics_of_interest": ["a", "b", "c", "d", "e"]}
     result = await personalize_retrieval_query("query", profile)
     assert "a b c" in result
-    assert "d" not in result
-    assert "e" not in result
+    assert "d" not in result.split()
+    assert "e" not in result.split()
 
 
 @pytest.mark.asyncio
@@ -168,6 +168,7 @@ async def test_persona_stale_includes_flag():
     container.user_profile.get_recent_memories = AsyncMock(return_value=[])
 
     container.memory_service = None
+    container.memory_service_v2 = None
 
     # Mock persona store to return stale persona
     with patch(
@@ -186,13 +187,9 @@ async def test_persona_stale_includes_flag():
         "services.layered_memory.l1_extractor.get_recent_atoms",
         new_callable=AsyncMock,
         return_value=[],
-    ), patch(
-        "services.memory_service_v2.get_service",
-        new_callable=Mock,
-        return_value=MagicMock(),
     ):
         memory_context, distress = await prepare_user_memory(
-            container, "user-1", [{"role": "user", "content": "hi"}]
-        )
+                container, "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", [{"role": "user", "content": "hi"}]
+            )
 
     assert "[STALE PERSONA]" in memory_context

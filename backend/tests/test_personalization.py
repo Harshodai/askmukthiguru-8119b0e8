@@ -66,7 +66,7 @@ class TestBuildDistressBlock:
     def test_with_distress_history(self):
         history = [{"timestamp": "2026-01-01", "distress_level": 2}]
         block = _build_distress_block(history)
-        assert "RECENT_DISTRESS" in block
+        assert "EMOTIONAL TRAJECTORY" in block
         assert "level=2" in block
 
     def test_empty_history_returns_empty(self):

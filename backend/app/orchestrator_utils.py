@@ -923,92 +923,96 @@ async def prepare_user_memory(
                     else new_memory_context
                 )
 
-            # L3 persona context: short, stable user profile summary.
-            try:
-                from services.layered_memory.persona_store import get_persona, save_persona
-
-                persona_md, persona_updated_at = await get_persona(
-                    container.supabase_client, user_id
-                )
-                if persona_md and _is_persona_fresh(
-                    persona_updated_at, max_age_days=settings.persona_max_age_days
-                ):
-                    persona_lines = [
-                        ln
-                        for ln in persona_md.splitlines()
-                        if ln.strip() and not ln.startswith("#")
-                    ]
-                    persona_summary = "\n".join(persona_lines[:8])
-                    if persona_summary:
-                        persona_block = f"USER PERSONA SUMMARY:\n{persona_summary}"
-                        memory_context = (
-                            f"{memory_context}\n\n{persona_block}"
-                            if memory_context
-                            else persona_block
-                        )
-                elif persona_md and not _is_persona_fresh(
-                    persona_updated_at, max_age_days=settings.persona_max_age_days
-                ):
-                    # Stale persona: attempt in-flight refresh from recent memories
-                    try:
-                        from services.layered_memory.l1_extractor import get_recent_atoms
-                        from services.layered_memory.l3_persona_generator import generate_persona
-                        from services.memory_service_v2 import get_service as get_memory_service
-
-                        mem_svc = get_memory_service()
-                        if mem_svc:
-                            atoms = await get_recent_atoms(mem_svc, user_id, limit=30)
-                            if atoms:
-                                refreshed_persona = await generate_persona(
-                                    atoms, existing_persona=persona_md
-                                )
-                                if refreshed_persona and refreshed_persona.strip():
-                                    await save_persona(
-                                        container.supabase_client,
-                                        user_id,
-                                        refreshed_persona,
-                                    )
-                                    persona_lines = [
-                                        ln
-                                        for ln in refreshed_persona.splitlines()
-                                        if ln.strip() and not ln.startswith("#")
-                                    ]
-                                    persona_summary = "\n".join(persona_lines[:8])
-                                    if persona_summary:
-                                        persona_block = (
-                                            f"USER PERSONA SUMMARY:\n{persona_summary}"
-                                        )
-                                        memory_context = (
-                                            f"{memory_context}\n\n{persona_block}"
-                                            if memory_context
-                                            else persona_block
-                                        )
-                    except Exception as refresh_err:
-                        logger.debug("Persona auto-refresh failed (non-fatal): %s", refresh_err)
-                        # Fall through to stale persona with flag
-                        persona_lines = [
-                            ln
-                            for ln in persona_md.splitlines()
-                            if ln.strip() and not ln.startswith("#")
-                        ]
-                        persona_summary = "\n".join(persona_lines[:8])
-                        if persona_summary:
-                            persona_block = (
-                                f"[STALE PERSONA]\nUSER PERSONA SUMMARY:\n{persona_summary}"
-                            )
-                            memory_context = (
-                                f"{memory_context}\n\n{persona_block}"
-                                if memory_context
-                                else persona_block
-                            )
-            except Exception as e:
-                logger.warning(f"Persona context injection failed: {e}")
         except TimeoutError:
             logger.warning(
                 f"Memory layer fetch timed out for user {user_id} (exceeded per-call budget); skipping"
             )
         except Exception as e:
             logger.warning(f"Memory layer fetch failed: {e}")
+
+    # L3 persona context: short, stable user profile summary.
+    try:
+        from services.layered_memory.persona_store import get_persona, save_persona
+
+        persona_md, persona_updated_at = await get_persona(
+            container.supabase_client, user_id
+        )
+        if persona_md and _is_persona_fresh(
+            persona_updated_at, max_age_days=settings.persona_max_age_days
+        ):
+            persona_lines = [
+                ln
+                for ln in persona_md.splitlines()
+                if ln.strip() and not ln.startswith("#")
+            ]
+            persona_summary = "\n".join(persona_lines[:8])
+            if persona_summary:
+                persona_block = f"USER PERSONA SUMMARY:\n{persona_summary}"
+                memory_context = (
+                    f"{memory_context}\n\n{persona_block}"
+                    if memory_context
+                    else persona_block
+                )
+        elif persona_md and not _is_persona_fresh(
+            persona_updated_at, max_age_days=settings.persona_max_age_days
+        ):
+            # Stale persona: attempt in-flight refresh from recent memories
+            persona_refreshed = False
+            try:
+                from services.layered_memory.l1_extractor import get_recent_atoms
+                from services.layered_memory.l3_persona_generator import generate_persona
+
+                mem_svc = getattr(container, "memory_service_v2", None)
+                if mem_svc:
+                    atoms = await get_recent_atoms(mem_svc, user_id, limit=30)
+                    if atoms:
+                        refreshed_persona = await generate_persona(
+                            atoms, existing_persona=persona_md
+                        )
+                        if refreshed_persona and refreshed_persona.strip():
+                            await save_persona(
+                                container.supabase_client,
+                                user_id,
+                                refreshed_persona,
+                            )
+                            persona_lines = [
+                                ln
+                                for ln in refreshed_persona.splitlines()
+                                if ln.strip() and not ln.startswith("#")
+                            ]
+                            persona_summary = "\n".join(persona_lines[:8])
+                            if persona_summary:
+                                persona_block = (
+                                    f"USER PERSONA SUMMARY:\n{persona_summary}"
+                                )
+                                memory_context = (
+                                    f"{memory_context}\n\n{persona_block}"
+                                    if memory_context
+                                    else persona_block
+                                )
+                                persona_refreshed = True
+            except Exception as refresh_err:
+                logger.debug("Persona auto-refresh failed (non-fatal): %s", refresh_err)
+
+            if not persona_refreshed:
+                # Fall through to stale persona with flag
+                persona_lines = [
+                    ln
+                    for ln in persona_md.splitlines()
+                    if ln.strip() and not ln.startswith("#")
+                ]
+                persona_summary = "\n".join(persona_lines[:8])
+                if persona_summary:
+                    persona_block = (
+                        f"[STALE PERSONA]\nUSER PERSONA SUMMARY:\n{persona_summary}"
+                    )
+                    memory_context = (
+                        f"{memory_context}\n\n{persona_block}"
+                        if memory_context
+                        else persona_block
+                    )
+    except Exception as e:
+        logger.warning(f"Persona context injection failed: {e}")
 
     for mem in recent_memories:
         if mem.emotional_arc:

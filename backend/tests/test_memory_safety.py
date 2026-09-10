@@ -60,7 +60,7 @@ async def test_compact_memories_creates_snapshot_before_delete():
         settings_mock.openrouter_api_key = "test-key"
         settings_mock.model_for_classification = "test-model"
 
-        with patch("services.memory_service.AsyncOpenAI") as mock_oai:
+        with patch("openai.AsyncOpenAI") as mock_oai:
             mock_client = AsyncMock()
             mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
             mock_oai.return_value = mock_client
@@ -118,7 +118,7 @@ async def test_compact_memories_snapshot_failure_is_non_fatal():
         settings_mock.openrouter_api_key = "test-key"
         settings_mock.model_for_classification = "test-model"
 
-        with patch("services.memory_service.AsyncOpenAI") as mock_oai:
+        with patch("openai.AsyncOpenAI") as mock_oai:
             mock_client = AsyncMock()
             mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
             mock_oai.return_value = mock_client
@@ -173,7 +173,7 @@ async def test_compact_memories_rejects_contaminated_output():
         settings_mock.openrouter_api_key = "test-key"
         settings_mock.model_for_classification = "test-model"
 
-        with patch("services.memory_service.AsyncOpenAI") as mock_oai:
+        with patch("openai.AsyncOpenAI") as mock_oai:
             mock_client = AsyncMock()
             mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
             mock_oai.return_value = mock_client
@@ -231,7 +231,7 @@ async def test_compact_memories_all_contaminated_aborts():
         settings_mock.openrouter_api_key = "test-key"
         settings_mock.model_for_classification = "test-model"
 
-        with patch("services.memory_service.AsyncOpenAI") as mock_oai:
+        with patch("openai.AsyncOpenAI") as mock_oai:
             mock_client = AsyncMock()
             mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
             mock_oai.return_value = mock_client
@@ -297,7 +297,7 @@ async def test_compact_memories_preserves_fact_key_from_matching_original():
         settings_mock.openrouter_api_key = "test-key"
         settings_mock.model_for_classification = "test-model"
 
-        with patch("services.memory_service.AsyncOpenAI") as mock_oai:
+        with patch("openai.AsyncOpenAI") as mock_oai:
             mock_client = AsyncMock()
             mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
             mock_oai.return_value = mock_client
@@ -380,7 +380,7 @@ def test_no_duplicate_advanced_terms():
     import importlib
     import textwrap
 
-    import backend.rag.nodes.generation as gen_mod
+    import rag.nodes.generation as gen_mod
     importlib.reload(gen_mod)
 
     source = textwrap.dedent(

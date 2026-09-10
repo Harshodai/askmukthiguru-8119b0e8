@@ -95,7 +95,7 @@ def _build_llm_client():
 
 async def summarize_chat_history(
     chat_history: list[dict],
-    target_chars: int = 2000,
+    target_chars: int | None = None,
 ) -> dict[str, str]:
     """Summarize merged chat history via LLM, returning structured fields.
 
@@ -103,6 +103,9 @@ async def summarize_chat_history(
     user_preferences, raw_summary. Falls back to extractive summary on LLM failure.
     """
     from app.config import settings
+
+    if target_chars is None:
+        target_chars = settings.chat_history_compaction_target
 
     history_text = "\n".join(
         f"{'Seeker' if m.get('role') == 'user' else 'Guru'}: {short_text(m.get('content'), 300)}"
@@ -215,7 +218,8 @@ def weighted_memory_selection(
                     if created.tzinfo is None:
                         created = created.replace(tzinfo=UTC)
                 delta_days = (now - created).total_seconds() / 86400.0
-            except Exception:
+            except Exception as e:
+                logger.debug("Failed to parse memory timestamp '%s': %s", created_str, e)
                 delta_days = 0.0
         weight = math.exp(-decay_rate * delta_days)
         scored.append((weight, mem))
@@ -230,7 +234,7 @@ def build_memory_context(
     chat_history: list[dict],
     max_memories: int = 3,
     max_history_messages: int = 6,
-    char_budget: int = 1800,
+    char_budget: int | None = None,
     compacted_summary: Optional[dict[str, str]] = None,
 ) -> str:
     """
@@ -240,6 +244,10 @@ def build_memory_context(
     instead of the full chat history for the summary section. Recent 6 turns are
     always preserved raw alongside the summary.
     """
+    from app.config import settings
+
+    if char_budget is None:
+        char_budget = settings.chat_history_compaction_threshold
     sections: list[str] = []
 
     if compacted_summary:
@@ -299,6 +307,12 @@ def build_memory_context(
             parts.append(f"topics: {', '.join(insights[:3])}")
 
         emotional_arc = getattr(memory, "emotional_arc", None) or []
+        if not emotional_arc and hasattr(memory, "state_category") and getattr(memory, "state_category", None):
+            _sc = getattr(memory, "state_category", "")
+            _distress = 0
+            if _sc in ("Suffering State", "Shrinking Self", "Destructive Self"):
+                _distress = 2 if _sc == "Suffering State" else 3
+            emotional_arc = [{"topic": _sc, "distress_level": _distress}]
         if emotional_arc:
             latest = emotional_arc[-1] or {}
             topic = short_text(latest.get("topic", "unknown"), 80)

@@ -33,7 +33,8 @@ def _turn(level: int, signal: str = "general", ts: float | None = None) -> dict:
 def _fake_supabase(active_course_data=None):
     mock = MagicMock()
     resp = MagicMock()
-    resp.data = active_course_data
+    # .maybe_single() returns the first dict, not a list
+    resp.data = active_course_data[0] if active_course_data else None
     mock.table.return_value.select.return_value.eq.return_value.eq.return_value.maybe_single.return_value.execute.return_value = resp
     return mock
 
@@ -226,7 +227,10 @@ async def test_no_duplicate_assignment_when_active_course_exists():
 
     result = await assign_course_if_needed(supabase, "user-1", trigger)
 
-    assert result is None
+    assert result is not None
+    assert result["already_active"] is True
+    assert result["slug"] == "quieting-anxiety"
+    assert result["next_step"] == 0
     supabase.table.return_value.upsert.assert_not_called()
 
 
