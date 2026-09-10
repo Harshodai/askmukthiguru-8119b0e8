@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Flame, Clock, Calendar, Wind } from 'lucide-react';
+import { Flame, Clock, Calendar } from 'lucide-react';
 import type { MeditationStats } from '@/lib/meditationStorage';
 import { dailySeries, type NormalizedSession } from '@/lib/meditationMetrics';
 
@@ -19,7 +19,6 @@ export const ProfileStatTiles = ({ stats, sessions }: Props) => {
     { icon: Flame, label: t('profileStatTiles.sessions'), value: stats.totalSessions },
     { icon: Clock, label: t('profileStatTiles.minutes'), value: stats.totalMinutes },
     { icon: Calendar, label: t('profileStatTiles.streak'), value: t('profileStatTiles.streakDays', { days: stats.streakDays }) },
-    { icon: Wind, label: t('profileStatTiles.breaths'), value: stats.totalCycles },
   ];
 
   // Same calculator the tiles/DB use — the caption total and the curve can't disagree.
@@ -47,30 +46,30 @@ export const ProfileStatTiles = ({ stats, sessions }: Props) => {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
         {tiles.map((s, idx) => (
           <div
             key={idx}
-            className="rounded-2xl border border-hairline bg-card px-4 py-3.5 flex flex-col gap-1 transition-colors hover:border-ojas/30"
+            className="rounded-xl border border-hairline bg-card px-3 py-3.5 flex flex-col gap-1 transition-colors hover:border-ojas/30"
           >
             <div className="flex items-center gap-1.5 text-muted-foreground">
               <s.icon className="w-3.5 h-3.5" />
               <span className="text-[10px] uppercase tracking-[0.14em] font-medium">{s.label}</span>
             </div>
-            <p className="text-2xl font-serif font-semibold text-foreground tabular-nums leading-none mt-1">
+            <p className="text-xl sm:text-2xl font-semibold text-foreground tabular-nums leading-none mt-1">
               {s.value}
             </p>
           </div>
         ))}
       </div>
 
-      <div className="rounded-2xl border border-hairline bg-card p-4">
+      <div className="rounded-xl border border-hairline bg-card p-4">
         <div className="flex items-baseline justify-between mb-3">
           <div>
             <p className="text-[10px] uppercase tracking-[0.14em] font-medium text-muted-foreground">
               {t('profileStatTiles.thisWeek')}
             </p>
-            <p className="text-sm font-serif text-foreground mt-0.5">
+            <p className="text-sm text-foreground mt-0.5">
               {hasData ? t('profileStatTiles.weekSummary', { minutes: weekMinutes }) : t('profileStatTiles.noPracticeThisWeek')}
             </p>
           </div>

@@ -53,9 +53,7 @@ import { ScrollToBottomFab } from './ScrollToBottomFab';
 import { MobileConversationSheet } from './MobileConversationSheet';
 import { DesktopSidebar, useSidebarCollapsed } from './DesktopSidebar';
 import { LanguageSelector, LANGUAGES } from './LanguageSelector';
-import { FloatingParticles } from '../landing/FloatingParticles';
 import { DailyTeaching } from './DailyTeaching';
-import { ChatEmptyState } from './ChatEmptyState';
 import { ConversationSourcesPanel } from './ConversationSourcesPanel';
 import { ThinkingPills, type PipelineStep, mapStatusToLabel, mapNodeToLabel } from './ThinkingPills';
 import { QueuedMessagesTray, type QueuedMessage } from './QueuedMessagesTray';
@@ -79,7 +77,6 @@ import { useDailyTeaching } from '@/hooks/useDailyTeaching';
 import { useAssistants } from '@/hooks/useAssistants';
 import { ChatComposer } from './ChatComposer';
 import { QuotaAuthPrompt } from './QuotaAuthPrompt';
-import { TeacherGuidancePanel } from './TeacherGuidancePanel';
 import { HealingPathCard, type HealingCourseRecommendation, type UserTurn } from './HealingPathCard';
 import { useAutoTranslate } from '@/hooks/useAutoTranslate';
 
@@ -2080,9 +2077,8 @@ const isLandingMode = messages.length <= 1 && messages[0]?.role === 'guru';
 
 return (
   <div className="flex-1 min-h-0 flex bg-background relative overflow-hidden">
-    {/* Background */}
-    <div className="fixed inset-0 bg-spiritual-gradient pointer-events-none" />
-    <FloatingParticles />
+    {/* Quiet sanctuary surface; no decorative motion behind the conversation. */}
+    <div className="fixed inset-0 bg-background pointer-events-none" />
 
     {/* Desktop Sidebar */}
     <DesktopSidebar
@@ -2137,14 +2133,14 @@ return (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="flex flex-col items-center justify-center min-h-[calc(100dvh-12rem)] gap-4 py-6 sm:gap-5 sm:py-8"
+              className="flex min-h-[calc(100dvh-8.75rem)] flex-col items-center px-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-5 sm:min-h-[calc(100dvh-10rem)] sm:justify-center sm:py-10"
             >
-              <div className="text-center px-4">
+              <div className="text-center px-4 sm:mb-8">
                 <motion.h2
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 }}
-                  className="text-[22px] sm:text-[30px] font-serif font-normal text-foreground/90 tracking-tight leading-snug text-balance"
+                  className="text-[24px] sm:text-[30px] font-semibold text-foreground tracking-normal leading-snug text-balance"
                 >
                   {buildGreeting(selected?.slug, profile.displayName ?? '', greetingContext)}
                 </motion.h2>
@@ -2152,22 +2148,13 @@ return (
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.15 }}
-                  className="mt-2 text-[13px] sm:text-sm text-muted-foreground/65 leading-relaxed max-w-sm mx-auto font-serif italic"
+                  className="mt-2 text-[13px] sm:text-sm text-muted-foreground leading-relaxed max-w-sm mx-auto"
                 >
                   {buildGreetingSubline(greetingContext)}
                 </motion.p>
-
-              <motion.div
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.18 }}
-                className="mt-4 w-full"
-              >
-                <TeacherGuidancePanel assistantName={selected?.name} />
-              </motion.div>
               </div>
 
-              <div className="w-full max-w-2xl px-4 mt-2">
+              <div className="mt-auto w-full max-w-2xl px-2 sm:mt-0 sm:px-4">
                 <ChatComposer
                                   inputValue={inputValue}
                                   inputRef={inputRef}
@@ -2216,12 +2203,12 @@ return (
                                 />
               </div>
 
-              {/* Compact starter pills */}
+              {/* Compact starter actions: final tier of the empty state. */}
               <motion.div
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
-                className="w-full max-w-2xl px-4 flex flex-wrap items-center justify-center gap-2 mt-2"
+                className="w-full max-w-2xl px-2 flex flex-nowrap items-center gap-2 mt-1.5 overflow-x-auto momentum-scroll pb-1 sm:flex-wrap sm:justify-center sm:px-4"
               >
                 {STARTER_CARDS.map((card, idx) => (
                   <motion.button
@@ -2231,7 +2218,7 @@ return (
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.25 + idx * 0.05 }}
                     onClick={() => handleSuggestionClick(t(card.promptKey))}
-                    className="group flex items-center gap-1.5 px-4 py-2 min-h-[44px] rounded-full border border-hairline bg-card/60 hover:bg-ojas/10 hover:border-ojas/40 text-xs text-muted-foreground/90 hover:text-foreground transition-all no-tap-highlight"
+                    className="group flex shrink-0 items-center gap-1.5 px-3.5 py-2 min-h-[44px] rounded-xl border border-hairline bg-card hover:bg-ojas/10 hover:border-ojas/40 text-xs text-muted-foreground hover:text-foreground transition-colors no-tap-highlight"
                     title={t(card.promptKey)}
                   >
                     <card.icon className="w-3.5 h-3.5 text-ojas/70 group-hover:text-ojas transition-colors flex-shrink-0" />
@@ -2239,18 +2226,6 @@ return (
                   </motion.button>
                 ))}
               </motion.div>
-
-
-
-
-              {messages.length === 1 && (
-                <div className="w-full max-w-2xl px-4">
-                  <ChatEmptyState
-                    currentConversationId={currentConversation?.id}
-                    onResume={handleSelectConversation}
-                  />
-                </div>
-              )}
             </motion.div>
           ) : (
 

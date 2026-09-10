@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { returnToOrigin } from '@/lib/workspaceNavigation';
+import { cn } from '@/lib/utils';
 import {
   Sidebar,
   SidebarContent,
@@ -249,7 +250,7 @@ export const AppShell = ({ children, title }: AppShellProps) => {
 
   return (
     <SidebarProvider>
-      <div className="min-h-dvh flex w-full bg-background relative">
+      <div className={cn("min-h-dvh flex w-full bg-background relative", location.pathname === '/profile' && 'ask-profile-shell')}>
         <div className="fixed inset-0 bg-spiritual-gradient pointer-events-none" />
         <FloatingParticles />
 
