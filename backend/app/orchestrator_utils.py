@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Any, Optional
 
 from app.config import settings
 from app.language_utils import detect_and_prepare_language_info
+from app.metrics import NODE_ERROR_TOTAL
 from rag.memory import build_memory_context, normalize_session_id
 from rag.timeout_utils import get_node_timeout
 from services.user_profile_service import _is_persistable_user_id
@@ -553,6 +554,7 @@ async def prepare_request_state(
                     turn_history,
                 )
             except Exception as exc:
+                NODE_ERROR_TOTAL.labels(node="healing_course_assignment").inc()
                 logger.warning("Healing course assignment failed (non-fatal): %s", exc)
 
         try:

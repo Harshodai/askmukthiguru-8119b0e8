@@ -386,7 +386,8 @@ async def kg_personal_subgraph(
     if not _KG_PERSONAL_RATE_LIMITER.is_allowed(limit_key):
         raise HTTPException(status_code=429, detail="Rate limit exceeded. Try again later.")
 
-    if not uid or uid == "anonymous" or user.get("is_anonymous"):
+    is_anonymous = user.get("is_anonymous") if isinstance(user, dict) else getattr(user, "is_anonymous", False)
+    if not uid or uid == "anonymous" or is_anonymous:
         return SubgraphResponse(nodes=[], edges=[], query="", count=0)
 
     container = get_container()

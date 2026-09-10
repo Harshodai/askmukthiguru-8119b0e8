@@ -488,7 +488,6 @@ class CacheUpdateStage(Stage):
         # entries are still invalidated (stale shared entries for this key would shadow
         # the user-scoped entry), but the personalized response IS cached under the
         # user-scoped key so subsequent personalized lookups hit cache.
-        user_id_for_cache = ctx.user_id if ctx.user_id and ctx.user_id != "anonymous" else None
         if _is_personalization_eligible(ctx):
             if user_id_for_cache:
                 logger.debug(
