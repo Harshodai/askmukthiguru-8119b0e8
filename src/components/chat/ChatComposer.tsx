@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { memo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   CHAT_MAX_SINGLE_ATTACHMENT_BYTES,
@@ -78,7 +78,7 @@ interface ChatComposerProps {
   onSlashCommand: (cmd: SlashCommandId) => void;
 }
 
-export function ChatComposer({
+function ChatComposerInner({
   inputValue,
   inputRef,
   attachedFiles,
@@ -426,3 +426,7 @@ export function ChatComposer({
     </motion.div>
   );
 }
+
+ChatComposerInner.displayName = 'ChatComposer';
+
+export const ChatComposer = memo(ChatComposerInner);

@@ -111,8 +111,8 @@ def _parse_triples(raw: str) -> list[dict[str, str]]:
         for t in triples:
             t["subject"] = apply_corrections(t["subject"])
             t["object"] = apply_corrections(t["object"])
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("Doctrine term correction skipped: %s", e)
     return triples
 
 

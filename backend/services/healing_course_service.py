@@ -255,9 +255,9 @@ def assess_severity(history: list[dict[str, Any]] | None) -> str:
     """Map emotional arc intensity to severity level.
 
     Counts distress signals (distress_level >= 1) in recent turn history:
-      1 signal  → mild   (step 1)
-      2-3 signals → moderate (step 2)
-      4+ signals → severe (step 3)
+      0-1 signals → mild     (starting_step 0)
+      2-3 signals → moderate (starting_step 1)
+      4+ signals  → severe   (starting_step 2)
     """
     if not history:
         return "mild"

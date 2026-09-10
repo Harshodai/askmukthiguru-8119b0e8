@@ -20,6 +20,52 @@ logger = logging.getLogger(__name__)
 # Minimum score threshold for a sentence to be considered relevant
 _SENTENCE_THRESHOLD = 0.3
 
+# Approximate token-to-word ratio by script family.
+# Indic scripts produce wider tokens, so word-count / ratio underestimates
+# token count when calibrated only for English.
+_SCRIPT_TOKEN_RATIOS = {
+    "latin": 1.3,
+    "devanagari": 0.8,
+    "telugu": 0.8,
+    "kannada": 0.8,
+    "tamil": 0.8,
+    "bengali": 0.9,
+    "arabic": 0.9,
+    "default": 1.0,
+}
+
+_LANG_TO_SCRIPT: dict[str, str] = {
+    "hi": "devanagari",
+    "mr": "devanagari",
+    "sa": "devanagari",
+    "te": "telugu",
+    "kn": "kannada",
+    "ta": "tamil",
+    "bn": "bengali",
+    "ur": "arabic",
+}
+
+
+def estimate_tokens(text: str, language: str = "en") -> int:
+    """Language-aware token count estimation.
+
+    Uses script-family ratios: Indic scripts (Devanagari, Telugu, etc.)
+    produce wider tokens than English, so a fixed 1.3 ratio undercounts
+    them and risks context overflow.
+    """
+    words = text.split()
+    if not words:
+        return 0
+    ratio = get_token_ratio(language)
+    return int(len(words) / ratio)
+
+
+def get_token_ratio(language: str = "en") -> float:
+    """Return the tokens-per-word ratio for a given language code."""
+    lang_code = str(language or "en").strip().lower().split("-", 1)[0]
+    script = _LANG_TO_SCRIPT.get(lang_code, "latin")
+    return _SCRIPT_TOKEN_RATIOS.get(script, _SCRIPT_TOKEN_RATIOS["default"])
+
 # Try importing LLMLingua optionally for advanced 20x compression
 try:
     from llmlingua import PromptCompressor
@@ -38,22 +84,28 @@ def _split_into_sentences(text: str) -> list[str]:
     return [s.strip() for s in sentences if len(s.strip()) > 20]
 
 
-def cap_to_token_budget(text: str, max_tokens: int) -> str:
-    """
-    Cap text to a strict token budget using a fast word-count proxy.
-    Assumes 1 word ~ 1.3 tokens (approximate for English/Indic text mixed).
-    """
+def cap_to_token_budget(text: str, max_tokens: int, language: str = "en") -> str:
+    """Cap text to a strict token budget using language-aware estimation."""
     if not text:
         return ""
 
     words = text.split()
-    max_words = int(max_tokens / 1.3)
+    if not words:
+        return ""
+
+    ratio = get_token_ratio(language)
+    # ratio is words-per-token (estimate_tokens divides by it): words = tokens * ratio,
+    # matching estimate_tokens's inverse. Dividing here (the previous bug) let Indic-
+    # script text — the exact case this ratio exists to protect — through too many
+    # words, defeating the budget guarantee for those languages.
+    max_words = int(max_tokens * ratio)
 
     if len(words) <= max_words:
         return text
 
     logger.info(
-        f"Token Budget: Capping text from {len(words)} to {max_words} words ({max_tokens} token budget)."
+        f"Token Budget: Capping text from {len(words)} to {max_words} words "
+        f"({max_tokens} token budget, ratio={ratio})."
     )
     return " ".join(words[:max_words])
 
@@ -183,8 +235,12 @@ def compress_documents(
         )
 
     # Enforce strict Token Budget Allocation on the entire merged context
+    # Default ratio: Latin/English. The function does not receive language,
+    # so use the conservative default. Callers that know the language should
+    # use cap_to_token_budget directly with the language parameter.
+    _default_ratio = _SCRIPT_TOKEN_RATIOS["latin"]
     total_context_words = sum(len(d["text"].split()) for d in compressed)
-    max_context_words = int(context_budget / 1.3)
+    max_context_words = int(context_budget / _default_ratio)
 
     if total_context_words > max_context_words:
         logger.info(
@@ -192,6 +248,6 @@ def compress_documents(
         )
         budget_per_doc = int(max_context_words / len(compressed))
         for doc in compressed:
-            doc["text"] = cap_to_token_budget(doc["text"], int(budget_per_doc * 1.3))
+            doc["text"] = cap_to_token_budget(doc["text"], int(budget_per_doc * _default_ratio))
 
     return compressed

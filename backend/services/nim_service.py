@@ -17,7 +17,7 @@ from typing import Optional
 
 import httpx
 from anyio import Lock as AsyncLock
-from tenacity import AsyncRetrying, retry_if_exception_type, stop_after_attempt, wait_exponential
+from tenacity import AsyncRetrying, retry_if_exception_type, stop_after_attempt, wait_exponential_jitter
 
 from app.config import settings
 from app.constants import CircuitBreakerProvider
@@ -179,9 +179,9 @@ class NimService:
 
     @staticmethod
     def _estimate_tokens(text: str) -> int:
-        if not text:
-            return 0
-        return int(len(text.split()) * 1.3)
+        """Language-aware token estimate via shared compressor."""
+        from rag.compressor import estimate_tokens
+        return estimate_tokens(text)
 
     def _track_token_usage(self, *, tokens_in: int, tokens_out: int, model: str) -> None:
         try:
@@ -281,7 +281,7 @@ class NimService:
         try:
             retryer = AsyncRetrying(
                 stop=stop_after_attempt(self._max_retries),
-                wait=wait_exponential(multiplier=1, min=1, max=8),
+                wait=wait_exponential_jitter(initial=1, max=8, jitter=1),
                 retry=retry_if_exception_type((httpx.HTTPError, asyncio.TimeoutError)),
                 reraise=True,
             )

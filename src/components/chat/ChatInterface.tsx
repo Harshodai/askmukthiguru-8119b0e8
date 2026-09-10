@@ -354,33 +354,38 @@ export const ChatInterface = () => {
     };
   }, []);
 
+  // ── Unified stop handler (Esc key, Stop button, onStop prop) ─────
+  const handleStopGeneration = useCallback(() => {
+    streamControllerRef.current?.abort();
+    if (currentJobIdRef.current) {
+      const { endpoint } = getAIConfig();
+      const baseUrl = endpoint?.replace(/\/api\/chat\/?$/, '') || '';
+      const jobId = currentJobIdRef.current;
+      currentJobIdRef.current = null;
+      import('@/lib/chat/auth').then(async ({ getAccessToken }) => {
+        try {
+          const token = await getAccessToken();
+          await fetch(`${baseUrl}/api/jobs/${jobId}`, {
+            method: 'DELETE',
+            headers: {
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+          });
+        } catch (err) {
+          console.error('Failed to cancel job:', err);
+        }
+      });
+    }
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, []);
+
   // ── Esc to stop generating ───────────────────────────────────────
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && streamControllerRef.current) {
-        streamControllerRef.current.abort();
-        if (currentJobIdRef.current) {
-          const { endpoint } = getAIConfig();
-          const baseUrl = endpoint?.replace(/\/api\/chat\/?$/, '') || '';
-          const jobId = currentJobIdRef.current;
-          currentJobIdRef.current = null;
-          import('@/lib/chat/auth').then(async ({ getAccessToken }) => {
-            try {
-              const token = await getAccessToken();
-              await fetch(`${baseUrl}/api/jobs/${jobId}`, {
-                method: 'DELETE',
-                headers: {
-                  ...(token ? { Authorization: `Bearer ${token}` } : {}),
-                },
-              });
-            } catch (err) {
-              console.error('Failed to cancel job:', err);
-            }
-          });
-        }
-        if (inputRef.current) {
-          inputRef.current.focus();
-        }
+        handleStopGeneration();
       }
     };
     window.addEventListener('keydown', onKey);
@@ -396,8 +401,6 @@ export const ChatInterface = () => {
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputValue(e.target.value);
   }, []);
-
-  const PASTE_ATTACHMENT_THRESHOLD = 2000;
 
   const handlePaste = useCallback((e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const pastedText = e.clipboardData.getData('text');
@@ -776,8 +779,8 @@ export const ChatInterface = () => {
             setCurrentConversation(updatedConversation);
             setRefreshTrigger(prev => prev + 1);
           }
-          // DB trigger `touch_user_last_message` handles profile columns on chat message insert.
-          localStorage.setItem('askmukthiguru_last_seen', Date.now().toString());
+           // DB trigger `touch_user_last_message` handles profile columns on chat message insert.
+          try { localStorage.setItem('askmukthiguru_last_seen', Date.now().toString()); } catch {}
         } finally {
           if (mySaveId === latestSaveIdRef.current) {
             isSavingRef.current = false;
@@ -2165,10 +2168,7 @@ return (
                                   onPaste={handlePaste}
                                   onKeyDown={handleKeyDown}
                                   onSubmit={(e) => handleSubmit(e)}
-                                  onStop={() => {
-                                    streamControllerRef.current?.abort();
-                                    if (inputRef.current) inputRef.current.focus();
-                                  }}
+                                  onStop={handleStopGeneration}
                                   isTyping={isTyping}
                                   isStreaming={isStreaming}
                                   isAwaitingSereneMind={isAwaitingSereneMind}
@@ -2279,31 +2279,7 @@ return (
                   {(isStreaming || isTyping || showInstantPill) && (
                     <button
                       type="button"
-                      onClick={() => {
-                        streamControllerRef.current?.abort();
-                        if (currentJobIdRef.current) {
-                          const { endpoint } = getAIConfig();
-                          const baseUrl = endpoint?.replace(/\/api\/chat\/?$/, '') || '';
-                          const jobId = currentJobIdRef.current;
-                          currentJobIdRef.current = null;
-                          import('@/lib/chat/auth').then(async ({ getAccessToken }) => {
-                            try {
-                              const token = await getAccessToken();
-                              await fetch(`${baseUrl}/api/jobs/${jobId}`, {
-                                method: 'DELETE',
-                                headers: {
-                                  ...(token ? { Authorization: `Bearer ${token}` } : {}),
-                                },
-                              });
-                            } catch (err) {
-                              console.error('Failed to cancel job:', err);
-                            }
-                          });
-                        }
-                        if (inputRef.current) {
-                          inputRef.current.focus();
-                        }
-                      }}
+                      onClick={handleStopGeneration}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 mt-1 rounded-full text-[12px] font-medium text-foreground/80 border border-border/60 bg-background/80 hover:bg-destructive/10 hover:border-destructive/40 hover:text-destructive transition-colors flex-shrink-0"
                       aria-label="Stop generating"
                       title="Stop generating (Esc)"
@@ -2350,10 +2326,7 @@ return (
             onPaste={handlePaste}
             onKeyDown={handleKeyDown}
             onSubmit={(e) => handleSubmit(e)}
-            onStop={() => {
-              streamControllerRef.current?.abort();
-              if (inputRef.current) inputRef.current.focus();
-            }}
+            onStop={handleStopGeneration}
             isTyping={isTyping}
             isStreaming={isStreaming}
             isAwaitingSereneMind={isAwaitingSereneMind}

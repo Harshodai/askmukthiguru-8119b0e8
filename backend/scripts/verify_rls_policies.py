@@ -21,6 +21,7 @@ import argparse
 import json
 import os
 import re
+import secrets
 import sys
 import time
 import uuid
@@ -262,7 +263,7 @@ def run_verification() -> dict[str, Any]:
 
     alice_email = _make_test_email("alice")
     bob_email = _make_test_email("bob")
-    password = "Password123!x"
+    password = secrets.token_urlsafe(16)
     alice_id = ""
     bob_id = ""
 

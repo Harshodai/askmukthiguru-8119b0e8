@@ -87,6 +87,7 @@ let RAGFlowPage: ComponentType = NoopPage;
 let AdminSelfCheckPage: ComponentType = NoopPage;
 let CachePage: ComponentType = NoopPage;
 let RoutingPage: ComponentType = NoopPage;
+let ObservabilityDashboard: ComponentType = NoopPage;
 
 
 if (ADMIN_ENABLED) {
@@ -117,6 +118,7 @@ if (ADMIN_ENABLED) {
   AdminSelfCheckPage = lazyWithRetry(() => import("./pages/AdminSelfCheckPage"));
   CachePage = lazyWithRetry(() => import("./admin/pages/CachePage"));
   RoutingPage = lazyWithRetry(() => import("./admin/pages/RoutingPage"));
+  ObservabilityDashboard = lazyWithRetry(() => import("./admin/components/ObservabilityDashboard").then(m => ({ default: m.ObservabilityDashboard })));
 }
 
 const queryClient = new QueryClient({
@@ -147,7 +149,9 @@ const QueryErrorBoundary = ({ children }: { children: React.ReactNode }) => (
 
 const DebugLayout = () => (
   <div id="debug-layout">
-    <Outlet />
+    <main id="main-content" tabIndex={-1}>
+      <Outlet />
+    </main>
   </div>
 );
 
@@ -180,8 +184,6 @@ const RouteTracker = () => {
 
 const App = () => {
   useEffect(() => {
-    console.log('[App] Mounted');
-    
     const runPurge = () => {
       purgeConversationsByAge(getRetentionDays()).catch((err) => {
         captureFeatureError(err, 'chat', { action: 'purgeConversationsByAge' });
@@ -216,6 +218,12 @@ const App = () => {
       */}
       <SereneMindProvider>
         <QueryErrorBoundary>
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[9999] focus:bg-white focus:px-4 focus:py-2 focus:rounded-lg focus:shadow-lg focus:text-slate-900"
+        >
+          Skip to main content
+        </a>
         <AppRouter>
           <RouteTracker />
           <Routes>
@@ -276,8 +284,9 @@ const App = () => {
                   <Route path="queue" element={<Navigate to="/admin/ingestion?tab=queue" replace />} />
                   <Route path="cache" element={<Navigate to="/admin/ingestion?tab=cache" replace />} />
 
-                  {/* Observability: telemetry · logs · monitoring */}
+                  {/* Observability: overview · telemetry · logs · monitoring */}
                   <Route path="telemetry" element={<AdminRoute><GroupedPage tabs={[
+                    { id: 'overview', label: 'Overview', Component: ObservabilityDashboard },
                     { id: 'telemetry', label: 'Telemetry', Component: TelemetryPage },
                     { id: 'logs', label: 'Logs', Component: LogsPage },
                     { id: 'monitoring', label: 'Monitoring', Component: MonitoringPage },

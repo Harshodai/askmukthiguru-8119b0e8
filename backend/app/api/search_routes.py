@@ -13,13 +13,12 @@ import re
 from typing import Any, Optional
 from urllib.parse import parse_qs, urlparse
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel, Field
 from qdrant_client.http import models as qmodels
 
 from app.dependencies import ServiceContainer, get_container
 from app.sanitization import sanitize_log_input
-from app.security_utils import is_benchmark_request
 from services.auth_service import get_optional_user, resolve_anon_identity
 from services.web_search_service import WebSearchService
 

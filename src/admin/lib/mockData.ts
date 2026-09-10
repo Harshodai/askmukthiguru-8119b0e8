@@ -80,12 +80,12 @@ export async function getQueryTrace(queryId: string): Promise<QueryTrace | null>
   return {
     query: query as ChatQuery,
     prompt: null as unknown as import('@/admin/types').PromptVersion,
-    retrieval: (retrieval as any) ?? null,
-    response: (response as any) ?? null,
-    spans: ((spans as any) ?? []) as any,
-    triggers: ((triggers as any) ?? []) as any,
+    retrieval: (retrieval as unknown as import('@/admin/types').RetrievalEvent) ?? null,
+    response: (response as unknown as import('@/admin/types').ChatResponse) ?? null,
+    spans: ((spans as unknown as import('@/admin/types').TraceSpan[]) ?? []),
+    triggers: ((triggers as unknown as import('@/admin/types').TriggerEvent[]) ?? []),
     feedback: null,
-    safety: ((safety as any) ?? []) as any,
+    safety: ((safety as unknown as import('@/admin/types').SafetyEvent[]) ?? []),
   };
 }
 
@@ -100,13 +100,13 @@ export async function getKpis(range: { from?: Date; to?: Date }): Promise<KpiSna
   if (range.to) q = q.lte("created_at", range.to.toISOString());
 
   const { data: queries } = await q;
-  const rows = (queries || []) as any[];
+  const rows = (queries || []) as unknown as Record<string, unknown>[];
   const total = rows.length;
 
   const ok = rows.filter((x) => x.status === "ok");
   const errors = rows.filter((x) => x.status === "error");
 
-  const latencies = ok.map((x: any) => x.latency_ms).filter(x => typeof x === 'number').sort((a: number, b: number) => a - b);
+  const latencies = ok.map((x: Record<string, unknown>) => x.latency_ms as number).filter(x => typeof x === 'number').sort((a: number, b: number) => a - b);
   const p50 = latencies.length ? latencies[Math.floor(latencies.length * 0.5)] : 0;
   const p95 = latencies.length ? latencies[Math.floor(latencies.length * 0.95)] : 0;
 
@@ -295,9 +295,9 @@ export async function listTopicClusters(): Promise<QueryCluster[]> {
 }
 
 export async function listAdmins(): Promise<AdminUser[]> {
-  const { data, error } = await (supabase as any).rpc("list_admins");
+  const { data, error } = await (supabase as unknown as { rpc: (fn: string) => Promise<{ data: unknown; error: unknown }> }).rpc("list_admins");
   if (error) { console.error("list_admins RPC failed:", error); return []; }
-  return ((data as any[]) || []).map((row) => ({
+  return ((data as unknown as Array<Record<string, unknown>>) || []).map((row) => ({
     id: row.id,
     email: row.email,
     role: "admin" as const,
@@ -351,9 +351,9 @@ export async function getRetrievalHealth(range?: { from?: Date; to?: Date }): Pr
   if (error) {
     console.error("Error in getRetrievalHealth:", error);
     const { data: simple } = await fromUntyped("retrieval_events").select("query_id, source_docs, scores, chat_queries!inner(created_at)");
-    return aggregateRetrieval((simple || []) as any[]);
+    return aggregateRetrieval((simple || []) as unknown as Record<string, unknown>[]);
   }
-  return aggregateRetrieval((data || []) as any[]);
+  return aggregateRetrieval((data || []) as unknown as Record<string, unknown>[]);
 }
 
 // ============================================================================
@@ -364,7 +364,7 @@ export async function getQualityData(range?: { from?: Date; to?: Date }): Promis
   if (range?.from) q = q.gte("created_at", range.from.toISOString());
   if (range?.to) q = q.lte("created_at", range.to.toISOString());
   const { data } = await q.limit(500);
-  const rows = (data || []) as any[];
+  const rows = (data || []) as unknown as Record<string, unknown>[];
 
   const low_confidence = rows
     .filter((r) => typeof r.confidence === "number" && r.confidence < 0.6)
@@ -374,7 +374,7 @@ export async function getQualityData(range?: { from?: Date; to?: Date }): Promis
 
   const { data: fb } = await fromUntyped("feedback_events").select("query_id, rating");
   const fbMap = new Map<string, number>();
-  ((fb || []) as any[]).forEach((f) => fbMap.set(f.query_id, f.rating));
+  ((fb || []) as unknown as Array<{ query_id: string; rating: number }>).forEach((f) => fbMap.set(f.query_id, f.rating));
 
   const disagreements: any[] = [];
   rows.forEach((r) => {
@@ -409,10 +409,10 @@ export async function getRagasHeatmap(range?: { from?: Date; to?: Date }, bucket
   const { data } = await fromUntyped("chat_responses")
     .select("faithfulness, answer_relevancy, context_precision, context_recall, created_at")
     .gte("created_at", from.toISOString()).lte("created_at", to.toISOString());
-  const bs = bucketize((data || []) as any[], from, to, buckets, (r) => new Date(r.created_at).getTime());
+  const bs = bucketize((data || []) as unknown as Array<{ created_at: string; [k: string]: unknown }>, from, to, buckets, (r) => new Date(r.created_at).getTime());
   return bs.map((b) => {
     const n = b.items.length || 1;
-    const avg = (k: string) => b.items.reduce((s: number, r: any) => s + (r[k] ?? 0), 0) / n;
+    const avg = (k: string) => b.items.reduce((s: number, r: Record<string, unknown>) => s + ((r[k] as number) ?? 0), 0) / n;
     return {
       bucket: b.bucket,
       faithfulness: avg("faithfulness"),
@@ -429,10 +429,10 @@ export async function getTriggerTrend(range?: { from?: Date; to?: Date }, bucket
   const to = range?.to ?? new Date();
   const { data } = await fromUntyped("trigger_events").select("trigger_name, created_at")
     .gte("created_at", from.toISOString()).lte("created_at", to.toISOString());
-  const bs = bucketize((data || []) as any[], from, to, buckets, (r) => new Date(r.created_at).getTime());
+  const bs = bucketize((data || []) as unknown as Array<{ trigger_name: string; created_at: string }>, from, to, buckets, (r) => new Date(r.created_at).getTime());
   return bs.map((b) => {
-    const out: any = { bucket: b.bucket };
-    b.items.forEach((r: any) => { out[r.trigger_name] = (out[r.trigger_name] || 0) + 1; });
+    const out: Record<string, unknown> = { bucket: b.bucket };
+    b.items.forEach((r) => { out[r.trigger_name] = ((out[r.trigger_name] as number) || 0) + 1; });
     return out;
   });
 }
@@ -442,7 +442,7 @@ export async function getSimilarityTrend(range?: { from?: Date; to?: Date }, buc
   const to = range?.to ?? new Date();
   const { data } = await fromUntyped("retrieval_events").select("scores, chat_queries!inner(created_at)")
     .gte("chat_queries.created_at", from.toISOString()).lte("chat_queries.created_at", to.toISOString());
-  const bs = bucketize((data || []) as any[], from, to, buckets, (r) => new Date(r.chat_queries?.created_at || r.created_at).getTime());
+  const bs = bucketize((data || []) as unknown as Array<{ scores?: number[]; chat_queries?: { created_at?: string }; created_at?: string }>, from, to, buckets, (r) => new Date(r.chat_queries?.created_at || r.created_at).getTime());
   return bs.map((b) => {
     const scores = b.items.map((r: any) => (r.scores?.[0] ?? 0)).filter((s: number) => s > 0);
     return { bucket: b.bucket, avg_top_score: scores.length ? scores.reduce((s: number, x: number) => s + x, 0) / scores.length : 0 };
@@ -459,7 +459,7 @@ export async function getEmptyRetrievals(range?: { from?: Date; to?: Date }, lim
   if (range?.from) q = q.gte("chat_queries.created_at", range.from.toISOString());
   if (range?.to) q = q.lte("chat_queries.created_at", range.to.toISOString());
   const { data } = await q.order("created_at", { referencedTable: "chat_queries", ascending: false });
-  return ((data || []) as any[])
+  return ((data || []) as unknown as Array<Record<string, unknown>>)
     .filter((r) => !r.source_docs || r.source_docs.length === 0 || (r.scores?.[0] ?? 0) < 0.3)
     .slice(0, limit)
     .map((r) => ({
@@ -492,8 +492,8 @@ export async function getIngestionHealth(): Promise<any> {
 export async function getPromptMetricsByVersion(): Promise<any[]> {
   const { data: prompts } = await fromUntyped("prompt_versions").select("id, name, version");
   const { data: queries } = await fromUntyped("chat_queries").select("id, prompt_version_id, chat_responses(faithfulness, answer_relevancy, hallucination_flag)");
-  const pList = (prompts || []) as any[];
-  const qList = (queries || []) as any[];
+  const pList = (prompts || []) as unknown as Array<{ id: string; name: string; version: number }>;
+  const qList = (queries || []) as unknown as Array<{ prompt_version_id: string; chat_responses: unknown }>;
   return pList.map((p) => {
     const matched = qList.filter((q) => q.prompt_version_id === p.id);
     const resps = matched.flatMap((q) => Array.isArray(q.chat_responses) ? q.chat_responses : (q.chat_responses ? [q.chat_responses] : []));
@@ -516,7 +516,7 @@ export async function pollLiveFeed(): Promise<ChatQuery[]> {
 // ============================================================================
 export async function createPromptVersion(p: Partial<PromptVersion>): Promise<PromptVersion> {
   const { data } = await fromUntyped("prompt_versions")
-    .insert({ name: p.name, version: p.version, body: (p as any).content ?? (p as any).body, active: false })
+    .insert({ name: p.name, version: p.version, body: (p as Record<string, unknown>).content ?? (p as Record<string, unknown>).body ?? p.body, active: false })
     .select()
     .single();
   return data as PromptVersion;

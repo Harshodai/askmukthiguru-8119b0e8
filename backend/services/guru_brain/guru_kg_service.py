@@ -153,8 +153,8 @@ class GuruKGService:
             try:
                 with self._resolved_driver.session() as session:
                     cypher = """
-                    MATCH (d:SeekerDilemma)-[:DRIVEN_BY]->(b:RootLimitingBelief)
-                    MATCH (t:GuruTeaching)-[:DISMANTLES]->(b)
+                    MATCH (d:SeekerDilemma)-[:DRIVEN_BY*1..2]->(b:RootLimitingBelief)
+                    MATCH (t:GuruTeaching)-[:DISMANTLES*1..2]->(b)
                     MATCH (t)-[:TRANSFORMS_TO]->(s:BeautifulState)
                     MATCH (t)-[:PRESCRIBES]->(p:PracticeStep)
                     MATCH (g:GuruSpeaker)-[:TEACHES]->(t)
@@ -178,7 +178,18 @@ class GuruKGService:
                                 guru_speaker=record["guru"],
                             )
                         )
+                    if len(arcs) > 50:
+                        arcs = arcs[:50]
+                        logger.info(
+                            "GuruKGService: truncated traversal from >50 to top 50 arcs (query_len=%d)",
+                            len(query),
+                        )
                     if arcs:
+                        logger.info(
+                            "GuruKGService: traversal found %d arcs (query_len=%d)",
+                            len(arcs),
+                            len(query),
+                        )
                         return arcs
             except Exception as exc:
                 logger.warning(

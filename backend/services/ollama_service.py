@@ -157,10 +157,9 @@ class OllamaService:
 
     @staticmethod
     def _estimate_tokens(text: str) -> int:
-        """Fast heuristic: ~1.3 tokens per word (works for English + Indic)."""
-        if not text:
-            return 0
-        return int(len(text.split()) * 1.3)
+        """Language-aware token estimate via shared compressor."""
+        from rag.compressor import estimate_tokens
+        return estimate_tokens(text)
 
     @classmethod
     def _enforce_token_budget(cls, prompt_text: str, budget: int, node: str = "generate") -> None:
@@ -1066,7 +1065,8 @@ class OllamaService:
             client = await self._get_http_client()
             resp = await client.get(f"{settings.ollama_base_url}/api/tags", timeout=5)
             return resp.status_code == 200
-        except Exception:
+        except Exception as e:
+            logger.debug("Ollama health check failed: %s", e)
             return False
 
     async def close(self) -> None:

@@ -110,6 +110,52 @@ def compile_okf() -> Path:
     return _COMPILED_PATH
 
 
+def score_staged_entry(entry: dict[str, Any]) -> float:
+    """Score a staged OKF entry for quality (0.0-1.0).
+
+    Scoring criteria:
+    - Has non-empty title (+0.1)
+    - Has non-empty description (+0.2)
+    - Has non-empty body (+0.2)
+    - Has source URL (+0.15)
+    - Has teacher attribution (+0.1)
+    - No extraction artifacts (+0.15)
+    - Body > 100 chars (+0.1)
+    """
+    score = 0.0
+
+    title = (entry.get("title") or "").strip()
+    description = (entry.get("description") or "").strip()
+    body = (entry.get("body") or "").strip()
+    source = (entry.get("source") or "").strip()
+    teacher = (entry.get("teacher") or "").strip()
+
+    if title:
+        score += 0.1
+    if description:
+        score += 0.2
+    if body:
+        score += 0.2
+    if source:
+        from urllib.parse import urlparse
+
+        parsed = urlparse(source)
+        if parsed.scheme in ("http", "https") and parsed.netloc:
+            score += 0.15
+    if teacher:
+        score += 0.1
+    if len(body) > 100:
+        score += 0.1
+
+    # Check for extraction artifacts
+    artifacts = ["RAPTOR Level:", "_(Source:", "extract", "prompt"]
+    has_artifacts = any(artifact.lower() in body.lower() for artifact in artifacts)
+    if not has_artifacts:
+        score += 0.15
+
+    return min(1.0, score)
+
+
 async def get_compiled_okf() -> list[dict[str, Any]]:
     """Return compiled OKF entries from disk (or empty list)."""
     if not _COMPILED_PATH.exists():

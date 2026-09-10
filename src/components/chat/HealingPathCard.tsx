@@ -171,6 +171,7 @@ export function HealingPathCard({
   }, [course?.slug]);
 
   useEffect(() => {
+    setStepProgress(null);
     if (!course || !enrolled) return;
     let cancelled = false;
     (async () => {
@@ -190,7 +191,7 @@ export function HealingPathCard({
       }
     })();
     return () => { cancelled = true; };
-  }, [course, enrolled]);
+  }, [course?.slug, enrolled]);
 
   useEffect(() => {
     if (!course || enrolled || assignAttemptedRef.current === course.slug) return;

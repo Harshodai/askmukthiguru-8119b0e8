@@ -117,7 +117,7 @@ async def test_circuit_breaker_skips_second_brain_on_timeout():
     container.second_brain.unlock = AsyncMock(side_effect=asyncio.TimeoutError)
     container.user_profile = None
 
-    memory_context, distress = await prepare_user_memory(
+    memory_context, distress, _profile = await prepare_user_memory(
         container, "user-1", [{"role": "user", "content": "hi"}]
     )
     # Should not crash; second_brain failure is non-fatal
@@ -126,20 +126,28 @@ async def test_circuit_breaker_skips_second_brain_on_timeout():
 
 @pytest.mark.asyncio
 async def test_circuit_breaker_total_budget_respected():
-    """Verify per-call timeout is capped by total budget."""
+    """A second_brain that exceeds the per-call timeout must still return
+    within the total memory budget (~1.5s), not hang for the service's
+    full (slower) response time."""
     from app.orchestrator_utils import prepare_user_memory
 
+    async def _slow_unlock(user_id):
+        await asyncio.sleep(5.0)  # far exceeds the 500ms per-call timeout
+        raise AssertionError("should have been cancelled by the per-call timeout")
+
     container = MagicMock()
-    container.second_brain = None
+    container.second_brain = AsyncMock()
+    container.second_brain.unlock = AsyncMock(side_effect=_slow_unlock)
     container.user_profile = None
 
     start = time.perf_counter()
-    memory_context, distress = await prepare_user_memory(
+    memory_context, distress, _profile = await prepare_user_memory(
         container, "user-1", [{"role": "user", "content": "hi"}]
     )
     elapsed = time.perf_counter() - start
-    # Should complete fast (no services configured)
-    assert elapsed < 1.0
+    # Bounded by the ~1.5s total memory budget, not the 5s slow service.
+    assert elapsed < 2.0
+    assert isinstance(memory_context, str)
 
 
 # ---------------------------------------------------------------------------
@@ -188,7 +196,7 @@ async def test_persona_stale_includes_flag():
         new_callable=AsyncMock,
         return_value=[],
     ):
-        memory_context, distress = await prepare_user_memory(
+        memory_context, distress, _profile = await prepare_user_memory(
                 container, "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", [{"role": "user", "content": "hi"}]
             )
 

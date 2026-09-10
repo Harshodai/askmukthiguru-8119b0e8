@@ -122,8 +122,8 @@ class AnonQuotaService:
                     from app.metrics import ANON_QUOTA_DEGRADED_MODE
 
                     ANON_QUOTA_DEGRADED_MODE.labels(event="cold_start_fallback").inc()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Failed to record ANON_QUOTA_DEGRADED_MODE metric: %s", e)
                 # Cold-start fallback enforces the conservative degraded limit,
                 # matching the Redis adapter's mid-session degradation.
                 degraded_limit = int(getattr(settings, "anon_quota_degraded_limit", 3))

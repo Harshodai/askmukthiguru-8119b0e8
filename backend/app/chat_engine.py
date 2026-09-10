@@ -452,25 +452,27 @@ class ChatEngine:
         user_msg: str,
     ) -> None:
         try:
-            from app.telemetry_sink import SupabaseTelemetrySink
+            from app.telemetry_sink import QueryTrace
 
-            sink = SupabaseTelemetrySink()
+            sink = self._container.telemetry_sink
             await sink.log_query_trace(
-                query_id=result.trace_id,
-                session_id=session_id,
-                user_id=user_id,
-                query_text=user_msg,
-                model=result.model_used or "unknown",
-                latency_ms=result.latency_ms,
-                status="ok",
-                created_at=result.created_at
-                if hasattr(result, "created_at")
-                else datetime.now(UTC).isoformat(),
-                response_text=result.final_answer,
-                citations=result.citations,
-                faithfulness=result.faithfulness_score,
-                citations_verified=result.citations_verified,
-                orphan_citations_stripped=result.orphan_citations_stripped,
+                trace=QueryTrace(
+                    query_id=result.trace_id,
+                    session_id=session_id,
+                    user_id=user_id,
+                    query_text=user_msg,
+                    model=result.model_used or "unknown",
+                    latency_ms=result.latency_ms,
+                    status="ok",
+                    created_at=result.created_at
+                    if hasattr(result, "created_at")
+                    else datetime.now(UTC).isoformat(),
+                    response_text=result.final_answer,
+                    citations=result.citations,
+                    faithfulness=result.faithfulness_score,
+                    citations_verified=result.citations_verified,
+                    orphan_citations_stripped=result.orphan_citations_stripped,
+                )
             )
         except Exception as e:
             logger.warning(f"Telemetry logging failed (non-critical): {e}")

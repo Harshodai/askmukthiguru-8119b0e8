@@ -69,9 +69,15 @@ async def test_compact_memories_creates_snapshot_before_delete():
                 supabase_client=supabase_mock,
                 embedding_service=embedding_mock,
             )
+            parent = MagicMock()
+            parent.attach_mock(supabase_mock.rpc, "rpc")
+            parent.attach_mock(table_mock.delete, "delete")
+
             await service.compact_memories("a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6")
 
-            # Verify snapshot RPC was called
+            # Verify snapshot RPC was called with the right args, and that it
+            # happened before the destructive delete (same parent mock so
+            # call ordering across both mocks is observable).
             supabase_mock.rpc.assert_called_with(
                 "create_compaction_snapshot",
                 {
@@ -79,11 +85,13 @@ async def test_compact_memories_creates_snapshot_before_delete():
                     "p_memories_json": json.dumps(mock_memories),
                 },
             )
+            call_names = [c[0] for c in parent.mock_calls]
+            assert call_names.index("rpc") < call_names.index("delete")
 
 
 @pytest.mark.asyncio
-async def test_compact_memories_snapshot_failure_is_non_fatal():
-    """Snapshot failure must not abort the compaction."""
+async def test_compact_memories_snapshot_failure_aborts_before_delete():
+    """Snapshot failure must abort compaction — no delete without a recovery snapshot."""
     supabase_mock = MagicMock()
     table_mock = MagicMock()
     select_result = MagicMock()
@@ -127,8 +135,9 @@ async def test_compact_memories_snapshot_failure_is_non_fatal():
                 supabase_client=supabase_mock,
                 embedding_service=embedding_mock,
             )
-            # Should not raise even though snapshot RPC failed
+            # Should not raise, and must return early without deleting.
             await service.compact_memories("a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6")
+            table_mock.delete.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
@@ -334,41 +343,23 @@ async def test_compact_memories_preserves_fact_key_from_matching_original():
 
 def test_defensive_json_parse_key_insights_string():
     """If key_insights comes back as a JSON string from DB, it must be parsed."""
-    row = {
-        "key_insights": '["insight1", "insight2"]',
-    }
-    result = (
-        json.loads(row["key_insights"])
-        if isinstance(row["key_insights"], str)
-        else (row["key_insights"] or [])
-    )
-    assert result == ["insight1", "insight2"]
+    from services.user_profile_service import parse_key_insights
+
+    assert parse_key_insights('["insight1", "insight2"]') == ["insight1", "insight2"]
 
 
 def test_defensive_json_parse_key_insights_already_list():
     """If key_insights is already a list, it must pass through unchanged."""
-    row = {
-        "key_insights": ["insight1", "insight2"],
-    }
-    result = (
-        json.loads(row["key_insights"])
-        if isinstance(row["key_insights"], str)
-        else (row["key_insights"] or [])
-    )
-    assert result == ["insight1", "insight2"]
+    from services.user_profile_service import parse_key_insights
+
+    assert parse_key_insights(["insight1", "insight2"]) == ["insight1", "insight2"]
 
 
 def test_defensive_json_parse_key_insights_none():
     """If key_insights is None, default to empty list."""
-    row = {
-        "key_insights": None,
-    }
-    result = (
-        json.loads(row["key_insights"])
-        if isinstance(row["key_insights"], str)
-        else (row["key_insights"] or [])
-    )
-    assert result == []
+    from services.user_profile_service import parse_key_insights
+
+    assert parse_key_insights(None) == []
 
 
 # ---------------------------------------------------------------------------

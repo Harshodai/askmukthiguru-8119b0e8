@@ -825,6 +825,15 @@ export async function reviewStagingItem(
     body: JSON.stringify({ action, notes }),
   });
 }
+// ── Observability Summary ─────────────────────────────────────────────────
+export async function fetchObservabilitySummary() {
+  return fetchWithAuth('/api/admin/observability/summary');
+}
+
+export async function fetchCostBreakdown() {
+  return fetchWithAuth('/api/admin/cost-breakdown');
+}
+
 // ── Routing Dashboard ───────────────────────────────────────────────────────
 export async function getRoutingDistribution(hours: number) {
   return fetchWithAuth(`/api/admin/routing/distribution?hours=${hours}`);

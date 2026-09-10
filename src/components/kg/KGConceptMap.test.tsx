@@ -13,11 +13,14 @@ const renderWithI18n = (ui: React.ReactElement) => render(<I18nextProvider i18n=
 
 const advanceSimulation = async () => {
   // Let the KG force-directed simulation run through its frames.
+  // Flush any pending state updates from the simulation init, then advance
+  // enough fake-RAF frames for the throttled setSimHeat to fire.
   await act(async () => {
-    for (let i = 0; i < 5; i++) {
-       
+    await Promise.resolve();
+    for (let i = 0; i < 40; i++) {
       await vi.advanceTimersByTimeAsync(16);
     }
+    await Promise.resolve();
   });
 };
 

@@ -501,7 +501,8 @@ class MemoryServiceV2(MemoryService):
             )
             qdrant_api_key = settings.qdrant_api_key or None
             return QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
-        except Exception:
+        except Exception as e:
+            logger.debug("Failed to create Qdrant client: %s", e)
             return None
 
     def ensure_global_memory_collection(self) -> bool:
@@ -1102,7 +1103,7 @@ class MemoryServiceV2(MemoryService):
                 await asyncio.wait_for(asyncio.to_thread(_do_enrich), timeout=30.0)
                 result = enriched
             except (TimeoutError, Exception):
-                pass
+                logger.debug("KG enrichment timeout/error (non-critical)", exc_info=True)
             self._KG_CACHE[cache_key] = (result, time.time() + self._KG_TTL)
             return result
 
@@ -1375,7 +1376,7 @@ class MemoryServiceV2(MemoryService):
             await asyncio.wait_for(asyncio.to_thread(_do_enrich), timeout=30.0)
             result = enriched
         except (TimeoutError, Exception):
-            pass
+            logger.debug("KG enrichment timeout/error (non-critical)", exc_info=True)
         self._KG_CACHE[cache_key] = (result, time.time() + self._KG_TTL)
         # Evict old cache entries (bounded).
         if len(self._KG_CACHE) > 256:

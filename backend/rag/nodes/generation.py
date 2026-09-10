@@ -765,7 +765,15 @@ async def context_engineer(state: GraphState, config: Optional[RunnableConfig] =
     # [USER CLASSIFICATION] block appended just above was discarded 100% of the time.
     # `max_tokens_per_request` is 12000, so the cap was never budget-driven — it was
     # simply too small. Sized to fit the whole constitution plus the style block.
+    _persona_pre_cap_len = len(persona)
     persona = cap_to_token_budget(persona, _PERSONA_TOKEN_BUDGET, detected_language)
+    if len(persona) < _persona_pre_cap_len:
+        logger.warning(
+            "Persona budget (%d tokens) truncated %d chars of persona/personalization "
+            "content — experience/codemix/distress blocks may have been cut.",
+            _PERSONA_TOKEN_BUDGET,
+            _persona_pre_cap_len - len(persona),
+        )
 
     # Layer 2: Knowledge (Retrieved Chunks) — tier-aware budget
     query_tier = state.get("query_tier", "standard")
@@ -886,37 +894,49 @@ async def context_engineer(state: GraphState, config: Optional[RunnableConfig] =
         user_state += f"Detected Language: {detected_language}\n"
     if memory_context:
         user_state += f"\n{memory_context}\n"
-    user_state = cap_to_token_budget(user_state, 1024, detected_language)
-
     # Negative feedback signal: if the user recently received 3+ negative ratings,
-    # append an instruction to prioritize directness and citations.
-    user_id = state.get("user_id") or state.get("session_id", "")
-    if user_id:
+    # append an instruction to prioritize directness and citations. Feedback is
+    # tied to a real account only — never fall back to a session identifier,
+    # which would attribute one anonymous session's feedback history to another.
+    user_id = state.get("user_id")
+    if user_id and user_id != "anonymous":
         try:
-            from ops.retry_analysis import _get_client as _fb_client
+            from app.dependencies import get_container
 
-            _fb = _fb_client()
+            _fb = getattr(get_container(), "supabase_client", None)
             if _fb:
                 from datetime import UTC, datetime, timedelta
 
                 _cutoff = (datetime.now(UTC) - timedelta(days=7)).isoformat()
-                _neg_count = (
-                    _fb.table("feedback_events")
-                    .select("id", count="exact")
-                    .eq("user_id", str(user_id))
-                    .eq("feedback_type", "negative")
-                    .gte("created_at", _cutoff)
-                    .execute()
-                    .count
-                    or 0
+
+                def _count_negative():
+                    return (
+                        _fb.table("feedback_events")
+                        .select("id", count="exact")
+                        .eq("user_id", str(user_id))
+                        .eq("feedback_type", "negative")
+                        .gte("created_at", _cutoff)
+                        .execute()
+                        .count
+                        or 0
+                    )
+
+                _neg_count = await asyncio.wait_for(
+                    asyncio.to_thread(_count_negative), timeout=5.0
                 )
                 if _neg_count >= 3:
                     user_state += (
                         "\n[PREVIOUS ANSWERS WERE NOT HELPFUL — provide direct, "
                         "specific answer with citations]\n"
                     )
-        except Exception:
-            pass  # Non-fatal: degrade gracefully if feedback query fails
+        except Exception as _fb_err:
+            # Non-fatal: degrade gracefully if feedback query fails.
+            logger.debug("Negative-feedback count query failed (non-fatal): %s", _fb_err)
+
+    # Cap AFTER the negative-feedback instruction is appended so it stays
+    # within the same 1024-token budget as the rest of Layer 3 instead of
+    # riding in for free after the cap already ran.
+    user_state = cap_to_token_budget(user_state, 1024, detected_language)
 
     # Layer 4: Instructions (capped to 900 tokens)
     _cs = state.get("complexity_score", 0.5)

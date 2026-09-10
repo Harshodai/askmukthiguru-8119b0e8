@@ -17,7 +17,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Optional
 
-from services.multi_provider_llm import MultiProviderLLMService, get_llm_service
+from services.multi_provider_llm import get_llm_service
 
 logger = logging.getLogger(__name__)
 
@@ -111,7 +111,8 @@ async def polish_transcript(
             from services.doctrine_terms import apply_corrections
 
             return apply_corrections(polished_text)
-        except Exception:
+        except Exception as e:
+            logger.debug("Failed to apply doctrine corrections: %s", e)
             return polished_text
 
     except Exception as e:

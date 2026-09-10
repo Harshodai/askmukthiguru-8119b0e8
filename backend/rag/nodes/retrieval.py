@@ -76,7 +76,8 @@ def _load_okf_entries() -> list[dict]:
     try:
         data = __import__("json").loads(_OKF_COMPILED_PATH.read_text(encoding="utf-8"))
         _OKF_CACHE = data.get("entries", [])
-    except Exception:
+    except Exception as e:
+        logger.debug("Failed to load OKF compiled index at %s: %s", _OKF_COMPILED_PATH, e)
         _OKF_CACHE = []
     return _OKF_CACHE
 
@@ -1115,7 +1116,11 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     base_question = await inject_doctrine_keywords(
         await expand_query_with_synonyms(base_question, assistant_slug), assistant_slug
     )
-    # Personalization: append user-interest keywords to improve recall
+    # Personalization: append user-interest keywords to improve recall. Kept in a
+    # separate variable — base_question stays the plain user question for OKF
+    # teacher detection/matching, Neo4j KG expansion, plan_context_graph, and
+    # augment_query below; only sub_queries seeding uses the personalized form.
+    retrieval_query = base_question
     topics_of_interest = state.get("topics_of_interest", [])
     favorite_teachings = state.get("favorite_teachings", [])
     if topics_of_interest or favorite_teachings:
@@ -1123,7 +1128,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
             "topics_of_interest": topics_of_interest,
             "favorite_teachings": favorite_teachings,
         }
-        base_question = await personalize_retrieval_query(
+        retrieval_query = await personalize_retrieval_query(
             base_question, user_profile, embedder
         )
     # Phase 3 Relational Lane: Prepare Neo4j graph ontology expansion.
@@ -1163,7 +1168,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     retrieval_stage_times["prepare_ms"] = round(
         (time.perf_counter() - preparation_started) * 1000, 1
     )
-    sub_queries = state.get("sub_queries", [base_question]) or [base_question]
+    sub_queries = state.get("sub_queries", [retrieval_query]) or [retrieval_query]
 
     # OPTIMIZATION (Phase-3 / Truth-3): Fire LLM expansion CONCURRENTLY with
     # the first retrieval batch instead of awaiting it serially. The

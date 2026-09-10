@@ -1,4 +1,6 @@
+import asyncio
 import json
+import logging
 import os
 from typing import Optional
 
@@ -128,6 +130,7 @@ class RateFeedbackRequest(BaseModel):
 
 
 @router.post("/rate", status_code=201)
+@limiter.limit(settings.feedback_rate_limit)
 async def rate_feedback(
     request: Request,
     body: RateFeedbackRequest,
@@ -150,10 +153,12 @@ async def rate_feedback(
         "response_summary": body.response_summary,
     }
     try:
-        result = client.table("feedback_events").insert(row).execute()
+        result = await asyncio.to_thread(
+            lambda: client.table("feedback_events").insert(row).execute()
+        )
         return {"status": "ok", "id": result.data[0]["id"] if result.data else None}
     except Exception as e:
-        logger.error("Failed to store rate feedback: %s", e)
+        logging.getLogger(__name__).error("Failed to store rate feedback: %s", e)
         raise HTTPException(status_code=500, detail="Failed to store feedback")
 
 

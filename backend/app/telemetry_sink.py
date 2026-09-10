@@ -11,6 +11,7 @@ import logging
 import os
 import uuid
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
 from typing import Any, Optional
 
 import redis.asyncio as Redis
@@ -21,6 +22,61 @@ from app.dependencies import get_container
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
+
+
+@dataclass
+class QueryTrace:
+    """Telemetry trace for a single query — groups all observability fields."""
+
+    # Identity
+    query_id: str = ""
+    session_id: str = ""
+    user_id: str = ""
+    query_text: str = ""
+    model: str = ""
+
+    # Timing & status
+    latency_ms: int = 0
+    status: str = ""
+    created_at: str = ""
+    ttft_ms: Optional[int] = None
+    tokens_per_second: Optional[float] = None
+
+    # Response
+    response_text: Optional[str] = None
+    # Callers pass PipelineResult/ChatResult.citations verbatim, which are
+    # `{"url": str, "title": str | None}` dicts (see ChatEngine._coerce_citations)
+    # or, on earlier code paths, plain URL strings — never bare list[str].
+    citations: Optional[list[dict[str, Any] | str]] = None
+
+    # Quality scores
+    faithfulness: float = 1.0
+    answer_relevancy: float = 1.0
+    context_precision: float = 1.0
+    context_recall: float = 1.0
+    hallucination_flag: bool = False
+    confidence_score: Optional[float] = None
+    judge_reasoning: str = ""
+
+    # Pipeline metadata
+    retrieval_metadata: Optional[dict[str, Any]] = None
+    spans: Optional[list[dict[str, Any]]] = None
+    trigger_events: Optional[list[dict[str, Any]]] = None
+    safety_events: Optional[list[dict[str, Any]]] = None
+
+    # Provider & routing
+    provider: Optional[str] = None
+    route_decision: Optional[str] = None
+    cache_hit: Optional[bool] = None
+    prompt_tokens: Optional[int] = None
+    completion_tokens: Optional[int] = None
+    cost_estimate: Optional[float] = None
+
+    # Evaluation & compliance
+    evaluation_trace: Optional[dict[str, Any]] = None
+    assistant_slug: Optional[str] = None
+    citations_verified: Optional[bool] = None
+    orphan_citations_stripped: Optional[bool] = None
 
 
 class SupabaseTelemetrySink:
@@ -84,92 +140,57 @@ class SupabaseTelemetrySink:
         previous per-attempt uuid4() which duplicated on every replay."""
         return str(uuid.uuid5(uuid.NAMESPACE_URL, f"{query_id}:{logical}"))
 
-    async def log_query_trace(
-        self,
-        query_id: str,
-        session_id: str,
-        user_id: str,
-        query_text: str,
-        model: str,
-        latency_ms: int,
-        status: str,
-        created_at: str,
-        response_text: Optional[str] = None,
-        citations: Optional[list[str]] = None,
-        faithfulness: float = 1.0,
-        answer_relevancy: float = 1.0,
-        context_precision: float = 1.0,
-        context_recall: float = 1.0,
-        hallucination_flag: bool = False,
-        confidence_score: Optional[float] = None,
-        judge_reasoning: str = "",
-        retrieval_metadata: Optional[dict[str, Any]] = None,
-        spans: Optional[list[dict[str, Any]]] = None,
-        trigger_events: Optional[list[dict[str, Any]]] = None,
-        safety_events: Optional[list[dict[str, Any]]] = None,
-        provider: Optional[str] = None,
-        route_decision: Optional[str] = None,
-        cache_hit: Optional[bool] = None,
-        ttft_ms: Optional[int] = None,
-        tokens_per_second: Optional[float] = None,
-        prompt_tokens: Optional[int] = None,
-        completion_tokens: Optional[int] = None,
-        cost_estimate: Optional[float] = None,
-        evaluation_trace: Optional[dict[str, Any]] = None,
-        assistant_slug: Optional[str] = None,
-        citations_verified: Optional[bool] = None,
-        orphan_citations_stripped: Optional[bool] = None,
-    ) -> None:
+    async def log_query_trace(self, trace: QueryTrace) -> None:
         """
         Serialize trace data and append to Redis Stream.
         Falls back to direct DB insert if Redis is unavailable.
         """
-        query_id = self._coerce_uuid(query_id) or str(uuid.uuid4())
-        session_id = self._coerce_uuid(session_id)
-        user_id = self._coerce_uuid(user_id)
+        query_id = self._coerce_uuid(trace.query_id) or str(uuid.uuid4())
+        session_id = self._coerce_uuid(trace.session_id)
+        user_id = self._coerce_uuid(trace.user_id)
 
         payload_dict = {
             "query_id": query_id,
             "session_id": session_id,
             "user_id": user_id,
-            "query_text": query_text,
-            "model": model,
-            "latency_ms": latency_ms,
-            "status": status,
-            "created_at": created_at,
-            "response_text": response_text,
-            "citations": citations,
-            "faithfulness": faithfulness,
-            "answer_relevancy": answer_relevancy,
-            "context_precision": context_precision,
-            "context_recall": context_recall,
-            "hallucination_flag": hallucination_flag,
-            "confidence_score": confidence_score,
-            "judge_reasoning": judge_reasoning,
-            "retrieval_metadata": retrieval_metadata,
-            "spans": spans,
-            "trigger_events": trigger_events,
-            "safety_events": safety_events,
-            "provider": provider,
-            "route_decision": route_decision,
-            "cache_hit": cache_hit,
-            "ttft_ms": ttft_ms,
-            "tokens_per_second": tokens_per_second,
-            "prompt_tokens": prompt_tokens,
-            "completion_tokens": completion_tokens,
-            "cost_estimate": cost_estimate,
-            "evaluation_trace": evaluation_trace,
-            "assistant_slug": assistant_slug,
-            "citations_verified": citations_verified,
-            "orphan_citations_stripped": orphan_citations_stripped,
+            "query_text": trace.query_text,
+            "model": trace.model,
+            "latency_ms": trace.latency_ms,
+            "status": trace.status,
+            "created_at": trace.created_at,
+            "response_text": trace.response_text,
+            "citations": trace.citations,
+            "faithfulness": trace.faithfulness,
+            "answer_relevancy": trace.answer_relevancy,
+            "context_precision": trace.context_precision,
+            "context_recall": trace.context_recall,
+            "hallucination_flag": trace.hallucination_flag,
+            "confidence_score": trace.confidence_score,
+            "judge_reasoning": trace.judge_reasoning,
+            "retrieval_metadata": trace.retrieval_metadata,
+            "spans": trace.spans,
+            "trigger_events": trace.trigger_events,
+            "safety_events": trace.safety_events,
+            "provider": trace.provider,
+            "route_decision": trace.route_decision,
+            "cache_hit": trace.cache_hit,
+            "ttft_ms": trace.ttft_ms,
+            "tokens_per_second": trace.tokens_per_second,
+            "prompt_tokens": trace.prompt_tokens,
+            "completion_tokens": trace.completion_tokens,
+            "cost_estimate": trace.cost_estimate,
+            "evaluation_trace": trace.evaluation_trace,
+            "assistant_slug": trace.assistant_slug,
+            "citations_verified": trace.citations_verified,
+            "orphan_citations_stripped": trace.orphan_citations_stripped,
         }
 
         # Sanitize once via the shared helper; the Redis path serializes the
         # scrubbed payload, and the direct-insert fallback reuses the same helper.
         payload_dict = self._scrub_payload_dict(payload_dict)
 
-        if hallucination_flag:
-            await self._invalidate_semantic_cache_if_flagged(hallucination_flag, query_text)
+        if trace.hallucination_flag:
+            await self._invalidate_semantic_cache_if_flagged(trace.hallucination_flag, trace.query_text)
 
         if self.redis:
             try:

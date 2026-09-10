@@ -22,7 +22,7 @@ from tenacity import (
     AsyncRetrying,
     retry_if_exception_type,
     stop_after_attempt,
-    wait_exponential,
+    wait_exponential_jitter,
 )
 
 from services.circuit_breaker import (
@@ -67,10 +67,9 @@ class AbstractLLMService(abc.ABC):
 
     @staticmethod
     def _estimate_tokens(text: str) -> int:
-        """Fast heuristic: ~1.3 tokens per word."""
-        if not text:
-            return 0
-        return int(len(text.split()) * 1.3)
+        """Language-aware token estimate via shared compressor."""
+        from rag.compressor import estimate_tokens
+        return estimate_tokens(text)
 
     def _extract_reasoning_content(self, text: str) -> str:
         """
@@ -131,7 +130,7 @@ class AbstractLLMService(abc.ABC):
         max_retries = max_retries or self._max_retries
         retryer = AsyncRetrying(
             stop=stop_after_attempt(max_retries),
-            wait=wait_exponential(multiplier=1, min=1, max=8),
+            wait=wait_exponential_jitter(initial=1, max=8, jitter=1),
             retry=retry_if_exception_type(retryable_exceptions),
             reraise=True,
         )

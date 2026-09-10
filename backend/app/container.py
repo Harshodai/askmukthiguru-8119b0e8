@@ -260,6 +260,16 @@ class ServiceContainer:
             embedding_service=self.embedding,
         )
 
+        # Built once at startup, reused by ChatEngine._log_telemetry — a fresh
+        # SupabaseTelemetrySink() per chat response would rebuild its Supabase/
+        # Redis clients on every request instead of reusing the pooled ones.
+        # Deferred import: telemetry_sink.py does `from app.dependencies import
+        # get_container` at module scope, which would circularly re-import this
+        # module if imported at container.py's top level.
+        from app.telemetry_sink import SupabaseTelemetrySink
+
+        self.telemetry_sink = SupabaseTelemetrySink()
+
         # Built once at startup — DoctrineCache._load_from_supabase() is a
         # blocking call and must never run per-request inside the event loop.
         self.doctrine_cache = DoctrineCache(supabase_client=self.supabase_client)

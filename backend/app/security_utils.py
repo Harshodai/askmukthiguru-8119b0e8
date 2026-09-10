@@ -10,6 +10,7 @@ Shared validation and sanitization helpers for critical security fixes:
 
 import hashlib
 import hmac
+import logging
 import os
 import re
 import secrets
@@ -18,6 +19,10 @@ import time
 from collections import deque
 from typing import Optional
 from urllib.parse import urlparse
+
+from starlette.requests import Request
+
+logger = logging.getLogger(__name__)
 
 # YouTube video ID: exactly 11 characters, alphanumeric, hyphen, underscore
 _YOUTUBE_VIDEO_ID_RE = re.compile(r"^[a-zA-Z0-9_-]{11}$")
@@ -38,7 +43,7 @@ _SAFE_PATH_RE = re.compile(r"^[a-zA-Z0-9_./-]+$")
 _EMAIL_RE = re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
 
 
-def is_benchmark_request(request) -> bool:
+def is_benchmark_request(request: Request) -> bool:
     """
     Detect a benchmark/test request via the X-Test-Key header.
 
@@ -632,12 +637,10 @@ class RedisBackedRateLimiter:
             if old is not None:
                 try:
                     await old.aclose()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Failed to close old Redis client: %s", e)
         except Exception as exc:
-            import logging
-
-            logging.getLogger(__name__).warning(
+            logger.warning(
                 "RedisBackedRateLimiter: async Redis unavailable (%s) — falling back to process-local limiter",
                 exc,
             )
@@ -711,8 +714,8 @@ class RedisBackedRateLimiter:
         if client is not None:
             try:
                 await client.aclose()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Failed to close Redis rate limiter: %s", e)
 
     # ── Redis implementation ─────────────────────────────────────────────────
 

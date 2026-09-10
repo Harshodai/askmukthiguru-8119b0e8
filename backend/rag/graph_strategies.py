@@ -52,6 +52,7 @@ from rag.nodes import (
     verify_answer,
     web_search_node,
 )
+from rag.nodes.verification import combined_grade_and_verify
 from rag.nodes.intent import route_after_grading
 from rag.resolve_followup import resolve_followup
 from rag.states import GraphState
@@ -252,7 +253,7 @@ class StandardGraphStrategy(GraphStrategy):
         graph.add_node("regenerate_gate", regenerate_gate)
         graph.add_node("generate_answer", generate_answer)
         graph.add_node("reflect_on_answer", reflect_on_answer)
-        graph.add_node("verify_answer", verify_answer)
+        graph.add_node("verify_answer", combined_grade_and_verify)
         graph.add_node("extract_citations", extract_citations)
         graph.add_node("context_engineer", context_engineer)
         graph.add_node("format_final_answer", format_final_answer)
@@ -410,7 +411,7 @@ class FastGraphStrategy(GraphStrategy):
         graph.add_node("_map_docs_to_relevant", _map_docs_to_relevant)
         graph.add_node("generate_answer", generate_answer)
         graph.add_node("reflect_on_answer", reflect_on_answer)
-        graph.add_node("verify_answer", verify_answer)
+        graph.add_node("verify_answer", combined_grade_and_verify)
         graph.add_node("extract_citations", extract_citations)
         graph.add_node("format_final_answer", format_final_answer)
 

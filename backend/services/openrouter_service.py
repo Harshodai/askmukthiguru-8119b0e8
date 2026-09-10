@@ -18,7 +18,7 @@ from typing import Any, ClassVar, Optional
 
 import httpx
 from anyio import Lock as AsyncLock
-from tenacity import AsyncRetrying, retry_if_exception, stop_after_attempt, wait_exponential
+from tenacity import AsyncRetrying, retry_if_exception, stop_after_attempt, wait_exponential_jitter
 
 
 def _is_retryable_openrouter_error(exc: BaseException) -> bool:
@@ -232,10 +232,9 @@ class OpenRouterService:
 
     @staticmethod
     def _estimate_tokens(text: str) -> int:
-        """Fast heuristic: ~1.3 tokens per word."""
-        if not text:
-            return 0
-        return int(len(text.split()) * 1.3)
+        """Language-aware token estimate via shared compressor."""
+        from rag.compressor import estimate_tokens
+        return estimate_tokens(text)
 
     @staticmethod
     def _usage_cost(usage: Mapping[str, Any] | None) -> float | None:
@@ -424,7 +423,7 @@ class OpenRouterService:
         try:
             retryer = AsyncRetrying(
                 stop=stop_after_attempt(self._max_retries),
-                wait=wait_exponential(multiplier=1, min=1, max=8),
+                wait=wait_exponential_jitter(initial=1, max=8, jitter=1),
                 retry=retry_if_exception(_is_retryable_openrouter_error),
                 reraise=True,
             )
@@ -878,6 +877,88 @@ class OpenRouterService:
             record_llm_error(_span, final_error)
             raise final_error
 
+    async def _stream_completion(
+        self,
+        messages: list[dict],
+        model: str = None,
+        **kwargs,
+    ):
+        """Low-level streaming helper: yields token strings from OpenRouter.
+
+        Falls back to non-streaming on connection errors so callers never
+        see a broken generator. Returns an async generator of token strings.
+        """
+        model = model or self._gen_model
+        self._policy.assert_model_allowed(model)
+        operation = kwargs.get("operation", "stream_completion")
+        max_tokens = min(kwargs.get("max_tokens", 2048), self._policy.output_ceiling(operation))
+        temperature = kwargs.get("temperature", 0.1)
+
+        payload = {
+            "model": model,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "provider": self._policy.provider_preferences(),
+            "stream": True,
+            "stream_options": {"include_usage": True},
+        }
+
+        is_anthropic = "anthropic/" in model or "claude" in model
+        headers = {}
+        if is_anthropic:
+            headers["anthropic-beta"] = "prompt-caching-2024-07-31"
+
+        if not self._circuit.can_execute():
+            # Circuit open means "stop contacting OpenRouter" — a fallback that
+            # itself calls client.post() defeats the circuit breaker by hitting
+            # the network anyway on every request while it's supposed to be open.
+            logger.warning(f"OpenRouter circuit open — graceful degradation for {operation}")
+            yield await self._graceful_degradation(messages, operation=operation)
+            return
+
+        emitted_any = False
+        try:
+            client = await self._get_http_client()
+            async with client.stream("POST", "/chat/completions", json=payload, headers=headers or None) as resp:
+                resp.raise_for_status()
+                async for line in resp.aiter_lines():
+                    if not line.startswith("data: "):
+                        continue
+                    data_str = line[6:]
+                    if data_str.strip() == "[DONE]":
+                        break
+                    try:
+                        data = json.loads(data_str)
+                    except json.JSONDecodeError:
+                        continue
+                    choice = data.get("choices", [{}])[0] or {}
+                    delta = (choice.get("delta") or {}).get("content") or ""
+                    if delta:
+                        emitted_any = True
+                        yield delta
+            self._circuit.record_success()
+        except (httpx.HTTPError, asyncio.TimeoutError) as exc:
+            self._circuit.record_failure()
+            if emitted_any:
+                # Partial content already reached the caller — a non-streaming
+                # replay here would duplicate it (caller sees partial + full
+                # answer concatenated). Propagate the failure instead.
+                logger.error(f"Streaming failed for {operation} after partial output: {exc}")
+                raise
+            logger.warning(f"Streaming failed for {operation}, falling back to non-streaming: {exc}")
+            try:
+                non_stream_payload = {k: v for k, v in payload.items() if k not in ("stream", "stream_options")}
+                client = await self._get_http_client()
+                resp = await client.post("/chat/completions", json=non_stream_payload, headers=headers or None)
+                resp.raise_for_status()
+                data = resp.json()
+                content = data["choices"][0]["message"]["content"]
+                yield content
+            except Exception as fallback_exc:
+                logger.error(f"Non-streaming fallback also failed for {operation}: {fallback_exc}")
+                yield await self._graceful_degradation(messages, operation=operation)
+
     # -----------------------------------------------------------------------
     # Classification / RAG Operations
     # -----------------------------------------------------------------------
@@ -1245,5 +1326,6 @@ class OpenRouterService:
             client = await self._get_http_client()
             resp = await client.get("/models", timeout=5.0)
             return resp.status_code == 200
-        except Exception:
+        except Exception as e:
+            logger.debug("OpenRouter health check failed: %s", e)
             return False

@@ -58,6 +58,47 @@ from rag.query_patterns import (
 )
 
 
+_FAST_CLASSIFY_GREETING_RE = re.compile(
+    r"^\s*(hello|hi|hey|good\s+(morning|afternoon|evening)|namaste|🙏)[\s.!?,]*$", re.I
+)
+_FAST_CLASSIFY_CASUAL_RE = re.compile(
+    r"\b(how\s+are\s+you|what['']?s\s+up|thanks|thank\s+you)\b", re.I
+)
+_FAST_CLASSIFY_MEDITATION_RE = re.compile(
+    r"\b(meditate|meditation|guided\s+meditation|breathe|breathing|calm\s+down)\b", re.I
+)
+
+
+def _fast_classify(question: str) -> dict | None:
+    """Rule-based fast-path for obvious intents — no LLM call.
+
+    Returns a routing dict matching the shape _intent_router_impl produces,
+    or None when the query does not match any fast-path pattern.
+    """
+    lower_q = question.lower().strip()
+    if not lower_q:
+        return None
+    if _FAST_CLASSIFY_GREETING_RE.search(lower_q):
+        return {
+            "intent": "CASUAL",
+            "query_tier": "tier2_simple",
+            "confidence_tier": "high",
+        }
+    if _FAST_CLASSIFY_CASUAL_RE.search(lower_q) and len(question.split()) <= 5:
+        return {
+            "intent": "CASUAL",
+            "query_tier": "tier2_simple",
+            "confidence_tier": "high",
+        }
+    if _FAST_CLASSIFY_MEDITATION_RE.search(lower_q) and is_meditation_imperative(question):
+        return {
+            "intent": "MEDITATION",
+            "query_tier": "tier2_simple",
+            "confidence_tier": "high",
+        }
+    return None
+
+
 def _cache_hint(intent: str) -> dict:
     """E3.1: emit cache_preferred hint for cache-friendly intents when enabled.
 
@@ -730,6 +771,31 @@ async def _intent_router_impl(state: GraphState, config: Optional[RunnableConfig
         if isinstance(et, dict):
             et["complexity_score"] = complexity_score
         return early
+
+    # ---- Rule-based fast-path (saves 1 LLM call for greetings/casual/meditation) ----
+    # Runs only after the distress/temporal/regex early filter above found
+    # nothing — a distress message must never be short-circuited into CASUAL
+    # or MEDITATION by a coincidental keyword match here.
+    fast = _fast_classify(question)
+    if fast is not None:
+        intent = fast["intent"]
+        logger.info(
+            "Intent Router: fast-classify matched %s for '%s...' — skipping LLM",
+            intent,
+            question[:60],
+        )
+        return {
+            **fast,
+            "complexity_score": complexity_score,
+            **_cache_hint(intent),
+            "evaluation_trace": _trace_update(
+                state,
+                intent=intent,
+                query_tier=fast["query_tier"],
+                routing_reason="fast_classify",
+                complexity_score=complexity_score,
+            ),
+        }
 
     # ---- Heuristic Follow-up Detection (saves 1 LLM call per follow-up query) ----
     # When rag_heuristic_followup is True, detect pronouns/references to previous

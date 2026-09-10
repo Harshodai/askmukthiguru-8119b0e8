@@ -11,7 +11,7 @@ from __future__ import annotations
 from enum import IntEnum
 import logging
 import re
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 

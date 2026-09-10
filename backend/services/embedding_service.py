@@ -28,7 +28,7 @@ import logging
 import os
 import time
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 # Silence Hugging Face tokenizer advisory warnings in logs
 os.environ["TRANSFORMERS_NO_ADVISORY_WARNINGS"] = "true"
@@ -227,7 +227,7 @@ class EmbeddingService:
 
                 original_pad = self._encoder.tokenizer.pad
 
-                def custom_pad(encoded_inputs, *args, **kwargs):
+                def custom_pad(encoded_inputs: Any, *args: Any, **kwargs: Any) -> Any:
                     if not encoded_inputs:
                         raise ValueError(
                             "tokenizer.pad received empty encoded_inputs. This is caused by the BGE-M3 "
@@ -1322,6 +1322,8 @@ class EmbeddingService:
     def _torch_backbone(self):
         """Return (transformer, tokenizer) for a DEDICATED PyTorch BGE-M3 backbone.
 
+        # Late chunking enabled by default for texts ≥256 tokens — improves embedding quality for long contexts
+        # Late-chunk backbone (~2.3GB) — only loaded when reingest_late_chunking=True
         Loaded independently of ``self._encoder`` / ``self._onnx_session`` — those
         follow ``settings.embedding_backend`` (ONNX INT8 in production, ~570MB,
         3.08x faster per a 2026-08-01 measurement) and stay on that path for
@@ -1331,6 +1333,11 @@ class EmbeddingService:
         Loaded once and cached; both backbones coexisting is ~2.9GB, which fits
         the memory budget that OOM-killed earlier all-torch pilot runs.
         """
+        if not settings.reingest_late_chunking:
+            raise RuntimeError(
+                "Late chunking is disabled (reingest_late_chunking=False). "
+                "Cannot load the PyTorch late-chunk backbone (~2.3GB)."
+            )
         if self._late_chunk_transformer is not None:
             return self._late_chunk_transformer, self._late_chunk_tokenizer
 
@@ -1599,9 +1606,6 @@ class EmbeddingService:
             return []
 
         self._ensure_reranker()
-        import gc
-
-        gc.collect()
         pairs = [(query, doc["text"]) for doc in documents]
         if self._is_onnx_reranker():
             # ONNX INT8 reranker: session.run() is thread-safe, no lock.

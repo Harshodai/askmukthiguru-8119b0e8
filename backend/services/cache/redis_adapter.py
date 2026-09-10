@@ -92,12 +92,22 @@ class RedisCacheAdapter(ICacheRepository):
             logger.debug("Redis health check failed: %s", exc)
             return False
 
-    def _make_key(self, query: str) -> str:
-        """Normalize query and generate cache key."""
+    def _make_key(self, query: str, user_id: str | None = None) -> str:
+        """Normalize query and generate cache key.
+
+        When ``user_id`` is provided, a personalized cache namespace is used
+        so that personalized queries (those carrying user-specific context like
+        topic_boost, teaching_boost, or memory_context) are never served from
+        or written to the shared cache. When ``user_id`` is absent (anonymous),
+        the shared key is used unchanged.
+        """
         from services.tenant_context import TenantContext
 
         normalized = query.strip().lower()
-        key_hash = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+        hash_input = normalized
+        if user_id:
+            hash_input = f"{normalized}:{user_id}"
+        key_hash = hashlib.sha256(hash_input.encode("utf-8")).hexdigest()
         tenant_id = TenantContext.get()
         return f"mukthiguru:cache:{tenant_id}:{key_hash}"
 
@@ -140,13 +150,18 @@ class RedisCacheAdapter(ICacheRepository):
         snapshot.update({"namespace": self._NAMESPACE, "max_keys": self._max_keys})
         return snapshot
 
-    def get(self, query: str) -> Optional[dict]:
-        """Look up a cached response for the given query."""
+    def get(self, query: str, user_id: str | None = None) -> Optional[dict]:
+        """Look up a cached response for the given query.
+
+        When ``user_id`` is provided, the lookup uses a personalized cache
+        namespace so that a previously-cached personalized answer is never
+        served to a different user.
+        """
         if not self._redis:
             return None
 
         try:
-            key = self._make_key(query)
+            key = self._make_key(query, user_id=user_id)
             result = self._redis.get(key)
 
             if result is not None:
@@ -154,20 +169,30 @@ class RedisCacheAdapter(ICacheRepository):
                 logger.info(f"Redis Cache HIT (hits={self._hits}, misses={self._misses})")
                 return json.loads(result)
         except Exception as e:
-            logger.warning(f"Redis get failed for query={query}: {e}")
+            logger.warning("Redis get failed (query_len=%d): %s", len(query), e)
 
         self._misses += 1
         return None
 
     def put(
-        self, query: str, response: str, intent: str, citations: list[str], meditation_step: int = 0
+        self,
+        query: str,
+        response: str,
+        intent: str,
+        citations: list[str],
+        meditation_step: int = 0,
+        user_id: str | None = None,
     ) -> None:
-        """Store a response in the cache with TTL."""
+        """Store a response in the cache with TTL.
+
+        When ``user_id`` is provided, the entry is written to a personalized
+        cache namespace so it is never served to another user.
+        """
         if not self._redis:
             return
 
         try:
-            key = self._make_key(query)
+            key = self._make_key(query, user_id=user_id)
             if self._max_keys and not self._redis.exists(key):
                 snapshot = self._refresh_namespace_telemetry()
                 if snapshot["keys"] >= self._max_keys:

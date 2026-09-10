@@ -25,11 +25,12 @@ logger = logging.getLogger(__name__)
 
 
 def retry_with_backoff(max_retries=3, initial_delay=1):
-    """Exponential backoff decorator for Qdrant operations."""
+    """Exponential backoff decorator for Qdrant operations with jitter."""
 
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
+            import random
             delay = initial_delay
             last_exception = None
             for attempt in range(max_retries):
@@ -39,10 +40,11 @@ def retry_with_backoff(max_retries=3, initial_delay=1):
                     last_exception = e
                     if attempt == max_retries - 1:
                         break
+                    jittered = delay + random.uniform(0, delay)
                     logger.warning(
-                        f"Qdrant {func.__name__} failed (attempt {attempt + 1}/{max_retries}): {e}. Retrying in {delay}s..."
+                        f"Qdrant {func.__name__} failed (attempt {attempt + 1}/{max_retries}): {e}. Retrying in {jittered:.2f}s..."
                     )
-                    time.sleep(delay)
+                    time.sleep(jittered)
                     delay *= 2
 
             logger.error(f"Qdrant {func.__name__} failed after {max_retries} attempts.")
@@ -269,7 +271,8 @@ class QdrantIndexer:
                 with_payload=False,
             )
             return len(results) > 0
-        except Exception:
+        except Exception as e:
+            logger.warning("Qdrant has_source query failed: %s", e)
             return False
 
     def backup_source(self, source_url: str, backup_collection: str) -> bool:

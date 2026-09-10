@@ -784,6 +784,8 @@ class SereneMindEngine:
             FREQ_THRESHOLD = settings.proactive_distress_frequency_threshold
             MIN_POINTS = getattr(settings, "proactive_min_conversation_points", 3)
         except Exception:
+            import logging
+            logging.getLogger(__name__).debug("Proactive config import failed, using defaults", exc_info=True)
             # Fallback defaults if config import fails
             PROACTIVE_ENABLED = True
             AVG_THRESHOLD = 1.5

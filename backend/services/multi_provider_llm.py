@@ -18,50 +18,13 @@ Token bucket rate limiting per provider.
 
 import asyncio
 import os
-import time
 from dataclasses import dataclass
-from enum import Enum
 from typing import Any, Optional
 
 import aiohttp
 
 from app.config import settings
-
-
-class ProviderState(Enum):
-    CLOSED = "closed"
-    OPEN = "open"
-    HALF_OPEN = "half_open"
-
-
-@dataclass
-class CircuitBreaker:
-    name: str
-    failure_threshold: int = 3
-    recovery_timeout: float = 60.0
-    state: ProviderState = ProviderState.CLOSED
-    failure_count: int = 0
-    last_failure_time: float = 0.0
-
-    def record_failure(self):
-        self.failure_count += 1
-        self.last_failure_time = time.time()
-        if self.failure_count >= self.failure_threshold:
-            self.state = ProviderState.OPEN
-
-    def record_success(self):
-        self.failure_count = 0
-        self.state = ProviderState.CLOSED
-
-    def can_try(self) -> bool:
-        if self.state == ProviderState.CLOSED:
-            return True
-        if self.state == ProviderState.OPEN:
-            if time.time() - self.last_failure_time >= self.recovery_timeout:
-                self.state = ProviderState.HALF_OPEN
-                return True
-            return False
-        return True
+from services.circuit_breaker import DefaultCircuitBreaker, CircuitBreakerConfig, get_circuit_breaker_registry
 
 
 class TokenBucket:
@@ -142,7 +105,17 @@ class MultiProviderLLMService:
             ),
         }
 
-        self.circuit_breakers = {name: CircuitBreaker(name=name) for name in self.providers}
+        self.circuit_breakers = {}
+        registry = get_circuit_breaker_registry()
+        for name in self.providers:
+            cfg = CircuitBreakerConfig(
+                provider=name,
+                failure_threshold=3,
+                recovery_timeout=60.0,
+            )
+            breaker = DefaultCircuitBreaker(cfg)
+            self.circuit_breakers[name] = breaker
+            registry.register(name, breaker)
 
         self.rate_limiters = {
             name: TokenBucket(rate=cfg.rpm / 60.0, capacity=max(1, cfg.rpm // 10))
@@ -198,7 +171,7 @@ class MultiProviderLLMService:
 
         last_error = None
         for p in self._provider_priority:
-            if not self.circuit_breakers[p].can_try():
+            if not self.circuit_breakers[p].can_execute():
                 continue
             if not self.rate_limiters[p].consume():
                 continue
@@ -290,8 +263,8 @@ class MultiProviderLLMService:
     def get_provider_status(self) -> dict[str, dict]:
         return {
             name: {
-                "state": self.circuit_breakers[name].state.value,
-                "failures": self.circuit_breakers[name].failure_count,
+                "state": self.circuit_breakers[name].get_state().value,
+                "failures": self.circuit_breakers[name].get_stats()["failures"],
                 "tokens": self.rate_limiters[name].tokens,
                 "model": self.providers[name].default_model,
             }

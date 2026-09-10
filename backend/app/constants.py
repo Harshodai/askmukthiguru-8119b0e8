@@ -34,6 +34,7 @@ class CircuitBreakerProvider(str, Enum):
     OLLAMA = LLMProvider.OLLAMA.value
     OPENROUTER = LLMProvider.OPENROUTER.value
     NIM = LLMProvider.NIM.value
+    QDRANT = "qdrant"
 
 
 class CachePrefix(str, Enum):
@@ -95,6 +96,11 @@ CIRCUIT_BREAKER_CONFIGS = {
     CircuitBreakerProvider.NIM: {
         "failure_threshold": 5,
         "recovery_timeout": 60.0,
+        "half_open_max_calls": 3,
+    },
+    CircuitBreakerProvider.QDRANT: {
+        "failure_threshold": 5,
+        "recovery_timeout": 30.0,
         "half_open_max_calls": 3,
     },
 }

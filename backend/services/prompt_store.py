@@ -315,7 +315,8 @@ class PromptStore:
 
         try:
             existing_names = set(self.list_prompt_names())
-        except Exception:
+        except Exception as e:
+            logger.warning("Failed to list prompts: %s", e)
             return 0
 
         for attr_name in dir(module):

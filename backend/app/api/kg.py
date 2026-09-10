@@ -410,6 +410,9 @@ async def kg_personal_subgraph(
         logger.warning("kg/personal-subgraph failed for user=%s: %s", sanitize_log_input(str(uid)), exc)
         return SubgraphResponse(nodes=[], edges=[], query="", count=0)
 
+    if not isinstance(result, dict):
+        return SubgraphResponse(nodes=[], edges=[], query="", count=0)
+
     raw_nodes = result.get("nodes", [])
     raw_edges = result.get("edges", [])
 

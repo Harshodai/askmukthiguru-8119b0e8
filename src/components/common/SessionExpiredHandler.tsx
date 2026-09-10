@@ -16,7 +16,8 @@ const PROTECTED_PREFIXES = ['/chat', '/profile', '/admin'];
 // pushes addressed to them on a device someone else may pick up next.
 // Best-effort: a failure here must never block sign-out itself.
 const unregisterPushDevice = async (): Promise<void> => {
-  const raw = localStorage.getItem(PUSH_DEVICE_STORAGE_KEY);
+  let raw: string | null = null;
+  try { raw = localStorage.getItem(PUSH_DEVICE_STORAGE_KEY); } catch {}
   if (!raw || !BACKEND_URL) return;
   try {
     const { token } = JSON.parse(raw) as { platform: string; token: string };
@@ -30,7 +31,7 @@ const unregisterPushDevice = async (): Promise<void> => {
       },
       body: JSON.stringify({ token }),
     });
-    localStorage.removeItem(PUSH_DEVICE_STORAGE_KEY);
+    try { localStorage.removeItem(PUSH_DEVICE_STORAGE_KEY); } catch {}
   } catch (error) {
     console.warn('[SessionExpiredHandler] push unregister failed:', error);
   }

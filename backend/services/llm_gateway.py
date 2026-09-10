@@ -297,7 +297,8 @@ class LLMGateway:
             from app.config import settings
 
             verify_ceiling = min(settings.llm_max_tokens_fast, 512)
-        except Exception:
+        except Exception as e:
+            logger.debug("Failed to load verify token ceiling from config: %s", e)
             verify_ceiling = 512
         if not self._primary_breaker.can_execute():
             self.metrics.circuit_rejections += 1
@@ -466,7 +467,9 @@ if __name__ == "__main__":
     import asyncio
 
     class _EchoProvider:
-        async def generate(self, system_prompt, user_prompt, context="", **kwargs):
+        async def generate(
+            self, system_prompt: str, user_prompt: str, context: str = "", **kwargs: Any
+        ) -> str:
             return f"echo:{user_prompt}"
 
     async def _demo():

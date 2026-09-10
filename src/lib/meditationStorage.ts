@@ -30,7 +30,8 @@ const LAST_COMPLETED_KEY = 'askmukthiguru_last_serene_mind_at';
  * session, or null if the user has never completed one on this device.
  */
 export const getLastCompletedMeditationTimestamp = (): number | null => {
-  const raw = localStorage.getItem(LAST_COMPLETED_KEY);
+  let raw: string | null = null;
+  try { raw = localStorage.getItem(LAST_COMPLETED_KEY); } catch {}
   if (!raw) return null;
   const ts = parseInt(raw, 10);
   return isNaN(ts) ? null : ts;
@@ -155,7 +156,7 @@ export const completeMeditationSession = async (
 
   // Record timestamp of fully completed session for cooldown guard
   if (completed && typeof window !== 'undefined') {
-    localStorage.setItem(LAST_COMPLETED_KEY, String(Date.now()));
+    try { localStorage.setItem(LAST_COMPLETED_KEY, String(Date.now())); } catch {}
   }
 
   // Dispatch event so UI components (like DailyTeaching) can react and reward the user

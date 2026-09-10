@@ -6,7 +6,7 @@ import asyncio
 import logging
 
 from app.config import settings
-from celery_config import REDIS_URL, celery_app
+from celery_config import celery_app
 
 app = celery_app
 logger = logging.getLogger(__name__)

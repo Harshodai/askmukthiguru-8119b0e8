@@ -167,28 +167,26 @@ class GraphStage(Stage):
             if lang_detection and getattr(lang_detection, "is_codemixed", False):
                 initial_state["codemix_preference"] = True
             initial_state["memory_context"] = memory_context
+            initial_state["user_id"] = ctx.user_id or "anonymous"
             # Attachment evidence is a per-turn input, separate from personal memory.
             # The generation layer labels it as untrusted material and never persists it.
             attachment_context = _attachment_context_from_request(chat_body)
             initial_state["attachment_context"] = attachment_context or None
             initial_state["expected_keywords"] = get_expected_keywords(user_msg_en)
 
-            # User profile personalization fields for generation prompt
-            _uid = ctx.user_id or "anonymous"
-            _profile = None
-            if (
-                container.user_profile
-                and _is_persistable_user_id(_uid)
-            ):
-                try:
-                    _profile = await container.user_profile.get_or_create_profile(_uid)
-                except Exception as _prof_err:
-                    logger.debug("Profile fetch for personalization failed: %s", _prof_err)
+            # User profile personalization fields for generation prompt. Reuse the
+            # profile already fetched (and total_conversations-incremented) by
+            # prepare_user_memory in the orchestrator — avoids a duplicate
+            # get_or_create_profile round trip for every request.
+            _profile = ctx.state.get("user_profile")
             if _profile:
                 initial_state["persisted_spiritual_level"] = _profile.spiritual_level.value
                 initial_state["total_conversations"] = _profile.total_conversations
                 initial_state["total_meditations_completed"] = _profile.total_meditations_completed
-                initial_state["codemix_preference"] = _profile.codemix_preference
+                initial_state["codemix_preference"] = (
+                    initial_state.get("codemix_preference", False)
+                    or _profile.codemix_preference
+                )
                 initial_state["last_distress_assessment"] = _profile.last_distress_assessment
                 initial_state["topics_of_interest"] = list(_profile.topics_of_interest or [])
                 initial_state["favorite_teachings"] = list(_profile.favorite_teachings or [])
@@ -499,11 +497,13 @@ class GraphStage(Stage):
         ctx.med_step = result.get("meditation_step", 0)
         ctx.citations = result.get("citations", [])
 
-        # Persist updated spiritual level from generation node's blended classification
+        # Persist updated spiritual level from generation node's blended classification.
+        # Reuses the profile stashed in ctx.state (fetched once by prepare_user_memory)
+        # instead of a second get_or_create_profile round trip.
         updated_level = result.get("updated_spiritual_level")
-        if updated_level and container.user_profile and _is_persistable_user_id(ctx.user_id):
+        _prof = ctx.state.get("user_profile")
+        if updated_level and container.user_profile and _prof and _is_persistable_user_id(ctx.user_id):
             try:
-                _prof = await container.user_profile.get_or_create_profile(ctx.user_id)
                 from services.user_profile_service import SpiritualLevel
                 _prof.spiritual_level = SpiritualLevel(updated_level)
                 await container.user_profile.update_profile(_prof)

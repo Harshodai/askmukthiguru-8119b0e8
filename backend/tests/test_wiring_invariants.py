@@ -93,7 +93,6 @@ KNOWN_EXTRA_DEAD: dict[str, str] = {
     "verifier_pass_ratio": "Verifier pass ratio threshold config",
     "rag_parallel_verify": "Legacy parallel verify setting replaced by local NLI claim verification (A2.6)",
     "SERVICE_ORCID_MAP": "Declared ORCID mapping; no runtime read",
-    "rag_graph_context_cap_chars": "Declared graph context cap; no runtime read",
 }
 
 # Newly-added settings that must NEVER be flagged dead. If any of these shows

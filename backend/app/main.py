@@ -27,7 +27,9 @@ from fastapi import (
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from fastapi.responses import JSONResponse, RedirectResponse
+from collections.abc import Awaitable, Callable
+
+from fastapi.responses import JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 # Fix import paths — run from backend/ directory
@@ -130,7 +132,7 @@ _DRAIN_TIMEOUT_S = 45  # max seconds to wait for in-flight requests during shutd
 
 
 class JSONFormatter(logging.Formatter):
-    def format(self, record):
+    def format(self, record: logging.LogRecord) -> str:
         msg = record.getMessage()
         if hasattr(PIIScanner, "redact"):
             msg = PIIScanner.redact(msg)
@@ -159,7 +161,7 @@ class PIIScrubber(logging.Filter):
     bypass JSONFormatter) formats it. Never raises — redaction must not break
     logging."""
 
-    def filter(self, record):
+    def filter(self, record: logging.LogRecord) -> bool:
         try:
             redacted = PIIScanner.redact(record.getMessage())
             record.msg = redacted
@@ -884,7 +886,9 @@ _AUTH_LIMIT_PATHS: frozenset[str] = frozenset(
 
 
 @app.middleware("http")
-async def auth_rate_limit_middleware(request: Request, call_next):
+async def auth_rate_limit_middleware(
+    request: Request, call_next: Callable[[Request], Awaitable[Response]]
+) -> Response:
     if request.method == "POST" and request.url.path in _AUTH_LIMIT_PATHS:
         client_ip = request.client.host if request.client else "unknown"
         ip_key = f"auth_rl:ip:{request.url.path}:{client_ip}"
@@ -937,7 +941,9 @@ _ADMIN_LIMIT_PATH = "/api/admin/"
 
 
 @app.middleware("http")
-async def admin_rate_limit_middleware(request: Request, call_next):
+async def admin_rate_limit_middleware(
+    request: Request, call_next: Callable[[Request], Awaitable[Response]]
+) -> Response:
     if request.url.path.startswith(_ADMIN_LIMIT_PATH):
         client_ip = request.client.host if request.client else "unknown"
         key = f"admin_rl:{client_ip}"

@@ -224,8 +224,13 @@ async def _delete_loser(loser_id: str) -> None:
         await session.run(_DELETE_LOSER_QUERY, loser_id=loser_id)
 
 
+_ALLOWED_PROPERTIES = {"description", "name", "aliases", "source_url", "category", "level"}
+
+
 async def _update_node_property(entity_id: str, key: str, value: str) -> None:
     driver = await _get_driver()
+    if key not in _ALLOWED_PROPERTIES:
+        raise ValueError(f"Unsafe Cypher property name: {key!r}. Allowed: {_ALLOWED_PROPERTIES}")
     query = f"MATCH (n:{NODE_LABEL} {{{PK}: $eid}}) SET n.{key} = $val"
     async with driver.session(database=_get_database()) as session:
         await session.run(query, eid=entity_id, val=value)

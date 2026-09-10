@@ -18,16 +18,9 @@ from typing import Any, Optional
 
 logger = __import__("logging").getLogger(__name__)
 
+from rag.prompts import COMPACT_SUMMARY_SYSTEM_PROMPT as _COMPACT_SUMMARY_SYSTEM
+
 _SESSION_NAMESPACE = uuid.UUID("6ba7b811-9dad-11d1-80b4-00c04fd430c8")
-
-_COMPACT_SUMMARY_SYSTEM = """You are a conversation summarizer. Given a chat history between a Seeker and a Guru, produce a structured summary with these fields:
-- goal: The seeker's current spiritual or personal goal
-- key_decisions: Decisions or commitments made during the conversation
-- emotional_state: The seeker's emotional trajectory
-- open_items: Unresolved questions or follow-ups
-- user_preferences: Any preferences the seeker expressed
-
-Be concise. Target {target_chars} characters or fewer. Output only the fields above, one per line like 'goal: ...'."""
 
 
 def normalize_session_id(session_id: Optional[str], user_id: str) -> str:
@@ -87,9 +80,16 @@ def _build_llm_client():
             base_url=settings.nim_base_url, api_key=settings.nim_api_key
         ), settings.nim_classify_model
     if provider == "ollama":
-        return AsyncOpenAI(
-            base_url=settings.ollama_base_url, api_key="ollama"
-        ), settings.model_for_classification
+        # Use the shared, container-managed OllamaService rather than a raw
+        # AsyncOpenAI client — the shared service carries the retry,
+        # circuit-breaker, and cost-tracking behavior every other provider
+        # branch above gets for free via the OpenAI-compatible endpoint.
+        from app.dependencies import get_container
+
+        ollama = getattr(get_container(), "ollama", None)
+        if ollama is None:
+            return None
+        return ollama, settings.model_for_classification, "ollama_native"
     return None
 
 
@@ -118,23 +118,33 @@ async def summarize_chat_history(
     cm = _build_llm_client()
     if not cm:
         return fallback
-    client, model = cm
+    client, model, *kind = cm
+    is_ollama_native = kind == ["ollama_native"]
 
     system = _COMPACT_SUMMARY_SYSTEM.format(target_chars=target_chars)
     try:
-        resp = await asyncio.wait_for(
-            client.chat.completions.create(
-                model=model,
-                messages=[
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": history_text},
-                ],
+        if is_ollama_native:
+            raw = await client.generate(
+                system_prompt=system,
+                user_prompt=history_text,
                 temperature=0.3,
                 max_tokens=min(target_chars // 4, 800),
-            ),
-            timeout=settings.llm_timeout,
-        )
-        raw = resp.choices[0].message.content or ""
+                timeout=settings.llm_timeout,
+            )
+        else:
+            resp = await asyncio.wait_for(
+                client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "system", "content": system},
+                        {"role": "user", "content": history_text},
+                    ],
+                    temperature=0.3,
+                    max_tokens=min(target_chars // 4, 800),
+                ),
+                timeout=settings.llm_timeout,
+            )
+            raw = resp.choices[0].message.content or ""
         return _parse_structured_summary(raw) or fallback
     except Exception as e:
         logger.debug(f"Chat compaction LLM failed, using extractive fallback: {e}")

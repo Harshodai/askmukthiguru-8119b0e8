@@ -591,11 +591,11 @@ class TokenBudgetExceeded(Exception):
         )
 
 
-def _estimate_tokens(text: str) -> int:
-    """Fast heuristic: ~1.3 tokens per word (works for English + Indic)."""
-    if not text:
-        return 0
-    return int(len(text.split()) * 1.3)
+def _estimate_tokens(text: str, language: str = "en") -> int:
+    """Fast heuristic: language-aware tokens-per-word estimation."""
+    from rag.compressor import estimate_tokens as _shared_estimate
+
+    return _shared_estimate(text, language)
 
 
 def _enforce_token_budget(node_name: str, text: str, budget: int) -> None:

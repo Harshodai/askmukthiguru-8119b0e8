@@ -52,9 +52,11 @@ export const DesktopSidebar = ({
   const [memoryCount, setMemoryCount] = useState<number>(0);
 
   useEffect(() => {
+    let disposed = false;
     memoryApi.list(1, 1).then(res => {
-      if (res && typeof res.total === 'number') setMemoryCount(res.total);
+      if (!disposed && res && typeof res.total === 'number') setMemoryCount(res.total);
     }).catch(() => {});
+    return () => { disposed = true; };
   }, []);
 
   const reload = useCallback(async () => {

@@ -250,8 +250,10 @@ class Settings(BaseSettings):
     late_chunk_window_tokens: int = Field(default=2048, gt=2)
     late_chunk_window_batch_size: int = Field(default=4, ge=1)
     SERVICE_ORCID_MAP: dict[str, str] = {
-        # TODO: Add real ORCID values for contributors
+        # Maps service names to ORCID iDs for academic attribution.
+        # Populate before production if contributors have registered ORCIDs.
         # Format: "service_name": "0000-0001-2345-6789"
+        # Look up ORCIDs at https://orcid.org/search
     }
     # In-flight contextualizer LLM calls. 8 suits a hosted endpoint (calls are
     # network-bound); _contextualize() clamps it back to 3 for local Ollama,
@@ -608,6 +610,11 @@ class Settings(BaseSettings):
     second_brain_write_rate_limit: str = "30/minute"
     second_brain_export_rate_limit: str = "3/hour"
     srs_generation_rate_limit: str = "10/hour"
+    feedback_rate_limit: str = "30/minute"
+    # Admin observability health-check threshold for process RSS. The backend
+    # container's memory limit varies by deployment (see backend/docker-compose.yml),
+    # so this must be adjustable per environment rather than hardcoded.
+    health_check_max_process_rss_mb: float = 5000.0
     # --- Anonymous Quota (Progressive Auth) ---
     # Max user turns allowed per anonymous session within the window.
     anon_quota_messages: int = Field(default=5, gt=0)
@@ -683,9 +690,6 @@ class Settings(BaseSettings):
     # One rewrite preserves a recovery opportunity without paying repeated tails.
     rag_indic_max_rewrites: int = Field(default=1, ge=0, le=3)
     rag_context_window: int = 2  # Fetch N chunks before/after each retrieved chunk
-    rag_graph_context_cap_chars: int = (
-        400  # Max chars for graph summary doc injected into enriched context
-    )
     rerank_min_score: float = 0.35  # Min CrossEncoder score (sigmoid-normalized) to keep a doc
     rag_use_context_compression: bool = False  # Set to True to enable LLM-based context compression
     rag_context_compression_threshold: int = (

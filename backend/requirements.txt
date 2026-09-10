@@ -131,8 +131,8 @@ opentelemetry-exporter-otlp>=1.24.0,<2.0
 # production-audit finding DEP-1: same unbounded-range risk as gptcache above;
 # capped to the locked major (1.x, resolves to 1.83.0 in requirements.lock).
 # Still an open dependency-risk item per FINAL-REPORT.md pending pip-audit.
-litellm>=1.24.0,<2.0
-pypdf>=6.13.3,<7.0
+litellm>=1.84.0,<2.0  # PYSEC-2026-2598–2602, 388, 391, 3476–3479, CVE-2026-37004 fixed >=1.84.0
+pypdf>=6.16.1,<7.0  # CVE-2026-84309/84310/84311 fixed >=6.16.1
 PyYAML>=6.0.0
 openinference-instrumentation-langchain>=0.1.33,<1.0
 

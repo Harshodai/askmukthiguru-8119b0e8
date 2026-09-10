@@ -56,7 +56,7 @@ class ProgressUpdateRequest(BaseModel):
 
 class StepProgressRequest(BaseModel):
     step_id: str
-    total_steps: int = Field(default=1, ge=1)
+    total_steps: int = Field(..., ge=1)
 
 
 def _supabase_client(request: Request) -> Any:
@@ -86,6 +86,8 @@ async def assign_course(
     result = await assign_course_if_needed(supabase, user["id"], trigger)
     if not result:
         return {"assigned": False, "course": None}
+    if result.get("already_active"):
+        return {"assigned": False, "course": result}
     return {"assigned": True, "course": result}
 
 
@@ -126,33 +128,21 @@ async def mark_step_completed(
     user_id = user["id"]
 
     def _upsert_step():
-        existing = (
-            supabase.table("user_healing_progress")
-            .select("completed_steps, current_step")
-            .eq("user_id", user_id)
-            .eq("course_slug", course_slug)
-            .maybe_single()
-            .execute()
-        )
-        completed: list[str] = []
-        if existing and getattr(existing, "data", None):
-            completed = list(existing.data.get("completed_steps") or [])
-
-        if body.step_id not in completed:
-            completed.append(body.step_id)
-        new_step = min(len(completed), body.total_steps - 1)
-
-        supabase.table("user_healing_progress").upsert(
+        result = supabase.rpc(
+            "append_healing_step",
             {
-                "user_id": user_id,
-                "course_slug": course_slug,
-                "current_step": new_step,
-                "completed_steps": completed,
-                "last_accessed_at": "now()",
+                "p_user_id": user_id,
+                "p_course_slug": course_slug,
+                "p_step_id": body.step_id,
+                "p_total_steps": body.total_steps,
             },
-            on_conflict="user_id,course_slug",
         ).execute()
-        return {"current_step": new_step, "completed_steps": completed, "total_steps": body.total_steps}
+        row = result.data[0] if result and result.data else {}
+        return {
+            "current_step": row.get("current_step", 0),
+            "completed_steps": row.get("completed_steps") or [],
+            "total_steps": row.get("total_steps", body.total_steps),
+        }
 
     try:
         result = await asyncio.to_thread(_upsert_step)
@@ -176,7 +166,7 @@ async def get_step_progress(
     def _select():
         return (
             supabase.table("user_healing_progress")
-            .select("current_step, completed_steps, last_accessed_at")
+            .select("current_step, completed_steps, total_steps, last_accessed_at")
             .eq("user_id", user["id"])
             .eq("course_slug", course_slug)
             .maybe_single()
@@ -195,6 +185,7 @@ async def get_step_progress(
     return {
         "current_step": row.get("current_step", 0),
         "completed_steps": row.get("completed_steps") or [],
+        "total_steps": row.get("total_steps", 0),
         "last_accessed_at": row.get("last_accessed_at"),
     }
 

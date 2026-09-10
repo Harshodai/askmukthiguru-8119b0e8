@@ -1,7 +1,6 @@
 """Mukthi Guru — Document Grading Node (CRAG).
-Re-exports grade_documents from reranking module for clean modularity.
+
+This module previously re-exported grade_documents from reranking for clean
+modularity, but the re-export is unused (all callers import from reranking
+directly).
 """
-
-from .reranking import grade_documents
-
-__all__ = ["grade_documents"]

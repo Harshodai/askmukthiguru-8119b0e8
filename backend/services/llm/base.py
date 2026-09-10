@@ -16,10 +16,9 @@ class LLMProvider(abc.ABC):
 
     @staticmethod
     def _estimate_tokens(text: str) -> int:
-        """Fast heuristic: ~1.3 tokens per word."""
-        if not text:
-            return 0
-        return int(len(text.split()) * 1.3)
+        """Language-aware token estimate via shared compressor."""
+        from rag.compressor import estimate_tokens
+        return estimate_tokens(text)
 
     def _enforce_token_budget(self, prompt_text: str, budget: int, node: str = "generate") -> None:
         """Soft enforcement: warns if prompt tokens exceed budget. Only raises at 2x hard limit."""
@@ -44,11 +43,13 @@ class LLMProvider(abc.ABC):
             )
 
     def _truncate_to_budget(self, text: str, budget: int) -> str:
-        """Truncate text to fit within the token budget using word-count proxy."""
+        """Truncate text to fit within the token budget."""
         if not text:
             return text
+        from rag.compressor import get_token_ratio
         words = text.split()
-        max_words = int(budget / 1.3)
+        ratio = get_token_ratio("en")
+        max_words = int(budget / ratio)
         if len(words) <= max_words:
             return text
         import logging
@@ -86,7 +87,7 @@ class LLMProvider(abc.ABC):
         pass
 
     @abc.abstractmethod
-    async def classify_distress_structured(self, message: str) -> dict:
+    async def classify_distress_structured(self, message: str) -> dict[str, Any]:
         """Assess whether a message signals emotional distress."""
         pass
 

@@ -66,6 +66,8 @@ services:
       --save 900 1
       --save 300 10
       --save 60 10000
+      --maxmemory 450mb
+      --maxmemory-policy allkeys-lru
     volumes:
       - redis_data:/data
     healthcheck:

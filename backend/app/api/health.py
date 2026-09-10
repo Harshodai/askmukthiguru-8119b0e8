@@ -115,7 +115,7 @@ async def health_endpoint(container: ServiceContainer = Depends(get_container)) 
     loop = asyncio.get_running_loop()
     results = {}
 
-    async def check(name: str, coro, critical: bool = False):
+    async def check(name: str, coro, critical: bool = False) -> None:
         s = time.perf_counter()
         try:
             ok = await asyncio.wait_for(coro, timeout=3.0)

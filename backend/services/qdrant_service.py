@@ -37,6 +37,15 @@ from services.qdrant.utils import QdrantUtils
 logger = logging.getLogger(__name__)
 
 
+class QdrantConnectivityError(Exception):
+    """Raised when Qdrant is unreachable (connection refused, timeout, DNS failure).
+
+    Callers should map this to HTTP 503 Service Unavailable.
+    """
+
+    pass
+
+
 # Sentinel tag that requires explicit opt-in on every search
 _SKY_TAG = "sky"
 
@@ -143,7 +152,8 @@ class QdrantService:
                     "status": str(info.status),
                     "vector_size": vector_size,
                 }
-            except Exception:
+            except Exception as e:
+                logger.warning("Failed to query Qdrant collection '%s': %s", c.name, e)
                 stats[c.name] = {"error": f"Failed to query collection '{c.name}'"}
         return stats
 
@@ -234,6 +244,10 @@ class QdrantService:
             )
             self._circuit.record_success()
             return result
+        except (ConnectionError, TimeoutError, OSError) as e:
+            self._circuit.record_failure()
+            logger.warning("Qdrant connectivity error: %s", e)
+            raise QdrantConnectivityError(str(e)) from e
         except Exception:
             self._circuit.record_failure()
             raise
@@ -261,6 +275,10 @@ class QdrantService:
             result = self._neighbor.get_neighbor_chunks(source_url, chunk_index, window)
             self._circuit.record_success()
             return result
+        except (ConnectionError, TimeoutError, OSError) as e:
+            self._circuit.record_failure()
+            logger.warning("Qdrant connectivity error: %s", e)
+            raise QdrantConnectivityError(str(e)) from e
         except Exception:
             self._circuit.record_failure()
             raise
@@ -280,6 +298,10 @@ class QdrantService:
             result = self._raptor.get_summary_nodes(query_vector, limit, scope=scope)
             self._circuit.record_success()
             return result
+        except (ConnectionError, TimeoutError, OSError) as e:
+            self._circuit.record_failure()
+            logger.warning("Qdrant connectivity error: %s", e)
+            raise QdrantConnectivityError(str(e)) from e
         except Exception:
             self._circuit.record_failure()
             raise

@@ -195,7 +195,8 @@ class MemoryService:
                         if last_updated.tzinfo is None:
                             last_updated = last_updated.replace(tzinfo=UTC)
                         delta_days = (now - last_updated).total_seconds() / (24.0 * 3600.0)
-                    except Exception:
+                    except Exception as e:
+                        logger.debug("Failed to parse memory updated_at timestamp '%s': %s", updated_at_str, e)
                         delta_days = 0.0
                 else:
                     delta_days = 0.0
@@ -705,7 +706,12 @@ class MemoryService:
                     ).execute
                 )
             except Exception as snap_err:
-                logger.warning("Compaction snapshot failed (non-fatal): %s", snap_err)
+                logger.warning(
+                    "Compaction snapshot failed — aborting compaction (no delete/replace "
+                    "will run without a recovery snapshot): %s",
+                    snap_err,
+                )
+                return
 
             # Metadata preservation (Fix 3): match compacted back to originals by keyword overlap
             def _extract_keywords(text: str) -> set[str]:
@@ -730,8 +736,13 @@ class MemoryService:
             _summaries = [m.get("summary", "") for m in memories if m.get("summary")]
             _best_summary = max(_summaries, key=len) if _summaries else ""
 
-            # Generate embeddings for all new compacted memories, preserving per-memory metadata
+            # Generate embeddings for all new compacted memories, preserving per-memory metadata.
+            # used_fact_key_indices ensures each original row's fact_key transfers to at most
+            # one compacted memory — without it, two compacted outputs that both overlap most
+            # with the same original row would both inherit its fact_key, letting one
+            # supersede the other's single-valued fact (e.g. user:lives_in) unintentionally.
             new_memories_data = []
+            used_fact_key_indices: set[int] = set()
             for content in compacted_list:
                 emb_dict = await asyncio.to_thread(
                     self._embedding_service.encode_single_full, content
@@ -754,11 +765,14 @@ class MemoryService:
                     "embedding": embedding,
                     "source": "extracted",
                 }
-                # Preserve per-memory fact_key and valid_from from best match
+                # Preserve per-memory fact_key and valid_from from best match. fact_key
+                # is one-to-one: an original row already claimed by an earlier compacted
+                # memory is skipped for fact_key (but still usable for valid_from/claim).
                 if best_idx >= 0:
                     orig = memories[best_idx]
-                    if orig.get("fact_key"):
+                    if orig.get("fact_key") and best_idx not in used_fact_key_indices:
                         row["fact_key"] = orig["fact_key"]
+                        used_fact_key_indices.add(best_idx)
                     if orig.get("valid_from"):
                         row["valid_from"] = orig["valid_from"]
                     if orig.get("claim"):

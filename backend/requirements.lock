@@ -77,6 +77,12 @@ bitarray==3.10.1
     # via colbert-ai
 blinker==1.9.0
     # via flask
+boto3==1.43.91
+    # via litellm
+botocore==1.43.91
+    # via
+    #   boto3
+    #   s3transfer
 brotli==1.2.0
     # via
     #   gradio
@@ -343,7 +349,7 @@ idna==3.18
     #   yarl
 imageio==2.37.4
     # via scikit-image
-importlib-metadata==9.0.0
+importlib-metadata==8.9.0
     # via litellm
 iniconfig==2.3.0
     # via pytest
@@ -368,6 +374,10 @@ jiter==0.14.0
     # via
     #   instructor
     #   openai
+jmespath==1.1.0
+    # via
+    #   boto3
+    #   botocore
 joblib==1.5.3
     # via
     #   nltk
@@ -451,7 +461,7 @@ lightrag-hku==1.5.4
     # via -r backend/requirements.txt
 limits==5.8.0
     # via slowapi
-litellm==1.83.0
+litellm==1.100.1
     # via
     #   -r backend/requirements.txt
     #   dspy
@@ -820,6 +830,7 @@ pydantic-settings==2.15.0
     # via
     #   -r backend/requirements.txt
     #   langchain-community
+    #   litellm
 pydub==0.25.1
     # via gradio
 pyee==13.0.1
@@ -834,7 +845,7 @@ pyjwt==2.13.0
     #   supabase-auth
 pynndescent==0.6.0
     # via -r backend/requirements.txt
-pypdf==6.15.0
+pypdf==6.18.0
     # via -r backend/requirements.txt
 pypinyin==0.55.0
     # via
@@ -850,6 +861,7 @@ python-bidi==0.6.11
     # via easyocr
 python-dateutil==2.9.0.post0
     # via
+    #   botocore
     #   celery
     #   pandas
 python-dotenv==1.2.2
@@ -943,6 +955,8 @@ rpds-py==2026.6.3
     # via
     #   jsonschema
     #   referencing
+s3transfer==0.19.2
+    # via boto3
 safehttpx==0.1.7
     # via gradio
 safetensors==0.8.0
@@ -1042,7 +1056,7 @@ threadpoolctl==3.6.0
     # via scikit-learn
 tifffile==2026.3.3
     # via scikit-image
-tiktoken==0.7.0
+tiktoken==0.14.0
     # via
     #   lightrag-hku
     #   litellm
@@ -1156,6 +1170,7 @@ ujson==5.13.0
     # via colbert-ai
 urllib3==2.7.0
     # via
+    #   botocore
     #   qdrant-client
     #   requests
     #   yt-dlp

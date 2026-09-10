@@ -255,3 +255,11 @@ export function useRoutingLayers(hours: number) {
 export function useRoutingConfidence(hours: number) {
   return useQuery({ queryKey: ["admin", "routing", "confidence", hours], queryFn: () => api.getRoutingConfidence(hours) });
 }
+
+export function useObservabilitySummary() {
+  return useQuery({
+    queryKey: ["admin", "observability-summary"],
+    queryFn: api.fetchObservabilitySummary,
+    refetchInterval: 30_000,
+  });
+}

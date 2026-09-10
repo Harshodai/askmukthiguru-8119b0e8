@@ -526,7 +526,7 @@ async def prepare_request_state(
     else:
         chat_history_en = chat_history
 
-    memory_context, distress_history = await prepare_user_memory(
+    memory_context, distress_history, user_profile = await prepare_user_memory(
         container,
         user_id,
         chat_history_en,
@@ -582,6 +582,7 @@ async def prepare_request_state(
         "chat_history_en": chat_history_en,
         "memory_context": memory_context,
         "distress_history": distress_history,
+        "user_profile": user_profile,
         "recommended_course": recommended_course,
         "lang_detection": lang_detection,
         "original_user_msg": chat_body.user_message,
@@ -793,7 +794,7 @@ async def prepare_user_memory(
     user_id: str,
     chat_history: list[dict[str, Any]],
     user_msg_en: str = "",
-) -> tuple[str, list[dict[str, Any]]]:
+) -> tuple[str, list[dict[str, Any]], Any]:
     """Fetch user profile and memory context to guide the prompt generation.
 
     Circuit breaker: per-call timeout 500ms, total budget 1500ms.
@@ -842,13 +843,13 @@ async def prepare_user_memory(
             logger.warning(f"Second Brain recall failed: {e}")
 
     if not container.user_profile:
-        return memory_context, distress_history
+        return memory_context, distress_history, None
 
     # Signed anonymous session IDs use the ``anon:<token>`` form. They are
     # intentionally non-persistable and must never trigger profile creation,
     # durable memory reads, persona lookups, or per-turn profile updates.
     if not user_id or not _is_persistable_user_id(user_id):
-        return memory_context, distress_history
+        return memory_context, distress_history, None
 
     profile = await container.user_profile.get_or_create_profile(user_id)
     profile.total_conversations += 1
@@ -1020,7 +1021,7 @@ async def prepare_user_memory(
             if recent_emotion.get("distress_level", 0) >= 2:
                 distress_history.append(recent_emotion)
 
-    return memory_context, distress_history
+    return memory_context, distress_history, profile
 
 
 REFERENTIAL_WORDS = {"it", "that", "this", "they", "earlier", "before", "mentioned", "those"}

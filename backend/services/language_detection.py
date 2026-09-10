@@ -37,14 +37,14 @@ SCRIPT_TO_LANG: dict[str, str] = {
 
 HINDI_WORDS: list[str] = [
     "mujhe", "kaise", "karni", "hai", "nahi", "acha", "achha", "theek",
-    "bilkul", "kar", "ho", "se", "mein", "main", "mera", "meri", "tere",
-    "tum", "aap", "kya", "yeh", "woh", "ek", "do", "teen",
-    "aur", "bhi", "par", "pe", "ko", "ki", "ka", "ke",
+    "bilkul", "kar", "se", "mein", "mera", "meri", "tere",
+    "tum", "aap", "kya", "yeh", "woh", "ek", "teen",
+    "aur", "bhi", "pe", "ko", "ki", "ka", "ke",
     "ke liye", "ke baare mein", "karna", "hota", "hain", "tha", "thi",
-    "the", "hoga", "hogi", "honge",
-    "bol", "bolo", "bata", "sun", "dekh", "le", "ja", "aa",
+    "hoga", "hogi", "honge",
+    "bol", "bolo", "bata", "sun", "dekh", "ja", "aa",
     "piya", "raha", "rahi", "rahe", "gaya", "gayi", "gaye",
-    "kyun", "kyunki", "agar", "lekin", "haan", "hoon", "bas", "yaar",
+    "kyun", "kyunki", "agar", "lekin", "haan", "hoon", "yaar",
     "bhai", "dost", "dil", "mann", "zindagi", "khush", "dukhi", "pyaar",
     "abhi", "kal", "aaj", "subah", "raat", "din", "waqt", "ghar",
     "kaun", "kab", "kahan", "kyun", "matlab", "sach", "galat",
@@ -136,7 +136,7 @@ def _check_hinglish(text: str) -> Optional[dict]:
     Returns dict if >30% of words match common Hindi words, else None.
     """
     words = re.findall(r"[a-zA-Z]+", text.lower())
-    if not words:
+    if len(words) < 3:
         return None
     matches = len(_HINDI_PATTERN.findall(text.lower()))
     ratio = matches / len(words)

@@ -548,7 +548,200 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
     }
 
 
-async def _verify_with_gateway(state: GraphState, config: dict | None) -> dict | None:
+@trace_rag_node("combined_grade_and_verify")
+@log_metrics
+async def combined_grade_and_verify(state: GraphState, config: dict = None) -> dict:
+    """Combined grading + verification that skips LLM when local checks pass.
+
+    Runs LettuceDetect faithfulness (local, no LLM) and constitutional
+    compliance (regex, no LLM). Only dispatches the expensive LLM gateway
+    verify_answer when faithfulness is uncertain (score < 0.9 or
+    confidence < 8.0). Saves 1 LLM call per request for high-confidence
+    answers.
+    """
+    verification = state.get("verification") or {}
+    ver_method = verification.get("method") if isinstance(verification, dict) else None
+    if (
+        state.get("route_decision") == "no_context_short_circuit"
+        or (state.get("evaluation_trace") or {}).get("route_decision") == "no_context_short_circuit"
+        or ver_method == "no_context_short_circuit"
+    ):
+        return {
+            "is_valid": True,
+            "needs_correction": False,
+            "grounding_state": "abstained",
+            "verification": {"passed": True, "method": "no_context_short_circuit"},
+        }
+
+    answer = state.get("answer", "")
+    relevant_docs = state.get("relevant_docs", [])
+    query_tier = state.get("query_tier", "standard")
+    question = state.get("rewritten_query") or state.get("question", "")
+
+    # Safety redirects and bounded abstentions skip verification
+    if answer and (
+        state.get("intent") in {"SAFETY_VIOLATION", "ERROR"}
+        or _BOUNDED_ABSTENTION_RE.search(answer)
+    ):
+        return {
+            "is_faithful": True,
+            "verification": {
+                "passed": True,
+                "details": "Bounded safety/abstention response; claim verification skipped",
+                "claims": [],
+            },
+            "confidence_score": 0.0,
+            "faithfulness_score": 0.0,
+            "relevancy_score": 0.0,
+        }
+
+    # Empty context fast-pass
+    if not answer or not relevant_docs:
+        logger.info("Combined grade+verify: no answer/docs — fast-pass (no_context)")
+        return {
+            "is_faithful": True,
+            "no_context": True,
+            "grounding_state": "abstained",
+            "verification": {
+                "passed": True,
+                "details": "No content to verify",
+                "claims": [],
+            },
+            "confidence_score": 2.0,
+            "faithfulness_score": 0.0,
+            "relevancy_score": 0.0,
+        }
+
+    context = "\n\n".join(doc_text(doc) for doc in relevant_docs)
+    if not context or len(context.strip()) < 200:
+        logger.warning("Combined grade+verify: context too short — fast-fail")
+        return {
+            "is_faithful": False,
+            "verification": {
+                "passed": False,
+                "details": "Context too short — unverified",
+                "claims": [],
+            },
+            "confidence_score": 0.0,
+            "faithfulness_score": 0.0,
+            "relevancy_score": 0.0,
+        }
+
+    # --- Local checks (no LLM) ---
+    # 1. Constitutional compliance (regex)
+    constitutional_issue = check_constitutional_compliance(answer)
+    if constitutional_issue:
+        logger.warning("Combined grade+verify: constitutional violation — %s", constitutional_issue)
+
+    # 2. Persona adherence (regex)
+    persona_issue = check_persona_adherence(answer)
+
+    # 3. LettuceDetect faithfulness (local model, no LLM call)
+    lettuce_detect = _services._lettuce_detect
+    ld_result = state.get("lettuce_detect_result")
+    if ld_result is None:
+        await emit_status(config, "Verifying alignment with the teachings...")
+        ld_result = await _score_faithfulness_bounded(
+            lettuce_detect, question, context, answer, semantic=True
+        )
+    else:
+        logger.info("Combined grade+verify: reusing cached lettuce_detect_result")
+
+    faithfulness_score = float(ld_result.get("score", 0.0))
+    claims = list(ld_result.get("claims", []))
+    unsupported_sentences = list(ld_result.get("unsupported_sentences", []))
+
+    unsupported_claims = [c for c in claims if not c.get("supported", False)]
+    has_unsupported_claims = bool(unsupported_claims) or bool(unsupported_sentences)
+    faithfulness_floor = float(getattr(settings, "faithfulness_floor", 0.70))
+    meets_faithfulness_floor = faithfulness_score >= faithfulness_floor
+    claim_level_passed = (
+        bool(ld_result.get("is_faithful", False))
+        and meets_faithfulness_floor
+        and not has_unsupported_claims
+        and not constitutional_issue
+        and not persona_issue
+    )
+
+    # --- Fast-path: skip LLM verification when local checks are confident ---
+    confidence_score = faithfulness_score * 10.0
+    if claim_level_passed and faithfulness_score >= 0.9 and confidence_score >= 8.0:
+        logger.info(
+            "Combined grade+verify: HIGH CONFIDENCE — skipping LLM verification "
+            "(faithfulness=%.2f, confidence=%.1f)",
+            faithfulness_score,
+            confidence_score,
+        )
+        _conf_state = {
+            **state,
+            "faithfulness_score": faithfulness_score,
+            "verification": {
+                "passed": True,
+                "score": faithfulness_score,
+                "cove_pass_ratio": 1.0,
+                "claims": claims,
+            },
+        }
+        ensemble_score = calculate_confidence(_conf_state)
+        confidence_score = ensemble_score if ensemble_score >= 8.0 else faithfulness_score * 10.0
+        confidence_reason = calculate_confidence_reason(_conf_state) if ensemble_score >= 8.0 else None
+
+        try:
+            VERIFICATION_RESULTS.labels(result="faithful").inc()
+            VERIFICATION_RESULTS.labels(result="pass").inc()
+            CONFIDENCE_SCORES.observe(confidence_score)
+            FAITHFULNESS_SCORE.observe(faithfulness_score)
+            RELEVANCY_SCORE.observe(1.0)
+        except Exception as exc:
+            logger.warning(f"Prometheus metrics failed: {exc}")
+
+        return {
+            "is_faithful": True,
+            "verification": {
+                "passed": True,
+                "details": f"Local NLI claim verification passed ({len(claims)} claims grounded, score: {faithfulness_score:.2f})",
+                "cove_pass_ratio": 1.0,
+                "claims": claims,
+            },
+            "confidence_score": confidence_score,
+            "confidence_reason": confidence_reason,
+            "confidence_calibration_status": confidence_calibration_status(),
+            "faithfulness_score": faithfulness_score,
+            "relevancy_score": 1.0,
+        }
+
+    # --- Slow path: LLM verification needed ---
+    logger.info(
+        "Combined grade+verify: UNCERTAIN — dispatching LLM verification "
+        "(faithfulness=%.2f, claims_pass=%s)",
+        faithfulness_score,
+        claim_level_passed,
+    )
+
+    # A constitutional or persona violation is decisive on its own — never let
+    # verify_answer's LLM path (which does not check either) override it with
+    # a successful faithfulness verdict.
+    if constitutional_issue or persona_issue:
+        issue = constitutional_issue or persona_issue
+        logger.warning("Combined grade+verify: failing fast on local violation — %s", issue)
+        return {
+            "is_faithful": False,
+            "verification": {
+                "passed": False,
+                "details": issue,
+                "cove_pass_ratio": 0.0,
+                "claims": claims,
+            },
+            "confidence_score": 0.0,
+            "faithfulness_score": faithfulness_score,
+            "relevancy_score": 0.0,
+        }
+
+    # Delegate to existing verify_answer for the LLM-heavy path
+    return await verify_answer(state, config)
+
+
+async def _verify_with_gateway(state: GraphState, config: dict = None) -> dict | None:
     """Verification path for tier3_complex / tier4_deep using container.llm_gateway.
 
     Runs a single combined Self-RAG + CoVe call via the gateway and returns the
@@ -665,7 +858,8 @@ async def _cove_subquestion_check(
                     max_retries=1,
                 )
                 return "yes" in (resp or "").lower()
-            except Exception:
+            except Exception as e:
+                logger.warning("Sub-question verification LLM call failed: %s", e)
                 return False
 
         if sub_qs:

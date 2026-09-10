@@ -49,23 +49,66 @@ def _cache_token_candidates(value_lower: str) -> set[str]:
 
 
 class _IndexingTTLCache(TTLCache):
-    """TTLCache that maintains a token -> cache_key reverse index on write.
+    """TTLCache that maintains a token -> cache_key reverse index, kept in
+    sync with the cache's own lifecycle so it never outlives the entries it
+    indexes.
 
-    Single chokepoint: any write (via __setitem__, including plain
-    `cache[key] = value`) updates `token_index` automatically, so
-    _invalidate_cache_for never needs a full linear scan of cache values —
-    it looks up the small set of source tokens directly.
+    Single chokepoint on write (`__setitem__`, including plain
+    `cache[key] = value`): updates `token_index` and the per-key
+    `_key_tokens` map, so `_invalidate_cache_for` never needs a full linear
+    scan of cache values. Single chokepoint on removal (`__delitem__`,
+    which cachetools' TTL expiry and maxsize/LRU eviction both route
+    through internally, same as an explicit `del cache[key]` or `.pop()`):
+    removes exactly this key's tokens from `token_index` using
+    `_key_tokens`, so the reverse index never grows past what the live
+    cache actually holds — previously it only grew, since expired/evicted
+    keys' tokens were never cleaned up.
     """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.token_index: dict[str, set[str]] = {}
+        self._key_tokens: dict[str, set[str]] = {}
 
     def __setitem__(self, key, value):
+        # Overwriting an existing key must drop its old tokens first, or a
+        # token from the old value that isn't in the new value would leak.
+        if key in self._key_tokens:
+            self._remove_key_tokens(key)
         super().__setitem__(key, value)
         if isinstance(value, str):
-            for token in _cache_token_candidates(value.lower()):
-                self.token_index.setdefault(token, set()).add(key)
+            tokens = _cache_token_candidates(value.lower())
+            if tokens:
+                self._key_tokens[key] = tokens
+                for token in tokens:
+                    self.token_index.setdefault(token, set()).add(key)
+
+    def __delitem__(self, key):
+        self._remove_key_tokens(key)
+        super().__delitem__(key)
+
+    def expire(self, time=None):
+        # cachetools.TTLCache.expire() removes expired entries via the base
+        # Cache.__delitem__ directly (bound at class-definition time), bypassing
+        # this subclass's __delitem__ override entirely — the actual root cause
+        # of the original unbounded leak (TTL-expired keys never triggered any
+        # cleanup hook). Clean up the returned expired pairs here instead.
+        expired = super().expire(time)
+        for key, _value in expired:
+            self._remove_key_tokens(key)
+        return expired
+
+    def _remove_key_tokens(self, key) -> None:
+        tokens = self._key_tokens.pop(key, None)
+        if not tokens:
+            return
+        for token in tokens:
+            keys = self.token_index.get(token)
+            if keys is None:
+                continue
+            keys.discard(key)
+            if not keys:
+                del self.token_index[token]
 
 _TRANSIENT_OPENROUTER_STATUSES = frozenset({408, 429, 500, 502, 503, 504})
 
@@ -134,7 +177,7 @@ class LightRAGService:
             # entries (only skipped them on read), so it grew by one entry per
             # unique query for the life of the process. maxsize caps worst case.
             self._query_cache: _IndexingTTLCache = _IndexingTTLCache(
-                maxsize=2000, ttl=self._cache_ttl_seconds
+                maxsize=1000, ttl=self._cache_ttl_seconds
             )
             # TTLCache is NOT thread-safe — concurrent asyncio tasks running in the
             # thread pool can race on read/write. An RLock serialises all cache
@@ -585,6 +628,11 @@ class LightRAGService:
         """
         Execute GraphRAG query async with 5-min result caching.
         Supported Modes: 'local' (entities), 'global' (community summaries), 'hybrid' (both)
+
+        When ``only_need_context=False`` (the default answer-generation path), the
+        raw LightRAG result is a single string. For structured merging with Qdrant
+        results, use ``aquery_structured()`` which returns both the text and
+        extracted entity metadata.
         """
         # ponytail: 5min TTL cache for identical queries
         cache_disabled = getattr(settings, "latency_benchmark_cache_disabled", False)
@@ -653,6 +701,33 @@ class LightRAGService:
             logger.error(f"LightRAG query failed: {e}")
             self._circuit.record_failure()
             return ""
+
+    async def aquery_structured(
+        self, query: str, mode: str = "hybrid"
+    ) -> dict[str, Any]:
+        """GraphRAG query returning text + extracted entity metadata.
+
+        Returns dict with keys:
+          - ``text``: the LightRAG answer string
+          - ``entities``: list of entity names found in the result
+          - ``entity_types``: deduplicated entity types mentioned
+        """
+        text = await self.aquery(query, mode=mode, only_need_context=False)
+        if not text:
+            return {"text": "", "entities": [], "entity_types": []}
+
+        import re
+
+        entity_pattern = re.compile(
+            r"\[([A-Z][a-zA-Z\s]{1,50})\]", re.MULTILINE
+        )
+        entities = list(dict.fromkeys(entity_pattern.findall(text)))[:20]
+
+        return {
+            "text": text,
+            "entities": entities,
+            "entity_types": [],
+        }
 
     async def ainsert(
         self, text: str, file_paths: str | Optional[list[str]] = None, timeout: float = 180.0

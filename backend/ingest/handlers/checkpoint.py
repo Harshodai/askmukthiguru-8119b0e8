@@ -35,7 +35,8 @@ class IngestionCheckpoint:
             from services.tenant_context import TenantContext
 
             self.tenant_id = TenantContext.get() or self._default_tenant_id()
-        except Exception:
+        except Exception as e:
+            logger.debug("TenantContext unavailable, using default: %s", e)
             self.tenant_id = self._default_tenant_id()
 
         # Try establishing connection to Redis for centralized checkpointing
@@ -138,7 +139,8 @@ class IngestionCheckpoint:
             from app.config import settings
 
             return getattr(settings, "default_tenant_id", None) or "default"
-        except Exception:
+        except Exception as e:
+            logger.debug("Failed to read default_tenant_id from settings: %s", e)
             return "default"
 
     def _load_processed_chunks(self) -> set[str]:
@@ -270,8 +272,8 @@ class IngestionCheckpoint:
                             data = json.loads(val)
                             if isinstance(data, dict) and data.get("status") in ("failed", "error"):
                                 return False
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.debug("Failed to parse checkpoint JSON for chunk %s: %s", chunk_id, e)
                     return True
             except Exception as e:
                 logger.error(f"Failed to check checkpoint in Redis: {e}. Trying Supabase.")

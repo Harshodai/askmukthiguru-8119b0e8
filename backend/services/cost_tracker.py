@@ -56,11 +56,73 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
+# Shared sync Redis connection for per-user cost tracking.
+# Avoids creating a new connection on every _record_user_cost / is_user_over_budget call.
+_USER_COST_REDIS = None
+
+
+def _get_user_cost_redis():
+    """Lazy-init shared sync Redis connection for user cost tracking."""
+    global _USER_COST_REDIS
+    if _USER_COST_REDIS is not None:
+        return _USER_COST_REDIS
+    try:
+        import redis as sync_redis
+        _USER_COST_REDIS = sync_redis.from_url(
+            settings.redis_url, decode_responses=True, socket_timeout=1.0,
+            max_connections=5,
+        )
+        return _USER_COST_REDIS
+    except Exception as exc:
+        logger.debug("Failed to create shared Redis connection for cost tracking: %s", exc)
+        return None
+
+# Redis key prefix for per-user daily cost sliding window
+_USER_DAILY_COST_PREFIX = "mukthiguru:user-cost:"
+
+# Atomic prune + sum for per-user daily cost check (read-only, no writes).
+_USER_COST_CHECK_LUA = """
+local key = KEYS[1]
+local cutoff = tonumber(ARGV[1])
+
+redis.call('ZREMRANGEBYSCORE', key, '-inf', cutoff)
+local entries = redis.call('ZRANGE', key, 0, -1, 'WITHSCORES')
+local total = 0
+for i = 2, #entries, 2 do
+    total = total + tonumber(entries[i])
+end
+return {total}
+"""
+
+# Atomic prune + sum + add for per-user cost recording (write path).
+_USER_COST_RECORD_LUA = """
+local key = KEYS[1]
+local member = ARGV[1]
+local cost = tonumber(ARGV[2])
+local cutoff = tonumber(ARGV[3])
+local ttl = tonumber(ARGV[4])
+
+redis.call('ZREMRANGEBYSCORE', key, '-inf', cutoff)
+redis.call('ZADD', key, cost, member)
+redis.call('EXPIRE', key, ttl)
+local entries = redis.call('ZRANGE', key, 0, -1, 'WITHSCORES')
+local total = 0
+for i = 2, #entries, 2 do
+    total = total + tonumber(entries[i])
+end
+return {total}
+"""
+
 _COST_RATES: dict[str, float] = {
     "ollama": 0.0,
     "sarvam": 0.002,
     "krutrim": 0.001,
     "openai": 0.002,
+    "openrouter": 0.001,  # fallback estimate; actual cost from provider usage.report
+    "gemini-2.5-flash": 0.001,  # $0.30/M input + $2.50/M output, avg ~2K tokens
+    "nim": 0.001,  # NVIDIA NIM — estimated $0.001/1K tokens
+    "sarvam-30b": 0.002,  # Sarvam 30B model
+    "sarvam-105b": 0.003,  # Sarvam 105B model
 }
 _COST_QUANT = Decimal("0.00000001")
 _MONEY_QUANT = Decimal("0.000001")
@@ -193,6 +255,7 @@ class CostTracker:
             logger.error(f"Failed to record token usage: {e}")
             return
         self._maybe_check_budget(normalized_tenant)
+        self._record_user_cost(user_id or "", cost)
 
     def _maybe_check_budget(self, tenant_id: str) -> None:
         tenant_key = tenant_id or "default"
@@ -249,6 +312,27 @@ class CostTracker:
         else:
             with _BUDGET_CHECK_LOCK:
                 _BUDGET_DEGRADED_TENANTS.discard(tenant_key)
+
+    def _record_user_cost(self, user_id: str, cost_usd: float) -> None:
+        """Atomically add a cost entry to the user's daily sliding window in Redis.
+
+        Called by record() after Supabase persistence. Uses the write-path Lua
+        script for atomic prune + add + sum. Best-effort: Redis failures are
+        silently ignored so cost recording never blocks the main path.
+        """
+        if not user_id or user_id == "anonymous" or cost_usd <= 0:
+            return
+        try:
+            r = _get_user_cost_redis()
+            if r is None:
+                return
+            key = f"{_USER_DAILY_COST_PREFIX}{user_id}"
+            now = time.time()
+            cutoff = now - 86400
+            member = f"{now}:{id(object())}"  # unique member per request
+            r.eval(_USER_COST_RECORD_LUA, 1, key, member, cost_usd, cutoff, 86401)
+        except Exception as exc:
+            logger.debug("Failed to record user cost in Redis: %s", exc)
 
     def get_usage_report(
         self,
@@ -389,6 +473,32 @@ class CostTracker:
             }
             for day, values in sorted(day_buckets.items(), reverse=True)
         ]
+
+    def is_user_over_budget(self, user_id: str) -> bool:
+        """Check if a user has exceeded their daily spend cap via Redis sliding window.
+
+        Uses a Lua script for atomic prune + sum: ZREMRANGEBYSCORE prunes
+        expired entries, ZRANGE sums remaining costs. Read-only — does not
+        add entries (record() handles accumulation).
+        Returns False (allow) when Redis is unavailable to fail-open.
+        """
+        if not user_id or user_id == "anonymous":
+            return False
+        budget = getattr(settings, "user_daily_budget_usd", 0.50)
+        if budget <= 0:
+            return False
+        try:
+            r = _get_user_cost_redis()
+            if r is None:
+                return False
+            key = f"{_USER_DAILY_COST_PREFIX}{user_id}"
+            cutoff = time.time() - 86400  # 24h sliding window
+            result = r.eval(_USER_COST_CHECK_LUA, 1, key, cutoff)
+            total_cost = float(result[0])
+            return total_cost >= budget
+        except Exception as exc:
+            logger.debug("is_user_over_budget degraded (Redis unavailable): %s", exc)
+            return False
 
 
 # Singleton

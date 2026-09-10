@@ -437,9 +437,10 @@ const FeedbackButtons = ({ messageId, queryText, messageContent }: {
     setFeedback(type);
     try {
       const { getAccessToken } = await import('@/lib/chat/transport');
+      const { BACKEND_URL } = await import('@/lib/backendUrl');
       // Use a dynamic import to avoid circular deps; fall back to fetch directly
       const token = await (getAccessToken as () => Promise<string | null>)().catch(() => null);
-      await fetch('/api/feedback/rate', {
+      const response = await fetch(`${BACKEND_URL}/api/feedback/rate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -452,8 +453,13 @@ const FeedbackButtons = ({ messageId, queryText, messageContent }: {
           response_summary: messageContent.slice(0, 500),
         }),
       });
+      if (!response.ok) {
+        setFeedback(null);
+      }
     } catch {
-      // best-effort — don't block the UI
+      // Persistence failed — clear the optimistic state so the buttons
+      // reappear instead of showing "Thanks" for feedback that was never saved.
+      setFeedback(null);
     }
   };
 

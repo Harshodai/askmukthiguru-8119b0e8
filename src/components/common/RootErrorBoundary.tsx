@@ -22,6 +22,18 @@ export class RootErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error('[RootErrorBoundary] Render crash:', error, info.componentStack);
+    // Report to Sentry when available
+    import('@/lib/sentry').then(({ sentryEnabled }) => {
+      if (sentryEnabled()) {
+        import('@sentry/react').then((Sentry) => {
+          Sentry.withScope((scope) => {
+            scope.setContext('react', { componentStack: info.componentStack });
+            scope.setTag('boundary', 'root');
+            Sentry.captureException(error);
+          });
+        });
+      }
+    }).catch(() => { /* Sentry unavailable, continue */ });
   }
 
   handleReload = () => {

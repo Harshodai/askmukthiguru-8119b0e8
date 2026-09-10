@@ -26,7 +26,7 @@ export function useAssistants() {
   const [loading, setLoading] = useState(true);
   const [selectedSlug, setSelectedSlugState] = useState<string>(() => {
     if (typeof window === "undefined") return "general";
-    return window.localStorage.getItem(SELECTED_KEY) ?? "general";
+    try { return window.localStorage.getItem(SELECTED_KEY) ?? "general"; } catch { return "general"; }
   });
 
   useEffect(() => {
@@ -55,7 +55,7 @@ export function useAssistants() {
   const setSelectedSlug = useCallback((slug: string) => {
     setSelectedSlugState(slug);
     if (typeof window !== "undefined") {
-      window.localStorage.setItem(SELECTED_KEY, slug);
+      try { window.localStorage.setItem(SELECTED_KEY, slug); } catch {}
     }
   }, []);
 

@@ -115,6 +115,8 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
     tick: number;
     running: boolean;
   }>({ nodes: [], edges: [], tick: 0, running: false });
+  const nodeRefs = useRef<Map<string, SVGGElement>>(new Map());
+  const frameCountRef = useRef(0);
   const [simHeat, setSimHeat] = useState(0);
 
   useEffect(() => {
@@ -169,8 +171,17 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
     try {
       const { endpoint } = getAIConfig();
       const baseUrl = (endpoint ?? '').replace(/\/api\/chat\/?$/, '');
-      const url = `${baseUrl}/api/kg/subgraph?query=${encodeURIComponent(q.trim() || 'beautiful state')}&limit=24`;
       const token = await getAccessToken();
+
+      // Authenticated users get their personal knowledge graph;
+      // anonymous users get the public ontology subgraph.
+      let url: string;
+      if (token) {
+        url = `${baseUrl}/api/kg/personal-subgraph?limit=50`;
+      } else {
+        url = `${baseUrl}/api/kg/subgraph?query=${encodeURIComponent(q.trim() || 'beautiful state')}&limit=24`;
+      }
+
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 8000);
       const res = await fetch(url, {
@@ -187,6 +198,22 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
         demoTimerRef.current = null;
       }
       if (!json.nodes || json.nodes.length === 0) {
+        // Personal graph empty: fall back to ontology subgraph for this query
+        if (token) {
+          const fallbackUrl = `${baseUrl}/api/kg/subgraph?query=${encodeURIComponent(q.trim() || 'beautiful state')}&limit=24`;
+          const fbRes = await fetch(fallbackUrl, { signal: AbortSignal.timeout(8000) });
+          if (fbRes.ok) {
+            const fbJson = (await fbRes.json()) as Subgraph;
+            if (fbJson.nodes && fbJson.nodes.length > 0) {
+              setData(fbJson);
+              setError(null);
+              setIsDemo(false);
+              setPan({ x: 0, y: 0 });
+              setZoom(1);
+              return;
+            }
+          }
+        }
         setData(null);
         setIsDemo(false);
         setError(t('kg.noConceptsFor', { query: q }));
@@ -274,6 +301,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
     }
     simRef.current.tick = 0;
     simRef.current.running = true;
+    frameCountRef.current = 0;
 
     let animId: number;
     const loop = () => {
@@ -348,11 +376,23 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
         n.y += n.vy;
       }
 
+      // Direct DOM manipulation for node positions — avoids React re-renders
+      for (const n of nodes) {
+        const el = nodeRefs.current.get(n.id);
+        if (el) {
+          el.setAttribute('transform', `translate(${n.x},${n.y})`);
+        }
+      }
+
       simRef.current.tick++;
+      frameCountRef.current++;
       if (simRef.current.tick >= 300) {
         simRef.current.running = false;
       }
-      setSimHeat((h) => h + 1);
+      // Throttle React state updates to every 30 frames for edge/hover re-renders
+      if (frameCountRef.current % 30 === 0) {
+        setSimHeat((h) => h + 1);
+      }
       if (simRef.current.running) {
         animId = requestAnimationFrame(loop);
       }
@@ -792,11 +832,22 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
               return (
                 <g
                   key={n.id}
+                  ref={(el) => {
+                    if (el) nodeRefs.current.set(n.id, el);
+                    else nodeRefs.current.delete(n.id);
+                  }}
                   data-testid="kg-node"
+                  tabIndex={0}
                   aria-label={n.label}
                   transform={`translate(${n.x} ${n.y})`}
                   opacity={faded ? 0.15 : 1}
-                  style={{ transition: 'opacity 0.15s ease-out' }}
+                  style={{ transition: 'opacity 0.15s ease-out', outline: 'none' }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleNodeClick(e as unknown as React.MouseEvent, n.id);
+                    }
+                  }}
                   onPointerEnter={() => setHoveredNodeId(n.id)}
                   onPointerLeave={() => setHoveredNodeId(null)}
                   onPointerDown={(e) => handleNodePointerDown(e, n.id)}

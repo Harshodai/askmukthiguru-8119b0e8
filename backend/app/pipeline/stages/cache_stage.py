@@ -282,7 +282,9 @@ class CacheCheckStage(Stage):
         threshold = _CACHE_THRESHOLDS.get(query_tier, settings.semantic_cache_similarity)
 
         # --- 2. Vector cache (P90 fast path, sub-ms lookup via TurboVec) ---
-        if settings.hybrid_search_enabled:
+        # Personalized queries have no user scoping in this tier either — must
+        # never read a shared answer generated for a different seeker's context.
+        if settings.hybrid_search_enabled and not _is_personalization_eligible(ctx):
             cache_hit = await ctx.coordinator._check_vector_cache(
                 cache_key, query_text, threshold=threshold
             )
@@ -335,7 +337,15 @@ class CacheCheckStage(Stage):
         cached = await asyncio.to_thread(
             container.exact_cache.get, cache_key, user_id=user_id_for_cache
         )
-        if cached is None and container.semantic_cache and container.semantic_cache.is_available:
+        # Shared semantic cache has no user scoping (unlike exact_cache above,
+        # which is hashed with user_id when present) — a personalized query
+        # must never fall through to it.
+        if (
+            cached is None
+            and not _is_personalization_eligible(ctx)
+            and container.semantic_cache
+            and container.semantic_cache.is_available
+        ):
             cached = await asyncio.to_thread(
                 container.semantic_cache.get, semantic_query, threshold=threshold
             )
@@ -577,7 +587,9 @@ class CacheUpdateStage(Stage):
                 # A partial-evidence response is intentionally excluded from
                 # semantic/vector writes. Those tiers are similarity-based and
                 # currently have no fresh-evidence/source-version/support gate.
-                if not partial_evidence:
+                # Skip semantic/vector writes for personalized queries — both tiers
+                # are shared/unscoped, same reasoning as the hot_cache guard above.
+                if not partial_evidence and not _is_personalization_eligible(ctx):
                     # Update semantic cache using the natural-language query. The
                     # exact cache keeps the composite release/tenant/preferences
                     # key, while semantic search needs the original utterance for
@@ -598,7 +610,11 @@ class CacheUpdateStage(Stage):
                 # never wrote to TurboQuantCache, so the P90 cache stayed empty and
                 # every repeat/similar query missed. Partial evidence is excluded
                 # because this tier has no evidence/version gate on reads.
-                if not partial_evidence and getattr(settings, "hybrid_search_enabled", False):
+                if (
+                    not partial_evidence
+                    and not _is_personalization_eligible(ctx)
+                    and getattr(settings, "hybrid_search_enabled", False)
+                ):
                     try:
                         query_text = ctx.query_for_embedding or cache_key
                         embedding = await ctx.coordinator._embed_query(query_text)

@@ -6,7 +6,6 @@ Unit 13 — moved from `routers/admin.py` into `app.api`.
 
 import asyncio
 import logging
-import re
 from datetime import UTC, datetime, timedelta
 from typing import Any, Optional
 
@@ -2050,3 +2049,105 @@ async def routing_confidence(
 ):
     """Confidence calibration heatmap with drift alerts."""
     return await get_routing_confidence_heatmap(hours=hours)
+
+
+# ── Unified Observability (ponytail principle) ────────────────────────
+
+
+@admin_router.get("/observability/summary")
+async def observability_summary(
+    user: dict = Depends(_require_admin),
+    container: ServiceContainer = Depends(get_container),
+) -> dict[str, Any]:
+    """Unified observability dashboard — single source of truth for all
+    operational metrics across Prometheus, Supabase telemetry, cost tracker,
+    runtime, cache, and circuit breaker systems."""
+    from app.unified_observability import get_observability_summary
+
+    summary = await get_observability_summary(cost_tracker=container.cost_tracker, container=container)
+    return summary.to_dict()
+
+
+@admin_router.get("/observability/health-check")
+async def observability_health_check(
+    user: dict = Depends(_require_admin),
+    container: ServiceContainer = Depends(get_container),
+) -> dict[str, Any]:
+    """Quick health check — all deps as booleans."""
+    from app.unified_observability import get_observability_summary
+
+    summary = await get_observability_summary(container=container)
+    return {
+        "healthy": all([
+            summary.qdrant_healthy,
+            summary.redis_healthy,
+            summary.neo4j_healthy,
+            summary.circuit_breaker_state != "open",
+            summary.process_rss_mb < settings.health_check_max_process_rss_mb,
+        ]),
+        "qdrant": summary.qdrant_healthy,
+        "redis": summary.redis_healthy,
+        "neo4j": summary.neo4j_healthy,
+        "circuit_breaker": summary.circuit_breaker_state,
+        "memory_mb": summary.process_rss_mb,
+    }
+
+
+@admin_router.get("/cost-breakdown")
+async def cost_breakdown(
+    user: dict = Depends(_require_admin),
+    container: ServiceContainer = Depends(get_container),
+) -> dict[str, Any]:
+    """Combined cost view from CostTracker."""
+    report = container.cost_tracker.get_usage_report(days=30)
+
+    return {
+        "total_usd": report.total_cost_usd,
+        "by_model": report.by_model,
+        "by_provider": report.by_provider,
+        # No configured 30-day aggregate budget exists (per-provider daily/monthly
+        # budget guards are a different unit) — null is honest, 0.0 read as
+        # "budget exhausted" which is not something this endpoint can assert.
+        "budget_remaining_usd": None,
+        "unique_users": report.unique_users,
+        "unique_sessions": report.unique_sessions,
+    }
+
+
+@admin_router.post("/okf/triage-staging")
+async def triage_staging_entries(
+    _admin: dict = Depends(_require_admin),
+) -> dict[str, Any]:
+    """Triage staged OKF entries by quality score for review prioritisation."""
+    from pathlib import Path
+
+    from services.memory.compiler import score_staged_entry
+    from services.memory.okf_store import STAGING_DIR
+
+    staging_dir = Path(STAGING_DIR)
+    if not staging_dir.exists():
+        return {"entries": {}, "counts": {"high": 0, "medium": 0, "low": 0}, "total": 0}
+
+    results: dict[str, list[dict[str, Any]]] = {"high": [], "medium": [], "low": []}
+    for entry_file in staging_dir.rglob("*.md"):
+        try:
+            content = entry_file.read_text(encoding="utf-8")
+            lines = content.strip().split("\n")
+            title = lines[0].lstrip("# ").strip() if lines else ""
+            body = "\n".join(lines[1:]) if len(lines) > 1 else ""
+            entry = {"title": title, "body": body}
+            score = score_staged_entry(entry)
+            tier = "high" if score > 0.7 else "medium" if score > 0.4 else "low"
+            results[tier].append({
+                "path": str(entry_file.relative_to(staging_dir)),
+                "title": title,
+                "score": round(score, 3),
+            })
+        except Exception as exc:
+            logger.warning("Failed to score %s: %s", entry_file, exc)
+
+    return {
+        "entries": results,
+        "counts": {k: len(v) for k, v in results.items()},
+        "total": sum(len(v) for v in results.values()),
+    }

@@ -151,10 +151,9 @@ class SarvamCloudService:
 
     @staticmethod
     def _estimate_tokens(text: str) -> int:
-        """Fast heuristic: ~1.3 tokens per word."""
-        if not text:
-            return 0
-        return int(len(text.split()) * 1.3)
+        """Language-aware token estimate via shared compressor."""
+        from rag.compressor import estimate_tokens
+        return estimate_tokens(text)
 
     async def _get_http_client(self) -> httpx.AsyncClient:
         """Get or create the singleton HTTP client with connection pooling."""
@@ -1310,5 +1309,6 @@ class SarvamCloudService:
                 timeout=10.0,
             )
             return resp.status_code == 200
-        except Exception:
+        except Exception as e:
+            logger.debug("Sarvam health check failed: %s", e)
             return False

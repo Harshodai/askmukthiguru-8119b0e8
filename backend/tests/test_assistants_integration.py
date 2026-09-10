@@ -15,7 +15,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from app.schemas import AssistantContext, ChatRequest
-from app.telemetry_sink import SupabaseTelemetrySink
+from app.telemetry_sink import QueryTrace, SupabaseTelemetrySink
 from rag.nodes.generation import context_engineer, generate_answer
 from services.qdrant.searcher import QdrantSearcher
 from services.qdrant_service import _build_tag_conditions
@@ -270,15 +270,17 @@ async def test_telemetry_includes_assistant_slug(monkeypatch):
     sink.client = mock_client
 
     await sink.log_query_trace(
-        query_id="q-1",
-        session_id="s-1",
-        user_id="u-1",
-        query_text="hello",
-        model="sarvam-30b",
-        latency_ms=100,
-        status="success",
-        created_at="2026-06-23T00:00:00Z",
-        assistant_slug="health-assistant",
+        trace=QueryTrace(
+            query_id="q-1",
+            session_id="s-1",
+            user_id="u-1",
+            query_text="hello",
+            model="sarvam-30b",
+            latency_ms=100,
+            status="success",
+            created_at="2026-06-23T00:00:00Z",
+            assistant_slug="health-assistant",
+        )
     )
 
     # chat_queries is upserted (idempotent — see the "duplicate chat queries"
@@ -294,15 +296,17 @@ async def test_telemetry_stream_includes_assistant_slug():
     sink.redis = AsyncMock()
 
     await sink.log_query_trace(
-        query_id="q-2",
-        session_id="s-2",
-        user_id="u-2",
-        query_text="hello",
-        model="sarvam-30b",
-        latency_ms=100,
-        status="success",
-        created_at="2026-06-23T00:00:00Z",
-        assistant_slug="stream-assistant",
+        trace=QueryTrace(
+            query_id="q-2",
+            session_id="s-2",
+            user_id="u-2",
+            query_text="hello",
+            model="sarvam-30b",
+            latency_ms=100,
+            status="success",
+            created_at="2026-06-23T00:00:00Z",
+            assistant_slug="stream-assistant",
+        )
     )
 
     serialized_payload = sink.redis.xadd.call_args.args[1]["payload"]

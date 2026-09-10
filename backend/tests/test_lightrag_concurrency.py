@@ -23,7 +23,7 @@ def _stub_service(rag=None):
     svc = LightRAGService.__new__(LightRAGService)
     svc._initialized = True
     svc._cache_ttl_seconds = 300
-    svc._query_cache = _IndexingTTLCache(maxsize=2000, ttl=300)
+    svc._query_cache = _IndexingTTLCache(maxsize=1000, ttl=300)
     svc.rag = rag
     return svc
 

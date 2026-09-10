@@ -25,7 +25,7 @@ from app.release_manifest import get_release_manifest
 from app.sanitization import sanitize_log_input
 from app.schemas import ChatRequest
 from app.security_utils import is_benchmark_request
-from app.telemetry_sink import SupabaseTelemetrySink
+from app.telemetry_sink import QueryTrace, SupabaseTelemetrySink
 from guardrails.lightweight_handler import _HARMFUL_PATTERNS
 from rag.memory import normalize_session_id
 from services.anon_quota_port import QuotaResult
@@ -376,40 +376,42 @@ class ChatStreamRequestOrchestrator:
         """Log query trace to telemetry sink."""
         try:
             await self.telemetry_sink.log_query_trace(
-                query_id=result.trace_id,
-                session_id=session_id,
-                user_id=user_id,
-                query_text=user_msg,
-                model=result.model_used or "unknown",
-                latency_ms=result.latency_ms,
-                status="ok" if result.intent != "ERROR" else "error",
-                created_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                response_text=result.final_answer,
-                citations=result.citations,
-                faithfulness=result.faithfulness_score,
-                answer_relevancy=result.answer_relevancy,
-                context_precision=result.context_precision,
-                context_recall=result.context_recall,
-                hallucination_flag=result.hallucination_flag,
-                confidence_score=result.confidence_score,
-                judge_reasoning=result.judge_reasoning,
-                retrieval_metadata=result.retrieval_metadata,
-                spans=result.spans,
-                trigger_events=result.trigger_events,
-                safety_events=result.safety_events,
-                provider=result.model_provider,
-                route_decision=result.route_decision,
-                cache_hit=result.cache_hit,
-                tokens_per_second=round(
-                    max(1, len(result.final_answer.split())) / max(result.latency_ms / 1000, 0.001),
-                    2,
+                trace=QueryTrace(
+                    query_id=result.trace_id,
+                    session_id=session_id,
+                    user_id=user_id,
+                    query_text=user_msg,
+                    model=result.model_used or "unknown",
+                    latency_ms=result.latency_ms,
+                    status="ok" if result.intent != "ERROR" else "error",
+                    created_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                    response_text=result.final_answer,
+                    citations=result.citations,
+                    faithfulness=result.faithfulness_score,
+                    answer_relevancy=result.answer_relevancy,
+                    context_precision=result.context_precision,
+                    context_recall=result.context_recall,
+                    hallucination_flag=result.hallucination_flag,
+                    confidence_score=result.confidence_score,
+                    judge_reasoning=result.judge_reasoning,
+                    retrieval_metadata=result.retrieval_metadata,
+                    spans=result.spans,
+                    trigger_events=result.trigger_events,
+                    safety_events=result.safety_events,
+                    provider=result.model_provider,
+                    route_decision=result.route_decision,
+                    cache_hit=result.cache_hit,
+                    tokens_per_second=round(
+                        max(1, len(result.final_answer.split())) / max(result.latency_ms / 1000, 0.001),
+                        2,
+                    )
+                    if result.latency_ms
+                    else 0.0,
+                    evaluation_trace=result.evaluation_trace,
+                    assistant_slug=assistant_slug,
+                    citations_verified=result.citations_verified,
+                    orphan_citations_stripped=result.orphan_citations_stripped,
                 )
-                if result.latency_ms
-                else 0.0,
-                evaluation_trace=result.evaluation_trace,
-                assistant_slug=assistant_slug,
-                citations_verified=result.citations_verified,
-                orphan_citations_stripped=result.orphan_citations_stripped,
             )
         except Exception as e:
             logger.warning(f"Telemetry logging failed (non-fatal): {e}")

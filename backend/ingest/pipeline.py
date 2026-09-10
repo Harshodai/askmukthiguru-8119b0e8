@@ -65,10 +65,45 @@ from services.whisper_local_service import (
 
 logger = logging.getLogger(__name__)
 
+from dataclasses import dataclass, field
+
 from datetime import UTC
 
 from ingest.adaptive_chunking import AdaptiveChunker
 from ingest.corrector import TranscriptCorrector
+
+
+@dataclass
+class EmbedIndexConfig:
+    """Configuration for embedding and indexing chunks into Qdrant."""
+
+    # Required
+    chunks: list[str] = field(default_factory=list)
+    source_url: str = ""
+    title: str = ""
+    content_type: str = ""
+
+    # Optional content metadata
+    speaker: str = "Unknown"
+    topic: str = "Spiritual"
+    language: str = "en"
+    tags: Optional[list[str]] = None
+
+    # Optional video metadata
+    video_id: Optional[str] = None
+    channel_name: Optional[str] = None
+    published_at: Optional[str] = None
+    duration: Optional[int] = None
+    thumbnail_url: Optional[str] = None
+    chunk_speakers: Optional[list[Optional[str]]] = None
+
+    # Optional indexing metadata
+    extra_metadatas: Optional[list[dict]] = None
+    source_type: Optional[str] = None
+    source_version: int = 1
+    authority_tier: str = "primary"
+    assistant_slug: Optional[str] = None
+    qdrant_override: Optional[Any] = None
 
 
 def is_valid_text_deterministic(text: str) -> tuple[bool, str]:
@@ -493,6 +528,17 @@ class IngestionPipeline:
         """
         Ingest a local PDF or TXT file.
         """
+        # P0-SANITIZE: resolve and validate path to prevent path traversal
+        resolved = Path(file_path).resolve()
+        upload_dir = getattr(settings, "upload_dir", None)
+        if upload_dir:
+            allowed = Path(upload_dir).resolve()
+            if not resolved.is_relative_to(allowed):
+                return {"status": "error", "message": "File path outside allowed directory"}
+        if not resolved.is_file():
+            return {"status": "error", "message": f"File not found: {os.path.basename(file_path)}"}
+        file_path = str(resolved)
+
         self._notify(on_progress, f"Loading file: {os.path.basename(file_path)}", 0.1)
 
         text = ""
@@ -620,8 +666,8 @@ class IngestionPipeline:
                         "error_log": "Uncaught exception during ingestion (see application logs)",
                     }
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Error-logging fallback failed: %s", e)
             raise
 
         duration_ms = int((_time.time() - start) * 1000)
@@ -923,8 +969,8 @@ class IngestionPipeline:
                 "summaries_created": 0,
             }
 
-        chunks_count = self._embed_and_index(
-            chunks,
+        chunks_count = self._embed_and_index(EmbedIndexConfig(
+            chunks=chunks,
             source_url=url,
             title=video_title,
             speaker=video_speaker,
@@ -934,7 +980,7 @@ class IngestionPipeline:
             tags=tags,
             source_version=1,
             authority_tier="primary",
-        )
+        ))
 
         # RAPTOR + LightRAG (fire-and-forget; rollback on failure)
         summaries_count = 0
@@ -1163,8 +1209,8 @@ class IngestionPipeline:
             em.setdefault("authority_tier", authority_tier)
 
         try:
-            chunks_count = self._embed_and_index(
-                final_chunks,
+            chunks_count = self._embed_and_index(EmbedIndexConfig(
+                chunks=final_chunks,
                 source_url=source_url,
                 title=title,
                 speaker=speaker,
@@ -1177,7 +1223,7 @@ class IngestionPipeline:
                 authority_tier=authority_tier,
                 assistant_slug=assistant_slug,
                 qdrant_override=qdrant_override,
-            )
+            ))
 
             # Step 6: RAPTOR tree
             raptor = raptor_override or self._raptor
@@ -1473,8 +1519,8 @@ class IngestionPipeline:
             em.setdefault("authority_tier", authority_tier)
 
         try:
-            chunks_count = self._embed_and_index(
-                final_chunks,
+            chunks_count = self._embed_and_index(EmbedIndexConfig(
+                chunks=final_chunks,
                 source_url=url,
                 title=video_title,
                 speaker=video_speaker,
@@ -1493,7 +1539,7 @@ class IngestionPipeline:
                 source_version=source_version,
                 authority_tier=authority_tier,
                 assistant_slug=assistant_slug,
-            )
+            ))
 
             # Step 5: RAPTOR tree (reuses the same chunks, passes source metadata)
             self._notify(on_progress, "Building RAPTOR tree...", 0.8)
@@ -1805,8 +1851,8 @@ class IngestionPipeline:
         total_chunks = 0
         try:
             if all_chunks:
-                total_chunks = self._embed_and_index(
-                    all_chunks,
+                total_chunks = self._embed_and_index(EmbedIndexConfig(
+                    chunks=all_chunks,
                     source_url=url,
                     title=video_title,
                     speaker=video_speaker,
@@ -1824,7 +1870,7 @@ class IngestionPipeline:
                     source_version=source_version,
                     authority_tier=authority_tier,
                     assistant_slug=assistant_slug,
-                )
+                ))
 
             # 5. Build RAPTOR and Graph
             self._notify(on_progress, "Finalizing knowledge structure...", 0.9)
@@ -2163,8 +2209,8 @@ class IngestionPipeline:
                 backup_collection = self._backup_before_reindex(video["url"])
 
                 try:
-                    chunks_count = self._embed_and_index(
-                        final_chunks,
+                    chunks_count = self._embed_and_index(EmbedIndexConfig(
+                        chunks=final_chunks,
                         source_url=video["url"],
                         title=video_title,
                         speaker=video_speaker,
@@ -2178,7 +2224,7 @@ class IngestionPipeline:
                         published_at=transcript.get("published_at"),
                         duration=transcript.get("duration"),
                         thumbnail_url=transcript.get("thumbnail_url"),
-                    )
+                    ))
 
                     # RAPTOR
                     chunk_dicts = [
@@ -2725,42 +2771,41 @@ class IngestionPipeline:
                 f"Removed partially-indexed new source {source_url} after a downstream failure"
             )
 
-    def _embed_and_index(
-        self,
-        chunks: list[str],
-        source_url: str,
-        title: str,
-        content_type: str,
-        speaker: str = "Unknown",
-        topic: str = "Spiritual",
-        extra_metadatas: Optional[list[dict]] = None,
-        language: str = "en",
-        tags: Optional[list[str]] = None,
-        source_type: Optional[str] = None,
-        video_id: Optional[str] = None,
-        channel_name: Optional[str] = None,
-        published_at: Optional[str] = None,
-        duration: Optional[int] = None,
-        thumbnail_url: Optional[str] = None,
-        chunk_speakers: Optional[list[Optional[str]]] = None,
-        source_version: int = 1,
-        authority_tier: str = "primary",
-        assistant_slug: Optional[str] = None,
-        qdrant_override: Optional[Any] = None,
-    ) -> int:
+    def _embed_and_index(self, config: EmbedIndexConfig) -> int:
         """
         Embed pre-split chunks (dense + sparse) and upsert to Qdrant.
 
         Uses encode_batch() to generate both dense and sparse vectors
         in a single pass for hybrid search support.
 
-        qdrant_override: use this QdrantService instead of self._qdrant for
+        config.qdrant_override: use this QdrantService instead of self._qdrant for
         this call only (isolated-collection testing — see ingest_raw_text).
         """
-        if not chunks:
+        if not config.chunks:
             return 0
 
-        qdrant = qdrant_override or self._qdrant
+        # Unpack config into locals so downstream logic stays unchanged.
+        chunks = list(config.chunks)
+        source_url = config.source_url
+        title = config.title
+        content_type = config.content_type
+        speaker = config.speaker
+        topic = config.topic
+        language = config.language
+        tags = config.tags
+        source_type = config.source_type
+        source_version = config.source_version
+        authority_tier = config.authority_tier
+        assistant_slug = config.assistant_slug
+        video_id = config.video_id
+        channel_name = config.channel_name
+        published_at = config.published_at
+        duration = config.duration
+        thumbnail_url = config.thumbnail_url
+        chunk_speakers = config.chunk_speakers
+        extra_metadatas = config.extra_metadatas
+
+        qdrant = config.qdrant_override or self._qdrant
 
         tags = list({t.strip().lower() for t in (tags or ["general"]) if t and t.strip()})
 
@@ -3150,11 +3195,11 @@ class IngestionPipeline:
         """Split, embed, and persist chunks using the active source release."""
         source_version = self._resolve_active_source_version(source_url, source_version)
         chunks = self._split_text(text, title=title, speaker=speaker, topic=topic)
-        return self._embed_and_index(
-            chunks,
-            source_url,
-            title,
-            content_type,
+        return self._embed_and_index(EmbedIndexConfig(
+            chunks=chunks,
+            source_url=source_url,
+            title=title,
+            content_type=content_type,
             speaker=speaker,
             topic=topic,
             tags=tags,
@@ -3162,7 +3207,7 @@ class IngestionPipeline:
             source_version=source_version,
             authority_tier=authority_tier,
             assistant_slug=assistant_slug,
-        )
+        ))
 
     def _split_text(
         self,
@@ -3349,8 +3394,8 @@ class IngestionPipeline:
         if callback:
             try:
                 callback(message, progress)
-            except Exception:
-                pass  # Progress callbacks should never crash the pipeline
+            except Exception as e:
+                logger.debug("Progress callback failed (non-fatal): %s", e)
         logger.info(f"[{progress:.0%}] {message}")
 
     async def _implicit_teachings_connector(self, chunks: list[str]) -> None:

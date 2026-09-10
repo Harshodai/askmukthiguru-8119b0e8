@@ -38,6 +38,12 @@ def _is_persistable_user_id(user_id: Optional[str]) -> bool:
         return False
 
 
+def parse_key_insights(raw: object) -> list:
+    """Defensively parse the ``key_insights`` DB column: a JSON string, an
+    already-decoded list, or None — never raises on malformed input shape."""
+    return json.loads(raw) if isinstance(raw, str) else (raw or [])
+
+
 class SpiritualLevel(str, Enum):
     BEGINNER = "beginner"  # New to spirituality
     EXPLORER = "explorer"  # Has some practice, seeking depth
@@ -217,7 +223,7 @@ class UserProfileService:
                             user_id=row["user_id"],
                             started_at=row["started_at"],
                             messages=json.loads(row["messages"]),
-                            key_insights=json.loads(row["key_insights"]) if isinstance(row["key_insights"], str) else (row["key_insights"] or []),
+                            key_insights=parse_key_insights(row["key_insights"]),
                             emotional_arc=json.loads(row["emotional_arc"]),
                             follow_up_suggestions=row["follow_up_suggestions"],
                         )

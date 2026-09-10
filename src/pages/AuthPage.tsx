@@ -220,15 +220,9 @@ const AuthPage = () => {
 
     const handleSession = async (session: import('@supabase/supabase-js').Session, intendedPathParam?: string | null) => {
       if (redirectingRef.current) {
-        console.log('[Auth] handleSession blocked - already redirecting');
         return;
       }
       redirectingRef.current = true;
-      console.log('[Auth] handleSession starting', { userId: session.user.id });
-      
-      if (sessionHandleTimeoutRef.current) {
-        clearTimeout(sessionHandleTimeoutRef.current);
-      }
       sessionHandleTimeoutRef.current = setTimeout(() => {
         console.error('[Auth] Session handling timed out after 15s');
         redirectingRef.current = false;
@@ -245,7 +239,7 @@ const AuthPage = () => {
       
       try {
         if (!isEmailAllowed(session.user.email)) {
-          console.warn('[Auth] Non-allowed email domain blocked:', session.user.email);
+          console.warn('[Auth] Non-allowed email domain blocked');
           if (sessionHandleTimeoutRef.current) {
             clearTimeout(sessionHandleTimeoutRef.current);
             sessionHandleTimeoutRef.current = null;
@@ -294,11 +288,9 @@ const AuthPage = () => {
       const isFacebookReturn = fbKey === '1' || getActiveRun()?.provider === 'facebook';
 
       if (isGoogleReturn) {
-        console.log('[Auth] Detected Google OAuth return');
         setGoogleStep('finalizing');
       }
       if (isFacebookReturn) {
-        console.log('[Auth] Detected Facebook OAuth return');
         setFacebookStep('finalizing');
       }
 
@@ -347,7 +339,8 @@ const AuthPage = () => {
         return;
       }
 
-      const onboardedCached = localStorage.getItem(ONBOARDED_FLAG_KEY) === '1';
+      let onboardedCached = false;
+      try { onboardedCached = localStorage.getItem(ONBOARDED_FLAG_KEY) === '1'; } catch {}
       if (onboardedCached) {
         recordStep('navigate', 'ok', 0, { meta: { to: '/chat', cached: true } });
         navigate('/chat', { replace: true });
@@ -459,7 +452,7 @@ const AuthPage = () => {
           setLoading(false);
           return;
         }
-        console.info('[Auth] signUp start', { email, hasName: true });
+        console.info('[Auth] signUp start', { hasName: true });
         const signUpT0 = performance.now();
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email,
@@ -477,7 +470,6 @@ const AuthPage = () => {
           throw signUpError;
         }
         console.info('[Auth] signUp success', {
-          user_id: signUpData.user?.id,
           identities: signUpData.user?.identities?.length ?? 0,
           needs_confirmation: !signUpData.session,
         });
@@ -491,7 +483,7 @@ const AuthPage = () => {
         });
         endAuthRun('ok');
       } else {
-        console.info('[Auth] signIn start', { email });
+        console.info('[Auth] signIn start');
         const signInT0 = performance.now();
         sessionStorage.setItem('auth_explicit_login', 'true');
         const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
@@ -673,7 +665,6 @@ const AuthPage = () => {
   }, [googleBusy, facebookBusy, appleBusy]);
   
   const handleResetAuth = useCallback(async () => {
-    console.log('[Auth] Manual reset triggered');
     redirectingRef.current = false;
     setGoogleStep('idle');
     setFacebookStep('idle');
@@ -848,7 +839,7 @@ const AuthPage = () => {
 
   const handleLanguageComplete = (code: string) => {
     setLanguage(code);
-    localStorage.setItem(ONBOARDED_FLAG_KEY, '1');
+    try { localStorage.setItem(ONBOARDED_FLAG_KEY, '1'); } catch {}
     endAuthRun('ok');
     if (sessionHandleTimeoutRef.current) {
       clearTimeout(sessionHandleTimeoutRef.current);

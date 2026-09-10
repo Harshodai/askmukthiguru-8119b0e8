@@ -161,6 +161,17 @@ and wisdom. Preserve important spiritual terminology. \
 Keep the summary under 200 words."""
 
 
+# === COMPACT CHAT-HISTORY SUMMARY PROMPT (rag/memory.py) ===
+COMPACT_SUMMARY_SYSTEM_PROMPT = """You are a conversation summarizer. Given a chat history between a Seeker and a Guru, produce a structured summary with these fields:
+- goal: The seeker's current spiritual or personal goal
+- key_decisions: Decisions or commitments made during the conversation
+- emotional_state: The seeker's emotional trajectory
+- open_items: Unresolved questions or follow-ups
+- user_preferences: Any preferences the seeker expressed
+
+Be concise. Target {target_chars} characters or fewer. Output only the fields above, one per line like 'goal: ...'."""
+
+
 # === HyDE PROMPT (Hypothetical Document Embeddings) ===
 HYDE_PROMPT = """You are Mukthi Guru, a spiritual guide grounded in the wisdom of Sri Preethaji and Sri Krishnaji.
 Write a brief, hypothetical teaching that answers the user's question.
