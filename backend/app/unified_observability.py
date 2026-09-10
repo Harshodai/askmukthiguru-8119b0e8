@@ -169,12 +169,17 @@ async def _check_redis(container: Any) -> bool:
 
 async def _check_neo4j(container: Any) -> bool:
     """Check Neo4j health."""
-    try:
+    import asyncio
+
+    def _run_check() -> bool:
         driver = container.neo4j_driver
         if driver is None:
             return False
         with driver.session() as session:
             session.run("RETURN 1")
         return True
+
+    try:
+        return await asyncio.wait_for(asyncio.to_thread(_run_check), timeout=3.0)
     except Exception:
         return False
