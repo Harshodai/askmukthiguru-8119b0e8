@@ -42,13 +42,13 @@ form[role='form'][aria-label] textarea::placeholder {
 }
 
 .ask-profile-shell main > div > div {
-  max-width: 72rem;
+  max-width: 42rem;
 }
 
 .ask-profile-shell .rounded-3xl.border-hairline,
 .ask-profile-shell .rounded-2xl.border-hairline,
 .ask-profile-shell .rounded-2xl.border.border-hairline {
-  box-shadow: 0 8px 28px hsl(var(--foreground) / 0.035);
+  box-shadow: none;
 }
 
 .ask-profile-shell [role='tablist'] {
@@ -86,11 +86,6 @@ form[role='form'][aria-label] textarea::placeholder {
     margin-right: 0;
   }
 
-  /* Secondary language row stays reachable from the composer controls rather
-     than consuming valuable conversation height. */
-  div:has(> form[role='form'][aria-label]) > div:first-child { display: none !important; }
-  form[role='form'][aria-label] footer > div:first-child > button:first-child { display: none !important; }
-
   form[role='form'][aria-label] textarea {
     font-size: 16px !important;
     min-height: 40px !important;
@@ -112,9 +107,9 @@ form[role='form'][aria-label] textarea::placeholder {
   }
 
   .ask-profile-shell main > div > div {
-    padding-left: 14px !important;
-    padding-right: 14px !important;
-    padding-top: 14px !important;
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+    padding-top: 16px !important;
   }
 
   .ask-profile-shell [role='tablist'] {
@@ -128,17 +123,8 @@ form[role='form'][aria-label] textarea::placeholder {
     padding-right: 14px !important;
   }
 
-  .ask-profile-shell .rounded-3xl.border-hairline {
-    padding: 20px 16px !important;
-    border-radius: 24px !important;
-  }
-
-  .ask-profile-shell .rounded-3xl.border-hairline h1 {
-    font-size: 25px !important;
-  }
-
   .ask-profile-shell .rounded-2xl.border-hairline {
-    border-radius: 20px !important;
+    border-radius: 12px !important;
   }
 }
 

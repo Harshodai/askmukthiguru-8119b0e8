@@ -74,13 +74,13 @@ form[role='form'][aria-label] footer button:hover {
 }
 
 .ask-profile-shell main > div > div {
-  max-width: 72rem;
+  max-width: 42rem;
 }
 
 .ask-profile-shell .rounded-3xl.border-hairline,
 .ask-profile-shell .rounded-2xl.border-hairline,
 .ask-profile-shell .rounded-2xl.border.border-hairline {
-  box-shadow: var(--shadow-sm);
+  box-shadow: none;
 }
 
 .ask-profile-shell [role='tablist'] {
@@ -94,6 +94,25 @@ form[role='form'][aria-label] footer button:hover {
   background: hsl(var(--card)) !important;
   color: hsl(var(--foreground)) !important;
   box-shadow: var(--shadow-sm) !important;
+}
+
+.ask-profile-shell .profile-focus-flow {
+  font-family: var(--font-sans);
+}
+
+.ask-profile-shell .profile-focus-flow .font-serif {
+  font-family: var(--font-sans);
+}
+
+.ask-profile-shell .profile-focus-flow [data-radix-tabs-content] > div,
+.ask-profile-shell .profile-focus-flow [data-radix-tabs-content] > section {
+  scroll-margin-top: 5rem;
+}
+
+.ask-profile-shell .profile-focus-flow [role='tabpanel'] > .border,
+.ask-profile-shell .profile-focus-flow [role='tabpanel'] > .rounded-2xl {
+  border-radius: 0.75rem;
+  box-shadow: none;
 }
 
 .ask-profile-shell input,
@@ -154,9 +173,9 @@ form[role='form'][aria-label] footer button:hover {
     min-height: 44px;
   }
   .ask-profile-shell main > div > div {
-    padding-left: 14px !important;
-    padding-right: 14px !important;
-    padding-top: 14px !important;
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+    padding-top: 16px !important;
   }
   .ask-profile-shell [role='tab'] {
     min-height: 44px !important;
