@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from ingest.pipeline import IngestionPipeline
+from ingest.pipeline import EmbedIndexConfig, IngestionPipeline
 
 
 @pytest.fixture
@@ -65,14 +65,14 @@ def test_embed_and_index_teacher_tagging(mock_pipeline):
     mock_pipeline._qdrant.check_source_exists = MagicMock(return_value=False)
 
     # 1. Test Sadhguru keyword classification
-    mock_pipeline._embed_and_index(
+    mock_pipeline._embed_and_index(EmbedIndexConfig(
         chunks=["Mindfulness and yoga by Jaggi Vasudev."],
         source_url="http://example.com/some-video",
         title="Isha Kriya Yoga",
         content_type="video",
         speaker="Sadhguru",
         tags=["meditation"],
-    )
+    ))
 
     called_args = mock_pipeline._qdrant.upsert_chunks.call_args[0]
     metadata_list = called_args[2]
@@ -80,28 +80,28 @@ def test_embed_and_index_teacher_tagging(mock_pipeline):
     assert any("meditation" in m["tags"] for m in metadata_list)
 
     # 2. Test Sri Amma Bhagavan keyword classification
-    mock_pipeline._embed_and_index(
+    mock_pipeline._embed_and_index(EmbedIndexConfig(
         chunks=["Oneness meditation and Deeksha from Kalki."],
         source_url="http://example.com/oneness",
         title="Golden Age Movement",
         content_type="video",
         speaker="Unknown",
         tags=["grace"],
-    )
+    ))
 
     called_args = mock_pipeline._qdrant.upsert_chunks.call_args[0]
     metadata_list = called_args[2]
     assert any("teacher:amma_bhagavan" in m["tags"] for m in metadata_list)
 
     # 3. Test ISKCON keyword classification
-    mock_pipeline._embed_and_index(
+    mock_pipeline._embed_and_index(EmbedIndexConfig(
         chunks=["Reading from Bhagavad Gita in ISKCON temple."],
         source_url="http://example.com/gita",
         title="Teachings of Prabhupada",
         content_type="video",
         speaker="Prabhupada",
         tags=["devotion"],
-    )
+    ))
 
     called_args = mock_pipeline._qdrant.upsert_chunks.call_args[0]
     metadata_list = called_args[2]
@@ -234,9 +234,9 @@ def test_ingest_video_audio_fallback_enriches_missing_metadata(mock_pipeline, mo
     assert result["status"] == "success"
     embed_args = mock_pipeline._embed_and_index.call_args
     assert embed_args is not None
-    kwargs = embed_args.kwargs
-    assert kwargs["title"] == "Enriched Title"
-    assert kwargs["speaker"] == "Sri Preethaji"
+    config = embed_args.args[0]
+    assert config.title == "Enriched Title"
+    assert config.speaker == "Sri Preethaji"
 
 
 def test_ingestion_persisted_content_passes_find_artifact_gate(mock_pipeline):
@@ -256,7 +256,7 @@ def test_ingestion_persisted_content_passes_find_artifact_gate(mock_pipeline):
     mock_pipeline._qdrant.check_source_exists = MagicMock(return_value=False)
 
     # Ingest clean chunks
-    mock_pipeline._embed_and_index(
+    mock_pipeline._embed_and_index(EmbedIndexConfig(
         chunks=clean_chunks,
         title="Beautiful State Teaching",
         content_type="video",
@@ -264,7 +264,7 @@ def test_ingestion_persisted_content_passes_find_artifact_gate(mock_pipeline):
         topic="Meditation",
         source_url="https://youtube.com/watch?v=clean123",
         video_id="clean123",
-    )
+    ))
 
     # Verify that all chunk texts actually written to Qdrant pass find_artifact
     assert mock_pipeline._qdrant.upsert_chunks.called

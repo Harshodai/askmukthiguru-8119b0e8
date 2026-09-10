@@ -178,9 +178,6 @@ class CacheCheckStage(Stage):
         # return a shared entry for a personalization-eligible query. It sits above every
         # lookup tier below (hot / vector / exact / semantic) on purpose — moving it
         # below any of them would reintroduce the cross-user replay.
-        if _is_personalization_eligible(ctx):
-            logger.debug("cache hit skipped: personalized or attachment context present")
-            return None
 
         # Read-side guard for client-supplied assistant configuration: without a
         # server-side persona registry the effective system prompt / retrieval
@@ -208,40 +205,43 @@ class CacheCheckStage(Stage):
             logger.debug("[cache stage] suppressed non-critical error: %s", _e)
 
         # --- 1. Hot cache (sub-millisecond) ---
-        hot_hit = hot_cache.get(cache_key)
-        if hot_hit is not None:
-            response, citations, cached_intent = hot_hit
-            if cached_intent.upper() in ("CASUAL", "GREETING"):
-                return None
-            CACHE_OPERATIONS.labels(cache_type="hot", result="hit").inc()
-            record_routing_decision(
-                ctx,
-                RoutingProvenance(
-                    layer="CACHE_CHECK",
-                    decision="hot_cache",
-                    method="hot_cache_hit",
-                    confidence=1.0,
-                    reason="In-memory hot cache hit",
-                ),
-            )
-            route_metadata = _cache_route_metadata(ctx, "hot_cache")
-            route_metadata["routing_chain"] = list(getattr(ctx, "routing_chain", []))
-            result = PipelineResult(
-                final_answer=response,
-                intent=cached_intent,
-                meditation_step=0,
-                citations=citations,
-                trace_id=ctx.trace_id,
-                latency_ms=0,
-                model_used=None,  # cached response — no model ran this request
-                model_provider=None,
-                route_decision="hot_cache",
-                cache_hit=True,
-                route_metadata=route_metadata,
-                release_manifest=get_release_manifest().to_dict(),
-            )
-            ctx.last_stage_status = "cached"
-            return result
+        # Personalized queries must never read from the shared hot cache — it has
+        # no user scoping. Skip directly to user-scoped exact cache (step 3).
+        if not _is_personalization_eligible(ctx):
+            hot_hit = hot_cache.get(cache_key)
+            if hot_hit is not None:
+                response, citations, cached_intent = hot_hit
+                if cached_intent.upper() in ("CASUAL", "GREETING"):
+                    return None
+                CACHE_OPERATIONS.labels(cache_type="hot", result="hit").inc()
+                record_routing_decision(
+                    ctx,
+                    RoutingProvenance(
+                        layer="CACHE_CHECK",
+                        decision="hot_cache",
+                        method="hot_cache_hit",
+                        confidence=1.0,
+                        reason="In-memory hot cache hit",
+                    ),
+                )
+                route_metadata = _cache_route_metadata(ctx, "hot_cache")
+                route_metadata["routing_chain"] = list(getattr(ctx, "routing_chain", []))
+                result = PipelineResult(
+                    final_answer=response,
+                    intent=cached_intent,
+                    meditation_step=0,
+                    citations=citations,
+                    trace_id=ctx.trace_id,
+                    latency_ms=0,
+                    model_used=None,  # cached response — no model ran this request
+                    model_provider=None,
+                    route_decision="hot_cache",
+                    cache_hit=True,
+                    route_metadata=route_metadata,
+                    release_manifest=get_release_manifest().to_dict(),
+                )
+                ctx.last_stage_status = "cached"
+                return result
 
         # Determine query tier and dynamic cache threshold once, AFTER the hot
         # probe: hot/exact lookups use no threshold, so a hot hit must not pay
@@ -331,7 +331,10 @@ class CacheCheckStage(Stage):
         SEARCH_PATH_TOTAL.labels(path="p99").inc()
 
         # --- 3. Exact + Semantic cache ---
-        cached = await asyncio.to_thread(container.exact_cache.get, cache_key)
+        user_id_for_cache = ctx.user_id if ctx.user_id and ctx.user_id != "anonymous" else None
+        cached = await asyncio.to_thread(
+            container.exact_cache.get, cache_key, user_id=user_id_for_cache
+        )
         if cached is None and container.semantic_cache and container.semantic_cache.is_available:
             cached = await asyncio.to_thread(
                 container.semantic_cache.get, semantic_query, threshold=threshold
@@ -400,6 +403,7 @@ class CacheUpdateStage(Stage):
         med_step = ctx.med_step
         citations = ctx.citations
         container = ctx.container
+        user_id_for_cache = ctx.user_id if ctx.user_id and ctx.user_id != "anonymous" else None
 
         # Audit cache updates: never cache fallback/refusal responses, empty results, blocked responses, or errors
         if ctx.is_blocked or ctx.last_stage_status == "error":
@@ -469,17 +473,31 @@ class CacheUpdateStage(Stage):
         # Mirror of CacheCheckStage's read guard above — both sides share the
         # _is_personalization_eligible predicate (single source of truth), driven by
         # the request-level personalization_eligible flag populated before the chain.
+        # PERSONALIZATION例外: When user_id is available, the exact cache key includes
+        # user_id in its SHA-256 hash, isolating the entry to this user. Shared cache
+        # entries are still invalidated (stale shared entries for this key would shadow
+        # the user-scoped entry), but the personalized response IS cached under the
+        # user-scoped key so subsequent personalized lookups hit cache.
+        user_id_for_cache = ctx.user_id if ctx.user_id and ctx.user_id != "anonymous" else None
         if _is_personalization_eligible(ctx):
-            logger.info(
-                "Skipping cache update: response was personalized with user memory_context."
-            )
-            # A stale SHARED entry for this key (written earlier by a non-personalized
-            # answer) must not survive the personalized response: it would be served to
-            # the next memory-bearing seeker straight from the cache, shadowing their
-            # personalization. Purge it on the skip path so a later shared lookup can
-            # never serve a stale cross-user answer.
-            await _invalidate_shared_entries(container, cache_key)
-            return None
+            if user_id_for_cache:
+                logger.debug(
+                    "Cache update: personalized query — writing to user-scoped exact cache."
+                )
+                # Invalidate any stale shared entry that would shadow the user-scoped key
+                await _invalidate_shared_entries(container, cache_key)
+                # Fall through to exact_cache.put with user_id below
+            else:
+                logger.info(
+                    "Skipping cache update: response was personalized with user memory_context."
+                )
+                # A stale SHARED entry for this key (written earlier by a non-personalized
+                # answer) must not survive the personalized response: it would be served to
+                # the next memory-bearing seeker straight from the cache, shadowing their
+                # personalization. Purge it on the skip path so a later shared lookup can
+                # never serve a stale cross-user answer.
+                await _invalidate_shared_entries(container, cache_key)
+                return None
 
         # Mirror of CacheCheckStage's read guard: a response generated under a
         # client-supplied assistant configuration must never enter the shared
@@ -539,8 +557,11 @@ class CacheUpdateStage(Stage):
                         container, cache_key, semantic_query=semantic_query
                     )
 
-                # Update hot cache first (fastest, no I/O)
-                hot_cache.put(cache_key, final_answer, citations, ttl=300.0, intent=intent)
+                # Skip hot_cache for personalized queries — hot_cache is
+                # shared across users and has no user-scoping. Only write
+                # to exact_cache with user_id for isolation.
+                if not _is_personalization_eligible(ctx):
+                    hot_cache.put(cache_key, final_answer, citations, ttl=300.0, intent=intent)
 
                 # Update exact cache (Redis)
                 await asyncio.to_thread(
@@ -550,6 +571,7 @@ class CacheUpdateStage(Stage):
                     intent=intent,
                     citations=citations,
                     meditation_step=med_step,
+                    user_id=user_id_for_cache,
                 )
 
                 # A partial-evidence response is intentionally excluded from

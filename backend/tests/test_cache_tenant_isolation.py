@@ -43,6 +43,7 @@ def _make_coordinator() -> PipelineCoordinator:
 def _ctx(memory_context: str, user_id: str = "user-alice") -> PipelineContext:
     container = MagicMock()
     container.exact_cache = MagicMock()
+    container.exact_cache.get.return_value = None  # no user-scoped entry by default
     container.semantic_cache = MagicMock()
     container.semantic_cache.is_available = False
     coordinator = PipelineCoordinator(container)

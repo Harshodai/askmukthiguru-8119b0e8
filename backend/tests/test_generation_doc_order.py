@@ -51,7 +51,7 @@ async def test_budget_truncation_preserves_rerank_order(mock_services, monkeypat
 
     monkeypatch.setattr(
         "rag.nodes.generation._compute_context_budget",
-        lambda **kwargs: (kwargs["baseline_tokens"], 240),
+        lambda **kwargs: (kwargs["baseline_tokens"], 150),
     )
     monkeypatch.setattr(
         "rag.nodes.generation._generation_route",
