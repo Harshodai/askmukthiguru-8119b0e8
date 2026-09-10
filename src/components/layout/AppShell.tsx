@@ -249,7 +249,7 @@ export const AppShell = ({ children, title }: AppShellProps) => {
 
   return (
     <SidebarProvider>
-      <div className="min-h-dvh flex w-full bg-background relative">
+      <div className={cn("min-h-dvh flex w-full bg-background relative", location.pathname === '/profile' && 'ask-profile-shell')}>
         <div className="fixed inset-0 bg-spiritual-gradient pointer-events-none" />
         <FloatingParticles />
 

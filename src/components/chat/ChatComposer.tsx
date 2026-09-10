@@ -7,7 +7,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
 import {
-  Send, Square, Flame, Sparkles, Plus, Mic, Volume2, X, FileText, CornerDownLeft,
+  Send, Square, Flame, Sparkles, Plus, Mic, X, FileText, CornerDownLeft,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -187,30 +187,16 @@ export function ChatComposer({
 
   return (
     <motion.div
-      className="w-full max-w-3xl mx-auto px-2 sm:px-4 py-2 sm:py-3"
+      className="w-full max-w-3xl mx-auto py-2 sm:py-3"
     >
-      <div className="flex items-center justify-start gap-2 mb-2 px-1">
-        <LanguageSelector
-          value={currentLanguage}
-          voiceEnabled={voiceEnabled}
-          isListening={isListening}
-          onVoiceToggle={onVoiceToggle}
-          onLanguageChange={onLanguageChange}
-          ttsEnabled={ttsEnabled}
-          onTtsToggle={onTtsToggle}
-          isSpeaking={isSpeaking}
-          compact
-        />
-      </div>
-
       <PromptInput
         onSubmit={handleFormSubmit}
         role="form"
         aria-label={t('chat.messageComposer')}
-        className={`rounded-2xl border border-border/50 bg-card/95 backdrop-blur-xl transition-all duration-300 overflow-visible ${
+        className={`rounded-2xl border border-hairline bg-card transition-colors duration-200 overflow-visible ${
           inputFocused || isListening
-            ? 'border-ojas/40 shadow-lg shadow-ojas/[0.06]'
-            : 'border-border/50 shadow-sm'
+            ? 'border-ojas/50 shadow-md'
+            : 'shadow-sm'
         }`}
       >
         {isAwaitingSereneMind && (
@@ -308,6 +294,17 @@ export function ChatComposer({
 
         <PromptInputFooter className="flex items-center gap-1.5 px-3 pb-3 pt-2">
           <PromptInputTools>
+            <LanguageSelector
+              value={currentLanguage}
+              voiceEnabled={voiceEnabled}
+              isListening={isListening}
+              onVoiceToggle={onVoiceToggle}
+              onLanguageChange={onLanguageChange}
+              ttsEnabled={ttsEnabled}
+              onTtsToggle={onTtsToggle}
+              isSpeaking={isSpeaking}
+              compact
+            />
             <AssistantSwitcher variant="chip" />
 
             {hasMoreActions && (
@@ -421,7 +418,7 @@ export function ChatComposer({
         <motion.p
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="text-[10px] text-center text-muted-foreground/70 mt-3 select-none"
+          className="text-[10px] text-center text-muted-foreground mt-1.5 select-none leading-tight"
         >
           {t('chat.aiCompanionNotice')}
         </motion.p>

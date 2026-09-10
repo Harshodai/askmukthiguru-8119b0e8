@@ -323,8 +323,6 @@ export const LanguageSelector = ({
   if (compact) {
     const lang = LANGUAGES.find((l) => l.code === selectedLanguage);
     const label = lang ? pillLabel(lang) : selectedLanguage.toUpperCase();
-    const isNonEnglish = selectedLanguage !== 'en';
-
     return (
       <div className="flex items-center gap-1">
         <div className="relative">
@@ -336,28 +334,14 @@ export const LanguageSelector = ({
               if (!isOpen) updatePosition();
               setIsOpen(!isOpen);
             }}
-            className={`flex items-center gap-1.5 px-2.5 h-9 min-h-[44px] min-w-[44px] rounded-full transition-all font-semibold border ${
-              isNonEnglish ? 'text-sm' : 'text-xs'
-            } ${
-              isNonEnglish
-                ? 'bg-ojas/10 border-ojas/30 text-ojas hover:bg-ojas/20'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/60 border-transparent'
-            }`}
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
+            className="flex min-h-[44px] min-w-[44px] items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             aria-haspopup="listbox"
             aria-expanded={isOpen}
             aria-label={`Selected language: ${lang?.name ?? selectedLanguage}. Click to change.`}
             title={`Language: ${lang?.name ?? selectedLanguage}`}
           >
-            <Globe className="w-3.5 h-3.5 flex-shrink-0 opacity-80" aria-hidden="true" />
-            <span className={`font-medium ${isNonEnglish ? 'text-base leading-none' : ''}`}>{label}</span>
-            {isNonEnglish && (
-              <span className="flex items-center gap-1 text-[10px] font-bold text-ojas/90 bg-ojas/10 px-1.5 py-0.5 rounded">
-                <Languages className="w-2.5 h-2.5" />
-                AUTO
-              </span>
-            )}
+            <Languages className="w-4 h-4 flex-shrink-0 text-ojas" aria-hidden="true" />
+            <span>{label}</span>
             <ChevronDown className={`w-3 h-3 opacity-50 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
           </motion.button>
 
@@ -377,7 +361,7 @@ export const LanguageSelector = ({
                   exit={{ opacity: 0, y: 8, scale: 0.95 }}
                   transition={{ duration: 0.15, ease: 'easeOut' }}
                   ref={popoverRef}
-                  className="fixed z-[100] flex flex-col overflow-hidden rounded-2xl border border-border bg-popover shadow-2xl w-72 max-w-[calc(100vw-2rem)]"
+                  className="fixed z-[100] flex flex-col overflow-hidden rounded-xl border border-hairline bg-popover shadow-lg w-72 max-w-[calc(100vw-2rem)]"
                   style={{ bottom: coords.bottom, left: coords.left, maxHeight: Math.min(320, coords.maxHeight) }}
                   role="listbox"
                   aria-label="Select language"
