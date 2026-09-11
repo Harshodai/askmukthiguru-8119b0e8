@@ -351,9 +351,30 @@ class QdrantClientManager:
             return []
 
     def health_check(self) -> bool:
-        """Check if Qdrant is reachable and collection exists."""
+        """Check that Qdrant is reachable and the configured collection can serve.
+
+        Reachability alone is not readiness: ``init_collection`` creates the
+        configured collection when it is absent, so a deploy that never ran the
+        backfill gets an empty collection, a green health check, and an
+        abstention on every query. Probe what retrieval actually needs.
+        """
         try:
-            self._client.get_collections()
+            names = {c.name for c in self._client.get_collections().collections}
+            if self._collection not in names:
+                logger.error(
+                    "Qdrant healthcheck: configured collection %r does not exist",
+                    self._collection,
+                )
+                return False
+
+            points = self._client.get_collection(self._collection).points_count or 0
+            if points == 0:
+                logger.error(
+                    "Qdrant healthcheck: collection %r is EMPTY — retrieval will abstain on "
+                    "every query. Run the ingestion backfill before serving traffic.",
+                    self._collection,
+                )
+                return False
             return True
         except Exception:
             return False

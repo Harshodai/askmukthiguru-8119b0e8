@@ -275,6 +275,34 @@ class QdrantIndexer:
             logger.warning("Qdrant has_source query failed: %s", e)
             return False
 
+    def _scroll_all_by_source(
+        self, collection_name: str, source_url: str, page_size: int = 1000
+    ) -> list:
+        """Scroll every point for a source, following the offset cursor to exhaustion.
+
+        A single fixed-limit scroll silently truncates long sources; because
+        restore_from_backup deletes before it restores, that truncation is
+        unrecoverable data loss rather than a merely-degraded copy.
+        """
+        records: list = []
+        offset = None
+        while True:
+            page, next_offset = self._client.scroll(
+                collection_name=collection_name,
+                scroll_filter=Filter(
+                    must=[FieldCondition(key="source_url", match=MatchValue(value=source_url))]
+                ),
+                limit=page_size,
+                with_payload=True,
+                with_vectors=True,
+                offset=offset,
+            )
+            records.extend(page)
+            if next_offset is None or not page:
+                break
+            offset = next_offset
+        return records
+
     def backup_source(self, source_url: str, backup_collection: str) -> bool:
         """
         Copy all points for a source to a backup collection.
@@ -292,16 +320,7 @@ class QdrantIndexer:
                 )
                 logger.info(f"Created backup collection: {backup_collection}")
 
-            # Scroll all points for this source
-            points, _ = self._client.scroll(
-                collection_name=self._collection,
-                scroll_filter=Filter(
-                    must=[FieldCondition(key="source_url", match=MatchValue(value=source_url))]
-                ),
-                limit=1000,  # Sources rarely have more than 1000 chunks
-                with_payload=True,
-                with_vectors=True,
-            )
+            points = self._scroll_all_by_source(self._collection, source_url)
 
             if not points:
                 return False
@@ -334,21 +353,18 @@ class QdrantIndexer:
         single source of truth for restore logic instead of two copies.
         """
         try:
-            self.delete_by_source(source_url)
-
-            points, _ = self._client.scroll(
-                collection_name=backup_collection,
-                scroll_filter=Filter(
-                    must=[FieldCondition(key="source_url", match=MatchValue(value=source_url))]
-                ),
-                limit=1000,
-                with_payload=True,
-                with_vectors=True,
-            )
+            # Read the backup BEFORE destroying the live copy: deleting first meant an
+            # empty or failed backup read left the source erased with nothing to restore.
+            points = self._scroll_all_by_source(backup_collection, source_url)
 
             if not points:
-                logger.warning(f"No backup data found for {source_url} in {backup_collection}")
+                logger.warning(
+                    f"No backup data found for {source_url} in {backup_collection}; "
+                    "leaving the currently-indexed copy untouched"
+                )
                 return False
+
+            self.delete_by_source(source_url)
 
             restore_points = [
                 PointStruct(id=p.id, vector=p.vector, payload=p.payload) for p in points
