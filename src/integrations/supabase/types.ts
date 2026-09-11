@@ -1276,6 +1276,27 @@ export type Database = {
         }
         Relationships: []
       }
+      memory_compaction_snapshots: {
+        Row: {
+          created_at: string
+          id: string
+          memories_json: Json
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          memories_json: Json
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          memories_json?: Json
+          user_id?: string
+        }
+        Relationships: []
+      }
       memory_consent_receipts: {
         Row: {
           consent_version: string
@@ -2404,6 +2425,39 @@ export type Database = {
           },
         ]
       }
+      user_healing_progress: {
+        Row: {
+          completed_steps: Json
+          course_slug: string
+          created_at: string | null
+          current_step: number
+          id: string
+          last_accessed_at: string | null
+          total_steps: number
+          user_id: string
+        }
+        Insert: {
+          completed_steps?: Json
+          course_slug: string
+          created_at?: string | null
+          current_step?: number
+          id?: string
+          last_accessed_at?: string | null
+          total_steps?: number
+          user_id: string
+        }
+        Update: {
+          completed_steps?: Json
+          course_slug?: string
+          created_at?: string | null
+          current_step?: number
+          id?: string
+          last_accessed_at?: string | null
+          total_steps?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_personas: {
         Row: {
           content: string
@@ -2721,6 +2775,19 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      append_healing_step: {
+        Args: {
+          p_course_slug: string
+          p_step_id: string
+          p_total_steps: number
+          p_user_id: string
+        }
+        Returns: {
+          completed_steps: Json
+          current_step: number
+          total_steps: number
+        }[]
+      }
       approve_source_release: {
         Args: { p_approved_by: string; p_release_id: string }
         Returns: {
@@ -2768,6 +2835,10 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      create_compaction_snapshot: {
+        Args: { p_memories_json: Json; p_user_id: string }
+        Returns: undefined
       }
       demote_admin_by_id: { Args: { _user_id: string }; Returns: Json }
       ensure_profile_and_role: { Args: never; Returns: Json }

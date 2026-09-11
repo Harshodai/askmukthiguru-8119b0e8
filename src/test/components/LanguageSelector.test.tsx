@@ -90,7 +90,7 @@ describe('LanguageSelector (regression)', () => {
     expect(screen.getByLabelText('Stop recording')).toBeInTheDocument();
   });
 
-  it('renders compact mode with globe icon and short native label', () => {
+  it('renders compact mode with Languages icon and short native label', () => {
     render(<LanguageSelector value="hi" compact />);
     expect(screen.getByText('हिन्')).toBeInTheDocument();
   });

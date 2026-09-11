@@ -55,7 +55,7 @@ export const CookieConsentBanner = () => {
           transition={{ duration: 0.25 }}
           role="dialog"
           aria-label={t('common.cookiesConsent')}
-          className={`fixed ${isChatRoute ? 'bottom-[calc(6.75rem+env(safe-area-inset-bottom))] sm:bottom-[calc(5.75rem+env(safe-area-inset-bottom))]' : 'bottom-[calc(0.75rem+env(safe-area-inset-bottom))] sm:bottom-[calc(1rem+env(safe-area-inset-bottom))]'} left-3 right-3 sm:left-auto sm:right-4 sm:max-w-sm md:max-w-md z-[60] rounded-2xl border border-border/60 bg-card/95 backdrop-blur-md shadow-2xl p-3 sm:p-4`}
+          className={`fixed ${isChatRoute ? 'top-[calc(3.75rem+env(safe-area-inset-top))] bottom-auto sm:top-auto sm:bottom-[calc(1rem+env(safe-area-inset-bottom))]' : 'bottom-[calc(0.75rem+env(safe-area-inset-bottom))] sm:bottom-[calc(1rem+env(safe-area-inset-bottom))]'} left-3 right-3 sm:left-auto sm:right-4 sm:max-w-sm md:max-w-md z-[60] rounded-xl border border-border/60 bg-card/95 backdrop-blur-md shadow-lg p-3 sm:p-4`}
         >
           <div className="flex items-start gap-2.5">
             <div className="hidden sm:flex w-9 h-9 rounded-full bg-ojas/12 border border-ojas/25 items-center justify-center flex-shrink-0">
@@ -70,17 +70,17 @@ export const CookieConsentBanner = () => {
                 <Link to="/privacy" className="text-primary-foreground font-semibold underline underline-offset-2">{t('common.privacy')}</Link>.
               </p>
               <div className="flex gap-2 pt-0.5">
-                <Button size="sm" variant="outline" className="h-7 text-[11px] px-2.5" onClick={() => decide('rejected')}>
+                <Button size="sm" variant="outline" className="min-h-[44px] text-[11px] px-3" onClick={() => decide('rejected')}>
                   {t('common.reject') === 'common.reject' ? 'Reject' : t('common.reject')}
                 </Button>
-                <Button size="sm" className="h-7 text-[11px] px-2.5 bg-ojas hover:bg-ojas-dark !text-primary-foreground" onClick={() => decide('accepted')}>
+                <Button size="sm" className="min-h-[44px] text-[11px] px-3 bg-ojas hover:bg-ojas-dark !text-primary-foreground" onClick={() => decide('accepted')}>
                   {t('common.accept') === 'common.accept' ? 'Accept' : t('common.accept')}
                 </Button>
               </div>
             </div>
             <button
               onClick={() => decide('rejected')}
-              className="p-1 rounded hover:bg-muted text-muted-foreground"
+              className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg hover:bg-muted text-muted-foreground"
               aria-label={t('common.dismiss') === 'common.dismiss' ? 'Dismiss' : t('common.dismiss')}
             >
               <X className="w-3.5 h-3.5" />
