@@ -462,10 +462,22 @@ def test_qdrant_search_quality_baseline_regression(qdrant_searcher, embedding_se
             baseline = json.load(f)
         baseline_ndcg = baseline.get("hybrid", {}).get("mean_ndcg", 0.0)
 
-        # Regression threshold: allow 2% drop
-        assert current["mean_ndcg"] >= baseline_ndcg - 0.02, (
-            f"Hybrid NDCG regressed: {current['mean_ndcg']:.3f} (baseline: {baseline_ndcg:.3f})"
+        # A degenerate baseline turns the comparison below into `>= -0.02`,
+        # which no measurement can fail. The checked-in baseline was recorded
+        # as 0.0, so this gate reported green while proving nothing — worse
+        # than having no gate, because it manufactured confidence. Refuse to
+        # run against a baseline that cannot discriminate.
+        assert baseline_ndcg > 0.0, (
+            f"Retrieval-quality baseline at {baseline_path} is {baseline_ndcg} — a "
+            "non-positive baseline makes the regression assertion vacuous. "
+            "Re-record it against a populated collection with "
+            "UPDATE_QDRANT_BASELINE=1 before relying on this gate."
         )
+
+        # Regression threshold: allow 2% drop
+        assert (
+            current["mean_ndcg"] >= baseline_ndcg - 0.02
+        ), f"Hybrid NDCG regressed: {current['mean_ndcg']:.3f} (baseline: {baseline_ndcg:.3f})"
 
     # Baseline updates are an explicit benchmark-authoring action, never a side
     # effect of staging verification. This keeps CI evidence reproducible and

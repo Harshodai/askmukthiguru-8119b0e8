@@ -52,7 +52,13 @@ def test_fast_strategy_contains_verification_nodes():
     fast_source = source[source.index("class FastGraphStrategy"):source.index("async def deep_contradiction_gate")]
 
     assert 'graph.add_node("reflect_on_answer", reflect_on_answer)' in fast_source
-    assert 'graph.add_node("verify_answer", verify_answer)' in fast_source
+    # Assert the node NAME is wired, not which function it binds to. This
+    # previously pinned `verify_answer` as the handler and went red when the
+    # node was rebound to `combined_grade_and_verify` — which is not a loss of
+    # verification: it runs LettuceDetect plus the constitutional checks locally
+    # and delegates to verify_answer (verification.py) whenever confidence is
+    # uncertain. The guarantee under test is that the fast path verifies at all.
+    assert 'graph.add_node("verify_answer", ' in fast_source
     assert 'graph.add_edge("generate_answer", "reflect_on_answer")' in fast_source
     assert 'graph.add_edge("verify_answer", "extract_citations")' in fast_source
 

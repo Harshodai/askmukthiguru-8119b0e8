@@ -5,10 +5,28 @@ import os
 import warnings
 
 if not os.environ.get("PYTEST_CURRENT_TEST"):
-    warnings.warn(
-        "langchain_text_splitters stub imported outside test environment",
-        RuntimeWarning,
-        stacklevel=2,
+    # Fail closed, not loudly-but-onward. This package sits at the REPO ROOT, so
+    # it precedes site-packages on sys.path for any process whose cwd is the repo
+    # root. That includes `python3 -m pytest backend/tests/` (the command the root
+    # CLAUDE.md documents) and, critically, the bulk corpus-ingestion scripts:
+    #   scripts/ingestion/ingest_four_sacred_secrets.py:21
+    #   scripts/ingestion/bulk_ingest_whisper.py:245
+    #   scripts/ingestion/bulk_ingest_async.py:381
+    # plus backend/ingest/{pipeline,adaptive_chunking,video_pipeline}.py.
+    #
+    # A corpus ingested from the repo root was therefore split by THIS simplified
+    # stub, while one ingested from backend/ used the real library — silently,
+    # with nothing in the Qdrant payload to tell the two apart. A RuntimeWarning
+    # let that proceed and write differently-chunked vectors; an ImportError
+    # stops it at the boundary.
+    #
+    # The real package is installed in backend/.venv. Run ingestion from
+    # backend/, or `pip install langchain-text-splitters` into the env you use.
+    raise ImportError(
+        "langchain_text_splitters resolved to the TEST STUB at the repo root, "
+        "shadowing the real package. Run from backend/ so site-packages wins. "
+        "Importing this stub outside pytest would chunk the corpus with a "
+        "different splitter than production uses."
     )
 
 

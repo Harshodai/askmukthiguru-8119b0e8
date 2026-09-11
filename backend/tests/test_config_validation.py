@@ -43,17 +43,24 @@ def test_ollama_does_not_require_external_key():
 
 
 def test_http_pool_limits_normalization():
+    # Assert against the declared defaults rather than literals. This test hard-coded
+    # 50 and silently went red when 917ef07c retuned the pool to 20 inside an
+    # unrelated feature commit; the behaviour under test is the normalization, not
+    # the particular number.
+    conn_default = Settings.model_fields["http_pool_max_connections"].default
+    keep_default = Settings.model_fields["http_pool_max_keepalive"].default
+
     s1 = Settings(http_pool_max_connections=50.5, http_pool_max_keepalive="10.5")
-    assert s1.http_pool_max_connections == 50
-    assert s1.http_pool_max_keepalive == 20
+    assert s1.http_pool_max_connections == conn_default
+    assert s1.http_pool_max_keepalive == min(keep_default, conn_default)
 
     s2 = Settings(http_pool_max_connections="nan", http_pool_max_keepalive="inf")
-    assert s2.http_pool_max_connections == 50
-    assert s2.http_pool_max_keepalive == 20
+    assert s2.http_pool_max_connections == conn_default
+    assert s2.http_pool_max_keepalive == min(keep_default, conn_default)
 
     s3 = Settings(http_pool_max_connections=0, http_pool_max_keepalive=-5)
-    assert s3.http_pool_max_connections == 50
-    assert s3.http_pool_max_keepalive == 20
+    assert s3.http_pool_max_connections == conn_default
+    assert s3.http_pool_max_keepalive == min(keep_default, conn_default)
 
     s4 = Settings(http_pool_max_connections=10, http_pool_max_keepalive=15)
     assert s4.http_pool_max_connections == 10

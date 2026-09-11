@@ -51,7 +51,7 @@ def test_second_brain_recall_merges_into_memory_context():
         ]
     )
 
-    memory_context, _ = asyncio.run(
+    memory_context, _, _ = asyncio.run(
         prepare_user_memory(
             container,
             "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6",
@@ -87,7 +87,7 @@ def test_second_brain_mode_b_vault_skipped_silently():
     container.second_brain = MagicMock()
     container.second_brain.unlock = AsyncMock(side_effect=VaultLockedError("passphrase required"))
 
-    memory_context, _ = asyncio.run(
+    memory_context, _, _ = asyncio.run(
         prepare_user_memory(container, "u2", [{"role": "user", "content": "hello"}])
     )
 
@@ -98,7 +98,7 @@ def test_no_second_brain_service_leaves_existing_behavior_untouched():
     container = _base_container()
     container.second_brain = None
 
-    memory_context, distress_history = asyncio.run(
+    memory_context, distress_history, _ = asyncio.run(
         prepare_user_memory(container, "u3", [{"role": "user", "content": "hello"}])
     )
 

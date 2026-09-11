@@ -99,7 +99,7 @@ def test_indic_history_translation_preserves_order_with_concurrency():
             patch.object(
                 utils,
                 "prepare_user_memory",
-                new=AsyncMock(return_value=("", [])),
+                new=AsyncMock(return_value=("", [], None)),
             ),
         ):
             state = await utils.prepare_request_state(container, body, "hi")

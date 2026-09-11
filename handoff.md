@@ -1,3 +1,393 @@
+# AskMukthiGuru — Ruthless Production Audit Handoff
+**Date:** 2026-09-11 | **Branch:** `main` | **Status:** 14 fixes implemented and uncommitted; audit incomplete by design
+
+> Newest handoff first. The 2026-08-27 corpus-ingestion handoff is retained
+> unchanged below this section — it is still the reference for the July
+> embedding-dimension incident cited in `CLAUDE.md`. Note that older documents
+> citing `handoff.md` by line number now point lower in the file.
+
+---
+
+## RESOLVED 2026-09-11 — the corpus is clean (I over-escalated this)
+
+**Measured against the live Qdrant: the corpus was NOT chunked by the stub.**
+
+Sampling 300 points from `spiritual_wisdom_contextual` (12,904 points total):
+chunk lengths run 146–2677, median 863, and the most common *exact* length
+appears 5 times in 300 — **1.7%**. The stub is a pure fixed-width slicer that
+ignores separators entirely, so its signature would be ~40%+ of chunks at
+exactly `chunk_size`. This corpus was built by the boundary chunker, which is
+the intended production path.
+
+I raised this as "the most consequential finding of the audit" from code
+reading alone. The shadowing hazard was real and R15's fail-closed guard is
+still correct — but the worst case never materialised, and the measurement
+says so plainly. Recorded rather than quietly deleted: inference escalated it,
+measurement settled it, and measurement wins.
+
+The original write-up follows for context.
+
+### (original, now disproven) Your live corpus may have been chunked by a test stub
+
+`langchain_text_splitters/` at the **repo root** is a test stub. The repo root
+precedes site-packages on `sys.path`, so any process started there imports the
+stub instead of the real library — and that includes the three bulk ingestion
+scripts that built the corpus:
+
+```
+scripts/ingestion/ingest_four_sacred_secrets.py:21
+scripts/ingestion/bulk_ingest_whisper.py:245
+scripts/ingestion/bulk_ingest_async.py:381
+```
+
+Ingested from `backend/` → real splitter. Ingested from the repo root →
+simplified stub. Different chunk boundaries, silently, with nothing in the
+Qdrant payload to tell them apart. The stub only emitted a `RuntimeWarning`
+and carried on; it now raises `ImportError` outside pytest (R15).
+
+**This cannot be answered from the payload for existing points.** To find out
+which splitter produced your vectors: re-ingest one known source from
+`backend/` and compare its chunk boundaries against what is currently indexed.
+If they differ, the corpus needs rebuilding — and every retrieval-quality
+number measured before that is meaningless.
+
+## LIVE RESULTS — the stack was finally brought up (2026-09-11)
+
+Infra via `scripts/docker-safe.sh docker compose up -d qdrant redis neo4j`;
+backend on the host against it (`/api/health` → `ready: true`, all services
+green). **First measurements ever taken on this system.**
+
+| finding | result |
+|---|---|
+| **Docker deploy** | `make docker-up`'s backend **OOM-loops: exit 137, 99 restarts.** 6 GB compose limit vs 8.3 GB Docker allocation with 3.3 GiB resident. Other projects are only ~1 GiB of that, so they are not the cause. **Nothing tests that the documented deploy boots.** → B20 |
+| **Latency** | Server-side (`latency_ms`, authoritative): p50 **10.8s** (3.6x the <3s target), p95 **165.4s** (55x). n=8. Repeated query = 0.1s (caches work); **every uncached query ≥6s**; comparative/multi-hop are the tail at 122–165s; **a bare `"hello"` costs 6.1s** |
+| **Anti-hallucination** | **Works.** On a failing query: `verification.passed=False`, faithfulness 0.52 < floor 0.60 → degraded to a grounded partial answer from real excerpts with citations. It refused to pass an unverified draft off as doctrine |
+| **Telemetry** | **Lies.** API reports `faithfulness_score: 0.0` where verification measured **0.52**. `scripts/ops/hallucination_anomaly.py` alerts on that field. Also `grounding_state:"grounded"` while `verification.passed:False`, and the model echoed its own system prompt into the draft |
+| **Corpus** | 12,904 points, chunk lengths 146–2677, dominant exact length 1.7% → boundary chunker, **not** the stub. R15 disproven |
+| **Anon quota** | Correct: 5 allowed, 6th → 429 |
+
+**Two corrections to my own reporting, both recorded rather than hidden:** I
+escalated the chunker stub as "the most consequential finding" (measurement
+disproved it), and I reported "p50 2.2s, acceptable" when quota-rejected
+requests were being counted as 0.0s successes, pulling the median down 6.5x.
+Both were the same error this audit exists to find — a good number produced by
+something that could not actually fail.
+
+## Also read — three things that will bite you
+
+1. **Another session was editing this repo concurrently.** Files changed on
+   disk mid-edit. A commit `c4a36df4` *"Phase 9: Chat History Separation"*
+   appeared that **I did not make**; it swept up that session's
+   `canonical_memory` WIP **plus** my in-flight `services/qdrant/client.py`,
+   `services/qdrant/indexer.py` and three of my test files. It committed
+   `tests/test_ingest_ontology_rollback.py` **without** the `ingest/pipeline.py`
+   fix that test covers — **that commit is internally broken.** I did not
+   rewrite history. Decide whether to fix it up before branching further.
+2. **Everything I did is uncommitted**, per the standing "never commit unless
+   asked" rule. 20 modified files + 11 new test files + 2 new docs.
+3. **The 13 remaining suite failures are not mine.** All are in the other
+   session's `canonical_memory` feature. Tracked failures in audited code went
+   **16 → 0**.
+
+---
+
+## 1. The goal
+
+Execute a ruthless end-to-end production/quality/latency audit: understand the
+system, attack it, **prove** what is broken, implement fixes, test them,
+benchmark them, attack the fixes again — and leave the repo demonstrably closer
+to production-ready. Explicitly **not** "write a report and stop".
+
+The operating constraint that shaped everything: *a fix is not done because a
+test was added.* Every fix here was proven by running its new regression test
+against the **pre-fix** code and confirming it **fails**, then against the fixed
+code and confirming it passes. A test that never fails against the defect is not
+evidence.
+
+## 2. Current state of the code
+
+| | |
+|---|---|
+| Suite at session start | **30 failed / 3180 passed / 21 skipped** (422s) |
+| Suite now | **35 failed / 3561 passed / 23 skipped** (172s) |
+| Failures in audited code | **16 → 0** (verified: `grep -c "^FAILED.*canonical_memory"` = 35 of 35) |
+| Remaining 35 failures | **all** `test_canonical_memory_*` — the other session's in-flight feature, growing as they add tests |
+
+Note the raw failure count went *up* (13 → 35) purely because the concurrent
+session kept adding `canonical_memory` tests. Do not read that as regression.
+One of theirs is worth their attention though:
+`test_canonical_memory_api.py::TestCrossUserIsolation::test_cannot_access_other_user_memory`
+is failing — a cross-user isolation test. It is their tree, so I did not touch
+it, but it should not ship red.
+
+**20 fixes total (R1–R20).** Rounds 3–4 added:
+- **R15 (P0)** — the repo-root splitter stub (see READ FIRST).
+- **R16–R18** — `test_edge_cases.py` was checking `/health`, a route that does
+  not exist, seven times (`404 == 404`). The Redis and Qdrant degradation tests
+  asserted `status in (200, 500)` *inside* `except: pass` — accepting the crash
+  they existed to rule out. Now assert the documented invariants, including
+  **no citations during a Qdrant outage** (zero retrieval ⇒ any citation is
+  fabricated).
+- **R19** — `tests/e2e/rls-cross-user.spec.ts` (17K) and `security-aal2.spec.ts`
+  (14K), the only executable proof that user A cannot read user B's data, were
+  referenced by **no gate and no CI workflow anywhere**. Added to
+  `DEFAULT_SUITES` in `scripts/prelaunch.sh`.
+- **R20** — `main-hard-gates.yml` now fails on a degenerate quality baseline.
+  **This will turn CI red immediately** (the baseline really is `mean_ndcg: 0.0`).
+  Intentional — clear it with `UPDATE_QDRANT_BASELINE=1` against a populated
+  collection.
+
+14 fixes landed (R1–R14). Full table with evidence class and per-fix test in
+`docs/RUTHLESS_PRODUCTION_EXECUTION.md`. Headlines:
+
+- **R1** backup/restore truncated at 1000 points **and deleted before reading
+  the backup** → rollback of a >1000-chunk source was permanent silent data
+  loss, logged as a successful "Rolled back".
+- **R2** `health_check` returned True on reachability; `init_collection`
+  auto-creates the collection, so a missed backfill = green `/api/health` +
+  abstention on every query.
+- **R3** Neo4j write sat outside the rollback block, then checkpointed as
+  processed → permanent split-brain, never retried.
+- **R4** token estimation inverted (divided by a tokens-per-word ratio).
+  Measured 1.65x–2.20x under-count. Real prompts were **2.42x** the declared
+  8192 window; now 1.43x.
+- **R5** `KNOWLEDGE_GRAPH_QUERY_ENABLED=false` also disabled BM25 and halved
+  `primary_query_limit` — one flag, three retrievers, and every past graph
+  ablation confounded.
+- **R6** tier-3 abstention guard **could never fire** (relationships layer was
+  unconditionally truthy) → ungrounded requests reached the LLM.
+- **R7** anonymous `/api/kg/subgraph` ran an unlabelled Cypher scan over a DB
+  holding private memory; safe only because `GlobalMemory` lacks one property.
+- **R12** Hinglish routed to English — real user-facing regression.
+- **R13** the retrieval-quality gate was mathematically unfailable.
+
+**Verdict: NO-GO.** Not for a single catastrophic bug — because several release
+gates cannot fail, and no latency or retrieval-quality number has ever been
+measured on this system.
+
+## 3. Files actively edited (all uncommitted)
+
+**Production code:** `app/api/chat.py` · `app/api/kg.py` · `ingest/pipeline.py`
+· `rag/compressor.py` · `rag/nodes/generation.py` · `rag/nodes/retrieval.py` ·
+`services/language_detection.py` · `services/qdrant/indexer.py` ·
+(`services/qdrant/client.py` — already swept into `c4a36df4`)
+
+**Repo-root / infra:** `langchain_text_splitters/__init__.py` (R15 fail-closed)
+· `scripts/prelaunch.sh` (R19) · `.github/workflows/main-hard-gates.yml` (R20)
+
+**Docs:** `CLAUDE.md` · `backend/CLAUDE.md` ·
+`docs/RUTHLESS_PRODUCTION_EXECUTION.md` + `docs/RAG_RUNTIME_DAG.md` (both new)
+
+**Tests — new (13):** `test_splitter_stub_fails_closed.py` ·
+`test_qdrant_backup_pagination.py` ·
+`test_qdrant_health_reports_empty_collection.py` ·
+`test_ingest_ontology_rollback.py` · `test_retrieval_lane_decoupling.py` ·
+`test_abstention_guard_reachable.py` · `test_okf_cache_invalidation.py` ·
+`test_qdrant_payload_provenance.py` · `test_ingest_cache_invalidation.py` ·
+`test_kg_subgraph_private_label_scope.py` · `test_title_input_bounded.py` ·
+`test_hinglish_routing_recall.py`
+
+**Tests — repaired (10):** `test_edge_cases.py` (R16–R18) ·
+`test_config_validation.py` · `test_context_graph.py` ·
+`test_generation_doc_order.py` · `test_graph_stage_fixes.py` ·
+`test_latency_optimization.py` · `test_memory_scored_retrieval.py` ·
+`test_qdrant_search_quality.py` · `test_ruthless_audit_remediation.py` ·
+`test_second_brain_context_injection.py`
+
+**Do not touch:** anything under `services/canonical_memory/` or
+`tests/test_canonical_memory_*` — another session owns that.
+
+## 4. What I tried that FAILED
+
+Honest list. Several of these are more instructive than the successes.
+
+| Attempt | Result |
+|---|---|
+| Spawned 6 parallel audit agents at once | **3 died on the session rate limit** (security, latency/LLM-economics, QA). Relaunched security + QA successfully later. **The latency/model-economics workstream never ran at all** — the single biggest hole in this audit. |
+| First baseline run with `--timeout=120` | `pytest-timeout` not installed. Worse: `\| tail` masked the real exit code so it *looked* like a pass. Now use `${PIPESTATUS[0]}`. |
+| Diagnosed `test_graph_stage_fixes` as "passes on a leaked mock from another test" | **Wrong.** No test leaks a container mock. It passed only when Qdrant was genuinely reachable. Caught by the QA agent, corrected in the doc. |
+| Claimed suite collection was nondeterministic (3231→3350→3419) | **Wrong.** `pytest-randomly` isn't installed. It was the concurrent session adding files mid-measurement + import-time infra probes loading real models. |
+| Listed `ToneAdapterStage` for deletion as dead code | **Wrong.** It's a deliberate, documented, tested inert stage preventing re-introduction of a post-hoc LLM rewrite of a grounded answer. Corrected my own backlog. |
+| First backup-pagination test | Failed — `MagicMock(name=...)` sets the mock's *name*, not an attribute. Classic gotcha. |
+| First provenance test | Failed twice — guessed `upsert_chunks` signature (missed `metadatas`), then missed `_utils` because `__new__` skips `__init__`. |
+| First ontology-rollback test | Failed — anchored the source slice on `"KG Phase 6"`, which appears **twice** in `_ingest_video_enhanced`, swallowing 8384 chars incl. an unrelated warning. |
+| First lane-decoupling test | Failed — my own explanatory comment contained the flag name the assertion forbade. |
+| B1 (atomic delete→upsert), B3 (score-scale normalisation), B6 (RAPTOR cluster keying) | **Not attempted.** B3 genuinely needs live score distributions; B1/B6 need design decisions I shouldn't make unilaterally mid-audit. |
+| Getting the stack up for real measurements | **Never happened.** Only unrelated containers were running. Zero latency/quality numbers. |
+
+## The loop to GO — how to actually run it
+
+The measurement loop now exists, which it did not at the start of this session.
+Each iteration:
+
+```bash
+# 1. infra (leave the host Supabase alone — this project depends on it)
+cd backend && bash ../scripts/docker-safe.sh docker compose up -d qdrant redis neo4j
+
+# 2. backend on the HOST (the container OOMs at 6G on an 8.3G Docker host — B20)
+REDIS_PW=$(grep -E '^REDIS_PASSWORD=' .env | cut -d= -f2-)
+env QDRANT_URL=http://localhost:6333 NEO4J_URI=bolt://localhost:7687 \
+    REDIS_URL="redis://:${REDIS_PW}@localhost:6379/0" \
+    .venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+# 3. measure — uses the job's own latency_ms, fresh anon token per query
+#    (anon_quota_messages=5; reusing one token silently 429s from #6)
+bash <scratch>/measure_latency.sh
+```
+
+**Exit criteria for GO, in dependency order.** Each needs a measured number,
+not an argument:
+
+| # | Gate | Now | Target |
+|---|---|---|---|
+| 1 | `"hello"` server latency | **6.1s** | <0.5s — cheapest p50 win; a deterministic greeting must not pay pipeline cost |
+| 2 | p50 | **10.8s** | <3s |
+| 3 | p95 | **165.4s** | define one; 55x over today |
+| 4 | Docker deploy boots | **OOM 137** | healthy, with a CI job asserting it (B20) |
+| 5 | nDCG baseline | **0.0 (vacuous)** | re-record; R20 reds CI until then (B16) |
+| 6 | RLS suites in gate | **wired (R19)** | run them green |
+| 7 | Failure paths | Redis+Qdrant real | add SIGTERM, malformed LLM, 429 (B19) |
+| 8 | Suite | 0 failures in audited code | keep it there |
+
+Attack order for #1–#3: `"hello"` first (isolated, cheap), then the
+`decompose_query -> navigate_and_hyde` serial edge — two independent LLM calls
+where **neither reads the other's output** — then the comparative-query tail.
+Re-measure between every change; the graph contributes no text to the prompt,
+so removing its cost is a latency win with no quality downside to defend.
+
+## 5. The next step I would take
+
+**In priority order:**
+
+1. **Settle the chunker question (R15).** Re-ingest one known source from
+   `backend/` and diff its chunk boundaries against what is currently indexed.
+   If they differ, the corpus was built by the test stub and needs rebuilding —
+   and until that is known, no retrieval-quality measurement is worth taking,
+   because you would be measuring an unknown corpus.
+2. **Bring the stack up and measure.** `docker compose up -d --build` from
+   `backend/`, then `benchmarks/ragas_eval.py --endpoint http://localhost:8000`.
+   **No latency number and no retrieval-quality number exists for this system.**
+   Everything about performance and answer quality here — mine included — is
+   unmeasured.
+3. **Run the latency/model-economics workstream.** It never executed, twice.
+   Nobody has counted LLM calls per request, mapped the timeout arithmetic
+   against `PIPELINE_TIMEOUT`, or checked whether client disconnect actually
+   cancels downstream work. Largest unexamined surface in the codebase.
+4. **Re-record the nDCG baseline** (B16) against a populated collection — this
+   also clears the CI red that R20 introduces.
+5. **Finish the failure-injection matrix** (B19): SIGTERM mid-stream, malformed
+   LLM output, 429 propagation. R16–R18 did Redis and Qdrant; the rest still
+   mock the graph instead of the dependency clients.
+6. Then B1 (atomic delete→upsert), B3 (score scales), B6 (RAPTOR keying), with
+   measurements in hand.
+
+### Workstreams from the brief that were never run
+
+Be aware what is genuinely unexamined, not merely unfinished:
+**latency/model-economics (§5, §11, §12)**, **RAG quality evaluation (§6)**,
+**frontend/real-user journey (§13)**, **dependency/CVE audit (§14)**. Also no
+independent red-team pass (§L) — the QA workstream partially served that role
+and did catch two of my errors, but it was not an isolated adversarial review
+of the fixes. Full accounting in the coverage table in
+`docs/RUTHLESS_PRODUCTION_EXECUTION.md`.
+
+## 6. What I learned, and what each attempt returned
+
+**The `test -f` lesson — the most valuable finding of the audit.**
+`main-hard-gates.yml:61` "validates retrieval quality" with a file-existence
+check. `qdrant_quality_baseline.json` records `mean_ndcg: 0.0`, making the
+regression assertion `>= -0.02` — vacuously true during a total retrieval
+outage. `test_edge_cases.py` asserts `404 == 404`. **Missing tests are a known
+gap; unfailable tests are a false signal that actively argues for readiness.**
+When auditing, hunt for gates that cannot fail before hunting for bugs.
+
+**Ask what a value's units are.** R4 was a units inversion hiding in plain
+sight: the docstring said tokens-per-word, the constant `1.3` *is* the standard
+English tokens-per-word figure, and the code divided. Three of five call sites
+already divided budget-by-ratio — the codebase disagreed with itself and had
+done for a long time. Measuring against the repo's own tokenizer settled it in
+one command; arguing from memory would not have.
+
+**Deliberate inertness reads identically to dead code.** `ToneAdapterStage`
+looks like cruft and is a safety guard. The difference was in its docstring and
+its test. Read before deleting — the audit's own bias toward simplification
+nearly removed a protection.
+
+**Stale tests and real bugs look the same from the failure list.** Of 16
+tracked failures, **14 were stale tests and 2 were real bugs** (Hinglish
+routing; the missing title-endpoint quota). Six stale ones shared a single
+cause — a 2-vs-3-tuple drift. Diagnosing each individually against the code was
+what separated "silencing failures" from legitimate repair. Never bulk-update a
+failing test.
+
+**A test's own fixture can encode a bug.** `test_generation_doc_order` used
+3×80-word docs expecting 2 to survive the budget — calibrated to the *inflated*
+estimator. Fixing the estimator broke it. The assertions were right; the fixture
+was sized in the buggy unit. Recalibrated the fixture, left every assertion
+untouched, and said so in a comment.
+
+**Adversarial review earns its cost.** The QA workstream corrected two of my
+own conclusions. An audit that never contradicts itself probably isn't looking
+hard enough — which is also why I recorded my wrong calls in the doc instead of
+quietly editing them out.
+
+**Per-attempt results:** 14 fixes, each two-way proven (pre-fix fail → post-fix
+pass). Security: 202 routes AST-scanned, **no P0, no working cross-user
+bypass**; the documented cache-personalization invariant verified real. Biggest
+architectural finding: **no Neo4j-derived text reaches the LLM prompt** —
+`query_neo4j_subgraph` has zero production callers, GraphRAG fusion is
+flag-disabled, KG expansion is discarded by budget math whenever a query
+decomposes into 2+ sub-queries, and the prompt's "sacred graph" block is chunk
+bookkeeping.
+
+## 7. Things worth knowing that weren't asked for
+
+**How to verify my work without trusting me.** For any fix R*n*:
+```bash
+cd backend
+git stash push -- <the production file>
+.venv/bin/python -m pytest tests/<the new test> -q -p no:randomly   # must FAIL
+git stash pop
+.venv/bin/python -m pytest tests/<the new test> -q -p no:randomly   # must PASS
+```
+That is exactly how each was validated. If a test passes in both states, it is
+worthless — delete it.
+
+**Reproduce the token measurement** (the basis for R4):
+```bash
+cd backend && .venv/bin/python -c "
+from transformers import AutoTokenizer
+t=AutoTokenizer.from_pretrained('BAAI/bge-m3')
+s='The Beautiful State is a state of inner connection without division. '*10
+print(len(t.encode(s))/len(s.split()))"   # ~1.27 tokens/word for English
+```
+
+**Test-suite gotchas that cost me time:**
+- Run `.venv/bin/pytest` **from `backend/`**. A checked-in
+  `langchain_text_splitters/` stub at the repo root shadows the real package,
+  so the root-level command documented in `CLAUDE.md` tests a *different
+  implementation* (logged as B18).
+- Wall time swings 180s↔420s purely on whether Docker is up — infra probes at
+  import time load real models. Not flakiness.
+- Always `echo "EXIT=${PIPESTATUS[0]}"` when piping pytest through `tail`.
+
+**Unresolved config contradiction:** `max_tokens_per_request = 12000` still
+exceeds `context_window_total = 8192`. R4 moved real usage from 2.42x to 1.43x
+of the declared window, but the two settings still disagree. Needs
+sarvam-105b's actual context window — do not guess it.
+
+**Process notes:** a `GateGuard` hook demanded a facts preamble before ~30 edits
+this session; `ECC_GATEGUARD=off` disables it if the friction outweighs the
+value. Session cost ran to roughly $350 — the parallel Opus agents dominate
+that, and the three that died on the rate limit were largely wasted spend.
+Stagger them, or run the cheaper workstreams on a smaller model.
+
+**What I'd tell the next person in one line:** the code is in better shape than
+the *evidence* is — fix the gates that cannot fail before writing another
+feature.
+
+---
+
 # AskMukthiGuru — Corpus Ingestion Handoff
 **Date:** 2026-08-27 | **Status:** Ingestion STOPPED — bugs being fixed, ready to re-run after commit lands
 

@@ -1579,9 +1579,13 @@ class IngestionPipeline:
             }
 
         # KG Phase 6: materialize extracted entities/relationships into Neo4j.
-        # Runs after the RAPTOR/LightRAG rollback-prone block but BEFORE the
-        # checkpoint save — failure propagates so the content is NOT marked
-        # processed and will be retried on the next ingestion attempt.
+        # Runs after the RAPTOR/LightRAG rollback-prone block. When the write is
+        # REQUIRED, failure rolls the Qdrant write back (matching the playlist
+        # path) so the reported chunks_indexed=0 is actually true. When it is
+        # OPTIONAL — the default — the checkpoint below is still saved, so the
+        # graph stays permanently behind for this source; that degradation is
+        # reported as ontology_indexed=False instead of a clean success.
+        ontology_indexed = True
         if hyper_extract_result and getattr(settings, "write_ontology_to_neo4j", True):
             try:
                 from ingest.ontology_writer import write_extraction_to_neo4j
@@ -1596,18 +1600,25 @@ class IngestionPipeline:
                     corpus_id=self._corpus_id,
                 )
             except Exception as e:
+                ontology_indexed = False
                 if settings.ontology_write_required:
-                    logger.error(
-                        f"required ontology write failed for {url}; checkpoint NOT saved: {e}"
-                    )
+                    logger.error(f"required ontology write failed for {url}; rolling back: {e}")
+                    self._rollback_reindex(url, backup_collection)
                     return {
                         "status": "error",
                         "message": f"Ontology materialization failed: {e}",
                         "source_url": url,
                         "chunks_indexed": 0,
                         "summaries_created": 0,
+                        "ontology_indexed": False,
                     }
-                logger.warning(f"optional ontology write unavailable for {url}: {e}")
+                logger.error(
+                    "optional ontology write failed for %s: %s — Qdrant holds this source but "
+                    "Neo4j has no nodes for it, and the checkpoint below marks it processed, so "
+                    "nothing retries it. Re-ingest to reconcile.",
+                    url,
+                    e,
+                )
 
         checkpoint.save(self._checkpoint_key(content_hash, source_version))
 
@@ -1633,6 +1644,7 @@ class IngestionPipeline:
             "summaries_created": summaries_count,
             "text_length": len(clean_text),
             "hyper_extract": hyper_extract_result,
+            "ontology_indexed": ontology_indexed,
         }
 
     async def _ingest_video_enhanced(
@@ -1902,9 +1914,13 @@ class IngestionPipeline:
             }
 
         # KG Phase 6: materialize extracted entities/relationships into Neo4j.
-        # Runs after the RAPTOR/LightRAG rollback-prone block but BEFORE the
-        # checkpoint save — failure propagates so the content is NOT marked
-        # processed and will be retried on the next ingestion attempt.
+        # Runs after the RAPTOR/LightRAG rollback-prone block. When the write is
+        # REQUIRED, failure rolls the Qdrant write back (matching the playlist
+        # path) so the reported chunks_indexed=0 is actually true. When it is
+        # OPTIONAL — the default — the checkpoint below is still saved, so the
+        # graph stays permanently behind for this source; that degradation is
+        # reported as ontology_indexed=False instead of a clean success.
+        ontology_indexed = True
         if hyper_extract_result and getattr(settings, "write_ontology_to_neo4j", True):
             try:
                 from ingest.ontology_writer import write_extraction_to_neo4j
@@ -1919,18 +1935,25 @@ class IngestionPipeline:
                     corpus_id=self._corpus_id,
                 )
             except Exception as e:
+                ontology_indexed = False
                 if settings.ontology_write_required:
-                    logger.error(
-                        f"required ontology write failed for {url}; checkpoint NOT saved: {e}"
-                    )
+                    logger.error(f"required ontology write failed for {url}; rolling back: {e}")
+                    self._rollback_reindex(url, backup_collection)
                     return {
                         "status": "error",
                         "message": f"Ontology materialization failed: {e}",
                         "source_url": url,
                         "chunks_indexed": 0,
                         "summaries_created": 0,
+                        "ontology_indexed": False,
                     }
-                logger.warning(f"optional ontology write unavailable for {url}: {e}")
+                logger.error(
+                    "optional ontology write failed for %s: %s — Qdrant holds this source but "
+                    "Neo4j has no nodes for it, and the checkpoint below marks it processed, so "
+                    "nothing retries it. Re-ingest to reconcile.",
+                    url,
+                    e,
+                )
 
         checkpoint.save(self._checkpoint_key(content_hash, source_version))
 
@@ -1957,6 +1980,7 @@ class IngestionPipeline:
             "chunks_indexed": total_chunks,
             "method": "enhanced_diarization",
             "hyper_extract": hyper_extract_result,
+            "ontology_indexed": ontology_indexed,
         }
 
     async def _extract_topics(self, text: str) -> list[str]:
@@ -3062,6 +3086,14 @@ class IngestionPipeline:
             except Exception as e:
                 logger.warning(f"Semantic cache invalidation failed (non-fatal): {e}")
 
+        # The semantic tier is not the only cache that can answer a question.
+        # The exact, hot and doctrine tiers were never invalidated on ingest, so
+        # after new teachings landed they kept serving the pre-ingest answer for
+        # their whole TTL — doctrine_cache.refresh() existed with no caller
+        # anywhere in the tree. Done once per source rather than per chunk, and
+        # best-effort: a cache that cannot be cleared must not fail an ingest.
+        self._invalidate_answer_caches(source_url)
+
         # P1-10: bound whisperx cache growth — drop the diarization result now that
         # speaker labels have been persisted to Qdrant payload. Best-effort.
         if video_id:
@@ -3071,6 +3103,38 @@ class IngestionPipeline:
                 logger.debug(f"whisperx cache clear failed for {video_id} (non-fatal): {e}")
 
         return upserted
+
+    def _invalidate_answer_caches(self, source_url: str) -> None:
+        """Drop cached answers that predate this source landing in the corpus.
+
+        Each tier is cleared independently so one unavailable cache cannot stop
+        the others, and no failure here is allowed to fail an ingest that has
+        already committed its vectors.
+        """
+        from app.dependencies import get_container
+        from services.hot_cache import hot_cache
+
+        try:
+            container = get_container()
+        except Exception as e:
+            logger.warning("Answer-cache invalidation skipped, no container: %s", e)
+            return
+
+        for label, invalidate in (
+            ("exact", container.exact_cache.invalidate_all),
+            ("doctrine", container.doctrine_cache.refresh),
+            ("hot", hot_cache.clear),
+        ):
+            try:
+                invalidate()
+                logger.debug("%s cache invalidated after ingesting %s", label, source_url)
+            except Exception as e:
+                logger.warning(
+                    "%s cache invalidation failed after ingesting %s (non-fatal): %s",
+                    label,
+                    source_url,
+                    e,
+                )
 
     def _record_kb_source(
         self,

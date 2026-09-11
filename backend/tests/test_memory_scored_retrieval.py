@@ -146,7 +146,7 @@ async def test_anonymous_session_skips_durable_profile_and_memory_reads():
     container.user_profile.update_profile = AsyncMock()
     container.user_profile.get_recent_memories = AsyncMock()
 
-    memory_context, distress_history = await prepare_user_memory(
+    memory_context, distress_history, _ = await prepare_user_memory(
         container,
         "anon:signed-session-token",
         [{"role": "user", "content": "What is witness awareness?"}],
@@ -207,7 +207,7 @@ async def test_scored_retrieval_dedupes_by_subject():
     from app.config import settings
 
     with patch.object(settings, "feature_memory_enabled", True):
-        memory_context, _ = await prepare_user_memory(
+        memory_context, _, _ = await prepare_user_memory(
             container,
             "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6",
             [{"role": "user", "content": "Tell me about my practice"}],

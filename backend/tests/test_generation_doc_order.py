@@ -66,9 +66,14 @@ async def test_budget_truncation_preserves_rerank_order(mock_services, monkeypat
 
     monkeypatch.setattr("rag.nodes.generation._grounded_citation_urls", _capture)
 
-    long_text_a = "alpha " * 80
-    long_text_b = "beta " * 80
-    long_text_c = "charlie " * 80
+    # Sized so that exactly two of the three docs fit the context budget, which
+    # is what makes the ordering assertions below meaningful. 80 words per doc
+    # only fit while estimate_tokens divided by the tokens-per-word ratio and so
+    # under-counted every doc by ~1.7x; against the corrected estimator the same
+    # fixture admits only one doc and the order check becomes vacuous.
+    long_text_a = "alpha " * 47
+    long_text_b = "beta " * 47
+    long_text_c = "charlie " * 47
 
     relevant_docs = [
         {"text": long_text_a, "source_url": "https://z.example/a", "title": "Zeta", "score": 0.99},

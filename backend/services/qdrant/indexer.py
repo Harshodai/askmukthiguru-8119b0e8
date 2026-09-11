@@ -239,6 +239,20 @@ class QdrantIndexer:
             # which does need the registered/unverified distinction. Without this write,
             # every chunk indexed here was permanently unretrievable under the gate.
             payload.setdefault("domain_rights_status", "licensed")
+            # Build provenance. Without these, a chunk embedded by one model is
+            # indistinguishable from a chunk embedded by another, and there is no
+            # way to ask which chunks are stale relative to the current encoder.
+            # The startup dimension check only catches a whole-collection size
+            # mismatch — it cannot see two same-dimension models, or a chunker
+            # change applied to part of the corpus. Absent on pre-existing points,
+            # so readers must treat a missing value as "unknown/legacy", never as
+            # "matches current".
+            payload.setdefault("embedding_model", settings.embedding_model)
+            payload.setdefault("embedding_dimension", settings.embedding_dimension)
+            payload.setdefault(
+                "chunker_version",
+                "boundary_v1" if getattr(settings, "use_boundary_chunker", True) else "recursive_v1",
+            )
             point = PointStruct(
                 id=point_id,
                 vector=vector_dict,

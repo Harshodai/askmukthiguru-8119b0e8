@@ -62,6 +62,19 @@ _KG_QUERY_SEMAPHORE = asyncio.Semaphore(getattr(settings, "kg_max_concurrent_que
 
 _KG_SUBGRAPH_RATE_LIMITER = TTLRateLimiter(ttl=60.0, max_requests=30)
 
+# Node labels holding per-seeker data. Neo4j is a single database shared by the
+# public doctrine graph and private memory/provenance nodes, so any anonymous
+# traversal must exclude these explicitly.
+#
+# GlobalMemory holds memory `content`/`insight`; User links a person to them;
+# SeekerTurn carries session_id/user_id_hash/prompt_hash. The subgraph scan was
+# unlabelled `MATCH (n)` and only failed to return memories because
+# GlobalMemory happens not to carry `entity_id` — one extractor change away
+# from an anonymous dump of other seekers' private text.
+#
+# Add any new per-user node label here.
+PRIVATE_GRAPH_LABELS = frozenset({"User", "GlobalMemory", "SeekerTurn"})
+
 
 _COMMENT_RE = re.compile(r"//[^\r\n]*|/\*[^*]*\*+(?:[^/*][^*]*\*+)*", re.S)
 _WS_RE = re.compile(r"\s+")
@@ -480,18 +493,28 @@ async def kg_subgraph(
             # plus its immediate neighbours. LightRAG writes `entity_id`.
             cypher = """
             MATCH (n)
-            WHERE toLower(n.entity_id) CONTAINS $q
+            WHERE n.entity_id IS NOT NULL
+              AND NOT any(l IN labels(n) WHERE l IN $private_labels)
+              AND toLower(n.entity_id) CONTAINS $q
             WITH n LIMIT $cap
             CALL {
                 WITH n
                 OPTIONAL MATCH (n)-[r]->(m)
+                WHERE m.entity_id IS NOT NULL
+                  AND NOT any(l IN labels(m) WHERE l IN $private_labels)
                 WITH r, m
                 LIMIT $edge_cap
                 RETURN r, m
             }
             RETURN n.entity_id AS src_id, labels(n) AS src_labels, type(r) AS rel, m.entity_id AS dst_id, labels(m) AS dst_labels
             """
-            result = session.run(cypher, q=q, cap=limit, edge_cap=edge_cap)
+            result = session.run(
+                cypher,
+                q=q,
+                cap=limit,
+                edge_cap=edge_cap,
+                private_labels=list(PRIVATE_GRAPH_LABELS),
+            )
             for rec in result:
                 src = rec.get("src_id")
                 if not src:

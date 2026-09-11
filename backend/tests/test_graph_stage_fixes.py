@@ -513,6 +513,14 @@ async def test_retrieval_query_fan_out_limited_to_two(monkeypatch):
     monkeypatch.setattr(_services, "_ollama", AsyncMock())
     monkeypatch.setattr(_services, "_embedder", mock_embedder)
     monkeypatch.setattr(_services, "_qdrant", mock_qdrant)
+    # retrieve_documents reaches get_container() for the Neo4j driver. Patching
+    # only _services left that call live, so this test passed solely when Qdrant
+    # happened to be reachable (container build runs init_collection) and failed
+    # with ConnectError otherwise — a hidden infra dependency, not a real check.
+    # Same patch its sibling test_retrieve_documents_contract.py already has.
+    mock_container = MagicMock()
+    mock_container.neo4j_driver = None
+    monkeypatch.setattr("app.dependencies.get_container", lambda: mock_container)
     monkeypatch.setattr(settings, "rag_okf_injection_enabled", False)
     monkeypatch.setattr(settings, "semantic_cache_enabled", False)
     monkeypatch.setattr(settings, "retrieval_score_delta_enabled", False)

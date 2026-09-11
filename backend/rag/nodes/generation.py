@@ -1037,10 +1037,18 @@ async def context_engineer(state: GraphState, config: Optional[RunnableConfig] =
     for src, idxs in source_to_chunks.items():
         if len(idxs) > 1:
             rel_lines.append(f"- {src}: chunks {sorted(idxs)}")
-    relationships_block = "RELATIONSHIPS (multi-chunk sources & LightRAG graph):\n" + (
-        "\n".join(rel_lines) if rel_lines else "None"
-    )
-    relationships_block = cap_to_token_budget(relationships_block, 400, detected_language)
+    # Empty means empty. Emitting a header with a literal "None" body made this
+    # layer unconditionally truthy, which silently disabled the tier-3
+    # abstention guard in generate_answer: `not _relationships` could never be
+    # true, so a request with no knowledge and no memory still went to the LLM
+    # with nothing to ground on instead of abstaining.
+    relationships_block = ""
+    if rel_lines:
+        relationships_block = cap_to_token_budget(
+            "RELATIONSHIPS (multi-chunk sources & LightRAG graph):\n" + "\n".join(rel_lines),
+            400,
+            detected_language,
+        )
 
     # chunks_meta: compact per-chunk index used by tier3 structured prompt
     chunks_meta_lines: list[str] = []
@@ -2683,7 +2691,15 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
                     "method": "grounded_partial_evidence",
                     "partial": True,
                 },
-                "faithfulness_score": 0.0,
+                # Report the draft's MEASURED faithfulness, not a sentinel zero.
+                # scripts/ops/hallucination_anomaly.py takes the median of this
+                # field across responses; a hardcoded 0.0 entered that median as
+                # if it were an observed hallucination, dragging fleet p50 down
+                # and making the alert threshold meaningless in both directions.
+                # The returned text here is verbatim retrieved excerpts, so
+                # grounding_state stays "grounded" — it is the rejected draft
+                # that scored low, and that score is what belongs in telemetry.
+                "faithfulness_score": float(state.get("faithfulness_score") or 0.0),
                 "confidence_score": 0.0,
                 "citations_verified": True,
                 "refusal_quality_failure": True,
@@ -2732,7 +2748,15 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
                     "method": "grounded_partial_evidence",
                     "partial": True,
                 },
-                "faithfulness_score": 0.0,
+                # Report the draft's MEASURED faithfulness, not a sentinel zero.
+                # scripts/ops/hallucination_anomaly.py takes the median of this
+                # field across responses; a hardcoded 0.0 entered that median as
+                # if it were an observed hallucination, dragging fleet p50 down
+                # and making the alert threshold meaningless in both directions.
+                # The returned text here is verbatim retrieved excerpts, so
+                # grounding_state stays "grounded" — it is the rejected draft
+                # that scored low, and that score is what belongs in telemetry.
+                "faithfulness_score": float(state.get("faithfulness_score") or 0.0),
                 "confidence_score": 0.0,
                 "citations_verified": True,
                 "refusal_quality_failure": True,
@@ -3125,7 +3149,14 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
                     "method": "grounded_partial_evidence",
                     "partial": True,
                 },
-                "faithfulness_score": 0.0,
+                # See the note on the other grounded_partial_evidence returns:
+                # emit the measured score, never a sentinel that pollutes the
+                # hallucination median.
+                "faithfulness_score": float(
+                    verification.get("faithfulness_score")
+                    or state.get("faithfulness_score")
+                    or 0.0
+                ),
                 "confidence_score": confidence,
                 "hallucination_flag": False,
                 "citations_verified": True,

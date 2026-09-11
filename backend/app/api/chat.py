@@ -376,11 +376,18 @@ def _cache_language_key(message: str, language: str) -> str:
     return f"{normalized_lang}:{message.strip()}"
 
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+
+# A title needs the opening of a message, never the whole thing. The field was
+# an unbounded `str` on an endpoint that is anonymous-accessible, rate-limited
+# only by request count, and outside the anonymous chat quota — so one caller
+# could bill 20 LLM calls a minute on arbitrarily large prompts.
+_TITLE_INPUT_MAX_CHARS = 2000
 
 
 class TitleRequest(BaseModel):
-    first_message: str
+    first_message: str = Field(..., max_length=_TITLE_INPUT_MAX_CHARS)
 
 
 @router.post("/chat/title")
@@ -398,6 +405,16 @@ async def generate_title_endpoint(
     first_message = body.first_message.strip()
     if not first_message:
         return {"title": "New conversation"}
+
+    # This endpoint invokes the LLM on behalf of an anonymous caller, so it has
+    # to sit behind the same admission controls as /api/chat. Previously it was
+    # rate-limited by request count only and skipped the anonymous quota
+    # entirely, leaving a provider-spend vector open. The reservation is
+    # deliberately not released: a title is a real LLM call and counts as a turn.
+    user = resolve_anon_identity(user, request.headers.get("X-Session-Id"))
+    quota = await _enforce_anon_quota(user, container)
+    if quota.quota_exceeded:
+        return _anon_quota_response(quota)
 
     try:
         system_prompt = "Create a concise, meaningful chat title. Return ONLY the title, no quotes, no punctuation, and keep it under 6 words."

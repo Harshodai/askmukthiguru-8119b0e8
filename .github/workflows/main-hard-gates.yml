@@ -63,6 +63,32 @@ jobs:
           test -f backend/app/runtime_artifacts.py
           test -f backend/tests/test_runtime_artifacts.py
           test -f docs/production/PRODUCTION_READINESS.md
+          # NOTE: the `test -f` lines above prove these files EXIST. They do not
+          # run anything. In particular the retrieval-quality suite is not
+          # executed by this workflow — it needs a live Qdrant. Do not read a
+          # green run here as evidence of retrieval quality.
+          #
+          # What IS enforceable without services: the quality gate's baseline
+          # must be able to discriminate. It was checked in as mean_ndcg 0.0,
+          # which turns the regression assertion into `>= -0.02` — vacuously
+          # true even during a total retrieval outage. A gate that cannot fail
+          # is worse than no gate, so fail the build on a degenerate baseline.
+          python - <<'PY'
+          import json, pathlib, sys
+          p = pathlib.Path("memory/qdrant_quality_baseline.json")
+          if not p.exists():
+              print(f"::warning::{p} missing; retrieval-quality gate has no baseline")
+              sys.exit(0)
+          ndcg = json.loads(p.read_text()).get("hybrid", {}).get("mean_ndcg", 0.0)
+          if ndcg <= 0.0:
+              print(
+                  f"::error::retrieval-quality baseline mean_ndcg={ndcg} is degenerate. "
+                  "The regression assertion becomes vacuously true. Re-record against a "
+                  "populated collection with UPDATE_QDRANT_BASELINE=1."
+              )
+              sys.exit(1)
+          print(f"retrieval-quality baseline is discriminating: mean_ndcg={ndcg}")
+          PY
           PYTHONPATH=backend python - <<'PY'
           from app.runtime_artifacts import inspect_runtime_artifacts
           result = inspect_runtime_artifacts()

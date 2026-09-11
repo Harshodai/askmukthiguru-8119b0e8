@@ -20,18 +20,27 @@ logger = logging.getLogger(__name__)
 # Minimum score threshold for a sentence to be considered relevant
 _SENTENCE_THRESHOLD = 0.3
 
-# Approximate token-to-word ratio by script family.
-# Indic scripts produce wider tokens, so word-count / ratio underestimates
-# token count when calibrated only for English.
+# Tokens produced per whitespace word, by script family.
+#
+# Measured against the tokenizer this repo actually ships (BAAI/bge-m3) on
+# representative doctrine text; Indic scripts fragment far harder than Latin:
+#   en 1.27 | hi 1.23 | ta 1.61 | te 1.95 | bn 2.44 | kn 2.53
+#
+# These are MULTIPLIERS: tokens = words * ratio. The values were always
+# calibrated that way (1.3 is the standard English tokens-per-word figure) but
+# estimate_tokens divided by them, so every estimate ran low — 1.65x low for
+# English and 2.2x low for Bengali, i.e. the Indic scripts this table exists to
+# protect were the worst under-counted. Keep the multiply/divide directions
+# below consistent with this comment or the budget guarantees silently invert.
 _SCRIPT_TOKEN_RATIOS = {
     "latin": 1.3,
-    "devanagari": 0.8,
-    "telugu": 0.8,
-    "kannada": 0.8,
-    "tamil": 0.8,
-    "bengali": 0.9,
-    "arabic": 0.9,
-    "default": 1.0,
+    "devanagari": 1.3,
+    "telugu": 2.0,
+    "kannada": 2.5,
+    "tamil": 1.6,
+    "bengali": 2.4,
+    "arabic": 2.0,
+    "default": 2.0,
 }
 
 _LANG_TO_SCRIPT: dict[str, str] = {
@@ -57,7 +66,7 @@ def estimate_tokens(text: str, language: str = "en") -> int:
     if not words:
         return 0
     ratio = get_token_ratio(language)
-    return int(len(words) / ratio)
+    return int(len(words) * ratio)
 
 
 def get_token_ratio(language: str = "en") -> float:
@@ -94,11 +103,10 @@ def cap_to_token_budget(text: str, max_tokens: int, language: str = "en") -> str
         return ""
 
     ratio = get_token_ratio(language)
-    # ratio is words-per-token (estimate_tokens divides by it): words = tokens * ratio,
-    # matching estimate_tokens's inverse. Dividing here (the previous bug) let Indic-
-    # script text — the exact case this ratio exists to protect — through too many
-    # words, defeating the budget guarantee for those languages.
-    max_words = int(max_tokens * ratio)
+    # ratio is tokens-per-word, so the word allowance is the inverse of the
+    # token budget. Multiplying here (the previous bug) handed back ~1.7x the
+    # requested budget for English and ~2x for Kannada/Bengali.
+    max_words = max(1, int(max_tokens / ratio))
 
     if len(words) <= max_words:
         return text

@@ -481,6 +481,35 @@ All backend config lives in `backend/.env` (copy from `backend/.env.example`). O
 - `WHISPERX_MODEL` / `WHISPERX_DEVICE` / `WHISPERX_COMPUTE_TYPE` — WhisperX transcription (`large-v3` / `auto` / `auto`). **`WHISPER_MODEL`, `WHISPER_BACKEND` and `WHISPER_COMPUTE_TYPE` were removed on 2026-08-02** — they were documented here and set in `docker-compose.yml`, but no code ever read them, so setting them configured nothing. Only the `WHISPERX_*` names take effect (`services/whisper_local_service.py:344`); MLX uses `WHISPER_LOCAL_MODEL`.
 - `KNOWLEDGE_GRAPH_QUERY_ENABLED` — default `true` (config.py:397). Gates per-query Neo4j graph work in `rag/nodes/retrieval.py`. **Corrected 2026-09-05 (ruthless perf audit):** the LightRAG-`aquery` timeout budget this section previously described is dead on the hot chat path — `retrieve_documents` calls `retrieve_for_single_query` with `lightrag=None` at both call sites (retrieval.py:1250, 1337), so the function's internal LightRAG branch (`aquery` under `LIGHTRAG_RETRIEVAL_TIMEOUT`) is never reached from a real request; it sits inside the retrieval `asyncio.gather` only in code, not in the live call graph. The two costs that actually run per RELATIONAL/FACTUAL/QUERY request are `expand_query_with_ontology` (awaited **before** the retrieval fan-out even starts — up to 3s of pure serial latency, itself a flagged latency finding) and `query_neo4j_subgraph` (RELATIONAL intent only, awaited after LightRAG-branch merge rather than run concurrently with the primary retrieval `asyncio.gather`). Before re-introducing any live LightRAG-in-hot-path work, grep for other callers of `retrieve_for_single_query` that pass a non-`None` `lightrag` — none exist on the standard chat path as of this correction. It was off historically when the graph held ~5 edges (pure latency tax); the ontology expansion (commit e84cfed9) grew it past the 1,000-edge threshold and the traversal was enabled. **Counts have since dropped** — live re-verification on 2026-09-04 (production audit, finding N2) found **1,271 relationships / 4,348 nodes** (an untracked purge/consolidation ops run on 2026-09-03 removed most of the prior 11,136/7,512 count, see `data/neo4j_junk_purge_backup_*.json`), a 27% margin over the threshold rather than 10x. Re-verify before relying on this figure — it decays fast; `docker exec mukthiguru-neo4j cypher-shell -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "MATCH ()-[r]->() RETURN count(r)"`. Also see the same audit's finding N1: as of 2026-09-04, 100% of live relationships are LightRAG's generic `DIRECTED` type — the typed ontology (`domain/spiritual_ontology.py` `RelationType`) has near-zero live representation, so traversal signal is topological co-occurrence, not typed reasoning, until `ingest/hyper_extract_adapter.py`'s extraction yield improves further. Disable `KNOWLEDGE_GRAPH_QUERY_ENABLED` again only if a measured latency regression outweighs the retrieval lift. Ingestion and the ontology seeder are unaffected either way.
 
+## Knowledge graph: what actually reaches an answer
+
+**Established 2026-09-11 (ruthless audit), `PROVEN FROM CODE`.** Read this
+before investing in Neo4j work or citing the graph as a quality mechanism.
+
+**No Neo4j-derived text reaches the LLM prompt.**
+
+- `query_neo4j_subgraph` (`rag/nodes/retrieval.py:245`) has **zero production
+  callers** — only tests reference it.
+- GraphRAG fusion and the entity-linked Qdrant prefetch are both gated on
+  `graphrag_fusion_enabled`, default `False` (`app/container.py:406` wires the
+  prefetch to that same flag).
+- The only live per-request Neo4j call is `expand_query_via_kg`
+  (`rag/kg_expansion.py:167`). Its neighbours become an augmented query
+  appended **last** to `expansion_queries`, then truncated to
+  `remaining_budget = 2 - len(primary_queries)` — which is **0 whenever the
+  query decomposed into 2+ sub-queries**, so the result is computed and thrown
+  away in the common case.
+- The prompt's "RELATIONSHIPS & DOCTRINE ONTOLOGY (sacred graph)" block is
+  built from multi-chunk bookkeeping (`rag/nodes/generation.py:1032-1043`), not
+  from graph edges. The label is misleading.
+
+So the graph's only possible live influence is extra query *terms*, in a narrow
+case, with no provenance. Any claim that answers are "graph-grounded" is
+currently false. Measure before adding more graph machinery — and note that
+until the 2026-09-11 lane fix, `KNOWLEDGE_GRAPH_QUERY_ENABLED` also silently
+controlled BM25 and `primary_query_limit`, so older graph ablations were
+confounded and their conclusions should not be trusted.
+
 ## Caching invariants
 
 `cache_key` is `(language, message)` only — it carries **no `user_id` and no `tenant_id`** — and every tier (hot, exact, semantic, vector) is process- or Redis-wide. `CacheUpdateStage` therefore **must not** cache an answer that `context_engineer` personalized with `memory_context`, or one seeker's private context gets replayed to the next person asking the same question. Guarded in `app/pipeline/stages/cache_stage.py`; regression test in `backend/tests/test_cache_personalization_leak.py`.
@@ -543,7 +572,7 @@ Rules:
 - **Never remove the OKF `_excluded_parts` staging filter.** `OKFStore.list_entries()` uses `rglob` (the teacher-subdir layout `sri-preethaji/`/`sri-krishnaji/`/`shared/` requires recursion) and keeps `staging/` and `_scripts/` out via an explicit `_excluded_parts={"staging","_scripts"}` filter — **the filter, not glob depth, is the review gate.** `staging/` holds unreviewed, LLM-generated doctrine; drop the filter and it reaches `compiled.json`, making the review gate a no-op. Reverting to a non-recursive `glob` (the old, wrong "fix") instead silently drops every teacher-subdir teaching from the index. Both failure modes are guarded by `backend/tests/test_okf_pipeline_integrity.py`.
 - **Never put non-teaching content in `memory/okf/`.** See the three invariants above. `docs/engineering-notes/` is where RAG/config notes belong.
 - **Never re-derive the OKF directory.** `services/memory/okf_store.py` exports `OKF_DIR` / `STAGING_DIR`, which handle both the repo layout and the image layout (inside the image `backend/` *is* `/app`, so `parents[3]` and `_BACKEND.parent` both land on `/`). `compiler.py` and `scripts/extract_okf_from_stores.py` import them.
-- `_OKF_CACHE` in `rag/nodes/retrieval.py` is a per-process cache: new entries need a **recompile plus a backend restart** to appear.
+- `_OKF_CACHE` in `rag/nodes/retrieval.py` is a per-process cache, but since 2026-09-11 it is keyed on `compiled.json`'s mtime — a **recompile alone** is enough; no restart. Before that fix nothing invalidated it, so approved doctrine never reached an answer until the process was restarted.
 - The extractor exists as **two tracked copies** — `backend/scripts/extract_okf_from_stores.py` and `scripts/extract_okf_from_stores.py` — added together in `1af838ee` and never separated. They must stay byte-identical; `tests/test_okf_pipeline_integrity.py::test_extractor_copies_are_identical` fails if they drift, and `test_extractor_llm_chain_has_all_fallbacks` pins the multi-provider → OpenRouter → Ollama chain. Edit both, or neither. (An earlier note here claimed the root copy "was deleted" — it never was; `git log --diff-filter=AD` shows only the add.)
 - **Ops scripts follow the opposite rule: one canonical home, in `backend/scripts/ops/`.** `scripts/ops/` and `backend/scripts/ops/` are separate trees with separate purposes and *no* sync between them, so a same-named file in both drifts silently and whichever one an operator runs is a coin flip. Guarded by `backend/tests/test_repo_layout.py`. A backend ops script also computes `_BACKEND = Path(__file__).resolve().parents[2]`, which only resolves to `backend/` from inside `backend/scripts/ops/` — a copy at the repo root is broken on import.
 
@@ -564,10 +593,28 @@ Config is loaded via `backend/app/config.py` (pydantic-settings). Import as `fro
 Every chat request flows through an ordered chain of pure-function stages that wrap the RAG graph. `app/orchestrator.py` (sync) and `app/stream_orchestrator.py` (SSE) both delegate to `app/pipeline/pipeline_coordinator.py:PipelineCoordinator.execute()`, which runs the chain defined in `app/pipeline/stages/pipeline_builder.py`:
 
 ```
-CacheCheck → CircuitBreaker → RequestState → InputGuardrail → DoctrineCache
-→ CasualShortCircuit → Distress → Graph → MeditationGen → Translation
-→ ToneAdapter → OutputGuardrail → Memory → CacheUpdate → ResultAssembly
+CacheCheck → RequestState → InputGuardrail → CircuitBreaker → DoctrineCache
+→ CasualShortCircuit → Distress → BoundedComparisonShortCircuit → Graph
+→ MeditationGen → Translation → ToneAdapter → OutputGuardrail → Memory
+→ CacheUpdate → ResultAssembly
 ```
+
+**Corrected 2026-09-11 (ruthless audit).** The order above is read from
+`pipeline_builder.py:36-53`. This document previously listed `CircuitBreaker`
+second — it actually runs **fourth**, after `RequestState` and
+`InputGuardrail` — and omitted `BoundedComparisonShortCircuit` entirely.
+Also corrected: the chat routes are in `app/api/chat.py:423` (streaming `:687`),
+**not** `app/main.py`.
+
+Dead on the live config, verified against `backend/.env` — do not assume these
+run: `DoctrineCacheStage` (`DOCTRINE_CACHE_ENABLED=false`), `regenerate_gate`
+(`rag_regenerate_before_rewrite=False`), `agentic_graph_traversal`
+(`agentic_graph_traversal_enabled=False`), the standalone BM25 lane
+(`BM25_RETRIEVAL_ENABLED=false`), and the `lightrag` parameter of
+`retrieve_for_single_query` (declared, never referenced in the body; both call
+sites pass `None`). `ToneAdapterStage` is a **deliberate, tested no-op** — it
+exists so a post-hoc LLM rewrite of a grounded answer cannot be reintroduced
+under its name. Do not "clean it up".
 
 Stages operate on a shared `PipelineContext` (services via `ctx.container`, coordinator helpers via `ctx.coordinator`) and are unit-testable in isolation. `GraphStage` is the step that invokes the LangGraph described below.
 

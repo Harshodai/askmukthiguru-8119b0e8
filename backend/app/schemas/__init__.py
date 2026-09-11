@@ -265,7 +265,24 @@ class ChatResponse(BaseModel):
         None,
         description="Typed evidence provenance for a response",
     )
-    grounding_state: Literal["grounded", "abstained", "safety_redirect", "system_error"] = Field(
+    # Must list every state the pipeline actually emits. The previous 4-value
+    # Literal omitted bounded_hypothetical, capability_answer,
+    # provenance_boundary and response_format_capability — all of which
+    # rag/nodes/generation.py produces — so constructing a ChatResponse on
+    # those paths raised ValidationError (verified: three of the four fail
+    # against the old Literal). Widening the contract to match the code; the
+    # alternative reading, that the contract was right and the code wrong,
+    # would mean deleting four working response modes.
+    grounding_state: Literal[
+        "grounded",
+        "abstained",
+        "safety_redirect",
+        "system_error",
+        "bounded_hypothetical",
+        "capability_answer",
+        "provenance_boundary",
+        "response_format_capability",
+    ] = Field(
         default="abstained",
         description="Truthful final state of retrieval and response grounding",
     )

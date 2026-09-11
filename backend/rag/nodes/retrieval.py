@@ -57,12 +57,27 @@ _OKF_COMPILED_PATH = (
     else __import__("pathlib").Path("/app/memory/okf/compiled.json")
 )
 _OKF_CACHE: list[dict] | None = None
+# mtime of the compiled index the cache was built from. Keyed on the file rather
+# than reset by its writers: compile_okf() is invoked from the admin endpoint,
+# the CLI script and ingestion, and a cache that only one of those knows to
+# clear goes stale for the others. Previously nothing cleared it at all, so
+# approved doctrine did not reach answers until the process restarted.
+_OKF_CACHE_MTIME: float | None = None
+
+
+def _okf_index_mtime() -> float | None:
+    try:
+        return _OKF_COMPILED_PATH.stat().st_mtime
+    except OSError:
+        return None
 
 
 def _load_okf_entries() -> list[dict]:
-    global _OKF_CACHE
-    if _OKF_CACHE is not None:
+    global _OKF_CACHE, _OKF_CACHE_MTIME
+    current_mtime = _okf_index_mtime()
+    if _OKF_CACHE is not None and current_mtime == _OKF_CACHE_MTIME:
         return _OKF_CACHE
+    _OKF_CACHE_MTIME = current_mtime
     if not _OKF_COMPILED_PATH.exists():
         # Loud on purpose: rag_okf_injection_enabled defaults to True, so an absent
         # index silently strips the canonical knowledge layer from every answer.
@@ -1058,8 +1073,15 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
         retrieval_lane = "relational"
         lane_budget_ms = getattr(settings, "retrieval_relational_budget_ms", 3500)
     else:
-        # Standard query tier maps to relational lane if KG enabled, otherwise fast
-        retrieval_lane = "relational" if getattr(settings, "knowledge_graph_query_enabled", True) else "fast"
+        # A standard-tier query keeps the relational lane whether or not the
+        # knowledge graph is enabled. The lane describes how much retrieval work
+        # the QUESTION deserves; graph availability is gated independently below
+        # (see the knowledge_graph_query_enabled check on the kg_coro block).
+        # Collapsing to "fast" here meant KNOWLEDGE_GRAPH_QUERY_ENABLED=false
+        # also disabled the BM25 fan-out and halved primary_query_limit, so one
+        # flag silently degraded three unrelated retrievers — and confounded any
+        # attempt to measure what the graph itself contributes.
+        retrieval_lane = "relational"
         lane_budget_ms = getattr(settings, "retrieval_relational_budget_ms", 3500)
 
     scope = CorpusScope(

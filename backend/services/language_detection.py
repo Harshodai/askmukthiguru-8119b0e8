@@ -48,6 +48,19 @@ HINDI_WORDS: list[str] = [
     "bhai", "dost", "dil", "mann", "zindagi", "khush", "dukhi", "pyaar",
     "abhi", "kal", "aaj", "subah", "raat", "din", "waqt", "ghar",
     "kaun", "kab", "kahan", "kyun", "matlab", "sach", "galat",
+    # Added 2026-09-11 (ruthless audit). _check_hinglish needs >=30% of words to
+    # match, and this list omitted several of the commonest Hinglish tokens, so
+    # genuine code-mix scored under the threshold and was routed to English —
+    # e.g. "Mujhe gussa bahut aata hai when my family does not understand me"
+    # matched only 4 of 16 words (0.25). Vocabulary recall was the defect, not
+    # the threshold; lowering the threshold instead would misfire on English.
+    # Every entry here must be a non-word in English — no "man", "the", "do".
+    "gussa", "bahut", "aata", "aati", "aate", "karun", "karoon", "karta",
+    "karti", "karte", "kuch", "kuchh", "thoda", "zyada", "chahiye", "samajh",
+    "samajhta", "samajhti", "hoti", "hone", "hua", "hui", "huye", "diya",
+    "liya", "milta", "milti", "lagta", "lagti", "sochta", "sochti", "jab",
+    "tab", "saath", "andar", "bahar", "wala", "wali", "dukh", "khushi",
+    "shanti", "paas", "phir", "sab", "bina", "jaise", "aisa", "aisi",
 ]
 
 _HINDI_PATTERN = re.compile(

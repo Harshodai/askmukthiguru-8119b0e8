@@ -136,6 +136,15 @@ DEFAULT_SUITES=(
   session-auth
   prelaunch-sweep
   full-regression
+  # Tenant-isolation proof. Both specs already existed and were referenced by
+  # NO gate and NO CI workflow — 17K and 14K of real cross-user attack tests
+  # sitting inert while the pre-launch gate reported green. These are the only
+  # executable evidence that user A cannot read user B's data, so a release
+  # gate that omits them cannot speak to isolation at all.
+  # Note: rls-cross-user needs `serviceWorkers: 'block'` — a service worker
+  # bypasses page.route() (see the AAL2/RLS notes in the root CLAUDE.md).
+  rls-cross-user
+  security-aal2
 )
 
 IFS=' ' read -r -a SUITES <<< "${SUITES:-${DEFAULT_SUITES[*]}}"

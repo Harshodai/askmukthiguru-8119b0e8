@@ -253,8 +253,8 @@ async def test_llm_api_failure():
         pass
 
     # Server must still be healthy after the failure
-    health = client.get("/health")
-    assert health.status_code in (200, 404)
+    health = client.get("/api/health")
+    assert health.status_code == 200
 
     app.dependency_overrides[get_container] = lambda: _build_mock_container()
 
@@ -304,17 +304,28 @@ async def test_redis_connection_error():
     app.dependency_overrides[get_container] = lambda: mock_container
 
     payload = {"user_message": "Hello", "session_id": "redis-fail", "messages": []}
-    try:
-        response = client.post("/api/chat", json=payload)
-        assert response.status_code in (200, 500)
-        if response.status_code == 200:
-            data = response.json()
-            assert "response" in data
-    except (ConnectionError, RuntimeError, ExceptionGroup):
-        pass
 
-    health = client.get("/health")
-    assert health.status_code in (200, 404)
+    # CLAUDE.md, Failover & Degradation Invariant 1: when Redis drops, search
+    # queries bypass the semantic cache and proceed to vector/graph retrieval
+    # "without failing requests with HTTP 500". Assert that contract.
+    #
+    # This previously read `assert status_code in (200, 500)` wrapped in
+    # `except (...): pass` — it accepted the very crash it was meant to rule out
+    # and swallowed any exception, so it could not fail. An exception escaping
+    # here IS the regression, so it is deliberately no longer caught.
+    response = client.post("/api/chat", json=payload)
+
+    assert response.status_code != 500, (
+        "Redis outage produced HTTP 500; the documented invariant is graceful "
+        "degradation to in-process caches, not a failed request"
+    )
+    assert (
+        response.status_code == 200
+    ), f"expected a served answer during Redis degradation, got {response.status_code}"
+    assert "response" in response.json()
+
+    health = client.get("/api/health")
+    assert health.status_code == 200
 
     app.dependency_overrides[get_container] = lambda: _build_mock_container()
 
@@ -455,8 +466,8 @@ async def test_streaming_disconnect():
             break
 
     # After the partial read / disconnect, the server should still be available
-    health_resp = client.get("/health")
-    assert health_resp.status_code in (200, 404), "Server became unavailable after partial stream"
+    health_resp = client.get("/api/health")
+    assert health_resp.status_code == 200, "Server became unavailable after partial stream"
 
     app.dependency_overrides[get_container] = lambda: _build_mock_container()
 
@@ -595,16 +606,31 @@ async def test_qdrant_timeout_graceful_degradation():
         "session_id": "qdrant-timeout",
         "messages": [],
     }
-    try:
-        response = client.post("/api/chat", json=payload)
-        assert response.status_code in (200, 500)
-        if response.status_code == 200:
-            assert "response" in response.json()
-    except (CircuitOpenException, ExceptionGroup):
-        pass
+    # CLAUDE.md, Failover & Degradation Invariant 3: with Qdrant degraded, the
+    # fallback "returns honest zero-source abstention rather than fabricating
+    # ungrounded teachings". The failure that matters here is not a crash — it
+    # is answering anyway, with citations the system cannot possibly have.
+    #
+    # This previously accepted a 500 and swallowed the exception, so neither
+    # the crash nor the fabrication could ever be detected.
+    response = client.post("/api/chat", json=payload)
 
-    health = client.get("/health")
-    assert health.status_code in (200, 404)
+    assert response.status_code == 200, (
+        f"Qdrant degradation returned {response.status_code}; the invariant is a "
+        "served abstention, not a failed request"
+    )
+    data = response.json()
+    assert "response" in data
+
+    # Zero retrieval means zero provenance. A non-empty citation list here would
+    # mean the pipeline invented sources for teachings it never retrieved.
+    assert not data.get("citations"), (
+        f"fabricated provenance during Qdrant outage: {data.get('citations')!r} — "
+        "no documents were retrievable, so no citation can be genuine"
+    )
+
+    health = client.get("/api/health")
+    assert health.status_code == 200
 
     app.dependency_overrides[get_container] = lambda: _build_mock_container()
 
@@ -640,8 +666,8 @@ async def test_embedding_service_load_failure():
     except (CircuitOpenException, ExceptionGroup):
         pass
 
-    health = client.get("/health")
-    assert health.status_code in (200, 404)
+    health = client.get("/api/health")
+    assert health.status_code == 200
 
     app.dependency_overrides[get_container] = lambda: _build_mock_container()
 
@@ -712,8 +738,8 @@ async def test_provider_rate_limit_handling():
     except (RuntimeError, ExceptionGroup):
         pass
 
-    health = client.get("/health")
-    assert health.status_code in (200, 404)
+    health = client.get("/api/health")
+    assert health.status_code == 200
 
     app.dependency_overrides[get_container] = lambda: _build_mock_container()
 
@@ -749,7 +775,7 @@ async def test_cascading_failure_two_dependencies_down():
     except (ConnectionError, CircuitOpenException, RuntimeError, ExceptionGroup):
         pass
 
-    health = client.get("/health")
-    assert health.status_code in (200, 404)
+    health = client.get("/api/health")
+    assert health.status_code == 200
 
     app.dependency_overrides[get_container] = _build_mock_container

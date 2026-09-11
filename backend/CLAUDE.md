@@ -23,10 +23,17 @@ Benchmarks: `benchmarks/RUN_ME.sh` (needs the live Docker stack; normally run by
 `POST /api/chat` → anonymous-quota check (`ServiceContainer.anon_quota_service`) → `app/orchestrator.py` (sync) or `app/stream_orchestrator.py` (SSE) → `app/pipeline/pipeline_coordinator.py:PipelineCoordinator.execute()` → `StageRunner` runs the ordered stage chain from `app/pipeline/stages/pipeline_builder.py`:
 
 ```
-CacheCheck → CircuitBreaker → RequestState → InputGuardrail → DoctrineCache
-→ CasualShortCircuit → Distress → Graph → MeditationGen → Translation
-→ ToneAdapter → OutputGuardrail → Memory → CacheUpdate → ResultAssembly
+CacheCheck → RequestState → InputGuardrail → CircuitBreaker → DoctrineCache
+→ CasualShortCircuit → Distress → BoundedComparisonShortCircuit → Graph
+→ MeditationGen → Translation → ToneAdapter → OutputGuardrail → Memory
+→ CacheUpdate → ResultAssembly
 ```
+
+**Corrected 2026-09-11 (ruthless audit)** against `pipeline_builder.py:36-53`:
+`CircuitBreaker` runs **fourth**, not second, and `BoundedComparisonShortCircuit`
+was missing entirely. The chat routes live in `app/api/chat.py:423` (streaming
+`:687`), not `app/main.py`. Full runtime DAG, including which stages are dead on
+the live config: `../docs/RAG_RUNTIME_DAG.md`.
 
 - Anonymous users get a server-signed session token from `POST /api/auth/anon-session` and echo it back as `session_id` / `X-Session-Id`. `resolve_anon_identity()` verifies the HMAC and rewrites the user id to `anon:<payload>` so sessions are isolated.
 - Anonymous chat quota: `settings.anon_quota_messages` (default 5), `settings.anon_quota_window_hours` (default 24), `settings.anon_quota_enabled` (default true). Enforced in `/api/chat`, `/api/chat/v2`, and `/api/chat/stream` before any pipeline work. Exceeded requests return `429 {quota_exceeded: true}`.
@@ -61,7 +68,7 @@ The extractor is imported from `backend/scripts/extract_okf_from_stores.py` (by 
 
 **Ops scripts are the opposite rule — one canonical home, `backend/scripts/ops/`.** That tree and the repo-root `scripts/ops/` are unrelated collections that merely share a directory name; nothing syncs them. A same-named file in both drifts silently, and a backend ops script copied to the root is broken anyway (`_BACKEND = Path(__file__).resolve().parents[2]` resolves to the repo root there, not `backend/`). Guarded by `tests/test_repo_layout.py`.
 
-After changing OKF entries, recompile **and restart** the backend: `_OKF_CACHE` in `rag/nodes/retrieval.py` is a per-process cache.
+After changing OKF entries, recompile — a restart is **no longer required**. `_OKF_CACHE` in `rag/nodes/retrieval.py` is still per-process, but as of 2026-09-11 it is keyed on `compiled.json`'s mtime, so any writer (admin endpoint, CLI, ingestion) invalidates it. Previously nothing cleared it at all and approved doctrine did not reach a single answer until the process restarted.
 
 ## Conventions
 
