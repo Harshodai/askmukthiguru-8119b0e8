@@ -63,7 +63,7 @@ export const AiTransparencyBanner: React.FC<AiTransparencyBannerProps> = ({
           <div className="flex items-center gap-2 min-w-0 flex-1">
             <Info className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
             <p className="truncate text-muted-foreground sm:whitespace-normal">
-              <span>AskMukthiGuru is an AI companion grounded in spiritual teachings.</span>
+              <span>You are conversing with AskMukthiGuru AI, an artificial intelligence assistant grounded in authentic spiritual teachings.</span>
               {' '}
               <button
                 type="button"
