@@ -346,4 +346,5 @@ docs/transcript_end_to_end_review_report.md
 data/ingest_checkpoint.json.ckpt.lock
 coverage/
 
-
+# Supabase CLI scratch (version-check cache, written by any `supabase` command)
+**/supabase/.temp/
