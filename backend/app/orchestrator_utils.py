@@ -853,6 +853,39 @@ async def prepare_user_memory(
     if not user_id or not _is_persistable_user_id(user_id):
         return memory_context, distress_history, None
 
+    # --- Canonical memory (read path) ---
+    # Served first and, when it returns something, served INSTEAD of the legacy
+    # blocks: two memory systems describing the same seeker in one prompt is a
+    # contradiction waiting to happen. Bounded and fail-open — memory must never
+    # cost an answer. Anonymous callers are skipped: canonical memories are
+    # keyed to a real account, and `anon:<session>` identities are not people.
+    canonical_integration = getattr(container, "canonical_memory_integration", None)
+    if (
+        canonical_integration is not None
+        and user_id
+        and user_id != "anonymous"
+        and not str(user_id).startswith("anon:")
+    ):
+        try:
+            canonical_block = await asyncio.wait_for(
+                canonical_integration.prepare_context(
+                    user_id=user_id,
+                    query=recall_query,
+                    session_id="",
+                    session_messages=chat_history,
+                ),
+                timeout=float(getattr(settings, "canonical_memory_timeout", 2.0)),
+            )
+            if canonical_block:
+                logger.info(
+                    "Canonical memory context served (%d chars)", len(canonical_block)
+                )
+                return canonical_block, distress_history, None
+        except (TimeoutError, asyncio.TimeoutError):
+            logger.warning("Canonical memory context timed out; using legacy memory")
+        except Exception as exc:
+            logger.warning("Canonical memory context failed (fail-open): %s", exc)
+
     profile = await container.user_profile.get_or_create_profile(user_id)
     profile.total_conversations += 1
     await container.user_profile.update_profile(profile)

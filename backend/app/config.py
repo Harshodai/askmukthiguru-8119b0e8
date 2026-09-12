@@ -799,11 +799,16 @@ class Settings(BaseSettings):
     # the caching invariant in app/pipeline/stages/cache_stage.py, because a
     # memory-personalised answer must never be cached under a (language,
     # message) key shared with other seekers.
-    canonical_memory_enabled: bool = False
-    canonical_memory_retrieval: bool = False
+    canonical_memory_enabled: bool = True
+    canonical_memory_retrieval: bool = True
     memory_shadow: bool = False
+    # Write path (extractor/judge/resolver) is deliberately still off: the read
+    # path is what makes stored memories reach an answer, and automatic
+    # extraction of facts about a seeker is a separate decision.
     memory_write: bool = False
-    memory_influence: bool = False
+    memory_influence: bool = True
+    # Memory must never cost an answer.
+    canonical_memory_timeout: float = 2.0
     rag_okf_auto_extract_enabled: bool = (
         True  # post-ingestion OKF extraction; hardened w/ Celery retry + logging
     )

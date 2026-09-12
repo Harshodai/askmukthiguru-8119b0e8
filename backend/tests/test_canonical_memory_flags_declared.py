@@ -24,11 +24,20 @@ def test_every_flag_the_module_reads_is_declared():
         assert hasattr(s, name), f"{name} is read by chat_integration but not declared"
 
 
-def test_flags_are_off_by_default():
-    """The integration has no production caller; default-on would be a lie."""
+def test_read_path_on_write_path_off():
+    """The read path is wired, so its flags are on; the write path is not.
+
+    These were all False when nothing in the pipeline read canonical memories.
+    prepare_user_memory now serves them, so enabling retrieval and influence is
+    honest. Automatic extraction of facts about a seeker (memory_write) is a
+    separate decision and stays off.
+    """
     s = Settings()
-    for name in FLAGS:
-        assert getattr(s, name) is False
+    assert s.canonical_memory_enabled is True
+    assert s.canonical_memory_retrieval is True
+    assert s.memory_influence is True
+    assert s.memory_write is False
+    assert s.memory_shadow is False
 
 
 def test_module_reads_the_flags_directly():

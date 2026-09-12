@@ -188,6 +188,53 @@ def _validate_uuid(value: str, field_name: str = "id") -> str:
 # GET /memory/canonical — list user's memories
 # ---------------------------------------------------------------------------
 
+
+async def _index_memory_vector(container, memory_row: dict) -> None:
+    """Embed a memory and upsert it into the canonical vector index.
+
+    Without this the row exists in Postgres but is invisible to retrieval:
+    `CanonicalMemoryRetriever` searches Qdrant for semantic candidates and falls
+    back to an ILIKE over the statement, which only matches when the seeker
+    happens to repeat the memory's own words. Verified 2026-09-12 — two stored
+    memories, a directly relevant question, zero retrieved.
+
+    Never raises: the memory is already saved, and a failed index must not turn
+    a successful write into an error the way the missing audit table did.
+    """
+    try:
+        integration = getattr(container, "canonical_memory_integration", None)
+        if integration is None:
+            return
+        index = getattr(getattr(integration, "memory_retriever", None), "_vector_index", None)
+        embedder = getattr(getattr(integration, "memory_retriever", None), "_embedder", None)
+        statement = (memory_row.get("statement") or "").strip()
+        if index is None or embedder is None or not statement:
+            return
+        vector = (await asyncio.to_thread(embedder.encode_batch, [statement]))["dense"][0]
+        await index.upsert(
+            user_id=str(memory_row["user_id"]),
+            memory_id=str(memory_row["id"]),
+            vector=list(vector),
+            memory_type=memory_row.get("memory_type") or "",
+            status=memory_row.get("status") or "active",
+        )
+        logger.info("Indexed canonical memory %s for retrieval", memory_row["id"])
+    except Exception as exc:
+        logger.warning("Canonical memory vector index failed (non-fatal): %s", exc)
+
+
+async def _deindex_memory_vector(container, user_id: str, memory_id: str) -> None:
+    """Drop a memory from the vector index. Never raises."""
+    try:
+        integration = getattr(container, "canonical_memory_integration", None)
+        index = getattr(getattr(integration, "memory_retriever", None), "_vector_index", None)
+        if index is None:
+            return
+        await index.delete(user_id=str(user_id), memory_id=str(memory_id))
+    except Exception as exc:
+        logger.warning("Canonical memory vector de-index failed (non-fatal): %s", exc)
+
+
 @router.get("/memory/canonical", response_model=CanonicalMemoryListResponse)
 async def list_canonical_memories(
     page: int = Query(1, ge=1),
@@ -335,6 +382,7 @@ async def create_canonical_memory(
         await asyncio.to_thread(
             lambda: db.table("canonical_memory_events").insert(audit_row).execute()
         )
+        await _index_memory_vector(container, created_row)
 
         return _row_to_response(created_row)
     except HTTPException:
@@ -441,6 +489,11 @@ async def update_canonical_memory(
             )
         )
         updated_row = getattr(updated, "data", None) or row
+        if isinstance(updated_row, list):
+            updated_row = updated_row[0] if updated_row else row
+        # Re-embed: the statement may have changed, and a stale vector would
+        # keep retrieving the memory by its OLD wording.
+        await _index_memory_vector(container, updated_row)
         return _row_to_response(updated_row)
     except HTTPException:
         raise
@@ -515,6 +568,9 @@ async def delete_canonical_memory(
         await asyncio.to_thread(
             lambda: db.table("canonical_memory_events").insert(audit_row).execute()
         )
+        # A forgotten memory must also leave the vector index, or it keeps being
+        # retrieved into the prompt after the seeker asked for it to be gone.
+        await _deindex_memory_vector(container, user_id, memory_id)
 
         return {"status": "ok", "message": "Memory forgotten", "memory_id": memory_id}
     except HTTPException:

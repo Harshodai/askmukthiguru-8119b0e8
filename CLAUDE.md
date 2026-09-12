@@ -641,36 +641,52 @@ Settings: `rag_graph_context_injection_enabled`, `rag_graph_context_timeout`,
 `rag_graph_context_score`, `rag_graph_context_max_relations`,
 `rag_lightrag_context_*`. All fail-open — the graph must never cost an answer.
 
-## Canonical memory: works as a store, reaches no answer
+## Canonical memory: wired end to end
 
-**Verified end to end 2026-09-12.** Create/list/update/delete, the version audit
-trail (`CREATED v->1`, `UPDATED v1->2`, `DELETED v2->3`), GDPR export and RLS
-(36 cross-user probes, 0 failures) all work — after three fixes:
+**Verified live 2026-09-12.** Create/list/update/delete, the version audit trail
+(`CREATED v->1`, `UPDATED v1->2`, `DELETED v2->3`), GDPR export and RLS (36
+cross-user probes, 0 failures) all work — and stored memories now reach the
+generation prompt. Six defects had to be fixed, each of which failed silently:
 
-- `canonical_memory_events` was written by the API on every mutation and read by
-  the GDPR export, but **no migration ever created it**. The memory row inserted,
-  the audit insert raised, and the endpoint returned 500 — so a seeker was told
-  "Failed to save memory" about a memory that HAD saved, and a retry duplicated
-  it. Created in `20260912000000`. It is deliberately NOT the same table as
-  `memory_audit_events` (state snapshots); this one is the version trail.
-- Table GRANTS were missing for `service_role` on 27 tables. Postgres checks
-  grants BEFORE RLS, so correct policies do not help a role with no privilege.
-  `user_roles` denied meant every admin check logged "Admin role check failed"
-  and fell through to non-admin; `conversation_memories` denied meant personal
-  memory silently never reached an answer. Fixed in `20260912000001` /
-  `20260912000002`, guarded by `backend/tests/test_service_role_grants_migration.py`.
-- The five flags `chat_integration.py` reads were never declared on `Settings`,
-  so all five silently resolved to `False` regardless of environment. They are
-  declared now and read as direct attributes, so the dead-settings scan can see
-  them.
+1. **`canonical_memory_events` was never created by any migration**, though the
+   API wrote it on every mutation and the GDPR export read it. The memory row
+   inserted, the audit insert raised, and the endpoint returned 500 — a seeker
+   told "Failed to save memory" about a memory that HAD saved, and a retry
+   duplicated it. It is NOT the same table as `memory_audit_events` (state
+   snapshots); this one is the version trail.
+2. **27 tables had no `service_role` GRANT.** Postgres checks grants BEFORE RLS,
+   so correct policies do not help a role with no privilege. `user_roles` denied
+   meant every admin check logged a warning and fell through to non-admin.
+3. **Nothing in the pipeline read canonical memories.** `prepare_user_memory` —
+   the single place `memory_context` is produced — now serves them, bounded by
+   `canonical_memory_timeout` and fail-open, skipping anonymous identities.
+4. **The five feature flags were never declared on `Settings`**, so all five
+   silently resolved to `False` regardless of environment. They are declared,
+   read as direct attributes (a `getattr` on a variable name is invisible to the
+   dead-settings scan), and the read path is on while `memory_write` stays off.
+5. **Written memories were never embedded**, so the retriever's Qdrant search
+   found nothing and it fell back to an ILIKE that only matches when the seeker
+   repeats the memory's own words. Create/update now index, delete de-indexes —
+   a forgotten memory must not keep being retrieved.
+6. **The retriever was handed the wrong shape.** It calls
+   `await self._embedder(query)` and wants an async callable, not the
+   `EmbeddingService` object; every semantic search raised and degraded quietly.
 
-**But nothing in the request pipeline reads canonical memories.** The only
-import of `services/canonical_memory/chat_integration.py` outside its own
-package is a test. Chat personalisation still runs through the older
-`conversation_memories` path in `user_profile_service`. Wiring it is a real
-feature, not a flag flip, and whatever wires it must preserve the caching
-invariant below — a memory-personalised answer must never be cached under a
-`(language, message)` key shared with other seekers.
+`CanonicalMemoryVectorIndex.ensure_collection()` runs at wiring time — without
+it every upsert 404s against a missing collection.
+
+**Caching holds.** Canonical context flows into `memory_context`, which is what
+`_is_personalization_eligible` keys on, so the shared `(language, message)`
+tiers refuse it. `_probe_has_memory` also probes `canonical_memories` now —
+without that, a seeker whose only memories are canonical reads as ineligible and
+the shared cache replays a generic answer at them. Verified live: user B asking
+user A's exact question did NOT receive user A's personalised answer. The
+per-user exact cache is keyed with `user_id` and legitimately replays a seeker
+their own answer.
+
+Still off: the write path (extractor/judge/resolver). Automatic extraction of
+facts about a seeker is a separate decision from serving facts they stated
+themselves.
 
 ## Caching invariants
 

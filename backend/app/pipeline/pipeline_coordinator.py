@@ -185,6 +185,16 @@ class PipelineCoordinator:
         ctx.personalization_eligible = (
             False if ctx.incognito else await self._compute_personalization_eligible(user_id)
         )
+        # This flag decides whether a request may read the shared
+        # (language, message) caches. When it is wrong, the symptom is a
+        # generic cached answer served to someone with memories — and there was
+        # no way to tell that from a legitimate cache hit.
+        logger.info(
+            "PERSONALIZATION_PROBE user=%s incognito=%s eligible=%s",
+            sanitize_log_input(str(user_id)),
+            ctx.incognito,
+            ctx.personalization_eligible,
+        )
 
         try:
             result = await asyncio.wait_for(
@@ -335,6 +345,32 @@ class PipelineCoordinator:
                     exc,
                 )
                 return True
+        # Canonical memories are now served as memory_context too. Without this
+        # probe a seeker whose ONLY memories are canonical reads as
+        # not-eligible, and the shared (language, message) cache replays a
+        # generic answer to them — the personalization silently never applies.
+        if getattr(self.container, "canonical_memory_integration", None) is not None:
+            db = getattr(self.container, "supabase_client", None)
+            if db is not None:
+                try:
+                    resp = await asyncio.to_thread(
+                        lambda: db.table("canonical_memories")
+                        .select("id")
+                        .eq("user_id", user_id)
+                        .eq("status", "active")
+                        .limit(1)
+                        .execute()
+                    )
+                    if getattr(resp, "data", None):
+                        return True
+                except Exception as exc:
+                    # a failed probe cannot prove absence
+                    logger.debug(
+                        "canonical_memories probe failed for user %s, treating as has-memory: %s",
+                        sanitize_log_input(str(user_id)),
+                        exc,
+                    )
+                    return True
         return False
 
     # ------------------------------------------------------------------

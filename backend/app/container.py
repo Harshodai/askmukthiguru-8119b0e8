@@ -616,6 +616,69 @@ class ServiceContainer:
             self.notebook_service = None
             self.srs_service = None
 
+        # --- Canonical memory: read path ---
+        # The store, its API, audit trail and RLS all worked, but nothing in the
+        # request pipeline ever read it — the only import of chat_integration
+        # outside its own package was a test. Built here so
+        # `prepare_user_memory` can serve canonical memories as the generation
+        # prompt's memory context. Read-only: extractor/judge/resolver belong to
+        # the write path and stay unwired until memory_write is designed for.
+        self.canonical_memory_integration = None
+        if settings.canonical_memory_enabled and self.supabase_client is not None:
+            try:
+                from services.canonical_memory.chat_integration import (
+                    create_chat_integration,
+                )
+                from services.canonical_memory.context_builder import (
+                    AdaptiveContextOrchestrator,
+                )
+                from services.canonical_memory.retriever import CanonicalMemoryRetriever
+                from services.canonical_memory.vector_index import (
+                    CanonicalMemoryVectorIndex,
+                )
+
+                _cm_index = CanonicalMemoryVectorIndex(
+                    qdrant_client=getattr(self.qdrant, "_client", None),
+                    supabase_client=self.supabase_client,
+                )
+                # Without this the collection only appears if something else
+                # created it, and every upsert 404s — the memory saves, the
+                # index rejects it, and retrieval silently returns nothing.
+                _cm_index.ensure_collection()
+                # CanonicalMemoryRetriever calls `await self._embedder(query)` —
+                # it wants an async callable returning a vector, not the service
+                # object. Passing the service made every semantic search raise
+                # and fall back to a substring match, so a memory was only
+                # findable if the seeker repeated its own wording.
+                _embedding_service = self.embedding
+
+                async def _cm_embed(text: str) -> list[float]:
+                    result = await asyncio.to_thread(
+                        _embedding_service.encode_batch, [text]
+                    )
+                    return list(result["dense"][0])
+
+                _cm_retriever = CanonicalMemoryRetriever(
+                    supabase_client=self.supabase_client,
+                    vector_index=_cm_index,
+                    embedding_service=_cm_embed,
+                )
+                self.canonical_memory_integration = create_chat_integration(
+                    context_orchestrator=AdaptiveContextOrchestrator(
+                        memory_retriever=_cm_retriever,
+                    ),
+                    memory_retriever=_cm_retriever,
+                    extractor=None,
+                    judge=None,
+                    resolver=None,
+                    existing_memory_service=self.memory_service,
+                )
+                logger.info("Canonical memory integration wired (read path)")
+            except Exception as exc:
+                # Fail open: a seeker must still get an answer without memory.
+                logger.warning("Canonical memory integration unavailable: %s", exc)
+                self.canonical_memory_integration = None
+
         # Push notification service — lightweight (lazy FCM/APNs init), no heavy deps.
         from services.push_service import PushService
 
