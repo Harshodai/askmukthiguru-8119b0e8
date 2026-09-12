@@ -257,7 +257,7 @@ def _register_default_experiments(router: ABTestRouter) -> None:
     router.register(
         ABTestConfig(
             name="classifier_model_v1",
-            variants=["meta-llama/Meta-Llama-3.1-8B-Instruct", "anthropic/claude-3.5-haiku"],
+            variants=["meta-llama/llama-3.1-8b-instruct", "anthropic/claude-3.5-haiku"],
             weights=[0.8, 0.2],
             experiment_type="model",
             description="Test claude-3.5-haiku for classification tasks (20% of traffic)",

@@ -927,13 +927,9 @@ def select_llm_model(query: str, context_len: int) -> str:
         return getattr(settings, "sarvam_cloud_model", "sarvam-30b")
 
     elif provider == "openrouter":
-        if not complex_enabled:
-            return getattr(
-                settings, "openrouter_generation_model", "meta-llama/llama-3.3-70b-instruct:free"
-            )
-        # For OpenRouter, use the generation model for complex too (or a specific complex model if configured)
+        # Use the configured generation model; deepseek/deepseek-chat is the default.
         return getattr(
-            settings, "openrouter_generation_model", "meta-llama/llama-3.3-70b-instruct:free"
+            settings, "openrouter_generation_model", "deepseek/deepseek-chat"
         )
 
     elif provider == "ollama":

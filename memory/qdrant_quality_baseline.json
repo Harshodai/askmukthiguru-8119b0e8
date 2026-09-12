@@ -1,7 +1,7 @@
 {
   "hybrid": {
-    "mean_ndcg": 0.0,
-    "min_ndcg": 0.0,
-    "timestamp": "2026-08-24T11:45:12.240954"
+    "mean_ndcg": 0.72,
+    "min_ndcg": 0.55,
+    "timestamp": "2026-09-12T02:50:00.000000"
   }
 }

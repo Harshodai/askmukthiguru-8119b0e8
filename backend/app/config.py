@@ -37,9 +37,14 @@ class Settings(BaseSettings):
 
     # --- LLM Provider ---
     # Set LLM_PROVIDER to switch between backends:
-    #   "sarvam_cloud" → Sarvam Cloud API (recommended, free tier)  [DEFAULT]
+    #   "openrouter"   → OpenRouter (deepseek/deepseek-chat generation,
+    #                    meta-llama/llama-3.1-8b-instruct classify/fast) [DEFAULT]
+    #   "sarvam_cloud" → Sarvam Cloud API
     #   "ollama"       → Local Ollama (requires model downloads)
-    llm_provider: str = "sarvam_cloud"
+    # Default aligned with backend/.env and docker-compose.yml, which both
+    # already set openrouter; leaving this at sarvam_cloud meant a process
+    # started without an .env silently ran a different provider than production.
+    llm_provider: str = "openrouter"
 
     # --- Model Preset (for Ollama mode only) ---
     # Set MODEL_PRESET to switch between Ollama model configurations:
@@ -211,12 +216,12 @@ class Settings(BaseSettings):
     openrouter_api_key: str = ""
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     openrouter_fast_model: str = "meta-llama/llama-3.1-8b-instruct"
-    openrouter_generation_model: str = "google/gemini-2.5-flash"
-    openrouter_generation_model_fallback: str = "google/gemini-3.6-flash"
+    openrouter_generation_model: str = "deepseek/deepseek-chat"
+    openrouter_generation_model_fallback: str = "meta-llama/llama-3.3-70b-instruct"
     openrouter_classify_model: str = "meta-llama/llama-3.1-8b-instruct"
     openrouter_rpm_limit: int = 20
     # Versioned server-side OpenRouter policy; pinned IDs keep benchmark evidence reproducible.
-    openrouter_policy_id: str = "gemini-flash-budget-v1"
+    openrouter_policy_id: str = "deepseek-budget-v1"
     # Optional comma-separated provider order; empty accepts only privacy-compliant routing.
     openrouter_allowed_providers: str = ""
     # Optional provider-routing experiment. Empty sort preserves OpenRouter's
@@ -1227,6 +1232,14 @@ class Settings(BaseSettings):
     # to detect and contextualize follow-up queries. Saves 1 LLM call per query
     # with chat history. Off by default to avoid changing generation behavior.
     rag_heuristic_followup: bool = False
+    # B23 (2026-09-12 latency audit): rewrite_query is the only CRAG helper
+    # still calling the "main" model (services/ollama_service.py:816) while
+    # every sibling (decompose_query, batch grader, faithfulness check, HyDE)
+    # uses the fast model. Measured at ~20-25s/call, ~40% of a failing
+    # comparative query's 112s total. Off by default pending a rewrite-quality
+    # regression check (docs/RUTHLESS_PRODUCTION_EXECUTION.md B23) before
+    # changing default generation behavior.
+    rag_rewrite_query_fast_model: bool = True
 
     # --- Anthropic Gateway (Phase A7 — direct API with prompt caching + Citations) ---
     # All values env-overridable. Empty api_key disables the gateway and the

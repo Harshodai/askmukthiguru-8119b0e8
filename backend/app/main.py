@@ -1098,6 +1098,10 @@ from app.api.job_routes import router as job_router
 
 app.include_router(job_router)
 
+from app.api.canonical_memory import router as canonical_memory_router
+
+app.include_router(canonical_memory_router, prefix="/api")
+
 # Mount trace dashboard routes
 from app.trace_dashboard import router as trace_router
 

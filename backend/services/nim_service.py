@@ -152,7 +152,7 @@ class NimService:
                     model=getattr(
                         settings,
                         "openrouter_generation_model",
-                        "meta-llama/llama-3.3-70b-instruct:free",
+                        "deepseek/deepseek-chat",
                     ),
                     max_tokens=2048,
                     temperature=0.7,
@@ -206,7 +206,7 @@ class NimService:
             logger.warning(f"NIM/Sarvam failed for {operation}; trying OpenRouter fallback")
             target_model = (
                 getattr(settings, "openrouter_generation_model", None)
-                or "meta-llama/llama-3.3-70b-instruct:free"
+                or "deepseek/deepseek-chat"
             )
             content = await self._openrouter_fallback._call_api(
                 messages=messages,

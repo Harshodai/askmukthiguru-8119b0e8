@@ -30,7 +30,6 @@ from rag.nodes import (
     agentic_graph_traversal,
     context_engineer,
     cross_teacher_reasoning,
-    decompose_query,
     enrich_context,
     extract_citations,
     format_final_answer,
@@ -49,7 +48,6 @@ from rag.nodes import (
     rerank_documents,
     retrieve_documents,
     rewrite_query,
-    verify_answer,
     web_search_node,
 )
 from rag.nodes.verification import combined_grade_and_verify
@@ -242,7 +240,6 @@ class StandardGraphStrategy(GraphStrategy):
         graph.add_node("handle_distress_check", handle_distress_check)
         graph.add_node("resolve_parallel", resolve_parallel)
         graph.add_node("resolve_followup", resolve_followup)
-        graph.add_node("decompose_query", decompose_query)
         graph.add_node("navigate_and_hyde", navigate_and_hyde)
         graph.add_node("retrieve_documents", retrieve_documents)
         graph.add_node("agentic_graph_traversal", agentic_graph_traversal)
@@ -285,11 +282,16 @@ class StandardGraphStrategy(GraphStrategy):
         )
 
         graph.add_edge("web_search", "resolve_followup")
-        # To avoid LangGraph OR-join race condition (and prevent intermittently degraded retrieval quality
-        # if both nodes fail or execute out of sync), we chain decompose_query and navigate_and_hyde
-        # sequentially. This ensures they execute in a predictable order and satisfies validate_graph.py.
-        graph.add_edge("resolve_followup", "decompose_query")
-        graph.add_edge("decompose_query", "navigate_and_hyde")
+        # B22 latency fix (2026-09-12): decompose_query, navigate_knowledge_tree,
+        # and generate_hyde all read only state["question"]/["rewritten_query"]
+        # and the query tier -- none reads another's output -- but were
+        # previously wired as a sequential decompose_query -> navigate_and_hyde
+        # edge pair, paying for two independent LLM round trips back-to-back.
+        # A true LangGraph fan-out/join for these nodes caused an OR-join race
+        # (both nodes failing or executing out of sync degraded retrieval), so
+        # decompose_query now runs inside navigate_and_hyde's asyncio.gather
+        # instead of being its own graph node -- see rag/nodes/retrieval.py.
+        graph.add_edge("resolve_followup", "navigate_and_hyde")
         graph.add_edge("navigate_and_hyde", "retrieve_documents")
 
         # Agentic graph traversal is unreviewed for default hot paths; only invoked

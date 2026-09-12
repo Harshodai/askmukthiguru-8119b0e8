@@ -82,7 +82,7 @@ def test_stream_done_metadata_serializes_guidance_and_evidence():
         answer_evidence=AnswerEvidence(
             corpus_id="askmukthiguru",
             release_version=2,
-            model_policy_id="gemini-flash-budget-v1",
+            model_policy_id="deepseek-budget-v1",
             evidence_support_label="Teaching-supported",
             source_count=1,
             top_source_score=0.91,

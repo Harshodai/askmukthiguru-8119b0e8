@@ -74,7 +74,12 @@ def test_standard_graph_compiles(mock_init_services, mock_build_kwargs):
     nodes = set(compiled.nodes.keys())
     assert _expected_nodes().issubset(nodes)
     assert "resolve_followup" in nodes
-    assert "decompose_query" in nodes
+    # B22 latency fix (2026-09-12): decompose_query is no longer its own graph
+    # node -- it runs inside navigate_and_hyde's asyncio.gather (see
+    # rag/nodes/retrieval.py) since it, navigate_knowledge_tree, and
+    # generate_hyde all read only state["question"] and share no dependency,
+    # so serializing them behind two graph edges cost an extra LLM round trip.
+    assert "decompose_query" not in nodes
     assert "navigate_and_hyde" in nodes
     assert "rerank_documents" in nodes
     assert "grade_documents" in nodes
@@ -93,7 +98,7 @@ def test_deep_graph_compiles(mock_init_services, mock_build_kwargs):
     nodes = set(compiled.nodes.keys())
     assert _expected_nodes().issubset(nodes)
     assert "resolve_followup" in nodes
-    assert "decompose_query" in nodes
+    assert "decompose_query" not in nodes
     assert "navigate_and_hyde" in nodes
     assert "rerank_documents" in nodes
     assert "grade_documents" in nodes

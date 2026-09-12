@@ -166,13 +166,15 @@ def main() -> int:
         if standard_start != -1 and standard_end != -1
         else graph_source[standard_start:]
     )
+    retrieval_source = (backend / "rag/nodes/retrieval.py").read_text()
     if (
-        'graph.add_edge("decompose_query", "navigate_and_hyde")' in standard_graph_source
+        'graph.add_edge("resolve_followup", "navigate_and_hyde")' in standard_graph_source
         and 'graph.add_edge("navigate_and_hyde", "retrieve_documents")' in standard_graph_source
+        and "decompose_query(state, config)" in retrieval_source
     ):
-        print("  ✅ Parallel nav+hyde combined node wiring present in standard graph")
+        print("  ✅ Parallel decompose+nav+hyde combined node wiring present in standard graph")
     else:
-        print("  ❌ Parallel nav+hyde wiring MISSING")
+        print("  ❌ Parallel decompose+nav+hyde wiring MISSING")
         all_ok = False
 
     # No more tier2_simple early-return hacks

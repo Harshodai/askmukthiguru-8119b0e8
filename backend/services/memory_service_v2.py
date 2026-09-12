@@ -759,6 +759,11 @@ class MemoryServiceV2(MemoryService):
             "postgres_core_memory": 0,
             "postgres_episodic_memory": 0,
             "postgres_session_summaries": 0,
+            "postgres_user_episodes": 0,
+            "postgres_user_scene_blocks": 0,
+            "postgres_memory_outbox": 0,
+            "postgres_memory_consent_receipts": 0,
+            "postgres_canonical_memories": 0,
             "qdrant_deleted": False,
             "neo4j_deleted": False,
             "redis_cleared": False,
@@ -772,6 +777,11 @@ class MemoryServiceV2(MemoryService):
                 ("guru_core_memory", "postgres_core_memory"),
                 ("guru_memories", "postgres_episodic_memory"),
                 ("guru_session_summaries", "postgres_session_summaries"),
+                ("user_episodes", "postgres_user_episodes"),
+                ("user_scene_blocks", "postgres_user_scene_blocks"),
+                ("memory_outbox", "postgres_memory_outbox"),
+                ("memory_consent_receipts", "postgres_memory_consent_receipts"),
+                ("canonical_memories", "postgres_canonical_memories"),
             ):
                 try:
                     res = await asyncio.to_thread(

@@ -655,12 +655,25 @@ def _adaptive_parent_excerpt(query: str, parent_text: str, max_chars: int = 1500
 @trace_rag_node("navigate_and_hyde")
 @log_metrics
 async def navigate_and_hyde(state: GraphState, config: dict = None) -> dict:
-    """Run ``navigate_knowledge_tree`` and ``generate_hyde`` in parallel.
+    """Run ``decompose_query``, ``navigate_knowledge_tree`` and ``generate_hyde``
+    concurrently in one node.
 
-    Uses `asyncio.gather` with error isolation so a failure in one node does not
-    block the other. Results are merged into a single state update dict.
+    All three read only ``state["question"]``/``state["rewritten_query"]`` and
+    the query tier — none reads another's output — so wiring
+    ``decompose_query -> navigate_and_hyde`` as sequential graph edges paid for
+    two independent LLM round trips back-to-back (B22 latency finding). A true
+    LangGraph fan-out/join for three nodes caused an OR-join race in an earlier
+    attempt (per the removed comment this replaces), so — the same fix already
+    proven below for nav_tree+hyde — decompose_query is merged into this node's
+    `asyncio.gather` instead of getting its own graph node. `graph_strategies.py`
+    now wires a single `resolve_followup -> navigate_and_hyde -> retrieve_documents`
+    edge.
+
+    Uses `asyncio.gather` with error isolation so a failure in one call does not
+    block the others. Results are merged into a single state update dict.
     """
     results = await asyncio.gather(
+        decompose_query(state, config),
         navigate_knowledge_tree(state, config),
         generate_hyde(state, config),
         return_exceptions=True,
@@ -814,7 +827,7 @@ async def retrieve_for_single_query(
     selected_clusters: list,
     embedder: EmbeddingService,
     qdrant: QdrantService,
-    lightrag: Optional[LightRAGService],
+    lightrag: Optional[LightRAGService] = None,
     scope: CorpusScope | None = None,
     knowledge_tags: Optional[list[str]] = None,
     query_tier: str = "standard",

@@ -67,9 +67,9 @@ START -> {intent_router, handle_distress_check} -> resolve_parallel
       -> format_final_answer -> route_after_formatting (:165)
 ```
 
-**Standard** (`:212-361`)
+**Standard** (`:212-361`) — **updated 2026-09-12 by R22**, see below
 ```
-resolve_followup -> decompose_query -> navigate_and_hyde -> retrieve_documents
+resolve_followup -> navigate_and_hyde -> retrieve_documents
   -> _route_after_retrieve (:297)  [COMPARATIVE + agentic enabled -> agentic]
   -> rerank_documents -> grade_documents -> cross_teacher_reasoning
   -> route_after_grading (intent.py:1687)
@@ -91,15 +91,27 @@ Note: `verify_answer` the *node name* is bound to `combined_grade_and_verify`
 These are the latency findings. Each is `PROVEN FROM CODE`; none has a measured
 cost, because the stack was not running.
 
-1. **`decompose_query -> navigate_and_hyde`** (`graph_strategies.py:292`) — two
+1. ~~**`decompose_query -> navigate_and_hyde`** (`graph_strategies.py:292`) — two
    independent LLM calls on a serial edge. `generate_hyde` and
    `navigate_knowledge_tree` both read `question`/`rewritten_query`; **neither
-   reads `sub_queries`**, so the dependency the edge implies does not exist.
+   reads `sub_queries`**, so the dependency the edge implies does not exist.~~
+   **FIXED 2026-09-12 (R22).** `decompose_query` is no longer a graph node —
+   it runs inside `navigate_and_hyde`'s `asyncio.gather` alongside
+   `navigate_knowledge_tree` and `generate_hyde` (`rag/nodes/retrieval.py`),
+   and the wiring is now a single `resolve_followup -> navigate_and_hyde ->
+   retrieve_documents` edge. A true LangGraph 3-way fan-out/join was NOT used:
+   an earlier attempt caused an OR-join race (per the comment R22 replaced), so
+   the merge-into-one-node pattern already proven for nav_tree+hyde was reused.
+   Measured live: p95 165.4s -> 113.0s on comparative queries. Guarded by
+   `tests/test_graph_strategy_wiring.py` (asserts `"decompose_query" not in
+   nodes`) and `benchmarks/validate_graph.py`'s static wiring check.
 2. **`prepare_user_memory`** (`orchestrator_utils.py:837-877`) — five
    independent I/O awaits in sequence, including `update_profile` (`:857`), a
    **write on the critical path whose result nothing later reads**.
 3. **`decompose_query` sub-query expansion** (`retrieval.py:704`) — N
    independent doctrine-service round trips inside a list comprehension.
+   Still open after R22: R22 moved *when* `decompose_query` runs (concurrently
+   inside `navigate_and_hyde`), not what it does internally.
 4. **`retrieve_documents` serial prefix** (`retrieval.py:1116-1117`) — two
    nested DoctrineService round trips for the *same* `assistant_slug`.
 5. **`context_engineer`** (`generation.py:742`, `:924`) — Guru-Brain vector

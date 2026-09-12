@@ -143,8 +143,8 @@ def build_release_manifest(
     ).strip() or "BAAI/bge-reranker-v2-m3"
 
     resolved_policy_version = (
-        policy_version or getattr(settings, "openrouter_policy_id", "gemini-flash-budget-v1") or ""
-    ).strip() or "gemini-flash-budget-v1"
+        policy_version or getattr(settings, "openrouter_policy_id", "deepseek-budget-v1") or ""
+    ).strip() or "deepseek-budget-v1"
 
     resolved_schema_version = (
         schema_version

@@ -118,7 +118,10 @@ _COST_RATES: dict[str, float] = {
     "sarvam": 0.002,
     "krutrim": 0.001,
     "openai": 0.002,
-    "openrouter": 0.001,  # fallback estimate; actual cost from provider usage.report
+    "openrouter": 0.0003,  # fallback estimate; actual cost from provider usage.report
+    "deepseek/deepseek-chat": 0.00025,  # $0.14/M input + $0.28/M output
+    "meta-llama/llama-3.3-70b-instruct": 0.00025,  # $0.12/M input + $0.30/M output
+    "meta-llama/llama-3.1-8b-instruct": 0.00003,  # $0.02/M input + $0.04/M output
     "gemini-2.5-flash": 0.001,  # $0.30/M input + $2.50/M output, avg ~2K tokens
     "nim": 0.001,  # NVIDIA NIM — estimated $0.001/1K tokens
     "sarvam-30b": 0.002,  # Sarvam 30B model

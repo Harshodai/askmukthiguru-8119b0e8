@@ -136,7 +136,7 @@ def test_chat_response_serialization_with_provenance():
         release_manifest={
             "release_id": "rel-2026-08-v1",
             "git_sha": "abc1234",
-            "policy_version": "gemini-flash-budget-v1",
+            "policy_version": "deepseek-budget-v1",
         },
     )
 

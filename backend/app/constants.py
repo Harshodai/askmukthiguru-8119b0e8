@@ -162,9 +162,9 @@ PROVIDER_MODELS = {
         "classify": "deepseek-r1:7b",
     },
     LLMProvider.OPENROUTER: {
-        "default": "meta-llama/llama-3.3-70b-instruct:free",
-        "classify": "meta-llama/Meta-Llama-3.1-8B-Instruct",
-        "fast": "meta-llama/Meta-Llama-3.1-8B-Instruct",
+        "default": "deepseek/deepseek-chat",
+        "classify": "meta-llama/llama-3.1-8b-instruct",
+        "fast": "meta-llama/llama-3.1-8b-instruct",
     },
     LLMProvider.NIM: {
         "default": "minimaxai/minimax-m2.7",

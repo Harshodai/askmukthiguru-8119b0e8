@@ -56,20 +56,20 @@ def test_trace_detail_removes_content_sources_and_identifiers():
 def test_operations_snapshot_is_aggregate_and_versioned():
     snapshot = operations_snapshot(
         [{"id": "one", "status": "ok", "latency_ms": 100, "cost_estimate": 0.01}],
-        model_policy_id="gemini-flash-budget-v1",
+        model_policy_id="deepseek-budget-v1",
         budget_guard_enabled=False,
     )
 
     assert snapshot["sample_size"] == 1
     assert snapshot["average_latency_ms"] == 100.0
-    assert snapshot["model_policy_id"] == "gemini-flash-budget-v1"
+    assert snapshot["model_policy_id"] == "deepseek-budget-v1"
     assert snapshot["budget_guard_enabled"] is False
 
 
 def test_operations_snapshot_allowlists_release_readiness_aggregates():
     snapshot = operations_snapshot(
         [],
-        model_policy_id="gemini-flash-budget-v1",
+        model_policy_id="deepseek-budget-v1",
         budget_guard_enabled=False,
         release_readiness={
             "enabled": True,

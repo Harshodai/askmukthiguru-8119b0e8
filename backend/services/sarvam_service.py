@@ -1027,6 +1027,20 @@ class SarvamCloudService:
             original_query: The query that failed to find relevant docs
             reasons: Explanations from the grader about why retrieval failed (standard name)
             grading_reasons: Explanations from the grader about why retrieval failed (alias name)
+
+        B23 (2026-09-12 latency audit): this is the LIVE provider for
+        LLM_PROVIDER=sarvam_cloud (services/llm_factory.py registers
+        SarvamCloudService, not OllamaService, for that setting) -- the
+        equivalent OllamaService branch never runs in this deployment.
+        rag_rewrite_query_fast_model (default False) lets this route to
+        _generate_fast instead of generate() for A/B testing. NOTE: as of
+        2026-09-12, backend/.env sets SARVAM_CLOUD_CLASSIFY_MODEL equal to
+        SARVAM_CLOUD_MODEL (both sarvam-105b), so _generate_fast currently
+        calls the SAME model with a smaller max_tokens cap -- this flag alone
+        will not measurably change latency until the classify-model config
+        itself points at a genuinely smaller model (a separate, larger-blast-
+        radius decision affecting every classification-tier call, not just
+        this one -- see docs/RUTHLESS_PRODUCTION_EXECUTION.md B23).
         """
         prompt = f"Original query: {original_query}"
         actual_reasons = reasons or grading_reasons
@@ -1034,6 +1048,8 @@ class SarvamCloudService:
             reasons_text = "\n".join([f"- {r}" for r in actual_reasons if r])
             prompt += f"\n\nReasons for previous retrieval failure:\n{reasons_text}\n\nInstructions: Use these reasons to understand what was missing and perform a more targeted query expansion."
 
+        if getattr(settings, "rag_rewrite_query_fast_model", False):
+            return await self._generate_fast(QUERY_REWRITE_PROMPT, prompt, **kwargs)
         return await self.generate(QUERY_REWRITE_PROMPT, prompt, **kwargs)
 
     async def verify_claims(self, answer: str, context: str) -> dict:

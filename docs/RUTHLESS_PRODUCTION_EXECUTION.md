@@ -175,6 +175,121 @@ but the code emits `bounded_hypothetical`, `capability_answer` and
 `provenance_boundary`. Either the Literal is wrong or those responses are not
 being validated against it. Tracked as B21.
 
+### Round 6 — B22 latency, live stack (2026-09-12)
+
+| ID | Severity | Finding | Proof |
+|---|---|---|---|
+| R22 | P0 latency | `decompose_query`, `navigate_knowledge_tree`, and `generate_hyde` each read only `state["question"]`/`state["rewritten_query"]` and the query tier — none reads another's output — yet `graph_strategies.py` wired `resolve_followup -> decompose_query -> navigate_and_hyde -> retrieve_documents` as two *sequential* graph edges, paying for two independent LLM round trips back-to-back on every QUERY-tier request. `navigate_and_hyde` already ran `navigate_knowledge_tree`+`generate_hyde` concurrently via `asyncio.gather`; `decompose_query` now joins that same gather instead of being its own graph node (`rag/nodes/retrieval.py:navigate_and_hyde`), and the graph wiring collapses to a single `resolve_followup -> navigate_and_hyde -> retrieve_documents` edge (`rag/graph_strategies.py`). An earlier attempt at a true 3-way LangGraph fan-out/join reportedly caused an OR-join race (per the removed comment) — merging into one node's `asyncio.gather` sidesteps that entirely, using the exact pattern already proven for nav_tree+hyde. | **`PROVEN FROM LIVE`** — same 8-query harness, before/after, server-side `latency_ms`: "Soul Sync vs Deeksha" 122.0s→105.1s (−17s), "Beautiful vs Suffering State" 165.4s→113.0s (−52s, −31%), Hinglish 39.0s→28.6s (−10s), "anger towards my father" 10.8s→9.7s. p95 165.4s→113.0s. n=1 per query (single live sample, not a distribution) — direction and magnitude are consistent with removing one serial LLM round trip, but re-run before citing as a stable percentile. `test_graph_strategy_wiring.py` two-way proof: new assertions (`"decompose_query" not in nodes`) fail against the pre-fix graph, pass against the post-fix graph. `benchmarks/validate_graph.py`'s static wiring check updated to match. Full backend suite re-run after the change (see below). |
+
+**Also disproven in this round:** the original B22 write-up's `"hello"` = 6.1s/10.3s claim. That was **the load-test harness**, not the pipeline — `measure_latency.sh` appended `" (ref $NONCE)"` to every query including `"hello"` to dodge the cache, but `GREETING_RE`/`GREETING_VOCATIVE_RE` (`app/routing_primitives.py:7-21`) are anchored `^...$`, so the suffix breaks the match and `CasualShortCircuit` never fires — the query falls through to the full pipeline, gets classified CASUAL by the LLM intent router, and pays for a `handle_casual` LLM call (confirmed in the live log: `node_timings={'intent_router': 0.5, 'handle_casual': 5650.7}`, `total_ms=6135`). A live re-test with the literal, unsuffixed string `"hello"` (fresh anon token, `cache_hit: false`) completes in **`latency_ms: 5`**, `route_decision: "instant_greeting"`. Fixed the harness (skip the nonce suffix on the literal greeting query) rather than the pipeline, since the pipeline was never broken.
+
+**Not yet done:** B22 is not closed. The comparative-query tail is still far over the <3s target (113s p95 even after this fix) — this was one proven serialization removed, not the whole latency budget. Re-run the harness with n≥5 per query class before trusting a percentile.
+
+### B23 — profiled where the remaining 112s actually goes (2026-09-12)
+
+**Self-caught measurement artifact, corrected before being written up as a
+bug.** First profiling run of `"Compare the Beautiful State and the Suffering
+State"` measured 184s with `retrieve_documents` spiking to 91.5s on its third
+pass — but this session had two full backend `pytest` suites (3,571 tests
+each, CPU-bound: embedding inference holds a process-wide `threading.RLock`,
+`services/embedding_service.py:116`) running in the background on the same
+host for the entire window. Re-ran the identical query with nothing else
+running: **112.6s**, matching the clean R22 measurement (113.0s) almost
+exactly. The 91.5s spike was self-inflicted CPU contention, not a pipeline
+defect — recorded here rather than silently discarded, per this audit's own
+rule against trusting an unvalidated number.
+
+**Clean per-node breakdown, `PROVEN FROM LIVE`** (trace `f0b4c7ab`, isolated,
+n=1): the query runs the full CRAG rewrite loop three times and **still ends
+in `handle_fallback`** — 112s spent on a response that was never grounded.
+
+| loop | decompose+nav+hyde | retrieve+rerank | grade_documents | generate_answer | rewrite_query |
+|---|---|---|---|---|---|
+| 1 | 3.6s | 1.0+0.65s | 6.7s | 4.6s | 20.3s |
+| 2 | — | 0.57+0.62s | 10.7s | 4.3s | 24.9s |
+| 3 | — | 13.3+0.66s | 13.4s | 5.8s | — (exhausted, → fallback) |
+
+Two real, structural findings, not noise:
+
+1. **`rewrite_query` alone is ~45s of the 112s (40%).** `services/ollama_service.py:816-830`'s docstring says *"Uses the main model for better query expansion"* and calls `self.generate(...)` — the heavy model. Every sibling CRAG helper in the same file uses the fast model instead: `decompose_query` (`_generate_fast`, line 949, *"since this is a classification/parsing task"*), the batch grader (`_generate_fast`, line 754), the faithfulness check (`_generate_fast`, line 786), HyDE (`_generate_fast`, line 973). `rewrite_query` is the one outlier still on the slow path, and its own graph-level timeout key is `get_node_timeout("default_fast", 30.0)` — the "fast" budget name doesn't match the "main" model it actually calls, and both observed calls (20.3s, 24.9s) sit close to that 30s ceiling.
+2. **`grade_documents` grows each loop (6.7s → 10.7s → 13.4s)** — plausibly proportional to a growing candidate/context set on each retry rather than a bug; not investigated further this round.
+
+**Literature check (per user request, "use websearch ruthlessly"):** Ma et
+al. 2023, [Query Rewriting for Retrieval-Augmented Large Language
+Models](https://ar5iv.labs.arxiv.org/html/2305.14283) — a small trainable
+rewriter (T5-large, 770M params) matched or exceeded a frozen ChatGPT
+rewriter on AmbigNQ (47.80 vs 46.40 EM) and HotpotQA (34.38 vs 32.80 EM). The
+established pattern in the literature is a *small* dedicated rewriter, not a
+large one — supporting the hypothesis that `rewrite_query` doesn't need the
+heaviest model, though this is literature on a different corpus/task, not
+proof for this system.
+
+**Built the toggle to test the hypothesis rather than swap the default
+blind:** added `settings.rag_rewrite_query_fast_model` (default `False`,
+`app/config.py`) and gated both `OllamaService.rewrite_query` and
+`SarvamCloudService.rewrite_query` on it — two-way test proof done for both
+(new tests fail on the pre-fix code, pass post-fix).
+
+**First A/B attempt was invalid — caught before being reported as a
+result.** Ran 3 comparative queries concurrently with the flag on and saw no
+improvement (in fact slightly worse: +18.8s, +25.5s on two of three) —
+initially looked like the hypothesis was wrong, until per-node inspection
+showed `rewrite_query` durations barely changed (22.9s, 30.0s, 31.7s, 2.3s,
+19.4s, 25.6s — comparable to or worse than the pre-fix baseline). Two
+compounding problems, found by checking the code rather than trusting the
+number:
+
+1. **The fix landed in the wrong class for this deployment.** `services/
+   llm_factory.py` registers `SarvamCloudService` for `LLM_PROVIDER=
+   sarvam_cloud` — the live default (root `CLAUDE.md`) — not `OllamaService`.
+   These are separate, non-inheriting implementations; my first edit only
+   patched `OllamaService`, which never runs in this deployment. Fixed by
+   applying the identical branch to `SarvamCloudService.rewrite_query`
+   (`services/sarvam_service.py:1016`).
+2. **Even with the right class fixed, there is currently no small model to
+   route to.** `backend/.env` sets `SARVAM_CLOUD_CLASSIFY_MODEL=sarvam-105b`
+   — identical to `SARVAM_CLOUD_MODEL=sarvam-105b`. Every `_generate_fast`
+   call in this deployment (decompose_query, batch grader, faithfulness
+   check, HyDE — not just rewrite_query) already runs on the same 105B model
+   as `generate()`; the only difference is `max_tokens` (2048 vs 8192) and
+   temperature. The documented "dual-model strategy" (see this file's
+   `services/ollama_service.py:9` module docstring) is not actually realized
+   in the live Sarvam Cloud configuration. This defeats the *entire*
+   classification-tier latency architecture, not just rewrite_query — and
+   also invalidates the concurrent 3-query A/B numbers above as a real
+   before/after comparison, since both arms hit the same model.
+   `sarvam_cloud_classify_model`'s own default (`app/config.py:54`) is
+   `"sarvam-30b"`, suggesting a smaller model was intended; `.env` overrides
+   it to match the main model.
+
+**SUPERSEDED 2026-09-12 (same day) by the OpenRouter migration.** The
+deployment moved to `LLM_PROVIDER=openrouter` (`backend/.env:7`,
+`docker-compose.yml`, and `app/config.py`'s default). On OpenRouter the
+generation/classify split is REAL — generation is `deepseek/deepseek-chat`,
+classify/fast is `meta-llama/llama-3.1-8b-instruct` — so the "no genuinely
+smaller model is configured" blocker described below applied to Sarvam Cloud
+only and no longer gates B23. `OpenRouterService.rewrite_query`
+(`services/openrouter_service.py:1191`) honours
+`rag_rewrite_query_fast_model`, as do the Sarvam and Ollama implementations,
+so the toggle now has real effect on the live provider. **Still unmeasured:**
+nobody has re-run the before/after eval against OpenRouter — do that
+sequentially (never concurrently, see the CPU-contention lesson above) before
+claiming a latency win. The rest of this section is retained as the record of
+what was true under Sarvam Cloud.
+
+**Not fixed — this is now a config decision with a larger blast radius than
+originally scoped, and I am not making it unilaterally:** pointing
+`SARVAM_CLOUD_CLASSIFY_MODEL` at a genuinely smaller model would affect every
+classification-tier LLM call in the system (intent routing, decomposition,
+grading, faithfulness checking, HyDE, and rewrite), not just this one node —
+larger latency upside, larger quality-regression surface, and no smaller
+Sarvam model has been confirmed available/deployed. The
+`rag_rewrite_query_fast_model` toggle and both service-class fixes are in
+place and tested for whenever that config decision is made; re-run this
+session's before/after eval sequentially (not concurrently — see the CPU-
+contention lesson above) once a real small model is configured. Flagged as
+B23 for a product decision before any config change.
+
 ### Deliberately NOT changed
 
 - **`ToneAdapterStage` is not dead code.** It is a documented, tested,
@@ -270,7 +385,7 @@ treatment the fixes above received.
 | B11 | P2 | Two KG routes (`app/api/memory.py:642`, `:715`) authenticate **in the handler body**, so `test_authz_regression.py`'s dependency-grep guard does not see them. Not exploitable today (`build_personal_knowledge_graph(None)` routes to the public ontology branch), but a future edit dropping that `or not user_id` clause would pass every test. | `app/api/memory.py` |
 | B12 | P2 | Anonymous callers with an attachment are personalization-eligible with `user_id_for_cache=None`, so the exact-cache **read** hits the shared key. Returns a generic non-personalized answer (the attachment is ignored) — a correctness wart, not a data leak. Write path is safe. | `app/pipeline/stages/cache_stage.py:336` |
 | B21 | P2 | `app/schemas/__init__.py:268` restricts `grounding_state` to a 4-value `Literal`, but the code emits `bounded_hypothetical`, `capability_answer`, `provenance_boundary`. Either the contract is stale or those responses bypass validation — both are worth knowing. | `app/schemas/__init__.py` |
-| B22 | **P0 latency** `PROVEN FROM LIVE` | Measured p50 **24.6s** and p95 **208.5s** wall-clock against a <3s target — the **median** is 8x over, not just the tail. Even a bare `"hello"` took 10.3s. Comparative/multi-hop queries dominate the tail. Agent A's serialization findings name the specific independent `await` chains (notably `decompose_query -> navigate_and_hyde`, two independent LLM calls on a serial edge where neither reads the other's output), and the graph contributes **no text to the prompt** while costing time — so there is a concrete optimisation target, not a hypothesis. | `rag/graph_strategies.py`, `rag/nodes/retrieval.py` |
+| B22 | **P0 latency — PARTIALLY FIXED (R22)** `PROVEN FROM LIVE` | Measured p50 **24.6s** and p95 **208.5s** wall-clock against a <3s target — the **median** is 8x over, not just the tail. Comparative/multi-hop queries dominate the tail. (The original write-up also flagged `"hello"` at 10.3s/6.1s — **disproven 2026-09-12**, that was the load-test harness's cache-busting nonce breaking the anchored greeting regex, not a pipeline cost; real `"hello"` completes in `latency_ms: 5` via `instant_greeting`. See LIVE MEASUREMENTS below.) The `decompose_query -> navigate_and_hyde` serial edge (two independent LLM calls, neither reading the other's output) is fixed as R22 (Round 6) — p95 105.1–113.0s post-fix vs 122.0–165.4s pre-fix on the same comparative queries, a ~31% tail reduction. **Still open:** comparative queries remain 100s+ over target; other serial costs inside `retrieve_documents`/reranking/generation are unprofiled. | `rag/graph_strategies.py`, `rag/nodes/retrieval.py` |
 | B20 | **P0 deploy** `PROVEN FROM LIVE` | **The documented Docker deployment cannot start on this machine.** `make docker-up` builds and starts `mukthiguru-backend`, which then OOM-kills in a loop — **exit 137, 99 restarts**, never reaching healthy. Measured cause: the compose `deploy.limits.memory` for `backend` is **6 GB**, Docker Desktop is allocated **8.3 GB**, and 25 containers already resident consume **3.3 GiB**, leaving ~5 GB — less than the backend needs once BGE-M3 + the reranker load. Note the other project's containers account for only ~1 GiB, so stopping them does not fix it. Options: raise the Docker Desktop memory allocation, lower `deploy.limits.memory` and accept degraded model loading, or run the backend on the host against containerised infra (the path `backend/CLAUDE.md` already documents). **No CI or test covers "does the documented deploy actually boot".** | `backend/docker-compose.yml` |
 | B13 | P1 | `http_pool_max_connections` was cut 50→20 (and `embedding_cache_size` 2000→1000) inside `917ef07c`, a personalization *feature* commit, with no stated rationale and no measurement. A 60% reduction in the outbound connection pool is a plausible p95 tail contributor under concurrency. Validate under load or revert. | `app/config.py:990`, `:1023` |
 | B14 | **P0 evidence** | Rewrite `tests/test_edge_cases.py`. Every failure-path test is unfalsifiable: `assert status_code in (200, 500)` plus `assert health.status_code in (200, 404)` against a `/health` route **that does not exist** (`404 == 404`, six times). They mock the graph, so no dependency client code runs. The degradation invariants in `CLAUDE.md` have **no real coverage**. | `tests/test_edge_cases.py` |
@@ -333,10 +448,21 @@ Three things this makes visible that wall-clock hid:
 
 - **0.1s on a repeated query** — the cache tiers work, and that is the only
   sub-second result in the set. Every uncached query is ≥6s.
-- **`"hello"` costs 6.1s of server time.** A deterministic greeting should
-  short-circuit in milliseconds (`CasualShortCircuit` sits at stage 6). Whatever
-  it is paying for, it is not retrieval — this is the cheapest available p50 win
-  and likely explains a large share of the median.
+- **`"hello"` costs 6.1s of server time — DISPROVEN by re-measurement,
+  2026-09-12.** This was a harness artifact, not a pipeline defect. The harness
+  appended `" (ref $NONCE)"` to every query, including `"hello"`, to dodge the
+  cache. `GREETING_RE`/`GREETING_VOCATIVE_RE` (`app/routing_primitives.py:7-21`)
+  are anchored `^...$` — the nonce suffix breaks the match, so
+  `is_deterministic_greeting()` returns `False` and the query falls through
+  `CasualShortCircuit` into the full pipeline, which is exactly where the 6.1s
+  went. A live re-test with the literal string `"hello"` (no suffix, fresh anon
+  token, `cache_hit: false` so this is not a cache hit either) completes in
+  **`latency_ms: 5`**, `route_decision: "instant_greeting"`. Real greeting
+  traffic is already fine; nothing here needs fixing. The harness itself is the
+  bug — it should not nonce-suffix queries that are supposed to hit a
+  regex-anchored short-circuit. B22's real target remains the
+  `decompose_query -> navigate_and_hyde` serial edge on genuine QUERY-tier
+  requests (see below).
 - **R21 confirmed live in-sweep**: two rows report real faithfulness (0.62, 0.54)
   where the pre-fix build would have written `0.0` into the alerting median.
   Two rows still show 0.0 despite carrying citations — those take a

@@ -46,7 +46,7 @@ the live config: `../docs/RAG_RUNTIME_DAG.md`.
 
 - `app/dependencies.py` is the composition root (`ServiceContainer`). Get services via `get_container()`; never instantiate services in route handlers or nodes.
 - Config only via `from app.config import settings` (pydantic-settings, loaded from `backend/.env`). Never read env vars directly.
-- `LLM_PROVIDER` selects the LLM backend: `sarvam_cloud` (default, `SARVAM_API_KEY`), `ollama` (`OLLAMA_BASE_URL`), `openrouter` (`OPENROUTER_API_KEY`). Caching adapters live in `services/cache/` (redis/semantic/memory/hot-cache behind `factory.py`).
+- `LLM_PROVIDER` selects the LLM backend: **`openrouter` is the live default** (`OPENROUTER_API_KEY`; generation `deepseek/deepseek-chat`, classify/fast `meta-llama/llama-3.1-8b-instruct`), with `sarvam_cloud` (`SARVAM_API_KEY`) and `ollama` (`OLLAMA_BASE_URL`) still supported. Each provider is a SEPARATE, non-inheriting class (`openrouter_service.py` / `sarvam_service.py` / `ollama_service.py`) — editing an LLM method in one does nothing for the others, so check `LLM_PROVIDER` and grep all three. Caching adapters live in `services/cache/` (redis/semantic/memory/hot-cache behind `factory.py`).
 - Inference must stay local/free-tier and dependencies open source; keep the anti-hallucination guarantees (guardrails, distress detection, verification thresholds, doctrinal keyword injection) intact when refactoring.
 
 ## OKF knowledge layer

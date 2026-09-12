@@ -81,7 +81,7 @@ def test_result_serialisation_and_latency_keep_typed_evidence():
     evidence = AnswerEvidence(
         corpus_id="askmukthiguru",
         release_version=4,
-        model_policy_id="gemini-flash-budget-v1",
+        model_policy_id="deepseek-budget-v1",
         evidence_support_label="Partially supported",
         source_count=1,
         top_source_score=0.73,

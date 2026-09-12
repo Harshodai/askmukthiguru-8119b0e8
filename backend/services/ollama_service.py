@@ -819,6 +819,13 @@ class OllamaService:
 
         Uses the main model for better query expansion with spiritual terminology.
         If reasons for previous retrieval failure are provided, they are incorporated.
+
+        B23 (2026-09-12 latency audit): measured at ~20-25s/call on the main
+        model, ~40% of a failing comparative query's total latency, while every
+        sibling CRAG helper (decompose_query, batch grader, faithfulness check,
+        HyDE) already uses the fast model. `rag_rewrite_query_fast_model`
+        (default False) lets this be A/B tested without changing default
+        behavior until a rewrite-quality regression check is run.
         """
         prompt = f"Original query: {original_query}"
         if reasons:
@@ -827,6 +834,8 @@ class OllamaService:
                 "\n\nRewrite the query to address these gaps while keeping the spiritual essence."
             )
 
+        if getattr(settings, "rag_rewrite_query_fast_model", False):
+            return await self._generate_fast(QUERY_REWRITE_PROMPT, prompt, **kwargs)
         return await self.generate(QUERY_REWRITE_PROMPT, prompt, **kwargs)
 
     async def verify_claims(self, answer: str, context: str) -> dict:

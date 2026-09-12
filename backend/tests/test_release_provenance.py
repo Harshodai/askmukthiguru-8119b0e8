@@ -83,7 +83,7 @@ def test_release_manifest_readiness_valid():
         embedding_model="BAAI/bge-m3",
         embedding_dim=1024,
         reranker_model="BAAI/bge-reranker-v2-m3",
-        policy_version="gemini-flash-budget-v1",
+        policy_version="deepseek-budget-v1",
         schema_version="1.0.0",
     )
     manifest.validate()
@@ -114,7 +114,7 @@ def test_release_manifest_rejects_empty_string_fields(field_override, value):
         "embedding_model": "BAAI/bge-m3",
         "embedding_dim": 1024,
         "reranker_model": "BAAI/bge-reranker-v2-m3",
-        "policy_version": "gemini-flash-budget-v1",
+        "policy_version": "deepseek-budget-v1",
         "schema_version": "1.0.0",
     }
     base_kwargs[field_override] = value
@@ -147,7 +147,7 @@ def test_release_manifest_rejects_invalid_embedding_dim(invalid_dim):
         embedding_model="BAAI/bge-m3",
         embedding_dim=invalid_dim,  # type: ignore
         reranker_model="BAAI/bge-reranker-v2-m3",
-        policy_version="gemini-flash-budget-v1",
+        policy_version="deepseek-budget-v1",
         schema_version="1.0.0",
     )
     with pytest.raises(ReleaseManifestError, match="must be a positive integer"):
@@ -175,7 +175,7 @@ def test_release_manifest_rejects_secrets_and_tokens(secret_value):
         embedding_model="BAAI/bge-m3",
         embedding_dim=1024,
         reranker_model="BAAI/bge-reranker-v2-m3",
-        policy_version="gemini-flash-budget-v1",
+        policy_version="deepseek-budget-v1",
         schema_version="1.0.0",
     )
     with pytest.raises(ReleaseManifestError, match="contains potential secret"):

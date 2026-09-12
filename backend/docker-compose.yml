@@ -153,8 +153,8 @@ services:
       # HF_HUB_OFFLINE removed — Llama Guard needs runtime download; embedding
       # models are pre-cached at build time so they load without network.
       # === LLM Provider ===
-      # "sarvam_cloud" (default) or "ollama" (requires Ollama on host)
-      - LLM_PROVIDER=${LLM_PROVIDER:-sarvam_cloud}
+      # "openrouter" (default), "sarvam_cloud", or "ollama" (requires Ollama on host)
+      - LLM_PROVIDER=${LLM_PROVIDER:-openrouter}
       # --- Sarvam Cloud API (config-driven — any model name works) ---
       - SARVAM_API_KEY=${SARVAM_API_KEY:-}
       - SARVAM_CLOUD_MODEL=${SARVAM_CLOUD_MODEL:-sarvam-30b}
@@ -176,8 +176,8 @@ services:
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
       - USE_OPENROUTER_FOR_SIMPLE=${USE_OPENROUTER_FOR_SIMPLE:-true}
       - OPENROUTER_FAST_MODEL=${OPENROUTER_FAST_MODEL:-meta-llama/llama-3.1-8b-instruct}
-      - OPENROUTER_GENERATION_MODEL=${OPENROUTER_GENERATION_MODEL:-google/gemini-2.5-flash}
-      - OPENROUTER_GENERATION_MODEL_FALLBACK=${OPENROUTER_GENERATION_MODEL_FALLBACK:-google/gemini-3.6-flash}
+      - OPENROUTER_GENERATION_MODEL=${OPENROUTER_GENERATION_MODEL:-deepseek/deepseek-chat}
+      - OPENROUTER_GENERATION_MODEL_FALLBACK=${OPENROUTER_GENERATION_MODEL_FALLBACK:-meta-llama/llama-3.3-70b-instruct}
       - OPENROUTER_CLASSIFY_MODEL=${OPENROUTER_CLASSIFY_MODEL:-meta-llama/llama-3.1-8b-instruct}
       - OPENROUTER_PROVIDER_SORT=${OPENROUTER_PROVIDER_SORT:-}
       - OPENROUTER_PROVIDER_PARTITION=${OPENROUTER_PROVIDER_PARTITION:-model}
@@ -307,8 +307,8 @@ services:
           # as deliberate in embedding_service.py), leaving zero headroom for
           # the first real request's additional model loads -> OOM-killed by
           # the cgroup limit, not a code bug.
-          memory: 6G
-          cpus: '4.0'
+          memory: ${BACKEND_MEMORY_LIMIT:-6G}
+          cpus: ${BACKEND_CPU_LIMIT:-4.0}
     restart: unless-stopped
     volumes: &backend-volumes
       # Cache HuggingFace models across rebuilds (prevents re-download on every docker build)

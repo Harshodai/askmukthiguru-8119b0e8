@@ -21,6 +21,7 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from qdrant_client.models import Distance
 
 
 # ---------------------------------------------------------------------------
@@ -73,15 +74,24 @@ def _make_pg_memory(user_id: str, memory_id: str | None = None, **overrides: Any
     return row
 
 
+_UNSET = object()
+
+
 def _build_index(
-    qdrant_client: Any | None = None,
-    supabase_client: Any | None = None,
+    qdrant_client: Any | None = _UNSET,
+    supabase_client: Any | None = _UNSET,
 ) -> Any:
-    """Build a CanonicalMemoryVectorIndex with injected clients."""
+    """Build a CanonicalMemoryVectorIndex with injected clients.
+
+    A sentinel default (not None) so callers can pass an explicit None to build
+    an index WITHOUT that client. `x or MagicMock()` swallowed the None and
+    handed back a mock, so rebuild_from_canonical's "supabase_client required"
+    guard could never be reached from a test.
+    """
     from services.canonical_memory.vector_index import CanonicalMemoryVectorIndex
 
-    qc = qdrant_client or MagicMock()
-    sc = supabase_client or MagicMock()
+    qc = MagicMock() if qdrant_client is _UNSET else qdrant_client
+    sc = MagicMock() if supabase_client is _UNSET else supabase_client
     return CanonicalMemoryVectorIndex(
         qdrant_client=qc,
         supabase_client=sc,
@@ -92,12 +102,25 @@ def _build_index(
 # Mock scroll result
 # ---------------------------------------------------------------------------
 
-class _ScrollResult:
-    """Mimics Qdrant's (points, next_offset) tuple from scroll()."""
+class _ScrollResult(tuple):
+    """Mimics Qdrant's (points, next_offset) tuple from scroll().
 
-    def __init__(self, points: list[MagicMock]):
-        self.points = points
-        self.next_offset = None
+    Subclasses tuple so `vector_results[0]` works: qdrant-client returns a real
+    tuple and the production code indexes it. The previous plain class exposed
+    only .points/.next_offset and raised
+    "'_ScrollResult' object is not subscriptable" against correct code.
+    """
+
+    def __new__(cls, points: list[MagicMock]):
+        return super().__new__(cls, (points, None))
+
+    @property
+    def points(self) -> list[MagicMock]:
+        return self[0]
+
+    @property
+    def next_offset(self):
+        return self[1]
 
 
 # ---------------------------------------------------------------------------
@@ -116,7 +139,7 @@ class TestEnsureCollection:
         call_kwargs = qc.create_collection.call_args
         assert call_kwargs.kwargs["collection_name"] == "canonical_memory_vectors"
         assert call_kwargs.kwargs["vectors_config"].size == 1024
-        assert call_kwargs.kwargs["vectors_config"].distance.value == "COSINE"
+        assert call_kwargs.kwargs["vectors_config"].distance == Distance.COSINE
 
     def test_skips_creation_when_collection_exists(self) -> None:
         qc = MagicMock()

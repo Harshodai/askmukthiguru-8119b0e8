@@ -72,6 +72,9 @@ logger = logging.getLogger(__name__)
 # Keep this table synchronized with the production model configuration and
 # OpenRouter's model pages; the fallback must not influence generation.
 _OPENROUTER_FALLBACK_RATES_PER_MILLION: dict[str, tuple[float, float]] = {
+    "deepseek/deepseek-chat": (0.14, 0.28),
+    "meta-llama/llama-3.3-70b-instruct": (0.12, 0.30),
+    "google/gemini-2.0-flash-001": (0.10, 0.40),
     "qwen/qwen3-30b-a3b-instruct-2507": (0.04815, 0.1931),
     "meta-llama/llama-3.1-8b-instruct": (0.02, 0.04),
     # OpenRouter pricing pages verified 2026-08-22. Provider-reported
@@ -529,20 +532,28 @@ class OpenRouterService:
             is_rate_limit = (
                 isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code == 429
             )
-            is_connection_error = isinstance(
-                exc, (httpx.RemoteProtocolError, httpx.ConnectError, httpx.TimeoutException)
+            is_server_error = (
+                isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code >= 500
             )
-            if is_rate_limit or is_connection_error:
+            is_connection_error = isinstance(
+                exc,
+                (
+                    httpx.RemoteProtocolError,
+                    httpx.ConnectError,
+                    httpx.TimeoutException,
+                    TimeoutError,
+                    asyncio.TimeoutError,
+                ),
+            )
+            is_malformed_payload = isinstance(exc, (ValueError, json.JSONDecodeError))
+            if is_rate_limit or is_server_error or is_connection_error or is_malformed_payload:
+                has_fallback = bool(fallback_model and not _is_fallback_attempt)
                 if is_rate_limit:
                     await self._record_rate_limit_response()
-                else:
-                    # Connection-class failures count against the breaker even though
-                    # we still degrade gracefully — matches ollama_service.py's pattern
-                    # (services/ollama_service.py:298-301), so streak of dead-connection
-                    # failures actually trips the circuit instead of looking healthy forever.
+                elif not has_fallback:
                     self._circuit.record_failure()
                 reason = "rate limited (429)" if is_rate_limit else type(exc).__name__
-                if fallback_model and not _is_fallback_attempt:
+                if has_fallback:
                     logger.warning(
                         f"OpenRouter {reason} during {operation} — retrying against "
                         f"fallback model {fallback_model} (same provider, separate rate-limit bucket)"
@@ -1177,6 +1188,8 @@ class OpenRouterService:
             reasons_text = "\n".join([f"- {r}" for r in actual_reasons if r])
             prompt += f"\n\nReasons for previous retrieval failure:\n{reasons_text}\n\nInstructions: Use these reasons to understand what was missing."
 
+        if getattr(settings, "rag_rewrite_query_fast_model", False):
+            return await self._generate_fast(QUERY_REWRITE_PROMPT, prompt, **kwargs)
         return await self.generate(QUERY_REWRITE_PROMPT, prompt, **kwargs)
 
     async def verify_claims(self, answer: str, context: str) -> dict:
