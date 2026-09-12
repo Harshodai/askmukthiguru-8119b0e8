@@ -1,3 +1,490 @@
+## Sep 12-13, 2026 — Ruthless Prod-Readiness Sweep: Verification Gate, Knowledge Graph, Canonical Memory
+
+**Session shape.** Started from an audit claiming comparative queries were
+unanswerable. Every finding below was reproduced live before it was fixed, and
+every fix carries a regression test. The through-line: **nothing here was a
+missing feature. Every one was a wired-but-broken path that failed silently**,
+and in most cases something in the code already knew it was broken and said so
+only to a log nobody read.
+
+---
+
+### L-VERIFY-1. A "correction hint" was hard-gating every answer
+
+- **What**: `reflect_on_answer` computes `reflection_semantic` as
+  `query_tier not in ("fast","tier2_simple","tier3_complex","deep")` — which is
+  every real tier, so the semantic scorer never ran and per-sentence **word
+  overlap >= 0.45** became the verdict. A faithful paraphrase of doctrine cannot
+  meet that bar. The result set `needs_correction`, which consumed the whole
+  CRAG rewrite budget and ended in `handle_fallback`.
+- **Why it mattered**: 93.8s to return `grounding_state=abstained` with
+  `faithfulness_score=0.0` on "what is the difference between the Beautiful
+  State and the Suffering State" — the exact question a seeker asks a guru.
+- **Why it survived**: the code's own comment called reflection "a correction
+  hint only... deep verification remains authoritative below". The comment was
+  right about the intent and wrong about the wiring, and nobody checked.
+- **When**: found 2026-09-12 by reading a live request's node timings.
+- **Where**: `backend/rag/nodes/verification.py`.
+- **Who/How found**: live trace. The log line said
+  `Faithfulness below threshold (score: 0.65, need >= 0.6)` — **0.65 is above
+  0.6**. A log that contradicts itself is a bug report.
+- **Fix applied**: a lexical-only verdict no longer vetoes; `verify_answer`
+  decides. Feedback message now names the real criterion.
+- **Rule**: If a check is documented as advisory, it must not be able to change
+  routing. And **never print a threshold you did not compare against** — a
+  misleading log costs more hours than a missing one.
+
+### L-VERIFY-2. A cached verdict made `semantic=True` unreachable in production
+
+- **What**: both `verify_answer` and `combined_grade_and_verify` reused
+  `state["lettuce_detect_result"]` whenever present. Self-reflection always
+  populates it, and (per L-VERIFY-1) scores lexically. So the `semantic=True`
+  argument at both authoritative call sites was **dead code in production**.
+- **Why it mattered**: the documented "embedding/lexical faithfulness checker"
+  was, in every real request, word overlap with zero tolerance.
+- **When/Where**: 2026-09-12, `rag/nodes/verification.py`.
+- **How found**: node timings showed `verify_answer: 0.1ms`. Nothing verifies
+  anything in 0.1ms.
+- **Fix applied**: every verdict is stamped `semantic: bool`; reuse only when
+  the cached verdict came from the semantic scorer.
+- **Rule**: A cache keyed on *identity* ("a verdict exists") rather than
+  *quality* ("a verdict of at least this strength exists") silently downgrades
+  the consumer. Cache the strength alongside the value.
+
+### L-VERIFY-3. A score that could never clear its own floor
+
+- **What**: the real ModernBERT detector returned `score = 1 - max_span_confidence`.
+  One confidently-flagged span drove it to ~0.003 no matter how much of the
+  answer was grounded, and it was compared against
+  `faithfulness_floor = 0.6`. Separately, span-to-claim matching compared raw
+  strings, so leading whitespace meant `claims` reported *every* sentence
+  supported while `unsupported_sentences` listed the flagged ones.
+- **Why it mattered**: enabling the better detector made things strictly worse —
+  every answer with a single flagged span failed.
+- **When/Where**: 2026-09-12, `backend/services/lettuce_detect_service.py`.
+- **How found**: `Faithfulness: 0.00 (floor=0.60)` sitting beside a `claims`
+  array in which all ten entries said `supported: true`.
+- **Fix applied**: `score` is now the supported-claim ratio; span matching
+  normalises whitespace and case. `is_faithful` stays zero-tolerance.
+- **Rule**: When two numbers are compared, they must be the **same kind of
+  number**. A confidence complement and a grounded proportion are not
+  interchangeable just because both live in [0,1]. And when two fields of one
+  result disagree, at least one is lying — reconcile before shipping.
+
+### L-VERIFY-4. Citation markup was being scored as doctrinal claims
+
+- **What**: the scorer stripped the trailing `Sources & Teachings` block but not
+  inline `[Source: <video title>]`, `[CITE:n]`, `[n]`. A span detector cannot
+  ground a citation marker in the retrieved text, so it flagged them.
+- **Why it mattered**: **3 of 5 rejected sentences in the live trace were
+  markup, not assertions.**
+- **When/Where**: 2026-09-12, `services/lettuce_detect_service.py`.
+- **Fix applied**: `_strip_attribution_markup()` removes both forms before
+  scoring.
+- **Rule**: Anything the *formatter* adds must be removed before anything the
+  *model* said is judged. Score the claims, not the chrome.
+
+### L-VERIFY-5. Prefer redaction to discarding the whole draft
+
+- **What**: a draft failing verification was replaced wholesale by a dump of raw
+  retrieved excerpts (`grounded_partial_evidence`) — even when 7 of 9 sentences
+  were grounded.
+- **Fix applied**: `_redact_unsupported_sentences()` ships the grounded
+  sentences and drops the rest (`route_decision=grounded_redacted`), with a line
+  telling the reader something was withheld. Declines when the draft is mostly
+  ungrounded or too little survives.
+- **Why this is not a loosening**: the invariant is "no ungrounded sentence
+  reaches a seeker". Redaction preserves it exactly; excerpt-dumping preserved
+  it too but answered nothing.
+- **Rule**: An anti-hallucination gate has two failure modes, not one. Shipping
+  a fabrication is the loud one; refusing to answer a question you *can* answer
+  is the quiet one. Design for both.
+
+---
+
+### L-GRAPH-1. A casing mismatch kept Neo4j out of every answer
+
+- **What**: `extract_doctrine_tags` yields lowercase (`"soul sync"`); the graph
+  stores Title Case `entity_id` (`"Soul Sync"`); the Cypher did
+  `MATCH (n1 {entity_id: $concept})` — an exact match that could never hit.
+- **Why it mattered**: this single mismatch is why "the knowledge graph
+  contributes nothing" had been true for months.
+- **When/Where**: 2026-09-12, `rag/nodes/retrieval.py::query_neo4j_subgraph`.
+- **How found**: not from code review — from dumping the actual `entity_id`
+  values out of Neo4j and comparing them to the tags by eye.
+- **Fix applied**: match a small set of casing variants with `IN`, preserving
+  the index (a `toLower()` on the stored property would have discarded it).
+- **Rule**: When an integration returns empty forever, **print both sides of
+  the join key** before theorising. Case and whitespace are the two most common
+  silent join failures.
+
+### L-GRAPH-2. A function with zero production callers
+
+- **What**: `query_neo4j_subgraph` was referenced only by tests. The one live
+  graph path contributed extra query *terms* appended last to
+  `expansion_queries`, then truncated to `remaining_budget = 2 - len(primary_queries)`
+  — which is **0 whenever the query decomposed into 2+ sub-queries**. Computed,
+  paid for, discarded.
+- **Fix applied**: subgraph relations are injected as a labelled document, so
+  they reach the prompt, are faithfulness-scored like any other evidence, and
+  are attributable. The discard case is now logged.
+- **Rule**: "We have a knowledge graph" is an architecture claim; "graph text
+  reached the prompt" is a measurement. Grep for callers before believing the
+  former. Work that is computed and thrown away should say so in a log.
+
+### L-GRAPH-3. The lane was the wrong trigger
+
+- **What**: the first gate fired on `retrieval_lane in ("relational","deep")`.
+  But "how does the Beautiful State relate to Soul Sync?" is a two-hop question
+  that classifies as `tier2_simple` and therefore lands on the **fast** lane.
+  The gate missed precisely the queries the graph exists to serve.
+- **Fix applied**: trigger on the query naming **2+ doctrine concepts** — a
+  local, I/O-free check that directly predicts a useful subgraph.
+- **Rule**: Gate on the property that predicts usefulness, not on a tier that
+  correlates with it by accident. Verify the gate fires on your motivating
+  example before declaring it done.
+
+### L-GRAPH-4. Volume of graph context actively hurt quality
+
+- **What**: 4,030 of 4,082 live edges are LightRAG's generic `DIRECTED` —
+  topological co-occurrence, not doctrine. Injecting ~5k characters of it
+  dropped faithfulness to **0.50** on a query that scored **1.0** once the
+  context was capped at 10-15 typed-first relations.
+- **Rule**: More retrieved context is not more grounding. Low-signal context
+  crowds the real teachings out of a bounded prompt and is paid for twice —
+  once in generation, again in verification.
+
+### L-GRAPH-5. LightRAG initialised, then never consulted
+
+- **What**: both `retrieve_for_single_query` call sites passed `lightrag=None`,
+  so its branch was unreachable from any real request. Startup logs said
+  "LightRAG Service successfully initialized", which read like it was working.
+- **Fix applied**: re-enabled on the multi-concept trigger with
+  `only_need_context=True` (retrieval, not generation) and a hard timeout.
+- **Rule**: A successful *initialisation* log is not evidence of *use*. If a
+  subsystem matters, log the moment it contributes to an answer.
+
+---
+
+### L-RETR-1. The benchmark measured a retriever the product does not use
+
+- **What**: my first golden-set harness called `qdrant.search(vec, limit)` with
+  a dense vector only. Production passes **dense and sparse**, and the
+  collection carries a sparse index. Reported nDCG@10 0.35-0.41 / Recall@10
+  0.50. Measuring the real path: **nDCG 0.57-0.69, Recall@10 0.83**.
+- **Why it mattered**: I published "retrieval quality is weak" as a headline
+  finding. It was an artifact of my own instrument, and it would have sent the
+  next engineer to re-tune a retriever that was not the problem.
+- **Rule**: **A benchmark that does not call the production code path is not a
+  benchmark.** Before trusting any number, diff your harness's call against the
+  real call site, argument for argument. Correct published numbers loudly when
+  the instrument was wrong — a wrong number with a confident label does more
+  damage than no number.
+
+### L-RETR-2. An LLM-generated benchmark must use a frozen question set
+
+- **What**: the harness generated its questions with an LLM per run. Comparing
+  config A against config B therefore compared **two different benchmarks**, and
+  the apparent "prefetch 4.0 is worse than 2.0" result was noise.
+- **Fix applied**: `--questions <cache>` writes the set once and reuses it; all
+  variants are scored on identical queries.
+- **Rule**: Any A/B whose *inputs* are regenerated between arms measures the
+  input generator, not the change. Freeze the corpus, then tune.
+
+### L-RETR-3. Prefetch depth improves ordering, not recall
+
+- **What**: raising the RRF prefetch multiplier 1.0 -> 3.0 left Recall@10
+  unchanged at 0.833 but moved Recall@1 0.433 -> 0.517, MRR 0.602 -> 0.646,
+  nDCG 0.660 -> 0.693. 4.0 was worse than 3.0.
+- **Rule**: Fusion quality and candidate coverage are different axes. Deeper
+  per-lane prefetch gives RRF more to rank; it does not find documents neither
+  lane retrieved. Measure both — and check for a peak rather than assuming
+  monotonic gains.
+
+### L-RETR-4. Retrieval depth saturates; find the knee
+
+- **What**: recall by first-stage depth at prefetch 3.0 — 0.850 (k=12), 0.900
+  (k=20), 0.9167 (k=24), 0.9167 (k=32). Set to 24.
+- **Rule**: Depth past the knee is pure latency: the reranker cannot use what it
+  already had, and every extra document is paid for downstream. Anything the
+  first stage misses, no reranker can recover — so depth matters up to the knee
+  and not one document further.
+
+---
+
+### L-MEM-1. A table the code wrote to and no migration created
+
+- **What**: `app/api/canonical_memory.py` wrote `canonical_memory_events` on
+  every mutation and read it for the GDPR export. **No migration ever created
+  it.** In a fresh database the memory row inserted, the audit insert raised
+  PGRST205, and the endpoint returned 500.
+- **Why it mattered**: a seeker was told *"Failed to save memory"* about a
+  memory that **had** saved — and a retry wrote a duplicate.
+- **When/Where**: 2026-09-12, found by exercising the API against a local stack
+  with all migrations applied.
+- **Rule**: Test the API against a database built **only from migrations**. A
+  long-lived dev database hides every missing DDL, because someone created the
+  table by hand once and it has been there ever since.
+
+### L-MEM-2. Postgres checks GRANTS before RLS — 27 tables were unreadable
+
+- **What**: `service_role` had no `SELECT` on 27 application tables, including
+  `user_roles`, `profiles`, `conversation_memories`, `user_healing_progress`.
+  RLS policies were correct and irrelevant: grants are checked first.
+- **Why it mattered, quietly**: `user_roles` denied meant **every admin check
+  logged a warning and fell through to non-admin**. `conversation_memories`
+  denied meant personal memory silently never reached an answer. Both surfaced
+  only as WARNING lines in a log.
+- **How found**: a single information_schema query comparing tables against
+  grants — after one "permission denied" warning made me suspect the class.
+- **Rule**: Correct RLS proves nothing about reachability. Audit
+  **grants and policies together**, and treat one permission-denied warning as a
+  signal to sweep the whole schema rather than patch the one table.
+
+### L-MEM-3. Stored memories were never embedded, so retrieval could not see them
+
+- **What**: the API wrote rows to Postgres but never indexed them into the
+  canonical vector collection. `CanonicalMemoryRetriever` searches Qdrant first
+  and falls back to an ILIKE over the statement — which only matches when the
+  seeker repeats the memory's own words. Two stored memories, a directly
+  relevant question, **zero retrieved**.
+- **Fix applied**: create/update index, delete de-indexes (a forgotten memory
+  must not keep being retrieved into the prompt).
+- **Rule**: A write path that stops at the primary store leaves the feature
+  inert. Every index a read path consults must be written on the same
+  transactionally-relevant event — and deletion must propagate, or "forget me"
+  is a lie.
+
+### L-MEM-4. The collaborator shape was wrong, and it failed as "no results"
+
+- **What**: `CanonicalMemoryRetriever` calls `await self._embedder(query)` — it
+  wants an async callable. It was handed the `EmbeddingService` object. Every
+  semantic search raised and was caught by
+  `except: logger.warning("Semantic search failed, falling back to lexical")`.
+- **Rule**: A broad `except` around a dependency turns a **type error** into a
+  **quality regression**. Duck-typed collaborators need an explicit Protocol or
+  a construction-time assertion; otherwise the mistake shows up as "the feature
+  is a bit rubbish" rather than a stack trace.
+
+### L-MEM-5. `ensure_collection()` was never called
+
+- **What**: every vector upsert 404'd against a missing collection, while the
+  memory itself saved fine.
+- **Rule**: Lazy infrastructure creation must happen at **wiring** time, not be
+  assumed. "It works on the machine where someone ran the script once" is not a
+  deployment story.
+
+### L-MEM-6. Five feature flags that controlled nothing
+
+- **What**: `chat_integration.py` read five flags via
+  `getattr(settings, name, default)`. **None were declared on `Settings`**, so
+  all five silently resolved to `False` regardless of environment. The switches
+  looked real and did nothing.
+- **Why it survived**: `getattr` with a *variable* name is invisible to the
+  dead-settings scan in `tests/test_wiring_invariants.py` — the very guard that
+  would have caught it.
+- **Fix applied**: declared on Settings and read as direct attributes, so the
+  scan can see them.
+- **Rule**: `getattr(settings, name, default)` is a blind spot in every static
+  check. Read config as real attributes; keep dynamic lookup for cases that
+  genuinely need it, and know you have opted out of the guard.
+
+### L-MEM-7. Personalisation eligibility must probe every memory source
+
+- **What**: `_probe_has_memory` checked the legacy sources but not
+  `canonical_memories`. A seeker whose only memories were canonical read as
+  ineligible, so the shared `(language, message)` cache replayed a generic
+  answer at someone who had told us about themselves.
+- **Rule**: When you add a source of personalisation, add it to the **cache
+  eligibility predicate in the same commit**. The two drift silently and the
+  symptom (a slightly generic answer) is nearly invisible.
+
+---
+
+### L-OBS-1. Cost accounting ran before the cost was incurred
+
+- **What**: `guru_llm_tokens_total` was declared and **never incremented by any
+  provider**. Worse, `/api/chat` enqueues a job and returns 202, so the HTTP
+  handler's `record_token_usage` wrapper read its accumulator **before a single
+  token had been spent**. In the default queued configuration, per-query cost
+  had no data at all.
+- **Fix applied**: accounting moved into the job worker, where the work happens.
+  Cost per query is now measurable: **$0.00046-$0.00179**.
+- **Rule**: In an async/queued architecture, instrumentation must live where the
+  **work** runs, not where the **request** returns. A declared-but-unincremented
+  metric is worse than none: dashboards show a confident flat zero.
+
+### L-OBS-2. A silently failing telemetry sink makes alerting vacuous
+
+- **What**: every request logged `Telemetry Sink insert operation failed` and
+  nothing counted it. `scripts/ops/hallucination_anomaly.py` reads the rows that
+  sink writes, so an empty table reads as **"no hallucinations"** rather than
+  **"no data"**.
+- **Root cause**: `SUPABASE_URL=http://host.docker.internal:54321`, which only
+  resolves inside a container, while the backend was running on the host.
+- **Fix applied**: `telemetry_sink_writes_total{outcome}` plus a consecutive-
+  failure streak with escalating log levels.
+- **Rule**: Any pipeline where **absence of data looks like absence of
+  problems** needs a health signal on the *write* side. Never let the alerting
+  path infer safety from an empty read.
+
+### L-OBS-3. A shipped answer carried a stale `abstained` label
+
+- **What**: the success branch of `format_final_answer` never set
+  `grounding_state`, so a value written by an earlier pass survived onto answers
+  that shipped with full prose and citations. That label feeds hallucination
+  analytics.
+- **Rule**: A terminal branch must **state** its own outcome, never inherit one.
+  Carried-over state is how metrics quietly become fiction.
+
+### L-OBS-4. Logging the exception class discards the diagnosis
+
+- **What**: `logger.error("...: %s", type(e).__name__)` turned a missing column,
+  a denied grant and a transport fault all into the single word `APIError`.
+- **Rule**: Log the exception, not its class name. The client gets the generic
+  message; the operator gets the cause. This one line cost a full debugging
+  cycle, and the fix found the real bug (a non-UUID `session_id`) in seconds.
+
+### L-OBS-5. Count the route every answer takes
+
+- **What**: nothing counted how often the pipeline fell back, so "fallback fires
+  constantly" was an impression, not a number.
+- **Fix applied**: `answer_route_total{route,grounding_state}` at
+  `ResultAssemblyStage` — the one point every answer passes through.
+- **Rule**: Put the census at the convergence point, and bound the label
+  cardinality there (canonicalised route, closed-set state).
+
+---
+
+### L-ROUTE-1. A detected misroute that nothing acted on
+
+- **What**: `handle_meditation` detects when the router sent it a
+  non-imperative question, logs a warning, and sets `_meditation_misroute=True`
+  "so the pipeline coordinator can fall back". **The flag had zero consumers.**
+  A doctrinal question got a canned greeting in 383ms having touched no
+  documents.
+- **Fix applied**: a conditional edge routes it back into retrieval — the same
+  question now returns grounded and cited in ~15s.
+- **Rule**: A flag with no reader is a comment that costs CPU. When code detects
+  its own failure, trace the signal to a consumer or delete it — the docstring
+  claiming someone handles it is not a handler.
+
+---
+
+### L-INFRA-1. Reproduce the failure before you fix the cause you assumed
+
+- **What**: the inherited audit said the backend container OOMs (137). It does
+  not: it boots healthy, peaks 4.55 GiB, settles at 2.57 GiB against a 6 GiB
+  limit, `OOMKilled=false`. A worker **did** die once — on a native SIGSEGV
+  inside `turbovec` (`TurboQuantIndex.add`), which no `try/except` can catch,
+  and which did not reproduce across subsequent requests.
+- **Fix applied**: `TURBOQUANT_NATIVE_ENABLED` kill switch (the numpy fallback
+  is correct), plus honest documentation. **Not** a memory-limit change.
+- **Rule**: Inherited findings are hypotheses. Reproduce before fixing, or you
+  tune the wrong knob and "fix" a bug that was never there. When a native
+  extension can take the process down, ship an **operator-flippable** escape
+  hatch — you cannot catch a segfault in-process.
+
+### L-INFRA-2. `.env` is shaped for one runtime and silently wrong in the other
+
+- **What**: `.env` uses compose-network hostnames (`qdrant`, `neo4j`, `redis`,
+  `host.docker.internal`). None resolve on the host, so a host-run backend fails
+  at startup — or worse, starts and fails only on the Supabase write path.
+- **Rule**: If a service supports two runtimes, the config must make the
+  difference explicit. A hostname that resolves in exactly one of them is a trap
+  the next person falls into.
+
+---
+
+### L-TEST-1. Tests that pin the bug
+
+- **What**: fixing L-VERIFY-2 broke `test_cached_lettuce_detect_result_reused`,
+  whose whole purpose was asserting the buggy reuse. Fixing L-VERIFY-1 broke a
+  test asserting the misleading message.
+- **Rule**: A failing test after a fix is a **question**, not an instruction.
+  Ask what the test was protecting: if it pins behaviour you just proved wrong,
+  update it and say so in the commit. Never edit an assertion merely to get
+  green.
+
+### L-TEST-2. `networkidle` and animations make E2E lie
+
+- **What**: `/chat` needs ~35s to reach `networkidle` against a frontend-only
+  preview, over the 30s default. Separately, axe sampled the tour dialog
+  **mid-fade** and measured a blended colour pair (`#4b4740` on `#cea43d`,
+  3.95:1) that never actually renders — the settled pair is `#211c12` on
+  `#fbbd23`. A naive "wait for no animations" then timed out forever, because
+  the landing page runs looping ambient animations.
+- **Rule**: Accessibility tools sample **computed** styles — run them only on a
+  settled frame. Scope animation waits to the element under test **and to finite
+  animations**, or an ambient loop hangs the wait.
+
+### L-TEST-3. Three green runs is not proof against a parallel-load flake
+
+- **What**: the a11y spec passed 3/3 in isolation and failed under the full
+  parallel run.
+- **Rule**: Reproduce flakes under the **same concurrency** as CI. Isolation
+  changes timing, which is usually the variable that matters.
+
+---
+
+### L-A11Y-1. Brand colour at small sizes failed WCAG AA badly
+
+- **What**: brand gold `#fbbd23` on cream `#f8f6f2` measures **1.56:1**
+  (needs 4.5:1). Even `--ojas-gold-dark` only reached 2.34:1; 31% lightness is
+  the first value that clears it.
+- **Fix applied**: a dedicated `--ojas-gold-ink` token for text, leaving the
+  brand gold for fills and large display type. **Flagged for design review** —
+  it changes how small labels look.
+- **Rule**: A brand colour is not one token. Fills, borders, large type and body
+  text have different contrast obligations; deriving a compliant "ink" variant
+  preserves the brand where it is decorative and fixes it where it is read.
+
+---
+
+### L-PROC-1. Two copies of one ops script, already diverged
+
+- **What**: `scripts/verify_rls_policies.py` and
+  `backend/scripts/verify_rls_policies.py` are separate files (928 vs 994 lines)
+  that had **already drifted before this session**. I edited the wrong one first.
+- **Rule**: The repo's own guidance — ops scripts have one canonical home — is
+  load-bearing. Before editing a script, check whether a same-named twin exists;
+  whichever an operator runs is otherwise a coin flip.
+
+### L-PROC-2. Some numbers cannot be measured today — say so
+
+- **What**: I tried to attribute an end-to-end latency change to a config edit.
+  `navigate_and_hyde` varied **12.1s -> 24.3s across two runs of identical
+  code**; provider inference variance swamped the effect. I had already written
+  a causal claim into a code comment and had to correct it.
+- **Rule**: When variance exceeds effect size, the honest output is "not
+  measurable under these conditions", not a plausible story. **Never leave a
+  measurement claim in a comment that the measurement does not support** — the
+  next engineer will trust it.
+
+---
+
+### Cross-cutting: what this session was actually about
+
+Ten-plus independent defects, one shared signature: **the system knew it was
+broken and told only a log.** A reflection log printing a threshold it never
+compared against. A verify node finishing in 0.1ms. A misroute flag with no
+reader. A metric declared and never incremented. A cost wrapper reading its
+accumulator before the work. Grants denied, caught, warned, ignored. An
+initialisation log that read like use.
+
+The practical takeaways, in order of how much time they saved:
+
+1. **Read the live trace before the code.** Node timings and log
+   self-contradictions found more in an hour than code review found all session.
+2. **Verify the instrument before trusting the measurement** (L-RETR-1).
+3. **Grep for callers before believing an architecture claim** (L-GRAPH-2).
+4. **Exercise against a database built only from migrations** (L-MEM-1/2).
+5. **Absence of data must never be indistinguishable from absence of problems**
+   (L-OBS-2).
+
+
+---
+
 ## Sep 9, 2026 — Personalization System Fixes
 
 ### L-PERS-1. Duplicate TYPE_CHECKING Block in orchestrator_utils.py
