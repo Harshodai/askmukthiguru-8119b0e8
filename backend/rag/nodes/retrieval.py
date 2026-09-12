@@ -257,6 +257,15 @@ def _okf_match(query: str, limit: int = 3, teacher: str | None = None) -> list[d
     return docs
 
 
+def _entity_id_forms(concept: str) -> list[str]:
+    """Casing variants of a doctrine tag, for an index-friendly `IN` match."""
+    c = (concept or "").strip()
+    if not c:
+        return []
+    forms = {c, c.lower(), c.upper(), c.title(), c.capitalize()}
+    return sorted(f for f in forms if f)
+
+
 async def query_neo4j_subgraph(
     query: str,
     corpus_id: str | None = None,
@@ -293,8 +302,9 @@ async def query_neo4j_subgraph(
                 # current-corpus edges have no property and remain visible only
                 # through the explicit default-corpus coalesce during migration.
                 cypher = f"""
-                MATCH (n1 {{entity_id: $concept}})-[r]->(n2)
-                WHERE coalesce(r.tenant_id, "{settings.default_tenant_id}") = $tenant_id
+                MATCH (n1)-[r]->(n2)
+                WHERE n1.entity_id IN $concept_forms
+                  AND coalesce(r.tenant_id, "{settings.default_tenant_id}") = $tenant_id
                   AND coalesce(r.corpus_id, "askmukthiguru") = $corpus_id
                   AND ($teacher_id IS NULL OR r.teacher_id = $teacher_id)
                   AND NOT n1:Quarantined AND NOT n2:Quarantined
@@ -304,7 +314,17 @@ async def query_neo4j_subgraph(
                 LIMIT 15
                 """
                 for concept in matched_concepts:
-                    result = session.run(cypher, concept=concept, **scope.to_neo4j_params())
+                    # extract_doctrine_tags yields lowercase tags ("soul sync")
+                    # while the graph stores Title Case entity_ids ("Soul Sync"),
+                    # so the original exact match never hit — which is the whole
+                    # reason no Neo4j text had ever reached an answer. Match a
+                    # small set of casings instead of lower()-ing in Cypher, so
+                    # the entity_id index is still used.
+                    result = session.run(
+                        cypher,
+                        concept_forms=_entity_id_forms(concept),
+                        **scope.to_neo4j_params(),
+                    )
                     for record in result:
                         # Domain-rights gate: n1/n2 may resolve to a Teacher entity.
                         # Unlicensed teachers (rollout_enabled=False) are recognized
@@ -346,6 +366,14 @@ async def query_neo4j_subgraph(
         timeout = float(getattr(settings, "lightrag_retrieval_timeout", 30))
         res, candidates = await asyncio.wait_for(asyncio.to_thread(_run), timeout=timeout)
         if res:
+            # 4,030 of the 4,082 live edges are LightRAG's generic DIRECTED type
+            # (measured 2026-09-12) — topological co-occurrence, not doctrine.
+            # Typed edges (IS_TAUGHT_BY, SYNONYMOUS_WITH, ...) are what carry
+            # interpretable meaning, so they go first and the tail is capped;
+            # 5k characters of DIRECTED lines otherwise crowd out the actual
+            # teachings in the prompt and drag the faithfulness score down.
+            max_relations = int(getattr(settings, "rag_graph_context_max_relations", 15))
+            res = sorted(res, key=lambda line: "-[DIRECTED]->" in line)[:max_relations]
             candidate_str = (
                 f"\n[Next-Step Traversal Candidates]: {', '.join(sorted(candidates))}"
                 if candidates
@@ -1434,6 +1462,18 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
 
     expansion_results: list = []
     remaining_budget = max(0, 2 - len(primary_queries))
+    if expansion_queries and remaining_budget == 0:
+        # The knowledge-graph neighbours are appended LAST to expansion_queries,
+        # so a query that decomposed into 2+ sub-queries spends the whole budget
+        # on primaries and throws the graph work away after paying for it. That
+        # waste was silent, which is why "is the graph helping?" could not be
+        # answered from telemetry. Count it before deciding to invest in Neo4j.
+        logger.info(
+            "Retrieval expansion discarded: %d expansion query/queries dropped "
+            "(primary_queries=%d already fills the budget of 2)",
+            len(expansion_queries),
+            len(primary_queries),
+        )
     if expansion_queries and remaining_budget > 0:
         # Dedupe against the queries we already ran
         already = set(primary_queries)
@@ -1720,6 +1760,141 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
                 raw_docs_copy = okf_docs + raw_docs_copy
         except Exception as e:
             logger.debug("OKF retrieval fallback failed (non-fatal): %s", e)
+
+    # --- Knowledge-graph evidence injection (multi-hop / relational queries) ---
+    # Until now the graph contributed only extra query TERMS, appended last and
+    # usually truncated away, so no Neo4j-derived text ever reached the prompt
+    # and "graph-grounded" was not a true claim. `query_neo4j_subgraph` already
+    # returns rights-gated "A -[REL]-> B" lines and had zero production callers.
+    # Inject them as an ordinary document so they are visible to generation,
+    # scored by the faithfulness gate like any other evidence, and attributable
+    # to the graph rather than smuggled in anonymously.
+    #
+    # Relational/deep lanes only: these are the multi-hop questions the graph can
+    # actually help with, and a comparative query is exactly what a seeker asks a
+    # guru. The call is bounded and fail-open — a slow or broken graph must never
+    # cost an answer.
+    # The lane alone is the wrong trigger: "how does the Beautiful State relate
+    # to Soul Sync?" is a two-hop question that lands on tier2_simple and so on
+    # the FAST lane. What actually predicts a useful subgraph is the query
+    # naming two or more doctrine concepts, which is a local, I/O-free check.
+    _graph_multi_concept = False
+    try:
+        from ingest.pipeline import extract_doctrine_tags
+
+        _graph_multi_concept = len(set(extract_doctrine_tags(base_question))) >= 2
+    except Exception as _tag_err:  # never let tag extraction break retrieval
+        logger.debug("doctrine tag extraction unavailable: %s", _tag_err)
+
+    if (
+        getattr(settings, "rag_graph_context_injection_enabled", True)
+        and (retrieval_lane in ("relational", "deep") or _graph_multi_concept)
+        and getattr(settings, "knowledge_graph_query_enabled", True)
+        and intent not in ("CASUAL", "GREETING")
+    ):
+        try:
+            graph_budget = float(getattr(settings, "rag_graph_context_timeout", 3.0))
+            graph_context = await asyncio.wait_for(
+                query_neo4j_subgraph(base_question, scope=scope), timeout=graph_budget
+            )
+            if graph_context and graph_context.strip():
+                graph_doc = {
+                    "text": (
+                        "Doctrinal relationships recorded in the teaching graph "
+                        "(use these to explain how the concepts connect; cite the "
+                        "teachings themselves for the wording):\n" + graph_context
+                    ),
+                    # Below the curated-OKF band: the graph states that concepts
+                    # are related, not what the gurus said about them, so it must
+                    # never outrank an actual teaching.
+                    "score": float(getattr(settings, "rag_graph_context_score", 0.35)),
+                    "metadata": {
+                        "source": "knowledge-graph",
+                        "title": "Doctrinal relationship graph",
+                        "type": "graph_context",
+                    },
+                }
+                all_docs = all_docs + [graph_doc]
+                raw_docs_copy = raw_docs_copy + [graph_doc]
+                logger.info(
+                    "KG evidence injection: added subgraph context (%d chars, lane=%s, multi_concept=%s)",
+                    len(graph_context),
+                    retrieval_lane,
+                    _graph_multi_concept,
+                )
+            else:
+                logger.info("KG evidence injection: no subgraph matched (lane=%s)", retrieval_lane)
+        except (TimeoutError, asyncio.TimeoutError):
+            logger.warning(
+                "KG evidence injection timed out after %.1fs; answering without graph context",
+                float(getattr(settings, "rag_graph_context_timeout", 3.0)),
+            )
+        except Exception as exc:
+            logger.warning("KG evidence injection failed (fail-open): %s", exc)
+
+    # --- LightRAG graph context (multi-hop queries) ---
+    # LightRAG has been initialised at startup and then never consulted on the
+    # hot path: both `retrieve_for_single_query` call sites pass lightrag=None,
+    # so its branch was unreachable from a real request. It is re-enabled here
+    # only for the multi-concept queries it can actually help, with
+    # only_need_context=True so LightRAG does retrieval, not generation, and a
+    # hard timeout — the latency of an unbounded aquery is why it was dropped
+    # from the hot path in the first place.
+    if (
+        getattr(settings, "rag_lightrag_context_injection_enabled", True)
+        and _graph_multi_concept
+        and intent not in ("CASUAL", "GREETING")
+    ):
+        try:
+            # Import locally: `get_container` is rebound by a later local
+            # import inside this function, which makes the module-level name a
+            # local variable for the whole scope and unbound at this point.
+            from app.dependencies import get_container as _get_container
+
+            _lightrag = getattr(_get_container(), "lightrag", None)
+            if _lightrag is not None:
+                lr_budget = float(getattr(settings, "rag_lightrag_context_timeout", 4.0))
+                lr_ctx = await asyncio.wait_for(
+                    _lightrag.aquery(
+                        base_question,
+                        mode=getattr(settings, "rag_lightrag_context_mode", "local"),
+                        only_need_context=True,
+                    ),
+                    timeout=lr_budget,
+                )
+                lr_ctx = (lr_ctx or "").strip()
+                # aquery returns this sentinel string when the graph is down.
+                if lr_ctx and lr_ctx != "Knowledge graph is currently offline.":
+                    lr_cap = int(getattr(settings, "rag_lightrag_context_max_chars", 3000))
+                    lr_doc = {
+                        "text": (
+                            "Related passages surfaced through the teaching graph "
+                            "(supporting context; quote the teachings themselves):\n"
+                            + lr_ctx[:lr_cap]
+                        ),
+                        "score": float(getattr(settings, "rag_graph_context_score", 0.35)),
+                        "metadata": {
+                            "source": "lightrag-graph",
+                            "title": "Graph-linked teaching context",
+                            "type": "graph_context",
+                        },
+                    }
+                    all_docs = all_docs + [lr_doc]
+                    raw_docs_copy = raw_docs_copy + [lr_doc]
+                    logger.info(
+                        "LightRAG context injection: added %d chars (capped at %d)",
+                        min(len(lr_ctx), lr_cap),
+                        lr_cap,
+                    )
+                else:
+                    logger.info("LightRAG context injection: graph returned nothing usable")
+        except (TimeoutError, asyncio.TimeoutError):
+            logger.warning(
+                "LightRAG context injection timed out after %.1fs; answering without it",
+                float(getattr(settings, "rag_lightrag_context_timeout", 4.0)),
+            )
+        except Exception as exc:
+            logger.warning("LightRAG context injection failed (fail-open): %s", exc)
 
     # RAGFlow Gap 1: adaptive deep-research sufficiency loop.
     # Auto-fires for tier3_complex + deep; opt-in via rag_deep_research_enabled.

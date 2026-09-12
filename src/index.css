@@ -44,6 +44,12 @@
     --ojas-gold: 43 96% 56%;
     --ojas-gold-light: 45 100% 70%;
     --ojas-gold-dark: 40 90% 45%;
+    /* Small text in brand gold is unreadable on the cream ground: the default
+       measures 1.57:1 and even `dark` only reaches 2.34:1, against the 4.5:1
+       WCAG 2 AA minimum for body-size text. 31% lightness is the first value
+       that clears it (4.59:1). Use this for gold text; keep the lighter tokens
+       for fills, borders and large display type. */
+    --ojas-gold-ink: 40 90% 31%;
 
     /* Palette Alias Layer */
     --sacred-sand: 40 30% 96%;
@@ -712,7 +718,7 @@
    ============================================================ */
 @layer components {
   .text-eyebrow {
-    @apply text-[11px] font-semibold uppercase tracking-[0.18em] text-ojas;
+    @apply text-[11px] font-semibold uppercase tracking-[0.18em] text-ojas-ink;
   }
   .text-display {
     font-size: clamp(2.25rem, 5vw + 0.5rem, 4.5rem);

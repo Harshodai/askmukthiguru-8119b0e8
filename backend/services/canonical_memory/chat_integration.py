@@ -31,28 +31,36 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 def _flag(name: str, default: bool = False) -> bool:
-    """Read a feature flag from settings, returning default if absent."""
+    """Read a feature flag from settings, returning default if absent.
+
+    Retained for callers that genuinely need a dynamic lookup. The five flags
+    below read their attributes DIRECTLY instead: a getattr() on a variable name
+    is invisible to the dead-settings scan in tests/test_wiring_invariants.py,
+    which is how all five came to be read here but never declared on Settings —
+    every one silently resolved to its default no matter what the environment
+    said. Direct access makes the wiring checkable.
+    """
     return getattr(settings, name, default)
 
 
 def _ff_canonical_memory() -> bool:
-    return _flag("canonical_memory_enabled", False)
+    return bool(settings.canonical_memory_enabled)
 
 
 def _ff_canonical_memory_retrieval() -> bool:
-    return _flag("canonical_memory_retrieval", False)
+    return bool(settings.canonical_memory_retrieval)
 
 
 def _ff_memory_shadow() -> bool:
-    return _flag("memory_shadow", False)
+    return bool(settings.memory_shadow)
 
 
 def _ff_memory_write() -> bool:
-    return _flag("memory_write", False)
+    return bool(settings.memory_write)
 
 
 def _ff_memory_influence() -> bool:
-    return _flag("memory_influence", False)
+    return bool(settings.memory_influence)
 
 
 # ---------------------------------------------------------------------------

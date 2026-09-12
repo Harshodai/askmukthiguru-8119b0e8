@@ -50,6 +50,32 @@ _LETTUCE_MODEL_REVISION = (
 )
 
 
+_SOURCES_BLOCK_RE = re.compile(r"📚 \*Sources & Teachings:\*.*", re.DOTALL)
+# Inline attribution the formatter injects: "[Source: <title>]", "[CITE:2]", "[3]".
+_INLINE_CITE_RE = re.compile(r"\[\s*(?:source\s*:[^\]]*|cite\s*:\s*\d+|\d+)\s*\]", re.IGNORECASE)
+
+
+def _strip_attribution_markup(answer: str) -> str:
+    """Remove citation markup before scoring.
+
+    A span detector has no way to ground "[Source: <video title>]" in the
+    retrieved context, so those markers were flagged as hallucinated spans and
+    sank otherwise-grounded answers — three of five rejected claims in the
+    2026-09-12 live trace were markers, not assertions. They are formatter
+    output, not claims the model made about the teachings.
+    """
+    return _INLINE_CITE_RE.sub("", _SOURCES_BLOCK_RE.sub("", answer or "")).strip()
+
+
+def _norm_for_span_match(text: str) -> str:
+    """Normalise a span or claim for substring comparison.
+
+    Detector spans carry leading/trailing whitespace and their own casing;
+    collapse both so a span can be located inside the claim it came from.
+    """
+    return re.sub(r"\s+", " ", (text or "").strip().lower())
+
+
 def _split_claims(text: str) -> list[str]:
     return [s.strip() for s in re.split(r"(?<=[.!?])\s+", text) if len(s.strip()) > 10]
 
@@ -196,7 +222,7 @@ class LettuceDetectService:
 
         # Strip the source citation block the formatter appends — it is
         # not a claim the detector should score against the context.
-        clean_answer = re.sub(r"📚 \*Sources & Teachings:\*.*", "", answer, flags=re.DOTALL).strip()
+        clean_answer = _strip_attribution_markup(answer)
         if not clean_answer:
             return {
                 "is_faithful": False,
@@ -241,9 +267,15 @@ class LettuceDetectService:
         span_texts = [p.get("text", "") for p in predictions]
         claims = []
         for claim in _split_claims(clean_answer):
-            claim_lower = claim.lower()
+            claim_norm = _norm_for_span_match(claim)
+            # Spans come back with surrounding whitespace and their own casing;
+            # matching them raw against the claim missed every one, so `claims`
+            # reported all-supported while `unsupported_sentences` listed spans.
             claim_spans = [
-                p for p in predictions if (p.get("text") or "").lower() in claim_lower
+                p
+                for p in predictions
+                if (sp := _norm_for_span_match(p.get("text") or ""))
+                and (sp in claim_norm or claim_norm in sp)
             ]
             claim_confidence = max(
                 (float(p.get("confidence", 0.0)) for p in claim_spans),
@@ -256,9 +288,18 @@ class LettuceDetectService:
                     "supported": not claim_spans,
                 }
             )
+        # `score` is compared against settings.faithfulness_floor, which is a
+        # grounded-proportion threshold. `1 - max_span_confidence` is not that:
+        # one confidently-flagged span drove it to ~0 no matter how much of the
+        # answer was grounded, so any answer with a single span failed the floor.
+        # Report the supported-claim ratio instead; `is_faithful` below stays
+        # zero-tolerance, so this loosens nothing that gates on it.
+        supported_claims = [c for c in claims if c["supported"]]
+        grounded_ratio = len(supported_claims) / len(claims) if claims else 0.0
         return {
             "is_faithful": False,
-            "score": 1.0 - max_conf,
+            "score": grounded_ratio,
+            "max_span_confidence": max_conf,
             "details": (
                 f"real LettuceDetect: {len(predictions)} hallucinated spans "
                 f"(max_conf={max_conf:.3f}, {duration:.1f}ms): "
@@ -292,7 +333,7 @@ class LettuceDetectService:
             }
 
         # Clean answer to remove source citation lists to prevent false negatives
-        clean_answer = re.sub(r"📚 \*Sources & Teachings:\*.*", "", answer, flags=re.DOTALL).strip()
+        clean_answer = _strip_attribution_markup(answer)
 
         # Split answer into sentences
         sentences = [

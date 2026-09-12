@@ -15,6 +15,7 @@ Architecture:
 from __future__ import annotations
 
 import logging
+import os
 import threading
 import time
 from functools import lru_cache
@@ -32,6 +33,22 @@ except ImportError:
     TurboQuantIndex = None  # type: ignore
     IdMapIndex = None  # type: ignore
     _HAVE_TURBOVEC = False
+
+# turbovec is a native extension. On 2026-09-12 a containerised worker died with
+# a fatal interpreter crash inside `TurboQuantIndex.add` (traceback bottomed out
+# at turboquant_cache.py `put`) while the background cache warmer was running
+# concurrently — a SIGSEGV, which no try/except can catch, so it takes the whole
+# worker and every in-flight request with it. It has not reproduced on demand.
+# Until it is understood, an operator needs a way to fall back to the pure-numpy
+# path without shipping code: TURBOQUANT_NATIVE_ENABLED=false.
+if _HAVE_TURBOVEC and os.environ.get("TURBOQUANT_NATIVE_ENABLED", "true").strip().lower() in (
+    "0",
+    "false",
+    "no",
+):
+    _HAVE_TURBOVEC = False
+    TurboQuantIndex = None  # type: ignore
+    IdMapIndex = None  # type: ignore
 
 logger = logging.getLogger(__name__)
 

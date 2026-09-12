@@ -73,6 +73,11 @@ async function seedAuth(context: BrowserContext) {
 
 for (const route of CRITICAL_ROUTES) {
   test(`a11y: ${route} has no serious/critical violations`, async ({ page, context }, testInfo) => {
+    // These routes mount the full shell and its capability probes before the
+    // network quiesces — measured at ~35s against a frontend-only preview,
+    // which overran the 30s default. The axe run itself is fast; the wait is
+    // what needs the room.
+    test.setTimeout(90_000);
     if (PROTECTED_ROUTES.has(route)) {
       await seedAuth(context);
     }

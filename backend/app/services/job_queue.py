@@ -487,6 +487,39 @@ class JobQueueService:
         if await redis_client.get(lease_key) == owner:
             await redis_client.delete(lease_key)
 
+    def _record_job_cost(self, accumulator, request_data: dict, is_stream: bool) -> None:
+        """Record what this job actually spent. Never raises — accounting must
+        not be able to fail a job that already produced an answer."""
+        try:
+            if not accumulator or (accumulator.tokens_in <= 0 and accumulator.tokens_out <= 0):
+                return
+            from services.cost_tracker import get_cost_tracker
+            from services.tenant_context import TenantContext
+
+            tracked_cost = accumulator.cost_usd + accumulator.estimated_cost_usd
+            endpoint = "/api/chat/stream" if is_stream else "/api/chat"
+            logger.info(
+                "CHAT_COST endpoint=%s model=%s tokens_in=%d tokens_out=%d cost_usd=%.6f",
+                endpoint,
+                accumulator.model,
+                accumulator.tokens_in,
+                accumulator.tokens_out,
+                tracked_cost,
+            )
+            get_cost_tracker().record(
+                tenant_id=TenantContext.get(),
+                user_id=str(request_data.get("user_id") or "anonymous"),
+                session_id=str(request_data.get("session_id") or ""),
+                model=accumulator.model,
+                provider=accumulator.provider,
+                tokens_in=accumulator.tokens_in,
+                tokens_out=accumulator.tokens_out,
+                endpoint=endpoint,
+                cost_override=tracked_cost if tracked_cost > 0 else None,
+            )
+        except Exception as exc:
+            logger.warning("JobQueue: failed to record job cost: %s", exc)
+
     async def _process_job(self, job_id: str, worker_factory: Callable, worker_id: int) -> None:
         r = await self._get_redis()
         meta = await r.hgetall(f"job:{job_id}:meta")
@@ -556,10 +589,23 @@ class JobQueueService:
                     "correlation_id": str(meta.get("correlation_id") or "-")[:128],
                 }
             )
+            # Token/cost accounting has to live HERE, not on the HTTP handler.
+            # /api/chat enqueues and returns 202 immediately, so the handler's
+            # accumulator was always read before a single token had been spent —
+            # which is why per-query cost had no data in the default queued
+            # configuration. This is where the LLM work actually happens.
+            from services.cost_tracker import TokenAccumulator, token_accumulator_var
+
+            accumulator = TokenAccumulator()
+            cost_token = token_accumulator_var.set(accumulator)
             try:
                 result = await worker_factory(request_data, is_stream, job_id)
             finally:
                 queue_timing_var.reset(queue_token)
+                try:
+                    self._record_job_cost(accumulator, request_data, is_stream)
+                finally:
+                    token_accumulator_var.reset(cost_token)
             published_at = time.time()
             if not is_stream:
                 await r.set(f"job:{job_id}:result", json.dumps(result, default=str))

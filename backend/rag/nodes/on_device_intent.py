@@ -308,7 +308,13 @@ def _build_centroids() -> dict[str, list[float]]:
 def _cosine_similarity(a: list[float], b: list[float]) -> float:
     a_arr = np.array(a)
     b_arr = np.array(b)
-    return float(np.dot(a_arr, b_arr) / (np.linalg.norm(a_arr) * np.linalg.norm(b_arr)))
+    denom = float(np.linalg.norm(a_arr) * np.linalg.norm(b_arr))
+    if denom == 0.0:
+        # A zero vector has no direction, so similarity is undefined. Returning
+        # 0.0 keeps it below every caller's threshold; NaN silently poisons the
+        # max() comparison in classify() instead.
+        return 0.0
+    return float(np.dot(a_arr, b_arr) / denom)
 
 
 # ── public API ──

@@ -57,6 +57,25 @@ HEALTH_CHECK_TOTAL = Counter(
     ["result"],  # ready | not_ready
 )
 
+# A silently-failing telemetry sink is worse than a loud one: the hallucination
+# anomaly job (scripts/ops/hallucination_anomaly.py) reads the rows this writes,
+# so an empty table reads as "no hallucinations" rather than "no data". Counted
+# so an alert can fire on the write path, not just the read path.
+# §11 fallback visibility: nothing counted how often an answer left the pipeline
+# as a fallback rather than a synthesized answer, so "fallback fires constantly"
+# was only ever visible by reading logs one request at a time.
+ANSWER_ROUTE_TOTAL = Counter(
+    "answer_route_total",
+    "Final answers by route and grounding outcome",
+    ["route", "grounding_state"],
+)
+
+TELEMETRY_SINK_WRITES = Counter(
+    "telemetry_sink_writes_total",
+    "Telemetry sink write attempts by outcome",
+    ["outcome"],  # ok | error
+)
+
 # ===================================================================
 # Service-Level Prometheus Metrics (Unit 13)
 # ===================================================================

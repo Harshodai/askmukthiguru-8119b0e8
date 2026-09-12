@@ -216,7 +216,9 @@ async def test_reflect_on_answer_hallucinated(mock_services):
     result = await nodes.reflect_on_answer(state)
 
     assert result["needs_correction"] is True
-    assert "Faithfulness below threshold" in result["reflection_feedback"]
+    # The message names the criterion that actually decided — all-sentences-grounded
+    # — not a floor comparison that never ran.
+    assert "not grounded in the retrieved context" in result["reflection_feedback"]
 
 
 @pytest.mark.asyncio

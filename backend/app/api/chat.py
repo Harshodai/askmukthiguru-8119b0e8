@@ -320,7 +320,25 @@ async def populate_server_side_history(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Error loading chat history from database: %s", type(e).__name__)
+        # conversations.id is a uuid column, so a session_id that is not a UUID
+        # comes back as 22P02 "invalid input syntax for type uuid". That is a
+        # malformed client identifier, not a server fault, and it was being
+        # reported as a 500. There is no stored history for an id the table
+        # cannot hold, so start the turn without it. Checked on the error rather
+        # than pre-validating, so ids the database does accept keep working.
+        if "22P02" in str(e) or "invalid input syntax for type uuid" in str(e):
+            logger.warning(
+                "Session id %s is not a conversation uuid; continuing without stored history",
+                sanitize_log_input(str(chat_body.session_id)),
+            )
+            if not chat_body.messages:
+                chat_body.messages = []
+            return
+        # Logging only the exception CLASS made this a dead end: every storage
+        # fault — a missing column, a denied grant, a transport error — arrived
+        # as the single word "APIError" with no way to tell them apart. The
+        # client still gets the generic message; the operator gets the cause.
+        logger.exception("Error loading chat history from database: %s", e)
         raise HTTPException(status_code=500, detail="Failed to load conversation history")
 
 
@@ -361,6 +379,18 @@ def record_token_usage(endpoint: str):
                             tokens_out=acc.tokens_out,
                             endpoint=endpoint,
                             cost_override=tracked_cost if tracked_cost > 0 else None,
+                        )
+                        # Per-request cost was recorded but never surfaced, so
+                        # "what does a query cost?" could only be answered by
+                        # querying the tracker. One line per request makes the
+                        # distribution readable straight from the logs.
+                        logger.info(
+                            "CHAT_COST endpoint=%s model=%s tokens_in=%d tokens_out=%d cost_usd=%.6f",
+                            endpoint,
+                            acc.model,
+                            acc.tokens_in,
+                            acc.tokens_out,
+                            tracked_cost,
                         )
                     except Exception as e:
                         logger.warning(f"Failed to record token usage: {e}")

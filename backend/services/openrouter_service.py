@@ -273,6 +273,14 @@ class OpenRouterService:
     ) -> None:
         """Push provider cost or an explicit fallback estimate into accounting."""
         try:
+            # guru_llm_tokens_total was declared but never incremented by any
+            # provider, so per-query token and cost draw had no time series at
+            # all — the reason §5 of the audit could not be answered. Count it
+            # here, at the one place the provider's own usage numbers arrive.
+            from app.metrics import LLM_TOKENS
+
+            LLM_TOKENS.labels(model=model).inc(max(0, tokens_in) + max(0, tokens_out))
+
             from services.cost_tracker import token_accumulator_var
 
             acc = token_accumulator_var.get()

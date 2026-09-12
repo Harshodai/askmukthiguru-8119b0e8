@@ -266,8 +266,8 @@ async def test_unsupported_claims_trigger_fallback_gateway_on_complex_tier(mock_
 
 
 @pytest.mark.asyncio
-async def test_cached_lettuce_detect_result_reused(mock_verification_services):
-    """Cached lettuce_detect_result from self-reflection is reused with claims preserved."""
+async def test_cached_semantic_lettuce_detect_result_reused(mock_verification_services):
+    """A cached SEMANTIC verdict is reused with claims preserved."""
     _, mock_ld, _ = mock_verification_services
 
     cached_claims = [
@@ -279,6 +279,7 @@ async def test_cached_lettuce_detect_result_reused(mock_verification_services):
         "details": "All sentences grounded.",
         "unsupported_sentences": [],
         "claims": cached_claims,
+        "semantic": True,
     }
 
     state = _create_test_state(query_tier="standard", answer="Sri Preethaji teaches peace.")
@@ -291,6 +292,41 @@ async def test_cached_lettuce_detect_result_reused(mock_verification_services):
     assert result["is_faithful"] is True
     assert result["verification"]["passed"] is True
     assert result["verification"]["claims"] == cached_claims
+
+
+@pytest.mark.asyncio
+async def test_cached_lexical_verdict_is_rescored(mock_verification_services):
+    """A lexical verdict must not stand in for the semantic verification pass.
+
+    Self-reflection scores lexically on most tiers and always writes
+    `lettuce_detect_result`. Reusing it here made `semantic=True` unreachable in
+    production, leaving word-overlap as the real grounding gate.
+    """
+    _, mock_ld, _ = mock_verification_services
+
+    mock_ld.score_faithfulness.return_value = {
+        "is_faithful": True,
+        "score": 0.95,
+        "details": "All sentences grounded.",
+        "unsupported_sentences": [],
+        "claims": [{"text": "Sri Preethaji teaches peace.", "score": 0.95, "supported": True}],
+    }
+
+    state = _create_test_state(query_tier="standard", answer="Sri Preethaji teaches peace.")
+    state["lettuce_detect_result"] = {
+        "is_faithful": False,
+        "score": 0.30,
+        "details": "lexical overlap miss",
+        "unsupported_sentences": ["Sri Preethaji teaches peace."],
+        "claims": [],
+        "semantic": False,
+    }
+
+    result = await nodes.verify_answer(state)
+
+    mock_ld.score_faithfulness.assert_called_once()
+    assert mock_ld.score_faithfulness.call_args.kwargs["semantic"] is True
+    assert result["is_faithful"] is True
 
 
 @pytest.mark.asyncio

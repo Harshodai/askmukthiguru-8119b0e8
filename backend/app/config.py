@@ -314,8 +314,15 @@ class Settings(BaseSettings):
     # RRF has no native weight knob, so channel influence is tuned indirectly via
     # prefetch pool size: a larger candidate pool from one channel gives it more
     # chances to rank into the fused top-K. 1.0 = current behavior (limit + 5 each).
-    qdrant_dense_prefetch_multiplier: float = 1.0
-    qdrant_sparse_prefetch_multiplier: float = 1.0
+    # RRF fuses the dense and sparse candidate lists, so how DEEP each lane
+    # prefetches decides how much evidence the fusion has to rank with.
+    # Measured 2026-09-12 on a fixed 60-question golden set (prefetch 1.0 ->
+    # 3.0, k=10): Recall@1 0.433 -> 0.517, MRR 0.602 -> 0.646, nDCG@10 0.660 ->
+    # 0.693. Recall@10 is unchanged at 0.833 — deeper prefetch improves the
+    # ORDERING, not the candidate set. 4.0 was worse than 3.0. Costs no LLM
+    # call; the work is Qdrant-side.
+    qdrant_dense_prefetch_multiplier: float = 3.0
+    qdrant_sparse_prefetch_multiplier: float = 3.0
 
     # --- Chunking Strategies ---
     use_boundary_chunker: bool = True  # Respect sentence and verse boundaries
@@ -665,7 +672,11 @@ class Settings(BaseSettings):
     raptor_summary_model: str = ""  # Auto-set from model_preset
 
     # --- RAG ---
-    rag_top_k_retrieval: int = 20
+    # Depth the reranker gets to choose from. Measured on the same golden set
+    # at prefetch 3.0: recall 0.850 (k=12) -> 0.900 (k=20) -> 0.917 (k=24) ->
+    # 0.917 (k=32). It saturates at 24, so that is the setting; anything the
+    # first stage misses here, the cross-encoder can never recover.
+    rag_top_k_retrieval: int = 24
     rag_top_k_rerank: int = 10
     rag_max_rewrites: int = 1
     # Opt-in (2026-09-06, L-DOCKER-12 follow-up): on the FIRST verification
@@ -742,6 +753,57 @@ class Settings(BaseSettings):
     # nothing — harmless, and it means the layer switches back on by itself as soon
     # as entries are re-extracted, reviewed, and recompiled.
     rag_okf_injection_enabled: bool = True  # OKF as canonical knowledge layer
+
+    # Knowledge-graph evidence injection. Neo4j relationships are injected into
+    # retrieval as a labelled document on relational/deep lanes, so multi-hop
+    # questions ("how does X relate to Y?") can be answered from recorded
+    # doctrinal structure instead of hoping two independent chunks happen to
+    # co-occur. Before this the graph only contributed query terms that were
+    # usually discarded, so no graph-derived text reached the prompt at all.
+    # Bounded and fail-open — the graph must never cost an answer.
+    rag_graph_context_injection_enabled: bool = True
+    rag_graph_context_timeout: float = 3.0
+    # Deliberately below the curated-OKF band: the graph asserts that concepts
+    # are related, not what the gurus said, so it must never outrank a teaching.
+    rag_graph_context_score: float = 0.35
+    # Typed edges first, then a hard cap: the graph is overwhelmingly generic
+    # DIRECTED co-occurrence, and an uncapped dump crowds the real teachings out
+    # of the prompt.
+    rag_graph_context_max_relations: int = 10
+    # LightRAG re-enabled on the hot path for multi-concept queries only, with
+    # only_need_context=True (retrieval, not generation) and a hard timeout.
+    # Unbounded aquery latency is why it was removed from the hot path.
+    rag_lightrag_context_injection_enabled: bool = True
+    rag_lightrag_context_timeout: float = 4.0
+    rag_lightrag_context_mode: str = "local"
+    # Kept deliberately small: graph context is paid for twice, once in
+    # generation and again in verification, both of which scale with prompt
+    # size. The graph's value is the RELATIONSHIPS it names, not volume.
+    # NOTE: end-to-end latency could NOT be attributed to this on 2026-09-12 —
+    # `navigate_and_hyde` alone varied 12.1s -> 24.3s across two runs of
+    # identical code, so provider variance swamped the effect. Treat this as a
+    # prompt-hygiene choice, not a measured latency win, until it is measured
+    # against a provider with stable latency.
+    rag_lightrag_context_max_chars: int = 1500
+
+    # --- Canonical memory integration flags ---
+    # services/canonical_memory/chat_integration.py reads all five through a
+    # getattr() default, so they were unsettable: no Settings field existed, and
+    # every flag silently resolved to False no matter what the environment said.
+    # Declared here so the module is configurable at all. They stay OFF by
+    # default because the integration has no production caller yet — the
+    # canonical memory store, its API, audit trail and RLS all work, but nothing
+    # in the request pipeline reads it (verified 2026-09-12: the only import of
+    # `chat_integration` outside its own package is a test). Turning these on
+    # without wiring the pipeline changes nothing; wiring it must also preserve
+    # the caching invariant in app/pipeline/stages/cache_stage.py, because a
+    # memory-personalised answer must never be cached under a (language,
+    # message) key shared with other seekers.
+    canonical_memory_enabled: bool = False
+    canonical_memory_retrieval: bool = False
+    memory_shadow: bool = False
+    memory_write: bool = False
+    memory_influence: bool = False
     rag_okf_auto_extract_enabled: bool = (
         True  # post-ingestion OKF extraction; hardened w/ Celery retry + logging
     )

@@ -34,6 +34,18 @@ def grounding_state_for(result: Any) -> GroundingState:
     if not isinstance(verification, dict):
         verification = {}
     if (
+        verification.get("method") == "redacted_unsupported_claims"
+        and getattr(result, "citations", None)
+        and not bool(getattr(result, "hallucination_flag", False))
+    ):
+        # Every sentence that survived redaction was grounded by the verifier —
+        # the unsupported ones were removed before the answer shipped — so this
+        # is a grounded answer, not an abstention. Without this clause a
+        # redacted answer fell through to the generic path and was labelled
+        # "abstained" while carrying real prose and citations.
+        return "grounded"
+
+    if (
         verification.get("method") == "grounded_partial_evidence"
         and getattr(result, "citations", None)
         and verification.get("partial") is True

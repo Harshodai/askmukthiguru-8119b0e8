@@ -107,7 +107,7 @@ export const DemoModal = ({ isOpen, onComplete, onDismiss, productVideoUrl }: De
       >
         <div className="flex items-start justify-between gap-3 pr-1">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ojas">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ojas-ink">
               Welcome tour · {stepIndex + 1} of {STEPS.length}
             </p>
             <DialogTitle className="mt-2 text-2xl leading-tight sm:text-3xl">

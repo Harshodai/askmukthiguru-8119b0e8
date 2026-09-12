@@ -13,6 +13,8 @@ import functools
 import logging
 import random
 import time
+
+from app.metrics import ANSWER_ROUTE_TOTAL
 from typing import TYPE_CHECKING
 
 from app.config import settings
@@ -487,6 +489,17 @@ class ResultAssemblyStage(Stage):
             or (ctx.intent.lower() if ctx.intent else "error")
         )
         resolved_route_decision = canonicalize_route_decision(raw_route_decision)
+
+        # Every answer converges here, so this is the one place a route census
+        # can be complete. Cardinality stays bounded: routes are canonicalised
+        # above and grounding_state is a small closed set.
+        try:
+            ANSWER_ROUTE_TOTAL.labels(
+                route=str(resolved_route_decision or "unknown"),
+                grounding_state=str(graph_result.get("grounding_state") or "unknown"),
+            ).inc()
+        except Exception as exc:  # never let a metric break a response
+            logger.debug("answer route metric not recorded: %s", exc)
 
         # Record final execution layer provenance if not already stamped
         chain = getattr(ctx, "routing_chain", None)

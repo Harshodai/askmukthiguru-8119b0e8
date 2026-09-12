@@ -200,6 +200,19 @@ class GraphStrategy(abc.ABC):
         ...
 
 
+def route_after_meditation(state) -> str:
+    """Send a misrouted doctrinal question into retrieval instead of ending.
+
+    `handle_meditation` already detects when the intent router sent it a
+    non-imperative question (step <= 0, no script keyword) and sets
+    `_meditation_misroute=True`. Nothing consumed that flag, so the seeker got
+    an in-character greeting instead of an answer — observed live 2026-09-12 on
+    "What does stillness reveal about our habitual reactions?", which ended in
+    383ms having touched no documents. Route it back into the real pipeline.
+    """
+    return "misroute" if state.get("_meditation_misroute") else "end"
+
+
 class StandardGraphStrategy(GraphStrategy):
     """Standard graph for most queries (~8 LLM calls)."""
 
@@ -357,7 +370,11 @@ class StandardGraphStrategy(GraphStrategy):
         # --- Terminal edges ---
         graph.add_edge("handle_casual", END)
         graph.add_edge("handle_distress", END)
-        graph.add_edge("handle_meditation", END)
+        graph.add_conditional_edges(
+            "handle_meditation",
+            route_after_meditation,
+            {"misroute": "resolve_followup", "end": END},
+        )
         graph.add_edge("handle_fallback", END)
 
         return graph
@@ -461,7 +478,11 @@ class FastGraphStrategy(GraphStrategy):
 
         graph.add_edge("handle_casual", END)
         graph.add_edge("handle_distress", END)
-        graph.add_edge("handle_meditation", END)
+        graph.add_conditional_edges(
+            "handle_meditation",
+            route_after_meditation,
+            {"misroute": "retrieve_documents", "end": END},
+        )
         graph.add_edge("handle_fallback", END)
 
         compiled = graph.compile()

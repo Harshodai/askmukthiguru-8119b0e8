@@ -79,6 +79,9 @@ class QueryTrace:
     orphan_citations_stripped: Optional[bool] = None
 
 
+from app.metrics import TELEMETRY_SINK_WRITES  # noqa: E402
+
+
 class SupabaseTelemetrySink:
     """Telemetry sink for writing RAG metrics and trace spans to Supabase via Redis Streams."""
 
@@ -91,6 +94,9 @@ class SupabaseTelemetrySink:
         self.client: Client | None = None
         self.redis_url = getattr(settings, "redis_url", None)
         self.redis = None
+        # Streak length, not a total: a sink that failed once an hour ago and a
+        # sink that has never written are different problems.
+        self._consecutive_write_failures = 0
 
         if self.url and self.key:
             try:
@@ -533,11 +539,24 @@ class SupabaseTelemetrySink:
                         except Exception as e2:
                             logger.warning(f"Safety events insert failed with fallback: {e2}")
 
+                TELEMETRY_SINK_WRITES.labels(outcome="ok").inc()
+                self._consecutive_write_failures = 0
                 logger.info(
                     f"Successfully logged query trace {query_id} to Supabase via Telemetry Sink."
                 )
             except Exception as e:
-                logger.error(f"Telemetry Sink insert operation failed: {e}")
+                TELEMETRY_SINK_WRITES.labels(outcome="error").inc()
+                self._consecutive_write_failures += 1
+                if self._consecutive_write_failures in (1, 10, 100) or (
+                    self._consecutive_write_failures % 500 == 0
+                ):
+                    logger.error(
+                        "Telemetry Sink insert failed (%d consecutive): %s — "
+                        "downstream hallucination alerting reads these rows and "
+                        "will read empty while this persists",
+                        self._consecutive_write_failures,
+                        e,
+                    )
 
         # Run in executor
         loop = asyncio.get_running_loop()

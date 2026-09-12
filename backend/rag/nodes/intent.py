@@ -1670,6 +1670,11 @@ async def handle_meditation(state: GraphState, config: Optional[RunnableConfig] 
             "intent": "MEDITATION",
             "route_decision": "meditation",
         }
+    # This greeting is the answer of LAST RESORT, not the intended reply: the
+    # graph routes `_meditation_misroute` back into retrieval
+    # (`route_after_meditation` in rag/graph_strategies.py) and the real answer
+    # overwrites it. It stays here so a strategy that forgets to wire that edge
+    # degrades to something in character rather than to an empty answer.
     soft_fallback = (
         "Beloved, I'm here with you. Would you like to share what's on your "
         "heart — a teaching you'd like to explore, or a guided practice to "

@@ -307,6 +307,16 @@ services:
           # as deliberate in embedding_service.py), leaving zero headroom for
           # the first real request's additional model loads -> OOM-killed by
           # the cgroup limit, not a code bug.
+          #
+          # Measured 2026-09-12 on a 7.75GiB Docker VM: boots healthy, peaks
+          # 4.55GiB during model load, settles at ~2.57GiB (43% of this limit)
+          # and serves real chat requests. 6G is the right ceiling — the earlier
+          # "container OOMs 137" report did NOT reproduce (OOMKilled=false). One
+          # worker did die once, but on a native SIGSEGV inside turbovec, not on
+          # memory; see TURBOQUANT_NATIVE_ENABLED in services/turboquant_cache.py.
+          # Note the limits across all services (qdrant 3G + neo4j 2G + redis
+          # 512M + this) exceed a 8GB VM, so raise Docker Desktop's memory
+          # allocation before running the full stack under load.
           memory: ${BACKEND_MEMORY_LIMIT:-6G}
           cpus: ${BACKEND_CPU_LIMIT:-4.0}
     restart: unless-stopped

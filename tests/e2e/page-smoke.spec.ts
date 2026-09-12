@@ -25,6 +25,12 @@ const PUBLIC_ROUTES = [
 
 for (const route of PUBLIC_ROUTES) {
   test(`page opens: ${route}`, async ({ page }) => {
+    // /chat mounts the full chat shell and its capability/assistant probes
+    // before the network quiesces; measured at ~35s against a frontend-only
+    // preview, which overran the 30s default and failed the whole suite.
+    if (route === '/chat' || route === '/profile' || route.startsWith('/admin/')) {
+      test.setTimeout(90_000);
+    }
     // Route third-party realtime traffic out of this mount smoke test. The
     // application must degrade without it, and browser-specific cookie/CORS
     // behavior on Supabase is not an application contract for this suite.

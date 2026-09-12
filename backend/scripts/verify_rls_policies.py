@@ -51,6 +51,7 @@ PROBED_TABLES = [
     "waitlist_entries",
     "assistant_scope_metadata",
     "memory_outbox",
+    "canonical_memories",
 ]
 
 
@@ -67,6 +68,7 @@ def list_rls_tables(migrations_dir: Path | str | None = None) -> list[str]:
         "assistant_scope_metadata",
         "assistants",
         "cancellations",
+        "canonical_memories",
         "chat_messages",
         "chat_queries",
         "chat_responses",
@@ -777,6 +779,70 @@ def run_verification() -> dict[str, Any]:
             if not _is_permission_or_rls_error(exc):
                 failures.append({"table": "assistant_scope_metadata", "error": str(exc)})
 
+        # 12. canonical_memories — durable personal facts about a seeker, the
+        # most sensitive table in the schema and the newest, so it is the one
+        # most likely to ship with an RLS gap nobody probed.
+        try:
+            cm_resp = (
+                service_client.table("canonical_memories")
+                .insert(
+                    {
+                        "user_id": alice_id,
+                        "tenant_id": "default",
+                        "memory_type": "PREFERENCE",
+                        "statement": "alice_secret_canonical_memory",
+                        "status": "active",
+                        "extraction_method": "rls_probe",
+                    }
+                )
+                .execute()
+            )
+            cm_id = cm_resp.data[0]["id"]
+            seeded_ids["canonical_memories"].append(cm_id)
+
+            bob_select = (
+                bob_client.table("canonical_memories").select("*").eq("id", cm_id).execute()
+            )
+            bob_update = (
+                bob_client.table("canonical_memories")
+                .update({"statement": "hacked"})
+                .eq("id", cm_id)
+                .execute()
+            )
+            bob_delete = (
+                bob_client.table("canonical_memories").delete().eq("id", cm_id).execute()
+            )
+            if bob_select.data:
+                failures.append(
+                    {
+                        "table": "canonical_memories",
+                        "op": "select",
+                        "expected": [],
+                        "got": bob_select.data,
+                    }
+                )
+            if bob_update.data:
+                failures.append(
+                    {
+                        "table": "canonical_memories",
+                        "op": "update",
+                        "expected": 0,
+                        "got": len(bob_update.data),
+                    }
+                )
+            if bob_delete.data:
+                failures.append(
+                    {
+                        "table": "canonical_memories",
+                        "op": "delete",
+                        "expected": 0,
+                        "got": len(bob_delete.data),
+                    }
+                )
+        except Exception as exc:
+            if not _is_permission_or_rls_error(exc):
+                failures.append({"table": "canonical_memories", "error": str(exc)})
+
         # 11. memory_outbox
         try:
             outbox_resp = (
@@ -838,6 +904,7 @@ def run_verification() -> dict[str, Any]:
             "study_notebooks",
             "user_episodes",
             "memory_outbox",
+            "canonical_memories",
             "meditation_sessions",
             "conversations",
             "user_streaks",

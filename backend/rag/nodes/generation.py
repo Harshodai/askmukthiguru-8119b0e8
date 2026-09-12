@@ -262,6 +262,44 @@ def _evidence_refusal_action(answer: str, relevant_docs: list[dict]) -> tuple[st
     return "retry", answer
 
 
+def _redact_unsupported_sentences(
+    verification: dict, *, floor: float
+) -> tuple[str, int] | None:
+    """Rebuild the draft from only the sentences the verifier could ground.
+
+    A draft that fails verification is not uniformly wrong — in the 2026-09-12
+    live traces, 6-7 of 9 sentences were grounded and two were not, and the
+    whole answer was discarded for a dump of raw excerpts. Dropping the
+    unsupported sentences keeps the invariant that matters (no ungrounded claim
+    reaches a seeker) while still answering the question.
+
+    Returns None when redaction would not leave a usable answer, so the caller
+    falls through to the existing grounded-excerpt behaviour.
+    """
+    claims = verification.get("claims")
+    if not isinstance(claims, list) or not claims:
+        return None
+    supported = [c for c in claims if isinstance(c, dict) and c.get("supported")]
+    removed = len(claims) - len(supported)
+    if removed == 0:
+        return None
+    # Too little survived to be an answer, or the draft was mostly ungrounded —
+    # in that case the excerpts are the more honest response.
+    if len(supported) < 2 or (len(supported) / len(claims)) < floor:
+        return None
+    body = " ".join(str(c.get("text", "")).strip() for c in supported if c.get("text"))
+    if len(body) < 120:
+        return None
+    note = (
+        "\n\n_One line was left out because it was not supported by the retrieved "
+        "teachings._"
+        if removed == 1
+        else f"\n\n_{removed} lines were left out because they were not supported by "
+        "the retrieved teachings._"
+    )
+    return body + note, removed
+
+
 def _grounded_partial_answer(relevant_docs: list[dict], max_docs: int = 2) -> tuple[str, list[str]] | None:
     """Build a citation-preserving extractive answer when generation is rejected.
 
@@ -3124,6 +3162,54 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
                 "retry_count": retry_count + 1,
                 "_needs_retry": True,
             }
+        # Prefer shipping the grounded part of the draft over a dump of raw
+        # excerpts: same grounding guarantee, an actual answer.
+        redacted = _redact_unsupported_sentences(
+            verification, floor=float(getattr(settings, "faithfulness_floor", 0.6))
+        )
+        if redacted:
+            redacted_answer, removed_count = redacted
+            # Score the answer that actually ships, not the draft it came from.
+            # Every surviving sentence was grounded, so the shipped text is
+            # fully faithful; reporting the rejected draft's score (often 0.0)
+            # would push a correct answer into the hallucination bucket.
+            _redacted_claims = verification.get("claims") or []
+            _kept = [c for c in _redacted_claims if isinstance(c, dict) and c.get("supported")]
+            redacted_faithfulness = (
+                sum(float(c.get("score") or 0.0) for c in _kept) / len(_kept) if _kept else 1.0
+            )
+            redacted_citations = _sanitize_citations(citations, docs=relevant_docs)
+            redacted_answer = remap_citation_markers(
+                redacted_answer, relevant_docs, redacted_citations
+            )
+            # Remapping a marker whose source was dropped leaves an empty "[]"
+            # in the prose. Strip those (and the space before them) rather than
+            # shipping punctuation debris.
+            redacted_answer = re.sub(r"[ \t]*\[\s*\]", "", redacted_answer)
+            logger.info(
+                "Final: answer rejected; shipping redacted draft without %d unsupported sentence(s)",
+                removed_count,
+            )
+            return {
+                "final_answer": scrub(redacted_answer),
+                "citations": redacted_citations,
+                "intent": intent,
+                "route_decision": "grounded_redacted",
+                "_needs_retry": False,
+                # Every sentence that ships was grounded by the verifier, so this
+                # answer is faithful even though the original draft was not.
+                "is_faithful": True,
+                "grounding_state": "grounded",
+                "verification": {
+                    **verification,
+                    "passed": True,
+                    "method": "redacted_unsupported_claims",
+                    "redacted_sentences": removed_count,
+                    "faithfulness_score": redacted_faithfulness,
+                },
+                "faithfulness_score": redacted_faithfulness,
+                "confidence_score": confidence,
+            }
         partial = _grounded_partial_answer(relevant_docs)
         if partial:
             partial_answer, partial_citations = partial
@@ -3230,7 +3316,13 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
         "route_decision": resolved_route,
         "follow_up_suggestions": follow_up_suggestions,
         "_needs_retry": False,
-
+        # This branch ships a real answer, so it is not an abstention. The key
+        # was previously left untouched here, so an "abstained" written by an
+        # earlier pass (a first generate with no docs, before a rewrite found
+        # them) survived onto the shipped answer — measured live 2026-09-12 on a
+        # tier3_complex answer that carried citations and full prose. That label
+        # feeds the hallucination analytics, so a stale one corrupts the metric.
+        "grounding_state": "grounded",
         "is_faithful": is_faithful if is_faithful is not None else verified,
         "verification": state.get("verification") or {},
         "faithfulness_score": faithfulness_score,

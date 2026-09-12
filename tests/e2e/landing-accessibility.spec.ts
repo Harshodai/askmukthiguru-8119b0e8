@@ -39,6 +39,31 @@ test.describe('landing accessibility', () => {
     await expect(dialog.getByRole('button', { name: /close tour/i })).toBeVisible();
     await expect(dialog.getByRole('button', { name: /next tour step/i })).toBeVisible();
 
+    // The dialog fades in. axe samples computed colours, so running it mid
+    // transition measures a BLEND of the start and end colours and reports a
+    // contrast failure for a pair that never renders — observed as
+    // "#4b4740 on #cea43d" (3.95:1) while the settled pair is #211c12 on
+    // #fbbd23. Wait for the dialog's own entrance animations to finish.
+    //
+    // Scoped to the dialog and to FINITE animations on purpose: the landing
+    // page runs looping ambient animations, so waiting on "nothing is running"
+    // anywhere never becomes true and times out.
+    await page.waitForFunction(
+      () => {
+        const root = document.querySelector('[role="dialog"]');
+        if (!root) return false;
+        return document.getAnimations().every((a) => {
+          const target = (a.effect as KeyframeEffect | null)?.target;
+          if (!target || !root.contains(target)) return true;
+          const iterations = (a.effect as KeyframeEffect | null)?.getComputedTiming()?.iterations;
+          if (iterations === Infinity) return true;
+          return a.playState !== 'running';
+        });
+      },
+      undefined,
+      { timeout: 5_000 },
+    );
+
     await expectNoSeriousA11yViolations(page);
   });
 });

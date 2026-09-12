@@ -54,6 +54,8 @@ export default {
           DEFAULT: "hsl(var(--ojas-gold))",
           light: "hsl(var(--ojas-gold-light))",
           dark: "hsl(var(--ojas-gold-dark))",
+          // WCAG AA-passing gold for text; see --ojas-gold-ink in index.css.
+          ink: "hsl(var(--ojas-gold-ink))",
         },
         tejas: {
           DEFAULT: "hsl(var(--tejas-white))",

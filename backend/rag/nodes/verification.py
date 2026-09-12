@@ -43,10 +43,11 @@ async def _score_faithfulness_bounded(
             "details": "LettuceDetect service not available",
             "claims": [],
             "unsupported_sentences": [],
+            "semantic": False,
         }
     timeout = float(getattr(settings, "faithfulness_verification_timeout", 8.0))
     try:
-        return await asyncio.wait_for(
+        result = await asyncio.wait_for(
             asyncio.to_thread(
                 lettuce_detect.score_faithfulness,
                 question,
@@ -67,6 +68,7 @@ async def _score_faithfulness_bounded(
             "timed_out": True,
             "claims": [],
             "unsupported_sentences": [],
+            "semantic": False,
         }
     except Exception as exc:
         # production-audit finding F2: this used to catch ONLY TimeoutError, so
@@ -85,7 +87,13 @@ async def _score_faithfulness_bounded(
             "error": str(exc),
             "claims": [],
             "unsupported_sentences": [],
+            "semantic": False,
         }
+    # Record which scorer produced this verdict. A lexical result is a cheap
+    # proxy; downstream verification must not reuse it in place of its own
+    # semantic pass.
+    result["semantic"] = bool(semantic)
+    return result
 
 
 # Persona voice breaks that faithfulness scoring (LettuceDetect) can't catch —
@@ -246,8 +254,14 @@ async def reflect_on_answer(state: GraphState, config: dict = None) -> dict:
 
     feedback_parts = []
     if not is_faithful_strict:
+        # Report the criterion that actually decided, not a threshold nobody
+        # compared against: the verdict is all-sentences-grounded, and
+        # `score` is the mean similarity, which does not gate anything.
+        unsupported = ld_result.get("unsupported_sentences") or []
         feedback_parts.append(
-            f"Faithfulness below threshold (score: {ld_result['score']:.2f}, need >= {settings.faithfulness_floor})"
+            f"{len(unsupported)} sentence(s) not grounded in the retrieved context "
+            f"(mean similarity {ld_result['score']:.2f}, scorer="
+            f"{'semantic' if reflection_semantic else 'lexical-overlap'})"
         )
     if not consistency_check_passed:
         feedback_parts.append(consistency_feedback)
@@ -258,7 +272,14 @@ async def reflect_on_answer(state: GraphState, config: dict = None) -> dict:
         "; ".join(feedback_parts) if feedback_parts else "Answer appears valid and consistent"
     )
 
-    is_valid = is_faithful_strict and not persona_violation
+    # Reflection is a correction HINT, not the grounding authority — verify_answer
+    # re-scores with semantic=True and decides. When reflection ran without the
+    # embedder it only has lexical word-overlap (>=0.45 per sentence), which a
+    # faithful paraphrase of doctrine routinely fails; letting that proxy set
+    # needs_correction burned the whole rewrite budget and ended in an abstention
+    # on answers the authoritative check would have passed. Keep the feedback,
+    # drop the veto.
+    is_valid = (is_faithful_strict or not reflection_semantic) and not persona_violation
     if is_valid or ("doesn't know" in answer.lower() and not persona_violation):
         logger.info(f"Self-Reflection: Answer is VALID. {feedback}")
         return {
@@ -363,7 +384,10 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
 
     lettuce_detect = _services._lettuce_detect
     ld_result = state.get("lettuce_detect_result")
-    if ld_result is None:
+    if ld_result is None or not ld_result.get("semantic"):
+        # Self-reflection scores lexically on most tiers. Reusing that verdict
+        # here made `semantic=True` unreachable in production and left
+        # word-overlap as the real grounding gate.
         await emit_status(config, "Verifying alignment with the teachings...")
         ld_result = await _score_faithfulness_bounded(
             lettuce_detect, question, context, answer, semantic=True
@@ -639,7 +663,7 @@ async def combined_grade_and_verify(state: GraphState, config: dict = None) -> d
     # 3. LettuceDetect faithfulness (local model, no LLM call)
     lettuce_detect = _services._lettuce_detect
     ld_result = state.get("lettuce_detect_result")
-    if ld_result is None:
+    if ld_result is None or not ld_result.get("semantic"):
         await emit_status(config, "Verifying alignment with the teachings...")
         ld_result = await _score_faithfulness_bounded(
             lettuce_detect, question, context, answer, semantic=True
