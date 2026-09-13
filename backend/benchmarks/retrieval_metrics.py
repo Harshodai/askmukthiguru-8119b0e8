@@ -9,16 +9,46 @@ approved ``correct_sources`` set.
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
+from urllib.parse import urlparse
 
 
 DEFAULT_KS = (1, 5, 10, 25, 50)
 
+CANONICAL_FOUR_SECRETS_URL = (
+    "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319"
+)
+
+SOURCE_KEY_ALIASES = {
+    "The_Four_Sacred_Secrets.pdf": CANONICAL_FOUR_SECRETS_URL,
+}
+
+
+def normalize_source_key(source: str) -> str:
+    """Map a source_url to its canonical scoring key.
+
+    The corpus keys the Four Sacred Secrets doc by canonical Amazon URL
+    while older golden labels use the bare PDF filename (L-DOCKER-19: 70
+    points under the URL, 0 under the bare name). Exact-match scoring
+    without this map turns correct top-5 retrieval into a 0.0. URL keys
+    are also lowercased on host with fragments stripped. Query strings are
+    kept because the video id lives in YouTube's query string: blanket
+    query-stripping would alias every video together.
+    """
+    key = (source or "").strip()
+    if key in SOURCE_KEY_ALIASES:
+        return SOURCE_KEY_ALIASES[key]
+    parsed = urlparse(key)
+    if parsed.scheme and parsed.netloc:
+        query = f"?{parsed.query}" if parsed.query else ""
+        return f"{parsed.scheme}://{parsed.netloc.lower()}{parsed.path or ''}{query}"
+    return key
+
 
 def first_relevant_rank(retrieved_sources: Sequence[str], correct_sources: Iterable[str]) -> int | None:
     """Return the one-based rank of the first relevant source, if present."""
-    correct = {source for source in correct_sources if source}
+    correct = {normalize_source_key(source) for source in correct_sources if source}
     for rank, source in enumerate(retrieved_sources, start=1):
-        if source in correct:
+        if normalize_source_key(source) in correct:
             return rank
     return None
 
@@ -44,11 +74,11 @@ def summarize_rankings(
     reciprocal_ranks: list[float] = []
 
     for retrieved_sources, correct_sources in rankings:
-        correct = {source for source in correct_sources if source}
+        correct = {normalize_source_key(source) for source in correct_sources if source}
         rank = first_relevant_rank(retrieved_sources, correct)
         reciprocal_ranks.append(0.0 if rank is None else 1.0 / rank)
         for k in normalized_ks:
-            top_k = retrieved_sources[:k]
+            top_k = [normalize_source_key(s) for s in retrieved_sources[:k]]
             if any(source in correct for source in top_k):
                 hits[k] += 1
             precision_totals[k] += (

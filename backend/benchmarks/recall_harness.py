@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import statistics
 import sys
 import time
@@ -36,7 +37,11 @@ from qdrant_client import QdrantClient  # noqa: E402
 
 from services.embedding_service import EmbeddingService  # noqa: E402
 from services.qdrant.searcher import QdrantSearcher  # noqa: E402
-from benchmarks.retrieval_metrics import DEFAULT_KS, summarize_rankings  # noqa: E402
+from benchmarks.retrieval_metrics import (
+    DEFAULT_KS,
+    first_relevant_rank,
+    summarize_rankings,
+)  # noqa: E402
 
 
 def _p(percentile: float, values: list[float]) -> float:
@@ -58,10 +63,11 @@ def main(argv: list[str] | None = None) -> int:
     args = p.parse_args(argv)
 
     golden = json.loads(args.golden.read_text())
-    items = golden["items"]
+    items = [it for it in golden["items"] if not it.get("excluded")]
+    n_excluded = len(golden["items"]) - len(items)
     if args.max_queries:
         items = items[: args.max_queries]
-    print(f"Golden set: {len(items)} queries ({golden['collection']} -> {args.collection})")
+    print(f"Golden v{golden.get('version')}: {len(items)} scored, {n_excluded} excluded")
 
     client = QdrantClient(url=args.url, timeout=120)
     searcher = QdrantSearcher(client, args.collection)
@@ -92,13 +98,16 @@ def main(argv: list[str] | None = None) -> int:
 
         retrieved_sources = [r.get("source_url", "") for r in results[:50]]
         rankings.append((retrieved_sources, gold_sources))
+        rank10 = first_relevant_rank(retrieved_sources[:10], gold_sources)
+        rank50 = first_relevant_rank(retrieved_sources[:50], gold_sources)
 
         detail.append(
             {
                 "id": item["id"],
                 "query": q,
-                "hit_at_10": any(s in gold_sources for s in retrieved_sources[:10]),
-                "hit_at_50": any(s in gold_sources for s in retrieved_sources[:50]),
+                "hit_at_10": rank10 is not None,
+                "hit_at_50": rank50 is not None,
+                "first_relevant_rank": rank10,
                 "n_gold_sources": len(gold_sources),
                 "top_sources": retrieved_sources[:10],
                 "gold_sources": sorted(gold_sources)[:10],
@@ -111,13 +120,23 @@ def main(argv: list[str] | None = None) -> int:
 
     n = len(items)
     metrics = summarize_rankings(rankings, ks=DEFAULT_KS)
+    ndcg10 = round(
+        sum(
+            0.0 if r is None or r > 10 else 1.0 / math.log2(r + 1)
+            for r in (first_relevant_rank(ret[:10], gold) for ret, gold in rankings)
+        )
+        / n,
+        4,
+    ) if n else 0.0
     report = {
         "collection": args.collection,
         "golden_version": golden.get("version"),
         "n_queries": n,
+        "n_excluded": n_excluded,
         "recall_at_k": metrics["recall_at_k"],
         "precision_at_k": metrics["precision_at_k"],
         "mrr": metrics["mrr"],
+        "ndcg_at_10": ndcg10,
         "embed_latency_ms": {
             "mean": round(statistics.mean(embed_ms), 1),
             "p50": round(_p(50, embed_ms), 1),
