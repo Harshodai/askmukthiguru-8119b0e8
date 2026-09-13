@@ -123,6 +123,9 @@ def run_anomaly_check(lookback_days: Optional[int] = None) -> dict[str, Any]:
 
     total = metrics.get("total_responses", 0)
     if total == 0:
+        # B2/B3: an empty window is indeterminate, never a pass. Failing closed
+        # keeps "no traffic" and "broken query" from reading as healthy and
+        # forces the workflow gate to page on a silent pipeline instead.
         return {
             "checked_at": _iso(_utc_now()),
             "lookback_days": lookback,
@@ -132,7 +135,7 @@ def run_anomaly_check(lookback_days: Optional[int] = None) -> dict[str, Any]:
                 "faithfulness_p50": settings.anomaly_faithfulness_p50_threshold,
             },
             "metrics": metrics,
-            "anomaly": False,
+            "anomaly": True,
             "alerts": {"no_data": True},
         }
 

@@ -37,11 +37,17 @@ class ReleaseManifestPublic(BaseModel):
     schema_version: Optional[str] = Field(default=None, description="Response schema version")
 
 
+_MESSAGE_CONTENT_MAX = 10_000
+_HISTORY_TURNS_MAX = 50
+
+
 class MessagePayload(BaseModel):
     """Single message in the conversation history."""
 
     role: str = Field(..., description="'user' or 'assistant'")
-    content: str = Field(..., description="Message text")
+    # C4: bound to match ChatRequest.user_message so one history turn can never
+    # carry more than one fresh user message worth of text.
+    content: str = Field(..., max_length=_MESSAGE_CONTENT_MAX, description="Message text")
 
     @field_validator("role")
     @classmethod
@@ -84,7 +90,14 @@ class ResponsePreferences(BaseModel):
 class ChatRequest(BaseModel):
     """Chat API request body — matches frontend's sendMessage format."""
 
-    messages: list[MessagePayload] = Field(..., description="Conversation history")
+    # C4 body-size budget: at most _HISTORY_TURNS_MAX turns of at most
+    # _MESSAGE_CONTENT_MAX chars each (~500k chars worst case, matching the
+    # user_message 10k + attachment_context 8k single-turn caps below), so one
+    # request cannot blow the pipeline context, cost or latency budgets no
+    # matter how long the client-side history grows.
+    messages: list[MessagePayload] = Field(
+        ..., max_length=_HISTORY_TURNS_MAX, description="Conversation history"
+    )
     user_message: str = Field(
         ..., min_length=1, max_length=10000, description="Current user message"
     )

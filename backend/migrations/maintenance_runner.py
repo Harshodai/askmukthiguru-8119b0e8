@@ -368,6 +368,10 @@ class Neo4jOntologyOperation(BaseMaintenanceOperation):
             "Create Cypher constraint UNIQUE_CONCEPT_NAME on (c:Concept) REQUIRE c.name IS UNIQUE",
             "Create Cypher constraint UNIQUE_PRACTICE_NAME on (p:Practice) REQUIRE p.name IS UNIQUE",
             "Create Cypher index base_entity_id_idx on (n:base) FOR (n.entity_id)",
+            "Create Cypher constraints for every other MERGE key: User(id), "
+            "GlobalMemory(id), SeekerTurn(turn_id), GuruTeaching(name), "
+            "GuruResponse(artifact_id), State(name), InferenceActivity(activity_id), "
+            "SoftwareAgent(agent_id), WisdomChunk(chunk_id)",
             "Seed 8 spiritual teachers (Sadhguru, Sri Amma Bhagavan, ISKCON, Sri Preethaji, Sri Krishnaji, Ekam, O&O Academy, Mukthi Guru)",
             "Seed 33 spiritual concepts with descriptions and entity types",
             "Seed 10 spiritual practices (Meditation, Yoga, Serene Mind, Soul Sync, etc.)",
@@ -392,6 +396,9 @@ class Neo4jOntologyOperation(BaseMaintenanceOperation):
             seed_spiritual_ontology()
             actions = [
                 "Applied Neo4j unique constraints (Teacher, Concept, Practice)",
+                "Applied Neo4j unique constraints for every MERGE key (User, "
+                "GlobalMemory, SeekerTurn, GuruTeaching, GuruResponse, State, "
+                "InferenceActivity, SoftwareAgent, WisdomChunk)",
                 "Created base_entity_id_idx index on :base(entity_id)",
                 "Seeded teachers, concepts, practices, and relationship graph",
                 "Aligned extracted generic graph entities to spiritual ontology",

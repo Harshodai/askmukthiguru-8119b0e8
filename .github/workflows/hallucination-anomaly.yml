@@ -33,7 +33,6 @@ jobs:
 
       - name: Run Hallucination Anomaly Check
         id: anomaly_check
-        continue-on-error: true
         run: |
           cd backend
           python -m scripts.ops.hallucination_anomaly \
@@ -87,7 +86,7 @@ jobs:
           if alerts.get("connection_error"):
               status_badge = "❌ **DATABASE CONNECTION ERROR (FAILED CLOSED)**"
           elif alerts.get("no_data"):
-              status_badge = "⚠️ **NO RESPONSES IN WINDOW (NORMAL)**"
+              status_badge = "❌ **NO RESPONSES IN WINDOW (FAILED CLOSED — ZERO ROWS)**"
           elif is_anomaly:
               status_badge = "🚨 **ANOMALY DETECTED (ACTION REQUIRED)**"
           else:
@@ -205,6 +204,10 @@ jobs:
 
           with open(report_path, "r", encoding="utf-8") as f:
               data = json.load(f)
+
+          if data.get("alerts", {}).get("no_data"):
+              print("❌ Failing workflow: zero responses in window (no_data fails closed).")
+              sys.exit(1)
 
           if data.get("anomaly"):
               print("❌ Failing workflow: Hallucination anomaly detected.")

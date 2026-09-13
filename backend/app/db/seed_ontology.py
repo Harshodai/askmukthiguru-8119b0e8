@@ -43,6 +43,55 @@ def seed_spiritual_ontology():
             # P1-DB-8: MERGE (n:base {entity_id}) does a label scan on ~8.7k nodes
             # without this index; every seed/align statement pays the full scan.
             tx.run("CREATE INDEX base_entity_id_idx IF NOT EXISTS FOR (n:base) ON (n.entity_id)")
+            # C2: every other MERGE key in the codebase needs its own uniqueness
+            # constraint. Unconstrained concurrent MERGE is check-then-create and
+            # produces duplicate nodes (neo4j/neo4j#13841: 6/10 trials duplicated
+            # without a constraint, deterministic with one). MERGE takes a
+            # write lock on the constrained key, so the second writer blocks and
+            # then matches instead of creating a twin.
+            # Keys: memory_service_v2 (User tenant_id+id, GlobalMemory id),
+            # provenance_ontology_service (GuruResponse artifact_id, SeekerTurn
+            # turn_id, InferenceActivity activity_id, SoftwareAgent agent_id,
+            # WisdomChunk chunk_id), guru_kg_service (GuruTeaching name,
+            # User id, State name). User ids are UUIDs, so a single-property
+            # UNIQUE on id covers the composite MERGE pattern; tenant isolation
+            # stays enforced by the tenant_id in the MERGE pattern itself.
+            tx.run(
+                "CREATE CONSTRAINT UNIQUE_USER_ID IF NOT EXISTS "
+                "FOR (u:User) REQUIRE u.id IS UNIQUE"
+            )
+            tx.run(
+                "CREATE CONSTRAINT UNIQUE_GLOBALMEMORY_ID IF NOT EXISTS "
+                "FOR (m:GlobalMemory) REQUIRE m.id IS UNIQUE"
+            )
+            tx.run(
+                "CREATE CONSTRAINT UNIQUE_SEEKERTURN_ID IF NOT EXISTS "
+                "FOR (t:SeekerTurn) REQUIRE t.turn_id IS UNIQUE"
+            )
+            tx.run(
+                "CREATE CONSTRAINT UNIQUE_GURUTEACHING_NAME IF NOT EXISTS "
+                "FOR (t:GuruTeaching) REQUIRE t.name IS UNIQUE"
+            )
+            tx.run(
+                "CREATE CONSTRAINT UNIQUE_GURURESPONSE_ID IF NOT EXISTS "
+                "FOR (r:GuruResponse) REQUIRE r.artifact_id IS UNIQUE"
+            )
+            tx.run(
+                "CREATE CONSTRAINT UNIQUE_STATE_NAME IF NOT EXISTS "
+                "FOR (s:State) REQUIRE s.name IS UNIQUE"
+            )
+            tx.run(
+                "CREATE CONSTRAINT UNIQUE_INFERENCEACTIVITY_ID IF NOT EXISTS "
+                "FOR (a:InferenceActivity) REQUIRE a.activity_id IS UNIQUE"
+            )
+            tx.run(
+                "CREATE CONSTRAINT UNIQUE_SOFTWAREAGENT_ID IF NOT EXISTS "
+                "FOR (a:SoftwareAgent) REQUIRE a.agent_id IS UNIQUE"
+            )
+            tx.run(
+                "CREATE CONSTRAINT UNIQUE_WISDOMCHUNK_ID IF NOT EXISTS "
+                "FOR (w:WisdomChunk) REQUIRE w.chunk_id IS UNIQUE"
+            )
 
         with driver.session() as session:
             session.execute_write(_migrations)

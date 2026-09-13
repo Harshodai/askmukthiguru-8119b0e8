@@ -128,7 +128,7 @@ def test_run_anomaly_check_empty_data() -> None:
     with patch("scripts.ops.hallucination_anomaly._fetch_responses", return_value=[]):
         result = run_anomaly_check(lookback_days=1)
 
-    assert result["anomaly"] is False
+    assert result["anomaly"] is True  # B2/B3 Task 8: zero rows fails closed
     assert result["alerts"]["no_data"] is True
     assert result["metrics"]["total_responses"] == 0
 
