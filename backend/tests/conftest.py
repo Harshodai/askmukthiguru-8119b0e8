@@ -37,10 +37,73 @@ from app.core.threading_config import configure_threading
 
 configure_threading()
 
-# Point REDIS_URL to local host-mapped Redis for testing. Env-driven with a
-# passwordless localhost fallback — never commit a Redis password. Authenticated
-# instances (docker compose) need REDIS_URL exported by the runner/CI.
-os.environ["REDIS_URL"] = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+# Redis logical database reserved for the test suite. The application uses /0;
+# keeping the suite off it means the per-test flush below can never destroy a
+# developer's running state.
+_TEST_REDIS_DB = 15
+
+
+def _resolve_test_redis_url() -> str:
+    """Pick a Redis URL the test process can actually reach.
+
+    An exported REDIS_URL always wins (CI, docker-compose runs). Otherwise fall
+    back to the gitignored ``backend/.env`` — but rewrite its host, because that
+    file is written for the compose network (``redis:6379``) and that name does
+    not resolve on a developer's host, while the credentials in it do apply to
+    the published localhost port.
+
+    Why this exists: the previous passwordless ``redis://localhost:6379/0``
+    default could not authenticate against a password-protected Redis, so 11
+    tests failed with ``AuthenticationError: Authentication required`` /
+    ``LLMBudgetUnavailable`` for anyone who had not exported REDIS_URL by hand.
+    The failure looked like a code regression and was purely local config.
+
+    Still never commits a password: the value is read at runtime from a file
+    that is gitignored, and the last resort remains passwordless localhost.
+    """
+    explicit = os.environ.get("REDIS_URL")
+    if explicit:
+        return explicit
+
+    env_file = os.path.join(_BACKEND_DIR, ".env")
+    try:
+        with open(env_file, encoding="utf-8") as handle:
+            for raw in handle:
+                line = raw.strip()
+                if not line.startswith("REDIS_URL="):
+                    continue
+                candidate = line.split("=", 1)[1].strip().strip("'\"")
+                if not candidate:
+                    break
+                from urllib.parse import urlsplit, urlunsplit
+
+                parts = urlsplit(candidate)
+                if not parts.hostname:
+                    break
+                # Keep userinfo (the credentials) and port; swap only the host.
+                userinfo = ""
+                if parts.username or parts.password:
+                    userinfo = parts.username or ""
+                    if parts.password:
+                        userinfo += f":{parts.password}"
+                    userinfo += "@"
+                port = f":{parts.port}" if parts.port else ""
+                # Dedicated DB index: the app uses /0, and the suite flushes
+                # whatever it is given between tests. Never point the tests at
+                # the database a developer's running backend is using.
+                return urlunsplit(
+                    (parts.scheme, f"{userinfo}127.0.0.1{port}", f"/{_TEST_REDIS_DB}", "", "")
+                )
+    except OSError:
+        pass
+
+    return f"redis://localhost:6379/{_TEST_REDIS_DB}"
+
+
+# Point REDIS_URL to local host-mapped Redis for testing. Env-driven, with the
+# gitignored .env as a fallback source of credentials — never commit a Redis
+# password.
+os.environ["REDIS_URL"] = _resolve_test_redis_url()
 # Unit tests exercise limiter behaviour separately; collection must not require
 # a Redis client merely because integration services use REDIS_URL.
 os.environ["RATE_LIMIT_STORAGE_URI"] = "memory://"
@@ -245,3 +308,35 @@ def _clear_dependency_overrides():
         TenantContext.reset()
     except Exception:
         pass
+
+
+@pytest.fixture(autouse=True)
+def _flush_test_redis():
+    """Clear the suite's Redis database between tests.
+
+    Once conftest started resolving a REACHABLE Redis, the Redis-backed rate
+    limiter began working — and six tests that had only ever passed because the
+    limiter could not reach Redis started returning 429 (the admin limit is
+    5/minute, and a test file makes more calls than that). They were green
+    because a dependency was down, which is the opposite of reassuring:
+    production has Redis.
+
+    Flushing only the dedicated test database (_TEST_REDIS_DB), never /0.
+    Best-effort — a missing or unreachable Redis must not fail a test that does
+    not need one.
+    """
+    try:
+        import redis as _redis
+
+        client = _redis.from_url(os.environ["REDIS_URL"])
+        client.flushdb()
+    except Exception:
+        client = None
+    yield
+    try:
+        if client is not None:
+            client.flushdb()
+            client.close()
+    except Exception:
+        pass
+
