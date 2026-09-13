@@ -239,6 +239,11 @@ class Settings(BaseSettings):
     openrouter_budget_guard_enabled: bool = True
     openrouter_max_request_cost_usd: float = Field(default=0.03, gt=0)
     openrouter_budget_fail_closed: bool = True
+    # Generic LLM budget guard defaults read by services/llm_budget_guard.py
+    # via from_settings(provider). Matches the openrouter twin so the generic
+    # path is fail-closed, not silently fail-open.
+    llm_budget_guard_enabled: bool = True
+    llm_budget_fail_closed: bool = True
 
     # --- Re-ingest & Late Chunking Settings ---
     reingest_openrouter_model: str = "google/gemma-3-12b-it"
