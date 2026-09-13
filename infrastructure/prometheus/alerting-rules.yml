@@ -1,40 +1,78 @@
 groups:
   - name: mukthiguru-slo
     rules:
-      # SLO 1 — Chat p95 latency < 8s
-      # Burn-rate multi-window: >2x burn rate (>10% latency violations) over 1h (long) and 5m (short) → page; >1x over 6h → warn.
+      # SLO 1 — Chat per-tier latency SLOs (thresholds in backend/app/metrics.py
+      # SLO_THRESHOLDS: fast 1s, standard 3s, hindi 12s, cold 25s,
+      # comparative 65s, deep/fallback 30s).
+      #
+      # P2: alerts burn on slo_latency_violations_total, counted per request at
+      # observe time against that request's own tier threshold — immune to
+      # traffic mix. The old single-le="8.0" histogram alert was dominated by
+      # the fastest, highest-volume tier, hiding Hindi/comparative breaches
+      # inside a healthy-looking global p95.
+      #
+      # Multi-window burn-rate pattern (Google SRE Workbook, Ch. 5
+      # "Alerting on SLOs"): fast-burn pages on 1h x 5m (>5% violations in
+      # BOTH windows), slow-burn tickets on 6h x 30m (>1% violations in BOTH).
+      # Both windows must fire together — eliminates short blips while
+      # catching sustained budget threats fast.
       - alert: ChatLatencySLOPage
         expr: |
           (
-            (sum(rate(slo_latency_seconds_count[1h])) - sum(rate(slo_latency_seconds_bucket{le="8.0"}[1h])))
-              / (sum(rate(slo_latency_seconds_count[1h])) + 1e-9)
-            > 0.10
+            sum by (tier) (rate(slo_latency_violations_total[1h]))
+              / (sum by (tier) (rate(slo_latency_seconds_count[1h])) + 1e-9)
+            > 0.05
           )
           and
           (
-            (sum(rate(slo_latency_seconds_count[5m])) - sum(rate(slo_latency_seconds_bucket{le="8.0"}[5m])))
-              / (sum(rate(slo_latency_seconds_count[5m])) + 1e-9)
-            > 0.10
+            sum by (tier) (rate(slo_latency_violations_total[5m]))
+              / (sum by (tier) (rate(slo_latency_seconds_count[5m])) + 1e-9)
+            > 0.05
           )
         for: 2m
         labels:
           severity: page
           team: oncall
         annotations:
-          summary: "Chat p95 latency budget burning (page)"
-          description: "Chat latency budget burning at >2x rate (>10% requests >8s) across 1h and 5m windows."
+          summary: "Chat per-tier latency budget burning (page)"
+          description: "Tier {{ $labels.tier }} violating its SLO on >5% of requests across 1h and 5m windows."
           runbook: "docs/runbooks/ALERTING.md#chatlatencyslopage"
 
       - alert: ChatLatencySLOHigh
         expr: |
-          histogram_quantile(0.95, sum(rate(slo_latency_seconds_bucket[10m])) by (le)) > 8
-        for: 6h
+          (
+            sum by (tier) (rate(slo_latency_violations_total[6h]))
+              / (sum by (tier) (rate(slo_latency_seconds_count[6h])) + 1e-9)
+            > 0.01
+          )
+          and
+          (
+            sum by (tier) (rate(slo_latency_violations_total[30m]))
+              / (sum by (tier) (rate(slo_latency_seconds_count[30m])) + 1e-9)
+            > 0.01
+          )
+        for: 30m
         labels:
           severity: warn
           team: oncall
         annotations:
-          summary: "Chat p95 latency > 8s sustained"
-          description: "p95 chat latency exceeds the 8s SLO. Check LLM provider latency and queue depth."
+          summary: "Chat per-tier latency slow burn (warn)"
+          description: "Tier {{ $labels.tier }} violating its SLO on >1% of requests across 6h and 30m windows."
+          runbook: "docs/runbooks/ALERTING.md#chatlatencyslohigh"
+
+      # Cheap pre-filter: single aggregate counter rate, no per-tier join and
+      # no histogram math. Fires informationally whenever ANY tier violates,
+      # so on-call sees budget spend starting before the burn-rate pages trip.
+      - alert: SLOViolationPresent
+        expr: |
+          sum(rate(slo_latency_violations_total[10m])) > 0
+        for: 5m
+        labels:
+          severity: info
+          team: oncall
+        annotations:
+          summary: "SLO violations occurring (info)"
+          description: "At least one tier is exceeding its per-tier SLO. Check per-tier burn-rate alerts."
           runbook: "docs/runbooks/ALERTING.md#chatlatencyslohigh"
 
       # SLO 2 — /api/health ready > 99.5%

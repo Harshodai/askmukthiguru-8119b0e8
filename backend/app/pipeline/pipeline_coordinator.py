@@ -36,7 +36,7 @@ from typing import Any
 from app.config import settings
 from app.context import queue_timing_var
 from app.dependencies import ServiceContainer
-from app.metrics import SEARCH_LATENCY_MS, SLO_CHAT_LATENCY
+from app.metrics import SEARCH_LATENCY_MS, observe_slo_latency
 from app.orchestrator_utils import cache_language_key
 from app.pipeline.result import PipelineResult
 from app.pipeline.stages import PipelineContext, StageRunner, build_default_pipeline
@@ -266,14 +266,10 @@ class PipelineCoordinator:
             # cache hits are inherently the fast path (pinned by
             # test_cache_hit_observes_slo_latency_once) — "standard" belongs
             # only to the real-graph-execution fallback below.
-            SLO_CHAT_LATENCY.labels(tier=(res.query_tier or "fast")).observe(
-                latency_ms / 1000.0
-            )
+            observe_slo_latency(res.query_tier or "fast", latency_ms / 1000.0)
             return res
 
-        SLO_CHAT_LATENCY.labels(tier=(result.query_tier or "standard")).observe(
-            time.time() - start_time
-        )
+        observe_slo_latency(result.query_tier or "standard", time.time() - start_time)
         return result
 
     # ------------------------------------------------------------------

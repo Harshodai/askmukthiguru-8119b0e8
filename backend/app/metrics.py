@@ -44,7 +44,9 @@ REQUEST_COUNT = Counter(
 # infrastructure/prometheus/alerting-rules.yml
 # ===================================================================
 
-SLO_CHAT_LATENCY = Histogram(
+# Private to this module — observe via observe_slo_latency() only, so the
+# P2 violation counter can never be bypassed by a direct .observe() call.
+_SLO_CHAT_LATENCY = Histogram(
     "slo_latency_seconds",
     "Chat request latency time-to-completion by tier (per-tier SLOs in SLO_THRESHOLDS)",
     ["tier"],  # fast | standard | hindi | cold | comparative | deep | fallback
@@ -75,17 +77,35 @@ SLO_THRESHOLDS = {
 
 SLO_TIERS = tuple(SLO_THRESHOLDS)
 
+# P2 violation counter — traffic-mix immune where the histogram is not. A
+# histogram_quantile / single-le-bucket alert is dominated by the fastest,
+# highest-volume tier (fast cache hits), so a Hindi/comparative breach hides
+# inside a healthy-looking global p95. This counter fires per request at
+# observe time against that request's own tier threshold, so alerts can burn
+# per tier (Google SRE multi-window burn-rate pattern:
+# https://sre.google/workbook/alerting-on-slos/).
+SLO_LATENCY_VIOLATIONS_TOTAL = Counter(
+    "slo_latency_violations_total",
+    "Chat requests exceeding their per-tier SLO threshold",
+    ["tier"],  # same tier set as _SLO_CHAT_LATENCY
+)
+
 
 def observe_slo_latency(tier, seconds):
-    """Observe whole-request wall time on SLO_CHAT_LATENCY.
+    """Observe whole-request wall time on _SLO_CHAT_LATENCY.
 
     Call at the single point where whole-request wall time is known
     (PipelineCoordinator.execute, after latency_ms is final, cache-hit
     patched). Unknown/empty tiers normalize to "standard" so burn-rate
-    queries never fragment on unbounded labels.
+    queries never fragment on unbounded labels. Requests slower than
+    SLO_THRESHOLDS[tier] also increment SLO_LATENCY_VIOLATIONS_TOTAL so
+    per-tier burn-rate alerts stay immune to traffic mix.
     """
     label = tier if tier in SLO_THRESHOLDS else "standard"
-    SLO_CHAT_LATENCY.labels(tier=label).observe(max(0.0, float(seconds)))
+    secs = max(0.0, float(seconds))
+    _SLO_CHAT_LATENCY.labels(tier=label).observe(secs)
+    if secs > SLO_THRESHOLDS[label]:
+        SLO_LATENCY_VIOLATIONS_TOTAL.labels(tier=label).inc()
 
 HEALTH_CHECK_TOTAL = Counter(
     "health_check_total",
@@ -593,6 +613,13 @@ if __name__ == "__main__":
         assert isinstance(_th, (int, float)) and _th > 0, _tier
     observe_slo_latency("fast", 0.05)
     observe_slo_latency("bogus-tier", 0.05)
+    # P2 violation path: over-threshold must count, under-threshold silent.
+    _v0 = SLO_LATENCY_VIOLATIONS_TOTAL.labels(tier="fast")._value.get()
+    observe_slo_latency("fast", SLO_THRESHOLDS["fast"] + 1.0)
+    assert SLO_LATENCY_VIOLATIONS_TOTAL.labels(tier="fast")._value.get() == _v0 + 1
+    _v1 = SLO_LATENCY_VIOLATIONS_TOTAL.labels(tier="standard")._value.get()
+    observe_slo_latency("standard", 0.01)
+    assert SLO_LATENCY_VIOLATIONS_TOTAL.labels(tier="standard")._value.get() == _v1
     observe_llm_latency("test/model", "generate", 0.1)
     record_llm_error("test/model", "timeout")
     observe_retrieval_latency("qdrant", 0.05)

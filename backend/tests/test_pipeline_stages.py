@@ -19,7 +19,6 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from app.config import settings
-from app.metrics import SLO_CHAT_LATENCY
 from app.pipeline.pipeline_coordinator import PipelineCoordinator
 from app.pipeline.result import PipelineResult
 from app.pipeline.stages import (
@@ -228,20 +227,19 @@ async def test_cache_disabled_bypasses_all_cache_reads(coordinator, monkeypatch)
 
 @pytest.mark.asyncio
 async def test_cache_hit_observes_slo_latency_once(coordinator, monkeypatch):
-    """PipelineCoordinator.execute observes SLO_CHAT_LATENCY exactly once on a cache hit."""
+    """PipelineCoordinator.execute routes SLO observation through observe_slo_latency exactly once on a cache hit."""
+
+    import app.metrics as metrics_module
+    import app.pipeline.pipeline_coordinator as pc
 
     observes = []
-    orig_observe = SLO_CHAT_LATENCY.labels(tier="fast").observe
+    real_observe = metrics_module.observe_slo_latency
 
-    def _capture_observe(value):
-        observes.append(value)
-        return orig_observe(value)
+    def _capture_observe(tier, seconds):
+        observes.append((tier, seconds))
+        return real_observe(tier, seconds)
 
-    monkeypatch.setattr(
-        SLO_CHAT_LATENCY.labels(tier="fast"),
-        "observe",
-        _capture_observe,
-    )
+    monkeypatch.setattr(pc, "observe_slo_latency", _capture_observe)
 
     cached = {
         "response": "Cached answer.",
@@ -275,7 +273,8 @@ async def test_cache_hit_observes_slo_latency_once(coordinator, monkeypatch):
     assert result.final_answer == "Cached answer."
     assert result.latency_ms >= 0
     assert len(observes) == 1
-    assert observes[0] == result.latency_ms / 1000.0
+    assert observes[0][0] == "fast"
+    assert observes[0][1] == result.latency_ms / 1000.0
 
 
 @pytest.mark.asyncio
