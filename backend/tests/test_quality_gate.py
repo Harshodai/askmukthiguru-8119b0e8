@@ -409,7 +409,6 @@ async def test_verify_answer_preserves_cove_pass_ratio(monkeypatch):
 
     # Force the code path that runs _cove_subquestion_check.
     monkeypatch.setattr(verification.settings, "rag_cove_disabled", False)
-    monkeypatch.setattr(verification.settings, "rag_parallel_verify", False)
     monkeypatch.setattr(verification.settings, "cove_compulsory_threshold", 0.5)
 
     mock_ollama = AsyncMock()
