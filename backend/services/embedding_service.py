@@ -26,6 +26,7 @@ import asyncio
 import json
 import logging
 import os
+import threading
 import time
 from pathlib import Path
 from typing import Any, Optional
@@ -334,8 +335,15 @@ class EmbeddingService:
                     f"ONNX model file not found at {model_file} for '{onnx_model_id}'"
                 )
 
+            # Bound thread count: default (0=all cores) oversubscribes when
+            # multiple encode calls run concurrently via asyncio.to_thread.
+            # Mirrors services/onnx_reranker.py:127-129.
+            so = ort.SessionOptions()
+            so.intra_op_num_threads = max(1, (os.cpu_count() or 2) // 2)
+            so.inter_op_num_threads = 1
             session = ort.InferenceSession(
                 model_file,
+                sess_options=so,
                 providers=["CPUExecutionProvider"],
             )
 
@@ -1797,3 +1805,23 @@ class EmbeddingService:
             except Exception as e:
                 logger.error(f"ColBERT-only reranking failed: {e}")
                 return documents[:top_k]
+
+
+_EMBEDDING_SERVICE_SINGLETON: "EmbeddingService | None" = None
+_EMBEDDING_SERVICE_LOCK = threading.Lock()
+
+
+def get_embedding_service() -> "EmbeddingService":
+    """Module-level singleton accessor for EmbeddingService.
+
+    Repeated direct EmbeddingService() construction re-loads the ~570MB
+    ONNX model per instance. Route new call sites through here so one
+    bounded InferenceSession is shared process-wide. Existing direct
+    constructions are left untouched (no behavior change for them).
+    """
+    global _EMBEDDING_SERVICE_SINGLETON
+    if _EMBEDDING_SERVICE_SINGLETON is None:
+        with _EMBEDDING_SERVICE_LOCK:
+            if _EMBEDDING_SERVICE_SINGLETON is None:
+                _EMBEDDING_SERVICE_SINGLETON = EmbeddingService()
+    return _EMBEDDING_SERVICE_SINGLETON
