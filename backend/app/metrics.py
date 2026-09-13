@@ -46,10 +46,46 @@ REQUEST_COUNT = Counter(
 
 SLO_CHAT_LATENCY = Histogram(
     "slo_latency_seconds",
-    "Chat request latency time-to-completion (SLO: p95 < 8s)",
-    ["tier"],  # fast | standard | deep | fallback
-    buckets=[1, 2, 4, 8, 12, 20, 30, 60],
+    "Chat request latency time-to-completion by tier (per-tier SLOs in SLO_THRESHOLDS)",
+    ["tier"],  # fast | standard | hindi | cold | comparative | deep | fallback
+    buckets=[0.5, 1, 2, 3, 4, 8, 12, 20, 25, 30, 65],
 )
+
+# A3 per-tier SLO thresholds (seconds, p95) derived from
+# backend/benchmarks/reports/isolated_latency_2026-09-06.json (n=35):
+#   fast/casual 0.02-0.03, distress 0.02-0.10, meditation 0.04-0.08,
+#   off-topic 0.03 -> fast 1s (headroom over p100 0.10s)
+#   doctrine-direct warm 1.48-2.08 (7/8 reps), doctrine-colloquial warm
+#   1.8/2.78 -> standard 3s
+#   hindi 9.65-10.79 (p100 10.79s) -> hindi 12s
+#   doctrine-direct cold 15.65, doctrine-colloquial cold 7.59,
+#   four-secrets 1.58/3.49/20.93, multi-teacher 5.7-9.41 -> cold 25s
+#   comparative 14.67/15.38/64.74 (p100 64.74s) -> comparative 65s
+# deep/fallback keep 30s (legacy single-8s SLO retired; le="8.0" bucket kept
+# for alert-rule continuity during migration).
+SLO_THRESHOLDS = {
+    "fast": 1.0,
+    "standard": 3.0,
+    "hindi": 12.0,
+    "cold": 25.0,
+    "comparative": 65.0,
+    "deep": 30.0,
+    "fallback": 30.0,
+}
+
+SLO_TIERS = tuple(SLO_THRESHOLDS)
+
+
+def observe_slo_latency(tier, seconds):
+    """Observe whole-request wall time on SLO_CHAT_LATENCY.
+
+    Call at the single point where whole-request wall time is known
+    (PipelineCoordinator.execute, after latency_ms is final, cache-hit
+    patched). Unknown/empty tiers normalize to "standard" so burn-rate
+    queries never fragment on unbounded labels.
+    """
+    label = tier if tier in SLO_THRESHOLDS else "standard"
+    SLO_CHAT_LATENCY.labels(tier=label).observe(max(0.0, float(seconds)))
 
 HEALTH_CHECK_TOTAL = Counter(
     "health_check_total",
@@ -80,19 +116,10 @@ TELEMETRY_SINK_WRITES = Counter(
 # Service-Level Prometheus Metrics (Unit 13)
 # ===================================================================
 
-RAG_LATENCY = Histogram(
-    "rag_latency_seconds",
-    "RAG pipeline node latency per node (P99 observability)",
-    ["node"],
-    buckets=[0.01, 0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10, 30, 60],
-)
-
-LLM_REQUEST_DURATION = Histogram(
-    "llm_request_duration_seconds",
-    "LLM request duration per provider (sarvam / ollama / krutrim)",
-    ["provider"],
-    buckets=[0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10, 30, 60, 120],
-)
+# (A4 removed: RAG_LATENCY dead — no callsite; per-node latency lives in
+# PIPELINE_STAGE_LATENCY which IS wired via rag/nodes/utils.log_metrics.)
+# (A4 removed: LLM_REQUEST_DURATION dead — superseded by LLM_LATENCY
+# + observe_llm_latency helper above.)
 
 RETRIEVAL_LATENCY = Histogram(
     "retrieval_latency_seconds",
@@ -159,18 +186,8 @@ PIPELINE_STAGE_LATENCY = Histogram(
     buckets=[0.1, 0.5, 1, 2, 5, 10, 30],
 )
 
-RETRIEVAL_DOCS_COUNT = Histogram(
-    "guru_retrieval_docs_count",
-    "Number of documents retrieved per query",
-    ["phase"],
-    buckets=[0, 1, 2, 3, 5, 10, 20, 50],
-)
-
-RERANKER_SCORES = Histogram(
-    "guru_reranker_score",
-    "Distribution of reranker scores",
-    buckets=[0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
-)
+# (A4 removed: RETRIEVAL_DOCS_COUNT dead — no callsite.)
+# (A4 removed: RERANKER_SCORES dead — no callsite.)
 
 RETRIEVAL_RELEVANCE_RATIO = Gauge(
     "guru_retrieval_relevance_ratio",
@@ -185,11 +202,6 @@ DISTRESS_DETECTIONS = Counter(
     "guru_distress_detections_total",
     "Distress detections by severity level",
     ["level"],
-)
-
-MEDITATION_SESSIONS = Counter(
-    "guru_meditation_sessions_total",
-    "Total meditation sessions started",
 )
 
 CONTRADICTION_DETECTIONS = Counter(
@@ -235,6 +247,36 @@ CACHE_HIT_RATIO = Gauge(
     "Current cache hit ratio",
     ["cache_type"],
 )
+
+
+# A4 wiring helpers — one-liner contracts so provider/retrieval/cache lanes
+# can wire without touching this lane's files. Each helper references its
+# collector so the wire is real, not a stub.
+#   LLM call sites: services/openrouter_service.py, sarvam_service.py,
+#     ollama_service.py (wrap generate/classify wall time; except path records)
+#   Retrieval call sites: rag/nodes/retrieval.py vector/graph fetch,
+#     services/qdrant client search (wrap wall time per source label)
+#   Cache call sites: services/cache/* adapters + CacheCheckStage
+#     (set ratio after hit/miss window; CACHE_OPERATIONS stays the counter)
+def observe_llm_latency(model, operation, seconds):
+    """Record LLM wall time. Call around each provider generate/classify."""
+    LLM_LATENCY.labels(model=model, operation=operation).observe(max(0.0, float(seconds)))
+
+
+def record_llm_error(model, error_type):
+    """Count an LLM failure. Call on provider exception/timeout alongside."""
+    LLM_ERRORS.labels(model=model, error_type=error_type).inc()
+
+
+def observe_retrieval_latency(source, seconds):
+    """Record vector/graph retrieval wall time per source label."""
+    RETRIEVAL_LATENCY.labels(source=source).observe(max(0.0, float(seconds)))
+
+
+def set_cache_hit_ratio(cache_type, ratio):
+    """Set current cache hit ratio in [0, 1] per cache_type."""
+    clamped = min(1.0, max(0.0, float(ratio)))
+    CACHE_HIT_RATIO.labels(cache_type=cache_type).set(clamped)
 
 # Namespace-aware Redis growth controls. Labels are fixed application namespaces,
 # never user- or tenant-derived, so telemetry cardinality stays bounded.
@@ -353,54 +395,15 @@ CONTEXT_COMPRESSION_RATIO = Histogram(
 # Reranker Metrics (Phase 2.3)
 # ===================================================================
 
-RERANK_LATENCY_MS = Histogram(
-    "guru_rerank_latency_ms",
-    "Rerank latency in ms",
-    buckets=[10, 25, 50, 100, 200, 500, 1000, 2000],
-)
+# (A4 removed: RERANK_LATENCY_MS / RERANK_METHOD / RERANK_DOCS_COUNT dead —
+# no callsites; rerank path currently uninstrumented by design.)
 
-RERANK_METHOD = Counter(
-    "guru_rerank_method",
-    "Rerank method used",
-    ["method"],  # cross, hybrid
-)
+# (A4 removed: NODE_LATENCY_MS dead — superseded by PIPELINE_STAGE_LATENCY.)
 
-RERANK_DOCS_COUNT = Histogram(
-    "guru_rerank_docs_count",
-    "Number of documents being reranked",
-    buckets=[1, 3, 5, 10, 20, 50, 100],
-)
+# (A4 removed: SEARCH_CONFIDENCE_SCORE dead — no callsite.)
 
-# ===================================================================
-# Node Latency Metrics (Phase 2.2)
-# ===================================================================
-
-NODE_LATENCY_MS = Histogram(
-    "guru_node_latency_ms",
-    "Node execution latency in ms",
-    ["node"],
-    buckets=[10, 25, 50, 100, 200, 500, 1000, 2000, 5000, 10000],
-)
-
-# ===================================================================
-# Search Confidence Metrics (Phase 1.1)
-# ===================================================================
-
-SEARCH_CONFIDENCE_SCORE = Histogram(
-    "guru_search_confidence_score",
-    "Intent confidence score distribution",
-    buckets=[0.1, 0.3, 0.5, 0.7, 0.8, 0.9, 0.95, 0.99],
-)
-
-# ===================================================================
-# Semantic Cache Metrics (Phase 1.2)
-# ===================================================================
-
-SEMANTIC_CACHE_LOOKUP_LATENCY = Histogram(
-    "guru_semantic_cache_lookup_latency",
-    "Semantic cache lookup latency in ms",
-    buckets=[1, 2, 5, 10, 20, 50, 100, 200],
-)
+# (A4 removed: SEMANTIC_CACHE_LOOKUP_LATENCY dead — no callsite; cache
+# latency lives in SEARCH_LATENCY_MS which IS observed in pipeline_coordinator.)
 
 # ===================================================================
 # Idempotency Metrics (Phase 3.3)
@@ -416,10 +419,8 @@ IDEMPOTENCY_CACHE_MISS_TOTAL = Counter(
     "Idempotency cache misses",
 )
 
-IDEMPOTENCY_KEY_COLLISIONS_TOTAL = Counter(
-    "guru_idempotency_key_collisions_total",
-    "Idempotency key collisions",
-)
+# (A4 removed: IDEMPOTENCY_KEY_COLLISIONS_TOTAL dead — hit/miss counters
+# in middleware/idempotency.py are the wired signal.)
 
 # ===================================================================
 # Context Compression Extras (Phase 3.2)
@@ -510,28 +511,12 @@ COVERAGE_GAP_TOTAL = Counter(
     ["intent"],
 )
 
-WEB_SEARCH_HIT_TOTAL = Counter(
-    "guru_web_search_hit_total",
-    "Web search calls that returned at least 1 result",
-    ["trigger"],  # coverage_gap, zero_docs
-)
+# (A4 removed: WEB_SEARCH_HIT/MISS_TOTAL dead — no callsites; coverage-gap
+# signal lives in COVERAGE_GAP_TOTAL which IS observed in retrieval.py.)
 
-WEB_SEARCH_MISS_TOTAL = Counter(
-    "guru_web_search_miss_total",
-    "Web search calls that returned zero results or failed",
-    ["reason"],  # empty, error
-)
+# (A4 removed: TOKEN_BUDGET_EXCEED_TOTAL dead — no callsite.)
 
-TOKEN_BUDGET_EXCEED_TOTAL = Counter(
-    "guru_token_budget_exceed_total",
-    "Times token budget soft limit was exceeded during generation",
-    ["budget_type"],  # soft, hard
-)
-
-LIGHTRAG_TIMEOUT_TOTAL = Counter(
-    "guru_lightrag_timeout_total",
-    "LightRAG aquery calls that timed out (triggers web search fallback)",
-)
+# (A4 removed: LIGHTRAG_TIMEOUT_TOTAL dead — no callsite.)
 
 
 def metrics_endpoint():
@@ -601,3 +586,15 @@ INGEST_QUALITY_GATE_REJECTIONS_TOTAL = Counter(
     "Total count of ingestion items rejected by data quality gate",
     ["reason", "tier"],
 )
+
+
+if __name__ == "__main__":
+    for _tier, _th in sorted(SLO_THRESHOLDS.items()):
+        assert isinstance(_th, (int, float)) and _th > 0, _tier
+    observe_slo_latency("fast", 0.05)
+    observe_slo_latency("bogus-tier", 0.05)
+    observe_llm_latency("test/model", "generate", 0.1)
+    record_llm_error("test/model", "timeout")
+    observe_retrieval_latency("qdrant", 0.05)
+    set_cache_hit_ratio("exact", 0.5)
+    print("metrics self-check ok:", len(SLO_THRESHOLDS), "tiers")
