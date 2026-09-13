@@ -1,3 +1,144 @@
+## Sep 14, 2026 — Multi-Session Concurrent Editing: Two Real Bugs Caught by Existing Guards
+
+**Session shape.** Resumed after an app quit mid-turn. Two OTHER interactive
+Claude sessions were editing this same repo concurrently (multi-tenant
+teacher-attribution hardening — Launch Gates 0.1-0.4). Rather than re-audit
+everything from scratch, I ran the test suite against their in-flight,
+uncommitted work and let the repo's OWN guard tests point at the two real
+defects. Both were caught by hygiene invariants this project already has,
+which is the story worth keeping: the guards did their job.
+
+### L-CONCUR-1. A signature change broke every ingestion call, caught by CI not code review
+
+- **What**: `services/teacher_attribution.py::resolve_teacher_attribution()` was
+  written with `title`, `speaker`, `chunks` as **positional-required**
+  parameters. `ingest/pipeline.py`'s early URL-detection call site
+  (`ingest_url()`, before any content is fetched) calls it with only
+  `source_url=` and `tags=` — it cannot supply title/speaker/chunks at that
+  point in the flow, by design. Every `ingest_url()` call raised
+  `TypeError: resolve_teacher_attribution() missing 3 required positional
+  arguments`.
+- **Why it survived**: the function's OWN body already tolerated absence —
+  `title or ""`, `if chunks: combined_parts.extend(chunks[:3])` — the guard
+  logic was written defensively, but the signature was not updated to match.
+  Two call sites exist; the second one (line ~2844, post-content-fetch) passes
+  everything, so a test exercising only that path would have stayed green.
+- **When/Where**: 2026-09-14, `backend/tests/test_universal_ingest.py`
+  (`test_universal_ingest_delegation`), which exercises the EARLY call site.
+- **How found**: ran the full suite against uncommitted multi-tenant work
+  before assuming it was ready; the test failure's traceback pointed straight
+  at the missing-args TypeError — no investigation needed, just reading the
+  error.
+- **Fix applied**: made `title`, `speaker`, `chunks` keyword-with-defaults
+  (`title: str = ""`, `chunks: Optional[List[str]] = None`), matching what the
+  function body already assumed. Both call sites use all-keyword args, so
+  reordering `source_url` to the front changed no call-site behavior.
+- **Rule**: **A function's signature and its body must agree on what's
+  optional.** When a body defensively handles `None`/`""` for a parameter,
+  that parameter should be typed `Optional[...] = None` — a defensive body
+  behind a required-positional signature is a trap: it looks safe in review
+  (the guard logic is right there) and still crashes at the one call site that
+  needed the leniency. Grep every call site before tightening OR loosening a
+  signature; two call sites with different capabilities (pre-fetch vs
+  post-fetch context) is exactly when this bites.
+
+### L-CONCUR-2. New safety-critical code took a shortcut this repo's own test exists to forbid
+
+- **What**: `services/qdrant/multitenancy_guard.py::get_guard_mode()` — the
+  function deciding whether cross-tenant Qdrant access is BLOCKED or merely
+  LOGGED — read `os.environ.get("MULTITENANCY_GUARD_MODE")` directly, with a
+  `Settings`-backed fallback only when the env var was absent. This is exactly
+  the pattern `tests/test_settings_guards.py::test_no_direct_os_environ_in_owned_modules`
+  exists to catch project-wide: every config value must flow through
+  `Settings` so it's visible to the dead-config scan and the `.env` /
+  `.env.example` contract. New code re-introduced the anti-pattern in a
+  brand-new file the guard test doesn't yet know to allowlist.
+- **Why it mattered more than usual**: this isn't a cosmetic setting — it's
+  the enforcement toggle for a cross-tenant DATA LEAK guard
+  (`enforce_multitenancy`, decorating `QdrantSearcher.search` and
+  `QdrantIndexer.upsert_chunks`). A config value that can be set two
+  contradictory ways (env var vs. `Settings.multitenancy_guard_mode`, whichever
+  the reader checks first) is precisely the kind of ambiguity a safety switch
+  cannot afford — a deploy that sets one and not the other silently gets
+  whichever path the code happens to check first.
+- **Second-order bug this created**: `tests/test_multitenancy_guard.py`'s 9
+  enforce/log-mode tests used `monkeypatch.setenv("MULTITENANCY_GUARD_MODE",
+  ...)` specifically BECAUSE the env-first read made that the only way to
+  override the mode from a test (`Settings` is a module-level singleton built
+  once at import — `monkeypatch.setenv` after that point is invisible to code
+  reading `settings.multitenancy_guard_mode`, unless something re-reads the
+  env). Removing the env-first shortcut without updating the tests broke all
+  9 — the tests and the fix were solving the same problem from two ends and
+  had to be fixed together.
+- **When/Where**: 2026-09-14, `backend/services/qdrant/multitenancy_guard.py`
+  + `backend/tests/test_multitenancy_guard.py`.
+- **How found**: `test_no_direct_os_environ_in_owned_modules` failure named the
+  exact new site (`services/qdrant/multitenancy_guard.py::MULTITENANCY_GUARD_MODE`)
+  — the guard test's job is literally to name the file when it fires.
+- **Fix applied**: `get_guard_mode()` now reads `settings.multitenancy_guard_mode`
+  only (the field already existed on `Settings`, declared at
+  `app/config.py:903` — no new config surface, just one fewer read path).
+  `import os` removed as now-dead. All 9 test call sites changed from
+  `monkeypatch.setenv("MULTITENANCY_GUARD_MODE", ...)` to
+  `monkeypatch.setattr(settings, "multitenancy_guard_mode", ...)` — the
+  correct way to override a `Settings`-backed value per-test in this codebase,
+  matching how every other `Settings` field is tested elsewhere in the suite.
+- **Rule**: **A config-hygiene guard test is only as good as its coverage of
+  NEW files.** `test_no_direct_os_environ_in_owned_modules` scans an explicit
+  set of "owned modules" (or, per its baseline-diff design, everything not
+  already allowlisted) — either way, brand-new files get the scrutiny for
+  free, which is the point: this is exactly the mechanism (established in the
+  Sep 12-13 canonical-memory-flags lesson, L-MEM-6) meant to stop
+  `getattr(settings, name, default)` and its cousins from becoming an
+  invisible-to-tooling backdoor. It worked here — flag it, don't allowlist it,
+  when the flagged code is genuinely new and easy to fix at the source.
+  Second: **when a test suite's monkeypatching strategy assumes a config
+  value's read-path, changing the read-path breaks the tests as a matched
+  pair with the fix** — check callers/testers of a function BEFORE editing its
+  internals, not just its signature.
+
+### L-CONCUR-3. `conftest.py`'s Redis default silently didn't match this host's real Redis
+
+- **What**: `tests/conftest.py` defaults `REDIS_URL` to
+  `redis://localhost:6379/0` (no password) "for testing," with a comment
+  noting CI/docker-compose runners must export the real `REDIS_URL`
+  themselves. This host's actual `mukthiguru-redis` container (started via
+  `docker compose`, per `.env`) requires `mukthiguru_redis_pass`. Running the
+  suite with no `REDIS_URL` exported in-shell produced 10
+  `test_sarvam_observability.py` failures and misleadingly specific-looking
+  errors (`LLMBudgetUnavailable: Redis spend guard unreachable: Authentication
+  required.`) that read like a code regression in the budget-guard fail-closed
+  path, when the actual cause was one missing shell export.
+- **How found**: traced the exception chain — `LLMBudgetUnavailable` wraps
+  the real Redis client error, and "Authentication required." is Redis's own
+  AUTH-rejection message, not a bug report from this codebase. Re-ran with
+  `REDIS_URL='redis://:mukthiguru_redis_pass@localhost:6379/0'` exported and
+  all 10 passed with zero code changes.
+- **Rule**: **Before diagnosing a cluster of test failures as a code
+  regression, check whether they share ONE external dependency and whether
+  that dependency's test-default matches what's actually running.** A
+  fail-closed guard wrapping a real infra error will always look like "the
+  guard is broken" from the top of the stack trace; read one level deeper
+  before trusting that read. This is the same failure class as this
+  project's Sep 12 finding "the `.env` compose-network hostnames don't
+  resolve on the host" (`CLAUDE.md` Gotchas) — a config default correct for
+  one runtime and silently wrong for another — just on the test-fixture side
+  instead of the app-runtime side.
+
+### Cross-cutting: what concurrent multi-session editing actually requires
+
+Two other sessions were live-editing this repo throughout. What worked:
+running the FULL suite before touching anything (establishes ground truth
+regardless of who wrote what), fixing root causes rather than
+allowlisting/skipping failing tests (an allowlist entry for
+`multitenancy_guard.py` would have "passed CI" while leaving the actual
+ambiguous-config-source bug in place), and re-checking `git status` before any
+destructive command since two other processes could be mid-write at any
+moment. What to avoid: don't start a large, expensive operation (a live
+20-concurrent load test hitting real LLM providers) that a status update from
+a parallel session already says it intends to run next — that's a race for no
+benefit, not parallelism.
+
 ## Sep 13, 2026 — Future-Scale Research: Multi-Tenant Teachers, OSS Stack, Config Cleanup
 
 **Session shape.** Pure-research pass over 9 framework items via 5 parallel
