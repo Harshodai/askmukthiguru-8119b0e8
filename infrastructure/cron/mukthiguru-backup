@@ -1,0 +1,24 @@
+# Mukthi Guru — local backup cron (disk only, no S3)
+# =====================================================
+# Install:
+#   1. sudo mkdir -p /etc/mukthiguru /var/backups/mukthiguru /var/log/mukthiguru
+#   2. Write env file /etc/mukthiguru/backup.env (chmod 600, root-owned):
+#        REPO=/opt/askmukthiguru
+#        QDRANT_URL=http://localhost:6333
+#        BACKUP_BASE_DIR=/var/backups/mukthiguru
+#        NEO4J_PASSWORD=<from backend/.env, never commit>
+#        NEO4J_CONTAINER=mukthiguru-neo4j
+#   3. sudo cp infrastructure/cron/mukthiguru-backup /etc/cron.d/mukthiguru-backup
+#      (Replace /opt/askmukthiguru below with the real checkout path if different;
+#       the scripts resolve BACKUP_BASE_DIR/qdrant and .../neo4j beneath it.)
+#   4. Verify next morning: ls -l /var/backups/mukthiguru/qdrant /var/backups/mukthiguru/neo4j
+#
+# Schedule: Qdrant snapshots 02:00, Neo4j dumps 02:30 daily. Retention 7 each.
+# Restore procedure: docs/BACKUP_RESTORE.md (scratch-restore proof recorded there).
+
+SHELL=/bin/sh
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+0 2 * * * root . /etc/mukthiguru/backup.env; /usr/bin/python3 $REPO/scripts/ops/backup_qdrant.py --collection spiritual_wisdom --retention 7 >> /var/log/mukthiguru/backup-qdrant.log 2>&1
+
+30 2 * * * root . /etc/mukthiguru/backup.env; /usr/bin/python3 $REPO/scripts/ops/backup_neo4j.py --format dump --retention 7 >> /var/log/mukthiguru/backup-neo4j.log 2>&1

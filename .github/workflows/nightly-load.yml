@@ -37,6 +37,7 @@ jobs:
         run: pip install -r backend/requirements-dev.txt
 
       - name: Boot local stack with mock LLM when no remote URL is configured
+        id: boot
         if: env.LOAD_TEST_URL == 'http://127.0.0.1:8000'
         run: |
           set -euo pipefail
@@ -46,13 +47,28 @@ jobs:
             curl -sf http://127.0.0.1:9002/ >/dev/null && break
             sleep 1
           done
-          docker compose -f backend/docker-compose.yml up -d qdrant redis
+          # Boot the full compose serving stack (backend depends_on neo4j/qdrant/redis
+          # healthy; list neo4j explicitly so the ontology seed below has a target).
+          docker compose -f backend/docker-compose.yml up -d qdrant redis neo4j
           LLM_PROVIDER=nim NIM_API_KEY=mock NIM_BASE_URL=http://host.docker.internal:9002/v1 \
             docker compose -f backend/docker-compose.yml up -d backend
           for i in $(seq 1 60); do
             curl -sf http://127.0.0.1:8000/api/healthz >/dev/null && break
             sleep 2
           done
+          # Pin LOAD_TEST_URL at the compose `backend` service's published port.
+          # This replaces the ambient localhost default with an explicit target:
+          # the sweeps below hit the stack this job booted, never an assumed host.
+          echo "LOAD_TEST_URL=http://127.0.0.1:8000" >> "$GITHUB_ENV"
+          echo "booted=true" >> "$GITHUB_OUTPUT"
+
+      - name: Seed ontology into compose Neo4j
+        if: steps.boot.outputs.booted == 'true'
+        run: |
+          set -euo pipefail
+          docker compose -f backend/docker-compose.yml exec -T backend \
+            python migrations/maintenance_runner.py --operation neo4j-ontology-schema-v1 --apply
+          curl -sf http://127.0.0.1:8000/api/healthz >/dev/null
 
       - name: Reachability gate — hard no-evidence signal
         id: reachable
@@ -146,3 +162,7 @@ jobs:
           if [ -n "${MOCK_PID:-}" ]; then
             kill "$MOCK_PID" || true
           fi
+
+      - name: Tear down compose stack
+        if: always() && steps.boot.outputs.booted == 'true'
+        run: docker compose -f backend/docker-compose.yml down
