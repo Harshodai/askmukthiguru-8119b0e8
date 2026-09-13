@@ -97,6 +97,12 @@ class Settings(BaseSettings):
     # Total outer pipeline timeout. With bounded provider calls plus retrieval,
     # 105s leaves margin below the client benchmark timeout without hanging users.
     pipeline_timeout: int = 105  # leaves client-side timeout headroom
+    # E1: middleware ceiling sits ABOVE pipeline_timeout so the pipeline's own
+    # deadline (graceful fallback) always fires before the middleware 504s.
+    # None (default) resolves to pipeline_timeout + 15 headroom for graceful
+    # drain — computed, not static, so env overrides of pipeline_timeout stay
+    # covered.
+    middleware_timeout: int | None = None
     llm_max_retries: int = 2  # Max retry attempts per LLM call (exponential backoff starts at 0.5s)
 
     # Explicit allowlist of proxy addresses whose X-Forwarded-For is trusted
@@ -181,9 +187,6 @@ class Settings(BaseSettings):
     # falling through to standard. This is a latency/quality knob: validate against
     # the 255-q benchmark and raise back toward 0.65 if doctrine/quality regresses.
     semantic_router_confidence_threshold: float = 0.55
-    semantic_router_fallback_llm: bool = (
-        False  # If True, fall back to LLM classifier when confidence is low
-    )
     semantic_router_shadow_mode: bool = False  # If True, run semantic router alongside heuristic but return heuristic result (for A/B comparison)
 
     # --- Safety Limits ---
@@ -494,7 +497,6 @@ class Settings(BaseSettings):
 
     # --- Data Quality ---
     data_audit_enabled: bool = True
-    data_audit_strict_mode: bool = False  # Enable LLM-based quality checks
 
     # --- Redis ---
     # Default uses 'redis' resolving inside Docker Compose. For local non-docker dev, override with REDIS_URL=redis://localhost:6379/0 via .env
@@ -810,10 +812,13 @@ class Settings(BaseSettings):
     # Write path (extractor/judge/resolver) is deliberately still off: the read
     # path is what makes stored memories reach an answer, and automatic
     # extraction of facts about a seeker is a separate decision.
-    memory_write: bool = False
+    memory_write: bool = True
     memory_influence: bool = True
     # Memory must never cost an answer.
     canonical_memory_timeout: float = 2.0
+    # The write path runs after the reply is already out, so it can afford a
+    # real budget — but not an unbounded one.
+    canonical_memory_write_timeout: float = 30.0
     rag_okf_auto_extract_enabled: bool = (
         True  # post-ingestion OKF extraction; hardened w/ Celery retry + logging
     )
@@ -951,7 +956,6 @@ class Settings(BaseSettings):
 
     # --- Feature flags (Phase 2-3) ---
     phi_accrual_enabled: bool = True
-    use_qdrant_semantic_cache: bool = True
 
     # --- Idempotency (Phase 3.3) ---
     idempotency_ttl_seconds: int = 86400
@@ -1205,7 +1209,6 @@ class Settings(BaseSettings):
     # When True, the LLM classifier is consulted whenever SemanticRouter returns
     # no match. When False, an unmatched query is treated as FACTUAL (fast path)
     # without consulting the LLM.
-    semantic_router_llm_fallback: bool = True
 
     # --- Thresholds (P1 — de-hardcoded magic numbers) ---
     lettuce_detect_threshold: float = 0.25
@@ -1272,7 +1275,6 @@ class Settings(BaseSettings):
     # When True, verification runs concurrently with streaming — the first chunk is sent
     # immediately; only a hard verification failure silently falls back to FALLBACK_RESPONSE.
     # When False, generation and verification are fully sequential (legacy behaviour).
-    rag_parallel_verify: bool = True
     # When True, skip the CoVe (sub-question verification) LLM calls for tier3_complex queries.
     # CoVe adds ~60s and up to 4 small LLM calls. LettuceDetect faithfulness scoring remains.
     # Default False (enabled) because the Guru Brain overhaul mandates CoVe for tier3/tier4
@@ -1623,6 +1625,16 @@ class Settings(BaseSettings):
         if self.llm_timeout >= self.pipeline_timeout:
             raise ValueError(
                 f"llm_timeout ({self.llm_timeout}) must be strictly less than pipeline_timeout ({self.pipeline_timeout})"
+            )
+        # E1: middleware is the outer safety net — it must stay above the
+        # pipeline deadline or it 504s requests the pipeline would have
+        # finished gracefully. None resolves to pipeline_timeout + 15.
+        if self.middleware_timeout is None:
+            self.middleware_timeout = self.pipeline_timeout + 15
+        if self.middleware_timeout <= self.pipeline_timeout:
+            raise ValueError(
+                f"middleware_timeout ({self.middleware_timeout}) must be strictly greater "
+                f"than pipeline_timeout ({self.pipeline_timeout})"
             )
 
         concurrency_fields = [
