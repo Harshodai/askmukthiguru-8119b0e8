@@ -121,6 +121,11 @@ __pyrefly_virtual__/
 
 # Scratch and temporary files
 research/
+# Curated deep-research vault (human-reviewed, referenced by lessons.md L-FUTURE) — keep in git
+!docs/research/
+docs/research/*
+!docs/research/2026-09-13-*.md
+!docs/research/README.md
 ecc/
 *scratch_test.py
 scratch-llmfit/

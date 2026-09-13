@@ -111,3 +111,6 @@ Official architecture, disaster recovery, and high availability policy across st
 1. **Redis Degradation**: If Redis drops, `AnonQuotaRedisAdapter` and `RedisBackedRateLimiter` degrade gracefully to in-process memory caches; search queries bypass semantic cache and proceed directly to vector/graph retrieval without failing requests with HTTP 500.
 2. **Neo4j Degradation**: If Neo4j becomes unreachable, GraphRAG retrieval gracefully falls back to pure Qdrant dense vector search + BM25 keyword retrieval; OKF static teachings remain operable.
 3. **Qdrant Degradation**: If Qdrant cluster is degraded, exact-match and hot doctrine caches serve answers; fallback returns honest zero-source abstention (`grounding_state=abstained`) rather than fabricating ungrounded teachings.
+
+### Backup caveat (P6, verified 2026-09-13)
+Backups stay local-cron per policy (`infrastructure/cron/mukthiguru-backup`: 02:00 Qdrant, 02:30 Neo4j, retention 7, disk-only) — deliberately NOT Celery Beat (`celery_config.py` `beat_schedule` covers win-back/memory only). The cron needs manual sudo install (`/etc/cron.d/` + `/etc/mukthiguru/backup.env`); it was absent on this host, so RPO is unbounded until installed. Qdrant scratch-restore is proven queryable (157 pts + search hit); Neo4j `.dump` load stays an offline maintenance-window op — queryable replay unproven.

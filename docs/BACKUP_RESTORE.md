@@ -85,3 +85,46 @@ $ NEO4J_PASSWORD=dryrun-proof-only backend/.venv/bin/python scripts/ops/backup_n
 
 Result: **PASS** (checksum + Cypher content; full `.dump` load stays an offline
 maintenance-window operation per the procedure above).
+
+## R5 re-proof — 2026-09-13 (local stack, Qdrant 1.18.0, base bf7ada3d)
+
+Policy: backups STAY local-cron (`infrastructure/cron/mukthiguru-backup`); no
+Celery Beat move (`celery_config.py` `beat_schedule` covers win-back/memory
+only). Cron install state: `/etc/cron.d/mukthiguru-backup` and
+`/etc/mukthiguru/backup.env` both ABSENT on this host — RPO unbounded until
+the manual sudo install in the cron header is performed.
+
+Qdrant — same real artifact as above, fresh run into throwaway `_r5_restore`
+(created WITHOUT `on_disk` per the gotcha above; live `guru_tone_podcast`
+holds 12 pts with `on_disk: true` and was untouched):
+
+```
+create (1024/Cosine, no on_disk): {"result":true,"status":"ok"}
+upload ?priority=snapshot: {"result":true,"status":"ok"}
+status= green points= 157
+scroll limit=1: 1 pt, id 00c75bf1-c3d5-5ff4-9a5e-984f17960736
+search with that point's vector, limit=1: 1 hit, same id, score= 1.0
+DELETE collection: ok; scratch_gone= True
+```
+
+Result: **PASS** — green, 157 points, scroll + vector search both hit, scratch
+dropped, no leftover collections.
+
+Neo4j — `NEO4J_PASSWORD=dryrun-proof-only ... backup_neo4j.py --verify-only
+backups/neo4j/neo4j_20260801_151758.cypher` → Checksum OK + valid Cypher,
+exit 0. Full offline `neo4j-admin database load` NOT attempted (live single-DB
+Community instance; replacing it is an outage). Next step: replay/load against
+a stopped scratch instance in a maintenance window.
+
+## R5 load attempt — 2026-09-13 (20 concurrent users)
+
+Nightly workflow path (`.github/workflows/nightly-load.yml`, locust chat sweep
+at `-u 20`): **BLOCKED** — `locust` module absent in both `backend/.venv` and
+system python, and package installs are forbidden in this sandbox, so the exact
+workflow sweep could not run here. Next step: run it in CI or a dependency-
+complete image where `requirements-dev.txt` installs locust.
+
+Substitute transport-only evidence (NOT load proof): 20-way stdlib concurrent
+`GET /api/healthz` against the live compose backend (`ready=true`,
+`status=healthy`): `n=20 ok=20 fail=0 wall=0.04s min=16ms p50=20ms max=22ms`.
+Chat-path p95 at 20 users remains unmeasured.

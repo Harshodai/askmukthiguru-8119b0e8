@@ -1,3 +1,290 @@
+## Sep 13, 2026 — Future-Scale Research: Multi-Tenant Teachers, OSS Stack, Config Cleanup
+
+**Session shape.** Pure-research pass over 9 framework items via 5 parallel
+deep-research lanes (websearch unlimited range + papers), verified against live
+source per the grounding rule (L-PROC-3): every sampled lane claim re-checked
+with grep/read NOW — `CorpusScope` (`rag/corpus_scope.py:12`),
+`get_tenant_collection` (`services/tenant_context.py:87`), OKF teacher dirs
+(`sri-preethaji/`, `sri-krishnaji/`, `shared/`, `staging/` all present),
+`openrouter_fast_model` live-read (`model_policy.py:95`), dead flags decl-only
+(config itself marks `semantic_router_enabled` "Unwired"). Trust audit drops +
+live code; md files are claims, grep is evidence.
+
+---
+
+### L-FUTURE-1. Second teacher rides payload filters, not new collections
+
+- **What**: for tenant 2 (`amma-bhagavan`) keep single Qdrant collection +
+  `tenant_id/corpus_id/teacher_id` payload filter (Qdrant doctrine: 1000
+  collections/cluster cap, per-collection HNSW/WAL overhead; `is_tenant=true`
+  keyword index co-locates tenant vectors). Same dim (BGE-M3 1024) + similar
+  size (~89k pts) means collection-per-tenant buys migration + 2x snapshots for
+  nothing. Escape hatch only for a different embedding model per teacher.
+- **Neo4j**: Community = single DB (no multi-DB; confirmed Issue #12920). Keep
+  shared-graph + `tenant_id` edge properties + composite index via offline
+  maintenance job only — never app startup. Filter EVERY graph hop: retrieval
+  pivot attacks show RPR≈0.95 with 160–194× amplification via shared entities
+  ("suffering" pivots to another tenant's edges); ABAC pre-filter cuts
+  98–100% probes to 0% (never post-filter, never rely on the LLM for ACL).
+- **Per-tenant eval is mandatory, not nice**: SlugRAG/SemEval-2026 domain
+  fine-tune +44.3% Recall@10 / +47.8% NDCG@10. One shared golden set across
+  teachers hides per-teacher regressions — 50–100 Q per teacher (flagship +
+  Indic + comparison + refusal), CI-gated per tenant.
+- **Missing**: tenant-scoped purge does NOT exist (`compliance.py:247` is
+  ticket-only; user purge exists). Build `DELETE /compliance/tenant/{id}`
+  (Qdrant filtered delete + Neo4j `DETACH DELETE WHERE tenant_id` + Redis
+  prefix scan + report) before tenant 2 signs. Per-tenant cost attribution:
+  log `{tenant, model, tokens, cost}` per LLM call (OpenRouter returns
+  per-response `usage.cost`); quota is global-only today.
+- **Onboarding** (`docs/TENANT_ONBOARDING.md` shape): register
+  `TeacherDomain(rollout_enabled=False)` → `memory/okf/<tenant>/` + stamped
+  ingest → golden set + `run_ragas_eval.py --tenant` → quota/cost tags →
+  legal sign-off flips `rollout_enabled`. Rollback = flag off (default-deny).
+
+### L-FUTURE-2. Encoder: keep BGE-M3, reranker first, fine-tune biggest
+
+- **What** (MMTEB/BEIR/MIRACL numbers): BGE-M3 MMTEB-Mult 59.56 / BEIR 48.8;
+  challengers `multilingual-e5-large-instruct` (MMTEB-Mult 63.2 #1, Indic 70.2 —
+  560M beats 7B GritLM on Indic), `snowflake-arctic-embed-l-v2.0` (MTEB-R
+  0.556 vs BGE-M3 0.488, MRL 1024→256 at <3% loss); Nomic-v2-MoE fully-open
+  pick; Jina-v3 REJECTED (CC-BY-NC-4.0); Qwen3-8B quality ceiling but GPU-gated.
+- **Indic proof that FT dominates swaps**: Indic-ColBERT (ACL-2024) Hindi
+  0.171→0.223 (+30%), Telugu 0.144→0.206 (+43%) over zero-shot multilingual.
+  Recall@1 0.23 is not proven an encoder ceiling — fix labels/chunking/hybrid
+  first (L-GOLD-1).
+- **Order**: (1) reranker `bge-reranker-v2-m3` ONNX-INT8 top-20 (cheapest,
+  +2–5pp NDCG, re-gate P95); (2) encoder A/B Arctic vs mE5-instruct
+  (dual-collection re-index cost); (3) domain FT on spiritual hi/te pairs.
+  NEVER naive-truncate BGE-M3 to 256 (not MRL-trained — only MRL-native
+  models keep the 4x RAM win); keep ColBERT-MaxSim disabled at 1024d/token.
+
+### L-FUTURE-3. Keep Qdrant + cloud LLM; self-host loses at $30
+
+- **What** (1M-vector benches): Qdrant 4,200 QPS / p99 8.2ms best-in-class;
+  Milvus higher ops burden, pgvector needs pgvectorscale to compete (vanilla
+  15× slower), Chroma/LanceDB collapse past 1M/no-HA. At 89k pts the corpus
+  fits page cache — tune, don't replace: `m=16, ef_construct=200`,
+  TurboQuant-4bit + fp16 disk + rescore, RF=1 until multi-node.
+- **Serving math**: vLLM 19× Ollama throughput (793 vs 41 TPS), AWQ-4 best
+  calibrated 4-bit (MMLU 95.2%), but always-on L4 = $226–321/mo vs cloud
+  $0.0005–0.001/query — break-even 0.12 QPS sustained (~321k queries/mo).
+  Below that self-host loses ~$290/mo. If that day comes: L4/3090 + vLLM +
+  Qwen2.5-7B-AWQ, Sarvam-30B-AWQ for Indic gen.
+- **Indic path**: Sarvam API (30B/105B, Apache-2.0, 89–90% Indic pairwise wins),
+  not self-host (H100 $1,963/mo). Llama-3.1-8B stays classify-only — weakest
+  Indic in class. Prompt-order for prefix-cache reuse now (free future hit
+  rate); cap `max-model-len` 4–8k (KV cache dominates RAG).
+
+### L-FUTURE-4. Retrieval roadmap, eval discipline, quarantine triage
+
+- **Ordered by ROI**: (1) tune fusion — CC α≈0.5 beats RRF when tuned, DBSF as
+  A/B arm, never vibe weights; (2) LongContextReorder (5 lines, free);
+  (3) late chunking via BGE-M3 8k pass (zero extra LLM; contextual headers
+  only for high-value docs, `find_artifact()`-gated); (4) rerank pool cap 50 +
+  score cache; (5) Adaptive single-rewrite router (cap 1 rewrite, log lift,
+  kill arm if <2pp); (6) RAPTOR pilot on long-form subset only; (7) LLMLingua-2
+  compression pilot (citations stay verbatim); (8) HyDE gated on abstract
+  queries only (counterproductive on entity/numeric — this corpus is
+  entity-rich). Defer SPLADE/ColBERT/learned fusion until R@1 > 0.45.
+- **Eval**: RAGAS triple-metric + ARES discipline (150–300 human labels + PPI
+  beats raw prompts +59pp); synthetic ranks retrievers but NOT generators —
+  split golden-80 into tune-40/held-out-40; dual-judge + position-swap +
+  identity-strip (style bias 0.76–0.92 dominates); native (not translated)
+  HI+TE 20-Q slices; map every miss to TrustNLP 33-mode taxonomy (errors will
+  be chunking/retrieval ≈60%, not fabrication).
+- **Quarantine**: 86% quarantined = miscalibrated gate, not corpus quality.
+  Replace binary pass/quarantine with graded triage
+  (`clean/noisy-recoverable/junk` via perplexity + repetition + lang-id,
+  pre-LLM) × reason taxonomy (transcript-junk/asr-loop/lang-mismatch/
+  llm-contaminated/dim-mismatch/rights-unclear) with per-reason retry policy;
+  SLO quarantine <15%. Keep Celery (chains/Beat/multi-broker beat RQ/Dramatiq;
+  set `task_acks_late=True`); semantic cache: instrument GPTCache hit/false-hit
+  first, then pilot RedisVL (local BGE-M3, per-locale thresholds).
+
+### L-FUTURE-5. Boolean cleanup: ~200 lines removable, exact plan exists
+
+- **G1 zero-risk (~95–115 lines)**: 18 decl-only settings (`semantic_router_*`
+  incl. config's own "Unwired" comment, `use_qdrant_semantic_cache`,
+  `data_audit_strict_mode`, semantic-cache hnsw/collection, STT quintet,
+  `transcript_max_retries`, `ingestion_relation_cache_size`,
+  `llm_provider_chain`, persona ints, `sarvam_model_name`,
+  `correlation_id_max_length`, `SERVICE_ORCID_MAP`, `csrf_secret` after
+  zero-read verify) + dead env lines (`USE_OPENROUTER_FOR_SIMPLE`,
+  `RATE_LIMIT_PER_MINUTE`) + undeclared-getattr literals → inline
+  (`qdrant_timeout`→30.0, `llm_generate_timeout`→60.0, drop Settings arm of
+  `redis_password`). Safe because pydantic `extra="ignore"` — stale env never
+  crashes. Each item independently shippable; run `test_wiring_invariants.py`
+  after each.
+- **G2 needs test edits**: `rag_parallel_verify` + `verifier_pass_ratio`
+  (dead, exact line deletes mapped); `doctrine_cache_enabled` is a live
+  default-OFF kill switch — KEEP-or-tombstone, not delete.
+- **G3 decisions**: keep service-role key out of Settings (dive-proof,
+  test-pinned); keep `graphrag_fusion`, web-search family, ab-testing,
+  agentic-traversal as default-False levers; fix `memory_write=True` stale
+  comment; collapse compression tri-state (`rag_use_context_compression`
+  bool vs `"auto"` branch vs `rag_context_compression_enabled` — pick one);
+  orphaned compose env (`OLLAMA_FAST_MODEL`, `SARVAM_DEBUG`) → delete lines;
+  `OPENAI_API_KEY` → placeholder only.
+- **F1 (verified live, prevents a bad deletion)**: `openrouter_fast_model`
+  is READ at `model_policy.py:95` — wiring-allowlist entry is stale; update
+  comment, keep field. Align the 10 reader-default-vs-decl mismatches
+  (zero behavior change).
+
+### L-PROC-3. Md files are claims, grep is evidence
+
+- **What**: lane outputs cited paths that only live-source checks confirm
+  (e.g. glob missed OKF subdirs that `read` proved present; F1's "dead" flag
+  was live). Two greps + one dir read caught what md-trust would have shipped.
+  This very session: a python rename script truncated lessons.md 8982 → 64
+  lines; recovered byte-exact from `git show HEAD:lessons.md` + re-append.
+- **Rule**: for research synthesis, re-verify every actionable path with
+  grep/read NOW. Tombstone + debt-ratchet method for all future flag work
+  (Fowler toggles + pytest-ratchet + in-repo `test_settings_guards.py`
+  precedent): frozen baselines that may only shrink, red-green probed.
+- **Tool rule learnt the hard way**: NEVER `python3 -c` file rewrite with a
+  slice (`s[:4000]`) — it silently discards the tail. Prefer the Edit tool;
+  verify with `wc -l` before and after any scripted file mutation.
+
+## Sep 13, 2026 — Audit Rounds 2–4 Remediation via Parallel Subagent Lanes
+
+**Session shape.** Three audit HTML drops (rounds 2, 3, 4) implemented in one
+session by file-partitioned parallel subagent lanes (5 + 3 + 5 + 4), each lane
+with websearch research, systematic-debugging, and verification-before-completion.
+Standing policies: leave work uncommitted (7 round-2 groups were committed before
+the policy was set; everything after is working tree), backups stay local-cron
+with the limitation documented in CLAUDE.md. Verified totals: 30 new + 65
+neighbour tests (round 2), 45 (round 3), 49 (round 4); `git diff --check` clean
+throughout.
+
+---
+
+### L-R2-1. File-partitioned lanes let subagents run parallel without conflicts
+
+- **What**: each lane owned disjoint files (e.g. metrics+SLO in one lane, config
+  in another, workflows in a third). 8/8 round-2 lanes and 5/5 round-3 lanes
+  returned zero-conflict diffs.
+- **Rule**: one agent per independent problem domain, named file ownership in the
+  prompt, "do NOT commit — coordinator integrates". Parallel dispatch = multiple
+  task calls in one message.
+
+### L-R2-2. ONNX thread bound: copy the sibling, cite the sibling
+
+- **What**: `embedding_service.py:337` created the session with no
+  `SessionOptions` (every core per session); `onnx_reranker.py:127-129` already
+  bounded `intra_op=cpu//2, inter_op=1`. Fix copied the three lines plus a
+  comment naming the mirrored file.
+- **Caveat learnt**: if the deployed ORT wheel is an OpenMP build,
+  `intra_op_num_threads` is ignored (onnxruntime#3233) — then `OMP_NUM_THREADS`
+  set pre-import is the real switch. Check `ort.__config__` in the deploy image.
+- **Singleton lesson**: shipped `get_embedding_service()` as opt-in first (docstring
+  admitted zero callers — round 3 flagged it as "declared but never read");
+  round 4 routed all five sites (`container.py:162`, `web_ingest_tasks.py:57`,
+  `contextual_reingest.py:678`, `book_ingest.py:203`, `memory/compiler.py:54`).
+- **Rule**: a helper with no callers is the same defect class as dead code. Ship
+  the call sites in the same change or do not ship the helper.
+
+### L-R2-3. Fence untrusted text with a shared helper, not per-site patches
+
+- **What**: retrieval chunks joined as bare `[Source: …]\n{text}` while
+  attachments 60 lines away were fenced. Fix extracted `build_knowledge_block`
+  (header + `<untrusted_source>` per chunk) and routed all four prompt-reaching
+  builders through it (main, compression, CCR swap, distress `intent.py:1347`).
+- **Rule**: the fix for "untrusted input reaches a prompt" is one function every
+  builder calls — a fifth builder then inherits the fence for free. Per-site
+  patches guarantee a fifth unfenced site.
+
+### L-R2-4. SSRF: validate every hop, not the first URL
+
+- **What**: `follow_redirects=True` after first-hop allowlist check;
+  `_validate_redirect` existed with zero callers. Fix: httpx
+  `event_hooks={"response": [_redirect_guard]}` resolving `Location` against the
+  request URL + `max_redirects=5`. Playwright `page.goto` paths still open
+  (documented in-code, not silently left).
+
+### L-R2-5. SLO half-done is worse than SLO absent
+
+- **What**: `SLO_CHAT_LATENCY` was observed but alerts aggregated all tiers
+  against flat `le="8.0"` — measuring traffic mix, not health. Fixed with
+  per-tier `SLO_THRESHOLDS` (fast 1s, standard 3s, hindi 12s, cold 25s, deep
+  30s, comparative 65s) + `SLO_LATENCY_VIOLATIONS_TOTAL` counter + burn-rate
+  alerts on the counter. Round 4 caught the coordinator bypassing
+  `observe_slo_latency()` (self-reported by the lane) and privatized the raw
+  histogram so the bypass is unavailable.
+- **Rule**: a threshold nothing compares against, asserted only by
+  `assert "NAME" in src`, is decoration. Guard the behaviour (counter
+  increments when over), not the identifier.
+
+### L-R2-6. A4 sweep: deleting 16 dead collectors beats adding one counter
+
+- **What**: 79 → 63 collectors, zero unreferenced. An empty table reads as "no
+  problem", so dead `LLM_ERRORS`-shaped metrics are incident-time traps.
+- **Rule**: every declared collector needs a non-test call site, enforced by
+  `test_metrics_reachability.py`.
+
+### L-R3-1. Guards must discover, never enumerate
+
+- **What**: the settings guard shipped scoped to the two files the audit named
+  (20 → 18 undeclared, 71 env reads untouched). Round 4 replaced the inclusion
+  tuple with a walk of every `__init__.py` dir minus an explicit exclusion list
+  (12 → 16 baselined debt incl. `ingestion/` vs `ingest/` near-miss), frozen
+  baselines that may only shrink, red-green probed with a transient file.
+- **Rule**: any guard that lists directory names inherits the near-miss-directory
+  trap (already documented twice: `.agent/` vs `.agents/`, the two
+  `scripts/ops/` trees). Discover + exclude, and the nineteenth violation fails
+  the test — that is what closes a class.
+
+### L-R4-1. REGRESSION: a copied bound with the wrong number 500s at six users
+
+- **What**: `max_connections=5` copied from `cost_tracker.py:73` (occasional
+  writes — correct there) onto hot-path clients serving 8 admitted chats.
+  redis-py 7.x raises `MaxConnectionsError` (no queueing), and
+  `_is_connection_error`'s substring match missed it (`"MaxConnectionsError"`
+  contains `"ConnectionsError"`, plural; MRO says it IS a `ConnectionError`).
+  Sixth concurrent chat → 500 instead of graceful degrade.
+- **Fix**: caps 5 → 32 (day-one = 20 pilot + headroom),
+  `isinstance(exc, (ConnectionError, RedisTimeoutError, TimeoutError))`
+  (`TimeoutError` is a sibling, not subclass), race retries on fallback,
+  concurrency test at `max_concurrent_chat + 1` asserting zero 5xx.
+- **Rule**: the round-2 question gains a clause — *where else is this decision
+  made, does it match, and does the same number belong there?* A bound derives
+  from the concurrency it serves (A5's number). Symmetry without re-derivation
+  is overcorrection. Scale-beyond-20 research: `docs/SCALING_BEYOND_20.md`
+  (pilot 20 → growth 50 → HA 150).
+
+### L-R4-2. Burst evidence, honest numbers
+
+- **What**: post-fix burst on fixed code: 5/5 HTTP 200, then anon-quota 429s —
+  no crash, but the quota wall (5) sits below the crash wall (9, earlier 5
+  pre-fix), so fix efficacy is UNPROVEN. Needs a multi-token burst to reach
+  req 9–10. Qdrant scratch restore PROVEN queryable (green, 157 pts, searched,
+  dropped; evidence `docs/BACKUP_RESTORE.md`, `docs/BURST_R4.md`). Neo4j replay
+  and locust 20-user sweep blocked (no-install sandbox; CI image needs
+  `pip install locust`).
+- **Rule**: report the wall you hit, not the wall you wanted. A 5/5+429 run that
+  says "unproven" is worth more than a claimed pass.
+
+### L-GOLD-1. Lower number on correct labels beats higher on wrong ones
+
+- **What**: golden relabel v2 (5 stale labels: bare-PDF → canonical Amazon URL,
+  chunk 384 → 70, 2 exclusions; +20 human seeker questions) moved R@1
+  0.1765 → 0.2326 on corrected labels — far below the 0.517 measured against
+  wrong labels. 0.80 unreached: genuine corpus gap, not label artifact.
+  Canonical-URL key normalization (`normalize_source_key`) kept; prefetch
+  3.0/top-k 24 pinned optimum. Staged, uncommitted.
+- **Rule**: freeze-then-correct with before/after side by side; an eval you
+  regenerate is not a baseline, but a frozen baseline with known-wrong labels
+  is not one either.
+
+### L-PROC-4. The question that catches partials before they land
+
+- **What**: three round-3 fixes recreated their defect class (caller-less
+  singleton, unenforced thresholds, two-file guard). Round 4 added the
+  overcorrection mode (R1).
+- **Rule**: before a fix lands — *what is the smallest change that makes this
+  defect impossible to reintroduce, and does my change actually make it
+  impossible?* Across four rounds, detection of this class moved from auditor
+  to author — the only change that compounds.
+
 ## Sep 12-13, 2026 — Ruthless Prod-Readiness Sweep: Verification Gate, Knowledge Graph, Canonical Memory
 
 **Session shape.** Started from an audit claiming comparative queries were
@@ -8980,3 +9267,54 @@ Started as a narrow ask: enable `rag_deep_research_enabled` (an adaptive suffici
 ### L-QUAL-7. 71 pip-audit advisories → 65 after upgrade → 6 unfixable (accelerate, diskcache, gptcache)
 - **What**: After upgrading litellm and pypdf: 71 → 65 advisories. Remaining unfixable: accelerate 1.14.0 (CVE-2026-69112, no fix), diskcache 5.6.3 (PYSEC-2026-2447, no fix), gptcache 0.1.44 (PYSEC-2026-3468, no fix), plus the transformers/sentence-transformers pin chain (5 advisories, needs co-upgrade), nltk (18, not in requirements.txt), pip (6, not in requirements.txt), pyarrow (1, pinned for numpy compat).
 - **Rule**: Track unfixable advisories as explicit tech debt with a owner and a revisitation date. Don't let them linger as "known issues" without a plan. The accelerate/diskcache/gptcache findings need upstream fixes; the transformers chain needs a coordinated upgrade sprint.
+
+### L-TENANT-1. A tenant is not a user — conflating them empties the corpus silently
+
+- **What**: two auth paths set `tenant_id` to the caller's own user UUID. That
+  value feeds the Qdrant server-side filter (`services/qdrant/searcher.py`) and
+  namespaces every cache tier, so those seekers filtered doctrine on a tenant no
+  document carries. Retrieval returned zero documents; the anti-hallucination
+  design then did exactly what it should with zero documents, which is abstain.
+  Their cache namespace was unique, so no shared tier ever masked it. Net effect:
+  a user for whom the product never works — no exception raised, no metric moved,
+  every invariant technically honoured. `get_tenant_id_from_user` already carried
+  a CRIT-P0 note against this, but the note only guarded its own fallback; a
+  caller passing `tenant_id=<user uuid>` sailed straight through.
+- **Rule**: an identifier that silently narrows a search scope needs validation at
+  the point it is *set*, not only where it is derived. A guard that protects its
+  own fallback path protects nothing from callers. And when a correctness bug can
+  only present as "the system politely declines to answer", no alert will ever
+  find it — so the invariant has to be a test (`test_tenant_identity_guard.py`),
+  never a runbook line.
+
+### L-R5-1. A quota wall below the crash wall makes a test that can neither fail nor pass
+
+- **What**: the ten-question burst was the only instrument for the request-N
+  thread-exhaustion crash (died at 9 pre-`SessionOptions`, at 5 on a later run).
+  After the fixes, the run served 5/5 HTTP 200 and then took five 429s — because
+  the anonymous quota is five messages. No crash, but the experiment never
+  reached the condition it exists to test. Reporting it as a pass would have been
+  wrong; it is unproven, and the efficacy of the A1 fix is still unknown.
+- **Rule**: when a safety limit sits below the failure threshold an experiment is
+  probing, the experiment stops being evidence in either direction. Check that the
+  instrument can still reach the condition before reading its result — and re-run
+  through the identity that bypasses the limit (`X-Test-Key`, per
+  `benchmarks/locustfile.py`) rather than trusting a green run that never got
+  there.
+
+### L-PROC-5. Across five audit rounds, shape closed defect classes — discipline did not
+
+- **What**: rounds 2 and 3 named a class ("the right answer applied to one sibling
+  and not the other") and three of the round-3 fixes recreated it. What actually
+  closed it in rounds 4 and 5 was the *form* of the fix, not more care. Every
+  durable one was a shared function or a discovering walk — `build_knowledge_block`,
+  `get_embedding_service`, `observe_slo_latency` with the histogram renamed to
+  `_SLO_CHAT_LATENCY` so the bypass became unavailable, `_discover_guard_dirs()`.
+  Both regressions came from fixes that stayed a *value* or a *list*: a
+  `max_connections=5` copied from `cost_tracker.py` onto a hot path serving 8
+  admitted chats, and a guard scoped to a two-element tuple of filenames.
+- **Rule**: when a fix is a number or an enumeration, it will be wrong at the next
+  call site and nobody will notice. Ask what makes the next case correct without
+  anyone remembering — a helper every path must route through, a walk that
+  discovers members, a private name that removes the bypass. Copying a pattern
+  means copying its *shape*; copying its value is how a fix becomes the next bug.
