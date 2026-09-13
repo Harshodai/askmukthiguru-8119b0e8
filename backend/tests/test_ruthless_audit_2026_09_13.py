@@ -53,25 +53,37 @@ def test_admin_cost_breakdown_accepts_tenant_filter():
     assert sig.parameters["tenant_id"].default is None
 
 
-class TestMultitenancyGuardStillUnwired:
-    """finding-6 (VERIFIED, NOT FIXED THIS PASS): `enforce_multitenancy`
-    exists but has zero production callers, and its signature checks a
-    `teacher_id` kwarg neither QdrantSearcher nor QdrantIndexer ever passes.
-    Wiring it is a real security-hardening item (fail-closed on cross-tenant
-    reads), but doing it safely means auditing every internal caller for
-    `skip_tenant_check=True` exceptions first (RAPTOR summary fetches, admin
-    paths, backfills) — out of scope for this pass. This test documents the
-    current (unwired) state so a future fix has to consciously update it
-    rather than silently leaving the guard undeployed forever."""
+class TestMultitenancyGuardNowWired:
+    """finding-6 (2026-09-13, Launch Gate 0.3): closed. `enforce_multitenancy`
+    now decorates `QdrantSearcher.search` and `QdrantIndexer.upsert_chunks`.
+    This class used to be `TestMultitenancyGuardStillUnwired` and asserted the
+    ABSENCE of the decorator, by design — its own docstring said "a future fix
+    has to consciously update it rather than silently leaving the guard
+    undeployed forever." Confirmed 2026-09-14 that the wiring is real (not
+    just present in source but exercised): `tests/test_multitenancy_guard.py`
+    covers both entrypoints raising `MultitenancyViolation` in enforce mode.
+    See lessons.md L-CONCUR-2 for the config-bypass bug found alongside this
+    wiring, and its own docstring's caveat below for what is still open."""
 
-    def test_guard_has_no_production_decorator_site(self):
+    def test_guard_decorates_both_production_entrypoints(self):
         import services.qdrant.indexer as indexer_mod
         import services.qdrant.searcher as searcher_mod
 
         indexer_src = inspect.getsource(indexer_mod)
         searcher_src = inspect.getsource(searcher_mod)
-        assert "enforce_multitenancy" not in indexer_src
-        assert "enforce_multitenancy" not in searcher_src
+        assert "enforce_multitenancy" in indexer_src
+        assert "enforce_multitenancy" in searcher_src
+
+    def test_still_open_skip_tenant_check_callers_are_the_next_audit(self):
+        """The original finding's caveat survives the fix: wiring the guard
+        safely requires auditing every internal `skip_tenant_check=True`
+        caller (RAPTOR summary fetches, admin paths, backfills) so enforce
+        mode doesn't break them. That audit is not this test's job — it just
+        keeps the reminder alive so it isn't lost now that the headline gap
+        is closed."""
+        import services.qdrant.multitenancy_guard as guard_mod
+
+        assert "skip_tenant_check" in inspect.getsource(guard_mod)
 
 
 def test_teacher_scoped_retrieval_returns_nothing_today():
