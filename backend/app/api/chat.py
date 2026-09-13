@@ -342,6 +342,30 @@ async def populate_server_side_history(
         raise HTTPException(status_code=500, detail="Failed to load conversation history")
 
 
+def _reject_if_queue_unattended() -> None:
+    """Refuse chat traffic when the job worker was never started.
+
+    `/api/chat` enqueues and returns 202. If lifespan's background init raised
+    before `job_queue.start()` — as a failed Neo4j constraint assert does, since
+    the worker start lives further down the same block — the queue has NO
+    consumer. The request is then accepted, queued, and never answered: the
+    seeker waits forever and nothing logs an error.
+
+    Observed 2026-09-13: a job sat `queued` for 400s+ while /api/health honestly
+    reported `ready: false` and /api/chat kept returning 202. Fail closed, and
+    say why, rather than silently swallowing the request.
+    """
+    from app import dependencies as _app_deps
+
+    if not getattr(_app_deps, "startup_complete", False):
+        detail = "Service is still starting; no chat worker is attached yet."
+        err = getattr(_app_deps, "startup_error", None)
+        if err:
+            detail = f"Service is not ready: {err}"
+        logger.warning("Rejecting chat request — startup incomplete: %s", err or "in progress")
+        raise HTTPException(status_code=503, detail=detail, headers={"Retry-After": "15"})
+
+
 def record_token_usage(endpoint: str):
     """Decorator that records token usage for a request after the handler returns."""
 
@@ -385,8 +409,11 @@ def record_token_usage(endpoint: str):
                         # querying the tracker. One line per request makes the
                         # distribution readable straight from the logs.
                         logger.info(
-                            "CHAT_COST endpoint=%s model=%s tokens_in=%d tokens_out=%d cost_usd=%.6f",
+                            "CHAT_COST endpoint=%s tenant_id=%s user_id=%s model=%s "
+                            "tokens_in=%d tokens_out=%d cost_usd=%.6f",
                             endpoint,
+                            TenantContext.get(),
+                            user_id,
                             acc.model,
                             acc.tokens_in,
                             acc.tokens_out,
@@ -529,6 +556,7 @@ async def chat_endpoint(
     ):
         from app.services.job_queue import QueueFullError
 
+        _reject_if_queue_unattended()
         chat_body_dict = chat_body.model_dump()
         user_dict = (
             {"id": user.get("id", "anonymous"), "is_anonymous": bool(user.get("is_anonymous"))}
@@ -792,6 +820,7 @@ async def chat_stream_endpoint(
     ):
         from app.services.job_queue import QueueFullError
 
+        _reject_if_queue_unattended()
         chat_body_dict = chat_body.model_dump()
         user_dict = (
             {"id": user.get("id", "anonymous"), "is_anonymous": bool(user.get("is_anonymous"))}

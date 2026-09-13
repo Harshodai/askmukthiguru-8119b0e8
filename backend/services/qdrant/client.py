@@ -68,6 +68,9 @@ class QdrantClientManager:
         ("teacher_id", "keyword"),
         ("tenant_id", "keyword"),
         ("corpus_id", "keyword"),
+        # `require_licensed_domain_reads` makes this a `must` filter on every
+        # retrieval (rag/nodes/retrieval.py:805,1132) — unindexed until now.
+        ("domain_rights_status", "keyword"),
     ]
 
     def __init__(

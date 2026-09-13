@@ -496,7 +496,7 @@ All backend config lives in `backend/.env` (copy from `backend/.env.example`). O
 - `QDRANT_URL` — default `http://localhost:6333`
 - `QDRANT_LOCAL_PATH` — set for local (no-Docker) Qdrant mode
 - `WHISPERX_MODEL` / `WHISPERX_DEVICE` / `WHISPERX_COMPUTE_TYPE` — WhisperX transcription (`large-v3` / `auto` / `auto`). **`WHISPER_MODEL`, `WHISPER_BACKEND` and `WHISPER_COMPUTE_TYPE` were removed on 2026-08-02** — they were documented here and set in `docker-compose.yml`, but no code ever read them, so setting them configured nothing. Only the `WHISPERX_*` names take effect (`services/whisper_local_service.py:344`); MLX uses `WHISPER_LOCAL_MODEL`.
-- `KNOWLEDGE_GRAPH_QUERY_ENABLED` — default `true` (config.py:397). Gates per-query Neo4j graph work in `rag/nodes/retrieval.py`. **Corrected 2026-09-05 (ruthless perf audit):** the LightRAG-`aquery` timeout budget this section previously described is dead on the hot chat path — `retrieve_documents` calls `retrieve_for_single_query` with `lightrag=None` at both call sites (retrieval.py:1250, 1337), so the function's internal LightRAG branch (`aquery` under `LIGHTRAG_RETRIEVAL_TIMEOUT`) is never reached from a real request; it sits inside the retrieval `asyncio.gather` only in code, not in the live call graph. The two costs that actually run per RELATIONAL/FACTUAL/QUERY request are `expand_query_with_ontology` (awaited **before** the retrieval fan-out even starts — up to 3s of pure serial latency, itself a flagged latency finding) and `query_neo4j_subgraph` (RELATIONAL intent only, awaited after LightRAG-branch merge rather than run concurrently with the primary retrieval `asyncio.gather`). Before re-introducing any live LightRAG-in-hot-path work, grep for other callers of `retrieve_for_single_query` that pass a non-`None` `lightrag` — none exist on the standard chat path as of this correction. It was off historically when the graph held ~5 edges (pure latency tax); the ontology expansion (commit e84cfed9) grew it past the 1,000-edge threshold and the traversal was enabled. **Counts have since dropped** — live re-verification on 2026-09-04 (production audit, finding N2) found **1,271 relationships / 4,348 nodes** (an untracked purge/consolidation ops run on 2026-09-03 removed most of the prior 11,136/7,512 count, see `data/neo4j_junk_purge_backup_*.json`), a 27% margin over the threshold rather than 10x. Re-verify before relying on this figure — it decays fast; `docker exec mukthiguru-neo4j cypher-shell -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "MATCH ()-[r]->() RETURN count(r)"`. Also see the same audit's finding N1: as of 2026-09-04, 100% of live relationships are LightRAG's generic `DIRECTED` type — the typed ontology (`domain/spiritual_ontology.py` `RelationType`) has near-zero live representation, so traversal signal is topological co-occurrence, not typed reasoning, until `ingest/hyper_extract_adapter.py`'s extraction yield improves further. Disable `KNOWLEDGE_GRAPH_QUERY_ENABLED` again only if a measured latency regression outweighs the retrieval lift. Ingestion and the ontology seeder are unaffected either way.
+- `KNOWLEDGE_GRAPH_QUERY_ENABLED` — default `true` (config.py:397). Gates per-query Neo4j graph work in `rag/nodes/retrieval.py`. **Corrected 2026-09-13 (ruthless production audit) — the 2026-09-05 serial-latency claim below is now stale.** `expand_query_via_kg`/`expand_query_with_ontology` is NOT awaited before the retrieval fan-out starts. Commit `a0f54b8e` (2026-09-08, "Phase 3 query-adaptive 3-lane planner, parallel KG expansion") changed this: for the `relational` lane, `kg_coro` is gathered **concurrently** with the primary retrieval coroutines in one `asyncio.gather` (`retrieval.py:1358-1379`); for the `deep` lane it is awaited **after** that same fan-out completes, not before it (`retrieval.py:1380-1394`). Neither path pays a pre-fan-out serial tax anymore. Anyone re-profiling the reported 0.199 QPS / p95 latency should not assume this function as the bottleneck without a fresh trace. *(Historical claim, corrected 2026-09-05, preserved for context):* the LightRAG-`aquery` timeout budget this section previously described is dead on the hot chat path — `retrieve_documents` calls `retrieve_for_single_query` with `lightrag=None` at both call sites (retrieval.py:1250, 1337), so the function's internal LightRAG branch (`aquery` under `LIGHTRAG_RETRIEVAL_TIMEOUT`) is never reached from a real request. `query_neo4j_subgraph` (RELATIONAL intent only) is still awaited after LightRAG-branch merge rather than run concurrently with the primary retrieval `asyncio.gather` — that part of the 2026-09-05 finding was not re-verified this pass. Before re-introducing any live LightRAG-in-hot-path work, grep for other callers of `retrieve_for_single_query` that pass a non-`None` `lightrag` — none exist on the standard chat path as of this correction. It was off historically when the graph held ~5 edges (pure latency tax); the ontology expansion (commit e84cfed9) grew it past the 1,000-edge threshold and the traversal was enabled. **Counts have since dropped** — live re-verification on 2026-09-04 (production audit, finding N2) found **1,271 relationships / 4,348 nodes** (an untracked purge/consolidation ops run on 2026-09-03 removed most of the prior 11,136/7,512 count, see `data/neo4j_junk_purge_backup_*.json`), a 27% margin over the threshold rather than 10x. Re-verify before relying on this figure — it decays fast; `docker exec mukthiguru-neo4j cypher-shell -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "MATCH ()-[r]->() RETURN count(r)"`. Also see the same audit's finding N1: as of 2026-09-04, 100% of live relationships are LightRAG's generic `DIRECTED` type — the typed ontology (`domain/spiritual_ontology.py` `RelationType`) has near-zero live representation, so traversal signal is topological co-occurrence, not typed reasoning, until `ingest/hyper_extract_adapter.py`'s extraction yield improves further. Disable `KNOWLEDGE_GRAPH_QUERY_ENABLED` again only if a measured latency regression outweighs the retrieval lift. Ingestion and the ontology seeder are unaffected either way.
 
 ## Knowledge graph: what actually reaches an answer
 
@@ -666,7 +666,10 @@ generation prompt. Six defects had to be fixed, each of which failed silently:
 4. **The five feature flags were never declared on `Settings`**, so all five
    silently resolved to `False` regardless of environment. They are declared,
    read as direct attributes (a `getattr` on a variable name is invisible to the
-   dead-settings scan), and the read path is on while `memory_write` stays off.
+   dead-settings scan). **Corrected 2026-09-13**: `memory_write` defaulted to
+   `False` at the time this was written; it now defaults `True`
+   (`app/config.py:815`, since commit `4e740765`) and the write path is wired
+   (see below).
 5. **Written memories were never embedded**, so the retriever's Qdrant search
    found nothing and it fell back to an ILIKE that only matches when the seeker
    repeats the memory's own words. Create/update now index, delete de-indexes —
@@ -687,9 +690,18 @@ user A's exact question did NOT receive user A's personalised answer. The
 per-user exact cache is keyed with `user_id` and legitimately replays a seeker
 their own answer.
 
-Still off: the write path (extractor/judge/resolver). Automatic extraction of
-facts about a seeker is a separate decision from serving facts they stated
-themselves.
+**Corrected 2026-09-13 — no longer off.** The write path (extractor/judge/
+resolver) is wired in `app/container.py`'s `if settings.memory_write:` block
+(commit `a2401c1d`) and confirmed to have run live: `_JudgeAdapter` exists
+specifically because `judge()` raised `unexpected keyword argument 'user_id'`
+the first time the write path was exercised (2026-09-13), which is direct
+evidence automatic fact-extraction about a seeker is now live, not a future
+decision. `extract_memory_candidates` reads a bounded conversation window,
+`MemoryJudge` accepts/ignores/supersedes each candidate, and `MemoryResolver`
+is the only component that writes — wiring stays conditional on the flag so
+the read path never depends on it. Revisit whether this matches the intended
+product decision; the flag flip does not appear to have been announced
+anywhere in this file before now.
 
 ## Caching invariants
 

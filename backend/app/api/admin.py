@@ -2095,13 +2095,20 @@ async def observability_health_check(
 
 @admin_router.get("/cost-breakdown")
 async def cost_breakdown(
+    tenant_id: Optional[str] = None,
     user: dict = Depends(_require_admin),
     container: ServiceContainer = Depends(get_container),
 ) -> dict[str, Any]:
-    """Combined cost view from CostTracker."""
-    report = container.cost_tracker.get_usage_report(days=30)
+    """Combined cost view from CostTracker.
+
+    Defaults to the all-tenant aggregate (unchanged behaviour) — pass
+    ``?tenant_id=`` to scope it, closing the gap where "what does the
+    Amma Bhagavan corpus cost us" had no answer without a raw query.
+    """
+    report = container.cost_tracker.get_usage_report(tenant_id=tenant_id, days=30)
 
     return {
+        "tenant_id": tenant_id or "all",
         "total_usd": report.total_cost_usd,
         "by_model": report.by_model,
         "by_provider": report.by_provider,

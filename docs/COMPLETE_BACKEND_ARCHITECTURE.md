@@ -130,7 +130,7 @@ AskMukthiGuru combines three distinct data stores to achieve high factual accura
 +---------------------------------------------------------------------------------------------------+
 | Data Store     | Container / Port   | Contents                                   | Role           |
 +----------------+--------------------+--------------------------------------------+----------------+
-| Qdrant         | qdrant:6333        | `spiritual_wisdom` (89,053 points, 1024d) | Vector Search  |
+| Qdrant         | qdrant:6333        | `spiritual_wisdom_contextual` (12,904 pts, 1024d) | Vector Search  |
 |                |                    | `guru_tone_podcast` (157 points)           | Tone Retrieval |
 |                |                    | `semantic_query_cache`                     | Query Caching  |
 +----------------+--------------------+--------------------------------------------+----------------+
@@ -143,8 +143,8 @@ AskMukthiGuru combines three distinct data stores to achieve high factual accura
 +----------------+--------------------+--------------------------------------------+----------------+
 ```
 
-### 1. Qdrant `spiritual_wisdom` (Vector Database)
-* Houses **89,053 dense vector chunks** (384-dimensional all-MiniLM-L6-v2 embeddings, configured via `services/embedding_service.py`).
+### 1. Qdrant `spiritual_wisdom_contextual` (Vector Database)
+* Houses **12,904 dense vector chunks** (verified live 2026-09-13; this section's original 89,053-chunk / 384d all-MiniLM-L6-v2 description is stale on both the count and the encoder — the live encoder is BGE-M3 at 1024d, configured via `services/embedding_service.py`; a full pass of this doc against current code is still owed beyond this one correction).
 * Contains the entire corpus: books (*The Four Sacred Secrets*), 450+ YouTube video discourses, satsangs, lectures, and guided meditations.
 
 ### 2. Neo4j Knowledge Graph (Graph Database)

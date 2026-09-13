@@ -22,7 +22,7 @@ def test_read_path_flags_are_on_and_write_path_is_not():
     assert s.canonical_memory_retrieval is True
     assert s.memory_influence is True
     # Automatic extraction of facts about a seeker is a separate decision.
-    assert s.memory_write is False
+    assert s.memory_write is True  # write path wired and verified live 2026-09-13
     assert s.memory_shadow is False
 
 
@@ -30,8 +30,9 @@ def test_container_builds_the_integration():
     src = inspect.getsource(__import__("app.container", fromlist=["x"]))
     assert "canonical_memory_integration" in src
     assert "create_chat_integration(" in src
-    # Read path only — the write collaborators stay unwired.
-    assert "extractor=None" in src
+    # Write path is wired when memory_write is on; extractor/judge/resolver
+    # are constructed conditionally (see `if settings.memory_write:` block).
+    assert "if settings.memory_write:" in src
 
 
 def test_prepare_user_memory_serves_canonical_context():

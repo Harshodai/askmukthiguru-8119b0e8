@@ -200,6 +200,24 @@ def _reset_rate_limiters():
 
 
 @pytest.fixture(autouse=True)
+def _default_startup_complete():
+    # ponytail: app.api.chat._reject_if_queue_unattended() (2026-09-13, the
+    # queue-safety fix) checks app.dependencies.startup_complete and 503s
+    # when it's falsy. The real value is only ever set True by main.py's
+    # lifespan, which never runs in these tests, so every /api/chat(/stream)
+    # test got a 503 before reaching its actual test logic (queue-full,
+    # Redis-outage, etc. — a real regression, caught by running the full
+    # suite). Default it True here; test_chat_readiness_guard.py's own tests
+    # monkeypatch it explicitly per-case and are unaffected by this default.
+    import app.dependencies as _app_deps
+
+    original = getattr(_app_deps, "startup_complete", False)
+    _app_deps.startup_complete = True
+    yield
+    _app_deps.startup_complete = original
+
+
+@pytest.fixture(autouse=True)
 def _clear_dependency_overrides():
     # ponytail: app.dependency_overrides is a dict on the single shared `app`
     # object imported by every test module; several tests (test_edge_cases.py,

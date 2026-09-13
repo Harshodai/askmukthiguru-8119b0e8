@@ -21,7 +21,7 @@ An AI-powered spiritual guide rooted in the teachings of **Sri Preethaji & Sri K
 | **Frontend** | Vite React 18 + TailwindCSS + shadcn/ui + HashRouter | `80` (Docker) / `8080` (Local) |
 | **Mobile App** | Capacitor 8 (`com.askmukthiguru.app`) iOS & Android | Native WebView |
 | **Backend** | FastAPI (Async Python 3.12, 12-Layer RAG Pipeline) | `8000` |
-| **Vector DB** | Qdrant (`spiritual_wisdom`: 89,053 points, `second_brain_vault`) | `6333` |
+| **Vector DB** | Qdrant (`spiritual_wisdom_contextual`: 12,904 points verified live 2026-09-13, `second_brain_vault`) | `6333` |
 | **Knowledge Graph** | Neo4j 5.17 (LightRAG 7,601 concept & transformation arc nodes) | `7474` (HTTP) / `7687` (Bolt) |
 | **Caching & Memory** | Redis 7 Alpine (Sliding TTL session cache & response cache) | `6379` |
 | **Auth & Database** | Supabase Postgres (RLS enabled) + Supabase Auth (OAuth/Email) | Cloud / Local |
@@ -32,7 +32,7 @@ An AI-powered spiritual guide rooted in the teachings of **Sri Preethaji & Sri K
 ## Core Platform Capabilities
 
 ### 1. LightRAG & Knowledge Base Ingestion
-- **Qdrant Vector Base (`spiritual_wisdom`)**: Ingested 89,053 items covering books, 450+ YouTube discourses, meditations, and lectures.
+- **Qdrant Vector Base (`spiritual_wisdom_contextual`)**: 12,904 points (verified live 2026-09-13) covering books, 450+ YouTube discourses, meditations, and lectures.
 - **Neo4j Knowledge Graph**: 7,601 nodes (7,498 base concept nodes + 103 OKF 5-node transformation arc nodes).
 - **High-Throughput Auto-Scaling Ingestion**: `scripts/ingest_lightrag_data.py` directly scrolls Qdrant payloads with `asyncio` worker pools, fast LLM timeouts, and atomic `.tmp` -> `.json` checkpointing (`data/lightrag_checkpoint.json`).
 - **Contextual Re-ingest Engine**: Reconstructs full documents, re-chunks with contextual grounding, and populates `spiritual_wisdom_contextual`.

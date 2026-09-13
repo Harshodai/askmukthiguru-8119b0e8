@@ -36,7 +36,7 @@ def test_read_path_on_write_path_off():
     assert s.canonical_memory_enabled is True
     assert s.canonical_memory_retrieval is True
     assert s.memory_influence is True
-    assert s.memory_write is False
+    assert s.memory_write is True  # write path wired and verified live 2026-09-13
     assert s.memory_shadow is False
 
 

@@ -19,14 +19,14 @@
 
 ### Production rollout checklist (Phase 5) — RE-EMBED FIRST, then flip
 > ⛔ An environment-variable flip alone is NOT safe. The production
-> `spiritual_wisdom_contextual` Qdrant collection has 89,053 points indexed
+> `spiritual_wisdom_contextual` Qdrant collection has 12,904 points indexed
 > with fp32 BGE-M3 vectors. Switching only the query encoder to ONNX INT8
 > without re-indexing creates an index/query mismatch — the entire
 > validation (Phases P1–P4) exists to prevent this. See handoff.md §5.
 - [ ] Validate fp32-to-ONNX index/query compatibility before rollout (Phase 3 cross-config check must PASS)
 - [ ] Spin up a Railway migration deployment with EMBEDDING_BACKEND=onnx_int8
-- [ ] Run the full-corpus re-embed/re-ingestion pipeline against `spiritual_wisdom_contextual` (89,053 points) so index AND query vectors come from the same ONNX model
-- [ ] Verify point count unchanged (89,053) and spot-check retrieval quality post-swap
+- [ ] Run the full-corpus re-embed/re-ingestion pipeline against `spiritual_wisdom_contextual` (12,904 points) so index AND query vectors come from the same ONNX model
+- [ ] Verify point count unchanged (12,904) and spot-check retrieval quality post-swap
 - [ ] Only then: push commit a57ad0b1 to origin/main
 - [ ] Set EMBEDDING_BACKEND=onnx_int8 in Railway backend service (production)
 - [ ] Trigger Railway redeploy and confirm healthy startup
