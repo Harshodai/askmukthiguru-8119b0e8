@@ -241,7 +241,18 @@ class LocalAuthStrategy(AuthStrategy):
                     "email": user.email,
                     "is_superuser": user.is_superuser,
                     "provider": "local",
-                    "tenant_id": str(user.id),
+                    # NOT the user id. `get_tenant_id_from_user` carries a
+                    # CRIT-P0 note against falling back to the Supabase user
+                    # UUID — but that guard only covers its own fallback, and a
+                    # caller handing it `tenant_id=<user uuid>` defeats it.
+                    # TenantContext feeds the Qdrant server-side filter
+                    # (services/qdrant/searcher.py), so a per-user "tenant"
+                    # matches ZERO doctrine documents and every answer for that
+                    # user abstains, while their cache namespace is unique so
+                    # nothing is ever shared. Omitting the key lets the helper
+                    # resolve the real shared tenant. Guarded by
+                    # tests/test_tenant_identity_guard.py.
+                    "tenant_id": get_settings().default_tenant_id,
                 }
         except Exception as e:
             logger.debug(f"Local auth attempt failed: {e}")
@@ -429,7 +440,12 @@ class SupabaseAuthStrategy(AuthStrategy):
             user_id = payload.get("sub")
             user_email = payload.get("email")
             jwt_role = payload.get("role", "authenticated")
-            tenant_id = payload.get("tenant_id", user_id)
+            # Falling back to `sub` made every Supabase user their own tenant,
+            # which is the same defect as the local-auth path above: the Qdrant
+            # server-side filter then matches zero doctrine documents. A real
+            # tenant claim is honoured when present; otherwise the shared
+            # default applies.
+            tenant_id = payload.get("tenant_id") or settings.default_tenant_id
             # Supabase GoTrue JWTs carry an Authenticator Assurance Level claim
             # ("aal1" default, "aal2" after MFA step-up). Default to aal1 when
             # absent so MFA-gated routes deny by default.
