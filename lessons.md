@@ -9318,3 +9318,35 @@ Started as a narrow ask: enable `rag_deep_research_enabled` (an adaptive suffici
   anyone remembering — a helper every path must route through, a walk that
   discovers members, a private name that removes the bypass. Copying a pattern
   means copying its *shape*; copying its value is how a fix becomes the next bug.
+
+### L-PROC-6. A gate that only asserts is not a gate — run it and watch it fail on something real
+
+- **What**: the 2026-09-13 launch-readiness doc originally listed Gate 0 items
+  (teacher_id coverage, Neo4j tenant scoping) as prose bullet points with a
+  documented risk. Writing two small scripts (`launch_gate_kg_readiness.py`,
+  `launch_gate_qdrant_integrity.py`) and actually running them against the live
+  Qdrant/Neo4j surfaced a BLOCKER nobody had quantified in five prior audit
+  rounds: 99% of Neo4j edges carry no `tenant_id` (42/4170), not a "legacy edge
+  tail" as the research synthesis's prose had framed it. A prose risk and a
+  measured number are different objects — the prose survived five rounds of
+  review unchallenged; the script found the real magnitude on first run.
+- **Rule**: when a launch/quality gate is written as a checklist bullet, convert
+  it to a runnable script with a numeric pass/fail threshold before trusting it,
+  even if that feels like overkill for something "everyone already knows about."
+  The act of making a claim executable is often what finds out the claim was
+  wrong in degree, not just in kind.
+
+### L-PROC-7. A queue-safety fix that only guards two call sites can still break four unrelated tests
+
+- **What**: `_reject_if_queue_unattended()` (2026-09-13) correctly closed the
+  unattended-queue invariant at both real enqueue sites, but it also 503'd
+  `test_chat_endpoint.py`'s queue-full/Redis-outage/non-Redis-error tests before
+  they reached their actual test logic — because `app.dependencies.startup_complete`
+  defaults `False` in the test process (the real lifespan never runs there). The
+  regression was invisible running the guard's own new test file; it only showed
+  up running the full suite.
+- **Rule**: after any fix that adds a new precondition check to a shared code
+  path (auth guard, readiness check, feature flag default), run the FULL test
+  suite, not just the new test file and the files you think are related. A
+  regression from a correct fix hides in files you didn't touch and wouldn't
+  think to run.
