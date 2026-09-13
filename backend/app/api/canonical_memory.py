@@ -757,13 +757,32 @@ async def manage_canonical_consent(
 
     When consent is revoked, all pending outbox rows for this user are deleted.
     """
-    from services.tenant_context import get_tenant_id_from_user
+    from services.tenant_context import TenantContext, get_tenant_id_from_user
 
     outbox = getattr(container, "memory_outbox", None)
     if outbox is None:
         raise HTTPException(status_code=503, detail="Memory consent service unavailable")
 
-    tenant_id = get_tenant_id_from_user(user)
+    # Consent must be written under the SAME tenant every consumer reads it
+    # under. `MemoryOutbox.active_consent` — the gate that decides whether this
+    # seeker's turns may be mined for durable facts — filters on
+    # `TenantContext.get()`, while `get_tenant_id_from_user(user)` returns
+    # `user["tenant_id"]`, which auth_service.py sets to the user's own UUID.
+    # The two never matched, so consent could be granted (200, receipt id and
+    # all) and then never found: `active_consent` returned None forever and the
+    # write path correctly refused to remember anything. Measured 2026-09-13 —
+    # receipt stored with tenant=<user uuid>, looked up with tenant="default".
+    #
+    # The request tenant is the authority; the per-user value is logged only so
+    # the mismatch stays visible rather than silently diverging again.
+    tenant_id = TenantContext.get()
+    _user_scoped_tenant = get_tenant_id_from_user(user)
+    if _user_scoped_tenant != tenant_id:
+        logger.info(
+            "Consent tenant resolved to %s (user dict carried %s)",
+            tenant_id,
+            _user_scoped_tenant,
+        )
 
     try:
         receipt = await outbox.record_consent(

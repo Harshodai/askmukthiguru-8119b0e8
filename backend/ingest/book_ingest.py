@@ -185,7 +185,7 @@ async def ingest_book(json_path: str, collection: str) -> dict[str, Any]:
     Returns a summary dict: {chunks_indexed, lightrag_chunks_ok, lightrag_chunks_failed}.
     """
     from app.dependencies import get_container
-    from services.embedding_service import EmbeddingService
+    from services.embedding_service import get_embedding_service
     from services.qdrant_service import QdrantService
 
     path = Path(json_path)
@@ -200,7 +200,7 @@ async def ingest_book(json_path: str, collection: str) -> dict[str, Any]:
 
     qdrant = QdrantService(collection=collection)
     qdrant.init_collection()
-    embeddings = EmbeddingService()
+    embeddings = get_embedding_service()
 
     batch_size = 20
     for i in range(0, len(chunks), batch_size):

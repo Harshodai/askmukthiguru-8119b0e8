@@ -49,9 +49,9 @@ def _load_okf_entries() -> list[dict[str, Any]]:
 
 def _embed_texts(texts: list[str]) -> list[list[float]]:
     """Return dense embeddings using the project's EmbeddingService."""
-    from services.embedding_service import EmbeddingService
+    from services.embedding_service import get_embedding_service
 
-    svc = EmbeddingService()
+    svc = get_embedding_service()
     # Blocking call — run in thread so caller can await if desired
     return svc.encode(texts)
 

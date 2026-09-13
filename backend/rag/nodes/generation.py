@@ -1532,7 +1532,13 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
                 raw_text = doc_text(doc)
                 compressed = extractive_compress_doc(question, raw_text)
                 if compressed and compressed.strip():
-                    compressed_docs.append({"title": title, "text": compressed.strip()})
+                    compressed_docs.append(
+                        {
+                            "title": title,
+                            "source_url": doc.get("source_url") or doc.get("url") or "N/A",
+                            "text": compressed.strip(),
+                        }
+                    )
                     surviving_docs.append(doc)
         else:
             logger.info(
@@ -1543,13 +1549,17 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
                 title = doc.get("title") or doc.get("source_url") or f"Doc {idx + 1}"
                 raw_text = doc_text(doc)
                 if raw_text and raw_text.strip():
-                    compressed_docs.append({"title": title, "text": raw_text.strip()})
+                    compressed_docs.append(
+                        {
+                            "title": title,
+                            "source_url": doc.get("source_url") or doc.get("url") or "N/A",
+                            "text": raw_text.strip(),
+                        }
+                    )
                     surviving_docs.append(doc)
 
         if compressed_docs:
-            context = "\n\n---\n\n".join(
-                f"[Source: {d['title']}]\n{d['text']}" for d in compressed_docs
-            )
+            context = build_knowledge_block(compressed_docs)
         else:
             context = ""
     else:
@@ -2169,19 +2179,11 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
                 else:
                     new_relevant_docs.append(doc)
 
-            context = "\n\n---\n\n".join(
-                f"[Source: {doc.get('title', doc.get('source_url', 'Unknown'))}]\n{doc_text(doc)}"
-                for doc in new_relevant_docs
-            )
+            context = build_knowledge_block(new_relevant_docs)
 
             if layers:
                 layers_copy = dict(layers)
-                knowledge = "\n\n".join(
-                    [
-                        f"[Source: {doc.get('title', 'Unknown')} | URL: {doc.get('source_url', 'N/A')}]\n{doc_text(doc)}"
-                        for doc in new_relevant_docs
-                    ]
-                )
+                knowledge = build_knowledge_block(new_relevant_docs)
                 layers_copy["knowledge"] = cap_to_token_budget(knowledge, 3072, lang)
 
                 system_prompt = (

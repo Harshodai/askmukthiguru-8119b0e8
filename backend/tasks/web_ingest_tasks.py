@@ -51,10 +51,10 @@ def _index_chunks(chunks: list[dict]) -> None:
     import asyncio
 
     from ingest.pipeline import IngestionPipeline
-    from services.embedding_service import EmbeddingService
+    from services.embedding_service import get_embedding_service
     from services.qdrant_service import QdrantService
 
-    embedder = EmbeddingService()
+    embedder = get_embedding_service()
     qdrant = QdrantService()
     pipeline = IngestionPipeline(
         qdrant_service=qdrant,

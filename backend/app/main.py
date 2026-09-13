@@ -243,6 +243,57 @@ def _get_qdrant_service_client(container) -> object | None:
     return None
 
 
+# P5: required Neo4j uniqueness constraints — must match the _migrations list
+# in backend/app/db/seed_ontology.py. Unconstrained concurrent MERGE is
+# check-then-create and produces duplicate nodes (neo4j/neo4j#13841).
+REQUIRED_NEO4J_CONSTRAINTS: tuple[str, ...] = (
+    "UNIQUE_TEACHER_NAME",
+    "UNIQUE_CONCEPT_NAME",
+    "UNIQUE_PRACTICE_NAME",
+    "UNIQUE_USER_ID",
+    "UNIQUE_GLOBALMEMORY_ID",
+    "UNIQUE_SEEKERTURN_ID",
+    "UNIQUE_GURUTEACHING_NAME",
+    "UNIQUE_GURURESPONSE_ID",
+    "UNIQUE_STATE_NAME",
+    "UNIQUE_INFERENCEACTIVITY_ID",
+    "UNIQUE_SOFTWAREAGENT_ID",
+    "UNIQUE_WISDOMCHUNK_ID",
+)
+
+
+def assert_neo4j_constraints_ready(driver) -> None:
+    """P5 startup readiness assert: required Neo4j uniqueness constraints exist.
+
+    Strictly read-only — runs SHOW CONSTRAINTS and never creates anything
+    (startup schema mutations live in the standalone maintenance runner;
+    see the read-only invariant below). Raises RuntimeError listing missing
+    constraints when connected but incomplete, which the lifespan wrapper
+    converts to startup_error (not-ready). Returns silently when the driver
+    is unavailable or unreachable — that is degraded mode, reported by the
+    neo4j health check, not a constraint violation.
+    """
+    if driver is None:
+        logger.warning("Neo4j constraint assert skipped: driver unavailable (degraded mode)")
+        return
+    try:
+        with driver.session() as session:
+            records = session.run("SHOW CONSTRAINTS YIELD name")
+            present = {r["name"] for r in records if r["name"]}
+    except Exception as exc:
+        logger.warning("Neo4j constraint assert skipped: SHOW CONSTRAINTS failed: %s", exc)
+        return
+    missing = [n for n in REQUIRED_NEO4J_CONSTRAINTS if n not in present]
+    if missing:
+        raise RuntimeError(
+            "Neo4j uniqueness constraints missing: "
+            + ", ".join(missing)
+            + ". Run the maintenance runner before serving traffic; "
+            "unconstrained concurrent MERGE produces duplicate nodes."
+        )
+    logger.info("Neo4j constraint assert OK: %d/%d required constraints present", len(present & set(REQUIRED_NEO4J_CONSTRAINTS)), len(REQUIRED_NEO4J_CONSTRAINTS))
+
+
 async def _background_startup_body(container, fastapi_app) -> None:
     """Run deferred initialization (ontology seeding, queues, telemetry).
 
@@ -262,6 +313,10 @@ async def _background_startup_body(container, fastapi_app) -> None:
 
     # Startup is strictly read-only: schema mutations and migrations are handled
     # via the standalone maintenance runner (backend/migrations/maintenance_runner.py).
+
+    # P5 readiness assert: fail loud (not-ready) when Neo4j is reachable but
+    # required uniqueness constraints are missing. Assert only — never create.
+    assert_neo4j_constraints_ready(getattr(container, "neo4j_driver", None))
 
     # Retrieval-index compatibility contract. A reachable Qdrant collection is
     # not proof that its vectors were built with this encoder/chunker/corpus.
@@ -996,8 +1051,10 @@ async def inflight_tracker(request: Request, call_next):
 
 
 # ── Global request-level timeout middleware ──
-# Caps every HTTP request at pipeline_timeout (default 180s).
-# Streaming (SSE) paths are excluded — they intentionally hold the connection open.
+# Caps every HTTP request at middleware_timeout (default pipeline_timeout + 15).
+# E1: separate setting so the pipeline's own deadline (graceful fallback)
+# always fires before the middleware 504s. Streaming (SSE) paths are excluded
+# — they intentionally hold the connection open.
 _STREAMING_PATHS: frozenset[str] = frozenset({"/api/chat/stream"})
 
 
@@ -1006,7 +1063,9 @@ async def request_timeout_middleware(request: Request, call_next):
     """Global request timeout — belt-and-suspenders safety net for all routes."""
     if request.url.path in _STREAMING_PATHS:
         return await call_next(request)
-    timeout_val: float = float(getattr(settings, "pipeline_timeout", 180))
+    timeout_val: float = float(
+        getattr(settings, "middleware_timeout", float(getattr(settings, "pipeline_timeout", 180)) + 15)
+    )
     try:
         return await asyncio.wait_for(call_next(request), timeout=timeout_val)
     except TimeoutError:

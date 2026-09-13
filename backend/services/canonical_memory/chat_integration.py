@@ -171,6 +171,23 @@ def detect_explicit_command(query: str) -> Optional[str]:
 # Main integration class
 # ---------------------------------------------------------------------------
 
+def _decision_action(decision: Any) -> str:
+    """Read a MemoryDecision's action, whatever the field is called.
+
+    `MemoryJudge` returns `MemoryDecision.decision` (a `DecisionType`). This
+    module was written against `.action`, so `getattr(decision, "action", None)`
+    was always None — falsy — and EVERY decision was skipped. The write path
+    therefore extracted candidates, judged them, and silently wrote nothing.
+    Found 2026-09-13, the first time it ran against the real judge.
+    """
+    value = getattr(decision, "decision", None)
+    if value is None:
+        value = getattr(decision, "action", None)
+    if value is None:
+        return ""
+    return str(getattr(value, "value", value))
+
+
 @dataclass
 class CanonicalMemoryIntegration:
     """Bridge between the canonical memory system and the chat pipeline.
@@ -439,21 +456,32 @@ class CanonicalMemoryIntegration:
 
         candidates = getattr(extraction, "candidates", None) or []
         if not candidates:
+            # Extraction producing nothing is normal for a turn with no durable
+            # facts in it — but it is indistinguishable from a broken extractor
+            # unless it says so.
+            logger.info("Canonical extraction: 0 candidates from this turn")
             return
 
         # 2. Judge each candidate
         decisions = await self.judge.judge(candidates, user_id=user_id)
 
+        actions = [str(getattr(d, "action", "?")) for d in decisions]
+        logger.info(
+            "Canonical extraction: %d candidate(s) -> decisions %s",
+            len(candidates),
+            actions,
+        )
+
         # 3. Resolve accepted decisions
         for decision in decisions:
-            action = getattr(decision, "action", None)
-            if action and str(action) not in ("IGNORE", "ESCALATE"):
+            action = _decision_action(decision)
+            if action and action not in ("IGNORE", "ESCALATE"):
                 try:
                     await self.resolver.resolve(decision, user_id=user_id)
                 except Exception as exc:
                     logger.warning(
                         "Canonical memory resolution failed for %s: %s",
-                        getattr(decision, "action", "?"),
+                        _decision_action(decision) or "?",
                         exc,
                     )
 
@@ -491,8 +519,8 @@ class CanonicalMemoryIntegration:
 
             decisions = await self.judge.judge([candidate], user_id=user_id)
             for decision in decisions:
-                action = getattr(decision, "action", None)
-                if action and str(action) not in ("IGNORE", "ESCALATE"):
+                action = _decision_action(decision)
+                if action and action not in ("IGNORE", "ESCALATE"):
                     await self.resolver.resolve(decision, user_id=user_id)
 
             return f"I'll remember: {fact.strip()}"
@@ -529,7 +557,7 @@ class CanonicalMemoryIntegration:
 
             decisions = await self.judge.judge([candidate], user_id=user_id)
             for decision in decisions:
-                action = getattr(decision, "action", None)
+                action = _decision_action(decision)
                 if action and str(action) in ("DELETE", "EXPIRE"):
                     await self.resolver.resolve(decision, user_id=user_id)
 

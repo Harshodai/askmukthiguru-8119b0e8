@@ -39,7 +39,7 @@ from ingest.pipeline import IngestionPipeline
 from rag.graph import build_deep_graph, build_fast_graph, build_rag_graph
 from services.anon_quota_service import AnonQuotaService
 from services.circuit_breaker import initialize_circuit_breakers
-from services.embedding_service import EmbeddingService
+from services.embedding_service import get_embedding_service
 from services.ingestion_tracker import IngestionTracker
 from services.ingestion_tracker import build_tracker as build_ingestion_tracker
 from services.krutrim_service import KrutrimService
@@ -159,7 +159,7 @@ class ServiceContainer:
         from services.guru_brain.guru_kg_service import GuruKGService
         from services.semantic_model_router import SemanticModelRouter
 
-        self.embedding = EmbeddingService()
+        self.embedding = get_embedding_service()
         self.semantic_router = SemanticModelRouter(self.embedding)
         self.guru_brain_service = GuruBrainService(
             qdrant_service=self.qdrant, embedding_service=self.embedding
@@ -663,17 +663,70 @@ class ServiceContainer:
                     vector_index=_cm_index,
                     embedding_service=_cm_embed,
                 )
+                # --- Write path (memory_write) ---
+                # Extraction reads a bounded conversation window and proposes
+                # candidate facts; the judge decides accept/ignore/supersede;
+                # the resolver is the only component that writes. Wired only
+                # when the flag is on, so the read path never depends on it.
+                _cm_extract = _cm_judge = _cm_resolver = None
+                if settings.memory_write:
+                    from services.canonical_memory.extractor import (
+                        extract_memory_candidates,
+                    )
+                    from services.canonical_memory.judge import MemoryJudge
+                    from services.canonical_memory.resolver import MemoryResolver
+
+                    async def _cm_extract(*, turns, user_id, session_id):
+                        """Adapter: the integration calls
+                        `extractor(turns=, user_id=, session_id=)` while the
+                        extractor's own signature is
+                        `(conversation_id, conversation_window, *, user_id, ...)`.
+                        """
+                        return await extract_memory_candidates(
+                            conversation_id=session_id or "unknown",
+                            conversation_window=turns,
+                            user_id=user_id,
+                        )
+
+                    class _JudgeAdapter:
+                        """Bridge the integration's call shape to MemoryJudge's.
+
+                        `chat_integration` calls
+                        `await judge.judge(candidates, user_id=...)`, while
+                        MemoryJudge exposes a SYNCHRONOUS, single-candidate
+                        `judge(candidate)` plus `judge_all(candidates)` and takes
+                        no user_id. Three mismatches in one call — which is how
+                        the write path failed at runtime with
+                        "judge() got an unexpected keyword argument 'user_id'"
+                        the first time it was ever exercised (2026-09-13).
+                        Adapting here keeps the integration's tested contract
+                        intact.
+                        """
+
+                        def __init__(self, judge):
+                            self._judge = judge
+
+                        async def judge(self, candidates, user_id=None):
+                            return self._judge.judge_all(list(candidates))
+
+                    _cm_judge = _JudgeAdapter(MemoryJudge())
+                    _cm_resolver = MemoryResolver(self.supabase_client)
+
                 self.canonical_memory_integration = create_chat_integration(
                     context_orchestrator=AdaptiveContextOrchestrator(
                         memory_retriever=_cm_retriever,
                     ),
                     memory_retriever=_cm_retriever,
-                    extractor=None,
-                    judge=None,
-                    resolver=None,
+                    extractor=_cm_extract,
+                    judge=_cm_judge,
+                    resolver=_cm_resolver,
                     existing_memory_service=self.memory_service,
                 )
-                logger.info("Canonical memory integration wired (read path)")
+                logger.info(
+                    "Canonical memory integration wired (read=%s, write=%s)",
+                    settings.canonical_memory_retrieval,
+                    settings.memory_write,
+                )
             except Exception as exc:
                 # Fail open: a seeker must still get an answer without memory.
                 logger.warning("Canonical memory integration unavailable: %s", exc)

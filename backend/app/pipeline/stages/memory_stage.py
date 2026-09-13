@@ -57,6 +57,11 @@ def _schedule_memory_task(coro, task_name: str) -> None:
     asyncio.create_task(_run(), name=f"memory:{task_name}")
 
 
+# Strong references to in-flight canonical-memory writes. An asyncio task with
+# no reference can be collected before it runs, which loses the write silently.
+_CANONICAL_WRITE_TASKS: set = set()
+
+
 class MemoryStage(Stage):
     """Persist conversation memory (user_profile + memory_service). Never short-circuits."""
 
@@ -77,6 +82,63 @@ class MemoryStage(Stage):
         med_step = ctx.med_step
         citations = ctx.citations
         distress_level = ctx.assessment.level.value if ctx.assessment else 0
+        # --- Canonical memory write path ---
+        # Runs BEFORE the legacy `feature_memory_write` gate on purpose: that
+        # flag is the kill switch for the legacy outbox, and canonical
+        # extraction has its own (`memory_write`). Sharing one switch meant
+        # turning canonical writes on did nothing at all, silently — measured
+        # 2026-09-13, memory_save returned in 0.01ms.
+        #
+        # Consent is still required and fails CLOSED: inferring durable facts
+        # about a seeker from their words is exactly what consent governs, so no
+        # consent receipt (or no outbox to check one against) means no write.
+        canonical_integration = getattr(container, "canonical_memory_integration", None)
+        if settings.memory_write and canonical_integration is not None and final_answer:
+            import asyncio as _asyncio
+
+            from services.tenant_context import TenantContext as _TenantContext
+
+            async def _canonical_write() -> None:
+                try:
+                    _outbox = getattr(container, "memory_outbox", None)
+                    if _outbox is None or not _is_persistable_user_id(user_id):
+                        logger.info(
+                            "Canonical memory write skipped: no consent store or "
+                            "non-persistable user"
+                        )
+                        return
+                    _consent = await _outbox.active_consent(
+                        user_id=user_id, tenant_id=_TenantContext.get()
+                    )
+                    if not _consent:
+                        logger.info(
+                            "Canonical memory write skipped: no active consent receipt"
+                        )
+                        return
+                    await _asyncio.wait_for(
+                        canonical_integration.post_response_memory(
+                            user_id=user_id,
+                            query=user_msg or "",
+                            response=final_answer,
+                            session_id=stable_session_id or "",
+                            session_messages=chat_body_messages or [],
+                        ),
+                        timeout=float(
+                            getattr(settings, "canonical_memory_write_timeout", 30.0)
+                        ),
+                    )
+                    logger.info("Canonical memory write completed for this turn")
+                except (TimeoutError, _asyncio.TimeoutError):
+                    logger.warning("Canonical memory write timed out for this turn")
+                except Exception as exc:
+                    logger.warning("Canonical memory write failed: %s", exc)
+
+            # Strong reference: an asyncio task nobody holds can be collected
+            # before it runs, which loses the write with no error anywhere.
+            _task = _asyncio.create_task(_canonical_write())
+            _CANONICAL_WRITE_TASKS.add(_task)
+            _task.add_done_callback(_CANONICAL_WRITE_TASKS.discard)
+
         if not settings.feature_memory_write:
             logger.debug("Memory persistence disabled by feature_memory_write")
             return None

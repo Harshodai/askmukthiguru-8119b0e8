@@ -420,13 +420,20 @@ def test_unknown_operation_returns_invalid_operation():
 @pytest.mark.asyncio
 async def test_startup_body_does_not_execute_maintenance_mutations():
     """Verify that _background_startup_body in app.main makes 0 schema/collection mutations."""
-    from app.main import _background_startup_body
+    from app.main import REQUIRED_NEO4J_CONSTRAINTS, _background_startup_body
 
     mock_container = MagicMock()
     mock_qdrant_svc = MagicMock()
     mock_qclient = MagicMock()
     mock_qdrant_svc._client = mock_qclient
     mock_container.qdrant = mock_qdrant_svc
+    # P5 readiness assert is read-only but fail-closed: present a compliant
+    # mock graph (all required constraints) so startup completes.
+    mock_neo4j_session = MagicMock()
+    mock_neo4j_session.__enter__.return_value.run.return_value = [
+        {"name": n} for n in REQUIRED_NEO4J_CONSTRAINTS
+    ]
+    mock_container.neo4j_driver.session.return_value = mock_neo4j_session
     mock_container.job_queue = None
     mock_container.llm_queue = None
     mock_container.request_queue = None

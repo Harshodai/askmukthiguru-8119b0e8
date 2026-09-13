@@ -89,3 +89,37 @@ def test_marker_only_difference_does_not_change_the_verdict():
     b = svc._score_heuristic("q", CONTEXT, marked)
     assert a["is_faithful"] == b["is_faithful"]
     assert round(a["score"], 6) == round(b["score"], 6)
+
+
+def test_link_chrome_is_not_scored_as_doctrine():
+    """A trailing "Watch more here: [url]" scored 0.00 against the answer.
+
+    Observed live 2026-09-13 in a 12-claim answer: the link line counted as an
+    unsupported claim and dragged the supported ratio down, which is what pushes
+    an answer from `grounded_redacted` into the excerpt-dump fallback.
+    """
+    from services.lettuce_detect_service import _strip_attribution_markup as strip
+
+    assert strip("A real teaching sentence. Watch more here: [https://youtu.be/x]") == (
+        "A real teaching sentence."
+    )
+    assert strip("See the talk: https://youtu.be/x") == "See the talk:"
+
+
+def test_ordinary_teachings_containing_cta_words_survive():
+    """The strip must not eat doctrine that happens to say "watch" or "more"."""
+    from services.lettuce_detect_service import _strip_attribution_markup as strip
+
+    for keep in (
+        "Sri Preethaji teaches that we watch the breath carefully.",
+        "Stillness reveals more than effort does.",
+        "Read the situation without judgement, then let it go.",
+    ):
+        assert strip(keep) == keep
+
+
+def test_nested_citation_brackets_leave_no_debris():
+    from services.lettuce_detect_service import _strip_attribution_markup as strip
+
+    assert strip("Grounded claim [1]. Another [[2]] one.") == "Grounded claim . Another one."
+    assert "[" not in strip("A claim [[3]] here.")

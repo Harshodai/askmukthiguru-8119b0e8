@@ -43,7 +43,6 @@ _INTENT_CACHE_TTL = 3600  # 1 hour
 # Query patterns live in rag.query_patterns so intent routing and graph
 # selection pull from a single source. Aliased here with the original
 # leading-underscore names so existing call sites are unchanged.
-from rag.doc_utils import doc_text
 from rag.query_patterns import (
     DOCTRINE_CAPABILITY_PATTERNS as _CAPABILITY_PATTERNS,
 )
@@ -1343,9 +1342,9 @@ async def handle_distress(state: GraphState, config: Optional[RunnableConfig] = 
 
     response = ""
     if relevant_docs and ollama is not None:
-        context = "\n\n---\n\n".join(
-            f"[Source: {doc.get('title', 'Unknown')}]\n{doc_text(doc)}" for doc in relevant_docs[:3]
-        )
+        from rag.nodes.generation import build_knowledge_block
+
+        context = build_knowledge_block(relevant_docs[:3])
 
         # Persona voice: neither this node nor services/serene_mind_engine.py
         # tracked which teacher a response should speak as — confirmed

@@ -49,7 +49,7 @@ from qdrant_client import QdrantClient
 from app.config import settings
 from ingest.deduplication import LSHNearDupIndex
 from services.contextual_chunking_service import ContextualChunkingService
-from services.embedding_service import EmbeddingService
+from services.embedding_service import EmbeddingService, get_embedding_service
 from services.ollama_service import OllamaService
 from services.qdrant.client import QdrantClientManager
 from services.qdrant_service import QdrantService
@@ -675,7 +675,7 @@ class ContextualReingestEngine:
 
     def _embedder(self) -> EmbeddingService:
         if self._embedding is None:
-            self._embedding = EmbeddingService()
+            self._embedding = get_embedding_service()
         return self._embedding
 
     def _contextualizer_service(self, skip_health_check: bool = False):

@@ -81,17 +81,12 @@ KNOWN_EXTRA_DEAD: dict[str, str] = {
     "semantic_cache_hnsw_ef": "Semantic-cache family — no runtime read (qdrant client uses embedding_dimension)",
     "semantic_cache_qdrant_collection": "Semantic-cache family — no runtime read",
     "semantic_router_enabled": "Semantic-router family (enabled/top_k/fallback_llm/llm_fallback) — no runtime read",
-    "semantic_router_fallback_llm": "Semantic-router family — no runtime read",
-    "semantic_router_llm_fallback": "Semantic-router family — no runtime read",
     "semantic_router_top_k": "Semantic-router family — no runtime read",
     "stt_chunk_minutes": "STT family — no runtime read",
     "stt_max_audio_mb": "STT family — no runtime read",
     "transcript_max_retries": "Declared transcript retry cap; no runtime read",
     "use_contextual_chunking": "Declared chunking toggle; contextual chunking read via reingest_late_chunking",
-    "use_qdrant_semantic_cache": "Semantic-cache family — no runtime read",
-    "data_audit_strict_mode": "Strict mode toggle for data audit quality gate",
     "verifier_pass_ratio": "Verifier pass ratio threshold config",
-    "rag_parallel_verify": "Legacy parallel verify setting replaced by local NLI claim verification (A2.6)",
     "SERVICE_ORCID_MAP": "Declared ORCID mapping; no runtime read",
 }
 

@@ -53,18 +53,43 @@ _LETTUCE_MODEL_REVISION = (
 _SOURCES_BLOCK_RE = re.compile(r"📚 \*Sources & Teachings:\*.*", re.DOTALL)
 # Inline attribution the formatter injects: "[Source: <title>]", "[CITE:2]", "[3]".
 _INLINE_CITE_RE = re.compile(r"\[\s*(?:source\s*:[^\]]*|cite\s*:\s*\d+|\d+)\s*\]", re.IGNORECASE)
+# A bracketed link must be consumed whole: stripping the URL first leaves the
+# opening "[" behind, because \S+ swallows the closing bracket.
+_BRACKETED_URL_RE = re.compile(r"[ \t]*\[\s*https?://[^\]]*\]")
+_URL_RE = re.compile(r"https?://\S+")
+# An empty pair left behind once the marker inside it is removed ("[[1]]" -> "[]").
+_EMPTY_BRACKETS_RE = re.compile(r"[ \t]*\[\s*\]")
+# Trailing call-to-action lines the formatter appends. Matched only when the
+# line is a CTA and nothing else, so a teaching that happens to contain the word
+# "watch" is never dropped.
+# A call-to-action fragment left at the end of a line once its link is gone
+# ("Watch more here:"). Anchored to end-of-line and required to close on
+# here/more/below so an ordinary teaching — "we watch the breath carefully" —
+# is never touched.
+_CTA_LINE_RE = re.compile(
+    r"[ \t]*\b(?:watch|listen|read|see|learn|explore)\b[^.\n]{0,40}?\b(?:here|more|below)\b\s*:?[ \t]*$",
+    re.IGNORECASE | re.MULTILINE,
+)
 
 
 def _strip_attribution_markup(answer: str) -> str:
-    """Remove citation markup before scoring.
+    """Remove citation markup and link chrome before scoring.
 
-    A span detector has no way to ground "[Source: <video title>]" in the
-    retrieved context, so those markers were flagged as hallucinated spans and
-    sank otherwise-grounded answers — three of five rejected claims in the
-    2026-09-12 live trace were markers, not assertions. They are formatter
-    output, not claims the model made about the teachings.
+    A span detector has no way to ground "[Source: <video title>]" or a bare
+    YouTube URL in the retrieved context, so it flags them as hallucinated and
+    they sink otherwise-grounded answers. Three of five rejected claims in the
+    2026-09-12 trace were markers; a later trace scored the whole line
+    "Watch more here: [https://youtube.com/...]" at 0.00 and counted it against
+    the answer. None of this is a claim the model made about the teachings — it
+    is formatter output, and stripping it tightens nothing and loosens nothing.
     """
-    return _INLINE_CITE_RE.sub("", _SOURCES_BLOCK_RE.sub("", answer or "")).strip()
+    text = _SOURCES_BLOCK_RE.sub("", answer or "")
+    text = _INLINE_CITE_RE.sub("", text)
+    text = _BRACKETED_URL_RE.sub("", text)
+    text = _URL_RE.sub("", text)
+    text = _EMPTY_BRACKETS_RE.sub("", text)
+    text = _CTA_LINE_RE.sub("", text)
+    return text.strip()
 
 
 def _norm_for_span_match(text: str) -> str:
