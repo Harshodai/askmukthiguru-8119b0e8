@@ -60,6 +60,7 @@ class RedisCacheAdapter(ICacheRepository):
                 socket_connect_timeout=5,
                 socket_timeout=5,
                 retry_on_timeout=True,
+                max_connections=32,
             )
             self._redis.ping()
             logger.info("RedisCacheAdapter connected to Redis")

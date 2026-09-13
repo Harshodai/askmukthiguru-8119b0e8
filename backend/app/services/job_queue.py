@@ -255,7 +255,9 @@ class JobQueueService:
         if self._redis is None:
             import redis.asyncio as aioredis
 
-            self._redis = aioredis.from_url(self._redis_url, decode_responses=True)
+            self._redis = aioredis.from_url(
+                self._redis_url, decode_responses=True, max_connections=32
+            )
             try:
                 await asyncio.wait_for(self._redis.ping(), timeout=5.0)
             except TimeoutError:
@@ -285,9 +287,24 @@ class JobQueueService:
 
     @staticmethod
     def _is_connection_error(exc: Exception) -> bool:
-        module = type(exc).__module__.lower()
-        return "redis" in module and (
-            "ConnectionError" in type(exc).__name__ or "TimeoutError" in type(exc).__name__
+        """True for any Redis connectivity failure, including pool exhaustion.
+
+        redis-py 7.x raises MaxConnectionsError (a ConnectionError subclass)
+        when the pool is exhausted — a substring name-match on
+        "ConnectionError"/"TimeoutError" misses it, so exhaustion re-raised
+        at enqueue() and 500'd /api/chat above ~5 concurrent. isinstance()
+        covers MaxConnectionsError plus every current and future
+        ConnectionError subclass. redis.exceptions.TimeoutError is a
+        *sibling* of ConnectionError (both extend RedisError), so it needs
+        its own tuple entry alongside the builtin/asyncio TimeoutError.
+        """
+        try:
+            from redis.exceptions import ConnectionError as RedisConnectionError
+            from redis.exceptions import TimeoutError as RedisTimeoutError
+        except ImportError:  # redis not installed (dependency-limited hosts)
+            return isinstance(exc, TimeoutError)
+        return isinstance(
+            exc, (RedisConnectionError, RedisTimeoutError, TimeoutError)
         )
 
     async def start(self, worker_factory: Callable) -> None:
@@ -373,11 +390,15 @@ class JobQueueService:
         try:
             queue_position = await self._enqueue_via(r, job_id, request_data, user_id, is_stream)
         except Exception as exc:
-            if self._degraded_to_memory or not self._is_connection_error(exc):
+            if not self._is_connection_error(exc):
                 raise
             # production-audit follow-up: retry the SAME write against the
-            # in-memory fallback rather than losing this job entirely.
-            self._degrade_to_memory(exc)
+            # in-memory fallback rather than losing this job entirely. A
+            # concurrent task may have already degraded us (its _degrade call
+            # won the race) — in that case self._redis IS the fallback, so
+            # retry against it instead of re-raising a 500.
+            if not self._degraded_to_memory:
+                self._degrade_to_memory(exc)
             r = self._redis
             queue_position = await self._enqueue_via(r, job_id, request_data, user_id, is_stream)
         if self._queue is None:
