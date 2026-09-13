@@ -170,8 +170,16 @@ async def fetch_static(url: str, *, timeout: float = 20.0) -> IngestedDoc:
     request_timeout = getattr(app_settings, "web_ingest_request_timeout", 30)
     # Validate URL before any network request
     await _validate_and_normalize(url)
+    # NOTE: per-hop redirect targets are re-validated by _redirect_guard
+    # (event hook calling _validate_redirect). Playwright page.goto paths in
+    # fetch_dynamic/fetch_stealth share the gap: Chromium follows redirects
+    # (incl. meta-refresh/JS) without a per-hop _validate_redirect check.
     async with httpx.AsyncClient(
-        headers={"User-Agent": _UA}, follow_redirects=True, timeout=request_timeout
+        headers={"User-Agent": _UA},
+        follow_redirects=True,
+        max_redirects=_MAX_REDIRECT_HOPS,
+        timeout=request_timeout,
+        event_hooks={"response": [_redirect_guard]},
     ) as client:
         async with client.stream("GET", url) as resp:
             resp.raise_for_status()
@@ -338,6 +346,32 @@ async def _validate_redirect(url: str) -> str:
     if parsed.username or parsed.password:
         raise ValueError(f"Redirect target has embedded credentials: {url}")
     return url
+
+
+# Cap on followed redirect hops (OWASP SSRF: validate every hop, fail closed).
+_MAX_REDIRECT_HOPS = 5
+
+
+async def _redirect_guard(response) -> None:
+    """httpx response event-hook: validate each redirect target per hop.
+
+    Registered via ``event_hooks={"response": [_redirect_guard]}`` so it runs
+    for every intermediate redirect response (httpx calls response hooks per
+    hop since 0.19). Raising aborts the chain before the next request.
+    """
+    if len(response.history) >= _MAX_REDIRECT_HOPS:
+        raise ValueError(f"Too many redirects (>{_MAX_REDIRECT_HOPS})")
+    location = response.headers.get("location")
+    if not location:
+        return
+    try:
+        is_redirect = response.is_redirect
+    except Exception:
+        is_redirect = response.status_code in (301, 302, 303, 307, 308)
+    if not is_redirect:
+        return
+    next_url = str(response.request.url.join(location))
+    await _validate_redirect(next_url)
 
 
 async def ingest_url(url: str, *, mode: str = "auto") -> list[dict]:
