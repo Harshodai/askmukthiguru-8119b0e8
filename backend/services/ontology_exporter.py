@@ -31,6 +31,8 @@ from domain.spiritual_ontology import (
     RelationType,
     SpiritualConcept,
 )
+from domain.upper_ontology_mapping import class_iris, predicate_iri
+from domain.upper_ontology_mapping import validate_shacl as _validate_shacl
 
 logger = logging.getLogger(__name__)
 
@@ -309,6 +311,8 @@ class OntologyExporter:
             "@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .",
             "@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .",
             "@prefix skos: <http://www.w3.org/2004/02/skos/core#> .",
+            "@prefix schema: <https://schema.org/> .",
+            "@prefix bfo: <http://purl.obolibrary.org/obo/> .",
             "",
             ": a owl:Ontology ;",
             '    rdfs:label "Ask Mukthi Guru Spiritual Ontology"@en ;',
@@ -316,6 +320,13 @@ class OntologyExporter:
             f'    owl:versionInfo "{ONTOLOGY_VERSION}" .',
             "",
         ]
+
+        # Schema-level alignment to standard vocabularies (schema.org/BFO/SKOS),
+        # once per class/predicate — not repeated per instance. See
+        # domain/upper_ontology_mapping.py for the source mapping and its own
+        # self-check that every enum member resolves to a real IRI.
+        lines.extend(self._alignment_triples())
+        lines.append("")
 
         for concept in concepts:
             lines.extend(self._concept_to_turtle(concept))
@@ -363,6 +374,36 @@ class OntologyExporter:
             f'    :confidence "{relation.confidence}"^^xsd:float ;',
             f'    :source "{src}" .',
         ]
+
+    def _alignment_triples(self) -> list[str]:
+        """Declare every ConceptType/RelationType's external-vocabulary alignment once.
+
+        Tony Seale's rule: reuse standard vocabularies, don't reinvent. These are
+        schema-level axioms about the CLASSES/PREDICATES this ontology defines, not
+        per-instance triples — one block, independent of how many concepts/relations
+        are being exported. Keeps `_concept_to_turtle`/`_relation_to_turtle` free of
+        the same three IRIs repeated on every single instance.
+        """
+        lines: list[str] = []
+        for ct in ConceptType:
+            iris = class_iris(ct.name)
+            lines.append(f":{ct.name} a owl:Class ;")
+            lines.append(f'    owl:equivalentClass <{iris["schema"]}> ;')
+            lines.append(f'    skos:closeMatch <{iris["skos"]}> ;')
+            lines.append(f'    rdfs:seeAlso <{iris["bfo"]}> .')
+        for rt in RelationType:
+            lines.append(f':{rt.value} rdfs:subPropertyOf <{predicate_iri(rt.name)}> .')
+        return lines
+
+    def validate_shacl(self, turtle: str) -> dict:
+        """Validate exported Turtle against `domain/ontology_shapes.ttl`.
+
+        Thin passthrough to `domain.upper_ontology_mapping.validate_shacl` — kept
+        here too so callers of the exporter don't need to know that module exists.
+        Degrades to `{"available": False, ...}` when `pyshacl` isn't installed;
+        never raises.
+        """
+        return _validate_shacl(turtle)
 
     def to_owl_xml(self, concepts: list[SpiritualConcept], relations: list[Relation]) -> str:
         """Export to OWL/XML format for Protege and other tools."""

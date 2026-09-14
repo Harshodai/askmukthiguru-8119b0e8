@@ -357,3 +357,7 @@ coverage/
 # Scratch files that have been committed-by-accident bait before
 test.html
 tmp_chrome/
+
+# Disposable benchmark/audit scratch (see docs/operations/documentation-governance-register.md
+# Cleanup pass 2026-08-29 -- recurs from ad-hoc benchmark runs, never product documentation)
+audit_work/
