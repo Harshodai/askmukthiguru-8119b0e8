@@ -65,3 +65,53 @@ concrete next numbers.
 Scale signals in order: provider 429 rate → p95 latency → queue depth →
 Redis pool-wait time → Qdrant p99 → Neo4j traversal latency. Change one
 tier at a time and re-run the burst gate (`docs/BURST_R4.md`).
+
+## Measured 2026-09-14 — the first real 20-concurrent number
+
+Live run against the host backend, all infra healthy, anon-session token flow
+(so the quota shed nothing and the instrument actually reached the admission
+semaphore — the round-5 burst and the `run_concurrent_load_test --live` run
+both failed this and were unreadable):
+
+```
+N=20 simultaneous       wall 40.9s
+  admitted 2xx : 8/20
+  shed 503     : 12/20   Retry-After=5
+  quota 429    : 0/20
+  latency        p50 23.9s   p95 40.9s
+```
+
+`max_concurrent_chat=8` behaves exactly as specified: 8 in, 12 shed in ~10ms.
+
+**Raising the semaphore alone makes this worse, not better.** p95 is already
+40.9s at 8 concurrent against `pipeline_timeout=105`. Admitting 20 on one
+worker puts p95 near 100s, converting fast 503s (which a client can retry on
+`Retry-After: 5`) into slow 504s. A seeker waiting 100s for a gateway error is
+a worse outcome than being told to retry in 5 seconds.
+
+**The lever is workers, and memory is what bounds it.** `workers=1`
+(`start_railway.py:322`, `WEB_CONCURRENCY=1` in `Dockerfile.railway:71` — note
+line 6 of that file claims "2 uvicorn workers", which is drift, not config).
+Measured steady RSS is 2.57GiB of a 6GiB cap. Workers are separate processes
+and each lazily loads its own ONNX session, reranker and embedding model, so:
+
+| Workers | Admitted (×8) | Projected RSS | Fits 6GiB? |
+| :-- | :-- | :-- | :-- |
+| 1 | 8 | 2.57 GiB | yes, current |
+| 2 | 16 | ~5.1 GiB | yes, tight |
+| 3 | 24 | ~7.7 GiB | **no** |
+
+So 20 simultaneous *requests* is not reachable on one 6GiB container without
+either raising the memory cap or moving inference out of the API process
+(the round-1 finding: six model families load in-process).
+
+**20 concurrent users is a different number from 20 simultaneous requests.**
+People read and type between turns; twenty pilot users plausibly produce 2–5
+in-flight POSTs. Nothing here measures think-time, so the honest position for a
+pilot is: 8 admitted is likely sufficient for 20 users, and the 503 path is
+correct, fast and retryable when it is not. Do not claim 20 simultaneous.
+
+Reproduce: `POST /api/auth/anon-session` for a token per caller, then N parallel
+`POST /api/chat` with `X-Session-Id`. `benchmarks/run_concurrent_load_test.py
+--live` does NOT do the token exchange and returns 400 on every request, which
+reads as a 0% pass rate rather than an auth failure — fix that before trusting it.

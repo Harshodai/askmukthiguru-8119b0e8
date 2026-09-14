@@ -1086,7 +1086,9 @@ class Settings(BaseSettings):
         return self
 
     # --- HTTP Pool Limits ---
-    http_pool_max_connections: int = Field(default=20, gt=0)
+    # >= max_concurrent_chat (8) x per-request provider calls, with headroom.
+    # Was 20, below the 24 a raised semaphore would need; measured 2026-09-14.
+    http_pool_max_connections: int = Field(default=32, gt=0)
     http_pool_max_keepalive: int = Field(default=20, ge=0)
 
     @model_validator(mode="before")
@@ -1356,7 +1358,7 @@ class Settings(BaseSettings):
     anthropic_extended_thinking_budget_tokens: int = 0
 
     # --- HTTP Connection Pooling ---
-    http_max_connections: int = 20  # Maximum number of HTTP connections in the pool
+    http_max_connections: int = 32  # Provider clients; see http_pool_max_connections
     http_max_keepalive_connections: int = 20  # Maximum number of keepalive connections
     http_keepalive_expiry: float = 30.0  # Keepalive expiry time in seconds
 
