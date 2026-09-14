@@ -132,7 +132,10 @@ class ServiceContainer:
 
         # Vector / graph infrastructure
         self.qdrant = QdrantService()
-        self.qdrant.init_collection()
+        try:
+            self.qdrant.init_collection()
+        except Exception as e:
+            logger.warning("Qdrant collection init failed at startup (degrading to fallback): %s", e)
         self.lightrag = lightrag_service
 
         # Shared Neo4j driver — constructing a driver does a handshake/routing-table
@@ -673,6 +676,9 @@ class ServiceContainer:
                     from services.canonical_memory.extractor import (
                         extract_memory_candidates,
                     )
+                    from services.canonical_memory.consent_gate import (
+                        ConsentGatedJudge,
+                    )
                     from services.canonical_memory.judge import MemoryJudge
                     from services.canonical_memory.resolver import MemoryResolver
 
@@ -688,28 +694,30 @@ class ServiceContainer:
                             user_id=user_id,
                         )
 
-                    class _JudgeAdapter:
-                        """Bridge the integration's call shape to MemoryJudge's.
+                    # Consent is a per-user, per-REQUEST decision. Handing
+                    # MemoryJudge a fixed `user_consent` here froze it at wiring
+                    # time: the process-wide singleton was built as
+                    # `MemoryJudge()`, whose default is `user_consent=True`, so
+                    # the judge's own consent gate could never fire and every
+                    # seeker's words were mined for durable facts regardless of
+                    # what they had agreed to. ConsentGatedJudge resolves the
+                    # receipt on each call instead, and fails CLOSED.
+                    _cm_outbox = self.memory_outbox
 
-                        `chat_integration` calls
-                        `await judge.judge(candidates, user_id=...)`, while
-                        MemoryJudge exposes a SYNCHRONOUS, single-candidate
-                        `judge(candidate)` plus `judge_all(candidates)` and takes
-                        no user_id. Three mismatches in one call — which is how
-                        the write path failed at runtime with
-                        "judge() got an unexpected keyword argument 'user_id'"
-                        the first time it was ever exercised (2026-09-13).
-                        Adapting here keeps the integration's tested contract
-                        intact.
-                        """
+                    async def _cm_consent(*, user_id: str, tenant_id: str):
+                        if _cm_outbox is None:
+                            return None
+                        return await _cm_outbox.active_consent(
+                            user_id=user_id, tenant_id=tenant_id
+                        )
 
-                        def __init__(self, judge):
-                            self._judge = judge
+                    def _cm_build_judge(consent: bool) -> MemoryJudge:
+                        return MemoryJudge(user_consent=consent)
 
-                        async def judge(self, candidates, user_id=None):
-                            return self._judge.judge_all(list(candidates))
-
-                    _cm_judge = _JudgeAdapter(MemoryJudge())
+                    _cm_judge = ConsentGatedJudge(
+                        consent_lookup=_cm_consent,
+                        judge_factory=_cm_build_judge,
+                    )
                     _cm_resolver = MemoryResolver(self.supabase_client)
 
                 self.canonical_memory_integration = create_chat_integration(

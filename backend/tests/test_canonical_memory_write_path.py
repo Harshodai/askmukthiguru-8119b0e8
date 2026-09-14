@@ -27,7 +27,12 @@ def test_container_wires_extractor_judge_and_resolver_when_enabled():
     src = inspect.getsource(__import__("app.container", fromlist=["x"]))
     assert "if settings.memory_write:" in src
     assert "extract_memory_candidates" in src
-    assert "MemoryJudge()" in src
+    # Was `MemoryJudge()`. That bare constructor defaults user_consent=True,
+    # which froze a per-user consent decision into a process-wide singleton and
+    # made the judge's own consent gate unreachable. The judge is now built per
+    # call with a resolved value — see test_canonical_memory_consent_gate.py.
+    assert "ConsentGatedJudge(" in src
+    assert "MemoryJudge(user_consent=consent)" in src
     assert "MemoryResolver(" in src
     # The integration calls extractor(turns=...), the extractor's own signature
     # is (conversation_id, conversation_window, ...) — an adapter is required.

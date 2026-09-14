@@ -167,6 +167,17 @@ class Settings(BaseSettings):
 
     # --- Feature Flags & Memory Layer ---
     feature_memory_enabled: bool = True
+    # NOT a duplicate of `memory_write` below, despite the near-identical name.
+    # The two gate DIFFERENT storage planes and neither can be deleted without
+    # changing behaviour (checked 2026-09-14):
+    #   feature_memory_write -> memory_outbox -> Celery drain_memory_outbox ->
+    #       memory_service + episodic_memory_service       (legacy/episodic plane)
+    #   memory_write         -> extractor/judge/resolver -> canonical_memories
+    #                                                       (canonical plane)
+    # Collapsing onto one flag would either switch the legacy outbox ON for
+    # everyone or switch canonical extraction OFF for everyone. They merge when
+    # the planes merge — which is exactly what the opt-in note below is waiting
+    # for. Guarded by tests/test_settings_guards.py.
     feature_memory_write: bool = (
         False  # Explicit opt-in until single-memory-plane consent proof exists.
     )
@@ -809,9 +820,14 @@ class Settings(BaseSettings):
     canonical_memory_enabled: bool = True
     canonical_memory_retrieval: bool = True
     memory_shadow: bool = False
-    # Write path (extractor/judge/resolver) is deliberately still off: the read
-    # path is what makes stored memories reach an answer, and automatic
-    # extraction of facts about a seeker is a separate decision.
+    # Canonical write path (extractor/judge/resolver -> canonical_memories).
+    # ON since commit 4e740765. The comment here used to say "deliberately still
+    # off" long after the default had been flipped to True, which is how live
+    # automatic extraction of facts about a seeker read as a future decision.
+    # Safe at True only because consent now gates it per user, per request and
+    # fails closed (services/canonical_memory/consent_gate.py) — do not wire a
+    # write path past that gate. Distinct from `feature_memory_write` above;
+    # see the note there before trying to merge them.
     memory_write: bool = True
     memory_influence: bool = True
     # Memory must never cost an answer.
@@ -899,6 +915,8 @@ class Settings(BaseSettings):
     # read this, so ingestion, Qdrant payload filters, and Neo4j coalesce
     # defaults stay consistent without hand-copied "default" string literals.
     default_tenant_id: str = "oneness"
+    # Gate 0.3: Multitenancy guard mode ("log" for dry-run auditing, "enforce" for strict raising, "disabled")
+    multitenancy_guard_mode: str = "log"
     # Production retrieval requires an explicit licensed-domain payload stamp.
     # Disable only for isolated migration/test environments.
     require_licensed_domain_reads: bool = True

@@ -224,3 +224,23 @@ def test_no_direct_os_environ_in_owned_modules():
         assert "os.getenv" not in src, rel
     new_sites = sorted(_env_read_sites() - _ENV_READ_BASELINE)
     assert not new_sites, f"NEW direct os.environ reads: {new_sites}"
+
+
+def test_the_two_memory_write_flags_stay_separate():
+    """`feature_memory_write` and `memory_write` are not duplicates.
+
+    They gate different storage planes — the legacy outbox/Celery/episodic path
+    and the canonical extractor/judge/resolver path respectively — and their
+    defaults deliberately differ. Collapsing them onto one flag silently either
+    switches the legacy outbox ON for everyone or switches canonical extraction
+    OFF for everyone, so the merge waits on the two planes actually merging.
+    """
+    s = Settings()
+    assert s.feature_memory_write is False
+    assert s.memory_write is True
+
+    base = pathlib.Path(__file__).resolve().parents[1]
+    legacy = (base / "tasks/memory_outbox_tasks.py").read_text()
+    canonical = (base / "app/container.py").read_text()
+    assert "settings.feature_memory_write" in legacy
+    assert "settings.memory_write" in canonical
