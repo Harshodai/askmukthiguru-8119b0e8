@@ -760,6 +760,67 @@ populated by Supabase auth, not app code) — verified against production:
 Re-run this audit after any migration that touches grants, RLS, or the actor
 constraint, and after any `supabase db reset` on a local/staging environment.
 
+### Beyond the script's scope: RLS policy content, backups, auth config (verified 2026-09-14)
+
+The audit above proves RLS is *enabled* and grants are correct; it does not
+read policy bodies or anything outside the database. Checked separately,
+against production, via the Supabase Management API (`GET
+/v1/projects/{ref}/database/backups`, `/config/database/pooler`,
+`/config/auth`) and `pg_policies`/`pg_proc`:
+
+- **RLS policy content — verified correct, no bypass found.** Read the actual
+  policy bodies (not just enabled-ness) for all 3 required tables plus
+  `user_roles`, `profiles`, `memory_outbox`, `memory_consent_receipts`,
+  `memory_deletion_receipts`, `chat_responses`, `user_healing_progress`,
+  `memory_audit_events`. Every owner-scoped policy is `auth.uid() = user_id`
+  (or `id = auth.uid()` on `profiles`); no `qual: true` for `anon`/
+  `authenticated` anywhere. The `anon` role's table-level INSERT/UPDATE/DELETE
+  GRANT on `canonical_memories` (flagged as a red flag in the negative-control
+  check above) is a non-issue in practice: those policies are scoped to
+  `roles={authenticated}` only, so `anon` matches zero policies and RLS
+  default-deny blocks it regardless of the grant. The admin bypass
+  `has_role(auth.uid(), 'admin'::app_role)` is `SECURITY DEFINER` with a
+  pinned `search_path`, reads `user_roles` directly, and `user_roles` INSERT
+  is itself gated by the same function — no self-elevation path.
+  **Non-security cruft**: `conversation_memories` carries 5 overlapping
+  policies from different migration eras (duplicate owner-SELECT, duplicate
+  owner-ALL/INSERT). Not a hole — every clause independently requires
+  ownership or admin — but worth consolidating.
+
+- **Backups / PITR — real gap, not a misconfiguration.** `walg_enabled: true`,
+  `pitr_enabled: false`, `backups: []` — zero backups exist. This project is
+  on the Supabase **Free plan**, which does not offer daily backups or PITR at
+  any settings combination. If prod data is lost, there is nothing to restore
+  from on the Supabase side. Matches `docs/RELEASE_READINESS_2026_07_30.md`'s
+  own unresolved checklist item for leaked-password protection below — same
+  root cause (Free plan), independently discovered.
+
+- **Auth config — one known gap, one previously undocumented.**
+  `password_hibp_enabled: false` (leaked-password protection is OFF).
+  `docs/RELEASE_READINESS_2026_07_30.md` already tracks this as
+  `🟡 Conditional — Requires Pro plan + dashboard toggle` with an unchecked
+  release-checklist box — this is a known, still-open item, not a new
+  regression, and it is blocked on the same Free-plan constraint as the
+  backups gap. `password_min_length: 6` and `security_captcha_enabled: false`
+  are separate soft spots not previously flagged anywhere in this repo.
+  `site_url`/`uri_allow_list` correctly point at `lovable.app` — matches the
+  documented "Lovable frontend-only decision," not a bug.
+
+- **Connection pooling — configured, largely moot.** Supavisor pooler is live
+  (`aws-1-ap-northeast-1.pooler.supabase.com:6543`, transaction mode, SCRAM
+  auth), but the app talks to Supabase over PostgREST (HTTP) for every write
+  call site found in `backend/`, not raw Postgres connections, so PostgREST's
+  own connection management is what is actually load-bearing here.
+
+- **Unrelated to Supabase, found in passing — the production backend itself
+  was unreachable at verification time**: `GET
+  https://askmukthiguru-8119b0e8-production.up.railway.app/api/health` ->
+  `502 Application failed to respond`, and `/api/healthz` (the 180s-grace
+  stub in `start_railway.py`) timed out entirely rather than answering. Not
+  investigated further — that is Railway deploy/runtime territory, not
+  Supabase. Re-check before trusting any "prod is up" claim elsewhere in this
+  file; it decays fast and was not re-verified after this was written.
+
 ## Caching invariants
 
 `cache_key` is `(language, message)` only — it carries **no `user_id` and no `tenant_id`** — and every tier (hot, exact, semantic, vector) is process- or Redis-wide. `CacheUpdateStage` therefore **must not** cache an answer that `context_engineer` personalized with `memory_context`, or one seeker's private context gets replayed to the next person asking the same question. Guarded in `app/pipeline/stages/cache_stage.py`; regression test in `backend/tests/test_cache_personalization_leak.py`.
