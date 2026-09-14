@@ -26,12 +26,13 @@ class FakeDB:
         self.ungranted, self.rls, self.actor_def = ungranted, rls, actor_def
 
     def rows(self, sql: str):
-        if "information_schema.tables" in sql and "role_table_grants g" in sql:
+        # Order matters: the sweep's predicate contains the grant check's, negated.
+        if "not has_table_privilege" in sql:
             return [[t] for t in self.ungranted]
+        if "has_table_privilege" in sql:
+            return [[t] for t in self.granted]
         if "information_schema.tables" in sql:
             return [[t] for t in self.tables]
-        if "role_table_grants" in sql:
-            return [[t] for t in self.granted]
         if "pg_class" in sql:
             return [[t, "t" if on else "f"] for t, on in self.rls.items()]
         if "pg_constraint" in sql:
@@ -120,3 +121,26 @@ def test_absent_actor_constraint_fails(monkeypatch):
 
 def test_sql_literal_list_escapes_quotes():
     assert audit_mod._sql_literal_list(["a'b"]) == "ARRAY['a''b']"
+
+
+def test_grants_are_not_read_from_role_table_grants():
+    """Regression: information_schema.role_table_grants reports a healthy prod as broken.
+
+    That view only exposes grants where the CONNECTING role is the grantor, the
+    grantee, or a member of the grantee. Supabase's SQL Editor connects as
+    supabase_read_only_user, which is none of those for service_role, so the view
+    returns nothing and the audit invents 78 unreadable tables against a database
+    where service_role can in fact read all 78. Verified against production on
+    2026-09-14. has_table_privilege asks the catalog and does not care who is
+    connected, so it is the only correct source here.
+    """
+    for script in ("audit_supabase_readiness.py", "audit_supabase_readiness.sql"):
+        body = (_SCRIPT.parent / script).read_text()
+        code = "\n".join(
+            line for line in body.splitlines() if not line.lstrip().startswith(("--", "#"))
+        )
+        assert "role_table_grants" not in code, (
+            f"{script} reads role_table_grants; it is filtered to the connecting "
+            "role and produces false FAILs. Use has_table_privilege."
+        )
+        assert "has_table_privilege" in code, f"{script} lost its privilege check"
