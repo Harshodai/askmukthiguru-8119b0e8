@@ -21,12 +21,22 @@ _spec.loader.exec_module(audit_mod)
 class FakeDB:
     """Answers the audit's queries from a declarative description of a schema."""
 
-    def __init__(self, tables, granted, ungranted, rls, actor_def):
+    def __init__(self, tables, granted, ungranted, rls, actor_def, writable=None):
         self.tables, self.granted = tables, granted
         self.ungranted, self.rls, self.actor_def = ungranted, rls, actor_def
+        # (table, VERB) pairs service_role can write. Defaults to every pair the
+        # audit itself declares required, i.e. a healthy schema.
+        self.writable = (
+            writable
+            if writable is not None
+            else {(t, v) for t, verbs in audit_mod.REQUIRED_WRITES.items() for v in verbs}
+        )
 
     def rows(self, sql: str):
-        # Order matters: the sweep's predicate contains the grant check's, negated.
+        # Order matters: each later branch's predicate is a superstring of an
+        # earlier one's, so the more specific query must be checked first.
+        if "w.verb" in sql:
+            return [[t, v] for t, v in self.writable]
         if "not has_table_privilege" in sql:
             return [[t] for t in self.ungranted]
         if "has_table_privilege" in sql:
@@ -84,6 +94,27 @@ def test_missing_service_role_grant_fails(monkeypatch):
     assert report["ready"] is False
     assert any(f["check"] == "grant:user_roles" for f in report["findings"]
                if f["status"] == "FAIL")
+
+
+def test_missing_write_grant_fails(monkeypatch):
+    """Read-grant passing proves nothing about write-grants — separate privileges."""
+    db = _healthy()
+    db.writable.discard(("memory_outbox", "DELETE"))
+    report = _run(monkeypatch, db)
+    assert report["ready"] is False
+    assert any(
+        f["check"] == "grant_write:memory_outbox:delete" for f in report["findings"]
+        if f["status"] == "FAIL"
+    )
+
+
+def test_append_only_ledger_has_no_update_delete_requirement(monkeypatch):
+    """canonical_memory_events is INSERT-only by design; must not demand more."""
+    report = _run(monkeypatch, _healthy())
+    checks = {f["check"] for f in report["findings"]}
+    assert "grant_write:canonical_memory_events:insert" in checks
+    assert "grant_write:canonical_memory_events:update" not in checks
+    assert "grant_write:canonical_memory_events:delete" not in checks
 
 
 def test_schema_wide_ungranted_sweep_fails(monkeypatch):

@@ -30,6 +30,15 @@
 --
 --   rls:*              These tables carry one seeker's private content.
 --
+--   grant_write:*:*    service_role can read a table and still lack INSERT /
+--                      UPDATE / DELETE on it — Postgres grants each privilege
+--                      separately, so passing grant:* proves nothing about
+--                      writes. Each check name is the table and the verb the
+--                      backend actually issues against it (grep'd from
+--                      backend/, 2026-09-14), e.g. grant_write:memory_outbox:
+--                      delete FAILing means the outbox worker's cleanup silently
+--                      42501s and rows never get reaped.
+--
 -- Remedies live in supabase/migrations/2026091200000{1,2} and
 -- 20260913120000. Apply those, then re-run this until everything is PASS.
 -- ============================================================================
@@ -47,6 +56,25 @@ required_rls(tbl) AS (
 ),
 required_actors(actor) AS (
     VALUES ('user'), ('resolver'), ('consolidator')
+),
+-- Write verbs service_role actually issues, one row per table+verb pair
+-- (grep for .insert(/.update(/.upsert(/.delete( against each table, 2026-09-14).
+-- `profiles` and `user_healing_progress` are absent here on purpose: no write
+-- call site exists for either in backend/ (profiles is populated by Supabase
+-- auth, not app code) — do not add them without a real call site to cite.
+-- canonical_memory_events carries only INSERT: it is an append-only ledger by
+-- design, so a missing UPDATE/DELETE grant is correct, not a gap.
+required_writes(tbl, priv) AS (
+    VALUES ('canonical_memories', 'INSERT'), ('canonical_memories', 'UPDATE'),
+           ('canonical_memories', 'DELETE'),
+           ('canonical_memory_events', 'INSERT'),
+           ('conversation_memories', 'INSERT'), ('conversation_memories', 'UPDATE'),
+           ('memory_consent_receipts', 'INSERT'),
+           ('memory_deletion_receipts', 'INSERT'),
+           ('memory_outbox', 'INSERT'), ('memory_outbox', 'UPDATE'),
+           ('memory_outbox', 'DELETE'),
+           ('user_roles', 'INSERT'), ('user_roles', 'UPDATE'), ('user_roles', 'DELETE'),
+           ('chat_responses', 'INSERT'), ('chat_responses', 'UPDATE')
 ),
 
 -- 1. Do the tables the backend depends on exist?
@@ -85,7 +113,22 @@ check_grants AS (
     ) g ON TRUE
 ),
 
--- 3. Schema-wide sweep: ANY public table the server role cannot read.
+-- 3. Can service_role perform the writes the code actually issues? Read
+-- access proves nothing here — INSERT/UPDATE/DELETE are separate GRANTs.
+check_grant_writes AS (
+    SELECT
+        'grant_write:' || w.tbl || ':' || lower(w.priv) AS check_name,
+        CASE WHEN has_table_privilege('service_role', 'public.' || quote_ident(w.tbl), w.priv)
+             THEN 'PASS' ELSE 'FAIL' END AS status,
+        CASE WHEN has_table_privilege('service_role', 'public.' || quote_ident(w.tbl), w.priv)
+             THEN 'service_role ' || w.priv
+             ELSE 'NO service_role ' || w.priv || ' — writes fail with 42501' END AS detail
+    FROM required_writes w
+    JOIN information_schema.tables t
+      ON t.table_schema = 'public' AND t.table_name = w.tbl      -- only if it exists
+),
+
+-- 4. Schema-wide sweep: ANY public table the server role cannot read.
 ungranted AS (
     SELECT t.table_name
     FROM information_schema.tables t
@@ -106,7 +149,7 @@ check_sweep AS (
     FROM ungranted
 ),
 
--- 4. Is RLS on for the tables holding private seeker content?
+-- 5. Is RLS on for the tables holding private seeker content?
 check_rls AS (
     SELECT
         'rls:' || r.tbl AS check_name,
@@ -123,7 +166,7 @@ check_rls AS (
           AND c.relnamespace = 'public'::regnamespace
 ),
 
--- 5. Does the audit CHECK admit every actor the code writes?
+-- 6. Does the audit CHECK admit every actor the code writes?
 actor_def AS (
     SELECT pg_get_constraintdef(oid) AS def
     FROM pg_constraint
@@ -159,6 +202,7 @@ check_actor AS (
 all_checks AS (
     SELECT * FROM check_tables
     UNION ALL SELECT * FROM check_grants
+    UNION ALL SELECT * FROM check_grant_writes
     UNION ALL SELECT * FROM check_sweep
     UNION ALL SELECT * FROM check_rls
     UNION ALL SELECT * FROM check_actor

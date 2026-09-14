@@ -15,8 +15,14 @@ production:
   * the actor CHECK too narrow -> resolver/consolidator audit writes raise
     23514 inside a swallowing except: memories accumulate with no audit trail
     and the GDPR export under-reports them.
+  * write GRANTs (INSERT/UPDATE/DELETE) missing for service_role -> reads can
+    pass this audit while every write 42501s. The read-only grant sweep above
+    would not have caught that; it is a separate privilege per SQL, not a
+    consequence of SELECT working.
 
-STRICTLY READ-ONLY. It runs SELECTs against information_schema/pg_catalog via
+STRICTLY READ-ONLY: the audit itself issues nothing but SELECTs — checking
+whether a write WOULD be allowed via has_table_privilege is not the same as
+performing one. It never inserts, updates, or deletes a single row. It runs SELECTs against information_schema/pg_catalog via
 PostgREST RPC or a direct connection and mutates nothing. Give it the SAME
 credentials the backend uses, or it will report gaps the backend does not have.
 
@@ -51,6 +57,26 @@ REQUIRED_READABLE = [
     "user_healing_progress",
     "chat_responses",
 ]
+
+# Write verbs service_role actually issues against each table, one entry per
+# table+verb pair actually called in backend/ (grep for .insert(/.update(/
+# .upsert(/.delete( against each table's name, 2026-09-14). `profiles` and
+# `user_healing_progress` are read from REQUIRED_READABLE above but no write
+# call site exists in this codebase — profiles is populated by Supabase auth,
+# not app code — so they are deliberately absent here rather than guessed at.
+# canonical_memory_events is INSERT-only by design: it is an append-only
+# ledger: an UPDATE/DELETE grant on it would be a privilege escalation, not a
+# gap, so its absence is correct and this audit must not flag it.
+REQUIRED_WRITES: dict[str, list[str]] = {
+    "canonical_memories": ["INSERT", "UPDATE", "DELETE"],
+    "canonical_memory_events": ["INSERT"],
+    "conversation_memories": ["INSERT", "UPDATE"],
+    "memory_consent_receipts": ["INSERT"],
+    "memory_deletion_receipts": ["INSERT"],
+    "memory_outbox": ["INSERT", "UPDATE", "DELETE"],
+    "user_roles": ["INSERT", "UPDATE", "DELETE"],
+    "chat_responses": ["INSERT", "UPDATE"],
+}
 
 # Writers of canonical_memory_events, verified in the source.
 REQUIRED_ACTORS = ["user", "resolver", "consolidator"]
@@ -186,7 +212,33 @@ def audit() -> dict:
                 "service_role SELECT" if ok else "NO service_role SELECT — reads fail with 42501",
             )
 
-        # 3. Whole-schema sweep: anything else the server role cannot read.
+        # 3. service_role can perform the writes the code actually issues.
+        # Read access passing tells you nothing about write access — they are
+        # separate GRANTs in Postgres, so this is not redundant with step 2.
+        write_pairs = [(t, v) for t, verbs in REQUIRED_WRITES.items() for v in verbs]
+        writable = {
+            (r[0], r[1])
+            for r in db.rows(
+                "select t.table_name, w.verb from information_schema.tables t "
+                "cross join (values "
+                + ", ".join(f"('{t}', '{v}')" for t, v in write_pairs)
+                + ") as w(tbl, verb) "
+                "where t.table_schema='public' and t.table_name = w.tbl "
+                "and has_table_privilege('service_role', "
+                "    'public.' || quote_ident(t.table_name), w.verb)"
+            )
+        }
+        for table, verb in write_pairs:
+            ok = (table, verb) in writable
+            add(
+                f"grant_write:{table}:{verb.lower()}",
+                ok,
+                f"service_role {verb}"
+                if ok
+                else f"NO service_role {verb} — writes fail with 42501",
+            )
+
+        # 4. Whole-schema sweep: anything else the server role cannot read.
         ungranted = [
             r[0]
             for r in db.rows(
@@ -205,7 +257,7 @@ def audit() -> dict:
             + (" ..." if len(ungranted) > 12 else ""),
         )
 
-        # 4. RLS on the private tables.
+        # 5. RLS on the private tables.
         rls = {
             r[0]: r[1]
             for r in db.rows(
@@ -220,7 +272,7 @@ def audit() -> dict:
                 on = str(rls[table]).lower() in ("t", "true")
                 add(f"rls:{table}", on, "enabled" if on else "DISABLED")
 
-        # 5. The actor CHECK admits every writer.
+        # 6. The actor CHECK admits every writer.
         defn = db.rows(
             "select pg_get_constraintdef(oid) from pg_constraint "
             "where conname='canonical_memory_events_actor_check'"
