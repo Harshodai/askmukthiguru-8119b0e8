@@ -8,6 +8,7 @@ import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { SessionExpiredHandler } from "@/components/common/SessionExpiredHandler";
 import { CookieConsentBanner } from "@/components/common/CookieConsentBanner";
+import { SafetyDisclaimer } from "@/components/common/SafetyDisclaimer";
 import { BrandedSpinner } from "@/components/common/BrandedSpinner";
 import { AdminErrorBoundary } from "@/admin/components/AdminErrorBoundary";
 import { ChatErrorBoundary } from "@/components/common/ChatErrorBoundary";
@@ -345,6 +346,7 @@ const App = () => {
             </Route>
           </Routes>
           <SessionExpiredHandler />
+          <SafetyDisclaimer />
           <CookieConsentBanner />
           <PushPermissionPrompt />
           <PushNotificationsManager />

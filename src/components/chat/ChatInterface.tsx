@@ -44,8 +44,10 @@ import { memoryApi } from '@/lib/memoryApi';
 import { supabase } from '@/integrations/supabase/client';
 import { getLastCompletedMeditationTimestamp, loadMeditationSessions } from '@/lib/meditationStorage';
 import { hashMessages, getCachedResponse, setCachedResponse, clearResponseCache } from '@/lib/responseCache';
+import { resolveResumeAnchor } from '@/lib/resumeScroll';
 import { ChatMessage, LazyWisdomCardGenerator } from './ChatMessage';
 import { ChatHeader } from './ChatHeader';
+import { TeacherGuidancePanel } from './TeacherGuidancePanel';
 import type { Citation, ResponsePreferences } from '@/lib/chat/types';
 import { shouldGateSereneMind } from '@/lib/chat/sereneMindGating';
 import { DEFAULT_RESPONSE_PREFERENCES, loadResponsePreferences, saveResponsePreferences, clearResponsePreferences } from '@/lib/chat/responsePreferences';
@@ -547,8 +549,22 @@ export const ChatInterface = () => {
     } catch { /* non-fatal */ }
 
     requestAnimationFrame(() => {
-      if (scrollContainerRef.current) {
-        scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+      const container = scrollContainerRef.current;
+      if (!container) return;
+      // Anchor-based resume: scroll to the last message's own DOM node rather
+      // than jumping to scrollHeight. Robust to late-loading citations/images
+      // still growing the container after this frame; falls back to the raw
+      // height jump if no message nodes have rendered yet at all.
+      const nodes = Array.from(container.querySelectorAll<HTMLElement>('[data-message-id]'));
+      const anchorId = resolveResumeAnchor(
+        nodes.map((n) => ({ id: n.dataset.messageId ?? '' })),
+        null,
+      );
+      const target = anchorId ? nodes.find((n) => n.dataset.messageId === anchorId) : null;
+      if (target) {
+        target.scrollIntoView({ block: 'end' });
+      } else {
+        container.scrollTop = container.scrollHeight;
       }
     });
   })();
@@ -2155,6 +2171,9 @@ return (
                 >
                   {buildGreetingSubline(greetingContext)}
                 </motion.p>
+                <div className="mt-3">
+                  <TeacherGuidancePanel />
+                </div>
               </div>
 
               <div className="mt-auto w-full max-w-2xl px-2 sm:mt-0 sm:px-4">

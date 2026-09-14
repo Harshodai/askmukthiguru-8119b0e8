@@ -2158,3 +2158,36 @@ async def triage_staging_entries(
         "counts": {k: len(v) for k, v in results.items()},
         "total": sum(len(v) for v in results.values()),
     }
+
+
+@admin_router.get("/qdrant/health")
+async def get_qdrant_index_health(
+    container: ServiceContainer = Depends(get_container),
+    user: dict = Depends(_require_admin),
+) -> dict[str, Any]:
+    """Qdrant collection health: segment count, fragmentation, optimizer status.
+
+    Read-only — safe to poll. See services/vector_optimizer.py.
+    """
+    from services.vector_optimizer import VectorIndexOptimizer
+
+    optimizer = VectorIndexOptimizer(container.qdrant)
+    return optimizer.get_index_health()
+
+
+@admin_router.post("/qdrant/optimize")
+async def trigger_qdrant_optimization(
+    container: ServiceContainer = Depends(get_container),
+    user: dict = Depends(_require_admin),
+) -> dict[str, Any]:
+    """Trigger Qdrant's built-in segment optimizer on-demand.
+
+    Non-blocking and safe against a live collection per
+    services/vector_optimizer.py's own contract — but it is a real write to
+    production infrastructure, so it stays admin-triggered rather than
+    silently scheduled. Nightly automation is a separate decision.
+    """
+    from services.vector_optimizer import VectorIndexOptimizer
+
+    optimizer = VectorIndexOptimizer(container.qdrant)
+    return await optimizer.run_optimization()
