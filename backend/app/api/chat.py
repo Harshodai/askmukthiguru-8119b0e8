@@ -740,6 +740,14 @@ async def chat_v2_endpoint(
         hallucination_flag=result.hallucination_flag,
         verification=result.verification,
         node_timings=result.node_timings or None,
+        # Retrieval provenance reaches the caller. Both fields were already
+        # populated on PipelineResult and forwarded to the telemetry sink, but
+        # omitted here — so no consumer could tell which lane (Qdrant dense/
+        # sparse, OKF, Neo4j subgraph, LightRAG) produced an answer, and any
+        # "the graph improved this" claim was unverifiable from the API.
+        # TrustNLP 2026 F21 Auditability Gaps; docs/EVAL_PRECONDITIONS.md §4.
+        evaluation_trace=result.evaluation_trace or None,
+        retrieval_metadata=result.retrieval_metadata or None,
         audio_url=result.audio_url,
         kg_concept_nodes=result.kg_concept_nodes,
         daily_practice_card=result.daily_practice_card,

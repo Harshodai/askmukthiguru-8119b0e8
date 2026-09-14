@@ -206,6 +206,72 @@ def build_knowledge_block(docs: list[dict]) -> str:
     return "\n\n".join(parts)
 
 
+# Tokens in drive generation time, and generation is 55-60% of a chat request
+# (measured 2026-09-14). Nothing previously reported what the prompt was made
+# of, so "the graph context is inflating the prompt" could only ever be
+# asserted, not checked. These two helpers make the composition measurable;
+# they change no prompt content.
+_OKF_DOC_TYPES = {"teaching", "practice", "glossary", "qa", "reflection", "okf"}
+_GRAPH_DOC_SOURCES = {"knowledge-graph": "kg_subgraph", "lightrag-graph": "lightrag"}
+
+
+def _classify_context_doc(doc: dict) -> str:
+    """Bucket a retrieved doc by where it came from, for prompt accounting."""
+    metadata = doc.get("metadata") or {}
+    kind = _GRAPH_DOC_SOURCES.get(str(metadata.get("source") or ""))
+    if kind:
+        return kind
+    if str(metadata.get("type") or "").strip().lower() in _OKF_DOC_TYPES:
+        return "okf"
+    return "retrieved"
+
+
+def _log_prompt_composition(
+    *,
+    system_prompt: str,
+    user_prompt: str,
+    parts: dict[str, str],
+    docs: list[dict] | None,
+    doc_texts: list[str] | None,
+    language: str,
+    trace_id: str = "-",
+) -> None:
+    """Emit one line breaking the generation prompt down by component.
+
+    ``docs`` and ``doc_texts`` are index-aligned (the retrieved doc carrying the
+    metadata, and the text actually placed in the knowledge block), which is
+    what lets the knowledge block be split into retrieved / OKF / graph shares.
+    Never raises: instrumentation must not be able to fail a generation.
+    """
+    try:
+        total_chars = len(system_prompt) + len(user_prompt)
+        by_doc_kind: dict[str, int] = {}
+        for index, text in enumerate(doc_texts or []):
+            doc = docs[index] if docs and index < len(docs) else {}
+            kind = _classify_context_doc(doc if isinstance(doc, dict) else {})
+            by_doc_kind[kind] = by_doc_kind.get(kind, 0) + len(text or "")
+        component_chars = " ".join(
+            f"{name}={len(value or '')}" for name, value in sorted(parts.items())
+        )
+        knowledge_split = " ".join(
+            f"{kind}={chars}" for kind, chars in sorted(by_doc_kind.items())
+        )
+        logger.info(
+            "GENERATION_PROMPT_COMPOSITION trace_id=%s total_chars=%d total_tokens~=%d "
+            "system_chars=%d user_chars=%d docs=%d | %s | knowledge_by_source: %s",
+            trace_id,
+            total_chars,
+            estimate_tokens(system_prompt, language) + estimate_tokens(user_prompt, language),
+            len(system_prompt),
+            len(user_prompt),
+            len(doc_texts or []),
+            component_chars or "none",
+            knowledge_split or "none",
+        )
+    except Exception as exc:  # pragma: no cover - instrumentation only
+        logger.debug("Prompt composition logging failed (non-fatal): %s", exc)
+
+
 def _is_bounded_refusal(answer: str) -> bool:
     """Recognize the canonical short abstention before it enters a retry loop."""
     if not isinstance(answer, str) or not answer.strip() or len(answer) > 180:
@@ -1868,6 +1934,29 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
     # Langhanam guru voice — variant A (prompt persona injection). Feature-
     # flagged on by default; benchmark gate in guru_voice_benchmark.py.
     system_prompt, _ = _maybe_apply_langhanam_voice(state, system_prompt, "")
+
+    # Both prompt branches (layered and legacy) have converged by here, so this
+    # measures what is actually sent to the provider — not one branch's guess.
+    _log_prompt_composition(
+        system_prompt=system_prompt,
+        user_prompt=user_prompt,
+        parts={
+            "persona": (layers or {}).get("persona", ""),
+            "instructions": (layers or {}).get("instructions", ""),
+            "user_state": (layers or {}).get("user_state", ""),
+            "relationships": (layers or {}).get("relationships", "")
+            or (layers or {}).get("graph_context", ""),
+            "knowledge": context,
+            "history": history_str,
+            "attachment": attachment_context,
+            "question": question,
+            "memory": state.get("memory_context") or "",
+        },
+        docs=surviving_docs,
+        doc_texts=[doc.get("text", "") for doc in compressed_docs],
+        language=lang,
+        trace_id=str(state.get("request_id") or "-"),
+    )
 
     ab_model = state.get("ab_model", "primary")
     generation_kwargs = _generation_route(

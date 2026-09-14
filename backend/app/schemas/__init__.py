@@ -253,6 +253,15 @@ class ChatResponse(BaseModel):
     evaluation_trace: Optional[dict] = Field(
         None, description="Trajectory metadata for benchmark and production AI evaluation"
     )
+    retrieval_metadata: Optional[dict] = Field(
+        default=None,
+        description=(
+            "Which retrieval lanes contributed to this answer — Qdrant dense/"
+            "sparse, OKF, Neo4j subgraph, LightRAG. Already computed on "
+            "PipelineResult; withheld from the response until 2026-09-14, "
+            "which made component attribution log-only."
+        ),
+    )
     citations_verified: Optional[bool] = Field(
         None, description="Whether inline citations were verified against retrieved sources"
     )

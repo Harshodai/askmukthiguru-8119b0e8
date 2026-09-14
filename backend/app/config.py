@@ -1121,7 +1121,7 @@ class Settings(BaseSettings):
                 except (ValueError, TypeError, OverflowError):
                     return default
 
-            conn = _parse_int(data.get("http_pool_max_connections"), default=20, min_val=1)
+            conn = _parse_int(data.get("http_pool_max_connections"), default=32, min_val=1)
             keep = _parse_int(data.get("http_pool_max_keepalive"), default=20, min_val=0)
 
             if keep > conn:

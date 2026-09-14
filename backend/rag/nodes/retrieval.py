@@ -257,6 +257,82 @@ def _okf_match(query: str, limit: int = 3, teacher: str | None = None) -> list[d
     return docs
 
 
+# LightRAG's only_need_context=True output is a fixed four-section template
+# (lightrag/prompt.py, PROMPTS["kg_query_context"]): Entity JSON, Relationship
+# JSON, Document Chunks JSON, then the reference list — always in that order,
+# each fenced, one JSON object per line, already emitted in LightRAG's own rank
+# order. Sections are matched rather than assumed by name so a LightRAG upgrade
+# that renames or reorders them degrades to a line-boundary cut instead of
+# silently mis-slicing.
+_LR_SECTION_RE = re.compile(r"^([^\n]*:)[^\S\n]*\n+```(?:json)?\n(.*?)\n```", re.S | re.M)
+
+
+def _truncate_lightrag_context(ctx: str, cap: int) -> tuple[str, int]:
+    """Cut a LightRAG context to ``cap`` chars without starving later sections.
+
+    A plain ``ctx[:cap]`` prefix cut spends the entire budget on whichever
+    section happens to come first. That is not a hypothetical: LightRAG budgets
+    6000 tokens to entities and 8000 to relationships before it ever reaches
+    document chunks, so a 1500-*character* cap never got past the entity list.
+    The relationships and passages this block exists to supply were dropped on
+    every single request, and what survived ended mid-JSON inside an unclosed
+    code fence.
+
+    Entries are instead taken round-robin: the top-ranked entry of every
+    section, then each section's second, and so on until the budget runs out.
+    Because LightRAG already emits each section in rank order, this keeps the
+    most relevant entries across the whole block rather than the merely
+    earliest, and every section is represented as long as one entry fits. Cuts
+    land on line boundaries, so the block stays parseable.
+
+    Returns the truncated text and the number of dropped entry lines.
+    """
+    ctx = (ctx or "").strip()
+    if len(ctx) <= cap:
+        return ctx, 0
+
+    sections = _LR_SECTION_RE.findall(ctx)
+    if not sections:
+        # Unrecognised shape: still cut on a line boundary rather than mid-token.
+        head = ctx[:cap]
+        nl = head.rfind("\n")
+        return (head[:nl] if nl > 0 else head).rstrip(), 0
+
+    pending = [[line for line in body.split("\n") if line.strip()] for _, body in sections]
+    total_entries = sum(len(lines) for lines in pending)
+    keep: list[list[str]] = [[] for _ in sections]
+    # Emitting a section at all costs its header plus the two code fences;
+    # every section after the first also costs the blank line joining them.
+    fences = len("\n```\n\n```")
+    used = 0
+
+    for depth in range(max((len(lines) for lines in pending), default=0)):
+        progressed = False
+        for index, lines in enumerate(pending):
+            if depth >= len(lines):
+                continue
+            line = lines[depth]
+            if keep[index]:
+                cost = 1 + len(line)
+            else:
+                separator = 2 if any(keep) else 0
+                cost = len(sections[index][0]) + fences + separator + len(line)
+            if used + cost > cap:
+                continue
+            keep[index].append(line)
+            used += cost
+            progressed = True
+        if not progressed:
+            break
+
+    blocks = [
+        f"{sections[index][0]}\n```\n" + "\n".join(lines) + "\n```"
+        for index, lines in enumerate(keep)
+        if lines
+    ]
+    return "\n\n".join(blocks), total_entries - sum(len(lines) for lines in keep)
+
+
 def _entity_id_forms(concept: str) -> list[str]:
     """Casing variants of a doctrine tag, for an index-friendly `IN` match."""
     c = (concept or "").strip()
@@ -311,6 +387,8 @@ async def query_neo4j_subgraph(
                 RETURN n1.entity_id AS source, n1.entity_type AS source_type,
                        type(r) AS rel, r.description AS desc,
                        n2.entity_id AS target, n2.entity_type AS target_type
+                ORDER BY CASE WHEN type(r) = "DIRECTED" THEN 1 ELSE 0 END,
+                         n1.entity_id, n2.entity_id
                 LIMIT 15
                 """
                 for concept in matched_concepts:
@@ -372,6 +450,15 @@ async def query_neo4j_subgraph(
             # interpretable meaning, so they go first and the tail is capped;
             # 5k characters of DIRECTED lines otherwise crowd out the actual
             # teachings in the prompt and drag the faithfulness score down.
+            #
+            # This sort is stable and therefore preserves the Cypher ORDER BY
+            # above — which is what makes it work at all. The query's per-concept
+            # `LIMIT 15` runs inside Neo4j, so without that ORDER BY the database
+            # returned an arbitrary 15 of a concept's edges and this sort could
+            # only reprioritise whatever happened to survive. With generic edges
+            # outnumbering typed ones ~78:1, an unordered sample is overwhelmingly
+            # likely to contain no typed edge at all, so the typed-first intent
+            # was defeated before Python ever saw the rows.
             max_relations = int(getattr(settings, "rag_graph_context_max_relations", 15))
             res = sorted(res, key=lambda line: "-[DIRECTED]->" in line)[:max_relations]
             candidate_str = (
@@ -1866,11 +1953,12 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
                 # aquery returns this sentinel string when the graph is down.
                 if lr_ctx and lr_ctx != "Knowledge graph is currently offline.":
                     lr_cap = int(getattr(settings, "rag_lightrag_context_max_chars", 3000))
+                    lr_text, lr_dropped = _truncate_lightrag_context(lr_ctx, lr_cap)
                     lr_doc = {
                         "text": (
                             "Related passages surfaced through the teaching graph "
                             "(supporting context; quote the teachings themselves):\n"
-                            + lr_ctx[:lr_cap]
+                            + lr_text
                         ),
                         "score": float(getattr(settings, "rag_graph_context_score", 0.35)),
                         "metadata": {
@@ -1882,9 +1970,12 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
                     all_docs = all_docs + [lr_doc]
                     raw_docs_copy = raw_docs_copy + [lr_doc]
                     logger.info(
-                        "LightRAG context injection: added %d chars (capped at %d)",
-                        min(len(lr_ctx), lr_cap),
+                        "LightRAG context injection: added %d of %d chars "
+                        "(cap %d, %d entries dropped)",
+                        len(lr_text),
+                        len(lr_ctx),
                         lr_cap,
+                        lr_dropped,
                     )
                 else:
                     logger.info("LightRAG context injection: graph returned nothing usable")
