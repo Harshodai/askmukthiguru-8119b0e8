@@ -661,6 +661,9 @@ generation prompt. Six defects had to be fixed, each of which failed silently:
 2. **27 tables had no `service_role` GRANT.** Postgres checks grants BEFORE RLS,
    so correct policies do not help a role with no privilege. `user_roles` denied
    meant every admin check logged a warning and fell through to non-admin.
+   **Resolved in production** — see "Production Supabase readiness audit" below.
+   Local dev environments built from a fresh `supabase db reset` can still hit
+   this; re-run the audit after resetting.
 3. **Nothing in the pipeline read canonical memories.** `prepare_user_memory` —
    the single place `memory_context` is produced — now serves them, bounded by
    `canonical_memory_timeout` and fail-open, skipping anonymous identities.
@@ -703,6 +706,59 @@ is the only component that writes — wiring stays conditional on the flag so
 the read path never depends on it. Revisit whether this matches the intended
 product decision; the flag flip does not appear to have been announced
 anywhere in this file before now.
+
+## Production Supabase readiness audit
+
+`backend/scripts/ops/audit_supabase_readiness.{py,sql}` is a strictly
+read-only gate (SELECTs against `information_schema`/`pg_catalog` only —
+never mutates anything) for the exact defects above. Run the `.sql` version by
+pasting it into the Supabase Dashboard SQL Editor; run the `.py` version with
+`SUPABASE_DB_URL='postgresql://...' python backend/scripts/ops/audit_supabase_readiness.py`.
+
+**Verified against production (`ozmjeuqbholoxypfxixb`), 2026-09-14: 41/41 PASS,
+0 FAIL.** All 10 required tables exist and are `service_role`-readable
+(including `canonical_memory_events`, the table missing 2026-09-12); RLS is
+enabled on `canonical_memories`/`canonical_memory_events`/`conversation_memories`;
+the `canonical_memory_events_actor_check` constraint admits `user`/`resolver`/
+`consolidator`; and every public table in the schema is readable by
+`service_role` — no residual gap beyond the 10 tracked here.
+
+Run via the Supabase Management API's `database/query` endpoint (the same
+query executor the Dashboard SQL Editor calls, `read_only: true`), not a
+literal browser click-through — no Claude in Chrome session was available at
+verification time. Same execution path, not a substitute claimed to be one.
+
+**A prior run of this same script reported 11 FAILs, including "78 unreadable
+tables," against this same healthy production database — all 11 were false
+positives from a bug in the audit itself, not a real defect. Both scripts
+read grants from `information_schema.role_table_grants`, which only exposes
+grants where the CONNECTING role is the grantor, the grantee, or a member of
+the grantee. The Supabase SQL Editor connects as `supabase_read_only_user`,
+which is none of those for `service_role`, so the view returned zero rows and
+the audit declared a fully-granted database entirely ungranted. Locally the
+script had connected as a superuser that could see every grant, so the bug
+was invisible there and only ever wrong in the one place operators actually
+run it. Fixed (commit `8f620d91`) by switching to `has_table_privilege`,
+which queries the catalog directly and does not care who is connected.
+Verified the fix does not just report PASS unconditionally: the predicate
+still discriminates on production — `anon` fails 8/78, `authenticator` fails
+78/78, `service_role` fails 0/78.**
+
+**Write-privilege checks added 2026-09-14** (commit `dde2dc1b`): the audit
+previously checked SELECT only. INSERT/UPDATE/DELETE are separate GRANTs in
+Postgres, so a table passing every read check could still silently 42501 on
+the write the backend actually issues. Adds `grant_write:<table>:<verb>`, one
+per (table, verb) pair grepped from real `.insert(`/`.update(`/`.upsert(`/
+`.delete(` call sites in `backend/` — not assumed. `canonical_memory_events`
+intentionally has no UPDATE/DELETE requirement: it is an append-only ledger,
+and granting either would be a privilege escalation, not a fix. `profiles`
+and `user_healing_progress` carry no write requirement either, because no
+write call site exists for them anywhere in `backend/` (`profiles` is
+populated by Supabase auth, not app code) — verified against production:
+16/16 write-grant checks PASS.
+
+Re-run this audit after any migration that touches grants, RLS, or the actor
+constraint, and after any `supabase db reset` on a local/staging environment.
 
 ## Caching invariants
 
