@@ -212,6 +212,13 @@ class PipelineResult:
             "route_decision": self.route_decision,
             "query_tier": self.query_tier,
             "cache_hit": self.cache_hit,
+            # Retrieval provenance. This serializer feeds the LIVE /api/chat
+            # path (ChatResponse(**job["result"]) in app/api/chat.py); the
+            # builder in chat_v2_endpoint is the A/B ChatEngine surface and
+            # fixing only that one leaves production unchanged — the same trap
+            # that put a 2026-09-12 latency fix in the wrong LLM provider.
+            "evaluation_trace": self.evaluation_trace,
+            "retrieval_metadata": self.retrieval_metadata,
             "proactive_serene_mind": self.proactive_serene_mind,
             "faithfulness_score": self.faithfulness_score,
             "hallucination_flag": self.hallucination_flag,

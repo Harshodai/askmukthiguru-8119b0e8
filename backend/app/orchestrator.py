@@ -142,6 +142,14 @@ class ChatRequestOrchestrator:
             response=result.final_answer,
             intent=result.intent,
             meditation_step=result.meditation_step,
+            # THIS is the live serializer: queue_worker_factory -> this
+            # ChatResponse -> _response_to_dict(model_dump) -> Redis ->
+            # ChatResponse(**job["result"]) at api/chat.py:624. The builder in
+            # chat_v2_endpoint serves the A/B ChatEngine surface and
+            # PipelineResult.to_chat_response() has ZERO production callers --
+            # fixing either one leaves production unchanged.
+            evaluation_trace=result.evaluation_trace or None,
+            retrieval_metadata=result.retrieval_metadata or None,
             citations=_coerce_citations(result.citations),
             blocked=result.blocked,
             block_reason=result.block_reason,

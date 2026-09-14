@@ -746,8 +746,8 @@ async def chat_v2_endpoint(
         # sparse, OKF, Neo4j subgraph, LightRAG) produced an answer, and any
         # "the graph improved this" claim was unverifiable from the API.
         # TrustNLP 2026 F21 Auditability Gaps; docs/EVAL_PRECONDITIONS.md §4.
-        evaluation_trace=result.evaluation_trace or None,
-        retrieval_metadata=result.retrieval_metadata or None,
+        evaluation_trace=getattr(result, "evaluation_trace", None) or None,
+        retrieval_metadata=getattr(result, "retrieval_metadata", None) or None,
         audio_url=result.audio_url,
         kg_concept_nodes=result.kg_concept_nodes,
         daily_practice_card=result.daily_practice_card,
