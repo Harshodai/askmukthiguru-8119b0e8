@@ -164,12 +164,18 @@ def audit() -> dict:
             add(f"table:{table}", table in present, "exists" if table in present else "MISSING")
 
         # 2. service_role can read them (grants are checked before RLS).
+        # has_table_privilege, NOT information_schema.role_table_grants: that view only
+        # shows grants where the CONNECTING role is grantor, grantee, or a member of the
+        # grantee, so a least-privilege reader sees zero service_role grants and the
+        # audit reports a perfectly healthy database as entirely unreadable.
         readable = {
             r[0]
             for r in db.rows(
-                "select table_name from information_schema.role_table_grants "
-                "where grantee='service_role' and privilege_type='SELECT' "
-                f"and table_name = any({wanted})"
+                "select t.table_name from information_schema.tables t "
+                "where t.table_schema='public' "
+                f"and t.table_name = any({wanted}) "
+                "and has_table_privilege('service_role', "
+                "    'public.' || quote_ident(t.table_name), 'SELECT')"
             )
         }
         for table in sorted(present):
@@ -186,9 +192,8 @@ def audit() -> dict:
             for r in db.rows(
                 "select t.table_name from information_schema.tables t "
                 "where t.table_schema='public' and t.table_type='BASE TABLE' "
-                "and not exists (select 1 from information_schema.role_table_grants g "
-                "  where g.table_name=t.table_name and g.grantee='service_role' "
-                "    and g.privilege_type='SELECT') order by 1"
+                "and not has_table_privilege('service_role', "
+                "    'public.' || quote_ident(t.table_name), 'SELECT') order by 1"
             )
         ]
         add(

@@ -208,14 +208,20 @@ async def expand_query_via_kg(
 
     timeout_val = float(timeout if timeout is not None else default_timeout)
 
+    from services.tenant_context import TenantContext
+
+    active_tenant_id = TenantContext.get() or (settings.default_tenant_id if settings else "oneness")
+
     cypher = (
         "MATCH (n {entity_id: $concept})-[r]-(neighbor) "
-        "WHERE neighbor.entity_id IS NOT NULL AND neighbor.entity_id <> $concept "
+        "WHERE (r.tenant_id = $tenant_id OR r.tenant_id IS NULL) "
+        "AND neighbor.entity_id IS NOT NULL AND neighbor.entity_id <> $concept "
         "RETURN DISTINCT neighbor.entity_id AS neighbor "
         "LIMIT $limit"
     ) if hops_clamped == 1 else (
-        f"MATCH (n {{entity_id: $concept}})-[*1..{hops_clamped}]-(neighbor) "
-        "WHERE neighbor.entity_id IS NOT NULL AND neighbor.entity_id <> $concept "
+        f"MATCH path = (n {{entity_id: $concept}})-[*1..{hops_clamped}]-(neighbor) "
+        "WHERE ALL(rel IN relationships(path) WHERE rel.tenant_id = $tenant_id OR rel.tenant_id IS NULL) "
+        "AND neighbor.entity_id IS NOT NULL AND neighbor.entity_id <> $concept "
         "RETURN DISTINCT neighbor.entity_id AS neighbor "
         "LIMIT $limit"
     )
@@ -226,7 +232,12 @@ async def expand_query_via_kg(
         with neo4j_driver.session() as session:
             for concept in concepts:
                 try:
-                    result = session.run(cypher, concept=concept, limit=limit_clamped)
+                    result = session.run(
+                        cypher,
+                        concept=concept,
+                        limit=limit_clamped,
+                        tenant_id=active_tenant_id,
+                    )
                     for rec in result:
                         neighbor = rec.get("neighbor")
                         if neighbor and neighbor not in seen and neighbor not in concepts:

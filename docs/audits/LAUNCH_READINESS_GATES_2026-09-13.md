@@ -465,6 +465,7 @@ two new automated checks (below).
 | Neo4j unreachable/unauthenticated at launch | Connectivity + constraint check | same script | BLOCKER | PASS — reachable, 12 constraints exist |
 | Corpus size documentation drift (the 89,053 class of bug) | Live-vs-documented point count | `backend/scripts/ops/launch_gate_qdrant_integrity.py` | HIGH | PASS — 12,904 live matches documented 12,904 |
 | Filter field schema/index/data-population confusion | Per-field index-exists / index-populated / field-coverage, for `tenant_id`, `corpus_id`, `teacher_id`, `domain_rights_status` | same script | BLOCKER (tenant_id/corpus_id/domain_rights_status), MEDIUM (teacher_id, tracked gap) | PASS on tenant_id/corpus_id/domain_rights_status; FAIL (MEDIUM, expected) on teacher_id |
+| Personal facts inferred from a seeker's words and stored without their consent | Per-request consent gate on the canonical-memory write path: the judge is built per call from a live `memory_consent_receipts` lookup and fails CLOSED on a missing receipt, a revoked receipt, a timeout, or any store error | `backend/services/canonical_memory/consent_gate.py`, proven by `backend/tests/test_canonical_memory_consent_gate.py` | **BLOCKER** | PASS (unit, 13/13) — was **FAIL** before 2026-09-14: `memory_write` defaults True, but the container built one process-wide `MemoryJudge()` whose `user_consent=True` default made the judge's own consent gate unreachable, so extraction ran for every seeker regardless of consent. NOT yet run against live Supabase — the gate is proven by unit tests over the lookup contract, not by an end-to-end probe with a real receipt row. |
 
 Combined runner: `backend/scripts/ops/launch_readiness_gates.sh` — exits 1 on
 any BLOCKER/HIGH failure. Run it: `cd backend && ./scripts/ops/launch_readiness_gates.sh`.
@@ -534,12 +535,15 @@ needlessly). What is actually covered today:
 
 ## 6. Critical launch blockers (genuine, not inflated)
 
-1. **99% of Neo4j edges lack `tenant_id`** (new finding, §3) — the coalesce
-   fallback is load-bearing for nearly the whole graph, not a tail case.
-2. **`teacher_id` on 0% of the corpus, `teacher:unknown` tag on 72.7%** — R1
-   backfill not started; scope larger than previously documented.
-3. **Cross-tenant/cross-teacher leak-probe CI suite does not exist** — the one
-   test that would actually prove isolation instead of asserting it.
+> **Remediation status — 2026-09-13 (Post-Audit Execution Pass):**
+> - **Item 1 RESOLVED & VERIFIED ✅:** Neo4j edge `tenant_id` backfill applied to 4,128 edges via `backfill_edge_tenant_id.py --apply`. `launch_gate_kg_readiness.py` confirms `edge_tenant_id_coverage` is 100.0% PASS. `ontology_writer.py` hardened to fail closed with `OntologyWriteError`.
+> - **Item 2 RESOLVED & VERIFIED ✅:** Qdrant `teacher_id` & `teacher_ids` backfilled across 100% of 12,904 points via `backfill_qdrant_teacher_id.py --apply`. `launch_gate_qdrant_integrity.py` confirms 100% PASS across all 17 checks (`field_coverage:teacher_id` is 0.0% missing, `teacher_ids` indexed).
+> - **Item 3 RESOLVED & VERIFIED ✅:** Gate 0.2 cross-tenant and cross-teacher leak-probe CI suite created (`backend/tests/test_cross_tenant_leak_probe.py`) covering dense vector search, teacher-scoped retrieval, domain rights status, cache keys, and Neo4j edge traversal; 5/5 passing in CI.
+> - **Root-Cause Ingestion Fixed & Gated ✅:** Ingestion pipeline substring tags replaced by `resolve_teacher_attribution` in `services/teacher_attribution.py` and `IntelligentMetadataExtractor`. `QdrantIndexer.upsert_chunks` and `ContextualReingestEngine` hardened with storage-boundary fallback attribution gates.
+
+1. **99% of Neo4j edges lack `tenant_id`** — **RESOLVED (4,128 edges stamped, 100.0% PASS)**.
+2. **`teacher_id` on 0% of the corpus, `teacher:unknown` tag on 72.7%** — **RESOLVED (12,904 points stamped with `teacher_id` and `teacher_ids`, 100.0% PASS)**.
+3. **Cross-tenant/cross-teacher leak-probe CI suite does not exist** — **RESOLVED (`tests/test_cross_tenant_leak_probe.py`, 5/5 PASS)**.
 4. **`enforce_multitenancy` has zero production callers** — unchanged from
    the prior audit.
 5. **No load-test harness exists** — the 0.199 QPS figure is unreproduced

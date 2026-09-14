@@ -66,6 +66,7 @@ class QdrantClientManager:
         ("content_type", "keyword"),
         ("title", "keyword"),
         ("teacher_id", "keyword"),
+        ("teacher_ids", "keyword"),
         ("tenant_id", "keyword"),
         ("corpus_id", "keyword"),
         # `require_licensed_domain_reads` makes this a `must` filter on every

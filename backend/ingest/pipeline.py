@@ -315,6 +315,9 @@ async def _okf_extract_for_video(video_id: str) -> None:
         logger.warning(f"In-process OKF extraction failed for video {video_id}: {e}")
 
 
+from services.teacher_attribution import resolve_teacher_attribution
+
+
 class IngestionPipeline:
     """
     Orchestrates the full content ingestion workflow.
@@ -709,17 +712,11 @@ class IngestionPipeline:
         self._notify(on_progress, "Detecting content type...", 0.05)
         tags = list({t.strip().lower() for t in (tags or ["general"]) if t and t.strip()})
 
-        # Hierarchical Multi-Teacher Ingestion Tagging (Audit V2 Section 6.1.3)
-        lower_url = url.lower()
-        if "sadhguru" in lower_url or "isha" in lower_url:
-            tags.append("teacher:sadhguru")
-        elif "amma" in lower_url or "bhagavan" in lower_url or "oneness" in lower_url:
-            tags.append("teacher:amma_bhagavan")
-        elif "iskcon" in lower_url or "krishna" in lower_url or "prabhupada" in lower_url:
-            tags.append("teacher:iskcon")
-
-        if not any(t.startswith("teacher:") for t in tags):
-            tags.append("teacher:unknown")
+        # Hierarchical Multi-Teacher Ingestion Tagging (Audit V2 Section 6.1.3, corrected 2026-09-13)
+        url_teacher_tags, _, _ = resolve_teacher_attribution(source_url=url, tags=tags)
+        for t in url_teacher_tags:
+            if t not in tags:
+                tags.append(t)
 
         # === Route to correct loader ===
         from app.security_utils import is_valid_youtube_url
@@ -2841,35 +2838,16 @@ class IngestionPipeline:
         if video_id and not thumbnail_url:
             thumbnail_url = f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
 
-        # Scan chunk contents, title, source URL, and speaker name to resolve the teacher context.
-        combined_context = f"{' '.join(chunks[:3])} {title} {source_url} {speaker}".lower()
-        teacher_tags = []
-        if any(term in combined_context for term in ["sadhguru", "jaggi", "vasudev", "isha"]):
-            teacher_tags.append("teacher:sadhguru")
-        if any(
-            term in combined_context
-            for term in ["amma", "bhagavan", "bhagwan", "oneness", "kalki", "deeksha"]
-        ):
-            if any(term in combined_context for term in ["amma", "kalki", "deeksha", "oneness"]):
-                teacher_tags.append("teacher:amma_bhagavan")
-        if any(
-            term in combined_context
-            for term in [
-                "iskcon",
-                "prabhupada",
-                "krishna consciousness",
-                "hare krishna",
-                "bhagavad gita",
-                "gita",
-                "chaitanya",
-            ]
-        ):
-            teacher_tags.append("teacher:iskcon")
+        combined_context = f"{title or ''} {source_url or ''} {speaker or ''} {' '.join(chunks[:3])}".lower()
 
-        if not teacher_tags:
-            # Only add teacher:unknown if no teacher tag was passed in from upstream
-            if not any(t.startswith("teacher:") for t in tags):
-                teacher_tags.append("teacher:unknown")
+        # Resolve teacher context and attribution (Root-cause fix 2026-09-13)
+        teacher_tags, primary_teacher_id, attributed_teacher_ids = resolve_teacher_attribution(
+            title=title,
+            source_url=source_url,
+            speaker=speaker,
+            chunks=chunks,
+            tags=tags,
+        )
 
         # Hierarchical Source Tagging (Audit V2 Section 6.1.3)
         source_tag = "source:file"
@@ -3036,6 +3014,8 @@ class IngestionPipeline:
                 "source_type": source_type or content_type,
                 "language": language,
                 "tags": tags or [],
+                "teacher_id": primary_teacher_id,
+                "teacher_ids": attributed_teacher_ids,
                 "chunk_index": i,
                 "raptor_level": 0,  # Leaf node
                 # Re-ingestion metadata

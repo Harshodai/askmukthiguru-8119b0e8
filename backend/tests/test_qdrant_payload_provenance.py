@@ -76,5 +76,33 @@ def test_caller_supplied_provenance_is_not_overwritten():
     assert payload["embedding_dimension"] == 384
 
 
+def test_payload_stamps_teacher_id_and_teacher_ids_when_missing():
+    """Gate 0.1 invariant: upsert_chunks must guarantee teacher_id and teacher_ids are stamped."""
+    ix, client = _indexer()
+    meta = _meta(0) | {"title": "Calm Is Your Superpower with Sri Preethaji", "speaker": "Sri Preethaji"}
+    ix.upsert_chunks(["In stillness we discover our inner peace."], [[0.0] * 8], [meta])
+
+    payload = _upserted_payloads(client)[0]
+    assert "teacher_id" in payload
+    assert "teacher_ids" in payload
+    assert payload["teacher_id"] == "preethaji"
+    assert payload["teacher_ids"] == ["preethaji", "krishnaji"]
+
+
+def test_caller_supplied_teacher_id_is_preserved():
+    """Explicitly provided teacher_id and teacher_ids must not be overwritten."""
+    ix, client = _indexer()
+    meta = _meta(0) | {
+        "title": "Universal Practice",
+        "teacher_id": "custom_teacher",
+        "teacher_ids": ["custom_teacher"],
+    }
+    ix.upsert_chunks(["Practice awareness."], [[0.0] * 8], [meta])
+
+    payload = _upserted_payloads(client)[0]
+    assert payload["teacher_id"] == "custom_teacher"
+    assert payload["teacher_ids"] == ["custom_teacher"]
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))

@@ -78,10 +78,12 @@ class ContextualChunkingService:
         llm: OllamaService,
         max_doc_chars: int = 8_000,
         concurrency: int = 3,
+        metadata_extractor: Optional[Any] = None,
     ) -> None:
         self._llm = llm
         self._max_doc_chars = max_doc_chars
         self._sem = AsyncSemaphore(concurrency)
+        self._metadata_extractor = metadata_extractor
 
     # ------------------------------------------------------------------
     # Public API
@@ -150,6 +152,44 @@ class ContextualChunkingService:
         """Convenience method: enrich a single chunk."""
         truncated_doc = self._truncate_document(full_document)
         return await self._enrich_one(truncated_doc, chunk, 0, "")
+
+    async def enrich_chunks_with_metadata(
+        self,
+        full_document: str,
+        chunks: list[str],
+        title: str = "",
+        speaker: str = "",
+        source_url: str = "",
+        tags: Optional[list[str]] = None,
+    ) -> tuple[list[str], list[Any]]:
+        """
+        Enrich chunks with situating context headers and extract schema-guided spiritual metadata.
+
+        Returns:
+            tuple[list[str], list[IntelligentMetadata]]:
+                - enriched_chunks: List of contextualized chunk strings.
+                - metadatas: List of IntelligentMetadata instances per chunk.
+        """
+        enriched_chunks = await self.enrich_chunks(full_document, chunks, source_label=title)
+
+        extractor = self._metadata_extractor
+        if extractor is None:
+            from services.intelligent_metadata_extractor import IntelligentMetadataExtractor
+            extractor = IntelligentMetadataExtractor(llm_service=self._llm)
+            self._metadata_extractor = extractor
+
+        metadatas = []
+        for chunk in chunks:
+            meta = await extractor.extract_metadata(
+                chunk_text=chunk,
+                title=title,
+                speaker=speaker,
+                source_url=source_url,
+                tags=tags,
+            )
+            metadatas.append(meta)
+
+        return enriched_chunks, metadatas
 
     # ------------------------------------------------------------------
     # Internal helpers

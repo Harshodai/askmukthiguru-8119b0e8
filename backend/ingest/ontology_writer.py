@@ -253,7 +253,20 @@ async def write_extraction_to_neo4j(
     written = 0
     from services.tenant_context import TenantContext
 
-    tenant_id = tenant_id or TenantContext.get() or "default"
+    # Fail-closed: if no tenant_id was supplied AND TenantContext has none,
+    # raise rather than silently writing an edge that will later be
+    # picked up by coalesce(r.tenant_id, 'oneness') and potentially bleed
+    # across tenants.  Callers MUST supply a tenant_id or set TenantContext.
+    # (AGENTS.md ingestion-safety invariant #1; Gate 0 BLOCKER finding
+    # 2026-09-13 showed 99% of edges lacked tenant_id because of this gap.)
+    _resolved_tenant = tenant_id or TenantContext.get()
+    if not _resolved_tenant:
+        raise OntologyWriteError(
+            "write_extraction_to_neo4j: tenant_id is unset and TenantContext is empty. "
+            "Pass tenant_id explicitly or set TenantContext before calling this function. "
+            "Writing unstamped edges is a launch BLOCKER (cross-tenant leak risk)."
+        )
+    tenant_id = _resolved_tenant
     now = datetime.now(UTC).isoformat()
     evidence = " ".join((source_evidence or source_doc_id or source_chunk_id or "").split())[:12000]
 

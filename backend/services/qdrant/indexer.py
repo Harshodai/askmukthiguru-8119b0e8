@@ -18,6 +18,7 @@ from qdrant_client.http.models import (
 
 from app.config import settings
 from services.qdrant.metrics import track_upsert_latency
+from services.qdrant.multitenancy_guard import enforce_multitenancy
 from services.qdrant.utils import QdrantUtils
 from services.tenant_context import TenantContext, get_tenant_collection
 
@@ -70,6 +71,7 @@ class QdrantIndexer:
             self._collection = get_tenant_collection(settings.qdrant_collection)
         self._utils = QdrantUtils()
 
+    @enforce_multitenancy
     @retry_with_backoff(max_retries=3)
     @track_upsert_latency
     def upsert_chunks(
@@ -239,6 +241,20 @@ class QdrantIndexer:
             # which does need the registered/unverified distinction. Without this write,
             # every chunk indexed here was permanently unretrievable under the gate.
             payload.setdefault("domain_rights_status", "licensed")
+            # Teacher attribution gate (Gate 0.1). Prevents points from ever persisting
+            # without teacher_id / teacher_ids, ensuring no scoped retrieval fails silently.
+            if not payload.get("teacher_id") or not payload.get("teacher_ids"):
+                from services.teacher_attribution import resolve_teacher_attribution
+
+                _, resolved_tid, resolved_tids = resolve_teacher_attribution(
+                    title=payload.get("title") or "",
+                    source_url=payload.get("source_url") or "",
+                    speaker=payload.get("speaker") or "",
+                    chunks=[text],
+                    tags=payload.get("tags") or [],
+                )
+                payload.setdefault("teacher_id", resolved_tid)
+                payload.setdefault("teacher_ids", resolved_tids)
             # Build provenance. Without these, a chunk embedded by one model is
             # indistinguishable from a chunk embedded by another, and there is no
             # way to ask which chunks are stale relative to the current encoder.

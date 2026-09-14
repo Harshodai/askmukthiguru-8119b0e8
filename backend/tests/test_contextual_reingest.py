@@ -754,3 +754,38 @@ async def test_reingest_source_resumes_after_simulated_crash(tmp_path):
     # Delete must NOT fire again on resume — still exactly one across both runs.
     assert shared_target_service.delete_by_source.call_count == 1
     assert shared_target_service.upsert_chunks.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_metadata_includes_tenant_and_teacher_attribution(engine):
+    """Verify that _ingest_unit stamps tenant_id, corpus_id, domain_rights_status,
+    teacher_id, and teacher_ids onto all produced metadatas."""
+    payloads = [
+        {
+            "text": "Living in a beautiful state of consciousness transforms your inner world.",
+            "source_url": "https://youtube.com/watch?v=bs_test1",
+            "title": "Beautiful State with Sri Krishnaji",
+            "speaker": "Sri Krishnaji",
+            "topic": "Spiritual Growth",
+            "content_type": "video",
+            "source_type": "youtube",
+            "language": "en",
+            "tags": ["meditation", "presence"],
+        }
+    ]
+
+    engine._contextualize = AsyncMock(return_value=["[Context: Contextual header]\nLiving in a beautiful state..."])
+    engine._embedding.encode_batch = MagicMock(return_value={"dense": [[0.1] * 1024], "sparse": [None]})
+
+    chunks, metadatas, dense, sparse = await engine._ingest_unit(
+        "https://youtube.com/watch?v=bs_test1", payloads, "test_unit"
+    )
+
+    assert len(metadatas) == 1
+    meta = metadatas[0]
+    assert meta["tenant_id"] == "oneness"
+    assert meta["corpus_id"] in ("spiritual_wisdom", "askmukthiguru")
+    assert meta["domain_rights_status"] == "licensed"
+    assert meta["teacher_id"] == "krishnaji"
+    assert "krishnaji" in meta["teacher_ids"]
+    assert "preethaji" in meta["teacher_ids"]

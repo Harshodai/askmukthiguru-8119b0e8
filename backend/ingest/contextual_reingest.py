@@ -1479,6 +1479,30 @@ class ContextualReingestEngine:
         # payload whose text this chunk actually overlaps.
         origin = self._origin_index_map(payloads, spans, len(full_text))
 
+        from services.teacher_attribution import resolve_teacher_attribution
+
+        unit_title = first.get("title") or ""
+        unit_speaker = first.get("speaker") or "Unknown"
+        unit_tags = list(
+            {
+                t.strip().lower()
+                for t in (first.get("tags") or ["general"])
+                if t and str(t).strip()
+            }
+        )
+        _, resolved_tid, resolved_tids = resolve_teacher_attribution(
+            title=unit_title,
+            source_url=source_url,
+            speaker=unit_speaker,
+            chunks=raw_chunks,
+            tags=unit_tags,
+        )
+        unit_teacher_id = first.get("teacher_id") or resolved_tid
+        unit_teacher_ids = first.get("teacher_ids") or resolved_tids
+        unit_tenant_id = first.get("tenant_id") or "oneness"
+        unit_corpus_id = first.get("corpus_id") or getattr(settings, "default_corpus_id", "spiritual_wisdom")
+        unit_domain_rights_status = first.get("domain_rights_status") or "licensed"
+
         metadatas: list[dict[str, Any]] = []
         for i, _chunk in enumerate(contextual_chunks):
             src_payload = payloads[origin[i]] if i < len(origin) and payloads else first
@@ -1488,6 +1512,11 @@ class ContextualReingestEngine:
                 "title": src_payload.get("title") or first.get("title") or "",
                 "speaker": first.get("speaker") or "Unknown",
                 "topic": first.get("topic") or "Spiritual",
+                "tenant_id": unit_tenant_id,
+                "corpus_id": unit_corpus_id,
+                "domain_rights_status": unit_domain_rights_status,
+                "teacher_id": unit_teacher_id,
+                "teacher_ids": unit_teacher_ids,
                 # This IS a contextual chunk regardless of what blue called its
                 # source rows — do not inherit the upstream content_type.
                 "content_type": _CHUNK_TYPE,

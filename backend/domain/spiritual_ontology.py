@@ -307,6 +307,27 @@ class TeacherDomain:
     ontology_version: str = ONTOLOGY_VERSION
 
 
+# Gate 0.4 — Rights/lineage decision (2026-09-13, user-confirmed).
+# Recorded here per docs/audits/LAUNCH_READINESS_GATES_2026-09-13.md Gate 0.4:
+# "The rights/lineage decision needs to land as a comment in
+# domain/spiritual_ontology.py … not just live in a chat transcript."
+#
+# LINEAGE: Sri Amma Bhagavan = Sri Krishnaji's parents.
+#   They are the same lineage (Ekam / O&O Academy), not a third-party teacher.
+#   This is NOT a licensing issue — their content is part of the same corpus
+#   as Sri Preethaji & Sri Krishnaji's teachings.
+#
+# ARCHITECTURE DECISION: unified model.
+#   One tenant_id='oneness' for all teachers.
+#   Amma Bhagavan content is distinguished by corpus_id / teacher_id,
+#   NOT a separate tenant_id. Cross-teacher comparison queries across
+#   Preethaji / Krishnaji / Amma Bhagavan are DESIRABLE (not a leak)
+#   because they share a lineage — this is why cross_teacher_reasoning.py
+#   exists and is enabled for the 'ekam' domain.
+#
+#   Two-tenant model was explicitly considered and rejected (2026-09-13).
+#   To revisit: update this comment + re-discuss at ingestion time.
+#
 # Per root CLAUDE.md: "Data source: only Sri Preethaji & Sri Krishnaji's YouTube
 # videos + approved images." Ekam is the only domain with a licensed corpus.
 # The other three names in ingest/ontology_writer.py's _KNOWN_TEACHERS are

@@ -24,6 +24,7 @@ from app.config import settings
 from rag.corpus_scope import CorpusScope
 from services.qdrant.filters import QdrantFilterBuilder
 from services.qdrant.metrics import track_search_latency
+from services.qdrant.multitenancy_guard import enforce_multitenancy
 from services.qdrant.source_policy import is_blocked_source
 from services.qdrant.utils import QdrantUtils
 from services.tenant_context import TenantContext
@@ -99,6 +100,7 @@ class QdrantSearcher:
         self._utils = utils or QdrantUtils()
         self._filter_builder = QdrantFilterBuilder()
 
+    @enforce_multitenancy
     @retry_with_backoff(max_retries=1)
     @track_search_latency
     def search(
@@ -149,9 +151,19 @@ class QdrantSearcher:
                 FieldCondition(key="raptor_level", match=MatchValue(value=raptor_level))
             )
         if scope.teacher_id:
-            filter_conditions.append(
-                FieldCondition(key="teacher_id", match=MatchValue(value=scope.teacher_id))
-            )
+            if scope.teacher_id in ("preethaji", "krishnaji", "sri-preethaji", "sri-krishnaji", "ekam"):
+                filter_conditions.append(
+                    Filter(
+                        should=[
+                            FieldCondition(key="teacher_ids", match=MatchValue(value=scope.teacher_id)),
+                            FieldCondition(key="teacher_id", match=MatchValue(value=scope.teacher_id)),
+                        ]
+                    )
+                )
+            else:
+                filter_conditions.append(
+                    FieldCondition(key="teacher_id", match=MatchValue(value=scope.teacher_id))
+                )
         if scope.required_rights_status:
             filter_conditions.append(
                 FieldCondition(
@@ -355,6 +367,7 @@ class QdrantSearcher:
                 "speaker": hit.payload.get("speaker", "Unknown"),
                 "topic": hit.payload.get("topic", "Spiritual"),
                 "teacher_id": hit.payload.get("teacher_id", ""),
+                "teacher_ids": hit.payload.get("teacher_ids", []),
                 "licensed_domain": hit.payload.get("licensed_domain", ""),
                 "domain_rights_status": hit.payload.get("domain_rights_status", ""),
                 "tenant_id": hit.payload.get("tenant_id", ""),

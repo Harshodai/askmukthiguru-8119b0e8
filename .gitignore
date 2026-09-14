@@ -353,3 +353,7 @@ coverage/
 
 # Supabase CLI scratch (version-check cache, written by any `supabase` command)
 **/supabase/.temp/
+
+# Scratch files that have been committed-by-accident bait before
+test.html
+tmp_chrome/

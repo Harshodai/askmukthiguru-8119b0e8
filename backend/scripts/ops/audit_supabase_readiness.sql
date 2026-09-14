@@ -73,10 +73,16 @@ check_grants AS (
     FROM required_readable r
     JOIN information_schema.tables t
       ON t.table_schema = 'public' AND t.table_name = r.tbl      -- only if it exists
-    LEFT JOIN information_schema.role_table_grants g
-           ON g.table_name = r.tbl
-          AND g.grantee = 'service_role'
-          AND g.privilege_type = 'SELECT'
+    -- has_table_privilege, NOT information_schema.role_table_grants: that view is
+    -- filtered to grants where the CONNECTING role is grantor, grantee, or a member
+    -- of the grantee. Supabase's SQL Editor connects as supabase_read_only_user,
+    -- which is none of those for service_role, so the view reports every table as
+    -- ungranted and the audit invents a broken production. has_table_privilege asks
+    -- the catalog directly and is independent of who is connected.
+    LEFT JOIN LATERAL (
+        SELECT r.tbl AS table_name
+        WHERE has_table_privilege('service_role', 'public.' || quote_ident(r.tbl), 'SELECT')
+    ) g ON TRUE
 ),
 
 -- 3. Schema-wide sweep: ANY public table the server role cannot read.
@@ -85,12 +91,8 @@ ungranted AS (
     FROM information_schema.tables t
     WHERE t.table_schema = 'public'
       AND t.table_type = 'BASE TABLE'
-      AND NOT EXISTS (
-          SELECT 1 FROM information_schema.role_table_grants g
-          WHERE g.table_name = t.table_name
-            AND g.grantee = 'service_role'
-            AND g.privilege_type = 'SELECT'
-      )
+      AND NOT has_table_privilege(
+              'service_role', 'public.' || quote_ident(t.table_name), 'SELECT')
 ),
 check_sweep AS (
     SELECT

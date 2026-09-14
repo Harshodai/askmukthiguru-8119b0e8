@@ -583,6 +583,29 @@ class LightRAGService:
         try:
             self.rag = _create_lightrag()
 
+            # TENANT STAMPING GAP (corrected 2026-09-13, backfill applied):
+            # LightRAG writes graph edges via its internal Neo4JStorage adapter,
+            # which has no concept of our tenant_id / corpus_id fields. Every edge
+            # LightRAG creates will therefore lack tenant_id and rely on the
+            # coalesce(r.tenant_id, 'oneness') fallback at query time.
+            # With a second tenant this becomes a silent cross-tenant leak.
+            #
+            # Forward remediation: run after EVERY ingestion call that uses this
+            # service's ainsert() path:
+            #
+            #   python3 -m scripts.ops.backfill_edge_tenant_id --apply
+            #
+            # The script is idempotent (WHERE r.tenant_id IS NULL) and stamps
+            # tenant_id='oneness', corpus_id='askmukthiguru' on all unstamped edges.
+            # Before onboarding a second tenant, this script MUST be run first to
+            # ensure pre-existing edges are stamped — otherwise new edges from tenant
+            # B will coalesce to 'oneness' alongside the now-correctly-stamped ones
+            # and the isolation gate will fail.
+            #
+            # Architecture decision (2026-09-13): unified model — one tenant_id='oneness'
+            # for all teachers; Amma Bhagavan content distinguished by corpus_id /
+            # teacher_id, not a separate tenant. Cross-teacher comparison queries are
+            # DESIRABLE. Recorded in domain/spiritual_ontology.py (Gate 0.4).
             # Inject Custom Spiritual Guidance into LightRAG Prompts
             try:
                 import lightrag.prompt

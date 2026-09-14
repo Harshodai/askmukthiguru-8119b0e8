@@ -21,6 +21,7 @@ Collection naming: ``{base_collection}__tenant_{tenant_id}``
 from __future__ import annotations
 
 import logging
+from contextlib import contextmanager
 from contextvars import ContextVar
 from typing import Optional
 
@@ -82,6 +83,27 @@ class TenantContext:
     def is_legacy() -> bool:
         """True if the current tenant is the legacy (single-tenant) default."""
         return _tenant_id_var.get() == _LEGACY_TENANT
+
+    @staticmethod
+    def clear() -> None:
+        """Clear the tenant context for the current task (empty string)."""
+        _tenant_id_var.set("")
+        _tenant_email_var.set("")
+        _tenant_user_id_var.set("")
+
+    @classmethod
+    @contextmanager
+    def scope(cls, tenant_id: str, email: str = "", user_id: str = ""):
+        """Context manager to run a code block with a scoped tenant identity."""
+        t_tok = _tenant_id_var.set(tenant_id)
+        e_tok = _tenant_email_var.set(email)
+        u_tok = _tenant_user_id_var.set(user_id)
+        try:
+            yield
+        finally:
+            _tenant_id_var.reset(t_tok)
+            _tenant_email_var.reset(e_tok)
+            _tenant_user_id_var.reset(u_tok)
 
 
 def get_tenant_collection(base_collection: str, tenant_id: Optional[str] = None) -> str:

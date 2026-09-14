@@ -15,7 +15,7 @@ import os
 import sys
 from dataclasses import dataclass, field
 
-REQUIRED_FILTER_FIELDS = ["tenant_id", "corpus_id", "teacher_id", "domain_rights_status"]
+REQUIRED_FILTER_FIELDS = ["tenant_id", "corpus_id", "teacher_id", "teacher_ids", "domain_rights_status"]
 
 
 @dataclass
