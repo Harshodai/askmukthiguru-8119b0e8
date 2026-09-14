@@ -139,6 +139,10 @@ class CacheCheckStage(Stage):
             ctx.route_metadata["cache_policy"] = "disabled"
             logger.debug("Cache reads disabled for local latency benchmark")
             return None
+        if ctx.cache_bypass:
+            ctx.route_metadata["cache_policy"] = "bypass"
+            logger.debug("Cache read skipped: per-request cache_bypass")
+            return None
         if ctx.incognito:
             logger.debug("Cache read skipped for incognito request")
             return None
@@ -402,6 +406,9 @@ class CacheUpdateStage(Stage):
     async def run(self, ctx: PipelineContext) -> PipelineResult | None:
         if getattr(settings, "latency_benchmark_cache_disabled", False):
             logger.debug("Cache writes disabled for local latency benchmark")
+            return None
+        if ctx.cache_bypass:
+            logger.debug("Cache write skipped: per-request cache_bypass")
             return None
         if ctx.incognito:
             logger.debug("Cache write skipped for incognito request")

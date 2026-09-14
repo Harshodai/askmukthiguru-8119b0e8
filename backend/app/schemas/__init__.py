@@ -108,6 +108,16 @@ class ChatRequest(BaseModel):
         default=False,
         description="Ephemeral privacy mode; disables persistence, memory, and shared reuse.",
     )
+    cache_bypass: bool = Field(
+        default=False,
+        description=(
+            "Evaluation control: take the cold path for this request without "
+            "disabling any other layer. Distinct from incognito, which is a "
+            "privacy boundary and also suppresses memory — using incognito as "
+            "a cache switch measures the system with memory absent. See "
+            "docs/EVAL_PRECONDITIONS.md."
+        ),
+    )
     response_preferences: ResponsePreferences = Field(
         default_factory=ResponsePreferences,
         description="Explicit response-form preferences; disabled from persistence in incognito.",

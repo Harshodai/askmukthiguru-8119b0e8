@@ -175,6 +175,11 @@ class PipelineCoordinator:
             assistant_scope=(assistant_resolution.scope if assistant_resolution is not None else None),
             assistant_authorized=(not assistant_slug or assistant_resolution is not None),
             incognito=bool(getattr(chat_body, "incognito", False)),
+            # `is True`, not bool(): the request contract types this as a real
+            # pydantic bool, so anything else means "not set". A MagicMock in a
+            # test auto-creates a truthy attribute for any name, which bool()
+            # would read as an opt-in and silently disable the cache.
+            cache_bypass=getattr(chat_body, "cache_bypass", False) is True,
         )
 
         # Pre-stage personalization probe: CacheCheckStage is stage #1 while

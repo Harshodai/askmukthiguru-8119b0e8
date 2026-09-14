@@ -35,6 +35,13 @@ class PipelineContext:
     # storage preference. Stages bypass persistence, memory, and shared reuse
     # when this is true.
     incognito: bool = False
+    # Cache bypass is NOT incognito. Incognito is a privacy boundary — do not
+    # persist anything about this seeker, which necessarily also skips memory.
+    # Cache bypass is an evaluation control — take the cold path, but leave
+    # every other layer, memory included, switched on. Conflating them meant
+    # every quality harness measured the system with memory absent while
+    # reporting healthy numbers (docs/EVAL_PRECONDITIONS.md).
+    cache_bypass: bool = False
 
     # --- Trace / timing ---
     trace_id: str = ""
