@@ -95,11 +95,18 @@ line 6 of that file claims "2 uvicorn workers", which is drift, not config).
 Measured steady RSS is 2.57GiB of a 6GiB cap. Workers are separate processes
 and each lazily loads its own ONNX session, reranker and embedding model, so:
 
-| Workers | Admitted (×8) | Projected RSS | Fits 6GiB? |
-| :-- | :-- | :-- | :-- |
-| 1 | 8 | 2.57 GiB | yes, current |
-| 2 | 16 | ~5.1 GiB | yes, tight |
-| 3 | 24 | ~7.7 GiB | **no** |
+| Workers | Admitted (×8) | Projected RSS | 6 GiB compose | 24 GiB Railway |
+| :-- | :-- | :-- | :-- | :-- |
+| 1 | 8 | 2.6 GiB | yes, current | lots of headroom |
+| 2 | 16 | ~5.1 GiB | tight | comfortable |
+| 4 | 32 | ~10.3 GiB | no | **recommended** |
+| 6 | 48 | ~15.4 GiB | no | yes, headroom thinning |
+| 8 | 64 | ~20.6 GiB | no | too close to the cap |
+
+**Railway has 24 GiB, not 6.** The 6 GiB figure is the local compose cap and
+was wrongly treated as the production ceiling in the first version of this
+note. On Railway, 4 workers x 8 admitted = 32 simultaneous covers the 20-user
+target with real margin at ~10.3 GiB of 24.
 
 So 20 simultaneous *requests* is not reachable on one 6GiB container without
 either raising the memory cap or moving inference out of the API process
@@ -115,3 +122,43 @@ Reproduce: `POST /api/auth/anon-session` for a token per caller, then N parallel
 `POST /api/chat` with `X-Session-Id`. `benchmarks/run_concurrent_load_test.py
 --live` does NOT do the token exchange and returns 400 on every request, which
 reads as a 0% pass rate rather than an auth failure — fix that before trusting it.
+
+
+## Where the latency actually goes (measured 2026-09-14, live node timings)
+
+| Node | Observed | Share of a ~24s p50 |
+| :-- | :-- | :-- |
+| `generate_answer` | 10.7 – 19.6s | **55–60%** |
+| `combined_grade_and_verify` | 2.2 – 4.4s | ~15% |
+| `verify_answer` | 1.2 – 2.2s | ~7% |
+| retrieval, rerank, formatting | ~4 – 5s | ~20% |
+
+`generate_answer` is one OpenRouter call to `deepseek/deepseek-chat`. **The
+dominant cost is provider inference, not this codebase.** That has a direct
+consequence for capacity planning: adding workers raises THROUGHPUT and does
+nothing for per-answer LATENCY. A seeker still waits ~24s whether one worker
+or six are running.
+
+Levers that would actually cut the wait, in order of expected effect:
+
+1. **Stream the answer.** `/api/chat/stream` already exists. Time-to-first-token
+   is a fraction of 13–15s; the seeker reads while the rest generates. This is
+   the largest perceived-latency win available and needs no model change.
+2. **Shorten the generation context.** Tokens in drive generation time. The
+   knowledge block, OKF entries, KG subgraph (2014 chars observed) and LightRAG
+   block (1500 chars, hitting its cap) all inflate it. Measure the token count
+   before cutting anything — the round-2 lesson is that an uncapped graph dump
+   cost faithfulness, so trimming has a quality floor.
+3. **A faster generation model.** ~13–15s is a `deepseek-chat` characteristic.
+   Any change here must be A/B'd against faithfulness, not just latency.
+4. **The verification tax is ~5s combined and is deliberate.** Do not cut it to
+   chase a latency number; it is what makes the grounding claim true.
+
+### Worker count has a provider-side cost
+
+`OpenRouterService` holds its RPM counter in a `ClassVar`, which is
+process-scoped. N workers enforce the configured limit N times independently,
+so 4 workers means the provider sees up to 4x the configured RPM. Raising
+`WEB_CONCURRENCY` without moving that counter to Redis is how the 2026-09
+incident that quarantined 370 of 428 videos happened, at a smaller multiplier.
+Fix the counter before going past 2 workers.
