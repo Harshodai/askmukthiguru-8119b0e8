@@ -970,14 +970,15 @@ async def generate_hyde(state: GraphState, config: dict = None) -> dict:
             f"Answer in {lang} in 1-2 sentences: write a short hypothetical "
             "passage that could answer the question, no preamble."
         )
-        try:
-            if hasattr(ollama, "generate"):
-                hyde_text = await ollama.generate(
-                    indic_system, question, timeout=t_out, operation="generate_hyde"
-                )
-            else:
-                hyde_text = await ollama.generate_hyde(question=question, timeout=t_out)
-        except TypeError:
+        # Signature-checked, not try/except TypeError: a TypeError raised INSIDE
+        # ollama.generate()'s own body (not from a signature mismatch) must
+        # propagate, not be silently swallowed as "wrong provider API" and
+        # retried without the Indic-language instruction.
+        if hasattr(ollama, "generate"):
+            hyde_text = await ollama.generate(
+                indic_system, question, timeout=t_out, operation="generate_hyde"
+            )
+        else:
             hyde_text = await ollama.generate_hyde(question=question, timeout=t_out)
         logger.info(
             f"Indic HyDE generated hypothetical answer ({len(hyde_text or '')} chars, lang={lang})"
@@ -1155,7 +1156,14 @@ async def retrieve_for_single_query(
     resolved_chunks = []
     seen_parents = set()
     for doc in chunk_results:
-        parent_id = doc.get("parent_id") or doc.get("group_id")
+        # group_id is only a valid stand-in for parent_id when the grouping
+        # search actually grouped by "parent_id" — searcher.py's grouping
+        # fallback can group by "video_id"/"source_url" instead, and treating
+        # that group_id as a parent_id would merge unrelated chunks under a
+        # fabricated shared parent.
+        parent_id = doc.get("parent_id") or (
+            doc.get("group_id") if doc.get("grouped_by") == "parent_id" else None
+        )
         parent_text = doc.get("parent_text")
 
         if parent_id and parent_text:

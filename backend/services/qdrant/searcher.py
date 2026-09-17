@@ -339,11 +339,16 @@ class QdrantSearcher:
                                         pt.payload["group_id"] = str(grp.id)
                                         pt.payload["grouped_by"] = grp_key
                                     grp_hits.append(pt)
-                            hits = grp_hits
-                            logger.debug(
-                                f"Hybrid group search ({active_fusion_name}): {len(hits)} results grouped by {grp_key}"
-                            )
-                            break
+                            if grp_hits:
+                                hits = grp_hits
+                                logger.debug(
+                                    f"Hybrid group search ({active_fusion_name}): {len(hits)} results grouped by {grp_key}"
+                                )
+                                break
+                            # A successful-but-empty group response must not win over
+                            # a broader key (or the ungrouped fallback below) that
+                            # might still find matches — keep trying.
+                            continue
                         except Exception as grp_err:
                             last_grp_err = grp_err
                             continue
@@ -561,7 +566,11 @@ class QdrantSearcher:
                                 pt.payload["group_id"] = str(grp.id)
                                 pt.payload["grouped_by"] = grp_key
                             hits.append(pt)
-                    return hits
+                    if hits:
+                        return hits
+                    # Empty-but-successful: try a broader key rather than
+                    # returning no results when one might still exist.
+                    continue
                 except Exception:
                     continue
         try:

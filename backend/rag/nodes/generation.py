@@ -1077,9 +1077,18 @@ async def context_engineer(state: GraphState, config: Optional[RunnableConfig] =
         # prefix they form slices out the boundary slice exactly.
         packed_full = [(w.get("content") or w.get("text", "")) for w in selected_wrappers]
         prefix = "\n\n".join(packed_full[:-1])
-        boundary_text = (selection.get("compressed_context") or "")[
-            len(prefix) + (2 if prefix else 0) :
-        ]
+        compressed_context = selection.get("compressed_context") or ""
+        offset = len(prefix) + (2 if prefix else 0)
+        # The slice-recovery above only holds if compress() actually joined the
+        # non-boundary chunks verbatim with "\n\n" ahead of the trimmed one. If
+        # that invariant doesn't hold (a different join, a trimmed non-boundary
+        # chunk, or one dropped outright), fail safe to the untrimmed original
+        # rather than silently slicing out empty/wrong text.
+        boundary_text = (
+            compressed_context[offset:]
+            if compressed_context.startswith(prefix)
+            else (packed_full[-1] if packed_full else "")
+        )
         knowledge_docs = []
         for index, w in enumerate(selected_wrappers):
             orig = w["_orig"]
