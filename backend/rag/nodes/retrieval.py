@@ -1180,7 +1180,10 @@ async def retrieve_for_single_query(
 
     chunk_results = resolved_chunks
 
-    fused_ranked = _fuse_docs([summary_results, chunk_results], strategy=fusion_strat, k=60)
+    # F4 §3B.3 item 3: verbatim leaf chunks listed first so a tied RRF/DBSF
+    # score (stable-sorted) favors the teachers' own words over a machine
+    # RAPTOR summary rather than the reverse.
+    fused_ranked = _fuse_docs([chunk_results, summary_results], strategy=fusion_strat, k=60)
     merged = fused_ranked
 
     seen: set[str] = set()

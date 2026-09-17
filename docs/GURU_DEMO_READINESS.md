@@ -1,5 +1,34 @@
 # Guru demo readiness — attribution audit
 
+**UPDATE 2026-09-17 (ruthless code-review session).** F4's precise fix (§3B.3
+items 1, 2, 3, 4) has been APPLIED, all four:
+1. `build_knowledge_block` and the budgeted fallback path (`rag/nodes/generation.py`)
+   now emit `[Kind: MACHINE SUMMARY | THIRD-PARTY COMMENTARY | VERBATIM]` on
+   every retrieved source, driven by `chunk_provenance`/`raptor_level` (never
+   the `title == ""` heuristic this doc explicitly warned against), and never
+   render an empty `[Source: ]` line.
+2. `GURU_SYSTEM_PROMPT` (`rag/prompts/system.py`) now instructs the model to
+   never quote or attribute a MACHINE SUMMARY source to the teachers.
+3. `retrieve_for_single_query` (`rag/nodes/retrieval.py`) now fuses
+   `[chunk_results, summary_results]` — verbatim leaf chunks first — so tied
+   RRF/DBSF scores no longer default to a machine summary at rank 1.
+4. `extract_citations` (`rag/nodes/citation_extractor.py`) now carries
+   `chunk_provenance`/`speaker` onto every citation object.
+
+Unit-level verification: `ruff check`/`format` clean, full backend suite
+4508/4509 passing (1 pre-existing unrelated failure), the persona-budget
+regression this addition triggered was fixed
+(`generation_persona_token_budget` 2048→2150). **NOT re-verified**: this fix
+has not been re-run against the live exhibit question in §3B.1 with a running
+Qdrant/LLM stack — that requires the infrastructure this audit used and this
+session did not have. Before trusting "demo-safe" again, re-run the exact
+§3B.1 probe and confirm the rendered prompt now carries the `[Kind: ...]`
+label and a non-empty `[Source: ...]` line for both exhibit documents, and
+re-derive §4's demo-safe subset from a fresh measurement — do not assume it
+from this fix alone.
+
+---
+
 **Read-only audit, 2026-09-16.** Every number below was measured against the
 live stack on this host (backend `:8000` healthy, Qdrant `:6333`, Redis,
 Memgraph/Neo4j on the Bolt port) at the time of writing. Nothing in this

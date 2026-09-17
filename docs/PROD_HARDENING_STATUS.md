@@ -716,10 +716,16 @@ CONFIRMED BLOCKERS still visible (do not remove from handoffs):
 - Railway backend is Crashed (HF_HUB_DISABLE_XET + pre-cache fix prepared, not deployed)
 - RPO unbounded (no Railway volume backup mechanism exists)
 
+- ✅ H-FALSE-5 (2026-09-17, ruthless code-review session): `_probe` in
+  `_build_health_response` (`backend/app/api/health.py`) now routes through
+  `EmbeddingService.encode_single_full_async()` (falling back to a thread-pool
+  call of `encode_single_full`/`encode` for non-async embedding services, e.g.
+  test mocks) — exercises the same `_EMBED_EXECUTOR` pool live chat queries
+  use, guarded with `inspect.iscoroutinefunction` so mocked test doubles don't
+  break. `tests/test_health.py`, `tests/test_health_hard_bound.py` pass;
+  full suite 4508/4509 pass (1 pre-existing unrelated failure).
+
 OPEN FOR NEXT SESSION (if budget):
-- H-FALSE-5: embed executor starvation probe gap (medium severity, within file boundary)
-  Fix: make `_probe` in `_build_health_response` route through `encode_single_async()`
-  rather than `encode_single_full()` so it exercises the same `_EMBED_EXECUTOR` pool
-  that live chat queries use.
-- Backup restore drill (Phase 0 agent, if Docker is running).
+- Backup restore drill (Phase 0 agent, if Docker is running) — needs a live
+  Docker stack; not doable headless.
 

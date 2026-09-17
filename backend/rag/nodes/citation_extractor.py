@@ -190,6 +190,12 @@ def extract_citations(state: GraphState) -> dict:
                     # every real hit, so reusing it here would report the
                     # wrong thing for the majority case instead of "qdrant".
                     "knowledge_source": best_doc.get("knowledge_source", "qdrant"),
+                    # GURU_DEMO_READINESS F4 §3B.3 item 4: let a reviewer (or
+                    # the eval harness) answer "was this the teachers' own
+                    # words?" from the citation alone, without re-querying
+                    # Qdrant for the chunk that produced it.
+                    "chunk_provenance": best_doc.get("chunk_provenance", ""),
+                    "speaker": best_doc.get("speaker", ""),
                 }
             )
 

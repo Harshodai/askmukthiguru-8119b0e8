@@ -375,7 +375,8 @@ class Settings(BaseSettings):
     #     (https://arxiv.org/pdf/2509.14543).
     #  3. Enabling it ships an EMPTY fence. GURU_SYSTEM_PROMPT plus the user
     #     classification block nearly fills generation_persona_token_budget
-    #     (2048), leaving too little for the 600-token exemplar block, so
+    #     (2150 as of the F4 attribution-rule addition), leaving too little
+    #     for the 600-token exemplar block, so
     #     cap_to_token_budget cuts it mid-sentence and the model receives a
     #     header announcing exemplars that are not there.
     # services/guru_brain/guru_kg_service.py is NOT retired — it is unrelated to
@@ -926,7 +927,7 @@ class Settings(BaseSettings):
     # Internal telemetry confidence assigned to an abstention (no supporting evidence).
     generation_no_evidence_confidence: float = 2.0
     # Persona system-prompt token budget; pinned by tests/test_answer_path_regressions.py.
-    generation_persona_token_budget: int = 2048
+    generation_persona_token_budget: int = 2150
     # Default max length for extractive document compression before truncation.
     generation_compression_max_chars: int = 1500
     # Truncation marker appended when compressed text still exceeds the char budget.

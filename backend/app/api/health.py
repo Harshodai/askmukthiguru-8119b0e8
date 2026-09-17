@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import logging
 import threading
 import time
@@ -219,13 +220,23 @@ async def _build_health_response(container: ServiceContainer) -> JSONResponse:
     try:
         emb_svc = container.embedding
 
-        def _probe():
+        # H-FALSE-5: this must exercise the same _EMBED_EXECUTOR pool live chat
+        # queries use, not a separate _HEALTH_EXECUTOR — a starved/exhausted
+        # _EMBED_EXECUTOR is exactly the failure this probe exists to catch,
+        # and a health check that runs on its own private executor can't see it.
+        async def _probe_async():
+            async_method = getattr(emb_svc, "encode_single_full_async", None)
+            if inspect.iscoroutinefunction(async_method):
+                r = await async_method("ok")
+                return r.get("dense")
             if hasattr(emb_svc, "encode_single_full"):
-                return emb_svc.encode_single_full("ok").get("dense")
-            r = emb_svc.encode("ok")
+                return await asyncio.to_thread(
+                    lambda: emb_svc.encode_single_full("ok").get("dense")
+                )
+            r = await asyncio.to_thread(emb_svc.encode, "ok")
             return r.get("dense") if isinstance(r, dict) else r
 
-        vec = await asyncio.wait_for(loop.run_in_executor(_HEALTH_EXECUTOR, _probe), timeout=5.0)
+        vec = await asyncio.wait_for(_probe_async(), timeout=5.0)
         dim = len(vec) if vec is not None else None
         embed_ok = dim == settings.embedding_dimension
         results["embedding"] = {
