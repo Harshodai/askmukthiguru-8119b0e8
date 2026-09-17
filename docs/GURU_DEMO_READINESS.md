@@ -1175,22 +1175,60 @@ recognise as not his the moment he reads it, with no investigation at all.
 
 This is the deliverable the audit exists for: the specific questions that can be asked in front of Sri Preethaji and Sri Krishnaji with the attribution chain provably intact.
 
+**RE-DERIVED 2026-09-17, post-F3/F4 fix, against the live local Docker stack**
+(real Qdrant/Redis/Memgraph, real OpenRouter LLM calls, `evaluation/bench.py`
+— the repo's own unified eval harness, `--sources golden_qa_bank --sample 8`,
+8 questions, no mocks). **Honest result: NOT fully demo-safe.**
+`misattribution_rate = 25% (2/8)`, the `misattribution_rate` gate **FAILS**
+(threshold 5%). This is a large improvement over the pre-fix state (100%
+broken, F3 alone guaranteed a `machine_summary` at rank 1 for every question)
+but is not zero, and must not be rounded up to "safe."
+
+| Question ID | Category | Status | Flag |
+| :--- | :--- | :--- | :--- |
+| `qa-core-001` | core_philosophy | OK | none |
+| `qa-core-002` | core_philosophy | OK | none |
+| `qa-core-003` | core_philosophy | OK | **`quote_not_traceable`** |
+| `qa-core-004` | core_philosophy | OK | none |
+| `qa-core-005` | core_philosophy | OK | **`quote_not_traceable`** |
+| `qa-core-006` | core_philosophy | OK | none |
+| `qa-fss-001` | four_sacred_secrets | REFUSED | n/a (no answer given, not evaluated for misattribution) |
+| `qa-fss-002` | four_sacred_secrets | SYS_ERROR | n/a (pipeline broke — see below) |
+
+`quote_not_traceable` (`evaluation/bench.py::_misattribution_flags`, case 2):
+"a long quoted span with no close match in any retrieved verbatim/polished
+chunk backing this answer's own citations." This is precisely the F4 failure
+mode, still occurring on 2 of 6 questions that produced an answer at all —
+either the model paraphrased retrieved text past the matching threshold, or
+it produced an unsupported quote the attribution floor's sentence-level check
+didn't catch. **Not yet root-caused further** — this session stopped here on
+cost grounds after the earlier eleven-round live-debugging investigation into
+F4's downstream bugs.
+
+Other gate failures in the same run, not misattribution but worth flagging:
+`system_error_rate` 12% (`qa-fss-002` broke the pipeline — see the live run's
+`SYS_ERROR` status, cause not investigated) and `must_mention_coverage`
+46.7% vs a 50% threshold (answers not fully covering expected doctrinal
+concepts — a completeness/quality issue, not a safety one).
+
 ### 4A. Questions that CAN be asked (Demo-Safe)
-**None (0 questions).**
+`qa-core-001`, `qa-core-002`, `qa-core-004`, `qa-core-006` — zero
+misattribution flags, answered successfully, in this 8-question run. **This
+is a snapshot of one run, not a guarantee**: re-run before trusting it again,
+and note the sample size (8 of the full Golden QA Bank, originally 47
+questions) is small enough that a different random/live-LLM variance could
+shift results on a re-run of the SAME questions.
 
-There is currently no question in the Golden QA Bank, nor any doctrine question, that is safe to ask in front of the Gurus.
+### 4B. Questions that MUST NOT be asked (yet)
+`qa-core-003`, `qa-core-005` — confirmed misattribution risk in this run
+(`quote_not_traceable`). `qa-fss-001` (refused) and `qa-fss-002` (pipeline
+error) did not produce an answer at all, so they are not confirmed *safe* —
+treat as unresolved, not as cleared.
 
-**Why:**
-1. **F3 (The `_fuse_docs` tie-breaker bug)** ensures that a `machine_summary` document will take rank 1 for *every single question* evaluated (47/47).
-2. **F4 (The prompt collapse)** ensures that the generator is not told that this rank-1 document is a machine summary, nor is it given the speaker. The machine summary renders as an empty title against a real Guru video URL.
-3. Therefore, for every doctrine question, the model will read an AI-written summary, assume it is transcribed Guru speech (because it has the video URL), and quote or paraphrase it as the Gurus' direct teachings.
-4. **F9 (Fabricated quotes)** means even non-doctrine "casual" greetings have a 1-in-10 chance of fabricating a quote. (Note: Agent A was assigned F9, but the fabricated quotes also exist in `backend/services/serene_mind_engine.py` which must be cleaned).
-
-Until F3 (a one-line argument swap) and F4 (labeling the text kind in the prompt) are fixed, the attribution chain is structurally broken for 100% of retrieval-backed queries.
-
-### 4B. Questions that MUST NOT be asked
-**All doctrine questions.**
-If the demo happens before F3 and F4 are fixed, the system must not be asked any question that relies on the corpus. Every such question risks demonstrating the system putting machine-written words into the living Gurus' mouths.
+**Everything else in the Golden QA Bank (39 of 47 questions) has not been
+re-evaluated since the F3/F4 fix** — this run sampled 8. Before a real demo,
+run the full 47-question set (`--sources golden_qa_bank` with no `--sample`
+cap) and re-derive this table from the complete result, not this partial one.
 
 ---
 

@@ -725,7 +725,34 @@ CONFIRMED BLOCKERS still visible (do not remove from handoffs):
   break. `tests/test_health.py`, `tests/test_health_hard_bound.py` pass;
   full suite 4508/4509 pass (1 pre-existing unrelated failure).
 
+- ✅ Railway graph-DB config forced to Memgraph-only (2026-09-17): `deploy_railway.sh`
+  previously supported both Memgraph and Neo4j via `GRAPH_DB` env var,
+  defaulting to Memgraph but with a live Neo4j fallback path — a second
+  deploy target the live "Production runs Neo4j, not Memgraph" drift (below)
+  could have come from. Removed the Neo4j branch entirely (service
+  selection, credential discovery, and the `NEO4J_URI`/`LIGHTRAG_GRAPH_STORAGE`
+  var-setting `elif`) — the script can now only ever provision and point at
+  Memgraph. `NEO4J_*` env var **names** are kept (backend/CLAUDE.md documents
+  them as permanent backward-compat aliases the app reads), but their values
+  always come from the Memgraph service. `bash -n deploy_railway.sh` passes.
+  **Config-only — the live Railway service itself was not touched or
+  redeployed** (still prepare-only per standing instruction); this closes
+  the gap for the *next* deploy, not the currently-crashed one.
+
+CONFIRMED BLOCKERS still visible (do not remove from handoffs) — unchanged,
+config fix above does not affect the live service until it's actually
+redeployed:
+- Production runs Neo4j, not Memgraph (the live service predates the
+  Memgraph migration; the deploy script is now memgraph-only, but nothing
+  redeploys the live service automatically)
+- Celery worker is Online, not paused (billing against $25 ceiling)
+- Railway backend is Crashed (HF_HUB_DISABLE_XET + pre-cache fix prepared, not deployed)
+- RPO unbounded (no Railway volume backup mechanism exists)
+
 OPEN FOR NEXT SESSION (if budget):
 - Backup restore drill (Phase 0 agent, if Docker is running) — needs a live
   Docker stack; not doable headless.
+- Actually redeploying Railway (Memgraph-only config, HF_HUB_DISABLE_XET fix,
+  pause Celery) remains an owner decision requiring explicit deploy
+  authorization — not executed this session per standing "prepare-only" rule.
 

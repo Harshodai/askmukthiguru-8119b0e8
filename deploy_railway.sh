@@ -116,14 +116,10 @@ if [[ "$DO_CLEAN" == true ]]; then
 fi
 
 # 1. Add Services (use Railway's supported template deployment command)
-# Graph database selection: "memgraph" (default, lightweight C++, ~80MB) or "neo4j" (legacy JVM, ~1GB+)
-GRAPH_DB="${GRAPH_DB:-memgraph}"
-services=("qdrant" "postgresql" "redis")
-if [[ "$GRAPH_DB" == "memgraph" ]]; then
-    services=("memgraph" "${services[@]}")
-else
-    services=("neo4j" "${services[@]}")
-fi
+# Graph database: Memgraph only (memgraph/memgraph-mage:latest, ~80MB). Neo4j
+# is not deployed to Railway -- production must run the same graph DB as
+# local dev, per backend/CLAUDE.md's Memgraph migration decision.
+services=("memgraph" "qdrant" "postgresql" "redis")
 
 for svc in "${services[@]}"; do
     log "Adding service: $svc"
@@ -149,7 +145,6 @@ railway variables 2>&1 > /dev/null
 
 # Discover deployed service names so we can target the right vault per service
 MEMGRAPH_SVC=$(railway service list --json 2>/dev/null | jq -r '.[] | select(.name | test("memgraph|Memgraph")) | .name' | head -1)
-NEO4J_SVC=$(railway service list --json 2>/dev/null | jq -r '.[] | select(.name | test("neo4j|Neo4j")) | .name' | head -1)
 POSTGRES_SVC=$(railway service list --json 2>/dev/null | jq -r '.[] | select(.name | test("Postgres|postgres|postgresql")) | .name' | head -1)
 REDIS_SVC=$(railway service list --json 2>/dev/null | jq -r '.[] | select(.name | test("Redis|redis")) | .name' | head -1)
 
@@ -159,17 +154,14 @@ get_var() {
     railway variables get "$var" --service "$service" 2>/dev/null || echo ""
 }
 
-# Extract key variables from the services that own them
+# Extract key variables from the services that own them. NEO4J_* names stay
+# (the app accepts them as backward-compat aliases for MEMGRAPH_*, per
+# backend/CLAUDE.md), but the value always comes from the Memgraph service.
 GRAPH_PASSWORD=""
 if [[ -n "$MEMGRAPH_SVC" ]]; then
     GRAPH_PASSWORD=$(get_var MEMGRAPH_PASSWORD "$MEMGRAPH_SVC")
     [[ -z "$GRAPH_PASSWORD" ]] && GRAPH_PASSWORD=$(get_var NEO4J_PASSWORD "$MEMGRAPH_SVC")
     [[ -z "$GRAPH_PASSWORD" ]] && GRAPH_PASSWORD="mukthiguru_neo4j_pass"
-fi
-if [[ -z "$GRAPH_PASSWORD" && -n "$NEO4J_SVC" ]]; then
-    GRAPH_PASSWORD=$(get_var NEO4J_PASSWORD "$NEO4J_SVC")
-    [[ -z "$GRAPH_PASSWORD" ]] && GRAPH_PASSWORD=$(get_var NEO4J_PASSWORD "neo4j")
-    [[ -z "$GRAPH_PASSWORD" ]] && GRAPH_PASSWORD=$(get_var NEO4J_AUTH "$NEO4J_SVC" | cut -d'/' -f2)
 fi
 NEO4J_PASSWORD="$GRAPH_PASSWORD"
 
@@ -235,18 +227,17 @@ set_var RERANKER_MODEL "cross-encoder/ms-marco-MiniLM-L-6-v2"
 set_var SARVAM_CLOUD_MODEL "sarvam-30b"
 set_var QDRANT_COLLECTION "spiritual_wisdom_contextual"
 
-# Service URLs (internal Railway DNS)
+# Service URLs (internal Railway DNS). Memgraph only -- NEO4J_* names stay as
+# backward-compat aliases the app reads (backend/CLAUDE.md), always pointed at
+# the Memgraph service.
 if [[ -n "$MEMGRAPH_SVC" ]]; then
     set_var NEO4J_URI "bolt://${MEMGRAPH_SVC}.railway.internal:7687"
     set_var MEMGRAPH_URI "bolt://${MEMGRAPH_SVC}.railway.internal:7687"
     set_var NEO4J_USER "neo4j"
     set_var NEO4J_PASSWORD "${NEO4J_PASSWORD:-mukthiguru_neo4j_pass}"
     set_var LIGHTRAG_GRAPH_STORAGE "MemgraphStorage"
-elif [[ -n "$NEO4J_PASSWORD" || -n "$NEO4J_SVC" ]]; then
-    set_var NEO4J_URI "bolt://neo4j.railway.internal:7687"
-    set_var NEO4J_USER "neo4j"
-    set_var NEO4J_PASSWORD "$NEO4J_PASSWORD"
-    set_var LIGHTRAG_GRAPH_STORAGE "Neo4JStorage"
+else
+    warn "No Memgraph service found -- graph DB env vars not set. Run this script again after the memgraph service finishes provisioning."
 fi
 
 if [[ -n "$REDIS_PASSWORD" ]]; then
