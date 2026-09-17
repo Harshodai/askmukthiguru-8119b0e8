@@ -496,6 +496,11 @@ class ChatEngine:
                 source_url = c.get("source_url")
                 url = c.get("url")
                 title = c.get("title")
+                # GURU_DEMO_READINESS F4 §3B.3 item 4: mirrors
+                # app.orchestrator._coerce_citations -- see that copy for why
+                # this field carry-through matters.
+                chunk_provenance = c.get("chunk_provenance") or None
+                speaker = c.get("speaker") or None
                 http_url: str | None = None
                 for cand in (source_url, url):
                     if cand and str(cand).startswith(("http://", "https://")):
@@ -504,10 +509,19 @@ class ChatEngine:
             else:
                 http_url = str(c) if str(c or "").startswith(("http://", "https://")) else None
                 title = None
+                chunk_provenance = None
+                speaker = None
             if not http_url or http_url in seen:
                 continue
             seen.add(http_url)
-            out.append({"url": http_url, "title": str(title).strip() if title else None})
+            out.append(
+                {
+                    "url": http_url,
+                    "title": str(title).strip() if title else None,
+                    "chunk_provenance": chunk_provenance,
+                    "speaker": speaker,
+                }
+            )
         return out
 
 

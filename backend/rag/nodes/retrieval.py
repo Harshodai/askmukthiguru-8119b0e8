@@ -217,6 +217,18 @@ def _okf_match(query: str, limit: int = 3, teacher: str | None = None) -> list[d
                         # separately branches on it; reusing it here would have
                         # silently misreported the lane for every real Qdrant hit.
                         "knowledge_source": "okf",
+                        # GURU_DEMO_READINESS F4: root-caused 2026-09-17 -- OKF
+                        # entries were the one doc shape citations could resolve a
+                        # url/title from (via metadata.source/metadata.title
+                        # fallbacks in citation_extractor.py) while never carrying
+                        # chunk_provenance, because they never pass through
+                        # services/qdrant/searcher.py's Qdrant-hit mapping at all.
+                        # OKF is reviewed, approved curated doctrine (never raw
+                        # LLM output at answer time) -- POLISHED_SPEECH, not
+                        # MACHINE_SUMMARY.
+                        "chunk_provenance": "polished_speech",
+                        "title": e["title"],
+                        "source_url": e.get("resource") or e.get("source", ""),
                         "metadata": {
                             "source": e.get("resource") or e.get("source", "OKF"),
                             "title": e["title"],
@@ -253,6 +265,10 @@ def _okf_match(query: str, limit: int = 3, teacher: str | None = None) -> list[d
                 # Keyword overlap is a weaker signal than cosine; scored below the
                 # semantic path so it never outranks a real embedding match.
                 "score": min(1.0, score) * _OKF_KEYWORD_SCORE_CEILING,
+                # GURU_DEMO_READINESS F4: see the semantic branch above for why.
+                "chunk_provenance": "polished_speech",
+                "title": e["title"],
+                "source_url": e.get("resource") or e.get("source", ""),
                 "metadata": {
                     "source": e.get("resource") or e.get("source", "OKF"),
                     "title": e["title"],

@@ -231,6 +231,16 @@ class Citation(BaseModel):
 
     url: str = Field(..., description="Absolute HTTP(S) source URL")
     title: Optional[str] = Field(None, description="Real source title, when known")
+    chunk_provenance: Optional[str] = Field(
+        None,
+        description=(
+            "services.provenance.ChunkProvenance value for the chunk this citation "
+            "came from (verbatim_speech/polished_speech/third_party_prose/"
+            "machine_summary) — lets a reviewer confirm this was the teachers' own "
+            "words without re-querying Qdrant. GURU_DEMO_READINESS F4."
+        ),
+    )
+    speaker: Optional[str] = Field(None, description="Speaker attribution for the source chunk")
 
 
 class ChatResponse(BaseModel):

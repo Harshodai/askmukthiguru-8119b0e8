@@ -517,6 +517,16 @@ def _coerce_citations(citations) -> list[dict]:
             source_url = c.get("source_url")
             url = c.get("url")
             title = c.get("title")
+            # GURU_DEMO_READINESS F4 §3B.3 item 4: this function -- not
+            # rag/nodes/generation.py's _sanitize_citations -- is the one that
+            # actually builds the citation dict the job-queue worker persists
+            # (app/orchestrator.py:queue_worker_factory -> orchestrate() ->
+            # ChatResponse(citations=_coerce_citations(...))). Fixing
+            # _sanitize_citations alone left chunk_provenance/speaker null in
+            # every real response because THIS narrower rebuild ran after it
+            # and discarded them again.
+            chunk_provenance = c.get("chunk_provenance") or None
+            speaker = c.get("speaker") or None
             valid_url: str | None = None
             for cand in (source_url, url):
                 if cand and str(cand).startswith(("http://", "https://")):
@@ -525,10 +535,19 @@ def _coerce_citations(citations) -> list[dict]:
         else:
             valid_url = str(c) if str(c or "").startswith(("http://", "https://")) else None
             title = None
+            chunk_provenance = None
+            speaker = None
         if not valid_url or valid_url in seen:
             continue
         seen.add(valid_url)
-        out.append({"url": valid_url, "title": str(title).strip() if title else None})
+        out.append(
+            {
+                "url": valid_url,
+                "title": str(title).strip() if title else None,
+                "chunk_provenance": chunk_provenance,
+                "speaker": speaker,
+            }
+        )
     return out
 
 

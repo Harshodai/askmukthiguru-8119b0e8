@@ -60,6 +60,17 @@ class QdrantNeighborLookup:
                     "chunk_index": hit.payload.get("chunk_index", 0),
                     "raptor_level": hit.payload.get("raptor_level", 0),
                     "is_neighbor": hit.payload.get("chunk_index") != chunk_index,
+                    # GURU_DEMO_READINESS F4: this is a separate direct-Qdrant path
+                    # (context-enrichment window), not services/qdrant/searcher.py's
+                    # hit mapping — it must independently carry the same provenance
+                    # fields or enriched chunks silently lose [Kind: ...] labeling
+                    # and citation provenance despite the underlying payload having
+                    # them (root-caused 2026-09-17: this was the actual source of
+                    # chunk_provenance=null on live citations, not a schema/pipeline
+                    # stripping bug — see rag/nodes/citation_extractor.py and
+                    # rag/nodes/generation.py's _sanitize_citations).
+                    "chunk_provenance": hit.payload.get("provenance", ""),
+                    "speaker": hit.payload.get("speaker", "Unknown"),
                 }
                 for hit in neighbors
             ]

@@ -387,22 +387,50 @@ def _sanitize_citations(citations: list, docs: list[dict] | None = None) -> list
         if doc_url and doc_title:
             title_by_url.setdefault(doc_url, doc_title)
 
+    provenance_by_url: dict[str, str] = {}
+    speaker_by_url: dict[str, str] = {}
+    for doc in docs or []:
+        if not isinstance(doc, dict):
+            continue
+        doc_url = str(doc.get("source_url") or doc.get("url") or "").strip()
+        if not doc_url:
+            continue
+        if doc.get("chunk_provenance"):
+            provenance_by_url.setdefault(doc_url, doc.get("chunk_provenance"))
+        if doc.get("speaker"):
+            speaker_by_url.setdefault(doc_url, doc.get("speaker"))
+
     clean: list[dict] = []
     seen: set[str] = set()
     for citation in citations or []:
         if isinstance(citation, dict):
             value = citation.get("url") or citation.get("source_url") or citation.get("source")
             title = str(citation.get("title") or "").strip() or None
+            # GURU_DEMO_READINESS F4 §3B.3 item 4: this dict is rebuilt from
+            # scratch below for the public contract, which was silently
+            # dropping chunk_provenance/speaker even after citation_extractor.py
+            # started emitting them — carry them through explicitly.
+            provenance = citation.get("chunk_provenance") or None
+            speaker = citation.get("speaker") or None
         else:
             value = citation
             title = None
+            provenance = None
+            speaker = None
         value = str(value or "").strip()
         if not value.startswith(("http://", "https://")):
             continue
         if value in seen:
             continue
         seen.add(value)
-        clean.append({"url": value, "title": title or title_by_url.get(value)})
+        clean.append(
+            {
+                "url": value,
+                "title": title or title_by_url.get(value),
+                "chunk_provenance": provenance or provenance_by_url.get(value),
+                "speaker": speaker or speaker_by_url.get(value),
+            }
+        )
     return clean
 
 

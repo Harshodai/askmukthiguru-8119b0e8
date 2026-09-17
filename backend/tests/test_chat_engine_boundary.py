@@ -227,7 +227,14 @@ async def test_chat_engine_stream_final_chunk_coerces_dict_citations():
 
     final = chunks[-1]
     assert final.is_final is True
-    assert final.citations == [{"url": "https://example.com/teaching-1", "title": None}]
+    assert final.citations == [
+        {
+            "url": "https://example.com/teaching-1",
+            "title": None,
+            "chunk_provenance": None,
+            "speaker": None,
+        }
+    ]
 
 
 if __name__ == "__main__":

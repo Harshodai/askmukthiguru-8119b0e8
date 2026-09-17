@@ -64,6 +64,7 @@ railway_deploy.log
 scripts/railway_logs.txt
 **/*.pid
 **/*.lock
+!backend/requirements.lock
 **/*.tmp
 .pytest_cache/
 .ruff_cache/

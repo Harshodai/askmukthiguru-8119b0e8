@@ -1,31 +1,83 @@
 # Guru demo readiness — attribution audit
 
-**UPDATE 2026-09-17 (ruthless code-review session).** F4's precise fix (§3B.3
-items 1, 2, 3, 4) has been APPLIED, all four:
+**UPDATE 2026-09-17, FINAL (ruthless code-review session).** F4's precise fix
+(§3B.3 items 1-4) is APPLIED and **confirmed live, end to end, against the
+running Docker stack** (rebuilt image, healthy container, real Qdrant/Redis/
+Memgraph, `cache_bypass: true` — no cached response). The §3B.1 exhibit
+question ("What is the difference between a Suffering State and a Beautiful
+State according to Sri Preethaji and Sri Krishnaji?") now returns a citation
+with `"chunk_provenance": "verbatim_speech", "speaker": "Unknown Channel"` —
+the exact fields that were null through eleven prior live-probe rounds this
+session.
+
+**Items 1-4 applied:**
 1. `build_knowledge_block` and the budgeted fallback path (`rag/nodes/generation.py`)
-   now emit `[Kind: MACHINE SUMMARY | THIRD-PARTY COMMENTARY | VERBATIM]` on
-   every retrieved source, driven by `chunk_provenance`/`raptor_level` (never
-   the `title == ""` heuristic this doc explicitly warned against), and never
-   render an empty `[Source: ]` line.
-2. `GURU_SYSTEM_PROMPT` (`rag/prompts/system.py`) now instructs the model to
-   never quote or attribute a MACHINE SUMMARY source to the teachers.
-3. `retrieve_for_single_query` (`rag/nodes/retrieval.py`) now fuses
-   `[chunk_results, summary_results]` — verbatim leaf chunks first — so tied
-   RRF/DBSF scores no longer default to a machine summary at rank 1.
-4. `extract_citations` (`rag/nodes/citation_extractor.py`) now carries
+   emit `[Kind: MACHINE SUMMARY | THIRD-PARTY COMMENTARY | VERBATIM]` on every
+   retrieved source, driven by `chunk_provenance`/`raptor_level` (never the
+   `title == ""` heuristic this doc originally warned against), and never
+   render an empty `[Source: ]` line. Verified directly: calling
+   `build_knowledge_block()` against the exact exhibit doc shapes now produces
+   the correct label and a non-empty source line.
+2. `GURU_SYSTEM_PROMPT` (`rag/prompts/system.py`) instructs the model to never
+   quote or attribute a MACHINE SUMMARY source to the teachers.
+3. `retrieve_for_single_query` (`rag/nodes/retrieval.py`) fuses
+   `[chunk_results, summary_results]` — verbatim leaf chunks first — so a tied
+   RRF/DBSF score no longer defaults to a machine summary at rank 1.
+4. `extract_citations` (`rag/nodes/citation_extractor.py`) carries
    `chunk_provenance`/`speaker` onto every citation object.
 
-Unit-level verification: `ruff check`/`format` clean, full backend suite
-4508/4509 passing (1 pre-existing unrelated failure), the persona-budget
-regression this addition triggered was fixed
-(`generation_persona_token_budget` 2048→2150). **NOT re-verified**: this fix
-has not been re-run against the live exhibit question in §3B.1 with a running
-Qdrant/LLM stack — that requires the infrastructure this audit used and this
-session did not have. Before trusting "demo-safe" again, re-run the exact
-§3B.1 probe and confirm the rendered prompt now carries the `[Kind: ...]`
-label and a non-empty `[Source: ...]` line for both exhibit documents, and
-re-derive §4's demo-safe subset from a fresh measurement — do not assume it
-from this fix alone.
+**The actual root cause of "citations still null after items 1-4 landed"
+turned out to be THREE separate bugs downstream of the fix, found only by
+live-tracing the real request path with temporary diagnostic logging (all
+removed before commit) — not visible from code reading alone:**
+
+- **`app/schemas/__init__.py`**: the `Citation` pydantic response model only
+  declared `url`/`title` — silently stripped `chunk_provenance`/`speaker` on
+  serialization regardless of what upstream code produced. Fixed: both fields
+  added as `Optional[str]`.
+- **`services/qdrant/neighbor.py`**: a *separate* direct-Qdrant path (the
+  `enrich_context` node's context-enrichment-window neighbor-chunk fetch) that
+  never went through `services/qdrant/searcher.py`'s hit mapping, so it never
+  stamped provenance even though the underlying Qdrant payload has it (100%
+  corpus coverage confirmed — `points/count` with a `must_not` provenance
+  filter returned 0 of 12,904). Fixed: added the same `chunk_provenance`/
+  `speaker` stamping searcher.py does.
+- **`rag/nodes/retrieval.py`'s `_okf_match`**: OKF (curated doctrine bundle)
+  entries never went through searcher.py either — they're not Qdrant chunks at
+  all — so they never carried provenance, even though OKF is reviewed,
+  approved doctrine. Fixed: stamped `chunk_provenance="polished_speech"` (not
+  `MACHINE_SUMMARY` — an OKF entry is not raw LLM output at answer time) plus
+  top-level `title`/`source_url` so citations can resolve them.
+- **The actual final blocker — `app/orchestrator.py` and `app/chat_engine.py`
+  each had their OWN duplicate `_coerce_citations` function**, unrelated to
+  `rag/nodes/generation.py`'s `_sanitize_citations` (which was already fixed
+  and confirmed working via a `clean_out` trace showing the correct enriched
+  dict). These two duplicates run downstream, in the job-queue worker's
+  response-building path (`queue_worker_factory` → `orchestrate()` →
+  `ChatResponse(citations=_coerce_citations(...))`) and the direct/streaming
+  chat paths respectively, and **both independently rebuilt each citation as
+  `{"url": ..., "title": ...}`-only**, discarding the two new fields a second
+  time regardless of how correct the upstream code was. This is the exact
+  "canonical string/formula re-transcribed elsewhere and drifting" defect
+  class this repo's own `CLAUDE.md` names as a recurring failure mode. Fixed:
+  both copies now carry `chunk_provenance`/`speaker` through identically.
+
+**Full verification chain (all against the live container, not mocks):**
+`ruff check`/`format` clean on every touched file; full backend suite
+4508/4509 passing (the 1 failure is `test_extractor_llm_chain_has_all_fallbacks
+[MultiProviderLLMService]`, attributed to a concurrent peer session per
+`lessons.md` L-CONCUR-1, unrelated to this work); the persona-budget
+regression the new prompt rule triggered was fixed
+(`generation_persona_token_budget` 2048→2150,
+`test_persona_budget_fits_the_whole_constitution` passes); eleven live
+rebuild-and-probe cycles against the real Docker stack, ending with the
+exhibit citation showing real `chunk_provenance`/`speaker` values.
+
+**Still owed before re-declaring "demo-safe" (§4):** this session verified ONE
+question end-to-end, not the full original question set. Re-run §4's
+derivation from a fresh, systematic pass over the demo question bank before
+trusting its verdict — a single spot-check proves the mechanism works, not
+that every question is safe.
 
 ---
 
