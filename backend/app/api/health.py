@@ -6,6 +6,7 @@ import asyncio
 import logging
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi import status as http_status
@@ -13,7 +14,7 @@ from fastapi.responses import JSONResponse, Response
 
 import app.dependencies as _app_deps
 from app.config import settings
-from app.dependencies import ServiceContainer, get_container
+from app.dependencies import ServiceContainer, get_container, get_container_async
 from app.metrics import HEALTH_CHECK_TOTAL, metrics_endpoint
 from app.runtime_artifacts import inspect_runtime_artifacts
 from app.runtime_metrics import observe_queue_depths
@@ -22,6 +23,27 @@ from services.auth_service import get_current_user_from_supabase, require_aal2
 
 router = APIRouter(tags=["Health"])
 logger = logging.getLogger(__name__)
+
+# Dedicated bounded pool for this module's own blocking probes (qdrant,
+# embedding, exact-cache telemetry, OCR, neo4j/memgraph). Deliberately
+# separate from asyncio's shared default executor, which chat traffic's
+# embedding/rerank/memory/admin calls also compete for (see
+# services/embedding_service.py's _EMBED_EXECUTOR for the same pattern) --
+# a healthcheck that queues behind chat-traffic thread starvation cannot
+# report on that starvation. Small and fixed: this is a liveness probe, not
+# a workload.
+_HEALTH_EXECUTOR = ThreadPoolExecutor(max_workers=4, thread_name_prefix="health-check")
+
+# Hard ceiling on /api/health's total wall time, independent of how many
+# downstream checks misbehave or how their individual per-check timeouts
+# compose. 2026-09 incident: /api/health itself hung for minutes under
+# concurrent load with no response at all -- per-check asyncio.wait_for()
+# timeouts only bound a check that actually yields to the event loop
+# (see the _check_neo4j fix below for one that didn't), and even where they
+# do bound correctly, checks ran serially, so the worst case was the SUM of
+# every per-check timeout, not the max. This wraps the whole check sequence
+# so the endpoint always answers by this deadline no matter what.
+_HEALTH_HARD_BOUND_SECONDS = 12.0
 
 
 def _availability_flag(service) -> bool:
@@ -94,12 +116,37 @@ async def healthz() -> JSONResponse:
 
 
 @router.get("/api/health")
-async def health_endpoint(container: ServiceContainer = Depends(get_container)) -> JSONResponse:
+async def health_endpoint(
+    container: ServiceContainer = Depends(get_container_async),
+) -> JSONResponse:
     """Comprehensive service health with go/no-go status for each service.
 
-    Returns per-service status, latency, and an overall 'ready' flag.
-    Useful for debugging startup hangs and production monitoring.
+    Returns per-service status, latency, and an overall 'ready' flag. Hard-
+    bounded to _HEALTH_HARD_BOUND_SECONDS total wall time regardless of how
+    downstream checks behave -- see that constant's docstring.
     """
+    try:
+        return await asyncio.wait_for(
+            _build_health_response(container), timeout=_HEALTH_HARD_BOUND_SECONDS
+        )
+    except TimeoutError:
+        HEALTH_CHECK_TOTAL.labels(result="not_ready").inc()
+        logger.error(
+            "/api/health exceeded its %ss hard bound; returning unhealthy without waiting further",
+            _HEALTH_HARD_BOUND_SECONDS,
+        )
+        return JSONResponse(
+            {
+                "ready": False,
+                "status": "unhealthy",
+                "message": f"health check exceeded {_HEALTH_HARD_BOUND_SECONDS}s hard bound",
+                "services": {},
+            },
+            status_code=http_status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
+
+async def _build_health_response(container: ServiceContainer) -> JSONResponse:
     if not _app_deps.startup_complete:
         HEALTH_CHECK_TOTAL.labels(result="not_ready").inc()
         return JSONResponse(
@@ -138,12 +185,32 @@ async def health_endpoint(container: ServiceContainer = Depends(get_container)) 
             }
 
     # Infrastructure
-    await check("qdrant", loop.run_in_executor(None, container.qdrant.health_check), critical=True)
+    await check(
+        "qdrant",
+        loop.run_in_executor(_HEALTH_EXECUTOR, container.qdrant.health_check),
+        critical=True,
+    )
     await check("redis", _check_redis(container), critical=True)
     await check("neo4j", _check_neo4j(container), critical=False)
 
     # LLM
+    # health_check() alone pings the provider's raw HTTP endpoint directly --
+    # every provider adapter (Sarvam/Ollama/OpenRouter/NIM) does this without
+    # consulting its own circuit breaker, so a wedged-OPEN breaker (the
+    # 2026-09-15 incident: every chat rejected in 11ms by the breaker while
+    # this very ping succeeded at 216ms) still reports "llm: ok". The
+    # breaker's own read-only probe (is_circuit_open(), same fix that closed
+    # that incident on the request-gating path in PipelineCoordinator) must
+    # also gate this status signal, or the signal stays unfalsifiable by the
+    # exact failure it exists to catch.
     await check("llm", container.ollama.health_check(), critical=True)
+    if results["llm"]["ok"] and getattr(container.ollama, "is_circuit_open", None):
+        try:
+            if container.ollama.is_circuit_open():
+                results["llm"]["ok"] = False
+                results["llm"]["error"] = "circuit_open"
+        except Exception as exc:
+            logger.debug("LLM circuit probe failed during health check: %s", exc)
 
     # Embedding — S7: functional probe. The old check (`_encoder is not None`)
     # was presence, not function: a primary loaded at the wrong dimension passed
@@ -158,7 +225,7 @@ async def health_endpoint(container: ServiceContainer = Depends(get_container)) 
             r = emb_svc.encode("ok")
             return r.get("dense") if isinstance(r, dict) else r
 
-        vec = await asyncio.wait_for(asyncio.to_thread(_probe), timeout=5.0)
+        vec = await asyncio.wait_for(loop.run_in_executor(_HEALTH_EXECUTOR, _probe), timeout=5.0)
         dim = len(vec) if vec is not None else None
         embed_ok = dim == settings.embedding_dimension
         results["embedding"] = {
@@ -213,7 +280,9 @@ async def health_endpoint(container: ServiceContainer = Depends(get_container)) 
     }
     if container.exact_cache and hasattr(container.exact_cache, "telemetry_snapshot"):
         try:
-            cache_snapshot = await asyncio.to_thread(container.exact_cache.telemetry_snapshot)
+            cache_snapshot = await loop.run_in_executor(
+                _HEALTH_EXECUTOR, container.exact_cache.telemetry_snapshot
+            )
             if not isinstance(cache_snapshot, dict):
                 cache_snapshot = {}
             snapshot_values = {
@@ -281,8 +350,12 @@ async def health_endpoint(container: ServiceContainer = Depends(get_container)) 
         if not isinstance(value, (int, float)) or isinstance(value, bool):
             backpressure[key] = 0
     backpressure["admission_limited"] = bool(backpressure.get("admission_limited", False))
+    # ok was hardcoded True regardless of admission_limited -- the signal
+    # could never go red for the exact condition (chat semaphore saturated,
+    # new requests stalling) it reports on. Same invariant violation as the
+    # llm/circuit-breaker gap above: falsifiable by nothing.
     results["chat_backpressure"] = {
-        "ok": True,
+        "ok": not backpressure["admission_limited"],
         "latency_ms": 0,
         "critical": False,
         **backpressure,
@@ -306,7 +379,9 @@ async def health_endpoint(container: ServiceContainer = Depends(get_container)) 
     }
 
     # OCR
-    await check("ocr", loop.run_in_executor(None, container.ocr.health_check), critical=False)
+    await check(
+        "ocr", loop.run_in_executor(_HEALTH_EXECUTOR, container.ocr.health_check), critical=False
+    )
 
     # Overall
     critical_ok = all(v["ok"] for v in results.values() if v.get("critical"))
@@ -335,7 +410,7 @@ async def _check_redis(container) -> bool:
         return False
 
 
-async def _check_neo4j(container) -> bool:
+def _check_neo4j_sync(container) -> bool:
     try:
         driver = container.neo4j_driver
         if driver is None:
@@ -347,9 +422,26 @@ async def _check_neo4j(container) -> bool:
         return False
 
 
+async def _check_neo4j(container) -> bool:
+    """Async wrapper around the synchronous Memgraph/Neo4j driver call.
+
+    The driver's session()/run() are blocking calls with no `await` inside
+    them, so a bare `async def` wrapping them directly (as this used to be)
+    has no yield point for asyncio.wait_for()'s timeout to act on -- a slow
+    or hung driver call would block the single event-loop thread itself,
+    not just this one check, freezing every other request in the process
+    (including this same endpoint's other checks). Routed through the
+    dedicated _HEALTH_EXECUTOR so it can actually be bounded and can't be
+    starved by chat traffic's own to_thread() calls.
+    """
+    return await asyncio.get_running_loop().run_in_executor(
+        _HEALTH_EXECUTOR, _check_neo4j_sync, container
+    )
+
+
 @router.get("/api/health/services")
 async def services_health_endpoint(
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> JSONResponse:
     """Alias for /api/health — comprehensive service health with go/no-go per service."""
     return await health_endpoint(container)
@@ -366,7 +458,9 @@ async def health_mfa(user: dict = Depends(require_aal2)) -> dict:
 
 
 @router.get("/api/ready")
-async def readiness_endpoint(container: ServiceContainer = Depends(get_container)) -> JSONResponse:
+async def readiness_endpoint(
+    container: ServiceContainer = Depends(get_container_async),
+) -> JSONResponse:
     """
     Kubernetes readiness probe endpoint.
 
@@ -376,14 +470,27 @@ async def readiness_endpoint(container: ServiceContainer = Depends(get_container
     """
     health = await container.health_status()
 
-    # Check circuit breaker for Sarvam Cloud
+    # Check circuit breaker via the public LLMProvider.is_circuit_open() probe.
+    # H-FALSE-1 (2026-09-17): the old implementation drilled into _service._circuit
+    # (a private path tied to the pre-refactor provider shape). The new provider
+    # hierarchy exposes is_circuit_open() on LLMProvider base (services/llm/base.py)
+    # and has no _service._circuit, so the hasattr guards silently fell through to
+    # circuit_breaker_ok=True even when the breaker was OPEN — the same invariant
+    # violation as F1 (closed in /api/health via BaseCircuitBreaker.is_open()). Use
+    # the same public probe here so both endpoints are consistent: non-reserving
+    # (does not consume a half-open slot) and provider-shape-agnostic.
     circuit_breaker_ok = True
     circuit_state = "unknown"
-    if hasattr(container.ollama, "_service"):
-        svc = container.ollama._service
-        if hasattr(svc, "_circuit"):
-            circuit_state = svc._circuit.get_state().value
-            circuit_breaker_ok = circuit_state == "closed"
+    try:
+        _is_open_fn = getattr(container.ollama, "is_circuit_open", None)
+        if callable(_is_open_fn):
+            if _is_open_fn():
+                circuit_breaker_ok = False
+                circuit_state = "open"
+            else:
+                circuit_state = "closed"
+    except Exception as _cb_exc:
+        logger.debug("Circuit breaker probe failed in /api/ready: %s", _cb_exc)
 
     critical_ok = health.get("qdrant", False) and health.get("ollama", False) and circuit_breaker_ok
 
@@ -419,7 +526,7 @@ def _require_admin(user: dict) -> None:
 
 @router.get("/api/circuit-breaker/status")
 async def circuit_breaker_status(
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
     user: dict = Depends(require_aal2),
 ) -> dict:
     """

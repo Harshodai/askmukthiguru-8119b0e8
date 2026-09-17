@@ -33,6 +33,19 @@ TTFT_SECONDS = Histogram(
     buckets=[0.05, 0.1, 0.25, 0.5, 0.75, 1, 2, 3, 5, 10],
 )
 
+TPOT_SECONDS = Histogram(
+    "guru_tpot_seconds",
+    "Time per output token (streaming) in seconds",
+    ["provider"],
+    buckets=[0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2],
+)
+
+ESCALATION_RATE = Counter(
+    "guru_escalation_total",
+    "Low-confidence retrieval escalations to deep research by outcome",
+    ["outcome"],
+)
+
 REQUEST_COUNT = Counter(
     "guru_requests_total",
     "Total requests by status",
@@ -106,6 +119,7 @@ def observe_slo_latency(tier, seconds):
     _SLO_CHAT_LATENCY.labels(tier=label).observe(secs)
     if secs > SLO_THRESHOLDS[label]:
         SLO_LATENCY_VIOLATIONS_TOTAL.labels(tier=label).inc()
+
 
 HEALTH_CHECK_TOTAL = Counter(
     "health_check_total",
@@ -297,6 +311,7 @@ def set_cache_hit_ratio(cache_type, ratio):
     """Set current cache hit ratio in [0, 1] per cache_type."""
     clamped = min(1.0, max(0.0, float(ratio)))
     CACHE_HIT_RATIO.labels(cache_type=cache_type).set(clamped)
+
 
 # Namespace-aware Redis growth controls. Labels are fixed application namespaces,
 # never user- or tenant-derived, so telemetry cardinality stays bounded.

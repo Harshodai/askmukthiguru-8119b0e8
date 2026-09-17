@@ -101,6 +101,7 @@ def _save_cache(cache: dict):
 
 def _detect_language(text: str) -> str:
     from services.language_detection import detect_language
+
     return detect_language(text[:500])["language"]
 
 

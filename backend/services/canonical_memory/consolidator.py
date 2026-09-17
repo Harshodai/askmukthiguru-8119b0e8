@@ -28,9 +28,8 @@ import asyncio
 import json
 import logging
 import re
-import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
@@ -48,6 +47,7 @@ SNAPSHOT_TABLE = "canonical_memory_compaction_snapshots"
 # Result types
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class ConsolidationResult:
     """Outcome of a consolidation operation.
@@ -64,6 +64,7 @@ class ConsolidationResult:
         audit_event_ids: IDs of audit events created.
         error: Error message if consolidation failed.
     """
+
     user_id: str
     before_count: int = 0
     after_count: int = 0
@@ -89,6 +90,7 @@ class ConsolidationCandidate:
         merged_confidence: The confidence for the merged result.
         merged_importance: The importance for the merged result.
     """
+
     memory_ids: list[str]
     reason: str
     merged_statement: Optional[str] = None
@@ -101,6 +103,7 @@ class ConsolidationCandidate:
 # ---------------------------------------------------------------------------
 # Consolidator
 # ---------------------------------------------------------------------------
+
 
 class CanonicalMemoryConsolidator:
     """Consolidates fragmented memories for a user.
@@ -193,9 +196,7 @@ class CanonicalMemoryConsolidator:
             merged_candidates = await self._llm_merge(candidates, memories)
 
             # 4. Validate
-            validation = self._validate_preservation(
-                memories, merged_candidates
-            )
+            validation = self._validate_preservation(memories, merged_candidates)
             if not validation["valid"]:
                 result.reason = f"Validation failed: {validation['reason']}"
                 result.error = validation["reason"]
@@ -221,16 +222,12 @@ class CanonicalMemoryConsolidator:
             result.rollback_available = snapshot_id is not None
 
             # Apply supersession + creation
-            apply_result = await self._apply_consolidation(
-                user_id, memories, merged_candidates
-            )
+            apply_result = await self._apply_consolidation(user_id, memories, merged_candidates)
             result.superseded_ids = apply_result["superseded_ids"]
             result.created_ids = apply_result["created_ids"]
             result.audit_event_ids = apply_result["audit_event_ids"]
             result.after_count = (
-                result.before_count
-                - len(result.superseded_ids)
-                + len(result.created_ids)
+                result.before_count - len(result.superseded_ids) + len(result.created_ids)
             )
             result.reason = (
                 f"Consolidated: superseded {len(result.superseded_ids)} memories, "
@@ -239,9 +236,7 @@ class CanonicalMemoryConsolidator:
             )
 
         except Exception as e:
-            logger.error(
-                "Consolidation failed for user %s: %s", user_id, e, exc_info=True
-            )
+            logger.error("Consolidation failed for user %s: %s", user_id, e, exc_info=True)
             result.error = str(e)
             result.after_count = result.before_count
 
@@ -259,9 +254,7 @@ class CanonicalMemoryConsolidator:
         try:
             snapshot = await self._fetch_snapshot(snapshot_id)
             if not snapshot:
-                logger.warning(
-                    "Snapshot %s not found for user %s", snapshot_id, user_id
-                )
+                logger.warning("Snapshot %s not found for user %s", snapshot_id, user_id)
                 return False
 
             memories_json = snapshot.get("memories_json", "[]")
@@ -279,22 +272,17 @@ class CanonicalMemoryConsolidator:
             # Re-insert original memories
             for mem in original_memories:
                 mem.pop("id", None)  # Let Postgres generate new IDs
-                await asyncio.to_thread(
-                    self._db.table("canonical_memories")
-                    .insert(mem)
-                    .execute
-                )
+                await asyncio.to_thread(self._db.table("canonical_memories").insert(mem).execute)
 
             logger.info(
                 "Rollback completed for user %s from snapshot %s",
-                user_id, snapshot_id,
+                user_id,
+                snapshot_id,
             )
             return True
 
         except Exception as e:
-            logger.error(
-                "Rollback failed for user %s: %s", user_id, e, exc_info=True
-            )
+            logger.error("Rollback failed for user %s: %s", user_id, e, exc_info=True)
             return False
 
     # ------------------------------------------------------------------
@@ -328,9 +316,7 @@ class CanonicalMemoryConsolidator:
     # Internal: candidate identification
     # ------------------------------------------------------------------
 
-    def _identify_candidates(
-        self, memories: list[dict]
-    ) -> list[ConsolidationCandidate]:
+    def _identify_candidates(self, memories: list[dict]) -> list[ConsolidationCandidate]:
         """Identify groups of memories that should be consolidated.
 
         Heuristics:
@@ -376,16 +362,12 @@ class CanonicalMemoryConsolidator:
                 if group[i]["id"] in used_ids:
                     continue
                 pair_ids = [group[i]["id"]]
-                kw_i = self._extract_keywords(
-                    group[i].get("statement", "")
-                )
+                kw_i = self._extract_keywords(group[i].get("statement", ""))
 
                 for j in range(i + 1, len(group)):
                     if group[j]["id"] in used_ids:
                         continue
-                    kw_j = self._extract_keywords(
-                        group[j].get("statement", "")
-                    )
+                    kw_j = self._extract_keywords(group[j].get("statement", ""))
                     overlap = self._keyword_overlap(kw_i, kw_j)
 
                     if overlap > 0.5:
@@ -396,8 +378,7 @@ class CanonicalMemoryConsolidator:
                         ConsolidationCandidate(
                             memory_ids=pair_ids,
                             reason=(
-                                f"Same type '{mt}' with keyword overlap: "
-                                f"{len(pair_ids)} memories"
+                                f"Same type '{mt}' with keyword overlap: {len(pair_ids)} memories"
                             ),
                         )
                     )
@@ -407,12 +388,8 @@ class CanonicalMemoryConsolidator:
 
     def _extract_keywords(self, text: str) -> set[str]:
         """Extract keywords from text for overlap comparison."""
-        indic = "\u0900-\u097F\u0B80-\u0BFF\u0C00-\u0C7F\u0C80-\u0CFF\u0D00-\u0D7F"
-        return {
-            w.lower()
-            for w in re.findall(rf"[a-zA-Z{indic}]+", text)
-            if len(w) > 2
-        }
+        indic = "\u0900-\u097f\u0b80-\u0bff\u0c00-\u0c7f\u0c80-\u0cff\u0d00-\u0d7f"
+        return {w.lower() for w in re.findall(rf"[a-zA-Z{indic}]+", text) if len(w) > 2}
 
     def _keyword_overlap(self, kw_a: set[str], kw_b: set[str]) -> float:
         """Compute Jaccard overlap between two keyword sets."""
@@ -501,9 +478,7 @@ class CanonicalMemoryConsolidator:
                 "Return ONLY the merged statement, nothing else."
             )
 
-            numbered = "\n".join(
-                f"{i+1}. {s}" for i, s in enumerate(statements)
-            )
+            numbered = "\n".join(f"{i + 1}. {s}" for i, s in enumerate(statements))
             user_msg = (
                 f"Merge these {len(statements)} related facts into one coherent statement:\n\n"
                 f"{numbered}\n\n"
@@ -582,14 +557,8 @@ class CanonicalMemoryConsolidator:
             }
 
         # Check high-importance memories are covered
-        high_importance_ids = {
-            m["id"]
-            for m in original_memories
-            if m.get("importance", 0) >= 0.8
-        }
-        consolidated_ids = {
-            mid for c in candidates for mid in c.memory_ids
-        }
+        high_importance_ids = {m["id"] for m in original_memories if m.get("importance", 0) >= 0.8}
+        consolidated_ids = {mid for c in candidates for mid in c.memory_ids}
         missing_important = high_importance_ids - consolidated_ids
 
         if missing_important:
@@ -599,9 +568,7 @@ class CanonicalMemoryConsolidator:
 
         # Check USER_EXPLICIT memories aren't lost
         explicit_ids = {
-            m["id"]
-            for m in original_memories
-            if m.get("memory_type") == "USER_EXPLICIT"
+            m["id"] for m in original_memories if m.get("memory_type") == "USER_EXPLICIT"
         }
         missing_explicit = explicit_ids - consolidated_ids
 
@@ -615,9 +582,7 @@ class CanonicalMemoryConsolidator:
     # Internal: snapshot and apply
     # ------------------------------------------------------------------
 
-    async def _create_snapshot(
-        self, user_id: str, memories: list[dict]
-    ) -> Optional[str]:
+    async def _create_snapshot(self, user_id: str, memories: list[dict]) -> Optional[str]:
         """Create a snapshot of current memories before consolidation.
 
         Returns snapshot_id for potential rollback.
@@ -626,12 +591,10 @@ class CanonicalMemoryConsolidator:
             snapshot_data = {
                 "user_id": user_id,
                 "memories_json": json.dumps(memories, default=str),
-                "created_at": datetime.now(timezone.utc).isoformat(),
+                "created_at": datetime.now(UTC).isoformat(),
             }
             result = await asyncio.to_thread(
-                self._db.table(SNAPSHOT_TABLE)
-                .insert(snapshot_data)
-                .execute
+                self._db.table(SNAPSHOT_TABLE).insert(snapshot_data).execute
             )
             if result.data:
                 return result.data[0].get("id")
@@ -644,11 +607,7 @@ class CanonicalMemoryConsolidator:
         """Fetch a snapshot by ID."""
         try:
             result = await asyncio.to_thread(
-                self._db.table(SNAPSHOT_TABLE)
-                .select("*")
-                .eq("id", snapshot_id)
-                .single()
-                .execute
+                self._db.table(SNAPSHOT_TABLE).select("*").eq("id", snapshot_id).single().execute
             )
             return result.data if hasattr(result, "data") else None
         except Exception:
@@ -668,7 +627,7 @@ class CanonicalMemoryConsolidator:
         created_ids: list[str] = []
         audit_event_ids: list[str] = []
 
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
 
         for candidate in candidates:
             # Supersede old memories
@@ -683,12 +642,14 @@ class CanonicalMemoryConsolidator:
 
                     await asyncio.to_thread(
                         self._db.table("canonical_memories")
-                        .update({
-                            "status": "superseded",
-                            "valid_to": now,
-                            "version": old_version + 1,
-                            "updated_at": now,
-                        })
+                        .update(
+                            {
+                                "status": "superseded",
+                                "valid_to": now,
+                                "version": old_version + 1,
+                                "updated_at": now,
+                            }
+                        )
                         .eq("id", mid)
                         .eq("version", old_version)
                         .execute
@@ -699,25 +660,25 @@ class CanonicalMemoryConsolidator:
                     # Audit event
                     audit_result = await asyncio.to_thread(
                         self._db.table("canonical_memory_events")
-                        .insert({
-                            "user_id": user_id,
-                            "memory_id": mid,
-                            "event_type": "SUPERSEDED",
-                            "actor": "consolidator",
-                            "old_version": old_version,
-                            "new_version": old_version + 1,
-                            "reason": f"Consolidation: {candidate.reason}",
-                            "created_at": now,
-                        })
+                        .insert(
+                            {
+                                "user_id": user_id,
+                                "memory_id": mid,
+                                "event_type": "SUPERSEDED",
+                                "actor": "consolidator",
+                                "old_version": old_version,
+                                "new_version": old_version + 1,
+                                "reason": f"Consolidation: {candidate.reason}",
+                                "created_at": now,
+                            }
+                        )
                         .execute
                     )
                     if audit_result.data:
                         audit_event_ids.append(audit_result.data[0]["id"])
 
                 except Exception as e:
-                    logger.warning(
-                        "Failed to supersede memory %s: %s", mid, e
-                    )
+                    logger.warning("Failed to supersede memory %s: %s", mid, e)
 
             # Create merged memory
             if candidate.merged_statement:
@@ -742,9 +703,7 @@ class CanonicalMemoryConsolidator:
                         },
                     }
                     create_result = await asyncio.to_thread(
-                        self._db.table("canonical_memories")
-                        .insert(new_mem)
-                        .execute
+                        self._db.table("canonical_memories").insert(new_mem).execute
                     )
 
                     if create_result.data:
@@ -754,25 +713,25 @@ class CanonicalMemoryConsolidator:
                         # Audit event
                         audit_result = await asyncio.to_thread(
                             self._db.table("canonical_memory_events")
-                            .insert({
-                                "user_id": user_id,
-                                "memory_id": new_id,
-                                "event_type": "MERGED",
-                                "actor": "consolidator",
-                                "old_version": 0,
-                                "new_version": 1,
-                                "reason": f"Consolidation: {candidate.reason}",
-                                "created_at": now,
-                            })
+                            .insert(
+                                {
+                                    "user_id": user_id,
+                                    "memory_id": new_id,
+                                    "event_type": "MERGED",
+                                    "actor": "consolidator",
+                                    "old_version": 0,
+                                    "new_version": 1,
+                                    "reason": f"Consolidation: {candidate.reason}",
+                                    "created_at": now,
+                                }
+                            )
                             .execute
                         )
                         if audit_result.data:
                             audit_event_ids.append(audit_result.data[0]["id"])
 
                 except Exception as e:
-                    logger.warning(
-                        "Failed to create merged memory: %s", e
-                    )
+                    logger.warning("Failed to create merged memory: %s", e)
 
         return {
             "superseded_ids": superseded_ids,
@@ -784,6 +743,7 @@ class CanonicalMemoryConsolidator:
 # ---------------------------------------------------------------------------
 # Factory
 # ---------------------------------------------------------------------------
+
 
 def create_consolidator(
     supabase_client: Any,

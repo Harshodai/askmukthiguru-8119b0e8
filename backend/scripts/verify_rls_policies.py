@@ -29,6 +29,7 @@ from pathlib import Path
 from typing import Any
 
 import requests
+
 from supabase import Client, ClientOptions, create_client
 
 DEFAULT_SUPABASE_URL = "http://localhost:54321"
@@ -308,7 +309,12 @@ def run_verification() -> dict[str, Any]:
 
             if bob_select.data:
                 failures.append(
-                    {"table": "conversations", "op": "select", "expected": [], "got": bob_select.data}
+                    {
+                        "table": "conversations",
+                        "op": "select",
+                        "expected": [],
+                        "got": bob_select.data,
+                    }
                 )
             if bob_update.data:
                 failures.append(
@@ -359,7 +365,12 @@ def run_verification() -> dict[str, Any]:
 
             if bob_select.data:
                 failures.append(
-                    {"table": "chat_messages", "op": "select", "expected": [], "got": bob_select.data}
+                    {
+                        "table": "chat_messages",
+                        "op": "select",
+                        "expected": [],
+                        "got": bob_select.data,
+                    }
                 )
             if bob_update.data:
                 failures.append(
@@ -393,14 +404,18 @@ def run_verification() -> dict[str, Any]:
             sess_id = sess_resp.data[0]["id"]
             seeded_ids["meditation_sessions"].append(sess_id)
 
-            bob_select = bob_client.table("meditation_sessions").select("*").eq("id", sess_id).execute()
+            bob_select = (
+                bob_client.table("meditation_sessions").select("*").eq("id", sess_id).execute()
+            )
             bob_update = (
                 bob_client.table("meditation_sessions")
                 .update({"duration_seconds": 9999})
                 .eq("id", sess_id)
                 .execute()
             )
-            bob_delete = bob_client.table("meditation_sessions").delete().eq("id", sess_id).execute()
+            bob_delete = (
+                bob_client.table("meditation_sessions").delete().eq("id", sess_id).execute()
+            )
 
             if bob_select.data:
                 failures.append(
@@ -451,7 +466,9 @@ def run_verification() -> dict[str, Any]:
             prof_id = prof_resp.data[0]["user_id"]
             seeded_ids["user_profiles"].append(prof_id)
 
-            bob_select = bob_client.table("user_profiles").select("*").eq("user_id", prof_id).execute()
+            bob_select = (
+                bob_client.table("user_profiles").select("*").eq("user_id", prof_id).execute()
+            )
             bob_update = (
                 bob_client.table("user_profiles")
                 .update({"preferred_language": "hi"})
@@ -462,7 +479,12 @@ def run_verification() -> dict[str, Any]:
 
             if bob_select.data:
                 failures.append(
-                    {"table": "user_profiles", "op": "select", "expected": [], "got": bob_select.data}
+                    {
+                        "table": "user_profiles",
+                        "op": "select",
+                        "expected": [],
+                        "got": bob_select.data,
+                    }
                 )
             if bob_update.data:
                 failures.append(
@@ -503,7 +525,9 @@ def run_verification() -> dict[str, Any]:
             if streak_resp.data:
                 seeded_ids["user_streaks"].append(alice_id)
 
-            bob_select = bob_client.table("user_streaks").select("*").eq("user_id", alice_id).execute()
+            bob_select = (
+                bob_client.table("user_streaks").select("*").eq("user_id", alice_id).execute()
+            )
             bob_update = (
                 bob_client.table("user_streaks")
                 .update({"current_streak": 0})
@@ -514,7 +538,12 @@ def run_verification() -> dict[str, Any]:
 
             if bob_select.data:
                 failures.append(
-                    {"table": "user_streaks", "op": "select", "expected": [], "got": bob_select.data}
+                    {
+                        "table": "user_streaks",
+                        "op": "select",
+                        "expected": [],
+                        "got": bob_select.data,
+                    }
                 )
             if bob_update.data:
                 failures.append(
@@ -555,18 +584,27 @@ def run_verification() -> dict[str, Any]:
             card_id = card_resp.data[0]["id"]
             seeded_ids["user_retention_cards"].append(card_id)
 
-            bob_select = bob_client.table("user_retention_cards").select("*").eq("id", card_id).execute()
+            bob_select = (
+                bob_client.table("user_retention_cards").select("*").eq("id", card_id).execute()
+            )
             bob_update = (
                 bob_client.table("user_retention_cards")
                 .update({"question": "Hacked by Bob"})
                 .eq("id", card_id)
                 .execute()
             )
-            bob_delete = bob_client.table("user_retention_cards").delete().eq("id", card_id).execute()
+            bob_delete = (
+                bob_client.table("user_retention_cards").delete().eq("id", card_id).execute()
+            )
 
             if bob_select.data:
                 failures.append(
-                    {"table": "user_retention_cards", "op": "select", "expected": [], "got": bob_select.data}
+                    {
+                        "table": "user_retention_cards",
+                        "op": "select",
+                        "expected": [],
+                        "got": bob_select.data,
+                    }
                 )
             if bob_update.data:
                 failures.append(
@@ -611,7 +649,12 @@ def run_verification() -> dict[str, Any]:
 
             if bob_select.data:
                 failures.append(
-                    {"table": "study_notebooks", "op": "select", "expected": [], "got": bob_select.data}
+                    {
+                        "table": "study_notebooks",
+                        "op": "select",
+                        "expected": [],
+                        "got": bob_select.data,
+                    }
                 )
             if bob_update.data:
                 failures.append(
@@ -639,7 +682,13 @@ def run_verification() -> dict[str, Any]:
         try:
             ep_resp = (
                 alice_client.table("user_episodes")
-                .insert({"user_id": alice_id, "query": "What is enlightenment?", "answer": "Inner freedom."})
+                .insert(
+                    {
+                        "user_id": alice_id,
+                        "query": "What is enlightenment?",
+                        "answer": "Inner freedom.",
+                    }
+                )
                 .execute()
             )
             ep_id = ep_resp.data[0]["id"]
@@ -656,7 +705,12 @@ def run_verification() -> dict[str, Any]:
 
             if bob_select.data:
                 failures.append(
-                    {"table": "user_episodes", "op": "select", "expected": [], "got": bob_select.data}
+                    {
+                        "table": "user_episodes",
+                        "op": "select",
+                        "expected": [],
+                        "got": bob_select.data,
+                    }
                 )
             if bob_update.data:
                 failures.append(
@@ -684,7 +738,13 @@ def run_verification() -> dict[str, Any]:
         try:
             wl_resp = (
                 service_client.table("waitlist_entries")
-                .insert({"email": f"waitlist-{uuid.uuid4().hex[:8]}@gmail.com", "name": "Alice Waitlist", "source": "rls_probe"})
+                .insert(
+                    {
+                        "email": f"waitlist-{uuid.uuid4().hex[:8]}@gmail.com",
+                        "name": "Alice Waitlist",
+                        "source": "rls_probe",
+                    }
+                )
                 .execute()
             )
             wl_id = wl_resp.data[0]["id"]
@@ -701,7 +761,12 @@ def run_verification() -> dict[str, Any]:
 
             if bob_select.data:
                 failures.append(
-                    {"table": "waitlist_entries", "op": "select", "expected": [], "got": bob_select.data}
+                    {
+                        "table": "waitlist_entries",
+                        "op": "select",
+                        "expected": [],
+                        "got": bob_select.data,
+                    }
                 )
             if bob_update.data:
                 failures.append(
@@ -738,24 +803,46 @@ def run_verification() -> dict[str, Any]:
 
             asm_resp = (
                 service_client.table("assistant_scope_metadata")
-                .insert({"assistant_id": ast_id, "corpus_id": "askmukthiguru", "rights_status": "pending", "rollout_enabled": False})
+                .insert(
+                    {
+                        "assistant_id": ast_id,
+                        "corpus_id": "askmukthiguru",
+                        "rights_status": "pending",
+                        "rollout_enabled": False,
+                    }
+                )
                 .execute()
             )
             asm_id = asm_resp.data[0]["assistant_id"]
             seeded_ids["assistant_scope_metadata"].append(asm_id)
 
-            bob_select = bob_client.table("assistant_scope_metadata").select("*").eq("assistant_id", asm_id).execute()
+            bob_select = (
+                bob_client.table("assistant_scope_metadata")
+                .select("*")
+                .eq("assistant_id", asm_id)
+                .execute()
+            )
             bob_update = (
                 bob_client.table("assistant_scope_metadata")
                 .update({"corpus_id": "hacked"})
                 .eq("assistant_id", asm_id)
                 .execute()
             )
-            bob_delete = bob_client.table("assistant_scope_metadata").delete().eq("assistant_id", asm_id).execute()
+            bob_delete = (
+                bob_client.table("assistant_scope_metadata")
+                .delete()
+                .eq("assistant_id", asm_id)
+                .execute()
+            )
 
             if bob_select.data:
                 failures.append(
-                    {"table": "assistant_scope_metadata", "op": "select", "expected": [], "got": bob_select.data}
+                    {
+                        "table": "assistant_scope_metadata",
+                        "op": "select",
+                        "expected": [],
+                        "got": bob_select.data,
+                    }
                 )
             if bob_update.data:
                 failures.append(
@@ -809,9 +896,7 @@ def run_verification() -> dict[str, Any]:
                 .eq("id", cm_id)
                 .execute()
             )
-            bob_delete = (
-                bob_client.table("canonical_memories").delete().eq("id", cm_id).execute()
-            )
+            bob_delete = bob_client.table("canonical_memories").delete().eq("id", cm_id).execute()
             if bob_select.data:
                 failures.append(
                     {
@@ -870,7 +955,12 @@ def run_verification() -> dict[str, Any]:
 
             if bob_select.data:
                 failures.append(
-                    {"table": "memory_outbox", "op": "select", "expected": [], "got": bob_select.data}
+                    {
+                        "table": "memory_outbox",
+                        "op": "select",
+                        "expected": [],
+                        "got": bob_select.data,
+                    }
                 )
             if bob_update.data:
                 failures.append(
@@ -931,7 +1021,9 @@ def run_verification() -> dict[str, Any]:
                 try:
                     delete_user(user_id)
                 except Exception as exc:
-                    cleanup_failures.append({"table": "auth.users", "user_id": user_id, "error": str(exc)})
+                    cleanup_failures.append(
+                        {"table": "auth.users", "user_id": user_id, "error": str(exc)}
+                    )
 
     return {
         "ok": len(failures) == 0 and len(cleanup_failures) == 0,

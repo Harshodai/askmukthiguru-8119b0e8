@@ -1,8 +1,9 @@
 """Observability for canonical memory system."""
+
 import datetime as dt
 import time
-from typing import Dict, Any, Optional
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from typing import Any, Optional
 
 
 @dataclass
@@ -36,14 +37,16 @@ class MemoryMonitor:
         self._start_time = time.time()
         self._event_log: list = []
 
-    def record(self, event_type: str, details: Optional[Dict[str, Any]] = None):
-        self._event_log.append({
-            "timestamp": dt.datetime.now(dt.timezone.utc).isoformat(),
-            "event": event_type,
-            "details": details or {}
-        })
+    def record(self, event_type: str, details: Optional[dict[str, Any]] = None):
+        self._event_log.append(
+            {
+                "timestamp": dt.datetime.now(dt.UTC).isoformat(),
+                "event": event_type,
+                "details": details or {},
+            }
+        )
 
-    def get_health(self) -> Dict[str, Any]:
+    def get_health(self) -> dict[str, Any]:
         uptime = time.time() - self._start_time
         return {
             "status": "healthy",
@@ -52,39 +55,40 @@ class MemoryMonitor:
             "extraction_total": self.metrics.extraction_count,
             "extraction_rejection_rate": (
                 self.metrics.extraction_rejected / self.metrics.extraction_count
-                if self.metrics.extraction_count > 0 else 0.0
+                if self.metrics.extraction_count > 0
+                else 0.0
             ),
             "resolution_breakdown": {
                 "created": self.metrics.resolution_created,
                 "superseded": self.metrics.resolution_superseded,
                 "merged": self.metrics.resolution_merged,
-                "deleted": self.metrics.resolution_deleted
+                "deleted": self.metrics.resolution_deleted,
             },
             "consolidation": {
                 "runs": self.metrics.consolidation_runs,
                 "applied": self.metrics.consolidation_applied,
-                "errors": self.metrics.consolidation_errors
+                "errors": self.metrics.consolidation_errors,
             },
             "vector_index": {
                 "size": self.metrics.vector_index_size,
-                "orphan_count": self.metrics.orphan_count
-            }
+                "orphan_count": self.metrics.orphan_count,
+            },
         }
 
     def get_recent_events(self, limit: int = 50) -> list:
         return self._event_log[-limit:]
 
-    def get_drift_report(self, user_id: str, db_client) -> Dict[str, Any]:
-        canonical = db_client.table("canonical_memories").select("id").eq(
-            "user_id", user_id
-        ).execute()
+    def get_drift_report(self, user_id: str, db_client) -> dict[str, Any]:
+        canonical = (
+            db_client.table("canonical_memories").select("id").eq("user_id", user_id).execute()
+        )
         vector_count = self.metrics.vector_index_size
         canonical_count = len(canonical.data) if canonical.data else 0
         return {
             "canonical_count": canonical_count,
             "vector_count": vector_count,
             "drift": abs(canonical_count - vector_count),
-            "consistent": canonical_count == vector_count
+            "consistent": canonical_count == vector_count,
         }
 
 

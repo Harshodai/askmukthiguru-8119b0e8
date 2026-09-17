@@ -25,7 +25,11 @@ from typing import Any, Optional
 import aiohttp
 
 from app.config import settings
-from services.circuit_breaker import DefaultCircuitBreaker, CircuitBreakerConfig, get_circuit_breaker_registry
+from services.circuit_breaker import (
+    CircuitBreakerConfig,
+    DefaultCircuitBreaker,
+    get_circuit_breaker_registry,
+)
 
 
 class TokenBucket:

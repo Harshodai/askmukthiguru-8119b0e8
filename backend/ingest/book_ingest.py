@@ -14,6 +14,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import re
 import uuid
 from pathlib import Path
 from typing import Any
@@ -22,6 +23,8 @@ logger = logging.getLogger(__name__)
 
 BOOK_SOURCE_NAME = "The_Four_Sacred_Secrets.pdf"
 LIGHTRAG_CHUNK_SIZE = 1500
+
+_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?\u0964\n])\s+")
 
 
 def flatten_book_structure(structure: list[dict]) -> list[dict]:
@@ -176,7 +179,37 @@ def _full_text(structure: list[dict]) -> str:
 
 
 def _chunk_text(text: str, size: int = LIGHTRAG_CHUNK_SIZE) -> list[str]:
-    return [text[i : i + size] for i in range(0, len(text), size)] or [text]
+    """Split text into <=size chunks on sentence boundaries (stdlib only).
+
+    Sentences (split on . ! ? \u0964 and newlines) are packed greedily so no chunk
+    cuts mid-sentence. A single over-long sentence falls back to a hard cut so
+    chunks stay bounded.
+    """
+    if not text:
+        return [text]
+    sentences = [s for s in _SENTENCE_SPLIT_RE.split(text) if s]
+    if not sentences:
+        return [text]
+    chunks: list[str] = []
+    current = ""
+    for sentence in sentences:
+        while len(sentence) > size:
+            if current:
+                chunks.append(current)
+                current = ""
+            chunks.append(sentence[:size])
+            sentence = sentence[size:]
+        if not sentence:
+            continue
+        candidate = f"{current} {sentence}".strip() if current else sentence
+        if len(candidate) <= size:
+            current = candidate
+        else:
+            chunks.append(current)
+            current = sentence
+    if current:
+        chunks.append(current)
+    return chunks or [text]
 
 
 async def ingest_book(json_path: str, collection: str) -> dict[str, Any]:
@@ -187,6 +220,7 @@ async def ingest_book(json_path: str, collection: str) -> dict[str, Any]:
     from app.dependencies import get_container
     from services.embedding_service import get_embedding_service
     from services.qdrant_service import QdrantService
+    from services.text_quality_filter import find_artifact, select_clean
 
     path = Path(json_path)
     with path.open(encoding="utf-8") as f:
@@ -207,6 +241,21 @@ async def ingest_book(json_path: str, collection: str) -> dict[str, Any]:
         batch = chunks[i : i + batch_size]
         texts = [c["text"] for c in batch]
         metadatas = [c["metadata"] for c in batch]
+        # Ingestion safety invariant (L-INGEST-1): quality-gate every chunk
+        # before embedding so artifacts never reach Qdrant. Parallel arrays
+        # stay aligned via keep-indices filtering.
+        _keep, _rejected = select_clean(texts)
+        if _rejected:
+            logger.warning(
+                "book_ingest: rejected %d/%d Qdrant chunks failing quality gate. First: %r",
+                len(_rejected),
+                len(texts),
+                _rejected[0][1],
+            )
+            texts = [texts[k] for k in _keep]
+            metadatas = [metadatas[k] for k in _keep]
+        if not texts:
+            continue
         encoded = embeddings.encode_batch(texts)
         qdrant.upsert_chunks(
             texts=texts,
@@ -226,6 +275,17 @@ async def ingest_book(json_path: str, collection: str) -> dict[str, Any]:
 
         full_text = _full_text(structure)
         for i, piece in enumerate(_chunk_text(full_text)):
+            # Ingestion safety invariant (L-INGEST-1): gate every piece before
+            # graph ingestion; rejected pieces count as failed (absent from graph).
+            artifact = find_artifact(piece)
+            if artifact is not None:
+                lightrag_failed += 1
+                logger.warning(
+                    "book_ingest: rejecting LightRAG chunk %d failing quality gate: %r",
+                    i,
+                    artifact,
+                )
+                continue
             try:
                 await container.lightrag.ainsert(
                     f"[Source: {BOOK_SOURCE_NAME}]\n{piece}",

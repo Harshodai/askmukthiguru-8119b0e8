@@ -19,5 +19,7 @@ class UserHealingProgress(BaseModel):
 
 
 if __name__ == "__main__":
-    p = UserHealingProgress(user_id="u1", course_slug="test", current_step=2, completed_steps=["s1", "s2"])
+    p = UserHealingProgress(
+        user_id="u1", course_slug="test", current_step=2, completed_steps=["s1", "s2"]
+    )
     print(p.model_dump_json(indent=2))

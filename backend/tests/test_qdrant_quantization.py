@@ -9,8 +9,12 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from qdrant_client.http.models import (
     BinaryQuantization,
     ScalarQuantization,
-    TurboQuantization,
 )
+
+try:
+    from qdrant_client.http.models import TurboQuantization
+except ImportError:
+    TurboQuantization = None
 
 from services.qdrant.client import QdrantClientManager
 from services.qdrant.searcher import QdrantSearcher
@@ -22,6 +26,7 @@ def test_scalar_int8_matches_legacy_config():
     assert isinstance(cfg, ScalarQuantization)
     assert cfg.scalar.type.value == "int8"
     assert cfg.scalar.always_ram is True
+    assert cfg.scalar.quantile == 0.99
 
 
 def test_binary_config():
@@ -31,6 +36,8 @@ def test_binary_config():
 
 
 def test_turboquant_configs():
+    if TurboQuantization is None:
+        pytest.skip("TurboQuantization not supported by installed qdrant-client")
     for setting, expected in [
         ("turboquant_1bit", "bits1"),
         ("turboquant_2bit", "bits2"),

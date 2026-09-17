@@ -19,7 +19,6 @@ import pytest
 from benchmarks.question_bank import QUERIES
 from benchmarks.ruthless_benchmark import check_corpus_readiness
 
-
 # ═══════════════════════════════════════════════════════════════════════════
 # 1. HARNESS GUARD RUNTIME ABORT TESTS
 # ═══════════════════════════════════════════════════════════════════════════
@@ -191,9 +190,7 @@ def test_question_bank_doctrine_categories_enforce_min_citations():
 
         for idx, item in enumerate(items):
             min_cites = item.get("min_cites")
-            assert (
-                min_cites is not None and isinstance(min_cites, int) and min_cites >= 1
-            ), (
+            assert min_cites is not None and isinstance(min_cites, int) and min_cites >= 1, (
                 f"Vacuous citation pass risk! {category_name}[{idx}] ({item.get('q')}) "
                 f"has min_cites={min_cites!r} (must be >= 1)"
             )
@@ -207,9 +204,7 @@ def test_question_bank_verified_cases_enforce_min_citations():
         for idx, item in enumerate(items):
             if isinstance(item, dict) and item.get("verified") is True:
                 min_cites = item.get("min_cites")
-                assert (
-                    min_cites is not None and isinstance(min_cites, int) and min_cites >= 1
-                ), (
+                assert min_cites is not None and isinstance(min_cites, int) and min_cites >= 1, (
                     f"Verified case without citation floor! {category_name}[{idx}] ({item.get('q')}) "
                     f"has verified=True but min_cites={min_cites!r}"
                 )
@@ -219,7 +214,11 @@ def test_question_bank_lokaa_query_has_citation_floor():
     """Specific regression test: 'Who is Lokaa?' must have min_cites >= 1."""
     founders_queries = QUERIES.get("doctrine_founders", [])
     lokaa_item = next(
-        (it for it in founders_queries if isinstance(it, dict) and "Who is Lokaa?" in it.get("q", "")),
+        (
+            it
+            for it in founders_queries
+            if isinstance(it, dict) and "Who is Lokaa?" in it.get("q", "")
+        ),
         None,
     )
     assert lokaa_item is not None, "Could not find 'Who is Lokaa?' query in doctrine_founders"
@@ -242,10 +241,10 @@ def test_evaluation_manifest_doctrine_cases_enforce_min_citations():
         cat = case.get("source_category", "")
         stratum = case.get("benchmark_stratum", "")
         # Check doctrine categories (excluding refusal traps like doctrine_traps)
-        if (cat in DOCTRINE_CATEGORIES) or (stratum == "in_corpus_doctrine" and cat != "doctrine_traps"):
+        if (cat in DOCTRINE_CATEGORIES) or (
+            stratum == "in_corpus_doctrine" and cat != "doctrine_traps"
+        ):
             min_c = case.get("min_citations")
-            assert (
-                min_c is not None and isinstance(min_c, int) and min_c >= 1
-            ), (
+            assert min_c is not None and isinstance(min_c, int) and min_c >= 1, (
                 f"Manifest case {case.get('case_id')} in {cat} has min_citations={min_c!r} (must be >= 1)"
             )

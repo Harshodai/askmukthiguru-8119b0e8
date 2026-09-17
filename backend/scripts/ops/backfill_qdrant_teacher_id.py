@@ -47,15 +47,15 @@ import collections
 import os
 import re
 import sys
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Optional
 
 
 def classify_teacher(
     title: str,
     speaker: str,
-    tags: List[str],
-    titles: Optional[List[str]] = None,
-) -> Tuple[str, List[str], str]:
+    tags: list[str],
+    titles: Optional[list[str]] = None,
+) -> tuple[str, list[str], str]:
     """
     Deterministically classify teacher from title, speaker, and tags.
     Returns: (teacher_id, teacher_ids, rationale)
@@ -63,7 +63,7 @@ def classify_teacher(
     title_clean = (title or "").strip()
     speaker_clean = (speaker or "").strip()
     tags_clean = [t.lower().strip() for t in (tags or [])]
-    
+
     # Also incorporate titles array if present (e.g. for RAPTOR summaries)
     all_titles_text = title_clean
     if titles:
@@ -73,58 +73,94 @@ def classify_teacher(
             all_titles_text += " " + titles
 
     combined = f"{all_titles_text} {speaker_clean}".lower()
-    
+
     # Check for whole-word teacher references in title and speaker
-    has_preethaji = bool(re.search(r"\b(?:preethaji|prithaji|sri preetha|preetha ji)\b", combined, re.IGNORECASE))
-    has_krishnaji = bool(re.search(r"\b(?:krishnaji|sri krishna|krishna ji|srikrishnaji)\b", combined, re.IGNORECASE))
-    
+    has_preethaji = bool(
+        re.search(r"\b(?:preethaji|prithaji|sri preetha|preetha ji)\b", combined, re.IGNORECASE)
+    )
+    has_krishnaji = bool(
+        re.search(r"\b(?:krishnaji|sri krishna|krishna ji|srikrishnaji)\b", combined, re.IGNORECASE)
+    )
+
     # Explicit Amma Bhagavan check (whole words only!)
-    has_amma_bhagavan = bool(re.search(r"\b(?:sri amma bhagavan|amma bhagavan|kalki bhagavan)\b", combined, re.IGNORECASE))
-    
+    has_amma_bhagavan = bool(
+        re.search(
+            r"\b(?:sri amma bhagavan|amma bhagavan|kalki bhagavan)\b", combined, re.IGNORECASE
+        )
+    )
+
     # 1. Title/speaker explicitly mentions both Preethaji and Krishnaji
     if has_preethaji and has_krishnaji:
         return "preethaji_krishnaji", ["preethaji", "krishnaji"], "title_speaker_both"
-        
+
     # 2. Title/speaker mentions Preethaji only (attributed_teacher_ids retains both gurus for unified doctrine access)
     if has_preethaji:
         return "preethaji", ["preethaji", "krishnaji"], "title_speaker_preethaji"
-        
+
     # 3. Title/speaker mentions Krishnaji only (attributed_teacher_ids retains both gurus for unified doctrine access)
     if has_krishnaji:
         return "krishnaji", ["krishnaji", "preethaji"], "title_speaker_krishnaji"
-        
+
     # 4. Title/speaker has explicit Amma Bhagavan
     if has_amma_bhagavan:
         return "amma_bhagavan", ["amma_bhagavan"], "title_speaker_amma_bhagavan"
-        
+
     # 5. Check tags (fallback when title does not mention a teacher by name)
-    tag_preethaji = any(t in ("category:sri_preethaji", "sri preethaji", "teacher:sri_preethaji", "teacher:preethaji") for t in tags_clean)
-    tag_krishnaji = any(t in ("category:sri_krishnaji", "sri krishnaji", "teacher:sri_krishnaji", "teacher:krishnaji") for t in tags_clean)
-    tag_amma_bhagavan = any(t in ("teacher:amma_bhagavan", "category:amma_bhagavan") for t in tags_clean)
-    
+    tag_preethaji = any(
+        t
+        in ("category:sri_preethaji", "sri preethaji", "teacher:sri_preethaji", "teacher:preethaji")
+        for t in tags_clean
+    )
+    tag_krishnaji = any(
+        t
+        in ("category:sri_krishnaji", "sri krishnaji", "teacher:sri_krishnaji", "teacher:krishnaji")
+        for t in tags_clean
+    )
+    tag_amma_bhagavan = any(
+        t in ("teacher:amma_bhagavan", "category:amma_bhagavan") for t in tags_clean
+    )
+
     if tag_preethaji and tag_krishnaji:
         return "preethaji_krishnaji", ["preethaji", "krishnaji"], "tags_both"
     if tag_preethaji:
         return "preethaji", ["preethaji", "krishnaji"], "tags_preethaji"
     if tag_krishnaji:
         return "krishnaji", ["krishnaji", "preethaji"], "tags_krishnaji"
-        
+
     # Guard: tag_amma_bhagavan was often applied automatically because of the word 'oneness' or 'deeksha'.
     # Only trust it if 'amma' or 'bhagavan' actually appears as a whole word in title or speaker.
     if tag_amma_bhagavan and re.search(r"\b(?:amma|bhagavan|bhagwan)\b", combined, re.IGNORECASE):
         return "amma_bhagavan", ["amma_bhagavan"], "tags_and_title_amma_bhagavan"
-        
+
     # 6. Default for the shared Ekam / O&O Academy corpus
     return "ekam", ["preethaji", "krishnaji"], "ekam_shared_corpus"
 
 
-def main(argv: Optional[List[str]] = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--apply", action="store_true", help="Apply the backfill to Qdrant (default: dry-run only)")
-    parser.add_argument("--qdrant-url", default=os.environ.get("QDRANT_URL", "http://localhost:6333"))
-    parser.add_argument("--collection", default=os.environ.get("QDRANT_COLLECTION", "spiritual_wisdom_contextual"))
-    parser.add_argument("--sample-size", type=int, default=5, help="Number of samples to print per bucket (default: 5)")
-    parser.add_argument("--batch-size", type=int, default=250, help="Batch size for scroll and update (default: 250)")
+def main(argv: Optional[list[str]] = None) -> int:
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument(
+        "--apply", action="store_true", help="Apply the backfill to Qdrant (default: dry-run only)"
+    )
+    parser.add_argument(
+        "--qdrant-url", default=os.environ.get("QDRANT_URL", "http://localhost:6333")
+    )
+    parser.add_argument(
+        "--collection", default=os.environ.get("QDRANT_COLLECTION", "spiritual_wisdom_contextual")
+    )
+    parser.add_argument(
+        "--sample-size",
+        type=int,
+        default=5,
+        help="Number of samples to print per bucket (default: 5)",
+    )
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=250,
+        help="Batch size for scroll and update (default: 250)",
+    )
     args = parser.parse_args(argv)
 
     from qdrant_client import QdrantClient
@@ -139,9 +175,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     # 1. Scroll and classify all points
     offset = None
     total = 0
-    classified_buckets: Dict[str, List[Dict[str, Any]]] = collections.defaultdict(list)
-    update_batches: List[List[Tuple[str, str, List[str]]]] = []
-    current_batch: List[Tuple[str, str, List[str]]] = []
+    classified_buckets: dict[str, list[dict[str, Any]]] = collections.defaultdict(list)
+    update_batches: list[list[tuple[str, str, list[str]]]] = []
+    current_batch: list[tuple[str, str, list[str]]] = []
 
     while True:
         res, next_offset = client.scroll(
@@ -153,7 +189,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         )
         if not res:
             break
-            
+
         for pt in res:
             total += 1
             payload = pt.payload or {}
@@ -163,9 +199,9 @@ def main(argv: Optional[List[str]] = None) -> int:
             tags = payload.get("tags") or []
             if isinstance(tags, str):
                 tags = [tags]
-                
+
             teacher_id, teacher_ids, rationale = classify_teacher(title, speaker, tags, titles)
-            
+
             item = {
                 "id": str(pt.id),
                 "title": title or (titles[0] if titles else "NO_TITLE"),
@@ -177,7 +213,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             }
             classified_buckets[teacher_id].append(item)
             current_batch.append((str(pt.id), teacher_id, teacher_ids))
-            
+
             if len(current_batch) >= args.batch_size:
                 update_batches.append(current_batch)
                 current_batch = []
@@ -200,12 +236,14 @@ def main(argv: Optional[List[str]] = None) -> int:
     print("=== STRATIFIED SAMPLES FOR HUMAN REVIEW ===")
     for tid, items in sorted(classified_buckets.items()):
         print(f"\n--- Bucket: {tid} (Total: {len(items)}) ---")
-        for sample in items[:args.sample_size]:
-            title_disp = sample['title'][:70]
+        for sample in items[: args.sample_size]:
+            title_disp = sample["title"][:70]
             print(f"  [id: {sample['id'][:8]}...] {title_disp}")
-            print(f"      assigned teacher_id: {sample['teacher_id']}, teacher_ids: {sample['teacher_ids']}")
+            print(
+                f"      assigned teacher_id: {sample['teacher_id']}, teacher_ids: {sample['teacher_ids']}"
+            )
             print(f"      rationale: {sample['rationale']}")
-            if sample['speaker']:
+            if sample["speaker"]:
                 print(f"      speaker: {sample['speaker']}")
 
     if not args.apply:
@@ -222,7 +260,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     print("=" * 60)
 
     # Group point IDs by (teacher_id, tuple(teacher_ids))
-    grouped_points: Dict[Tuple[str, Tuple[str, ...]], List[str]] = collections.defaultdict(list)
+    grouped_points: dict[tuple[str, tuple[str, ...]], list[str]] = collections.defaultdict(list)
     for items in classified_buckets.values():
         for item in items:
             key = (item["teacher_id"], tuple(item["teacher_ids"]))
@@ -232,7 +270,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     updated_count = 0
     for (teacher_id, teacher_ids_tuple), pt_ids in grouped_points.items():
         t_ids = list(teacher_ids_tuple)
-        print(f"  Updating {len(pt_ids)} points with teacher_id='{teacher_id}', teacher_ids={t_ids}...")
+        print(
+            f"  Updating {len(pt_ids)} points with teacher_id='{teacher_id}', teacher_ids={t_ids}..."
+        )
         for i in range(0, len(pt_ids), chunk_size):
             chunk = pt_ids[i : i + chunk_size]
             client.set_payload(
@@ -251,7 +291,21 @@ def main(argv: Optional[List[str]] = None) -> int:
     missing_count = client.count(
         collection_name=args.collection,
         count_filter=models.Filter(
-            must_not=[models.FieldCondition(key="teacher_id", match=models.MatchAny(any=["preethaji", "krishnaji", "preethaji_krishnaji", "ekam", "amma_bhagavan", "unattributed"]))]
+            must_not=[
+                models.FieldCondition(
+                    key="teacher_id",
+                    match=models.MatchAny(
+                        any=[
+                            "preethaji",
+                            "krishnaji",
+                            "preethaji_krishnaji",
+                            "ekam",
+                            "amma_bhagavan",
+                            "unattributed",
+                        ]
+                    ),
+                )
+            ]
         ),
         exact=True,
     ).count
@@ -260,7 +314,9 @@ def main(argv: Optional[List[str]] = None) -> int:
         print(f"SUCCESS: 100% of {total} points now carry valid teacher_id and teacher_ids.")
         return 0
     else:
-        print(f"ERROR: {missing_count} points still lack teacher_id after backfill!", file=sys.stderr)
+        print(
+            f"ERROR: {missing_count} points still lack teacher_id after backfill!", file=sys.stderr
+        )
         return 1
 
 

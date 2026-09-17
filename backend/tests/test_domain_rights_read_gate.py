@@ -28,7 +28,7 @@ def test_qdrant_search_adds_rights_filter_and_returns_provenance_fields():
     searcher = QdrantSearcher(client, "teachings")
     observed = {}
 
-    def dense(_vector, _limit, search_filter, _params=None):
+    def dense(_vector, _limit, search_filter, _params=None, grouping_keys=None, group_size=2):
         observed["filter"] = search_filter
         return []
 
@@ -62,7 +62,9 @@ def test_quarantined_removed_book_source_is_not_served():
     }
 
     assert is_blocked_source(blocked)
-    assert is_blocked_source({"source_url": "https://legacy.example/files/The_Four_Sacred_Secrets.pdf?download=1#page=2"})
+    assert is_blocked_source(
+        {"source_url": "https://legacy.example/files/The_Four_Sacred_Secrets.pdf?download=1#page=2"}
+    )
     kept, dropped = filter_blocked_sources([blocked, allowed])
     assert dropped == 1
     assert kept == [allowed]

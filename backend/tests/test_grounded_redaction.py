@@ -6,16 +6,18 @@ Redaction keeps the invariant that matters — no ungrounded sentence reaches a
 seeker — while still answering the question.
 """
 
-import pytest
-
 from rag.nodes.generation import _redact_unsupported_sentences
+from services.voice.register import REDACTION_NOTE_MANY, REDACTION_NOTE_ONE
 
 FLOOR = 0.6
 
 
 def _claims(supported: int, unsupported: int):
     out = [
-        {"text": f"Grounded teaching sentence number {i} about the beautiful state.", "supported": True}
+        {
+            "text": f"Grounded teaching sentence number {i} about the beautiful state.",
+            "supported": True,
+        }
         for i in range(supported)
     ]
     out += [{"text": f"Fabricated sentence {i}.", "supported": False} for i in range(unsupported)]
@@ -33,9 +35,11 @@ def test_drops_unsupported_and_keeps_the_rest():
 
 def test_tells_the_reader_something_was_removed():
     body, _ = _redact_unsupported_sentences({"claims": _claims(7, 2)}, floor=FLOOR)
-    assert "left out" in body
+    # The invariant is that the reader is TOLD something was removed, and how
+    # many -- not the exact sentence used to say it.
+    assert REDACTION_NOTE_MANY.format(n=2) in body
     singular, _ = _redact_unsupported_sentences({"claims": _claims(7, 1)}, floor=FLOOR)
-    assert "One line was left out" in singular
+    assert REDACTION_NOTE_ONE in singular
 
 
 def test_no_redaction_when_everything_is_grounded():
@@ -73,7 +77,7 @@ def test_empty_citation_markers_are_stripped_from_redacted_prose():
     import rag.nodes.generation as generation
 
     src = __import__("inspect").getsource(generation.format_final_answer)
-    assert r'\[\s*\]' in src, "the redaction path must strip emptied citation markers"
+    assert r"\[\s*\]" in src, "the redaction path must strip emptied citation markers"
 
     # And the expression used must actually remove them.
     sample = "A grounded sentence. [] Another one. [2]"

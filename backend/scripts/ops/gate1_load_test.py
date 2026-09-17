@@ -27,12 +27,11 @@ import asyncio
 import json
 import logging
 import math
-import os
 import statistics
 import sys
 import time
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Optional
 
@@ -57,32 +56,111 @@ DEFAULT_BENCHMARK_KEY = "gate1-benchmark-secret-2026"
 QUERY_STRATA: list[dict[str, Any]] = [
     # --- FAST LANE (Greeting / Meta queries — minimal retrieval/compute) ---
     {"query": "Namaste", "tier": "fast", "category": "greeting", "expected_intent": "GREETING"},
-    {"query": "Hello, who is Mukthi Guru?", "tier": "fast", "category": "meta", "expected_intent": "QUERY"},
-    {"query": "Pranam, good morning", "tier": "fast", "category": "greeting", "expected_intent": "GREETING"},
-    {"query": "Blessings and greetings", "tier": "fast", "category": "greeting", "expected_intent": "GREETING"},
-    {"query": "What is the purpose of this space?", "tier": "fast", "category": "meta", "expected_intent": "QUERY"},
-
+    {
+        "query": "Hello, who is Mukthi Guru?",
+        "tier": "fast",
+        "category": "meta",
+        "expected_intent": "QUERY",
+    },
+    {
+        "query": "Pranam, good morning",
+        "tier": "fast",
+        "category": "greeting",
+        "expected_intent": "GREETING",
+    },
+    {
+        "query": "Blessings and greetings",
+        "tier": "fast",
+        "category": "greeting",
+        "expected_intent": "GREETING",
+    },
+    {
+        "query": "What is the purpose of this space?",
+        "tier": "fast",
+        "category": "meta",
+        "expected_intent": "QUERY",
+    },
     # --- STANDARD LANE (Core Teachings & Meditation FAQs) ---
-    {"query": "What is the 3-minute Serene Mind practice?", "tier": "standard", "category": "serene_mind", "expected_intent": "QUERY"},
-    {"query": "Explain the 6 steps of Soul Sync meditation.", "tier": "standard", "category": "soul_sync", "expected_intent": "QUERY"},
-    {"query": "What are the Four Sacred Secrets taught by Sri Preethaji and Sri Krishnaji?", "tier": "standard", "category": "four_secrets", "expected_intent": "QUERY"},
-    {"query": "How does conscious deep breathing shift the nervous system?", "tier": "standard", "category": "neurobiology", "expected_intent": "QUERY"},
-    {"query": "What is the distinction between suffering and living in a beautiful state?", "tier": "standard", "category": "philosophy", "expected_intent": "QUERY"},
-    {"query": "How can I calm my mind when feeling stressed?", "tier": "standard", "category": "serene_mind", "expected_intent": "QUERY"},
-    {"query": "What is the role of setting an intention in Soul Sync?", "tier": "standard", "category": "soul_sync", "expected_intent": "QUERY"},
-
+    {
+        "query": "What is the 3-minute Serene Mind practice?",
+        "tier": "standard",
+        "category": "serene_mind",
+        "expected_intent": "QUERY",
+    },
+    {
+        "query": "Explain the 6 steps of Soul Sync meditation.",
+        "tier": "standard",
+        "category": "soul_sync",
+        "expected_intent": "QUERY",
+    },
+    {
+        "query": "What are the Four Sacred Secrets taught by Sri Preethaji and Sri Krishnaji?",
+        "tier": "standard",
+        "category": "four_secrets",
+        "expected_intent": "QUERY",
+    },
+    {
+        "query": "How does conscious deep breathing shift the nervous system?",
+        "tier": "standard",
+        "category": "neurobiology",
+        "expected_intent": "QUERY",
+    },
+    {
+        "query": "What is the distinction between suffering and living in a beautiful state?",
+        "tier": "standard",
+        "category": "philosophy",
+        "expected_intent": "QUERY",
+    },
+    {
+        "query": "How can I calm my mind when feeling stressed?",
+        "tier": "standard",
+        "category": "serene_mind",
+        "expected_intent": "QUERY",
+    },
+    {
+        "query": "What is the role of setting an intention in Soul Sync?",
+        "tier": "standard",
+        "category": "soul_sync",
+        "expected_intent": "QUERY",
+    },
     # --- DEEP LANE (Contemplative / Philosophical / Neurobiology) ---
-    {"query": "How does Sri Preethaji explain transforming suffering into a beautiful state?", "tier": "deep", "category": "philosophy", "expected_intent": "QUERY"},
-    {"query": "What is the relationship between deeksha and the awakening of universal intelligence?", "tier": "deep", "category": "deeksha", "expected_intent": "QUERY"},
-    {"query": "Can one be in a beautiful state while dealing with difficult outer life challenges?", "tier": "deep", "category": "philosophy", "expected_intent": "QUERY"},
-    {"query": "How do the parietal lobes relate to the experience of separation and suffering according to Sri Krishnaji?", "tier": "deep", "category": "neurobiology", "expected_intent": "QUERY"},
-    {"query": "Explain how inner truth dissolves suffering and awakens spiritual right action.", "tier": "deep", "category": "four_secrets", "expected_intent": "QUERY"},
+    {
+        "query": "How does Sri Preethaji explain transforming suffering into a beautiful state?",
+        "tier": "deep",
+        "category": "philosophy",
+        "expected_intent": "QUERY",
+    },
+    {
+        "query": "What is the relationship between deeksha and the awakening of universal intelligence?",
+        "tier": "deep",
+        "category": "deeksha",
+        "expected_intent": "QUERY",
+    },
+    {
+        "query": "Can one be in a beautiful state while dealing with difficult outer life challenges?",
+        "tier": "deep",
+        "category": "philosophy",
+        "expected_intent": "QUERY",
+    },
+    {
+        "query": "How do the parietal lobes relate to the experience of separation and suffering according to Sri Krishnaji?",
+        "tier": "deep",
+        "category": "neurobiology",
+        "expected_intent": "QUERY",
+    },
+    {
+        "query": "Explain how inner truth dissolves suffering and awakens spiritual right action.",
+        "tier": "deep",
+        "category": "four_secrets",
+        "expected_intent": "QUERY",
+    },
 ]
 
 
 # ═══════════════════════════════════════════════════════════════════════════
 # DATA STRUCTURES
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 @dataclass
 class RequestResult:
@@ -150,6 +228,7 @@ def compute_percentiles(latencies: list[float]) -> LatencyPercentiles:
 # ═══════════════════════════════════════════════════════════════════════════
 # CONCURRENT WORKER ENGINE
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 async def load_worker(
     worker_id: int,
@@ -248,6 +327,7 @@ async def load_worker(
 # EXECUTION CONTROLLER
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 async def run_gate1_load_test(
     concurrency: int = 20,
     total_requests: int = 60,
@@ -258,7 +338,12 @@ async def run_gate1_load_test(
     """Execute concurrent load test and return structured audit results."""
     import httpx
 
-    logger.info("Initializing Gate 1 load test: concurrency=%d, requests=%d, chaos=%s", concurrency, total_requests, chaos)
+    logger.info(
+        "Initializing Gate 1 load test: concurrency=%d, requests=%d, chaos=%s",
+        concurrency,
+        total_requests,
+        chaos,
+    )
 
     # Prepare work items with round-robin strata distribution
     work_items: list[dict[str, Any]] = []
@@ -279,7 +364,9 @@ async def run_gate1_load_test(
     app = None
 
     if is_inprocess:
-        logger.info("Mode: In-process ASGITransport execution directly against FastAPI application.")
+        logger.info(
+            "Mode: In-process ASGITransport execution directly against FastAPI application."
+        )
         from app.config import settings
 
         # Configure settings for benchmark execution
@@ -291,10 +378,12 @@ async def run_gate1_load_test(
             settings.qdrant_url = "http://localhost:6333"
 
         from app import dependencies
+
         dependencies.startup_complete = True
         dependencies.startup_error = None
 
         from app.main import app as fastapi_app
+
         app = fastapi_app
         transport = httpx.ASGITransport(app=app)
         client_base_url = "http://testserver"
@@ -309,11 +398,15 @@ async def run_gate1_load_test(
     if chaos == "qdrant":
         logger.warning("CHAOS INJECTION: Simulating Qdrant connectivity outage...")
         from services.qdrant_service import QdrantService
-        QdrantService.search = lambda self, *args, **kwargs: (_ for _ in ()).throw(ConnectionError("Chaos simulated Qdrant outage"))
+
+        QdrantService.search = lambda self, *args, **kwargs: (_ for _ in ()).throw(
+            ConnectionError("Chaos simulated Qdrant outage")
+        )
         chaos_active = True
     elif chaos == "neo4j":
         logger.warning("CHAOS INJECTION: Simulating Neo4j graph traversal outage...")
         import rag.kg_expansion
+
         rag.kg_expansion.expand_query_via_kg = lambda *args, **kwargs: []
         chaos_active = True
 
@@ -327,7 +420,12 @@ async def run_gate1_load_test(
 
     t_bench_start = time.perf_counter()
 
-    async with httpx.AsyncClient(transport=transport, base_url=client_base_url if is_inprocess else None, limits=limits, timeout=timeout) as client:
+    async with httpx.AsyncClient(
+        transport=transport,
+        base_url=client_base_url if is_inprocess else None,
+        limits=limits,
+        timeout=timeout,
+    ) as client:
         req_endpoint = "/api/chat" if is_inprocess else endpoint
         workers = [
             asyncio.create_task(
@@ -365,7 +463,9 @@ async def run_gate1_load_test(
         tier_stats[t] = {
             "total_requests": len(tier_results),
             "passed_requests": tier_passed,
-            "pass_rate_pct": round((tier_passed / len(tier_results) * 100.0) if tier_results else 0.0, 1),
+            "pass_rate_pct": round(
+                (tier_passed / len(tier_results) * 100.0) if tier_results else 0.0, 1
+            ),
             "latency": asdict(compute_percentiles(tier_lats)),
         }
 
@@ -375,7 +475,9 @@ async def run_gate1_load_test(
 
     total_completed = len(results)
     total_passed = sum(1 for r in results if r.passed)
-    overall_pass_rate = round((total_passed / total_completed * 100.0) if total_completed else 0.0, 1)
+    overall_pass_rate = round(
+        (total_passed / total_completed * 100.0) if total_completed else 0.0, 1
+    )
     error_count = total_completed - total_passed
     error_rate = round((error_count / total_completed * 100.0) if total_completed else 0.0, 1)
     throughput_rps = round(total_completed / total_duration_s if total_duration_s > 0 else 0.0, 2)
@@ -388,7 +490,7 @@ async def run_gate1_load_test(
     gate1_passed = (total_completed >= total_requests) and (not has_500s or chaos_active)
 
     summary = {
-        "timestamp_iso": datetime.now(timezone.utc).isoformat(),
+        "timestamp_iso": datetime.now(UTC).isoformat(),
         "concurrency": concurrency,
         "total_requests": total_completed,
         "total_duration_seconds": total_duration_s,
@@ -467,18 +569,43 @@ async def run_gate1_load_test(
         f.write(md_content)
 
     logger.info("Gate 1 report generated: %s and %s", report_json_path, report_md_path)
-    logger.info("Summary: %s | Throughput: %.2f RPS | p50: %.1fms | p95: %.1fms", summary["gate1_verdict"], throughput_rps, overall_percentiles.p50, overall_percentiles.p95)
+    logger.info(
+        "Summary: %s | Throughput: %.2f RPS | p50: %.1fms | p95: %.1fms",
+        summary["gate1_verdict"],
+        throughput_rps,
+        overall_percentiles.p50,
+        overall_percentiles.p95,
+    )
 
     return summary
 
 
 def main():
     parser = argparse.ArgumentParser(description="Gate 1 20-Concurrent Load Testing Harness")
-    parser.add_argument("--concurrency", type=int, default=20, help="Number of concurrent workers (default: 20)")
-    parser.add_argument("--requests", type=int, default=60, help="Total requests to execute (default: 60)")
-    parser.add_argument("--base-url", type=str, default="inprocess", help="Base URL for running server or 'inprocess'")
-    parser.add_argument("--test-key", type=str, default=DEFAULT_BENCHMARK_KEY, help="X-Test-Key authorization secret")
-    parser.add_argument("--chaos", choices=["none", "qdrant", "neo4j", "redis"], default="none", help="Simulate chaos failure")
+    parser.add_argument(
+        "--concurrency", type=int, default=20, help="Number of concurrent workers (default: 20)"
+    )
+    parser.add_argument(
+        "--requests", type=int, default=60, help="Total requests to execute (default: 60)"
+    )
+    parser.add_argument(
+        "--base-url",
+        type=str,
+        default="inprocess",
+        help="Base URL for running server or 'inprocess'",
+    )
+    parser.add_argument(
+        "--test-key",
+        type=str,
+        default=DEFAULT_BENCHMARK_KEY,
+        help="X-Test-Key authorization secret",
+    )
+    parser.add_argument(
+        "--chaos",
+        choices=["none", "qdrant", "neo4j", "redis"],
+        default="none",
+        help="Simulate chaos failure",
+    )
     args = parser.parse_args()
 
     summary = asyncio.run(
@@ -490,7 +617,9 @@ def main():
             chaos=args.chaos,
         )
     )
-    print(f"\nGate 1 Result: {summary['gate1_verdict']} (Throughput: {summary['throughput_rps']} RPS, p95: {summary['latency_percentiles_ms']['p95']}ms)")
+    print(
+        f"\nGate 1 Result: {summary['gate1_verdict']} (Throughput: {summary['throughput_rps']} RPS, p95: {summary['latency_percentiles_ms']['p95']}ms)"
+    )
 
 
 if __name__ == "__main__":

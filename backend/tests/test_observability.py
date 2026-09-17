@@ -46,6 +46,7 @@ def test_trace_rag_node_propagates_original_exception_once():
 def test_alertmanager_config_validity():
     """Verify infrastructure/prometheus/alertmanager.yml syntax and required receivers."""
     import pathlib
+
     import yaml
 
     repo_root = pathlib.Path(__file__).resolve().parent.parent.parent
@@ -75,6 +76,7 @@ def test_alertmanager_config_validity():
 def test_prometheus_prod_config_validity():
     """Verify infrastructure/prometheus/prometheus.prod.yml syntax, Bearer auth, and remote_write."""
     import pathlib
+
     import yaml
 
     repo_root = pathlib.Path(__file__).resolve().parent.parent.parent
@@ -110,6 +112,7 @@ def test_prometheus_prod_config_validity():
 def test_hallucination_anomaly_workflow_validity():
     """Verify .github/workflows/hallucination-anomaly.yml syntax and structure."""
     import pathlib
+
     import yaml
 
     repo_root = pathlib.Path(__file__).resolve().parent.parent.parent
@@ -132,4 +135,3 @@ def test_hallucination_anomaly_workflow_validity():
     assert any("Hallucination Anomaly Check" in name for name in step_names)
     assert any("Job Summary" in name for name in step_names)
     assert any("Alert on Threshold Breach" in name for name in step_names)
-

@@ -16,6 +16,73 @@ success() { echo -e "${GREEN}[$(date '+%H:%M:%S')] ✓${NC} $*"; }
 warn() { echo -e "${YELLOW}[$(date '+%H:%M:%S')] ⚠${NC} $*"; }
 error() { echo -e "${RED}[$(date '+%H:%M:%S')] ✗${NC} $*"; }
 
+DO_CLEAN=false
+DO_REBUILD=false
+WITH_WORKER=false
+DRY_RUN=false
+
+show_help() {
+    echo "Usage: ./deploy_railway.sh [OPTIONS]"
+    echo ""
+    echo "Options:"
+    echo "  --clean              Run workspace cleanup and purge stale Redis caches/locks before deploy"
+    echo "  --rebuild            Full clean rebuild (workspace cleanup, cache flush, Celery queue purge, cache-busting build)"
+    echo "  --with-worker        Deploy/start the Celery worker (default: OFF to stay under \$25 budget ceiling)"
+    echo "  --worker-pause       Pause the Celery worker on Railway to save compute"
+    echo "  --worker-resume      Resume/start the Celery worker on Railway"
+    echo "  --prune-deployments  Clean up dead/failed deployments in Railway history"
+    echo "  --check-budget       Run Railway budget burn-rate check against the \$25 hard limit"
+    echo "  --dry-run            Simulate operations without making changes"
+    echo "  --help               Show this help message"
+    echo ""
+    exit 0
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --clean)
+            DO_CLEAN=true
+            shift
+            ;;
+        --rebuild)
+            DO_REBUILD=true
+            DO_CLEAN=true
+            shift
+            ;;
+        --with-worker)
+            WITH_WORKER=true
+            shift
+            ;;
+        --worker-pause)
+            python3 scripts/ops/railway_cleanup.py --worker-action pause
+            exit $?
+            ;;
+        --worker-resume)
+            python3 scripts/ops/railway_cleanup.py --worker-action resume
+            exit $?
+            ;;
+        --prune-deployments)
+            python3 scripts/ops/railway_cleanup.py --mode deployments
+            exit $?
+            ;;
+        --check-budget)
+            python3 scripts/ops/railway_cleanup.py --check-budget
+            exit $?
+            ;;
+        --dry-run)
+            DRY_RUN=true
+            shift
+            ;;
+        -h|--help)
+            show_help
+            ;;
+        *)
+            error "Unknown argument: $1. Run with --help for usage."
+            exit 1
+            ;;
+    esac
+done
+
 # Check Railway CLI
 if ! command -v railway &> /dev/null; then
     error "Railway CLI not installed. Run: npm i -g @railway/cli"
@@ -29,13 +96,46 @@ if ! railway status &> /dev/null; then
 fi
 
 log "=== Railway Deployment Started ==="
+if [[ "$DO_REBUILD" == true ]]; then
+    log "Mode: REBUILD (Full state & workspace cleanup enabled)"
+elif [[ "$DO_CLEAN" == true ]]; then
+    log "Mode: CLEAN DEPLOY (Workspace & cache cleanup enabled)"
+fi
+
+# Pre-flight cleanup
+if [[ "$DO_CLEAN" == true ]]; then
+    log "Running pre-flight workspace and state cleanup..."
+    CLEAN_ARGS=("--mode" "all")
+    if [[ "$DO_REBUILD" == true ]]; then
+        CLEAN_ARGS+=("--purge-celery")
+    fi
+    if [[ "$DRY_RUN" == true ]]; then
+        CLEAN_ARGS+=("--dry-run")
+    fi
+    python3 scripts/ops/railway_cleanup.py "${CLEAN_ARGS[@]}" || warn "Cleanup finished with warnings"
+fi
 
 # 1. Add Services (use Railway's supported template deployment command)
-services=("neo4j" "qdrant" "postgresql" "redis")
+# Graph database selection: "memgraph" (default, lightweight C++, ~80MB) or "neo4j" (legacy JVM, ~1GB+)
+GRAPH_DB="${GRAPH_DB:-memgraph}"
+services=("qdrant" "postgresql" "redis")
+if [[ "$GRAPH_DB" == "memgraph" ]]; then
+    services=("memgraph" "${services[@]}")
+else
+    services=("neo4j" "${services[@]}")
+fi
+
 for svc in "${services[@]}"; do
     log "Adding service: $svc"
     if railway service list | grep -q "$svc"; then
         warn "$svc already exists, skipping"
+    elif [[ "$svc" == "memgraph" ]]; then
+        # Deploy Memgraph using MAGE docker image with 512MB RAM limit
+        log "Deploying Memgraph (memgraph/memgraph-mage:latest)..."
+        railway add --service memgraph --image memgraph/memgraph-mage:latest 2>&1 | tee -a railway_deploy.log || \
+        railway deploy --template memgraph 2>&1 | tee -a railway_deploy.log || warn "Could not add memgraph template automatically, verify in dashboard"
+        success "Memgraph service added"
+        sleep 10
     else
         railway deploy --template "$svc" 2>&1 | tee -a railway_deploy.log
         success "$svc added"
@@ -48,6 +148,7 @@ log "Fetching generated credentials..."
 railway variables 2>&1 > /dev/null
 
 # Discover deployed service names so we can target the right vault per service
+MEMGRAPH_SVC=$(railway service list --json 2>/dev/null | jq -r '.[] | select(.name | test("memgraph|Memgraph")) | .name' | head -1)
 NEO4J_SVC=$(railway service list --json 2>/dev/null | jq -r '.[] | select(.name | test("neo4j|Neo4j")) | .name' | head -1)
 POSTGRES_SVC=$(railway service list --json 2>/dev/null | jq -r '.[] | select(.name | test("Postgres|postgres|postgresql")) | .name' | head -1)
 REDIS_SVC=$(railway service list --json 2>/dev/null | jq -r '.[] | select(.name | test("Redis|redis")) | .name' | head -1)
@@ -59,9 +160,18 @@ get_var() {
 }
 
 # Extract key variables from the services that own them
-NEO4J_PASSWORD=$(get_var NEO4J_PASSWORD "$NEO4J_SVC")
-[[ -z "$NEO4J_PASSWORD" ]] && NEO4J_PASSWORD=$(get_var NEO4J_PASSWORD "neo4j")
-[[ -z "$NEO4J_PASSWORD" ]] && NEO4J_PASSWORD=$(get_var NEO4J_AUTH "$NEO4J_SVC" | cut -d'/' -f2)
+GRAPH_PASSWORD=""
+if [[ -n "$MEMGRAPH_SVC" ]]; then
+    GRAPH_PASSWORD=$(get_var MEMGRAPH_PASSWORD "$MEMGRAPH_SVC")
+    [[ -z "$GRAPH_PASSWORD" ]] && GRAPH_PASSWORD=$(get_var NEO4J_PASSWORD "$MEMGRAPH_SVC")
+    [[ -z "$GRAPH_PASSWORD" ]] && GRAPH_PASSWORD="mukthiguru_neo4j_pass"
+fi
+if [[ -z "$GRAPH_PASSWORD" && -n "$NEO4J_SVC" ]]; then
+    GRAPH_PASSWORD=$(get_var NEO4J_PASSWORD "$NEO4J_SVC")
+    [[ -z "$GRAPH_PASSWORD" ]] && GRAPH_PASSWORD=$(get_var NEO4J_PASSWORD "neo4j")
+    [[ -z "$GRAPH_PASSWORD" ]] && GRAPH_PASSWORD=$(get_var NEO4J_AUTH "$NEO4J_SVC" | cut -d'/' -f2)
+fi
+NEO4J_PASSWORD="$GRAPH_PASSWORD"
 
 REDIS_PASSWORD=$(get_var REDIS_PASSWORD "$REDIS_SVC")
 [[ -z "$REDIS_PASSWORD" ]] && REDIS_PASSWORD=$(get_var REDISPASSWORD "$REDIS_SVC")
@@ -126,10 +236,17 @@ set_var SARVAM_CLOUD_MODEL "sarvam-30b"
 set_var QDRANT_COLLECTION "spiritual_wisdom_contextual"
 
 # Service URLs (internal Railway DNS)
-if [[ -n "$NEO4J_PASSWORD" ]]; then
+if [[ -n "$MEMGRAPH_SVC" ]]; then
+    set_var NEO4J_URI "bolt://${MEMGRAPH_SVC}.railway.internal:7687"
+    set_var MEMGRAPH_URI "bolt://${MEMGRAPH_SVC}.railway.internal:7687"
+    set_var NEO4J_USER "neo4j"
+    set_var NEO4J_PASSWORD "${NEO4J_PASSWORD:-mukthiguru_neo4j_pass}"
+    set_var LIGHTRAG_GRAPH_STORAGE "MemgraphStorage"
+elif [[ -n "$NEO4J_PASSWORD" || -n "$NEO4J_SVC" ]]; then
     set_var NEO4J_URI "bolt://neo4j.railway.internal:7687"
     set_var NEO4J_USER "neo4j"
     set_var NEO4J_PASSWORD "$NEO4J_PASSWORD"
+    set_var LIGHTRAG_GRAPH_STORAGE "Neo4JStorage"
 fi
 
 if [[ -n "$REDIS_PASSWORD" ]]; then
@@ -154,27 +271,40 @@ for key in OPENROUTER_API_KEY SARVAM_API_KEY NIM_API_KEY SUPABASE_KEY; do
     fi
 done
 
+# Auto-tune Redis memory policy to avoid OOM or expensive database tier upgrades
+log "Tuning Redis memory policy (256MB maxmemory, volatile-lru eviction)..."
+python3 scripts/ops/railway_cleanup.py --tune-redis 2>/dev/null || true
+
 # 4. Deploy Backend
 log "Deploying backend..."
-railway up --detach > /dev/null 2>&1
-success "Backend deployment triggered"
-
-# 5. Add Celery Worker
-log "Creating celery-worker service..."
-if railway service list | grep -q "celery-worker"; then
-    warn "celery-worker already exists"
+if [[ "$DRY_RUN" == true ]]; then
+    log "[DRY RUN] Would trigger: railway up --detach"
 else
-    # Use the supported `railway add --service` flow, then deploy with the
-    # checked-in railway.json configuration. start_railway.py reads SERVICE_TYPE
-    # and switches to the Celery worker entrypoint.
-    if railway add --service celery-worker > /dev/null 2>&1; then
-        railway variable set --service celery-worker SERVICE_TYPE=celery > /dev/null 2>&1
-        railway up --service celery-worker --detach > /dev/null 2>&1
-        success "celery-worker created and deployed"
+    railway up --detach > /dev/null 2>&1
+    success "Backend deployment triggered"
+fi
+
+# 5. Celery Worker (Opt-in to protect $25 budget ceiling)
+if [[ "$WITH_WORKER" == true ]]; then
+    log "Deploying celery-worker service (--with-worker requested)..."
+    if railway service list | grep -q "celery-worker"; then
+        warn "celery-worker already exists, deploying..."
+        railway up --service celery-worker --detach > /dev/null 2>&1 || warn "Could not deploy celery-worker"
+        success "celery-worker updated and deployed"
     else
-        error "Failed to create celery-worker service"
-        exit 1
+        # Use supported `railway add --service` flow
+        if railway add --service celery-worker > /dev/null 2>&1; then
+            railway variable set --service celery-worker SERVICE_TYPE=celery > /dev/null 2>&1
+            railway up --service celery-worker --detach > /dev/null 2>&1
+            success "celery-worker created and deployed"
+        else
+            error "Failed to create celery-worker service"
+            exit 1
+        fi
     fi
+else
+    log "ℹ️  Celery worker deployment skipped by default to save idle compute costs (stays under \$25 budget ceiling)."
+    log "    To deploy/run the worker on demand: ./deploy_railway.sh --with-worker or make railway-worker-resume"
 fi
 
 # 6. Get URLs

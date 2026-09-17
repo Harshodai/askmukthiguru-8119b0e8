@@ -139,10 +139,91 @@ os.environ["QDRANT_URL"] = (
     "http://qdrant:6333" if os.path.exists("/.dockerenv") else "http://127.0.0.1:6333"
 )
 
+# backend/.env sets SUPABASE_URL=http://host.docker.internal:54321 for the
+# Compose network; that name does not resolve on a host-run pytest process
+# (macOS/Linux dev machine), so every request 500s with
+# "[Errno 8] nodename nor servname provided". Local Supabase Kong is reachable
+# at localhost:54321 on the host. pydantic-settings reads .env itself (it
+# doesn't populate os.environ), so an explicit os.environ["SUPABASE_URL"] is
+# the only way to override it here — mirrors the REDIS_URL resolution above.
+# An already-exported SUPABASE_URL (CI, staging) always wins.
+if not os.path.exists("/.dockerenv") and not os.environ.get("SUPABASE_URL"):
+    _env_supabase_url = None
+    try:
+        with open(os.path.join(_BACKEND_DIR, ".env"), encoding="utf-8") as _handle:
+            for _raw in _handle:
+                _line = _raw.strip()
+                if _line.startswith("SUPABASE_URL="):
+                    _env_supabase_url = _line.split("=", 1)[1].strip().strip("'\"")
+                    break
+    except OSError:
+        pass
+    if _env_supabase_url and "host.docker.internal" in _env_supabase_url:
+        os.environ["SUPABASE_URL"] = _env_supabase_url.replace("host.docker.internal", "localhost")
+
 # Disable rate limiting during tests to avoid Redis connections
 from app.core.limiter import limiter
 
 limiter.enabled = False
+
+# app/api/chat.py's routes all Depends() on get_container_async, not
+# get_container (L-DOCKER-18: sync Depends callables exhaust the AnyIO
+# threadpool under load — see backend/CLAUDE.md). Several test modules
+# (test_chat_endpoint.py, test_edge_cases.py, test_title_endpoint.py,
+# test_input_truncation.py) predate that migration and only ever set
+# `app.dependency_overrides[get_container] = ...`, so their mocked
+# container never reached chat endpoints — the real dependency fell through
+# to the live ServiceContainer (real Redis job queue), producing a live 202
+# job-queue response instead of the test's mocked synchronous one. Mirror
+# every override of one onto the other, once, here, instead of patching each
+# of the ~40 call sites across those files.
+from app.dependencies import get_container, get_container_async
+from app.main import app as _app_for_overrides
+
+
+class _MirroringOverrides(dict):
+    """dict subclass: assigning get_container also assigns get_container_async
+    (and vice versa) so a test only needs to override one to cover both.
+    Also mirrors removal (__delitem__/pop) — a test that does
+    `dependency_overrides.pop(get_container, None)` without this would leave
+    get_container_async's mirrored entry stuck forever, since the outer
+    _clear_dependency_overrides fixture only protects a test that never
+    touches the dict outside its own setup/teardown; any test that pops mid-body
+    and expects the pop to fully clear both keeps a stale get_container_async
+    override for its own remaining assertions."""
+
+    def __setitem__(self, key, value):
+        super().__setitem__(key, value)
+        if key is get_container:
+            super().__setitem__(get_container_async, value)
+        elif key is get_container_async:
+            super().__setitem__(get_container, value)
+
+    def __delitem__(self, key):
+        super().__delitem__(key)
+        paired = (
+            get_container_async
+            if key is get_container
+            else (get_container if key is get_container_async else None)
+        )
+        if paired is not None and paired in self:
+            super().__delitem__(paired)
+
+    def pop(self, key, *default):
+        result = super().pop(key, *default)
+        paired = (
+            get_container_async
+            if key is get_container
+            else (get_container if key is get_container_async else None)
+        )
+        if paired is not None:
+            super().pop(paired, None)
+        return result
+
+
+_app_for_overrides.dependency_overrides = _MirroringOverrides(
+    _app_for_overrides.dependency_overrides
+)
 
 import asyncio
 
@@ -259,6 +340,20 @@ def _reset_rate_limiters():
     from services.openrouter_service import OpenRouterService
 
     OpenRouterService.reset_shared_rate_limiter()
+
+    # HealthMonitor (services/health_monitor.py) is a process-wide singleton
+    # doing phi-accrual failure detection per dependency. A circuit breaker's
+    # can_execute() consults it (settings.phi_accrual_enabled defaults True)
+    # even for a brand-new DefaultCircuitBreaker instance, so any earlier test
+    # that records 3+ consecutive failures for a provider (e.g. simulating a
+    # 429/503) leaves it permanently unhealthy for every later test in the
+    # same process — a fresh circuit breaker opens immediately on construction
+    # with no failure of its own. Reproduced: test_openrouter.py passes in
+    # isolation but fails when run after test_openrouter_resilience.py in the
+    # same process. Reset before each test.
+    from services.health_monitor import HealthMonitor
+
+    HealthMonitor().reset_all()
     yield
 
 
@@ -339,4 +434,3 @@ def _flush_test_redis():
             client.close()
     except Exception:
         pass
-

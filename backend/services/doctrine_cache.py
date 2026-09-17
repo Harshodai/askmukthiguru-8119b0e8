@@ -163,7 +163,9 @@ class DoctrineCache:
                 filter(
                     None,
                     (
-                        _coerce_entry(row.get("question"), {k: row.get(k) for k in ("answer", "citations")})
+                        _coerce_entry(
+                            row.get("question"), {k: row.get(k) for k in ("answer", "citations")}
+                        )
                         for row in rows
                     ),
                 )

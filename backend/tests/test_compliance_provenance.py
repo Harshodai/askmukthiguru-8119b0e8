@@ -15,6 +15,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from app.api.compliance import _get_container_safely
 from app.api.compliance import router as compliance_router
 from app.dependencies import get_container
 from app.schemas import ChatResponse
@@ -331,6 +332,15 @@ def test_app():
 async def test_compliance_status_endpoint(test_app, mock_service_container):
     """Test GET /api/compliance/eu-ai-act/status."""
     test_app.dependency_overrides[get_container] = lambda: mock_service_container
+    # /eu-ai-act/status Depends on _get_container_safely (app/api/compliance.py),
+    # a separate function that calls the real app.dependencies.get_container()
+    # directly rather than being reachable through a get_container override —
+    # left un-overridden, it builds the real process-wide ServiceContainer,
+    # and that build silently overwrites rag.nodes._services._llm_gateway (a
+    # bare module global, never torn down) for every later test in the
+    # process. Reproduced: test_contradiction_resolver.py's generate_answer
+    # test only fails when this test runs first in the same process.
+    test_app.dependency_overrides[_get_container_safely] = lambda: mock_service_container
     try:
         async with AsyncClient(
             transport=ASGITransport(app=test_app), base_url="http://test"
@@ -345,6 +355,7 @@ async def test_compliance_status_endpoint(test_app, mock_service_container):
             assert "transparency_art50" in data["supported_risk_tiers"]
     finally:
         test_app.dependency_overrides.pop(get_container, None)
+        test_app.dependency_overrides.pop(_get_container_safely, None)
 
 
 @pytest.mark.asyncio
@@ -353,6 +364,9 @@ async def test_compliance_provenance_search_and_manifest_endpoints(
 ):
     """Test /api/compliance/provenance/search and /manifest/{artifact_id} endpoints."""
     test_app.dependency_overrides[get_container] = lambda: mock_service_container
+    # See test_compliance_status_endpoint above: these routes also Depend on
+    # _get_container_safely, not get_container.
+    test_app.dependency_overrides[_get_container_safely] = lambda: mock_service_container
     try:
         # Seed a record in ontology service
         prov_service = get_provenance_ontology_service()
@@ -395,6 +409,7 @@ async def test_compliance_provenance_search_and_manifest_endpoints(
             assert not_found_resp.status_code == 404
     finally:
         test_app.dependency_overrides.pop(get_container, None)
+        test_app.dependency_overrides.pop(_get_container_safely, None)
 
 
 # ---------------------------------------------------------------------------

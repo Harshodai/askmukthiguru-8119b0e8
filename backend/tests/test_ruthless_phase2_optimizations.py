@@ -5,12 +5,12 @@
 4. §13 Node latency attribution in format_final_answer
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from rag.nodes.reranking import rerank_documents, grade_documents
+import pytest
+
 from rag.nodes.generation import context_engineer, format_final_answer
-from app.config import settings
+from rag.nodes.reranking import grade_documents, rerank_documents
 
 
 @pytest.mark.asyncio
@@ -179,8 +179,13 @@ async def test_generate_answer_captures_fallback_telemetry():
     mock_ollama.provider_name = "mock_ollama"
     mock_ollama.model = "llama3"
 
-    with patch("rag.nodes._services._ollama", mock_ollama), \
-         patch("services.gateways.anthropic_gateway.AnthropicGateway.from_settings", side_effect=AnthropicGatewayError("Simulated provider outage")):
+    with (
+        patch("rag.nodes._services._ollama", mock_ollama),
+        patch(
+            "services.gateways.anthropic_gateway.AnthropicGateway.from_settings",
+            side_effect=AnthropicGatewayError("Simulated provider outage"),
+        ),
+    ):
         res = await generate_answer(state)
 
     eval_trace = res.get("evaluation_trace", {})

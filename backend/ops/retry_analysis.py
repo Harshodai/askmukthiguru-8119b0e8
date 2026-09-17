@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import logging
 import re
-from collections import defaultdict
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -103,8 +102,6 @@ if __name__ == "__main__":
     results = analyze_retry_patterns(since_days=7)
     print(f"Found {len(results)} complaint cluster(s):")
     for i, cluster in enumerate(results, 1):
-        print(
-            f"  {i}. [{cluster['frequency']}x] {cluster['representative_query'][:80]}"
-        )
+        print(f"  {i}. [{cluster['frequency']}x] {cluster['representative_query'][:80]}")
         for sq in cluster["sample_queries"][1:3]:
             print(f"     - {sq[:80]}")

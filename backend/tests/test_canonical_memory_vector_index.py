@@ -18,15 +18,15 @@ from __future__ import annotations
 
 import uuid
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from qdrant_client.models import Distance
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _uid() -> str:
     return str(uuid.uuid4())
@@ -102,6 +102,7 @@ def _build_index(
 # Mock scroll result
 # ---------------------------------------------------------------------------
 
+
 class _ScrollResult(tuple):
     """Mimics Qdrant's (points, next_offset) tuple from scroll().
 
@@ -126,6 +127,7 @@ class _ScrollResult(tuple):
 # ---------------------------------------------------------------------------
 # Tests: ensure_collection
 # ---------------------------------------------------------------------------
+
 
 class TestEnsureCollection:
     def test_creates_collection_with_correct_params(self) -> None:
@@ -160,10 +162,7 @@ class TestEnsureCollection:
         idx.ensure_collection()
 
         assert qc.create_payload_index.call_count == 3
-        field_names = [
-            call.kwargs["field_name"]
-            for call in qc.create_payload_index.call_args_list
-        ]
+        field_names = [call.kwargs["field_name"] for call in qc.create_payload_index.call_args_list]
         assert "user_id" in field_names
         assert "memory_type" in field_names
         assert "status" in field_names
@@ -191,6 +190,7 @@ class TestEnsureCollection:
 # Tests: upsert
 # ---------------------------------------------------------------------------
 
+
 class TestUpsert:
     def test_upsert_calls_client_with_correct_point(self) -> None:
         qc = MagicMock()
@@ -200,6 +200,7 @@ class TestUpsert:
         vector = [0.1] * 1024
 
         import asyncio
+
         asyncio.run(idx.upsert(user_id, memory_id, vector, "PREFERENCE", "active"))
 
         qc.upsert.assert_called_once()
@@ -216,6 +217,7 @@ class TestUpsert:
         memory_id = _uid()
 
         import asyncio
+
         asyncio.run(idx.upsert(user_id, memory_id, [0.2] * 1024, "PROFILE", "superseded"))
 
         point = qc.upsert.call_args.kwargs["points"][0]
@@ -226,6 +228,7 @@ class TestUpsert:
 # Tests: search
 # ---------------------------------------------------------------------------
 
+
 class TestSearch:
     def test_search_applies_user_id_filter(self) -> None:
         qc = MagicMock()
@@ -234,6 +237,7 @@ class TestSearch:
         user_id = _uid()
 
         import asyncio
+
         asyncio.run(idx.search(user_id, [0.3] * 1024, limit=5))
 
         call_kwargs = qc.query_points.call_args.kwargs
@@ -247,6 +251,7 @@ class TestSearch:
         idx = _build_index(qdrant_client=qc)
 
         import asyncio
+
         asyncio.run(idx.search(_uid(), [0.3] * 1024, limit=5, memory_type="GOAL"))
 
         call_kwargs = qc.query_points.call_args.kwargs
@@ -262,6 +267,7 @@ class TestSearch:
         idx = _build_index(qdrant_client=qc)
 
         import asyncio
+
         results = asyncio.run(idx.search("u1", [0.3] * 1024, limit=5))
 
         assert len(results) == 1
@@ -275,6 +281,7 @@ class TestSearch:
         idx = _build_index(qdrant_client=qc)
 
         import asyncio
+
         results = asyncio.run(idx.search(_uid(), [0.3] * 1024, limit=10))
 
         assert results == []
@@ -284,6 +291,7 @@ class TestSearch:
 # Tests: delete
 # ---------------------------------------------------------------------------
 
+
 class TestDelete:
     def test_delete_scoped_to_user(self) -> None:
         qc = MagicMock()
@@ -292,6 +300,7 @@ class TestDelete:
         memory_id = _uid()
 
         import asyncio
+
         asyncio.run(idx.delete(user_id, memory_id))
 
         qc.delete.assert_called_once()
@@ -307,6 +316,7 @@ class TestDelete:
 # Tests: delete_all_user
 # ---------------------------------------------------------------------------
 
+
 class TestDeleteAllUser:
     def test_delete_all_user_scoped_and_returns_count(self) -> None:
         qc = MagicMock()
@@ -315,6 +325,7 @@ class TestDeleteAllUser:
         user_id = _uid()
 
         import asyncio
+
         deleted = asyncio.run(idx.delete_all_user(user_id))
 
         assert deleted == 5
@@ -329,6 +340,7 @@ class TestDeleteAllUser:
         idx = _build_index(qdrant_client=qc)
 
         import asyncio
+
         deleted = asyncio.run(idx.delete_all_user(_uid()))
 
         assert deleted == 0
@@ -337,6 +349,7 @@ class TestDeleteAllUser:
 # ---------------------------------------------------------------------------
 # Tests: rebuild_from_canonical
 # ---------------------------------------------------------------------------
+
 
 class TestRebuildFromCanonical:
     def test_rebuild_embeds_and_upserts(self) -> None:
@@ -353,6 +366,7 @@ class TestRebuildFromCanonical:
             return [0.5] * 1024
 
         import asyncio
+
         count = asyncio.run(idx.rebuild_from_canonical(user_id, embed_fn))
 
         assert count == 1
@@ -367,6 +381,7 @@ class TestRebuildFromCanonical:
         idx = _build_index(supabase_client=sc)
 
         import asyncio
+
         count = asyncio.run(idx.rebuild_from_canonical(_uid(), lambda t: [0.0] * 1024))
 
         assert count == 0
@@ -375,6 +390,7 @@ class TestRebuildFromCanonical:
         idx = _build_index(supabase_client=None)
 
         import asyncio
+
         with pytest.raises(RuntimeError, match="supabase_client required"):
             asyncio.run(idx.rebuild_from_canonical(_uid(), lambda t: [0.0] * 1024))
 
@@ -382,6 +398,7 @@ class TestRebuildFromCanonical:
 # ---------------------------------------------------------------------------
 # Tests: detect_orphans
 # ---------------------------------------------------------------------------
+
 
 class TestDetectOrphans:
     def test_detects_orphans(self) -> None:
@@ -403,6 +420,7 @@ class TestDetectOrphans:
         idx = _build_index(qdrant_client=qc, supabase_client=sc)
 
         import asyncio
+
         orphans = asyncio.run(idx.detect_orphans(user_id))
 
         assert orphan_id in orphans
@@ -422,6 +440,7 @@ class TestDetectOrphans:
         idx = _build_index(qdrant_client=qc, supabase_client=sc)
 
         import asyncio
+
         orphans = asyncio.run(idx.detect_orphans(user_id))
 
         assert orphans == []
@@ -432,6 +451,7 @@ class TestDetectOrphans:
         idx = _build_index(qdrant_client=qc)
 
         import asyncio
+
         orphans = asyncio.run(idx.detect_orphans(_uid()))
 
         assert orphans == []
@@ -441,12 +461,13 @@ class TestDetectOrphans:
 # Tests: repair
 # ---------------------------------------------------------------------------
 
+
 class TestRepair:
     def test_repair_deletes_orphans_and_adds_missing(self) -> None:
         user_id = _uid()
         orphan_id = _uid()
         existing_id = _uid()
-        missing_id = _uid()
+        _missing_id = _uid()
 
         # Vectors: orphan_id (orphan) + existing_id (valid)
         orphan_point = _make_point(point_id=orphan_id, user_id=user_id, memory_id=orphan_id)
@@ -475,6 +496,7 @@ class TestRepair:
             return [0.4] * 1024
 
         import asyncio
+
         result = asyncio.run(idx.repair(user_id, embed_fn))
 
         # Orphan was deleted
@@ -484,6 +506,7 @@ class TestRepair:
 # ---------------------------------------------------------------------------
 # Tests: health_check
 # ---------------------------------------------------------------------------
+
 
 class TestHealthCheck:
     def test_healthy_collection(self) -> None:
@@ -495,6 +518,7 @@ class TestHealthCheck:
         idx = _build_index(qdrant_client=qc)
 
         import asyncio
+
         health = asyncio.run(idx.health_check())
 
         assert health["healthy"] is True
@@ -508,6 +532,7 @@ class TestHealthCheck:
         idx = _build_index(qdrant_client=qc)
 
         import asyncio
+
         health = asyncio.run(idx.health_check())
 
         assert health["healthy"] is False
@@ -525,6 +550,7 @@ class TestHealthCheck:
         idx = _build_index(qdrant_client=qc)
 
         import asyncio
+
         health = asyncio.run(idx.health_check())
 
         assert health["healthy"] is False
@@ -535,6 +561,7 @@ class TestHealthCheck:
 # Tests: upsert_batch
 # ---------------------------------------------------------------------------
 
+
 class TestUpsertBatch:
     def test_upsert_batch_calls_client(self) -> None:
         qc = MagicMock()
@@ -542,6 +569,7 @@ class TestUpsertBatch:
         points = [_make_point(user_id="u1"), _make_point(user_id="u1")]
 
         import asyncio
+
         asyncio.run(idx.upsert_batch(points))
 
         qc.upsert.assert_called_once()
@@ -552,6 +580,7 @@ class TestUpsertBatch:
         idx = _build_index(qdrant_client=qc)
 
         import asyncio
+
         asyncio.run(idx.upsert_batch([]))
 
         qc.upsert.assert_not_called()
@@ -560,5 +589,6 @@ class TestUpsertBatch:
 if __name__ == "__main__":
     # Quick self-check
     from services.canonical_memory.vector_index import CanonicalMemoryVectorIndex
+
     assert callable(CanonicalMemoryVectorIndex)
     print("test_canonical_memory_vector_index self-check: OK")

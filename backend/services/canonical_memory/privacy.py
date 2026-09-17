@@ -7,13 +7,15 @@ Sensitive interpretation must not be persisted automatically merely because
 an LLM inferred it. Explicit deletion must propagate across every derived
 system.
 """
+
 import datetime as dt
-from typing import Any, Dict, List, Optional
 from enum import Enum
+from typing import Any
 
 
 class ConsentScope(str, Enum):
     """Scopes for memory consent management."""
+
     EXTRACTION = "extraction"
     RETRIEVAL = "retrieval"
     SHARING = "sharing"
@@ -54,87 +56,63 @@ class MemoryPrivacyManager:
         record = result.data[0]
         return record.get("granted", True)
 
-    def record_consent(
-        self, user_id: str, scope: ConsentScope, granted: bool
-    ) -> None:
+    def record_consent(self, user_id: str, scope: ConsentScope, granted: bool) -> None:
         """Persist a consent decision (upsert by user + scope)."""
         self.db.table("memory_consent_receipts").upsert(
             {
                 "user_id": user_id,
                 "scope": scope.value,
                 "granted": granted,
-                "updated_at": dt.datetime.now(dt.timezone.utc).isoformat(),
+                "updated_at": dt.datetime.now(dt.UTC).isoformat(),
             }
         ).execute()
 
     # ── Export (GDPR / DSAR) ────────────────────────────────────────
 
-    def export_user_data(self, user_id: str) -> Dict[str, Any]:
+    def export_user_data(self, user_id: str) -> dict[str, Any]:
         """Export all canonical memories and consent history for *user_id*.
 
         Returns a dict ready for serialisation as a GDPR/DSAR response.
         """
-        mems = (
-            self.db.table("canonical_memories")
-            .select("*")
-            .eq("user_id", user_id)
-            .execute()
-        )
+        mems = self.db.table("canonical_memories").select("*").eq("user_id", user_id).execute()
         consent = (
-            self.db.table("memory_consent_receipts")
-            .select("*")
-            .eq("user_id", user_id)
-            .execute()
+            self.db.table("memory_consent_receipts").select("*").eq("user_id", user_id).execute()
         )
         return {
             "canonical_memories": mems.data,
             "consent_history": consent.data,
-            "exported_at": dt.datetime.now(dt.timezone.utc).isoformat(),
+            "exported_at": dt.datetime.now(dt.UTC).isoformat(),
         }
 
     # ── Purge ────────────────────────────────────────────────────────
 
-    def purge_user_data(self, user_id: str) -> Dict[str, Any]:
+    def purge_user_data(self, user_id: str) -> dict[str, Any]:
         """Hard-delete all canonical memories and consent receipts for *user_id*.
 
         Returns a summary of rows removed.
         """
-        deleted: Dict[str, Any] = {
+        deleted: dict[str, Any] = {
             "canonical_memories": 0,
             "consent_receipts": 0,
         }
-        r1 = (
-            self.db.table("canonical_memories")
-            .delete()
-            .eq("user_id", user_id)
-            .execute()
-        )
+        r1 = self.db.table("canonical_memories").delete().eq("user_id", user_id).execute()
         deleted["canonical_memories"] = len(r1.data) if r1.data else 0
 
-        r2 = (
-            self.db.table("memory_consent_receipts")
-            .delete()
-            .eq("user_id", user_id)
-            .execute()
-        )
+        r2 = self.db.table("memory_consent_receipts").delete().eq("user_id", user_id).execute()
         deleted["consent_receipts"] = len(r2.data) if r2.data else 0
 
-        deleted["purged_at"] = dt.datetime.now(dt.timezone.utc).isoformat()
+        deleted["purged_at"] = dt.datetime.now(dt.UTC).isoformat()
         return deleted
 
     # ── Retention ────────────────────────────────────────────────────
 
-    def get_retention_status(
-        self, user_id: str, max_age_days: int = 365
-    ) -> Dict[str, int]:
+    def get_retention_status(self, user_id: str, max_age_days: int = 365) -> dict[str, int]:
         """Return counts of active memories and those eligible for cleanup.
 
         A memory is eligible when its ``last_used_at`` (or ``created_at``
         as fallback) is older than *max_age_days*.
         """
-        cutoff = dt.datetime.now(dt.timezone.utc) - dt.timedelta(
-            days=max_age_days
-        )
+        cutoff = dt.datetime.now(dt.UTC) - dt.timedelta(days=max_age_days)
         result = (
             self.db.table("canonical_memories")
             .select("id, created_at, last_used_at")
@@ -145,8 +123,7 @@ class MemoryPrivacyManager:
         expired = [
             r
             for r in active
-            if (r.get("last_used_at") or r.get("created_at", ""))
-            < cutoff.isoformat()
+            if (r.get("last_used_at") or r.get("created_at", "")) < cutoff.isoformat()
         ]
         return {
             "total_active": len(active),
@@ -157,16 +134,25 @@ class MemoryPrivacyManager:
 if __name__ == "__main__":
     # Quick self-check
     class _Result:
-        def __init__(self, data): self.data = data
+        def __init__(self, data):
+            self.data = data
 
     class _StubTable:
-        def select(self, *_a): return self
-        def eq(self, *_a): return self
-        def limit(self, *_a): return self
-        def execute(self): return _Result([])
+        def select(self, *_a):
+            return self
+
+        def eq(self, *_a):
+            return self
+
+        def limit(self, *_a):
+            return self
+
+        def execute(self):
+            return _Result([])
 
     class _StubClient:
-        def table(self, *_a): return _StubTable()
+        def table(self, *_a):
+            return _StubTable()
 
     mgr = MemoryPrivacyManager(_StubClient())
     assert mgr.check_consent("u1", ConsentScope.EXTRACTION) is False

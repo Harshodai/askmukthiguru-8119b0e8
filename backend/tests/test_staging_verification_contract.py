@@ -19,9 +19,9 @@ def test_runtime_gate_is_staging_safe_and_fail_closed() -> None:
 def test_red_team_requires_staging_and_explicit_synthetic_user_authorization() -> None:
     source = (SCRIPTS / "staging_red_team.sh").read_text(encoding="utf-8")
 
-    assert 'STAGING_ENVIRONMENT:-' in source
+    assert "STAGING_ENVIRONMENT:-" in source
     assert '!= "staging"' in source
-    assert 'ALLOW_STAGING_SYNTHETIC_USERS:-' in source
+    assert "ALLOW_STAGING_SYNTHETIC_USERS:-" in source
     assert "verify_rls_policies.py" in source
     assert "verify_runtime_gate.sh" in source
     assert "PUT PATCH DELETE" in source
@@ -30,9 +30,9 @@ def test_red_team_requires_staging_and_explicit_synthetic_user_authorization() -
 def test_migration_verifier_is_transaction_only_and_staging_guarded() -> None:
     source = (SCRIPTS / "verify_migration_rollback.sh").read_text(encoding="utf-8")
 
-    assert 'STAGING_ENVIRONMENT:-' in source
+    assert "STAGING_ENVIRONMENT:-" in source
     assert '!= "staging"' in source
-    assert 'ALLOW_NONDESTRUCTIVE_DB_VERIFY:-' in source
+    assert "ALLOW_NONDESTRUCTIVE_DB_VERIFY:-" in source
     assert "BEGIN;" in source
     assert "ROLLBACK;" in source
     assert "20260825000002_restore_user_activity_table_grants.sql" in source
@@ -45,8 +45,8 @@ def test_migration_verifier_is_transaction_only_and_staging_guarded() -> None:
 def test_retrieval_gate_requires_strict_eval_and_protects_baseline() -> None:
     source = (SCRIPTS / "verify_retrieval_gate.sh").read_text(encoding="utf-8")
 
-    assert 'REQUIRE_QDRANT_EVAL=1' in source
-    assert 'QDRANT_API_KEY:?Set QDRANT_API_KEY' in source
+    assert "REQUIRE_QDRANT_EVAL=1" in source
+    assert "QDRANT_API_KEY:?Set QDRANT_API_KEY" in source
     assert "UPDATE_QDRANT_BASELINE" in source
     assert "before_sha" in source
     assert "changed the baseline in read-only mode" in source

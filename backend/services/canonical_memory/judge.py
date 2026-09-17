@@ -14,17 +14,16 @@ from __future__ import annotations
 
 import logging
 import re
-import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from difflib import SequenceMatcher
 from enum import Enum
 from typing import Optional
 
 from services.canonical_memory.models import (
+    SINGLE_VALUED_FACT_KEYS,
     MemoryCandidate,
     MemoryType,
-    SINGLE_VALUED_FACT_KEYS,
 )
 
 logger = logging.getLogger(__name__)
@@ -43,8 +42,10 @@ SIMILARITY_MERGE_THRESHOLD = 0.75
 # Decision types
 # ---------------------------------------------------------------------------
 
+
 class DecisionType(str, Enum):
     """Possible judge actions on a MemoryCandidate."""
+
     CREATE = "CREATE"
     UPDATE = "UPDATE"
     MERGE = "MERGE"
@@ -57,6 +58,7 @@ class DecisionType(str, Enum):
 # ---------------------------------------------------------------------------
 # Decision output
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class MemoryDecision:
@@ -71,6 +73,7 @@ class MemoryDecision:
         merged_memory_ids: IDs of existing memories being merged (MERGE).
         metadata: Arbitrary metadata for audit trail / observability.
     """
+
     candidate: MemoryCandidate
     decision: DecisionType
     confidence: float = 1.0
@@ -87,6 +90,7 @@ class MemoryDecision:
 # ---------------------------------------------------------------------------
 # Text similarity helpers (deterministic, no LLM)
 # ---------------------------------------------------------------------------
+
 
 def _normalize_for_compare(text: str) -> str:
     """Normalize text for deterministic comparison.
@@ -113,9 +117,11 @@ def _text_similarity(a: str, b: str) -> float:
 # Existing-memory lookup (injected, not coupled to store)
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class ExistingMemory:
     """Minimal representation of a persisted memory for judge comparison."""
+
     id: str
     statement: str
     normalized_statement: str
@@ -135,6 +141,7 @@ class ExistingMemory:
 @dataclass
 class DeleteCommand:
     """Represents an explicit user 'forget' instruction."""
+
     target_text: str
     """Text describing what to forget (from user utterance)."""
 
@@ -154,6 +161,7 @@ class DeleteCommand:
 # ---------------------------------------------------------------------------
 # Sensitivity policy
 # ---------------------------------------------------------------------------
+
 
 class SensitivityPolicy:
     """Deterministic policy for sensitive memory handling."""
@@ -177,6 +185,7 @@ class SensitivityPolicy:
 # ---------------------------------------------------------------------------
 # Core judge logic
 # ---------------------------------------------------------------------------
+
 
 class MemoryJudge:
     """Deterministic governance layer between extraction and persistence.
@@ -232,10 +241,7 @@ class MemoryJudge:
                         candidate=candidate,
                         decision=DecisionType.DELETE,
                         confidence=1.0,
-                        reason=(
-                            "Explicit user instruction to forget: "
-                            f"{candidate.statement}"
-                        ),
+                        reason=(f"Explicit user instruction to forget: {candidate.statement}"),
                         metadata={"delete_target": cmd.target_text},
                     )
 
@@ -293,8 +299,7 @@ class MemoryJudge:
                 decision=DecisionType.IGNORE,
                 confidence=0.8,
                 reason=(
-                    f"Confidence {candidate.confidence:.2f} below threshold "
-                    f"{CONFIDENCE_THRESHOLD}"
+                    f"Confidence {candidate.confidence:.2f} below threshold {CONFIDENCE_THRESHOLD}"
                 ),
             )
 
@@ -317,9 +322,7 @@ class MemoryJudge:
             reason="New durable fact, no conflicts detected",
         )
 
-    def judge_all(
-        self, candidates: list[MemoryCandidate]
-    ) -> list[MemoryDecision]:
+    def judge_all(self, candidates: list[MemoryCandidate]) -> list[MemoryDecision]:
         """Judge a batch of candidates."""
         return [self.judge(c) for c in candidates]
 
@@ -359,8 +362,13 @@ class MemoryJudge:
 
         # Generic questions about the world (not about the user)
         world_facts = [
-            "what is", "who is", "when did", "where is",
-            "how do", "why do", "can you explain",
+            "what is",
+            "who is",
+            "when did",
+            "where is",
+            "how do",
+            "why do",
+            "can you explain",
         ]
         if any(statement.lower().startswith(wf) for wf in world_facts):
             return False
@@ -415,12 +423,37 @@ class MemoryJudge:
 
         # Must contain first-person indicator or be a self-report
         first_person = [
-            "i live", "i work", "i am", "i prefer", "i want", "i need",
-            "i like", "i practice", "my", "i've been", "i was", "i feel",
-            "i study", "i teach", "i run", "i manage", "i lead",
-            "i'm", "i will", "i can", "i do", "i have", "i had",
-            "i used to", "i stopped", "i started", "i visit",
-            "i'm visiting", "i'll be", "i might", "i could",
+            "i live",
+            "i work",
+            "i am",
+            "i prefer",
+            "i want",
+            "i need",
+            "i like",
+            "i practice",
+            "my",
+            "i've been",
+            "i was",
+            "i feel",
+            "i study",
+            "i teach",
+            "i run",
+            "i manage",
+            "i lead",
+            "i'm",
+            "i will",
+            "i can",
+            "i do",
+            "i have",
+            "i had",
+            "i used to",
+            "i stopped",
+            "i started",
+            "i visit",
+            "i'm visiting",
+            "i'll be",
+            "i might",
+            "i could",
         ]
         if any(fp in statement for fp in first_person):
             return True
@@ -440,9 +473,7 @@ class MemoryJudge:
 
         return False
 
-    def _judge_explicit_request(
-        self, candidate: MemoryCandidate
-    ) -> MemoryDecision | None:
+    def _judge_explicit_request(self, candidate: MemoryCandidate) -> MemoryDecision | None:
         """Handle explicit user 'remember that...' requests.
 
         Explicit user instruction overrides confidence thresholds and
@@ -454,10 +485,7 @@ class MemoryJudge:
                 candidate=candidate,
                 decision=DecisionType.IGNORE,
                 confidence=0.5,
-                reason=(
-                    "Explicit request but not memory-worthy "
-                    "(noise or empty)"
-                ),
+                reason=("Explicit request but not memory-worthy (noise or empty)"),
             )
 
         # Check for duplicate — explicit request + duplicate → UPDATE
@@ -483,10 +511,7 @@ class MemoryJudge:
                     candidate=candidate,
                     decision=DecisionType.UPDATE,
                     confidence=1.0,
-                    reason=(
-                        "Explicit user instruction supersedes existing "
-                        f"memory {conflict.id}"
-                    ),
+                    reason=(f"Explicit user instruction supersedes existing memory {conflict.id}"),
                     superseded_memory_id=conflict.id,
                 )
 
@@ -497,23 +522,21 @@ class MemoryJudge:
             reason="Explicit user instruction to remember",
         )
 
-    def _judge_temporary(
-        self, candidate: MemoryCandidate
-    ) -> MemoryDecision | None:
+    def _judge_temporary(self, candidate: MemoryCandidate) -> MemoryDecision | None:
         """Handle temporary context memories.
 
         Temporary memories have a natural expiry. If already expired,
         we don't create them. If they have an expiry, we CREATE with
         an expires_at set in the metadata.
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         expires_str = getattr(candidate, "expires_at", None)
         if expires_str is not None:
             try:
                 expires_at = datetime.fromisoformat(str(expires_str))
                 if expires_at.tzinfo is None:
-                    expires_at = expires_at.replace(tzinfo=timezone.utc)
+                    expires_at = expires_at.replace(tzinfo=UTC)
                 if expires_at < now:
                     return MemoryDecision(
                         candidate=candidate,
@@ -540,9 +563,7 @@ class MemoryJudge:
             metadata={"default_expiry_days": 7},
         )
 
-    def _judge_conflicts(
-        self, candidate: MemoryCandidate
-    ) -> MemoryDecision | None:
+    def _judge_conflicts(self, candidate: MemoryCandidate) -> MemoryDecision | None:
         """Check for duplicates, contradictions, and supersession.
 
         This is the most complex part of the judge. It compares the
@@ -572,9 +593,7 @@ class MemoryJudge:
 
         return None
 
-    def _find_duplicate(
-        self, candidate: MemoryCandidate
-    ) -> ExistingMemory | None:
+    def _find_duplicate(self, candidate: MemoryCandidate) -> ExistingMemory | None:
         """Find an existing memory that is a near-duplicate of the candidate.
 
         Uses text similarity + fact_key match for deterministic dedup.
@@ -600,9 +619,7 @@ class MemoryJudge:
 
         return None
 
-    def _find_fact_key_conflict(
-        self, candidate: MemoryCandidate
-    ) -> ExistingMemory | None:
+    def _find_fact_key_conflict(self, candidate: MemoryCandidate) -> ExistingMemory | None:
         """Find an existing memory with the same fact_key but different text.
 
         This catches the case where user says "I live in Mumbai" when existing
@@ -635,9 +652,7 @@ class MemoryJudge:
 
         return best_match
 
-    def _find_conflict(
-        self, candidate: MemoryCandidate
-    ) -> ExistingMemory | None:
+    def _find_conflict(self, candidate: MemoryCandidate) -> ExistingMemory | None:
         """Find an existing memory that contradicts the candidate.
 
         A contradiction requires: same fact_key, different meaning,
@@ -653,9 +668,7 @@ class MemoryJudge:
             if mem.fact_key != candidate.fact_key:
                 continue
 
-            sim = _text_similarity(
-                candidate.normalized(), mem.normalized_statement
-            )
+            sim = _text_similarity(candidate.normalized(), mem.normalized_statement)
 
             # High similarity = duplicate (handled elsewhere)
             if sim >= SIMILARITY_EXACT_THRESHOLD:
@@ -668,9 +681,7 @@ class MemoryJudge:
 
         return None
 
-    def _find_merge_candidate(
-        self, candidate: MemoryCandidate
-    ) -> ExistingMemory | None:
+    def _find_merge_candidate(self, candidate: MemoryCandidate) -> ExistingMemory | None:
         """Find an existing memory that partially overlaps with the candidate.
 
         Different fact_keys but related content → merge candidate.
@@ -684,9 +695,7 @@ class MemoryJudge:
             if candidate.memory_type.value != mem.memory_type:
                 continue
 
-            sim = _text_similarity(
-                candidate.normalized(), mem.normalized_statement
-            )
+            sim = _text_similarity(candidate.normalized(), mem.normalized_statement)
             if SIMILARITY_MERGE_THRESHOLD <= sim < SIMILARITY_EXACT_THRESHOLD:
                 return mem
 
@@ -701,9 +710,7 @@ class MemoryJudge:
         - Same fact_key + explicit request → UPDATE
         - Same fact_key + higher confidence → UPDATE
         """
-        sim = _text_similarity(
-            candidate.normalized(), dup.normalized_statement
-        )
+        sim = _text_similarity(candidate.normalized(), dup.normalized_statement)
 
         # Exact duplicate → IGNORE
         if sim >= SIMILARITY_EXACT_THRESHOLD:
@@ -713,10 +720,7 @@ class MemoryJudge:
                     candidate=candidate,
                     decision=DecisionType.UPDATE,
                     confidence=1.0,
-                    reason=(
-                        "Explicit user instruction to re-remember; "
-                        "updating existing memory"
-                    ),
+                    reason=("Explicit user instruction to re-remember; updating existing memory"),
                     superseded_memory_id=dup.id,
                     metadata={
                         "similarity": sim,
@@ -727,19 +731,13 @@ class MemoryJudge:
                 candidate=candidate,
                 decision=DecisionType.IGNORE,
                 confidence=0.95,
-                reason=(
-                    f"Duplicate of existing memory {dup.id} "
-                    f"(similarity={sim:.2f})"
-                ),
+                reason=(f"Duplicate of existing memory {dup.id} (similarity={sim:.2f})"),
                 superseded_memory_id=dup.id,
                 metadata={"similarity": sim},
             )
 
         # Near-duplicate with higher confidence or explicit → UPDATE
-        if (
-            candidate.confidence > dup.confidence
-            or candidate.explicit_request
-        ):
+        if candidate.confidence > dup.confidence or candidate.explicit_request:
             return MemoryDecision(
                 candidate=candidate,
                 decision=DecisionType.UPDATE,
@@ -789,10 +787,7 @@ class MemoryJudge:
         - Ambiguous contradiction → ESCALATE
         """
         # Single-valued fact key → deterministic supersession
-        if (
-            candidate.fact_key
-            and candidate.fact_key in SINGLE_VALUED_FACT_KEYS
-        ):
+        if candidate.fact_key and candidate.fact_key in SINGLE_VALUED_FACT_KEYS:
             # User explicitly said something → always supersede
             if candidate.explicit_request:
                 return MemoryDecision(
@@ -858,10 +853,7 @@ class MemoryJudge:
                 candidate=candidate,
                 decision=DecisionType.UPDATE,
                 confidence=0.9,
-                reason=(
-                    "Explicit user instruction; updating existing memory "
-                    f"{conflict.id}"
-                ),
+                reason=(f"Explicit user instruction; updating existing memory {conflict.id}"),
                 superseded_memory_id=conflict.id,
             )
 
@@ -871,8 +863,7 @@ class MemoryJudge:
             decision=DecisionType.ESCALATE,
             confidence=0.5,
             reason=(
-                f"Ambiguous contradiction with existing memory {conflict.id}; "
-                "requires resolution"
+                f"Ambiguous contradiction with existing memory {conflict.id}; requires resolution"
             ),
             superseded_memory_id=conflict.id,
             metadata={
@@ -892,10 +883,7 @@ class MemoryJudge:
             candidate=candidate,
             decision=DecisionType.MERGE,
             confidence=0.75,
-            reason=(
-                f"Partial overlap with existing memory {merge_target.id}; "
-                "merge recommended"
-            ),
+            reason=(f"Partial overlap with existing memory {merge_target.id}; merge recommended"),
             merged_memory_ids=[merge_target.id],
             metadata={
                 "existing_statement": merge_target.statement,
@@ -922,6 +910,7 @@ class MemoryJudge:
 # ---------------------------------------------------------------------------
 # Convenience factory
 # ---------------------------------------------------------------------------
+
 
 def create_judge(
     existing_memories: list[ExistingMemory] | None = None,
@@ -975,7 +964,7 @@ if __name__ == "__main__":
     )
     dup_judge = create_judge(existing_memories=[existing])
     dup_decision = dup_judge.judge(candidate)
-    print(f"\nDuplicate test:")
+    print("\nDuplicate test:")
     print(f"Decision: {dup_decision.decision.value}")
     print(f"Reason: {dup_decision.reason}")
     print(f"Target: {dup_decision.superseded_memory_id}")
@@ -990,7 +979,7 @@ if __name__ == "__main__":
         evidence="Actually, I prefer detailed answers.",
     )
     sup_decision = dup_judge.judge(new_candidate)
-    print(f"\nSupersession test:")
+    print("\nSupersession test:")
     print(f"Decision: {sup_decision.decision.value}")
     print(f"Reason: {sup_decision.reason}")
     print(f"Target: {sup_decision.superseded_memory_id}")

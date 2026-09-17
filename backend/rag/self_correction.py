@@ -89,6 +89,4 @@ class SelfCorrectionOrchestrator:
         # All retries exhausted
         if last_error is not None:
             raise last_error
-        raise RuntimeError(
-            f"[SelfCorrection] Retries exhausted after {self.max_retries} attempts"
-        )
+        raise RuntimeError(f"[SelfCorrection] Retries exhausted after {self.max_retries} attempts")

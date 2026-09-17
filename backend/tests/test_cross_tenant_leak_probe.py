@@ -16,8 +16,8 @@ Invariants (LAUNCH_READINESS_GATES_2026-09-13.md - Gate 0.2):
 
 from __future__ import annotations
 
-import asyncio
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
+
 import pytest
 from qdrant_client import QdrantClient
 from qdrant_client.http import models
@@ -32,16 +32,20 @@ def memory_qdrant_client():
     """Create an in-memory Qdrant instance with real payload indexes."""
     client = QdrantClient(":memory:")
     collection_name = "test_spiritual_wisdom_contextual"
-    
+
     client.create_collection(
         collection_name=collection_name,
-        vectors_config={
-            "dense": models.VectorParams(size=4, distance=models.Distance.COSINE)
-        },
+        vectors_config={"dense": models.VectorParams(size=4, distance=models.Distance.COSINE)},
     )
 
     # Initialize required keyword payload indexes
-    for field_name in ["tenant_id", "corpus_id", "teacher_id", "teacher_ids", "domain_rights_status"]:
+    for field_name in [
+        "tenant_id",
+        "corpus_id",
+        "teacher_id",
+        "teacher_ids",
+        "domain_rights_status",
+    ]:
         client.create_payload_index(
             collection_name=collection_name,
             field_name=field_name,
@@ -245,7 +249,9 @@ def test_qdrant_licensed_domain_rights_isolation(memory_qdrant_client):
 
     for r in licensed_results:
         assert r.get("domain_rights_status") == "licensed"
-        assert r.get("teacher_id") != "sadhguru", "Unlicensed external teacher leaked past rights gate!"
+        assert r.get("teacher_id") != "sadhguru", (
+            "Unlicensed external teacher leaked past rights gate!"
+        )
 
 
 @pytest.mark.asyncio
@@ -299,7 +305,9 @@ async def test_neo4j_kg_expansion_cross_tenant_isolation():
     )
 
     assert "Alpha Concept" in alpha_neighbors
-    assert "Beta Concept" not in alpha_neighbors, "CRITICAL: Beta KG concept leaked to Alpha expansion!"
+    assert "Beta Concept" not in alpha_neighbors, (
+        "CRITICAL: Beta KG concept leaked to Alpha expansion!"
+    )
 
     # Run under tenant_beta
     TenantContext.set("tenant_beta")
@@ -309,4 +317,6 @@ async def test_neo4j_kg_expansion_cross_tenant_isolation():
     )
 
     assert "Beta Concept" in beta_neighbors
-    assert "Alpha Concept" not in beta_neighbors, "CRITICAL: Alpha KG concept leaked to Beta expansion!"
+    assert "Alpha Concept" not in beta_neighbors, (
+        "CRITICAL: Alpha KG concept leaked to Beta expansion!"
+    )

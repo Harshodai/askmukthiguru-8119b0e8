@@ -297,7 +297,9 @@ async def test_sarvam_tier_limit_retry_records_reason(monkeypatch):
     assert fake_tracer.spans[1].attributes["http.status_code"] == 200
     assert fake_tracer.spans[1].attributes["gen_ai.usage.input_tokens"] == 1
     assert fake_tracer.spans[1].attributes["gen_ai.usage.output_tokens"] == 1
-    assert fake_tracer.spans[1].attributes["gen_ai.usage.cost"] == pytest.approx((1 + 1) / 1000.0 * 0.0001)
+    assert fake_tracer.spans[1].attributes["gen_ai.usage.cost"] == pytest.approx(
+        (1 + 1) / 1000.0 * 0.0001
+    )
     assert fake_tracer.spans[1].attributes["gen_ai.response.model"] == "sarvam-30b"
 
 
@@ -339,7 +341,9 @@ async def test_sarvam_context_window_retry_records_reason(monkeypatch):
     # Second span succeeded
     assert fake_tracer.spans[1].attributes.get("gen_ai.retry_reason") is None
     assert fake_tracer.spans[1].attributes["http.status_code"] == 200
-    assert fake_tracer.spans[1].attributes["gen_ai.usage.cost"] == pytest.approx((1 + 1) / 1000.0 * 0.0001)
+    assert fake_tracer.spans[1].attributes["gen_ai.usage.cost"] == pytest.approx(
+        (1 + 1) / 1000.0 * 0.0001
+    )
 
 
 @pytest.mark.asyncio
@@ -354,11 +358,14 @@ async def test_sarvam_context_window_sarvam_m_upgrade_retry_records_reason(monke
                 422,
                 text="exceeds the model context window",
             ),
-            QueuedResponse(200, payload={
-                "model": "sarvam-30b",
-                "choices": [{"message": {"content": "ok"}}],
-                "usage": {"prompt_tokens": 20, "completion_tokens": 10},
-            }),
+            QueuedResponse(
+                200,
+                payload={
+                    "model": "sarvam-30b",
+                    "choices": [{"message": {"content": "ok"}}],
+                    "usage": {"prompt_tokens": 20, "completion_tokens": 10},
+                },
+            ),
         ]
 
     monkeypatch.setattr(sarvam_service.httpx, "AsyncClient", Client)
@@ -383,7 +390,9 @@ async def test_sarvam_context_window_sarvam_m_upgrade_retry_records_reason(monke
     assert fake_tracer.spans[1].attributes.get("gen_ai.retry_reason") is None
     assert fake_tracer.spans[1].attributes["gen_ai.request.model"] == "sarvam-30b"
     assert fake_tracer.spans[1].attributes["http.status_code"] == 200
-    assert fake_tracer.spans[1].attributes["gen_ai.usage.cost"] == pytest.approx((20 + 10) / 1000.0 * 0.0001)
+    assert fake_tracer.spans[1].attributes["gen_ai.usage.cost"] == pytest.approx(
+        (20 + 10) / 1000.0 * 0.0001
+    )
     assert fake_tracer.spans[1].attributes["gen_ai.response.model"] == "sarvam-30b"
 
 
@@ -419,7 +428,9 @@ async def test_sarvam_key_rotation_retry_records_reason(monkeypatch):
     # Second span succeeded with rotated key
     assert fake_tracer.spans[1].attributes.get("gen_ai.retry_reason") is None
     assert fake_tracer.spans[1].attributes["http.status_code"] == 200
-    assert fake_tracer.spans[1].attributes["gen_ai.usage.cost"] == pytest.approx((1 + 1) / 1000.0 * 0.0001)
+    assert fake_tracer.spans[1].attributes["gen_ai.usage.cost"] == pytest.approx(
+        (1 + 1) / 1000.0 * 0.0001
+    )
 
 
 @pytest.mark.asyncio
@@ -476,13 +487,14 @@ async def test_sarvam_http_gateway_direct_observability_and_cost(monkeypatch):
     assert span.attributes["http.status_code"] == 200
     assert span.attributes["gen_ai.usage.input_tokens"] == 50
     assert span.attributes["gen_ai.usage.output_tokens"] == 25
-    expected_cost = (50 + 25) / 1000.0 * 0.0001
+    _expected_cost = (50 + 25) / 1000.0 * 0.0001
     assert span.attributes["gen_ai.response.model"] == "sarvam-30b"
 
 
 @pytest.mark.asyncio
 async def test_sarvam_generate_stream_observability_and_token_tracking(monkeypatch):
     import opentelemetry.trace
+
     from services.cost_tracker import TokenAccumulator, token_accumulator_var
 
     fake_tracer = FakeTracer()
@@ -549,6 +561,7 @@ async def test_sarvam_generate_stream_observability_and_token_tracking(monkeypat
 @pytest.mark.asyncio
 async def test_sarvam_generate_stream_fallback_token_estimation_when_usage_omitted(monkeypatch):
     import opentelemetry.trace
+
     from services.cost_tracker import TokenAccumulator, token_accumulator_var
 
     fake_tracer = FakeTracer()

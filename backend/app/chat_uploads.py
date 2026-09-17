@@ -186,7 +186,9 @@ async def _extract_media_text(
             return str(transcript or "").strip(), "transcription"
         except TimeoutError:
             logger.warning(
-                "Media transcription timed out for %s after %ss", name, _TRANSCRIPTION_TIMEOUT_SECONDS
+                "Media transcription timed out for %s after %ss",
+                name,
+                _TRANSCRIPTION_TIMEOUT_SECONDS,
             )
             return "", "transcription_timeout"
         except Exception as exc:

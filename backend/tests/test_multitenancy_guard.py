@@ -91,7 +91,9 @@ class TestMultitenancyGuard:
         """Upsert with metadata carrying tenant_id/teacher_id must succeed in enforce mode."""
         monkeypatch.setattr(settings, "multitenancy_guard_mode", "enforce")
 
-        metas = [{"source_url": "https://youtu.be/abc", "tenant_id": "oneness", "teacher_id": "ekam"}]
+        metas = [
+            {"source_url": "https://youtu.be/abc", "tenant_id": "oneness", "teacher_id": "ekam"}
+        ]
         result = dummy_upsert(["text1"], metadatas=metas)
         assert result["upserted"] == 1
 
@@ -136,10 +138,14 @@ class TestMultitenancyGuard:
     def test_production_methods_are_wrapped_and_enumerated(self):
         """CI gate: verify all critical Qdrant entrypoints are decorated with enforce_multitenancy."""
         # QdrantSearcher.search
-        assert hasattr(QdrantSearcher.search, "__wrapped__"), "QdrantSearcher.search must be decorated"
+        assert hasattr(QdrantSearcher.search, "__wrapped__"), (
+            "QdrantSearcher.search must be decorated"
+        )
 
         # QdrantIndexer.upsert_chunks
-        assert hasattr(QdrantIndexer.upsert_chunks, "__wrapped__"), "QdrantIndexer.upsert_chunks must be decorated"
+        assert hasattr(QdrantIndexer.upsert_chunks, "__wrapped__"), (
+            "QdrantIndexer.upsert_chunks must be decorated"
+        )
 
     def test_multiple_teachers_isolated(self):
         """Different teachers get different tenant context."""

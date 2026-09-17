@@ -1,7 +1,5 @@
 """Tests for canonical memory red team adversarial testing (Phase 25)."""
 
-import pytest
-
 from services.canonical_memory.red_team import (
     AttackCategory,
     AttackLibrary,
@@ -183,7 +181,13 @@ class TestFullRedTeamAllBlocked:
         runner = get_red_team_runner()
         report = runner.run_full_red_team()
         cats = report["by_category"]
-        for cat_name in ("injection", "extraction", "cross_user", "manipulation", "denial_of_service"):
+        for cat_name in (
+            "injection",
+            "extraction",
+            "cross_user",
+            "manipulation",
+            "denial_of_service",
+        ):
             assert cat_name in cats
             assert "total" in cats[cat_name]
             assert "blocked" in cats[cat_name]

@@ -27,14 +27,19 @@ Prior art (websearch 2026-09-13):
 
 Baselines frozen 2026-09-13 at bf7ada3d: 12 undeclared ``getattr`` names,
 63 ``file::VAR`` env-read sites (71 read lines; same-VAR multi-reads and
-multiline calls collapse to one site). Task S3 absorbs 4 known gaps as
+multiline calls collapse to one site). Task S3 absorbs 3 known gaps as
 baseline debt (to pay down, not passes): ``web_ingest_request_timeout``
 (backend/ingestion, via the ``app_settings`` alias the broadened regex now
 catches), ``redis_password`` (backend/ops, no ``__init__.py`` so outside the
 walked tree), ``supabase_service_role_key`` (backend/scripts, likewise
-outside the walk), ``llm_judge_max_concurrent`` (backend/evaluation,
-likewise outside the walk). Pure writes (``os.environ[X] =``) and
+outside the walk). Pure writes (``os.environ[X] =``) and
 ``setdefault`` propagation are not reads and are excluded.
+
+2026-09-16 ratchet DOWN (benchmark-unification workstream): ``backend/evaluation``
+gained an ``__init__.py`` so ``_discover_guard_dirs()`` walks it for the first
+time, and the 16 ``evaluation/*`` env-read sites plus the ``llm_judge_max_concurrent``
+getattr that would have been found there were CONVERTED to ``app.config.settings``
+rather than baselined. Both baselines shrank; neither grew.
 """
 
 import pathlib
@@ -72,10 +77,8 @@ _ENV_LITERAL_RE = re.compile(
     r'|os\.environ\s*\[\s*["\']([^"\']+)["\']'
     r'|os\.getenv\s*\(\s*["\']([^"\']+)["\']'
 )
-_ENV_DYNAMIC_RE = re.compile(
-    r'os\.environ\.get\(\s*([^"\'\s])|os\.getenv\(\s*([^"\'\s])'
-)
-_WRITE_LHS_RE = re.compile(r'os\.environ\s*\[[^\]]+\]\s*=(?!=)')
+_ENV_DYNAMIC_RE = re.compile(r'os\.environ\.get\(\s*([^"\'\s])|os\.getenv\(\s*([^"\'\s])')
+_WRITE_LHS_RE = re.compile(r"os\.environ\s*\[[^\]]+\]\s*=(?!=)")
 
 _DYNAMIC = "<dynamic>"
 
@@ -88,7 +91,6 @@ _GETATTR_DEBT_BASELINE = frozenset(
         "kg_max_concurrent_queries",
         "lightrag_query_timeout_seconds",
         "llm_generate_timeout",
-        "llm_judge_max_concurrent",
         "qdrant_timeout",
         "quality_gate_threshold",
         "redis_password",
@@ -217,12 +219,18 @@ def test_getattr_names_are_declared():
 
 
 def test_no_direct_os_environ_in_owned_modules():
-    base = pathlib.Path(__file__).resolve().parents[1]
+    # These two modules are the config chokepoint: every env value must reach
+    # the app through Settings, never through a direct read here. Checked via
+    # _env_read_sites() (which skips comments, docstrings, pure writes and
+    # setdefault) rather than a bare `"os.environ" not in source` substring —
+    # that naive form failed on 2026-09-16 against a *comment in app/config.py
+    # explaining a fix that removed the reads*. A gate that fails on prose
+    # describing its own satisfaction is a gate people switch off.
+    sites = _env_read_sites()
     for rel in ("app/config.py", "services/llm_budget_guard.py"):
-        src = (base / rel).read_text()
-        assert "os.environ" not in src, rel
-        assert "os.getenv" not in src, rel
-    new_sites = sorted(_env_read_sites() - _ENV_READ_BASELINE)
+        offenders = sorted(s for s in sites if s.startswith(f"{rel}::"))
+        assert not offenders, f"direct env read(s) in {rel}: {offenders}"
+    new_sites = sorted(sites - _ENV_READ_BASELINE)
     assert not new_sites, f"NEW direct os.environ reads: {new_sites}"
 
 
@@ -244,3 +252,143 @@ def test_the_two_memory_write_flags_stay_separate():
     canonical = (base / "app/container.py").read_text()
     assert "settings.feature_memory_write" in legacy
     assert "settings.memory_write" in canonical
+
+
+# --- Orphan env-key sweep (defect class 6) ---------------------------------
+#
+# `.env.example` is the checked-in contract for what an operator is supposed
+# to set. `Settings.model_config` uses ``extra="ignore"``, so a key documented
+# there but declared on no field and read by no code is **silently dropped** —
+# the operator sets it, nothing errors, and it configures nothing.
+#
+# That is not hypothetical: `supabase_anon_key` shipped exactly this way, so
+# every caller that believed it was using the anon key was acting as
+# **service_role** instead. Nothing in the app could have told you.
+#
+# Ratchet, not cliff: the five known orphans below are baselined with a reason
+# each. The set may shrink (fixing debt stays green); it must never grow
+# without an explicit, reviewer-visible edit to this file.
+
+_ENV_EXAMPLE = _BACKEND / ".env.example"
+_ENV_KEY_RE = re.compile(r"^([A-Z][A-Z0-9_]*)\s*=")
+
+# Source extensions that can plausibly read an env var by name.
+_ENV_CONSUMER_GLOBS = ("*.py", "*.yml", "*.yaml", "*.sh", "*.ts", "*.tsx", "*.mjs", "*.toml")
+
+ORPHAN_ENV_KEYS_BASELINE: dict[str, str] = {
+    "CELERY_BROKER_VISIBILITY_TIMEOUT": (
+        "Documented for a Celery/SQS broker tuning knob that celery_config.py "
+        "never wired. Setting it today changes nothing."
+    ),
+    "FACEBOOK_CLIENT_ID": (
+        "Social-login placeholder. Supabase owns the OAuth provider config; "
+        "the backend reads neither key."
+    ),
+    "FACEBOOK_CLIENT_SECRET": "See FACEBOOK_CLIENT_ID.",
+    "RATE_LIMIT_PER_MINUTE": (
+        "Superseded by the per-scope limiter settings in app/core/limiter.py "
+        "(RATE_LIMIT_STORAGE_URI + per-route decorators). This single global "
+        "number is read nowhere."
+    ),
+    "USE_OPENROUTER_FOR_SIMPLE": (
+        "Predates the llm_factory provider split; routing is now decided by "
+        "LLM_PROVIDER plus the classify/fast model settings."
+    ),
+}
+
+
+def _env_example_keys() -> list[str]:
+    keys: list[str] = []
+    for line in _ENV_EXAMPLE.read_text(errors="ignore").splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        match = _ENV_KEY_RE.match(stripped)
+        if match:
+            keys.append(match.group(1))
+    return keys
+
+
+def _declared_setting_names() -> set[str]:
+    """Field names plus any explicit alias, lowercased. pydantic-settings
+    matches env vars to fields case-insensitively, so lowercasing is the
+    correct comparison key."""
+    names: set[str] = set()
+    for name, field in Settings.model_fields.items():
+        names.add(name.lower())
+        alias = getattr(field, "alias", None)
+        if isinstance(alias, str):
+            names.add(alias.lower())
+    return names
+
+
+def _keys_referenced_in_source() -> set[str]:
+    """Env-var names appearing as a quoted literal anywhere in repo source.
+
+    Deliberately broad (a plain quoted-substring match, not an
+    ``os.getenv`` parse): a key consumed by docker-compose, a shell script,
+    a third-party library's own env contract (MEMGRAPH_URI for lightrag), or
+    the frontend still legitimately configures something. This sweep is only
+    trying to catch the key that configures *nothing at all*.
+    """
+    root = _BACKEND.parent
+    found: set[str] = set()
+    candidates = set(_env_example_keys()) - _declared_setting_names()
+    if not candidates:
+        return found
+    pattern = re.compile(r"[\"'](" + "|".join(re.escape(k) for k in sorted(candidates)) + r")[\"']")
+    skip = _SKIP_DIR_PARTS | {"node_modules", ".git", "dist", ".pytest_cache", ".ruff_cache"}
+    for glob in _ENV_CONSUMER_GLOBS:
+        for path in root.rglob(glob):
+            rel = path.relative_to(root)
+            if set(rel.parts) & skip or any(p.startswith(".env") for p in rel.parts):
+                continue
+            if rel.parts[-1] == pathlib.Path(__file__).name:
+                continue  # this guard's own baseline dict is not a consumer
+            try:
+                text = path.read_text(errors="ignore")
+            except OSError:
+                continue
+            found.update(pattern.findall(text))
+    return found
+
+
+def _orphan_env_keys() -> set[str]:
+    declared = _declared_setting_names()
+    referenced = _keys_referenced_in_source()
+    return {
+        key for key in _env_example_keys() if key.lower() not in declared and key not in referenced
+    }
+
+
+def test_no_new_orphan_env_keys():
+    """Every `.env.example` key must be declared on Settings or read by name
+    somewhere. An orphan is config theatre: the operator sets it, pydantic's
+    ``extra="ignore"`` drops it, and nothing reports the gap."""
+    new_orphans = sorted(_orphan_env_keys() - set(ORPHAN_ENV_KEYS_BASELINE))
+    assert not new_orphans, (
+        "NEW orphan key(s) in backend/.env.example — declared on no Settings "
+        "field and read by no code, so setting them configures nothing:\n  - "
+        + "\n  - ".join(new_orphans)
+        + "\nDeclare the field on Settings (preferred), read it explicitly, "
+        "delete the line, or baseline it in ORPHAN_ENV_KEYS_BASELINE with a reason."
+    )
+
+
+def test_orphan_env_key_baseline_has_no_stale_entries():
+    """The baseline is a ratchet: an entry that is no longer an orphan (the
+    key got declared, or the line was deleted) must be removed, so the list
+    can only shrink."""
+    stale = sorted(set(ORPHAN_ENV_KEYS_BASELINE) - _orphan_env_keys())
+    assert not stale, (
+        "ORPHAN_ENV_KEYS_BASELINE entries that are no longer orphans — remove "
+        f"them so the baseline keeps shrinking: {stale}"
+    )
+
+
+if __name__ == "__main__":  # runnable self-check
+    print(f".env.example keys: {len(_env_example_keys())}")
+    print(f"declared Settings names: {len(_declared_setting_names())}")
+    for key in sorted(_orphan_env_keys()):
+        status = "baselined" if key in ORPHAN_ENV_KEYS_BASELINE else "NEW"
+        print(f"  orphan [{status}]: {key}")

@@ -363,9 +363,7 @@ class ExponentialBackoffRateLimiter:
         with self._lock:
             self._attempts.clear()
 
-    async def is_allowed_async(
-        self, key: str, now: Optional[float] = None
-    ) -> tuple[bool, float]:
+    async def is_allowed_async(self, key: str, now: Optional[float] = None) -> tuple[bool, float]:
         """Async alias for use in async middleware (CPU-only, never blocks)."""
         return self.is_allowed(key, now)
 
@@ -659,9 +657,7 @@ class RedisBackedRateLimiter:
         self._last_reconnect_attempt = time.time()
         await self._aconnect()
 
-    async def is_allowed_async(
-        self, key: str, now: Optional[float] = None
-    ) -> tuple[bool, float]:
+    async def is_allowed_async(self, key: str, now: Optional[float] = None) -> tuple[bool, float]:
         """Async variant of :meth:`is_allowed` over ``redis.asyncio``.
 
         Fallback semantics match the sync path exactly, including the

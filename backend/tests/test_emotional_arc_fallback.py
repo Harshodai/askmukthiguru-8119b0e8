@@ -4,8 +4,6 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Optional
 
-import pytest
-
 from rag.memory import build_memory_context
 from services.user_profile_service import ConversationMemory
 

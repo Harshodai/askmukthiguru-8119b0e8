@@ -185,7 +185,9 @@ class PromptStore:
                 raise RuntimeError("Insert returned empty data")
             row = data[0]
         except Exception as e:
-            logger.error(f"PromptStore: save failed for '{sanitize_log_input(name)}' v{sanitize_log_input(ver)}: {e}")
+            logger.error(
+                f"PromptStore: save failed for '{sanitize_log_input(name)}' v{sanitize_log_input(ver)}: {e}"
+            )
             raise
 
         pv = _row_to_pv(row)
@@ -233,7 +235,9 @@ class PromptStore:
                 return None
             return _row_to_pv(res.data[0])
         except Exception as e:
-            logger.error(f"PromptStore: get_version failed for '{sanitize_log_input(name)}' v{sanitize_log_input(version)}: {e}")
+            logger.error(
+                f"PromptStore: get_version failed for '{sanitize_log_input(name)}' v{sanitize_log_input(version)}: {e}"
+            )
             return None
 
     def list_versions(self, name: str) -> list[PromptVersion]:
@@ -285,7 +289,9 @@ class PromptStore:
                 .execute()
             )
             if not res.data:
-                logger.warning(f"PromptStore: rollback failed — '{sanitize_log_input(name)}' v{sanitize_log_input(version)} not found")
+                logger.warning(
+                    f"PromptStore: rollback failed — '{sanitize_log_input(name)}' v{sanitize_log_input(version)} not found"
+                )
                 return None
 
             client.table("prompt_versions").update({"active": False}).eq("name", name).execute()
@@ -293,7 +299,9 @@ class PromptStore:
                 "version", version
             ).execute()
 
-            logger.info(f"PromptStore: rolled back '{sanitize_log_input(name)}' to v{sanitize_log_input(version)}")
+            logger.info(
+                f"PromptStore: rolled back '{sanitize_log_input(name)}' to v{sanitize_log_input(version)}"
+            )
             return self.get_active(name)
         except Exception as e:
             logger.error(f"PromptStore: rollback failed: {e}")
@@ -337,7 +345,9 @@ class PromptStore:
                 )
                 seeded += 1
             except Exception as e:
-                logger.debug(f"PromptStore: skipping auto-seed of {attr_name} due to write failure: {e}")
+                logger.debug(
+                    f"PromptStore: skipping auto-seed of {attr_name} due to write failure: {e}"
+                )
                 break
 
         logger.info(f"PromptStore: seeded {seeded} prompts from {module_name}")

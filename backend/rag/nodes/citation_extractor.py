@@ -10,27 +10,68 @@ from __future__ import annotations
 import logging
 import re
 from typing import Optional
-
 from urllib.parse import urlparse
 
+from app.config import settings
 from rag.nodes.utils import log_metrics
 from rag.states import GraphState
 
 logger = logging.getLogger(__name__)
 
 
-def _jaccard(a: str, b: str, n: int = 3) -> float:
-    """N-gram Jaccard similarity between two strings."""
+# Function words carry no evidence, so they inflate every score equally.
+_STOPWORDS = frozenset(
+    """a an the is are was were be been being am of to in on at for with and or but
+    that this these those it its you your yours i we they he she as from by not no
+    do does did can could will would shall should may might must have has had if
+    then than so such about into over under again more most other some any each our
+    their them his her what who when where why how there here all both few own same
+    very just only also because while during before after above below up down out off
+    """.split()
+)
+_WORD_RE = re.compile(r"[\w']+", re.UNICODE)
 
-    def _grams(s: str) -> set:
-        s = s.lower()
-        return {s[i : i + n] for i in range(len(s) - n + 1)} if len(s) >= n else set()
 
-    ga = _grams(a)
-    gb = _grams(b)
-    if not ga or not gb:
+def _content_words(text: str) -> set[str]:
+    """Lowercased content words: stopwords and <=2-char tokens dropped."""
+    return {w for w in _WORD_RE.findall((text or "").lower()) if len(w) > 2 and w not in _STOPWORDS}
+
+
+def _span_overlap(sentence: str, doc_text: str) -> float:
+    """Fraction of the SENTENCE's content words that appear in `doc_text`.
+
+    This is containment, not Jaccard, and it is word-level, not character
+    n-gram level. Both departures are load-bearing and were measured against
+    the live collection on 2026-09-16 (GURU_DEMO_READINESS F2):
+
+    * **Jaccard divides by the union.** An answer sentence is ~80-150 chars
+      (~120 character 3-grams); a retrieved chunk is ~400-1600 chars (~400-1600
+      3-grams). The score therefore has a mathematical ceiling near
+      |sentence|/|chunk|, measured at 0.083-0.153 for the CORRECT sentence
+      against the 8 documents actually retrieved for "What is the Beautiful
+      State?" -- seven of eight could not clear the old 0.15 floor no matter
+      how faithful the paraphrase was. That is the F2 intermittency: citations
+      survived only when a short chunk happened to rank.
+    * **Character 3-grams do not discriminate.** With containment applied to
+      character 3-grams, an off-topic control sentence ("The capital of France
+      is Paris...") scored 0.580 against the same documents -- higher than an
+      on-topic sentence. English prose shares trigrams regardless of meaning.
+
+    Word-level containment separates cleanly: on-topic answer sentences scored
+    0.357-0.583 across three questions, genuinely off-domain controls
+    0.000-0.100. Floor: `settings.citation_span_overlap_floor` (0.30).
+
+    The extractor can only ever select a document already in
+    `selected_docs`/`relevant_docs`, so an imperfect match cites a retrieved
+    teaching -- it cannot invent a source.
+    """
+    sentence_words = _content_words(sentence)
+    if not sentence_words:
         return 0.0
-    return len(ga & gb) / len(ga | gb)
+    doc_words = _content_words(doc_text)
+    if not doc_words:
+        return 0.0
+    return len(sentence_words & doc_words) / len(sentence_words)
 
 
 def _is_youtube_video_id_title(title: str) -> bool:
@@ -69,10 +110,24 @@ def extract_citations(state: GraphState) -> dict:
     # citations.
     docs = selected_docs if selected_docs is not None else relevant_docs
     if not answer or not docs:
+        # No documents at all (or an explicitly emptied selected_docs, meaning
+        # they were rejected) is the one case where an empty citation list is
+        # the truth. The floor below deliberately does not apply here.
         return {"citations": []}
+
+    # What generate_answer already established from the documents that survived
+    # into the prompt (`_grounded_citation_urls(surviving_docs)`). This node
+    # runs AFTER it and its return REPLACES the state key, so before this floor
+    # existed an empty match set silently destroyed a grounded citation list.
+    # Measured live 2026-09-16 (GURU_DEMO_READINESS F2): retrieved_count=8,
+    # citation_urls=[2 YouTube URLs], final_citations=[] -- and the answer
+    # still attributed doctrine to the Gurus by name.
+    established: list = list(state.get("citations") or [])
 
     # Split answer into sentences (crude but fast)
     sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", answer) if len(s.strip()) > 10]
+
+    overlap_floor = float(getattr(settings, "citation_span_overlap_floor", 0.30))
 
     citations: list[dict] = []
     for sent in sentences:
@@ -80,11 +135,11 @@ def extract_citations(state: GraphState) -> dict:
         best_score = 0.0
         for doc in docs:
             text = doc.get("text", "")
-            score = _jaccard(sent, text)
+            score = _span_overlap(sent, text)
             if score > best_score:
                 best_score = score
                 best_doc = doc
-        if best_doc and best_score > 0.15:
+        if best_doc and best_score >= overlap_floor:
             meta = best_doc.get("metadata", {}) or {}
 
             # Extract valid HTTP(S) URL checking both top-level and metadata
@@ -128,8 +183,28 @@ def extract_citations(state: GraphState) -> dict:
                     "span_in_answer": sent,
                     "confidence": round(best_score, 3),
                     "source": meta.get("source", "Retrieved document"),
+                    # TrustNLP 2026 F21/F33: which lane produced this citation
+                    # (qdrant/okf/neo4j_subgraph/lightrag). Deliberately NOT
+                    # "content_type" -- that key already carries Qdrant's raw
+                    # payload field (video_enhanced/summary/contextual) on
+                    # every real hit, so reusing it here would report the
+                    # wrong thing for the majority case instead of "qdrant".
+                    "knowledge_source": best_doc.get("knowledge_source", "qdrant"),
                 }
             )
+
+    if not citations and established:
+        # Never downgrade. Span matching is a precision mechanism for pointing
+        # at WHICH teaching supports WHICH sentence; it is not the authority on
+        # whether the answer was grounded at all. That authority is retrieval,
+        # and generate_answer already exercised it.
+        logger.warning(
+            "Citation floor: span matching produced 0 citations over %d docs; "
+            "preserving %d citation(s) already established by generate_answer",
+            len(docs),
+            len(established),
+        )
+        return {"citations": established}
 
     logger.info("Extracted %d citations from answer", len(citations))
     return {"citations": citations}

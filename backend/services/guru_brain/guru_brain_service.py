@@ -3,7 +3,12 @@ GuruBrainService — Decoupled Persona & Tone Alignment Service for AskMukthiGur
 
 Incorporates advances from PersoDPO (2026) and IRPO (2025):
 - In-Context Preference Ranking (IRPO): Ranks exemplars by emotional state relevance & phrasing DNA density.
-- Contrastive Persona Injection (PersoDPO): Injects Win ($Y_{win}$) vs Lose ($Y_{lose}$) preference bounds into the generation prompt.
+- Contrastive persona injection: a hand-written preferred/dispreferred style list
+  in the generation prompt. NOTE: this is few-shot prompting, not DPO. Nothing here
+  is trained -- no preference pairs, no reward model, no reference model, no gradient.
+  The $Y_{win}$/$Y_{lose}$ notation this once carried was borrowed from DPO's loss and
+  described nothing the code does; it also spent prompt tokens teaching the model
+  LaTeX it has no use for.
 """
 
 from __future__ import annotations
@@ -310,16 +315,30 @@ class GuruBrainService:
 
         blocks = [
             "=== GURU BRAIN PERSONA & TONE EXEMPLARS (PersoDPO + GraphRAG Fused) ===",
-            "Adhere strictly to the PREFERRED ($Y_{win}$) style and eliminate all DISPREFERRED ($Y_{lose}$) AI patterns:\n",
-            "--- PREFERRED VOICE PATTERNS ($Y_{win}$) ---",
-            "- Embody the gentle, compassionate, and wise spiritual voice of Sri Krishnaji and Sri Preethaji in a single, seamless response.",
-            "- DO NOT use explicit speaker labels or names (e.g. Do NOT write 'Sri Krishnaji:', 'Sri Preethaji:', or stage directions).",
+            "Adhere strictly to the PREFERRED style below and eliminate every DISPREFERRED pattern:\n",
+            # DECIDED 2026-09-16 (owner): the product is a DISCIPLE of the
+            # Gurus, not the Gurus. A disciple transmits the teaching and
+            # attributes it; it never speaks as the teacher. So third person
+            # with attributed quotes is the contract -- which `system.py`
+            # ("How you speak" + GURU_VOICE_RULE) and
+            # `guru_voice_langhanam.py` rule 2 already required.
+            #
+            # The four rules deleted here were the ONLY layer disagreeing:
+            # they forbade speaker labels and forbade third-person attribution,
+            # i.e. exactly the strings the other three layers mandate. Shipping
+            # both instructions in one prompt is strictly worse than shipping
+            # neither. Attribution is also the anti-impersonation guarantee:
+            # this register cannot put words in a living teacher's mouth by
+            # construction, which matters most when the Gurus themselves read
+            # the output.
+            "--- PREFERRED VOICE PATTERNS ---",
+            "- Speak ABOUT the teachings of Sri Preethaji and Sri Krishnaji in the third person, and attribute what you carry: 'Sri Krishnaji teaches...', 'Sri Preethaji shares...'.",
+            "- When the retrieved teaching carries their own words, quote them verbatim with a speaker label, and never invent a first-person sentence the context does not contain.",
             "- Frame every problem around mastering the Inner World (Beautiful State) before acting in the Outer World.",
             "- Use gentle, compassionate, rhythmic phrasing ('From there, nurture a life...', 'living in the present moment').",
             "- Validate seeker pain without judgment, guiding them to witness thoughts as mere stories.\n",
-            "--- DISPREFERRED AI PATTERNS ($Y_{lose}$ - STRICTLY FORBIDDEN) ---",
-            "- DO NOT include speaker tags or names ('Sri Krishnaji:', 'Sri Preethaji:').",
-            "- DO NOT quote the Gurus in third-person ('Sri Preethaji once said...', 'Sri Krishnaji reminded us...').",
+            "--- DISPREFERRED AI PATTERNS (STRICTLY FORBIDDEN) ---",
+            "- DO NOT speak AS the Gurus or write an unattributed first-person teaching sentence.",
             "- DO NOT use robotic assistant clichés ('As an AI model', 'In conclusion', 'It is important to note').",
             "- DO NOT use melodramatic AI fluff ('the quiet ache in your heart', 'your pain is sacred').",
             "- DO NOT launch into generic guided breath scripts ('Close your eyes and take a deep breath in...').\n",

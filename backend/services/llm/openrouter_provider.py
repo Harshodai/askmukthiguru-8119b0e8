@@ -84,4 +84,4 @@ class OpenRouterProvider(LLMProvider):
     def is_circuit_open(self) -> bool:
         """Public probe — the OpenRouterService owns ``_circuit``."""
         breaker = getattr(self._service, "_circuit", None)
-        return breaker is not None and not breaker.can_execute()
+        return breaker is not None and breaker.is_open()

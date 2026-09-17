@@ -24,7 +24,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, Callable, Optional, Protocol
+from collections.abc import Callable
+from typing import Any, Optional, Protocol
 
 from app.config import settings
 from services.canonical_memory.judge import MemoryJudge
@@ -54,7 +55,7 @@ async def consent_granted(
         receipt = await asyncio.wait_for(
             lookup(user_id=user_id, tenant_id=tenant_id), timeout=timeout
         )
-    except (TimeoutError, asyncio.TimeoutError):
+    except TimeoutError:
         logger.warning("Memory consent lookup timed out; denying extraction")
         return False
     except Exception as exc:
@@ -81,9 +82,7 @@ class ConsentGatedJudge:
         tenant_resolver: Callable[[], str] | None = None,
     ) -> None:
         self._consent_lookup = consent_lookup
-        self._judge_factory = judge_factory or (
-            lambda consent: MemoryJudge(user_consent=consent)
-        )
+        self._judge_factory = judge_factory or (lambda consent: MemoryJudge(user_consent=consent))
         self._tenant_resolver = tenant_resolver or _default_tenant
 
     async def judge(self, candidates, user_id: str | None = None):

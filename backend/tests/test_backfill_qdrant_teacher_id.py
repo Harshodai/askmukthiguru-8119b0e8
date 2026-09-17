@@ -6,8 +6,6 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 _BACKEND = Path(__file__).resolve().parents[1]
 if str(_BACKEND) not in sys.path:
     sys.path.insert(0, str(_BACKEND))
@@ -62,7 +60,7 @@ def test_dry_run_does_not_write(monkeypatch):
     # Fake 2 points returned by scroll
     pt1 = MagicMock(id="p1", payload={"title": "Discourse with Preethaji"})
     mock_client.scroll.side_effect = [([pt1], None)]
-    
+
     with patch("qdrant_client.QdrantClient", return_value=mock_client):
         rc = main(["--qdrant-url", "http://fake:6333"])
         assert rc == 0
@@ -74,7 +72,7 @@ def test_apply_mode_invokes_set_payload(monkeypatch):
     pt1 = MagicMock(id="p1", payload={"title": "Discourse with Krishnaji"})
     mock_client.scroll.side_effect = [([pt1], None)]
     mock_client.count.return_value = MagicMock(count=0)
-    
+
     with patch("qdrant_client.QdrantClient", return_value=mock_client):
         rc = main(["--apply", "--qdrant-url", "http://fake:6333"])
         assert rc == 0

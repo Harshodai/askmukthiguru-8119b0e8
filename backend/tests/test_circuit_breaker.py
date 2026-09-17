@@ -81,6 +81,108 @@ def test_failed_half_open_probe_reopens_and_reset_clears_state(monkeypatch):
     assert stats["half_open_in_flight"] == 0
 
 
+def test_read_only_probe_does_not_consume_the_half_open_budget(monkeypatch):
+    """Observing the breaker must not wedge it.
+
+    Regression for the 2026-09-15 production wedge (F1 in
+    ``docs/GURU_DEMO_READINESS.md``): every chat returned "The Guru is unable to
+    answer this question" in 11ms with no LLM call attempted, for ~5 hours,
+    while ``/api/health`` reported the provider reachable at 216ms.
+
+    ``can_execute()`` is not a predicate — it RESERVES a half-open slot that
+    only ``record_success()``/``record_failure()`` release. Four providers
+    implemented their read-only ``is_circuit_open()`` probe as
+    ``not breaker.can_execute()``. A probe issues no call, so it never
+    releases; ``half_open_max_calls`` probes exhaust the budget and the breaker
+    reports OPEN forever, because ``_last_failure_time`` stops advancing.
+    """
+    clock = FakeClock()
+    monkeypatch.setattr(cb.time, "monotonic", clock.monotonic)
+    breaker = _breaker(clock, probes=3)
+    breaker.record_failure(RuntimeError("one"))
+    breaker.record_failure(RuntimeError("two"))
+    clock.value += 10.0
+
+    for _ in range(5):  # more probes than the budget
+        breaker.is_open()
+
+    assert breaker.get_stats()["half_open_in_flight"] == 0
+    assert breaker.can_execute() is True, (
+        "read-only probes consumed the half-open budget; breaker is wedged"
+    )
+
+
+def test_is_open_still_reports_a_genuinely_open_breaker(monkeypatch):
+    """The fix must not turn the probe into a rubber stamp."""
+    clock = FakeClock()
+    monkeypatch.setattr(cb.time, "monotonic", clock.monotonic)
+    breaker = _breaker(clock, probes=2)
+    breaker.record_failure(RuntimeError("one"))
+    breaker.record_failure(RuntimeError("two"))
+
+    assert breaker.is_open() is True  # inside the recovery window
+    clock.value += 10.0
+    assert breaker.is_open() is False  # window elapsed, a call would pass
+
+    for _ in range(2):
+        assert breaker.can_execute() is True  # REAL calls legitimately reserve
+    assert breaker.is_open() is True  # saturated: the probe must say so
+
+
+def test_closed_breaker_is_not_open(monkeypatch):
+    clock = FakeClock()
+    monkeypatch.setattr(cb.time, "monotonic", clock.monotonic)
+    breaker = _breaker(clock)
+    assert breaker.get_state() is cb.CircuitState.CLOSED
+    assert breaker.is_open() is False
+
+
+@pytest.mark.parametrize(
+    "module_path",
+    [
+        "services/llm/openrouter_provider.py",
+        "services/llm/ollama_provider.py",
+        "services/llm/sarvam_provider.py",
+        "services/llm/nim_provider.py",
+    ],
+)
+def test_no_provider_probes_the_breaker_with_can_execute(module_path):
+    """All four providers had re-transcribed the same wrong line.
+
+    Asserted against the shipped source so a new provider cannot copy the old
+    idiom back in. A probe path must never call ``can_execute()``.
+    """
+    from pathlib import Path
+
+    source = (Path(__file__).resolve().parents[1] / module_path).read_text(encoding="utf-8")
+    assert "can_execute()" not in source, (
+        f"{module_path} probes the breaker with can_execute(), which reserves a "
+        "half-open slot it never releases. Use breaker.is_open()."
+    )
+
+
+def test_openrouter_provider_probe_is_non_reserving(monkeypatch):
+    """End to end through the real provider wrapper, not a stand-in."""
+    from services.llm.openrouter_provider import OpenRouterProvider
+
+    clock = FakeClock()
+    monkeypatch.setattr(cb.time, "monotonic", clock.monotonic)
+    breaker = _breaker(clock, probes=3)
+    breaker.record_failure(RuntimeError("one"))
+    breaker.record_failure(RuntimeError("two"))
+    clock.value += 10.0
+
+    provider = OpenRouterProvider.__new__(OpenRouterProvider)
+    provider._service = SimpleNamespace(_circuit=breaker)
+
+    for _ in range(5):
+        provider.is_circuit_open()
+
+    assert breaker.can_execute() is True, (
+        "OpenRouterProvider.is_circuit_open() still leaks half-open reservations"
+    )
+
+
 @pytest.mark.asyncio
 async def test_operator_reset_is_post_only_admin_and_rate_limited(monkeypatch):
     from app.api import health

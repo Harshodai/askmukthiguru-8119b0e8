@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 
 import pytest
+
 from services.second_brain.crypto import derive_server_kek
 
 

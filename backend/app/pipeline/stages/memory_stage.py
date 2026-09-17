@@ -111,9 +111,7 @@ class MemoryStage(Stage):
                         user_id=user_id, tenant_id=_TenantContext.get()
                     )
                     if not _consent:
-                        logger.info(
-                            "Canonical memory write skipped: no active consent receipt"
-                        )
+                        logger.info("Canonical memory write skipped: no active consent receipt")
                         return
                     await _asyncio.wait_for(
                         canonical_integration.post_response_memory(
@@ -123,12 +121,10 @@ class MemoryStage(Stage):
                             session_id=stable_session_id or "",
                             session_messages=chat_body_messages or [],
                         ),
-                        timeout=float(
-                            getattr(settings, "canonical_memory_write_timeout", 30.0)
-                        ),
+                        timeout=float(getattr(settings, "canonical_memory_write_timeout", 30.0)),
                     )
                     logger.info("Canonical memory write completed for this turn")
-                except (TimeoutError, _asyncio.TimeoutError):
+                except TimeoutError:
                     logger.warning("Canonical memory write timed out for this turn")
                 except Exception as exc:
                     logger.warning("Canonical memory write failed: %s", exc)

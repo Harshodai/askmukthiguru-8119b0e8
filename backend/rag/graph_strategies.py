@@ -26,6 +26,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import Send
 
 from app.config import settings
+from app.constants import IntentType
 from rag.nodes import (
     agentic_graph_traversal,
     context_engineer,
@@ -50,8 +51,8 @@ from rag.nodes import (
     rewrite_query,
     web_search_node,
 )
-from rag.nodes.verification import combined_grade_and_verify
 from rag.nodes.intent import route_after_grading
+from rag.nodes.verification import combined_grade_and_verify
 from rag.resolve_followup import resolve_followup
 from rag.states import GraphState
 
@@ -64,7 +65,7 @@ def route_after_intent_fast(state: GraphState) -> str:
         return "distress"
     elif intent in ["MEDITATION", "MEDITATION_CONTINUE"]:
         return "meditation"
-    elif intent == "LIVE_LOGISTICS":
+    elif intent == IntentType.LIVE_LOGISTICS.value:
         return "temporal"
     elif intent in [
         "QUERY",
@@ -97,7 +98,7 @@ def route_after_intent(state: GraphState) -> str:
         return "query"
     elif intent in ["MEDITATION", "MEDITATION_CONTINUE"]:
         return "meditation"
-    elif intent == "LIVE_LOGISTICS":
+    elif intent == IntentType.LIVE_LOGISTICS.value:
         return "temporal"
     elif intent in [
         "QUERY",
@@ -142,9 +143,10 @@ def _route_after_reflection(state: GraphState) -> str:
         # already-graded context before paying for a full CRAG re-retrieval.
         # Consumes the same rewrite_count budget checked above, so this
         # cannot increase worst-case total attempts.
-        if getattr(settings, "rag_regenerate_before_rewrite", False) and state.get(
-            "rewrite_count", 0
-        ) == 0:
+        if (
+            getattr(settings, "rag_regenerate_before_rewrite", False)
+            and state.get("rewrite_count", 0) == 0
+        ):
             return "regenerate"
         return "rewrite"
     return "verify"
@@ -310,9 +312,8 @@ class StandardGraphStrategy(GraphStrategy):
         # Agentic graph traversal is unreviewed for default hot paths; only invoked
         # when intent is COMPARATIVE and feature flag is explicitly enabled.
         def _route_after_retrieve(state: GraphState) -> str:
-            if (
-                state.get("intent") == "COMPARATIVE"
-                and getattr(settings, "agentic_graph_traversal_enabled", False)
+            if state.get("intent") == "COMPARATIVE" and getattr(
+                settings, "agentic_graph_traversal_enabled", False
             ):
                 return "agentic_graph_traversal"
             return "rerank_documents"

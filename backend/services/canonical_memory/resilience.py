@@ -23,12 +23,12 @@ Usage:
 
 from __future__ import annotations
 
+import logging
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional
-
-import logging
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -177,7 +177,7 @@ class ChaosTestRunner:
     and reports pass/fail with degradation status.
     """
 
-    SCENARIOS: List[ChaosScenario] = [
+    SCENARIOS: list[ChaosScenario] = [
         ChaosScenario(
             name="db_timeout",
             description="Database write under timeout pressure",
@@ -214,11 +214,9 @@ class ChaosTestRunner:
         self.db = db_client
         self.vector = vector_client
         self.llm = llm_client
-        self.results: List[Dict[str, Any]] = []
+        self.results: list[dict[str, Any]] = []
 
-    def inject_failure(
-        self, mode: FailureMode, duration_seconds: float = 0.1
-    ) -> Dict[str, Any]:
+    def inject_failure(self, mode: FailureMode, duration_seconds: float = 0.1) -> dict[str, Any]:
         """Simulate a failure mode for a fixed duration.
 
         Returns metadata about the injected failure (does not actually
@@ -236,7 +234,7 @@ class ChaosTestRunner:
             "completed": True,
         }
 
-    def test_memory_write_resilience(self, user_id: str) -> Dict[str, Any]:
+    def test_memory_write_resilience(self, user_id: str) -> dict[str, Any]:
         """Test that memory writes succeed under normal conditions."""
         try:
             from backend.services.canonical_memory.models import (
@@ -259,7 +257,7 @@ class ChaosTestRunner:
                     "skipped_import": True,
                 }
         try:
-            candidate = MemoryCandidate(
+            _candidate = MemoryCandidate(
                 statement="Chaos test entry for resilience verification",
                 memory_type=MemoryType.PROFILE,
                 fact_key="chaos_test_key",
@@ -281,9 +279,7 @@ class ChaosTestRunner:
                 "error": str(e),
             }
 
-    def test_retrieval_resilience(
-        self, user_id: str, query: str = "test"
-    ) -> Dict[str, Any]:
+    def test_retrieval_resilience(self, user_id: str, query: str = "test") -> dict[str, Any]:
         """Test that retrieval degrades gracefully when vector store is unavailable."""
         try:
             # Simulate degraded retrieval — returns empty but does not crash
@@ -300,7 +296,7 @@ class ChaosTestRunner:
                 "error": str(e),
             }
 
-    def test_partial_write_recovery(self, user_id: str) -> Dict[str, Any]:
+    def test_partial_write_recovery(self, user_id: str) -> dict[str, Any]:
         """Test that partial write failures are detected and reported."""
         try:
             # Simulate partial write — detect inconsistency
@@ -317,7 +313,7 @@ class ChaosTestRunner:
                 "error": str(e),
             }
 
-    def test_circuit_breaker_integration(self, user_id: str) -> Dict[str, Any]:
+    def test_circuit_breaker_integration(self, user_id: str) -> dict[str, Any]:
         """Test circuit breaker opens after repeated failures."""
         cb = CircuitBreaker(failure_threshold=3, recovery_timeout=0.01)
         failures_injected = 0
@@ -339,7 +335,7 @@ class ChaosTestRunner:
             "circuit_state": cb.state.value,
         }
 
-    def test_graceful_degradation_integration(self, user_id: str) -> Dict[str, Any]:
+    def test_graceful_degradation_integration(self, user_id: str) -> dict[str, Any]:
         """Test graceful degradation falls back on primary failure."""
         gd = GracefulDegradation()
 
@@ -357,9 +353,7 @@ class ChaosTestRunner:
             "degraded": gd.is_degraded(),
         }
 
-    def run_all_scenarios(
-        self, user_id: str = "chaos_test_user"
-    ) -> Dict[str, Any]:
+    def run_all_scenarios(self, user_id: str = "chaos_test_user") -> dict[str, Any]:
         """Execute all chaos scenarios and aggregate results."""
         self.results = [
             self.test_memory_write_resilience(user_id),
@@ -382,9 +376,7 @@ def get_circuit_breaker(
     failure_threshold: int = 3, recovery_timeout: float = 30.0
 ) -> CircuitBreaker:
     """Factory for a circuit breaker with sensible defaults."""
-    return CircuitBreaker(
-        failure_threshold=failure_threshold, recovery_timeout=recovery_timeout
-    )
+    return CircuitBreaker(failure_threshold=failure_threshold, recovery_timeout=recovery_timeout)
 
 
 def get_graceful_degradation() -> GracefulDegradation:
@@ -417,9 +409,7 @@ if __name__ == "__main__":
     report = runner.run_all_scenarios()
     # In standalone mode, write_under_normal may skip import; core scenarios must pass
     core_passed = all(
-        s["passed"]
-        for s in report["scenarios"]
-        if s["scenario"] != "write_under_normal"
+        s["passed"] for s in report["scenarios"] if s["scenario"] != "write_under_normal"
     )
     assert core_passed, f"Core scenarios failed: {report}"
     print(f"All resilience self-checks passed ({report['passed']}/{report['total_scenarios']}).")

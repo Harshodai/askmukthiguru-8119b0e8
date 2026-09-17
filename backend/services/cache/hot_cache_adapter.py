@@ -28,19 +28,33 @@ class HotCache:
     def _normalize(self, key: str) -> str:
         return key.lower().strip()
 
+    def _report_hit_ratio(self) -> None:
+        total = self._hits + self._misses
+        if not total:
+            return
+        try:
+            from app.metrics import set_cache_hit_ratio
+
+            set_cache_hit_ratio("hot", self._hits / total)
+        except Exception:
+            pass
+
     def get(self, key: str) -> Optional[tuple[str, list, str]]:
         """Return (response, citations, intent) if cache hit and not expired, else None."""
         norm = self._normalize(key)
         entry = self._store.get(norm)
         if not entry:
             self._misses += 1
+            self._report_hit_ratio()
             return None
         response, citations, expiry, intent = entry
         if time.monotonic() > expiry:
             del self._store[norm]
             self._misses += 1
+            self._report_hit_ratio()
             return None
         self._hits += 1
+        self._report_hit_ratio()
         return response, citations, intent
 
     def _expire_stale(self) -> int:

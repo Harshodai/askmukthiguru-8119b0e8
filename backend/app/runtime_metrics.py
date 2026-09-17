@@ -94,22 +94,20 @@ def observe_openrouter_accounting(
     except (TypeError, ValueError):
         written = 0
     if cached:
-        OPENROUTER_CACHED_TOKENS_TOTAL.labels(
-            model=safe_model, operation=safe_operation
-        ).inc(cached)
+        OPENROUTER_CACHED_TOKENS_TOTAL.labels(model=safe_model, operation=safe_operation).inc(
+            cached
+        )
     if written:
-        OPENROUTER_CACHE_WRITE_TOKENS_TOTAL.labels(
-            model=safe_model, operation=safe_operation
-        ).inc(written)
+        OPENROUTER_CACHE_WRITE_TOKENS_TOTAL.labels(model=safe_model, operation=safe_operation).inc(
+            written
+        )
     try:
         estimated = float(estimated_cost_usd or 0.0)
     except (TypeError, ValueError):
         estimated = 0.0
     if estimated > 0:
-        OPENROUTER_ESTIMATED_COST_USD.labels(
-            model=safe_model, operation=safe_operation
-        ).inc(estimated)
+        OPENROUTER_ESTIMATED_COST_USD.labels(model=safe_model, operation=safe_operation).inc(
+            estimated
+        )
     if not cost_known and not fallback_cost_known:
-        OPENROUTER_COST_UNKNOWN_TOTAL.labels(
-            model=safe_model, operation=safe_operation
-        ).inc()
+        OPENROUTER_COST_UNKNOWN_TOTAL.labels(model=safe_model, operation=safe_operation).inc()

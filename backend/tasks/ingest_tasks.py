@@ -316,9 +316,9 @@ def ingest_playlist(
 ) -> dict[str, Any]:
     """Process a playlist: extract video URLs, create ingest_jobs for each, and chain them as a Celery chord."""
     from celery import chord
-    from supabase import create_client
 
     from ingest.youtube_loader import get_playlist_video_urls
+    from supabase import create_client
 
     logger.info(f"Extracting playlist videos for URL: {playlist_url}")
     if job_id:

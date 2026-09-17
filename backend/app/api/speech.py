@@ -25,11 +25,11 @@ from app.schemas.compliance_provenance import (
     OriginType,
     SoftwareAgentDescriptor,
 )
+from app.security_utils import RedisBackedRateLimiter, is_benchmark_request
 from services.auth_service import get_current_user_from_supabase
 from services.sarvam_service import SarvamCloudService
 from services.watermarking_service import WatermarkingService
 from services.whisper_local_service import transcribe_with_whisper
-from app.security_utils import RedisBackedRateLimiter, is_benchmark_request
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +51,12 @@ _TTS_RATE_LIMITER = RedisBackedRateLimiter(
 )
 
 
-def _check_speech_rate_limit(request: Request, limiter_instance: RedisBackedRateLimiter, endpoint: str, user: dict | None = None) -> None:
+def _check_speech_rate_limit(
+    request: Request,
+    limiter_instance: RedisBackedRateLimiter,
+    endpoint: str,
+    user: dict | None = None,
+) -> None:
     if is_benchmark_request(request):
         return
     client_ip = request.client.host if request.client else "unknown"
@@ -149,7 +154,9 @@ async def speech_to_text_endpoint(
                     )
                     return {"transcript": transcript, "language_code": detected_lang}
                 else:
-                    logger.error(f"Sarvam STT failed with status {resp.status_code}: {sanitize_log_input(resp.text)}")
+                    logger.error(
+                        f"Sarvam STT failed with status {resp.status_code}: {sanitize_log_input(resp.text)}"
+                    )
         except Exception as e:
             logger.error(f"Error calling Sarvam STT: {e}")
 
@@ -316,7 +323,9 @@ async def text_to_speech_endpoint(
                 else:
                     raise Exception("Sarvam TTS returned empty audio list")
             else:
-                logger.error(f"Sarvam TTS failed with status {resp.status_code}: {sanitize_log_input(resp.text)}")
+                logger.error(
+                    f"Sarvam TTS failed with status {resp.status_code}: {sanitize_log_input(resp.text)}"
+                )
                 raise HTTPException(
                     status_code=502, detail="Speech synthesis failed. Please try again."
                 )

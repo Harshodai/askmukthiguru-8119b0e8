@@ -4,6 +4,7 @@ Accepts both ``ContextItem`` objects from GraphRAGFusion and plain retrieval
 dicts from the finalization boundary. Returns a bounded, serializable evidence
 contract for generation, telemetry, and the frontend provenance drawer.
 """
+
 from __future__ import annotations
 
 from collections.abc import Iterable
@@ -50,8 +51,7 @@ class ProvenanceContext:
     def to_manifest(self) -> dict[str, Any]:
         return {
             "bands": {
-                band: [item.to_public_dict() for item in self.bands.get(band, [])]
-                for band in BANDS
+                band: [item.to_public_dict() for item in self.bands.get(band, [])] for band in BANDS
             },
             "total_tokens": self.total_tokens,
             "evidence_count": self.evidence_count,
@@ -66,9 +66,7 @@ class ProvenanceContext:
                 source = item.source_url or "unattributed"
                 relation = f" relation={item.relation}" if item.relation else ""
                 hop = f" hop={item.hop}" if item.hop else ""
-                lines.append(
-                    f"[{index}] band={band} source={source}{relation}{hop} {item.text}"
-                )
+                lines.append(f"[{index}] band={band} source={source}{relation}{hop} {item.text}")
                 index += 1
         return "\n".join(lines)
 
@@ -83,8 +81,25 @@ def _as_list(value: Any) -> list[str]:
 def _prov_from_item(item: Any) -> dict[str, Any]:
     """Normalize provenance from a ContextItem or a plain retrieval dict."""
     if isinstance(item, dict):
-        # Plain retrieval dict from finalization boundary
-        prov = dict(item.get("provenance") or {})
+        # Plain retrieval dict from finalization boundary.
+        #
+        # `provenance` is NAME-COLLIDED: this module has always used it for a
+        # structured mapping, while the corpus layer now stamps a flat chunk
+        # provenance STRING ("verbatim_speech", "machine_summary", ...) on every
+        # Qdrant point and the searcher passes it through. `dict("verbatim_
+        # speech")` raises ValueError, and because this runs inside
+        # `_screen_prompt_injection`, it took `retrieve_documents` down entirely
+        # -- every answer in the product became a refusal. Coerce instead of
+        # trusting the shape: a retrieval payload must never be able to crash
+        # retrieval. The flat value is preserved under `chunk_provenance` so it
+        # stays available to callers that want it.
+        raw_prov = item.get("provenance")
+        if isinstance(raw_prov, dict):
+            prov = dict(raw_prov)
+        else:
+            prov = {}
+            if raw_prov:
+                prov["chunk_provenance"] = str(raw_prov)
         prov.setdefault("source_url", item.get("source_url") or item.get("source_url"))
         prov.setdefault("source", item.get("source_url") or item.get("source"))
         prov.setdefault("chunk_id", item.get("chunk_id") or item.get("id"))
@@ -92,7 +107,9 @@ def _prov_from_item(item: Any) -> dict[str, Any]:
         prov.setdefault("relation", item.get("graph_relation"))
         prov.setdefault("hop", item.get("graph_hop", 0))
         prov.setdefault("ontology_version", item.get("ontology_version"))
-        prov.setdefault("rights_status", item.get("domain_rights_status") or item.get("rights_status"))
+        prov.setdefault(
+            "rights_status", item.get("domain_rights_status") or item.get("rights_status")
+        )
         prov.setdefault("entity_resolution_confidence", item.get("entity_resolution_confidence"))
         prov.setdefault("source_segment_id", (item.get("source_segment_ids") or [None])[0])
         return prov
@@ -127,9 +144,7 @@ def _channel_from(item: Any) -> str:
 
 
 def _band_for(item: Any, provenance: dict[str, Any]) -> str:
-    content_type = (
-        item.get("content_type") if isinstance(item, dict) else None
-    )
+    content_type = item.get("content_type") if isinstance(item, dict) else None
     if content_type in {"community_summary", "graph_summary", "lightrag_relationship_summary"}:
         return BAND_COMMUNITY
     if provenance.get("community_summary"):

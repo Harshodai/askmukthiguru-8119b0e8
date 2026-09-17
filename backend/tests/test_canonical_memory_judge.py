@@ -15,27 +15,24 @@ Covers every decision path:
 
 from __future__ import annotations
 
-import pytest
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from services.canonical_memory.judge import (
+    CONFIDENCE_THRESHOLD,
     DecisionType,
     DeleteCommand,
     ExistingMemory,
-    MemoryDecision,
-    MemoryJudge,
     SensitivityPolicy,
-    create_judge,
-    _text_similarity,
     _normalize_for_compare,
-    CONFIDENCE_THRESHOLD,
+    _text_similarity,
+    create_judge,
 )
 from services.canonical_memory.models import MemoryCandidate, MemoryType
-
 
 # ---------------------------------------------------------------------------
 # Fixtures: reusable helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_candidate(
     statement: str = "User lives in Mumbai.",
@@ -87,6 +84,7 @@ def _make_existing(
 # ===================================================================
 # 1. Noise → IGNORE
 # ===================================================================
+
 
 class TestNoiseIgnored:
     """Greetings, noise, and too-short statements → IGNORE."""
@@ -141,6 +139,7 @@ class TestNoiseIgnored:
 # ===================================================================
 # 2. Strong durable preference → CREATE
 # ===================================================================
+
 
 class TestStrongPreferenceCreates:
     """Good candidates with high confidence → CREATE."""
@@ -219,6 +218,7 @@ class TestStrongPreferenceCreates:
 # 3. Duplicate → IGNORE
 # ===================================================================
 
+
 class TestDuplicateIgnores:
     """Exact duplicates of existing memories → IGNORE."""
 
@@ -274,6 +274,7 @@ class TestDuplicateIgnores:
 # ===================================================================
 # 4. Updated preference → UPDATE (supersede old)
 # ===================================================================
+
 
 class TestUpdateSupersedes:
     """Changed preferences with same fact_key → UPDATE (supersede)."""
@@ -347,6 +348,7 @@ class TestUpdateSupersedes:
 # 5. Temporary → EXPIRE
 # ===================================================================
 
+
 class TestTemporaryExpiry:
     """Temporary context with expired datetime → EXPIRE."""
 
@@ -357,7 +359,7 @@ class TestTemporaryExpiry:
             confidence=0.8,
             fact_key=None,
             evidence="I'm visiting Delhi.",
-            expires_at=(datetime.now(timezone.utc) - timedelta(days=1)).isoformat(),
+            expires_at=(datetime.now(UTC) - timedelta(days=1)).isoformat(),
         )
         decision = create_judge().judge(candidate)
         assert decision.decision == DecisionType.EXPIRE
@@ -369,7 +371,7 @@ class TestTemporaryExpiry:
             confidence=0.8,
             fact_key=None,
             evidence="I'll be in Delhi next week.",
-            expires_at=(datetime.now(timezone.utc) + timedelta(days=7)).isoformat(),
+            expires_at=(datetime.now(UTC) + timedelta(days=7)).isoformat(),
         )
         decision = create_judge().judge(candidate)
         assert decision.decision == DecisionType.CREATE
@@ -392,6 +394,7 @@ class TestTemporaryExpiry:
 # 6. Explicit delete → DELETE
 # ===================================================================
 
+
 class TestExplicitDelete:
     """Explicit user 'forget' instruction → DELETE."""
 
@@ -407,7 +410,7 @@ class TestExplicitDelete:
             fact_key="user:lives_in",
             confidence=0.9,
         )
-        decision = create_judge(
+        _decision = create_judge(
             existing_memories=[existing],
             delete_commands=[delete_cmd],
         ).judge(candidate)
@@ -462,6 +465,7 @@ class TestExplicitDelete:
 # ===================================================================
 # 7. Ambiguous conflict → ESCALATE
 # ===================================================================
+
 
 class TestAmbiguousEscalation:
     """Ambiguous contradictions → ESCALATE for human resolution."""
@@ -529,6 +533,7 @@ class TestAmbiguousEscalation:
 # 8. Sensitive content → policy gate
 # ===================================================================
 
+
 class TestSensitivePolicyGate:
     """Sensitive/highly_sensitive content requires escalation or consent."""
 
@@ -583,6 +588,7 @@ class TestSensitivePolicyGate:
 # ===================================================================
 # 9. Explicit user instruction overrides inference
 # ===================================================================
+
 
 class TestExplicitUserOverride:
     """Explicit user instruction always wins over system assessment."""
@@ -662,6 +668,7 @@ class TestExplicitUserOverride:
 # 10. Consent check
 # ===================================================================
 
+
 class TestConsentCheck:
     """Without user consent, sensitive operations escalate."""
 
@@ -700,6 +707,7 @@ class TestConsentCheck:
 # 11. Merge detection
 # ===================================================================
 
+
 class TestMergeDetection:
     """Partial overlap with different fact_keys → MERGE."""
 
@@ -725,6 +733,7 @@ class TestMergeDetection:
 # ===================================================================
 # 12. batch judgment
 # ===================================================================
+
 
 class TestBatchJudgment:
     """judge_all processes multiple candidates."""
@@ -755,6 +764,7 @@ class TestBatchJudgment:
 # 13. Text similarity helpers
 # ===================================================================
 
+
 class TestTextSimilarity:
     """Deterministic text similarity functions."""
 
@@ -784,6 +794,7 @@ class TestTextSimilarity:
 # ===================================================================
 # 14. Edge cases
 # ===================================================================
+
 
 class TestEdgeCases:
     """Boundary conditions and unusual inputs."""
@@ -839,7 +850,9 @@ class TestEdgeCases:
         """Judge finds the right duplicate among many."""
         existing = [
             _make_existing(id="mem-a", statement="I live in Pune.", fact_key="user:lives_in"),
-            _make_existing(id="mem-b", statement="I prefer Hindi.", fact_key="user:prefers_language"),
+            _make_existing(
+                id="mem-b", statement="I prefer Hindi.", fact_key="user:prefers_language"
+            ),
             _make_existing(id="mem-c", statement="I live in Mumbai.", fact_key="user:lives_in"),
         ]
         candidate = _make_candidate(
@@ -856,6 +869,7 @@ class TestEdgeCases:
 # 15. SensitivityPolicy unit tests
 # ===================================================================
 
+
 class TestSensitivityPolicy:
     """Unit tests for the SensitivityPolicy class."""
 
@@ -866,9 +880,7 @@ class TestSensitivityPolicy:
 
     def test_highly_sensitive_explicit_no_escalate(self):
         policy = SensitivityPolicy()
-        candidate = _make_candidate(
-            sensitivity="highly_sensitive", explicit_request=True
-        )
+        candidate = _make_candidate(sensitivity="highly_sensitive", explicit_request=True)
         assert policy.should_escalate(candidate) is False
 
     def test_sensitive_low_confidence_escalates(self):
@@ -885,6 +897,7 @@ class TestSensitivityPolicy:
 # ===================================================================
 # 16. DeleteCommand unit tests
 # ===================================================================
+
 
 class TestDeleteCommand:
     """Unit tests for DeleteCommand matching."""

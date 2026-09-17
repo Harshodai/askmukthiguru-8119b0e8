@@ -38,6 +38,7 @@ def test_failure_streak_is_initialised_on_construction():
 
 def test_insert_path_counts_and_resets():
     import inspect
+
     import app.telemetry_sink as mod
 
     src = inspect.getsource(mod)

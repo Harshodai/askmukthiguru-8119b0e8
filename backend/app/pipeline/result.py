@@ -151,6 +151,27 @@ class PipelineResult:
     # Internal-only route facts. Deliberately omitted from to_chat_response().
     route_metadata: dict = field(default_factory=dict)
 
+    def __post_init__(self) -> None:
+        """F-VERIFY-1 guard: hallucination_flag=True can never coexist with a
+        citations_verified=True claim, in either the top-level field or the
+        `verification` dict — no consumer could trust either field if both
+        were allowed to be True on the same result. Enforced once, here, so
+        no call site (present or future) can reconstruct the bad state."""
+        if self.hallucination_flag and self.citations_verified is True:
+            raise ValueError(
+                "PipelineResult: citations_verified=True is incompatible with "
+                f"hallucination_flag=True (faithfulness_score={self.faithfulness_score!r})"
+            )
+        if (
+            self.hallucination_flag
+            and isinstance(self.verification, dict)
+            and self.verification.get("citations_verified") is True
+        ):
+            raise ValueError(
+                "PipelineResult.verification['citations_verified']=True is "
+                "incompatible with hallucination_flag=True"
+            )
+
     def with_latency(self, latency_ms: int) -> PipelineResult:
         """Return a new PipelineResult with updated latency."""
         return PipelineResult(

@@ -10,8 +10,8 @@ was a test. This pins the read path end to end:
 
 import inspect
 
-from app.config import Settings
 from app import orchestrator_utils
+from app.config import Settings
 from app.pipeline.pipeline_coordinator import PipelineCoordinator
 from app.pipeline.stages import cache_stage
 

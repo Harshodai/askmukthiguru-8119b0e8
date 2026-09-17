@@ -21,7 +21,16 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def _emit_stage_telemetry(ctx: "PipelineContext", stage_name: str, start_ns: int, status: str, duration_ms: float, error_code: str = "", metadata: dict | None = None, release_id: str = "unknown"):
+def _emit_stage_telemetry(
+    ctx: PipelineContext,
+    stage_name: str,
+    start_ns: int,
+    status: str,
+    duration_ms: float,
+    error_code: str = "",
+    metadata: dict | None = None,
+    release_id: str = "unknown",
+):
     """Append stage telemetry entry to ctx.stage_telemetry."""
     start_ms = (
         0.0
@@ -93,7 +102,15 @@ class StageRunner:
                     status = "success"
                     metadata = None
 
-                _emit_stage_telemetry(ctx, stage_name, start_ns, status=status, duration_ms=duration_ms, release_id=release_id, metadata=metadata)
+                _emit_stage_telemetry(
+                    ctx,
+                    stage_name,
+                    start_ns,
+                    status=status,
+                    duration_ms=duration_ms,
+                    release_id=release_id,
+                    metadata=metadata,
+                )
 
                 if coordinator is not None:
                     await coordinator._stage(
@@ -120,9 +137,14 @@ class StageRunner:
                     duration_ms,
                 )
                 _emit_stage_telemetry(
-                    ctx, stage_name, start_ns,
-                    status="cancelled", duration_ms=duration_ms, error_code="deadline_cancelled",
-                    metadata={"reason": "deadline_or_disconnect"}, release_id=release_id,
+                    ctx,
+                    stage_name,
+                    start_ns,
+                    status="cancelled",
+                    duration_ms=duration_ms,
+                    error_code="deadline_cancelled",
+                    metadata={"reason": "deadline_or_disconnect"},
+                    release_id=release_id,
                 )
                 if coordinator is not None:
                     await coordinator._stage(
@@ -151,9 +173,14 @@ class StageRunner:
                 metadata = getattr(ctx, "last_stage_metadata", None)
 
                 _emit_stage_telemetry(
-                    ctx, stage_name, start_ns,
-                    status="error", duration_ms=duration_ms, error_code=error_code,
-                    metadata=metadata, release_id=release_id,
+                    ctx,
+                    stage_name,
+                    start_ns,
+                    status="error",
+                    duration_ms=duration_ms,
+                    error_code=error_code,
+                    metadata=metadata,
+                    release_id=release_id,
                 )
 
                 if coordinator is not None:

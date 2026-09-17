@@ -322,10 +322,14 @@ async def ingest_raw_text_endpoint(
                 "idempotency_key": body.idempotency_key,
             }
             try:
-                resp = container.supabase_client.table("ingest_jobs").insert(insert_payload).execute()
+                resp = (
+                    container.supabase_client.table("ingest_jobs").insert(insert_payload).execute()
+                )
             except Exception:
                 insert_payload.pop("idempotency_key", None)
-                resp = container.supabase_client.table("ingest_jobs").insert(insert_payload).execute()
+                resp = (
+                    container.supabase_client.table("ingest_jobs").insert(insert_payload).execute()
+                )
             if resp.data:
                 job_id = resp.data[0]["id"]
         except Exception as e:
@@ -370,13 +374,21 @@ async def ingest_upload_endpoint(
     if not filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF uploads are supported")
 
-    content = await file.read()
+    # Bounded read: read one byte past the limit so we can detect over-size without
+    # buffering the entire upload.  Same pattern as chat.py:83.
+    content = await file.read(MAX_UPLOAD_BYTES + 1)
     if not content:
         raise HTTPException(status_code=400, detail="Uploaded file is empty")
     if len(content) > MAX_UPLOAD_BYTES:
         raise HTTPException(
             status_code=400, detail=f"File exceeds {MAX_UPLOAD_BYTES // (1024 * 1024)}MB limit"
         )
+    # Magic-byte gate: PDF files must start with %PDF (\x25\x50\x44\x46).
+    # The suffix check above can be bypassed by renaming any file to .pdf;
+    # this check ensures we only pass genuine PDF bytes to the parser.
+    _PDF_MAGIC = b"%PDF"
+    if not content[:4] == _PDF_MAGIC:
+        raise HTTPException(status_code=400, detail="Uploaded file is not a valid PDF")
 
     import io
 

@@ -388,11 +388,11 @@ class OntologyExporter:
         for ct in ConceptType:
             iris = class_iris(ct.name)
             lines.append(f":{ct.name} a owl:Class ;")
-            lines.append(f'    owl:equivalentClass <{iris["schema"]}> ;')
-            lines.append(f'    skos:closeMatch <{iris["skos"]}> ;')
-            lines.append(f'    rdfs:seeAlso <{iris["bfo"]}> .')
+            lines.append(f"    owl:equivalentClass <{iris['schema']}> ;")
+            lines.append(f"    skos:closeMatch <{iris['skos']}> ;")
+            lines.append(f"    rdfs:seeAlso <{iris['bfo']}> .")
         for rt in RelationType:
-            lines.append(f':{rt.value} rdfs:subPropertyOf <{predicate_iri(rt.name)}> .')
+            lines.append(f":{rt.value} rdfs:subPropertyOf <{predicate_iri(rt.name)}> .")
         return lines
 
     def validate_shacl(self, turtle: str) -> dict:

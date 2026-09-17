@@ -429,7 +429,7 @@ async def test_graph_stage_admission_deadline_propagation():
 async def test_agentic_graph_traversal_reuses_injected_ollama_service(monkeypatch):
     """Criteria A3.2: agentic_graph_traversal must reuse injected container LLM service without instantiating OllamaService."""
     import sys
-    import rag.nodes.agentic_graph_traversal
+
     from rag.nodes import _services
 
     agt = sys.modules["rag.nodes.agentic_graph_traversal"]
@@ -496,8 +496,8 @@ async def test_grade_documents_ambiguous_band_escalation(monkeypatch):
 @pytest.mark.asyncio
 async def test_retrieval_query_fan_out_limited_to_two(monkeypatch):
     """Criteria A3.5: Limit deep query fan-out from 6 to 2."""
-    from rag.nodes import _services
     import rag.nodes as nodes
+    from rag.nodes import _services
 
     mock_embedder = MagicMock()
     mock_embedder.encode_single_full.return_value = {"dense": [0.1] * 1024, "sparse": {"1": 0.5}}
@@ -508,7 +508,9 @@ async def test_retrieval_query_fan_out_limited_to_two(monkeypatch):
     mock_embedder.instruction = "Retrieve: "
 
     mock_qdrant = MagicMock()
-    mock_qdrant.search = MagicMock(return_value=[{"text": "Teaching doc", "source_url": "url1", "score": 0.9}])
+    mock_qdrant.search = MagicMock(
+        return_value=[{"text": "Teaching doc", "source_url": "url1", "score": 0.9}]
+    )
 
     monkeypatch.setattr(_services, "_ollama", AsyncMock())
     monkeypatch.setattr(_services, "_embedder", mock_embedder)
@@ -542,4 +544,3 @@ async def test_retrieval_query_fan_out_limited_to_two(monkeypatch):
     retrieval_queries = res["evaluation_trace"].get("retrieval_queries", [])
     # Must be capped at 2 queries
     assert len(retrieval_queries) <= 2
-

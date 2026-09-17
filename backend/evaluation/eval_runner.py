@@ -36,7 +36,6 @@ import argparse
 import asyncio
 import json
 import logging
-import os
 import statistics
 import sys
 import time
@@ -53,6 +52,7 @@ BACKEND_ROOT = HERE.parent
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
+from app.config import settings  # noqa: E402
 from evaluation.llm_judge import (  # noqa: E402
     CompositeScore,
     DimensionScore,
@@ -62,7 +62,7 @@ from evaluation.llm_judge import (  # noqa: E402
 
 logger = logging.getLogger("mukthi_guru.eval_runner")
 logging.basicConfig(
-    level=os.environ.get("EVAL_LOG_LEVEL", "INFO"),
+    level=settings.eval_log_level,
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
 
@@ -743,30 +743,28 @@ def write_markdown_report(summary: dict[str, Any], path: Path) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Mukthi Guru eval runner.")
-    parser.add_argument(
-        "--endpoint", default=os.environ.get("EVAL_ENDPOINT", "http://localhost:8000")
-    )
-    parser.add_argument("--auth-token", default=os.environ.get("EVAL_AUTH_TOKEN"))
+    parser.add_argument("--endpoint", default=settings.eval_endpoint)
+    parser.add_argument("--auth-token", default=settings.eval_auth_token)
     parser.add_argument(
         "--dataset",
-        default=os.environ.get("EVAL_DATASET", "mukthi_guru_v1"),
+        default=settings.eval_dataset,
         help="Dataset filename (without .yaml extension) in evaluation/datasets/.",
     )
     parser.add_argument("--max", type=int, default=None, help="Grade only the first N questions.")
     parser.add_argument(
         "--max-concurrent-requests",
         type=int,
-        default=int(os.environ.get("EVAL_MAX_CONCURRENT_REQUESTS", "4")),
+        default=settings.eval_max_concurrent_requests,
     )
     parser.add_argument(
         "--request-timeout",
         type=int,
-        default=int(os.environ.get("EVAL_REQUEST_TIMEOUT", "180")),
+        default=settings.eval_request_timeout,
     )
     parser.add_argument(
         "--context-max-chars",
         type=int,
-        default=int(os.environ.get("LLM_JUDGE_CONTEXT_MAX_CHARS", "6000")),
+        default=settings.llm_judge_context_max_chars,
     )
     parser.add_argument(
         "--baseline", default=None, help="Path to a previous report JSON for regression gating."
@@ -775,11 +773,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--strict", action="store_true", help="Exit non-zero on any regression.")
     parser.add_argument(
         "--out-json",
-        default=os.environ.get("EVAL_OUT_JSON", "artifacts/evaluations/eval_report.json"),
+        default=settings.eval_out_json,
     )
     parser.add_argument(
         "--out-md",
-        default=os.environ.get("EVAL_OUT_MD", "artifacts/evaluations/eval_report.md"),
+        default=settings.eval_out_md,
     )
     parser.add_argument(
         "--use-batch",
@@ -834,9 +832,9 @@ def main(argv: list[str] | None = None) -> int:
     metadata = {
         "dataset_id": args.dataset,
         "evaluated_at_utc": datetime.now(UTC).isoformat(),
-        "deployment_sha": os.environ.get("DEPLOYMENT_SHA", "unknown"),
-        "model_policy_id": os.environ.get("MODEL_POLICY_ID", "unknown"),
-        "corpus_release": os.environ.get("CORPUS_RELEASE", "unknown"),
+        "deployment_sha": settings.deployment_sha,
+        "model_policy_id": settings.model_policy_id,
+        "corpus_release": settings.corpus_release,
         "endpoint": args.endpoint,
     }
 

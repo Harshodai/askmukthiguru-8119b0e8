@@ -143,9 +143,7 @@ async def _check_qdrant(container: Any) -> bool:
     import asyncio
 
     try:
-        return await asyncio.wait_for(
-            asyncio.to_thread(container.qdrant.health_check), timeout=3.0
-        )
+        return await asyncio.wait_for(asyncio.to_thread(container.qdrant.health_check), timeout=3.0)
     except Exception:
         return False
 

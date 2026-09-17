@@ -96,7 +96,13 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install -r requirements.lock
-          pip install ruff bandit
+          # Pinned exact (not "ruff bandit" floating) — an unpinned linter/
+          # scanner means CI's pass/fail verdict silently shifts with
+          # whatever version PyPI resolves on a given day, independent of any
+          # code change. Versions match what pyproject's dev dependency group
+          # installs locally (verified 2026-09-16), so a local `ruff check .`
+          # and this step agree.
+          pip install ruff==0.15.13 bandit==1.9.4 mypy==2.1.0 pytest-cov==7.1.0
 
       - name: Run Ruff linter
         run: ruff check . --output-format=github
@@ -130,8 +136,15 @@ jobs:
         working-directory: .
         run: python3 scripts/security/check_benchmark_backdoor.py
 
-      - name: Run pytest
-        run: pytest tests/ -v --tb=short
+      - name: Run pytest (coverage floor + mypy ratchet run as part of the suite)
+        # Coverage floor (pyproject [tool.coverage.report] fail_under) and the
+        # mypy error-count ratchet (tests/test_type_check_baseline.py) are
+        # both plain pytest tests/config, not separate steps — one command
+        # gives the same verdict here and in `make quality` locally.
+        run: >
+          pytest tests/ -v --tb=short
+          --cov=app --cov=rag --cov=domain --cov=services --cov=routers
+          --cov=ingest --cov=schemas --cov=tasks --cov-report=term
         env:
           PYTHONPATH: ${{ github.workspace }}/backend
           JWT_SECRET: dummy-jwt-secret-key-for-ci-runs

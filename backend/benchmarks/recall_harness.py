@@ -35,13 +35,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from qdrant_client import QdrantClient  # noqa: E402
 
-from services.embedding_service import EmbeddingService  # noqa: E402
-from services.qdrant.searcher import QdrantSearcher  # noqa: E402
 from benchmarks.retrieval_metrics import (
     DEFAULT_KS,
     first_relevant_rank,
     summarize_rankings,
 )  # noqa: E402
+from services.embedding_service import EmbeddingService  # noqa: E402
+from services.qdrant.searcher import QdrantSearcher  # noqa: E402
 
 
 def _p(percentile: float, values: list[float]) -> float:
@@ -120,14 +120,18 @@ def main(argv: list[str] | None = None) -> int:
 
     n = len(items)
     metrics = summarize_rankings(rankings, ks=DEFAULT_KS)
-    ndcg10 = round(
-        sum(
-            0.0 if r is None or r > 10 else 1.0 / math.log2(r + 1)
-            for r in (first_relevant_rank(ret[:10], gold) for ret, gold in rankings)
+    ndcg10 = (
+        round(
+            sum(
+                0.0 if r is None or r > 10 else 1.0 / math.log2(r + 1)
+                for r in (first_relevant_rank(ret[:10], gold) for ret, gold in rankings)
+            )
+            / n,
+            4,
         )
-        / n,
-        4,
-    ) if n else 0.0
+        if n
+        else 0.0
+    )
     report = {
         "collection": args.collection,
         "golden_version": golden.get("version"),

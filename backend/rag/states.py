@@ -156,7 +156,7 @@ class GraphState(TypedDict):
     reflection_feedback: Optional[str]
 
     # CoVe
-    verification: Optional[dict]
+    verification: Annotated[Optional[dict], keep_latest]
     confidence_score: Annotated[
         Optional[float], keep_latest
     ]  # 1-10 confidence from combined verification

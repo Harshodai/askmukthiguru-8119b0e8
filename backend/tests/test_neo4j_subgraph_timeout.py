@@ -1,15 +1,16 @@
-import asyncio
 import time
 from unittest.mock import MagicMock, patch
+
 import pytest
 
-from rag.nodes.retrieval import query_neo4j_subgraph
 from app.config import settings
+from rag.nodes.retrieval import query_neo4j_subgraph
 
 
 @pytest.mark.asyncio
 async def test_query_neo4j_subgraph_times_out_gracefully():
     """Verify that a slow or hanging Neo4j session.run degrades to empty string within timeout."""
+
     def hanging_session():
         time.sleep(2.0)
         return []
@@ -24,10 +25,11 @@ async def test_query_neo4j_subgraph_times_out_gracefully():
     mock_container = MagicMock()
     mock_container.neo4j_driver = mock_driver
 
-    with patch("app.dependencies.get_container", return_value=mock_container), \
-         patch.object(settings, "neo4j_uri", "bolt://localhost:7687"), \
-         patch.object(settings, "lightrag_retrieval_timeout", 0.2):
-        
+    with (
+        patch("app.dependencies.get_container", return_value=mock_container),
+        patch.object(settings, "neo4j_uri", "bolt://localhost:7687"),
+        patch.object(settings, "lightrag_retrieval_timeout", 0.2),
+    ):
         start = time.monotonic()
         result = await query_neo4j_subgraph("What is the Beautiful State?")
         duration = time.monotonic() - start
@@ -55,10 +57,11 @@ async def test_query_neo4j_subgraph_success():
     mock_container = MagicMock()
     mock_container.neo4j_driver = mock_driver
 
-    with patch("app.dependencies.get_container", return_value=mock_container), \
-         patch.object(settings, "neo4j_uri", "bolt://localhost:7687"), \
-         patch.object(settings, "lightrag_retrieval_timeout", 5.0):
-        
+    with (
+        patch("app.dependencies.get_container", return_value=mock_container),
+        patch.object(settings, "neo4j_uri", "bolt://localhost:7687"),
+        patch.object(settings, "lightrag_retrieval_timeout", 5.0),
+    ):
         result = await query_neo4j_subgraph("What is the Beautiful State?")
         assert "[Targeted Subgraph Context]:" in result
         assert "beautiful state -[LEADS_TO]-> ananda" in result

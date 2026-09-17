@@ -20,7 +20,6 @@ from app.route_taxonomy import RoutingProvenance, record_routing_decision
 logger = logging.getLogger(__name__)
 
 
-
 class DoctrineCacheStage(Stage):
     """Fast-path stage using DoctrineCache for known spiritual questions.
 
@@ -71,6 +70,7 @@ class DoctrineCacheStage(Stage):
                 logger.warning("DoctrineCache translation failed for Indic request: %s", e)
 
         from app.metrics import CACHE_OPERATIONS
+
         CACHE_OPERATIONS.labels(cache_type="doctrine", result="hit").inc()
 
         query_token = hashlib.sha256(str(ctx.user_msg or "").encode("utf-8")).hexdigest()[:12]

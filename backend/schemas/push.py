@@ -7,7 +7,9 @@ from pydantic import BaseModel, Field, field_validator
 # Mirrors public/push-sw.js and PushNotificationsManager.tsx's client-side
 # allowlists. An admin/cron sender must not be able to point a push
 # notification at an arbitrary external URL. (OH-P1-06, 2026-08-24)
-_SAFE_DEEP_LINK = re.compile(r"^/(chat|practices|profile|notebooks|knowledge-graph)(/[a-zA-Z0-9_-]*)?$")
+_SAFE_DEEP_LINK = re.compile(
+    r"^/(chat|practices|profile|notebooks|knowledge-graph)(/[a-zA-Z0-9_-]*)?$"
+)
 
 
 class PushRegisterRequest(BaseModel):
@@ -30,7 +32,9 @@ class PushRegisterResponse(BaseModel):
 
 
 class PushUnregisterRequest(BaseModel):
-    token: str = Field(..., min_length=16, max_length=4096, description="FCM or APNs token to deactivate")
+    token: str = Field(
+        ..., min_length=16, max_length=4096, description="FCM or APNs token to deactivate"
+    )
 
 
 class PushUnregisterResponse(BaseModel):

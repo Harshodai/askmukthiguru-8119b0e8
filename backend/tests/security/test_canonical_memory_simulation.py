@@ -1,11 +1,12 @@
 """Tests for canonical memory longitudinal simulation (Phase 17)."""
+
 import unittest
 
 from services.canonical_memory.simulation import (
     MemorySimulator,
+    SimulatedTurn,
     SimulationResult,
     SimulationScenario,
-    SimulatedTurn,
     TurnResult,
 )
 
@@ -68,10 +69,7 @@ class TestDeletionScenario(unittest.TestCase):
         sc = sim.create_deletion_scenario("u1")
         self.assertEqual(len(sc.turns), 2)
         expired = [
-            f
-            for t in sc.turns
-            for f in t.extracted_facts
-            if f.get("fact_value") == "EXPIRED"
+            f for t in sc.turns for f in t.extracted_facts if f.get("fact_value") == "EXPIRED"
         ]
         self.assertEqual(len(expired), 1)
 

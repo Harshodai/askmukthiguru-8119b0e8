@@ -1,8 +1,9 @@
 """Performance monitoring and scale testing for memory system."""
-import time
+
 import statistics
-from typing import Dict, List, Any, Optional
+import time
 from dataclasses import dataclass, field
+from typing import Any
 
 
 @dataclass
@@ -10,7 +11,7 @@ class LatencyRecord:
     operation: str
     latency_ms: float
     timestamp: float = 0.0
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         if not self.timestamp:
@@ -29,12 +30,14 @@ class PerformanceMonitor:
     }
 
     def __init__(self):
-        self._records: List[LatencyRecord] = []
+        self._records: list[LatencyRecord] = []
 
     def record_latency(self, operation: str, latency_ms: float, **metadata):
-        self._records.append(LatencyRecord(operation=operation, latency_ms=latency_ms, metadata=metadata))
+        self._records.append(
+            LatencyRecord(operation=operation, latency_ms=latency_ms, metadata=metadata)
+        )
 
-    def get_percentiles(self, operation: str, percentiles: List[int] = None) -> Dict[str, float]:
+    def get_percentiles(self, operation: str, percentiles: list[int] = None) -> dict[str, float]:
         if percentiles is None:
             percentiles = [50, 90, 95, 99]
         values = sorted(r.latency_ms for r in self._records if r.operation == operation)
@@ -46,10 +49,15 @@ class PerformanceMonitor:
             result[f"p{p}"] = values[min(idx, len(values) - 1)]
         return result
 
-    def check_latency_budget(self, operation: str) -> Dict[str, Any]:
+    def check_latency_budget(self, operation: str) -> dict[str, Any]:
         budget = self.LATENCY_BUDGETS.get(operation)
         if budget is None:
-            return {"operation": operation, "budget_ms": None, "within_budget": True, "message": "no budget defined"}
+            return {
+                "operation": operation,
+                "budget_ms": None,
+                "within_budget": True,
+                "message": "no budget defined",
+            }
         pcts = self.get_percentiles(operation, [50, 95, 99])
         return {
             "operation": operation,
@@ -61,7 +69,7 @@ class PerformanceMonitor:
             "headroom": max(0, budget - pcts["p95"]),
         }
 
-    def get_summary(self) -> Dict[str, Any]:
+    def get_summary(self) -> dict[str, Any]:
         ops = {}
         for r in self._records:
             if r.operation not in ops:
@@ -73,12 +81,16 @@ class PerformanceMonitor:
                 "count": len(latencies),
                 "mean_ms": statistics.mean(latencies),
                 "median_ms": statistics.median(latencies),
-                "p95": sorted(latencies)[int(len(latencies) * 0.95)] if len(latencies) > 1 else latencies[0],
-                "within_budget": latencies[-1] <= self.LATENCY_BUDGETS.get(op, float('inf')),
+                "p95": sorted(latencies)[int(len(latencies) * 0.95)]
+                if len(latencies) > 1
+                else latencies[0],
+                "within_budget": latencies[-1] <= self.LATENCY_BUDGETS.get(op, float("inf")),
             }
         return summary
 
-    def run_stress_test(self, operation: str, count: int, target_latency_ms: float) -> Dict[str, Any]:
+    def run_stress_test(
+        self, operation: str, count: int, target_latency_ms: float
+    ) -> dict[str, Any]:
         results = []
         violations = 0
         for i in range(count):
@@ -97,7 +109,9 @@ class PerformanceMonitor:
         }
 
 
-def benchmark_query_latency(retriever=None, queries: List[str] = None, user_id: str = "bench", limit: int = 5) -> Dict[str, Any]:
+def benchmark_query_latency(
+    retriever=None, queries: list[str] = None, user_id: str = "bench", limit: int = 5
+) -> dict[str, Any]:
     if not retriever or not queries:
         return {"benchmarks": [], "total_ms": 0}
     results = []
@@ -108,7 +122,11 @@ def benchmark_query_latency(retriever=None, queries: List[str] = None, user_id: 
         ms = (time.time() - start) * 1000
         results.append({"query": q[:50], "latency_ms": ms})
         total += ms
-    return {"benchmarks": results, "total_ms": total, "avg_ms": total / len(queries) if queries else 0}
+    return {
+        "benchmarks": results,
+        "total_ms": total,
+        "avg_ms": total / len(queries) if queries else 0,
+    }
 
 
 if __name__ == "__main__":

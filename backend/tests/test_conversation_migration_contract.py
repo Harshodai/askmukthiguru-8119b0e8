@@ -18,7 +18,10 @@ def test_conversation_tables_have_authenticated_and_service_role_grants() -> Non
 def test_user_activity_tables_have_authenticated_and_service_role_grants() -> None:
     sql = ACTIVITY_GRANTS.read_text(encoding="utf-8")
 
-    assert "GRANT SELECT, INSERT, UPDATE, DELETE ON public.meditation_sessions TO authenticated;" in sql
+    assert (
+        "GRANT SELECT, INSERT, UPDATE, DELETE ON public.meditation_sessions TO authenticated;"
+        in sql
+    )
     assert "GRANT SELECT, INSERT, UPDATE, DELETE ON public.user_profiles TO authenticated;" in sql
     assert "GRANT ALL ON public.meditation_sessions TO service_role;" in sql
     assert "GRANT ALL ON public.user_profiles TO service_role;" in sql

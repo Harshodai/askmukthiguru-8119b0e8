@@ -110,6 +110,7 @@ class LanguageRouter:
     def _detect_scripts(self, text: str) -> list[str]:
         """Detect which Unicode scripts are present in text."""
         from services.language_detection import SCRIPT_RANGES
+
         scripts = []
         for script_name, (start, end) in SCRIPT_RANGES.items():
             if any(start <= c <= end for c in text):

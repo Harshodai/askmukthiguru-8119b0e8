@@ -39,7 +39,6 @@ def test_policy_builds_pinned_models_and_privacy_preferences():
     policy.assert_model_allowed("deepseek/deepseek-chat")
 
 
-
 def test_policy_rejects_latest_alias_and_unknown_models():
     with pytest.raises(ModelPolicyError, match="pinned"):
         OpenRouterModelPolicy.from_settings(
@@ -62,7 +61,6 @@ def test_policy_rejects_invalid_budget_and_duplicate_provider_order():
         )
 
 
-
 def test_policy_emits_optional_latency_preferences_only_when_enabled():
     policy = OpenRouterModelPolicy.from_settings(
         _settings(
@@ -81,6 +79,4 @@ def test_policy_rejects_invalid_latency_preferences():
     with pytest.raises(ModelPolicyError, match="provider_sort"):
         OpenRouterModelPolicy.from_settings(_settings(openrouter_provider_sort="random"))
     with pytest.raises(ModelPolicyError, match="thresholds"):
-        OpenRouterModelPolicy.from_settings(
-            _settings(openrouter_preferred_max_latency_p90=3.0)
-        )
+        OpenRouterModelPolicy.from_settings(_settings(openrouter_preferred_max_latency_p90=3.0))

@@ -92,7 +92,9 @@ async def test_existing_active_course_returns_next_step():
 @pytest.mark.asyncio
 async def test_new_assignment_includes_severity():
     supabase = _fake_supabase(active_course_data=None)
-    trigger = CourseTrigger(signal="anxiety", pattern="freq_3_of_5", reason="distress in 3 of last 5")
+    trigger = CourseTrigger(
+        signal="anxiety", pattern="freq_3_of_5", reason="distress in 3 of last 5"
+    )
     history = [_turn(2, "anxiety"), _turn(0), _turn(2, "anxiety")]
 
     result = await assign_course_if_needed(supabase, "user-1", trigger, history=history)
@@ -136,7 +138,13 @@ async def test_mild_severity_starts_at_step_0():
 
 @pytest.mark.asyncio
 async def test_no_duplicate_assignment():
-    supabase = _fake_supabase(active_course_data={"course_slug": "walking-through-grief", "completed_lessons": [], "current_lesson_index": 0})
+    supabase = _fake_supabase(
+        active_course_data={
+            "course_slug": "walking-through-grief",
+            "completed_lessons": [],
+            "current_lesson_index": 0,
+        }
+    )
     trigger = CourseTrigger(signal="grief", pattern="freq_3_of_5", reason="test")
 
     result = await assign_course_if_needed(supabase, "user-1", trigger)

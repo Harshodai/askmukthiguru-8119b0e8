@@ -132,14 +132,18 @@ def reciprocal_rank_fusion(
             items[key].provenance["hop"] = h.get("hop")
             items[key].provenance["relation"] = h.get("relation")
             items[key].provenance["entity_id"] = h.get("entity_id") or h.get("uri")
-            items[key].provenance["entity_ids"] = [
-                h.get("entity_id") or h.get("uri")
-            ] if (h.get("entity_id") or h.get("uri")) else []
+            items[key].provenance["entity_ids"] = (
+                [h.get("entity_id") or h.get("uri")] if (h.get("entity_id") or h.get("uri")) else []
+            )
             items[key].provenance["graph_source"] = h.get("source") or "neo4j://ontology"
             items[key].provenance["source_segment_ids"] = h.get("source_segment_ids", [])
             items[key].provenance["ontology_version"] = h.get("ontology_version")
-            items[key].provenance["domain_rights_status"] = h.get("domain_rights_status") or h.get("rights_status")
-            items[key].provenance["entity_resolution_confidence"] = h.get("entity_resolution_confidence")
+            items[key].provenance["domain_rights_status"] = h.get("domain_rights_status") or h.get(
+                "rights_status"
+            )
+            items[key].provenance["entity_resolution_confidence"] = h.get(
+                "entity_resolution_confidence"
+            )
             scores[key] += 0.05  # dual-channel corroboration bonus
         else:
             items[key] = ContextItem(

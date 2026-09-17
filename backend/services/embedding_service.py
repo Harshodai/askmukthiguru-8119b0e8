@@ -28,6 +28,7 @@ import logging
 import os
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, Optional
 
@@ -51,16 +52,65 @@ from services.circuit_breaker import (
 logger = logging.getLogger(__name__)
 
 
+def _default_embed_thread_workers() -> int:
+    """Resolve EMBED_THREAD_WORKERS, else min(2, cpu_count()//2 or 1) per the
+    module docstring's documented default. Previously the docstring described
+    a dedicated pool that did not exist — every encode_async/rerank_async call
+    ran on asyncio's process-wide default executor instead, which any other
+    asyncio.to_thread() caller in the app also shares (see _EMBED_EXECUTOR).
+    """
+    configured = int(getattr(settings, "embed_thread_workers", 0) or 0)
+    if configured > 0:
+        return configured
+    return min(2, (os.cpu_count() or 1) // 2 or 1)
+
+
+# Dedicated bounded pool for this service's asyncio.to_thread()-style calls
+# (encode/encode_batch/encode_with_colbert/rerank). Isolates ONNX/PyTorch
+# inference from asyncio's SHARED default executor, which dozens of unrelated
+# call sites across the app also use (health checks, memory writes, admin
+# routes, telemetry reads, ...). Without this isolation, a stuck or thrashing
+# embedding call (e.g. ONNX under CPU contention, retrying 3x with sleeps)
+# occupies a shared-pool worker indefinitely -- asyncio.wait_for's timeout
+# only abandons the AWAITING coroutine, it cannot stop a thread already
+# running blocking native code -- and once enough embedding calls do this,
+# every other asyncio.to_thread() caller in the process queues behind them
+# forever, including /api/health's own qdrant/OCR checks. Same pattern as
+# app/pipeline/stages/memory_stage.py's _DISPATCH_EXECUTOR and
+# app/telemetry_sink.py's _invalidation_executor.
+_EMBED_EXECUTOR = ThreadPoolExecutor(
+    max_workers=_default_embed_thread_workers(), thread_name_prefix="embedding"
+)
+
+
 def _apply_hf_env_bounds() -> None:
-    """Bound HuggingFace download concurrency + disable hf_transfer.
+    """Bound HuggingFace download concurrency + disable hf_transfer/Xet.
 
     Sets HF_HUB_DOWNLOAD_TIMEOUT (cap stalled downloads) and disables
     hf_transfer (which can spike memory during parallel chunk downloads).
     Uses setdefault so explicit operator overrides win. Valid for the pinned
     huggingface_hub>=0.20 line. Invoke before any model-loading operation.
+
+    2026-09-16 (Railway crash diagnosis): HF_HUB_DISABLE_XET added after the
+    prod backend crashed with `Fatal Python error: Aborted` /
+    `memory allocation of 66978628 bytes failed` inside `hf_xet`'s `xet_get`
+    (8+ concurrent threads each allocating ~64MB chunk buffers) while cold-
+    downloading BAAI/bge-m3 (30 files) at container boot -- the pre-cached
+    ONNX INT8 snapshot from Dockerfile.railway's build-time bake was missing
+    from that deployed image (see docs/PROD_HARDENING_STATUS.md, item C, for
+    the full diagnosis), so `_ensure_encoder()` fell through to the raw
+    PyTorch path and hit a live download that OOM-aborted the whole process.
+    `HF_HUB_ENABLE_HF_TRANSFER=0` above guards a DIFFERENT accelerator
+    (hf_transfer, an older Rust downloader) and did nothing for Xet, which
+    huggingface_hub>=0.36 auto-selects for Xet-enabled repos regardless.
+    Disabling Xet forces the plain HTTP downloader (sequential-ish, bounded
+    memory) so a cold-cache fallback degrades instead of aborting the process
+    -- this is defense in depth: the real fix is making sure the pre-cache
+    step actually lands in the deployed image, tracked separately.
     """
     os.environ.setdefault("HF_HUB_DOWNLOAD_TIMEOUT", "30")
     os.environ.setdefault("HF_HUB_ENABLE_HF_TRANSFER", "0")
+    os.environ.setdefault("HF_HUB_DISABLE_XET", "1")
 
 
 def _apply_query_expansion(text: str) -> str:
@@ -338,8 +388,25 @@ class EmbeddingService:
             # Bound thread count: default (0=all cores) oversubscribes when
             # multiple encode calls run concurrently via asyncio.to_thread.
             # Mirrors services/onnx_reranker.py:127-129.
+            #
+            # os.cpu_count() reads the HOST/VM's core count (10 on the dev
+            # Docker Desktop VM), NOT the container's actual cgroup CPU quota
+            # (cpus: ${BACKEND_CPU_LIMIT:-4.0} in docker-compose.yml) -- the
+            # exact mismatch already root-caused for MKL/OpenBLAS/OMP on
+            # 2026-09-06 (L-DOCKER-9, see docker-compose.yml's backend-env
+            # comment) and fixed there via OMP_NUM_THREADS=2 etc. ONNX
+            # Runtime's own intra-op pool is unaffected by those env vars (it
+            # is set programmatically, once, at session creation) and was
+            # left on the old cpu_count()-based formula, so it never got that
+            # fix. Reuse OMP_NUM_THREADS as the same operator-tunable budget
+            # instead of re-deriving a second, inflated one from cpu_count().
             so = ort.SessionOptions()
-            so.intra_op_num_threads = max(1, (os.cpu_count() or 2) // 2)
+            # settings.omp_num_threads is `int = Field(default=2, ge=1)`, so it
+            # is already a validated positive int -- no clamp, no cpu_count()
+            # cap. An earlier version of this line kept a
+            # `min(budget, cpu_count()//2)` ceiling, which re-derived the
+            # host-core budget the comment above says not to derive.
+            so.intra_op_num_threads = settings.omp_num_threads
             so.inter_op_num_threads = 1
             session = ort.InferenceSession(
                 model_file,
@@ -390,15 +457,10 @@ class EmbeddingService:
 
             FALLBACK_CHAIN = [
                 settings.embedding_model,
-                "intfloat/multilingual-e5-small",
-                "BAAI/bge-small-en-v1.5",
-                "sentence-transformers/all-MiniLM-L6-v2",
+                "intfloat/multilingual-e5-large-instruct",
             ]
             FALLBACK_DIMS = {
-                "intfloat/multilingual-e5-small": 384,
                 "intfloat/multilingual-e5-large-instruct": 1024,
-                "BAAI/bge-small-en-v1.5": 384,
-                "sentence-transformers/all-MiniLM-L6-v2": 384,
             }
             # Qdrant's collection is created once at container startup with this
             # dimension (app/container.py, before any encoder loads). A fallback
@@ -781,7 +843,7 @@ class EmbeddingService:
                     # time.sleep is intentionally used here: encode() is a sync
                     # method, always called via encode_async() -> asyncio.to_thread().
                     # The sleep runs in a worker thread, NOT the event loop.
-                    time.sleep(min(2 ** attempt, 8))
+                    time.sleep(min(2**attempt, 8))
 
             logger.error(
                 f"All {max_retries} attempts to encode dense failed. Raising last error: {last_err}"
@@ -838,7 +900,7 @@ class EmbeddingService:
                     # time.sleep is intentionally used here: encode() is a sync
                     # method, always called via encode_async() -> asyncio.to_thread().
                     # The sleep runs in a worker thread, NOT the event loop.
-                    time.sleep(min(2 ** attempt, 8))
+                    time.sleep(min(2**attempt, 8))
 
             logger.error(
                 f"All {max_retries} attempts to encode dense failed. Raising last error: {last_err}"
@@ -849,16 +911,22 @@ class EmbeddingService:
             raise RuntimeError(f"All {max_retries} attempts to encode dense failed.")
 
     async def encode_async(self, texts: list[str]) -> list[list[float]]:
-        """Async GIL-escape wrapper for encode(). Safe to await in FastAPI handlers."""
-        return await asyncio.to_thread(self.encode, texts)
+        """Async GIL-escape wrapper for encode(). Safe to await in FastAPI handlers.
+
+        Runs on the dedicated _EMBED_EXECUTOR, not asyncio's shared default
+        executor -- see _EMBED_EXECUTOR docstring.
+        """
+        return await asyncio.get_running_loop().run_in_executor(_EMBED_EXECUTOR, self.encode, texts)
 
     def encode_single(self, text: str) -> list[float]:
         """Encode a single text into a dense vector."""
         return self.encode([text])[0]
 
     async def encode_single_async(self, text: str) -> list[float]:
-        """Async GIL-escape wrapper for encode_single()."""
-        return await asyncio.to_thread(self.encode_single, text)
+        """Async GIL-escape wrapper for encode_single(). Uses _EMBED_EXECUTOR."""
+        return await asyncio.get_running_loop().run_in_executor(
+            _EMBED_EXECUTOR, self.encode_single, text
+        )
 
     def encode_batch(self, texts: list[str]) -> dict:
         """
@@ -947,18 +1015,14 @@ class EmbeddingService:
                 }
                 self._embed_cache.put(prefixed_text, embedding_result)
 
-        EMBEDDING_LATENCY.labels(operation="encode_batch").observe(
-            time.monotonic() - start_time
-        )
+        EMBEDDING_LATENCY.labels(operation="encode_batch").observe(time.monotonic() - start_time)
         self._circuit.record_success()
         return {
             "dense": dense_results,
             "sparse": sparse_results,
         }
 
-    def _encode_batch_onnx(
-        self, prefixed_texts: list[str], start_time: float
-    ) -> tuple[list, list]:
+    def _encode_batch_onnx(self, prefixed_texts: list[str], start_time: float) -> tuple[list, list]:
         """ONNX INT8 batch encode. Lock-free: session.run() is thread-safe."""
         from collections import defaultdict
 
@@ -1013,7 +1077,7 @@ class EmbeddingService:
                 # time.sleep is intentionally used here: encode_batch() is a sync
                 # method, always called via encode_batch_async() -> asyncio.to_thread().
                 # The sleep runs in a worker thread, NOT the event loop.
-                time.sleep(min(2 ** attempt, 8))
+                time.sleep(min(2**attempt, 8))
 
         logger.error(
             f"All {max_retries} attempts to encode batch failed. Raising last error: {last_err}"
@@ -1085,7 +1149,7 @@ class EmbeddingService:
                     # time.sleep is intentionally used here: encode_batch() is a sync
                     # method, always called via encode_batch_async() -> asyncio.to_thread().
                     # The sleep runs in a worker thread, NOT the event loop.
-                    time.sleep(min(2 ** attempt, 8))
+                    time.sleep(min(2**attempt, 8))
 
             logger.error(
                 f"All {max_retries} attempts to encode batch failed. Raising last error: {last_err}"
@@ -1096,8 +1160,12 @@ class EmbeddingService:
             raise RuntimeError(f"All {max_retries} attempts to encode batch failed.")
 
     async def encode_batch_async(self, texts: list[str]) -> dict:
-        """Async GIL-escape wrapper for encode_batch(). Frees event loop during encoding."""
-        return await asyncio.to_thread(self.encode_batch, texts)
+        """Async GIL-escape wrapper for encode_batch(). Frees event loop during
+        encoding. Uses _EMBED_EXECUTOR, not asyncio's shared default executor.
+        """
+        return await asyncio.get_running_loop().run_in_executor(
+            _EMBED_EXECUTOR, self.encode_batch, texts
+        )
 
     def encode_with_colbert(self, texts: list[str]) -> dict:
         """Return dense, sparse, AND colbert token embeddings in one batched ONNX call.
@@ -1214,7 +1282,7 @@ class EmbeddingService:
                 # time.sleep is intentionally used here: encode_with_colbert() is a
                 # sync method, always called via an asyncio.to_thread() wrapper.
                 # The sleep runs in a worker thread, NOT the event loop.
-                time.sleep(min(2 ** attempt, 8))
+                time.sleep(min(2**attempt, 8))
 
         logger.error(
             f"All {max_retries} attempts to encode_with_colbert failed. "
@@ -1273,7 +1341,7 @@ class EmbeddingService:
                     # time.sleep is intentionally used here: encode_with_colbert() is a
                     # sync method, always called via an asyncio.to_thread() wrapper.
                     # The sleep runs in a worker thread, NOT the event loop.
-                    time.sleep(min(2 ** attempt, 8))
+                    time.sleep(min(2**attempt, 8))
 
             logger.error(
                 f"All {max_retries} attempts to encode_with_colbert failed. "
@@ -1526,8 +1594,10 @@ class EmbeddingService:
         return pooled[0] if pooled else [0.0] * dim
 
     async def encode_with_colbert_async(self, texts: list[str]) -> dict:
-        """Async GIL-escape wrapper for encode_with_colbert()."""
-        return await asyncio.to_thread(self.encode_with_colbert, texts)
+        """Async GIL-escape wrapper for encode_with_colbert(). Uses _EMBED_EXECUTOR."""
+        return await asyncio.get_running_loop().run_in_executor(
+            _EMBED_EXECUTOR, self.encode_with_colbert, texts
+        )
 
     def _colbert_maxsim_rerank(
         self,
@@ -1588,8 +1658,12 @@ class EmbeddingService:
         }
 
     async def encode_single_full_async(self, text: str) -> dict:
-        """Async GIL-escape wrapper for encode_single_full(). Use in retrieval nodes."""
-        return await asyncio.to_thread(self.encode_single_full, text)
+        """Async GIL-escape wrapper for encode_single_full(). Use in retrieval
+        nodes. Uses _EMBED_EXECUTOR, not asyncio's shared default executor.
+        """
+        return await asyncio.get_running_loop().run_in_executor(
+            _EMBED_EXECUTOR, self.encode_single_full, text
+        )
 
     async def rerank(
         self,
@@ -1617,8 +1691,11 @@ class EmbeddingService:
         pairs = [(query, doc["text"]) for doc in documents]
         if self._is_onnx_reranker():
             # ONNX INT8 reranker: session.run() is thread-safe, no lock.
-            # Offload to thread to avoid blocking the event loop.
-            raw_scores = await asyncio.to_thread(self._reranker.predict, pairs)
+            # Offload to thread to avoid blocking the event loop. Uses
+            # _EMBED_EXECUTOR, not asyncio's shared default executor.
+            raw_scores = await asyncio.get_running_loop().run_in_executor(
+                _EMBED_EXECUTOR, self._reranker.predict, pairs
+            )
         else:
             # PyTorch CrossEncoder fallback: not thread-safe, serialize.
             import torch
@@ -1732,9 +1809,7 @@ class EmbeddingService:
         if settings.enable_colbert:
             # ONNX-native MaxSim: encode_with_colbert() locks internally per backend.
             try:
-                colbert_docs = self._colbert_maxsim_rerank(
-                    query, documents, top_k=colbert_top_k
-                )
+                colbert_docs = self._colbert_maxsim_rerank(query, documents, top_k=colbert_top_k)
             except Exception as e:
                 logger.error(
                     f"ColBERT MaxSim rerank failed: {e}. Falling back to RAGatouille path."
@@ -1807,11 +1882,11 @@ class EmbeddingService:
                 return documents[:top_k]
 
 
-_EMBEDDING_SERVICE_SINGLETON: "EmbeddingService | None" = None
+_EMBEDDING_SERVICE_SINGLETON: EmbeddingService | None = None
 _EMBEDDING_SERVICE_LOCK = threading.Lock()
 
 
-def get_embedding_service() -> "EmbeddingService":
+def get_embedding_service() -> EmbeddingService:
     """Module-level singleton accessor for EmbeddingService.
 
     Repeated direct EmbeddingService() construction re-loads the ~570MB

@@ -63,7 +63,10 @@ def test_golden_eval_requires_flag():
 
 
 def test_golden_eval_fails_without_backend_url():
-    env = {k: v for k, v in os.environ.items() if k != "BACKEND_URL"}
+    # Empty, not absent: run_golden_eval.py now reads settings.backend_url, and
+    # pydantic-settings would otherwise fall through to backend/.env. An empty
+    # env var overrides the dotenv value and is falsy for both scripts.
+    env = {**os.environ, "BACKEND_URL": ""}
     r = subprocess.run(
         [sys.executable, str(EVAL), "--smoke", "1"],
         capture_output=True,
@@ -76,7 +79,10 @@ def test_golden_eval_fails_without_backend_url():
 
 
 def test_run_golden_eval_fails_without_backend_url(tmp_path):
-    env = {k: v for k, v in os.environ.items() if k != "BACKEND_URL"}
+    # Empty, not absent: run_golden_eval.py now reads settings.backend_url, and
+    # pydantic-settings would otherwise fall through to backend/.env. An empty
+    # env var overrides the dotenv value and is falsy for both scripts.
+    env = {**os.environ, "BACKEND_URL": ""}
     out_file = tmp_path / "report.json"
     r = subprocess.run(
         [
@@ -100,8 +106,13 @@ def test_groundedness_zero_citations_and_empty_context():
     from benchmarks.golden_eval import groundedness
 
     # Closes the hallucination 1.0 loophole where answers without citations or context were compared against themselves
-    assert groundedness("query", "hallucinated answer without context", "", has_citations=False) == 0.0
-    assert groundedness("query", "hallucinated answer without context", "   ", has_citations=False) == 0.0
+    assert (
+        groundedness("query", "hallucinated answer without context", "", has_citations=False) == 0.0
+    )
+    assert (
+        groundedness("query", "hallucinated answer without context", "   ", has_citations=False)
+        == 0.0
+    )
     assert groundedness("query", "hallucinated answer", "some context", has_citations=False) == 0.0
     assert groundedness("query", "hallucinated answer", "", has_citations=True) == 0.0
     assert groundedness("query", "hallucinated answer", "   ", has_citations=True) == 0.0

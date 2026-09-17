@@ -475,9 +475,9 @@ def test_qdrant_search_quality_baseline_regression(qdrant_searcher, embedding_se
         )
 
         # Regression threshold: allow 2% drop
-        assert (
-            current["mean_ndcg"] >= baseline_ndcg - 0.02
-        ), f"Hybrid NDCG regressed: {current['mean_ndcg']:.3f} (baseline: {baseline_ndcg:.3f})"
+        assert current["mean_ndcg"] >= baseline_ndcg - 0.02, (
+            f"Hybrid NDCG regressed: {current['mean_ndcg']:.3f} (baseline: {baseline_ndcg:.3f})"
+        )
 
     # Baseline updates are an explicit benchmark-authoring action, never a side
     # effect of staging verification. This keeps CI evidence reproducible and

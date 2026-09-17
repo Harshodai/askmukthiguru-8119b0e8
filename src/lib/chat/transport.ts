@@ -5,6 +5,7 @@ import { getAccessToken, refreshAccessToken } from './auth';
 import { getAnonSessionToken, refreshAnonSessionToken } from './anonSession';
 import { buildAssistantContext } from './assistant';
 import { httpStatusToErrorCode } from './errors';
+import { fetchWithRetry, BACKPRESSURE_ONLY_STATUSES } from './fetchWithRetry';
 import { recordMetric } from './telemetry';
 import { placeholderReply } from './placeholder';
 import { checkBackendHealth, getHealthStatus } from './health';
@@ -157,16 +158,27 @@ export const sendMessage = async (
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 120_000);
 
+    // fetchWithRetry, not bare fetch: this is the fallback the UI drops to when
+    // streaming fails, and the admission semaphore (max_concurrent_chat) sheds
+    // load with 503 + Retry-After. The streaming path already retried those;
+    // a bare fetch here turned a survivable shed into a visible error for the
+    // seeker. Retries only 429/502/503/504 — a 401 still falls through to the
+    // token-refresh branch below.
     const doFetch = (signal?: AbortSignal) =>
-      fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      fetchWithRetry(
+        endpoint,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: buildBody(),
         },
-        body: buildBody(),
-        signal: signal || controller.signal,
-      });
+        3,
+        signal || controller.signal,
+        BACKPRESSURE_ONLY_STATUSES,
+      );
 
     const startMs = Date.now();
     try {

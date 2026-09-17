@@ -20,7 +20,7 @@ import math
 import re
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
@@ -68,6 +68,7 @@ _STATUS_PRIORITY: dict[str, float] = {
 # ---------------------------------------------------------------------------
 # Data classes
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class RetrievedMemory:
@@ -132,6 +133,7 @@ class RetrievalResult:
 # ---------------------------------------------------------------------------
 # Canonical Memory Retriever
 # ---------------------------------------------------------------------------
+
 
 class CanonicalMemoryRetriever:
     """Retrieve relevant memories for a query with bounded context.
@@ -253,7 +255,7 @@ class CanonicalMemoryRetriever:
         candidates = {mid: m for mid, m in candidates.items() if m.statement}
 
         # 5. Rank by composite score
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         for m in candidates.values():
             m.score = self._composite_score(m, query, now)
 
@@ -285,9 +287,7 @@ class CanonicalMemoryRetriever:
     # Semantic search (Qdrant)
     # ------------------------------------------------------------------
 
-    async def _semantic_search(
-        self, user_id: str, query: str
-    ) -> list[dict[str, Any]]:
+    async def _semantic_search(self, user_id: str, query: str) -> list[dict[str, Any]]:
         """Embed query and search Qdrant for semantic matches.
 
         Returns list of ``{"id", "score", "memory_type", "status"}``.
@@ -309,9 +309,7 @@ class CanonicalMemoryRetriever:
     # Lexical search (Postgres)
     # ------------------------------------------------------------------
 
-    async def _lexical_search(
-        self, user_id: str, query: str
-    ) -> list[dict[str, Any]]:
+    async def _lexical_search(self, user_id: str, query: str) -> list[dict[str, Any]]:
         """Search Postgres for lexical matches on fact_key and statement.
 
         Uses ILIKE for case-insensitive substring matching.
@@ -334,7 +332,9 @@ class CanonicalMemoryRetriever:
             seen: dict[str, dict] = {}
             for row in fact_key_results + statement_results:
                 mid = row["id"]
-                if mid not in seen or row.get("lexical_score", 0) > seen[mid].get("lexical_score", 0):
+                if mid not in seen or row.get("lexical_score", 0) > seen[mid].get(
+                    "lexical_score", 0
+                ):
                     seen[mid] = row
 
             results = list(seen.values())
@@ -346,9 +346,7 @@ class CanonicalMemoryRetriever:
             logger.warning("Lexical search failed: %s", e)
             return []
 
-    async def _search_by_fact_key(
-        self, user_id: str, terms: list[str]
-    ) -> list[dict[str, Any]]:
+    async def _search_by_fact_key(self, user_id: str, terms: list[str]) -> list[dict[str, Any]]:
         """Search by fact_key containing any of the search terms."""
         results: list[dict[str, Any]] = []
         for term in terms:
@@ -356,9 +354,11 @@ class CanonicalMemoryRetriever:
                 # ILIKE pattern: %term%
                 result = (
                     self._db.table("canonical_memories")
-                    .select("id, fact_key, statement, memory_type, confidence, "
-                            "importance, evidence_count, status, "
-                            "source_conversation_id, created_at, updated_at")
+                    .select(
+                        "id, fact_key, statement, memory_type, confidence, "
+                        "importance, evidence_count, status, "
+                        "source_conversation_id, created_at, updated_at"
+                    )
                     .eq("user_id", user_id)
                     .eq("status", "active")
                     .ilike("fact_key", f"%{term}%")
@@ -373,18 +373,18 @@ class CanonicalMemoryRetriever:
                 continue
         return results
 
-    async def _search_by_statement(
-        self, user_id: str, terms: list[str]
-    ) -> list[dict[str, Any]]:
+    async def _search_by_statement(self, user_id: str, terms: list[str]) -> list[dict[str, Any]]:
         """Search by statement containing any of the search terms."""
         results: list[dict[str, Any]] = []
         for term in terms:
             try:
                 result = (
                     self._db.table("canonical_memories")
-                    .select("id, fact_key, statement, memory_type, confidence, "
-                            "importance, evidence_count, status, "
-                            "source_conversation_id, created_at, updated_at")
+                    .select(
+                        "id, fact_key, statement, memory_type, confidence, "
+                        "importance, evidence_count, status, "
+                        "source_conversation_id, created_at, updated_at"
+                    )
                     .eq("user_id", user_id)
                     .eq("status", "active")
                     .ilike("statement", f"%{term}%")
@@ -406,17 +406,87 @@ class CanonicalMemoryRetriever:
         Strips common stopwords and short words. Returns up to 5 terms.
         """
         stopwords = {
-            "i", "me", "my", "mine", "myself", "you", "your", "yours",
-            "the", "a", "an", "is", "are", "was", "were", "be", "been",
-            "being", "have", "has", "had", "do", "does", "did", "will",
-            "would", "could", "should", "may", "might", "can", "shall",
-            "to", "of", "in", "for", "on", "with", "at", "by", "from",
-            "as", "into", "through", "during", "before", "after",
-            "and", "but", "or", "nor", "not", "so", "yet", "both",
-            "that", "this", "these", "those", "what", "which", "who",
-            "whom", "whose", "when", "where", "why", "how", "all",
-            "each", "every", "some", "any", "few", "more", "most",
-            "other", "about", "tell", "me", "know", "remember",
+            "i",
+            "me",
+            "my",
+            "mine",
+            "myself",
+            "you",
+            "your",
+            "yours",
+            "the",
+            "a",
+            "an",
+            "is",
+            "are",
+            "was",
+            "were",
+            "be",
+            "been",
+            "being",
+            "have",
+            "has",
+            "had",
+            "do",
+            "does",
+            "did",
+            "will",
+            "would",
+            "could",
+            "should",
+            "may",
+            "might",
+            "can",
+            "shall",
+            "to",
+            "of",
+            "in",
+            "for",
+            "on",
+            "with",
+            "at",
+            "by",
+            "from",
+            "as",
+            "into",
+            "through",
+            "during",
+            "before",
+            "after",
+            "and",
+            "but",
+            "or",
+            "nor",
+            "not",
+            "so",
+            "yet",
+            "both",
+            "that",
+            "this",
+            "these",
+            "those",
+            "what",
+            "which",
+            "who",
+            "whom",
+            "whose",
+            "when",
+            "where",
+            "why",
+            "how",
+            "all",
+            "each",
+            "every",
+            "some",
+            "any",
+            "few",
+            "more",
+            "most",
+            "other",
+            "about",
+            "tell",
+            "know",
+            "remember",
         }
         words = re.findall(r"[a-zA-Z\u0900-\u097F\u0C00-\u0C7F]+", query.lower())
         terms = [w for w in words if len(w) > 2 and w not in stopwords]
@@ -426,9 +496,7 @@ class CanonicalMemoryRetriever:
     # Hydration (Postgres)
     # ------------------------------------------------------------------
 
-    async def _hydrate_memories(
-        self, user_id: str, memory_ids: list[str]
-    ) -> list[dict[str, Any]]:
+    async def _hydrate_memories(self, user_id: str, memory_ids: list[str]) -> list[dict[str, Any]]:
         """Fetch full memory records from Postgres for IDs without statements."""
         if not memory_ids:
             return []
@@ -494,9 +562,7 @@ class CanonicalMemoryRetriever:
         # Apply status penalty (non-active memories score lower)
         return raw * status_priority
 
-    def _freshness_score(
-        self, timestamp_str: Optional[str], now: datetime
-    ) -> float:
+    def _freshness_score(self, timestamp_str: Optional[str], now: datetime) -> float:
         """Compute freshness score with exponential decay.
 
         Returns 1.0 for very recent, decays to ~0.5 at half-life, ~0.0 at 3x half-life.
@@ -507,7 +573,7 @@ class CanonicalMemoryRetriever:
         try:
             ts = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
             if ts.tzinfo is None:
-                ts = ts.replace(tzinfo=timezone.utc)
+                ts = ts.replace(tzinfo=UTC)
             age_days = max(0, (now - ts).total_seconds() / 86400)
             # Exponential decay with half-life
             return math.exp(-0.693 * age_days / _FRESHNESS_HALF_LIFE_DAYS)
@@ -554,16 +620,14 @@ class CanonicalMemoryRetriever:
     # Update last_used_at
     # ------------------------------------------------------------------
 
-    async def _update_last_used(
-        self, user_id: str, memory_ids: list[str]
-    ) -> None:
+    async def _update_last_used(self, user_id: str, memory_ids: list[str]) -> None:
         """Update last_used_at for retrieved memories (fire-and-forget)."""
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         for mid in memory_ids:
             try:
-                self._db.table("canonical_memories").update(
-                    {"last_used_at": now}
-                ).eq("id", mid).eq("user_id", user_id).execute()
+                self._db.table("canonical_memories").update({"last_used_at": now}).eq("id", mid).eq(
+                    "user_id", user_id
+                ).execute()
             except Exception as e:
                 logger.debug("Failed to update last_used_at for %s: %s", mid, e)
 
@@ -571,6 +635,7 @@ class CanonicalMemoryRetriever:
 # ---------------------------------------------------------------------------
 # Convenience factory
 # ---------------------------------------------------------------------------
+
 
 def create_retriever(
     supabase_client: Any,
@@ -599,7 +664,7 @@ if __name__ == "__main__":
     retriever = CanonicalMemoryRetriever(mock_db, mock_vi, mock_embed)
 
     # Verify composite scoring
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     m = RetrievedMemory(
         id="test-id",
         statement="User lives in Mumbai",

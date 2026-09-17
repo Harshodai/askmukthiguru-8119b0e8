@@ -442,7 +442,9 @@ async def _gather_lightrag_relationships(
                 if ctx:
                     results[q] = ctx[:2000]  # ponytail: cap to avoid prompt bloat
             except Exception as exc:
-                logger.debug("LightRAG query skipped for %r: %s", _sanitize_log(q), _sanitize_log(exc))
+                logger.debug(
+                    "LightRAG query skipped for %r: %s", _sanitize_log(q), _sanitize_log(exc)
+                )
     except Exception as exc:
         logger.warning("LightRAG unavailable: %s", _sanitize_log(exc))
 
@@ -666,11 +668,13 @@ async def _call_llm(system: str, user: str) -> str:
                     logger.info("LLM: generated %d chars via Sarvam Cloud", len(text))
                     return text.strip()
         except Exception as exc:
-            logger.warning("Sarvam Cloud LLM failed: %s — trying multi-provider", _sanitize_log(exc))
+            logger.warning(
+                "Sarvam Cloud LLM failed: %s — trying multi-provider", _sanitize_log(exc)
+            )
 
     # Try multi-provider LLM
     try:
-        from services.multi_provider_llm import MultiProviderLLMService, get_llm_service
+        from services.multi_provider_llm import get_llm_service
 
         llm = get_llm_service()
         result = await llm.generate(
@@ -681,6 +685,7 @@ async def _call_llm(system: str, user: str) -> str:
         text = result.get("text") or result.get("content") or result.get("response", "")
         if text:
             from services.text_quality_filter import find_artifact
+
             artifact = find_artifact(text)
             if artifact:
                 logger.warning(
@@ -706,6 +711,7 @@ async def _call_llm(system: str, user: str) -> str:
         )
         if text:
             from services.text_quality_filter import find_artifact
+
             artifact = find_artifact(text)
             if artifact:
                 logger.warning(
@@ -812,7 +818,9 @@ def _parse_okf_response(raw: str) -> dict[str, Any] | None:
         return None
 
     if frontmatter.get("type") not in _VALID_TYPES:
-        logger.warning("Invalid type %s — defaulting to 'teaching'", _sanitize_log(frontmatter.get("type")))
+        logger.warning(
+            "Invalid type %s — defaulting to 'teaching'", _sanitize_log(frontmatter.get("type"))
+        )
         frontmatter["type"] = "teaching"
 
     # Normalise teacher value
@@ -905,7 +913,10 @@ async def extract_okf(
             raw = await _call_llm(system, user)
             parsed = _parse_okf_response(raw)
             if not parsed:
-                logger.warning("Failed to parse LLM output for %s — skipping", _sanitize_log(cluster["topic_key"]))
+                logger.warning(
+                    "Failed to parse LLM output for %s — skipping",
+                    _sanitize_log(cluster["topic_key"]),
+                )
                 continue
 
             source_url = cluster.get("sources", [""])[0] if cluster.get("sources") else None
@@ -926,7 +937,11 @@ async def extract_okf(
             written.append(path)
             logger.info("  → %s", path)
         except Exception as exc:
-            logger.error("Entry generation failed for %s: %s", _sanitize_log(cluster["topic_key"]), _sanitize_log(exc))
+            logger.error(
+                "Entry generation failed for %s: %s",
+                _sanitize_log(cluster["topic_key"]),
+                _sanitize_log(exc),
+            )
 
     # 4. Compilation is intentionally review-driven. The admin approval route
     # writes reviewed entries to the live directory and compiles the index.

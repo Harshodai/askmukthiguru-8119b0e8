@@ -774,8 +774,12 @@ async def test_metadata_includes_tenant_and_teacher_attribution(engine):
         }
     ]
 
-    engine._contextualize = AsyncMock(return_value=["[Context: Contextual header]\nLiving in a beautiful state..."])
-    engine._embedding.encode_batch = MagicMock(return_value={"dense": [[0.1] * 1024], "sparse": [None]})
+    engine._contextualize = AsyncMock(
+        return_value=["[Context: Contextual header]\nLiving in a beautiful state..."]
+    )
+    engine._embedding.encode_batch = MagicMock(
+        return_value={"dense": [[0.1] * 1024], "sparse": [None]}
+    )
 
     chunks, metadatas, dense, sparse = await engine._ingest_unit(
         "https://youtube.com/watch?v=bs_test1", payloads, "test_unit"

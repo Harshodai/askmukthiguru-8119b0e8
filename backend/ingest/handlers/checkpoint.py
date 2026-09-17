@@ -60,14 +60,11 @@ class IngestionCheckpoint:
         # Try establishing connection to Supabase as Tier-2 fallback
         if not self.redis_client:
             try:
+                from app.config import settings
                 from supabase import create_client
 
-                from app.config import settings
-
                 if settings.supabase_url and settings.supabase_key:
-                    client = create_client(
-                        settings.supabase_url, settings.supabase_key
-                    )
+                    client = create_client(settings.supabase_url, settings.supabase_key)
                     # Verify auth and access to ingestion_checkpoints table
                     client.table("ingestion_checkpoints").select("chunk_id").limit(0).execute()
                     self.supabase_client = client
@@ -76,7 +73,11 @@ class IngestionCheckpoint:
                     )
             except Exception as e:
                 err_str = str(e)
-                if "401" in err_str or "unauthorized" in err_str.lower() or "credentials" in err_str.lower():
+                if (
+                    "401" in err_str
+                    or "unauthorized" in err_str.lower()
+                    or "credentials" in err_str.lower()
+                ):
                     logger.warning(
                         f"IngestionCheckpoint: Supabase auth failed ({e}). Falling back to local JSON."
                     )
@@ -232,13 +233,19 @@ class IngestionCheckpoint:
                 return
             except Exception as e:
                 err_str = str(e)
-                if "401" in err_str or "unauthorized" in err_str.lower() or "credentials" in err_str.lower():
+                if (
+                    "401" in err_str
+                    or "unauthorized" in err_str.lower()
+                    or "credentials" in err_str.lower()
+                ):
                     logger.warning(
                         f"IngestionCheckpoint: Supabase auth failed ({e}). Disabling Supabase and falling back to file."
                     )
                     self.supabase_client = None
                 else:
-                    logger.error(f"Failed to save checkpoint to Supabase: {e}. Falling back to file.")
+                    logger.error(
+                        f"Failed to save checkpoint to Supabase: {e}. Falling back to file."
+                    )
 
         qualified = self._qualify_chunk_id(chunk_id)
         self.processed_chunks.add(qualified)
@@ -273,7 +280,9 @@ class IngestionCheckpoint:
                             if isinstance(data, dict) and data.get("status") in ("failed", "error"):
                                 return False
                         except Exception as e:
-                            logger.debug("Failed to parse checkpoint JSON for chunk %s: %s", chunk_id, e)
+                            logger.debug(
+                                "Failed to parse checkpoint JSON for chunk %s: %s", chunk_id, e
+                            )
                     return True
             except Exception as e:
                 logger.error(f"Failed to check checkpoint in Redis: {e}. Trying Supabase.")
@@ -295,13 +304,19 @@ class IngestionCheckpoint:
                     return True
             except Exception as e:
                 err_str = str(e)
-                if "401" in err_str or "unauthorized" in err_str.lower() or "credentials" in err_str.lower():
+                if (
+                    "401" in err_str
+                    or "unauthorized" in err_str.lower()
+                    or "credentials" in err_str.lower()
+                ):
                     logger.warning(
                         f"IngestionCheckpoint: Supabase auth failed ({e}). Disabling Supabase and falling back to file."
                     )
                     self.supabase_client = None
                 else:
-                    logger.error(f"Failed to check checkpoint in Supabase: {e}. Falling back to file.")
+                    logger.error(
+                        f"Failed to check checkpoint in Supabase: {e}. Falling back to file."
+                    )
 
         # A Redis/Supabase outage falls back to local-file state.
         # Reload the on-disk state so writes from other instances are visible.
@@ -337,7 +352,9 @@ class IngestionCheckpoint:
             key = f"{self._get_redis_key(chunk_id)}:lock"
             return bool(self.redis_client.set(key, "1", nx=True, ex=ttl_seconds))
         except Exception as e:
-            logger.warning(f"IngestionCheckpoint.acquire_lock failed (proceeding without lock): {e}")
+            logger.warning(
+                f"IngestionCheckpoint.acquire_lock failed (proceeding without lock): {e}"
+            )
             return True
 
     def release_lock(self, chunk_id: str) -> None:
@@ -347,7 +364,9 @@ class IngestionCheckpoint:
             key = f"{self._get_redis_key(chunk_id)}:lock"
             self.redis_client.delete(key)
         except Exception as e:
-            logger.warning(f"IngestionCheckpoint.release_lock failed (will self-expire via TTL): {e}")
+            logger.warning(
+                f"IngestionCheckpoint.release_lock failed (will self-expire via TTL): {e}"
+            )
 
     def prune_stale_entries(self, active_hashes: list[str]):
         """Remove any entries from checkpoint that are no longer active."""

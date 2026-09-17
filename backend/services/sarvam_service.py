@@ -153,6 +153,7 @@ class SarvamCloudService:
     def _estimate_tokens(text: str) -> int:
         """Language-aware token estimate via shared compressor."""
         from rag.compressor import estimate_tokens
+
         return estimate_tokens(text)
 
     async def _get_http_client(self) -> httpx.AsyncClient:
@@ -636,12 +637,8 @@ class SarvamCloudService:
 
                 # Token estimation and usage tracking
                 usage = stream_usage or {}
-                prompt_tokens = usage.get("prompt_tokens") or self._estimate_tokens(
-                    str(messages)
-                )
-                completion_tokens = usage.get("completion_tokens") or self._estimate_tokens(
-                    buffer
-                )
+                prompt_tokens = usage.get("prompt_tokens") or self._estimate_tokens(str(messages))
+                completion_tokens = usage.get("completion_tokens") or self._estimate_tokens(buffer)
                 cost_usd = (prompt_tokens + completion_tokens) / 1000.0 * 0.0001
 
                 # Record streaming token usage in accumulator

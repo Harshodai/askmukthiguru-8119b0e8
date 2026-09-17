@@ -29,6 +29,7 @@ def _approved_edge_confidence_floor() -> float:
     """Return the configured floor for traversable ontology relationships."""
     return float(getattr(settings, "ontology_confidence_threshold", 0.7))
 
+
 # Prefer the process-wide Container driver. Standalone tests/scripts retain a
 # bounded fallback driver, but never create one per request.
 _driver = None
@@ -110,7 +111,9 @@ def _build_doc(relationships: list[str], *, licensed: bool) -> dict | None:
 
 @trace_rag_node("cross_teacher_reasoning")
 @log_metrics
-async def cross_teacher_reasoning(state: GraphState, config: Optional[RunnableConfig] = None) -> dict:
+async def cross_teacher_reasoning(
+    state: GraphState, config: Optional[RunnableConfig] = None
+) -> dict:
     """
     RAG Node for Cross-Teacher comparisons.
     If the question mentions multiple spiritual teachers, it queries Neo4j

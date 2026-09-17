@@ -2,12 +2,89 @@ import json
 import logging
 import os
 from datetime import UTC, datetime
-from typing import Optional
+from typing import Literal, Optional
+
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from app.constants import FEEDBACK_LESSONS_FILE_PATH
 from app.dependencies import get_container
 
 logger = logging.getLogger(__name__)
+
+
+class RefinerAnalysisResult(BaseModel):
+    """Typed refiner LLM output — replaces split("```json")/json.loads."""
+
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+
+    category: Literal[
+        "hallucination",
+        "missing_context",
+        "incorrect_intent",
+        "poor_formatting",
+        "other",
+    ] = Field(default="other", description="Failure category")
+    analysis: str = Field(default="", max_length=2000, description="Brief analysis")
+    suggested_correction: str = Field(
+        default="N/A", max_length=2000, description="Concrete RAG/prompt correction"
+    )
+
+
+def parse_refiner_result(raw_response: str) -> RefinerAnalysisResult:
+    """Parse raw LLM text into RefinerAnalysisResult via model_validate_json().
+
+    Strips optional markdown fences, then takes the single-pass native JSON
+    path. Falls back to a bounded 'other' record when the model emits
+    non-JSON text (never raises to the caller).
+    """
+    cleaned = (raw_response or "").strip()
+    if cleaned.startswith("```"):
+        # Strip one optional ```json ... ``` fence without fragile split chains.
+        lines = cleaned.splitlines()
+        lines = lines[1:]  # drop opening fence (``` or ```json)
+        if lines and lines[-1].strip().startswith("```"):
+            lines = lines[:-1]
+        cleaned = "\n".join(lines).strip()
+    try:
+        return RefinerAnalysisResult.model_validate_json(cleaned)
+    except (ValidationError, ValueError) as e:
+        logger.warning(f"Could not parse refiner JSON, using fallback: {e}")
+        return RefinerAnalysisResult(
+            category="other",
+            analysis=cleaned[:500],
+            suggested_correction="N/A",
+        )
+
+
+async def _generate_via_gateway(
+    system_prompt: str,
+    user_prompt: str,
+) -> str:
+    """Generate via container.llm_gateway with provider fallback.
+
+    The gateway itself routes primary -> secondary when cross-provider
+    fallback is enabled. Ollama local-only is the last-resort fallback here
+    (never a cloud call), used only when the gateway raises.
+    """
+    container = get_container()
+    try:
+        gateway = getattr(container, "llm_gateway", None)
+        if gateway is not None:
+            return await gateway.generate(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+            )
+        logger.warning("llm_gateway missing on container — using local Ollama fallback")
+    except Exception as e:
+        logger.warning(f"llm_gateway.generate failed, trying local Ollama fallback: {e}")
+    # Local-only fallback: loopback Ollama, no cloud provider involved.
+    ollama = getattr(container, "ollama", None)
+    if ollama is None:
+        raise RuntimeError("No LLM backend available (gateway failed, no Ollama fallback)")
+    return await ollama.generate(
+        system_prompt=system_prompt,
+        user_prompt=user_prompt,
+    )
 
 
 async def mine_failed_session(
@@ -17,8 +94,9 @@ async def mine_failed_session(
     comment: Optional[str] = None,
 ) -> dict:
     """
-    Background worker that mines a failed session using the local Ollama LLM
-    to classify the error and recommend RAG/prompt improvements.
+    Background worker that mines a failed session using the LLM gateway
+    (provider fallback: openrouter/nim per container wiring) to classify the
+    error and recommend RAG/prompt improvements. Ollama local-only fallback.
     """
     logger.info(f"Refining failed session for query: '{query}'")
 
@@ -39,47 +117,33 @@ async def mine_failed_session(
         f"User Feedback/Comment: {comment or 'None provided'}"
     )
 
-    analysis_json = {
-        "category": "other",
-        "analysis": "LLM call failed",
-        "suggested_correction": "None",
-    }
+    analysis: RefinerAnalysisResult = RefinerAnalysisResult(
+        category="other",
+        analysis="LLM call failed",
+        suggested_correction="None",
+    )
 
     try:
-        container = get_container()
-        # Call LLM service
-        raw_response = await container.ollama.generate(
+        raw_response = await _generate_via_gateway(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
         )
-
-        # Clean response and parse JSON
-        cleaned = raw_response.strip()
-        if "```json" in cleaned:
-            cleaned = cleaned.split("```json")[1].split("```")[0].strip()
-        elif "```" in cleaned:
-            cleaned = cleaned.split("```")[1].split("```")[0].strip()
-
-        try:
-            analysis_json = json.loads(cleaned)
-        except json.JSONDecodeError:
-            logger.warning(f"Could not parse clean JSON from refiner response: '{cleaned}'")
-            analysis_json = {
-                "category": "other",
-                "analysis": cleaned[:500],
-                "suggested_correction": "N/A",
-            }
+        analysis = parse_refiner_result(raw_response)
     except Exception as e:
         logger.error(f"Wisdom Refiner failed to analyze session: {e}")
-        analysis_json["analysis"] = f"Refiner error: {str(e)}"
+        analysis = RefinerAnalysisResult(
+            category="other",
+            analysis=f"Refiner error: {str(e)}"[:2000],
+            suggested_correction="None",
+        )
 
     # Append structured entry to feedback_lessons.jsonl
     entry = {
         "timestamp": datetime.now(UTC).isoformat(),
         "query": query,
-        "category": analysis_json.get("category", "other"),
-        "analysis": analysis_json.get("analysis", ""),
-        "suggested_correction": analysis_json.get("suggested_correction", ""),
+        "category": analysis.category,
+        "analysis": analysis.analysis,
+        "suggested_correction": analysis.suggested_correction,
         "comment": comment,
     }
 
@@ -96,11 +160,11 @@ async def mine_failed_session(
     if suggested_correction and suggested_correction not in ("None", "N/A") and retrieved_context:
         try:
             logger.info("Ralph Loop: Initiating Student validation run...")
-            container = get_container()
 
             # 1. Initialize LettuceDetectService with container's embedding
             from services.lettuce_detect_service import LettuceDetectService
 
+            container = get_container()
             lettuce = LettuceDetectService(embedder=container.embedding)
 
             # 2. Construct test system prompt incorporating the suggested correction
@@ -112,8 +176,8 @@ async def mine_failed_session(
                 f"{suggested_correction}"
             )
 
-            # 3. Call local student model (Ollama)
-            student_answer = await container.ollama.generate(
+            # 3. Call student model via gateway (gateway fallback, Ollama local-only last resort)
+            student_answer = await _generate_via_gateway(
                 system_prompt=test_system_prompt,
                 user_prompt=f"Question: {query}\n\nCONTEXT (retrieved teachings):\n{retrieved_context}",
             )
@@ -165,3 +229,13 @@ async def mine_failed_session(
             entry["validation_error"] = str(exc)
 
     return entry
+
+
+if __name__ == "__main__":
+    r = parse_refiner_result(
+        '```json\n{"category": "hallucination", "analysis": "a", "suggested_correction": "c"}\n```'
+    )
+    assert r.category == "hallucination", r
+    r2 = parse_refiner_result("not json at all")
+    assert r2.category == "other", r2
+    print("refiner parse OK")

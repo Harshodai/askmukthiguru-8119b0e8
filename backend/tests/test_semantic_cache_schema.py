@@ -72,8 +72,8 @@ class TestSemanticCacheSchema:
         Signature inspection alone (see the other tests in this file) cannot
         catch this class of bug: it only fires on an actual bound call.
         """
-        from services.cache.semantic_adapter import SemanticCacheAdapter
         from rag.corpus_scope import CorpusScope
+        from services.cache.semantic_adapter import SemanticCacheAdapter
 
         scope = CorpusScope(tenant_id="t1", corpus_id="c1")
         instance = SemanticCacheAdapter.__new__(SemanticCacheAdapter)

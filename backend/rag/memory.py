@@ -166,7 +166,11 @@ def _parse_structured_summary(raw: str) -> Optional[dict[str, str]]:
 
 
 def _extractive_fallback(chat_history: list[dict]) -> dict[str, str]:
-    user_msgs = [short_text(m.get("content"), 200) for m in chat_history if m.get("role") == "user" and m.get("content")]
+    user_msgs = [
+        short_text(m.get("content"), 200)
+        for m in chat_history
+        if m.get("role") == "user" and m.get("content")
+    ]
     summary = "; ".join(user_msgs[:5]) if user_msgs else "No conversation history available."
     return {
         "goal": "",
@@ -317,7 +321,11 @@ def build_memory_context(
             parts.append(f"topics: {', '.join(insights[:3])}")
 
         emotional_arc = getattr(memory, "emotional_arc", None) or []
-        if not emotional_arc and hasattr(memory, "state_category") and getattr(memory, "state_category", None):
+        if (
+            not emotional_arc
+            and hasattr(memory, "state_category")
+            and getattr(memory, "state_category", None)
+        ):
             _sc = getattr(memory, "state_category", "")
             _distress = 0
             if _sc in ("Suffering State", "Shrinking Self", "Destructive Self"):
@@ -365,13 +373,24 @@ if __name__ == "__main__":
     print(f"Entities: {entities}")
 
     from services.user_profile_service import ConversationMemory
+
     mem_old = ConversationMemory(
-        session_id="s1", user_id="u1", started_at=1000000, messages=[],
-        key_insights=["peace"], emotional_arc=[], follow_up_suggestions=[],
+        session_id="s1",
+        user_id="u1",
+        started_at=1000000,
+        messages=[],
+        key_insights=["peace"],
+        emotional_arc=[],
+        follow_up_suggestions=[],
     )
     mem_new = ConversationMemory(
-        session_id="s2", user_id="u1", started_at=1700000000, messages=[],
-        key_insights=["joy"], emotional_arc=[], follow_up_suggestions=[],
+        session_id="s2",
+        user_id="u1",
+        started_at=1700000000,
+        messages=[],
+        key_insights=["joy"],
+        emotional_arc=[],
+        follow_up_suggestions=[],
     )
     selected = weighted_memory_selection([mem_old, mem_new], max_memories=2)
     assert len(selected) == 2

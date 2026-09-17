@@ -21,7 +21,6 @@ from app.release_manifest import get_release_manifest
 from app.route_taxonomy import RoutingProvenance, record_routing_decision
 
 if TYPE_CHECKING:
-
     from app.pipeline.stages.context import PipelineContext
 
 logger = logging.getLogger(__name__)
@@ -191,7 +190,6 @@ class InputGuardrailStage(Stage):
                 release_manifest=get_release_manifest().to_dict(),
             )
         return None
-
 
 
 class OutputGuardrailStage(Stage):

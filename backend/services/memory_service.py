@@ -1,9 +1,9 @@
 import asyncio
 import json
 import logging
+import re
 import uuid
 from datetime import UTC, datetime
-import re
 from typing import Any, Optional
 
 from pydantic import BaseModel, Field
@@ -22,7 +22,10 @@ def _safe_confidence(val: Any, default: float = 0.75) -> float:
 
 
 _SINGLE_VALUED_FACT_KEY_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
-    ("lives_in", re.compile(r"\b(?:i|we|user|seeker)\s+(?:live|lives|moved|move)\s+(?:in|to|at)\b", re.I)),
+    (
+        "lives_in",
+        re.compile(r"\b(?:i|we|user|seeker)\s+(?:live|lives|moved|move)\s+(?:in|to|at)\b", re.I),
+    ),
     ("occupation", re.compile(r"\b(?:i|we|user|seeker)\s+(?:work|works|study|studies)\b", re.I)),
 )
 _FACT_KEY_PATTERNS = _SINGLE_VALUED_FACT_KEY_PATTERNS
@@ -196,7 +199,11 @@ class MemoryService:
                             last_updated = last_updated.replace(tzinfo=UTC)
                         delta_days = (now - last_updated).total_seconds() / (24.0 * 3600.0)
                     except Exception as e:
-                        logger.debug("Failed to parse memory updated_at timestamp '%s': %s", updated_at_str, e)
+                        logger.debug(
+                            "Failed to parse memory updated_at timestamp '%s': %s",
+                            updated_at_str,
+                            e,
+                        )
                         delta_days = 0.0
                 else:
                     delta_days = 0.0
@@ -715,12 +722,8 @@ class MemoryService:
 
             # Metadata preservation (Fix 3): match compacted back to originals by keyword overlap
             def _extract_keywords(text: str) -> set[str]:
-                _indic = "\u0900-\u097F\u0B80-\u0BFF\u0C00-\u0C7F\u0C80-\u0CFF\u0D00-\u0D7F"
-                return {
-                    w.lower()
-                    for w in re.findall(rf"[a-zA-Z{_indic}]+", text)
-                    if len(w) > 2
-                }
+                _indic = "\u0900-\u097f\u0b80-\u0bff\u0c00-\u0c7f\u0c80-\u0cff\u0d00-\u0d7f"
+                return {w.lower() for w in re.findall(rf"[a-zA-Z{_indic}]+", text) if len(w) > 2}
 
             original_kw_sets = [_extract_keywords(m.get("content", "")) for m in memories]
 

@@ -90,6 +90,7 @@ eval = [
 dev = [
     "pytest>=8.3.0,<9.0",
     "pytest-asyncio>=0.25.0,<1.0",
+    "pytest-cov>=7.1.0,<8.0",
     "httpx>=0.28.0,<1.0",
     "ruff>=0.4.0",
     "mypy>=1.10.0",
@@ -157,6 +158,29 @@ filterwarnings = [
 python_version = "3.12"
 strict = false
 ignore_missing_imports = true
+
+# --- Coverage ---
+# Floor is a RATCHET, not a cliff: measured 61.38% on 2026-09-16
+# (backend/tests, full suite, `.venv/bin/python3 -m pytest --cov=app --cov=rag
+# --cov=services --cov=domain --cov=routers --cov=ingest --cov=schemas
+# --cov=tasks`). fail_under is set a couple points below that measurement so
+# normal test-count drift doesn't flake CI; it must be raised (never lowered)
+# as coverage improves, and any PR that drops it back near this number is a
+# real regression, not noise. See `make coverage` / `.github/workflows/lint-test.yml`.
+[tool.coverage.run]
+source = ["app", "rag", "domain", "services", "routers", "ingest", "schemas", "tasks"]
+branch = false
+omit = ["*/tests/*", "*/.venv/*", "*/venv/*"]
+
+[tool.coverage.report]
+fail_under = 59
+show_missing = false
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["app", "rag", "domain", "services", "routers"]

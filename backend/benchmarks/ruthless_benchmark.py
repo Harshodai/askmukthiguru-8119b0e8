@@ -760,9 +760,7 @@ async def check_corpus_readiness(
             f"Qdrant collection '{qdrant_collection}' has {points_count} points (points_count must be > 0)"
         )
     if "okf_compiled" in missing_artifacts or missing_artifacts:
-        reasons.append(
-            f"Missing required runtime artifacts: {', '.join(missing_artifacts)}"
-        )
+        reasons.append(f"Missing required runtime artifacts: {', '.join(missing_artifacts)}")
 
     if reasons:
         error_msg = (
@@ -770,13 +768,15 @@ async def check_corpus_readiness(
             + "\n".join(f"   • {r}" for r in reasons)
             + "\n   Abort triggered to prevent vacuous benchmark evaluation."
         )
-        print(f"\n{'='*70}\n{error_msg}\n{'='*70}\n", file=sys.stderr)
+        print(f"\n{'=' * 70}\n{error_msg}\n{'=' * 70}\n", file=sys.stderr)
         if raise_on_error:
             raise RuntimeError(error_msg)
         sys.exit(1)
 
-    print(f"  ✅ Harness guard verified: Qdrant collection '{qdrant_collection}' points={points_count}")
-    print(f"  ✅ Runtime artifacts verified (okf_compiled present)")
+    print(
+        f"  ✅ Harness guard verified: Qdrant collection '{qdrant_collection}' points={points_count}"
+    )
+    print("  ✅ Runtime artifacts verified (okf_compiled present)")
     return {
         "collection": qdrant_collection,
         "points_count": points_count,
@@ -823,10 +823,14 @@ async def flush_caches(base_url: str, skip: bool = False) -> None:
         if result.stderr:
             print(_redact_secrets(result.stderr.strip()[-1000:]))
         if result.returncode == 0 and "error:" not in result.stdout.lower():
-            print("  ✅ Scoped query caches cleared; queues, sessions, quotas, telemetry, and user data were preserved.")
+            print(
+                "  ✅ Scoped query caches cleared; queues, sessions, quotas, telemetry, and user data were preserved."
+            )
             flushed_any = True
         else:
-            print("  ⚠️  Scoped cache utility did not complete cleanly; benchmark will continue without claiming a cold cache.")
+            print(
+                "  ⚠️  Scoped cache utility did not complete cleanly; benchmark will continue without claiming a cold cache."
+            )
     except Exception as e:
         print(f"  ⚠️  Scoped cache flush skipped: {_redact_secrets(str(e)[:120])}")
 

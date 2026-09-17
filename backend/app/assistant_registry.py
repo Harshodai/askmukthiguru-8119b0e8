@@ -104,9 +104,14 @@ def resolve_assistant_scope(slug: Optional[str]) -> AssistantScope | None:
         return None
     scope = _scope_registry().get(validated)
     if scope is None:
-        logger.error("Allowlisted assistant slug %s has no configured scope", sanitize_log_input(validated))
+        logger.error(
+            "Allowlisted assistant slug %s has no configured scope", sanitize_log_input(validated)
+        )
         return None
     if scope.rights_status != "approved" or not scope.rollout_enabled:
-        logger.warning("Assistant scope %s is not currently approved for rollout", sanitize_log_input(validated))
+        logger.warning(
+            "Assistant scope %s is not currently approved for rollout",
+            sanitize_log_input(validated),
+        )
         return None
     return scope

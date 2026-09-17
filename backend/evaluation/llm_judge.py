@@ -323,7 +323,7 @@ class LLMJudge:
                 settings, "llm_judge_provider_model", "anthropic:claude-sonnet-4-6"
             ),
             session_prefix=getattr(settings, "llm_judge_session_prefix", "mukthi-guru-judge"),
-            max_concurrent=int(getattr(settings, "llm_judge_max_concurrent", 4)),
+            max_concurrent=settings.llm_judge_max_concurrent,
             rubrics_dir=rubrics_dir,
             use_emergent_key=True,
             default_weights={

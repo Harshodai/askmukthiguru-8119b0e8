@@ -153,8 +153,8 @@ REASONING_EFFORT_DEFAULTS = {
 # nothing reads this dict.
 PROVIDER_MODELS = {
     LLMProvider.SARVAM_CLOUD: {
-        "default": "sarvam-105b",    # was "sarvam-30b" (deprecated model)
-        "classify": "sarvam-105b",   # was "sarvam-30b" (deprecated model)
+        "default": "sarvam-105b",  # was "sarvam-30b" (deprecated model)
+        "classify": "sarvam-105b",  # was "sarvam-30b" (deprecated model)
         "complex": "sarvam-105b",
     },
     LLMProvider.OLLAMA: {

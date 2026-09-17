@@ -33,6 +33,7 @@ from app.release_manifest import (
     build_release_manifest,
     get_release_manifest,
     set_release_manifest,
+    to_public_manifest_dict,
     validate_release_manifest,
 )
 from app.schemas import ChatRequest, ChatResponse
@@ -208,9 +209,14 @@ def test_pipeline_result_with_latency_and_to_chat_response():
 def test_chat_response_schema_release_manifest():
     """Verify ChatResponse serializes only the public release_manifest projection."""
     manifest_dict = get_release_manifest().to_dict()
+    # Project, don't pass raw: ReleaseManifestPublic sets extra="forbid", and
+    # to_public_manifest_dict is the documented boundary between the internal
+    # manifest and a public response body (see CLAUDE.md, ReleaseManifest
+    # Public Projection Invariant). Production does the same at
+    # orchestrator.py:177 and api/chat.py:764.
     resp = ChatResponse(
         response="Meditate on the breath.",
-        release_manifest=manifest_dict,
+        release_manifest=to_public_manifest_dict(manifest_dict),
     )
     assert resp.release_manifest is not None
     assert resp.release_manifest.release_id == manifest_dict["release_id"]
@@ -306,7 +312,9 @@ async def test_doctrine_cache_hit_attaches_manifest():
         res = await stage.run(ctx)
         assert res is not None
         assert res.cache_hit is True
-        assert res.citations == [{"source_id": "four-sacred-secrets", "title": "Four Sacred Secrets"}]
+        assert res.citations == [
+            {"source_id": "four-sacred-secrets", "title": "Four Sacred Secrets"}
+        ]
         assert res.release_manifest is not None
         assert res.release_manifest["release_id"] == get_release_manifest().release_id
 
@@ -746,7 +754,6 @@ def test_chat_engine_coalesce_key_scoped_by_release_id():
     assert k1 != k2
 
     set_release_manifest(None)
-
 
 
 def test_retrieval_provenance_context_survives_result_and_stream_serialization():

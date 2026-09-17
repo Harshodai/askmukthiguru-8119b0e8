@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 """golden_eval.py — 5-dimension rubric over the golden disciple set.
 
+NOTE (2026-09-16): evaluation/bench.py is the consolidated golden-bank
+runner. This script stays for its distinct 5-dim min-aggregate rubric
+(groundedness/doctrinal_consistency/tone/citation_correctness/
+refusal_correctness) against golden_dataset.json's 589 items.
+
 Calls the deployed backend per question, scores each answer on five dims:
   groundedness          — LettuceDetect faithfulness (reused service or heuristic)
   doctrinal_consistency — must_mention hit-rate, reject_if must be absent
@@ -172,7 +177,10 @@ def main() -> int:
     def fetch(it: dict[str, Any]) -> dict[str, Any]:
         q = it.get("query") or it.get("question", "")
         if not q:
-            print(f"[FAIL] {it.get('id', '<unknown>')}: item has neither query nor question", file=sys.stderr)
+            print(
+                f"[FAIL] {it.get('id', '<unknown>')}: item has neither query nor question",
+                file=sys.stderr,
+            )
             return {}
         try:
             return call_backend(backend_url, token, q)

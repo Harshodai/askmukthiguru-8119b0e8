@@ -89,9 +89,8 @@ def _render(template_key: str, **kwargs: Any) -> tuple[str, str]:
 
 def _service_client() -> Any:
     """Build a service-role supabase client (runs inside worker, no user JWT)."""
-    from supabase import create_client
-
     from app.config import settings
+    from supabase import create_client
 
     service_key = getattr(settings, "supabase_service_key", None) or settings.supabase_key
     return create_client(settings.supabase_url, service_key)

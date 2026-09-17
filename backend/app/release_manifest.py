@@ -47,6 +47,14 @@ class ReleaseManifest:
         """Convert manifest to a JSON-serializable dictionary."""
         return asdict(self)
 
+    def to_public_dict(self) -> dict[str, Any]:
+        """Convert manifest to public projection containing only allowed fields."""
+        return {
+            "release_id": self.release_id,
+            "policy_version": self.policy_version,
+            "schema_version": self.schema_version,
+        }
+
     def validate(self) -> None:
         """Validate manifest invariants and readiness at startup.
 
@@ -200,3 +208,22 @@ def validate_release_manifest(manifest: ReleaseManifest | None = None) -> None:
     """
     target = manifest or get_release_manifest()
     target.validate()
+
+
+def to_public_manifest_dict(manifest: Any = None) -> dict[str, Any]:
+    """Convert any manifest representation to a valid ReleaseManifestPublic dictionary."""
+    if isinstance(manifest, dict):
+        return {
+            "release_id": str(manifest.get("release_id") or "prod-2026-08-17"),
+            "policy_version": manifest.get("policy_version"),
+            "schema_version": manifest.get("schema_version"),
+        }
+    if hasattr(manifest, "to_public_dict"):
+        return manifest.to_public_dict()
+    if hasattr(manifest, "release_id"):
+        return {
+            "release_id": str(getattr(manifest, "release_id", "prod-2026-08-17")),
+            "policy_version": getattr(manifest, "policy_version", None),
+            "schema_version": getattr(manifest, "schema_version", None),
+        }
+    return get_release_manifest().to_public_dict()

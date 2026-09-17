@@ -35,7 +35,7 @@ def test_chat_cost_log_carries_tenant_and_user():
 
     src = inspect.getsource(chat_api)
     anchor = '"CHAT_COST endpoint=%s'
-    log_call = src[src.index(anchor): src.index(anchor) + 400]
+    log_call = src[src.index(anchor) : src.index(anchor) + 400]
     assert "tenant_id=%s" in log_call
     assert "user_id=%s" in log_call
     assert "TenantContext.get()" in log_call

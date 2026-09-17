@@ -234,7 +234,9 @@ def check_url_safety(url: str) -> tuple[bool, str]:
         if len(parts) == 2:
             tld = parts[1].lower()
             if tld in _SUSPICIOUS_TLDS:
-                logger.warning(f"Suspicious TLD detected: {sanitize_log_input(tld)} in {sanitize_log_input(url)}")
+                logger.warning(
+                    f"Suspicious TLD detected: {sanitize_log_input(tld)} in {sanitize_log_input(url)}"
+                )
                 # Don't block, just flag for logging
 
         # Block URLs with credentials
@@ -490,7 +492,9 @@ def apply_result_guardrails(result: dict) -> tuple[bool, dict, list[str]]:
 
     # Step 5: Score threshold
     if score < settings.web_search_result_min_score:
-        logger.debug(f"Result scored too low ({score:.2f}), filtering out: {sanitize_log_input(url)}")
+        logger.debug(
+            f"Result scored too low ({score:.2f}), filtering out: {sanitize_log_input(url)}"
+        )
         return False, {}, flags + ["low_score"]
 
     sanitized = {

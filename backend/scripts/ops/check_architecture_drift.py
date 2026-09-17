@@ -60,6 +60,7 @@ CRITICAL_ROUTES: tuple[tuple[str, str], ...] = (
 @dataclass(frozen=True)
 class DriftCheckResult:
     """Outcome of a single architectural check."""
+
     name: str
     passed: bool
     details: str
@@ -69,6 +70,7 @@ class DriftCheckResult:
 @dataclass(frozen=True)
 class DriftReport:
     """Aggregate report across all architectural drift checks."""
+
     ok: bool
     checks: tuple[DriftCheckResult, ...]
     violations: tuple[str, ...]
@@ -86,7 +88,9 @@ class DriftReport:
             if c.violation:
                 lines.append(f"     VIOLATION: {c.violation}")
         lines.append("-" * 72)
-        lines.append(f"Total Checks: {len(self.checks)} | Passed: {sum(1 for c in self.checks if c.passed)} | Violations: {len(self.violations)}")
+        lines.append(
+            f"Total Checks: {len(self.checks)} | Passed: {sum(1 for c in self.checks if c.passed)} | Violations: {len(self.violations)}"
+        )
         lines.append("=" * 72)
         return "\n".join(lines)
 
@@ -95,6 +99,7 @@ def check_embedding_contract(settings_obj: Any = None) -> DriftCheckResult:
     """Verify dense embedding dimension == 1024 and model == BAAI/bge-m3."""
     if settings_obj is None:
         from app.config import settings as default_settings
+
         settings_obj = default_settings
 
     dim = getattr(settings_obj, "embedding_dimension", None)
@@ -128,6 +133,7 @@ def check_qdrant_collection(settings_obj: Any = None) -> DriftCheckResult:
     """Verify default Qdrant collection is 'spiritual_wisdom_contextual'."""
     if settings_obj is None:
         from app.config import settings as default_settings
+
         settings_obj = default_settings
 
     collection = getattr(settings_obj, "qdrant_collection", None)
@@ -154,6 +160,7 @@ def check_pipeline_stage_order(pipeline: Any = None) -> DriftCheckResult:
     """
     if pipeline is None:
         from app.pipeline.stages.pipeline_builder import build_default_pipeline
+
         pipeline = build_default_pipeline()
 
     stage_names = [s.__class__.__name__ for s in pipeline]
@@ -176,7 +183,11 @@ def check_pipeline_stage_order(pipeline: Any = None) -> DriftCheckResult:
 
     # Check 2: CacheCheckStage before router and short circuit stages
     cache_stage_name = next(
-        (name for name in stage_names if "Cache" in name and "Check" in name or name == "CacheStage"),
+        (
+            name
+            for name in stage_names
+            if "Cache" in name and "Check" in name or name == "CacheStage"
+        ),
         None,
     )
     if not cache_stage_name:
@@ -216,6 +227,7 @@ def check_fastapi_routes(app_obj: Any = None) -> DriftCheckResult:
     """Verify all critical chat, memory, and profile routes exist in FastAPI application."""
     if app_obj is None:
         from app.main import app as default_app
+
         app_obj = default_app
 
     registered_endpoints: set[tuple[str, str]] = set()

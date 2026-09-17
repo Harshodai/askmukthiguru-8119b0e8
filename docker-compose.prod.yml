@@ -69,6 +69,16 @@ services:
       - SUPABASE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
       - QDRANT_URL=http://qdrant:6333
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      # F-PROD-1 2026-09-16: these were absent, so settings.neo4j_uri fell back
+      # to its default "bolt://localhost:7687" INSIDE the container -- i.e. the
+      # backend itself, not a graph. Every graph call failed by connecting to
+      # nothing. Graph degradation is fail-open (retrieval falls back to
+      # Qdrant + BM25), so this was silent: no error surfaced, GraphRAG simply
+      # never contributed. No graph service is defined in this file by design
+      # (see the header comment), so these MUST be supplied from the host env.
+      - NEO4J_URI=${NEO4J_URI:?set NEO4J_URI (e.g. bolt://memgraph:7687) or graph retrieval silently no-ops}
+      - NEO4J_USER=${NEO4J_USER:-memgraph}
+      - NEO4J_PASSWORD=${NEO4J_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
       - LMCACHE_CONFIG_FILE=/app/backend/config/lmcache_config.yaml
       # AUDIT FIX 2026-08-01: Docker Compose cannot self-reference env vars within
@@ -88,7 +98,14 @@ services:
     networks:
       - mukthiguru
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      # F-PROD-1 2026-09-16: was /api/health -- the COMPREHENSIVE per-service
+      # check (Qdrant, embedding probe, OCR, graph, cache telemetry). Wrong
+      # endpoint for a liveness probe on two counts: it is expensive to run
+      # every 30s, and it reports unhealthy when a NON-critical dependency is
+      # down, so a degraded-but-serving backend gets restarted in a loop.
+      # /api/healthz is the cheap liveness endpoint (see start_railway.py).
+      # Use /api/health for readiness/diagnostics, never for restart decisions.
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/healthz"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -137,7 +154,21 @@ services:
   redis:
     image: redis:7-alpine
     container_name: mukthiguru-redis-prod
-    command: redis-server --requirepass ${REDIS_PASSWORD} --maxmemory 512mb --maxmemory-policy allkeys-lru
+    # F-PROD-1 2026-09-16: was --maxmemory-policy allkeys-lru. This one Redis
+    # serves two workloads with different durability requirements: evictable
+    # caches (semantic/exact/doctrine) and NON-evictable counters (anonymous
+    # chat quota, rate limits, sessions). allkeys-lru let memory pressure
+    # silently delete a quota counter, which reads as "this user has sent 0
+    # messages" -- a billing hole, not a cache miss. volatile-lru does not help:
+    # the quota keys carry TTLs too, so they stay eligible.
+    # noeviction instead: when full, writes fail loudly. Both consumers already
+    # handle that correctly -- the cache adapters fail open to a miss, and
+    # AnonQuotaRedisAdapter catches RedisError and degrades to its in-process
+    # fallback at the conservative limit (backend/CLAUDE.md, finding FD-1).
+    # ponytail: one instance, policy set to the stricter consumer's needs.
+    # Split cache onto its own Redis/db and restore allkeys-lru there if cache
+    # evictions ever start mattering for latency.
+    command: redis-server --requirepass ${REDIS_PASSWORD} --maxmemory 512mb --maxmemory-policy noeviction
     volumes:
       - redis_data:/data
     networks:

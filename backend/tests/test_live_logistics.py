@@ -81,20 +81,28 @@ async def test_provenance_and_response_format_return_fast_capability_answers():
 
 
 def test_app_memory_boundary_queries_use_fast_capability_route():
-    assert _is_app_boundary_query("What is the difference between conversation memory and my private Second Brain vault?")
+    assert _is_app_boundary_query(
+        "What is the difference between conversation memory and my private Second Brain vault?"
+    )
     assert _is_app_boundary_query("What do you remember about my spiritual practice?")
     assert not _is_app_boundary_query("What is the Beautiful State?")
     assert _is_playful_edge_query("Can I manifest a unicorn using the third sacred secret?")
     assert _is_provenance_query("What exact evidence supports your answer?")
     assert _is_response_format_query("Answer in a short version first and then a deeper version")
-    assert _is_ordinary_multilingual_faq("Mera mind suffering state me rehta hai, kaise beautiful state me badlu?")
+    assert _is_ordinary_multilingual_faq(
+        "Mera mind suffering state me rehta hai, kaise beautiful state me badlu?"
+    )
 
 
 def test_manifest_date_and_booking_queries_are_live_logistics():
     assert _is_logistics_query("When is the next Manifest event?")
     assert _is_logistics_query("How do I book Guru Darshan at Ekam?")
-    assert _is_logistics_query("What is the latest official Ekam program or event information right now?")
-    assert _is_logistics_query("What is the current schedule on the official Oneness Movement website?")
+    assert _is_logistics_query(
+        "What is the latest official Ekam program or event information right now?"
+    )
+    assert _is_logistics_query(
+        "What is the current schedule on the official Oneness Movement website?"
+    )
     assert not _is_logistics_query("What is the teaching of manifestation?")
     assert route_after_intent({"intent": "LIVE_LOGISTICS"}) == "temporal"
 

@@ -12,8 +12,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from app.api.kg import router, get_optional_user, require_aal2
-from app.api.kg import SubgraphResponse, KGNode, KGEdge
+from app.api.kg import require_aal2, router
 
 
 def _authed_user():
@@ -65,7 +64,12 @@ def test_personal_subgraph_authed_uses_memory_service():
         "nodes": [
             {"id": "user:u1", "label": "You", "type": "User"},
             {"id": "concept:Beautiful State", "label": "Beautiful State", "type": "Concept"},
-            {"id": "memory:m1", "label": "inner peace", "type": "Memory", "state_category": "Beautiful State"},
+            {
+                "id": "memory:m1",
+                "label": "inner peace",
+                "type": "Memory",
+                "state_category": "Beautiful State",
+            },
         ],
         "edges": [
             {"source": "user:u1", "target": "memory:m1", "type": "HAS_MEMORY"},

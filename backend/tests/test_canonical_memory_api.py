@@ -16,14 +16,12 @@ Uses pytest-asyncio with mocked Supabase client. No live DB required.
 
 from __future__ import annotations
 
-import asyncio
-import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
-from unittest.mock import MagicMock, patch
 
 import pytest
-
+from fastapi import HTTPException
+from pydantic import ValidationError
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -45,7 +43,7 @@ def _make_memory_row(
     user_id: str = "test-user-001",
     **overrides,
 ) -> dict:
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     row = {
         "id": memory_id,
         "user_id": user_id,
@@ -78,7 +76,7 @@ def _make_event_row(
     user_id: str = "test-user-001",
     **overrides,
 ) -> dict:
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     row = {
         "id": event_id,
         "user_id": user_id,
@@ -240,10 +238,10 @@ from app.api.canonical_memory import (
     _validate_uuid,
 )
 
-
 # ---------------------------------------------------------------------------
 # Unit tests — helpers
 # ---------------------------------------------------------------------------
+
 
 class TestHelpers:
     def test_validate_uuid_valid(self):
@@ -251,7 +249,7 @@ class TestHelpers:
         assert result == "550e8400-e29b-41d4-a716-446655440000"
 
     def test_validate_uuid_invalid(self):
-        with pytest.raises(Exception):
+        with pytest.raises(HTTPException):
             _validate_uuid("not-a-uuid")
 
     def test_row_to_response(self):
@@ -271,7 +269,7 @@ class TestHelpers:
         good = CanonicalMemoryCreate(statement="I live in Mumbai")
         assert good.statement == "I live in Mumbai"
 
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             CanonicalMemoryCreate(statement="")  # too short
 
     def test_canonical_memory_update_validation(self):
@@ -283,6 +281,7 @@ class TestHelpers:
 # ---------------------------------------------------------------------------
 # Integration tests — endpoints (mocked)
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def anyio_backend():
@@ -306,6 +305,7 @@ class TestListEndpoint:
 
         async def _raise():
             from fastapi import HTTPException
+
             raise HTTPException(status_code=401, detail="Not authenticated")
 
         app.dependency_overrides[get_current_user_from_supabase] = _raise
@@ -317,10 +317,10 @@ class TestListEndpoint:
     @pytest.mark.anyio
     async def test_list_empty(self):
         """Empty store returns empty list."""
-        from fastapi import FastAPI, Depends
+        from fastapi import FastAPI
         from fastapi.testclient import TestClient
 
-        from app.api.canonical_memory import router, get_current_user_from_supabase, get_container
+        from app.api.canonical_memory import get_container, get_current_user_from_supabase, router
 
         app = FastAPI()
         app.include_router(router)
@@ -349,7 +349,7 @@ class TestListEndpoint:
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
 
-        from app.api.canonical_memory import router, get_current_user_from_supabase, get_container
+        from app.api.canonical_memory import get_container, get_current_user_from_supabase, router
 
         app = FastAPI()
         app.include_router(router)
@@ -379,7 +379,7 @@ class TestListEndpoint:
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
 
-        from app.api.canonical_memory import router, get_current_user_from_supabase, get_container
+        from app.api.canonical_memory import get_container, get_current_user_from_supabase, router
 
         app = FastAPI()
         app.include_router(router)
@@ -405,7 +405,7 @@ class TestListEndpoint:
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
 
-        from app.api.canonical_memory import router, get_current_user_from_supabase, get_container
+        from app.api.canonical_memory import get_container, get_current_user_from_supabase, router
 
         app = FastAPI()
         app.include_router(router)
@@ -434,7 +434,7 @@ class TestCreateEndpoint:
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
 
-        from app.api.canonical_memory import router, get_current_user_from_supabase, get_container
+        from app.api.canonical_memory import get_container, get_current_user_from_supabase, router
 
         app = FastAPI()
         app.include_router(router)
@@ -467,7 +467,7 @@ class TestCreateEndpoint:
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
 
-        from app.api.canonical_memory import router, get_current_user_from_supabase, get_container
+        from app.api.canonical_memory import get_container, get_current_user_from_supabase, router
 
         app = FastAPI()
         app.include_router(router)
@@ -496,7 +496,7 @@ class TestCreateEndpoint:
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
 
-        from app.api.canonical_memory import router, get_current_user_from_supabase, get_container
+        from app.api.canonical_memory import get_container, get_current_user_from_supabase, router
 
         app = FastAPI()
         app.include_router(router)
@@ -523,7 +523,7 @@ class TestCreateEndpoint:
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
 
-        from app.api.canonical_memory import router, get_current_user_from_supabase, get_container
+        from app.api.canonical_memory import get_container, get_current_user_from_supabase, router
 
         app = FastAPI()
         app.include_router(router)
@@ -556,7 +556,7 @@ class TestUpdateEndpoint:
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
 
-        from app.api.canonical_memory import router, get_current_user_from_supabase, get_container
+        from app.api.canonical_memory import get_container, get_current_user_from_supabase, router
 
         app = FastAPI()
         app.include_router(router)
@@ -587,7 +587,7 @@ class TestUpdateEndpoint:
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
 
-        from app.api.canonical_memory import router, get_current_user_from_supabase, get_container
+        from app.api.canonical_memory import get_container, get_current_user_from_supabase, router
 
         app = FastAPI()
         app.include_router(router)
@@ -617,7 +617,7 @@ class TestUpdateEndpoint:
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
 
-        from app.api.canonical_memory import router, get_current_user_from_supabase, get_container
+        from app.api.canonical_memory import get_container, get_current_user_from_supabase, router
 
         app = FastAPI()
         app.include_router(router)
@@ -649,7 +649,7 @@ class TestDeleteEndpoint:
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
 
-        from app.api.canonical_memory import router, get_current_user_from_supabase, get_container
+        from app.api.canonical_memory import get_container, get_current_user_from_supabase, router
 
         app = FastAPI()
         app.include_router(router)
@@ -677,7 +677,7 @@ class TestDeleteEndpoint:
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
 
-        from app.api.canonical_memory import router, get_current_user_from_supabase, get_container
+        from app.api.canonical_memory import get_container, get_current_user_from_supabase, router
 
         app = FastAPI()
         app.include_router(router)
@@ -703,7 +703,7 @@ class TestDeleteEndpoint:
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
 
-        from app.api.canonical_memory import router, get_current_user_from_supabase, get_container
+        from app.api.canonical_memory import get_container, get_current_user_from_supabase, router
 
         app = FastAPI()
         app.include_router(router)
@@ -733,7 +733,7 @@ class TestReasonsEndpoint:
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
 
-        from app.api.canonical_memory import router, get_current_user_from_supabase, get_container
+        from app.api.canonical_memory import get_container, get_current_user_from_supabase, router
 
         app = FastAPI()
         app.include_router(router)
@@ -760,7 +760,7 @@ class TestReasonsEndpoint:
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
 
-        from app.api.canonical_memory import router, get_current_user_from_supabase, get_container
+        from app.api.canonical_memory import get_container, get_current_user_from_supabase, router
 
         app = FastAPI()
         app.include_router(router)
@@ -793,7 +793,7 @@ class TestConsentEndpoint:
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
 
-        from app.api.canonical_memory import router, get_current_user_from_supabase, get_container
+        from app.api.canonical_memory import get_container, get_current_user_from_supabase, router
 
         app = FastAPI()
         app.include_router(router)
@@ -834,7 +834,7 @@ class TestConsentEndpoint:
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
 
-        from app.api.canonical_memory import router, get_current_user_from_supabase, get_container
+        from app.api.canonical_memory import get_container, get_current_user_from_supabase, router
 
         app = FastAPI()
         app.include_router(router)
@@ -875,7 +875,7 @@ class TestConsentEndpoint:
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
 
-        from app.api.canonical_memory import router, get_current_user_from_supabase, get_container
+        from app.api.canonical_memory import get_container, get_current_user_from_supabase, router
 
         app = FastAPI()
         app.include_router(router)
@@ -906,7 +906,7 @@ class TestExportEndpoint:
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
 
-        from app.api.canonical_memory import router, get_current_user_from_supabase, get_container
+        from app.api.canonical_memory import get_container, get_current_user_from_supabase, router
 
         app = FastAPI()
         app.include_router(router)
@@ -940,7 +940,7 @@ class TestExportEndpoint:
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
 
-        from app.api.canonical_memory import router, get_current_user_from_supabase, get_container
+        from app.api.canonical_memory import get_container, get_current_user_from_supabase, router
 
         app = FastAPI()
         app.include_router(router)
@@ -971,7 +971,7 @@ class TestCrossUserIsolation:
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
 
-        from app.api.canonical_memory import router, get_current_user_from_supabase, get_container
+        from app.api.canonical_memory import get_container, get_current_user_from_supabase, router
 
         app = FastAPI()
         app.include_router(router)

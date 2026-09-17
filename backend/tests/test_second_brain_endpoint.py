@@ -43,16 +43,12 @@ def test_session_unlock_then_add_item_round_trips_over_http():
         second_brain_router.get_container = lambda: container
         try:
             passphrase = "correct horse battery staple"
-            resp = client.post(
-                "/api/brain/vault/session-unlock", json={"passphrase": passphrase}
-            )
+            resp = client.post("/api/brain/vault/session-unlock", json={"passphrase": passphrase})
             assert resp.status_code == 200, resp.text
             assert resp.json()["wrap_mode"] == "session_unlock"
 
             salt = b"second_brain_vault_unlock_salt"
-            derived = hashlib.pbkdf2_hmac(
-                "sha256", passphrase.encode("utf-8"), salt, 600000
-            ).hex()
+            derived = hashlib.pbkdf2_hmac("sha256", passphrase.encode("utf-8"), salt, 600000).hex()
             resp2 = client.post(
                 "/api/brain/items",
                 json={"kind": "reflection", "text": "hello"},
@@ -82,9 +78,7 @@ def test_session_unlock_then_add_item_with_wrong_passphrase_still_rejected():
                 json={"passphrase": "correct horse battery staple"},
             )
             salt = b"second_brain_vault_unlock_salt"
-            wrong_derived = hashlib.pbkdf2_hmac(
-                "sha256", b"guess", salt, 600000
-            ).hex()
+            wrong_derived = hashlib.pbkdf2_hmac("sha256", b"guess", salt, 600000).hex()
             resp = client.post(
                 "/api/brain/items",
                 json={"kind": "reflection", "text": "hello"},

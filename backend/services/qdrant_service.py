@@ -252,6 +252,49 @@ class QdrantService:
             self._circuit.record_failure()
             raise
 
+    def search_groups(
+        self,
+        query_vector: list[float],
+        group_by: str = "parent_id",
+        group_size: int = 2,
+        limit: int = 10,
+        content_type: Optional[str] = None,
+        sparse_vector: Optional[dict] = None,
+        raptor_level: Optional[int] = None,
+        fusion_strategy: Optional[str] = None,
+        **kwargs,
+    ) -> list[dict]:
+        """Parent Document Group Search using query_points_groups over dense + sparse vectors."""
+        if not self._circuit.can_execute():
+            exc = CircuitOpenException(
+                provider="qdrant",
+                message="Circuit breaker OPEN for qdrant",
+            )
+            logger.warning(str(exc))
+            raise exc
+
+        try:
+            result = self._searcher.search_groups(
+                query_vector=query_vector,
+                group_by=group_by,
+                group_size=group_size,
+                limit=limit,
+                content_type=content_type,
+                sparse_vector=sparse_vector,
+                raptor_level=raptor_level,
+                fusion_strategy=fusion_strategy,
+                **kwargs,
+            )
+            self._circuit.record_success()
+            return result
+        except (ConnectionError, TimeoutError, OSError) as e:
+            self._circuit.record_failure()
+            logger.warning("Qdrant connectivity error: %s", e)
+            raise QdrantConnectivityError(str(e)) from e
+        except Exception:
+            self._circuit.record_failure()
+            raise
+
     def _dense_search(self, query_vector, limit, search_filter):
         """Dense-only search using the named 'dense' vector."""
         return self._searcher._dense_search(query_vector, limit, search_filter)

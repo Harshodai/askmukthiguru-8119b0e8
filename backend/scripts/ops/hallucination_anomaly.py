@@ -66,6 +66,67 @@ def _fetch_responses(
         return None
 
 
+def _fetch_retrieval_events(
+    since: datetime, until: Optional[datetime] = None
+) -> Optional[list[dict[str, Any]]]:
+    """Pull retrieval_events in the window, joined through chat_queries for created_at.
+
+    retrieval_events (schema.sql) has no created_at of its own -- same join
+    pattern as telemetry_db.py's other chat_queries!inner(created_at) queries.
+    Retrieval-stage visibility only; failures here do not affect the
+    hallucination-rate anomaly gate below (best-effort addition, not a new
+    fail-closed condition -- that would need its own threshold decision).
+    """
+    client = _get_client()
+    if not client:
+        return None
+
+    query = (
+        client.table("retrieval_events")
+        .select("source_docs, scores, top_k, retrieval_hit, chat_queries!inner(created_at)")
+        .gte("chat_queries.created_at", _iso(since))
+    )
+    if until is not None:
+        query = query.lte("chat_queries.created_at", _iso(until))
+
+    try:
+        return query.execute().data or []
+    except Exception as e:
+        logger.warning(f"Failed to fetch retrieval_events (non-fatal): {e}")
+        return None
+
+
+def _compute_retrieval_metrics(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    """F19: source_count distribution, top_source_score p50, zero-source rate.
+
+    AnswerEvidence (glue_stages.py) already computes source_count = len(citations)
+    and top_source_score = max(scores) per response; this derives the daily
+    aggregate from the same underlying data (retrieval_events.source_docs/scores)
+    so the anomaly job gains retrieval-stage visibility, not new instrumentation.
+    """
+    total = len(rows)
+    if total == 0:
+        return {
+            "total_retrieval_events": 0,
+            "source_count_p50": None,
+            "source_count_mean": None,
+            "top_source_score_p50": None,
+            "zero_source_rate": None,
+        }
+
+    source_counts = [len(r.get("source_docs") or []) for r in rows]
+    top_scores = [max(r["scores"]) for r in rows if r.get("scores") and len(r["scores"]) > 0]
+    zero_source = sum(1 for r in rows if not r.get("retrieval_hit"))
+
+    return {
+        "total_retrieval_events": total,
+        "source_count_p50": statistics.median(source_counts) if source_counts else None,
+        "source_count_mean": (sum(source_counts) / len(source_counts) if source_counts else None),
+        "top_source_score_p50": statistics.median(top_scores) if top_scores else None,
+        "zero_source_rate": zero_source / total,
+    }
+
+
 def _compute_metrics(rows: list[dict[str, Any]]) -> dict[str, Any]:
     """Derive hallucination rate and faithfulness p50 from response rows."""
     total = len(rows)
@@ -143,6 +204,16 @@ def run_anomaly_check(lookback_days: Optional[int] = None) -> dict[str, Any]:
     faith_alert = metrics["faithfulness_p50"] < settings.anomaly_faithfulness_p50_threshold
     anomaly = rate_alert or faith_alert
 
+    # F19 (TrustNLP 2026): the gap was stage coverage, not scheduling -- this
+    # job watched generation-stage outputs only. Retrieval-stage visibility
+    # added here; deliberately does NOT feed the anomaly/alerts gate above --
+    # that would need its own threshold decision, this pass only closes the
+    # "nothing monitors retrieval quality" visibility gap.
+    retrieval_rows = _fetch_retrieval_events(since)
+    retrieval_metrics = (
+        _compute_retrieval_metrics(retrieval_rows) if retrieval_rows is not None else None
+    )
+
     result = {
         "checked_at": _iso(_utc_now()),
         "lookback_days": lookback,
@@ -152,6 +223,7 @@ def run_anomaly_check(lookback_days: Optional[int] = None) -> dict[str, Any]:
             "faithfulness_p50": settings.anomaly_faithfulness_p50_threshold,
         },
         "metrics": metrics,
+        "retrieval_metrics": retrieval_metrics,
         "anomaly": anomaly,
         "alerts": {
             "hallucination_rate_spike": rate_alert,
@@ -202,4 +274,20 @@ if __name__ == "__main__":
     m = _compute_metrics(sample)
     assert m["hallucination_rate"] == 1 / 3
     assert m["faithfulness_p50"] == 0.9
+
+    empty_retrieval = _compute_retrieval_metrics([])
+    assert empty_retrieval["total_retrieval_events"] == 0
+    assert empty_retrieval["zero_source_rate"] is None
+
+    retrieval_sample = [
+        {"source_docs": ["a", "b"], "scores": [0.9, 0.7], "retrieval_hit": True},
+        {"source_docs": [], "scores": [], "retrieval_hit": False},
+        {"source_docs": ["a"], "scores": [0.5], "retrieval_hit": True},
+    ]
+    rm = _compute_retrieval_metrics(retrieval_sample)
+    assert rm["total_retrieval_events"] == 3
+    assert rm["source_count_p50"] == 1
+    assert rm["top_source_score_p50"] == 0.7  # median of [0.9, 0.5]
+    assert rm["zero_source_rate"] == 1 / 3
+
     sys.exit(main())

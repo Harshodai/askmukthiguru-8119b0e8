@@ -6,7 +6,7 @@ import logging
 import os
 import re
 import threading
-from typing import Optional
+from typing import Any, Optional
 
 import httpx
 from cachetools import TTLCache
@@ -34,6 +34,177 @@ SPIRITUAL_ENTITY_TYPES = [
     "Location",
     "Other",
 ]
+
+# Canonical teacher mappings: maps surface forms / aliases to the canonical :Teacher entity
+TEACHER_CANONICAL_MAP: dict[str, str] = {
+    # Sri Amma Bhagavan
+    "sri bhagavan": "Sri Amma Bhagavan",
+    "kalki bhagavan": "Sri Amma Bhagavan",
+    "bhagavan": "Sri Amma Bhagavan",
+    "bhagwan": "Sri Amma Bhagavan",
+    "sri kalki bhagavan": "Sri Amma Bhagavan",
+    "kalki": "Sri Amma Bhagavan",
+    "amma bhagavan": "Sri Amma Bhagavan",
+    "amma_bhagavan": "Sri Amma Bhagavan",
+    "sri amma bhagavan": "Sri Amma Bhagavan",
+    "sri amma": "Sri Amma Bhagavan",
+    "amma": "Sri Amma Bhagavan",
+    "kalki avatar": "Sri Amma Bhagavan",
+    "ammabhagavan": "Sri Amma Bhagavan",
+    "bhagvan": "Sri Amma Bhagavan",
+    # Sri Preethaji
+    "preethaji": "Sri Preethaji",
+    "preetha ji": "Sri Preethaji",
+    "sri preethaji": "Sri Preethaji",
+    "shri preethaji": "Sri Preethaji",
+    "sri sri preethaji": "Sri Preethaji",
+    "preetha": "Sri Preethaji",
+    "sreepreethaji": "Sri Preethaji",
+    "acharya preethaji": "Sri Preethaji",
+    # Sri Krishnaji
+    "krishnaji": "Sri Krishnaji",
+    "krishna ji": "Sri Krishnaji",
+    "sri krishnaji": "Sri Krishnaji",
+    "shri krishnaji": "Sri Krishnaji",
+    "sri sri krishnaji": "Sri Krishnaji",
+    "krishna": "Sri Krishnaji",
+    "sreekrishnaji": "Sri Krishnaji",
+    "acharya krishnaji": "Sri Krishnaji",
+    # Sadhguru (recognized external)
+    "sadhguru": "Sadhguru",
+    "jaggi vasudev": "Sadhguru",
+    "jaggi": "Sadhguru",
+    "sadhguru jaggi vasudev": "Sadhguru",
+    # Prabhupada / ISKCON
+    "prabhupada": "Srila Prabhupada",
+    "swami prabhupada": "Srila Prabhupada",
+    "srila prabhupada": "Srila Prabhupada",
+    "bhaktivedanta": "Srila Prabhupada",
+}
+
+CONCEPT_CANONICAL_MAP: dict[str, str] = {
+    "beautiful state": "Beautiful State",
+    "the beautiful state": "Beautiful State",
+    "blissful state": "Beautiful State",
+    "state of bliss": "Beautiful State",
+    "beautiful_state": "Beautiful State",
+    "suffering state": "Suffering State",
+    "the suffering state": "Suffering State",
+    "state of suffering": "Suffering State",
+    "suffering_state": "Suffering State",
+    "four sacred secrets": "Four Sacred Secrets",
+    "4 sacred secrets": "Four Sacred Secrets",
+    "the four sacred secrets": "Four Sacred Secrets",
+    "the four secrets": "Four Sacred Secrets",
+    "sacred secrets": "Four Sacred Secrets",
+    "soul sync": "Soul Sync",
+    "soul sync meditation": "Soul Sync",
+    "soul synchronization": "Soul Sync",
+    "serene mind": "Serene Mind",
+    "serene mind practice": "Serene Mind",
+    "serene mind meditation": "Serene Mind",
+    "deeksha": "Deeksha",
+    "diksha": "Deeksha",
+    "oneness blessing": "Deeksha",
+    "divine blessing": "Deeksha",
+    "ekam": "Ekam",
+    "ekam world": "Ekam",
+    "world centre for enlightenment": "Ekam",
+    "world center for enlightenment": "Ekam",
+    "o&o academy": "O&O Academy",
+    "o and o academy": "O&O Academy",
+    "oo academy": "O&O Academy",
+    "aham": "Aham",
+    "ahamkara": "Aham",
+    "ahamkar": "Aham",
+    "i-ness": "Aham",
+    "sense of i": "Aham",
+    "ego-self": "Aham",
+}
+
+ALL_CANONICAL_ALIASES: dict[str, str] = {**CONCEPT_CANONICAL_MAP, **TEACHER_CANONICAL_MAP}
+
+
+def canonicalize_entity(name: str) -> str:
+    """Resolve an entity name variation to its canonical form."""
+    if not name:
+        return ""
+    clean = name.strip()
+    return ALL_CANONICAL_ALIASES.get(clean.lower(), clean)
+
+
+def canonicalize_query(query: str) -> str:
+    """Canonicalize teacher and concept aliases in query text before graph retrieval.
+
+    Substitutes recognized alias variations with their canonical form so graph traversals
+    hit canonical nodes and unified ALIAS_OF neighborhoods.
+    """
+    if not query:
+        return ""
+    result = query
+    # Sort aliases by length descending so longer phrases match first
+    sorted_aliases = sorted(ALL_CANONICAL_ALIASES.keys(), key=len, reverse=True)
+    for alias in sorted_aliases:
+        # Require word boundaries for clean replacement
+        pattern = r"\b" + re.escape(alias) + r"\b"
+        canonical = ALL_CANONICAL_ALIASES[alias]
+        result = re.sub(pattern, canonical, result, flags=re.IGNORECASE)
+    return result
+
+
+# Regex patterns for Dual-Level routing
+_SPECIFIC_LOCAL_PATTERNS = re.compile(
+    r"\b("
+    r"define|definition of|meaning of|what did .* say|"
+    r"exact quote|quote by|statement by|steps? (to|for|of)|how (do|to) (practice|do|perform)|"
+    r"technique for|instructions? for|how many minutes|breath count|posture for|"
+    r"mantra for|what happens during"
+    r")\b",
+    re.IGNORECASE,
+)
+
+_INTERROGATIVE_LOCAL_PATTERNS = re.compile(
+    r"\b(who is|what is|what are)\b",
+    re.IGNORECASE,
+)
+
+_GLOBAL_ROUTING_PATTERNS = re.compile(
+    r"\b("
+    r"overview|summarize|summary|broadly|synthesize|synthesis|main themes?|"
+    r"core themes?|across (all|the) teachings|overall philosophy|holistic|"
+    r"evolution of|thematic|macro perspective|big picture|general perspective|"
+    r"philosophical framework|fundamental principles|interconnection between all"
+    r")\b",
+    re.IGNORECASE,
+)
+
+
+def determine_retrieval_mode(query: str, default: str = "hybrid") -> str:
+    """Route query between 'local', 'global', and 'hybrid' retrieval modes.
+
+    - 'local': entity/quote/technique definitions and specific attribute lookups.
+    - 'global': broad multi-hop themes, holistic overviews, corpus summaries.
+    - 'hybrid': balanced multi-concept queries connecting entities to macro themes.
+    """
+    if not query or not isinstance(query, str):
+        return default
+
+    q_clean = query.strip()
+    is_specific_local = bool(_SPECIFIC_LOCAL_PATTERNS.search(q_clean))
+    is_interrogative_local = bool(_INTERROGATIVE_LOCAL_PATTERNS.search(q_clean))
+    is_global = bool(_GLOBAL_ROUTING_PATTERNS.search(q_clean))
+
+    # If global themes are requested and no specific technique/quote steps requested -> global
+    if is_global and not is_specific_local:
+        return "global"
+
+    # If specific local practice/quote/definition is requested and no global theme -> local
+    if (is_specific_local or is_interrogative_local) and not is_global:
+        return "local"
+
+    # Both present or neither present (or balanced relational queries) -> hybrid
+    return "hybrid"
+
 
 logger = logging.getLogger(__name__)
 
@@ -109,6 +280,7 @@ class _IndexingTTLCache(TTLCache):
             keys.discard(key)
             if not keys:
                 del self.token_index[token]
+
 
 _TRANSIENT_OPENROUTER_STATUSES = frozenset({408, 429, 500, 502, 503, 504})
 
@@ -215,7 +387,12 @@ class LightRAGService:
         working_dir = os.getenv("LIGHTRAG_WORKING_DIR", "data/lightrag")
         os.makedirs(working_dir, exist_ok=True)
 
-        # Inject Neo4j Configuration
+        # Inject Graph Database Configuration (Memgraph & Neo4j compatible)
+        os.environ["MEMGRAPH_URI"] = settings.neo4j_uri
+        os.environ["MEMGRAPH_USERNAME"] = settings.neo4j_user or ""
+        os.environ["MEMGRAPH_PASSWORD"] = settings.neo4j_password or ""
+        os.environ["MEMGRAPH_DATABASE"] = "memgraph"
+
         os.environ["NEO4J_URI"] = settings.neo4j_uri
         os.environ["NEO4J_USERNAME"] = settings.neo4j_user
         os.environ["NEO4J_PASSWORD"] = settings.neo4j_password
@@ -283,6 +460,35 @@ class LightRAGService:
                                     val_clean = "CONCEPT"
                                 val = val_clean
                             field_values[i] = val
+
+                        # Filter out contextual chunk injection header artifacts
+                        ent_0_lower = field_values[0].strip().lower()
+                        if (
+                            ent_0_lower.startswith("context:")
+                            or ent_0_lower.startswith("[context:")
+                            or ent_0_lower == "context"
+                        ):
+                            continue
+
+                        # Entity tuple (3 fields): canonicalize entity name and ensure Teacher type
+                        if len(field_values) == 3:
+                            canon_name = canonicalize_entity(field_values[0])
+                            if canon_name != field_values[0]:
+                                field_values[0] = canon_name
+                                if ent_0_lower in TEACHER_CANONICAL_MAP:
+                                    field_values[1] = "Teacher"
+
+                        # Relationship tuple (4+ fields): canonicalize endpoints and drop context-header links
+                        if len(field_values) >= 4:
+                            ent_1_lower = field_values[1].strip().lower()
+                            if (
+                                ent_1_lower.startswith("context:")
+                                or ent_1_lower.startswith("[context:")
+                                or ent_1_lower == "context"
+                            ):
+                                continue
+                            field_values[0] = canonicalize_entity(field_values[0])
+                            field_values[1] = canonicalize_entity(field_values[1])
 
                         # Rebuild quoted fields
                         quoted_fields = [f'"{f}"' for f in field_values]
@@ -354,9 +560,12 @@ class LightRAGService:
             provider = settings.llm_provider.lower()
 
             response = ""
-            if provider in ("sarvam", "sarvam_cloud") and (sarvam or getattr(settings, "sarvam_api_key", None)):
+            if provider in ("sarvam", "sarvam_cloud") and (
+                sarvam or getattr(settings, "sarvam_api_key", None)
+            ):
                 if not sarvam:
                     from services.sarvam_service import SarvamCloudService
+
                     sarvam = SarvamCloudService()
                 kwargs["model"] = settings.sarvam_cloud_model
                 kwargs["max_tokens"] = min(kwargs.get("max_tokens", 2048), 2048)
@@ -392,9 +601,7 @@ class LightRAGService:
                         **kwargs,
                     )
                 except Exception as e:
-                    logger.warning(
-                        f"LightRAG: Sarvam task failed ({e}), falling back"
-                    )
+                    logger.warning(f"LightRAG: Sarvam task failed ({e}), falling back")
                     response = ""
             elif (
                 openrouter
@@ -466,9 +673,12 @@ class LightRAGService:
                     kwargs["max_tokens"] = min(kwargs.get("max_tokens", 2048), 2048)
                     kwargs["reasoning_effort"] = "none"
 
-                    sarvam_svc = getattr(container, "sarvam_cloud", None) or getattr(container, "sarvam", None)
+                    sarvam_svc = getattr(container, "sarvam_cloud", None) or getattr(
+                        container, "sarvam", None
+                    )
                     if not sarvam_svc:
                         from services.sarvam_service import SarvamCloudService
+
                         sarvam_svc = SarvamCloudService()
 
                     response = await sarvam_svc.generate(
@@ -532,9 +742,9 @@ class LightRAGService:
             model_name=settings.embedding_model,
         )
 
-        # Pre-flight: Verify Neo4j is reachable before attempting LightRAG construction
+        # Pre-flight: Verify Graph Database (Memgraph/Neo4j) is reachable before attempting LightRAG construction
         # NOTE: verify_connectivity() is synchronous — must run in thread to avoid blocking event loop
-        def _check_neo4j():
+        def _check_graph_db():
             from neo4j import GraphDatabase
 
             auth = (
@@ -554,13 +764,16 @@ class LightRAGService:
             driver.close()
 
         try:
-            await asyncio.to_thread(_check_neo4j)
-            logger.info("Neo4j connectivity verified.")
+            await asyncio.to_thread(_check_graph_db)
+            logger.info("Graph Database connectivity verified (Bolt port 7687).")
         except Exception as e:
             logger.error(
-                f"❌ Neo4j unreachable: {e}. GraphRAG requires Neo4j connectivity. Halting startup."
+                f"❌ Graph Database unreachable: {e}. GraphRAG requires graph connectivity. Halting startup."
             )
-            raise RuntimeError(f"Neo4j connection failed: {e}") from e
+            raise RuntimeError(f"Graph database connection failed: {e}") from e
+
+        graph_backend = getattr(settings, "lightrag_graph_storage", "MemgraphStorage")
+        logger.info(f"Initializing LightRAG with graph_storage={graph_backend}")
 
         @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, min=2, max=10))
         def _create_lightrag():
@@ -568,7 +781,7 @@ class LightRAGService:
                 working_dir=working_dir,
                 llm_model_func=llm_func,
                 embedding_func=embedding_func,
-                graph_storage="Neo4JStorage",
+                graph_storage=graph_backend,
                 vector_storage="QdrantVectorDBStorage",
                 chunk_token_size=settings.rag_chunk_size,
                 embedding_func_max_async=8,
@@ -618,6 +831,9 @@ class LightRAGService:
                     "- Concepts: Karma, Dharma, Consciousness, Beautiful State, Suffering, Oneness, Ego.\n"
                     "- Practices: Serene Mind, Soul Sync, Meditation, Yoga, Breathwork.\n"
                     "Extract relationships showing how teachers expound concepts, teach practices, and how practices lead to beautiful states (e.g. EXPOUNDS, TEACHES, PRACTICE_FOR, CONTRASTS_WITH).\n"
+                    "Contextual Framing: Transcripts may include a '[Context: ...]' header at the beginning providing speaker, setting, and discourse background. "
+                    "Use this contextual header to accurately identify the teacher/speaker and resolve pronouns (e.g., 'I', 'we', 'the master') to the named teacher. "
+                    "Do NOT extract '[Context: ...]' itself as an entity or relationship.\n"
                 )
                 if "entity_extraction_system_prompt" in lightrag.prompt.PROMPTS:
                     lightrag.prompt.PROMPTS["entity_extraction_system_prompt"] += spiritual_guidance
@@ -645,22 +861,53 @@ class LightRAGService:
         except Exception as e:
             logger.error(f"❌ Failed to initialize LightRAG: {e}", exc_info=True)
 
+    def determine_retrieval_mode(self, query: str, default: str = "hybrid") -> str:
+        """Route query between 'local', 'global', and 'hybrid' retrieval modes."""
+        return determine_retrieval_mode(query, default=default)
+
+    def canonicalize_entity(self, name: str) -> str:
+        """Resolve an entity name variation to its canonical form."""
+        return canonicalize_entity(name)
+
+    def canonicalize_query(self, query: str) -> str:
+        """Canonicalize teacher and concept aliases in query text before graph retrieval."""
+        return canonicalize_query(query)
+
     async def aquery(
-        self, query: str, mode: str = "hybrid", only_need_context: bool = False
+        self,
+        query: str,
+        mode: str = "hybrid",
+        only_need_context: bool = False,
+        canonicalize: bool = True,
     ) -> str:
         """
         Execute GraphRAG query async with 5-min result caching.
-        Supported Modes: 'local' (entities), 'global' (community summaries), 'hybrid' (both)
+        Supported Modes:
+          - 'local': low-level entity/quote definitions, specific practices
+          - 'global': high-level multi-hop conceptual themes, macro-synthesis
+          - 'hybrid': balanced multi-concept queries connecting entities to macro themes
+          - 'auto': dynamically routes between 'local', 'global', and 'hybrid'
 
         When ``only_need_context=False`` (the default answer-generation path), the
         raw LightRAG result is a single string. For structured merging with Qdrant
         results, use ``aquery_structured()`` which returns both the text and
         extracted entity metadata.
         """
+        # Dual-Level Dynamic Mode Routing:
+        actual_mode = mode.lower() if isinstance(mode, str) else "hybrid"
+        if actual_mode == "auto":
+            actual_mode = determine_retrieval_mode(query, default="hybrid")
+            logger.info(
+                f"LightRAG dual-level routing: query '{query[:60]}...' routed to mode='{actual_mode}'"
+            )
+
+        # Query Entity Canonicalization:
+        actual_query = canonicalize_query(query) if canonicalize else query
+
         # ponytail: 5min TTL cache for identical queries
         cache_disabled = getattr(settings, "latency_benchmark_cache_disabled", False)
         cache_key = hashlib.md5(
-            f"{query}:{mode}:{only_need_context}".encode(), usedforsecurity=False
+            f"{actual_query}:{actual_mode}:{only_need_context}".encode(), usedforsecurity=False
         ).hexdigest()
         if not cache_disabled:
             with self._cache_lock:
@@ -684,12 +931,13 @@ class LightRAGService:
 
         try:
             logger.info(
-                f"Querying LightRAG graph (mode={mode}, only_need_context={only_need_context})..."
+                f"Querying LightRAG graph (mode={actual_mode}, only_need_context={only_need_context})..."
             )
             query_timeout = float(getattr(settings, "lightrag_query_timeout_seconds", 30.0))
             result = await asyncio.wait_for(
                 self.rag.aquery(
-                    query, param=QueryParam(mode=mode, only_need_context=only_need_context)
+                    actual_query,
+                    param=QueryParam(mode=actual_mode, only_need_context=only_need_context),
                 ),
                 timeout=query_timeout,
             )
@@ -709,7 +957,8 @@ class LightRAGService:
                 try:
                     await self.rag.initialize_storages()
                     result = await self.rag.aquery(
-                        query, param=QueryParam(mode=mode, only_need_context=only_need_context)
+                        actual_query,
+                        param=QueryParam(mode=actual_mode, only_need_context=only_need_context),
                     )
                     if not cache_disabled:
                         with self._cache_lock:
@@ -726,7 +975,7 @@ class LightRAGService:
             return ""
 
     async def aquery_structured(
-        self, query: str, mode: str = "hybrid"
+        self, query: str, mode: str = "hybrid", canonicalize: bool = True
     ) -> dict[str, Any]:
         """GraphRAG query returning text + extracted entity metadata.
 
@@ -735,15 +984,15 @@ class LightRAGService:
           - ``entities``: list of entity names found in the result
           - ``entity_types``: deduplicated entity types mentioned
         """
-        text = await self.aquery(query, mode=mode, only_need_context=False)
+        text = await self.aquery(
+            query, mode=mode, only_need_context=False, canonicalize=canonicalize
+        )
         if not text:
             return {"text": "", "entities": [], "entity_types": []}
 
         import re
 
-        entity_pattern = re.compile(
-            r"\[([A-Z][a-zA-Z\s]{1,50})\]", re.MULTILINE
-        )
+        entity_pattern = re.compile(r"\[([A-Z][a-zA-Z\s]{1,50})\]", re.MULTILINE)
         entities = list(dict.fromkeys(entity_pattern.findall(text)))[:20]
 
         return {
@@ -878,6 +1127,18 @@ class LightRAGService:
             logger.warning("LightRAG is not active, skipping graph extraction.")
             return
 
+        # Extract leading [Context: ...] header to preserve grounding across all sub-chunks
+        context_match = re.match(r"^(\[Context:[^\]]+\]\s*)", text, re.DOTALL)
+        context_header = ""
+        body_text = text
+        if context_match:
+            context_header = context_match.group(1).strip()
+            body_text = text[len(context_match.group(0)) :].strip()
+
+        effective_max = (
+            max(500, max_chunk_size - len(context_header) - 1) if context_header else max_chunk_size
+        )
+
         def chunk_text(t: str, size: int, ov: int) -> list[str]:
             """FIXED: 1-char sliding window bug. See bulk_ingest_whisper.py."""
             chunks = []
@@ -892,7 +1153,10 @@ class LightRAGService:
                             break
                 chunk = t[start:end].strip()
                 if chunk:
-                    chunks.append(chunk)
+                    formatted_chunk = (
+                        f"{context_header}\n{chunk}".strip() if context_header else chunk
+                    )
+                    chunks.append(formatted_chunk)
                 if end >= len(t):
                     break
                 # Advance window — MUST make meaningful progress
@@ -902,9 +1166,12 @@ class LightRAGService:
                 start = next_start
             return chunks
 
-        chunks = chunk_text(text, max_chunk_size, overlap)
+        chunks = chunk_text(body_text, effective_max, overlap)
         total = len(chunks)
-        logger.info(f"LightRAG: Splitting {len(text):,} chars into {total} chunks")
+        logger.info(
+            f"LightRAG: Splitting {len(text):,} chars into {total} chunks "
+            f"(context_header_preserved={bool(context_header)})"
+        )
 
         for i, chunk in enumerate(chunks, 1):
             logger.info(f"LightRAG: Inserting chunk {i}/{total} ({len(chunk):,} chars)")

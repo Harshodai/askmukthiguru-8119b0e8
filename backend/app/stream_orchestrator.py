@@ -88,9 +88,7 @@ class ChatStreamRequestOrchestrator:
             async def _empty():
                 yield "event: error\ndata: Message cannot be empty\n\n"
 
-            return StreamingResponse(
-                _empty(), media_type="text/event-stream", headers=_SSE_HEADERS
-            )
+            return StreamingResponse(_empty(), media_type="text/event-stream", headers=_SSE_HEADERS)
 
         if len(user_msg) > settings.max_input_length:
             # Message rejected before pipeline work; give the reservation back.
@@ -126,6 +124,8 @@ class ChatStreamRequestOrchestrator:
         async def _sse():
             tokens_streamed = 0
             _pending: str = ""  # buffered text not yet emitted to client
+            _in_think = False  # live <think> sanitizer: inside a think block
+            _think_buf = ""  # discarded think content / post-block remainder
             _ttft_recorded = False
             _t0 = asyncio.get_event_loop().time()
             completed = False
@@ -226,6 +226,43 @@ class ChatStreamRequestOrchestrator:
                         # unfiltered final answer after a safety hit.
                         tokens_streamed += len(item)
                         _pending += item
+                        # Phase 4: live <think> sanitizer. Reasoning models can
+                        # leak <think>...</think> blocks mid-stream. This
+                        # in-flight buffer state machine pauses client emission
+                        # while inside a block, discards through </think>, then
+                        # resumes. It runs on _pending (whose tail is already
+                        # held back from the client), so tags split across token
+                        # boundaries resolve once the remainder arrives instead
+                        # of leaking partially.
+                        while True:
+                            if _in_think and _pending:
+                                _think_buf += _pending
+                                _pending = ""
+                            if not _in_think:
+                                _think_open = _pending.find("<think>")
+                                if _think_open == -1:
+                                    if "</think>" in _pending:
+                                        logger.debug(
+                                            "SSE <think> sanitizer: stray </think> without opener; stripping"
+                                        )
+                                        _pending = _pending.replace("</think>", "")
+                                    break
+                                if "<think>" in _pending[_think_open + len("<think>") :]:
+                                    logger.warning(
+                                        "SSE <think> sanitizer: nested <think> opener; discarding through first </think>"
+                                    )
+                                _think_buf = _pending[_think_open + len("<think>") :]
+                                _pending = _pending[:_think_open]
+                                _in_think = True
+                            _think_close = _think_buf.find("</think>")
+                            if _think_close == -1:
+                                break
+                            _after = _think_buf[_think_close + len("</think>") :]
+                            _think_buf = ""
+                            _in_think = False
+                            # Visible text after the block resumes through the
+                            # normal emission path; loop again for back-to-back blocks.
+                            _pending = _pending + _after
                         # Scan the buffer for a harmful pattern.
                         match = None
                         for _pat in _HARMFUL_PATTERNS_COMPILED:
@@ -303,7 +340,15 @@ class ChatStreamRequestOrchestrator:
 
             # Flush any buffered text held back by the pending safety buffer.
             # End-of-stream means no more chunks can complete a harmful pattern,
-            # so the tail is safe to emit.
+            # so the tail is safe to emit. An unterminated <think> block is
+            # discarded, never flushed (edge case: stream ended mid-reasoning).
+            if _in_think:
+                logger.warning(
+                    "SSE <think> sanitizer: unterminated <think> block at stream end; discarding %d buffered chars",
+                    len(_think_buf),
+                )
+                _think_buf = ""
+                _in_think = False
             if _pending:
                 escaped = _pending.replace("\n", "\\n")
                 yield f"event: token\ndata: {escaped}\n\n"
@@ -402,7 +447,8 @@ class ChatStreamRequestOrchestrator:
                     route_decision=result.route_decision,
                     cache_hit=result.cache_hit,
                     tokens_per_second=round(
-                        max(1, len(result.final_answer.split())) / max(result.latency_ms / 1000, 0.001),
+                        max(1, len(result.final_answer.split()))
+                        / max(result.latency_ms / 1000, 0.001),
                         2,
                     )
                     if result.latency_ms

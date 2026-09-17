@@ -9,6 +9,7 @@ S1 (2026-09-13) supersedes the bare 5-cap on the two hot-path clients:
 20 pilot + headroom → 32. cost_tracker.py stays at 5 (background accounting,
 not the request hot path).
 """
+
 import pathlib
 import re
 
@@ -30,8 +31,8 @@ def test_middleware_timeout_must_exceed_pipeline_timeout():
 
 
 def test_middleware_uses_separate_setting():
-    src = pathlib.Path("app/main.py").read_text()
-    assert 'getattr(settings, "middleware_timeout"' in src
+    src = " ".join(pathlib.Path("app/main.py").read_text().split())
+    assert 'getattr( settings, "middleware_timeout"' in src
 
 
 def test_redis_pool_caps_mirror_cost_tracker():

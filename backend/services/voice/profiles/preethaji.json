@@ -1,0 +1,50 @@
+{
+  "teacher_id": "preethaji",
+  "mean": {
+    "second_person_rate": 6.347346594015645,
+    "first_person_rate": 2.7452435111977036,
+    "impersonal_rate": 0.0952762731881845,
+    "nominalization_rate": 3.540732201084004,
+    "hedge_rate": 0.05403906147793871,
+    "markdown_rate": 0.0702870052715254,
+    "negative_parallelism_rate": 0.08596915032715609,
+    "ai_lexicon_rate": 0.035731650057527466,
+    "announcement_colon_rate": 0.0,
+    "em_dash_rate": 0.04060564016495202,
+    "question_rate": 10.692454709084194,
+    "median_sentence_len": 14.029411764705882,
+    "sentence_len_stdev": 9.773633276626944,
+    "mid_band_fraction": 0.39803875881650874
+  },
+  "stdev": {
+    "second_person_rate": 3.6299729891001635,
+    "first_person_rate": 2.5003948432350547,
+    "impersonal_rate": 0.2705836888189386,
+    "nominalization_rate": 1.9296044542962045,
+    "hedge_rate": 0.15544650373610414,
+    "markdown_rate": 0.4247147478914719,
+    "negative_parallelism_rate": 0.3794575214066494,
+    "ai_lexicon_rate": 0.15674095404069086,
+    "announcement_colon_rate": 0.0,
+    "em_dash_rate": 0.2308348164421696,
+    "question_rate": 13.733168220343966,
+    "median_sentence_len": 5.255167172119306,
+    "sentence_len_stdev": 5.272717101931086,
+    "mid_band_fraction": 0.16111526621860578
+  },
+  "provenance": {
+    "source_collection": "spiritual_wisdom_contextual",
+    "teacher_filter": "teacher_id=preethaji",
+    "verbatim_criteria": "provenance in ['transcript', 'verbatim', 'verbatim_speech'] if stamped, else raptor_level=0 and >=60 words and >=3 sentences and >=2 second-person pronouns",
+    "sample_count": 68,
+    "built_at": "2026-09-15T13:00:45+00:00",
+    "validation": {
+      "human_median": 0.42352526475171925,
+      "machine_median": 1.8960414465840634,
+      "auc": 0.9683574922506316,
+      "separates": 1.0,
+      "n_human": 17.0,
+      "n_machine": 3283.0
+    }
+  }
+}

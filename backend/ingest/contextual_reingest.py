@@ -417,7 +417,9 @@ class ContextualReingestEngine:
             self._target_collection = self._source_collection
             self._source_collection = self._source_collection[: -len(_TARGET_SUFFIX)]
         else:
-            self._target_collection = target_collection or f"{self._source_collection}{_TARGET_SUFFIX}"
+            self._target_collection = (
+                target_collection or f"{self._source_collection}{_TARGET_SUFFIX}"
+            )
 
         # Reuse injected services when available; otherwise lazily create.
         self._embedding = embedding_service
@@ -501,6 +503,7 @@ class ContextualReingestEngine:
         if skip_processed and processed:
             try:
                 from qdrant_client import QdrantClient
+
                 from app.config import settings
 
                 _qc = QdrantClient(
@@ -1484,11 +1487,7 @@ class ContextualReingestEngine:
         unit_title = first.get("title") or ""
         unit_speaker = first.get("speaker") or "Unknown"
         unit_tags = list(
-            {
-                t.strip().lower()
-                for t in (first.get("tags") or ["general"])
-                if t and str(t).strip()
-            }
+            {t.strip().lower() for t in (first.get("tags") or ["general"]) if t and str(t).strip()}
         )
         _, resolved_tid, resolved_tids = resolve_teacher_attribution(
             title=unit_title,
@@ -1500,7 +1499,9 @@ class ContextualReingestEngine:
         unit_teacher_id = first.get("teacher_id") or resolved_tid
         unit_teacher_ids = first.get("teacher_ids") or resolved_tids
         unit_tenant_id = first.get("tenant_id") or "oneness"
-        unit_corpus_id = first.get("corpus_id") or getattr(settings, "default_corpus_id", "spiritual_wisdom")
+        unit_corpus_id = first.get("corpus_id") or getattr(
+            settings, "default_corpus_id", "spiritual_wisdom"
+        )
         unit_domain_rights_status = first.get("domain_rights_status") or "licensed"
 
         metadatas: list[dict[str, Any]] = []

@@ -5,7 +5,6 @@ from pathlib import Path
 from services.lettuce_detect_service import LettuceDetectService
 from services.memory_service import _derive_fact_key
 
-
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -49,7 +48,9 @@ def test_ontology_edges_are_pending_and_cross_teacher_query_requires_review():
 
 def test_fast_strategy_contains_verification_nodes():
     source = (ROOT / "rag" / "graph_strategies.py").read_text()
-    fast_source = source[source.index("class FastGraphStrategy"):source.index("async def deep_contradiction_gate")]
+    fast_source = source[
+        source.index("class FastGraphStrategy") : source.index("async def deep_contradiction_gate")
+    ]
 
     assert 'graph.add_node("reflect_on_answer", reflect_on_answer)' in fast_source
     # Assert the node NAME is wired, not which function it binds to. This

@@ -28,7 +28,6 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-
 def _is_personalization_eligible(ctx: PipelineContext) -> bool:
     """Single source of truth for the personalization-eligibility predicate.
 
@@ -66,10 +65,14 @@ def _cache_route_metadata(ctx: PipelineContext, cache_class: str) -> dict[str, s
             "requested_variant": str(getattr(ctx, "detected_query_tier", None) or "unknown")[:32],
             "selected_variant": cache_class[:32],
             "detected_cache_tier": str(getattr(ctx, "detected_query_tier", None) or "unknown")[:32],
-            "normalized_query_tier": str(getattr(ctx, "preclassified_tier", None) or "unknown")[:32],
+            "normalized_query_tier": str(getattr(ctx, "preclassified_tier", None) or "unknown")[
+                :32
+            ],
             "on_device_intent": str(getattr(ctx, "preclassified_intent", None) or "unknown")[:32],
             "decision_method": "cache_hit",
-            "policy_version": str(get_release_manifest().to_dict().get("policy_version", "unknown"))[:128],
+            "policy_version": str(
+                get_release_manifest().to_dict().get("policy_version", "unknown")
+            )[:128],
         }
     )
     return metadata
@@ -89,9 +92,7 @@ def _is_assistant_config_present(ctx: PipelineContext) -> bool:
     return bool(ctx.assistant_config_present)
 
 
-async def _invalidate_shared_entries(
-    container, cache_key: str, *, semantic_query=None
-) -> None:
+async def _invalidate_shared_entries(container, cache_key: str, *, semantic_query=None) -> None:
     """Purge previously-cached SHARED entries for one exact request scope.
 
     ``semantic_query`` is accepted separately because the exact cache key is
@@ -256,8 +257,8 @@ class CacheCheckStage(Stage):
         query_tier = "standard"
         if container and ctx.preclassified_reason != "deterministic_greeting":
             try:
-                from rag.nodes.on_device_intent import classify_with_reason
                 from app.orchestrator_utils import select_graph_for_query
+                from rag.nodes.on_device_intent import classify_with_reason
 
                 on_device_result = await asyncio.to_thread(classify_with_reason, query_text)
                 if on_device_result:
@@ -414,7 +415,9 @@ class CacheUpdateStage(Stage):
             logger.debug("Cache write skipped for incognito request")
             return None
         cache_key = ctx.cache_key
-        semantic_query = f"{ctx.preferred_lang or 'en'}:{ctx.query_for_embedding or ctx.user_msg}".strip()
+        semantic_query = (
+            f"{ctx.preferred_lang or 'en'}:{ctx.query_for_embedding or ctx.user_msg}".strip()
+        )
         final_answer = ctx.final_answer
         intent = ctx.intent
         med_step = ctx.med_step
@@ -532,13 +535,17 @@ class CacheUpdateStage(Stage):
             )
             return None
 
+        # Canonical matcher, not a local copy of the strings. This list used to
+        # be duplicated here and drifted the moment the refusal copy was
+        # rewritten -- which would have made refusals CACHEABLE and replayed
+        # them to other seekers under the shared (language, message) key.
+        from services.voice.register import is_refusal_text
+
+        if is_refusal_text(final_answer):
+            logger.debug("Skipping cache update: response is a refusal/abstention.")
+            return None
+
         refusal_indicators = [
-            "i don't have that specific teaching",
-            "please try asking another question",
-            "don't have any specific teaching",
-            "do not have that specific teaching",
-            "the guru is unable",
-            "sorry, something went wrong",
             # Live logistics response (intent.py:LIVE_LOGISTICS).
             # It is cheap to regenerate and MUST NOT be cached: the semantic cache would
             # otherwise replay it for teaching queries about Ekam (e.g. "what is Ekam?").

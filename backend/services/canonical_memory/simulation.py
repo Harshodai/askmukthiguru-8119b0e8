@@ -109,7 +109,7 @@ class MemorySimulator:
         seen_keys: dict[str, str] = {}
 
         for i, turn in enumerate(scenario.turns):
-            ts = turn.timestamp or dt.datetime.now(dt.timezone.utc).isoformat()
+            ts = turn.timestamp or dt.datetime.now(dt.UTC).isoformat()
             tr = TurnResult(turn_index=i, timestamp=ts, facts_processed=len(turn.extracted_facts))
 
             for fact in turn.extracted_facts:
@@ -121,7 +121,7 @@ class MemorySimulator:
                     try:
                         from services.canonical_memory.models import MemoryCandidate, MemoryType
 
-                        candidate = MemoryCandidate(
+                        _candidate = MemoryCandidate(
                             statement=fact_value,
                             memory_type=MemoryType.PROFILE,
                             confidence=0.9,
@@ -173,12 +173,10 @@ class MemorySimulator:
             turn_results=results,
             final_memory_count=final_count,
             consistency_score=consistency,
-            timestamp=dt.datetime.now(dt.timezone.utc).isoformat(),
+            timestamp=dt.datetime.now(dt.UTC).isoformat(),
         )
 
-    def run_all_scenarios(
-        self, scenarios: list[SimulationScenario]
-    ) -> list[SimulationResult]:
+    def run_all_scenarios(self, scenarios: list[SimulationScenario]) -> list[SimulationResult]:
         """Run multiple scenarios and return all results."""
         return [self.run_scenario(s) for s in scenarios]
 
@@ -186,9 +184,7 @@ class MemorySimulator:
     # Scenario builders
     # ------------------------------------------------------------------
 
-    def create_repeated_info_scenario(
-        self, user_id: str = "sim_user"
-    ) -> SimulationScenario:
+    def create_repeated_info_scenario(self, user_id: str = "sim_user") -> SimulationScenario:
         """Same fact repeated across turns — should deduplicate to 1."""
         return SimulationScenario(
             name="repeated_info",
@@ -220,9 +216,7 @@ class MemorySimulator:
             expected_fact_keys=["user:works_at", "user:lives_in", "user:occupation"],
         )
 
-    def create_contradiction_scenario(
-        self, user_id: str = "sim_user"
-    ) -> SimulationScenario:
+    def create_contradiction_scenario(self, user_id: str = "sim_user") -> SimulationScenario:
         """Same fact_key with different values — supersession resolves to latest."""
         return SimulationScenario(
             name="contradiction",
@@ -242,9 +236,7 @@ class MemorySimulator:
             expected_fact_keys=["user:lives_in"],
         )
 
-    def create_deletion_scenario(
-        self, user_id: str = "sim_user"
-    ) -> SimulationScenario:
+    def create_deletion_scenario(self, user_id: str = "sim_user") -> SimulationScenario:
         """User requests forgetting a fact — expired marker removes it."""
         return SimulationScenario(
             name="deletion",
@@ -268,9 +260,7 @@ class MemorySimulator:
             expected_fact_keys=[],
         )
 
-    def create_accumulation_scenario(
-        self, user_id: str = "sim_user"
-    ) -> SimulationScenario:
+    def create_accumulation_scenario(self, user_id: str = "sim_user") -> SimulationScenario:
         """Multi-valued facts accumulate (no supersession)."""
         return SimulationScenario(
             name="accumulation",
@@ -303,9 +293,7 @@ class MemorySimulator:
     # Summary & scoring
     # ------------------------------------------------------------------
 
-    def generate_summary(
-        self, results: list[SimulationResult]
-    ) -> dict[str, Any]:
+    def generate_summary(self, results: list[SimulationResult]) -> dict[str, Any]:
         """Aggregate multiple scenario results into a summary report."""
         total_turns = sum(r.total_turns for r in results)
         total_processed = sum(r.turns_processed for r in results)
@@ -327,7 +315,7 @@ class MemorySimulator:
                 for r in results
             ],
             "passed": len(results) > 0 and all(s >= 0.8 for s in scores),
-            "timestamp": dt.datetime.now(dt.timezone.utc).isoformat(),
+            "timestamp": dt.datetime.now(dt.UTC).isoformat(),
         }
 
     # ------------------------------------------------------------------
@@ -360,11 +348,7 @@ class MemorySimulator:
 
         if expected == 0:
             # Deletion scenario: check that facts were expired/removed
-            expired_count = sum(
-                1
-                for r in results
-                if r.resolution in ("superseded", "expired")
-            )
+            expired_count = sum(1 for r in results if r.resolution in ("superseded", "expired"))
             total_facts = sum(r.facts_processed for r in results)
             if total_facts == 0:
                 return 1.0
@@ -377,9 +361,7 @@ class MemorySimulator:
         ratio = min(expected, actual) / max(expected, actual)
         return round(ratio, 4)
 
-    def validate_expected_keys(
-        self, result: SimulationResult
-    ) -> dict[str, Any]:
+    def validate_expected_keys(self, result: SimulationResult) -> dict[str, Any]:
         """Check if scenario produced the expected fact keys."""
         scenario = SimulationScenario(name=result.scenario)
         # Re-derive expected from scenario name

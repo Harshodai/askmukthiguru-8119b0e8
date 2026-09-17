@@ -33,9 +33,7 @@ def _relation(src: str, tgt: str, size: int = 60) -> str:
 def _context(n_entities: int = 40, n_relations: int = 40, n_chunks: int = 20) -> str:
     """Reproduce lightrag/prompt.py PROMPTS["kg_query_context"] verbatim."""
     entities = "\n".join(_entity(f"Concept {i}") for i in range(n_entities))
-    relations = "\n".join(
-        _relation(f"Concept {i}", f"Concept {i + 1}") for i in range(n_relations)
-    )
+    relations = "\n".join(_relation(f"Concept {i}", f"Concept {i + 1}") for i in range(n_relations))
     chunks = "\n".join(
         json.dumps({"reference_id": str(i), "content": "c" * 120}, ensure_ascii=False)
         for i in range(n_chunks)

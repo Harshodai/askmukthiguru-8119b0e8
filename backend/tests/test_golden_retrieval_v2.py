@@ -12,7 +12,9 @@ from pathlib import Path
 
 from benchmarks.retrieval_metrics import normalize_source_key
 
-GOLDEN = Path(__file__).resolve().parents[1] / "evaluation" / "datasets" / "golden_retrieval_v1.json"
+GOLDEN = (
+    Path(__file__).resolve().parents[1] / "evaluation" / "datasets" / "golden_retrieval_v1.json"
+)
 AMZ = "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319"
 BARE = "The_Four_Sacred_Secrets.pdf"
 
@@ -69,5 +71,8 @@ def test_twenty_human_paraphrases_have_valid_parents_and_qrels():
 def test_canonical_key_normalization():
     assert normalize_source_key(BARE) == AMZ
     assert normalize_source_key(AMZ + "#reviews") == AMZ
-    assert normalize_source_key("https://WWW.YOUTUBE.COM/watch?v=x") == "https://www.youtube.com/watch?v=x"
+    assert (
+        normalize_source_key("https://WWW.YOUTUBE.COM/watch?v=x")
+        == "https://www.youtube.com/watch?v=x"
+    )
     assert normalize_source_key("gold") == "gold"

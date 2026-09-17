@@ -31,7 +31,9 @@ class Finding:
 class Report:
     findings: list[Finding] = field(default_factory=list)
 
-    def add(self, severity: str, name: str, passed: bool, detail: str, remediation: str = "") -> None:
+    def add(
+        self, severity: str, name: str, passed: bool, detail: str, remediation: str = ""
+    ) -> None:
         self.findings.append(Finding(severity, name, passed, detail, remediation))
 
     def blocking_failures(self) -> list[Finding]:
@@ -63,7 +65,10 @@ def main() -> int:
         report.add("BLOCKER", "neo4j_reachable", True, f"Connected to {uri}")
     except Exception as exc:
         report.add(
-            "BLOCKER", "neo4j_reachable", False, f"Connection failed: {exc}",
+            "BLOCKER",
+            "neo4j_reachable",
+            False,
+            f"Connection failed: {exc}",
             "Neo4j must be reachable and authenticated before any other KG gate can run.",
         )
         report.print_report()
@@ -72,7 +77,9 @@ def main() -> int:
     with driver.session() as session:
         constraints = list(session.run("SHOW CONSTRAINTS"))
         report.add(
-            "HIGH", "constraints_exist", len(constraints) > 0,
+            "HIGH",
+            "constraints_exist",
+            len(constraints) > 0,
             f"{len(constraints)} constraints found",
             "Run the ontology seeder / migration that creates uniqueness constraints.",
         )
@@ -82,21 +89,19 @@ def main() -> int:
         report.add("INFO", "node_count", True, f"{node_count} nodes")
         report.add("INFO", "rel_count", True, f"{rel_count} relationships")
 
-        orphan_count = session.run(
-            "MATCH (n) WHERE NOT (n)--() RETURN count(n) AS c"
-        ).single()["c"]
+        orphan_count = session.run("MATCH (n) WHERE NOT (n)--() RETURN count(n) AS c").single()["c"]
         orphan_rate = orphan_count / node_count if node_count else 0
         report.add(
-            "MEDIUM", "orphan_node_rate", orphan_rate < 0.30,
+            "MEDIUM",
+            "orphan_node_rate",
+            orphan_rate < 0.30,
             f"{orphan_count}/{node_count} nodes ({orphan_rate:.0%}) have zero relationships",
             "Orphan nodes contribute nothing to graph traversal — investigate the "
             "extraction step that creates disconnected nodes, or prune them.",
         )
 
         rel_types = list(
-            session.run(
-                "MATCH ()-[r]->() RETURN type(r) AS t, count(*) AS n ORDER BY n DESC"
-            )
+            session.run("MATCH ()-[r]->() RETURN type(r) AS t, count(*) AS n ORDER BY n DESC")
         )
         directed_count = next((r["n"] for r in rel_types if r["t"] == "DIRECTED"), 0)
         typed_ratio = 1 - (directed_count / rel_count) if rel_count else 0

@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 import time
 from collections import defaultdict
@@ -18,6 +17,7 @@ from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
+from app.config import settings
 from services.language_router import LanguageRouter
 
 PRIORITY_LANGUAGES = ("en", "hinglish", "hi", "te", "ta", "kn")
@@ -212,10 +212,8 @@ def run(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dataset", type=Path, default=DEFAULT_DATASET)
-    parser.add_argument(
-        "--backend-url", default=os.environ.get("BACKEND_URL", "http://127.0.0.1:8000")
-    )
-    parser.add_argument("--token", default=os.environ.get("BACKEND_TOKEN"))
+    parser.add_argument("--backend-url", default=settings.backend_url or settings.eval_endpoint)
+    parser.add_argument("--token", default=settings.backend_token)
     parser.add_argument("--review", type=Path, help="JSON reviewer approvals keyed by fixture id")
     parser.add_argument("--out", type=Path, help="write the JSON report to this path")
     parser.add_argument("--allow-pending-tone-reviews", action="store_true")

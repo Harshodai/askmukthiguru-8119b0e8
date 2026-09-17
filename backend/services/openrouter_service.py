@@ -14,7 +14,7 @@ import logging
 import re
 import time
 from collections.abc import AsyncIterator, Mapping
-from typing import Any, ClassVar, Optional
+from typing import TYPE_CHECKING, Any, ClassVar, Optional
 
 import httpx
 from anyio import Lock as AsyncLock
@@ -66,6 +66,17 @@ from services.circuit_breaker import (
 
 logger = logging.getLogger(__name__)
 
+
+class ProviderConnectionError(RuntimeError):
+    """Transient provider failure (HTTP 5xx / timeout) on the gateway path.
+
+    Mirrors services.llm_gateway.ProviderConnectionError (same contract; kept
+    local so this module never imports the gateway). Raised only when
+    ``strict_gateway=True`` so the gateway circuit breaker can trip. The
+    standalone path keeps returning the canned graceful-degradation string.
+    """
+
+
 # OpenRouter normally reports the actual charged amount in ``usage.cost``.
 # These model-specific prices are an accounting fallback only: they are used
 # when that field is absent, never when a provider-reported value is present.
@@ -83,6 +94,9 @@ _OPENROUTER_FALLBACK_RATES_PER_MILLION: dict[str, tuple[float, float]] = {
     "google/gemini-3.6-flash": (0.75, 3.75),
 }
 
+if TYPE_CHECKING:
+    from app.security_utils import RedisBackedRateLimiter
+
 
 class OpenRouterService:
     """Gateway to all LLM operations via OpenRouter Cloud API."""
@@ -96,9 +110,23 @@ class OpenRouterService:
     # above the configured limit and tripped the circuit breaker within
     # minutes even at a "safe" RPM value (live-confirmed 2026-08-27). One
     # shared counter enforces the real process-wide limit.
-    _shared_rpm_lock: ClassVar[Optional[AsyncLock]] = None
-    _shared_request_count: ClassVar[int] = 0
-    _shared_window_start: ClassVar[float] = 0.0
+    #
+    # 2026-09-16: that class-level counter was still per-PROCESS, so
+    # WEB_CONCURRENCY>1 or >1 Railway replica multiplies the real provider
+    # limit by worker count (the documented reason WEB_CONCURRENCY is pinned
+    # at 1). Backed by RedisBackedRateLimiter (app/security_utils.py) instead
+    # -- the same Redis ZADD sliding-window mechanism already used for
+    # auth/admin/speech rate limits and anon quota -- so the RPM budget is
+    # enforced across every process/worker/replica, not just this one. It
+    # falls back to its own in-process limiter when Redis is unreachable, so
+    # this degrades exactly like every other rate limiter in the app.
+    _shared_rate_limiter: ClassVar[Optional[RedisBackedRateLimiter]] = None
+    _RATE_LIMIT_KEY = "openrouter:rpm"
+    # ponytail: bounded wait-and-retry loop, not an unbounded blocking sleep --
+    # a wedged/slow Redis round-trip must not stall a chat request forever.
+    # The limiter itself already fails open on Redis errors; this is the
+    # second layer of that same guarantee.
+    _MAX_RATE_LIMIT_WAIT_ROUNDS = 5
 
     def __init__(self) -> None:
         self._policy = OpenRouterModelPolicy.from_settings(settings)
@@ -124,12 +152,20 @@ class OpenRouterService:
             CircuitBreakerProvider.OPENROUTER.value, self._circuit
         )
 
-        # Rate limiting state -- shared across all instances, see the
-        # class-level docstring above. Lazily create the shared lock once;
-        # every subsequent instance reuses it instead of getting its own.
-        if OpenRouterService._shared_rpm_lock is None:
-            OpenRouterService._shared_rpm_lock = AsyncLock()
-            OpenRouterService._shared_window_start = time.time()
+        # Rate limiting state -- shared across all instances AND, via Redis,
+        # across processes/workers/replicas. See the class-level docstring
+        # above. Lazily create the shared limiter once; every subsequent
+        # instance reuses it instead of getting its own.
+        if OpenRouterService._shared_rate_limiter is None:
+            from app.security_utils import RedisBackedRateLimiter
+
+            OpenRouterService._shared_rate_limiter = RedisBackedRateLimiter(
+                redis_url=settings.redis_url,
+                ttl=60.0,
+                max_requests=self._rpm_limit,
+                backoff_base=2.0,
+                backoff_multiplier=2.0,
+            )
 
         # Connection pooling: AsyncClient
         self._http_client: Optional[httpx.AsyncClient] = None
@@ -174,46 +210,52 @@ class OpenRouterService:
     async def _enforce_rate_limit(self) -> None:
         """Enforce RPM limits before querying OpenRouter API.
 
-        Uses the CLASS-level shared counter (see class docstring) so the
-        limit is enforced against real aggregate traffic across every
-        OpenRouterService instance in this process, not per-instance.
+        Uses the CLASS-level shared RedisBackedRateLimiter (see class
+        docstring) so the limit is enforced against real aggregate traffic
+        across every process/worker/replica, not just this one instance.
         """
-        now = time.time()
-        async with OpenRouterService._shared_rpm_lock:
-            if now - OpenRouterService._shared_window_start >= 60:
-                OpenRouterService._shared_window_start = now
-                OpenRouterService._shared_request_count = 0
-            if OpenRouterService._shared_request_count >= self._rpm_limit:
-                delay = 60.0 - (now - OpenRouterService._shared_window_start)
-                if delay > 0:
-                    logger.warning(f"OpenRouter rate limit hit — sleeping {delay:.1f}s")
-                    await asyncio.sleep(delay)
-                    OpenRouterService._shared_window_start = time.time()
-                    OpenRouterService._shared_request_count = 0
-            OpenRouterService._shared_request_count += 1
+        limiter = OpenRouterService._shared_rate_limiter
+        for _ in range(self._MAX_RATE_LIMIT_WAIT_ROUNDS):
+            allowed, retry_after = await limiter.is_allowed_async(self._RATE_LIMIT_KEY)
+            if allowed:
+                return
+            delay = max(0.0, retry_after)
+            logger.warning(f"OpenRouter rate limit hit — sleeping {delay:.1f}s")
+            await asyncio.sleep(delay)
+        # Fail-open, matching RedisBackedRateLimiter's own Redis-error
+        # behavior: a stuck rate limiter must never wedge a chat request.
+        logger.warning(
+            "OpenRouter rate limiter still blocked after %d rounds — proceeding anyway",
+            self._MAX_RATE_LIMIT_WAIT_ROUNDS,
+        )
 
     async def _record_rate_limit_response(self) -> None:
-        """Adjust rate limiter after receiving a 429 response."""
-        now = time.time()
-        async with OpenRouterService._shared_rpm_lock:
-            OpenRouterService._shared_request_count = self._rpm_limit
-            delay = 60.0 - (now - OpenRouterService._shared_window_start)
-            logger.warning(f"OpenRouter returned 429 — rate limiter exhausted for {delay:.1f}s")
+        """Adjust rate limiter after receiving a real 429 from OpenRouter.
+
+        Records a failure on the shared limiter, which drives its built-in
+        exponential backoff (backoff_base/backoff_multiplier) for subsequent
+        _enforce_rate_limit calls -- across every process, since the limiter
+        is Redis-backed.
+        """
+        limiter = OpenRouterService._shared_rate_limiter
+        await limiter.record_attempt_async(self._RATE_LIMIT_KEY, success=False)
+        logger.warning("OpenRouter returned 429 — recorded failure for exponential backoff")
 
     @classmethod
     def reset_shared_rate_limiter(cls) -> None:
-        """Reset the process-wide rate-limit counter. Test-isolation hook:
+        """Reset the process-wide rate-limit state. Test-isolation hook:
         since the state is class-level (see class docstring), it otherwise
         accumulates across every instance and every test in one pytest run.
         """
-        cls._shared_rpm_lock = None
-        cls._shared_request_count = 0
-        cls._shared_window_start = 0.0
+        cls._shared_rate_limiter = None
 
     async def _graceful_degradation(self, messages: list[dict], operation: str = "fallback") -> str:
         """Return a graceful fallback response when OpenRouter is unavailable.
 
-        This avoids 500 errors — instead the user gets a meaningful message.
+        Standalone/offline path ONLY — gateway callers pass
+        strict_gateway=True and receive ProviderConnectionError instead, so
+        the gateway circuit breaker can trip. This avoids 500 errors —
+        instead the user gets a meaningful message.
         """
         logger.warning(f"Using graceful degradation for {operation}")
         # Check if the last message looks like a question
@@ -237,6 +279,7 @@ class OpenRouterService:
     def _estimate_tokens(text: str) -> int:
         """Language-aware token estimate via shared compressor."""
         from rag.compressor import estimate_tokens
+
         return estimate_tokens(text)
 
     @staticmethod
@@ -285,9 +328,7 @@ class OpenRouterService:
 
             acc = token_accumulator_var.get()
             estimated_cost = (
-                self._fallback_cost(tokens_in, tokens_out, model)
-                if cost_usd is None
-                else 0.0
+                self._fallback_cost(tokens_in, tokens_out, model) if cost_usd is None else 0.0
             )
             if acc is not None:
                 acc.tokens_in += tokens_in
@@ -335,6 +376,7 @@ class OpenRouterService:
         operation: str = "generate",
         fallback_model: Optional[str] = None,
         _is_fallback_attempt: bool = False,
+        strict_gateway: bool = False,
         **kwargs,
     ) -> str:
         """Call OpenRouter API with circuit breaker, rate limit, retries, and token tracking.
@@ -357,6 +399,11 @@ class OpenRouterService:
             await self._enforce_rate_limit()
 
         if not self._circuit.can_execute():
+            if strict_gateway:
+                raise CircuitOpenException(
+                    provider="openrouter",
+                    message="Circuit breaker OPEN in _call_api (gateway path)",
+                )
             logger.warning(
                 f"OpenRouter circuit breaker open — graceful degradation for {operation}"
             )
@@ -573,8 +620,15 @@ class OpenRouterService:
                         temperature=temperature,
                         operation=operation,
                         _is_fallback_attempt=True,
+                        strict_gateway=strict_gateway,
                         **kwargs,
                     )
+                if strict_gateway and (is_server_error or is_connection_error):
+                    # Gateway path: raise so the gateway breaker trips instead
+                    # of mistaking canned graceful text for a success.
+                    raise ProviderConnectionError(
+                        f"OpenRouter {reason} during {operation}"
+                    ) from exc
                 logger.warning(f"OpenRouter {reason} during {operation} — graceful degradation")
                 return await self._graceful_degradation(messages, operation=operation)
 
@@ -847,8 +901,8 @@ class OpenRouterService:
                         attempt + 1,
                         f"{int(getattr(resp, 'status_code', 0)) // 100}xx",
                         headers_ready_ms or 0.0,
-                        "%.1f" % first_event_ms if first_event_ms is not None else "none",
-                        "%.1f" % first_token_ms if first_token_ms is not None else "none",
+                        f"{first_event_ms:.1f}" if first_event_ms is not None else "none",
+                        f"{first_token_ms:.1f}" if first_token_ms is not None else "none",
                         (time.perf_counter() - stream_started) * 1000,
                         prompt_tokens,
                         completion_tokens,
@@ -939,7 +993,9 @@ class OpenRouterService:
         emitted_any = False
         try:
             client = await self._get_http_client()
-            async with client.stream("POST", "/chat/completions", json=payload, headers=headers or None) as resp:
+            async with client.stream(
+                "POST", "/chat/completions", json=payload, headers=headers or None
+            ) as resp:
                 resp.raise_for_status()
                 async for line in resp.aiter_lines():
                     if not line.startswith("data: "):
@@ -957,7 +1013,7 @@ class OpenRouterService:
                         emitted_any = True
                         yield delta
             self._circuit.record_success()
-        except (httpx.HTTPError, asyncio.TimeoutError) as exc:
+        except (TimeoutError, httpx.HTTPError) as exc:
             self._circuit.record_failure()
             if emitted_any:
                 # Partial content already reached the caller — a non-streaming
@@ -965,11 +1021,17 @@ class OpenRouterService:
                 # answer concatenated). Propagate the failure instead.
                 logger.error(f"Streaming failed for {operation} after partial output: {exc}")
                 raise
-            logger.warning(f"Streaming failed for {operation}, falling back to non-streaming: {exc}")
+            logger.warning(
+                f"Streaming failed for {operation}, falling back to non-streaming: {exc}"
+            )
             try:
-                non_stream_payload = {k: v for k, v in payload.items() if k not in ("stream", "stream_options")}
+                non_stream_payload = {
+                    k: v for k, v in payload.items() if k not in ("stream", "stream_options")
+                }
                 client = await self._get_http_client()
-                resp = await client.post("/chat/completions", json=non_stream_payload, headers=headers or None)
+                resp = await client.post(
+                    "/chat/completions", json=non_stream_payload, headers=headers or None
+                )
                 resp.raise_for_status()
                 data = resp.json()
                 content = data["choices"][0]["message"]["content"]

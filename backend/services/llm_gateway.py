@@ -21,6 +21,7 @@ Design:
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import logging
@@ -37,7 +38,39 @@ from services.llm.base import LLMProvider
 
 logger = logging.getLogger(__name__)
 
-TaskType = Literal["casual", "standard", "deep", "extraction"]
+TaskType = Literal["casual", "standard", "deep", "extraction", "classify", "rewrite", "decompose"]
+
+
+class ProviderConnectionError(RuntimeError):
+    """Transient provider failure (HTTP 5xx / timeout) surfaced as an exception.
+
+    Providers return their canned graceful-degradation string only on the
+    standalone/offline path. When called through the gateway they raise this
+    instead, so the gateway circuit breaker can observe the failure and trip.
+    """
+
+
+# Bounded per-task timeouts (seconds) for auxiliary gateway tasks. The gateway
+# is the single choke point, so auxiliary calls (classify/rewrite/decompose)
+# get tight budgets instead of inheriting the full generation timeout.
+_TASK_TIMEOUTS: dict[str, float] = {
+    "classify": 15.0,
+    "rewrite": 30.0,
+    "decompose": 30.0,
+    "casual": 20.0,
+    "standard": 60.0,
+    "deep": 120.0,
+    "extraction": 60.0,
+}
+
+# Task-specific token ceilings for auxiliary tasks. Applied as a min() over
+# the route ceiling in _enforce_max_tokens — a caller can request less, never
+# more.
+_TASK_TOKEN_CEILINGS: dict[str, int] = {
+    "classify": 256,
+    "rewrite": 512,
+    "decompose": 512,
+}
 
 
 @dataclass
@@ -161,6 +194,40 @@ class LLMGateway:
         """Primary -> same-provider model fallback -> (opt-in) cross-provider fallback."""
         kwargs.setdefault("operation", task)
         self._enforce_max_tokens(task, kwargs)
+        # Providers must raise (not return canned graceful text) on transient
+        # 5xx/timeout when called through the gateway, so this breaker trips.
+        kwargs["strict_gateway"] = True
+
+        if self._primary_model_fallback and await self._soft_budget_throttled():
+            logger.warning(
+                "LLMGateway: daily spend >80% — downgrading to fallback model '%s' "
+                "rather than erroring",
+                self._primary_model_fallback,
+            )
+            try:
+                _downgrade_kwargs = kwargs.copy()
+                _downgrade_kwargs.pop("model", None)
+                _downgraded = await asyncio.wait_for(
+                    self._primary.generate(
+                        system_prompt,
+                        user_prompt,
+                        context=context,
+                        model=self._primary_model_fallback,
+                        **_downgrade_kwargs,
+                    ),
+                    timeout=self._task_timeout(task),
+                )
+                self._primary_breaker.record_success()
+                self.metrics.fallbacks += 1
+                return _downgraded
+            except Exception as _downgrade_exc:
+                self._primary_breaker.record_failure(_downgrade_exc)
+                self.metrics.record_error(self._primary_name)
+                logger.warning(
+                    "LLMGateway: soft-budget downgrade also failed: %s — "
+                    "continuing on the normal path",
+                    _downgrade_exc,
+                )
 
         if not self._primary_breaker.can_execute():
             self.metrics.circuit_rejections += 1
@@ -173,8 +240,9 @@ class LLMGateway:
             raise open_exc
 
         try:
-            result = await self._primary.generate(
-                system_prompt, user_prompt, context=context, **kwargs
+            result = await asyncio.wait_for(
+                self._primary.generate(system_prompt, user_prompt, context=context, **kwargs),
+                timeout=self._task_timeout(task),
             )
             self._primary_breaker.record_success()
             return result
@@ -193,12 +261,15 @@ class LLMGateway:
                     # 'model'" here instead of falling back cleanly.
                     fallback_kwargs = kwargs.copy()
                     fallback_kwargs.pop("model", None)
-                    result = await self._primary.generate(
-                        system_prompt,
-                        user_prompt,
-                        context=context,
-                        model=self._primary_model_fallback,
-                        **fallback_kwargs,
+                    result = await asyncio.wait_for(
+                        self._primary.generate(
+                            system_prompt,
+                            user_prompt,
+                            context=context,
+                            model=self._primary_model_fallback,
+                            **fallback_kwargs,
+                        ),
+                        timeout=self._task_timeout(task),
                     )
                     self._primary_breaker.record_success()
                     self.metrics.fallbacks += 1
@@ -233,9 +304,12 @@ class LLMGateway:
             )
             raise upstream_exc
         try:
-            self._enforce_max_tokens(kwargs.get("operation", "standard"), kwargs)
-            result = await self._secondary.generate(
-                system_prompt, user_prompt, context=context, **kwargs
+            _task = str(kwargs.get("operation", "standard"))
+            self._enforce_max_tokens(_task, kwargs)
+            kwargs.setdefault("strict_gateway", True)
+            result = await asyncio.wait_for(
+                self._secondary.generate(system_prompt, user_prompt, context=context, **kwargs),
+                timeout=self._task_timeout(_task),
             )
             self._secondary_breaker.record_success()
             self.metrics.fallbacks += 1
@@ -276,9 +350,85 @@ class LLMGateway:
                     f"route ceiling {ceiling} (task={task}) — capping"
                 )
                 kwargs["max_tokens"] = ceiling
+            task_ceiling = _TASK_TOKEN_CEILINGS.get(task)
+            if task_ceiling is not None and kwargs.get("max_tokens", 0) > task_ceiling:
+                logger.warning(
+                    f"LLMGateway: task={task} token ceiling {task_ceiling} "
+                    f"applied over route ceiling {ceiling} — capping"
+                )
+                kwargs["max_tokens"] = task_ceiling
         except Exception as exc:  # fail-closed: never emit an unbounded call
             logger.error(f"LLMGateway: max_tokens enforcement failed ({exc}) — capping to 1500")
             kwargs["max_tokens"] = 1500
+
+    @staticmethod
+    def _task_timeout(task: str) -> float:
+        """Bounded timeout for a gateway task (settings override wins)."""
+        try:
+            from app.config import settings
+
+            override = getattr(settings, f"llm_task_timeout_{task}", None)
+            if override:
+                return float(override)
+        except Exception:
+            pass
+        return _TASK_TIMEOUTS.get(task, 60.0)
+
+    async def _soft_budget_throttled(self) -> bool:
+        """True when daily spend exceeds ~80% of the daily budget.
+
+        Lightweight, fail-open soft throttle backed by llm_budget_guard's
+        Redis day keys (read-only GET, no reservation). Any failure — guard
+        disabled, no budget configured, Redis unreachable — returns False so
+        generation proceeds normally. Callers downgrade to
+        _primary_model_fallback instead of raising a hard budget error.
+        """
+        try:
+            from app.config import settings
+
+            if not bool(getattr(settings, "llm_budget_guard_enabled", False)):
+                return False
+            candidates: list[str] = []
+            primary = (self._primary_name or "").lower().strip()
+            if primary:
+                candidates.append(primary)
+            for name in ("openrouter", "sarvam", "nim"):
+                if name not in candidates:
+                    candidates.append(name)
+            from datetime import UTC, datetime
+
+            import redis.asyncio as aioredis
+
+            for provider in candidates:
+                daily_budget = float(getattr(settings, f"{provider}_daily_budget_usd", 0) or 0)
+                if daily_budget <= 0:
+                    continue
+                today = datetime.now(UTC).strftime("%Y-%m-%d")
+                day_key = f"budget:{provider}:usd:{today}"
+                client = aioredis.from_url(
+                    getattr(settings, "redis_url", "redis://localhost:6379/0"),
+                    decode_responses=True,
+                )
+                try:
+                    raw = await client.get(day_key)
+                finally:
+                    try:
+                        await client.aclose()
+                    except Exception:
+                        pass
+                spent = float(raw or 0)
+                if spent >= 0.8 * daily_budget:
+                    logger.warning(
+                        "LLMGateway: provider '%s' daily spend %.4f/%.2f (>80%%) — soft throttle",
+                        provider,
+                        spent,
+                        daily_budget,
+                    )
+                    return True
+            return False
+        except Exception as exc:
+            logger.debug("LLMGateway soft-budget check bypassed: %s", exc)
+            return False
 
     async def verify_answer(
         self,

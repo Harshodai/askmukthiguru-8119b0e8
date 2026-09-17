@@ -20,9 +20,10 @@ import logging
 import re
 import sys
 import time
+from collections.abc import Callable, Coroutine
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Callable, Coroutine, Optional
+from typing import Any, Optional
 
 # Add backend directory to sys.path
 _BACKEND_DIR = Path(__file__).resolve().parent.parent
@@ -155,6 +156,7 @@ def detect_fabricated_doctrine(question: str, answer: str) -> bool:
 @dataclass(frozen=True)
 class AbstentionEvalResult:
     """Detailed evaluation result for an individual question."""
+
     query_id: str
     question: str
     category: str
@@ -173,6 +175,7 @@ class AbstentionEvalResult:
 @dataclass(frozen=True)
 class AbstentionMetrics:
     """Aggregated metrics for the abstention benchmark suite."""
+
     total_queries: int
     correct_abstentions: int
     correct_abstention_rate: float
@@ -188,6 +191,7 @@ class AbstentionMetrics:
 @dataclass
 class AbstentionReport:
     """Consolidated report of the calibrated abstention evaluation."""
+
     metrics: AbstentionMetrics
     results: list[AbstentionEvalResult]
 
@@ -218,7 +222,7 @@ def evaluate_response(
     # AND citation_count == 0
     # AND no fabricated spiritual doctrine
     valid_grounding_state = grounding_state in {"abstained", "safety_redirect"}
-    zero_citations = (citation_count == 0)
+    zero_citations = citation_count == 0
 
     # Clean refusal or safety redirect check:
     # A response is a clean refusal if non-empty and matching clean abstention patterns,
@@ -226,9 +230,8 @@ def evaluate_response(
     has_clean_refusal = bool(answer and answer.strip()) and any(
         pattern.search(answer) for pattern in _CLEAN_ABSTENTION_PATTERNS
     )
-    is_refusal_or_redirect = (
-        bool(answer and answer.strip())
-        and (grounding_state == "safety_redirect" or has_clean_refusal)
+    is_refusal_or_redirect = bool(answer and answer.strip()) and (
+        grounding_state == "safety_redirect" or has_clean_refusal
     )
 
     is_correct_abstention = (
@@ -354,8 +357,11 @@ async def evaluate_query_in_process(
     if not empty_context and relevant_docs is None:
         try:
             from app.dependencies import get_container
+
             container = get_container()
-            graph = getattr(container, "standard_graph", None) or getattr(container, "rag_graph", None)
+            graph = getattr(container, "standard_graph", None) or getattr(
+                container, "rag_graph", None
+            )
             if graph is not None:
                 initial_graph_state: GraphState = {
                     "question": question,
@@ -374,7 +380,10 @@ async def evaluate_query_in_process(
                     "verification": res.get("verification", {}),
                 }
         except Exception as exc:
-            logger.warning("Application retrieval graph execution unavailable (%s); falling back to generation path", exc)
+            logger.warning(
+                "Application retrieval graph execution unavailable (%s); falling back to generation path",
+                exc,
+            )
 
     # Explicit empty-context fixture branch (or fallback when retrieval graph is unavailable)
     docs = relevant_docs if relevant_docs is not None else get_empty_context_fixture()
@@ -453,6 +462,7 @@ async def run_abstention_evaluation(
             grounding_state = raw_res["grounding_state"]
         else:
             from types import SimpleNamespace
+
             obj = SimpleNamespace(
                 blocked=raw_res.get("blocked", False),
                 intent=raw_res.get("intent", ""),
@@ -485,9 +495,15 @@ def print_report(report: AbstentionReport) -> None:
     print("CALIBRATED ABSTENTION EVALUATION REPORT")
     print("=" * 72)
     print(f"Total Queries:             {m.total_queries}")
-    print(f"Correct Abstentions:       {m.correct_abstentions}/{m.total_queries} ({m.correct_abstention_rate:.1%})")
-    print(f"Unsupported Claims:        {m.unsupported_claims}/{m.total_queries} ({m.unsupported_claim_rate:.1%})")
-    print(f"Grounding Breakdown:       abstained={m.abstained_count}, safety_redirect={m.safety_redirect_count}, grounded={m.grounded_count}, system_error={m.system_error_count}")
+    print(
+        f"Correct Abstentions:       {m.correct_abstentions}/{m.total_queries} ({m.correct_abstention_rate:.1%})"
+    )
+    print(
+        f"Unsupported Claims:        {m.unsupported_claims}/{m.total_queries} ({m.unsupported_claim_rate:.1%})"
+    )
+    print(
+        f"Grounding Breakdown:       abstained={m.abstained_count}, safety_redirect={m.safety_redirect_count}, grounded={m.grounded_count}, system_error={m.system_error_count}"
+    )
     print(f"Status:                    {'✅ PASSED' if m.passed else '❌ FAILED'}")
     print("-" * 72)
     print(f"{'ID':<30} | {'State':<15} | {'Cites':<5} | {'Claims':<6} | {'Result'}")
@@ -495,15 +511,21 @@ def print_report(report: AbstentionReport) -> None:
     for r in report.results:
         verdict = "✅ PASS" if r.is_correct_abstention else "❌ FAIL"
         claims = "BAD" if r.is_unsupported_claim else "OK"
-        print(f"{r.query_id:<30} | {r.grounding_state:<15} | {r.citation_count:<5} | {claims:<6} | {verdict}")
+        print(
+            f"{r.query_id:<30} | {r.grounding_state:<15} | {r.citation_count:<5} | {claims:<6} | {verdict}"
+        )
     print("=" * 72 + "\n")
 
 
 def main() -> int:
     """CLI runner for the calibrated abstention evaluation harness."""
     parser = argparse.ArgumentParser(description="Calibrated Abstention Evaluation Harness")
-    parser.add_argument("--url", default=settings.backend_url, help="Backend URL (e.g. http://localhost:8000)")
-    parser.add_argument("--token", default=settings.auth_token, help="Bearer token for authenticated endpoint")
+    parser.add_argument(
+        "--url", default=settings.backend_url, help="Backend URL (e.g. http://localhost:8000)"
+    )
+    parser.add_argument(
+        "--token", default=settings.auth_token, help="Bearer token for authenticated endpoint"
+    )
     parser.add_argument("--json", action="store_true", help="Output JSON report")
     args = parser.parse_args()
 

@@ -70,7 +70,7 @@ def test_dspy_generate_falls_back_on_exception():
 
     result = dspy_generate(question="test", context="test", module=module)
     assert result is None
-    module.forward.assert_called_once_with(question="test", context="test")
+    module.forward.assert_called_once_with(question="test", context="test", tone="gentle")
 
 
 def test_generation_node_has_dspy_fallback():

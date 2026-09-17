@@ -38,9 +38,43 @@ _process_start = time.monotonic()
 # dead lifespan is detectable even while the wrapper loop still serves 200s.
 _last_heartbeat = _process_start
 
+# P2-OPS-1 (2026-09-16): executor-starvation canary. The heartbeat above only
+# proves the EVENT LOOP is still scheduling coroutines -- asyncio.sleep()
+# never touches a worker thread. The container wedged twice under concurrent
+# load with the heartbeat still fresh the whole time (event loop running,
+# cpu=3.73% i.e. blocked not spinning, pids=266, last log line
+# "AUDIT POST /api/chat -> 200 (187.863s)" then a thread-stack-exhaustion
+# MemoryError): the shared default ThreadPoolExecutor -- the same one
+# app/api/chat.py's asyncio.to_thread() calls queue onto -- was starved while
+# the loop itself stayed healthy. This canary submits a trivial no-op to that
+# SAME default executor on a timer; if its workers are all blocked, the
+# no-op queues behind them, times out, and this timestamp goes stale.
+_last_executor_canary = _process_start
+
+# F-PROD-1 (2026-09-16): the grace window below returns 200 UNCONDITIONALLY so
+# Railway cannot kill a replica that is still booting. That is also the window
+# in which a replica that will NEVER boot looks perfectly healthy -- the same
+# defect class as the executor-starvation gap above (a liveness signal that
+# reports 200 through a failure it structurally cannot see). Set when the real
+# lifespan raises, and checked BEFORE the grace short-circuit, so a crashed
+# boot surfaces 503 immediately instead of being masked for _GRACE_SECONDS.
+_lifespan_failed = False
+
+# Must stay <= railway.json's deploy.healthcheckTimeout (330). Railway keeps
+# retrying the healthcheck for that whole budget, so the window between this
+# grace expiring and the app finishing boot correctly reports 503 ("not ready
+# yet") rather than a deploy failure. Raising this to 330 would instead blanket
+# the ENTIRE healthcheck budget in unconditional 200s, which is exactly the
+# masking this file's _lifespan_failed flag exists to prevent -- do not.
 _GRACE_SECONDS = 180
 _HEARTBEAT_INTERVAL_S = 5
 _HEARTBEAT_STALE_S = 30
+# ponytail: plain module constant, matching _HEARTBEAT_STALE_S above, not a
+# pydantic setting -- this wrapper deliberately imports nothing from
+# app.config at module scope so it keeps answering /api/healthz even if the
+# real app's settings fail to load. Promote to a setting if this ever needs
+# to be tuned per-environment.
+_EXECUTOR_CANARY_TIMEOUT_S = 10
 _CELERY_ALLOWED_QUEUES = frozenset({"ingestion", "embedding", "indexing", "okf", "memory"})
 
 
@@ -65,6 +99,47 @@ def _parse_celery_concurrency(value: str) -> int:
     return concurrency
 
 
+def run_preflight_startup_hygiene() -> dict[str, int]:
+    """Purge stale temporary files and release dead distributed locks on container boot."""
+    import glob
+
+    cleaned = {"temp_files": 0, "stale_locks": 0}
+    for pattern in ["/tmp/*.pid", "/tmp/*.lock", "/tmp/railway_readiness*.json"]:
+        for p in glob.glob(pattern):
+            try:
+                os.remove(p)
+                cleaned["temp_files"] += 1
+            except Exception:
+                pass
+
+    # If CLEANUP_ON_STARTUP or REBUILD_CLEANUP is requested, clear stale locks in Redis
+    if os.environ.get("CLEANUP_ON_STARTUP", "").lower() in ("1", "true", "yes") or os.environ.get(
+        "REBUILD_CLEANUP", ""
+    ).lower() in ("1", "true", "yes"):
+        try:
+            redis_url = os.environ.get("REDIS_URL")
+            if redis_url:
+                import redis
+
+                r = redis.from_url(redis_url, socket_timeout=3, socket_connect_timeout=3)
+                for lock_pat in ["mukthiguru:lock:*", "maintenance_lock:*", "ingest_lock:*"]:
+                    keys = list(r.scan_iter(match=lock_pat, count=50))
+                    if keys:
+                        r.delete(*keys)
+                        cleaned["stale_locks"] += len(keys)
+                        logger.info(
+                            "Startup hygiene: cleared %d stale locks matching %s",
+                            len(keys),
+                            lock_pat,
+                        )
+        except Exception as exc:
+            logger.warning("Startup hygiene lock clearance non-fatal warning: %s", exc)
+
+    if cleaned["temp_files"] > 0 or cleaned["stale_locks"] > 0:
+        logger.info("Pre-flight startup hygiene complete: %s", cleaned)
+    return cleaned
+
+
 _OK_BODY = b'{"ok":true,"status":"alive"}'
 _OK_HEADERS = [
     (b"content-type", b"application/json"),
@@ -87,8 +162,38 @@ async def _run_heartbeat_pump():
         pass
 
 
+async def _run_executor_canary_pump():
+    """Probe the shared default thread-pool executor for starvation.
+
+    See the P2-OPS-1 comment on `_last_executor_canary` above for why the
+    heartbeat pump alone cannot see this failure mode.
+    """
+    global _last_executor_canary
+    try:
+        while True:
+            try:
+                await asyncio.wait_for(
+                    asyncio.to_thread(lambda: None), timeout=_EXECUTOR_CANARY_TIMEOUT_S
+                )
+                _last_executor_canary = time.monotonic()
+            except asyncio.CancelledError:
+                raise
+            except TimeoutError:
+                logger.warning(
+                    "Executor canary timed out after %ss -- default thread pool "
+                    "may be starved (stuck synchronous calls holding all workers)",
+                    _EXECUTOR_CANARY_TIMEOUT_S,
+                )
+            except Exception:
+                logger.exception("Executor canary probe failed")
+            await asyncio.sleep(_HEARTBEAT_INTERVAL_S)
+    except asyncio.CancelledError:
+        pass
+
+
 async def _run_real_lifespan():
-    global _real_app, _lifespan_startup_done, _last_heartbeat
+    global _real_app, _lifespan_startup_done, _last_heartbeat, _last_executor_canary
+    global _lifespan_failed
 
     def _import_real_app():
         from app.main import app, lifespan
@@ -98,6 +203,7 @@ async def _run_real_lifespan():
     # Initialized BEFORE any await/task creation so the cleanup path can never
     # hit an unbound pump (e.g. when the import above raises).
     pump = None
+    executor_pump = None
     try:
         real_app, real_lifespan = await asyncio.to_thread(_import_real_app)
         _real_app = real_app
@@ -107,23 +213,38 @@ async def _run_real_lifespan():
         # task is cancelled (shutdown) or the event loop wedges, the pump
         # stops and healthz eventually reports 503 post-grace.
         pump = asyncio.create_task(_run_heartbeat_pump())
+        # P2-OPS-1: pump the executor canary alongside it -- catches thread-pool
+        # starvation the event-loop-only heartbeat above cannot see.
+        executor_pump = asyncio.create_task(_run_executor_canary_pump())
 
         async with real_lifespan(real_app):
             _lifespan_startup_done = True
             logger.info("Real app lifespan yielded — fully initialized")
+            import gc
+
+            gc.collect()
+            logger.info("Post-warmup garbage collection complete (memory freed for steady state)")
             await _shutdown_event.wait()
             logger.info("Real lifespan exiting on shutdown event")
     except asyncio.CancelledError:
         logger.warning("Real lifespan task cancelled during startup")
     except BaseException:
+        # F-PROD-1: mark the boot as failed so /api/healthz reports 503 even
+        # inside the grace window. Without this a replica whose lifespan raised
+        # on startup (bad env var, unreachable Qdrant, import error) served 200
+        # for the full _GRACE_SECONDS and Railway marked the deploy healthy.
+        _lifespan_failed = True
         logger.exception("Fatal error in real lifespan")
         raise
     finally:
-        # P1-OPS-5: stop the pump and force the heartbeat stale so post-grace
-        # healthz returns 503 once the lifespan is down.
+        # P1-OPS-5/P2-OPS-1: stop both pumps and force their timestamps stale
+        # so post-grace healthz returns 503 once the lifespan is down.
         if pump is not None:
             pump.cancel()
+        if executor_pump is not None:
+            executor_pump.cancel()
         _last_heartbeat = 0.0
+        _last_executor_canary = 0.0
 
 
 async def _send_http(send, status, headers, body):
@@ -166,18 +287,28 @@ async def app(scope, receive, send):
 
     if path == "/api/healthz":
         within_grace = (time.monotonic() - _process_start) < _GRACE_SECONDS
-        if within_grace:
+        if _lifespan_failed:
+            # F-PROD-1: checked FIRST, ahead of the grace short-circuit below.
+            # A boot that has already raised is never "still starting", and a
+            # grace window that outlives the crash is a healthcheck reporting
+            # 200 through a dead app.
+            healthy = False
+        elif within_grace:
             # During the grace window, 200 unconditionally — Railway must not
             # kill the replica while the real app is still initializing.
             healthy = True
         else:
-            # Post-grace: healthy only if the real lifespan completed AND its
-            # heartbeat pump is fresh. Stale heartbeat means the app degraded
-            # (Qdrant/Redis/LLM down, lifespan exited, event loop wedged) —
-            # surface 503 so Railway restarts the replica instead of serving
-            # dead traffic.
+            # Post-grace: healthy only if the real lifespan completed AND both
+            # the heartbeat AND the executor canary are fresh. Stale heartbeat
+            # means the event loop itself wedged (Qdrant/Redis/LLM down,
+            # lifespan exited); stale executor canary means the loop is fine
+            # but the shared default thread pool is starved (see P2-OPS-1
+            # above) -- the failure mode that left chat hung while healthz
+            # kept serving 200s. Either one surfaces 503 so Railway restarts
+            # the replica instead of serving dead traffic.
             heartbeat_stale = (time.monotonic() - _last_heartbeat) > _HEARTBEAT_STALE_S
-            healthy = _lifespan_startup_done and not heartbeat_stale
+            executor_stale = (time.monotonic() - _last_executor_canary) > _HEARTBEAT_STALE_S
+            healthy = _lifespan_startup_done and not heartbeat_stale and not executor_stale
         if healthy:
             await _send_http(send, 200, _OK_HEADERS, _OK_BODY)
         else:
@@ -192,6 +323,8 @@ async def app(scope, receive, send):
 
 
 if __name__ == "__main__":
+    run_preflight_startup_hygiene()
+
     # A dedicated Beat service schedules durable-memory recovery.
     if os.environ.get("SERVICE_TYPE") == "celery-beat":
         logger.info("Starting Mukthi Guru Celery Beat scheduler")

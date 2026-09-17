@@ -2,6 +2,18 @@
 # AskMukthiGuru loop-engineering validation runner.
 # Runs independent gates, records every result, and continues after failures so
 # one stalled or environment-specific check cannot hide the rest of the matrix.
+#
+# WHY `run_gate` ENDS IN `return 0` (re-audited 2026-09-16, filed twice as a
+# swallowed-exit-code bug and twice wrongly): the per-gate return value is NOT
+# the verdict. Each gate's REAL exit code is written to $SUMMARY, and the awk
+# aggregation at the bottom of this file turns any non-zero row into
+# `LOOP_RESULT=FAIL` + `exit 1`. `return 0` only means "keep running the rest of
+# the matrix". Proven empirically, not by reading: a deliberate `tsc` type error
+# makes frontend_typecheck record 2 and the script exit 1.
+#
+# The two ways this script COULD have reported a false PASS are fixed below:
+# a missing backend virtualenv (5 mandatory gates silently becoming one SKIP
+# row) and an empty summary (zero gates ran).
 set +e
 
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)"
@@ -62,7 +74,11 @@ if [ -x "$PYTHON" ]; then
   run_gate regex_safety "$PYTHON" scripts/security/check_regex_safety.py
   run_gate backend_compile "$PYTHON" -m compileall -q backend/app backend/services backend/ingest
 else
-  printf 'backend_dependencies\tSKIP\tbackend virtualenv unavailable\n' | tee -a "$SUMMARY"
+  # Recorded as a FAILING row, not SKIP: without the virtualenv the five
+  # mandatory backend gates above never ran at all, and "did not run" must
+  # never read as "passed". `backend_full` below is different — that one is
+  # opt-in by design, so its SKIP is honest.
+  printf 'backend_dependencies\t1\tbackend virtualenv unavailable (expected backend/.venv or backend/venv)\n' | tee -a "$SUMMARY"
 fi
 
 if [ "${FULL_BACKEND:-0}" = "1" ] && [ -x "$PYTHON" ]; then
@@ -74,6 +90,11 @@ fi
 printf '\nLoop evidence written to: %s\n' "$OUT_DIR"
 printf '\nGate summary:\n'
 cat "$SUMMARY"
+
+if [ ! -s "$SUMMARY" ]; then
+  echo 'LOOP_RESULT=FAIL (no gate recorded a result — the matrix did not run)'
+  exit 1
+fi
 
 if awk -F '\t' '$2 != 0 && $2 != "SKIP" { bad=1 } END { exit bad }' "$SUMMARY"; then
   echo 'LOOP_RESULT=PASS'

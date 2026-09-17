@@ -23,9 +23,9 @@ import time
 from typing import Any
 
 import httpx
-from supabase import create_client
 
 from app.config import settings
+from supabase import create_client
 
 logger = logging.getLogger(__name__)
 
@@ -380,7 +380,9 @@ class PushService:
 
         host = _apns_host()
 
-        async def _send_one(client: httpx.AsyncClient, device: dict) -> tuple[bool, str | None, str | None]:
+        async def _send_one(
+            client: httpx.AsyncClient, device: dict
+        ) -> tuple[bool, str | None, str | None]:
             tok = device["token"]
             url = f"https://{host}/3/device/{tok}"
             try:
@@ -393,8 +395,10 @@ class PushService:
                 stale = r.status_code == 410 or (
                     r.status_code == 400 and "BadDeviceToken" in body_text
                 )
-                return False, f"apns:{tok}:{r.status_code}:{body_text}", (
-                    device.get("id") if stale else None
+                return (
+                    False,
+                    f"apns:{tok}:{r.status_code}:{body_text}",
+                    (device.get("id") if stale else None),
                 )
             except Exception as e:
                 return False, f"apns:{tok}:{e}", None

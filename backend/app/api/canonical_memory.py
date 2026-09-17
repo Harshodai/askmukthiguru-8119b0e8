@@ -19,8 +19,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Optional
 from uuid import UUID
 
@@ -39,10 +38,14 @@ router = APIRouter(tags=["CanonicalMemory"])
 # Request / response models
 # ---------------------------------------------------------------------------
 
+
 class CanonicalMemoryCreate(BaseModel):
     """Payload for POST /memory/canonical."""
+
     statement: str = Field(
-        ..., min_length=2, max_length=1000,
+        ...,
+        min_length=2,
+        max_length=1000,
         description="Natural-language fact about the user.",
     )
     memory_type: str = Field(
@@ -57,14 +60,17 @@ class CanonicalMemoryCreate(BaseModel):
 
 class CanonicalMemoryUpdate(BaseModel):
     """Payload for PUT /memory/canonical/{id}."""
+
     statement: str = Field(
-        ..., min_length=2, max_length=1000,
+        ...,
+        min_length=2,
+        max_length=1000,
         description="Updated natural-language fact.",
     )
     version: Optional[int] = Field(
         default=None,
         description="Expected version for optimistic concurrency. If omitted, "
-                    "version check is skipped (user-initiated edit).",
+        "version check is skipped (user-initiated edit).",
     )
     # update_canonical_memory reads body.fact_key and writes it into
     # update_fields. Without the field declared here every successful PUT
@@ -76,6 +82,7 @@ class CanonicalMemoryUpdate(BaseModel):
 
 class CanonicalMemoryResponse(BaseModel):
     """Single memory returned by list/detail endpoints."""
+
     id: str
     statement: str
     memory_type: str
@@ -95,6 +102,7 @@ class CanonicalMemoryResponse(BaseModel):
 
 class CanonicalMemoryListResponse(BaseModel):
     """Paginated list of memories."""
+
     memories: list[CanonicalMemoryResponse]
     total: int
     page: int
@@ -103,6 +111,7 @@ class CanonicalMemoryListResponse(BaseModel):
 
 class CanonicalMemoryReasonResponse(BaseModel):
     """Why was a specific memory remembered."""
+
     memory_id: str
     statement: str
     memory_type: str
@@ -118,12 +127,14 @@ class CanonicalMemoryReasonResponse(BaseModel):
 
 class ConsentRequest(BaseModel):
     """Payload for POST /memory/consent."""
+
     granted: bool
     consent_version: str = "memory-v1"
 
 
 class GDPRExportResponse(BaseModel):
     """GDPR data export."""
+
     user_id: str
     exported_at: str
     memories: list[dict[str, Any]]
@@ -136,6 +147,7 @@ class GDPRExportResponse(BaseModel):
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 async def _get_supabase(container: ServiceContainer):
     """Get the Supabase client or raise 501."""
     client = getattr(container, "supabase_client", None)
@@ -146,6 +158,7 @@ async def _get_supabase(container: ServiceContainer):
 
 def _row_to_response(row: dict) -> CanonicalMemoryResponse:
     """Convert a Supabase row dict to the API response model."""
+
     def _iso(val: Any) -> str:
         if val is None:
             return ""
@@ -261,23 +274,30 @@ async def list_canonical_memories(
 
         if memory_type:
             valid_types = {
-                "PROFILE", "PREFERENCE", "COMMUNICATION_STYLE", "GOAL",
-                "PROJECT", "INTEREST", "RELATIONSHIP", "USER_EXPLICIT",
-                "TEMPORARY_CONTEXT", "REFLECTION",
+                "PROFILE",
+                "PREFERENCE",
+                "COMMUNICATION_STYLE",
+                "GOAL",
+                "PROJECT",
+                "INTEREST",
+                "RELATIONSHIP",
+                "USER_EXPLICIT",
+                "TEMPORARY_CONTEXT",
+                "REFLECTION",
             }
             if memory_type.upper() not in valid_types:
                 raise HTTPException(
                     status_code=400,
                     detail=f"Invalid memory_type: {memory_type}. "
-                           f"Valid: {', '.join(sorted(valid_types))}",
+                    f"Valid: {', '.join(sorted(valid_types))}",
                 )
             query = query.eq("memory_type", memory_type.upper())
 
         offset = (page - 1) * page_size
         result = await asyncio.to_thread(
-            lambda: query.order("updated_at", desc=True)
-            .range(offset, offset + page_size - 1)
-            .execute()
+            lambda: (
+                query.order("updated_at", desc=True).range(offset, offset + page_size - 1).execute()
+            )
         )
 
         rows = getattr(result, "data", None) or []
@@ -292,7 +312,7 @@ async def list_canonical_memories(
         )
     except HTTPException:
         raise
-    except Exception as exc:
+    except Exception:
         logger.exception("Failed to list canonical memories for user %s", user_id)
         raise HTTPException(status_code=500, detail="Failed to retrieve memories")
 
@@ -300,6 +320,7 @@ async def list_canonical_memories(
 # ---------------------------------------------------------------------------
 # POST /memory/canonical — add explicit memory
 # ---------------------------------------------------------------------------
+
 
 @router.post("/memory/canonical", response_model=CanonicalMemoryResponse, status_code=201)
 async def create_canonical_memory(
@@ -316,16 +337,23 @@ async def create_canonical_memory(
     user_id = user["id"]
 
     valid_types = {
-        "PROFILE", "PREFERENCE", "COMMUNICATION_STYLE", "GOAL",
-        "PROJECT", "INTEREST", "RELATIONSHIP", "USER_EXPLICIT",
-        "TEMPORARY_CONTEXT", "REFLECTION",
+        "PROFILE",
+        "PREFERENCE",
+        "COMMUNICATION_STYLE",
+        "GOAL",
+        "PROJECT",
+        "INTEREST",
+        "RELATIONSHIP",
+        "USER_EXPLICIT",
+        "TEMPORARY_CONTEXT",
+        "REFLECTION",
     }
     mt = body.memory_type.upper()
     if mt not in valid_types:
         raise HTTPException(
             status_code=400,
             detail=f"Invalid memory_type: {body.memory_type}. "
-                   f"Valid: {', '.join(sorted(valid_types))}",
+            f"Valid: {', '.join(sorted(valid_types))}",
         )
 
     valid_sensitivities = {"normal", "sensitive", "highly_sensitive"}
@@ -333,10 +361,10 @@ async def create_canonical_memory(
         raise HTTPException(
             status_code=400,
             detail=f"Invalid sensitivity: {body.sensitivity}. "
-                   f"Valid: {', '.join(sorted(valid_sensitivities))}",
+            f"Valid: {', '.join(sorted(valid_sensitivities))}",
         )
 
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     statement = body.statement.strip()
     normalized = statement.lower()
 
@@ -387,7 +415,7 @@ async def create_canonical_memory(
         return _row_to_response(created_row)
     except HTTPException:
         raise
-    except Exception as exc:
+    except Exception:
         logger.exception("Failed to create canonical memory for user %s", user_id)
         raise HTTPException(status_code=500, detail="Failed to save memory")
 
@@ -395,6 +423,7 @@ async def create_canonical_memory(
 # ---------------------------------------------------------------------------
 # PUT /memory/canonical/{id} — edit memory
 # ---------------------------------------------------------------------------
+
 
 @router.put("/memory/canonical/{memory_id}", response_model=CanonicalMemoryResponse)
 async def update_canonical_memory(
@@ -413,7 +442,7 @@ async def update_canonical_memory(
 
     statement = body.statement.strip()
     normalized = statement.lower()
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     try:
         # Fetch existing to verify ownership and optionally check version
@@ -434,8 +463,7 @@ async def update_canonical_memory(
         if body.version is not None and row.get("version") != body.version:
             raise HTTPException(
                 status_code=409,
-                detail="Memory was modified by another process. "
-                       "Please refresh and try again.",
+                detail="Memory was modified by another process. Please refresh and try again.",
             )
 
         new_version = row.get("version", 1) + 1
@@ -449,7 +477,7 @@ async def update_canonical_memory(
             update_fields["fact_key"] = body.fact_key
 
         # Apply update
-        result = await asyncio.to_thread(
+        _result = await asyncio.to_thread(
             lambda: (
                 db.table("canonical_memories")
                 .update(update_fields)
@@ -467,7 +495,7 @@ async def update_canonical_memory(
             "actor": "user",
             "old_version": row.get("version", 1),
             "new_version": new_version,
-            "reason": f"User edited memory via API",
+            "reason": "User edited memory via API",
             "created_at": now,
         }
         await asyncio.to_thread(
@@ -497,7 +525,7 @@ async def update_canonical_memory(
         return _row_to_response(updated_row)
     except HTTPException:
         raise
-    except Exception as exc:
+    except Exception:
         logger.exception("Failed to update canonical memory %s", memory_id)
         raise HTTPException(status_code=500, detail="Failed to update memory")
 
@@ -505,6 +533,7 @@ async def update_canonical_memory(
 # ---------------------------------------------------------------------------
 # DELETE /memory/canonical/{id} — forget specific memory
 # ---------------------------------------------------------------------------
+
 
 @router.delete("/memory/canonical/{memory_id}")
 async def delete_canonical_memory(
@@ -520,7 +549,7 @@ async def delete_canonical_memory(
     user_id = user["id"]
     memory_id = _validate_uuid(memory_id, "memory_id")
 
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     try:
         # Verify ownership
@@ -543,11 +572,13 @@ async def delete_canonical_memory(
         await asyncio.to_thread(
             lambda: (
                 db.table("canonical_memories")
-                .update({
-                    "status": "deleted",
-                    "updated_at": now,
-                    "version": new_version,
-                })
+                .update(
+                    {
+                        "status": "deleted",
+                        "updated_at": now,
+                        "version": new_version,
+                    }
+                )
                 .eq("id", memory_id)
                 .eq("user_id", user_id)
                 .execute()
@@ -575,7 +606,7 @@ async def delete_canonical_memory(
         return {"status": "ok", "message": "Memory forgotten", "memory_id": memory_id}
     except HTTPException:
         raise
-    except Exception as exc:
+    except Exception:
         logger.exception("Failed to delete canonical memory %s", memory_id)
         raise HTTPException(status_code=500, detail="Failed to forget memory")
 
@@ -583,6 +614,7 @@ async def delete_canonical_memory(
 # ---------------------------------------------------------------------------
 # DELETE /memory/canonical — forget all memories
 # ---------------------------------------------------------------------------
+
 
 @router.delete("/memory/canonical")
 async def delete_all_canonical_memories(
@@ -598,7 +630,7 @@ async def delete_all_canonical_memories(
     """
     db = await _get_supabase(container)
     user_id = user["id"]
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     deleted_count = 0
     failures: list[str] = []
@@ -606,12 +638,7 @@ async def delete_all_canonical_memories(
     # 1. Delete from canonical_memories
     try:
         result = await asyncio.to_thread(
-            lambda: (
-                db.table("canonical_memories")
-                .delete()
-                .eq("user_id", user_id)
-                .execute()
-            )
+            lambda: db.table("canonical_memories").delete().eq("user_id", user_id).execute()
         )
         rows = getattr(result, "data", None) or []
         deleted_count = len(rows)
@@ -627,12 +654,12 @@ async def delete_all_canonical_memories(
             if qdrant is not None:
                 from qdrant_client.http import models as qm
 
-                collection = getattr(memory_service, "_memory_collection", "canonical_memory_vectors")
+                collection = getattr(
+                    memory_service, "_memory_collection", "canonical_memory_vectors"
+                )
                 selector = qm.Filter(
                     must=[
-                        qm.FieldCondition(
-                            key="user_id", match=qm.MatchValue(value=user_id)
-                        ),
+                        qm.FieldCondition(key="user_id", match=qm.MatchValue(value=user_id)),
                     ]
                 )
                 await asyncio.to_thread(
@@ -673,6 +700,7 @@ async def delete_all_canonical_memories(
 # GET /memory/canonical/reasons — why was this remembered?
 # ---------------------------------------------------------------------------
 
+
 @router.get("/memory/canonical/reasons", response_model=list[CanonicalMemoryReasonResponse])
 async def get_memory_reasons(
     limit: int = Query(20, ge=1, le=100),
@@ -711,34 +739,38 @@ async def get_memory_reasons(
             if isinstance(meta, str):
                 try:
                     import json as _json
+
                     meta = _json.loads(meta)
                 except Exception:
                     meta = {}
 
-            reasons.append(CanonicalMemoryReasonResponse(
-                memory_id=str(row.get("id", "")),
-                statement=row.get("statement", ""),
-                memory_type=row.get("memory_type", ""),
-                confidence=float(row.get("confidence", 0.75)),
-                extraction_method=row.get("extraction_method", "llm"),
-                evidence=meta.get("evidence"),
-                source_conversation_id=row.get("source_conversation_id"),
-                source_turn_index=row.get("source_turn_index"),
-                created_at=(
-                    row.get("created_at").isoformat()
-                    if hasattr(row.get("created_at", ""), "isoformat")
-                    else str(row.get("created_at", ""))
-                ),
-                last_confirmed_at=(
-                    row.get("last_confirmed_at").isoformat()
-                    if row.get("last_confirmed_at") and hasattr(row.get("last_confirmed_at"), "isoformat")
-                    else None
-                ),
-                evidence_count=int(row.get("evidence_count", 1)),
-            ))
+            reasons.append(
+                CanonicalMemoryReasonResponse(
+                    memory_id=str(row.get("id", "")),
+                    statement=row.get("statement", ""),
+                    memory_type=row.get("memory_type", ""),
+                    confidence=float(row.get("confidence", 0.75)),
+                    extraction_method=row.get("extraction_method", "llm"),
+                    evidence=meta.get("evidence"),
+                    source_conversation_id=row.get("source_conversation_id"),
+                    source_turn_index=row.get("source_turn_index"),
+                    created_at=(
+                        row.get("created_at").isoformat()
+                        if hasattr(row.get("created_at", ""), "isoformat")
+                        else str(row.get("created_at", ""))
+                    ),
+                    last_confirmed_at=(
+                        row.get("last_confirmed_at").isoformat()
+                        if row.get("last_confirmed_at")
+                        and hasattr(row.get("last_confirmed_at"), "isoformat")
+                        else None
+                    ),
+                    evidence_count=int(row.get("evidence_count", 1)),
+                )
+            )
 
         return reasons
-    except Exception as exc:
+    except Exception:
         logger.exception("Failed to retrieve memory reasons for user %s", user_id)
         raise HTTPException(status_code=500, detail="Failed to retrieve memory reasons")
 
@@ -746,6 +778,7 @@ async def get_memory_reasons(
 # ---------------------------------------------------------------------------
 # POST /memory/consent — manage consent
 # ---------------------------------------------------------------------------
+
 
 @router.post("/memory/consent")
 async def manage_canonical_consent(
@@ -791,7 +824,7 @@ async def manage_canonical_consent(
             granted=body.granted,
             consent_version=body.consent_version,
         )
-    except Exception as exc:
+    except Exception:
         logger.exception("Failed to record consent for user %s", user["id"])
         raise HTTPException(status_code=500, detail="Failed to record consent")
 
@@ -799,7 +832,8 @@ async def manage_canonical_consent(
     if not body.granted:
         try:
             pending_deleted = await outbox.delete_user_rows(
-                user_id=user["id"], tenant_id=tenant_id,
+                user_id=user["id"],
+                tenant_id=tenant_id,
             )
         except Exception as exc:
             logger.warning("Failed to purge outbox on consent revoke: %s", exc)
@@ -816,6 +850,7 @@ async def manage_canonical_consent(
 # GET /memory/export — GDPR export
 # ---------------------------------------------------------------------------
 
+
 @router.get("/memory/export", response_model=GDPRExportResponse)
 async def export_canonical_memories(
     user: dict = Depends(get_current_user_from_supabase),
@@ -827,7 +862,7 @@ async def export_canonical_memories(
     """
     db = await _get_supabase(container)
     user_id = user["id"]
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     try:
         # 1. All memories (any status)
@@ -897,7 +932,7 @@ async def export_canonical_memories(
             audit_events=[_sanitize_event(e) for e in events],
             total_memories=len(memories),
         )
-    except Exception as exc:
+    except Exception:
         logger.exception("GDPR export failed for user %s", user_id)
         raise HTTPException(status_code=500, detail="Export failed")
 

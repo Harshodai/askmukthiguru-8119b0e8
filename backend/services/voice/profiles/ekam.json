@@ -1,0 +1,50 @@
+{
+  "teacher_id": "ekam",
+  "mean": {
+    "second_person_rate": 6.835514983806759,
+    "first_person_rate": 2.1969866798747284,
+    "impersonal_rate": 0.11549764889244875,
+    "nominalization_rate": 3.6455652034217554,
+    "hedge_rate": 0.09679971872553125,
+    "markdown_rate": 0.0,
+    "negative_parallelism_rate": 0.04959975988623401,
+    "ai_lexicon_rate": 0.04021568942094531,
+    "announcement_colon_rate": 0.0,
+    "em_dash_rate": 0.011642709774933108,
+    "question_rate": 9.140255935285253,
+    "median_sentence_len": 14.76923076923077,
+    "sentence_len_stdev": 8.954985570951221,
+    "mid_band_fraction": 0.4194589814247439
+  },
+  "stdev": {
+    "second_person_rate": 3.490945213745708,
+    "first_person_rate": 2.60252514935544,
+    "impersonal_rate": 0.41374053023425483,
+    "nominalization_rate": 2.64508674590414,
+    "hedge_rate": 0.34679639745736673,
+    "markdown_rate": 0.0,
+    "negative_parallelism_rate": 0.22088217625501627,
+    "ai_lexicon_rate": 0.19424626106483844,
+    "announcement_colon_rate": 0.0,
+    "em_dash_rate": 0.09247462806825868,
+    "question_rate": 15.637726414991658,
+    "median_sentence_len": 5.568698774362262,
+    "sentence_len_stdev": 4.14336754249061,
+    "mid_band_fraction": 0.1892186457710005
+  },
+  "provenance": {
+    "source_collection": "spiritual_wisdom_contextual",
+    "teacher_filter": "teacher_id=ekam",
+    "verbatim_criteria": "provenance in ['transcript', 'verbatim', 'verbatim_speech'] if stamped, else raptor_level=0 and >=60 words and >=3 sentences and >=2 second-person pronouns",
+    "sample_count": 377,
+    "built_at": "2026-09-15T13:00:44+00:00",
+    "validation": {
+      "human_median": 0.43329250888344334,
+      "machine_median": 1.7334656338118133,
+      "auc": 0.9757057889927377,
+      "separates": 1.0,
+      "n_human": 95.0,
+      "n_machine": 3283.0
+    }
+  }
+}

@@ -9,25 +9,22 @@ Run: cd backend && .venv/bin/pytest tests/test_canonical_memory_consolidation.py
 
 from __future__ import annotations
 
-import json
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from services.canonical_memory.consolidator import (
-    CanonicalMemoryConsolidator,
     ConsolidationCandidate,
-    ConsolidationResult,
     create_consolidator,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _uid() -> str:
     return str(uuid.uuid4())
@@ -53,11 +50,11 @@ def _make_memory_row(**overrides: Any) -> dict:
         "evidence_count": 1,
         "embedding_id": None,
         "metadata": {},
-        "created_at": datetime.now(timezone.utc).isoformat(),
-        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
+        "updated_at": datetime.now(UTC).isoformat(),
         "last_used_at": None,
         "last_confirmed_at": None,
-        "valid_from": datetime.now(timezone.utc).isoformat(),
+        "valid_from": datetime.now(UTC).isoformat(),
         "valid_to": None,
         "expires_at": None,
         "version": 1,
@@ -130,6 +127,7 @@ def _make_llm_service(merge_result: str | None = None) -> MagicMock:
 # 1. should_consolidate
 # ---------------------------------------------------------------------------
 
+
 class TestShouldConsolidate:
     @pytest.mark.asyncio
     async def test_below_threshold_returns_false(self):
@@ -183,6 +181,7 @@ class TestShouldConsolidate:
 # ---------------------------------------------------------------------------
 # 2. consolidate — below threshold
 # ---------------------------------------------------------------------------
+
 
 class TestConsolidateBelowThreshold:
     @pytest.mark.asyncio
@@ -271,6 +270,7 @@ class TestConsolidateBelowThreshold:
 # 3. consolidate — same fact_key candidates
 # ---------------------------------------------------------------------------
 
+
 class TestConsolidateFactKeyCandidates:
     @pytest.mark.asyncio
     async def test_same_fact_key_identified(self):
@@ -328,8 +328,12 @@ class TestConsolidateFactKeyCandidates:
         consolidator = create_consolidator(supabase, llm, threshold=1)
 
         # Mock the apply step
-        with patch.object(consolidator, "_create_snapshot", new_callable=AsyncMock, return_value="snap-1"):
-            with patch.object(consolidator, "_apply_consolidation", new_callable=AsyncMock) as mock_apply:
+        with patch.object(
+            consolidator, "_create_snapshot", new_callable=AsyncMock, return_value="snap-1"
+        ):
+            with patch.object(
+                consolidator, "_apply_consolidation", new_callable=AsyncMock
+            ) as mock_apply:
                 mock_apply.return_value = {
                     "superseded_ids": ["mem-1", "mem-2"],
                     "created_ids": ["mem-new-1"],
@@ -346,6 +350,7 @@ class TestConsolidateFactKeyCandidates:
 # ---------------------------------------------------------------------------
 # 4. consolidate — dry run
 # ---------------------------------------------------------------------------
+
 
 class TestConsolidateDryRun:
     @pytest.mark.asyncio
@@ -411,6 +416,7 @@ class TestConsolidateDryRun:
 # 5. validation — too many memories
 # ---------------------------------------------------------------------------
 
+
 class TestConsolidateValidation:
     @pytest.mark.asyncio
     async def test_rejects_consolidating_more_than_50_percent(self):
@@ -448,6 +454,7 @@ class TestConsolidateValidation:
 # 6. LLM merge
 # ---------------------------------------------------------------------------
 
+
 class TestLLMMerge:
     @pytest.mark.asyncio
     async def test_llm_merge_called(self):
@@ -462,8 +469,22 @@ class TestLLMMerge:
             )
         ]
         memories = [
-            {"id": "a", "statement": "User prefers concise answers", "confidence": 0.8, "importance": 0.6, "memory_type": "PREFERENCE", "fact_key": "prefers_tone"},
-            {"id": "b", "statement": "User wants brief responses", "confidence": 0.7, "importance": 0.5, "memory_type": "PREFERENCE", "fact_key": "prefers_tone"},
+            {
+                "id": "a",
+                "statement": "User prefers concise answers",
+                "confidence": 0.8,
+                "importance": 0.6,
+                "memory_type": "PREFERENCE",
+                "fact_key": "prefers_tone",
+            },
+            {
+                "id": "b",
+                "statement": "User wants brief responses",
+                "confidence": 0.7,
+                "importance": 0.5,
+                "memory_type": "PREFERENCE",
+                "fact_key": "prefers_tone",
+            },
         ]
 
         result = await consolidator._llm_merge(candidates, memories)
@@ -484,8 +505,22 @@ class TestLLMMerge:
             )
         ]
         memories = [
-            {"id": "a", "statement": "User prefers concise answers", "confidence": 0.8, "importance": 0.6, "memory_type": "PREFERENCE", "fact_key": "prefers_tone"},
-            {"id": "b", "statement": "User wants brief responses", "confidence": 0.7, "importance": 0.5, "memory_type": "PREFERENCE", "fact_key": "prefers_tone"},
+            {
+                "id": "a",
+                "statement": "User prefers concise answers",
+                "confidence": 0.8,
+                "importance": 0.6,
+                "memory_type": "PREFERENCE",
+                "fact_key": "prefers_tone",
+            },
+            {
+                "id": "b",
+                "statement": "User wants brief responses",
+                "confidence": 0.7,
+                "importance": 0.5,
+                "memory_type": "PREFERENCE",
+                "fact_key": "prefers_tone",
+            },
         ]
 
         result = await consolidator._llm_merge(candidates, memories)
@@ -499,23 +534,28 @@ class TestLLMMerge:
 # 7. simple_merge
 # ---------------------------------------------------------------------------
 
+
 class TestSimpleMerge:
     def test_deduplicates_identical(self):
         """Identical statements produce single statement."""
         consolidator = create_consolidator(MagicMock(), MagicMock())
-        result = consolidator._simple_merge([
-            "User prefers concise answers",
-            "User prefers concise answers",
-        ])
+        result = consolidator._simple_merge(
+            [
+                "User prefers concise answers",
+                "User prefers concise answers",
+            ]
+        )
         assert result == "User prefers concise answers"
 
     def test_combines_different(self):
         """Different statements are combined."""
         consolidator = create_consolidator(MagicMock(), MagicMock())
-        result = consolidator._simple_merge([
-            "User prefers concise answers",
-            "User wants brief responses",
-        ])
+        result = consolidator._simple_merge(
+            [
+                "User prefers concise answers",
+                "User wants brief responses",
+            ]
+        )
         assert "concise" in result
         assert "brief" in result
 
@@ -529,6 +569,7 @@ class TestSimpleMerge:
 # ---------------------------------------------------------------------------
 # 8. keyword extraction and overlap
 # ---------------------------------------------------------------------------
+
 
 class TestKeywordOverlap:
     def test_identical_keywords(self):
@@ -560,21 +601,38 @@ class TestKeywordOverlap:
 # 9. candidate identification
 # ---------------------------------------------------------------------------
 
+
 class TestIdentifyCandidates:
     def test_same_fact_key_grouped(self):
         """Memories with same fact_key are grouped."""
         consolidator = create_consolidator(MagicMock(), MagicMock())
         memories = [
-            {"id": "a", "statement": "Concise answers", "fact_key": "tone", "memory_type": "PREFERENCE", "importance": 0.5},
-            {"id": "b", "statement": "Brief responses", "fact_key": "tone", "memory_type": "PREFERENCE", "importance": 0.5},
-            {"id": "c", "statement": "Lives in Mumbai", "fact_key": "location", "memory_type": "PROFILE", "importance": 0.8},
+            {
+                "id": "a",
+                "statement": "Concise answers",
+                "fact_key": "tone",
+                "memory_type": "PREFERENCE",
+                "importance": 0.5,
+            },
+            {
+                "id": "b",
+                "statement": "Brief responses",
+                "fact_key": "tone",
+                "memory_type": "PREFERENCE",
+                "importance": 0.5,
+            },
+            {
+                "id": "c",
+                "statement": "Lives in Mumbai",
+                "fact_key": "location",
+                "memory_type": "PROFILE",
+                "importance": 0.8,
+            },
         ]
         candidates = consolidator._identify_candidates(memories)
         assert len(candidates) >= 1
         # The tone group should be a candidate
-        tone_candidate = next(
-            (c for c in candidates if "tone" in c.reason), None
-        )
+        tone_candidate = next((c for c in candidates if "tone" in c.reason), None)
         assert tone_candidate is not None
         assert set(tone_candidate.memory_ids) == {"a", "b"}
 
@@ -582,9 +640,27 @@ class TestIdentifyCandidates:
         """Diverse, non-overlapping memories produce no candidates."""
         consolidator = create_consolidator(MagicMock(), MagicMock())
         memories = [
-            {"id": "a", "statement": "Lives in Mumbai", "fact_key": "lives_in", "memory_type": "PROFILE", "importance": 0.8},
-            {"id": "b", "statement": "Prefers Hindi", "fact_key": "prefers_language", "memory_type": "PREFERENCE", "importance": 0.6},
-            {"id": "c", "statement": "Interested in meditation", "fact_key": None, "memory_type": "INTEREST", "importance": 0.5},
+            {
+                "id": "a",
+                "statement": "Lives in Mumbai",
+                "fact_key": "lives_in",
+                "memory_type": "PROFILE",
+                "importance": 0.8,
+            },
+            {
+                "id": "b",
+                "statement": "Prefers Hindi",
+                "fact_key": "prefers_language",
+                "memory_type": "PREFERENCE",
+                "importance": 0.6,
+            },
+            {
+                "id": "c",
+                "statement": "Interested in meditation",
+                "fact_key": None,
+                "memory_type": "INTEREST",
+                "importance": 0.5,
+            },
         ]
         candidates = consolidator._identify_candidates(memories)
         assert len(candidates) == 0
@@ -594,11 +670,14 @@ class TestIdentifyCandidates:
 # 10. validation
 # ---------------------------------------------------------------------------
 
+
 class TestValidatePreservation:
     def test_valid_when_under_50_percent(self):
         """Consolidation under 50% passes validation."""
         consolidator = create_consolidator(MagicMock(), MagicMock())
-        memories = [{"id": f"m{i}", "importance": 0.5, "memory_type": "PREFERENCE"} for i in range(10)]
+        memories = [
+            {"id": f"m{i}", "importance": 0.5, "memory_type": "PREFERENCE"} for i in range(10)
+        ]
         candidates = [ConsolidationCandidate(memory_ids=["m0", "m1"], reason="test")]
         result = consolidator._validate_preservation(memories, candidates)
         assert result["valid"] is True
@@ -606,7 +685,9 @@ class TestValidatePreservation:
     def test_invalid_when_over_50_percent(self):
         """Consolidation over 50% fails validation."""
         consolidator = create_consolidator(MagicMock(), MagicMock())
-        memories = [{"id": f"m{i}", "importance": 0.5, "memory_type": "PREFERENCE"} for i in range(10)]
+        memories = [
+            {"id": f"m{i}", "importance": 0.5, "memory_type": "PREFERENCE"} for i in range(10)
+        ]
         # 6 out of 10 = 60% > 50%
         candidates = [ConsolidationCandidate(memory_ids=[f"m{i}" for i in range(6)], reason="test")]
         result = consolidator._validate_preservation(memories, candidates)
@@ -617,6 +698,7 @@ class TestValidatePreservation:
 # ---------------------------------------------------------------------------
 # 11. rollback
 # ---------------------------------------------------------------------------
+
 
 class TestRollback:
     @pytest.mark.asyncio
@@ -639,21 +721,42 @@ class TestRollback:
 # 12. audit events
 # ---------------------------------------------------------------------------
 
+
 class TestAuditEvents:
     @pytest.mark.asyncio
     async def test_consolidation_creates_audit_events(self):
         """Consolidation creates MERGED and SUPERSEDED audit events."""
         memories = [
-            _make_memory_row(id="mem-1", fact_key="tone", memory_type="PREFERENCE",
-                             statement="User prefers concise answers"),
-            _make_memory_row(id="mem-2", fact_key="tone", memory_type="PREFERENCE",
-                             statement="User wants brief responses"),
-            _make_memory_row(id="mem-3", fact_key="location", memory_type="PROFILE",
-                             statement="User lives in Mumbai"),
-            _make_memory_row(id="mem-4", fact_key="hobby", memory_type="INTEREST",
-                             statement="User practices yoga"),
-            _make_memory_row(id="mem-5", fact_key="goal", memory_type="GOAL",
-                             statement="User wants to learn meditation"),
+            _make_memory_row(
+                id="mem-1",
+                fact_key="tone",
+                memory_type="PREFERENCE",
+                statement="User prefers concise answers",
+            ),
+            _make_memory_row(
+                id="mem-2",
+                fact_key="tone",
+                memory_type="PREFERENCE",
+                statement="User wants brief responses",
+            ),
+            _make_memory_row(
+                id="mem-3",
+                fact_key="location",
+                memory_type="PROFILE",
+                statement="User lives in Mumbai",
+            ),
+            _make_memory_row(
+                id="mem-4",
+                fact_key="hobby",
+                memory_type="INTEREST",
+                statement="User practices yoga",
+            ),
+            _make_memory_row(
+                id="mem-5",
+                fact_key="goal",
+                memory_type="GOAL",
+                statement="User wants to learn meditation",
+            ),
         ]
         supabase = MagicMock()
         table_mock = MagicMock()
@@ -670,8 +773,12 @@ class TestAuditEvents:
         llm = _make_llm_service(merge_result="User prefers concise, brief responses")
         consolidator = create_consolidator(supabase, llm, threshold=1)
 
-        with patch.object(consolidator, "_create_snapshot", new_callable=AsyncMock, return_value="snap-1"):
-            with patch.object(consolidator, "_apply_consolidation", new_callable=AsyncMock) as mock_apply:
+        with patch.object(
+            consolidator, "_create_snapshot", new_callable=AsyncMock, return_value="snap-1"
+        ):
+            with patch.object(
+                consolidator, "_apply_consolidation", new_callable=AsyncMock
+            ) as mock_apply:
                 mock_apply.return_value = {
                     "superseded_ids": ["mem-1", "mem-2"],
                     "created_ids": ["mem-new"],
@@ -687,6 +794,7 @@ class TestAuditEvents:
 # ---------------------------------------------------------------------------
 # 13. factory
 # ---------------------------------------------------------------------------
+
 
 class TestFactory:
     def test_create_consolidator(self):
@@ -707,6 +815,7 @@ class TestFactory:
 # ---------------------------------------------------------------------------
 # 14. error handling
 # ---------------------------------------------------------------------------
+
 
 class TestErrorHandling:
     @pytest.mark.asyncio
@@ -731,16 +840,36 @@ class TestErrorHandling:
     async def test_apply_partial_failure_continues(self):
         """Partial failures during apply don't abort the entire operation."""
         memories = [
-            _make_memory_row(id="mem-1", fact_key="tone", memory_type="PREFERENCE",
-                             statement="User prefers concise answers"),
-            _make_memory_row(id="mem-2", fact_key="tone", memory_type="PREFERENCE",
-                             statement="User wants brief responses"),
-            _make_memory_row(id="mem-3", fact_key="location", memory_type="PROFILE",
-                             statement="User lives in Mumbai"),
-            _make_memory_row(id="mem-4", fact_key="hobby", memory_type="INTEREST",
-                             statement="User practices yoga"),
-            _make_memory_row(id="mem-5", fact_key="goal", memory_type="GOAL",
-                             statement="User wants to learn meditation"),
+            _make_memory_row(
+                id="mem-1",
+                fact_key="tone",
+                memory_type="PREFERENCE",
+                statement="User prefers concise answers",
+            ),
+            _make_memory_row(
+                id="mem-2",
+                fact_key="tone",
+                memory_type="PREFERENCE",
+                statement="User wants brief responses",
+            ),
+            _make_memory_row(
+                id="mem-3",
+                fact_key="location",
+                memory_type="PROFILE",
+                statement="User lives in Mumbai",
+            ),
+            _make_memory_row(
+                id="mem-4",
+                fact_key="hobby",
+                memory_type="INTEREST",
+                statement="User practices yoga",
+            ),
+            _make_memory_row(
+                id="mem-5",
+                fact_key="goal",
+                memory_type="GOAL",
+                statement="User wants to learn meditation",
+            ),
         ]
         supabase = MagicMock()
         table_mock = MagicMock()
@@ -765,8 +894,15 @@ class TestErrorHandling:
                 "audit_event_ids": ["evt-1"],
             }
 
-        with patch.object(consolidator, "_create_snapshot", new_callable=AsyncMock, return_value="snap-1"):
-            with patch.object(consolidator, "_apply_consolidation", new_callable=AsyncMock, side_effect=_partial_apply):
+        with patch.object(
+            consolidator, "_create_snapshot", new_callable=AsyncMock, return_value="snap-1"
+        ):
+            with patch.object(
+                consolidator,
+                "_apply_consolidation",
+                new_callable=AsyncMock,
+                side_effect=_partial_apply,
+            ):
                 result = await consolidator.consolidate("user-1")
 
         # Should still report what succeeded
@@ -778,6 +914,7 @@ if __name__ == "__main__":
     print("Running self-check...")
     # Quick smoke test
     from unittest.mock import MagicMock
+
     supabase = MagicMock()
     llm = MagicMock()
     consolidator = create_consolidator(supabase, llm)

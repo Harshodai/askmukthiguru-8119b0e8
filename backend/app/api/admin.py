@@ -37,6 +37,11 @@ from app.telemetry_db import (
     get_ragas_heatmap,
     get_recent_traces,
     get_retrieval_health,
+    get_routing_confidence_heatmap,
+    get_routing_distribution,
+    get_routing_layer_stats,
+    get_routing_tier_distribution,
+    get_routing_timeseries,
     get_safety_events,
     get_similarity_trend,
     get_timeseries_data,
@@ -44,13 +49,6 @@ from app.telemetry_db import (
     get_topic_clusters,
     get_trigger_events,
     get_trigger_trend,
-)
-from app.telemetry_db import (
-    get_routing_distribution,
-    get_routing_tier_distribution,
-    get_routing_timeseries,
-    get_routing_layer_stats,
-    get_routing_confidence_heatmap,
 )
 from celery_config import celery_app
 from schemas.feedback import FeedbackResponse
@@ -1207,7 +1205,7 @@ async def list_ontology_review_queue(
                 clauses = ["true"]
             query = f"""
                 MATCH (s:base)-[r]->(o:base)
-                WHERE {' AND '.join(clauses)}
+                WHERE {" AND ".join(clauses)}
                 RETURN elementId(r) AS relationship_id,
                        s.entity_id AS subject_id,
                        s.name AS subject,
@@ -1414,7 +1412,7 @@ async def list_okf_review_queue(
     still bypasses review by design; this endpoint covers the default
     ``auto_approve=False`` path.
     """
-    from services.memory.okf_store import STAGING_DIR, RESERVED_FILENAMES, _parse_frontmatter
+    from services.memory.okf_store import RESERVED_FILENAMES, STAGING_DIR, _parse_frontmatter
 
     base = STAGING_DIR / "_rejected" if status == "rejected" else STAGING_DIR
     if not base.exists():
@@ -1456,7 +1454,7 @@ async def approve_okf_entry(
     and recompile the index (Admin only)."""
     import shutil
 
-    from services.memory.okf_store import STAGING_DIR, OKF_DIR
+    from services.memory.okf_store import OKF_DIR, STAGING_DIR
 
     filename = _safe_staging_filename(review_id)
     source_path = STAGING_DIR / filename
@@ -2005,6 +2003,7 @@ def _source_release_readiness() -> dict[str, Any]:
 
 # ---- Routing Analytics Endpoints ----
 
+
 @admin_router.get("/routing/distribution")
 async def routing_distribution(
     hours: int = Query(24, ge=1, le=720),
@@ -2064,7 +2063,9 @@ async def observability_summary(
     runtime, cache, and circuit breaker systems."""
     from app.unified_observability import get_observability_summary
 
-    summary = await get_observability_summary(cost_tracker=container.cost_tracker, container=container)
+    summary = await get_observability_summary(
+        cost_tracker=container.cost_tracker, container=container
+    )
     return summary.to_dict()
 
 
@@ -2078,13 +2079,15 @@ async def observability_health_check(
 
     summary = await get_observability_summary(container=container)
     return {
-        "healthy": all([
-            summary.qdrant_healthy,
-            summary.redis_healthy,
-            summary.neo4j_healthy,
-            summary.circuit_breaker_state != "open",
-            summary.process_rss_mb < settings.health_check_max_process_rss_mb,
-        ]),
+        "healthy": all(
+            [
+                summary.qdrant_healthy,
+                summary.redis_healthy,
+                summary.neo4j_healthy,
+                summary.circuit_breaker_state != "open",
+                summary.process_rss_mb < settings.health_check_max_process_rss_mb,
+            ]
+        ),
         "qdrant": summary.qdrant_healthy,
         "redis": summary.redis_healthy,
         "neo4j": summary.neo4j_healthy,
@@ -2145,11 +2148,13 @@ async def triage_staging_entries(
             entry = {"title": title, "body": body}
             score = score_staged_entry(entry)
             tier = "high" if score > 0.7 else "medium" if score > 0.4 else "low"
-            results[tier].append({
-                "path": str(entry_file.relative_to(staging_dir)),
-                "title": title,
-                "score": round(score, 3),
-            })
+            results[tier].append(
+                {
+                    "path": str(entry_file.relative_to(staging_dir)),
+                    "title": title,
+                    "score": round(score, 3),
+                }
+            )
         except Exception as exc:
             logger.warning("Failed to score %s: %s", entry_file, exc)
 

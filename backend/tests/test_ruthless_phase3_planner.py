@@ -7,14 +7,14 @@
 
 import asyncio
 import time
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+import rag.nodes as nodes
 from app.config import settings
 from rag.context_graph import plan_context_graph
 from rag.kg_expansion import expand_query_via_kg, expand_query_with_ontology
-import rag.nodes as nodes
 from rag.nodes import _services
 from rag.nodes.retrieval import decompose_query
 
@@ -80,7 +80,9 @@ def test_config_phase3_lane_settings():
 
 
 @pytest.mark.asyncio
-async def test_fast_lane_bypasses_graph_traversal_and_adheres_to_budget(mock_retrieval_env, monkeypatch):
+async def test_fast_lane_bypasses_graph_traversal_and_adheres_to_budget(
+    mock_retrieval_env, monkeypatch
+):
     """Fast Lane: query_tier in ('fast', 'tier2_simple') completely bypasses graph traversal,
     enforces retrieval_fast_lane_budget_ms, and records lane metrics."""
     mock_embedder, mock_qdrant, _ = mock_retrieval_env
@@ -142,7 +144,9 @@ async def test_fast_lane_bypasses_graph_traversal_and_adheres_to_budget(mock_ret
 
 
 @pytest.mark.asyncio
-async def test_relational_lane_parallelizes_vector_and_graph_expansion(mock_retrieval_env, monkeypatch):
+async def test_relational_lane_parallelizes_vector_and_graph_expansion(
+    mock_retrieval_env, monkeypatch
+):
     """Relational Lane: executes Qdrant hybrid retrieval and Neo4j graph ontology expansion
     concurrently with asyncio.gather without blocking."""
     mock_embedder, mock_qdrant, _ = mock_retrieval_env
@@ -159,7 +163,9 @@ async def test_relational_lane_parallelizes_vector_and_graph_expansion(mock_retr
             vec_start = time.perf_counter()
             time.sleep(0.08)
             vec_end = time.perf_counter()
-        return [{"text": "Found document teaching", "source_url": "url1", "title": "doc1", "score": 0.9}]
+        return [
+            {"text": "Found document teaching", "source_url": "url1", "title": "doc1", "score": 0.9}
+        ]
 
     mock_qdrant.search = _slow_search
 
@@ -270,6 +276,7 @@ async def test_deep_lane_budget_and_metrics(mock_retrieval_env, monkeypatch):
 @pytest.mark.asyncio
 async def test_fail_open_when_kg_raises(mock_retrieval_env, monkeypatch):
     """Strict fail-open: when Neo4j/KG raises an error, retrieval succeeds and vector docs are returned."""
+
     async def _failing_kg(*args, **kwargs):
         raise ConnectionRefusedError("Neo4j database connection refused: bolt://localhost:7687")
 
@@ -391,7 +398,9 @@ async def test_expand_query_via_kg_hops_and_entities_clamping():
     )[2]
 
     # Test with hops=10 (should be clamped to 2) and max_entities=100 (clamped to 20)
-    neighbors = await expand_query_via_kg("What is karma?", mock_driver, max_hops=10, max_entities=100)
+    neighbors = await expand_query_via_kg(
+        "What is karma?", mock_driver, max_hops=10, max_entities=100
+    )
 
     assert len(neighbors) <= 20
     assert len(executed_params) > 0

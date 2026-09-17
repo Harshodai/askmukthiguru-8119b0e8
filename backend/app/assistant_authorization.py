@@ -47,7 +47,12 @@ def _is_authenticated(user: Optional[dict[str, Any]]) -> bool:
     if not user:
         return False
     user_id = str(user.get("id") or "")
-    return bool(user_id) and user_id != "anonymous" and not user_id.startswith("anon:") and not user.get("is_anonymous")
+    return (
+        bool(user_id)
+        and user_id != "anonymous"
+        and not user_id.startswith("anon:")
+        and not user.get("is_anonymous")
+    )
 
 
 def _user_id(user: Optional[dict[str, Any]]) -> Optional[str]:
@@ -75,27 +80,43 @@ def _clean_string_list(value: Any) -> tuple[str, ...]:
     return tuple(item.strip() for item in value if isinstance(item, str) and item.strip())
 
 
-def _scope_from_metadata(row: Optional[dict[str, Any]], *, fallback: AssistantScope) -> AssistantScope:
+def _scope_from_metadata(
+    row: Optional[dict[str, Any]], *, fallback: AssistantScope
+) -> AssistantScope:
     if not row:
         return fallback
     return AssistantScope(
         corpus_id=str(row.get("corpus_id") or fallback.corpus_id),
-        teacher_id=(str(row["teacher_id"]).strip() if row.get("teacher_id") else fallback.teacher_id),
-        graph_namespace=(str(row["graph_namespace"]).strip() if row.get("graph_namespace") else fallback.graph_namespace),
-        source_release_id=(str(row["source_release_id"]).strip() if row.get("source_release_id") else fallback.source_release_id),
+        teacher_id=(
+            str(row["teacher_id"]).strip() if row.get("teacher_id") else fallback.teacher_id
+        ),
+        graph_namespace=(
+            str(row["graph_namespace"]).strip()
+            if row.get("graph_namespace")
+            else fallback.graph_namespace
+        ),
+        source_release_id=(
+            str(row["source_release_id"]).strip()
+            if row.get("source_release_id")
+            else fallback.source_release_id
+        ),
         rights_status=str(row.get("rights_status") or fallback.rights_status).strip().lower(),
         rollout_enabled=bool(row.get("rollout_enabled", fallback.rollout_enabled)),
     )
 
 
-async def _load_db_assistant(slug: str, container: Any) -> tuple[Optional[dict[str, Any]], Optional[dict[str, Any]]]:
+async def _load_db_assistant(
+    slug: str, container: Any
+) -> tuple[Optional[dict[str, Any]], Optional[dict[str, Any]]]:
     client = getattr(container, "supabase_client", None)
     if client is None:
         return None, None
     try:
         response = await asyncio.to_thread(
             client.table("assistants")
-            .select("id, slug, name, description, avatar_url, system_prompt, starter_questions, knowledge_tags, visibility, created_by")
+            .select(
+                "id, slug, name, description, avatar_url, system_prompt, starter_questions, knowledge_tags, visibility, created_by"
+            )
             .eq("slug", slug)
             .limit(1)
             .execute
@@ -105,7 +126,9 @@ async def _load_db_assistant(slug: str, container: Any) -> tuple[Optional[dict[s
             return None, None
         scope_response = await asyncio.to_thread(
             client.table("assistant_scope_metadata")
-            .select("corpus_id, teacher_id, graph_namespace, source_release_id, assistant_scope_version, rights_status, rollout_enabled, knowledge_tags")
+            .select(
+                "corpus_id, teacher_id, graph_namespace, source_release_id, assistant_scope_version, rights_status, rollout_enabled, knowledge_tags"
+            )
             .eq("assistant_id", assistant_row.get("id"))
             .limit(1)
             .execute
@@ -120,7 +143,9 @@ async def _load_db_assistant(slug: str, container: Any) -> tuple[Optional[dict[s
         return None, None
 
 
-async def _has_access(assistant_row: dict[str, Any], user: Optional[dict[str, Any]], container: Any) -> bool:
+async def _has_access(
+    assistant_row: dict[str, Any], user: Optional[dict[str, Any]], container: Any
+) -> bool:
     visibility = str(assistant_row.get("visibility") or "private").lower()
     if visibility == "public":
         return True
@@ -183,7 +208,9 @@ async def resolve_effective_assistant(
     if not await _has_access(assistant_row, user, container):
         return None
 
-    fallback_scope = AssistantScope(corpus_id="askmukthiguru", rights_status="pending", rollout_enabled=False)
+    fallback_scope = AssistantScope(
+        corpus_id="askmukthiguru", rights_status="pending", rollout_enabled=False
+    )
     scope = _scope_from_metadata(metadata_row, fallback=fallback_scope)
     if scope.rights_status != "approved" or not scope.rollout_enabled:
         return None
@@ -195,12 +222,18 @@ async def resolve_effective_assistant(
         avatar_url=assistant_row.get("avatar_url"),
         visibility=str(assistant_row.get("visibility") or "private"),
         system_prompt=str(assistant_row.get("system_prompt") or "") or None,
-        knowledge_tags=_clean_string_list(metadata_row.get("knowledge_tags") if metadata_row else assistant_row.get("knowledge_tags")),
+        knowledge_tags=_clean_string_list(
+            metadata_row.get("knowledge_tags")
+            if metadata_row
+            else assistant_row.get("knowledge_tags")
+        ),
         scope=scope,
     )
 
 
-async def authorize_chat_assistant(chat_body: Any, user: Optional[dict[str, Any]], container: Any) -> Optional[AssistantResolution]:
+async def authorize_chat_assistant(
+    chat_body: Any, user: Optional[dict[str, Any]], container: Any
+) -> Optional[AssistantResolution]:
     """Replace client prompt/tag fields with effective server-authorized values."""
     assistant = getattr(chat_body, "assistant", None)
     slug = getattr(assistant, "slug", None) if assistant is not None else None
@@ -215,14 +248,18 @@ async def authorize_chat_assistant(chat_body: Any, user: Optional[dict[str, Any]
     return resolved
 
 
-async def list_visible_assistants(user: Optional[dict[str, Any]], container: Any) -> list[AssistantCatalogItem]:
+async def list_visible_assistants(
+    user: Optional[dict[str, Any]], container: Any
+) -> list[AssistantCatalogItem]:
     client = getattr(container, "supabase_client", None)
     if client is None:
         return []
     try:
         response = await asyncio.to_thread(
             client.table("assistants")
-            .select("id, slug, name, description, avatar_url, starter_questions, visibility, created_by")
+            .select(
+                "id, slug, name, description, avatar_url, starter_questions, visibility, created_by"
+            )
             .order("name")
             .limit(100)
             .execute
@@ -248,7 +285,9 @@ async def list_visible_assistants(user: Optional[dict[str, Any]], container: Any
     return visible
 
 
-async def redeem_assistant_invite(invite_code: str, user: Optional[dict[str, Any]], container: Any) -> dict[str, Any]:
+async def redeem_assistant_invite(
+    invite_code: str, user: Optional[dict[str, Any]], container: Any
+) -> dict[str, Any]:
     """Redeem a link/private assistant invite without exposing lookup details."""
     uid = _user_id(user)
     if not uid:

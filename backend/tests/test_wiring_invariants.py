@@ -24,6 +24,7 @@ Audit coordination:
 
 from __future__ import annotations
 
+import ast
 import inspect
 import re
 import sys
@@ -305,6 +306,137 @@ def test_every_non_probe_route_has_auth_dependency():
         "REGRESSION: the following non-probe routes lack any auth dependency"
         " (add an identity dependency, or justify them in PUBLIC_ROUTES):\n  - "
         + "\n  - ".join(sorted(offenders))
+    )
+
+
+# --- Part (c): dead registration-hook sweep --------------------------------
+#
+# The failure class this guards: a module-level `def set_x(...)` wiring hook
+# (registers a service/global at startup) that nobody calls in production.
+# `set_guru_brain()` (rag/nodes/_services.py) shipped exactly this way — zero
+# production callers, so `get_guru_brain()` always returned None and the
+# feature it gated did nothing, silently, for weeks. A call inside the
+# defining module's own `if __name__ == "__main__":` self-check does not
+# count — that only proves the function runs standalone, not that anything
+# wires it at runtime.
+
+ALLOWED_DEAD_REGISTRATION_HOOKS: dict[str, str] = {
+    "rag/nodes/_services.py::set_guru_brain": (
+        "Deliberately retired 2026-09-15 — see the guru_tone_podcast comment "
+        "block in app/config.py and scripts/ops/check_voice_wiring.py. The "
+        "voice path now resolves profiles from disk (services/voice/), not "
+        "runtime registration. This is the audit's own worked example of the "
+        "failure class, now intentionally dead rather than accidentally dead."
+    ),
+    "app/release_manifest.py::set_release_manifest": (
+        "By design a test/reload reset hook, per its own docstring ('used for "
+        "tests/reloads'). Production never calls it: get_release_manifest() "
+        "lazily builds the singleton itself on first access. Not the failure "
+        "class this guard targets — flagging it here documents the "
+        "distinction rather than hiding it."
+    ),
+}
+
+
+@lru_cache(maxsize=1)
+def _registration_hooks() -> dict[str, str]:
+    """Module-level (column-0) ``def set_<name>(`` functions outside tests ->
+    their defining file, relative to backend/. Indented ``def set_x`` (class
+    methods like a plain attribute setter) are not wiring hooks and are not
+    matched by the anchored ``^def`` pattern."""
+    backend = Path(__file__).resolve().parents[1]
+    skip_parts = {"__pycache__", ".venv", "venv", "node_modules", ".git", ".pytest_cache", "tests"}
+    hooks: dict[str, str] = {}
+    for py in sorted(backend.rglob("*.py")):
+        rel = py.relative_to(backend)
+        if any(part in skip_parts for part in rel.parts):
+            continue
+        text = _read_text_or_none(py)
+        if text is None:
+            continue
+        for m in re.finditer(r"^def (set_\w+)\(", text, re.MULTILINE):
+            hooks.setdefault(m.group(1), str(rel))
+    return hooks
+
+
+def _read_text_or_none(path: Path) -> str | None:
+    """``path.read_text()``, tolerant of a file vanishing between ``rglob``
+    listing and read — real under concurrent agents editing this same repo
+    tree mid-scan (observed live during this guard's own development)."""
+    try:
+        return path.read_text(errors="ignore")
+    except OSError:
+        return None
+
+
+def _call_names(tree: ast.AST) -> set[str]:
+    """Names actually invoked as calls in this module, with ``from x import y
+    as z`` aliases resolved back to ``y`` so a re-exported setter (e.g.
+    ``from rag.resolve_followup import set_ollama as set_followup_ollama``)
+    isn't misread as uncalled."""
+    alias_of: dict[str, str] = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom):
+            for alias in node.names:
+                if alias.asname:
+                    alias_of[alias.asname] = alias.name
+    called: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call):
+            f = node.func
+            name = (
+                f.id
+                if isinstance(f, ast.Name)
+                else f.attr
+                if isinstance(f, ast.Attribute)
+                else None
+            )
+            if name:
+                called.add(alias_of.get(name, name))
+    return called
+
+
+def _dead_registration_hooks() -> set[str]:
+    """Hooks with zero callers in production code (anywhere outside
+    ``tests/`` and outside the hook's own defining file — a self-reference
+    from that file's own ``__main__`` block doesn't count as wiring)."""
+    backend = Path(__file__).resolve().parents[1]
+    skip_parts = {"__pycache__", ".venv", "venv", "node_modules", ".git", ".pytest_cache"}
+    hooks = _registration_hooks()
+    if not hooks:
+        return set()
+    file_calls: dict[str, set[str]] = {}
+    for py in sorted(backend.rglob("*.py")):
+        rel = py.relative_to(backend)
+        if any(part in skip_parts for part in rel.parts) or "tests" in rel.parts:
+            continue
+        text = _read_text_or_none(py)
+        if text is None:
+            continue
+        try:
+            tree = ast.parse(text)
+        except SyntaxError:
+            continue
+        file_calls[str(rel)] = _call_names(tree)
+    dead: set[str] = set()
+    for name, defining_file in hooks.items():
+        if any(name in names for rel, names in file_calls.items() if rel != defining_file):
+            continue
+        dead.add(f"{defining_file}::{name}")
+    return dead
+
+
+def test_no_undeclared_dead_registration_hooks():
+    """Every module-level ``set_<x>()`` wiring hook must have a production
+    caller, or be allowlisted with a reason. A hook nobody calls leaves
+    whatever it registers permanently unset, and nothing errors — see
+    ``ALLOWED_DEAD_REGISTRATION_HOOKS`` for the worked example and two real,
+    currently-unfixed instances this sweep found."""
+    dead = _dead_registration_hooks()
+    unowned = sorted(dead - set(ALLOWED_DEAD_REGISTRATION_HOOKS))
+    assert not unowned, (
+        "NEW dead registration hook(s) (set_*() with zero production callers):\n  - "
+        + "\n  - ".join(unowned)
     )
 
 

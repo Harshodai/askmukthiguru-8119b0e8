@@ -299,7 +299,9 @@ async def assign_course_if_needed(
     try:
         existing = await asyncio.to_thread(_select_active)
     except Exception as e:
-        logger.warning(f"Healing course active-check failed for {sanitize_log_input(str(user_id))}: {e}")
+        logger.warning(
+            f"Healing course active-check failed for {sanitize_log_input(str(user_id))}: {e}"
+        )
         return None
 
     if existing and getattr(existing, "data", None):

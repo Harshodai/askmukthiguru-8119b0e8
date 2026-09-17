@@ -8,8 +8,8 @@ Provides:
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 import re
+from pathlib import Path
 from typing import Any, Optional
 from urllib.parse import parse_qs, urlparse
 
@@ -56,8 +56,12 @@ def _extract_video_id(url: str) -> Optional[str]:
 @router.get("/inspect-source")
 async def inspect_source(
     request: Request,
-    url: str = Query(..., min_length=3, max_length=1000, description="Canonical URL of the source to inspect"),
-    query: Optional[str] = Query(None, max_length=200, description="Optional search term to highlight within source"),
+    url: str = Query(
+        ..., min_length=3, max_length=1000, description="Canonical URL of the source to inspect"
+    ),
+    query: Optional[str] = Query(
+        None, max_length=200, description="Optional search term to highlight within source"
+    ),
     container: ServiceContainer = Depends(get_container),
     user: dict = Depends(get_optional_user),
 ) -> dict[str, Any]:
@@ -67,15 +71,17 @@ async def inspect_source(
     """
     clean_url = url.strip()
     video_id = _extract_video_id(clean_url)
-    
+
     # 1. Query Qdrant for all points with this source_url or video_id
     chunks = []
     source_title = clean_url
-    
+
     try:
         qdrant_client = container.qdrant.get_client() if container.qdrant else None
-        collection_name = container.qdrant.collection_name if container.qdrant else "spiritual_wisdom_contextual"
-        
+        collection_name = (
+            container.qdrant.collection_name if container.qdrant else "spiritual_wisdom_contextual"
+        )
+
         if qdrant_client:
             # Match by source_url or video_id
             filter_conditions = [
@@ -87,8 +93,10 @@ async def inspect_source(
                 )
                 filter_conditions.append(
                     qmodels.FieldCondition(
-                        key="source_url", 
-                        match=qmodels.MatchValue(value=f"https://www.youtube.com/watch?v={video_id}")
+                        key="source_url",
+                        match=qmodels.MatchValue(
+                            value=f"https://www.youtube.com/watch?v={video_id}"
+                        ),
                     )
                 )
 
@@ -106,16 +114,18 @@ async def inspect_source(
                 title = payload.get("title") or payload.get("source_title")
                 if title and source_title == clean_url:
                     source_title = title
-                    
-                chunks.append({
-                    "id": str(point.id),
-                    "chunk_index": payload.get("chunk_index", 0),
-                    "start_time": payload.get("start_time", 0),
-                    "end_time": payload.get("end_time", 0),
-                    "text": chunk_text,
-                    "speaker": payload.get("speaker", "Sri Krishnaji / Sri Preethaji"),
-                    "raptor_level": payload.get("raptor_level", 0),
-                })
+
+                chunks.append(
+                    {
+                        "id": str(point.id),
+                        "chunk_index": payload.get("chunk_index", 0),
+                        "start_time": payload.get("start_time", 0),
+                        "end_time": payload.get("end_time", 0),
+                        "text": chunk_text,
+                        "speaker": payload.get("speaker", "Sri Krishnaji / Sri Preethaji"),
+                        "raptor_level": payload.get("raptor_level", 0),
+                    }
+                )
     except Exception as exc:
         logger.warning(f"Failed to scroll Qdrant for source {sanitize_log_input(clean_url)}: {exc}")
 
@@ -139,9 +149,7 @@ async def inspect_source(
             try:
                 resolved_p = p.resolve()
                 if not any(
-                    resolved_p.is_relative_to(base)
-                    for base in candidate_bases
-                    if base.exists()
+                    resolved_p.is_relative_to(base) for base in candidate_bases if base.exists()
                 ):
                     continue
                 if resolved_p.is_file():
@@ -153,7 +161,9 @@ async def inspect_source(
                         source_title = title_match.group(1).strip()
 
                     speaker = "Sri Krishnaji / Sri Preethaji"
-                    speaker_match = re.search(r"\*\*Speaker:\*\*\s*(.+)$", raw_content, re.MULTILINE)
+                    speaker_match = re.search(
+                        r"\*\*Speaker:\*\*\s*(.+)$", raw_content, re.MULTILINE
+                    )
                     if speaker_match:
                         speaker = speaker_match.group(1).strip()
 
@@ -161,20 +171,26 @@ async def inspect_source(
                     if "## Transcript" in raw_content:
                         transcript_body = raw_content.split("## Transcript", 1)[1].strip()
 
-                    paragraphs = [para.strip() for para in transcript_body.split("\n\n") if para.strip()]
+                    paragraphs = [
+                        para.strip() for para in transcript_body.split("\n\n") if para.strip()
+                    ]
                     for i, para in enumerate(paragraphs):
-                        chunks.append({
-                            "id": f"{video_id}-{i}",
-                            "chunk_index": i,
-                            "start_time": i * 45,
-                            "end_time": (i + 1) * 45,
-                            "text": para,
-                            "speaker": speaker,
-                            "raptor_level": 0,
-                        })
+                        chunks.append(
+                            {
+                                "id": f"{video_id}-{i}",
+                                "chunk_index": i,
+                                "start_time": i * 45,
+                                "end_time": (i + 1) * 45,
+                                "text": para,
+                                "speaker": speaker,
+                                "raptor_level": 0,
+                            }
+                        )
                     break
             except Exception as file_err:
-                logger.warning(f"Error reading transcript file {sanitize_log_input(str(p))}: {file_err}")
+                logger.warning(
+                    f"Error reading transcript file {sanitize_log_input(str(p))}: {file_err}"
+                )
 
     # Sort chunks by raptor_level asc, then chunk_index asc
     chunks.sort(key=lambda c: (c.get("raptor_level", 0), c.get("chunk_index", 0)))
@@ -188,13 +204,15 @@ async def inspect_source(
             if q_lower in text.lower():
                 # Count occurrences
                 count = len(re.findall(re.escape(q_lower), text, re.IGNORECASE))
-                query_matches.append({
-                    "chunk_id": c["id"],
-                    "chunk_index": c["chunk_index"],
-                    "start_time": c["start_time"],
-                    "match_count": count,
-                    "snippet": text[:300] + "..." if len(text) > 300 else text,
-                })
+                query_matches.append(
+                    {
+                        "chunk_id": c["id"],
+                        "chunk_index": c["chunk_index"],
+                        "start_time": c["start_time"],
+                        "match_count": count,
+                        "snippet": text[:300] + "..." if len(text) > 300 else text,
+                    }
+                )
 
     full_text = "\n\n".join(c["text"] for c in chunks if c.get("raptor_level", 0) == 0)
     if not full_text and chunks:
@@ -203,7 +221,9 @@ async def inspect_source(
     return {
         "url": clean_url,
         "video_id": video_id,
-        "title": source_title if source_title != clean_url else (f"Discourse: {video_id}" if video_id else clean_url),
+        "title": source_title
+        if source_title != clean_url
+        else (f"Discourse: {video_id}" if video_id else clean_url),
         "total_chunks": len(chunks),
         "chunks": chunks,
         "full_text": full_text,
@@ -228,9 +248,9 @@ async def web_discourse_search(
 
     service = getattr(container, "web_search", None) or WebSearchService()
     results = await service.search(body.query, user_id=uid)
-    
+
     # Cap to max_results
-    bounded_results = results[:body.max_results]
+    bounded_results = results[: body.max_results]
 
     return {
         "query": body.query,

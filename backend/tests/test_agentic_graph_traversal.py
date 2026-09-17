@@ -129,6 +129,7 @@ def test_gating_ignores_non_comparative_simple_tier():
 
 def test_gating_triggers_for_comparative_tier2(monkeypatch):
     from rag.nodes import _services
+
     monkeypatch.setattr(_services, "_ollama", None)
     monkeypatch.setattr(agt, "ENABLED", True)
     # COMPARATIVE + a non-tier3 tier should still trigger (intent gate wins)
@@ -351,6 +352,7 @@ def test_get_graph_traversal_context():
 # --------------------------------------------------------------------------- #
 def test_full_react_loop_first_step_done(monkeypatch):
     from rag.nodes import _services
+
     monkeypatch.setattr(_services, "_ollama", None)
     monkeypatch.setattr(agt, "ENABLED", True)
     state = _base_state()

@@ -13,7 +13,6 @@ Verifies:
 
 from __future__ import annotations
 
-import asyncio
 from unittest.mock import MagicMock
 
 import pytest
@@ -137,7 +136,7 @@ async def test_rag_span_custom_exception_propagates_unchanged():
     """Verify that exceptions raised inside `async with rag_span(...)` propagate
     unchanged without triggering `RuntimeError: generator didn't stop after athrow()`."""
     with pytest.raises(CustomSpanError, match="span pipeline execution error"):
-        async with rag_span("test_operation", tenant_id="test_tenant") as span:
+        async with rag_span("test_operation", tenant_id="test_tenant") as _span:
             raise CustomSpanError("span pipeline execution error")
 
 
@@ -145,7 +144,7 @@ async def test_rag_span_custom_exception_propagates_unchanged():
 async def test_rag_span_value_error_with_span_keyword():
     """Verify standard ValueError containing 'span' propagates cleanly."""
     with pytest.raises(ValueError, match="Invalid span length"):
-        async with rag_span("test_span_validation", model="gpt-4o") as span:
+        async with rag_span("test_span_validation", model="gpt-4o") as _span:
             raise ValueError("Invalid span length")
 
 
@@ -194,7 +193,7 @@ async def test_rag_span_records_exception_and_error_status(monkeypatch):
 
     exc = CustomSpanError("span database error")
     with pytest.raises(CustomSpanError):
-        async with rag_span("db_query", tenant_id="tenant_1") as span:
+        async with rag_span("db_query", tenant_id="tenant_1") as _span:
             raise exc
 
     mock_span.record_exception.assert_called_once_with(exc)

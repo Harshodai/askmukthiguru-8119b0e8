@@ -10,8 +10,9 @@ from __future__ import annotations
 
 import hashlib
 import re
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass
-from typing import Any, Mapping
+from typing import Any
 
 from app.index_fingerprint import IndexFingerprint, IndexFingerprintError
 
@@ -64,9 +65,7 @@ class CorpusPublicationManifest:
             or self.graph_nodes <= 0
             or self.graph_edges <= 0
         ):
-            raise CorpusPublicationError(
-                "required graph publication must contain nodes and edges"
-            )
+            raise CorpusPublicationError("required graph publication must contain nodes and edges")
         if not self.graph_required and (
             self.graph_nodes is not None or self.graph_edges is not None
         ):
@@ -75,11 +74,17 @@ class CorpusPublicationManifest:
     def assert_compatible(self, contract: IndexFingerprint) -> None:
         self.validate()
         if self.collection != contract.collection:
-            raise CorpusPublicationError("publication collection does not match the active collection")
+            raise CorpusPublicationError(
+                "publication collection does not match the active collection"
+            )
         if self.corpus_version != contract.corpus_version:
-            raise CorpusPublicationError("publication corpus version does not match active configuration")
+            raise CorpusPublicationError(
+                "publication corpus version does not match active configuration"
+            )
         if self.index_fingerprint != contract.digest:
-            raise CorpusPublicationError("publication index fingerprint does not match active configuration")
+            raise CorpusPublicationError(
+                "publication index fingerprint does not match active configuration"
+            )
 
     @classmethod
     def from_payload(cls, payload: Mapping[str, Any]) -> CorpusPublicationManifest:
@@ -94,14 +99,10 @@ class CorpusPublicationManifest:
                 qdrant_sources=int(payload["qdrant_sources"]),
                 graph_required=bool(payload["graph_required"]),
                 graph_nodes=(
-                    int(payload["graph_nodes"])
-                    if payload.get("graph_nodes") is not None
-                    else None
+                    int(payload["graph_nodes"]) if payload.get("graph_nodes") is not None else None
                 ),
                 graph_edges=(
-                    int(payload["graph_edges"])
-                    if payload.get("graph_edges") is not None
-                    else None
+                    int(payload["graph_edges"]) if payload.get("graph_edges") is not None else None
                 ),
             )
         except (KeyError, TypeError, ValueError) as exc:
@@ -127,9 +128,7 @@ def validate_publication_record(record: Mapping[str, Any], contract: IndexFinger
     index_contract = record.get("index_contract")
     publication_payload = record.get("publication")
     if not isinstance(index_contract, Mapping) or not isinstance(publication_payload, Mapping):
-        raise CorpusPublicationError(
-            "published release lacks index contract or corpus manifest"
-        )
+        raise CorpusPublicationError("published release lacks index contract or corpus manifest")
     try:
         contract.assert_matches(index_contract)
     except IndexFingerprintError as exc:

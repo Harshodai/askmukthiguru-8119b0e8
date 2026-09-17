@@ -242,7 +242,9 @@ if __name__ == "__main__":
     assert "truncated" in _truncate("x" * 50)
     assert _truncate("short") == "short"
 
-    flat = _flatten_prompt([{"role": "user", "content": "hi"}, {"role": "system", "content": "be kind"}])
+    flat = _flatten_prompt(
+        [{"role": "user", "content": "hi"}, {"role": "system", "content": "be kind"}]
+    )
     assert flat == "user: hi\nsystem: be kind", flat
     assert _flatten_prompt("plain") == "plain"
 

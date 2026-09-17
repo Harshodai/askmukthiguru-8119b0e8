@@ -108,7 +108,10 @@ async def rerank_documents(state: GraphState, config: dict = None) -> dict:
         # §9 & Review §4.5: Selective reranking. If retrieval already produced high confidence
         # candidates for fast/simple tiers, skip expensive cross-encoder/ColBERT passes.
         top_initial_score = max(
-            (float(d.get("score") or d.get("similarity") or d.get("rrf_score") or 0.0) for d in rerank_candidates),
+            (
+                float(d.get("score") or d.get("similarity") or d.get("rrf_score") or 0.0)
+                for d in rerank_candidates
+            ),
             default=0.0,
         )
         bypass_threshold = float(getattr(settings, "rerank_bypass_threshold", 0.85))
@@ -125,7 +128,9 @@ async def rerank_documents(state: GraphState, config: dict = None) -> dict:
             )
             for d in rerank_candidates:
                 if "rerank_score" not in d:
-                    d["rerank_score"] = float(d.get("score") or d.get("similarity") or d.get("rrf_score") or 0.75)
+                    d["rerank_score"] = float(
+                        d.get("score") or d.get("similarity") or d.get("rrf_score") or 0.75
+                    )
             reranked_db = sorted(
                 rerank_candidates,
                 key=lambda d: d.get("rerank_score", 0.0),
@@ -354,7 +359,9 @@ async def grade_documents(state: GraphState, config: dict = None) -> dict:
                     query=question, documents=doc_texts, timeout=t_out
                 )
             else:
-                all_results = [{"relevant": True, "reason": "Ambiguous doc accepted"}] * len(doc_texts)
+                all_results = [{"relevant": True, "reason": "Ambiguous doc accepted"}] * len(
+                    doc_texts
+                )
 
             if isinstance(all_results, list):
                 for doc, res in zip(ambiguous_docs, all_results):
@@ -376,7 +383,9 @@ async def grade_documents(state: GraphState, config: dict = None) -> dict:
             ambiguous_reasons.extend([f"Grading fallback: {e}" for _ in fallback_ambiguous])
     elif ambiguous_docs:
         relevant_from_ambiguous.extend(ambiguous_docs[:3])
-        ambiguous_reasons.extend(["No LLM available, keeping top ambiguous docs" for _ in ambiguous_docs[:3]])
+        ambiguous_reasons.extend(
+            ["No LLM available, keeping top ambiguous docs" for _ in ambiguous_docs[:3]]
+        )
 
     high_conf_reasons = ["High-confidence rerank score" for _ in high_conf_docs]
     all_reasons = high_conf_reasons + ambiguous_reasons

@@ -362,5 +362,5 @@ if __name__ == "__main__":  # runnable self-check
 
     print(f"patterns: {len(_ARTIFACT_PATTERNS)}")
     print(f"poison detected: {len(poison)}/{len(poison)}  false positives: 0/{len(doctrine)}")
-    print(f"graceful-degradation detection: PASS")
+    print("graceful-degradation detection: PASS")
     print("text_quality_filter self-check OK")

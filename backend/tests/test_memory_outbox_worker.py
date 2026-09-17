@@ -62,7 +62,10 @@ async def test_drain_once_processes_pending_entries_and_marks_completed():
         patch("app.dependencies.get_container", return_value=mock_container),
         patch.object(settings, "feature_memory_write", True),
         patch("services.layered_memory.l1_extractor.extract_atoms", new=AsyncMock(return_value=[])),
-        patch("services.layered_memory.l2_scene_compressor.compress_turns_to_scene", new=AsyncMock(return_value=None)),
+        patch(
+            "services.layered_memory.l2_scene_compressor.compress_turns_to_scene",
+            new=AsyncMock(return_value=None),
+        ),
     ):
         result = await _drain_once(limit=10)
 
@@ -104,7 +107,9 @@ async def test_drain_once_marks_failed_when_consent_revoked():
         result = await _drain_once(limit=10)
 
     assert result == {"claimed": 1, "processed": 0, "failed": 1}
-    mock_outbox.mark_failed.assert_awaited_once_with("outbox-1", "consent revoked before processing")
+    mock_outbox.mark_failed.assert_awaited_once_with(
+        "outbox-1", "consent revoked before processing"
+    )
     mock_memory_svc.extract_and_write.assert_not_awaited()
 
 

@@ -1,6 +1,13 @@
 # Bandit command-line configuration. Skips are limited to known safe conventions.
 # B608 is a documented false positive for the generated HTML dashboard string;
 # the dashboard contains no SQL or database query construction.
+#
+# `exclude` here is NOT load-bearing: bandit 1.9.4's -x/exclude matching does
+# not reliably skip .venv under `-r .` recursion (it crashes with an internal
+# AttributeError on a third-party package's AST) regardless of relative vs.
+# absolute paths. The Makefile `quality` target avoids the whole problem by
+# passing explicit source directories (app rag services routers domain ingest
+# schemas tasks) instead of `-r .` — do not revert to `-r .` without solving
+# the exclude bug first.
 [bandit]
 skips = B101,B104,B108,B311,B603,B607,B608
-exclude = tests,benchmarks,scripts/ops,venv,.venv

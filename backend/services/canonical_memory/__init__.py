@@ -106,21 +106,17 @@ Usage:
     summary = sim.generate_summary([result])
 """
 
-from services.canonical_memory.models import ExtractionResult, MemoryCandidate, MemoryType
-from services.canonical_memory.extractor import extract_memory_candidates
-from services.canonical_memory.resolver import MemoryResolver, ResolutionResult, create_resolver
+from services.canonical_memory.canary import (
+    CanaryConfig,
+    CanaryDeployment,
+    CanaryStage,
+    get_canary_deployment,
+)
 from services.canonical_memory.consolidator import (
     CanonicalMemoryConsolidator,
     ConsolidationCandidate,
     ConsolidationResult,
     create_consolidator,
-)
-from services.canonical_memory.history_separator import (
-    TurnClassification,
-    classify_conversation_turn,
-    is_transient,
-    build_history_context,
-    validate_separation,
 )
 from services.canonical_memory.context_builder import (
     AdaptiveContextOrchestrator,
@@ -132,20 +128,11 @@ from services.canonical_memory.context_builder import (
     classify_query_intent,
     create_orchestrator,
 )
-from services.canonical_memory.security import (
-    check_injection_attempt,
-    sanitize_memory_for_context,
-    validate_deletion_completeness,
-    validate_user_scoped_query,
-)
-from services.canonical_memory.privacy import (
-    ConsentScope,
-    MemoryPrivacyManager,
-)
-from services.canonical_memory.observability import (
-    MemoryMetrics,
-    MemoryMonitor,
-    get_monitor,
+from services.canonical_memory.cost_tracker import (
+    CostCategory,
+    CostEntry,
+    CostTracker,
+    estimate_consolidation_cost,
 )
 from services.canonical_memory.evaluation import (
     EvalResult,
@@ -153,33 +140,60 @@ from services.canonical_memory.evaluation import (
     EvalVerdict,
     MemoryEvaluator,
 )
-from services.canonical_memory.simulation import (
-    MemorySimulator,
-    SimulationResult,
-    SimulationScenario,
-    SimulatedTurn,
-    TurnResult,
+from services.canonical_memory.extractor import extract_memory_candidates
+from services.canonical_memory.history_separator import (
+    TurnClassification,
+    build_history_context,
+    classify_conversation_turn,
+    is_transient,
+    validate_separation,
 )
-from services.canonical_memory.cost_tracker import (
-    CostCategory,
-    CostEntry,
-    CostTracker,
-    estimate_consolidation_cost,
+from services.canonical_memory.migration import (
+    LegacyTable,
+    MigrationManager,
+    MigrationPhase,
+    MigrationProgress,
+    get_migration_manager,
+)
+from services.canonical_memory.models import ExtractionResult, MemoryCandidate, MemoryType
+from services.canonical_memory.observability import (
+    MemoryMetrics,
+    MemoryMonitor,
+    get_monitor,
 )
 from services.canonical_memory.performance import (
     LatencyRecord,
     PerformanceMonitor,
     benchmark_query_latency,
 )
+from services.canonical_memory.privacy import (
+    ConsentScope,
+    MemoryPrivacyManager,
+)
+from services.canonical_memory.red_team import (
+    AttackCategory,
+    AttackLibrary,
+    AttackResult,
+    AttackVector,
+    RedTeamTestRunner,
+    get_red_team_runner,
+)
 from services.canonical_memory.resilience import (
-    CircuitBreaker,
-    CircuitState,
     ChaosScenario,
     ChaosTestRunner,
+    CircuitBreaker,
+    CircuitState,
     FailureMode,
     GracefulDegradation,
     get_circuit_breaker,
     get_graceful_degradation,
+)
+from services.canonical_memory.resolver import MemoryResolver, ResolutionResult, create_resolver
+from services.canonical_memory.security import (
+    check_injection_attempt,
+    sanitize_memory_for_context,
+    validate_deletion_completeness,
+    validate_user_scoped_query,
 )
 from services.canonical_memory.self_healing import (
     DriftDetector,
@@ -189,31 +203,17 @@ from services.canonical_memory.self_healing import (
     SelfHealer,
     get_self_healer,
 )
-from services.canonical_memory.migration import (
-    LegacyTable,
-    MigrationManager,
-    MigrationPhase,
-    MigrationProgress,
-    get_migration_manager,
-)
 from services.canonical_memory.shadow import (
     ShadowMode,
     ShadowResult,
     get_shadow_mode,
 )
-from services.canonical_memory.canary import (
-    CanaryConfig,
-    CanaryDeployment,
-    CanaryStage,
-    get_canary_deployment,
-)
-from services.canonical_memory.red_team import (
-    AttackCategory,
-    AttackLibrary,
-    AttackResult,
-    AttackVector,
-    RedTeamTestRunner,
-    get_red_team_runner,
+from services.canonical_memory.simulation import (
+    MemorySimulator,
+    SimulatedTurn,
+    SimulationResult,
+    SimulationScenario,
+    TurnResult,
 )
 
 __all__ = [

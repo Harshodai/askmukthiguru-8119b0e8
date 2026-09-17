@@ -24,6 +24,8 @@ from functools import lru_cache
 from typing import Any, Optional
 from urllib.parse import urlparse
 
+from services.provenance import is_junk_text, is_third_party_channel
+
 logger = logging.getLogger(__name__)
 
 
@@ -182,15 +184,38 @@ class DeterministicChecker:
             pass
         return False
 
-    def check(self, text: str, source_url: str = "") -> tuple[bool, int, list[str]]:
+    def check(
+        self, text: str, source_url: str = "", speaker: str = ""
+    ) -> tuple[bool, int, list[str]]:
         """
         Returns (passed, score_penalty, fail_reasons).
         score_penalty is subtracted from 100 by the gate orchestrator.
+
+        `speaker` (channel/speaker attribution, when the caller has it yet —
+        many ingest paths resolve it after this runs) gates third-party
+        coverage of the gurus (e.g. news channels) the same way the junk-text
+        check below gates LLM-refusal artifacts: reject at the door instead
+        of indexing it and relying on a later serving-time filter.
         """
         reasons: list[str] = []
         penalty = 0
 
         stripped = text.strip()
+
+        # Junk artifact check — deterministic, cheap, text-only. Catches LLM
+        # refusal/meta-commentary that leaked into a chunk instead of being
+        # filtered at ingest time (see backend/CLAUDE.md's documented example:
+        # "...cannot be situated within the document's context..."). Shares
+        # its pattern list with services/provenance.py so retrieval-time
+        # classification and ingest-time rejection agree on what "junk" is.
+        if is_junk_text(stripped):
+            return False, 100, ["Junk extraction artifact detected (LLM refusal/meta-commentary)"]
+
+        # Third-party channel check — coverage/commentary ABOUT the gurus
+        # (e.g. a news channel's segment) is not their teaching and must not
+        # be indexed as doctrine, however well-formed the prose is.
+        if is_third_party_channel(speaker=speaker):
+            return False, 100, [f"Third-party channel content rejected (speaker={speaker!r})"]
 
         # Apply Reel min-length grace: if URL matches short video formats,
         # lower the minimum bounds.
@@ -428,7 +453,6 @@ Respond ONLY with valid JSON, no markdown:
 }"""
 
 
-
 # openrouter_service.py:_graceful_degradation and nim_service.py's mirrored
 # fallback both emit one of exactly these two fixed strings when the circuit
 # breaker is open or a call is exhausted-retry, with no metadata crossing the
@@ -497,8 +521,7 @@ class LLMQualityScorer:
                     await asyncio.sleep(2.0 * attempt)
                     continue
                 logger.warning(
-                    "LLM quality scorer still degraded after %d attempts — "
-                    "quarantining as UNKNOWN",
+                    "LLM quality scorer still degraded after %d attempts — quarantining as UNKNOWN",
                     self._max_attempts,
                 )
                 return 0, [
@@ -554,7 +577,9 @@ class LLMQualityScorer:
                 if not data.get("is_spiritual", True):
                     reasons.insert(0, "Content not identified as spiritual/philosophical")
                     score = min(score, 39)
-                logger.info(f"Successfully repaired malformed LLM JSON in quality gate (score={score})")
+                logger.info(
+                    f"Successfully repaired malformed LLM JSON in quality gate (score={score})"
+                )
                 return max(0, min(100, score)), reasons
             except Exception:
                 pass
@@ -645,7 +670,11 @@ class StagingQueue:
             return staging_id
         except Exception as e:
             err_str = str(e)
-            if "401" in err_str or "unauthorized" in err_str.lower() or "credentials" in err_str.lower():
+            if (
+                "401" in err_str
+                or "unauthorized" in err_str.lower()
+                or "credentials" in err_str.lower()
+            ):
                 logger.debug(
                     "Staging queue write skipped (Supabase unauthenticated/401): %s. Disabling staging queue for this run.",
                     e,
@@ -695,7 +724,7 @@ class DataQualityGate:
             raw_enabled = True
         self._enabled = enabled if enabled is not None else bool(raw_enabled)
 
-    async def run(self, text: str, source_url: str = "") -> QualityResult:
+    async def run(self, text: str, source_url: str = "", speaker: str = "") -> QualityResult:
         """
         Run all quality tiers. Returns QualityResult.
         If not enabled, always returns PASS with score=100.
@@ -715,7 +744,7 @@ class DataQualityGate:
             )
 
         # ── Tier 1: Deterministic ──────────────────────────────────────────
-        t1_ok, t1_penalty, t1_reasons = self._deterministic.check(text, source_url)
+        t1_ok, t1_penalty, t1_reasons = self._deterministic.check(text, source_url, speaker=speaker)
         if not t1_ok:
             self._record_rejection_metric(t1_reasons, tier=1)
             result = QualityResult(
@@ -797,14 +826,12 @@ class DataQualityGate:
             else:
                 reason_label = "low_spiritual_score"
 
-            INGEST_QUALITY_GATE_REJECTIONS_TOTAL.labels(
-                reason=reason_label, tier=str(tier)
-            ).inc()
+            INGEST_QUALITY_GATE_REJECTIONS_TOTAL.labels(reason=reason_label, tier=str(tier)).inc()
         except Exception as e:
             logger.debug(f"Failed to record rejection metric (non-fatal): {e}")
 
     async def run_chunks(
-        self, chunks: list[str], source_url: str = ""
+        self, chunks: list[str], source_url: str = "", speaker: str = ""
     ) -> tuple[list[str], list[QualityResult]]:
         """
         Filter a list of chunks, returning only those that pass quality gate.
@@ -827,7 +854,7 @@ class DataQualityGate:
 
         for i, chunk in enumerate(chunks):
             if i in indices_to_check:
-                qr = await self.run(chunk, source_url)
+                qr = await self.run(chunk, source_url, speaker=speaker)
                 results.append(qr)
                 if not qr.passed:
                     failed_indices.add(i)

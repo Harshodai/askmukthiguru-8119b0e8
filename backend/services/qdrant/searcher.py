@@ -63,6 +63,7 @@ def retry_with_backoff(max_retries=3, initial_delay=1):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             import random
+
             delay = initial_delay
             last_exception = None
             for attempt in range(max_retries):
@@ -112,11 +113,18 @@ class QdrantSearcher:
         raptor_level: Optional[int] = None,
         teacher_id: Optional[str] = None,
         scope: Optional[CorpusScope] = None,
+        group_by: Optional[str] = None,
+        group_size: int = 2,
+        fusion_strategy: Optional[str] = None,
         **kwargs,
     ) -> list[dict]:
         """
-        Hybrid search using Reciprocal Rank Fusion (RRF) over dense + sparse vectors.
+        Hybrid search using Reciprocal Rank Fusion (RRF) or DBSF over dense + sparse vectors.
         Falls back to dense-only if sparse vector not provided.
+
+        When ``group_by`` is specified (e.g. "video_id", "source_url", "parent_id"),
+        uses Qdrant's Universal Query API ``query_points_groups`` to group hits
+        and preserve source/parent document diversity.
 
         When ``teacher_id`` is provided, a ``must`` filter on the ``teacher_id``
         payload field is applied, enabling per-teacher content isolation
@@ -151,12 +159,22 @@ class QdrantSearcher:
                 FieldCondition(key="raptor_level", match=MatchValue(value=raptor_level))
             )
         if scope.teacher_id:
-            if scope.teacher_id in ("preethaji", "krishnaji", "sri-preethaji", "sri-krishnaji", "ekam"):
+            if scope.teacher_id in (
+                "preethaji",
+                "krishnaji",
+                "sri-preethaji",
+                "sri-krishnaji",
+                "ekam",
+            ):
                 filter_conditions.append(
                     Filter(
                         should=[
-                            FieldCondition(key="teacher_ids", match=MatchValue(value=scope.teacher_id)),
-                            FieldCondition(key="teacher_id", match=MatchValue(value=scope.teacher_id)),
+                            FieldCondition(
+                                key="teacher_ids", match=MatchValue(value=scope.teacher_id)
+                            ),
+                            FieldCondition(
+                                key="teacher_id", match=MatchValue(value=scope.teacher_id)
+                            ),
                         ]
                     )
                 )
@@ -236,6 +254,18 @@ class QdrantSearcher:
         # Dropping the extra summary/phonetic prefetches cuts Qdrant CPU and network
         # time roughly in half, eliminating the hybrid-timeout path on simple queries.
         dense_search_params = self._dense_quantization_search_params()
+        grouping_keys = []
+        if group_by:
+            if group_by in ("video_id", "source_url", "parent_id"):
+                hierarchy = ["video_id", "source_url", "parent_id"]
+                hierarchy.remove(group_by)
+                grouping_keys = [group_by] + hierarchy
+            else:
+                grouping_keys = [group_by, "video_id", "source_url", "parent_id"]
+
+        active_fusion_name = (fusion_strategy or settings.qdrant_fusion_strategy).lower()
+        fusion = Fusion.DBSF if active_fusion_name == "dbsf" else Fusion.RRF
+
         if sparse_vector:
             # Read config OUTSIDE the try below. That `except` exists to survive a
             # Qdrant transport failure, and it falls back to dense-only — a real
@@ -246,7 +276,6 @@ class QdrantSearcher:
             sparse_limit = max(
                 1, round(internal_limit * settings.qdrant_sparse_prefetch_multiplier)
             )
-            fusion = Fusion.DBSF if settings.qdrant_fusion_strategy == "dbsf" else Fusion.RRF
             try:
                 prefetch_queries = [
                     Prefetch(
@@ -287,24 +316,80 @@ class QdrantSearcher:
                             params=dense_search_params,
                         )
                     )
-                results = self._client.query_points(
-                    collection_name=self._collection,
-                    prefetch=prefetch_queries,
-                    query=FusionQuery(fusion=fusion),
-                    limit=internal_limit,
-                    with_payload=True,
-                    with_vectors=True,
-                )
-                hits = results.points
-                logger.debug(f"Hybrid search (RRF): {len(hits)} results")
+
+                if grouping_keys:
+                    hits = None
+                    last_grp_err = None
+                    for grp_key in grouping_keys:
+                        try:
+                            grouped_res = self._client.query_points_groups(
+                                collection_name=self._collection,
+                                prefetch=prefetch_queries,
+                                query=FusionQuery(fusion=fusion),
+                                group_by=grp_key,
+                                limit=internal_limit,
+                                group_size=group_size,
+                                with_payload=True,
+                                with_vectors=True,
+                            )
+                            grp_hits = []
+                            for grp in grouped_res.groups:
+                                for pt in grp.hits:
+                                    if pt.payload is not None:
+                                        pt.payload["group_id"] = str(grp.id)
+                                        pt.payload["grouped_by"] = grp_key
+                                    grp_hits.append(pt)
+                            hits = grp_hits
+                            logger.debug(
+                                f"Hybrid group search ({active_fusion_name}): {len(hits)} results grouped by {grp_key}"
+                            )
+                            break
+                        except Exception as grp_err:
+                            last_grp_err = grp_err
+                            continue
+
+                    if hits is None:
+                        logger.warning(
+                            f"query_points_groups failed for keys {grouping_keys}: {last_grp_err}. Falling back to flat query_points."
+                        )
+                        results = self._client.query_points(
+                            collection_name=self._collection,
+                            prefetch=prefetch_queries,
+                            query=FusionQuery(fusion=fusion),
+                            limit=internal_limit,
+                            with_payload=True,
+                            with_vectors=True,
+                        )
+                        hits = results.points
+                else:
+                    results = self._client.query_points(
+                        collection_name=self._collection,
+                        prefetch=prefetch_queries,
+                        query=FusionQuery(fusion=fusion),
+                        limit=internal_limit,
+                        with_payload=True,
+                        with_vectors=True,
+                    )
+                    hits = results.points
+                    logger.debug(f"Hybrid search ({active_fusion_name}): {len(hits)} results")
             except Exception as e:
                 logger.warning(f"Hybrid search failed, falling back to dense: {e}")
                 hits = self._dense_search(
-                    query_vector, internal_limit, search_filter, dense_search_params
+                    query_vector,
+                    internal_limit,
+                    search_filter,
+                    dense_search_params,
+                    grouping_keys=grouping_keys,
+                    group_size=group_size,
                 )
         else:
             hits = self._dense_search(
-                query_vector, internal_limit, search_filter, dense_search_params
+                query_vector,
+                internal_limit,
+                search_filter,
+                dense_search_params,
+                grouping_keys=grouping_keys,
+                group_size=group_size,
             )
             if graph_prefetch_enabled and graph_entity_ids:
                 try:
@@ -360,9 +445,22 @@ class QdrantSearcher:
                 "tags": hit.payload.get("tags", []),
                 "chunk_index": hit.payload.get("chunk_index", 0),
                 "raptor_level": hit.payload.get("raptor_level", 0),
+                # NAME COLLISION GUARD: the Qdrant payload key `provenance` is a
+                # flat chunk-classification STRING ("verbatim_speech", etc — see
+                # services/provenance.py); `services/provenance_context.py` and
+                # every consumer downstream of it (citation_service, contradiction_
+                # resolver) expect `item["provenance"]` to be a structured DICT.
+                # Exposing the payload string under that same key crashed
+                # retrieve_documents in production (`dict("verbatim_speech")` ->
+                # ValueError inside _screen_prompt_injection). Surface it under an
+                # unambiguous key instead; do NOT rename it back to "provenance".
+                "chunk_provenance": hit.payload.get("provenance", ""),
                 "score": getattr(hit, "score", 0.0),
                 "parent_id": hit.payload.get("parent_id"),
                 "parent_text": hit.payload.get("parent_text"),
+                "group_id": hit.payload.get("group_id"),
+                "grouped_by": hit.payload.get("grouped_by"),
+                "video_id": hit.payload.get("video_id", ""),
                 "is_child": hit.payload.get("is_child", False),
                 "speaker": hit.payload.get("speaker", "Unknown"),
                 "topic": hit.payload.get("topic", "Spiritual"),
@@ -434,8 +532,38 @@ class QdrantSearcher:
         limit,
         search_filter,
         search_params: Optional[SearchParams] = None,
+        grouping_keys: Optional[list[str]] = None,
+        group_size: int = 2,
     ):
-        """Dense-only search using the named 'dense' vector."""
+        """Dense-only search using the named 'dense' vector, with optional grouping support."""
+        effective_params = (
+            search_params if search_params is not None else self._dense_quantization_search_params()
+        )
+        if grouping_keys:
+            for grp_key in grouping_keys:
+                try:
+                    grouped_res = self._client.query_points_groups(
+                        collection_name=self._collection,
+                        query=query_vector,
+                        using="dense",
+                        group_by=grp_key,
+                        limit=limit,
+                        group_size=group_size,
+                        query_filter=search_filter,
+                        search_params=effective_params,
+                        with_payload=True,
+                        with_vectors=True,
+                    )
+                    hits = []
+                    for grp in grouped_res.groups:
+                        for pt in grp.hits:
+                            if pt.payload is not None:
+                                pt.payload["group_id"] = str(grp.id)
+                                pt.payload["grouped_by"] = grp_key
+                            hits.append(pt)
+                    return hits
+                except Exception:
+                    continue
         try:
             results = self._client.query_points(
                 collection_name=self._collection,
@@ -443,9 +571,7 @@ class QdrantSearcher:
                 using="dense",
                 limit=limit,
                 query_filter=search_filter,
-                search_params=search_params
-                if search_params is not None
-                else self._dense_quantization_search_params(),
+                search_params=effective_params,
                 with_payload=True,
                 with_vectors=True,
             )
@@ -456,3 +582,39 @@ class QdrantSearcher:
             # that only have named vectors.
             logger.warning(f"Dense search failed: {e}. Returning empty results.")
             return []
+
+    @enforce_multitenancy
+    @retry_with_backoff(max_retries=1)
+    @track_search_latency
+    def search_groups(
+        self,
+        query_vector: list[float],
+        group_by: str = "parent_id",
+        group_size: int = 2,
+        limit: int = 10,
+        content_type: Optional[str] = None,
+        sparse_vector: Optional[dict] = None,
+        raptor_level: Optional[int] = None,
+        teacher_id: Optional[str] = None,
+        scope: Optional[CorpusScope] = None,
+        fusion_strategy: Optional[str] = None,
+        **kwargs,
+    ) -> list[dict]:
+        """Parent Document Group Search using Qdrant Universal Query API query_points_groups.
+
+        Combines multi-vector prefetch (dense + sparse) with Universal Fusion (RRF/DBSF)
+        and groups results by parent entity (video_id, source_url, or parent_id).
+        """
+        return self.search(
+            query_vector=query_vector,
+            limit=limit,
+            content_type=content_type,
+            sparse_vector=sparse_vector,
+            raptor_level=raptor_level,
+            teacher_id=teacher_id,
+            scope=scope,
+            group_by=group_by,
+            group_size=group_size,
+            fusion_strategy=fusion_strategy,
+            **kwargs,
+        )

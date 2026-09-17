@@ -18,6 +18,7 @@ class LLMProvider(abc.ABC):
     def _estimate_tokens(text: str) -> int:
         """Language-aware token estimate via shared compressor."""
         from rag.compressor import estimate_tokens
+
         return estimate_tokens(text)
 
     def _enforce_token_budget(self, prompt_text: str, budget: int, node: str = "generate") -> None:
@@ -47,6 +48,7 @@ class LLMProvider(abc.ABC):
         if not text:
             return text
         from rag.compressor import get_token_ratio
+
         words = text.split()
         ratio = get_token_ratio("en")
         max_words = int(budget / ratio)

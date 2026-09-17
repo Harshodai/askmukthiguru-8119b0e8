@@ -125,6 +125,4 @@ def test_openrouter_gemini_fallback_rates_are_accounted_when_provider_omits_cost
         2_000,
         "google/gemini-3.6-flash",
     )
-    assert configured_default_estimate == pytest.approx(
-        (1_000 * 0.75 + 2_000 * 3.75) / 1_000_000
-    )
+    assert configured_default_estimate == pytest.approx((1_000 * 0.75 + 2_000 * 3.75) / 1_000_000)

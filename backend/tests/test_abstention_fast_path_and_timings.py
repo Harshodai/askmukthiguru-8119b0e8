@@ -1,7 +1,8 @@
 """Unit tests for P0-5 (Node Timing Instrumentation Coverage) and P0-6 (Abstention Fast-Path & Retry Elimination)."""
 
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, patch
 
 from rag.graph_strategies import route_after_formatting
 from rag.nodes.citation_extractor import extract_citations
@@ -94,7 +95,9 @@ async def test_format_final_answer_node_timings_recorded():
                 "source_url": "https://www.youtube.com/watch?v=example123",
             }
         ],
-        "citations": [{"url": "https://www.youtube.com/watch?v=example123", "title": "Beautiful State"}],
+        "citations": [
+            {"url": "https://www.youtube.com/watch?v=example123", "title": "Beautiful State"}
+        ],
         "is_faithful": True,
         "verification": {"passed": True, "method": "local_nli"},
         "confidence_score": 9.0,
@@ -129,7 +132,12 @@ async def test_node_timing_instrumentation_coverage():
     state_citations = {
         **base_state,
         "answer": "This is a profound teaching on meditation.",
-        "relevant_docs": [{"text": "This is a profound teaching on meditation.", "source_url": "https://example.com"}],
+        "relevant_docs": [
+            {
+                "text": "This is a profound teaching on meditation.",
+                "source_url": "https://example.com",
+            }
+        ],
     }
     cit_res = extract_citations(state_citations)
     assert "node_timings" in cit_res
@@ -144,8 +152,22 @@ async def test_node_timing_instrumentation_coverage():
 
     # 3. handle_distress
     distress_state = {**base_state, "question": "I am feeling overwhelmed and sad."}
-    with patch("rag.nodes.intent._services._serene_mind", None), patch(
-        "rag.nodes.intent._services._ollama", None
+    # handle_distress -> retrieve_documents (rag/nodes/retrieval.py:1382-1384)
+    # calls the REAL `app.dependencies.get_container()` directly (not through
+    # injected _services) just to read `.neo4j_driver`. Left unpatched, that
+    # builds the real process-wide ServiceContainer singleton (ContainerBuilder
+    # ().build(), never torn down) as a side effect of this one unit test —
+    # and building it calls `rag.nodes.init_services(..., llm_gateway=<real>)`
+    # internally, permanently overwriting rag.nodes._services._llm_gateway
+    # (a bare module global) for every later test in the process. Reproduced:
+    # test_agentic_graph_traversal.py and test_audit_fixes.py then fail with a
+    # real, already-open "Circuit breaker OPEN for openrouter" instead of
+    # their intended mocked path. Patch get_container here so this test never
+    # triggers that real build.
+    with (
+        patch("rag.nodes.intent._services._serene_mind", None),
+        patch("rag.nodes.intent._services._ollama", None),
+        patch("app.dependencies.get_container", return_value=MagicMock()),
     ):
         dist_res = await handle_distress(distress_state)
         assert "node_timings" in dist_res
@@ -154,7 +176,11 @@ async def test_node_timing_instrumentation_coverage():
         assert dist_res.get("route_decision") == "distress"
 
     # 4. handle_meditation
-    med_state = {**base_state, "question": "Guide me through Soul Sync meditation", "meditation_step": 0}
+    med_state = {
+        **base_state,
+        "question": "Guide me through Soul Sync meditation",
+        "meditation_step": 0,
+    }
     med_res = await handle_meditation(med_state)
     assert "node_timings" in med_res
     assert "handle_meditation" in med_res["node_timings"]
@@ -168,7 +194,10 @@ async def test_node_timing_instrumentation_coverage():
     assert fb_res.get("route_decision") == "no_context_short_circuit"
 
     # 6. cross_teacher_reasoning
-    ct_state = {**base_state, "question": "What is the difference between Sadhguru and Sri Krishnaji?"}
+    ct_state = {
+        **base_state,
+        "question": "What is the difference between Sadhguru and Sri Krishnaji?",
+    }
     with patch("rag.nodes.cross_teacher_reasoning._get_driver", return_value=None):
         ct_res = await cross_teacher_reasoning(ct_state)
         assert "node_timings" in ct_res
@@ -183,8 +212,11 @@ async def test_node_timing_instrumentation_coverage():
 
     # 8. navigate_and_hyde
     nh_state = {**base_state}
-    with patch("rag.nodes.retrieval.navigate_knowledge_tree", AsyncMock(return_value={"tree_docs": []})), patch(
-        "rag.nodes.retrieval.generate_hyde", AsyncMock(return_value={"hyde_doc": "mock"})
+    with (
+        patch(
+            "rag.nodes.retrieval.navigate_knowledge_tree", AsyncMock(return_value={"tree_docs": []})
+        ),
+        patch("rag.nodes.retrieval.generate_hyde", AsyncMock(return_value={"hyde_doc": "mock"})),
     ):
         nh_res = await navigate_and_hyde(nh_state)
         assert "node_timings" in nh_res

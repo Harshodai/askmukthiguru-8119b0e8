@@ -21,6 +21,7 @@ from rag.nodes import generation
 from rag.nodes.generation import format_final_answer
 from rag.prompts import FALLBACK_RESPONSE
 from rag.states import GraphState
+from services.voice.register import PARTIAL_EVIDENCE_PREFACE
 
 _LONG_ANSWER = (
     "Meditation is the practice of resting attention on the breath. "
@@ -429,4 +430,6 @@ async def test_grounded_partial_answer_is_concise_and_maps_each_excerpt_to_sourc
     assert "[1]" in answer and "[2]" in answer
     assert "Third source that must not be included" not in answer
     assert len(answer) < 1200
-    assert "This is an evidence excerpt, not a complete or newly generated interpretation." in answer
+    # Assert the excerpt disclaimer through its constant, so a copy rewrite
+    # cannot silently drop the "these are their words, not mine" contract.
+    assert PARTIAL_EVIDENCE_PREFACE in answer

@@ -13,6 +13,7 @@ Verifies that:
 from __future__ import annotations
 
 import pytest
+
 from benchmarks.abstention_eval import (
     HELD_OUT_UNANSWERABLE_QUESTIONS,
     AbstentionEvalResult,
@@ -61,7 +62,7 @@ async def test_calibrated_abstention_evaluation_harness():
 async def test_held_out_questions_domain_diversity():
     """Verify that the 10 questions span all mandatory high-risk out-of-domain strata."""
     categories = {q["category"] for q in HELD_OUT_UNANSWERABLE_QUESTIONS}
-    domains = {q["domain"] for q in HELD_OUT_UNANSWERABLE_QUESTIONS}
+    _domains = {q["domain"] for q in HELD_OUT_UNANSWERABLE_QUESTIONS}
 
     # Mandated strata from Task 4 specification:
     # modern stock market predictions, quantum computing formulas, geopolitical elections, medical surgery prescriptions
@@ -83,6 +84,7 @@ async def test_held_out_questions_domain_diversity():
 @pytest.mark.asyncio
 async def test_custom_runner_evaluation():
     """Verify that run_abstention_evaluation correctly wraps and evaluates a custom runner."""
+
     async def mock_runner(question: str) -> dict:
         return {
             "answer": "I couldn't find relevant teachings in my knowledge base for this question.",
@@ -109,9 +111,7 @@ def test_doctrine_fabrication_detector_positive_and_negative():
         "I'm focused on spiritual guidance rooted in the teachings of Sri Preethaji "
         "and Sri Krishnaji. I'm not able to help with cryptocurrency or financial topics. 🙏"
     )
-    clean_abstention_3 = (
-        "Mukthi Guru is a spiritual guide and cannot provide medical prescriptions or surgery advice."
-    )
+    clean_abstention_3 = "Mukthi Guru is a spiritual guide and cannot provide medical prescriptions or surgery advice."
 
     assert not detect_fabricated_doctrine("Predict TSLA stock price", clean_abstention_1)
     assert not detect_fabricated_doctrine("Predict Bitcoin price", clean_abstention_2)
@@ -122,12 +122,8 @@ def test_doctrine_fabrication_detector_positive_and_negative():
         "Sri Krishnaji taught that to calculate the critical mass of plutonium-239, "
         "one must meditate on the neutron multiplication factor."
     )
-    bad_claim_2 = (
-        "According to Sri Preethaji, you should buy Tesla stock call options at a $250 strike price."
-    )
-    bad_claim_3 = (
-        "The teachings of Ekam state that for a laparoscopic appendectomy, you must make a 10mm umbilical incision."
-    )
+    bad_claim_2 = "According to Sri Preethaji, you should buy Tesla stock call options at a $250 strike price."
+    bad_claim_3 = "The teachings of Ekam state that for a laparoscopic appendectomy, you must make a 10mm umbilical incision."
 
     assert detect_fabricated_doctrine("plutonium mass", bad_claim_1)
     assert detect_fabricated_doctrine("Tesla stock", bad_claim_2)

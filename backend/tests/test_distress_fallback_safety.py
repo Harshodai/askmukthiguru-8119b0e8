@@ -53,9 +53,7 @@ async def test_handle_distress_zero_docs_none_assessment():
     serene_mock.async_assess_distress = AsyncMock(
         return_value=DistressAssessment(level=DistressLevel.NONE, confidence=0.0)
     )
-    serene_mock.get_response = MagicMock(
-        return_value=DISTRESS_RESPONSES[DistressLevel.MILD]
-    )
+    serene_mock.get_response = MagicMock(return_value=DISTRESS_RESPONSES[DistressLevel.MILD])
 
     state = GraphState(
         question="I feel overwhelmed and lost",
@@ -90,9 +88,7 @@ async def test_handle_distress_llm_empty_generation_fallback():
     serene_mock.async_assess_distress = AsyncMock(
         return_value=DistressAssessment(level=DistressLevel.MODERATE, confidence=0.7)
     )
-    serene_mock.get_response = MagicMock(
-        return_value=DISTRESS_RESPONSES[DistressLevel.MODERATE]
-    )
+    serene_mock.get_response = MagicMock(return_value=DISTRESS_RESPONSES[DistressLevel.MODERATE])
 
     state = GraphState(
         question="I am feeling deeply anxious",
@@ -122,9 +118,7 @@ async def test_handle_distress_llm_exception_fallback():
     serene_mock.async_assess_distress = AsyncMock(
         return_value=DistressAssessment(level=DistressLevel.MODERATE, confidence=0.7)
     )
-    serene_mock.get_response = MagicMock(
-        return_value=DISTRESS_RESPONSES[DistressLevel.MODERATE]
-    )
+    serene_mock.get_response = MagicMock(return_value=DISTRESS_RESPONSES[DistressLevel.MODERATE])
 
     state = GraphState(
         question="I am struggling with panic",

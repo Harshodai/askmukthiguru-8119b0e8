@@ -54,20 +54,14 @@ def test_falls_back_to_passwordless_localhost(monkeypatch, tmp_path):
     """No .env (CI checkout) must still yield a usable default."""
     monkeypatch.delenv("REDIS_URL", raising=False)
     monkeypatch.setattr(conftest, "_BACKEND_DIR", str(tmp_path))
-    assert (
-        conftest._resolve_test_redis_url()
-        == f"redis://localhost:6379/{conftest._TEST_REDIS_DB}"
-    )
+    assert conftest._resolve_test_redis_url() == f"redis://localhost:6379/{conftest._TEST_REDIS_DB}"
 
 
 def test_malformed_env_value_does_not_raise(monkeypatch, tmp_path):
     monkeypatch.delenv("REDIS_URL", raising=False)
     (tmp_path / ".env").write_text("REDIS_URL=\n", encoding="utf-8")
     monkeypatch.setattr(conftest, "_BACKEND_DIR", str(tmp_path))
-    assert (
-        conftest._resolve_test_redis_url()
-        == f"redis://localhost:6379/{conftest._TEST_REDIS_DB}"
-    )
+    assert conftest._resolve_test_redis_url() == f"redis://localhost:6379/{conftest._TEST_REDIS_DB}"
 
 
 def test_no_password_is_committed_in_conftest():

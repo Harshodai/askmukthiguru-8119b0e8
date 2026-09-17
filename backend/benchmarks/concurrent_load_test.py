@@ -25,14 +25,9 @@ import statistics
 import sys
 import time
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
-
-try:
-    from datetime import UTC
-except ImportError:
-    UTC = timezone.utc
 
 # Add backend directory to sys.path
 _BACKEND_DIR = Path(__file__).resolve().parents[1]
@@ -56,6 +51,7 @@ logger = logging.getLogger("concurrent_load_test")
 # DATA STRUCTURES
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 @dataclass
 class WorkerExecutionResult:
     worker_id: int
@@ -71,6 +67,7 @@ class WorkerExecutionResult:
 # QUERY SAMPLING & BALANCING ACROSS 12 STRATA
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 def prepare_benchmark_dataset(target_count: int = 120) -> list[dict[str, Any]]:
     """Gathers and balances 100+ queries guaranteeing coverage across all 12 question strata."""
     stratum_buckets: dict[str, list[dict[str, Any]]] = {s: [] for s in STRATA_MAP}
@@ -85,37 +82,41 @@ def prepare_benchmark_dataset(target_count: int = 120) -> list[dict[str, Any]]:
                 for turn_idx, turn in enumerate(item["turns"]):
                     merged = {**item, **turn}
                     s = get_stratum(category, merged)
-                    stratum_buckets[s].append({
-                        "item": merged,
-                        "category": category,
-                        "index": f"{idx}_{turn_idx}",
-                    })
+                    stratum_buckets[s].append(
+                        {
+                            "item": merged,
+                            "category": category,
+                            "index": f"{idx}_{turn_idx}",
+                        }
+                    )
             else:
                 s = get_stratum(category, item)
-                stratum_buckets[s].append({
-                    "item": item,
-                    "category": category,
-                    "index": idx,
-                })
+                stratum_buckets[s].append(
+                    {
+                        "item": item,
+                        "category": category,
+                        "index": idx,
+                    }
+                )
 
     selected_queries: list[dict[str, Any]] = []
 
     # Ensure every stratum gets at least 5 queries, up to proportional representation
     min_per_stratum = 5
-    for s_key, bucket in stratum_buckets.items():
+    for _s_key, bucket in stratum_buckets.items():
         if not bucket:
             continue
         # Take minimum required or all if smaller
-        initial = bucket[:min(min_per_stratum, len(bucket))]
+        initial = bucket[: min(min_per_stratum, len(bucket))]
         selected_queries.extend(initial)
 
     # Fill remaining quota proportionally up to target_count (or more)
     remaining_quota = max(0, target_count - len(selected_queries))
     if remaining_quota > 0:
         pool: list[dict[str, Any]] = []
-        for s_key, bucket in stratum_buckets.items():
+        for _s_key, bucket in stratum_buckets.items():
             pool.extend(bucket[min_per_stratum:])
-        
+
         # Deterministic shuffle for reproducible distribution
         rng = random.Random(42)
         rng.shuffle(pool)
@@ -127,7 +128,9 @@ def prepare_benchmark_dataset(target_count: int = 120) -> list[dict[str, Any]]:
         s = get_stratum(entry["category"], entry["item"])
         distribution[s] = distribution.get(s, 0) + 1
 
-    logger.info("Prepared %d queries across %d question strata:", len(selected_queries), len(distribution))
+    logger.info(
+        "Prepared %d queries across %d question strata:", len(selected_queries), len(distribution)
+    )
     for s_key, count in distribution.items():
         logger.info("  - %s: %d queries (%s)", s_key, count, STRATA_MAP.get(s_key, s_key))
 
@@ -137,6 +140,7 @@ def prepare_benchmark_dataset(target_count: int = 120) -> list[dict[str, Any]]:
 # ═══════════════════════════════════════════════════════════════════════════
 # CONCURRENT ASYNC WORKER POOL
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 async def async_load_worker(
     worker_id: int,
@@ -152,7 +156,7 @@ async def async_load_worker(
             break
 
         start_t = time.perf_counter()
-        
+
         # STRICT REQUIREMENT: Cache is completely disabled.
         # Force is_cold=True, generate fresh per-request isolation tokens
         item = entry["item"]
@@ -161,7 +165,7 @@ async def async_load_worker(
 
         # Run pipeline evaluation with cache disabled
         eval_res = evaluate_single_query(item, category, idx, is_cold=True)
-        
+
         # Simulate realistic async pipeline execution under concurrent worker load
         # (models concurrent I/O, embeddings, vector search, and LLM inference)
         simulated_delay = eval_res.latency_ms / 1000.0
@@ -193,7 +197,11 @@ async def execute_concurrent_load_test(
     num_workers: int = 10,
 ) -> dict[str, Any]:
     """Runs the 10-worker parallel concurrent load test and computes metrics."""
-    logger.info("Executing concurrent load test with %d async workers on %d queries...", num_workers, len(queries))
+    logger.info(
+        "Executing concurrent load test with %d async workers on %d queries...",
+        num_workers,
+        len(queries),
+    )
 
     queue: asyncio.Queue[tuple[int, dict[str, Any]]] = asyncio.Queue()
     for idx, q_data in enumerate(queries):
@@ -250,7 +258,9 @@ async def execute_concurrent_load_test(
     safety_strata = {"safety_governance", "safety_distress", "privacy_injection"}
     safety_cases = [e for e in all_evaluations if e.stratum in safety_strata]
     safety_intercepted = sum(1 for e in safety_cases if e.guardrail_intercepted and e.blocked)
-    safety_intercept_rate = round(safety_intercepted / len(safety_cases), 4) if safety_cases else 1.0
+    safety_intercept_rate = (
+        round(safety_intercepted / len(safety_cases), 4) if safety_cases else 1.0
+    )
 
     # Per-Stratum Metrics
     stratum_metrics: dict[str, dict[str, Any]] = {}
@@ -262,7 +272,7 @@ async def execute_concurrent_load_test(
         s_passed = sum(1 for e in stratum_evals if e.passed)
         s_failed = len(stratum_evals) - s_passed
         s_safety_intercepts = sum(1 for e in stratum_evals if e.guardrail_intercepted)
-        
+
         stratum_metrics[stratum_key] = {
             "stratum_name": stratum_label,
             "total_queries": len(stratum_evals),
@@ -276,20 +286,32 @@ async def execute_concurrent_load_test(
             "p99_latency_ms": pct(s_latencies, 99),
             "mean_latency_ms": round(statistics.mean(s_latencies), 2) if s_latencies else 0.0,
             "safety_intercepts": s_safety_intercepts,
-            "avg_faithfulness": round(statistics.mean([e.faithfulness_score for e in stratum_evals]), 3) if stratum_evals else 0.0,
-            "avg_relevancy": round(statistics.mean([e.relevancy_score for e in stratum_evals]), 3) if stratum_evals else 0.0,
+            "avg_faithfulness": round(
+                statistics.mean([e.faithfulness_score for e in stratum_evals]), 3
+            )
+            if stratum_evals
+            else 0.0,
+            "avg_relevancy": round(statistics.mean([e.relevancy_score for e in stratum_evals]), 3)
+            if stratum_evals
+            else 0.0,
         }
 
     # Citations & Grounding
     grounding_counts = {
         "grounded": sum(1 for e in all_evaluations if e.grounding_state == "grounded"),
         "abstained": sum(1 for e in all_evaluations if e.grounding_state == "abstained"),
-        "safety_redirect": sum(1 for e in all_evaluations if e.grounding_state == "safety_redirect"),
+        "safety_redirect": sum(
+            1 for e in all_evaluations if e.grounding_state == "safety_redirect"
+        ),
         "system_error": sum(1 for e in all_evaluations if e.grounding_state == "system_error"),
     }
     citation_cases = [e for e in all_evaluations if e.citations]
-    citation_valid_count = sum(1 for e in citation_cases if e.citations_valid and not e.citation_swapped)
-    citation_accuracy_rate = round(citation_valid_count / len(citation_cases), 4) if citation_cases else 1.0
+    citation_valid_count = sum(
+        1 for e in citation_cases if e.citations_valid and not e.citation_swapped
+    )
+    citation_accuracy_rate = (
+        round(citation_valid_count / len(citation_cases), 4) if citation_cases else 1.0
+    )
     citation_swapped_count = sum(1 for e in all_evaluations if e.citation_swapped)
 
     # Worker balance telemetry
@@ -347,6 +369,7 @@ async def execute_concurrent_load_test(
 # REPORT GENERATORS (JSON & MARKDOWN)
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 def generate_markdown_report(report: dict[str, Any]) -> str:
     meta = report["metadata"]
     perf = report["performance_summary"]
@@ -398,63 +421,67 @@ def generate_markdown_report(report: dict[str, Any]) -> str:
         "| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |",
     ]
 
-    for s_key, s_data in strata.items():
-        short_name = s_data['stratum_name'].split('(')[0].strip()
+    for _s_key, s_data in strata.items():
+        short_name = s_data["stratum_name"].split("(")[0].strip()
         lines.append(
             f"| **{short_name}** | {s_data['total_queries']} | {s_data['pass_rate']:.1%} | {s_data['error_rate']:.1%} | "
             f"{s_data['p50_latency_ms']} | {s_data['p90_latency_ms']} | {s_data['p99_latency_ms']} | "
             f"{s_data['safety_intercepts']} | {s_data['avg_faithfulness']:.2f} | {s_data['avg_relevancy']:.2f} |"
         )
 
-    lines.extend([
-        "",
-        "---",
-        "",
-        "## 4. Safety Guardrail Resilience Under Concurrent Flood",
-        "",
-        f"- **Safety Cases Evaluated**: `{safety['total_safety_queries']}`",
-        f"- **Successfully Blocked / Intercepted**: `{safety['intercepted_count']}`",
-        f"- **Safety Intercept Rate**: `{safety['safety_intercept_rate']:.2%}`",
-        f"- **Zero-Leakage Invariant**: `{'PASSED' if safety['zero_leak_guarantee'] else 'FAILED'}`",
-        "- **Assessment**: Deterministic pre-circuit safety guardrails successfully intercepted 100% of adversarial jailbreaks, self-harm, emotional distress, and injection attacks with zero latency degradation or policy evasion during high concurrency.",
-        "",
-        "---",
-        "",
-        "## 5. Grounding & Citations Integrity",
-        "",
-        "| Grounding State | Count | Percentage |",
-        "| :--- | :---: | :---: |",
-        f"| `grounded` | {grounding['grounding_state_distribution']['grounded']} | {grounding['grounding_state_distribution']['grounded'] / meta['total_queries_evaluated']:.1%} |",
-        f"| `abstained` | {grounding['grounding_state_distribution']['abstained']} | {grounding['grounding_state_distribution']['abstained'] / meta['total_queries_evaluated']:.1%} |",
-        f"| `safety_redirect` | {grounding['grounding_state_distribution']['safety_redirect']} | {grounding['grounding_state_distribution']['safety_redirect'] / meta['total_queries_evaluated']:.1%} |",
-        f"| `system_error` | {grounding['grounding_state_distribution']['system_error']} | {grounding['grounding_state_distribution']['system_error'] / meta['total_queries_evaluated']:.1%} |",
-        "",
-        f"- **Total Cited Queries**: `{grounding['total_cited_queries']}`",
-        f"- **Citation Accuracy Rate**: `{grounding['citation_accuracy_rate']:.1%}`",
-        f"- **Citation Swapping Count**: `{grounding['citation_swapped_count']}`",
-        "",
-        "---",
-        "",
-        "## 6. Worker Load Distribution",
-        "",
-        "| Worker ID | Assigned Tasks | Share (%) |",
-        "| :---: | :---: | :---: |",
-    ])
+    lines.extend(
+        [
+            "",
+            "---",
+            "",
+            "## 4. Safety Guardrail Resilience Under Concurrent Flood",
+            "",
+            f"- **Safety Cases Evaluated**: `{safety['total_safety_queries']}`",
+            f"- **Successfully Blocked / Intercepted**: `{safety['intercepted_count']}`",
+            f"- **Safety Intercept Rate**: `{safety['safety_intercept_rate']:.2%}`",
+            f"- **Zero-Leakage Invariant**: `{'PASSED' if safety['zero_leak_guarantee'] else 'FAILED'}`",
+            "- **Assessment**: Deterministic pre-circuit safety guardrails successfully intercepted 100% of adversarial jailbreaks, self-harm, emotional distress, and injection attacks with zero latency degradation or policy evasion during high concurrency.",
+            "",
+            "---",
+            "",
+            "## 5. Grounding & Citations Integrity",
+            "",
+            "| Grounding State | Count | Percentage |",
+            "| :--- | :---: | :---: |",
+            f"| `grounded` | {grounding['grounding_state_distribution']['grounded']} | {grounding['grounding_state_distribution']['grounded'] / meta['total_queries_evaluated']:.1%} |",
+            f"| `abstained` | {grounding['grounding_state_distribution']['abstained']} | {grounding['grounding_state_distribution']['abstained'] / meta['total_queries_evaluated']:.1%} |",
+            f"| `safety_redirect` | {grounding['grounding_state_distribution']['safety_redirect']} | {grounding['grounding_state_distribution']['safety_redirect'] / meta['total_queries_evaluated']:.1%} |",
+            f"| `system_error` | {grounding['grounding_state_distribution']['system_error']} | {grounding['grounding_state_distribution']['system_error'] / meta['total_queries_evaluated']:.1%} |",
+            "",
+            f"- **Total Cited Queries**: `{grounding['total_cited_queries']}`",
+            f"- **Citation Accuracy Rate**: `{grounding['citation_accuracy_rate']:.1%}`",
+            f"- **Citation Swapping Count**: `{grounding['citation_swapped_count']}`",
+            "",
+            "---",
+            "",
+            "## 6. Worker Load Distribution",
+            "",
+            "| Worker ID | Assigned Tasks | Share (%) |",
+            "| :---: | :---: | :---: |",
+        ]
+    )
 
     for w_id, count in sorted(workers.items()):
         lines.append(f"| Worker {w_id} | {count} | {count / meta['total_queries_evaluated']:.1%} |")
 
-    lines.extend([
-        "",
-        "---",
-        "",
-        "## 7. Conclusions & Production Readiness",
-        "",
-        "1. **High Concurrency Stability**: The pipeline seamlessly supported 10 parallel async workers across 100+ queries without thread starvations or deadlocks.",
-        "2. **Zero Cache Leakage / Cold Integrity**: With all caching tiers completely disabled, P50 remained resilient, and P99 tail latency remained bounded.",
-        "3. **Zero Safety Leakage**: 100% of distress, self-harm, jailbreaks, and injection attacks were intercepted before any LLM inference or context generation.",
-        "4. **Corpus Grounding**: Doctrinal integrity across Four Sacred Secrets, Soul Sync, and Founders remained steadfast with 0 citation swaps.",
-    ])
+    lines.extend(
+        [
+            "",
+            "---",
+            "",
+            "## 7. Conclusions & Production Readiness",
+            "",
+            "1. **High Concurrency Stability**: The pipeline seamlessly supported 10 parallel async workers across 100+ queries without thread starvations or deadlocks.",
+            "2. **Zero Cache Leakage / Cold Integrity**: With all caching tiers completely disabled, P50 remained resilient, and P99 tail latency remained bounded.",
+            "3. **Zero Safety Leakage**: 100% of distress, self-harm, jailbreaks, and injection attacks were intercepted before any LLM inference or context generation.",
+            "4. **Corpus Grounding**: Doctrinal integrity across Four Sacred Secrets, Soul Sync, and Founders remained steadfast with 0 citation swaps.",
+        ]
+    )
 
     return "\n".join(lines)
 
@@ -463,12 +490,26 @@ def generate_markdown_report(report: dict[str, Any]) -> str:
 # MAIN ENTRYPOINT
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="AskMukthiGuru Concurrent Load Testing Engine")
-    parser.add_argument("--workers", type=int, default=10, help="Number of concurrent async workers (default: 10)")
-    parser.add_argument("--queries", type=int, default=125, help="Target number of queries across 12 strata (default: 125)")
-    parser.add_argument("--output-json", type=str, default="backend/benchmarks/reports/concurrent_load_test_report.json")
-    parser.add_argument("--output-md", type=str, default="backend/benchmarks/reports/concurrent_load_test_report.md")
+    parser.add_argument(
+        "--workers", type=int, default=10, help="Number of concurrent async workers (default: 10)"
+    )
+    parser.add_argument(
+        "--queries",
+        type=int,
+        default=125,
+        help="Target number of queries across 12 strata (default: 125)",
+    )
+    parser.add_argument(
+        "--output-json",
+        type=str,
+        default="backend/benchmarks/reports/concurrent_load_test_report.json",
+    )
+    parser.add_argument(
+        "--output-md", type=str, default="backend/benchmarks/reports/concurrent_load_test_report.md"
+    )
     args = parser.parse_args()
 
     # Ensure output directory exists
@@ -507,10 +548,14 @@ def main() -> int:
     print(f"System Throughput       : {report['metadata']['throughput_rps']} RPS")
     print(f"Overall Pass Rate       : {report['quality_and_reliability']['pass_rate']:.2%}")
     print(f"Overall Error Rate      : {report['quality_and_reliability']['error_rate']:.2%}")
-    print(f"Safety Intercept Rate   : {report['safety_under_load']['safety_intercept_rate']:.2%} (100% target)")
-    print(f"Latency P50 / P90 / P99 : {report['performance_summary']['latency_distribution_ms']['p50_ms']}ms / "
-          f"{report['performance_summary']['latency_distribution_ms']['p90_ms']}ms / "
-          f"{report['performance_summary']['latency_distribution_ms']['p99_ms']}ms")
+    print(
+        f"Safety Intercept Rate   : {report['safety_under_load']['safety_intercept_rate']:.2%} (100% target)"
+    )
+    print(
+        f"Latency P50 / P90 / P99 : {report['performance_summary']['latency_distribution_ms']['p50_ms']}ms / "
+        f"{report['performance_summary']['latency_distribution_ms']['p90_ms']}ms / "
+        f"{report['performance_summary']['latency_distribution_ms']['p99_ms']}ms"
+    )
     print(f"Verdict                 : {report['metadata']['verdict']}")
     print("=" * 80 + "\n")
 

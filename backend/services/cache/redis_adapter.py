@@ -12,6 +12,7 @@ from app.metrics import (
     REDIS_CACHE_BUDGET_REJECTIONS,
     REDIS_NAMESPACE_KEYS,
     REDIS_NAMESPACE_NONEXPIRING_KEYS,
+    set_cache_hit_ratio,
 )
 from domain.ports.cache_port import ICacheRepository
 from services.cache.constants import _CACHE_TTL
@@ -151,6 +152,15 @@ class RedisCacheAdapter(ICacheRepository):
         snapshot.update({"namespace": self._NAMESPACE, "max_keys": self._max_keys})
         return snapshot
 
+    def _report_hit_ratio(self) -> None:
+        total = self._hits + self._misses
+        if not total:
+            return
+        try:
+            set_cache_hit_ratio("exact", self._hits / total)
+        except Exception:
+            pass
+
     def get(self, query: str, user_id: str | None = None) -> Optional[dict]:
         """Look up a cached response for the given query.
 
@@ -167,12 +177,14 @@ class RedisCacheAdapter(ICacheRepository):
 
             if result is not None:
                 self._hits += 1
+                self._report_hit_ratio()
                 logger.info(f"Redis Cache HIT (hits={self._hits}, misses={self._misses})")
                 return json.loads(result)
         except Exception as e:
             logger.warning("Redis get failed (query_len=%d): %s", len(query), e)
 
         self._misses += 1
+        self._report_hit_ratio()
         return None
 
     def put(

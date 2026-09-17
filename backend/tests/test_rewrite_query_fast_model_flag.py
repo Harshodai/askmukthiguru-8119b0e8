@@ -44,8 +44,10 @@ def _sarvam_svc(monkeypatch):
 async def test_ollama_rewrite_query_uses_main_model_by_default():
     svc = _ollama_svc()
     settings.rag_rewrite_query_fast_model = False
-    with patch.object(svc, "generate", new=AsyncMock(return_value="rewritten")) as mock_generate, \
-         patch.object(svc, "_generate_fast", new=AsyncMock(return_value="rewritten")) as mock_fast:
+    with (
+        patch.object(svc, "generate", new=AsyncMock(return_value="rewritten")) as mock_generate,
+        patch.object(svc, "_generate_fast", new=AsyncMock(return_value="rewritten")) as mock_fast,
+    ):
         result = await svc.rewrite_query("original query")
 
     assert result == "rewritten"
@@ -58,8 +60,12 @@ async def test_ollama_rewrite_query_uses_fast_model_when_flag_enabled():
     svc = _ollama_svc()
     settings.rag_rewrite_query_fast_model = True
     try:
-        with patch.object(svc, "generate", new=AsyncMock(return_value="rewritten")) as mock_generate, \
-             patch.object(svc, "_generate_fast", new=AsyncMock(return_value="rewritten")) as mock_fast:
+        with (
+            patch.object(svc, "generate", new=AsyncMock(return_value="rewritten")) as mock_generate,
+            patch.object(
+                svc, "_generate_fast", new=AsyncMock(return_value="rewritten")
+            ) as mock_fast,
+        ):
             result = await svc.rewrite_query("original query")
 
         assert result == "rewritten"
@@ -73,8 +79,10 @@ async def test_ollama_rewrite_query_uses_fast_model_when_flag_enabled():
 async def test_sarvam_rewrite_query_uses_main_model_by_default(monkeypatch):
     svc = _sarvam_svc(monkeypatch)
     settings.rag_rewrite_query_fast_model = False
-    with patch.object(svc, "generate", new=AsyncMock(return_value="rewritten")) as mock_generate, \
-         patch.object(svc, "_generate_fast", new=AsyncMock(return_value="rewritten")) as mock_fast:
+    with (
+        patch.object(svc, "generate", new=AsyncMock(return_value="rewritten")) as mock_generate,
+        patch.object(svc, "_generate_fast", new=AsyncMock(return_value="rewritten")) as mock_fast,
+    ):
         result = await svc.rewrite_query("original query")
 
     assert result == "rewritten"
@@ -87,8 +95,12 @@ async def test_sarvam_rewrite_query_uses_fast_model_when_flag_enabled(monkeypatc
     svc = _sarvam_svc(monkeypatch)
     settings.rag_rewrite_query_fast_model = True
     try:
-        with patch.object(svc, "generate", new=AsyncMock(return_value="rewritten")) as mock_generate, \
-             patch.object(svc, "_generate_fast", new=AsyncMock(return_value="rewritten")) as mock_fast:
+        with (
+            patch.object(svc, "generate", new=AsyncMock(return_value="rewritten")) as mock_generate,
+            patch.object(
+                svc, "_generate_fast", new=AsyncMock(return_value="rewritten")
+            ) as mock_fast,
+        ):
             result = await svc.rewrite_query("original query")
 
         assert result == "rewritten"
@@ -101,7 +113,9 @@ async def test_sarvam_rewrite_query_uses_fast_model_when_flag_enabled(monkeypatc
 def _openrouter_svc(monkeypatch):
     monkeypatch.setattr(settings, "openrouter_api_key", "test-key")
     monkeypatch.setattr(settings, "openrouter_generation_model", "deepseek/deepseek-chat")
-    monkeypatch.setattr(settings, "openrouter_generation_model_fallback", "meta-llama/llama-3.3-70b-instruct")
+    monkeypatch.setattr(
+        settings, "openrouter_generation_model_fallback", "meta-llama/llama-3.3-70b-instruct"
+    )
     monkeypatch.setattr(settings, "openrouter_classify_model", "meta-llama/llama-3.1-8b-instruct")
     monkeypatch.setattr(settings, "openrouter_fast_model", "meta-llama/llama-3.1-8b-instruct")
     monkeypatch.setattr(settings, "openrouter_policy_id", "test-policy")
@@ -113,8 +127,10 @@ def _openrouter_svc(monkeypatch):
 async def test_openrouter_rewrite_query_uses_main_model_by_default(monkeypatch):
     svc = _openrouter_svc(monkeypatch)
     settings.rag_rewrite_query_fast_model = False
-    with patch.object(svc, "generate", new=AsyncMock(return_value="rewritten")) as mock_generate, \
-         patch.object(svc, "_generate_fast", new=AsyncMock(return_value="rewritten")) as mock_fast:
+    with (
+        patch.object(svc, "generate", new=AsyncMock(return_value="rewritten")) as mock_generate,
+        patch.object(svc, "_generate_fast", new=AsyncMock(return_value="rewritten")) as mock_fast,
+    ):
         result = await svc.rewrite_query("original query")
 
     assert result == "rewritten"
@@ -127,8 +143,12 @@ async def test_openrouter_rewrite_query_uses_fast_model_when_flag_enabled(monkey
     svc = _openrouter_svc(monkeypatch)
     settings.rag_rewrite_query_fast_model = True
     try:
-        with patch.object(svc, "generate", new=AsyncMock(return_value="rewritten")) as mock_generate, \
-             patch.object(svc, "_generate_fast", new=AsyncMock(return_value="rewritten")) as mock_fast:
+        with (
+            patch.object(svc, "generate", new=AsyncMock(return_value="rewritten")) as mock_generate,
+            patch.object(
+                svc, "_generate_fast", new=AsyncMock(return_value="rewritten")
+            ) as mock_fast,
+        ):
             result = await svc.rewrite_query("original query")
 
         assert result == "rewritten"

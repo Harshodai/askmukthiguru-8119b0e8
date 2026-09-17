@@ -56,9 +56,16 @@ _INLINE_CITE_RE = re.compile(r"\[\s*(?:source\s*:[^\]]*|cite\s*:\s*\d+|\d+)\s*\]
 # A bracketed link must be consumed whole: stripping the URL first leaves the
 # opening "[" behind, because \S+ swallows the closing bracket.
 _BRACKETED_URL_RE = re.compile(r"[ \t]*\[\s*https?://[^\]]*\]")
+# The paren form of the same thing. Its absence was not cosmetic: the greedy
+# _URL_RE below matches \S+, so it swallowed the closing paren of a markdown
+# link and left a bare "(" behind -- which then failed the CTA-line pattern
+# (anchored at end of line) and was scored as an unsupported claim. A live
+# 2026-09-15 trace shows "Watch more here:(" alone dropping faithfulness
+# from 1.0 to 0.88 and forcing a redaction pass on a fully grounded answer.
+_PAREN_URL_RE = re.compile(r"[ \t]*\(\s*https?://[^)]*\)")
 _URL_RE = re.compile(r"https?://\S+")
 # An empty pair left behind once the marker inside it is removed ("[[1]]" -> "[]").
-_EMPTY_BRACKETS_RE = re.compile(r"[ \t]*\[\s*\]")
+_EMPTY_BRACKETS_RE = re.compile(r"[ \t]*(?:\[\s*\]|\(\s*\))")
 # Trailing call-to-action lines the formatter appends. Matched only when the
 # line is a CTA and nothing else, so a teaching that happens to contain the word
 # "watch" is never dropped.
@@ -86,6 +93,7 @@ def _strip_attribution_markup(answer: str) -> str:
     text = _SOURCES_BLOCK_RE.sub("", answer or "")
     text = _INLINE_CITE_RE.sub("", text)
     text = _BRACKETED_URL_RE.sub("", text)
+    text = _PAREN_URL_RE.sub("", text)
     text = _URL_RE.sub("", text)
     text = _EMPTY_BRACKETS_RE.sub("", text)
     text = _CTA_LINE_RE.sub("", text)
@@ -101,8 +109,81 @@ def _norm_for_span_match(text: str) -> str:
     return re.sub(r"\s+", " ", (text or "").strip().lower())
 
 
+# Pastoral openers the persona is *instructed* to produce. `system.py:90` tells
+# the guru to "End with a reflective or encouraging closing sentence", and the
+# faithfulness gate was then scoring that sentence as an unsupported factual
+# claim -- a direct contradiction that cost roughly one claim in eight on every
+# answer and pushed otherwise-grounded teachings below `faithfulness_floor`.
+# A live 2026-09-15 trace on "Explain the first sacred secret." scored
+# "Reflect on this deeply." at 0.348/unsupported and shipped the excerpt
+# boilerplate instead of the teaching.
+#
+# ponytail: prefix list, not a POS tagger. A verb-first imperative needs real
+# parsing to detect in general; these are the forms this persona actually
+# emits. If the closing vocabulary broadens, move to spaCy's tagger rather
+# than growing this list indefinitely.
+_NON_ASSERTION_PREFIXES = (
+    "reflect",
+    "consider",
+    "notice",
+    "observe",
+    "take a moment",
+    "take a deep breath",
+    "sit with",
+    "allow yourself",
+    "ask yourself",
+    "breathe",
+    "pause",
+    "let this",
+    "may you",
+    "close your eyes",
+    "bring your attention",
+    "feel into",
+    "hold space",
+    "remember that",
+    "rest in",
+    "gently",
+    "quietly",
+    "with each breath",
+    "as you reflect",
+    "in your journey",
+    "in your daily life",
+    "stay in this",
+)
+
+
+def _is_assertion(sentence: str) -> bool:
+    """True when a sentence states something that could be checked against sources.
+
+    A question cannot hallucinate and an invitation to the seeker asserts
+    nothing about the teachings, so neither belongs in a faithfulness
+    denominator. Scoring them does not make the gate stricter -- it makes it
+    noisier, because the scorer has nothing to match them against and reports a
+    low similarity that reads identically to a fabricated claim.
+    """
+    stripped = (sentence or "").strip()
+    if not stripped:
+        return False
+    if stripped.endswith("?"):
+        return False
+    lowered = stripped.lower()
+    # Strip leading non-alphanumerics (emojis, list bullets, numbers, quotes)
+    lowered = re.sub(r"^[^\w]+", "", lowered).strip()
+    # Strip conversational addressing/salutations
+    lowered = re.sub(r"^(?:dear one|beloved|friend|seeker)[,\s]+", "", lowered).strip()
+    return not lowered.startswith(_NON_ASSERTION_PREFIXES)
+
+
 def _split_claims(text: str) -> list[str]:
-    return [s.strip() for s in re.split(r"(?<=[.!?])\s+", text) if len(s.strip()) > 10]
+    """Split into checkable claims, dropping questions and pastoral imperatives.
+
+    Falls back to the unfiltered sentences when filtering would empty the list:
+    an answer made entirely of non-assertions has not been *verified*, and
+    returning zero claims would score it a perfect 1.0.
+    """
+    sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", text) if len(s.strip()) > 10]
+    assertions = [s for s in sentences if _is_assertion(s)]
+    return assertions or sentences
 
 
 class LettuceDetectService:
@@ -360,10 +441,10 @@ class LettuceDetectService:
         # Clean answer to remove source citation lists to prevent false negatives
         clean_answer = _strip_attribution_markup(answer)
 
-        # Split answer into sentences
-        sentences = [
-            s.strip() for s in re.split(r"(?<=[.!?])\s+", clean_answer) if len(s.strip()) > 10
-        ]
+        # Same splitter as the real-detector path. This was a duplicated regex,
+        # so a fix applied to one path silently left the other scoring
+        # questions and imperatives as claims.
+        sentences = _split_claims(clean_answer)
         if not sentences:
             return {
                 "is_faithful": False,

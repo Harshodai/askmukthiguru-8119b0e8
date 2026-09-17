@@ -10,8 +10,6 @@ The script itself is strictly read-only; nothing here touches a real database.
 import importlib.util
 from pathlib import Path
 
-import pytest
-
 _SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "ops" / "audit_supabase_readiness.py"
 _spec = importlib.util.spec_from_file_location("audit_supabase_readiness", _SCRIPT)
 audit_mod = importlib.util.module_from_spec(_spec)
@@ -82,8 +80,11 @@ def test_missing_audit_table_fails(monkeypatch):
     db.tables = [t for t in db.tables if t != "canonical_memory_events"]
     report = _run(monkeypatch, db)
     assert report["ready"] is False
-    assert any(f["check"] == "table:canonical_memory_events" for f in report["findings"]
-               if f["status"] == "FAIL")
+    assert any(
+        f["check"] == "table:canonical_memory_events"
+        for f in report["findings"]
+        if f["status"] == "FAIL"
+    )
 
 
 def test_missing_service_role_grant_fails(monkeypatch):
@@ -92,8 +93,9 @@ def test_missing_service_role_grant_fails(monkeypatch):
     db.granted = [t for t in db.granted if t != "user_roles"]
     report = _run(monkeypatch, db)
     assert report["ready"] is False
-    assert any(f["check"] == "grant:user_roles" for f in report["findings"]
-               if f["status"] == "FAIL")
+    assert any(
+        f["check"] == "grant:user_roles" for f in report["findings"] if f["status"] == "FAIL"
+    )
 
 
 def test_missing_write_grant_fails(monkeypatch):
@@ -103,7 +105,8 @@ def test_missing_write_grant_fails(monkeypatch):
     report = _run(monkeypatch, db)
     assert report["ready"] is False
     assert any(
-        f["check"] == "grant_write:memory_outbox:delete" for f in report["findings"]
+        f["check"] == "grant_write:memory_outbox:delete"
+        for f in report["findings"]
         if f["status"] == "FAIL"
     )
 
@@ -122,7 +125,9 @@ def test_schema_wide_ungranted_sweep_fails(monkeypatch):
     db.ungranted = ["some_other_table", "and_another"]
     report = _run(monkeypatch, db)
     assert report["ready"] is False
-    detail = next(f["detail"] for f in report["findings"] if f["check"] == "grant:all_public_tables")
+    detail = next(
+        f["detail"] for f in report["findings"] if f["check"] == "grant:all_public_tables"
+    )
     assert "some_other_table" in detail
 
 

@@ -135,7 +135,9 @@ class ServiceContainer:
         try:
             self.qdrant.init_collection()
         except Exception as e:
-            logger.warning("Qdrant collection init failed at startup (degrading to fallback): %s", e)
+            logger.warning(
+                "Qdrant collection init failed at startup (degrading to fallback): %s", e
+            )
         self.lightrag = lightrag_service
 
         # Shared Neo4j driver — constructing a driver does a handshake/routing-table
@@ -406,7 +408,9 @@ class ServiceContainer:
                             sparse_vector=vec["sparse"],
                             query=q,
                             graph_entity_ids=resolve_concepts_in_query(q),
-                            graph_prefetch_enabled=bool(getattr(settings, "graphrag_fusion_enabled", False)),
+                            graph_prefetch_enabled=bool(
+                                getattr(settings, "graphrag_fusion_enabled", False)
+                            ),
                             timeout=10,
                         ),
                         timeout=15,
@@ -656,9 +660,7 @@ class ServiceContainer:
                 _embedding_service = self.embedding
 
                 async def _cm_embed(text: str) -> list[float]:
-                    result = await asyncio.to_thread(
-                        _embedding_service.encode_batch, [text]
-                    )
+                    result = await asyncio.to_thread(_embedding_service.encode_batch, [text])
                     return list(result["dense"][0])
 
                 _cm_retriever = CanonicalMemoryRetriever(
@@ -673,11 +675,11 @@ class ServiceContainer:
                 # when the flag is on, so the read path never depends on it.
                 _cm_extract = _cm_judge = _cm_resolver = None
                 if settings.memory_write:
-                    from services.canonical_memory.extractor import (
-                        extract_memory_candidates,
-                    )
                     from services.canonical_memory.consent_gate import (
                         ConsentGatedJudge,
+                    )
+                    from services.canonical_memory.extractor import (
+                        extract_memory_candidates,
                     )
                     from services.canonical_memory.judge import MemoryJudge
                     from services.canonical_memory.resolver import MemoryResolver
@@ -707,9 +709,7 @@ class ServiceContainer:
                     async def _cm_consent(*, user_id: str, tenant_id: str):
                         if _cm_outbox is None:
                             return None
-                        return await _cm_outbox.active_consent(
-                            user_id=user_id, tenant_id=tenant_id
-                        )
+                        return await _cm_outbox.active_consent(user_id=user_id, tenant_id=tenant_id)
 
                     def _cm_build_judge(consent: bool) -> MemoryJudge:
                         return MemoryJudge(user_consent=consent)
@@ -818,7 +818,9 @@ class ServiceContainer:
             )
             logger.info("ContainerBuilder: background STANDARD graph built")
         except Exception as exc:
-            logger.warning("ContainerBuilder: background STANDARD graph failed; keeping FAST graph: %s", exc)
+            logger.warning(
+                "ContainerBuilder: background STANDARD graph failed; keeping FAST graph: %s", exc
+            )
             self.standard_graph = self.fast_graph
 
         try:
@@ -836,7 +838,9 @@ class ServiceContainer:
             )
             logger.info("ContainerBuilder: background DEEP graph built")
         except Exception as exc:
-            logger.warning("ContainerBuilder: background DEEP graph failed; keeping STANDARD graph: %s", exc)
+            logger.warning(
+                "ContainerBuilder: background DEEP graph failed; keeping STANDARD graph: %s", exc
+            )
             self.deep_graph = self.standard_graph
         finally:
             self.graph_warmup_status = "ready"

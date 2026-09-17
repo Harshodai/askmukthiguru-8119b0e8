@@ -110,9 +110,7 @@ def test_publication_manifest_requires_vector_and_graph_agreement():
 def test_publication_manifest_rejects_index_or_graph_drift():
     contract = build_index_fingerprint(_settings(), collection="spiritual_wisdom_contextual")
     with pytest.raises(CorpusPublicationError, match="nodes and edges"):
-        build_publication_record(
-            contract, _publication(contract, graph_nodes=0, graph_edges=0)
-        )
+        build_publication_record(contract, _publication(contract, graph_nodes=0, graph_edges=0))
     with pytest.raises(CorpusPublicationError, match="index fingerprint"):
         build_publication_record(contract, _publication(contract, index_fingerprint="b" * 64))
 

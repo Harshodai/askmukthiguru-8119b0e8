@@ -5,6 +5,7 @@ Root cause: single 8s SLO mismatches measured distribution
 fast/casual ~0.02-0.1s, warm doctrine ~1.5-2.1s, Hindi ~10s,
 comparative 14-65s. Per-tier SLOs required (Google SRE multi-tier practice).
 """
+
 import pathlib
 import subprocess
 
@@ -23,7 +24,9 @@ def test_slo_latency_observed():
     # At least one callsite outside metrics.py must route through the helper
     # at wall-time (so the P2 violation counter cannot be bypassed).
     lines = [ln for ln in out.stdout.splitlines() if "metrics.py" not in ln]
-    assert any("observe_slo_latency(" in ln for ln in lines), "no callsite routes through observe_slo_latency"
+    assert any("observe_slo_latency(" in ln for ln in lines), (
+        "no callsite routes through observe_slo_latency"
+    )
     # The raw histogram must never be observed directly outside metrics.py.
     raw = subprocess.run(
         ["grep", "-rn", "SLO_CHAT_LATENCY", "app", "rag", "--include=*.py"],
@@ -32,7 +35,9 @@ def test_slo_latency_observed():
         cwd=".",
     )
     raw_lines = [ln for ln in raw.stdout.splitlines() if "metrics.py" not in ln]
-    assert not any(".observe(" in ln for ln in raw_lines), "raw SLO histogram observed outside metrics.py"
+    assert not any(".observe(" in ln for ln in raw_lines), (
+        "raw SLO histogram observed outside metrics.py"
+    )
 
 
 def test_slo_violation_counted_when_over_threshold():
@@ -72,14 +77,16 @@ def test_coordinator_path_counts_violation_when_over_threshold():
     assert "observe_slo_latency(" in src, "coordinator must call observe_slo_latency"
     assert "SLO_CHAT_LATENCY" not in src, "coordinator must not touch the raw histogram"
 
-    from app import metrics as m
     import app.pipeline.pipeline_coordinator as pc
+    from app import metrics as m
 
     assert pc.observe_slo_latency is m.observe_slo_latency
     before = m.SLO_LATENCY_VIOLATIONS_TOTAL.labels(tier="fast")._value.get()
     pc.observe_slo_latency("fast", m.SLO_THRESHOLDS["fast"] + 1.0)
     after = m.SLO_LATENCY_VIOLATIONS_TOTAL.labels(tier="fast")._value.get()
-    assert after == before + 1, "coordinator-path over-threshold request must increment violation counter"
+    assert after == before + 1, (
+        "coordinator-path over-threshold request must increment violation counter"
+    )
 
 
 def test_slo_per_tier_thresholds():

@@ -317,9 +317,12 @@ class Settings(BaseSettings):
     qdrant_collection: str = "spiritual_wisdom_contextual"
     qdrant_api_key: str = ""  # empty = no auth (current default); set to require API-key auth
     # Quantization strategy for the Qdrant dense vector index.
+    # Quantization strategy for the Qdrant dense vector index.
     # Options: scalar_int8 (default, current production behavior), binary,
     # turboquant_1bit, turboquant_2bit, turboquant_4bit.
     qdrant_quantization: str = "scalar_int8"
+    # Quantile parameter for scalar quantization bounds (excludes top/bottom 1% outliers)
+    qdrant_quantization_quantile: float = 0.99
     # Oversampling factor used for non-scalar quantizers (binary / TurboQuant).
     # Higher values improve recall at the cost of extra compute during search.
     qdrant_quantization_oversampling: float = 3.0
@@ -343,12 +346,41 @@ class Settings(BaseSettings):
     qdrant_dense_prefetch_multiplier: float = 3.0
     qdrant_sparse_prefetch_multiplier: float = 3.0
 
+    # Parent Document Group Search (Qdrant query_points_groups):
+    # Groups hits by parent document, video_id, or source_url to prevent a single
+    # discourse or parent text from dominating top-K results.
+    qdrant_parent_grouping_enabled: bool = True
+    qdrant_group_by: str = "parent_id"  # Options: parent_id, source_url, video_id
+    qdrant_group_size: int = 2  # Max points retrieved per parent group
+
     # --- Chunking Strategies ---
     use_boundary_chunker: bool = True  # Respect sentence and verse boundaries
 
-    # --- Guru Brain tone exemplars (Phase E5) ---
-    # Guru Brain tone exemplars — style conditioning inside generation call (not post-hoc rewrite)
-    guru_brain_tone_exemplars_enabled: bool = True
+    # --- Guru Brain tone exemplars (Phase E5) — RETIRED 2026-09-15, default off ---
+    # Superseded by the measured per-teacher register in services/voice/. This
+    # flag was `True` but the path was ALREADY inert: rag/nodes/_services.py's
+    # set_guru_brain() has zero callers, so get_guru_brain() always returned
+    # None and _fetch_guru_tone_style_block() returned "" on every request.
+    # Defaulting it False makes that deliberate instead of accidental.
+    #
+    # Do not re-enable without replacing the corpus first. Three independent
+    # reasons it should stay off:
+    #  1. The corpus is unusable. `guru_tone_podcast` holds 12 points that all
+    #     share ONE fabricated seeker_question hardcoded at
+    #     services/guru_brain/tone_extractor.py:169, and the top-ranked exemplar
+    #     (UlOt31lBhLY_chunk_0) is a podcast HOST's book blurb mislabelled
+    #     speaker_role=krishnaji — it wins on dna_score 26.0 vs <=6.0.
+    #  2. Retrieved exemplars buy nothing anyway. Going from 2 to 10 style
+    #     exemplars "affects the four metrics very little"
+    #     (https://arxiv.org/pdf/2509.14543).
+    #  3. Enabling it ships an EMPTY fence. GURU_SYSTEM_PROMPT plus the user
+    #     classification block nearly fills generation_persona_token_budget
+    #     (2048), leaving too little for the 600-token exemplar block, so
+    #     cap_to_token_budget cuts it mid-sentence and the model receives a
+    #     header announcing exemplars that are not there.
+    # services/guru_brain/guru_kg_service.py is NOT retired — it is unrelated to
+    # tone and is used live by scripts/seed_neo4j_okf.py.
+    guru_brain_tone_exemplars_enabled: bool = False
 
     # --- Multi-teacher personality (Phase E5) ---
     # When set, generation prepends a teacher-specific voice instruction.
@@ -362,6 +394,15 @@ class Settings(BaseSettings):
     # Distinct service-role key for worker/admin paths (no RLS). Falls back
     # to supabase_key when unset, matching auth_service.get_current_user_from_supabase.
     supabase_service_key: Optional[str] = None
+    # Public anon/publishable key. `SUPABASE_ANON_KEY` is set in .env, but until
+    # now no Settings field declared it -- and pydantic-settings runs with
+    # extra="ignore", so it was silently dropped. Anything reaching for it via
+    # getattr(settings, "supabase_anon_key", ...) fell through to the
+    # SERVICE-ROLE key, which bypasses RLS. It works, which is exactly what
+    # makes it dangerous: a harness or client path that believed it was acting
+    # as an anonymous user was quietly acting as service_role. Declared so the
+    # value is actually read, and so the dead-settings scan can see it.
+    supabase_anon_key: Optional[str] = None
     # Public-facing frontend URL (for reactivation links in win-back emails).
     # Defaults to the Railway prod deploy; override via FRONTEND_URL env var.
     frontend_url: str = "https://askmukthiguru-8119b0e8-production.up.railway.app"
@@ -393,6 +434,10 @@ class Settings(BaseSettings):
     kg_max_query_len: int = Field(default=4_000, gt=0)
     kg_query_timeout_s: float = Field(default=5.0, gt=0)
     kg_subgraph_max_edges: int = Field(default=200, ge=1, le=2_000)
+    lightrag_graph_storage: str = Field(
+        default="MemgraphStorage",
+        description="LightRAG graph backend: 'MemgraphStorage' (default, C++) or 'Neo4JStorage' (legacy, JVM)",
+    )
 
     # --- Embeddings (config-driven: switch models via env vars) ---
     # Supported: "BAAI/bge-m3" (default, best multilingual, 1024-dim dense+sparse+ColBERT)
@@ -404,6 +449,18 @@ class Settings(BaseSettings):
     embedding_model_revision: str = "5617a9f61b028005a4858fdac845db406aefb181"
     embedding_pooling_mode: str = "mean"
     embedding_dimension: int = 1024
+    # Dedicated executor for embed/rerank, so a stuck ONNX call cannot starve
+    # asyncio's SHARED default pool that health checks and everything else use.
+    # 0 = derive min(2, cpu_count()//2 or 1). Declared as a setting rather than
+    # read straight from the process environment, so the settings guard stays
+    # honest and the value is visible to the dead-settings scan.
+    embed_thread_workers: int = Field(default=0, ge=0)
+    # ONNX Runtime sizes its own intra-op pool from raw os.cpu_count(), which
+    # reads the HOST core count inside a container, not the cgroup quota --
+    # the same defect class as L-DOCKER-9 (MKL/OpenBLAS/OMP), which compose
+    # already pins to 2. ORT ignores the OMP thread env var in Eigen builds, so
+    # it needs its own explicit budget.
+    omp_num_threads: int = Field(default=2, ge=1)
     # "flagembedding" (default, fp32, current production behavior) or
     # "onnx_int8" (~75% smaller resident memory, ~0.989 cosine similarity to
     # fp32 per public benchmarks — see lessons.md "Cost & Pipeline
@@ -587,7 +644,12 @@ class Settings(BaseSettings):
     # instead of reading the env directly, so the endpoint is validated the same
     # way as every other settings-sourced URL.
     benchmark_endpoint: str = "http://localhost:8000"
-    backend_url: Optional[str] = "http://localhost:8000"
+    # Deliberately None, not a localhost default: evaluation/run_golden_eval.py
+    # and benchmarks/golden_eval.py SKIP (exit 1) when this is unset, so a CI
+    # gate with no BACKEND_URL secret reports "no live quality proof" instead of
+    # silently grading a connection error against localhost.
+    backend_url: Optional[str] = None
+    backend_token: Optional[str] = None
     auth_token: Optional[str] = None
     # Comma-separated or JSON-list of HTTPS hostnames allowed to receive the
     # X-Test-Key benchmark secret (non-loopback targets only — see
@@ -755,6 +817,16 @@ class Settings(BaseSettings):
     retrieval_score_delta_enabled: bool = True
     rerank_score_delta_enabled: bool = True
     retrieval_deduplication_enabled: bool = True
+    # RAPTOR machine-summary chunks (raptor_level=1) are ~21.6% of the corpus
+    # but were measured taking ~35-50% of dense/hybrid top-24 context on
+    # doctrinal questions (backend/CLAUDE.md's provenance task) — a ~1.7x
+    # over-selection exactly where the golden question bank concentrates.
+    # Quota, not hard-exclude: summaries genuinely help recall on broad
+    # questions (measured — see backend/tests/test_retrieval_tuning_baseline.py's
+    # sibling recall gate), so this caps their share of the candidate pool
+    # rather than removing them. Fraction is of rag_top_k_retrieval.
+    rag_summary_quota_enabled: bool = True
+    rag_summary_quota_fraction: float = 0.25
     ingestion_deduplication_enabled: bool = True
     rag_top_k_retrieval_after_cutoff: int = 10
     retrieval_dedup_threshold: float = 0.85
@@ -965,7 +1037,9 @@ class Settings(BaseSettings):
     # --- Temperature per Graph Mode (Phase 2.1) ---
     generation_temp_fast: float = 0.3  # Temperature for fast-graph generation
     generation_temp_standard: float = 0.7  # Temperature for standard-graph generation
-    generation_temp_deep: float = 0.3  # Deep-graph: lowest temp, highest-stakes queries need max grounding
+    generation_temp_deep: float = (
+        0.3  # Deep-graph: lowest temp, highest-stakes queries need max grounding
+    )
 
     # --- Context Budget (Phase 3.2) ---
     context_window_total: int = 8192  # Total context window in tokens
@@ -1212,7 +1286,53 @@ class Settings(BaseSettings):
     # Default output path for the guru voice benchmark report.
     guru_voice_benchmark_output: str = "benchmarks/reports/guru_voice_benchmark.json"
 
+    # --- Unified eval harness gates (backend/evaluation/bench.py, 2026-09-16) ---
+    # ponytail: plain thresholds, no separate "gates" sub-model -- these are read
+    # once by EvalGates.from_settings() in evaluation/schema.py. Add a field here
+    # and to that constructor when a new metric needs a CI gate.
+    eval_max_refusal_rate: float = Field(default=0.35, ge=0.0, le=1.0)
+    eval_min_must_mention_coverage: float = Field(default=0.5, ge=0.0, le=1.0)
+    eval_max_contradictions: int = Field(default=0, ge=0)
+    eval_min_citation_validity: float = Field(default=0.6, ge=0.0, le=1.0)
+    eval_max_machine_summary_share: float = Field(default=0.30, ge=0.0, le=1.0)
+    eval_min_abstention_correctness: float = Field(default=0.8, ge=0.0, le=1.0)
+    eval_max_zero_retrieval_rate: float = Field(default=0.05, ge=0.0, le=1.0)
+    eval_max_latency_p95_s: float = Field(default=90.0, gt=0.0)
+    # Top-severity gate (owner, 2026-09-16): this product is a disciple that
+    # transmits and attributes teachings, never speaks as the teacher. A
+    # sentence that puts words in a living teacher's mouth, misattributes a
+    # teaching, or presents non-verbatim prose as their speech is worse than
+    # a refusal. Kept stricter than every other gate.
+    eval_max_misattribution_rate: float = Field(default=0.05, ge=0.0, le=1.0)
+    # A system_error response (grounding_state=system_error / intent=ERROR)
+    # means the pipeline itself broke -- e.g. circuit breaker OPEN -- not
+    # that it made a considered doctrinal call. Zero-tolerance by default.
+    eval_max_system_error_rate: float = Field(default=0.0, ge=0.0, le=1.0)
+
+    # --- Eval runner inputs (backend/evaluation/eval_runner.py CLI defaults) ---
+    # ponytail: these were os.environ.get(...) argparse defaults, which bypassed
+    # every validation and .env-loading rule the rest of config obeys and tripped
+    # tests/test_settings_guards.py. Declared here instead; the env var names are
+    # unchanged, because pydantic-settings maps FIELD_NAME -> FIELD_NAME.
+    eval_log_level: str = "INFO"
+    eval_endpoint: str = "http://localhost:8000"
+    eval_auth_token: Optional[str] = None
+    eval_dataset: str = "mukthi_guru_v1"
+    eval_max_concurrent_requests: int = Field(default=4, gt=0)
+    eval_request_timeout: int = Field(default=180, gt=0)
+    eval_out_json: str = "artifacts/evaluations/eval_report.json"
+    eval_out_md: str = "artifacts/evaluations/eval_report.md"
+    # Provenance stamped into the eval report so a score can be traced to the
+    # build that produced it. "unknown" is honest: CI sets them, laptops do not.
+    deployment_sha: str = "unknown"
+    model_policy_id: str = "unknown"
+    corpus_release: str = "unknown"
+
     # --- LLM Judge (Phase A2 — eval) ---
+    llm_judge_context_max_chars: int = Field(default=6000, gt=0)
+    # Was read only via getattr(settings, ..., 4) in evaluation/llm_judge.py, so
+    # it silently resolved to 4 regardless of environment. Declared = configurable.
+    llm_judge_max_concurrent: int = Field(default=4, gt=0)
     # Provider:model for LLM-as-judge groundedness/doctrine eval. Defaults to the
     # strongest available model so judge != generator (avoid grading own work).
     llm_judge_provider_model: str = "anthropic:claude-sonnet-4-6"
@@ -1277,6 +1397,17 @@ class Settings(BaseSettings):
     # producing false grounding signals. Keep the cosine path unchanged.
     citation_jaccard_threshold: float = 0.30  # default Jaccard threshold
     citation_cosine_threshold: float = 0.65  # used only when rag_citation_cosine_enabled=True
+    # Citation SPAN matching floor for rag/nodes/citation_extractor.py, which
+    # scores word-level CONTAINMENT (fraction of an answer sentence's content
+    # words present in a chunk) -- NOT the character-3-gram Jaccard above, and
+    # not interchangeable with it. Jaccard divides by the union, so a ~120-char
+    # answer sentence scored against a ~1600-char chunk has a ceiling near
+    # |sentence|/|chunk|; measured on the live collection 2026-09-16, the
+    # CORRECT sentence scored 0.083-0.153 against the 8 documents actually
+    # retrieved and could not clear the old hardcoded 0.15 floor (F2).
+    # Calibration for this metric, same measurement: on-topic answer sentences
+    # 0.357-0.583, off-domain controls 0.000-0.100.
+    citation_span_overlap_floor: float = Field(default=0.30, ge=0.0, le=1.0)
     # Per-intent overrides (merge with defaults)
     citation_thresholds_by_intent: dict[str, dict[str, float]] = Field(
         default_factory=lambda: {
@@ -1310,6 +1441,8 @@ class Settings(BaseSettings):
     agentic_graph_max_steps: int = 3
     agentic_graph_fast_model: str = "nim:meta/llama-3.1-8b-instruct"
     agentic_graph_timeout_per_step: int = 15
+    # Atomic GraphRAG openCypher traversal (single-query 1-2 hop expansion)
+    atomic_graphrag_enabled: bool = True
     # TTL in seconds for the retrieval-level doc-ID cache keyed by (query_embedding_bucket, tenant_id).
     # Reduces Qdrant round-trips for repeated query patterns by ~40%.
     retrieval_cache_ttl: int = 300

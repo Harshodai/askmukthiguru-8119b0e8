@@ -41,8 +41,7 @@ def test_helper_still_refuses_to_invent_a_tenant_from_the_user():
 def test_real_tenant_claims_are_honoured():
     assert get_tenant_id_from_user({"id": "u1", "tenant_id": "amma-bhagavan"}) == "amma-bhagavan"
     assert (
-        get_tenant_id_from_user({"id": "u1", "app_metadata": {"tenant_id": "oneness"}})
-        == "oneness"
+        get_tenant_id_from_user({"id": "u1", "app_metadata": {"tenant_id": "oneness"}}) == "oneness"
     )
 
 

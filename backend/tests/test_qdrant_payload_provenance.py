@@ -79,7 +79,10 @@ def test_caller_supplied_provenance_is_not_overwritten():
 def test_payload_stamps_teacher_id_and_teacher_ids_when_missing():
     """Gate 0.1 invariant: upsert_chunks must guarantee teacher_id and teacher_ids are stamped."""
     ix, client = _indexer()
-    meta = _meta(0) | {"title": "Calm Is Your Superpower with Sri Preethaji", "speaker": "Sri Preethaji"}
+    meta = _meta(0) | {
+        "title": "Calm Is Your Superpower with Sri Preethaji",
+        "speaker": "Sri Preethaji",
+    }
     ix.upsert_chunks(["In stillness we discover our inner peace."], [[0.0] * 8], [meta])
 
     payload = _upserted_payloads(client)[0]

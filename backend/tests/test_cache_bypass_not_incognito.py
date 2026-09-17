@@ -47,8 +47,7 @@ def test_cache_stage_checks_bypass_on_both_read_and_write():
     cache with an eval answer, so the write side must check it too."""
     src = (_BACKEND / "app" / "pipeline" / "stages" / "cache_stage.py").read_text()
     assert src.count("ctx.cache_bypass") >= 2, (
-        "cache_bypass must gate both the read (CacheCheckStage) and the write "
-        "(CacheUpdateStage)"
+        "cache_bypass must gate both the read (CacheCheckStage) and the write (CacheUpdateStage)"
     )
 
 

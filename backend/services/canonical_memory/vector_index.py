@@ -22,7 +22,7 @@ Rebuild is always possible from Postgres because every vector has a
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from qdrant_client.http.models import (
     Distance,
@@ -75,9 +75,7 @@ class CanonicalMemoryVectorIndex:
         elif settings.qdrant_local_path:
             from qdrant_client import QdrantClient
 
-            self._client = QdrantClient(
-                path=settings.qdrant_local_path, check_compatibility=False
-            )
+            self._client = QdrantClient(path=settings.qdrant_local_path, check_compatibility=False)
         else:
             from qdrant_client import QdrantClient
 
@@ -214,9 +212,7 @@ class CanonicalMemoryVectorIndex:
             collection_name=self._collection,
             points_selector=Filter(
                 must=[
-                    FieldCondition(
-                        key="user_id", match=MatchValue(value=user_id)
-                    ),
+                    FieldCondition(key="user_id", match=MatchValue(value=user_id)),
                     HasIdCondition(has_id=[memory_id]),
                 ]
             ),
@@ -232,21 +228,13 @@ class CanonicalMemoryVectorIndex:
         count_result = self._client.count(
             collection_name=self._collection,
             count_filter=Filter(
-                must=[
-                    FieldCondition(
-                        key="user_id", match=MatchValue(value=user_id)
-                    )
-                ]
+                must=[FieldCondition(key="user_id", match=MatchValue(value=user_id))]
             ),
         )
         self._client.delete(
             collection_name=self._collection,
             points_selector=Filter(
-                must=[
-                    FieldCondition(
-                        key="user_id", match=MatchValue(value=user_id)
-                    )
-                ]
+                must=[FieldCondition(key="user_id", match=MatchValue(value=user_id))]
             ),
         )
         return count_result.count
@@ -271,8 +259,7 @@ class CanonicalMemoryVectorIndex:
         """
         if self._supabase is None:
             raise RuntimeError(
-                "supabase_client required for rebuild_from_canonical — "
-                "pass it to the constructor"
+                "supabase_client required for rebuild_from_canonical — pass it to the constructor"
             )
 
         # Fetch all active canonical memories for this user from Postgres
@@ -318,26 +305,20 @@ class CanonicalMemoryVectorIndex:
         """
         if self._supabase is None:
             raise RuntimeError(
-                "supabase_client required for detect_orphans — "
-                "pass it to the constructor"
+                "supabase_client required for detect_orphans — pass it to the constructor"
             )
 
         # All vectors for this user
         vector_results = self._client.scroll(
             collection_name=self._collection,
             scroll_filter=Filter(
-                must=[
-                    FieldCondition(
-                        key="user_id", match=MatchValue(value=user_id)
-                    )
-                ]
+                must=[FieldCondition(key="user_id", match=MatchValue(value=user_id))]
             ),
             with_payload=True,
             limit=10000,
         )
         vector_memory_ids = {
-            (point.payload or {}).get("memory_id", str(point.id))
-            for point in vector_results[0]
+            (point.payload or {}).get("memory_id", str(point.id)) for point in vector_results[0]
         }
 
         if not vector_memory_ids:
@@ -363,10 +344,7 @@ class CanonicalMemoryVectorIndex:
         Returns ``{"orphans_deleted": N, "vectors_added": N}``.
         """
         if self._supabase is None:
-            raise RuntimeError(
-                "supabase_client required for repair — "
-                "pass it to the constructor"
-            )
+            raise RuntimeError("supabase_client required for repair — pass it to the constructor")
 
         # Phase 1: detect and delete orphans
         orphans = await self.detect_orphans(user_id)
@@ -377,18 +355,13 @@ class CanonicalMemoryVectorIndex:
         vector_results = self._client.scroll(
             collection_name=self._collection,
             scroll_filter=Filter(
-                must=[
-                    FieldCondition(
-                        key="user_id", match=MatchValue(value=user_id)
-                    )
-                ]
+                must=[FieldCondition(key="user_id", match=MatchValue(value=user_id))]
             ),
             with_payload=True,
             limit=10000,
         )
         vector_memory_ids = {
-            (point.payload or {}).get("memory_id", str(point.id))
-            for point in vector_results[0]
+            (point.payload or {}).get("memory_id", str(point.id)) for point in vector_results[0]
         }
 
         pg_result = (
@@ -453,25 +426,18 @@ class CanonicalMemoryVectorIndex:
             result["points_count"] = info.points_count
             result["config"] = {
                 "vectors": {
-                    "size": info.config.params.vectors.size
-                    if info.config.params.vectors
-                    else None,
+                    "size": info.config.params.vectors.size if info.config.params.vectors else None,
                     "distance": str(info.config.params.vectors.distance)
                     if info.config.params.vectors
                     else None,
                 }
             }
             # Verify dimension matches
-            actual_size = (
-                info.config.params.vectors.size
-                if info.config.params.vectors
-                else None
-            )
+            actual_size = info.config.params.vectors.size if info.config.params.vectors else None
             if actual_size is not None and actual_size != self._dimension:
                 result["healthy"] = False
                 result["error"] = (
-                    f"dimension mismatch: expected {self._dimension}, "
-                    f"got {actual_size}"
+                    f"dimension mismatch: expected {self._dimension}, got {actual_size}"
                 )
         else:
             result["error"] = "collection not found"

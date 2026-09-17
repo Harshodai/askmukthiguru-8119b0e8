@@ -372,7 +372,11 @@ def main():
                     "delta": delta,
                 }
             )
-            print(f"  ⚠ Delta={delta:.4f}: orig={_redact_secrets(cs_orig):.4f} para={_redact_secrets(cs_para):.4f}" if isinstance(cs_orig, str) else f"  ⚠ Delta={delta:.4f}: orig={cs_orig:.4f} para={cs_para:.4f}")
+            print(
+                f"  ⚠ Delta={delta:.4f}: orig={_redact_secrets(cs_orig):.4f} para={_redact_secrets(cs_para):.4f}"
+                if isinstance(cs_orig, str)
+                else f"  ⚠ Delta={delta:.4f}: orig={cs_orig:.4f} para={cs_para:.4f}"
+            )
         else:
             print(f"  ✓ Delta={delta:.4f}: orig={cs_orig:.4f} para={cs_para:.4f}")
 

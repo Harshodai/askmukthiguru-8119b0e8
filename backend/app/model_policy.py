@@ -45,7 +45,9 @@ def _provider_sort(value: str) -> str | None:
     if not sort:
         return None
     if sort not in {"latency", "throughput", "price"}:
-        raise ModelPolicyError("openrouter_provider_sort must be latency, throughput, price, or empty")
+        raise ModelPolicyError(
+            "openrouter_provider_sort must be latency, throughput, price, or empty"
+        )
     return sort
 
 
@@ -176,7 +178,5 @@ class OpenRouterModelPolicy:
         if self.preferred_max_latency_p90 > 0:
             preferences["preferred_max_latency"] = {"p90": self.preferred_max_latency_p90}
         if self.preferred_min_throughput_p90 > 0:
-            preferences["preferred_min_throughput"] = {
-                "p90": self.preferred_min_throughput_p90
-            }
+            preferences["preferred_min_throughput"] = {"p90": self.preferred_min_throughput_p90}
         return preferences

@@ -43,8 +43,6 @@ def test_oversized_content_rejected():
 def test_oversized_history_rejected():
     with pytest.raises(ValidationError):
         ChatRequest(
-            messages=[
-                {"role": "user", "content": "hi"} for _ in range(_HISTORY_MAX + 1)
-            ],
+            messages=[{"role": "user", "content": "hi"} for _ in range(_HISTORY_MAX + 1)],
             user_message="hi",
         )

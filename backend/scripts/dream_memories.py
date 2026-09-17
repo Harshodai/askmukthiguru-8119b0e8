@@ -8,9 +8,8 @@ import numpy as np
 # Add backend to path so imports work
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from supabase import create_client
-
 from app.config import settings
+from supabase import create_client
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("dream_memories")

@@ -9,10 +9,44 @@ from services.provenance_context import (
 
 def test_provenance_context_builds_four_ranked_bands_and_manifest():
     docs = [
-        {"text": "Direct teaching", "score": 0.9, "source_url": "https://source/1", "chunk_id": "seg-1", "entity_ids": ["Soul Sync"], "domain_rights_status": "licensed"},
-        {"text": "Graph fact", "score": 0.8, "channel": "graph", "provenance": {"source": "neo4j://ontology/Soul Sync", "entity_id": "Soul Sync", "relation": "PRACTICE_FOR", "hop": 1}},
-        {"text": "Corroborated fact", "score": 0.7, "channel": "vector", "provenance": {"source": "https://source/2", "graph": True, "relation": "EXPOUNDS", "hop": 1, "entity_ids": ["Soul Sync"], "ontology_version": "v1"}},
-        {"text": "Community summary", "score": 0.6, "content_type": "community_summary", "source_url": "neo4j://community/1"},
+        {
+            "text": "Direct teaching",
+            "score": 0.9,
+            "source_url": "https://source/1",
+            "chunk_id": "seg-1",
+            "entity_ids": ["Soul Sync"],
+            "domain_rights_status": "licensed",
+        },
+        {
+            "text": "Graph fact",
+            "score": 0.8,
+            "channel": "graph",
+            "provenance": {
+                "source": "neo4j://ontology/Soul Sync",
+                "entity_id": "Soul Sync",
+                "relation": "PRACTICE_FOR",
+                "hop": 1,
+            },
+        },
+        {
+            "text": "Corroborated fact",
+            "score": 0.7,
+            "channel": "vector",
+            "provenance": {
+                "source": "https://source/2",
+                "graph": True,
+                "relation": "EXPOUNDS",
+                "hop": 1,
+                "entity_ids": ["Soul Sync"],
+                "ontology_version": "v1",
+            },
+        },
+        {
+            "text": "Community summary",
+            "score": 0.6,
+            "content_type": "community_summary",
+            "source_url": "neo4j://community/1",
+        },
     ]
     context = build_provenance_context(docs, entities_touched=["Soul Sync"], max_tokens=1000)
     assert len(context.bands[BAND_DIRECT]) == 1

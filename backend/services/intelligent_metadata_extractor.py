@@ -28,8 +28,8 @@ from __future__ import annotations
 import json
 import logging
 import re
-from dataclasses import asdict, dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from dataclasses import asdict, dataclass
+from typing import Any, Optional
 
 from app.config import settings
 from services.text_quality_filter import find_artifact
@@ -42,15 +42,15 @@ class IntelligentMetadata:
     """Structured, enriched metadata for a chunk or document."""
 
     primary_teacher_id: str
-    attributed_teacher_ids: List[str]
-    speakers: List[str]
-    practices: List[str]
-    core_themes: List[str]
+    attributed_teacher_ids: list[str]
+    speakers: list[str]
+    practices: list[str]
+    core_themes: list[str]
     context_header: str
     confidence: float = 1.0
     rationale: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -108,6 +108,7 @@ class IntelligentMetadataExtractor:
             return self._llm
         try:
             from services.llm_factory import LLMServiceFactory
+
             provider = getattr(settings, "llm_provider", "openrouter")
             self._llm = LLMServiceFactory.create(provider)
         except Exception as e:
@@ -121,11 +122,11 @@ class IntelligentMetadataExtractor:
         title: str = "",
         speaker: str = "",
         source_url: str = "",
-        tags: Optional[List[str]] = None,
+        tags: Optional[list[str]] = None,
     ) -> IntelligentMetadata:
         """
         Extract structured metadata and contextual positioning for a chunk.
-        
+
         Guaranteed to return a valid IntelligentMetadata instance even if LLM fails.
         """
         llm = self._get_llm()
@@ -146,7 +147,7 @@ class IntelligentMetadataExtractor:
                 temperature=0.0,
                 operation="intelligent_metadata_extraction",
             )
-            
+
             # 1. Ingestion Safety Invariant 1: Check for contamination / CoT leaks
             artifact = find_artifact(raw_response)
             if artifact:
@@ -164,7 +165,14 @@ class IntelligentMetadataExtractor:
 
             # 3. Validate and sanitize fields
             primary_id = str(data.get("primary_teacher_id", "ekam")).lower().strip()
-            if primary_id not in ("krishnaji", "preethaji", "preethaji_krishnaji", "ekam", "amma_bhagavan", "other"):
+            if primary_id not in (
+                "krishnaji",
+                "preethaji",
+                "preethaji_krishnaji",
+                "ekam",
+                "amma_bhagavan",
+                "other",
+            ):
                 primary_id = "ekam"
 
             attr_ids = data.get("attributed_teacher_ids")
@@ -190,7 +198,9 @@ class IntelligentMetadataExtractor:
                 attributed_teacher_ids=attr_ids,
                 speakers=[str(s) for s in data.get("speakers", []) if s],
                 practices=[str(p) for p in data.get("practices", []) if p],
-                core_themes=[str(t).lower().replace(" ", "_") for t in data.get("core_themes", []) if t],
+                core_themes=[
+                    str(t).lower().replace(" ", "_") for t in data.get("core_themes", []) if t
+                ],
                 context_header=context_hdr,
                 confidence=float(data.get("confidence", 0.9)),
                 rationale=str(data.get("rationale", "llm_structured_extraction")),
@@ -206,7 +216,7 @@ class IntelligentMetadataExtractor:
         title: str,
         speaker: str,
         source_url: str,
-        tags: Optional[List[str]],
+        tags: Optional[list[str]],
     ) -> IntelligentMetadata:
         """Deterministic heuristic fallback when LLM is unreachable."""
         from services.teacher_attribution import resolve_teacher_attribution
@@ -229,7 +239,9 @@ class IntelligentMetadataExtractor:
 
         context_hdr = ""
         if title:
-            context_hdr = f"Discourse on {title} by {', '.join(speakers) if speakers else 'Ekam Gurus'}."
+            context_hdr = (
+                f"Discourse on {title} by {', '.join(speakers) if speakers else 'Ekam Gurus'}."
+            )
 
         return IntelligentMetadata(
             primary_teacher_id=primary_id,

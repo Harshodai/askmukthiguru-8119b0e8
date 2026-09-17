@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import itertools
 import json
 
 import pytest
@@ -185,8 +186,8 @@ async def test_cancel_after_claim_is_atomic_noop() -> None:
 @pytest.mark.asyncio
 async def test_queue_lifecycle_context_is_propagated_and_persisted(monkeypatch) -> None:
     """Queue timestamps reach the worker context and terminal metadata."""
-    from app.context import queue_timing_var
     import app.services.job_queue as job_queue_module
+    from app.context import queue_timing_var
 
     redis = _MemoryRedis()
     service = JobQueueService("redis://unused")
@@ -202,7 +203,18 @@ async def test_queue_lifecycle_context_is_propagated_and_persisted(monkeypatch) 
     }
     redis.lists["job_queue:pending"] = [job_id]
 
-    clock = iter([101.0, 102.0, 103.0, 104.0])
+    # job_queue_module.time is the real stdlib `time` module (a single shared
+    # object across the process), so patching its `.time` attribute here also
+    # patches every other caller of time.time() in this process for the
+    # duration of the test — including Python's own `logging` module, which
+    # stamps `LogRecord.created` via time.time() when a LogRecord is built.
+    # `_process_job`'s trailing `logger.info(...)` (app/services/job_queue.py)
+    # therefore consumes one MORE clock value than the four real business
+    # calls (claim, claimed_at, dispatch_started_at, published_at) — a 4-value
+    # iterator raises StopIteration on that 5th, incidental call. Pad with a
+    # repeating sentinel so the test only enforces the values it actually
+    # asserts on, not every internal time.time() call anywhere in the process.
+    clock = itertools.chain([101.0, 102.0, 103.0, 104.0], itertools.repeat(999.0))
     monkeypatch.setattr(job_queue_module.time, "time", lambda: next(clock))
     observed: dict = {}
 

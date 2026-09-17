@@ -9,9 +9,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 import rag.nodes as nodes
+from rag.nodes.intent import route_after_grading
 from rag.resolve_followup import resolve_followup
 from rag.states import GraphState
-from rag.nodes.intent import route_after_grading
 
 
 class MockEmbeddingService:

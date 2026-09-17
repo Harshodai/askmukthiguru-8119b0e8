@@ -34,7 +34,9 @@ MAX_STEPS = getattr(settings, "agentic_graph_max_steps", 3)
 ENABLED = getattr(settings, "agentic_graph_traversal_enabled", False)
 
 
-async def agentic_graph_traversal(state: GraphState, config: Optional[RunnableConfig] = None) -> dict:
+async def agentic_graph_traversal(
+    state: GraphState, config: Optional[RunnableConfig] = None
+) -> dict:
     """
     ReAct loop for walking the ontology graph during COMPARATIVE intent or complex queries.
 
@@ -66,8 +68,11 @@ async def agentic_graph_traversal(state: GraphState, config: Optional[RunnableCo
     traversal_context = state.get("graph_traversal_context", [])
     current_step = 0
     max_steps = MAX_STEPS
+    action_history: set[str] = set()
 
-    # If no traversal context yet, extract from doctrine tags or initial retrieval
+    # If no traversal context yet, extract from doctrine tags or initial retrieval.
+    # Bounded to ONE seed detail lookup so the 3-step budget is not exhausted
+    # before the ReAct loop runs; adjacency fan-out belongs to the loop.
     if not traversal_context:
         try:
             from ingest.pipeline import extract_doctrine_tags
@@ -83,35 +88,56 @@ async def agentic_graph_traversal(state: GraphState, config: Optional[RunnableCo
             if not start_concepts:
                 start_concepts = _extract_concepts_from_docs(state.get("relevant_docs", []))
 
+            # Atomic GraphRAG Fast Path (2026 Production Standard):
+            # Executes 1-hop and 2-hop graph expansion in a single openCypher query (<5ms)
+            if getattr(settings, "atomic_graphrag_enabled", True) and start_concepts:
+                try:
+                    from app.dependencies import get_container
+                    from rag.nodes.atomic_graphrag import aexecute_atomic_graphrag
+
+                    driver = get_container().neo4j_driver
+                    if driver is not None:
+                        atomic_res = await aexecute_atomic_graphrag(
+                            driver=driver,
+                            seed_entities=start_concepts[:5],
+                            hop1_limit=5,
+                            hop2_limit=5,
+                        )
+                        if atomic_res.get("retrieved_seeds_count", 0) > 0 and atomic_res.get(
+                            "subgraphs"
+                        ):
+                            logger.info(
+                                "Atomic GraphRAG completed in single query: %d seeds, %d edges",
+                                atomic_res.get("retrieved_seeds_count", 0),
+                                atomic_res.get("total_edges_count", 0),
+                                extra=log_extra,
+                            )
+                            return {
+                                "graph_traversal_context": atomic_res["subgraphs"],
+                                "graph_traversal_text": atomic_res.get("subgraph_text", ""),
+                                "atomic_graphrag_used": True,
+                            }
+                except Exception as exc:
+                    logger.warning(
+                        "Atomic GraphRAG fast path failed, falling back to iterative loop: %s",
+                        exc,
+                        extra=log_extra,
+                    )
+
             if start_concepts:
-                for concept_id in start_concepts[:3]:  # Limit to top 3 concepts
-                    if current_step >= max_steps:
-                        break
-                    concept_result = await get_concept_details(concept_id, state)
-                    current_step += 1
+                concept_id = start_concepts[0]
+                concept_result = await get_concept_details(concept_id, state)
+                current_step += 1
 
-                    if concept_result.get("node_data"):
-                        traversal_context.append(
-                            {
-                                "concept_id": concept_id,
-                                "node_data": concept_result["node_data"],
-                                "step": current_step,
-                                "reasoning": "Starting concept from doctrine tags",
-                            }
-                        )
-
-                    if current_step < max_steps:
-                        adj_result = await get_adjacent_concepts(concept_id, state)
-                        current_step += 1
-                        traversal_context.append(
-                            {
-                                "concept_id": f"adjacent_to_{concept_id}",
-                                "adjacent_concepts": adj_result["adjacent_concepts"],
-                                "relation_summary": adj_result["relation_summary"],
-                                "step": current_step,
-                                "reasoning": f"Initial connectivity exploration from {concept_id}",
-                            }
-                        )
+                if concept_result.get("node_data"):
+                    traversal_context.append(
+                        {
+                            "concept_id": concept_id,
+                            "node_data": concept_result["node_data"],
+                            "step": current_step,
+                            "reasoning": "Starting concept from doctrine tags",
+                        }
+                    )
 
         except Exception as e:
             logger.warning(
@@ -146,6 +172,20 @@ async def agentic_graph_traversal(state: GraphState, config: Optional[RunnableCo
         if next_action.get("action") == "STOP":
             logger.info("Agentic Graph Traversal stopped by LLM")
             break
+
+        import hashlib as _hashlib
+
+        _action_key = _hashlib.sha256(
+            f"{next_action.get('action')}:{next_action.get('entity_id')}".encode()
+        ).hexdigest()
+        if _action_key in action_history:
+            logger.warning(
+                "Agentic Graph Traversal loop detected on %s:%s; terminating",
+                next_action.get("action"),
+                next_action.get("entity_id"),
+            )
+            break
+        action_history.add(_action_key)
 
         # Execute the action
         try:
@@ -252,12 +292,17 @@ async def _ask_llm_to_decide(
     *,
     request_id: str | None = None,
 ) -> dict[str, Any]:
-    """Ask the fast model to decide what to do next in the traversal."""
+    """Ask the fast model to decide what to do next in the traversal.
+
+    Routes via _services._llm_gateway.generate() when available; falls back
+    to the legacy ollama fast path only when no gateway is wired.
+    """
     try:
         from rag.nodes import _services
 
+        gateway = getattr(_services, "_llm_gateway", None)
         ollama = _services._ollama
-        if ollama is None:
+        if ollama is None and gateway is None:
             from services.ollama_service import OllamaService
 
             ollama = OllamaService()
@@ -283,14 +328,24 @@ async def _ask_llm_to_decide(
             "What should we do next? Return ONLY a JSON object with 'action', 'entity_id', and 'reasoning'."
         )
 
-        response = await ollama._generate_fast(
-            system_prompt=system_prompt,
-            user_prompt=user_prompt,
-            timeout=FAST_MODEL_TIMEOUT,
-            max_retries=1,
-            model=FAST_MODEL_NAME,
-            metadata={"request_id": request_id} if request_id else None,
-        )
+        if gateway is not None:
+            response = await gateway.generate(
+                system_prompt,
+                user_prompt,
+                task="fast",
+                timeout=FAST_MODEL_TIMEOUT,
+                max_retries=1,
+                model=FAST_MODEL_NAME,
+            )
+        else:
+            response = await ollama._generate_fast(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                timeout=FAST_MODEL_TIMEOUT,
+                max_retries=1,
+                model=FAST_MODEL_NAME,
+                metadata={"request_id": request_id} if request_id else None,
+            )
 
         # Parse response
         return _parse_llm_traversal_decision(response, context_summary)

@@ -79,25 +79,115 @@ STANDARD_NODE_STAGES: dict[str, tuple[int, int, str]] = {
 }
 
 STATUS_MESSAGE_TO_STAGE: dict[str, dict[str, Any]] = {
-    "Checking message safety...": {"node": "input_guardrail", "step": 1, "total_steps": 8, "strategy": "standard"},
-    "Understanding your question...": {"node": "intent_router", "step": 1, "total_steps": 8, "strategy": "standard"},
-    "Connecting this to your previous question...": {"node": "resolve_followup", "step": 2, "total_steps": 8, "strategy": "standard"},
-    "Breaking the question into deeper parts...": {"node": "decompose_query", "step": 3, "total_steps": 8, "strategy": "standard"},
-    "Imagining the shape of the answer...": {"node": "navigate_and_hyde", "step": 3, "total_steps": 8, "strategy": "standard"},
-    "Searching knowledge base...": {"node": "retrieve_documents", "step": 3, "total_steps": 8, "strategy": "standard"},
-    "Walking the teaching graph...": {"node": "retrieve_documents", "step": 3, "total_steps": 8, "strategy": "standard"},
-    "Ranking the most relevant teachings...": {"node": "rerank_documents", "step": 4, "total_steps": 8, "strategy": "standard"},
-    "Filtering for relevance...": {"node": "grade_documents", "step": 5, "total_steps": 8, "strategy": "standard"},
-    "Gathering surrounding context...": {"node": "enrich_context", "step": 6, "total_steps": 8, "strategy": "standard"},
-    "Rephrasing the question for better retrieval...": {"node": "rewrite_query", "step": 3, "total_steps": 8, "strategy": "standard"},
-    "Composing the response...": {"node": "generate_answer", "step": 7, "total_steps": 8, "strategy": "standard"},
-    "Reviewing the response for clarity...": {"node": "reflect_on_answer", "step": 7, "total_steps": 8, "strategy": "standard"},
-    "Verifying alignment with the teachings...": {"node": "verify_answer", "step": 8, "total_steps": 8, "strategy": "standard"},
-    "Finalizing your response...": {"node": "format_final_answer", "step": 8, "total_steps": 8, "strategy": "standard"},
+    "Checking message safety...": {
+        "node": "input_guardrail",
+        "step": 1,
+        "total_steps": 8,
+        "strategy": "standard",
+    },
+    "Understanding your question...": {
+        "node": "intent_router",
+        "step": 1,
+        "total_steps": 8,
+        "strategy": "standard",
+    },
+    "Connecting this to your previous question...": {
+        "node": "resolve_followup",
+        "step": 2,
+        "total_steps": 8,
+        "strategy": "standard",
+    },
+    "Breaking the question into deeper parts...": {
+        "node": "decompose_query",
+        "step": 3,
+        "total_steps": 8,
+        "strategy": "standard",
+    },
+    "Imagining the shape of the answer...": {
+        "node": "navigate_and_hyde",
+        "step": 3,
+        "total_steps": 8,
+        "strategy": "standard",
+    },
+    "Searching knowledge base...": {
+        "node": "retrieve_documents",
+        "step": 3,
+        "total_steps": 8,
+        "strategy": "standard",
+    },
+    "Walking the teaching graph...": {
+        "node": "retrieve_documents",
+        "step": 3,
+        "total_steps": 8,
+        "strategy": "standard",
+    },
+    "Ranking the most relevant teachings...": {
+        "node": "rerank_documents",
+        "step": 4,
+        "total_steps": 8,
+        "strategy": "standard",
+    },
+    "Filtering for relevance...": {
+        "node": "grade_documents",
+        "step": 5,
+        "total_steps": 8,
+        "strategy": "standard",
+    },
+    "Gathering surrounding context...": {
+        "node": "enrich_context",
+        "step": 6,
+        "total_steps": 8,
+        "strategy": "standard",
+    },
+    "Rephrasing the question for better retrieval...": {
+        "node": "rewrite_query",
+        "step": 3,
+        "total_steps": 8,
+        "strategy": "standard",
+    },
+    "Composing the response...": {
+        "node": "generate_answer",
+        "step": 7,
+        "total_steps": 8,
+        "strategy": "standard",
+    },
+    "Reviewing the response for clarity...": {
+        "node": "reflect_on_answer",
+        "step": 7,
+        "total_steps": 8,
+        "strategy": "standard",
+    },
+    "Verifying alignment with the teachings...": {
+        "node": "verify_answer",
+        "step": 8,
+        "total_steps": 8,
+        "strategy": "standard",
+    },
+    "Finalizing your response...": {
+        "node": "format_final_answer",
+        "step": 8,
+        "total_steps": 8,
+        "strategy": "standard",
+    },
     "Saying hello...": {"node": "handle_casual", "step": 2, "total_steps": 2, "strategy": "fast"},
-    "Holding space for what you're feeling...": {"node": "handle_distress", "step": 2, "total_steps": 2, "strategy": "fast"},
-    "Guiding you into the practice...": {"node": "handle_meditation", "step": 2, "total_steps": 2, "strategy": "fast"},
-    "Preparing a graceful response...": {"node": "handle_fallback", "step": 8, "total_steps": 8, "strategy": "standard"},
+    "Holding space for what you're feeling...": {
+        "node": "handle_distress",
+        "step": 2,
+        "total_steps": 2,
+        "strategy": "fast",
+    },
+    "Guiding you into the practice...": {
+        "node": "handle_meditation",
+        "step": 2,
+        "total_steps": 2,
+        "strategy": "fast",
+    },
+    "Preparing a graceful response...": {
+        "node": "handle_fallback",
+        "step": 8,
+        "total_steps": 8,
+        "strategy": "standard",
+    },
 }
 
 
@@ -848,9 +938,7 @@ def should_use_hyde(state: GraphState) -> bool:
     """Apply the global HyDE flag plus the conservative Indic override."""
     if not bool(getattr(settings, "rag_use_hyde", False)):
         return False
-    if is_indic_state(state) and not bool(
-        getattr(settings, "rag_indic_use_hyde", False)
-    ):
+    if is_indic_state(state) and not bool(getattr(settings, "rag_indic_use_hyde", False)):
         return False
     return True
 
@@ -928,9 +1016,7 @@ def select_llm_model(query: str, context_len: int) -> str:
 
     elif provider == "openrouter":
         # Use the configured generation model; deepseek/deepseek-chat is the default.
-        return getattr(
-            settings, "openrouter_generation_model", "deepseek/deepseek-chat"
-        )
+        return getattr(settings, "openrouter_generation_model", "deepseek/deepseek-chat")
 
     elif provider == "ollama":
         return getattr(settings, "ollama_model", "qwen2.5:32b")
@@ -992,6 +1078,47 @@ def _rrf_docs(ranked_lists: list[list[dict]], k: int = 60) -> list[dict]:
 
     sorted_ids = _reciprocal_rank_fusion(id_rankings, k=k)
     return [id_to_doc[key] for key in sorted_ids]
+
+
+def _dbsf_docs(ranked_lists: list[list[dict]]) -> list[dict]:
+    """Apply Distribution-Based Score Fusion (DBSF) over ranked document lists.
+
+    Normalizes scores per list using mean and 3*std spread, then sums normalized
+    scores across lists for each document identity.
+    """
+    id_to_doc: dict[str, dict] = {}
+    combined_scores: dict[str, float] = {}
+
+    for ranked_list in ranked_lists:
+        if not ranked_list:
+            continue
+        scores = [float(d.get("score", 0.0) or 0.0) for d in ranked_list]
+        n = len(scores)
+        mean_score = sum(scores) / n if n > 0 else 0.0
+        variance = sum((s - mean_score) ** 2 for s in scores) / n if n > 0 else 0.0
+        std_score = variance**0.5
+
+        for doc in ranked_list:
+            key = stable_document_key(doc)
+            id_to_doc.setdefault(key, doc)
+            raw_score = float(doc.get("score", 0.0) or 0.0)
+            if std_score > 1e-6:
+                norm_score = max(
+                    0.0, min(1.0, (raw_score - (mean_score - 3 * std_score)) / (6 * std_score))
+                )
+            else:
+                norm_score = 0.5
+            combined_scores[key] = combined_scores.get(key, 0.0) + norm_score
+
+    sorted_keys = sorted(combined_scores.keys(), key=lambda k: combined_scores[k], reverse=True)
+    return [id_to_doc[k] for k in sorted_keys]
+
+
+def _fuse_docs(ranked_lists: list[list[dict]], strategy: str = "rrf", k: int = 60) -> list[dict]:
+    """Universal Fusion wrapper supporting RRF (Reciprocal Rank Fusion) and DBSF (Distribution-Based Score Fusion)."""
+    if str(strategy).lower() == "dbsf":
+        return _dbsf_docs(ranked_lists)
+    return _rrf_docs(ranked_lists, k=k)
 
 
 def _generation_route(state: GraphState, context_chars: int = 0) -> dict:
@@ -1287,7 +1414,12 @@ def log_metrics(func):
                 result["node_timings"] = existing_timings
 
             _persist_trace_span(
-                request_id, node_name, start, duration_ms, "ok", {"query_tier": state.get("query_tier")}
+                request_id,
+                node_name,
+                start,
+                duration_ms,
+                "ok",
+                {"query_tier": state.get("query_tier")},
             )
 
             return result
@@ -1393,7 +1525,13 @@ def _verify_inline_citations(answer: str, retrieved_docs: list) -> tuple[str, bo
 
     Returns (cleaned_answer, citations_verified, orphan_citations_stripped_count).
     """
-    if not answer or "[[CITE:" not in answer:
+    if not answer:
+        return answer, True, 0
+    if "[[CITE:" not in answer and "[^" not in answer:
+        # Loophole close: docs were retrieved but the answer cites none of
+        # them — never report verified for an uncited grounded-context answer.
+        if retrieved_docs:
+            return answer, False, 0
         return answer, True, 0
 
     from services.citation_service import _check_grounding, resolve, strip_orphan_markers

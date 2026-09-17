@@ -57,9 +57,9 @@ def test_backup_copies_every_point_past_the_first_page():
     assert ix.backup_source("https://example.test/long", "backup") is True
 
     upserted = client.upsert.call_args.kwargs["points"]
-    assert (
-        len(upserted) == TOTAL_POINTS
-    ), f"backup truncated to {len(upserted)} of {TOTAL_POINTS} points"
+    assert len(upserted) == TOTAL_POINTS, (
+        f"backup truncated to {len(upserted)} of {TOTAL_POINTS} points"
+    )
 
 
 def test_restore_returns_every_point_past_the_first_page():

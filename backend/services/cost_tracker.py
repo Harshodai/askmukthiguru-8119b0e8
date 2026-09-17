@@ -42,12 +42,12 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime
 
 try:
     from datetime import UTC
 except ImportError:
-    UTC = timezone.utc
+    UTC = UTC
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from threading import Lock
 from typing import Optional
@@ -68,14 +68,18 @@ def _get_user_cost_redis():
         return _USER_COST_REDIS
     try:
         import redis as sync_redis
+
         _USER_COST_REDIS = sync_redis.from_url(
-            settings.redis_url, decode_responses=True, socket_timeout=1.0,
+            settings.redis_url,
+            decode_responses=True,
+            socket_timeout=1.0,
             max_connections=5,
         )
         return _USER_COST_REDIS
     except Exception as exc:
         logger.debug("Failed to create shared Redis connection for cost tracking: %s", exc)
         return None
+
 
 # Redis key prefix for per-user daily cost sliding window
 _USER_DAILY_COST_PREFIX = "mukthiguru:user-cost:"
@@ -190,9 +194,7 @@ def is_over_budget(tenant_id: str = "default") -> bool:
     return (tenant_id or "default") in _BUDGET_DEGRADED_TENANTS
 
 
-def resolve_provider_with_budget(
-    preferred_provider: str, tenant_id: str = "default"
-) -> str:
+def resolve_provider_with_budget(preferred_provider: str, tenant_id: str = "default") -> str:
     if is_over_budget(tenant_id):
         return CHEAPEST_PROVIDER
     return preferred_provider

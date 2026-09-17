@@ -5,6 +5,7 @@ routing. Budgets are explicitly unvalidated hypotheses until enough repeated
 samples exist. The catalog is intentionally language-agnostic: language is an
 observational dimension, not a shortcut or quality exception.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -64,7 +65,9 @@ def budget_for(route_class: RouteClass | str) -> LatencyBudget:
     return LATENCY_BUDGET_CATALOG[key]
 
 
-def route_axis(*, intent: str | None, selected_variant: str | None, language: str | None) -> RouteClass:
+def route_axis(
+    *, intent: str | None, selected_variant: str | None, language: str | None
+) -> RouteClass:
     """Classify an observed request for reporting only.
 
     The precedence preserves safety and temporal reporting, then uses the

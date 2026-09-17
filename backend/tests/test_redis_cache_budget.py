@@ -42,9 +42,7 @@ def _adapter(fake: _FakeRedis, max_keys: int) -> RedisCacheAdapter:
 
 
 def test_budget_rejection_fires_at_namespace_ceiling() -> None:
-    fake = _FakeRedis(
-        ["mukthiguru:cache:tenant-a:key-1", "mukthiguru:cache:tenant-a:key-2"]
-    )
+    fake = _FakeRedis(["mukthiguru:cache:tenant-a:key-1", "mukthiguru:cache:tenant-a:key-2"])
     adapter = _adapter(fake, max_keys=2)
 
     adapter.put("new query", "response", "general", [])
@@ -74,9 +72,7 @@ def test_telemetry_snapshot_reports_namespace_and_budget() -> None:
 
 
 def test_existing_key_can_refresh_at_budget_ceiling() -> None:
-    fake = _FakeRedis(
-        ["mukthiguru:cache:tenant-a:key-1", "mukthiguru:cache:tenant-a:key-2"]
-    )
+    fake = _FakeRedis(["mukthiguru:cache:tenant-a:key-1", "mukthiguru:cache:tenant-a:key-2"])
     adapter = _adapter(fake, max_keys=2)
 
     with patch.object(adapter, "_make_key", return_value=fake.keys[0]):

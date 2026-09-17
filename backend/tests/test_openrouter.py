@@ -104,7 +104,15 @@ async def test_openrouter_rate_limit_is_shared_across_instances(monkeypatch):
     each capped itself at the configured RPM independently while real aggregate
     traffic to OpenRouter ran far above it -- live-confirmed to trip the
     circuit breaker within minutes even at a "safe" RPM value (2026-08-27).
-    Two separate instances must now draw from one shared counter.
+    Two separate instances must now draw from one shared limiter.
+
+    2026-09-16: the shared state moved from an in-process counter to the
+    Redis-backed RedisBackedRateLimiter (app/security_utils.py) so the same
+    guarantee holds across processes/workers/replicas, not just instances in
+    one process. Redis is unreachable in this test env, so the limiter
+    transparently falls back to ITS OWN process-local limiter -- the sharing
+    guarantee under test (one limiter object for every OpenRouterService
+    instance) holds either way.
     """
     OpenRouterService.reset_shared_rate_limiter()
     monkeypatch.setattr(settings, "openrouter_rpm_limit", 2)
@@ -112,12 +120,21 @@ async def test_openrouter_rate_limit_is_shared_across_instances(monkeypatch):
     service_a = OpenRouterService()
     service_b = OpenRouterService()
 
+    # Same shared limiter object across instances, not one each.
+    assert OpenRouterService._shared_rate_limiter is not None
+    assert service_a._shared_rate_limiter is service_b._shared_rate_limiter
+
     await service_a._enforce_rate_limit()
     await service_b._enforce_rate_limit()
 
-    assert OpenRouterService._shared_request_count == 2
-    # Same lock object shared across instances, not one each.
-    assert service_a._shared_rpm_lock is service_b._shared_rpm_lock
+    # A third draw within the same 60s window must now be refused -- proving
+    # the two calls above consumed one shared budget of 2, not 2 independent
+    # per-instance budgets of 2 each.
+    allowed, retry_after = await OpenRouterService._shared_rate_limiter.is_allowed_async(
+        OpenRouterService._RATE_LIMIT_KEY
+    )
+    assert allowed is False
+    assert retry_after > 0
 
     OpenRouterService.reset_shared_rate_limiter()
 

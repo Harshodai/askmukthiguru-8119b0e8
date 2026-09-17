@@ -108,7 +108,7 @@ async def test_chat_priority_reservation_active_tracking(monkeypatch):
 
     def handler(request: httpx.Request) -> httpx.Response:
         body = json.loads(request.content.decode("utf-8"))
-        op = body.get("model", "")
+        _op = body.get("model", "")
         return httpx.Response(
             200,
             json={
@@ -167,4 +167,3 @@ async def test_chat_priority_reservation_active_tracking(monkeypatch):
 
     assert gateway._active_chat_requests == 0
     assert execution_order == ["chat", "background"]
-

@@ -230,4 +230,3 @@ if __name__ == "__main__":  # ponytail: self-check
         print("notebook_service OK")
 
     asyncio.run(_demo())
-

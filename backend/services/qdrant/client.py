@@ -69,6 +69,9 @@ class QdrantClientManager:
         ("teacher_ids", "keyword"),
         ("tenant_id", "keyword"),
         ("corpus_id", "keyword"),
+        # Parent document and video grouping indexes for query_points_groups
+        ("parent_id", "keyword"),
+        ("video_id", "keyword"),
         # `require_licensed_domain_reads` makes this a `must` filter on every
         # retrieval (rag/nodes/retrieval.py:805,1132) — unindexed until now.
         ("domain_rights_status", "keyword"),
@@ -137,9 +140,11 @@ class QdrantClientManager:
         """
         q = quantization.lower()
         if q == "scalar_int8":
+            quantile = float(getattr(settings, "qdrant_quantization_quantile", 0.99))
             return ScalarQuantization(
                 scalar=ScalarQuantizationConfig(
                     type=ScalarType.INT8,
+                    quantile=quantile,
                     always_ram=True,
                 )
             )

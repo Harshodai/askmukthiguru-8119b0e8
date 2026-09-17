@@ -19,9 +19,7 @@ async def test_bounded_comparison_short_circuits_english_without_model() -> None
         preferred_lang="en",
         trace_id="trace-test",
         start_time=time.time(),
-        state={
-            "user_msg_en": "What is the difference between meditation and contemplation?"
-        },
+        state={"user_msg_en": "What is the difference between meditation and contemplation?"},
     )
 
     result = await BoundedComparisonShortCircuitStage().run(ctx)
@@ -45,9 +43,7 @@ async def test_bounded_comparison_does_not_bypass_indic_translation() -> None:
         preferred_lang="hi",
         trace_id="trace-test",
         start_time=time.time(),
-        state={
-            "user_msg_en": "What is the difference between meditation and contemplation?"
-        },
+        state={"user_msg_en": "What is the difference between meditation and contemplation?"},
     )
 
     result = await BoundedComparisonShortCircuitStage().run(ctx)

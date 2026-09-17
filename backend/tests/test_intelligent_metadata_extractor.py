@@ -8,7 +8,6 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from services.intelligent_metadata_extractor import (
-    IntelligentMetadata,
     IntelligentMetadataExtractor,
 )
 
@@ -16,16 +15,18 @@ from services.intelligent_metadata_extractor import (
 @pytest.mark.asyncio
 async def test_extract_metadata_success():
     mock_llm = MagicMock()
-    mock_response = json.dumps({
-        "primary_teacher_id": "krishnaji",
-        "attributed_teacher_ids": ["krishnaji", "preethaji"],
-        "speakers": ["Sri Krishnaji"],
-        "practices": ["Soul Sync"],
-        "core_themes": ["truth_of_suffering", "consciousness"],
-        "context_header": "Sri Krishnaji speaks on moving beyond suffering into conscious connection.",
-        "confidence": 0.98,
-        "rationale": "Direct discourse on karma and awakening.",
-    })
+    mock_response = json.dumps(
+        {
+            "primary_teacher_id": "krishnaji",
+            "attributed_teacher_ids": ["krishnaji", "preethaji"],
+            "speakers": ["Sri Krishnaji"],
+            "practices": ["Soul Sync"],
+            "core_themes": ["truth_of_suffering", "consciousness"],
+            "context_header": "Sri Krishnaji speaks on moving beyond suffering into conscious connection.",
+            "confidence": 0.98,
+            "rationale": "Direct discourse on karma and awakening.",
+        }
+    )
     mock_llm.generate = AsyncMock(return_value=mock_response)
 
     extractor = IntelligentMetadataExtractor(llm_service=mock_llm)

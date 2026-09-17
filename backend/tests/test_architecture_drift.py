@@ -14,7 +14,6 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-import pytest
 from scripts.ops.check_architecture_drift import (
     CRITICAL_ROUTES,
     EXPECTED_EMBEDDING_DIMENSION,
@@ -25,6 +24,8 @@ from scripts.ops.check_architecture_drift import (
     check_fastapi_routes,
     check_pipeline_stage_order,
     check_qdrant_collection,
+)
+from scripts.ops.check_architecture_drift import (
     main as drift_main,
 )
 
@@ -79,6 +80,7 @@ def test_qdrant_collection_drift_detected():
 
 def test_pipeline_order_drift_circuit_breaker_before_guardrails():
     """Verify that running CircuitBreakerStage before InputGuardrailStage is caught."""
+
     # Synthetic stages mimicking bad pipeline order
     class CircuitBreakerStage:
         pass
@@ -106,6 +108,7 @@ def test_pipeline_order_drift_circuit_breaker_before_guardrails():
 
 def test_pipeline_order_drift_router_before_cache():
     """Verify that running a router/short-circuit before CacheCheckStage is caught."""
+
     class CasualShortCircuitStage:
         pass
 
@@ -131,6 +134,7 @@ def test_pipeline_order_drift_router_before_cache():
 
 def test_pipeline_missing_mandatory_stages():
     """Verify that omitting InputGuardrailStage or CircuitBreakerStage fails the check."""
+
     class CacheCheckStage:
         pass
 
@@ -187,7 +191,7 @@ def test_drift_cli_exit_code_zero_on_compliance(capsys):
 
 def test_drift_cli_exit_code_nonzero_on_drift(capsys):
     """Verify CLI returns non-zero (1) on drift."""
-    bad_settings = SimpleNamespace(
+    _bad_settings = SimpleNamespace(
         embedding_dimension=512,
         embedding_model="unknown-model",
         qdrant_collection="wrong-collection",

@@ -8,12 +8,11 @@ Pins that:
 
 No Neo4j connection required — uses a lightweight mock driver.
 """
+
 from __future__ import annotations
 
 import sys
 from pathlib import Path
-
-import pytest
 
 # Allow running from repo root or backend/
 _BACKEND = Path(__file__).resolve().parents[1]
@@ -22,10 +21,10 @@ if str(_BACKEND) not in sys.path:
 
 from scripts.ops.backfill_edge_tenant_id import main  # noqa: E402
 
-
 # ---------------------------------------------------------------------------
 # Minimal Neo4j mock
 # ---------------------------------------------------------------------------
+
 
 class _FakeResult:
     def __init__(self, rows: list[dict]):
@@ -52,10 +51,14 @@ class _FakeSession:
 
         if "count(r) AS total" in cypher_s:
             # _COUNT_UNSTAMPED
-            return _FakeResult([{
-                "total": self._unstamped,
-                "sample_types": ["DIRECTED"],
-            }])
+            return _FakeResult(
+                [
+                    {
+                        "total": self._unstamped,
+                        "sample_types": ["DIRECTED"],
+                    }
+                ]
+            )
 
         if "count(r) AS n" in cypher_s and "rel_type" in cypher_s:
             # _COUNT_BY_TYPE
@@ -121,6 +124,7 @@ import scripts.ops.backfill_edge_tenant_id as _mod
 def _make_patcher(driver: _FakeDriver):
     def _fake_connect(uri, user, password):
         return driver
+
     return _fake_connect
 
 
@@ -128,19 +132,26 @@ def _make_patcher(driver: _FakeDriver):
 # Tests
 # ---------------------------------------------------------------------------
 
+
 def test_dry_run_does_not_write(monkeypatch):
     """Dry-run should count but never call SET."""
     driver = _FakeDriver(initial_unstamped=10)
     monkeypatch.setattr(_mod, "_connect", _make_patcher(driver))
 
-    rc = main([
-        "--neo4j-uri", "bolt://fake:7687",
-        "--neo4j-password", "fake",
-    ])
+    rc = main(
+        [
+            "--neo4j-uri",
+            "bolt://fake:7687",
+            "--neo4j-password",
+            "fake",
+        ]
+    )
 
     assert rc == 0, "dry-run should always exit 0 (nothing broken)"
     # No session should have issued a SET call
-    set_calls = [c for s in driver.sessions for c in (s.set_calls if hasattr(s, "set_calls") else [])]
+    set_calls = [
+        c for s in driver.sessions for c in (s.set_calls if hasattr(s, "set_calls") else [])
+    ]
     assert set_calls == [], "dry-run must not write anything"
 
 
@@ -149,13 +160,19 @@ def test_apply_stamps_all_edges(monkeypatch):
     driver = _FakeDriver(initial_unstamped=4128)
     monkeypatch.setattr(_mod, "_connect", _make_patcher(driver))
 
-    rc = main([
-        "--apply",
-        "--neo4j-uri", "bolt://fake:7687",
-        "--neo4j-password", "fake",
-        "--tenant-id", "oneness",
-        "--corpus-id", "askmukthiguru",
-    ])
+    rc = main(
+        [
+            "--apply",
+            "--neo4j-uri",
+            "bolt://fake:7687",
+            "--neo4j-password",
+            "fake",
+            "--tenant-id",
+            "oneness",
+            "--corpus-id",
+            "askmukthiguru",
+        ]
+    )
 
     assert rc == 0, "apply should exit 0 when all edges are stamped"
     assert driver._unstamped == 0
@@ -166,11 +183,15 @@ def test_apply_is_idempotent_when_nothing_to_do(monkeypatch):
     driver = _FakeDriver(initial_unstamped=0)
     monkeypatch.setattr(_mod, "_connect", _make_patcher(driver))
 
-    rc = main([
-        "--apply",
-        "--neo4j-uri", "bolt://fake:7687",
-        "--neo4j-password", "fake",
-    ])
+    rc = main(
+        [
+            "--apply",
+            "--neo4j-uri",
+            "bolt://fake:7687",
+            "--neo4j-password",
+            "fake",
+        ]
+    )
 
     assert rc == 0
 
@@ -178,6 +199,7 @@ def test_apply_is_idempotent_when_nothing_to_do(monkeypatch):
 def test_missing_password_exits_1():
     """Missing NEO4J_PASSWORD should exit 1 without connecting."""
     import os
+
     old = os.environ.pop("NEO4J_PASSWORD", None)
     try:
         rc = main(["--neo4j-uri", "bolt://fake:7687"])

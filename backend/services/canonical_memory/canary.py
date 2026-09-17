@@ -1,11 +1,12 @@
 """Canary deployment strategy for rolling out memory system."""
-import datetime as dt
+
 import logging
-from typing import Dict, Any, List
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Any
 
 logger = logging.getLogger(__name__)
+
 
 class CanaryStage(str, Enum):
     OFF = "off"
@@ -15,19 +16,21 @@ class CanaryStage(str, Enum):
     FULL_ROLLOUT = "full_rollout"
     ROLLED_BACK = "rolled_back"
 
+
 @dataclass
 class CanaryConfig:
     stage: CanaryStage = CanaryStage.OFF
     percentage: float = 0.0
-    user_whitelist: List[str] = field(default_factory=list)
+    user_whitelist: list[str] = field(default_factory=list)
     error_threshold: float = 0.05
     latency_threshold_ms: float = 2000.0
     min_satisfaction_score: float = 0.8
 
+
 class CanaryDeployment:
     def __init__(self, config: CanaryConfig = None):
         self.config = config or CanaryConfig()
-        self._metrics: Dict[str, Any] = {"turns": 0, "errors": 0, "total_latency_ms": 0.0}
+        self._metrics: dict[str, Any] = {"turns": 0, "errors": 0, "total_latency_ms": 0.0}
 
     def should_use_canonical(self, user_id: str) -> bool:
         if self.config.stage == CanaryStage.OFF:
@@ -46,12 +49,15 @@ class CanaryDeployment:
         if not success:
             self._metrics["errors"] += 1
 
-    def check_health(self) -> Dict[str, Any]:
+    def check_health(self) -> dict[str, Any]:
         turns = self._metrics["turns"]
         errors = self._metrics["errors"]
         avg_latency = self._metrics["total_latency_ms"] / max(turns, 1)
         error_rate = errors / max(turns, 1)
-        healthy = error_rate <= self.config.error_threshold and avg_latency <= self.config.latency_threshold_ms
+        healthy = (
+            error_rate <= self.config.error_threshold
+            and avg_latency <= self.config.latency_threshold_ms
+        )
         return {
             "stage": self.config.stage.value,
             "turns": turns,
@@ -62,8 +68,14 @@ class CanaryDeployment:
             "should_rollback": error_rate > self.config.error_threshold * 2,
         }
 
-    def promote(self) -> Dict[str, Any]:
-        order = [CanaryStage.OFF, CanaryStage.INTERNAL_TESTING, CanaryStage.SMALL_PERCENTAGE, CanaryStage.HALF_ROLLOUT, CanaryStage.FULL_ROLLOUT]
+    def promote(self) -> dict[str, Any]:
+        order = [
+            CanaryStage.OFF,
+            CanaryStage.INTERNAL_TESTING,
+            CanaryStage.SMALL_PERCENTAGE,
+            CanaryStage.HALF_ROLLOUT,
+            CanaryStage.FULL_ROLLOUT,
+        ]
         if self.config.stage == CanaryStage.ROLLED_BACK:
             self.config.stage = CanaryStage.OFF
             return {"new_stage": self.config.stage.value, "promoted": True}
@@ -72,11 +84,11 @@ class CanaryDeployment:
             self.config.stage = order[idx + 1]
         return {"new_stage": self.config.stage.value, "promoted": True}
 
-    def rollback(self) -> Dict[str, Any]:
+    def rollback(self) -> dict[str, Any]:
         self.config.stage = CanaryStage.ROLLED_BACK
         return {"stage": self.config.stage.value, "rolled_back": True}
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         return {
             "stage": self.config.stage.value,
             "percentage": self.config.percentage,
@@ -87,6 +99,7 @@ class CanaryDeployment:
             },
             "metrics": self._metrics,
         }
+
 
 def get_canary_deployment(stage: CanaryStage = CanaryStage.OFF) -> CanaryDeployment:
     return CanaryDeployment(CanaryConfig(stage=stage))

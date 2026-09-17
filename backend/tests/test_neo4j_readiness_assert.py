@@ -6,6 +6,7 @@ constraints from seed_ontology._migrations exist, so a dropped constraint
 failed silently into graph corruption. The assert is read-only
 (SHOW CONSTRAINTS) — startup schema mutation stays in the maintenance runner.
 """
+
 import pytest
 
 

@@ -15,34 +15,33 @@ Covers:
 
 from __future__ import annotations
 
-import pytest
-from typing import Any, Optional
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+
 from services.canonical_memory.context_builder import (
+    _INJECTION_FENCE_CLOSE,
+    _INJECTION_FENCE_OPEN,
+    _KNOWLEDGE_FENCE_CLOSE,
+    _KNOWLEDGE_FENCE_OPEN,
+    AdaptiveContextOrchestrator,
     BudgetAllocation,
     ContextResult,
     LayerBlock,
     QueryIntent,
-    AdaptiveContextOrchestrator,
+    _check_injection_risk,
+    _compute_similarity,
+    _estimate_tokens,
+    _format_history_block,
+    _format_knowledge_block,
+    _format_memory_block,
+    _normalize_for_dedup,
     allocate_budget,
     classify_query_intent,
     create_orchestrator,
     deduplicate_across_layers,
-    _estimate_tokens,
-    _format_memory_block,
-    _format_history_block,
-    _format_knowledge_block,
-    _check_injection_risk,
-    _normalize_for_dedup,
-    _compute_similarity,
-    DEFAULT_TOKEN_BUDGET,
-    _INJECTION_FENCE_OPEN,
-    _INJECTION_FENCE_CLOSE,
-    _KNOWLEDGE_FENCE_OPEN,
-    _KNOWLEDGE_FENCE_CLOSE,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -105,10 +104,15 @@ class TestQueryIntentClassification:
         assert classify_query_intent("What is meditation?") == QueryIntent.SPIRITUAL_FACTUAL
 
     def test_knowledge_question_guru_teaching(self):
-        assert classify_query_intent("What does the guru teach about awareness?") == QueryIntent.SPIRITUAL_FACTUAL
+        assert (
+            classify_query_intent("What does the guru teach about awareness?")
+            == QueryIntent.SPIRITUAL_FACTUAL
+        )
 
     def test_knowledge_question_serene_mind(self):
-        assert classify_query_intent("Tell me about the serene mind") == QueryIntent.SPIRITUAL_FACTUAL
+        assert (
+            classify_query_intent("Tell me about the serene mind") == QueryIntent.SPIRITUAL_FACTUAL
+        )
 
     def test_knowledge_question_vipassana(self):
         assert classify_query_intent("How does vipassana work?") == QueryIntent.SPIRITUAL_FACTUAL
@@ -478,21 +482,24 @@ class TestContextResult:
     ) -> ContextResult:
         return ContextResult(
             memory_block=LayerBlock(
-                layer="memory", content=memory_content,
+                layer="memory",
+                content=memory_content,
                 provenance_label="[Memory: canonical_memories]",
                 token_count=_estimate_tokens(memory_content),
                 budget=BudgetAllocation(layer="memory", tokens=256, percentage=0.25),
                 included=bool(memory_content),
             ),
             history_block=LayerBlock(
-                layer="history", content=history_content,
+                layer="history",
+                content=history_content,
                 provenance_label="[History: this_session]",
                 token_count=_estimate_tokens(history_content),
                 budget=BudgetAllocation(layer="history", tokens=256, percentage=0.25),
                 included=bool(history_content),
             ),
             knowledge_block=LayerBlock(
-                layer="knowledge", content=knowledge_content,
+                layer="knowledge",
+                content=knowledge_content,
                 provenance_label="[Knowledge: spiritual_wisdom]",
                 token_count=_estimate_tokens(knowledge_content),
                 budget=BudgetAllocation(layer="knowledge", tokens=256, percentage=0.25),
@@ -546,9 +553,7 @@ class TestContextResult:
 class TestOrchestratorSync:
     def test_empty_query(self):
         orch = create_orchestrator()
-        result = orch.build_context_sync(
-            user_id="u1", query="", session_messages=[]
-        )
+        result = orch.build_context_sync(user_id="u1", query="", session_messages=[])
         assert result.intent == QueryIntent.UNKNOWN
 
     def test_intent_drives_budget(self):
@@ -590,14 +595,18 @@ class TestOrchestratorSync:
     def test_history_empty_when_no_messages(self):
         orch = create_orchestrator()
         result = orch.build_context_sync(
-            user_id="u1", query="hello", session_messages=[],
+            user_id="u1",
+            query="hello",
+            session_messages=[],
         )
         assert not result.history_block.included
 
     def test_custom_budget(self):
         orch = create_orchestrator(token_budget=2048)
         result = orch.build_context_sync(
-            user_id="u1", query="hello", session_messages=[],
+            user_id="u1",
+            query="hello",
+            session_messages=[],
         )
         assert result.total_tokens >= 0  # total may be 0 with empty inputs
 
@@ -623,9 +632,9 @@ class TestOrchestratorSync:
 class TestOrchestratorAsync:
     @pytest.mark.asyncio
     async def test_retriever_called_when_available(self):
-        retriever = MockRetriever([
-            {"statement": "User lives in Mumbai", "memory_type": "PROFILE", "confidence": 0.9}
-        ])
+        retriever = MockRetriever(
+            [{"statement": "User lives in Mumbai", "memory_type": "PROFILE", "confidence": 0.9}]
+        )
         orch = create_orchestrator(memory_retriever=retriever)
         result = await orch.build_context(
             user_id="u1",
@@ -650,9 +659,9 @@ class TestOrchestratorAsync:
 
     @pytest.mark.asyncio
     async def test_knowledge_retriever_called(self):
-        know_retriever = MockKnowledgeRetriever([
-            {"text": "The guru teaches stillness", "source_url": "https://yt.com/x"}
-        ])
+        know_retriever = MockKnowledgeRetriever(
+            [{"text": "The guru teaches stillness", "source_url": "https://yt.com/x"}]
+        )
         orch = create_orchestrator(knowledge_retriever=know_retriever)
         result = await orch.build_context(
             user_id="u1",
@@ -676,9 +685,7 @@ class TestOrchestratorAsync:
 
     @pytest.mark.asyncio
     async def test_preferred_data_used_over_retriever(self):
-        retriever = MockRetriever([
-            {"statement": "Retrieved fact", "memory_type": "PROFILE"}
-        ])
+        retriever = MockRetriever([{"statement": "Retrieved fact", "memory_type": "PROFILE"}])
         orch = create_orchestrator(memory_retriever=retriever)
         result = await orch.build_context(
             user_id="u1",
@@ -694,7 +701,9 @@ class TestOrchestratorAsync:
     async def test_latency_recorded(self):
         orch = create_orchestrator()
         result = await orch.build_context(
-            user_id="u1", query="hello", session_messages=[],
+            user_id="u1",
+            query="hello",
+            session_messages=[],
         )
         assert result.latency_ms >= 0
 

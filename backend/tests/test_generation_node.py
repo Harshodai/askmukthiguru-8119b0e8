@@ -231,7 +231,6 @@ def test_compute_context_budget_keeps_history_and_memory_margin():
     assert context >= 200
 
 
-
 def test_evidence_refusal_action_retries_short_refusal_with_retrieved_docs():
     from rag.nodes.generation import _evidence_refusal_action
 

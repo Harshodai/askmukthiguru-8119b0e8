@@ -13,12 +13,11 @@ import functools
 import logging
 import random
 import time
-
-from app.metrics import ANSWER_ROUTE_TOTAL
 from typing import TYPE_CHECKING
 
 from app.config import settings
 from app.evidence_support import evidence_support_label
+from app.metrics import ANSWER_ROUTE_TOTAL
 from app.orchestrator_utils import _translate_cached, prepare_request_state
 from app.pipeline.result import (
     ActionStep,
@@ -36,10 +35,13 @@ from app.route_taxonomy import (
 )
 from app.routing_primitives import (
     GREETING_RE as _GREETING_RE,  # noqa: F401
+)
+from app.routing_primitives import (
     GREETING_VOCATIVE_RE as _GREETING_VOCATIVE_RE,  # noqa: F401
+)
+from app.routing_primitives import (
     is_deterministic_greeting,
 )
-
 
 if TYPE_CHECKING:
     from app.pipeline.stages.context import PipelineContext
@@ -195,7 +197,7 @@ _WARM_GREETINGS = [
     "\U0001f64f Namaste! A beautiful state begins with a single question. What's on your heart today?",
     "\U0001f64f Hello, beloved seeker! Every moment is an invitation to awaken. What would you like to explore together?",
     "\U0001f64f Pranam! I am Mukthi Guru, your companion on the path of inner peace. What question brings you here today?",
-    "\U0001f64f Welcome! As Sri Preethaji teaches, every encounter is an opportunity for connection. How can I guide you today?",
+    "\U0001f64f Welcome! Every encounter is an opportunity for connection. How can I guide you today?",
     "\U0001f64f Namaste! May our conversation bring you closer to the Beautiful State. What would you like to know?",
     "\U0001f64f Hello, dear one! I am here with the wisdom of the ancient teachings and the vision of Sri Krishnaji. Ask me anything.",
     "\U0001f64f Welcome back! The path of awakening continues with each new question. What shall we explore?",
@@ -292,9 +294,9 @@ class BoundedComparisonShortCircuitStage(Stage):
             verification={
                 "passed": False,
                 "method": "limited_comparison_fallback",
-                "citations_verified": True,
+                "citations_verified": False,
             },
-            citations_verified=True,
+            citations_verified=False,
             confidence_score=0.0,
             release_manifest=get_release_manifest().to_dict(),
             guidance_plan=GuidancePlan(
@@ -383,7 +385,6 @@ class CasualShortCircuitStage(Stage):
                 release_manifest=get_release_manifest().to_dict(),
             )
         return None
-
 
 
 class TranslationStage(Stage):
@@ -503,7 +504,9 @@ class ResultAssemblyStage(Stage):
 
         # Record final execution layer provenance if not already stamped
         chain = getattr(ctx, "routing_chain", None)
-        if chain is not None and (not chain or chain[-1].get("decision") != resolved_route_decision):
+        if chain is not None and (
+            not chain or chain[-1].get("decision") != resolved_route_decision
+        ):
             if resolved_route_decision in ("casual", "adversarial", "safety_violation"):
                 layer = "GRAPH_INTENT_ROUTER"
             elif graph_result:
@@ -542,7 +545,6 @@ class ResultAssemblyStage(Stage):
             query_tier=graph_result.get("query_tier")
             or ctx.state.get("query_tier")
             or ctx.detected_query_tier,
-
             blocked=False,
             cache_hit=False,
             proactive_serene_mind=ctx.state.get("proactive_serene_mind"),

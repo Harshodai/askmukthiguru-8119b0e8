@@ -65,14 +65,16 @@ def test_embed_and_index_teacher_tagging(mock_pipeline):
     mock_pipeline._qdrant.check_source_exists = MagicMock(return_value=False)
 
     # 1. Test Sadhguru keyword classification
-    mock_pipeline._embed_and_index(EmbedIndexConfig(
-        chunks=["Mindfulness and yoga by Jaggi Vasudev."],
-        source_url="http://example.com/some-video",
-        title="Isha Kriya Yoga",
-        content_type="video",
-        speaker="Sadhguru",
-        tags=["meditation"],
-    ))
+    mock_pipeline._embed_and_index(
+        EmbedIndexConfig(
+            chunks=["Mindfulness and yoga by Jaggi Vasudev."],
+            source_url="http://example.com/some-video",
+            title="Isha Kriya Yoga",
+            content_type="video",
+            speaker="Sadhguru",
+            tags=["meditation"],
+        )
+    )
 
     called_args = mock_pipeline._qdrant.upsert_chunks.call_args[0]
     metadata_list = called_args[2]
@@ -80,28 +82,32 @@ def test_embed_and_index_teacher_tagging(mock_pipeline):
     assert any("meditation" in m["tags"] for m in metadata_list)
 
     # 2. Test Sri Amma Bhagavan keyword classification
-    mock_pipeline._embed_and_index(EmbedIndexConfig(
-        chunks=["Oneness meditation and Deeksha from Kalki."],
-        source_url="http://example.com/oneness",
-        title="Golden Age Movement",
-        content_type="video",
-        speaker="Unknown",
-        tags=["grace"],
-    ))
+    mock_pipeline._embed_and_index(
+        EmbedIndexConfig(
+            chunks=["Oneness meditation and Deeksha from Kalki."],
+            source_url="http://example.com/oneness",
+            title="Golden Age Movement",
+            content_type="video",
+            speaker="Unknown",
+            tags=["grace"],
+        )
+    )
 
     called_args = mock_pipeline._qdrant.upsert_chunks.call_args[0]
     metadata_list = called_args[2]
     assert any("teacher:amma_bhagavan" in m["tags"] for m in metadata_list)
 
     # 3. Test ISKCON keyword classification
-    mock_pipeline._embed_and_index(EmbedIndexConfig(
-        chunks=["Reading from Bhagavad Gita in ISKCON temple."],
-        source_url="http://example.com/gita",
-        title="Teachings of Prabhupada",
-        content_type="video",
-        speaker="Prabhupada",
-        tags=["devotion"],
-    ))
+    mock_pipeline._embed_and_index(
+        EmbedIndexConfig(
+            chunks=["Reading from Bhagavad Gita in ISKCON temple."],
+            source_url="http://example.com/gita",
+            title="Teachings of Prabhupada",
+            content_type="video",
+            speaker="Prabhupada",
+            tags=["devotion"],
+        )
+    )
 
     called_args = mock_pipeline._qdrant.upsert_chunks.call_args[0]
     metadata_list = called_args[2]
@@ -256,22 +262,26 @@ def test_ingestion_persisted_content_passes_find_artifact_gate(mock_pipeline):
     mock_pipeline._qdrant.check_source_exists = MagicMock(return_value=False)
 
     # Ingest clean chunks
-    mock_pipeline._embed_and_index(EmbedIndexConfig(
-        chunks=clean_chunks,
-        title="Beautiful State Teaching",
-        content_type="video",
-        speaker="Sri Krishnaji",
-        topic="Meditation",
-        source_url="https://youtube.com/watch?v=clean123",
-        video_id="clean123",
-    ))
+    mock_pipeline._embed_and_index(
+        EmbedIndexConfig(
+            chunks=clean_chunks,
+            title="Beautiful State Teaching",
+            content_type="video",
+            speaker="Sri Krishnaji",
+            topic="Meditation",
+            source_url="https://youtube.com/watch?v=clean123",
+            video_id="clean123",
+        )
+    )
 
     # Verify that all chunk texts actually written to Qdrant pass find_artifact
     assert mock_pipeline._qdrant.upsert_chunks.called
     persisted_chunks = mock_pipeline._qdrant.upsert_chunks.call_args[0][0]
     for chunk in persisted_chunks:
         chunk_text = chunk if isinstance(chunk, str) else chunk.get("text", "")
-        assert find_artifact(chunk_text) is None, f"Persisted chunk failed find_artifact: {chunk_text}"
+        assert find_artifact(chunk_text) is None, (
+            f"Persisted chunk failed find_artifact: {chunk_text}"
+        )
 
     # Verify poison patterns are caught by find_artifact
     poison_samples = [
@@ -282,4 +292,3 @@ def test_ingestion_persisted_content_passes_find_artifact_gate(mock_pipeline):
     ]
     for poison in poison_samples:
         assert find_artifact(poison) is not None, f"Poison sample not caught by filter: {poison}"
-

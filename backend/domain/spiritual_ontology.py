@@ -345,9 +345,15 @@ TEACHER_DOMAINS: dict[str, TeacherDomain] = {
         # genuine mentions of our own teachers were falling through the
         # domain-rights gate unrecognized (not blocked, just untracked).
         aliases=[
-            "Sri Preethaji", "Shri Preethaji", "Sri Sri Preethaji",
-            "Sri Krishnaji", "Shri Krishnaji", "Sri Sri Krishnaji", "Krishnaji",
-            "Ekam", "O&O Academy",
+            "Sri Preethaji",
+            "Shri Preethaji",
+            "Sri Sri Preethaji",
+            "Sri Krishnaji",
+            "Shri Krishnaji",
+            "Sri Sri Krishnaji",
+            "Krishnaji",
+            "Ekam",
+            "O&O Academy",
         ],
         rights_status="licensed",
         graph_namespace="ekam",

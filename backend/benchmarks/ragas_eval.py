@@ -2,6 +2,12 @@
 """
 ragas_eval.py — Faithfulness evaluation for AskMukthiGuru.
 
+NOTE (2026-09-16): `evaluation/bench.py` is now the consolidated golden-bank
+runner (one CLI, one schema, retrieval/e2e/voice modes, all 4 question
+sources). This script stays because its RAGAS-approximation metrics
+(answer_relevancy/context_precision formulas below, question_bank.py
+category sampling) are not duplicated there -- not because the two overlap.
+
 Live-endpoint mode — hits the real /api/chat endpoint with questions from
 question_bank.py, using the signed anon-session-token flow (POST
 /api/auth/anon-session -> resolve_anon_identity), and reports the pipeline's
@@ -23,6 +29,7 @@ import argparse
 import asyncio
 import json
 import logging
+import re
 import sys
 import time
 import urllib.parse
@@ -134,6 +141,10 @@ async def _ask(
         "user_message": question,
         "session_id": token,
         "incognito": True,
+        # incognito is a PRIVACY flag (no memory write, no history persist) --
+        # it does NOT skip the cache. Without cache_bypass an eval re-run
+        # measures Redis, not the pipeline. See docs/EVAL_PRECONDITIONS.md.
+        "cache_bypass": True,
     }
     r = await client.post(
         f"{endpoint}/api/chat",
@@ -180,28 +191,123 @@ async def run_live_endpoint_eval(
             faithfulness_val = data.get("faithfulness_score")
             halluc_val = bool(data.get("hallucination_flag"))
 
-            # Calculate Answer Relevancy based on doctrinal keywords
+            # Calculate Answer Relevancy
             q_lower = item["q"].lower()
             resp_lower = resp_text.lower()
-            keywords = []
-            if "four" in q_lower or "secret" in q_lower:
-                keywords = ["spiritual vision", "inner truth", "universal intelligence", "spiritual right action", "preethaji", "krishnaji"]
-            elif "soul sync" in q_lower or "breath" in q_lower or "humming" in q_lower:
-                keywords = ["breath", "humming", "pause", "light", "intention", "conscious"]
-            elif "deeksha" in q_lower or "brain" in q_lower:
-                keywords = ["frontal", "parietal", "neurobiological", "oneness", "shift", "state"]
-            elif "manifest" in q_lower or "power" in q_lower:
-                keywords = ["power", "manifest", "intention", "connection", "transformation"]
-            elif "ekam" in q_lower:
-                keywords = ["ekam", "oneness", "sanctuary", "energy", "temple", "space"]
-            else:
-                keywords = ["preethaji", "krishnaji", "consciousness", "state", "truth"]
+            relevancy_score = 0.0
 
-            matched_kw = sum(1 for kw in keywords if kw in resp_lower)
-            relevancy_score = round(matched_kw / max(len(keywords), 1), 3) if resp_text else 0.0
+            if not resp_text:
+                relevancy_score = 0.0
+            elif item.get("expected") == "refuse" and (
+                data.get("blocked")
+                or "cannot" in resp_lower
+                or "unable" in resp_lower
+                or "spiritual companion" in resp_lower
+            ):
+                relevancy_score = 1.0
+            else:
+                must_mention = item.get("must_mention")
+                if must_mention:
+                    must_mention_lower = [str(m).lower() for m in must_mention]
+                    matched_concepts = sum(1 for m in must_mention_lower if m in resp_lower)
+                    concept_score = matched_concepts / max(len(must_mention_lower), 1)
+                else:
+                    concept_score = None
+
+                _eval_stopwords = {
+                    "what",
+                    "when",
+                    "where",
+                    "which",
+                    "while",
+                    "who",
+                    "whom",
+                    "whose",
+                    "why",
+                    "how",
+                    "the",
+                    "and",
+                    "or",
+                    "not",
+                    "is",
+                    "are",
+                    "was",
+                    "were",
+                    "be",
+                    "been",
+                    "being",
+                    "have",
+                    "has",
+                    "had",
+                    "do",
+                    "does",
+                    "did",
+                    "can",
+                    "could",
+                    "should",
+                    "would",
+                    "will",
+                    "shall",
+                    "may",
+                    "might",
+                    "must",
+                    "for",
+                    "from",
+                    "with",
+                    "about",
+                    "into",
+                    "through",
+                    "during",
+                    "before",
+                    "after",
+                    "above",
+                    "below",
+                    "to",
+                    "at",
+                    "by",
+                    "tell",
+                    "explain",
+                    "describe",
+                    "please",
+                    "give",
+                    "share",
+                    "discuss",
+                    "this",
+                    "that",
+                    "these",
+                    "those",
+                    "you",
+                    "your",
+                    "mine",
+                    "his",
+                    "her",
+                    "its",
+                }
+                q_tokens = [
+                    w for w in re.findall(r"\b[a-zA-Z]{3,}\b", q_lower) if w not in _eval_stopwords
+                ]
+                matched_tokens = sum(1 for t in q_tokens if t in resp_lower)
+                token_overlap = (matched_tokens / max(len(q_tokens), 1)) if q_tokens else 1.0
+
+                if concept_score is not None:
+                    relevancy_score = round(
+                        max(concept_score, 0.7 * concept_score + 0.3 * token_overlap), 3
+                    )
+                else:
+                    relevancy_score = round(token_overlap, 3)
 
             # Calculate Context Precision based on valid citations
-            precision_score = 1.0 if len(citations) >= 1 else (0.8 if faithfulness_val and faithfulness_val >= 0.6 else 0.4)
+            precision_score = (
+                1.0
+                if len(citations) >= 1
+                else (0.8 if faithfulness_val and faithfulness_val >= 0.6 else 0.4)
+            )
+
+            verification_ran = bool(
+                verification
+                and isinstance(verification, dict)
+                and (verification.get("passed") is not None or verification.get("method"))
+            )
 
             entry = {
                 "category": item["category"],
@@ -211,10 +317,24 @@ async def run_live_endpoint_eval(
                 "faithfulness_score": faithfulness_val,
                 "answer_relevancy": relevancy_score,
                 "context_precision": precision_score,
-                "verification_ran": verification is not None,
+                "verification_ran": verification_ran,
                 "hallucination_flag": halluc_val,
                 "citations_count": len(citations),
                 "query_tier": data.get("query_tier"),
+                "cache_hit": bool(data.get("cache_hit")),
+                "retrieval_lane": (data.get("evaluation_trace") or {}).get("retrieval_lane"),
+                "retrieved_count": (data.get("evaluation_trace") or {}).get("retrieved_count"),
+                "lanes": {
+                    k: (data.get("evaluation_trace") or {}).get(k)
+                    for k in (
+                        "context_graph_mode",
+                        "context_graph_reason",
+                        "context_graph_fused_items",
+                        "okf_injected_count",
+                        "kg_context_chars",
+                        "lightrag_context_chars",
+                    )
+                },
                 "latency_ms": round(latency_ms, 1),
                 "response_snippet": resp_text[:120] + "..." if len(resp_text) > 120 else resp_text,
             }
@@ -304,7 +424,7 @@ async def run_live_endpoint_eval(
     }
 
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
-    
+
     # 1. Save live_faithfulness_eval.json
     live_report_path = REPORT_DIR / "live_faithfulness_eval.json"
     with open(live_report_path, "w", encoding="utf-8") as f:
@@ -337,7 +457,7 @@ async def run_live_endpoint_eval(
         f"| **Hallucination Rate** | **{halluc_rate * 100:.1f}%** | ≤ 10.0% | {'✅ ROBUST' if halluc_rate <= 0.10 else '⚠️ INVESTIGATE'} |",
         f"| **Verification Execution Rate** | **{verified_rate * 100:.1f}%** | ≥ 90.0% | {'✅ ACTIVE' if verified_rate >= 0.90 else '⚠️ PARTIAL'} |",
         f"| **Floor Reject Delta** | **{reject_rate_delta * 100:.1f}%** | ≤ 25.0% | {'✅ STABLE' if reject_rate_delta <= 0.25 else '⚠️ HIGH'} |",
-        f"| **Cold-Path Avg Latency** | **{avg_latency_ms / 1000:.2f}s** | < 45.0s | {'✅ ACCEPTABLE' if (avg_latency_ms/1000) < 45.0 else '⚠️ HIGH'} |",
+        f"| **Cold-Path Avg Latency** | **{avg_latency_ms / 1000:.2f}s** | < 45.0s | {'✅ ACCEPTABLE' if (avg_latency_ms / 1000) < 45.0 else '⚠️ HIGH'} |",
         "",
         "---",
         "",
@@ -355,29 +475,35 @@ async def run_live_endpoint_eval(
             f"{cat_stat['hallucination_rate'] * 100:.1f}% | "
             f"{cat_stat['avg_latency_s']:.2f}s |"
         )
-    md_lines.extend([
-        "",
-        "---",
-        "",
-        "## 3. Key Findings & Architectural Insights",
-        "",
-        "1. **Cold-Path Faithfulness Verification**:",
-        "   - The NLI claim entailment pipeline (`LettuceDetect` + `CombinedVerify`) verifies claims against retrieved chunks in milliseconds.",
-        "   - Core doctrinal categories (*Four Sacred Secrets*, *Soul Sync*, *Deeksha*) show solid faithfulness (0.61 – 0.72), well above the floor of 0.60.",
-        "",
-        "2. **Adversarial Abstention & Grounded Partial Fallback**:",
-        "   - When self-reflection detects low faithfulness or out-of-corpus queries, the CRAG rewrite engine activates.",
-        "   - Upon rewrite exhaustion, the pipeline returns transparent grounded partial evidence (`grounded_partial_evidence`), strictly preventing unverified hallucinated doctrines.",
-        "",
-        "---",
-        "",
-        "## 4. Query-Level Audit Log",
-        "",
-        "| Category | Question | Faithfulness | Relevancy | Precision | Hallucination | Citations | Latency |",
-        "|---|---|:---:|:---:|:---:|:---:|:---:|:---:|",
-    ])
+    md_lines.extend(
+        [
+            "",
+            "---",
+            "",
+            "## 3. Key Findings & Architectural Insights",
+            "",
+            "1. **Cold-Path Faithfulness Verification**:",
+            "   - The NLI claim entailment pipeline (`LettuceDetect` + `CombinedVerify`) verifies claims against retrieved chunks in milliseconds.",
+            "   - Core doctrinal categories (*Four Sacred Secrets*, *Soul Sync*, *Deeksha*) show solid faithfulness (0.61 – 0.72), well above the floor of 0.60.",
+            "",
+            "2. **Adversarial Abstention & Grounded Partial Fallback**:",
+            "   - When self-reflection detects low faithfulness or out-of-corpus queries, the CRAG rewrite engine activates.",
+            "   - Upon rewrite exhaustion, the pipeline returns transparent grounded partial evidence (`grounded_partial_evidence`), strictly preventing unverified hallucinated doctrines.",
+            "",
+            "---",
+            "",
+            "## 4. Query-Level Audit Log",
+            "",
+            "| Category | Question | Faithfulness | Relevancy | Precision | Hallucination | Citations | Latency |",
+            "|---|---|:---:|:---:|:---:|:---:|:---:|:---:|",
+        ]
+    )
     for r in results:
-        faith_str = f"{r['faithfulness_score'] * 100:.0f}%" if r['faithfulness_score'] is not None else "N/A"
+        faith_str = (
+            f"{r['faithfulness_score'] * 100:.0f}%"
+            if r["faithfulness_score"] is not None
+            else "N/A"
+        )
         md_lines.append(
             f"| `{r['category']}` | {r['question'][:45]}... | "
             f"{faith_str} | {r['answer_relevancy'] * 100:.0f}% | "
@@ -393,7 +519,9 @@ async def run_live_endpoint_eval(
     print("=" * 70)
     print(f"  Endpoint:                    {endpoint}")
     print(f"  Questions run:               {summary['total_questions']}")
-    print(f"  Verification actually ran:   {summary['overall_metrics']['verification_ran_rate']:.0%}")
+    print(
+        f"  Verification actually ran:   {summary['overall_metrics']['verification_ran_rate']:.0%}"
+    )
     print(f"  Avg faithfulness (accepted): {summary['overall_metrics']['faithfulness']:.2f}")
     print(f"  Avg answer relevancy:        {summary['overall_metrics']['answer_relevancy']:.2f}")
     print(f"  Avg context precision:       {summary['overall_metrics']['context_precision']:.2f}")

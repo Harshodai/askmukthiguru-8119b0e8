@@ -3,12 +3,11 @@ Test citation n-gram verification protocol.
 Verifies 8-word verbatim continuous n-gram matching against source transcripts.
 """
 
-import pytest
 from services.citation_service import (
-    extract_verbatim_quotes,
     check_continuous_ngram_match,
-    verify_quote_ngram_fidelity,
+    extract_verbatim_quotes,
     verify_citation_ngrams,
+    verify_quote_ngram_fidelity,
 )
 
 SAMPLE_TRANSCRIPT = (
@@ -29,7 +28,9 @@ def test_extract_verbatim_quotes_straight_quotes():
 
 def test_extract_verbatim_quotes_curly_quotes():
     """Verify extraction of phrases inside curly quotes."""
-    text = 'The teaching emphasizes: “The warring self dissolves into universal intelligence” as key.'
+    text = (
+        "The teaching emphasizes: “The warring self dissolves into universal intelligence” as key."
+    )
     quotes = extract_verbatim_quotes(text)
     assert len(quotes) == 1
     assert quotes[0] == "The warring self dissolves into universal intelligence"
@@ -79,10 +80,7 @@ def test_short_quote_under_8_words():
 
 def test_case_and_punctuation_tolerance():
     """Verify matching is case-insensitive and ignores surrounding punctuation/newlines."""
-    quote_varied = (
-        "EVERY MOMENT OF YOUR LIFE, YOU ARE LIVING\n"
-        "EITHER IN A BEAUTIFUL STATE..."
-    )
+    quote_varied = "EVERY MOMENT OF YOUR LIFE, YOU ARE LIVING\nEITHER IN A BEAUTIFUL STATE..."
     assert check_continuous_ngram_match(quote_varied, SAMPLE_TRANSCRIPT, n=8) is True
 
 
@@ -106,7 +104,10 @@ def test_verify_citation_ngrams_answer_level():
     """Verify answer-level citation n-gram check against context documents."""
     context_docs = [
         {"title": "Beautiful State Discourse", "text": SAMPLE_TRANSCRIPT},
-        {"title": "Soul Sync Teaching", "text": "Soul Sync is an 8-step meditation for inner peace."},
+        {
+            "title": "Soul Sync Teaching",
+            "text": "Soul Sync is an 8-step meditation for inner peace.",
+        },
     ]
 
     answer_valid = (
@@ -118,9 +119,7 @@ def test_verify_citation_ngrams_answer_level():
     assert res_valid["quotes_checked"] == 1
     assert res_valid["quotes_passed"] == 1
 
-    answer_invalid = (
-        'As Sri Krishnaji stated, "You should abandon all worldly pursuits and live alone in the mountains." [[CITE:1]]'
-    )
+    answer_invalid = 'As Sri Krishnaji stated, "You should abandon all worldly pursuits and live alone in the mountains." [[CITE:1]]'
     res_invalid = verify_citation_ngrams(answer_invalid, context_docs, n=8)
     assert res_invalid["verified"] is False
     assert res_invalid["quotes_checked"] == 1
@@ -129,6 +128,11 @@ def test_verify_citation_ngrams_answer_level():
 
 def test_empty_quote_handling():
     """Verify empty or non-quoted answer passes trivially."""
-    assert verify_citation_ngrams("Plain answer with no quotes.", [{"text": SAMPLE_TRANSCRIPT}])["verified"] is True
+    assert (
+        verify_citation_ngrams("Plain answer with no quotes.", [{"text": SAMPLE_TRANSCRIPT}])[
+            "verified"
+        ]
+        is True
+    )
     assert check_continuous_ngram_match("", SAMPLE_TRANSCRIPT) is False
     assert check_continuous_ngram_match("some quote", "") is False

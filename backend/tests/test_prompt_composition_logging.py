@@ -69,7 +69,7 @@ def test_logs_knowledge_split_by_source(caplog):
 def test_logs_totals_and_trace_id(caplog):
     out = _emit(caplog)
     assert "trace_id=t-1" in out
-    assert "total_chars=%d" % (len("PERSONA: guru") + len("KNOWLEDGE: ...\n\nQUESTION: why?")) in out
+    assert f"total_chars={len('PERSONA: guru') + len('KNOWLEDGE: ...\n\nQUESTION: why?')}" in out
     assert "docs=4" in out
 
 

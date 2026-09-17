@@ -566,11 +566,26 @@ async def test_memory_stage_skips_all_persistence_when_memory_writes_are_disable
 def test_route_taxonomy_canonicalization():
     from app.route_taxonomy import RouteDecision, canonicalize_route_decision
 
-    assert canonicalize_route_decision("grounded_partial_fast_tier") == RouteDecision.GROUNDED_PARTIAL.value
-    assert canonicalize_route_decision("grounded_partial_fallback") == RouteDecision.GROUNDED_PARTIAL.value
-    assert canonicalize_route_decision("reflective_peace_meaning_fallback") == RouteDecision.REFLECTIVE_FALLBACK.value
-    assert canonicalize_route_decision("reflective_meaning_fallback") == RouteDecision.REFLECTIVE_FALLBACK.value
-    assert canonicalize_route_decision("reflective_practice_fallback") == RouteDecision.REFLECTIVE_FALLBACK.value
+    assert (
+        canonicalize_route_decision("grounded_partial_fast_tier")
+        == RouteDecision.GROUNDED_PARTIAL.value
+    )
+    assert (
+        canonicalize_route_decision("grounded_partial_fallback")
+        == RouteDecision.GROUNDED_PARTIAL.value
+    )
+    assert (
+        canonicalize_route_decision("reflective_peace_meaning_fallback")
+        == RouteDecision.REFLECTIVE_FALLBACK.value
+    )
+    assert (
+        canonicalize_route_decision("reflective_meaning_fallback")
+        == RouteDecision.REFLECTIVE_FALLBACK.value
+    )
+    assert (
+        canonicalize_route_decision("reflective_practice_fallback")
+        == RouteDecision.REFLECTIVE_FALLBACK.value
+    )
     assert canonicalize_route_decision("hot_cache") == "hot_cache"
     assert canonicalize_route_decision(None) == "error"
     assert canonicalize_route_decision("") == "error"

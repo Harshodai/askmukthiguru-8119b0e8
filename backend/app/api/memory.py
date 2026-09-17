@@ -836,7 +836,7 @@ async def delete_all_memory_endpoint(
                 counts[name] = int(result)
             else:
                 counts[name] = int(result)
-        except Exception as exc:
+        except Exception:
             counts[name] = 0
             failures.append(f"{name}: Operation failed")
             logger.exception("Memory erasure failed for %s", name)

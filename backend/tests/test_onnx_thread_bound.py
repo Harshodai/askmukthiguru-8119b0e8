@@ -31,6 +31,8 @@ def test_embedding_session_bounded():
 def test_embedding_session_singleton():
     m = _load_module()
     src = open(m.__file__).read()
-    assert "get_embedding_service" in src or "_EMBEDDING_SERVICE_SINGLETON" in src or "_instance" in src, (
-        "missing module-level singleton accessor for EmbeddingService"
-    )
+    assert (
+        "get_embedding_service" in src
+        or "_EMBEDDING_SERVICE_SINGLETON" in src
+        or "_instance" in src
+    ), "missing module-level singleton accessor for EmbeddingService"

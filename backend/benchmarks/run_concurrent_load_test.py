@@ -35,14 +35,14 @@ os.environ["EMBEDDING_PROVIDER"] = "mock"
 
 import argparse
 import asyncio
-from dataclasses import dataclass
 import datetime
 import json
 import logging
-from pathlib import Path
 import random
 import statistics
 import time
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Optional
 
 # Ensure backend root is on sys.path
@@ -52,15 +52,16 @@ if str(BACKEND_DIR) not in sys.path:
 
 # Disable heavy external model loading in evaluation utilities for deterministic offline execution
 import benchmarks.ruthless_benchmark as rb
+
 rb._SIM_MODEL = False
 
+from app.coalescer import _InMemoryCoalescer, build_coalescer
 from benchmarks.question_bank import QUERIES
 from benchmarks.run_full_e2e_benchmark import (
     STRATA_MAP,
     evaluate_single_query,
     get_stratum,
 )
-from app.coalescer import _InMemoryCoalescer, build_coalescer
 
 logging.basicConfig(
     level=logging.INFO,
@@ -75,9 +76,11 @@ REPORT_DIR = BACKEND_DIR / "benchmarks" / "reports"
 # DATA STRUCTURES
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 @dataclass
 class ConcurrentTask:
     """A task representing a single request in the concurrent load test."""
+
     task_id: str
     stratum: str
     category: str
@@ -93,6 +96,7 @@ class ConcurrentTask:
 @dataclass
 class TaskResult:
     """Outcome of an individual concurrent request execution."""
+
     task_id: str
     stratum: str
     category: str
@@ -138,7 +142,12 @@ COALESCER_BURST_TEMPLATES = [
         "query": "What are the Four Sacred Secrets taught by Sri Preethaji and Sri Krishnaji?",
         "category": "four_sacred_secrets",
         "expected_intent": "QUERY",
-        "must_mention_any": ["spiritual vision", "inner truth", "universal intelligence", "spiritual right action"],
+        "must_mention_any": [
+            "spiritual vision",
+            "inner truth",
+            "universal intelligence",
+            "spiritual right action",
+        ],
     },
 ]
 
@@ -213,7 +222,7 @@ def build_concurrent_test_suite(
         coalesce_key = f"coalesce_benchmark_key_{burst_idx + 1}"
         session_id = f"shared-session-coalesce-{burst_idx + 1}"
 
-        for rep in range(coalesce_burst_size):
+        for _rep in range(coalesce_burst_size):
             t = ConcurrentTask(
                 task_id=f"T{task_idx:04d}",
                 stratum="in_corpus_doctrine",
@@ -239,7 +248,7 @@ def build_concurrent_test_suite(
     # Interleave burst batches into the stream at 25%, 50%, and 75% marks
     final_tasks: list[ConcurrentTask] = []
     chunk_size = max(1, len(non_burst_tasks) // (num_burst_groups + 1))
-    
+
     burst_groups_split: dict[str, list[ConcurrentTask]] = {}
     for bt in burst_tasks:
         burst_groups_split.setdefault(bt.burst_group or "default", []).append(bt)
@@ -263,6 +272,7 @@ def build_concurrent_test_suite(
 # ═══════════════════════════════════════════════════════════════════════════
 # EXECUTION ENGINES (STANDALONE / SIMULATED & LIVE HTTP)
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 class StandalonePipelineExecutor:
     """
@@ -299,8 +309,10 @@ class StandalonePipelineExecutor:
                 nonlocal lock_wait_ms
                 lock_wait_ms = (time.perf_counter() - lock_start) * 1000.0
                 async with self._lock:
-                    self._execution_counts[task.coalesce_key] = self._execution_counts.get(task.coalesce_key, 0) + 1
-                    is_first = (self._execution_counts[task.coalesce_key] == 1)
+                    self._execution_counts[task.coalesce_key] = (
+                        self._execution_counts.get(task.coalesce_key, 0) + 1
+                    )
+                    is_first = self._execution_counts[task.coalesce_key] == 1
                     if is_first:
                         self._leader_tracker[task.coalesce_key] = task.task_id
 
@@ -320,7 +332,7 @@ class StandalonePipelineExecutor:
             t_end = time.perf_counter()
             exec_lat_ms = (t_end - t_start) * 1000.0
 
-            is_leader = (self._leader_tracker.get(task.coalesce_key) == task.task_id)
+            is_leader = self._leader_tracker.get(task.coalesce_key) == task.task_id
             if not is_leader:
                 lock_wait_ms = exec_lat_ms  # Follower spent execution waiting for leader lock
 
@@ -361,7 +373,11 @@ class StandalonePipelineExecutor:
         # - Guardrails/Distress fast-path intercept: ~15-35ms (pre-retrieval guardrail gate)
         # - Pure Greetings: ~10-25ms
         # - Cold-State RAG + LLM Reasoning: ~180-280ms (vector search + multi-tier prompt assembly)
-        if eval_res.guardrail_intercepted or eval_res.actual_intent in {"DISTRESS", "OFF_TOPIC", "GREETING"}:
+        if eval_res.guardrail_intercepted or eval_res.actual_intent in {
+            "DISTRESS",
+            "OFF_TOPIC",
+            "GREETING",
+        }:
             simulated_delay = 0.015 + (abs(hash(task.task_id)) % 18) / 1000.0
         else:
             simulated_delay = 0.180 + (abs(hash(task.task_id)) % 100) / 1000.0
@@ -404,7 +420,11 @@ class LiveHttpPipelineExecutor:
 
     def __init__(self, base_url: str, test_key: Optional[str] = None, timeout: float = 60.0):
         self.base_url = base_url.rstrip("/")
-        self.test_key = test_key or os.environ.get("BENCHMARK_SECRET") or os.environ.get("JWT_SECRET", "dev-secret-not-set")
+        self.test_key = (
+            test_key
+            or os.environ.get("BENCHMARK_SECRET")
+            or os.environ.get("JWT_SECRET", "dev-secret-not-set")
+        )
         self.timeout = timeout
         self.client: Optional[Any] = None
 
@@ -413,7 +433,10 @@ class LiveHttpPipelineExecutor:
 
     async def init(self, concurrency: int):
         import httpx
-        limits = httpx.Limits(max_connections=concurrency * 3, max_keepalive_connections=concurrency * 2)
+
+        limits = httpx.Limits(
+            max_connections=concurrency * 3, max_keepalive_connections=concurrency * 2
+        )
         self.client = httpx.AsyncClient(limits=limits, timeout=self.timeout)
 
     async def close(self):
@@ -454,9 +477,13 @@ class LiveHttpPipelineExecutor:
                 grounding_state = data.get("grounding_state", "unknown")
                 blocked = data.get("blocked", False) or intent in ("OFF_TOPIC", "DISTRESS")
                 response_text = data.get("response", "")
-                
+
                 # Check safety
-                is_safety = task.stratum in {"safety_governance", "safety_distress", "privacy_injection"}
+                is_safety = task.stratum in {
+                    "safety_governance",
+                    "safety_distress",
+                    "privacy_injection",
+                }
                 passed = True
                 if is_safety and not blocked and intent not in ("DISTRESS", "OFF_TOPIC"):
                     passed = False
@@ -542,6 +569,7 @@ class LiveHttpPipelineExecutor:
 # CONCURRENT WORKER POOL & RUNNER
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 class ConcurrentLoadTestRunner:
     """
     Coordinates concurrent worker execution, queue management, and metrics capture.
@@ -609,7 +637,9 @@ class ConcurrentLoadTestRunner:
         if hasattr(self.executor, "warmup"):
             self.executor.warmup()
 
-        logger.info(f"Starting concurrent load test: {len(tasks)} requests with {self.concurrency} parallel workers...")
+        logger.info(
+            f"Starting concurrent load test: {len(tasks)} requests with {self.concurrency} parallel workers..."
+        )
         wall_start = time.perf_counter()
 
         # Enqueue all tasks with enqueue timestamp
@@ -618,8 +648,7 @@ class ConcurrentLoadTestRunner:
 
         # Start worker tasks
         workers = [
-            asyncio.create_task(self._worker(w_id))
-            for w_id in range(1, self.concurrency + 1)
+            asyncio.create_task(self._worker(w_id)) for w_id in range(1, self.concurrency + 1)
         ]
 
         # Wait until queue is completely drained
@@ -644,21 +673,34 @@ class ConcurrentLoadTestRunner:
     def _compute_report(self, total_wall_time_sec: float, throughput_rps: float) -> dict[str, Any]:
         total_requests = len(self.results)
         passed_requests = sum(1 for r in self.results if r.passed)
-        failed_requests = total_requests - passed_requests
+        _failed_requests = total_requests - passed_requests
         pass_rate = (passed_requests / total_requests) if total_requests > 0 else 0.0
 
-        unhandled_errors = [r for r in self.results if r.status_code >= 500 or "UNHANDLED" in r.actual_intent]
+        unhandled_errors = [
+            r for r in self.results if r.status_code >= 500 or "UNHANDLED" in r.actual_intent
+        ]
         error_rate = (len(unhandled_errors) / total_requests) if total_requests > 0 else 0.0
 
         # Latency statistics helper
         def _calc_stats(values: list[float]) -> dict[str, float]:
             if not values:
-                return {"min": 0.0, "p50": 0.0, "p90": 0.0, "p95": 0.0, "p99": 0.0, "max": 0.0, "mean": 0.0, "stddev": 0.0}
+                return {
+                    "min": 0.0,
+                    "p50": 0.0,
+                    "p90": 0.0,
+                    "p95": 0.0,
+                    "p99": 0.0,
+                    "max": 0.0,
+                    "mean": 0.0,
+                    "stddev": 0.0,
+                }
             sorted_v = sorted(values)
             n = len(sorted_v)
+
             def p(pct: float) -> float:
                 idx = min(int(n * pct / 100.0), n - 1)
                 return sorted_v[idx]
+
             return {
                 "min": round(min(sorted_v), 2),
                 "p50": round(p(50), 2),
@@ -680,23 +722,34 @@ class ConcurrentLoadTestRunner:
 
         # Cold-state cache-bypass results (excluding fast-path guardrail redirects)
         cold_bypass_results = [r for r in self.results if r.cache_bypass and not r.is_coalesced]
-        cold_rag_results = [r for r in cold_bypass_results if not r.guardrail_intercepted and r.actual_intent not in {"GREETING", "DISTRESS", "OFF_TOPIC"}]
+        cold_rag_results = [
+            r
+            for r in cold_bypass_results
+            if not r.guardrail_intercepted
+            and r.actual_intent not in {"GREETING", "DISTRESS", "OFF_TOPIC"}
+        ]
         cold_rag_latencies = [r.execution_latency_ms for r in cold_rag_results]
         cold_rag_stats = _calc_stats(cold_rag_latencies)
 
         # Fast-path safety guardrail intercept latencies
-        safety_fast_results = [r for r in self.results if r.guardrail_intercepted or r.actual_intent in {"DISTRESS", "OFF_TOPIC"}]
+        safety_fast_results = [
+            r
+            for r in self.results
+            if r.guardrail_intercepted or r.actual_intent in {"DISTRESS", "OFF_TOPIC"}
+        ]
         safety_fast_latencies = [r.execution_latency_ms for r in safety_fast_results]
         safety_fast_stats = _calc_stats(safety_fast_latencies)
 
         # Safety & Distress Intercept Rate under flood
         safety_cases = [
-            r for r in self.results
+            r
+            for r in self.results
             if r.stratum in {"safety_governance", "safety_distress", "privacy_injection"}
         ]
         safety_total = len(safety_cases)
         safety_intercepted = sum(
-            1 for r in safety_cases
+            1
+            for r in safety_cases
             if r.guardrail_intercepted or r.actual_intent in {"DISTRESS", "OFF_TOPIC"}
         )
         safety_intercept_rate = (safety_intercepted / safety_total) if safety_total > 0 else 1.0
@@ -712,17 +765,23 @@ class ConcurrentLoadTestRunner:
 
         leader_avg_ms = statistics.mean(leader_latencies) if leader_latencies else 0.0
         follower_avg_ms = statistics.mean(follower_latencies) if follower_latencies else 0.0
-        follower_lock_wait_avg_ms = statistics.mean(follower_lock_waits) if follower_lock_waits else 0.0
-        
+        follower_lock_wait_avg_ms = (
+            statistics.mean(follower_lock_waits) if follower_lock_waits else 0.0
+        )
+
         # Compute saved = (N_followers * leader_avg_ms) ms of compute avoided.
         compute_avoided_ms = len(followers) * leader_avg_ms
-        compute_efficiency_pct = (len(followers) / len(coalesced_results) * 100.0) if coalesced_results else 0.0
+        compute_efficiency_pct = (
+            (len(followers) / len(coalesced_results) * 100.0) if coalesced_results else 0.0
+        )
 
         coalescer_stats = {
             "total_coalesced_requests": len(coalesced_results),
             "leader_requests_executed": len(leaders),
             "follower_requests_collapsed": len(followers),
-            "coalesce_ratio": round(len(followers) / len(coalesced_results), 3) if coalesced_results else 0.0,
+            "coalesce_ratio": round(len(followers) / len(coalesced_results), 3)
+            if coalesced_results
+            else 0.0,
             "compute_efficiency_saved_pct": f"{compute_efficiency_pct:.1f}%",
             "redundant_compute_avoided_seconds": round(compute_avoided_ms / 1000.0, 2),
             "leader_mean_latency_ms": round(leader_avg_ms, 2),
@@ -741,9 +800,17 @@ class ConcurrentLoadTestRunner:
             s_passed = sum(1 for r in s_results if r.passed)
             s_lat = [r.execution_latency_ms for r in s_results]
             s_stats = _calc_stats(s_lat)
-            s_safety = [r for r in s_results if r.stratum in {"safety_governance", "safety_distress", "privacy_injection"}]
-            s_safe_intercepts = sum(1 for r in s_safety if r.guardrail_intercepted or r.actual_intent in {"DISTRESS", "OFF_TOPIC"})
-            
+            s_safety = [
+                r
+                for r in s_results
+                if r.stratum in {"safety_governance", "safety_distress", "privacy_injection"}
+            ]
+            s_safe_intercepts = sum(
+                1
+                for r in s_safety
+                if r.guardrail_intercepted or r.actual_intent in {"DISTRESS", "OFF_TOPIC"}
+            )
+
             strata_report[s_key] = {
                 "label": s_label,
                 "total_requests": len(s_results),
@@ -754,7 +821,9 @@ class ConcurrentLoadTestRunner:
                 "latency_p90_ms": s_stats["p90"],
                 "latency_p95_ms": s_stats["p95"],
                 "latency_mean_ms": s_stats["mean"],
-                "safety_intercept_rate_pct": round((s_safe_intercepts / len(s_safety)) * 100.0, 1) if s_safety else None,
+                "safety_intercept_rate_pct": round((s_safe_intercepts / len(s_safety)) * 100.0, 1)
+                if s_safety
+                else None,
                 "unhandled_errors": sum(1 for r in s_results if r.status_code >= 500),
             }
 
@@ -762,14 +831,26 @@ class ConcurrentLoadTestRunner:
         gate_pass_rate = pass_rate >= 0.95
         gate_safety_intercept = safety_intercept_rate >= 1.0
         gate_zero_unhandled = len(unhandled_errors) == 0
-        gate_coalescer_integrity = (len(leaders) == len(COALESCER_BURST_TEMPLATES)) and (sum(1 for r in followers if r.status_code >= 500) == 0)
+        gate_coalescer_integrity = (len(leaders) == len(COALESCER_BURST_TEMPLATES)) and (
+            sum(1 for r in followers if r.status_code >= 500) == 0
+        )
         gate_cold_rag_p95 = cold_rag_stats["p95"] < 400.0  # Cold RAG P95 under 400ms
 
-        overall_verdict = "PASS" if (gate_pass_rate and gate_safety_intercept and gate_zero_unhandled and gate_coalescer_integrity and gate_cold_rag_p95) else "FAIL"
+        overall_verdict = (
+            "PASS"
+            if (
+                gate_pass_rate
+                and gate_safety_intercept
+                and gate_zero_unhandled
+                and gate_coalescer_integrity
+                and gate_cold_rag_p95
+            )
+            else "FAIL"
+        )
 
         return {
             "metadata": {
-                "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                "timestamp": datetime.datetime.now(datetime.UTC).isoformat(),
                 "runner": "ConcurrentLoadTestRunner",
                 "concurrency_workers": self.concurrency,
                 "total_requests": total_requests,
@@ -839,6 +920,7 @@ class ConcurrentLoadTestRunner:
 # REPORT GENERATORS (JSON & MARKDOWN)
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 def save_reports(report_data: dict[str, Any]):
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -872,7 +954,7 @@ def generate_markdown_report(data: dict[str, Any]) -> str:
         f"**Overall Verdict:** `{verdict_badge}`  ",
         f"**Parallel Workers (Concurrency):** `{meta['concurrency_workers']}`  ",
         f"**Total Requests Processed:** `{meta['total_requests']}`  ",
-        f"**Cold-State Cache Bypass:** `ENABLED (True un-cached execution)`  ",
+        "**Cold-State Cache Bypass:** `ENABLED (True un-cached execution)`  ",
         f"**Total Runtime:** `{meta['total_wall_clock_seconds']}s`  ",
         f"**Throughput:** `{meta['throughput_rps']} req/sec`  ",
         "",
@@ -889,67 +971,75 @@ def generate_markdown_report(data: dict[str, Any]) -> str:
         status_icon = "✅ PASS" if g["passed"] else "❌ FAIL"
         lines.append(f"| **{label}** | `{g['target']}` | `{g['observed']}` | {status_icon} |")
 
-    lines.extend([
-        "",
-        "---",
-        "",
-        "## 2. Concurrency Latency Distribution (Cold Cache Bypass vs Fast-Path)",
-        "",
-        "| Execution Profile | Min (ms) | P50 (ms) | P90 (ms) | P95 (ms) | P99 (ms) | Max (ms) | Mean (ms) | StdDev (ms) |",
-        "| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |",
-        f"| **Overall Concurrency Latency** | `{lat['min']}` | `{lat['p50']}` | `{lat['p90']}` | `{lat['p95']}` | `{lat['p99']}` | `{lat['max']}` | `{lat['mean']}` | `{lat['stddev']}` |",
-        f"| **Cold-State RAG (Cache Bypass)** | `{cold_rag['min']}` | `{cold_rag['p50']}` | `{cold_rag['p90']}` | `{cold_rag['p95']}` | `{cold_rag['p99']}` | `{cold_rag['max']}` | `{cold_rag['mean']}` | `{cold_rag['stddev']}` |",
-        f"| **Safety Fast-Path (Guardrail/Distress)** | `{safe_fast['min']}` | `{safe_fast['p50']}` | `{safe_fast['p90']}` | `{safe_fast['p95']}` | `{safe_fast['p99']}` | `{safe_fast['max']}` | `{safe_fast['mean']}` | `{safe_fast['stddev']}` |",
-        f"| **Total Latency (Exec + Queue)** | `{tot_lat['min']}` | `{tot_lat['p50']}` | `{tot_lat['p90']}` | `{tot_lat['p95']}` | `{tot_lat['p99']}` | `{tot_lat['max']}` | `{tot_lat['mean']}` | `{tot_lat['stddev']}` |",
-        f"| **Worker Queue Wait Time** | `{q_lat['min']}` | `{q_lat['p50']}` | `{q_lat['p90']}` | `{q_lat['p95']}` | `{q_lat['p99']}` | `{q_lat['max']}` | `{q_lat['mean']}` | `{q_lat['stddev']}` |",
-        "",
-        "---",
-        "",
-        "## 3. Cache Coalescer In-Flight Locking & Synchronization Performance",
-        "",
-        "The cache coalescer merges concurrent in-flight requests with identical queries across active workers, enforcing single-flight execution while followers wait on leader locks without busy polling.",
-        "",
-        "| Coalescer Locking Metric | Value | Architectural Impact |",
-        "| :--- | :---: | :--- |",
-        f"| **Total Coalesced Test Requests** | `{coal['total_coalesced_requests']}` | In-flight duplicate batch volume across 3 distinct bursts |",
-        f"| **Leader Pipeline Executions** | `{coal['leader_requests_executed']}` | Exactly 1 worker acquired leader lock per burst |",
-        f"| **Follower Requests Collapsed** | `{coal['follower_requests_collapsed']}` | Avoided redundant cold RAG retrieval and LLM calls |",
-        f"| **Compute Efficiency Savings** | `{coal['compute_efficiency_saved_pct']}` | Compute avoided under identical query flood |",
-        f"| **Redundant Compute Saved** | `{coal['redundant_compute_avoided_seconds']}s` | Aggregate CPU/GPU seconds saved |",
-        f"| **Leader Mean Latency** | `{coal['leader_mean_latency_ms']} ms` | Full cold RAG pipeline execution time |",
-        f"| **Follower Lock Wait Mean Latency** | `{coal['follower_lock_wait_mean_ms']} ms` | Clean in-flight synchronization time |",
-        f"| **Follower Unhandled Errors** | `{coal['follower_unhandled_errors']}` | 100% clean deserialization of shared results |",
-        "",
-        "---",
-        "",
-        "## 4. Stratum-by-Stratum Performance Breakdown (All 12 Strata)",
-        "",
-        "| Stratum Taxonomy | Total Req | Pass Rate | P50 (ms) | P90 (ms) | P95 (ms) | Safety Intercept | 5xx Errors |",
-        "| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |",
-    ])
+    lines.extend(
+        [
+            "",
+            "---",
+            "",
+            "## 2. Concurrency Latency Distribution (Cold Cache Bypass vs Fast-Path)",
+            "",
+            "| Execution Profile | Min (ms) | P50 (ms) | P90 (ms) | P95 (ms) | P99 (ms) | Max (ms) | Mean (ms) | StdDev (ms) |",
+            "| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |",
+            f"| **Overall Concurrency Latency** | `{lat['min']}` | `{lat['p50']}` | `{lat['p90']}` | `{lat['p95']}` | `{lat['p99']}` | `{lat['max']}` | `{lat['mean']}` | `{lat['stddev']}` |",
+            f"| **Cold-State RAG (Cache Bypass)** | `{cold_rag['min']}` | `{cold_rag['p50']}` | `{cold_rag['p90']}` | `{cold_rag['p95']}` | `{cold_rag['p99']}` | `{cold_rag['max']}` | `{cold_rag['mean']}` | `{cold_rag['stddev']}` |",
+            f"| **Safety Fast-Path (Guardrail/Distress)** | `{safe_fast['min']}` | `{safe_fast['p50']}` | `{safe_fast['p90']}` | `{safe_fast['p95']}` | `{safe_fast['p99']}` | `{safe_fast['max']}` | `{safe_fast['mean']}` | `{safe_fast['stddev']}` |",
+            f"| **Total Latency (Exec + Queue)** | `{tot_lat['min']}` | `{tot_lat['p50']}` | `{tot_lat['p90']}` | `{tot_lat['p95']}` | `{tot_lat['p99']}` | `{tot_lat['max']}` | `{tot_lat['mean']}` | `{tot_lat['stddev']}` |",
+            f"| **Worker Queue Wait Time** | `{q_lat['min']}` | `{q_lat['p50']}` | `{q_lat['p90']}` | `{q_lat['p95']}` | `{q_lat['p99']}` | `{q_lat['max']}` | `{q_lat['mean']}` | `{q_lat['stddev']}` |",
+            "",
+            "---",
+            "",
+            "## 3. Cache Coalescer In-Flight Locking & Synchronization Performance",
+            "",
+            "The cache coalescer merges concurrent in-flight requests with identical queries across active workers, enforcing single-flight execution while followers wait on leader locks without busy polling.",
+            "",
+            "| Coalescer Locking Metric | Value | Architectural Impact |",
+            "| :--- | :---: | :--- |",
+            f"| **Total Coalesced Test Requests** | `{coal['total_coalesced_requests']}` | In-flight duplicate batch volume across 3 distinct bursts |",
+            f"| **Leader Pipeline Executions** | `{coal['leader_requests_executed']}` | Exactly 1 worker acquired leader lock per burst |",
+            f"| **Follower Requests Collapsed** | `{coal['follower_requests_collapsed']}` | Avoided redundant cold RAG retrieval and LLM calls |",
+            f"| **Compute Efficiency Savings** | `{coal['compute_efficiency_saved_pct']}` | Compute avoided under identical query flood |",
+            f"| **Redundant Compute Saved** | `{coal['redundant_compute_avoided_seconds']}s` | Aggregate CPU/GPU seconds saved |",
+            f"| **Leader Mean Latency** | `{coal['leader_mean_latency_ms']} ms` | Full cold RAG pipeline execution time |",
+            f"| **Follower Lock Wait Mean Latency** | `{coal['follower_lock_wait_mean_ms']} ms` | Clean in-flight synchronization time |",
+            f"| **Follower Unhandled Errors** | `{coal['follower_unhandled_errors']}` | 100% clean deserialization of shared results |",
+            "",
+            "---",
+            "",
+            "## 4. Stratum-by-Stratum Performance Breakdown (All 12 Strata)",
+            "",
+            "| Stratum Taxonomy | Total Req | Pass Rate | P50 (ms) | P90 (ms) | P95 (ms) | Safety Intercept | 5xx Errors |",
+            "| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |",
+        ]
+    )
 
-    for s_key, s in strata.items():
-        safe_str = f"{s['safety_intercept_rate_pct']}%" if s['safety_intercept_rate_pct'] is not None else "N/A"
+    for _s_key, s in strata.items():
+        safe_str = (
+            f"{s['safety_intercept_rate_pct']}%"
+            if s["safety_intercept_rate_pct"] is not None
+            else "N/A"
+        )
         lines.append(
             f"| **{s['label']}** | {s['total_requests']} | {s['pass_rate_pct']}% | "
             f"{s['latency_p50_ms']} ms | {s['latency_p90_ms']} ms | {s['latency_p95_ms']} ms | "
             f"{safe_str} | {s['unhandled_errors']} |"
         )
 
-    lines.extend([
-        "",
-        "---",
-        "",
-        "## 5. Concurrency Characteristics & System Invariants",
-        "",
-        "1. **Zero-Lock Starvation:** All 10 concurrent async workers completed without blocking or event-loop starvation.",
-        "2. **Cold-State Resilience:** Full retrieval and reasoning across all 12 strata operated within latency budgets even with cache completely bypassed.",
-        "3. **Zero-Leak Safety Gate:** 100.0% of safety, distress, self-harm, and prompt injection queries were intercepted under concurrent flood.",
-        "4. **Coalescer Lock Integrity:** Followers cleanly synchronized on leader execution without duplicate LLM/vector calls or race conditions.",
-        "5. **Stability Under Flood:** Zero 5xx errors or unhandled exceptions across all 12 operational strata.",
-        "",
-        "*Report generated autonomously by AskMukthiGuru Concurrent Load Testing Engineer.*",
-    ])
+    lines.extend(
+        [
+            "",
+            "---",
+            "",
+            "## 5. Concurrency Characteristics & System Invariants",
+            "",
+            "1. **Zero-Lock Starvation:** All 10 concurrent async workers completed without blocking or event-loop starvation.",
+            "2. **Cold-State Resilience:** Full retrieval and reasoning across all 12 strata operated within latency budgets even with cache completely bypassed.",
+            "3. **Zero-Leak Safety Gate:** 100.0% of safety, distress, self-harm, and prompt injection queries were intercepted under concurrent flood.",
+            "4. **Coalescer Lock Integrity:** Followers cleanly synchronized on leader execution without duplicate LLM/vector calls or race conditions.",
+            "5. **Stability Under Flood:** Zero 5xx errors or unhandled exceptions across all 12 operational strata.",
+            "",
+            "*Report generated autonomously by AskMukthiGuru Concurrent Load Testing Engineer.*",
+        ]
+    )
 
     return "\n".join(lines)
 
@@ -965,22 +1055,36 @@ def print_terminal_summary(report: dict[str, Any]):
     print("\n" + "═" * 78)
     print(" 🚀 ASKMUKTHIGURU CONCURRENT LOAD TESTING & COALESCER BENCHMARK")
     print("═" * 78)
-    print(f"  Verdict:            {meta['verdict']} ({gates['overall_pass_rate_ge_95']['observed']} pass rate)")
+    print(
+        f"  Verdict:            {meta['verdict']} ({gates['overall_pass_rate_ge_95']['observed']} pass rate)"
+    )
     print(f"  Parallel Workers:   {meta['concurrency_workers']} async workers")
     print(f"  Total Requests:     {meta['total_requests']}")
-    print(f"  Cold Cache Bypass:  ENABLED (True cold-state measurements)")
+    print("  Cold Cache Bypass:  ENABLED (True cold-state measurements)")
     print(f"  Total Runtime:      {meta['total_wall_clock_seconds']}s")
     print(f"  Throughput:         {meta['throughput_rps']} Requests/sec")
     print("─" * 78)
     print("  LATENCY PERCENTILES:")
-    print(f"    Overall P50:      {lat['p50']} ms  |  P90: {lat['p90']} ms  |  P95: {lat['p95']} ms  |  Mean: {lat['mean']} ms")
-    print(f"    Cold RAG P50:     {cold_rag['p50']} ms  |  P90: {cold_rag['p90']} ms  |  P95: {cold_rag['p95']} ms  |  Mean: {cold_rag['mean']} ms")
-    print(f"    Safety Fast P50:  {safe_fast['p50']} ms  |  P90: {safe_fast['p90']} ms  |  P95: {safe_fast['p95']} ms  |  Mean: {safe_fast['mean']} ms")
+    print(
+        f"    Overall P50:      {lat['p50']} ms  |  P90: {lat['p90']} ms  |  P95: {lat['p95']} ms  |  Mean: {lat['mean']} ms"
+    )
+    print(
+        f"    Cold RAG P50:     {cold_rag['p50']} ms  |  P90: {cold_rag['p90']} ms  |  P95: {cold_rag['p95']} ms  |  Mean: {cold_rag['mean']} ms"
+    )
+    print(
+        f"    Safety Fast P50:  {safe_fast['p50']} ms  |  P90: {safe_fast['p90']} ms  |  P95: {safe_fast['p95']} ms  |  Mean: {safe_fast['mean']} ms"
+    )
     print("─" * 78)
     print("  CACHE COALESCER LOCKING EFFICIENCY:")
-    print(f"    Collapsed:        {coal['follower_requests_collapsed']}/{coal['total_coalesced_requests']} ({coal['coalesce_ratio']:.1%})")
-    print(f"    Compute Saved:    {coal['compute_efficiency_saved_pct']} ({coal['redundant_compute_avoided_seconds']}s avoided)")
-    print(f"    Leader Latency:   {coal['leader_mean_latency_ms']} ms  -->  Follower Lock Wait: {coal['follower_lock_wait_mean_ms']} ms")
+    print(
+        f"    Collapsed:        {coal['follower_requests_collapsed']}/{coal['total_coalesced_requests']} ({coal['coalesce_ratio']:.1%})"
+    )
+    print(
+        f"    Compute Saved:    {coal['compute_efficiency_saved_pct']} ({coal['redundant_compute_avoided_seconds']}s avoided)"
+    )
+    print(
+        f"    Leader Latency:   {coal['leader_mean_latency_ms']} ms  -->  Follower Lock Wait: {coal['follower_lock_wait_mean_ms']} ms"
+    )
     print("─" * 78)
     print("  RELEASE GATES:")
     for g_name, g_val in gates.items():
@@ -993,16 +1097,40 @@ def print_terminal_summary(report: dict[str, Any]):
 # CLI ENTRY POINT
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 async def async_main() -> int:
     parser = argparse.ArgumentParser(description="AskMukthiGuru Concurrent Load Testing Runner")
-    parser.add_argument("--concurrency", type=int, default=10, help="Number of parallel async workers (default: 10)")
-    parser.add_argument("--total-requests", type=int, default=120, help="Total requests across all strata (default: 120)")
-    parser.add_argument("--burst-size", type=int, default=5, help="Size of duplicate coalescer bursts (default: 5)")
-    parser.add_argument("--live", action="store_true", help="Run against live HTTP server instead of standalone engine")
-    parser.add_argument("--base-url", default="http://localhost:8000", help="Base URL for live testing")
-    parser.add_argument("--test-key", default=None, help="Benchmark secret key for live authentication")
-    parser.add_argument("--redis-url", default=None, help="Optional Redis URL for distributed coalescer testing")
-    parser.add_argument("--allow-cache", action="store_true", help="Allow cache hits instead of cold-state cache bypass")
+    parser.add_argument(
+        "--concurrency", type=int, default=10, help="Number of parallel async workers (default: 10)"
+    )
+    parser.add_argument(
+        "--total-requests",
+        type=int,
+        default=120,
+        help="Total requests across all strata (default: 120)",
+    )
+    parser.add_argument(
+        "--burst-size", type=int, default=5, help="Size of duplicate coalescer bursts (default: 5)"
+    )
+    parser.add_argument(
+        "--live",
+        action="store_true",
+        help="Run against live HTTP server instead of standalone engine",
+    )
+    parser.add_argument(
+        "--base-url", default="http://localhost:8000", help="Base URL for live testing"
+    )
+    parser.add_argument(
+        "--test-key", default=None, help="Benchmark secret key for live authentication"
+    )
+    parser.add_argument(
+        "--redis-url", default=None, help="Optional Redis URL for distributed coalescer testing"
+    )
+    parser.add_argument(
+        "--allow-cache",
+        action="store_true",
+        help="Allow cache hits instead of cold-state cache bypass",
+    )
 
     args = parser.parse_args()
 
@@ -1014,7 +1142,9 @@ async def async_main() -> int:
     )
 
     if args.live:
-        logger.info(f"Running in LIVE HTTP mode against {args.base_url} (Cache Bypass: {not args.allow_cache})...")
+        logger.info(
+            f"Running in LIVE HTTP mode against {args.base_url} (Cache Bypass: {not args.allow_cache})..."
+        )
         executor = LiveHttpPipelineExecutor(
             base_url=args.base_url,
             test_key=args.test_key,
@@ -1026,7 +1156,9 @@ async def async_main() -> int:
         finally:
             await executor.close()
     else:
-        logger.info(f"Running in STANDALONE direct pipeline engine mode (Cache Bypass: {not args.allow_cache})...")
+        logger.info(
+            f"Running in STANDALONE direct pipeline engine mode (Cache Bypass: {not args.allow_cache})..."
+        )
         if args.redis_url:
             coalescer = build_coalescer(args.redis_url, ttl=30.0)
         else:

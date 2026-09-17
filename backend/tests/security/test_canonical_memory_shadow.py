@@ -1,5 +1,7 @@
 """Tests for canonical memory shadow mode — Phase 23."""
+
 import pytest
+
 from services.canonical_memory.shadow import (
     ShadowMode,
     ShadowResult,
@@ -73,8 +75,12 @@ class TestRecordAndAccuracy:
     def test_record_single(self):
         sm = ShadowMode()
         sr = ShadowResult(
-            turn_id="t1", canonical_decision="a", legacy_decision="a",
-            results_match=True, canonical_latency_ms=1.0, legacy_latency_ms=2.0,
+            turn_id="t1",
+            canonical_decision="a",
+            legacy_decision="a",
+            results_match=True,
+            canonical_latency_ms=1.0,
+            legacy_latency_ms=2.0,
         )
         sm.record_result(sr)
         assert len(sm._results) == 1
@@ -89,10 +95,16 @@ class TestRecordAndAccuracy:
     def test_accuracy_all_match(self):
         sm = ShadowMode()
         for i in range(5):
-            sm.record_result(ShadowResult(
-                turn_id=f"t{i}", canonical_decision="x", legacy_decision="x",
-                results_match=True, canonical_latency_ms=1.0, legacy_latency_ms=2.0,
-            ))
+            sm.record_result(
+                ShadowResult(
+                    turn_id=f"t{i}",
+                    canonical_decision="x",
+                    legacy_decision="x",
+                    results_match=True,
+                    canonical_latency_ms=1.0,
+                    legacy_latency_ms=2.0,
+                )
+            )
         acc = sm.get_accuracy()
         assert acc["total"] == 5
         assert acc["matches"] == 5
@@ -100,14 +112,26 @@ class TestRecordAndAccuracy:
 
     def test_accuracy_partial_match(self):
         sm = ShadowMode()
-        sm.record_result(ShadowResult(
-            turn_id="t1", canonical_decision="a", legacy_decision="a",
-            results_match=True, canonical_latency_ms=1.0, legacy_latency_ms=2.0,
-        ))
-        sm.record_result(ShadowResult(
-            turn_id="t2", canonical_decision="b", legacy_decision="c",
-            results_match=False, canonical_latency_ms=1.0, legacy_latency_ms=2.0,
-        ))
+        sm.record_result(
+            ShadowResult(
+                turn_id="t1",
+                canonical_decision="a",
+                legacy_decision="a",
+                results_match=True,
+                canonical_latency_ms=1.0,
+                legacy_latency_ms=2.0,
+            )
+        )
+        sm.record_result(
+            ShadowResult(
+                turn_id="t2",
+                canonical_decision="b",
+                legacy_decision="c",
+                results_match=False,
+                canonical_latency_ms=1.0,
+                legacy_latency_ms=2.0,
+            )
+        )
         acc = sm.get_accuracy()
         assert acc["matches"] == 1
         assert acc["divergences"] == 1
@@ -117,18 +141,30 @@ class TestRecordAndAccuracy:
 class TestDivergences:
     def test_no_divergences(self):
         sm = ShadowMode()
-        sm.record_result(ShadowResult(
-            turn_id="t1", canonical_decision="a", legacy_decision="a",
-            results_match=True, canonical_latency_ms=1.0, legacy_latency_ms=2.0,
-        ))
+        sm.record_result(
+            ShadowResult(
+                turn_id="t1",
+                canonical_decision="a",
+                legacy_decision="a",
+                results_match=True,
+                canonical_latency_ms=1.0,
+                legacy_latency_ms=2.0,
+            )
+        )
         assert sm.get_divergences() == []
 
     def test_divergences_listed(self):
         sm = ShadowMode()
-        sm.record_result(ShadowResult(
-            turn_id="t1", canonical_decision="a", legacy_decision="b",
-            results_match=False, canonical_latency_ms=1.0, legacy_latency_ms=2.0,
-        ))
+        sm.record_result(
+            ShadowResult(
+                turn_id="t1",
+                canonical_decision="a",
+                legacy_decision="b",
+                results_match=False,
+                canonical_latency_ms=1.0,
+                legacy_latency_ms=2.0,
+            )
+        )
         divs = sm.get_divergences()
         assert len(divs) == 1
         assert divs[0]["turn_id"] == "t1"
@@ -148,10 +184,16 @@ class TestGetSummary:
     def test_summary_low_accuracy(self):
         sm = ShadowMode(enabled=False)
         for i in range(4):
-            sm.record_result(ShadowResult(
-                turn_id=f"t{i}", canonical_decision="x", legacy_decision="y",
-                results_match=False, canonical_latency_ms=1.0, legacy_latency_ms=2.0,
-            ))
+            sm.record_result(
+                ShadowResult(
+                    turn_id=f"t{i}",
+                    canonical_decision="x",
+                    legacy_decision="y",
+                    results_match=False,
+                    canonical_latency_ms=1.0,
+                    legacy_latency_ms=2.0,
+                )
+            )
         summary = sm.get_summary()
         assert summary["enabled"] is False
         assert summary["divergences"] == 4
@@ -160,10 +202,16 @@ class TestGetSummary:
     def test_summary_high_accuracy(self):
         sm = ShadowMode(enabled=True)
         for i in range(10):
-            sm.record_result(ShadowResult(
-                turn_id=f"t{i}", canonical_decision="x", legacy_decision="x",
-                results_match=True, canonical_latency_ms=1.0, legacy_latency_ms=2.0,
-            ))
+            sm.record_result(
+                ShadowResult(
+                    turn_id=f"t{i}",
+                    canonical_decision="x",
+                    legacy_decision="x",
+                    results_match=True,
+                    canonical_latency_ms=1.0,
+                    legacy_latency_ms=2.0,
+                )
+            )
         summary = sm.get_summary()
         assert summary["recommendation"] == "promote_to_canonical"
 

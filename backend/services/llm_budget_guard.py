@@ -95,7 +95,9 @@ class LLMBudgetGuard:
 
         return cls(
             provider=provider,
-            enabled=bool(getattr(settings, enabled_key, getattr(settings, "llm_budget_guard_enabled", True))),
+            enabled=bool(
+                getattr(settings, enabled_key, getattr(settings, "llm_budget_guard_enabled", True))
+            ),
             redis_url=getattr(settings, "redis_url", "redis://localhost:6379/0"),
             daily_budget_usd=float(getattr(settings, daily_key, 10.0)),
             monthly_budget_usd=float(getattr(settings, monthly_key, 100.0)),
@@ -110,6 +112,7 @@ class LLMBudgetGuard:
     async def _redis(self) -> Any:
         if self._client is None:
             import redis.asyncio as aioredis
+
             self._client = aioredis.from_url(self._redis_url, decode_responses=True)
         return self._client
 
@@ -117,11 +120,13 @@ class LLMBudgetGuard:
         ts = now or datetime.now(UTC)
         day_key = f"budget:{self._provider}:usd:{ts.strftime('%Y-%m-%d')}"
         month_key = f"budget:{self._provider}:usd:{ts.strftime('%Y-%m')}"
-        
+
         # Calculate TTL
         next_day = (ts + timedelta(days=2)).replace(hour=0, minute=0, second=0, microsecond=0)
         day_ttl = max(60, int((next_day - ts).total_seconds()))
-        next_month = (ts + timedelta(days=40)).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        next_month = (ts + timedelta(days=40)).replace(
+            day=1, hour=0, minute=0, second=0, microsecond=0
+        )
         month_ttl = max(60, int((next_month - ts).total_seconds()))
         return day_key, month_key, day_ttl, month_ttl
 
@@ -130,7 +135,12 @@ class LLMBudgetGuard:
         if not self._enabled:
             return BudgetReservation(guard=None, amount_usd=0.0)
 
-        amount = max(0.0, float(estimated_cost_usd if estimated_cost_usd is not None else self._max_request_cost_usd))
+        amount = max(
+            0.0,
+            float(
+                estimated_cost_usd if estimated_cost_usd is not None else self._max_request_cost_usd
+            ),
+        )
         day_key, month_key, day_ttl, month_ttl = self._keys()
 
         try:

@@ -47,6 +47,7 @@ Exit codes: 0 = success (dry-run always 0; apply: 0 if zero unstamped remain).
 
 ponytail: stdlib + neo4j driver already in requirements.  No new dependencies.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -106,10 +107,22 @@ def _count_unstamped(driver) -> tuple[int, list[str], list[tuple[str, int]]]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--apply", action="store_true", help="Write tenant_id/corpus_id onto unstamped edges (default: dry-run only)")
-    parser.add_argument("--tenant-id", default="oneness", help="Value to set for tenant_id (default: oneness)")
-    parser.add_argument("--corpus-id", default="askmukthiguru", help="Value to set for corpus_id (default: askmukthiguru)")
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="Write tenant_id/corpus_id onto unstamped edges (default: dry-run only)",
+    )
+    parser.add_argument(
+        "--tenant-id", default="oneness", help="Value to set for tenant_id (default: oneness)"
+    )
+    parser.add_argument(
+        "--corpus-id",
+        default="askmukthiguru",
+        help="Value to set for corpus_id (default: askmukthiguru)",
+    )
     parser.add_argument("--neo4j-uri", default=os.environ.get("NEO4J_URI", "bolt://localhost:7687"))
     parser.add_argument("--neo4j-user", default=os.environ.get("NEO4J_USER", "neo4j"))
     parser.add_argument("--neo4j-password", default=os.environ.get("NEO4J_PASSWORD"))
@@ -173,7 +186,10 @@ def main(argv: list[str] | None = None) -> int:
         print("  Re-run launch_readiness_gates.sh — edge_tenant_id_coverage should now PASS.")
         return 0
     else:
-        print(f"ERROR: {remaining} edges still lack tenant_id after stamp — investigate.", file=sys.stderr)
+        print(
+            f"ERROR: {remaining} edges still lack tenant_id after stamp — investigate.",
+            file=sys.stderr,
+        )
         return 1
 
 

@@ -30,6 +30,7 @@ from typing import Optional
 from urllib.parse import parse_qs, unquote, urlencode, urlparse
 from urllib.request import Request, urlopen
 
+from app.sanitization import sanitize_log_input
 from services.circuit_breaker import (
     CircuitBreakerConfig,
     CircuitOpenException,
@@ -42,7 +43,6 @@ from services.web_search_guardrails import (
     deduplicate_results,
     log_search_audit,
 )
-from app.sanitization import sanitize_log_input
 
 logger = logging.getLogger(__name__)
 
@@ -190,8 +190,7 @@ class DuckDuckGoProvider(SearchProvider):
             "https://html.duckduckgo.com/html/?" + urlencode({"q": query}),
             headers={
                 "User-Agent": (
-                    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-                    "Chrome/120.0 Safari/537.36"
+                    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120.0 Safari/537.36"
                 )
             },
         )
@@ -367,7 +366,9 @@ class WebSearchService:
         # ── Layer 2: Rate Limiting ────────────────────────────────────────
         can_search, reason = self._rate_limiter.can_search(user_id)
         if not can_search:
-            logger.warning(f"Web search rate limited for {sanitize_log_input(str(user_id))}: {reason}")
+            logger.warning(
+                f"Web search rate limited for {sanitize_log_input(str(user_id))}: {reason}"
+            )
             log_search_audit(sanitized_query, 0, user_id, flags=["rate_limited"])
             return []
 
@@ -419,7 +420,9 @@ class WebSearchService:
 
             # Domain firewall (whitelist check)
             if not _is_domain_allowed(url, self.allowed_domains):
-                logger.debug(f"Web search: filtered out non-whitelisted URL: {sanitize_log_input(url)}")
+                logger.debug(
+                    f"Web search: filtered out non-whitelisted URL: {sanitize_log_input(url)}"
+                )
                 continue
 
             title = sanitized_result["title"]
@@ -451,7 +454,9 @@ class WebSearchService:
         log_search_audit(sanitized_query, len(filtered), user_id, flags=all_flags)
 
         if not filtered:
-            logger.info(f"Web search returned no results for query: {sanitize_log_input(sanitized_query[:60])}...")
+            logger.info(
+                f"Web search returned no results for query: {sanitize_log_input(sanitized_query[:60])}..."
+            )
         else:
             logger.info(f"Web search: {len(filtered)} results returned")
 

@@ -15,10 +15,10 @@ from dataclasses import dataclass
 from typing import Any, Optional
 
 import redis.asyncio as Redis
-from supabase import Client, create_client
 
 from app.config import get_settings
 from app.dependencies import get_container
+from supabase import Client, create_client
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -196,7 +196,9 @@ class SupabaseTelemetrySink:
         payload_dict = self._scrub_payload_dict(payload_dict)
 
         if trace.hallucination_flag:
-            await self._invalidate_semantic_cache_if_flagged(trace.hallucination_flag, trace.query_text)
+            await self._invalidate_semantic_cache_if_flagged(
+                trace.hallucination_flag, trace.query_text
+            )
 
         if self.redis:
             try:

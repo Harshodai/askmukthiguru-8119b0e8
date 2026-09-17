@@ -30,6 +30,11 @@ def test_health_check(monkeypatch):
     mock_container = MagicMock()
     mock_container.qdrant.health_check.return_value = True
     mock_container.ollama.health_check = _async_true
+    # A loose MagicMock auto-vivifies is_circuit_open() as a truthy Mock,
+    # which health_endpoint's circuit probe (app/api/health.py) would then
+    # read as "circuit open" and fail the llm check. Real providers either
+    # implement it (returning a real bool) or don't have it at all.
+    mock_container.ollama.is_circuit_open = lambda: False
     mock_container.ocr.health_check.return_value = True
     # S7: the health probe now encodes a token and checks the vector width, so
     # the mock must return a correctly-dimensioned dense vector.

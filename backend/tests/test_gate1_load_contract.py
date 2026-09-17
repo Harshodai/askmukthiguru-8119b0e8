@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -79,6 +78,7 @@ async def test_gate1_harness_mock_execution(tmp_path, monkeypatch):
     mock_client.__aexit__.return_value = None
 
     import httpx
+
     monkeypatch.setattr(httpx, "AsyncClient", lambda *args, **kwargs: mock_client)
 
     summary = await run_gate1_load_test(

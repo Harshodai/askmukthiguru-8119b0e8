@@ -4,10 +4,9 @@ from __future__ import annotations
 
 import asyncio
 import time
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 
 # ---------------------------------------------------------------------------
 # personalize_retrieval_query
@@ -179,25 +178,30 @@ async def test_persona_stale_includes_flag():
     container.memory_service_v2 = None
 
     # Mock persona store to return stale persona
-    with patch(
-        "services.layered_memory.persona_store.get_persona",
-        new_callable=AsyncMock,
-        return_value=("# Old Persona\nLikes meditation.", old_time),
-    ), patch(
-        "services.layered_memory.persona_store.save_persona",
-        new_callable=AsyncMock,
-        return_value=True,
-    ), patch(
-        "services.layered_memory.l3_persona_generator.generate_persona",
-        new_callable=AsyncMock,
-        side_effect=Exception("LLM unavailable"),
-    ), patch(
-        "services.layered_memory.l1_extractor.get_recent_atoms",
-        new_callable=AsyncMock,
-        return_value=[],
+    with (
+        patch(
+            "services.layered_memory.persona_store.get_persona",
+            new_callable=AsyncMock,
+            return_value=("# Old Persona\nLikes meditation.", old_time),
+        ),
+        patch(
+            "services.layered_memory.persona_store.save_persona",
+            new_callable=AsyncMock,
+            return_value=True,
+        ),
+        patch(
+            "services.layered_memory.l3_persona_generator.generate_persona",
+            new_callable=AsyncMock,
+            side_effect=Exception("LLM unavailable"),
+        ),
+        patch(
+            "services.layered_memory.l1_extractor.get_recent_atoms",
+            new_callable=AsyncMock,
+            return_value=[],
+        ),
     ):
         memory_context, distress, _profile = await prepare_user_memory(
-                container, "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", [{"role": "user", "content": "hi"}]
-            )
+            container, "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", [{"role": "user", "content": "hi"}]
+        )
 
     assert "[STALE PERSONA]" in memory_context

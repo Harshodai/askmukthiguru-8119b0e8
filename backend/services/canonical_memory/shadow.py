@@ -1,10 +1,12 @@
 """Shadow mode for memory system — run new pipeline without affecting production."""
+
 import datetime as dt
 import logging
-from typing import Dict, Any, Optional
 from dataclasses import dataclass
+from typing import Any
 
 logger = logging.getLogger(__name__)
+
 
 @dataclass
 class ShadowResult:
@@ -15,9 +17,11 @@ class ShadowResult:
     canonical_latency_ms: float
     legacy_latency_ms: float
     timestamp: str = ""
+
     def __post_init__(self):
         if not self.timestamp:
-            self.timestamp = dt.datetime.now(dt.timezone.utc).isoformat()
+            self.timestamp = dt.datetime.now(dt.UTC).isoformat()
+
 
 class ShadowMode:
     def __init__(self, db_client=None, enabled: bool = False):
@@ -25,7 +29,7 @@ class ShadowMode:
         self.enabled = enabled
         self._results: list = []
 
-    def run_canonical_pipeline(self, user_id: str, message: str) -> Dict[str, Any]:
+    def run_canonical_pipeline(self, user_id: str, message: str) -> dict[str, Any]:
         if not self.enabled:
             return {"executed": False, "reason": "shadow_disabled"}
         return {
@@ -36,7 +40,7 @@ class ShadowMode:
             "confidence": 0.85,
         }
 
-    def run_legacy_pipeline(self, user_id: str, message: str) -> Dict[str, Any]:
+    def run_legacy_pipeline(self, user_id: str, message: str) -> dict[str, Any]:
         return {
             "executed": True,
             "user_id": user_id,
@@ -44,10 +48,10 @@ class ShadowMode:
             "method": "outbox",
         }
 
-    def compare_results(self, canonical: Dict, legacy: Dict) -> ShadowResult:
+    def compare_results(self, canonical: dict, legacy: dict) -> ShadowResult:
         match = canonical.get("decision", "") == legacy.get("method", "")
         return ShadowResult(
-            turn_id=f"shadow_{dt.datetime.now(dt.timezone.utc).timestamp()}",
+            turn_id=f"shadow_{dt.datetime.now(dt.UTC).timestamp()}",
             canonical_decision=canonical.get("decision", ""),
             legacy_decision=legacy.get("method", ""),
             results_match=match,
@@ -58,7 +62,7 @@ class ShadowMode:
     def record_result(self, result: ShadowResult):
         self._results.append(result)
 
-    def get_accuracy(self) -> Dict[str, Any]:
+    def get_accuracy(self) -> dict[str, Any]:
         if not self._results:
             return {"total": 0, "match_rate": 1.0, "divergences": 0}
         matches = sum(1 for r in self._results if r.results_match)
@@ -72,17 +76,20 @@ class ShadowMode:
     def get_divergences(self) -> list:
         return [
             {"turn_id": r.turn_id, "canonical": r.canonical_decision, "legacy": r.legacy_decision}
-            for r in self._results if not r.results_match
+            for r in self._results
+            if not r.results_match
         ]
 
-    def get_summary(self) -> Dict[str, Any]:
+    def get_summary(self) -> dict[str, Any]:
         accuracy = self.get_accuracy()
         return {
             "enabled": self.enabled,
             "total_turns": len(self._results),
             "accuracy": accuracy,
             "divergences": len(self.get_divergences()),
-            "recommendation": "promote_to_canonical" if accuracy.get("match_rate", 0) >= 0.9 else "investigate_divergences",
+            "recommendation": "promote_to_canonical"
+            if accuracy.get("match_rate", 0) >= 0.9
+            else "investigate_divergences",
         }
 
     def enable(self):
@@ -90,6 +97,7 @@ class ShadowMode:
 
     def disable(self):
         self.enabled = False
+
 
 def get_shadow_mode(db_client=None, enabled: bool = False) -> ShadowMode:
     return ShadowMode(db_client, enabled)

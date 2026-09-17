@@ -22,7 +22,7 @@ from app.config import settings
 from app.dependencies import ServiceContainer
 from app.grounding import grounding_state_for
 from app.pipeline import PipelineCoordinator
-from app.release_manifest import get_release_manifest
+from app.release_manifest import get_release_manifest, to_public_manifest_dict
 from app.sanitization import sanitize_log_input
 from app.schemas import ChatRequest, ChatResponse
 from app.security_utils import is_benchmark_request
@@ -174,7 +174,7 @@ class ChatRequestOrchestrator:
             ),
             guidance_plan=(None if result.guidance_plan is None else asdict(result.guidance_plan)),
             grounding_state=response_grounding_state,
-            release_manifest=result.release_manifest or get_release_manifest().to_dict(),
+            release_manifest=to_public_manifest_dict(result.release_manifest),
             provenance_manifest=_provenance_manifest_for_result(result),
         )
 
@@ -215,7 +215,8 @@ class ChatRequestOrchestrator:
                     route_decision=result.route_decision,
                     cache_hit=result.cache_hit,
                     tokens_per_second=round(
-                        max(1, len(result.final_answer.split())) / max(result.latency_ms / 1000, 0.001),
+                        max(1, len(result.final_answer.split()))
+                        / max(result.latency_ms / 1000, 0.001),
                         2,
                     )
                     if result.latency_ms
@@ -468,9 +469,9 @@ async def _drain_stream_to_redis(
                     "done_published_at_s=%.6f final_to_done_ms=%s",
                     job_id,
                     trace_id,
-                    "%.6f" % final_timestamp if final_timestamp is not None else "none",
+                    f"{final_timestamp:.6f}" if final_timestamp is not None else "none",
                     done_published_at,
-                    "%.1f" % ((done_published_at - final_timestamp) * 1000)
+                    f"{(done_published_at - final_timestamp) * 1000:.1f}"
                     if final_timestamp is not None
                     else "none",
                 )

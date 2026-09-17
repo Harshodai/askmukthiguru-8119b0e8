@@ -8,10 +8,8 @@ Covers B19 failure matrix:
 
 from __future__ import annotations
 
-import asyncio
-from unittest.mock import patch
-import pytest
 import httpx
+import pytest
 
 from app.config import settings
 from services.openrouter_service import OpenRouterService
@@ -67,6 +65,7 @@ class FakeSuccessResponse:
 @pytest.mark.asyncio
 async def test_openrouter_malformed_json_degrades_gracefully(monkeypatch):
     """When the provider returns invalid JSON, generate() should return graceful degradation."""
+
     class FakeMalformedClient:
         async def post(self, url, json=None, **kwargs):
             return FakeMalformedResponse()
@@ -89,7 +88,9 @@ async def test_openrouter_malformed_json_degrades_gracefully(monkeypatch):
 async def test_openrouter_503_recovers_via_fallback_model(monkeypatch):
     """When the primary model returns 503, the request should fall back to the secondary model."""
     monkeypatch.setattr(settings, "openrouter_generation_model", "deepseek/deepseek-chat")
-    monkeypatch.setattr(settings, "openrouter_generation_model_fallback", "meta-llama/llama-3.3-70b-instruct")
+    monkeypatch.setattr(
+        settings, "openrouter_generation_model_fallback", "meta-llama/llama-3.3-70b-instruct"
+    )
     monkeypatch.setattr(settings, "llm_max_retries", 1)
 
     models_called = []
@@ -117,9 +118,10 @@ async def test_openrouter_503_recovers_via_fallback_model(monkeypatch):
 @pytest.mark.asyncio
 async def test_openrouter_timeout_returns_graceful_degradation(monkeypatch):
     """When OpenRouter API times out, generate() returns graceful degradation message."""
+
     class FakeTimeoutClient:
         async def post(self, url, json=None, **kwargs):
-            raise asyncio.TimeoutError("Connection timed out after 60s")
+            raise TimeoutError("Connection timed out after 60s")
 
     async def fake_get_client(self):
         return FakeTimeoutClient()

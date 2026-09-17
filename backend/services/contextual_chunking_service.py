@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Optional
 
 from anyio import Semaphore as AsyncSemaphore
 
@@ -175,6 +175,7 @@ class ContextualChunkingService:
         extractor = self._metadata_extractor
         if extractor is None:
             from services.intelligent_metadata_extractor import IntelligentMetadataExtractor
+
             extractor = IntelligentMetadataExtractor(llm_service=self._llm)
             self._metadata_extractor = extractor
 

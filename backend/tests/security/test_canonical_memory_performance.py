@@ -1,8 +1,8 @@
 """Tests for canonical memory performance monitoring and scale testing."""
-import pytest
+
 from services.canonical_memory.performance import (
-    PerformanceMonitor,
     LatencyRecord,
+    PerformanceMonitor,
     benchmark_query_latency,
 )
 
@@ -113,7 +113,7 @@ class TestCheckLatencyBudget:
 
     def test_check_headroom(self):
         m = PerformanceMonitor()
-        for i in range(10):
+        for _i in range(10):
             m.record_latency("resolution", 100.0)
         result = m.check_latency_budget("resolution")
         assert result["headroom"] == 400.0

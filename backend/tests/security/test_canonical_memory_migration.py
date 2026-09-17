@@ -1,11 +1,11 @@
 """Tests for canonical memory migration strategy (Phase 22)."""
-import datetime as dt
+
 import pytest
+
 from services.canonical_memory.migration import (
-    MigrationPhase,
     LegacyTable,
-    MigrationProgress,
     MigrationManager,
+    MigrationPhase,
     get_migration_manager,
 )
 

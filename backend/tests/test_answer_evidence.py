@@ -53,15 +53,20 @@ def test_nested_citation_verification_is_forwarded():
 
 
 def test_pending_faithfulness_zero_is_unknown_but_measured_zero_is_failure():
-    assert _faithfulness_score(
-        {"is_faithful": None, "faithfulness_score": 0.0}, {"faithfulness": 0.9}
-    ) is None
-    assert _faithfulness_score(
-        {"is_faithful": False, "faithfulness_score": 0.0}, {"faithfulness": 0.9}
-    ) == 0.0
-    assert _faithfulness_score(
-        {"is_faithful": None, "faithfulness_score": 0.7}, {"faithfulness": 0.9}
-    ) == 0.7
+    assert (
+        _faithfulness_score({"is_faithful": None, "faithfulness_score": 0.0}, {"faithfulness": 0.9})
+        is None
+    )
+    assert (
+        _faithfulness_score(
+            {"is_faithful": False, "faithfulness_score": 0.0}, {"faithfulness": 0.9}
+        )
+        == 0.0
+    )
+    assert (
+        _faithfulness_score({"is_faithful": None, "faithfulness_score": 0.7}, {"faithfulness": 0.9})
+        == 0.7
+    )
 
 
 def test_no_retrieval_never_manufactures_support():

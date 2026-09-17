@@ -23,6 +23,7 @@ from rag.timeout_utils import get_node_timeout
 from rag.tree_navigator import navigate_tree
 from services.embedding_service import EmbeddingService, _apply_query_expansion
 from services.lightrag_service import LightRAGService
+from services.provenance import ChunkProvenance
 from services.provenance_context import build_provenance_context
 from services.qdrant.source_policy import filter_blocked_sources
 from services.qdrant_service import QdrantService
@@ -30,9 +31,9 @@ from services.tenant_context import TenantContext
 
 from . import _services
 from .utils import (
+    _fuse_docs,
     _grounded_citation_urls,
     _llm_retrieval_expansions,
-    _rrf_docs,
     _trace_update,
     emit_status,
     expand_query_with_synonyms,
@@ -210,6 +211,12 @@ def _okf_match(query: str, limit: int = 3, teacher: str | None = None) -> list[d
                         # edge over a raw chunk of equal similarity, but it can no
                         # longer outrank a strongly-matching retrieved teaching.
                         "score": min(1.0, sim * _OKF_CURATION_BOOST),
+                        # NOT "content_type" -- that key already holds Qdrant's
+                        # own payload field (video_enhanced/summary/contextual,
+                        # see services/qdrant/searcher.py:357) and generation.py
+                        # separately branches on it; reusing it here would have
+                        # silently misreported the lane for every real Qdrant hit.
+                        "knowledge_source": "okf",
                         "metadata": {
                             "source": e.get("resource") or e.get("source", "OKF"),
                             "title": e["title"],
@@ -467,7 +474,7 @@ async def query_neo4j_subgraph(
                 else ""
             )
             return "\n[Targeted Subgraph Context]:\n" + "\n".join(res) + candidate_str
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.warning(
             f"Neo4j targeted subgraph query timed out after {getattr(settings, 'lightrag_retrieval_timeout', 30)}s; falling back to vector retrieval"
         )
@@ -594,6 +601,88 @@ def _dedup_newest_by_source(docs: list[dict]) -> list[dict]:
     return result
 
 
+def _source_identity(doc: dict) -> str:
+    """Canonical per-source key for the diversity quota (URL > id > channel)."""
+    meta = doc.get("metadata") or {}
+    return (
+        doc.get("source_url")
+        or doc.get("source_id")
+        or doc.get("video_id")
+        or meta.get("source")
+        or doc.get("channel")
+        or "unknown"
+    )
+
+
+def _apply_source_diversity_quota(docs: list[dict], max_per_source: int = 2) -> list[dict]:
+    """Cap chunks per source so one YouTube URL cannot monopolize ranks."""
+    if not docs or max_per_source <= 0:
+        return docs
+    counts: dict[str, int] = {}
+    kept: list[dict] = []
+    for doc in docs:
+        src = _source_identity(doc)
+        if counts.get(src, 0) >= max_per_source:
+            continue
+        counts[src] = counts.get(src, 0) + 1
+        kept.append(doc)
+    if len(kept) != len(docs):
+        logger.info(
+            "Source diversity quota: %d -> %d docs (cap=%d/source)",
+            len(docs),
+            len(kept),
+            max_per_source,
+        )
+    return kept
+
+
+def _max_per_source_for_tier(query_tier: str | None) -> int:
+    return 3 if (query_tier or "").lower() in ("deep", "tier3_complex") else 2
+
+
+def _apply_summary_quota(docs: list[dict], max_summary: int) -> list[dict]:
+    """Cap machine-summary chunks (raptor_level=1) in the candidate pool.
+
+    Docs are already ranked (fused/RRF order) when this runs, so this keeps
+    the highest-ranked summaries up to the cap and drops the rest — a
+    ceiling on the final top-k's summary share, not a floor. Non-summary
+    docs are never dropped by this function. See
+    app.config.settings.rag_summary_quota_fraction for why a quota (vs.
+    hard-exclude or a score penalty) was chosen.
+    """
+    if not docs or max_summary < 0:
+        return docs
+    kept: list[dict] = []
+    n_summary = 0
+    for doc in docs:
+        # `chunk_provenance` (not `provenance` — see services/qdrant/searcher.py's
+        # name-collision guard) carries the flat classification string; derive
+        # the comparison value from the enum rather than re-typing the literal,
+        # so a future rename of ChunkProvenance.MACHINE_SUMMARY can't drift here.
+        if (
+            doc.get("chunk_provenance") == ChunkProvenance.MACHINE_SUMMARY.value
+            or doc.get("raptor_level") == 1
+        ):
+            if n_summary >= max_summary:
+                continue
+            n_summary += 1
+        kept.append(doc)
+    if len(kept) != len(docs):
+        logger.info(
+            "Summary quota: %d -> %d docs (cap=%d machine_summary chunks)",
+            len(docs),
+            len(kept),
+            max_summary,
+        )
+    return kept
+
+
+def _summary_quota_for_tier(query_tier: str | None) -> int:
+    """Max machine_summary chunks to keep, sized off rag_top_k_retrieval."""
+    fraction = getattr(settings, "rag_summary_quota_fraction", 0.25)
+    return max(1, round(settings.rag_top_k_retrieval * fraction))
+
+
 def _apply_retrieval_dedup(docs: list[dict]) -> list[dict]:
     """Drop retrieved docs whose content is nearly identical to an already-selected doc."""
     if not docs or not getattr(settings, "retrieval_deduplication_enabled", False):
@@ -609,9 +698,7 @@ def _apply_retrieval_dedup(docs: list[dict]) -> list[dict]:
         return docs
 
 
-async def _doc_embeddings_for_mmr(
-    docs: list[dict], doc_texts: list[str], embedder
-) -> list:
+async def _doc_embeddings_for_mmr(docs: list[dict], doc_texts: list[str], embedder) -> list:
     """Dense embeddings aligned with ``docs`` for MMR selection.
 
     Reuses the Qdrant-stored vector (``doc["_dense_embedding"]``) when present
@@ -857,16 +944,47 @@ async def generate_hyde(state: GraphState, config: dict = None) -> dict:
     if state.get("query_tier") in ("fast", "tier2_simple"):
         return {"hyde_text": None}
 
-    if not should_use_hyde(state):
-        if settings.rag_use_hyde:
-            logger.info(
-                "HyDE bypass: disabled for Indic request by rag_indic_use_hyde policy"
-            )
-        return {"hyde_text": None}
-
-    await emit_status(config, "Imagining the shape of the answer...")
     question = state.get("rewritten_query") or state["question"]
     t_out = get_node_timeout("generate_hyde", 30.0)
+
+    from .utils import is_indic_state
+
+    # Gate BEFORE the Indic branch, not after it. `should_use_hyde()` combines
+    # the global `rag_use_hyde` flag with the conservative `rag_indic_use_hyde`
+    # opt-in, but it used to be checked only in the non-Indic path below -- so
+    # an Indic request generated HyDE unconditionally, even with BOTH flags
+    # False. That inverted the documented invariant ("non-English/Indic
+    # requests require the explicit RAG_INDIC_USE_HYDE=true override", root
+    # CLAUDE.md) and made Indic seekers pay the extra provider round-trip the
+    # flag exists to prevent -- while the "HyDE bypass: disabled for Indic
+    # request" log line below was unreachable for exactly those requests.
+    if not should_use_hyde(state):
+        if settings.rag_use_hyde and is_indic_state(state):
+            logger.info("HyDE bypass: disabled for Indic request by rag_indic_use_hyde policy")
+        return {"hyde_text": None}
+
+    if is_indic_state(state):
+        lang = str(state.get("detected_language") or "indic").strip()
+        await emit_status(config, "Imagining the shape of the answer...")
+        indic_system = (
+            f"Answer in {lang} in 1-2 sentences: write a short hypothetical "
+            "passage that could answer the question, no preamble."
+        )
+        try:
+            if hasattr(ollama, "generate"):
+                hyde_text = await ollama.generate(
+                    indic_system, question, timeout=t_out, operation="generate_hyde"
+                )
+            else:
+                hyde_text = await ollama.generate_hyde(question=question, timeout=t_out)
+        except TypeError:
+            hyde_text = await ollama.generate_hyde(question=question, timeout=t_out)
+        logger.info(
+            f"Indic HyDE generated hypothetical answer ({len(hyde_text or '')} chars, lang={lang})"
+        )
+        return {"hyde_text": hyde_text}
+
+    await emit_status(config, "Imagining the shape of the answer...")
     hyde_text = await ollama.generate_hyde(question=question, timeout=t_out)
     logger.info(f"HyDE generated hypothetical answer ({len(hyde_text)} chars)")
     return {"hyde_text": hyde_text}
@@ -982,6 +1100,7 @@ async def retrieve_for_single_query(
     else:
         chunk_limit = 10
 
+    fusion_strat = getattr(settings, "qdrant_fusion_strategy", "rrf").lower()
     summary_task = asyncio.to_thread(
         qdrant.search,
         query_vector=query_embedding["dense"],
@@ -991,19 +1110,41 @@ async def retrieve_for_single_query(
         query=query_for_embedding,
         knowledge_tags=knowledge_tags,
         scope=scope,
+        fusion_strategy=fusion_strat,
     )
 
-    chunk_task = asyncio.to_thread(
-        qdrant.search,
-        query_vector=query_embedding["dense"],
-        limit=chunk_limit,
-        sparse_vector=query_embedding["sparse"],
-        raptor_level=0,
-        cluster_ids=selected_clusters if selected_clusters else None,
-        query=query_for_embedding,
-        knowledge_tags=knowledge_tags,
-        scope=scope,
-    )
+    parent_grouping_enabled = getattr(settings, "qdrant_parent_grouping_enabled", True)
+    group_by_key = getattr(settings, "qdrant_group_by", "parent_id")
+    group_size = int(getattr(settings, "qdrant_group_size", 2))
+
+    if parent_grouping_enabled and hasattr(qdrant, "search_groups"):
+        chunk_task = asyncio.to_thread(
+            qdrant.search_groups,
+            query_vector=query_embedding["dense"],
+            limit=chunk_limit,
+            group_by=group_by_key,
+            group_size=group_size,
+            sparse_vector=query_embedding["sparse"],
+            raptor_level=0,
+            cluster_ids=selected_clusters if selected_clusters else None,
+            query=query_for_embedding,
+            knowledge_tags=knowledge_tags,
+            scope=scope,
+            fusion_strategy=fusion_strat,
+        )
+    else:
+        chunk_task = asyncio.to_thread(
+            qdrant.search,
+            query_vector=query_embedding["dense"],
+            limit=chunk_limit,
+            sparse_vector=query_embedding["sparse"],
+            raptor_level=0,
+            cluster_ids=selected_clusters if selected_clusters else None,
+            query=query_for_embedding,
+            knowledge_tags=knowledge_tags,
+            scope=scope,
+            fusion_strategy=fusion_strat,
+        )
 
     tasks = [summary_task, chunk_task]
 
@@ -1014,7 +1155,7 @@ async def retrieve_for_single_query(
     resolved_chunks = []
     seen_parents = set()
     for doc in chunk_results:
-        parent_id = doc.get("parent_id")
+        parent_id = doc.get("parent_id") or doc.get("group_id")
         parent_text = doc.get("parent_text")
 
         if parent_id and parent_text:
@@ -1031,8 +1172,8 @@ async def retrieve_for_single_query(
 
     chunk_results = resolved_chunks
 
-    rrf_ranked = _rrf_docs([summary_results, chunk_results], k=60)
-    merged = rrf_ranked
+    fused_ranked = _fuse_docs([summary_results, chunk_results], strategy=fusion_strat, k=60)
+    merged = fused_ranked
 
     seen: set[str] = set()
     deduped: list[dict] = []
@@ -1041,6 +1182,9 @@ async def retrieve_for_single_query(
         if th not in seen:
             seen.add(th)
             deduped.append(doc)
+    deduped = _apply_source_diversity_quota(deduped, _max_per_source_for_tier(query_tier))
+    if getattr(settings, "rag_summary_quota_enabled", True):
+        deduped = _apply_summary_quota(deduped, _summary_quota_for_tier(query_tier))
 
     # Emit per-doc retrieval scores to Prometheus histogram
     for _doc in deduped:
@@ -1197,7 +1341,11 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     elif normalized_tier in ("tier3_complex", "deep"):
         retrieval_lane = "deep"
         lane_budget_ms = getattr(settings, "retrieval_deep_budget_ms", 8000)
-    elif normalized_tier == "relational" or intent_upper in ("RELATIONAL", "RELATIONSHIP", "COMPARATIVE"):
+    elif normalized_tier == "relational" or intent_upper in (
+        "RELATIONAL",
+        "RELATIONSHIP",
+        "COMPARATIVE",
+    ):
         retrieval_lane = "relational"
         lane_budget_ms = getattr(settings, "retrieval_relational_budget_ms", 3500)
     else:
@@ -1279,12 +1427,11 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
             "favorite_teachings": favorite_teachings,
         }
         retrieval_query = await personalize_retrieval_query(
-            base_question, user_profile, embedder
+            base_question, user_profile, _services._embedder
         )
     # Phase 3 Relational Lane: Prepare Neo4j graph ontology expansion.
     # Fast lane completely bypasses graph traversal.
     kg_coro = None
-    kg_expansion_task = None
     if (
         retrieval_lane != "fast"
         and getattr(settings, "knowledge_graph_query_enabled", True)
@@ -1361,7 +1508,9 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     knowledge_tags = state.get("knowledge_tags") or []
     embedder = _services._embedder
     qdrant = _services._qdrant
-    primary_query_limit = 1 if (retrieval_lane == "fast" or query_tier in ("fast", "tier2_simple")) else 2
+    primary_query_limit = (
+        1 if (retrieval_lane == "fast" or query_tier in ("fast", "tier2_simple")) else 2
+    )
     primary_queries = list(dict.fromkeys(sub_queries))[:primary_query_limit]
     # Batch-encode ALL primary queries in ONE encode_batch call.
     # Collapses 6 `_inference_lock` acquisitions into 1 (66.7s -> ~3.5s
@@ -1385,9 +1534,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
             logger.warning(
                 f"Batched encode failed (non-fatal, falling back to per-query): {enc_err}"
             )
-    retrieval_stage_times["encode_ms"] = round(
-        (time.perf_counter() - encode_started) * 1000, 1
-    )
+    retrieval_stage_times["encode_ms"] = round((time.perf_counter() - encode_started) * 1000, 1)
 
     # --- BM25 sparse-vector search (concurrent with vector retrieval) ---
     bm25_task = None
@@ -1395,7 +1542,11 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     # query. The standalone BM25 fan-out is valuable for standard/deep recall,
     # but awaiting it on the hot path adds avoidable tail latency for simple
     # questions; dense retrieval remains the fail-open primary source.
-    if getattr(settings, "bm25_retrieval_enabled", True) and retrieval_lane != "fast" and query_tier not in ("fast", "tier2_simple"):
+    if (
+        getattr(settings, "bm25_retrieval_enabled", True)
+        and retrieval_lane != "fast"
+        and query_tier not in ("fast", "tier2_simple")
+    ):
         try:
             bm25_query = sub_queries[0] if sub_queries else state.get("question", "")
             bm25_task = asyncio.to_thread(
@@ -1415,9 +1566,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     primary_started = time.perf_counter()
     node_timeout = get_node_timeout("default_main", getattr(settings, "node_timeout_main", 60))
     lane_timeout = (
-        min(node_timeout, lane_budget_ms / 1000.0)
-        if retrieval_lane == "fast"
-        else node_timeout
+        min(node_timeout, lane_budget_ms / 1000.0) if retrieval_lane == "fast" else node_timeout
     )
     primary_coros = [
         asyncio.wait_for(
@@ -1455,15 +1604,11 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
                 kg_timeout,
             )
         elif isinstance(kg_res, Exception):
-            logger.warning(
-                "KG ontology expansion failed (fail-open): %s", kg_res
-            )
+            logger.warning("KG ontology expansion failed (fail-open): %s", kg_res)
         elif isinstance(kg_res, list):
             kg_neighbors = kg_res
             if kg_neighbors:
-                logger.info(
-                    "KG ontology expansion (parallel): +%d neighbor(s)", len(kg_neighbors)
-                )
+                logger.info("KG ontology expansion (parallel): +%d neighbor(s)", len(kg_neighbors))
     else:
         primary_results = await asyncio.gather(*primary_coros, return_exceptions=True)
         if kg_coro is not None and retrieval_lane == "deep":
@@ -1474,15 +1619,13 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
                 )
                 if isinstance(kg_res, list):
                     kg_neighbors = kg_res
-            except (TimeoutError, asyncio.TimeoutError):
+            except TimeoutError:
                 logger.warning(
                     "Deep lane KG expansion timed out after %.2fs; continuing",
                     kg_timeout,
                 )
             except Exception as _deep_kg_err:
-                logger.warning(
-                    "Deep lane KG expansion failed (fail-open): %s", _deep_kg_err
-                )
+                logger.warning("Deep lane KG expansion failed (fail-open): %s", _deep_kg_err)
 
     retrieval_stage_times["primary_retrieval_ms"] = round(
         (time.perf_counter() - primary_started) * 1000, 1
@@ -1498,9 +1641,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
             logger.info(f"BM25 sparse search returned {len(bm25_results)} results")
         except Exception as bm25_err:
             logger.warning(f"BM25 sparse search failed (non-fatal): {bm25_err}")
-    retrieval_stage_times["bm25_wait_ms"] = round(
-        (time.perf_counter() - bm25_started) * 1000, 1
-    )
+    retrieval_stage_times["bm25_wait_ms"] = round((time.perf_counter() - bm25_started) * 1000, 1)
 
     # Now consume the (likely already-completed) expansion task.
     # Cap total retrievals at 6 to bound LLM/Qdrant load.
@@ -1535,7 +1676,9 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     retrieval_stage_times["expansion_planner_wait_ms"] = round(
         (time.perf_counter() - expansion_started) * 1000, 1
     )
-    retrieval_stage_times["expansion_planner_soft_wait_ms"] = round(soft_wait, 1) if expansion_task is not None else 0.0
+    retrieval_stage_times["expansion_planner_soft_wait_ms"] = (
+        round(soft_wait, 1) if expansion_task is not None else 0.0
+    )
 
     # Consume the KG ontology-expansion neighbor terms (parallel-gathered in relational lane)
     if kg_neighbors:
@@ -1618,37 +1761,30 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
         all_results.append(bm25_results)
 
     _RRF_K2 = 60
-    rrf2_scores: dict[str, float] = {}
-    id_to_doc2: dict[str, dict] = {}
-
-    for results in all_results:
-        for rank, doc in enumerate(results):
-            key = stable_document_key(doc)
-            id_to_doc2[key] = doc
-            rrf2_scores[key] = rrf2_scores.get(key, 0.0) + 1.0 / (_RRF_K2 + rank + 1)
-
-    seen_texts: set[str] = set()
-    all_docs: list[dict] = []
-    for doc in sorted(
-        id_to_doc2.values(), key=lambda d: rrf2_scores[stable_document_key(d)], reverse=True
-    ):
-        th = stable_document_key(doc)
-        if th not in seen_texts:
-            seen_texts.add(th)
-            all_docs.append(doc)
+    fusion_strategy_name = getattr(settings, "qdrant_fusion_strategy", "rrf").lower()
+    all_docs = _fuse_docs(all_results, strategy=fusion_strategy_name, k=_RRF_K2)
 
     if len(all_docs) < 3:
         elapsed_so_far = time.perf_counter() - retrieval_started
         fast_budget_s = getattr(settings, "retrieval_fast_lane_budget_ms", 1500) / 1000.0
         if retrieval_lane == "fast" and elapsed_so_far >= (fast_budget_s - 0.1):
-            logger.info("Fast lane budget reached (%.1fs/%.1fs); skipping fallback search to adhere to %dms budget", elapsed_so_far, fast_budget_s, lane_budget_ms)
+            logger.info(
+                "Fast lane budget reached (%.1fs/%.1fs); skipping fallback search to adhere to %dms budget",
+                elapsed_so_far,
+                fast_budget_s,
+                lane_budget_ms,
+            )
         else:
-            logger.info(f"Low document count ({len(all_docs)}), triggering broader fallback search...")
+            logger.info(
+                f"Low document count ({len(all_docs)}), triggering broader fallback search..."
+            )
             await emit_status(config, "Broadening the search...", node="retrieve_documents")
             fallback_query = state["question"] if state.get("rewritten_query") else sub_queries[0]
             fallback_results: list[dict[str, Any]] = []
             if query_tier in ("fast", "tier2_simple") or retrieval_lane == "fast":
-                remaining_fb_timeout = max(0.1, fast_budget_s - (time.perf_counter() - retrieval_started))
+                remaining_fb_timeout = max(
+                    0.1, fast_budget_s - (time.perf_counter() - retrieval_started)
+                )
                 try:
                     query_embedding = await asyncio.wait_for(
                         asyncio.to_thread(embedder.encode_single_full, fallback_query),
@@ -1668,11 +1804,16 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
                         timeout=min(8.0, remaining_fb_timeout),
                     )
                 except Exception as fallback_err:
-                    logger.warning("Fast fallback retrieval timed out or failed; continuing with current docs: %s", fallback_err)
+                    logger.warning(
+                        "Fast fallback retrieval timed out or failed; continuing with current docs: %s",
+                        fallback_err,
+                    )
                     fallback_results = []
             else:
                 try:
-                    query_embedding = await asyncio.to_thread(embedder.encode_single_full, fallback_query)
+                    query_embedding = await asyncio.to_thread(
+                        embedder.encode_single_full, fallback_query
+                    )
                     fallback_results = await asyncio.to_thread(
                         qdrant.search,
                         query_vector=query_embedding["dense"],
@@ -1684,9 +1825,13 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
                         scope=scope,
                     )
                 except Exception as fallback_err:
-                    logger.warning("Standard fallback retrieval failed; continuing with current docs: %s", fallback_err)
+                    logger.warning(
+                        "Standard fallback retrieval failed; continuing with current docs: %s",
+                        fallback_err,
+                    )
                     fallback_results = []
 
+            seen_texts = {stable_document_key(d) for d in all_docs}
             for doc in fallback_results:
                 text_hash = stable_document_key(doc)
                 if text_hash not in seen_texts:
@@ -1719,9 +1864,11 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
             graph_plan.reason,
             bool(getattr(settings, "graphrag_fusion_enabled", False)),
         )
-    if _services._graphrag_fusion is not None and getattr(
-        settings, "graphrag_fusion_enabled", False
-    ) and graph_plan.mode != "none":
+    if (
+        _services._graphrag_fusion is not None
+        and getattr(settings, "graphrag_fusion_enabled", False)
+        and graph_plan.mode != "none"
+    ):
         await emit_status(config, "Traversing teaching graph...", node="retrieve_documents")
         try:
             fused = await _services._graphrag_fusion.retrieve(
@@ -1741,10 +1888,15 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
                         "entity_ids": i.provenance.get("entity_ids", []),
                         "graph_relation": i.provenance.get("relation"),
                         "graph_hop": i.provenance.get("hop"),
-                        "source_segment_ids": i.provenance.get("source_segment_ids", [i.provenance.get("chunk_id")]),
+                        "source_segment_ids": i.provenance.get(
+                            "source_segment_ids", [i.provenance.get("chunk_id")]
+                        ),
                         "ontology_version": i.provenance.get("ontology_version"),
-                        "domain_rights_status": i.provenance.get("domain_rights_status") or i.provenance.get("rights_status"),
-                        "entity_resolution_confidence": i.provenance.get("entity_resolution_confidence"),
+                        "domain_rights_status": i.provenance.get("domain_rights_status")
+                        or i.provenance.get("rights_status"),
+                        "entity_resolution_confidence": i.provenance.get(
+                            "entity_resolution_confidence"
+                        ),
                     }
                     for i in fused.items
                 ]
@@ -1762,6 +1914,9 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
 
     # Near-duplicate removal at retrieval time
     all_docs = _apply_retrieval_dedup(all_docs)
+    all_docs = _apply_source_diversity_quota(all_docs, _max_per_source_for_tier(query_tier))
+    if getattr(settings, "rag_summary_quota_enabled", True):
+        all_docs = _apply_summary_quota(all_docs, _summary_quota_for_tier(query_tier))
 
     web_docs = state.get("web_search_results", [])
     if web_docs:
@@ -1823,6 +1978,17 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
 
     raw_docs_copy = [dict(d) for d in all_docs]
 
+    # Per-lane provenance. Four knowledge sources can contribute to one answer
+    # (Qdrant, OKF, Neo4j subgraph, LightRAG) and until these counters existed
+    # the only way to tell which of them actually fired was to grep server logs
+    # -- so "is LightRAG used?" was unanswerable from the API. 0 means the lane
+    # ran and returned nothing; None means the lane was not reached at all.
+    lane_trace: dict[str, object] = {
+        "okf_injected_count": 0,
+        "kg_context_chars": None,
+        "lightrag_context_chars": None,
+    }
+
     # Phase 2b: inject OKF compiled entries as a third retrieval channel.
     # Gate controlled by rag_okf_injection_enabled — defaults to True as of
     # Fix C's OKF hardening: OKF is now the canonical curated knowledge layer
@@ -1843,6 +2009,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
             okf_docs = _okf_match(base_question, limit=3, teacher=_teacher)
             if okf_docs:
                 logger.info("OKF injection: adding %d curated entries", len(okf_docs))
+                lane_trace["okf_injected_count"] = len(okf_docs)
                 all_docs = okf_docs + all_docs
                 raw_docs_copy = okf_docs + raw_docs_copy
         except Exception as e:
@@ -1881,6 +2048,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     ):
         try:
             graph_budget = float(getattr(settings, "rag_graph_context_timeout", 3.0))
+            lane_trace["kg_context_chars"] = 0
             graph_context = await asyncio.wait_for(
                 query_neo4j_subgraph(base_question, scope=scope), timeout=graph_budget
             )
@@ -1895,6 +2063,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
                     # are related, not what the gurus said about them, so it must
                     # never outrank an actual teaching.
                     "score": float(getattr(settings, "rag_graph_context_score", 0.35)),
+                    "knowledge_source": "neo4j_subgraph",
                     "metadata": {
                         "source": "knowledge-graph",
                         "title": "Doctrinal relationship graph",
@@ -1903,6 +2072,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
                 }
                 all_docs = all_docs + [graph_doc]
                 raw_docs_copy = raw_docs_copy + [graph_doc]
+                lane_trace["kg_context_chars"] = len(graph_context)
                 logger.info(
                     "KG evidence injection: added subgraph context (%d chars, lane=%s, multi_concept=%s)",
                     len(graph_context),
@@ -1911,7 +2081,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
                 )
             else:
                 logger.info("KG evidence injection: no subgraph matched (lane=%s)", retrieval_lane)
-        except (TimeoutError, asyncio.TimeoutError):
+        except TimeoutError:
             logger.warning(
                 "KG evidence injection timed out after %.1fs; answering without graph context",
                 float(getattr(settings, "rag_graph_context_timeout", 3.0)),
@@ -1940,6 +2110,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
 
             _lightrag = getattr(_get_container(), "lightrag", None)
             if _lightrag is not None:
+                lane_trace["lightrag_context_chars"] = 0
                 lr_budget = float(getattr(settings, "rag_lightrag_context_timeout", 4.0))
                 lr_ctx = await asyncio.wait_for(
                     _lightrag.aquery(
@@ -1957,10 +2128,10 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
                     lr_doc = {
                         "text": (
                             "Related passages surfaced through the teaching graph "
-                            "(supporting context; quote the teachings themselves):\n"
-                            + lr_text
+                            "(supporting context; quote the teachings themselves):\n" + lr_text
                         ),
                         "score": float(getattr(settings, "rag_graph_context_score", 0.35)),
+                        "knowledge_source": "lightrag",
                         "metadata": {
                             "source": "lightrag-graph",
                             "title": "Graph-linked teaching context",
@@ -1969,6 +2140,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
                     }
                     all_docs = all_docs + [lr_doc]
                     raw_docs_copy = raw_docs_copy + [lr_doc]
+                    lane_trace["lightrag_context_chars"] = len(lr_text)
                     logger.info(
                         "LightRAG context injection: added %d of %d chars "
                         "(cap %d, %d entries dropped)",
@@ -1979,7 +2151,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
                     )
                 else:
                     logger.info("LightRAG context injection: graph returned nothing usable")
-        except (TimeoutError, asyncio.TimeoutError):
+        except TimeoutError:
             logger.warning(
                 "LightRAG context injection timed out after %.1fs; answering without it",
                 float(getattr(settings, "rag_lightrag_context_timeout", 4.0)),
@@ -1999,9 +2171,9 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     # "what is the difference between X and Y" query got query_tier="deep" and never
     # triggered this loop even with the flag on.
     deep_research_done = False
-    if (
-        getattr(settings, "rag_deep_research_enabled", False)
-        and state.get("query_tier") in ("deep", "tier3_complex")
+    if getattr(settings, "rag_deep_research_enabled", False) and state.get("query_tier") in (
+        "deep",
+        "tier3_complex",
     ):
         try:
             from rag.nodes.deep_research import conduct_deep_research
@@ -2079,9 +2251,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
         band: len(values) for band, values in provenance_context.bands.items()
     }
     logger.info(f"Retrieved {len(all_docs)} unique documents (two-phase hybrid, parallel)")
-    lane_budget_consumed_ms = round(
-        (time.perf_counter() - retrieval_started) * 1000, 1
-    )
+    lane_budget_consumed_ms = round((time.perf_counter() - retrieval_started) * 1000, 1)
     retrieval_stage_times["total_logged_ms"] = lane_budget_consumed_ms
     retrieval_stage_times["retrieval_lane"] = retrieval_lane
     retrieval_stage_times["lane_budget_ms"] = lane_budget_ms
@@ -2119,5 +2289,6 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
             retrieval_expansion_outcome=expansion_outcome,
             retrieved_sources=_grounded_citation_urls(all_docs),
             **graph_trace,
+            **lane_trace,
         ),
     }

@@ -210,20 +210,26 @@ async def expand_query_via_kg(
 
     from services.tenant_context import TenantContext
 
-    active_tenant_id = TenantContext.get() or (settings.default_tenant_id if settings else "oneness")
+    active_tenant_id = TenantContext.get() or (
+        settings.default_tenant_id if settings else "oneness"
+    )
 
     cypher = (
-        "MATCH (n {entity_id: $concept})-[r]-(neighbor) "
-        "WHERE (r.tenant_id = $tenant_id OR r.tenant_id IS NULL) "
-        "AND neighbor.entity_id IS NOT NULL AND neighbor.entity_id <> $concept "
-        "RETURN DISTINCT neighbor.entity_id AS neighbor "
-        "LIMIT $limit"
-    ) if hops_clamped == 1 else (
-        f"MATCH path = (n {{entity_id: $concept}})-[*1..{hops_clamped}]-(neighbor) "
-        "WHERE ALL(rel IN relationships(path) WHERE rel.tenant_id = $tenant_id OR rel.tenant_id IS NULL) "
-        "AND neighbor.entity_id IS NOT NULL AND neighbor.entity_id <> $concept "
-        "RETURN DISTINCT neighbor.entity_id AS neighbor "
-        "LIMIT $limit"
+        (
+            "MATCH (n {entity_id: $concept})-[r]-(neighbor) "
+            "WHERE (r.tenant_id = $tenant_id OR r.tenant_id IS NULL) "
+            "AND neighbor.entity_id IS NOT NULL AND neighbor.entity_id <> $concept "
+            "RETURN DISTINCT neighbor.entity_id AS neighbor "
+            "LIMIT $limit"
+        )
+        if hops_clamped == 1
+        else (
+            f"MATCH path = (n {{entity_id: $concept}})-[*1..{hops_clamped}]-(neighbor) "
+            "WHERE ALL(rel IN relationships(path) WHERE rel.tenant_id = $tenant_id OR rel.tenant_id IS NULL) "
+            "AND neighbor.entity_id IS NOT NULL AND neighbor.entity_id <> $concept "
+            "RETURN DISTINCT neighbor.entity_id AS neighbor "
+            "LIMIT $limit"
+        )
     )
 
     def _run() -> list[str]:
@@ -246,14 +252,12 @@ async def expand_query_via_kg(
                             if len(out) >= limit_clamped:
                                 return out
                 except Exception as e:
-                    logger.warning(
-                        f"expand_query_via_kg: Cypher failed for '{concept}': {e}"
-                    )
+                    logger.warning(f"expand_query_via_kg: Cypher failed for '{concept}': {e}")
         return out
 
     try:
         return await asyncio.wait_for(asyncio.to_thread(_run), timeout=timeout_val)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.warning(
             f"expand_query_via_kg timed out after {timeout_val:.2f}s; continuing without neighbor terms"
         )

@@ -58,7 +58,12 @@ async def test_allows_superuser_regardless_of_email_domain():
 
 @pytest.mark.asyncio
 async def test_allows_service_role_regardless_of_email_domain():
-    user = {"id": "svc", "email": "svc@internal.example", "role": "service_role", "is_anonymous": False}
+    user = {
+        "id": "svc",
+        "email": "svc@internal.example",
+        "role": "service_role",
+        "is_anonymous": False,
+    }
     result = await _call_with_user(user)
     assert result == user
 

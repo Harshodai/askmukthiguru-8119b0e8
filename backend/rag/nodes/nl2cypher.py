@@ -171,13 +171,22 @@ async def nl2cypher(question: str, llm: Any) -> str:
     return cypher
 
 
-async def execute_cypher(query: str, neo4j_driver: Any, *, limit: int = 50) -> list[dict[str, Any]]:
+async def execute_cypher(
+    query: str,
+    neo4j_driver: Any,
+    *,
+    limit: int = 50,
+    params: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
     """Execute a Cypher query read-only against Neo4j. Returns list of record dicts.
 
     Args:
         query: Cypher string (will be re-validated as read-only).
         neo4j_driver: neo4j.Driver (sync). None -> returns [].
         limit: Hard row cap (defensive — appended as `LIMIT` if not present).
+        params: Bound parameters for session.run(query, **params). User input
+            must ONLY reach Neo4j through these — never via f-string/str
+            concatenation into the query text.
 
     Returns:
         List of dicts (one per record). Never raises — logs + returns [].
@@ -188,11 +197,12 @@ async def execute_cypher(query: str, neo4j_driver: Any, *, limit: int = 50) -> l
     if not _is_read_only(query):
         logger.warning(f"execute_cypher: refused non-read-only query: {query[:120]}")
         return []
+    bound: dict[str, Any] = dict(params or {})
     try:
 
         def _run() -> list[dict[str, Any]]:
             with neo4j_driver.session() as session:
-                result = session.run(query)
+                result = session.run(query, **bound)
                 rows: list[dict[str, Any]] = []
                 for i, rec in enumerate(result):
                     if i >= limit:
@@ -224,5 +234,42 @@ if __name__ == "__main__":
     assert "unanswerable" in out
     # execute_cypher with no driver -> []
     assert _a.run(execute_cypher("MATCH (n) RETURN n", None)) == []
+
+    class _FakeResult(list):
+        pass
+
+    class _FakeSession:
+        def __init__(self, outer):
+            self._outer = outer
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def run(self, q, **p):
+            self._outer["query"] = q
+            self._outer["params"] = p
+            return [{"n": 1}]
+
+    class _FakeDriver:
+        def __init__(self, outer):
+            self._outer = outer
+
+        def session(self):
+            return _FakeSession(self._outer)
+
+    seen: dict = {}
+    rows = _a.run(
+        execute_cypher(
+            "MATCH (t:base {entity_id: $eid}) RETURN t",
+            _FakeDriver(seen),
+            params={"eid": "Karma'; MATCH (n) DELETE n"},
+        )
+    )
+    assert rows == [{"n": 1}]
+    assert seen["params"] == {"eid": "Karma'; MATCH (n) DELETE n"}
+    assert "Karma" not in seen["query"]
     print("nl2cypher self-check OK")
     print(f"  no-op query: {out}")

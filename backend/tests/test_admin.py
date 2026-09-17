@@ -358,9 +358,7 @@ def test_list_okf_entries_attaches_verified_for_approved_review_match(
 
 @patch("services.memory.okf_store.OKFStore.list_entries")
 @patch("app.telemetry_db._get_client")
-def test_list_okf_entries_degrades_when_supabase_unavailable(
-    mock_get_client, mock_list_entries
-):
+def test_list_okf_entries_degrades_when_supabase_unavailable(mock_get_client, mock_list_entries):
     """No Supabase client (or a failing query) must not crash the endpoint —
     verified just stays unset, matching what VerifiedBadge already renders."""
     from services.memory.okf_store import OKFEntry

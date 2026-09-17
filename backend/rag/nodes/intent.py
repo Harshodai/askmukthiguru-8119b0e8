@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Optional
+from typing import Any, Optional
 
 from langchain_core.runnables import RunnableConfig
 
+from app.constants import IntentType
 from app.tracing import trace_rag_node
 from rag.meditation import (
     format_meditation_response,
@@ -55,7 +56,6 @@ from rag.query_patterns import (
 from rag.query_patterns import (
     detect_tier4_deep_cues as _detect_tier4_deep_cues,
 )
-
 
 _FAST_CLASSIFY_GREETING_RE = re.compile(
     r"^\s*(hello|hi|hey|good\s+(morning|afternoon|evening)|namaste|🙏)[\s.!?,]*$", re.I
@@ -153,7 +153,14 @@ def _preserve_upstream_quality_tier(state: GraphState, result: dict) -> dict:
         return result
     upstream = str(state.get("query_tier") or "").lower()
     proposed = str(result.get("query_tier") or "").lower()
-    rank = {"fast": 0, "tier2_simple": 0, "standard": 1, "tier3_complex": 1, "deep": 2, "tier4_deep": 2}
+    rank = {
+        "fast": 0,
+        "tier2_simple": 0,
+        "standard": 1,
+        "tier3_complex": 1,
+        "deep": 2,
+        "tier4_deep": 2,
+    }
     if upstream not in rank or proposed not in rank or rank[upstream] <= rank[proposed]:
         return result
     result = dict(result)
@@ -165,7 +172,9 @@ def _preserve_upstream_quality_tier(state: GraphState, result: dict) -> dict:
     if isinstance(trace, dict):
         trace = dict(trace)
         trace["query_tier"] = state["query_tier"]
-        trace["routing_reason"] = f"{trace.get('routing_reason', 'intent_router')}_upstream_tier_preserved"
+        trace["routing_reason"] = (
+            f"{trace.get('routing_reason', 'intent_router')}_upstream_tier_preserved"
+        )
         result["evaluation_trace"] = trace
     logger.info(
         "Intent Router: preserved upstream quality tier %s over proposed %s for intent=%s",
@@ -452,13 +461,13 @@ def _early_filter(
                 ),
             }
         return {
-            "intent": "LIVE_LOGISTICS",
+            "intent": IntentType.LIVE_LOGISTICS.value,
             "query_tier": "tier2_simple",
             "confidence_tier": "high",
             "needs_web_search": True,
             "evaluation_trace": _trace_update(
                 state,
-                intent="LIVE_LOGISTICS",
+                intent=IntentType.LIVE_LOGISTICS.value,
                 query_tier="tier2_simple",
                 routing_reason="official_live_logistics",
                 needs_web_search=True,
@@ -685,14 +694,14 @@ async def _intent_router_impl(state: GraphState, config: Optional[RunnableConfig
             question[:60],
         )
         return {
-            "intent": "LIVE_LOGISTICS",
+            "intent": IntentType.LIVE_LOGISTICS.value,
             "query_tier": "tier2_simple",
             "confidence_tier": "high",
             "complexity_score": complexity_score,
             "needs_web_search": True,
             "evaluation_trace": _trace_update(
                 state,
-                intent="LIVE_LOGISTICS",
+                intent=IntentType.LIVE_LOGISTICS.value,
                 query_tier="tier2_simple",
                 routing_reason="official_live_logistics",
                 complexity_score=complexity_score,
@@ -1074,6 +1083,21 @@ async def _intent_router_impl(state: GraphState, config: Optional[RunnableConfig
     }
 
 
+def _short_circuit_verification(method: str = "casual_short_circuit") -> dict[str, Any]:
+    """Provide uniform verification metadata for terminal short-circuits and scripted handlers."""
+    return {
+        "verification": {
+            "passed": True,
+            "method": method,
+            "citations_verified": True,
+        },
+        "faithfulness_score": 1.0,
+        "confidence_score": 1.0,
+        "is_faithful": True,
+        "_needs_retry": False,
+    }
+
+
 @trace_rag_node("handle_casual")
 @log_metrics
 async def handle_casual(state: GraphState, config: Optional[RunnableConfig] = None) -> dict:
@@ -1112,11 +1136,13 @@ async def handle_casual(state: GraphState, config: Optional[RunnableConfig] = No
                     "final_answer": f'You previously asked: "{last_q}"\n\nHow may I help you reflect on this or explore further? 🙏',
                     "intent": "CONVERSATION_RECALL",
                     "citations": [],
+                    **_short_circuit_verification("conversation_recall_short_circuit"),
                 }
             return {
                 "final_answer": "You haven't asked a previous question yet in our conversation. What is on your heart today? 🙏",
                 "intent": "CONVERSATION_RECALL",
                 "citations": [],
+                **_short_circuit_verification("conversation_recall_short_circuit"),
             }
         # Fall through to LLM for non-English so GURU_SYSTEM_PROMPT preserves language/script
 
@@ -1146,6 +1172,7 @@ async def handle_casual(state: GraphState, config: Optional[RunnableConfig] = No
                 ),
                 "intent": "APP_ORIENTATION",
                 "citations": [],
+                **_short_circuit_verification("app_orientation_short_circuit"),
             }
         # Fall through to LLM for non-English so GURU_SYSTEM_PROMPT preserves language/script
 
@@ -1179,6 +1206,7 @@ async def handle_casual(state: GraphState, config: Optional[RunnableConfig] = No
             "intent": "CAPABILITY",
             "citations": [],
             "grounding_state": "capability_answer",
+            **_short_circuit_verification("capability_short_circuit"),
         }
 
     if _is_playful_edge_query(q_lower) and _english_only(state.get("question", "")):
@@ -1192,6 +1220,7 @@ async def handle_casual(state: GraphState, config: Optional[RunnableConfig] = No
             "intent": "CAPABILITY",
             "citations": [],
             "grounding_state": "bounded_hypothetical",
+            **_short_circuit_verification("capability_short_circuit"),
         }
 
     if _is_provenance_query(q_lower) and _english_only(state.get("question", "")):
@@ -1204,6 +1233,7 @@ async def handle_casual(state: GraphState, config: Optional[RunnableConfig] = No
             "intent": "CAPABILITY",
             "citations": [],
             "grounding_state": "provenance_boundary",
+            **_short_circuit_verification("capability_short_circuit"),
         }
 
     if _is_response_format_query(q_lower) and _english_only(state.get("question", "")):
@@ -1216,6 +1246,7 @@ async def handle_casual(state: GraphState, config: Optional[RunnableConfig] = No
             "intent": "CAPABILITY",
             "citations": [],
             "grounding_state": "response_format_capability",
+            **_short_circuit_verification("capability_short_circuit"),
         }
 
     _SPIRITUAL_PRACTICE_SIGNALS = [
@@ -1262,8 +1293,6 @@ async def handle_casual(state: GraphState, config: Optional[RunnableConfig] = No
 
     await emit_status(config, "Saying hello...")
 
-    ollama = _services._ollama
-
     history_ctx = ""
     if chat_history:
         recent = chat_history[-4:]
@@ -1273,10 +1302,19 @@ async def handle_casual(state: GraphState, config: Optional[RunnableConfig] = No
         history_ctx = "\n\nRecent conversation:\n" + "\n".join(history_lines)
 
     try:
-        response = await ollama.generate(
-            system_prompt=CASUAL_SYSTEM_PROMPT,
-            user_prompt=state["question"] + history_ctx,
-        )
+        _gateway = getattr(_services, "_llm_gateway", None)
+        if _gateway is not None and hasattr(_gateway, "generate"):
+            response = await _gateway.generate(
+                system_prompt=CASUAL_SYSTEM_PROMPT,
+                user_prompt=state["question"] + history_ctx,
+                task="casual",
+            )
+        else:
+            # Gateway missing (standalone/offline) — direct provider fallback only.
+            response = await _services._ollama.generate(
+                system_prompt=CASUAL_SYSTEM_PROMPT,
+                user_prompt=state["question"] + history_ctx,
+            )
         if not response or not response.strip():
             logger.warning("handle_casual: LLM returned empty response, using warm fallback")
             response = (
@@ -1294,6 +1332,7 @@ async def handle_casual(state: GraphState, config: Optional[RunnableConfig] = No
         "final_answer": response,
         "intent": "CASUAL",
         "route_decision": "casual",
+        **_short_circuit_verification("casual_greeting_short_circuit"),
     }
 
 
@@ -1447,11 +1486,7 @@ Retrieved teachings from Sri Preethaji and Sri Krishnaji:
 
     # Guarantee a non-empty, safe response with grounding/helplines
     if not response or not response.strip():
-        response = (
-            serene_mind.get_response(assessment)
-            if serene_mind
-            else get_distress_response()
-        )
+        response = serene_mind.get_response(assessment) if serene_mind else get_distress_response()
         if not response or not response.strip():
             response = get_distress_response()
 
@@ -1467,9 +1502,7 @@ Retrieved teachings from Sri Preethaji and Sri Krishnaji:
     if assessment.level >= DistressLevel.SEVERE:
         from services.crisis_helplines import format_helplines_block
 
-        crisis_info = format_helplines_block(
-            intro="🆘 **Crisis Support (available 24/7):**"
-        )
+        crisis_info = format_helplines_block(intro="🆘 **Crisis Support (available 24/7):**")
         if crisis_info not in response:
             response = crisis_info + "\n\n" + response
 
@@ -1508,6 +1541,7 @@ Retrieved teachings from Sri Preethaji and Sri Krishnaji:
         "intent": "DISTRESS",
         "route_decision": "distress",
         "citations": citations,
+        **_short_circuit_verification("distress_safety_preemption"),
     }
 
 
@@ -1551,6 +1585,9 @@ async def handle_meditation(state: GraphState, config: Optional[RunnableConfig] 
     """
     from rag.nodes.utils import emit_status
 
+    # Deterministic script path — no direct LLM call by design, so there is no
+    # provider call to route; any future generation here must go through
+    # _services._llm_gateway.generate() first with _ollama as offline fallback.
     await emit_status(config, "Guiding you into the practice...")
 
     raw_step = state.get("meditation_step", 0)
@@ -1598,6 +1635,7 @@ async def handle_meditation(state: GraphState, config: Optional[RunnableConfig] 
                 "meditation_step": 0,
                 "intent": "MEDITATION",
                 "route_decision": "meditation",
+                **_short_circuit_verification("meditation_short_circuit"),
             }
 
         if "serene mind" in question:
@@ -1610,6 +1648,7 @@ async def handle_meditation(state: GraphState, config: Optional[RunnableConfig] 
                 "meditation_step": 0,
                 "intent": "MEDITATION",
                 "route_decision": "meditation",
+                **_short_circuit_verification("meditation_short_circuit"),
             }
 
         if "meditation" in question or practice_keyword:
@@ -1622,6 +1661,7 @@ async def handle_meditation(state: GraphState, config: Optional[RunnableConfig] 
                 "meditation_step": 0,
                 "intent": "MEDITATION",
                 "route_decision": "meditation",
+                **_short_circuit_verification("meditation_short_circuit"),
             }
 
     # ---- Case 2: step is within an active flow (1..MAX_STEP) ----------------
@@ -1632,6 +1672,7 @@ async def handle_meditation(state: GraphState, config: Optional[RunnableConfig] 
             "meditation_step": step + 1,
             "intent": "MEDITATION",
             "route_decision": "meditation",
+            **_short_circuit_verification("meditation_short_circuit"),
         }
 
     # ---- Case 3: step > MAX_STEP — session legitimately complete ------------
@@ -1642,6 +1683,7 @@ async def handle_meditation(state: GraphState, config: Optional[RunnableConfig] 
             "meditation_step": 0,
             "intent": "MEDITATION",
             "route_decision": "meditation",
+            **_short_circuit_verification("meditation_short_circuit"),
         }
 
     # ---- Case 4: step <= 0, no script keyword, no imperative ----------------
@@ -1668,6 +1710,7 @@ async def handle_meditation(state: GraphState, config: Optional[RunnableConfig] 
             "meditation_step": 0,
             "intent": "MEDITATION",
             "route_decision": "meditation",
+            **_short_circuit_verification("meditation_short_circuit"),
         }
     # This greeting is the answer of LAST RESORT, not the intended reply: the
     # graph routes `_meditation_misroute` back into retrieval

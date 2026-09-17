@@ -89,7 +89,11 @@ def test_tracked_env_file_has_no_secret_shaped_values(filename: str):
     for key, value in values.items():
         for pattern in _SECRET_PATTERNS:
             if pattern.search(value):
-                if value.count(".") == 2 and value.startswith("eyJ") and _looks_like_public_supabase_jwt(value):
+                if (
+                    value.count(".") == 2
+                    and value.startswith("eyJ")
+                    and _looks_like_public_supabase_jwt(value)
+                ):
                     continue
                 offenders.append((key, pattern.pattern))
     assert not offenders, (

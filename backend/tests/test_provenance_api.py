@@ -8,6 +8,8 @@ Verifies:
 
 from __future__ import annotations
 
+from unittest.mock import MagicMock
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -23,13 +25,26 @@ from app.schemas import (
 @pytest.fixture
 def client():
     """Create test client with compliance router attached."""
-    from app.api.compliance import _require_admin
+    from app.api.compliance import _get_container_safely, _require_admin
 
     app = FastAPI()
     app.dependency_overrides[_require_admin] = lambda: {
         "user_id": "test-admin",
         "is_superuser": True,
     }
+    # _get_container_safely() (app/api/compliance.py:42-47) calls the real
+    # app.dependencies.get_container() directly. Left un-overridden, this
+    # builds the real process-wide ServiceContainer singleton as a side
+    # effect of this one unit test — and that build calls
+    # rag.nodes.init_services(..., llm_gateway=<real>) internally, silently
+    # overwriting rag.nodes._services._llm_gateway (a bare module global,
+    # never torn down) for every later test in the process. Reproduced:
+    # test_contradiction_resolver.py's generate_answer test then fails
+    # because it hits a real (and already-broken, shared-lock-torn-down)
+    # LLMGateway instead of its intended mocked path. This test only needs
+    # `container.neo4j_driver` to exist (compliance.py:69), so a MagicMock
+    # is sufficient.
+    app.dependency_overrides[_get_container_safely] = lambda: MagicMock()
     app.include_router(compliance_router)
     return TestClient(app)
 
@@ -133,9 +148,10 @@ def test_chat_response_serialization_with_provenance():
         intent="meditation",
         grounding_state="grounded",
         ai_provenance=manifest.to_json_ld(),
+        # git_sha is deliberately absent: ReleaseManifestPublic forbids extras
+        # so an internal-only field cannot leak into a public response body.
         release_manifest={
             "release_id": "rel-2026-08-v1",
-            "git_sha": "abc1234",
             "policy_version": "deepseek-budget-v1",
         },
     )

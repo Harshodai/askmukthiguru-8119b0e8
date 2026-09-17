@@ -182,7 +182,7 @@ class ABTestRouter:
             )
 
         # Hash(user_id + salt + experiment_name) -> uniform float in [0, 1)
-        raw = f"{user_id}:{self._salt}:{experiment_name}".encode("utf-8")
+        raw = f"{user_id}:{self._salt}:{experiment_name}".encode()
         hash_hex = hashlib.sha256(raw).hexdigest()
         hash_int = int(hash_hex[:8], 16)
         scale = hash_int / 0xFFFFFFFF

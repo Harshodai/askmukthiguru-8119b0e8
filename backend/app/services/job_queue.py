@@ -136,7 +136,9 @@ class _InMemoryRedisFallback:
         async with self._lock:
             prefix, _, suffix = match.partition("*")
             keys = [
-                k for k in self.hashes if k.startswith(prefix) and (not suffix or k.endswith(suffix))
+                k
+                for k in self.hashes
+                if k.startswith(prefix) and (not suffix or k.endswith(suffix))
             ]
             return 0, keys
 
@@ -303,9 +305,7 @@ class JobQueueService:
             from redis.exceptions import TimeoutError as RedisTimeoutError
         except ImportError:  # redis not installed (dependency-limited hosts)
             return isinstance(exc, TimeoutError)
-        return isinstance(
-            exc, (RedisConnectionError, RedisTimeoutError, TimeoutError)
-        )
+        return isinstance(exc, (RedisConnectionError, RedisTimeoutError, TimeoutError))
 
     async def start(self, worker_factory: Callable) -> None:
         """Start worker pool.
@@ -353,7 +353,9 @@ class JobQueueService:
     def max_queue(self) -> int:
         return self._max_queue
 
-    async def _enqueue_via(self, r: Any, job_id: str, request_data: dict, user_id: str, is_stream: bool) -> int:
+    async def _enqueue_via(
+        self, r: Any, job_id: str, request_data: dict, user_id: str, is_stream: bool
+    ) -> int:
         """The actual write sequence, run against whichever client (real Redis
         or the in-memory fallback) `r` is. Split out of enqueue() so a Redis
         connection failure partway through can retry the same sequence

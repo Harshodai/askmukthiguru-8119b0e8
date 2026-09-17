@@ -49,6 +49,7 @@ def _extracted(decisions) -> bool:
 
 # --- the four required cases -------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_no_receipt_extracts_nothing():
     async def _no_receipt(*, user_id, tenant_id):
@@ -89,6 +90,7 @@ async def test_consent_store_failure_extracts_nothing():
 
 
 # --- fail-closed on every other way the lookup can go wrong ------------------
+
 
 @pytest.mark.asyncio
 async def test_timeout_extracts_nothing(monkeypatch):
@@ -175,6 +177,7 @@ async def test_consent_granted_helper_denies_on_every_failure():
 
 # --- wiring: the gate must be the thing the container actually installs ------
 
+
 def test_container_wires_the_consent_gate_not_a_bare_judge():
     src = inspect.getsource(__import__("app.container", fromlist=["x"]))
     assert "ConsentGatedJudge(" in src
@@ -194,7 +197,5 @@ def test_privacy_check_consent_is_not_used_as_the_gate():
     fail-closed gate that silently disables memory for everyone. Guard against
     a well-meaning future "fix" that swaps the working reader for it.
     """
-    src = inspect.getsource(
-        __import__("services.canonical_memory.consent_gate", fromlist=["x"])
-    )
+    src = inspect.getsource(__import__("services.canonical_memory.consent_gate", fromlist=["x"]))
     assert "check_consent(" not in src

@@ -21,10 +21,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Test helpers / mocks
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class FakeRetrievedMemory:
@@ -112,9 +112,7 @@ def _make_retriever(memories=None):
     if memories is not None:
         retriever.retrieve.return_value = FakeRetrievalResult(memories=memories)
     else:
-        retriever.retrieve.return_value = FakeRetrievalResult(
-            memories=[FakeRetrievedMemory()]
-        )
+        retriever.retrieve.return_value = FakeRetrievalResult(memories=[FakeRetrievedMemory()])
     return retriever
 
 
@@ -139,9 +137,7 @@ def _make_legacy_service(memories=None, semantic=None):
 
 def _make_extractor(candidates=None):
     extractor = AsyncMock()
-    extractor.return_value = FakeExtractionResult(
-        candidates=candidates or [FakeMemoryCandidate()]
-    )
+    extractor.return_value = FakeExtractionResult(candidates=candidates or [FakeMemoryCandidate()])
     return extractor
 
 
@@ -167,10 +163,10 @@ from services.canonical_memory.chat_integration import (
     detect_explicit_command,
 )
 
-
 # ---------------------------------------------------------------------------
 # Tests: Explicit command detection
 # ---------------------------------------------------------------------------
+
 
 class TestExplicitCommandDetection:
     def test_remember_command(self):
@@ -215,11 +211,15 @@ class TestExplicitCommandDetection:
 # Tests: Feature flags
 # ---------------------------------------------------------------------------
 
+
 class TestFeatureFlags:
     """Verify feature flag accessors read from settings correctly."""
 
     @patch("services.canonical_memory.chat_integration._ff_canonical_memory", return_value=True)
-    @patch("services.canonical_memory.chat_integration._ff_canonical_memory_retrieval", return_value=False)
+    @patch(
+        "services.canonical_memory.chat_integration._ff_canonical_memory_retrieval",
+        return_value=False,
+    )
     @patch("services.canonical_memory.chat_integration._ff_memory_shadow", return_value=False)
     @patch("services.canonical_memory.chat_integration._ff_memory_write", return_value=False)
     @patch("services.canonical_memory.chat_integration._ff_memory_influence", return_value=False)
@@ -254,6 +254,7 @@ class TestFeatureFlags:
 # ---------------------------------------------------------------------------
 # Tests: Normal chat with canonical memory disabled
 # ---------------------------------------------------------------------------
+
 
 class TestCanonicalDisabled:
     """When canonical memory is disabled, only legacy system is used."""
@@ -323,6 +324,7 @@ class TestCanonicalDisabled:
 # Tests: Canonical memory enabled with retrieval
 # ---------------------------------------------------------------------------
 
+
 class TestCanonicalEnabled:
     """When canonical memory + retrieval are enabled, use canonical system."""
 
@@ -341,18 +343,23 @@ class TestCanonicalEnabled:
             existing_memory_service=legacy,
         )
 
-        with patch(
-            "services.canonical_memory.chat_integration._ff_canonical_memory",
-            return_value=True,
-        ), patch(
-            "services.canonical_memory.chat_integration._ff_canonical_memory_retrieval",
-            return_value=True,
-        ), patch(
-            "services.canonical_memory.chat_integration._ff_memory_shadow",
-            return_value=False,
-        ), patch(
-            "services.canonical_memory.chat_integration._ff_memory_influence",
-            return_value=True,
+        with (
+            patch(
+                "services.canonical_memory.chat_integration._ff_canonical_memory",
+                return_value=True,
+            ),
+            patch(
+                "services.canonical_memory.chat_integration._ff_canonical_memory_retrieval",
+                return_value=True,
+            ),
+            patch(
+                "services.canonical_memory.chat_integration._ff_memory_shadow",
+                return_value=False,
+            ),
+            patch(
+                "services.canonical_memory.chat_integration._ff_memory_influence",
+                return_value=True,
+            ),
         ):
             result = await integration.prepare_context(
                 user_id="user-1",
@@ -383,18 +390,23 @@ class TestCanonicalEnabled:
             existing_memory_service=legacy,
         )
 
-        with patch(
-            "services.canonical_memory.chat_integration._ff_canonical_memory",
-            return_value=True,
-        ), patch(
-            "services.canonical_memory.chat_integration._ff_canonical_memory_retrieval",
-            return_value=True,
-        ), patch(
-            "services.canonical_memory.chat_integration._ff_memory_shadow",
-            return_value=False,
-        ), patch(
-            "services.canonical_memory.chat_integration._ff_memory_influence",
-            return_value=True,
+        with (
+            patch(
+                "services.canonical_memory.chat_integration._ff_canonical_memory",
+                return_value=True,
+            ),
+            patch(
+                "services.canonical_memory.chat_integration._ff_canonical_memory_retrieval",
+                return_value=True,
+            ),
+            patch(
+                "services.canonical_memory.chat_integration._ff_memory_shadow",
+                return_value=False,
+            ),
+            patch(
+                "services.canonical_memory.chat_integration._ff_memory_influence",
+                return_value=True,
+            ),
         ):
             result = await integration.prepare_context(
                 user_id="user-1",
@@ -408,6 +420,7 @@ class TestCanonicalEnabled:
 # ---------------------------------------------------------------------------
 # Tests: Failure fallback
 # ---------------------------------------------------------------------------
+
 
 class TestFailureFallback:
     """Canonical system failure falls back to legacy system."""
@@ -428,18 +441,23 @@ class TestFailureFallback:
             existing_memory_service=legacy,
         )
 
-        with patch(
-            "services.canonical_memory.chat_integration._ff_canonical_memory",
-            return_value=True,
-        ), patch(
-            "services.canonical_memory.chat_integration._ff_canonical_memory_retrieval",
-            return_value=True,
-        ), patch(
-            "services.canonical_memory.chat_integration._ff_memory_shadow",
-            return_value=False,
-        ), patch(
-            "services.canonical_memory.chat_integration._ff_memory_influence",
-            return_value=True,
+        with (
+            patch(
+                "services.canonical_memory.chat_integration._ff_canonical_memory",
+                return_value=True,
+            ),
+            patch(
+                "services.canonical_memory.chat_integration._ff_canonical_memory_retrieval",
+                return_value=True,
+            ),
+            patch(
+                "services.canonical_memory.chat_integration._ff_memory_shadow",
+                return_value=False,
+            ),
+            patch(
+                "services.canonical_memory.chat_integration._ff_memory_influence",
+                return_value=True,
+            ),
         ):
             result = await integration.prepare_context(
                 user_id="user-1",
@@ -468,12 +486,15 @@ class TestFailureFallback:
             existing_memory_service=legacy,
         )
 
-        with patch(
-            "services.canonical_memory.chat_integration._ff_canonical_memory",
-            return_value=True,
-        ), patch(
-            "services.canonical_memory.chat_integration._ff_memory_write",
-            return_value=True,
+        with (
+            patch(
+                "services.canonical_memory.chat_integration._ff_canonical_memory",
+                return_value=True,
+            ),
+            patch(
+                "services.canonical_memory.chat_integration._ff_memory_write",
+                return_value=True,
+            ),
         ):
             # Should not raise
             await integration.post_response_memory(
@@ -487,6 +508,7 @@ class TestFailureFallback:
 # ---------------------------------------------------------------------------
 # Tests: Shadow mode
 # ---------------------------------------------------------------------------
+
 
 class TestShadowMode:
     """Shadow mode runs canonical but doesn't serve its results."""
@@ -506,18 +528,23 @@ class TestShadowMode:
             existing_memory_service=legacy,
         )
 
-        with patch(
-            "services.canonical_memory.chat_integration._ff_canonical_memory",
-            return_value=True,
-        ), patch(
-            "services.canonical_memory.chat_integration._ff_canonical_memory_retrieval",
-            return_value=True,
-        ), patch(
-            "services.canonical_memory.chat_integration._ff_memory_shadow",
-            return_value=True,
-        ), patch(
-            "services.canonical_memory.chat_integration._ff_memory_influence",
-            return_value=True,
+        with (
+            patch(
+                "services.canonical_memory.chat_integration._ff_canonical_memory",
+                return_value=True,
+            ),
+            patch(
+                "services.canonical_memory.chat_integration._ff_canonical_memory_retrieval",
+                return_value=True,
+            ),
+            patch(
+                "services.canonical_memory.chat_integration._ff_memory_shadow",
+                return_value=True,
+            ),
+            patch(
+                "services.canonical_memory.chat_integration._ff_memory_influence",
+                return_value=True,
+            ),
         ):
             result = await integration.prepare_context(
                 user_id="user-1",
@@ -533,6 +560,7 @@ class TestShadowMode:
 # ---------------------------------------------------------------------------
 # Tests: Memory influence disabled
 # ---------------------------------------------------------------------------
+
 
 class TestInfluenceDisabled:
     """When influence is disabled, canonical is retrieved but not injected."""
@@ -552,18 +580,23 @@ class TestInfluenceDisabled:
             existing_memory_service=legacy,
         )
 
-        with patch(
-            "services.canonical_memory.chat_integration._ff_canonical_memory",
-            return_value=True,
-        ), patch(
-            "services.canonical_memory.chat_integration._ff_canonical_memory_retrieval",
-            return_value=True,
-        ), patch(
-            "services.canonical_memory.chat_integration._ff_memory_shadow",
-            return_value=False,
-        ), patch(
-            "services.canonical_memory.chat_integration._ff_memory_influence",
-            return_value=False,
+        with (
+            patch(
+                "services.canonical_memory.chat_integration._ff_canonical_memory",
+                return_value=True,
+            ),
+            patch(
+                "services.canonical_memory.chat_integration._ff_canonical_memory_retrieval",
+                return_value=True,
+            ),
+            patch(
+                "services.canonical_memory.chat_integration._ff_memory_shadow",
+                return_value=False,
+            ),
+            patch(
+                "services.canonical_memory.chat_integration._ff_memory_influence",
+                return_value=False,
+            ),
         ):
             result = await integration.prepare_context(
                 user_id="user-1",
@@ -579,6 +612,7 @@ class TestInfluenceDisabled:
 # ---------------------------------------------------------------------------
 # Tests: Explicit commands
 # ---------------------------------------------------------------------------
+
 
 class TestExplicitCommands:
     """Explicit memory commands are handled correctly."""
@@ -707,15 +741,14 @@ class TestExplicitCommands:
             resolver=MagicMock(),
             existing_memory_service=MagicMock(),
         )
-        result = await integration.handle_explicit_command(
-            user_id="user-1", command="", query=""
-        )
+        result = await integration.handle_explicit_command(user_id="user-1", command="", query="")
         assert result == ""
 
 
 # ---------------------------------------------------------------------------
 # Tests: Post-response memory pipeline
 # ---------------------------------------------------------------------------
+
 
 class TestPostResponseMemory:
     """Post-response extraction runs async, non-blocking."""
@@ -738,12 +771,15 @@ class TestPostResponseMemory:
             existing_memory_service=legacy,
         )
 
-        with patch(
-            "services.canonical_memory.chat_integration._ff_canonical_memory",
-            return_value=True,
-        ), patch(
-            "services.canonical_memory.chat_integration._ff_memory_write",
-            return_value=True,
+        with (
+            patch(
+                "services.canonical_memory.chat_integration._ff_canonical_memory",
+                return_value=True,
+            ),
+            patch(
+                "services.canonical_memory.chat_integration._ff_memory_write",
+                return_value=True,
+            ),
         ):
             await integration.post_response_memory(
                 user_id="user-1",
@@ -780,12 +816,15 @@ class TestPostResponseMemory:
             existing_memory_service=legacy,
         )
 
-        with patch(
-            "services.canonical_memory.chat_integration._ff_canonical_memory",
-            return_value=True,
-        ), patch(
-            "services.canonical_memory.chat_integration._ff_memory_write",
-            return_value=False,
+        with (
+            patch(
+                "services.canonical_memory.chat_integration._ff_canonical_memory",
+                return_value=True,
+            ),
+            patch(
+                "services.canonical_memory.chat_integration._ff_memory_write",
+                return_value=False,
+            ),
         ):
             await integration.post_response_memory(
                 user_id="user-1",
@@ -800,6 +839,7 @@ class TestPostResponseMemory:
 # ---------------------------------------------------------------------------
 # Tests: Factory
 # ---------------------------------------------------------------------------
+
 
 class TestFactory:
     def test_create_chat_integration(self):
@@ -817,6 +857,7 @@ class TestFactory:
 # ---------------------------------------------------------------------------
 # Tests: Streaming compatibility
 # ---------------------------------------------------------------------------
+
 
 class TestStreamingCompatibility:
     """Verify that memory operations don't block the response path."""

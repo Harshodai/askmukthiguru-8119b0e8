@@ -1,8 +1,8 @@
 """Pure, side-effect-free routing predicates shared across pipeline stages."""
+
 from __future__ import annotations
 
 import re
-
 
 GREETING_RE = re.compile(
     r"^\s*(hi|hello|hey|namaste|pranam|namaskar|namasthe|greetings|"

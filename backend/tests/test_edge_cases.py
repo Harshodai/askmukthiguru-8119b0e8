@@ -319,9 +319,9 @@ async def test_redis_connection_error():
         "Redis outage produced HTTP 500; the documented invariant is graceful "
         "degradation to in-process caches, not a failed request"
     )
-    assert (
-        response.status_code == 200
-    ), f"expected a served answer during Redis degradation, got {response.status_code}"
+    assert response.status_code == 200, (
+        f"expected a served answer during Redis degradation, got {response.status_code}"
+    )
     assert "response" in response.json()
 
     health = client.get("/api/health")
@@ -452,12 +452,15 @@ async def test_streaming_disconnect():
     mock_container = _build_mock_container()
     app.dependency_overrides[get_container] = lambda: mock_container
 
-    # Use a streaming connection and intentionally read only partial data
+    # Use a streaming connection and intentionally read only partial data.
+    # `stream` is not a ChatRequest field — streaming is selected purely by
+    # hitting /api/chat/stream — and ChatRequest now carries extra="forbid"
+    # (bf7ada3d body-bounds hardening), so including it 422s before the
+    # handler runs. Drop it; the endpoint path already requests streaming.
     payload = {
         "user_message": "Tell me a story",
         "session_id": "disconnect",
         "messages": [],
-        "stream": True,
     }
     with client.stream("POST", "/api/chat/stream", json=payload) as response:
         assert response.status_code == 200

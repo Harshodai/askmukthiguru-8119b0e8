@@ -15,8 +15,6 @@ from __future__ import annotations
 import pytest
 
 from services.canonical_memory.history_separator import (
-    MemoryCandidate,
-    TurnClassification,
     _estimate_tokens,
     _infer_fact_key,
     _infer_memory_type,
@@ -25,7 +23,6 @@ from services.canonical_memory.history_separator import (
     is_transient,
     validate_separation,
 )
-
 
 # ---------------------------------------------------------------------------
 # is_transient tests
@@ -132,9 +129,7 @@ class TestIsTransient:
         assert is_transient("I live in Mumbai.") is False
 
     def test_meditation_practice_is_NOT_transient(self):
-        assert is_transient(
-            "I have been practicing vipassana meditation for three years."
-        ) is False
+        assert is_transient("I have been practicing vipassana meditation for three years.") is False
 
     def test_goal_is_NOT_transient(self):
         assert is_transient("I want to learn Sanskrit.") is False
@@ -164,9 +159,7 @@ class TestClassifyConversationTurn:
         assert len(result.durable_facts) == 0
 
     def test_weather_turn_is_transient(self):
-        result = classify_conversation_turn(
-            "What's the weather like?", "It's sunny today."
-        )
+        result = classify_conversation_turn("What's the weather like?", "It's sunny today.")
         assert "weather" in result.transient_topics
         assert result.session_context["type"] == "transient"
         assert len(result.durable_facts) == 0
@@ -188,9 +181,7 @@ class TestClassifyConversationTurn:
         assert fact.confidence >= 0.7
 
     def test_explicit_remember_extracts(self):
-        result = classify_conversation_turn(
-            "Remember that I live in Pune.", "Noted, Pune it is."
-        )
+        result = classify_conversation_turn("Remember that I live in Pune.", "Noted, Pune it is.")
         assert len(result.durable_facts) >= 1
         fact = result.durable_facts[0]
         assert fact.memory_type == "USER_EXPLICIT"
@@ -198,23 +189,20 @@ class TestClassifyConversationTurn:
 
     def test_self_disclosure_extracts_profile(self):
         result = classify_conversation_turn(
-            "I am a software engineer from Hyderabad.",
-            "That's a great profession!"
+            "I am a software engineer from Hyderabad.", "That's a great profession!"
         )
         assert len(result.durable_facts) >= 1
 
     def test_goal_extracts(self):
         result = classify_conversation_turn(
-            "I want to learn advanced meditation techniques.",
-            "Wonderful goal!"
+            "I want to learn advanced meditation techniques.", "Wonderful goal!"
         )
         # Should extract as GOAL or similar
         assert result.session_context.get("type") in ("durable", "mixed", "neutral")
 
     def test_neutral_question(self):
         result = classify_conversation_turn(
-            "What is the concept of stillness?",
-            "Stillness is a state of inner peace..."
+            "What is the concept of stillness?", "Stillness is a state of inner peace..."
         )
         # No durable facts, no transient topics
         assert len(result.durable_facts) == 0
@@ -225,7 +213,7 @@ class TestClassifyConversationTurn:
         """Turn with both transient and durable content."""
         result = classify_conversation_turn(
             "I'm tired today, but I prefer detailed explanations.",
-            "Rest well, and I'll be detailed."
+            "Rest well, and I'll be detailed.",
         )
         # Should detect both transient_state and durable preference
         assert "transient_state" in result.transient_topics
@@ -324,8 +312,10 @@ class TestBuildHistoryContext:
         ]
         result = build_history_context(msgs)
         # Provenance label should be present
-        assert "treat it as context, not as durable user facts" in result.lower() or \
-               "context" in result.lower()
+        assert (
+            "treat it as context, not as durable user facts" in result.lower()
+            or "context" in result.lower()
+        )
 
     def test_token_budget_respected(self):
         # Create many messages to exceed budget
@@ -339,10 +329,7 @@ class TestBuildHistoryContext:
         assert "[/History]" in result
 
     def test_max_turns_respected(self):
-        msgs = [
-            {"role": "user", "content": f"Turn {i}"}
-            for i in range(30)
-        ]
+        msgs = [{"role": "user", "content": f"Turn {i}"} for i in range(30)]
         result = build_history_context(msgs, max_turns=10)
         # Only last 10 turns should appear
         assert "Turn 0" not in result
@@ -415,20 +402,18 @@ class TestValidateSeparation:
     def test_memory_with_history_marker_is_invalid(self):
         """Memory context must NOT contain history conversation markers."""
         memory_with_history = (
-            "Seeker: I live in Mumbai\n"
-            "Guru: Mumbai is great!\n"
-            "User lives in Mumbai."
+            "Seeker: I live in Mumbai\nGuru: Mumbai is great!\nUser lives in Mumbai."
         )
         assert validate_separation(memory_with_history, "some history") is False
 
     def test_history_with_memory_type_is_invalid(self):
         """History context must NOT contain memory metadata."""
-        history_with_memory = 'memory_type: PREFERENCE\nSeeker: hello'
+        history_with_memory = "memory_type: PREFERENCE\nSeeker: hello"
         assert validate_separation("some memory", history_with_memory) is False
 
     def test_history_with_fact_key_is_invalid(self):
         """History context must NOT contain fact_key metadata."""
-        history_with_fact = 'fact_key: user:lives_in\nSeeker: hello'
+        history_with_fact = "fact_key: user:lives_in\nSeeker: hello"
         assert validate_separation("some memory", history_with_fact) is False
 
     def test_history_with_json_memory_is_invalid(self):
@@ -490,52 +475,35 @@ class TestMultilingualClassification:
     """Verify classification works across supported languages."""
 
     def test_hindi_preference(self):
-        result = classify_conversation_turn(
-            "मुझे संक्षिप्त जवाब पसंद है।",
-            "ठीक है, मैं संक्षिप्त रहूँगा।"
-        )
+        result = classify_conversation_turn("मुझे संक्षिप्त जवाब पसंद है।", "ठीक है, मैं संक्षिप्त रहूँगा।")
         assert len(result.durable_facts) >= 1
 
     def test_telugu_preference(self):
-        result = classify_conversation_turn(
-            "నాకు సంక్షిప్త సమాధానాలు ఇష్టం.",
-            "సరే, నేను సంక్షిప్తంగా చెప్తాను."
-        )
+        result = classify_conversation_turn("నాకు సంక్షిప్త సమాధానాలు ఇష్టం.", "సరే, నేను సంక్షిప్తంగా చెప్తాను.")
         assert len(result.durable_facts) >= 1
 
     def test_tamil_preference(self):
         result = classify_conversation_turn(
-            "எனக்கு சுருக்கமான பதில்கள் பிடிக்கும்.",
-            "சரி, நான் சுருக்கமாக இருப்பேன்."
+            "எனக்கு சுருக்கமான பதில்கள் பிடிக்கும்.", "சரி, நான் சுருக்கமாக இருப்பேன்."
         )
         assert len(result.durable_facts) >= 1
 
     def test_kannada_preference(self):
-        result = classify_conversation_turn(
-            "ನನಗೆ ಸಂಕ್ಷಿಪ್ತ ಉತ್ತರಗಳು ಇಷ್ಟ.",
-            "ಸರಿ, ನಾನು ಸಂಕ್ಷಿಪ್ತವಾಗಿ ಹೇಳುತ್ತೇನೆ."
-        )
+        result = classify_conversation_turn("ನನಗೆ ಸಂಕ್ಷಿಪ್ತ ಉತ್ತರಗಳು ಇಷ್ಟ.", "ಸರಿ, ನಾನು ಸಂಕ್ಷಿಪ್ತವಾಗಿ ಹೇಳುತ್ತೇನೆ.")
         assert len(result.durable_facts) >= 1
 
     def test_hindi_weather_transient(self):
-        result = classify_conversation_turn(
-            "आज मौसम बहुत अच्छा है।",
-            "हाँ, मौसम सुहावना है।"
-        )
+        result = classify_conversation_turn("आज मौसम बहुत अच्छा है।", "हाँ, मौसम सुहावना है।")
         assert "weather" in result.transient_topics
 
     def test_telugu_greeting_transient(self):
-        result = classify_conversation_turn(
-            "నమస్కారం!",
-            "నమస్కారం, ఎలా ఉన్నారు?"
-        )
+        result = classify_conversation_turn("నమస్కారం!", "నమస్కారం, ఎలా ఉన్నారు?")
         assert result.is_greeting is True
 
     def test_code_switching(self):
         """User mixes English and Hindi — should still extract durable facts."""
         result = classify_conversation_turn(
-            "I prefer Hindi responses, please use Hindi.",
-            "ठीक है, मैं हिंदी में जवाब दूँगा।"
+            "I prefer Hindi responses, please use Hindi.", "ठीक है, मैं हिंदी में जवाब दूँगा।"
         )
         assert len(result.durable_facts) >= 1
 
@@ -552,7 +520,7 @@ class TestMixedConversationSeparation:
         """User mentions weather AND a preference in the same turn."""
         result = classify_conversation_turn(
             "It's raining today. Also, I prefer concise answers.",
-            "Rainy days are cozy. I'll keep my answers brief."
+            "Rainy days are cozy. I'll keep my answers brief.",
         )
         # Should detect weather as transient AND preference as durable
         assert "weather" in result.transient_topics
@@ -562,8 +530,7 @@ class TestMixedConversationSeparation:
     def test_greeting_plus_fact(self):
         """User says hello AND mentions a fact."""
         result = classify_conversation_turn(
-            "Hello! I live in Chennai.",
-            "Welcome! Chennai is a lovely city."
+            "Hello! I live in Chennai.", "Welcome! Chennai is a lovely city."
         )
         # Greeting detected but durable fact also extracted
         assert result.is_greeting is True
@@ -578,7 +545,7 @@ class TestMixedConversationSeparation:
         """User is tired but also mentions a goal."""
         result = classify_conversation_turn(
             "I'm tired today, but I want to learn meditation.",
-            "Rest first, then we can explore meditation."
+            "Rest first, then we can explore meditation.",
         )
         assert "transient_state" in result.transient_topics
         assert len(result.durable_facts) >= 1
@@ -587,7 +554,7 @@ class TestMixedConversationSeparation:
         """User reveals multiple durable facts in one turn."""
         result = classify_conversation_turn(
             "I live in Bangalore and work as a teacher. I prefer detailed answers.",
-            "Bangalore is great! A teacher who likes detail."
+            "Bangalore is great! A teacher who likes detail.",
         )
         # Should extract multiple facts
         assert len(result.durable_facts) >= 2
@@ -595,8 +562,7 @@ class TestMixedConversationSeparation:
     def test_only_transient_turn(self):
         """Turn with only transient content — no durable extraction."""
         result = classify_conversation_turn(
-            "The weather is terrible today.",
-            "I hope it clears up soon."
+            "The weather is terrible today.", "I hope it clears up soon."
         )
         assert "weather" in result.transient_topics
         assert len(result.durable_facts) == 0
@@ -605,7 +571,7 @@ class TestMixedConversationSeparation:
         """Turn with only durable content — no transient topics."""
         result = classify_conversation_turn(
             "I prefer concise answers for technical topics.",
-            "Noted, I'll keep technical answers brief."
+            "Noted, I'll keep technical answers brief.",
         )
         assert len(result.transient_topics) == 0
         assert len(result.durable_facts) >= 1
@@ -664,14 +630,12 @@ class TestEndToEndSeparation:
 
     def test_token_budget_enforced(self):
         """History context must not exceed token budget."""
-        msgs = [
-            {"role": "user", "content": f"Message {i} " * 50}
-            for i in range(100)
-        ]
+        msgs = [{"role": "user", "content": f"Message {i} " * 50} for i in range(100)]
         max_tokens = 200
         history_ctx = build_history_context(msgs, max_tokens=max_tokens)
         # Estimated tokens should be within budget (with some tolerance for structure)
         from services.canonical_memory.history_separator import _estimate_tokens
+
         estimated = _estimate_tokens(history_ctx)
         assert estimated <= max_tokens * 1.5  # Allow 50% overhead for structure
 

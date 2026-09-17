@@ -143,7 +143,13 @@ def resolve(
 def _to_source(item: Any, pos: int) -> Source:
     """Tolerant adapter: accept dicts or objects from either retrieval channel."""
     get = item.get if isinstance(item, dict) else lambda k, d=None: getattr(item, k, d)
-    prov = get("provenance", {}) or {}
+    # `provenance` is a structured dict everywhere in this module's contract;
+    # guard against a stray flat classification string reaching here (the same
+    # collision that crashed services/provenance_context.py — see its comment
+    # and services/qdrant/searcher.py's `chunk_provenance` rename) instead of
+    # letting `prov.get(...)` below raise AttributeError.
+    raw_prov = get("provenance", {})
+    prov = raw_prov if isinstance(raw_prov, dict) else {}
     return Source(
         id=str(get("id", None) or prov.get("id") or prov.get("uri") or f"ctx-{pos}"),
         title=get("title", "") or prov.get("title", "") or "",
@@ -250,10 +256,7 @@ def check_continuous_ngram_match(quote: str, source_text: str, n: int = 8) -> bo
         return False
 
     # For q_len >= n: check if any continuous n-gram appears in source_words
-    source_ngrams = {
-        tuple(source_words[i : i + n])
-        for i in range(s_len - n + 1)
-    }
+    source_ngrams = {tuple(source_words[i : i + n]) for i in range(s_len - n + 1)}
 
     for i in range(q_len - n + 1):
         gram = tuple(quote_words[i : i + n])
@@ -292,10 +295,7 @@ def verify_quote_ngram_fidelity(quote: str, source_text: str, n: int = 8) -> dic
             "total_ngrams_count": 1,
         }
 
-    source_ngrams = {
-        tuple(source_words[i : i + n])
-        for i in range(s_len - n + 1)
-    }
+    source_ngrams = {tuple(source_words[i : i + n]) for i in range(s_len - n + 1)}
 
     total_ngrams = q_len - n + 1
     matched_count = 0
@@ -410,6 +410,8 @@ if __name__ == "__main__":
     )
     exact_quote = "Every moment of your life you are living either in a beautiful state"
     assert check_continuous_ngram_match(exact_quote, raw_transcript, n=8) is True
-    hallucinated_quote = "Every single person always lives happily in spiritual ecstasy forever and ever"
+    hallucinated_quote = (
+        "Every single person always lives happily in spiritual ecstasy forever and ever"
+    )
     assert check_continuous_ngram_match(hallucinated_quote, raw_transcript, n=8) is False
     print("8-word continuous ngram verification self-test OK")

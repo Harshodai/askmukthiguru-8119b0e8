@@ -1,7 +1,8 @@
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
-from services.llm_budget_guard import LLMBudgetGuard, LLMBudgetExceeded
+import pytest
+
+from services.llm_budget_guard import LLMBudgetExceeded, LLMBudgetGuard
 
 
 @pytest.mark.asyncio
@@ -49,7 +50,7 @@ async def test_llm_budget_guard_settle_refund():
 
     # Actual cost was $0.01 -> refund should be $0.04
     await reservation.settle(actual_cost_usd=0.01)
-    
+
     assert mock_redis.eval.called
     refund_args = mock_redis.eval.call_args[0]
     assert float(refund_args[4]) == pytest.approx(0.04)

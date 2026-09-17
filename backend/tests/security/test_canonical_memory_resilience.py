@@ -1,19 +1,18 @@
 """Tests for canonical memory resilience and chaos testing — Phase 20."""
+
 import time
 
 import pytest
 
 from services.canonical_memory.resilience import (
-    CircuitBreaker,
-    CircuitState,
     ChaosScenario,
     ChaosTestRunner,
+    CircuitBreaker,
+    CircuitState,
     FailureMode,
-    GracefulDegradation,
     get_circuit_breaker,
     get_graceful_degradation,
 )
-
 
 # ---------------------------------------------------------------------------
 # Circuit Breaker

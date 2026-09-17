@@ -80,6 +80,17 @@ class TestSec10LocalIssuerProdGate:
 
         monkeypatch.setattr(auth_svc.settings, "is_production", True)
         monkeypatch.setattr(settings, "is_production", True)
+        # Pin the "configured base issuer" to a genuine (fake) production
+        # domain, not whatever backend/.env / the test conftest resolves
+        # SUPABASE_URL to locally. tests/conftest.py rewrites
+        # host.docker.internal -> localhost for host-run pytest so
+        # test_chat_endpoint.py etc. can reach a real local Supabase; without
+        # pinning here, that rewrite would make settings.supabase_url itself
+        # equal "http://localhost:54321" and collapse the very distinction
+        # (local dev issuer vs. configured base issuer) this test exists to
+        # check — a test-environment artifact, not a real security gap.
+        monkeypatch.setattr(auth_svc.settings, "supabase_url", "https://xyzcompany.supabase.co")
+        monkeypatch.setattr(settings, "supabase_url", "https://xyzcompany.supabase.co")
         monkeypatch.setattr(SupabaseAuthStrategy, "_check_admin_role", _no_admin_role)
         strategy = SupabaseAuthStrategy()
         creds = HTTPAuthorizationCredentials(
@@ -109,6 +120,12 @@ class TestSec10LocalIssuerProdGate:
 
         monkeypatch.setattr(auth_svc.settings, "is_production", True)
         monkeypatch.setattr(settings, "is_production", True)
+        # See test_sec10_local_issuer_rejected_in_prod above: pin the base
+        # issuer away from the test conftest's localhost rewrite so this test
+        # is actually exercising "localhost is a local-dev-only issuer",
+        # not "localhost happens to equal our locally-rewritten base".
+        monkeypatch.setattr(auth_svc.settings, "supabase_url", "https://xyzcompany.supabase.co")
+        monkeypatch.setattr(settings, "supabase_url", "https://xyzcompany.supabase.co")
         monkeypatch.setattr(SupabaseAuthStrategy, "_check_admin_role", _no_admin_role)
         strategy = SupabaseAuthStrategy()
         creds = HTTPAuthorizationCredentials(

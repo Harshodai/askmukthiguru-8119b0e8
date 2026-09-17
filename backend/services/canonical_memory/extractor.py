@@ -17,9 +17,9 @@ import re
 from typing import Any
 
 from services.canonical_memory.models import (
+    ExtractionResult,
     MemoryCandidate,
     MemoryType,
-    ExtractionResult,
     compute_extraction_id,
 )
 from services.text_quality_filter import find_artifact
@@ -31,9 +31,11 @@ _TIMEOUT = 20.0
 
 # ---------- provider client (follows l1_extractor._build_client pattern) ----------
 
+
 def _build_client() -> tuple[Any, str] | None:
     """Return an LLM client and model name based on active provider."""
     from openai import AsyncOpenAI
+
     from app.config import settings
 
     provider = settings.llm_provider.lower()
@@ -63,13 +65,12 @@ def _build_client() -> tuple[Any, str] | None:
 
 # ---------- JSON parsing ----------
 
+
 def _extract_json_array(text: str) -> list[dict]:
     """Parse a JSON array from LLM output, handling markdown fences."""
     text = text.strip()
     if text.startswith("```"):
-        text = re.sub(
-            r"^```(?:json)?\n?(.*?)\n?```$", r"\1", text, flags=re.DOTALL
-        ).strip()
+        text = re.sub(r"^```(?:json)?\n?(.*?)\n?```$", r"\1", text, flags=re.DOTALL).strip()
     start, end = text.find("["), text.rfind("]")
     if start == -1 or end == -1:
         return []
@@ -206,6 +207,7 @@ def _build_user_prompt(conversation_window: list[dict[str, Any]]) -> str:
 
 # ---------- public API ----------
 
+
 async def extract_memory_candidates(
     conversation_id: str,
     conversation_window: list[dict[str, Any]],
@@ -251,7 +253,7 @@ async def extract_memory_candidates(
             timeout=_TIMEOUT,
         )
         raw_text = resp.choices[0].message.content or "[]"
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.warning("LLM extraction timed out")
         return ExtractionResult(
             candidates=[], extraction_id=extraction_id, source_conversation_id=conversation_id
@@ -314,11 +316,12 @@ if __name__ == "__main__":
 
     test_window = [
         {"role": "user", "content": "I live in Mumbai and work as a software engineer."},
-        {"role": "assistant", "content": "That's wonderful! Being a software engineer in Mumbai must be quite a journey."},
+        {
+            "role": "assistant",
+            "content": "That's wonderful! Being a software engineer in Mumbai must be quite a journey.",
+        },
         {"role": "user", "content": "I've been meditating for 3 years now, mostly vipassana."},
         {"role": "assistant", "content": "Three years of vipassana is a significant practice."},
     ]
-    result = asyncio.run(
-        extract_memory_candidates("test-conv-1", test_window)
-    )
+    result = asyncio.run(extract_memory_candidates("test-conv-1", test_window))
     print(json.dumps(result.model_dump(), indent=2, default=str))

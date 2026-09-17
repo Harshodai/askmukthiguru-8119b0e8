@@ -493,8 +493,14 @@ def classify_with_reason(text: str, *, threshold: float = 0.45) -> tuple[str, st
         # confirmed live against production. "teach(es)/say(s) about suffering"
         # and "overcome/transcend/understand suffering" are the same class of
         # third-person teaching question as the original two templates.
-        or re.search(r"\b(?:teach(?:es|ing)?|says?|shares?)\s+(?:us\s+)?(?:about\s+)?(?:overcoming\s+)?suffering\b", lower)
-        or re.search(r"\b(?:overcome|overcoming|transcend|transcending|understand|understanding|end|ending)\s+suffering\b", lower)
+        or re.search(
+            r"\b(?:teach(?:es|ing)?|says?|shares?)\s+(?:us\s+)?(?:about\s+)?(?:overcoming\s+)?suffering\b",
+            lower,
+        )
+        or re.search(
+            r"\b(?:overcome|overcoming|transcend|transcending|understand|understanding|end|ending)\s+suffering\b",
+            lower,
+        )
         or re.search(r"\bfreedom\s+from\s+suffering\b", lower)
     )
     first_person_distress = re.search(

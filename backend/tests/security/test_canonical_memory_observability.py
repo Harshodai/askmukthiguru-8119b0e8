@@ -1,4 +1,5 @@
 """Tests for canonical memory observability (Phase 15)."""
+
 from unittest.mock import MagicMock
 
 from services.canonical_memory.observability import (
@@ -79,8 +80,16 @@ def test_drift_report_consistent():
     m.metrics.vector_index_size = 10
     mock_db = MagicMock()
     mock_db.table.return_value.select.return_value.eq.return_value.execute.return_value.data = [
-        {"id": "a"}, {"id": "b"}, {"id": "c"}, {"id": "d"}, {"id": "e"},
-        {"id": "f"}, {"id": "g"}, {"id": "h"}, {"id": "i"}, {"id": "j"},
+        {"id": "a"},
+        {"id": "b"},
+        {"id": "c"},
+        {"id": "d"},
+        {"id": "e"},
+        {"id": "f"},
+        {"id": "g"},
+        {"id": "h"},
+        {"id": "i"},
+        {"id": "j"},
     ]
     report = m.get_drift_report("user-1", mock_db)
     assert report["canonical_count"] == 10
@@ -94,7 +103,9 @@ def test_drift_report_inconsistent():
     m.metrics.vector_index_size = 15
     mock_db = MagicMock()
     mock_db.table.return_value.select.return_value.eq.return_value.execute.return_value.data = [
-        {"id": "a"}, {"id": "b"}, {"id": "c"},
+        {"id": "a"},
+        {"id": "b"},
+        {"id": "c"},
     ]
     report = m.get_drift_report("user-1", mock_db)
     assert report["canonical_count"] == 3

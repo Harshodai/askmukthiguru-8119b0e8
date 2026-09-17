@@ -110,7 +110,9 @@ def mock_verification_services():
 
 
 @pytest.mark.asyncio
-async def test_claim_level_entailment_output_present_in_verification_result(mock_verification_services):
+async def test_claim_level_entailment_output_present_in_verification_result(
+    mock_verification_services,
+):
     """Criterion A2.6: Claims list is present in verification result dictionary."""
     gateway, mock_ld, _ = mock_verification_services
 
@@ -218,7 +220,9 @@ async def test_unsupported_claims_fail_verification(mock_verification_services):
 
 
 @pytest.mark.asyncio
-async def test_low_faithfulness_fails_even_if_no_explicit_unsupported_sentences(mock_verification_services):
+async def test_low_faithfulness_fails_even_if_no_explicit_unsupported_sentences(
+    mock_verification_services,
+):
     """When faithfulness score is below settings.faithfulness_floor, verification fails."""
     gateway, mock_ld, _ = mock_verification_services
     nodes._llm_gateway = None
@@ -228,9 +232,7 @@ async def test_low_faithfulness_fails_even_if_no_explicit_unsupported_sentences(
         "score": 0.55,  # Below default floor of 0.70
         "details": "Marginal grounding.",
         "unsupported_sentences": ["Marginal claim."],
-        "claims": [
-            {"text": "Marginal claim.", "score": 0.55, "supported": False}
-        ],
+        "claims": [{"text": "Marginal claim.", "score": 0.55, "supported": False}],
     }
 
     state = _create_test_state(query_tier="standard", answer="Marginal claim.")
@@ -242,7 +244,9 @@ async def test_low_faithfulness_fails_even_if_no_explicit_unsupported_sentences(
 
 
 @pytest.mark.asyncio
-async def test_unsupported_claims_trigger_fallback_gateway_on_complex_tier(mock_verification_services):
+async def test_unsupported_claims_trigger_fallback_gateway_on_complex_tier(
+    mock_verification_services,
+):
     """When local NLI fails on complex queries, fallback to LLM gateway verification."""
     gateway, mock_ld, _ = mock_verification_services
 
@@ -270,9 +274,7 @@ async def test_cached_semantic_lettuce_detect_result_reused(mock_verification_se
     """A cached SEMANTIC verdict is reused with claims preserved."""
     _, mock_ld, _ = mock_verification_services
 
-    cached_claims = [
-        {"text": "Sri Preethaji teaches peace.", "score": 0.95, "supported": True}
-    ]
+    cached_claims = [{"text": "Sri Preethaji teaches peace.", "score": 0.95, "supported": True}]
     cached_ld_result = {
         "is_faithful": True,
         "score": 0.95,

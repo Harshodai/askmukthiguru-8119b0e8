@@ -27,9 +27,9 @@ SRC = inspect.getsource(kg_subgraph)
 
 @pytest.mark.parametrize("label", ["User", "GlobalMemory", "SeekerTurn"])
 def test_private_labels_are_declared(label: str):
-    assert (
-        label in PRIVATE_GRAPH_LABELS
-    ), f"{label} holds per-seeker data and must be excluded from the anonymous scan"
+    assert label in PRIVATE_GRAPH_LABELS, (
+        f"{label} holds per-seeker data and must be excluded from the anonymous scan"
+    )
 
 
 def test_scan_excludes_private_labels():

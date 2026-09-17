@@ -25,9 +25,9 @@ sys.path.insert(0, os.path.abspath(os.path.join(__file__, "..", "..", "..")))
 
 # Module-level imports kept re-patchable for tests.
 from qdrant_client import QdrantClient
-from supabase import create_client
 
 from app.config import settings
+from supabase import create_client
 
 QDRANT_COLLECTION = "spiritual_wisdom"
 

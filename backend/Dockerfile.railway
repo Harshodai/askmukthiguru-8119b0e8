@@ -24,7 +24,8 @@ RUN echo "Build: ${GIT_COMMIT:-$(date +%s)}" > /dev/null
 # System deps: curl for healthcheck, gcc for compiled extensions
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl gcc g++ make ffmpeg nodejs && \
-    rm -rf /var/lib/apt/lists/*
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /var/cache/apt/* /tmp/* /var/tmp/*
 
 # Create non-root user
 RUN useradd -m -s /bin/bash appuser
@@ -49,7 +50,8 @@ ENV HF_HOME=/app/.cache/huggingface
 RUN mkdir -p /app/.cache/huggingface && chown -R appuser:appuser /app/.cache
 USER appuser
 # Pre-cache the ONNX INT8 quantized BGE-M3 model & tokenizer at build time for fast cold-start
-RUN python3 -c "from huggingface_hub import snapshot_download; snapshot_download('gpahal/bge-m3-onnx-int8', revision='2b34e84df040034d4b9eabb62383a87c18955822'); from transformers import AutoTokenizer; AutoTokenizer.from_pretrained('BAAI/bge-m3', revision='5617a9f61b028005a4858fdac845db406aefb181')"
+RUN python3 -c "from huggingface_hub import snapshot_download; snapshot_download('gpahal/bge-m3-onnx-int8', revision='2b34e84df040034d4b9eabb62383a87c18955822'); from transformers import AutoTokenizer; AutoTokenizer.from_pretrained('BAAI/bge-m3', revision='5617a9f61b028005a4858fdac845db406aefb181')" && \
+    rm -rf /app/.cache/huggingface/hub/models--*/*/locks /tmp/*
 USER root
 
 # Copy app code with explicit ownership
@@ -63,7 +65,9 @@ COPY --chown=appuser:appuser scripts/ops/rotate_brain_kek.py ./scripts/ops/rotat
 COPY --chown=appuser:appuser memory/ ./memory/
 
 # Create data and logs directories with proper ownership for non-root runtime user
-RUN mkdir -p /app/data /app/logs && chown -R appuser:appuser /app/data /app/logs
+RUN mkdir -p /app/data /app/logs && chown -R appuser:appuser /app/data /app/logs && \
+    find /app -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true && \
+    find /app -type f -name "*.pyc" -delete 2>/dev/null || true
 
 # Production environment flags — TOKEN OPTIMIZATION & ONNX INT8 QUANTIZATION ENABLED
 ENV ENV=production \

@@ -109,9 +109,7 @@ class MemoryCandidate(BaseModel):
         return self.statement.strip().lower()
 
 
-def compute_extraction_id(
-    conversation_id: str, turn_window: list[dict[str, Any]]
-) -> str:
+def compute_extraction_id(conversation_id: str, turn_window: list[dict[str, Any]]) -> str:
     """Derive a deterministic extraction_id from conversation_id + turn window hash.
 
     Same input → same extraction_id → idempotent processing.

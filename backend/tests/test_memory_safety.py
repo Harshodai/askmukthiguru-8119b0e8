@@ -1,4 +1,5 @@
 """Tests for memory safety: backup snapshots, artifact gate, metadata preservation."""
+
 import ast
 import inspect
 import json
@@ -8,10 +9,10 @@ import pytest
 
 from services.memory_service import MemoryService
 
-
 # ---------------------------------------------------------------------------
 # Fix 1: Compaction snapshot before destructive delete
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_compact_memories_creates_snapshot_before_delete():
@@ -21,8 +22,16 @@ async def test_compact_memories_creates_snapshot_before_delete():
     select_result = MagicMock()
     # 20 memories triggers compaction (threshold is >15)
     mock_memories = [
-        {"id": str(i), "content": f"Memory {i}", "source": "extracted",
-         "claim": "", "confidence": 0.75, "summary": "", "fact_key": None, "valid_from": None}
+        {
+            "id": str(i),
+            "content": f"Memory {i}",
+            "source": "extracted",
+            "claim": "",
+            "confidence": 0.75,
+            "summary": "",
+            "fact_key": None,
+            "valid_from": None,
+        }
         for i in range(20)
     ]
     select_result.data = mock_memories
@@ -50,9 +59,9 @@ async def test_compact_memories_creates_snapshot_before_delete():
     # Mock LLM response
     mock_response = MagicMock()
     mock_response.choices = [MagicMock()]
-    mock_response.choices[0].message.content = json.dumps({
-        "compacted_memories": ["Consolidated memory 1", "Consolidated memory 2"]
-    })
+    mock_response.choices[0].message.content = json.dumps(
+        {"compacted_memories": ["Consolidated memory 1", "Consolidated memory 2"]}
+    )
 
     with patch("services.memory_service.settings") as settings_mock:
         settings_mock.llm_provider = "openrouter"
@@ -96,8 +105,16 @@ async def test_compact_memories_snapshot_failure_aborts_before_delete():
     table_mock = MagicMock()
     select_result = MagicMock()
     mock_memories = [
-        {"id": str(i), "content": f"Memory {i}", "source": "extracted",
-         "claim": "", "confidence": 0.75, "summary": "", "fact_key": None, "valid_from": None}
+        {
+            "id": str(i),
+            "content": f"Memory {i}",
+            "source": "extracted",
+            "claim": "",
+            "confidence": 0.75,
+            "summary": "",
+            "fact_key": None,
+            "valid_from": None,
+        }
         for i in range(20)
     ]
     select_result.data = mock_memories
@@ -116,9 +133,7 @@ async def test_compact_memories_snapshot_failure_aborts_before_delete():
 
     mock_response = MagicMock()
     mock_response.choices = [MagicMock()]
-    mock_response.choices[0].message.content = json.dumps({
-        "compacted_memories": ["Safe memory"]
-    })
+    mock_response.choices[0].message.content = json.dumps({"compacted_memories": ["Safe memory"]})
 
     with patch("services.memory_service.settings") as settings_mock:
         settings_mock.llm_provider = "openrouter"
@@ -144,6 +159,7 @@ async def test_compact_memories_snapshot_failure_aborts_before_delete():
 # Fix 2: Artifact gate on compaction output
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_compact_memories_rejects_contaminated_output():
     """Compacted memories contaminated by CoT leaks must be skipped."""
@@ -151,8 +167,16 @@ async def test_compact_memories_rejects_contaminated_output():
     table_mock = MagicMock()
     select_result = MagicMock()
     mock_memories = [
-        {"id": str(i), "content": f"Memory {i}", "source": "extracted",
-         "claim": "", "confidence": 0.75, "summary": "", "fact_key": None, "valid_from": None}
+        {
+            "id": str(i),
+            "content": f"Memory {i}",
+            "source": "extracted",
+            "claim": "",
+            "confidence": 0.75,
+            "summary": "",
+            "fact_key": None,
+            "valid_from": None,
+        }
         for i in range(20)
     ]
     select_result.data = mock_memories
@@ -172,9 +196,7 @@ async def test_compact_memories_rejects_contaminated_output():
     contaminated = "The user wants me to summarize their memories."
     mock_response = MagicMock()
     mock_response.choices = [MagicMock()]
-    mock_response.choices[0].message.content = json.dumps({
-        "compacted_memories": [contaminated]
-    })
+    mock_response.choices[0].message.content = json.dumps({"compacted_memories": [contaminated]})
 
     with patch("services.memory_service.settings") as settings_mock:
         settings_mock.llm_provider = "openrouter"
@@ -208,8 +230,16 @@ async def test_compact_memories_all_contaminated_aborts():
     table_mock = MagicMock()
     select_result = MagicMock()
     mock_memories = [
-        {"id": str(i), "content": f"Memory {i}", "source": "extracted",
-         "claim": "", "confidence": 0.75, "summary": "", "fact_key": None, "valid_from": None}
+        {
+            "id": str(i),
+            "content": f"Memory {i}",
+            "source": "extracted",
+            "claim": "",
+            "confidence": 0.75,
+            "summary": "",
+            "fact_key": None,
+            "valid_from": None,
+        }
         for i in range(20)
     ]
     select_result.data = mock_memories
@@ -227,12 +257,14 @@ async def test_compact_memories_all_contaminated_aborts():
     # All contaminated
     mock_response = MagicMock()
     mock_response.choices = [MagicMock()]
-    mock_response.choices[0].message.content = json.dumps({
-        "compacted_memories": [
-            "The user wants me to think about this.",
-            "I'm currently experiencing a temporary connectivity issue.",
-        ]
-    })
+    mock_response.choices[0].message.content = json.dumps(
+        {
+            "compacted_memories": [
+                "The user wants me to think about this.",
+                "I'm currently experiencing a temporary connectivity issue.",
+            ]
+        }
+    )
 
     with patch("services.memory_service.settings") as settings_mock:
         settings_mock.llm_provider = "openrouter"
@@ -259,6 +291,7 @@ async def test_compact_memories_all_contaminated_aborts():
 # Fix 3: Metadata preservation (fact_key, valid_from) from best-matching original
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_compact_memories_preserves_fact_key_from_matching_original():
     """Compacted memory that overlaps with an original should preserve fact_key/valid_from."""
@@ -266,15 +299,37 @@ async def test_compact_memories_preserves_fact_key_from_matching_original():
     table_mock = MagicMock()
     select_result = MagicMock()
     mock_memories = [
-        {"id": "1", "content": "I live in Bangalore and practice meditation daily",
-         "source": "extracted", "claim": "", "confidence": 0.8,
-         "summary": "", "fact_key": "user:lives_in", "valid_from": "2026-01-01T00:00:00Z"},
-        {"id": "2", "content": "I enjoy cooking on weekends",
-         "source": "extracted", "claim": "", "confidence": 0.7,
-         "summary": "", "fact_key": None, "valid_from": None},
+        {
+            "id": "1",
+            "content": "I live in Bangalore and practice meditation daily",
+            "source": "extracted",
+            "claim": "",
+            "confidence": 0.8,
+            "summary": "",
+            "fact_key": "user:lives_in",
+            "valid_from": "2026-01-01T00:00:00Z",
+        },
+        {
+            "id": "2",
+            "content": "I enjoy cooking on weekends",
+            "source": "extracted",
+            "claim": "",
+            "confidence": 0.7,
+            "summary": "",
+            "fact_key": None,
+            "valid_from": None,
+        },
     ] + [
-        {"id": str(i), "content": f"Memory {i}", "source": "extracted",
-         "claim": "", "confidence": 0.75, "summary": "", "fact_key": None, "valid_from": None}
+        {
+            "id": str(i),
+            "content": f"Memory {i}",
+            "source": "extracted",
+            "claim": "",
+            "confidence": 0.75,
+            "summary": "",
+            "fact_key": None,
+            "valid_from": None,
+        }
         for i in range(3, 21)
     ]
     select_result.data = mock_memories
@@ -293,12 +348,14 @@ async def test_compact_memories_preserves_fact_key_from_matching_original():
     # Compacted output that overlaps with first original
     mock_response = MagicMock()
     mock_response.choices = [MagicMock()]
-    mock_response.choices[0].message.content = json.dumps({
-        "compacted_memories": [
-            "Lives in Bangalore and meditates daily",
-            "Enjoys weekend cooking",
-        ]
-    })
+    mock_response.choices[0].message.content = json.dumps(
+        {
+            "compacted_memories": [
+                "Lives in Bangalore and meditates daily",
+                "Enjoys weekend cooking",
+            ]
+        }
+    )
 
     with patch("services.memory_service.settings") as settings_mock:
         settings_mock.llm_provider = "openrouter"
@@ -326,9 +383,7 @@ async def test_compact_memories_preserves_fact_key_from_matching_original():
 
             assert insert_call is not None, "insert must be called"
             insert_args = insert_call[1]
-            inserted_data = (
-                insert_args[0] if isinstance(insert_args, tuple) else insert_args
-            )
+            inserted_data = insert_args[0] if isinstance(insert_args, tuple) else insert_args
             assert isinstance(inserted_data, list)
             assert len(inserted_data) == 2
 
@@ -340,6 +395,7 @@ async def test_compact_memories_preserves_fact_key_from_matching_original():
 # ---------------------------------------------------------------------------
 # Fix 4: Defensive JSON parse for key_insights
 # ---------------------------------------------------------------------------
+
 
 def test_defensive_json_parse_key_insights_string():
     """If key_insights comes back as a JSON string from DB, it must be parsed."""
@@ -366,30 +422,25 @@ def test_defensive_json_parse_key_insights_none():
 # Fix 5: No duplicate advanced_terms
 # ---------------------------------------------------------------------------
 
+
 def test_no_duplicate_advanced_terms():
     """advanced_terms in generation.py must not contain duplicates."""
     import importlib
     import textwrap
 
     import rag.nodes.generation as gen_mod
+
     importlib.reload(gen_mod)
 
-    source = textwrap.dedent(
-        inspect.getsource(gen_mod.classify_user_familiarity)
-    )
+    source = textwrap.dedent(inspect.getsource(gen_mod.classify_user_familiarity))
     tree = ast.parse(source)
     for node in ast.walk(tree):
         if isinstance(node, ast.Assign):
             for target in node.targets:
                 if isinstance(target, ast.Name) and target.id == "advanced_terms":
-                    terms = [
-                        elt.value for elt in node.value.elts
-                        if isinstance(elt, ast.Constant)
-                    ]
+                    terms = [elt.value for elt in node.value.elts if isinstance(elt, ast.Constant)]
                     assert len(terms) > 0
-                    assert len(terms) == len(set(terms)), (
-                        f"Duplicate in advanced_terms: {terms}"
-                    )
+                    assert len(terms) == len(set(terms)), f"Duplicate in advanced_terms: {terms}"
                     return
     pytest.fail("advanced_terms assignment not found in classify_user_familiarity")
 
@@ -398,13 +449,15 @@ def test_no_duplicate_advanced_terms():
 # Migration SQL syntax check
 # ---------------------------------------------------------------------------
 
+
 def test_migration_file_exists_and_is_valid_sql():
     """The compaction snapshot migration must exist and parse as valid SQL."""
     from pathlib import Path
 
     migration_path = (
         Path(__file__).parent.parent.parent
-        / "supabase" / "migrations"
+        / "supabase"
+        / "migrations"
         / "20260826000000_memory_compaction_snapshots.sql"
     )
     assert migration_path.exists(), f"Migration file not found: {migration_path}"

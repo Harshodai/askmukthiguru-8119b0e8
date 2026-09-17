@@ -66,7 +66,6 @@ from services.whisper_local_service import (
 logger = logging.getLogger(__name__)
 
 from dataclasses import dataclass, field
-
 from datetime import UTC
 
 from ingest.adaptive_chunking import AdaptiveChunker
@@ -245,7 +244,9 @@ async def _resolve_chunk_speakers_with_llm(
         "NEVER respond with a name. ONLY `<number>. <role>` lines, one per chunk, no other text."
     )
     # Cap each chunk's contribution to the shared prompt (same per-chunk cap as before).
-    user_prompt = "\n\n".join(f"{n}. {chunks[i][:2000]}" for n, i in enumerate(candidate_indices, start=1))
+    user_prompt = "\n\n".join(
+        f"{n}. {chunks[i][:2000]}" for n, i in enumerate(candidate_indices, start=1)
+    )
 
     try:
         _timeout = getattr(settings, "llm_generate_timeout", 60.0)
@@ -315,6 +316,7 @@ async def _okf_extract_for_video(video_id: str) -> None:
         logger.warning(f"In-process OKF extraction failed for video {video_id}: {e}")
 
 
+from services.provenance import classify_chunk_provenance
 from services.teacher_attribution import resolve_teacher_attribution
 
 
@@ -654,7 +656,11 @@ class IngestionPipeline:
                 assistant_slug=assistant_slug,
             )
             status = result.get("status", "unknown") if isinstance(result, dict) else "unknown"
-            error_log = result.get("message") if status not in ("success",) and isinstance(result, dict) else None
+            error_log = (
+                result.get("message")
+                if status not in ("success",) and isinstance(result, dict)
+                else None
+            )
             chunks_added = result.get("chunks_indexed", 0) if isinstance(result, dict) else 0
         except Exception:
             duration_ms = int((_time.time() - start) * 1000)
@@ -742,13 +748,19 @@ class IngestionPipeline:
             }
 
         if is_playlist_url(url) or is_channel_url(url):
-            return await self._ingest_playlist(url, max_accuracy, on_progress, tags=tags, assistant_slug=assistant_slug)
+            return await self._ingest_playlist(
+                url, max_accuracy, on_progress, tags=tags, assistant_slug=assistant_slug
+            )
         elif is_image_url(url):
             return await self._ingest_image(url, on_progress, tags=tags)
         elif extract_video_id(url):
             if max_accuracy:
-                return await self._ingest_video_enhanced(url, on_progress, tags=tags, assistant_slug=assistant_slug)
-            return await self._ingest_video(url, max_accuracy, on_progress, tags=tags, assistant_slug=assistant_slug)
+                return await self._ingest_video_enhanced(
+                    url, on_progress, tags=tags, assistant_slug=assistant_slug
+                )
+            return await self._ingest_video(
+                url, max_accuracy, on_progress, tags=tags, assistant_slug=assistant_slug
+            )
         else:
             # Try PDF and Web Page Article Ingestion
             lower_url = url.lower()
@@ -807,7 +819,9 @@ class IngestionPipeline:
                 from ingest.social_media_loader import is_social_media_url
 
                 if is_social_media_url(url):
-                    return await self._ingest_social_media_video(url, on_progress, tags=tags, assistant_slug=assistant_slug)
+                    return await self._ingest_social_media_video(
+                        url, on_progress, tags=tags, assistant_slug=assistant_slug
+                    )
 
                 self._notify(on_progress, "Scraping web page article...", 0.1)
                 try:
@@ -931,7 +945,7 @@ class IngestionPipeline:
 
         # Data Quality Gate
         self._notify(on_progress, "Auditing content quality...", 0.4)
-        quality_res = await self._auditor.run(clean_text, url)
+        quality_res = await self._auditor.run(clean_text, url, speaker=video_speaker)
         if not quality_res.passed:
             return {
                 "status": "rejected",
@@ -966,18 +980,20 @@ class IngestionPipeline:
                 "summaries_created": 0,
             }
 
-        chunks_count = self._embed_and_index(EmbedIndexConfig(
-            chunks=chunks,
-            source_url=url,
-            title=video_title,
-            speaker=video_speaker,
-            topic="Spiritual",
-            content_type="social_video",
-            source_type="social_video",
-            tags=tags,
-            source_version=1,
-            authority_tier="primary",
-        ))
+        chunks_count = self._embed_and_index(
+            EmbedIndexConfig(
+                chunks=chunks,
+                source_url=url,
+                title=video_title,
+                speaker=video_speaker,
+                topic="Spiritual",
+                content_type="social_video",
+                source_type="social_video",
+                tags=tags,
+                source_version=1,
+                authority_tier="primary",
+            )
+        )
 
         # RAPTOR + LightRAG (fire-and-forget; rollback on failure)
         summaries_count = 0
@@ -1206,21 +1222,23 @@ class IngestionPipeline:
             em.setdefault("authority_tier", authority_tier)
 
         try:
-            chunks_count = self._embed_and_index(EmbedIndexConfig(
-                chunks=final_chunks,
-                source_url=source_url,
-                title=title,
-                speaker=speaker,
-                topic=topic,
-                content_type=content_type,
-                source_type=content_type,
-                extra_metadatas=extra_metadatas,
-                tags=tags,
-                source_version=source_version,
-                authority_tier=authority_tier,
-                assistant_slug=assistant_slug,
-                qdrant_override=qdrant_override,
-            ))
+            chunks_count = self._embed_and_index(
+                EmbedIndexConfig(
+                    chunks=final_chunks,
+                    source_url=source_url,
+                    title=title,
+                    speaker=speaker,
+                    topic=topic,
+                    content_type=content_type,
+                    source_type=content_type,
+                    extra_metadatas=extra_metadatas,
+                    tags=tags,
+                    source_version=source_version,
+                    authority_tier=authority_tier,
+                    assistant_slug=assistant_slug,
+                    qdrant_override=qdrant_override,
+                )
+            )
 
             # Step 6: RAPTOR tree
             raptor = raptor_override or self._raptor
@@ -1427,7 +1445,7 @@ class IngestionPipeline:
         raw_text = await self._corrector.correct_transcript(sanitized_text, url)
 
         self._notify(on_progress, "Auditing content quality...", 0.2)
-        quality_res = await self._auditor.run(raw_text, url)
+        quality_res = await self._auditor.run(raw_text, url, speaker=result.get("speaker", ""))
 
         if not quality_res.passed:
             return {
@@ -1516,27 +1534,29 @@ class IngestionPipeline:
             em.setdefault("authority_tier", authority_tier)
 
         try:
-            chunks_count = self._embed_and_index(EmbedIndexConfig(
-                chunks=final_chunks,
-                source_url=url,
-                title=video_title,
-                speaker=video_speaker,
-                topic=video_topic,
-                content_type="video",
-                source_type="video",
-                language=video_language,
-                extra_metadatas=extra_metadatas,
-                tags=tags,
-                video_id=video_id,
-                channel_name=result.get("channel_name"),
-                published_at=result.get("published_at"),
-                duration=result.get("duration"),
-                thumbnail_url=result.get("thumbnail_url"),
-                chunk_speakers=chunk_speakers,
-                source_version=source_version,
-                authority_tier=authority_tier,
-                assistant_slug=assistant_slug,
-            ))
+            chunks_count = self._embed_and_index(
+                EmbedIndexConfig(
+                    chunks=final_chunks,
+                    source_url=url,
+                    title=video_title,
+                    speaker=video_speaker,
+                    topic=video_topic,
+                    content_type="video",
+                    source_type="video",
+                    language=video_language,
+                    extra_metadatas=extra_metadatas,
+                    tags=tags,
+                    video_id=video_id,
+                    channel_name=result.get("channel_name"),
+                    published_at=result.get("published_at"),
+                    duration=result.get("duration"),
+                    thumbnail_url=result.get("thumbnail_url"),
+                    chunk_speakers=chunk_speakers,
+                    source_version=source_version,
+                    authority_tier=authority_tier,
+                    assistant_slug=assistant_slug,
+                )
+            )
 
             # Step 5: RAPTOR tree (reuses the same chunks, passes source metadata)
             self._notify(on_progress, "Building RAPTOR tree...", 0.8)
@@ -1686,6 +1706,7 @@ class IngestionPipeline:
                     return {"status": "error", "message": "Extraction failed", "source_url": url}
 
         raw_text = result["text"]
+        enhanced_speaker = result.get("speaker", "Unknown")
 
         content_hash = hashlib.sha256(raw_text.strip().encode("utf-8")).hexdigest()
         self._persist_raw_corpus(content_hash, url, raw_text, "youtube_video_enhanced")
@@ -1734,7 +1755,7 @@ class IngestionPipeline:
         # Fix: enhanced path skipped this entirely — only the deterministic
         # pre-filter ran. Same 3-tier gate as _ingest_video() for parity.
         self._notify(on_progress, "Auditing content quality...", 0.32)
-        quality_res = await self._auditor.run(raw_text, url)
+        quality_res = await self._auditor.run(raw_text, url, speaker=enhanced_speaker)
         if not quality_res.passed:
             return {
                 "status": "rejected",
@@ -1860,26 +1881,28 @@ class IngestionPipeline:
         total_chunks = 0
         try:
             if all_chunks:
-                total_chunks = self._embed_and_index(EmbedIndexConfig(
-                    chunks=all_chunks,
-                    source_url=url,
-                    title=video_title,
-                    speaker=video_speaker,
-                    topic="Multi-Topic",
-                    content_type="video_enhanced",
-                    source_type="video",
-                    language=video_language,
-                    extra_metadatas=all_extra_metadatas,
-                    tags=tags,
-                    video_id=video_id,
-                    channel_name=result.get("channel_name"),
-                    published_at=result.get("published_at"),
-                    duration=result.get("duration"),
-                    thumbnail_url=result.get("thumbnail_url"),
-                    source_version=source_version,
-                    authority_tier=authority_tier,
-                    assistant_slug=assistant_slug,
-                ))
+                total_chunks = self._embed_and_index(
+                    EmbedIndexConfig(
+                        chunks=all_chunks,
+                        source_url=url,
+                        title=video_title,
+                        speaker=video_speaker,
+                        topic="Multi-Topic",
+                        content_type="video_enhanced",
+                        source_type="video",
+                        language=video_language,
+                        extra_metadatas=all_extra_metadatas,
+                        tags=tags,
+                        video_id=video_id,
+                        channel_name=result.get("channel_name"),
+                        published_at=result.get("published_at"),
+                        duration=result.get("duration"),
+                        thumbnail_url=result.get("thumbnail_url"),
+                        source_version=source_version,
+                        authority_tier=authority_tier,
+                        assistant_slug=assistant_slug,
+                    )
+                )
 
             # 5. Build RAPTOR and Graph
             self._notify(on_progress, "Finalizing knowledge structure...", 0.9)
@@ -2230,22 +2253,24 @@ class IngestionPipeline:
                 backup_collection = self._backup_before_reindex(video["url"])
 
                 try:
-                    chunks_count = self._embed_and_index(EmbedIndexConfig(
-                        chunks=final_chunks,
-                        source_url=video["url"],
-                        title=video_title,
-                        speaker=video_speaker,
-                        topic=video_topic,
-                        language=video_language,
-                        content_type="video",
-                        source_type="video",
-                        tags=tags,
-                        video_id=extract_video_id(video["url"]),
-                        channel_name=transcript.get("channel_name"),
-                        published_at=transcript.get("published_at"),
-                        duration=transcript.get("duration"),
-                        thumbnail_url=transcript.get("thumbnail_url"),
-                    ))
+                    chunks_count = self._embed_and_index(
+                        EmbedIndexConfig(
+                            chunks=final_chunks,
+                            source_url=video["url"],
+                            title=video_title,
+                            speaker=video_speaker,
+                            topic=video_topic,
+                            language=video_language,
+                            content_type="video",
+                            source_type="video",
+                            tags=tags,
+                            video_id=extract_video_id(video["url"]),
+                            channel_name=transcript.get("channel_name"),
+                            published_at=transcript.get("published_at"),
+                            duration=transcript.get("duration"),
+                            thumbnail_url=transcript.get("thumbnail_url"),
+                        )
+                    )
 
                     # RAPTOR
                     chunk_dicts = [
@@ -2710,8 +2735,12 @@ class IngestionPipeline:
                                 tgt = pay.get("tgt_id")
                                 if src is None and tgt is None:
                                     continue
-                                src_missing = src is None or str(src).strip().lower() not in neo4j_entities
-                                tgt_missing = tgt is None or str(tgt).strip().lower() not in neo4j_entities
+                                src_missing = (
+                                    src is None or str(src).strip().lower() not in neo4j_entities
+                                )
+                                tgt_missing = (
+                                    tgt is None or str(tgt).strip().lower() not in neo4j_entities
+                                )
                                 if src_missing or tgt_missing:
                                     points_to_delete.append(p.id)
                             if points_to_delete:
@@ -2838,7 +2867,9 @@ class IngestionPipeline:
         if video_id and not thumbnail_url:
             thumbnail_url = f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
 
-        combined_context = f"{title or ''} {source_url or ''} {speaker or ''} {' '.join(chunks[:3])}".lower()
+        combined_context = (
+            f"{title or ''} {source_url or ''} {speaker or ''} {' '.join(chunks[:3])}".lower()
+        )
 
         # Resolve teacher context and attribution (Root-cause fix 2026-09-13)
         teacher_tags, primary_teacher_id, attributed_teacher_ids = resolve_teacher_attribution(
@@ -3044,6 +3075,20 @@ class IngestionPipeline:
             # ponytail: Gap 2 — important_kwd ingest tagging. Reuses extract_doctrine_tags.
             if getattr(settings, "important_kwd_boost_enabled", True):
                 base_meta["important_kwd"] = extract_doctrine_tags(clean_chunks[i])
+            # Stamp provenance on write (same classifier ingest/quality_gate.py
+            # uses to reject junk/third-party at the door, and the same field
+            # scripts/ops/backfill_chunk_provenance.py backfilled onto the
+            # existing corpus) so future chunks never need the backfill.
+            _prov = classify_chunk_provenance(
+                raptor_level=base_meta.get("raptor_level"),
+                content_type=base_meta.get("content_type") or "",
+                source_type=base_meta.get("source_type") or "",
+                speaker=base_meta.get("speaker") or "",
+                channel_name=base_meta.get("channel_name") or "",
+                text=clean_chunks[i],
+            )
+            base_meta["provenance"] = _prov.provenance.value
+            base_meta["provenance_rationale"] = _prov.rationale
             metadatas.append(base_meta)
 
         # Persist source-level metadata to telemetry (best-effort)
@@ -3156,7 +3201,11 @@ class IngestionPipeline:
         except Exception as e:
             # Non-fatal: ingestion must succeed even if telemetry table is absent or unauthenticated.
             err_str = str(e)
-            if "401" in err_str or "unauthorized" in err_str.lower() or "credentials" in err_str.lower():
+            if (
+                "401" in err_str
+                or "unauthorized" in err_str.lower()
+                or "credentials" in err_str.lower()
+            ):
                 logger.debug(
                     "Supabase unauthenticated in _record_kb_source (%s). Disabling kb_sources telemetry for this run.",
                     e,
@@ -3239,19 +3288,21 @@ class IngestionPipeline:
         """Split, embed, and persist chunks using the active source release."""
         source_version = self._resolve_active_source_version(source_url, source_version)
         chunks = self._split_text(text, title=title, speaker=speaker, topic=topic)
-        return self._embed_and_index(EmbedIndexConfig(
-            chunks=chunks,
-            source_url=source_url,
-            title=title,
-            content_type=content_type,
-            speaker=speaker,
-            topic=topic,
-            tags=tags,
-            source_type=source_type or content_type,
-            source_version=source_version,
-            authority_tier=authority_tier,
-            assistant_slug=assistant_slug,
-        ))
+        return self._embed_and_index(
+            EmbedIndexConfig(
+                chunks=chunks,
+                source_url=source_url,
+                title=title,
+                content_type=content_type,
+                speaker=speaker,
+                topic=topic,
+                tags=tags,
+                source_type=source_type or content_type,
+                source_version=source_version,
+                authority_tier=authority_tier,
+                assistant_slug=assistant_slug,
+            )
+        )
 
     def _split_text(
         self,

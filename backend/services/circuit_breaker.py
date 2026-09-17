@@ -112,6 +112,42 @@ class BaseCircuitBreaker(abc.ABC):
         with self._lock:
             return self._state
 
+    def is_open(self) -> bool:
+        """Read-only probe: would a call be refused right now?
+
+        This is NOT ``not can_execute()``. ``can_execute()`` *reserves* a
+        half-open slot (``_half_open_in_flight += 1``) that only
+        ``record_success()`` / ``record_failure()`` release. A caller that
+        probes the breaker without issuing a call therefore leaks the
+        reservation, and ``half_open_max_calls`` (3) such probes wedge the
+        breaker OPEN permanently: ``_last_failure_time`` stops advancing, the
+        state stays HALF_OPEN, and no real call is ever admitted again. That
+        wedge took the live pipeline down for ~5 hours on 2026-09-15 — every
+        chat answered "The Guru is unable to answer this question" in 11ms
+        while ``/api/health`` still reported the provider reachable.
+
+        Any caller that only wants to KNOW the state — a pipeline gate, a
+        health endpoint, an availability flag — must use this. ``can_execute()``
+        belongs to the code path that actually issues the call and reports the
+        outcome back.
+        """
+        with self._lock:
+            if self._state == CircuitState.CLOSED:
+                return False
+            if self._state == CircuitState.OPEN:
+                # Recovery window elapsed means a real call would be admitted
+                # into half-open, so report not-open. Performing that
+                # transition is can_execute()'s job: it belongs to the call
+                # that actually arrives, never to an observer.
+                return not (
+                    self._last_failure_time is not None
+                    and (time.monotonic() - self._last_failure_time) >= self.config.recovery_timeout
+                )
+            # HALF_OPEN: refused only once the probe budget is exhausted.
+            return (
+                self._half_open_calls + self._half_open_in_flight >= self.config.half_open_max_calls
+            )
+
     def get_stats(self) -> dict:
         """Get circuit breaker statistics atomically."""
         with self._lock:

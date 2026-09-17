@@ -1,25 +1,34 @@
-"""Tests for the n-gram Jaccard citation extractor."""
+"""Tests for the word-containment citation extractor.
+
+_span_overlap replaced _jaccard in the F2 attribution fix (2026-09-16).
+The function changed from n-gram Jaccard (union-based) to word-level
+containment (sentence words found in doc text) because Jaccard's mathematical
+ceiling prevented correct citations from passing the threshold on long chunks.
+"""
 
 from __future__ import annotations
 
 import pytest
 
-from rag.nodes.citation_extractor import _jaccard, extract_citations
+from rag.nodes.citation_extractor import _span_overlap, extract_citations
 
 
 @pytest.mark.unit
-def test_jaccard_identical() -> None:
-    assert _jaccard("hello world", "hello world") == 1.0
+def test_span_overlap_identical() -> None:
+    # All sentence words appear in doc_text → 1.0
+    assert _span_overlap("hello world test", "hello world test") == 1.0
 
 
 @pytest.mark.unit
-def test_jaccard_disjoint() -> None:
-    assert _jaccard("abc", "def") == 0.0
+def test_span_overlap_disjoint() -> None:
+    # No sentence content words (>2 chars, not stopwords) appear in doc → 0.0
+    assert _span_overlap("elephant giraffe", "monday tuesday") == 0.0
 
 
 @pytest.mark.unit
-def test_jaccard_empty() -> None:
-    assert _jaccard("", "test") == 0.0
+def test_span_overlap_empty_sentence() -> None:
+    # Empty sentence → 0.0 (no content words to match)
+    assert _span_overlap("", "test document") == 0.0
 
 
 @pytest.mark.unit

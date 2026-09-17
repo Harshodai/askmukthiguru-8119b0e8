@@ -28,15 +28,17 @@ from typing import Any, Optional
 logger = logging.getLogger(__name__)
 
 # Single source of truth for authorized unscoped system operations
-ALLOWED_UNSCOPED_OPERATIONS: frozenset[str] = frozenset({
-    "qdrant_backup",
-    "launch_gate_qdrant_integrity",
-    "schema_migration",
-    "collection_health_check",
-    "test_fixture_cleanup",
-    "system_admin_reindex",
-    "benchmark_warmup",
-})
+ALLOWED_UNSCOPED_OPERATIONS: frozenset[str] = frozenset(
+    {
+        "qdrant_backup",
+        "launch_gate_qdrant_integrity",
+        "schema_migration",
+        "collection_health_check",
+        "test_fixture_cleanup",
+        "system_admin_reindex",
+        "benchmark_warmup",
+    }
+)
 
 # Context variable tracking active authorized exemption tokens
 _exemption_token: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
@@ -95,6 +97,7 @@ def get_guard_mode() -> str:
     """
     try:
         from app.config import settings
+
         return getattr(settings, "multitenancy_guard_mode", "log").strip().lower()
     except Exception:
         return "log"
@@ -115,6 +118,7 @@ def extract_tenant_context(func: Callable, args: tuple, kwargs: dict) -> dict[st
     # 1. Thread-local TenantContext
     try:
         from services.tenant_context import TenantContext
+
         ctx_val = TenantContext.get()
         if ctx_val and isinstance(ctx_val, str) and ctx_val.strip():
             context["tenant_context"] = ctx_val.strip()
@@ -153,7 +157,9 @@ def extract_tenant_context(func: Callable, args: tuple, kwargs: dict) -> dict[st
             if first_meta.get("tenant_id"):
                 context["metadata_tenant_id"] = first_meta["tenant_id"]
             if first_meta.get("teacher_id") or first_meta.get("teacher_ids"):
-                context["metadata_teacher_id"] = first_meta.get("teacher_id") or first_meta.get("teacher_ids")
+                context["metadata_teacher_id"] = first_meta.get("teacher_id") or first_meta.get(
+                    "teacher_ids"
+                )
 
     return context
 
@@ -226,6 +232,7 @@ def enforce_multitenancy(func: Callable) -> Callable:
         return True
 
     if is_async:
+
         @functools.wraps(func)
         async def async_wrapper(*args, **kwargs):
             # Clean up skip_tenant_check parameter so target function doesn't crash on unexpected kwarg

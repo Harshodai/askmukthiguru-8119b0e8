@@ -57,9 +57,18 @@ scripts/*
 benchmarks/
 Makefile
 
-# Ignore large log files
+# Ignore large log files and temporary artifacts
 **/*.log
 nohup.out
+railway_deploy.log
+scripts/railway_logs.txt
+**/*.pid
+**/*.lock
+**/*.tmp
+.pytest_cache/
+.ruff_cache/
+coverage/
+htmlcov/
 
 # Editor files
 .vscode/

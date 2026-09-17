@@ -59,10 +59,13 @@ def test_graph_work_is_still_gated_on_its_own_flag():
 
 
 def test_bm25_gate_keys_off_query_tier_not_graph_availability():
-    bm25_gate = next(
-        line for line in SRC.splitlines() if "bm25_retrieval_enabled" in line and "if " in line
+    match = re.search(
+        r'if\s*\(?\s*getattr\(\s*settings,\s*"bm25_retrieval_enabled".*?\):',
+        SRC,
+        re.DOTALL,
     )
-    assert "query_tier not in" in bm25_gate, (
+    assert match is not None, "could not locate the bm25_retrieval_enabled gate"
+    assert "query_tier not in" in match.group(0), (
         "BM25 must be skipped based on how simple the query is, not on which "
         "lane the graph flag happened to select"
     )

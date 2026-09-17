@@ -138,12 +138,23 @@ _GUARANTEED_OUTCOME_RE = re.compile(
     r"\b(?:i guarantee|this will (?:cure|heal|fix)|guaranteed to (?:manifest|heal|cure))\b",
     re.IGNORECASE,
 )
-_BOUNDED_ABSTENTION_RE = re.compile(
-    r"(?:i\s+(?:don['’]t|do not)\s+have\s+that\s+specific\s+teaching|"
-    r"please\s+try\s+asking\s+another\s+question|"
-    r"i\s+don['’]t\s+have\s+enough\s+(?:reliable\s+)?information)",
-    re.IGNORECASE,
-)
+# Recognition routes through the canonical matcher that owns the refusal copy,
+# rather than a regex spelling it out a second time. The regex below drifted
+# the moment the copy was rewritten: format_final_answer stopped recognising
+# its OWN fallback and fell through to a branch that never set final_answer.
+# Kept as a callable with the original name so the two call sites read the same.
+from services.voice.register import is_refusal_text as _is_bounded_abstention
+
+
+class _BoundedAbstentionMatcher:
+    """Minimal `.search()` shim so existing call sites stay untouched."""
+
+    @staticmethod
+    def search(text: str) -> bool:
+        return _is_bounded_abstention(text)
+
+
+_BOUNDED_ABSTENTION_RE = _BoundedAbstentionMatcher()
 
 
 def check_constitutional_compliance(answer: str) -> str | None:
@@ -219,10 +230,12 @@ async def reflect_on_answer(state: GraphState, config: dict = None) -> dict:
     # Deep verification remains semantic and authoritative below; reflection is
     # a correction hint only, so keep its pass bounded and avoid duplicate CPU
     # embedding work on complex answers or when retrieval was already high confidence.
-    reflection_semantic = (
-        state.get("query_tier") not in ("fast", "tier2_simple", "tier3_complex", "deep")
-        and not state.get("high_confidence_retrieval", False)
-    )
+    reflection_semantic = state.get("query_tier") not in (
+        "fast",
+        "tier2_simple",
+        "tier3_complex",
+        "deep",
+    ) and not state.get("high_confidence_retrieval", False)
     ld_result = await _score_faithfulness_bounded(
         lettuce_detect,
         question,
@@ -435,7 +448,9 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
         }
         ensemble_score = calculate_confidence(_conf_state)
         confidence_score = ensemble_score if ensemble_score >= 8.0 else faithfulness_score * 10.0
-        confidence_reason = calculate_confidence_reason(_conf_state) if ensemble_score >= 8.0 else None
+        confidence_reason = (
+            calculate_confidence_reason(_conf_state) if ensemble_score >= 8.0 else None
+        )
 
         try:
             VERIFICATION_RESULTS.labels(result="faithful").inc()
@@ -514,7 +529,9 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
             cove_pass_ratio = float(cove_result.get("ratio", 0.0 if cove_failed else 1.0))
             cove_details = cove_result.get("details", "")
         except TimeoutError:
-            logger.warning("Combined verify: CoVe deadline exceeded; using bounded unverified verdict")
+            logger.warning(
+                "Combined verify: CoVe deadline exceeded; using bounded unverified verdict"
+            )
             cove_details = "CoVe deadline exceeded"
         except Exception as e:
             logger.warning(f"Combined verify: CoVe check failed: {e}")
@@ -599,7 +616,7 @@ async def combined_grade_and_verify(state: GraphState, config: dict = None) -> d
 
     answer = state.get("answer", "")
     relevant_docs = state.get("relevant_docs", [])
-    query_tier = state.get("query_tier", "standard")
+    _query_tier = state.get("query_tier", "standard")
     question = state.get("rewritten_query") or state.get("question", "")
 
     # Safety redirects and bounded abstentions skip verification
@@ -708,7 +725,9 @@ async def combined_grade_and_verify(state: GraphState, config: dict = None) -> d
         }
         ensemble_score = calculate_confidence(_conf_state)
         confidence_score = ensemble_score if ensemble_score >= 8.0 else faithfulness_score * 10.0
-        confidence_reason = calculate_confidence_reason(_conf_state) if ensemble_score >= 8.0 else None
+        confidence_reason = (
+            calculate_confidence_reason(_conf_state) if ensemble_score >= 8.0 else None
+        )
 
         try:
             VERIFICATION_RESULTS.labels(result="faithful").inc()
@@ -789,7 +808,11 @@ async def _verify_with_gateway(state: GraphState, config: dict = None) -> dict |
         logger.warning("verify_with_gateway: context too short for CoVe verification")
         return {
             "is_faithful": False,
-            "verification": {"passed": False, "details": "Context too short for CoVe verification", "claims": claims},
+            "verification": {
+                "passed": False,
+                "details": "Context too short for CoVe verification",
+                "claims": claims,
+            },
             "confidence_score": 0.0,
             "faithfulness_score": 0.0,
             "relevancy_score": 0.0,
@@ -805,7 +828,11 @@ async def _verify_with_gateway(state: GraphState, config: dict = None) -> dict |
         logger.warning("verify_with_gateway: gateway verification exceeded bounded deadline")
         return {
             "is_faithful": False,
-            "verification": {"passed": False, "details": "Gateway CoVe deadline exceeded; answer remains unverified", "claims": claims},
+            "verification": {
+                "passed": False,
+                "details": "Gateway CoVe deadline exceeded; answer remains unverified",
+                "claims": claims,
+            },
             "confidence_score": 0.0,
             "faithfulness_score": 0.0,
             "relevancy_score": 0.0,
@@ -814,7 +841,11 @@ async def _verify_with_gateway(state: GraphState, config: dict = None) -> dict |
         logger.error(f"verify_with_gateway: gateway verify_answer failed: {exc}")
         return {
             "is_faithful": False,
-            "verification": {"passed": False, "details": f"Gateway CoVe error: {exc}", "claims": claims},
+            "verification": {
+                "passed": False,
+                "details": f"Gateway CoVe error: {exc}",
+                "claims": claims,
+            },
             "confidence_score": 0.0,
             "faithfulness_score": 0.0,
             "relevancy_score": 0.0,

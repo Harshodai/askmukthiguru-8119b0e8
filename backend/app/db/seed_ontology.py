@@ -57,8 +57,7 @@ def seed_spiritual_ontology():
             # UNIQUE on id covers the composite MERGE pattern; tenant isolation
             # stays enforced by the tenant_id in the MERGE pattern itself.
             tx.run(
-                "CREATE CONSTRAINT UNIQUE_USER_ID IF NOT EXISTS "
-                "FOR (u:User) REQUIRE u.id IS UNIQUE"
+                "CREATE CONSTRAINT UNIQUE_USER_ID IF NOT EXISTS FOR (u:User) REQUIRE u.id IS UNIQUE"
             )
             tx.run(
                 "CREATE CONSTRAINT UNIQUE_GLOBALMEMORY_ID IF NOT EXISTS "

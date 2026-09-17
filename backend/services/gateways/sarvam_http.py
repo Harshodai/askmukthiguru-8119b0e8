@@ -115,6 +115,7 @@ class SarvamHTTPGateway:
 
         # Spend reservation budget guard
         from services.llm_budget_guard import LLMBudgetGuard
+
         self._budget_guard = LLMBudgetGuard.from_settings(settings, provider="sarvam")
 
         # Connection pooling
@@ -276,7 +277,9 @@ class SarvamHTTPGateway:
         pass an explicit value but it is silently clamped to _max_tokens_limit
         so requests always stay within the subscription tier.
         """
-        is_chat_req = self._is_chat_priority(priority=priority, is_chat=is_chat, operation=operation)
+        is_chat_req = self._is_chat_priority(
+            priority=priority, is_chat=is_chat, operation=operation
+        )
         if is_chat_req:
             async with self._chat_state_lock:
                 self._active_chat_requests += 1
@@ -585,7 +588,9 @@ class SarvamHTTPGateway:
                                         )
                                         payload["max_tokens"] = allowed
                                         if span is not None:
-                                            span.set_attribute("gen_ai.retry_reason", "context_window")
+                                            span.set_attribute(
+                                                "gen_ai.retry_reason", "context_window"
+                                            )
                                         if span_ctx is not None:
                                             span_ctx.__exit__(None, None, None)
                                         continue  # retry immediately within while loop
@@ -619,9 +624,13 @@ class SarvamHTTPGateway:
                         data = resp.json()
                         usage_for_span = data.get("usage", {})
                         actual_cost_usd = (
-                            (usage_for_span.get("prompt_tokens") or 0)
-                            + (usage_for_span.get("completion_tokens") or 0)
-                        ) / 1000.0 * 0.0001
+                            (
+                                (usage_for_span.get("prompt_tokens") or 0)
+                                + (usage_for_span.get("completion_tokens") or 0)
+                            )
+                            / 1000.0
+                            * 0.0001
+                        )
 
                         if span is not None:
                             span.set_attribute("http.status_code", resp.status_code)

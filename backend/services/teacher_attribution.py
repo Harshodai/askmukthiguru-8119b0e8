@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import List, Optional, Tuple
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -33,9 +33,9 @@ def resolve_teacher_attribution(
     source_url: str,
     title: str = "",
     speaker: str = "",
-    chunks: Optional[List[str]] = None,
-    tags: Optional[List[str]] = None,
-) -> Tuple[List[str], str, List[str]]:
+    chunks: Optional[list[str]] = None,
+    tags: Optional[list[str]] = None,
+) -> tuple[list[str], str, list[str]]:
     """Deterministically resolves the primary and attributed teacher IDs.
 
     Uses strict word boundaries and context hierarchy:
@@ -66,12 +66,14 @@ def resolve_teacher_attribution(
         combined_parts.extend(chunks[:3])
     combined_context = " ".join(combined_parts).lower()
 
-    teacher_tags: List[str] = []
+    teacher_tags: list[str] = []
     primary_teacher_id = "ekam"
-    attributed_teacher_ids: List[str] = ["preethaji", "krishnaji"]
+    attributed_teacher_ids: list[str] = ["preethaji", "krishnaji"]
 
     # Strict whole-word regex checks for external teachers
-    has_sadhguru = bool(re.search(r"\b(?:sadhguru|jaggi|vasudev|isha)\b", combined_context, re.IGNORECASE))
+    has_sadhguru = bool(
+        re.search(r"\b(?:sadhguru|jaggi|vasudev|isha)\b", combined_context, re.IGNORECASE)
+    )
     has_amma_bhagavan = bool(
         re.search(
             r"\b(?:sri\s+amma\s+bhagavan|amma\s+bhagavan|kalki\s+bhagavan|kalki)\b",
@@ -80,7 +82,9 @@ def resolve_teacher_attribution(
         )
     )
     has_iskcon = bool(
-        re.search(r"\b(?:iskcon|prabhupada|krishna\s+consciousness)\b", combined_context, re.IGNORECASE)
+        re.search(
+            r"\b(?:iskcon|prabhupada|krishna\s+consciousness)\b", combined_context, re.IGNORECASE
+        )
     )
 
     if has_sadhguru:
@@ -98,10 +102,18 @@ def resolve_teacher_attribution(
     else:
         # Core Ekam lineage checks
         has_preethaji = bool(
-            re.search(r"\b(?:preethaji|prithaji|sri\s+preetha|preetha\s*ji)\b", combined_context, re.IGNORECASE)
+            re.search(
+                r"\b(?:preethaji|prithaji|sri\s+preetha|preetha\s*ji)\b",
+                combined_context,
+                re.IGNORECASE,
+            )
         )
         has_krishnaji = bool(
-            re.search(r"\b(?:krishnaji|sri\s+krishna|krishna\s*ji|srikrishnaji)\b", combined_context, re.IGNORECASE)
+            re.search(
+                r"\b(?:krishnaji|sri\s+krishna|krishna\s*ji|srikrishnaji)\b",
+                combined_context,
+                re.IGNORECASE,
+            )
         )
 
         if has_preethaji and has_krishnaji:
@@ -119,11 +131,23 @@ def resolve_teacher_attribution(
         else:
             # Fallback to category / tag checks
             tag_preethaji = any(
-                t in ("category:sri_preethaji", "sri preethaji", "teacher:sri_preethaji", "teacher:preethaji")
+                t
+                in (
+                    "category:sri_preethaji",
+                    "sri preethaji",
+                    "teacher:sri_preethaji",
+                    "teacher:preethaji",
+                )
                 for t in clean_tags
             )
             tag_krishnaji = any(
-                t in ("category:sri_krishnaji", "sri krishnaji", "teacher:sri_krishnaji", "teacher:krishnaji")
+                t
+                in (
+                    "category:sri_krishnaji",
+                    "sri krishnaji",
+                    "teacher:sri_krishnaji",
+                    "teacher:krishnaji",
+                )
                 for t in clean_tags
             )
 

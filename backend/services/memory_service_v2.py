@@ -272,7 +272,9 @@ class MemoryServiceV2(MemoryService):
                     if isinstance(row, dict) and isinstance(row.get("id"), str)
                 ]
             except Exception as key_err:
-                logger.warning("Neo4j classified fact-key lookup unavailable for %s: %s", fact_key, key_err)
+                logger.warning(
+                    "Neo4j classified fact-key lookup unavailable for %s: %s", fact_key, key_err
+                )
 
         # Step 2: Save to Supabase (using updated base implementation)
         res = await super().add_explicit(
@@ -790,7 +792,9 @@ class MemoryServiceV2(MemoryService):
                     result[key] = len(res.data) if res and getattr(res, "data", None) else 0
                 except Exception as e:
                     result["errors"].append(f"{table}: {e}")
-                    logger.error(f"purge_all_user_data: failed to delete {table} for {user_id}: {e}")
+                    logger.error(
+                        f"purge_all_user_data: failed to delete {table} for {user_id}: {e}"
+                    )
 
         try:
             client = await asyncio.to_thread(self._get_qdrant_v2)

@@ -150,6 +150,17 @@ class SemanticCacheAdapter(ICacheRepository):
 
         return PointIdsList(points=[point_id])
 
+    def _report_hit_ratio(self) -> None:
+        total = self._hits + self._misses
+        if not total:
+            return
+        try:
+            from app.metrics import set_cache_hit_ratio
+
+            set_cache_hit_ratio("semantic", self._hits / total)
+        except Exception:
+            pass
+
     def get(self, query: str, threshold: Optional[float] = None) -> Optional[dict]:
         """Look up a cached response semantically."""
         # Split language prefix if present, and embed using encode_single_full
@@ -196,6 +207,7 @@ class SemanticCacheAdapter(ICacheRepository):
                         )
                     else:
                         self._hits += 1
+                        self._report_hit_ratio()
                         logger.info(
                             f"Semantic Cache HIT (score={hit.score:.3f}, lang={lang}, hits={self._hits}, misses={self._misses})"
                         )
@@ -207,6 +219,7 @@ class SemanticCacheAdapter(ICacheRepository):
             logger.error(f"Semantic cache get error: {e}")
 
         self._misses += 1
+        self._report_hit_ratio()
         return None
 
     def put(

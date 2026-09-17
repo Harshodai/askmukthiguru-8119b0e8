@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import os
 import sys
+from typing import Optional
 
 # Ensure project root is on path
 sys.path.insert(0, os.path.abspath(os.path.join(__file__, "..", "..", "..")))

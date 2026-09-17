@@ -290,7 +290,7 @@ CRISIS_RESOURCES = _CrisisResourcesView()
 DISTRESS_RESPONSES = {
     DistressLevel.MILD: (
         "I sense you may be going through a challenging time. "
-        "Remember, as Sri Preethaji teaches, every moment of discomfort "
+        "Remember, every moment of discomfort "
         "is an invitation to deepen your awareness.\n\n"
         "🌱 **Quick grounding technique**: Take a slow breath in for 4 counts, "
         "hold for 4, exhale for 6. Repeat 3 times. This simple practice "
@@ -304,15 +304,15 @@ DISTRESS_RESPONSES = {
         "to transformation — not something to fight against, but to move through with awareness.\n\n"
         "🧘 **Breathing practice**: Place your hand on your heart. "
         "Breathe in slowly — feel your chest rise. Breathe out gently — feel any "
-        "tension release. Do this 5 times. As Sri Preethaji teaches, "
-        "'When you breathe with awareness, you return to the beautiful state.'\n\n"
+        "tension release. Do this 5 times. "
+        "When you breathe with awareness, you return to the beautiful state.\n\n"
         "Would you like me to guide you through a full Serene Mind meditation? 🙏"
     ),
     DistressLevel.SEVERE: (
         "I feel the depth of your pain, and I want you to know — you are not alone. "
         "Your feelings matter, and there is light even in the darkest moments.\n\n"
-        "Sri Krishnaji says: 'When you stop running from your suffering and turn towards it "
-        "with awareness, transformation begins.'\n\n"
+        "When you stop running from your suffering and turn towards it "
+        "with awareness, transformation begins.\n\n"
         "🌸 **5-4-3-2-1 grounding**: Name 5 things you see, 4 you can touch, "
         "3 you hear, 2 you smell, 1 you taste. This brings you firmly into the present.\n\n"
         "I'd like to guide you through a Serene Mind meditation. "
@@ -665,9 +665,7 @@ class SereneMindEngine:
         has_recent_distress = bool(
             conversation_history
             and any(
-                self._quick_distress_check(
-                    msg.get("content", "") if isinstance(msg, dict) else ""
-                )
+                self._quick_distress_check(msg.get("content", "") if isinstance(msg, dict) else "")
                 for msg in conversation_history[-self.rolling_window :]
             )
         )
@@ -785,7 +783,10 @@ class SereneMindEngine:
             MIN_POINTS = getattr(settings, "proactive_min_conversation_points", 3)
         except Exception:
             import logging
-            logging.getLogger(__name__).debug("Proactive config import failed, using defaults", exc_info=True)
+
+            logging.getLogger(__name__).debug(
+                "Proactive config import failed, using defaults", exc_info=True
+            )
             # Fallback defaults if config import fails
             PROACTIVE_ENABLED = True
             AVG_THRESHOLD = 1.5
@@ -874,4 +875,5 @@ class SereneMindEngine:
 
     def _detect_language(self, text: str) -> str:
         from services.language_detection import detect_language
+
         return detect_language(text)["language"]

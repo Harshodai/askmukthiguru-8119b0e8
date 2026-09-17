@@ -1,7 +1,8 @@
 """Tests for canonical memory evaluation harness (Phase 16)."""
+
 import datetime as dt
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from services.canonical_memory.evaluation import (
     EvalResult,
@@ -81,8 +82,18 @@ class TestHealthNoMemories(unittest.TestCase):
 class TestHealthWithActiveMemories(unittest.TestCase):
     def test_active_memories(self):
         rows = [
-            {"user_id": "u1", "status": "active", "fact_key": "fk1", "created_at": dt.datetime.now(dt.timezone.utc).isoformat()},
-            {"user_id": "u1", "status": "active", "fact_key": "fk2", "created_at": dt.datetime.now(dt.timezone.utc).isoformat()},
+            {
+                "user_id": "u1",
+                "status": "active",
+                "fact_key": "fk1",
+                "created_at": dt.datetime.now(dt.UTC).isoformat(),
+            },
+            {
+                "user_id": "u1",
+                "status": "active",
+                "fact_key": "fk2",
+                "created_at": dt.datetime.now(dt.UTC).isoformat(),
+            },
         ]
         db = _FakeDB(rows)
         ev = MemoryEvaluator(db)
@@ -95,8 +106,18 @@ class TestHealthWithActiveMemories(unittest.TestCase):
 class TestDeduplicationNoDuplicates(unittest.TestCase):
     def test_unique_fact_keys(self):
         rows = [
-            {"user_id": "u1", "status": "active", "fact_key": "fk1", "created_at": dt.datetime.now(dt.timezone.utc).isoformat()},
-            {"user_id": "u1", "status": "active", "fact_key": "fk2", "created_at": dt.datetime.now(dt.timezone.utc).isoformat()},
+            {
+                "user_id": "u1",
+                "status": "active",
+                "fact_key": "fk1",
+                "created_at": dt.datetime.now(dt.UTC).isoformat(),
+            },
+            {
+                "user_id": "u1",
+                "status": "active",
+                "fact_key": "fk2",
+                "created_at": dt.datetime.now(dt.UTC).isoformat(),
+            },
         ]
         db = _FakeDB(rows)
         ev = MemoryEvaluator(db)
@@ -109,9 +130,24 @@ class TestDeduplicationNoDuplicates(unittest.TestCase):
 class TestDeduplicationWithDuplicates(unittest.TestCase):
     def test_duplicate_fact_keys(self):
         rows = [
-            {"user_id": "u1", "status": "active", "fact_key": "fk1", "created_at": dt.datetime.now(dt.timezone.utc).isoformat()},
-            {"user_id": "u1", "status": "active", "fact_key": "fk1", "created_at": dt.datetime.now(dt.timezone.utc).isoformat()},
-            {"user_id": "u1", "status": "active", "fact_key": "fk2", "created_at": dt.datetime.now(dt.timezone.utc).isoformat()},
+            {
+                "user_id": "u1",
+                "status": "active",
+                "fact_key": "fk1",
+                "created_at": dt.datetime.now(dt.UTC).isoformat(),
+            },
+            {
+                "user_id": "u1",
+                "status": "active",
+                "fact_key": "fk1",
+                "created_at": dt.datetime.now(dt.UTC).isoformat(),
+            },
+            {
+                "user_id": "u1",
+                "status": "active",
+                "fact_key": "fk2",
+                "created_at": dt.datetime.now(dt.UTC).isoformat(),
+            },
         ]
         db = _FakeDB(rows)
         ev = MemoryEvaluator(db)
@@ -124,9 +160,13 @@ class TestDeduplicationWithDuplicates(unittest.TestCase):
 class TestFreshnessAllRecent(unittest.TestCase):
     def test_no_stale(self):
         rows = [
-            {"user_id": "u1", "status": "active", "fact_key": "fk1",
-             "last_used_at": dt.datetime.now(dt.timezone.utc).isoformat(),
-             "created_at": dt.datetime.now(dt.timezone.utc).isoformat()},
+            {
+                "user_id": "u1",
+                "status": "active",
+                "fact_key": "fk1",
+                "last_used_at": dt.datetime.now(dt.UTC).isoformat(),
+                "created_at": dt.datetime.now(dt.UTC).isoformat(),
+            },
         ]
         db = _FakeDB(rows)
         ev = MemoryEvaluator(db)
@@ -138,11 +178,23 @@ class TestFreshnessAllRecent(unittest.TestCase):
 
 class TestFreshnessSomeStale(unittest.TestCase):
     def test_stale_memories(self):
-        stale_time = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=120)).isoformat()
-        recent_time = dt.datetime.now(dt.timezone.utc).isoformat()
+        stale_time = (dt.datetime.now(dt.UTC) - dt.timedelta(days=120)).isoformat()
+        recent_time = dt.datetime.now(dt.UTC).isoformat()
         rows = [
-            {"user_id": "u1", "status": "active", "fact_key": "fk1", "last_used_at": stale_time, "created_at": stale_time},
-            {"user_id": "u1", "status": "active", "fact_key": "fk2", "last_used_at": recent_time, "created_at": recent_time},
+            {
+                "user_id": "u1",
+                "status": "active",
+                "fact_key": "fk1",
+                "last_used_at": stale_time,
+                "created_at": stale_time,
+            },
+            {
+                "user_id": "u1",
+                "status": "active",
+                "fact_key": "fk2",
+                "last_used_at": recent_time,
+                "created_at": recent_time,
+            },
         ]
         db = _FakeDB(rows)
         ev = MemoryEvaluator(db)
@@ -196,9 +248,13 @@ class TestRunFullEvalNoQueries(unittest.TestCase):
 class TestOverallScoreCalculation(unittest.TestCase):
     def test_score_averaging(self):
         rows = [
-            {"user_id": "u1", "status": "active", "fact_key": "fk1",
-             "last_used_at": dt.datetime.now(dt.timezone.utc).isoformat(),
-             "created_at": dt.datetime.now(dt.timezone.utc).isoformat()},
+            {
+                "user_id": "u1",
+                "status": "active",
+                "fact_key": "fk1",
+                "last_used_at": dt.datetime.now(dt.UTC).isoformat(),
+                "created_at": dt.datetime.now(dt.UTC).isoformat(),
+            },
         ]
         db = _FakeDB(rows)
         ev = MemoryEvaluator(db)

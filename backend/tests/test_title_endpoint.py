@@ -22,7 +22,10 @@ def _mock_quota_service(quota_exceeded=False):
         )
     else:
         result = MagicMock(
-            quota_exceeded=False, remaining=4, total_limit=5, retry_after_seconds=0,
+            quota_exceeded=False,
+            remaining=4,
+            total_limit=5,
+            retry_after_seconds=0,
             reservation_id=None,
         )
     mock_quota.check_and_record = AsyncMock(return_value=result)

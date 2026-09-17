@@ -5,15 +5,14 @@ Unit and integration tests for Contradiction Resolution & Authority Engine.
 
 from __future__ import annotations
 
-import pytest
 from unittest.mock import AsyncMock, patch
+
+import pytest
 
 from app.config import settings
 from rag.nodes.contradiction_resolver import (
     AuthorityRank,
-    AUTHORITY_WEIGHTS,
     detect_conflict,
-    extract_entity_keys,
     get_source_authority,
     resolve_contradictions,
 )
@@ -45,7 +44,10 @@ class TestAuthorityRanking:
         samples = [
             {"source_type": "qa_session", "source_url": "https://guru.org/qa/123"},
             {"source_type": "podcast", "source_url": "https://spotify.com/episode1"},
-            {"source_type": "video_transcript", "source_url": "https://youtube.com/watch?v=abc1234"},
+            {
+                "source_type": "video_transcript",
+                "source_url": "https://youtube.com/watch?v=abc1234",
+            },
             {"source_type": "youtube", "source_url": "https://youtu.be/xyz987"},
             {"channel": "video", "source_url": "https://youtube.com/watch?v=vid1"},
         ]
@@ -434,11 +436,18 @@ class TestGenerateAnswerMetadataPropagation:
         }
 
         mock_llm = AsyncMock()
-        mock_llm.generate.return_value = "The Four Sacred Secrets brings inner peace [Source: The Four Sacred Secrets]."
+        mock_llm.generate.return_value = (
+            "The Four Sacred Secrets brings inner peace [Source: The Four Sacred Secrets]."
+        )
 
-        with patch("rag.nodes._services._ollama", mock_llm), \
-             patch("rag.nodes._services._sarvam_cloud", mock_llm), \
-             patch("rag.nodes.utils._generation_route", return_value={"model": "test", "_route_metadata": {}}):
+        with (
+            patch("rag.nodes._services._ollama", mock_llm),
+            patch("rag.nodes._services._sarvam_cloud", mock_llm),
+            patch(
+                "rag.nodes.utils._generation_route",
+                return_value={"model": "test", "_route_metadata": {}},
+            ),
+        ):
             output = await generate_answer(state)
 
         assert output["contradiction_detected"] is True

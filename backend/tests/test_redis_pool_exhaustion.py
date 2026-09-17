@@ -7,6 +7,7 @@ enqueue() re-raised at job_queue.py:378 and /api/chat 500'd above ~5
 concurrent against max_connections=5 caps. isinstance() catches it and
 every future subclass.
 """
+
 from __future__ import annotations
 
 import asyncio

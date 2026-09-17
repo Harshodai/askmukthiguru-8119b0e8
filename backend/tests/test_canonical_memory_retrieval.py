@@ -21,37 +21,35 @@ Run: cd backend && .venv/bin/pytest tests/test_canonical_memory_retrieval.py -v
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, call, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from services.canonical_memory.retriever import (
-    MAX_MEMORIES,
-    MAX_TOKENS,
-    LEXICAL_LIMIT,
-    MAX_VECTOR_RESULTS,
-    RetrievedMemory,
-    RetrievalResult,
     CanonicalMemoryRetriever,
+    RetrievalResult,
+    RetrievedMemory,
     create_retriever,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _uid() -> str:
     return str(uuid.uuid4())
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
-def _make_memory_row(user_id: str, memory_id: str | None = None, **overrides: Any) -> dict[str, Any]:
+def _make_memory_row(
+    user_id: str, memory_id: str | None = None, **overrides: Any
+) -> dict[str, Any]:
     """Create a realistic canonical_memories row dict."""
     mid = memory_id or _uid()
     row = {
@@ -120,6 +118,7 @@ def _build_retriever(
 # Test: Retrieval returns relevant memories
 # ---------------------------------------------------------------------------
 
+
 class TestRetrievalReturnsRelevantMemories:
     """Verify that retrieval returns memories from semantic + lexical sources."""
 
@@ -148,6 +147,7 @@ class TestRetrievalReturnsRelevantMemories:
         mock_db.table.return_value.select = mock_hydrate_select
 
         import asyncio
+
         result = asyncio.run(retriever.retrieve(user_id, "concise answers"))
 
         assert len(result.memories) >= 1
@@ -179,6 +179,7 @@ class TestRetrievalReturnsRelevantMemories:
         mock_db.table.return_value.select = mock_lex_select
 
         import asyncio
+
         result = asyncio.run(retriever.retrieve(user_id, "prefers tone"))
 
         assert len(result.memories) >= 1
@@ -189,6 +190,7 @@ class TestRetrievalReturnsRelevantMemories:
         retriever, mock_db, mock_vi, mock_embed = _build_retriever()
 
         import asyncio
+
         result = asyncio.run(retriever.retrieve(_uid(), "hello"))
 
         assert result.memories == []
@@ -200,6 +202,7 @@ class TestRetrievalReturnsRelevantMemories:
 # Test: User isolation enforced
 # ---------------------------------------------------------------------------
 
+
 class TestUserIsolationEnforced:
     """Verify every query filters by user_id server-side."""
 
@@ -209,6 +212,7 @@ class TestUserIsolationEnforced:
         retriever, mock_db, mock_vi, mock_embed = _build_retriever()
 
         import asyncio
+
         asyncio.run(retriever.retrieve(user_id, "test query"))
 
         mock_vi.search.assert_called_once()
@@ -221,6 +225,7 @@ class TestUserIsolationEnforced:
         retriever, mock_db, mock_vi, mock_embed = _build_retriever()
 
         import asyncio
+
         asyncio.run(retriever.retrieve(user_id, "test query"))
 
         # Verify .eq("user_id", user_id) was called on the table
@@ -251,6 +256,7 @@ class TestUserIsolationEnforced:
         mock_db.table.return_value.select = mock_hydrate_select
 
         import asyncio
+
         asyncio.run(retriever.retrieve(user_id, "concise answers"))
 
         # Verify update was called with user_id filter
@@ -265,21 +271,30 @@ class TestUserIsolationEnforced:
 # Test: Ranking orders by relevance
 # ---------------------------------------------------------------------------
 
+
 class TestRankingOrdersByRelevance:
     """Verify composite score ranking."""
 
     def test_higher_semantic_score_ranks_higher(self):
         """Memory with higher semantic score should rank first."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         retriever, mock_db, mock_vi, mock_embed = _build_retriever()
 
         m_high = RetrievedMemory(
-            id="high", statement="A", memory_type="PREFERENCE",
-            semantic_score=0.95, importance=0.5, confidence=0.75,
+            id="high",
+            statement="A",
+            memory_type="PREFERENCE",
+            semantic_score=0.95,
+            importance=0.5,
+            confidence=0.75,
         )
         m_low = RetrievedMemory(
-            id="low", statement="B", memory_type="PREFERENCE",
-            semantic_score=0.3, importance=0.5, confidence=0.75,
+            id="low",
+            statement="B",
+            memory_type="PREFERENCE",
+            semantic_score=0.3,
+            importance=0.5,
+            confidence=0.75,
         )
 
         score_high = retriever._composite_score(m_high, "test", now)
@@ -288,16 +303,24 @@ class TestRankingOrdersByRelevance:
 
     def test_higher_importance_ranks_higher(self):
         """Memory with higher importance should rank higher."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         retriever, mock_db, mock_vi, mock_embed = _build_retriever()
 
         m_high = RetrievedMemory(
-            id="high", statement="A", memory_type="PROFILE",
-            semantic_score=0.5, importance=0.9, confidence=0.75,
+            id="high",
+            statement="A",
+            memory_type="PROFILE",
+            semantic_score=0.5,
+            importance=0.9,
+            confidence=0.75,
         )
         m_low = RetrievedMemory(
-            id="low", statement="B", memory_type="PROFILE",
-            semantic_score=0.5, importance=0.2, confidence=0.75,
+            id="low",
+            statement="B",
+            memory_type="PROFILE",
+            semantic_score=0.5,
+            importance=0.2,
+            confidence=0.75,
         )
 
         score_high = retriever._composite_score(m_high, "test", now)
@@ -306,16 +329,22 @@ class TestRankingOrdersByRelevance:
 
     def test_active_status_ranks_above_superseded(self):
         """Active memories rank above superseded ones."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         retriever, mock_db, mock_vi, mock_embed = _build_retriever()
 
         m_active = RetrievedMemory(
-            id="active", statement="A", memory_type="PREFERENCE",
-            semantic_score=0.7, status="active",
+            id="active",
+            statement="A",
+            memory_type="PREFERENCE",
+            semantic_score=0.7,
+            status="active",
         )
         m_super = RetrievedMemory(
-            id="super", statement="A", memory_type="PREFERENCE",
-            semantic_score=0.7, status="superseded",
+            id="super",
+            statement="A",
+            memory_type="PREFERENCE",
+            semantic_score=0.7,
+            status="superseded",
         )
 
         score_active = retriever._composite_score(m_active, "test", now)
@@ -324,16 +353,22 @@ class TestRankingOrdersByRelevance:
 
     def test_evidence_count_boosts_score(self):
         """Higher evidence count boosts ranking."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         retriever, mock_db, mock_vi, mock_embed = _build_retriever()
 
         m_many = RetrievedMemory(
-            id="many", statement="A", memory_type="PREFERENCE",
-            semantic_score=0.5, evidence_count=10,
+            id="many",
+            statement="A",
+            memory_type="PREFERENCE",
+            semantic_score=0.5,
+            evidence_count=10,
         )
         m_one = RetrievedMemory(
-            id="one", statement="A", memory_type="PREFERENCE",
-            semantic_score=0.5, evidence_count=1,
+            id="one",
+            statement="A",
+            memory_type="PREFERENCE",
+            semantic_score=0.5,
+            evidence_count=1,
         )
 
         score_many = retriever._composite_score(m_many, "test", now)
@@ -345,17 +380,21 @@ class TestRankingOrdersByRelevance:
         retriever, mock_db, mock_vi, mock_embed = _build_retriever()
 
         m_fresh = RetrievedMemory(
-            id="fresh", statement="A", memory_type="PREFERENCE",
+            id="fresh",
+            statement="A",
+            memory_type="PREFERENCE",
             semantic_score=0.5,
-            updated_at=datetime.now(timezone.utc).isoformat(),
+            updated_at=datetime.now(UTC).isoformat(),
         )
         m_stale = RetrievedMemory(
-            id="stale", statement="A", memory_type="PREFERENCE",
+            id="stale",
+            statement="A",
+            memory_type="PREFERENCE",
             semantic_score=0.5,
             updated_at="2020-01-01T00:00:00+00:00",
         )
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         score_fresh = retriever._composite_score(m_fresh, "test", now)
         score_stale = retriever._composite_score(m_stale, "test", now)
         assert score_fresh > score_stale
@@ -364,6 +403,7 @@ class TestRankingOrdersByRelevance:
 # ---------------------------------------------------------------------------
 # Test: Hard limits respected
 # ---------------------------------------------------------------------------
+
 
 class TestHardLimitsRespected:
     """Verify max 20 memories and max 2000 tokens."""
@@ -375,8 +415,10 @@ class TestHardLimitsRespected:
         # Create 25 memories with high scores
         ranked = [
             RetrievedMemory(
-                id=_uid(), statement="Memory number %d" % i,
-                memory_type="PREFERENCE", score=1.0 - i * 0.01,
+                id=_uid(),
+                statement=f"Memory number {i}",
+                memory_type="PREFERENCE",
+                score=1.0 - i * 0.01,
             )
             for i in range(25)
         ]
@@ -410,8 +452,10 @@ class TestHardLimitsRespected:
 
         ranked = [
             RetrievedMemory(
-                id=_uid(), statement="Memory %d" % i,
-                memory_type="PREFERENCE", score=1.0,
+                id=_uid(),
+                statement=f"Memory {i}",
+                memory_type="PREFERENCE",
+                score=1.0,
             )
             for i in range(10)
         ]
@@ -426,8 +470,10 @@ class TestHardLimitsRespected:
 
         ranked = [
             RetrievedMemory(
-                id=_uid(), statement="short",
-                memory_type="PREFERENCE", score=0.9,
+                id=_uid(),
+                statement="short",
+                memory_type="PREFERENCE",
+                score=0.9,
             )
             for _ in range(3)
         ]
@@ -440,6 +486,7 @@ class TestHardLimitsRespected:
 # ---------------------------------------------------------------------------
 # Test: Retrieval updates last_used_at
 # ---------------------------------------------------------------------------
+
 
 class TestRetrievalUpdatesLastUsedAt:
     """Verify that retrieved memories get last_used_at updated."""
@@ -469,6 +516,7 @@ class TestRetrievalUpdatesLastUsedAt:
         mock_db.table.return_value.select = mock_hydrate_select
 
         import asyncio
+
         asyncio.run(retriever.retrieve(user_id, "concise answers"))
 
         # Verify update was called (last_used_at)
@@ -481,6 +529,7 @@ class TestRetrievalUpdatesLastUsedAt:
         retriever, mock_db, mock_vi, mock_embed = _build_retriever()
 
         import asyncio
+
         asyncio.run(retriever.retrieve(_uid(), "empty query"))
 
         mock_db.table.return_value.update.assert_not_called()
@@ -489,6 +538,7 @@ class TestRetrievalUpdatesLastUsedAt:
 # ---------------------------------------------------------------------------
 # Test: Lexical fallback when vector search fails
 # ---------------------------------------------------------------------------
+
 
 class TestLexicalFallbackWhenVectorFails:
     """Verify graceful degradation when Qdrant is unavailable."""
@@ -520,6 +570,7 @@ class TestLexicalFallbackWhenVectorFails:
         mock_db.table.return_value.select = mock_lex_select
 
         import asyncio
+
         result = asyncio.run(retriever.retrieve(user_id, "test query"))
 
         # Should still return results from lexical search
@@ -546,6 +597,7 @@ class TestLexicalFallbackWhenVectorFails:
         mock_db.table.return_value.select = mock_lex_select
 
         import asyncio
+
         result = asyncio.run(retriever.retrieve(_uid(), "test query"))
 
         assert result.memories == []
@@ -554,6 +606,7 @@ class TestLexicalFallbackWhenVectorFails:
 # ---------------------------------------------------------------------------
 # Test: Search term extraction
 # ---------------------------------------------------------------------------
+
 
 class TestSearchTermExtraction:
     """Verify query term extraction."""
@@ -573,9 +626,7 @@ class TestSearchTermExtraction:
     def test_returns_max_5_terms(self):
         """Never returns more than 5 search terms."""
         retriever, mock_db, mock_vi, mock_embed = _build_retriever()
-        terms = retriever._extract_search_terms(
-            "one two three four five six seven eight nine ten"
-        )
+        terms = retriever._extract_search_terms("one two three four five six seven eight nine ten")
         assert len(terms) <= 5
 
     def test_handles_indic_script(self):
@@ -590,13 +641,14 @@ class TestSearchTermExtraction:
 # Test: Composite score calculation
 # ---------------------------------------------------------------------------
 
+
 class TestCompositeScoreCalculation:
     """Verify composite score formula."""
 
     def test_perfect_memory_scores_highest(self):
         """A memory with all max signals should score near 1.0."""
         retriever, mock_db, mock_vi, mock_embed = _build_retriever()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         m = RetrievedMemory(
             id="perfect",
             statement="Perfect memory",
@@ -615,7 +667,7 @@ class TestCompositeScoreCalculation:
     def test_minimal_memory_scores_low(self):
         """A memory with all min signals should score near 0."""
         retriever, mock_db, mock_vi, mock_embed = _build_retriever()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         m = RetrievedMemory(
             id="minimal",
             statement="Minimal",
@@ -634,15 +686,19 @@ class TestCompositeScoreCalculation:
     def test_score_range_always_0_to_1(self):
         """Score is always in [0, 1]."""
         retriever, mock_db, mock_vi, mock_embed = _build_retriever()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # Test various combinations
         for sem in [0.0, 0.5, 1.0]:
             for imp in [0.0, 0.5, 1.0]:
                 for conf in [0.0, 0.5, 1.0]:
                     m = RetrievedMemory(
-                        id=_uid(), statement="test", memory_type="PREFERENCE",
-                        semantic_score=sem, importance=imp, confidence=conf,
+                        id=_uid(),
+                        statement="test",
+                        memory_type="PREFERENCE",
+                        semantic_score=sem,
+                        importance=imp,
+                        confidence=conf,
                     )
                     score = retriever._composite_score(m, "query", now)
                     assert 0.0 <= score <= 1.0, f"Score {score} out of range"
@@ -651,6 +707,7 @@ class TestCompositeScoreCalculation:
 # ---------------------------------------------------------------------------
 # Test: Token estimation
 # ---------------------------------------------------------------------------
+
 
 class TestTokenEstimation:
     """Verify token estimation for budget enforcement."""
@@ -670,13 +727,14 @@ class TestTokenEstimation:
 # Test: Freshness decay
 # ---------------------------------------------------------------------------
 
+
 class TestFreshnessDecay:
     """Verify freshness score exponential decay."""
 
     def test_very_recent_is_high(self):
         """Timestamp from just now scores near 1.0."""
         retriever, mock_db, mock_vi, mock_embed = _build_retriever()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         ts = now.isoformat()
         score = retriever._freshness_score(ts, now)
         assert score > 0.99
@@ -684,14 +742,14 @@ class TestFreshnessDecay:
     def test_very_old_is_low(self):
         """Timestamp from years ago scores near 0."""
         retriever, mock_db, mock_vi, mock_embed = _build_retriever()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         score = retriever._freshness_score("2020-01-01T00:00:00+00:00", now)
         assert score < 0.01
 
     def test_unknown_timestamp_gets_neutral(self):
         """None timestamp gets neutral 0.3 score."""
         retriever, mock_db, mock_vi, mock_embed = _build_retriever()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         score = retriever._freshness_score(None, now)
         assert score == 0.3
 
@@ -699,6 +757,7 @@ class TestFreshnessDecay:
 # ---------------------------------------------------------------------------
 # Test: Factory function
 # ---------------------------------------------------------------------------
+
 
 class TestFactoryFunction:
     """Verify create_retriever factory."""
@@ -712,6 +771,7 @@ class TestFactoryFunction:
 # ---------------------------------------------------------------------------
 # Test: RetrievalResult data class
 # ---------------------------------------------------------------------------
+
 
 class TestRetrievalResult:
     """Verify RetrievalResult data class."""
@@ -729,6 +789,7 @@ class TestRetrievalResult:
 # ---------------------------------------------------------------------------
 # Test: RetrievedMemory data class
 # ---------------------------------------------------------------------------
+
 
 class TestRetrievedMemory:
     """Verify RetrievedMemory data class."""

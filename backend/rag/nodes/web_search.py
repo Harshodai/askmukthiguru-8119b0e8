@@ -6,6 +6,7 @@ import logging
 from datetime import UTC, datetime, timedelta
 
 from app.config import settings
+from app.constants import IntentType
 from app.schemas import LiveLogisticsEvent
 from app.tracing import trace_rag_node
 from rag.nodes.utils import log_metrics
@@ -22,7 +23,7 @@ async def web_search_node(state: GraphState, config: dict = None) -> dict:
     General temporal questions deliberately do not invoke live search. This
     avoids treating unverified snippets as current logistical facts.
     """
-    if state.get("intent") != "LIVE_LOGISTICS":
+    if state.get("intent") != IntentType.LIVE_LOGISTICS.value:
         return {"web_search_results": []}
     if not settings.live_logistics_enabled:
         return {"web_search_results": []}

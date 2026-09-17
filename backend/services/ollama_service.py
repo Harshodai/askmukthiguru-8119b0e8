@@ -159,6 +159,7 @@ class OllamaService:
     def _estimate_tokens(text: str) -> int:
         """Language-aware token estimate via shared compressor."""
         from rag.compressor import estimate_tokens
+
         return estimate_tokens(text)
 
     @classmethod

@@ -11,7 +11,6 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 from urllib.parse import urlparse
 
-
 DEFAULT_KS = (1, 5, 10, 25, 50)
 
 CANONICAL_FOUR_SECRETS_URL = (
@@ -44,7 +43,9 @@ def normalize_source_key(source: str) -> str:
     return key
 
 
-def first_relevant_rank(retrieved_sources: Sequence[str], correct_sources: Iterable[str]) -> int | None:
+def first_relevant_rank(
+    retrieved_sources: Sequence[str], correct_sources: Iterable[str]
+) -> int | None:
     """Return the one-based rank of the first relevant source, if present."""
     correct = {normalize_source_key(source) for source in correct_sources if source}
     for rank, source in enumerate(retrieved_sources, start=1):
@@ -81,9 +82,7 @@ def summarize_rankings(
             top_k = [normalize_source_key(s) for s in retrieved_sources[:k]]
             if any(source in correct for source in top_k):
                 hits[k] += 1
-            precision_totals[k] += (
-                sum(source in correct for source in top_k) / k if top_k else 0.0
-            )
+            precision_totals[k] += sum(source in correct for source in top_k) / k if top_k else 0.0
 
     def average(value: float) -> float:
         return round(value / query_count, 4) if query_count else 0.0

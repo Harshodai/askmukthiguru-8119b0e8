@@ -1,6 +1,7 @@
 """Tests for canonical_memory.cost_tracker — Phase 18 Cost Optimization."""
+
 import time
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from services.canonical_memory.cost_tracker import (
     CostCategory,
@@ -216,7 +217,9 @@ class TestCostEntryTimestamp:
 class TestEstimateConsolidationCost:
     def test_no_memories(self):
         mock_client = MagicMock()
-        mock_client.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
+        mock_client.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value = MagicMock(
+            data=[]
+        )
         result = estimate_consolidation_cost(mock_client, "user-1")
         assert result["memories"] == 0
         assert result["consolidation_runs"] == 0

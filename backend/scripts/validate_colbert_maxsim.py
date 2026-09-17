@@ -535,7 +535,9 @@ def _colbert_vs_crossencoder_spearman() -> tuple[bool, Optional[float], str]:
             # min_score=-1 disables the rerank_min_score threshold filter so all
             # docs are returned in rank order (we need full rankings, not the
             # production filtered subset, to compute rank positions for Spearman).
-            cross_out = asyncio.run(svc.rerank(q, [{"text": d} for d in docs], top_k=len(docs), min_score=-1.0))
+            cross_out = asyncio.run(
+                svc.rerank(q, [{"text": d} for d in docs], top_k=len(docs), min_score=-1.0)
+            )
             cross_order = [d["text"] for d in cross_out]
 
             for _original_idx, original_doc in enumerate(docs):

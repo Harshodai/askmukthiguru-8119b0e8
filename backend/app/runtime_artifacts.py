@@ -25,7 +25,9 @@ ARTIFACTS: tuple[RuntimeArtifact, ...] = (
     # traversal when absent, so they do not fail the serving health readiness probe.
     RuntimeArtifact("okf_compiled", Path("/app/memory/okf/compiled.json"), required=False),
     RuntimeArtifact("doctrine_lexicon", Path("/app/data/doctrine_lexicon.json"), required=False),
-    RuntimeArtifact("cpu_reranker_cache", Path("/app/model_cache/sentence_transformers"), required=False),
+    RuntimeArtifact(
+        "cpu_reranker_cache", Path("/app/model_cache/sentence_transformers"), required=False
+    ),
 )
 
 

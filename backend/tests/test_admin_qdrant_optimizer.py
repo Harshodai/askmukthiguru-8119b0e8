@@ -13,7 +13,12 @@ from app.main import app, get_current_user_from_supabase
 
 
 def mock_get_current_admin():
-    return {"id": "admin-user-id", "email": "admin@example.com", "is_superuser": True, "aal": "aal2"}
+    return {
+        "id": "admin-user-id",
+        "email": "admin@example.com",
+        "is_superuser": True,
+        "aal": "aal2",
+    }
 
 
 @pytest.fixture(autouse=True)
@@ -61,6 +66,26 @@ def test_qdrant_optimize_endpoint_wired(client_with_fake_container):
 
 def test_qdrant_endpoints_require_admin():
     app.dependency_overrides.pop(get_current_user_from_supabase, None)
-    client = TestClient(app)
-    resp = client.get("/api/admin/qdrant/health")
-    assert resp.status_code in (401, 403)
+    # get_qdrant_index_health (app/api/admin.py) declares
+    # `container: ServiceContainer = Depends(get_container)` BEFORE
+    # `user: dict = Depends(_require_admin)` — FastAPI resolves dependencies
+    # in declaration order, so leaving get_container un-overridden here builds
+    # the REAL app.dependencies._container singleton (ContainerBuilder().build(),
+    # a real LLMGateway with real circuit breakers included) before the admin
+    # check ever runs, and that singleton then never gets torn down: every
+    # later test in the process that assumes rag.nodes._services._llm_gateway
+    # defaults to None inherits a real, already-tripped circuit breaker
+    # instead (reproduced: test_agentic_graph_traversal.py and
+    # test_audit_fixes.py both fail with "Circuit breaker OPEN for
+    # openrouter" only when this test runs unguarded beforehand in the same
+    # process). This test's job is the 401/403 auth check, not container
+    # construction — override get_container (mirrored onto get_container_async
+    # by tests/conftest.py's _MirroringOverrides) with a lightweight fake so
+    # the real singleton is never touched.
+    app.dependency_overrides[get_container] = lambda: MagicMock()
+    try:
+        client = TestClient(app)
+        resp = client.get("/api/admin/qdrant/health")
+        assert resp.status_code in (401, 403)
+    finally:
+        app.dependency_overrides.pop(get_container, None)

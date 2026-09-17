@@ -75,6 +75,7 @@ def get_token_ratio(language: str = "en") -> float:
     script = _LANG_TO_SCRIPT.get(lang_code, "latin")
     return _SCRIPT_TOKEN_RATIOS.get(script, _SCRIPT_TOKEN_RATIOS["default"])
 
+
 # Try importing LLMLingua optionally for advanced 20x compression
 try:
     from llmlingua import PromptCompressor

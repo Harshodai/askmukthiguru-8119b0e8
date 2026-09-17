@@ -19,6 +19,6 @@
 SHELL=/bin/sh
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
-0 2 * * * root . /etc/mukthiguru/backup.env; /usr/bin/python3 $REPO/scripts/ops/backup_qdrant.py --collection spiritual_wisdom --retention 7 >> /var/log/mukthiguru/backup-qdrant.log 2>&1
+0 2 * * * root . /etc/mukthiguru/backup.env; /usr/bin/python3 $REPO/scripts/ops/backup_qdrant.py --collection spiritual_wisdom_contextual --retention 7 >> /var/log/mukthiguru/backup-qdrant.log 2>&1
 
 30 2 * * * root . /etc/mukthiguru/backup.env; /usr/bin/python3 $REPO/scripts/ops/backup_neo4j.py --format dump --retention 7 >> /var/log/mukthiguru/backup-neo4j.log 2>&1

@@ -36,8 +36,8 @@ Public API:
 
 from __future__ import annotations
 
-import json
 import asyncio
+import json
 import logging
 import os
 import time
@@ -218,7 +218,7 @@ class AnthropicGateway:
             self._session = aiohttp.ClientSession()
         return self._session
 
-    async def __aenter__(self) -> "AnthropicGateway":
+    async def __aenter__(self) -> AnthropicGateway:
         await self._get_session()
         return self
 

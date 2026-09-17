@@ -1,5 +1,4 @@
 """Tests for canonical memory self-healing — Phase 21."""
-import pytest
 
 from services.canonical_memory.self_healing import (
     DriftDetector,

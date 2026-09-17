@@ -87,6 +87,16 @@ class OnnxReranker:
         from huggingface_hub import snapshot_download
         from transformers import AutoTokenizer
 
+        # 2026-09-16: bound HF download concurrency/backend before any
+        # snapshot_download, same guard embedding_service.py applies before
+        # its own model loads. Without it a cold cache (missing/incomplete
+        # build-time pre-bake) falls through to huggingface_hub's Xet
+        # downloader, whose concurrent chunked transfer OOM-aborted the prod
+        # backend process once already (see docs/PROD_HARDENING_STATUS.md).
+        from services.embedding_service import _apply_hf_env_bounds
+
+        _apply_hf_env_bounds()
+
         # Fail-closed: only the validated model id may be loaded. A
         # from_pretrained/snapshot_download call for an arbitrary repo would
         # download and execute unvetted model code (CVE-2024-0791 class).
@@ -124,8 +134,21 @@ class OnnxReranker:
 
         # Bound thread count: default (0=all cores) oversubscribes when
         # multiple predict() calls run concurrently via asyncio.to_thread.
+        # os.cpu_count() reads the HOST/VM core count inside a container, not
+        # the cgroup quota (measured 10 vs cgroup 4.0) -- same defect class as
+        # L-DOCKER-9 (MKL/OpenBLAS/OMP), already fixed for
+        # services/embedding_service.py:385-391. ORT ignores OMP_NUM_THREADS
+        # in Eigen builds, so reuse settings.omp_num_threads as the same
+        # operator-tunable budget instead of re-deriving one from cpu_count().
+        from app.config import settings
+
         so = ort.SessionOptions()
-        so.intra_op_num_threads = max(1, (os.cpu_count() or 2) // 2)
+        # settings.omp_num_threads is `int = Field(default=2, ge=1)`, so it is
+        # already a validated positive int -- no clamp, no cpu_count() cap. An
+        # earlier version of this line kept a `min(budget, cpu_count()//2)`
+        # ceiling, which re-derived the host-core budget the comment above
+        # says not to derive.
+        so.intra_op_num_threads = settings.omp_num_threads
         so.inter_op_num_threads = 1
         so.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
 

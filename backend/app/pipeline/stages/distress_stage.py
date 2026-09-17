@@ -23,7 +23,6 @@ from services.serene_mind_engine import (
     get_crisis_resource,
 )
 
-
 if TYPE_CHECKING:
     from app.pipeline.stages.context import PipelineContext
 
@@ -232,7 +231,7 @@ class DistressStage(Stage):
                 "requested_variant": "distress",
                 "selected_variant": "crisis_preempted",
                 "decision_method": decision_method,
-                "distress_level": level.name if hasattr(level, 'name') else str(level),
+                "distress_level": level.name if hasattr(level, "name") else str(level),
                 "routing_chain": list(getattr(ctx, "routing_chain", [])),
             },
             proactive_serene_mind={
@@ -249,7 +248,6 @@ class DistressStage(Stage):
             ],
             release_manifest=get_release_manifest().to_dict(),
         )
-
 
     # -- extracted method bodies (verbatim, self -> ctx) --
 

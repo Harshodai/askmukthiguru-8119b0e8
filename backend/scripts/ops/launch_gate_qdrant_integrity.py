@@ -15,7 +15,13 @@ import os
 import sys
 from dataclasses import dataclass, field
 
-REQUIRED_FILTER_FIELDS = ["tenant_id", "corpus_id", "teacher_id", "teacher_ids", "domain_rights_status"]
+REQUIRED_FILTER_FIELDS = [
+    "tenant_id",
+    "corpus_id",
+    "teacher_id",
+    "teacher_ids",
+    "domain_rights_status",
+]
 
 
 @dataclass
@@ -95,7 +101,9 @@ def main() -> int:
             # silently matches nothing, not an error.
             populated = idx.points > 0
             report.add(
-                "BLOCKER" if field_name in ("tenant_id", "corpus_id", "domain_rights_status") else "MEDIUM",
+                "BLOCKER"
+                if field_name in ("tenant_id", "corpus_id", "domain_rights_status")
+                else "MEDIUM",
                 f"index_populated:{field_name}",
                 populated,
                 f"{idx.points} points carry a value under this index",

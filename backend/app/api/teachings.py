@@ -144,7 +144,9 @@ def _harvest_tip_pool(qdrant) -> list[dict]:
         try:
             rows = qdrant.scroll_content(topic, limit=25)
         except Exception as exc:
-            logger.debug("Tip harvest for topic '%s' failed: %s", sanitize_log_input(str(topic)), exc)
+            logger.debug(
+                "Tip harvest for topic '%s' failed: %s", sanitize_log_input(str(topic)), exc
+            )
             continue
         for row in rows:
             text = _first_sentences(

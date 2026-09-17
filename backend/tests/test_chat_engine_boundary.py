@@ -16,6 +16,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import HTTPException
+from pydantic import ValidationError
 
 from app.chat_engine import ChatChunk, ChatEngine, ChatResult
 from app.config import settings
@@ -123,19 +124,22 @@ async def test_chat_engine_process_stream():
 
 @pytest.mark.asyncio
 async def test_chat_engine_error_handling_empty_message():
-    """An empty (whitespace-only) message raises HTTPException 400.
+    """A whitespace-only message is rejected before it ever reaches ChatEngine.
 
-    Note: a literal empty string "" is rejected earlier by the ChatRequest
-    Pydantic schema (min_length=1) and raises ValidationError, not HTTPException.
-    The facade-level validation surface is exercised here with whitespace,
-    which bypasses the schema and reaches ChatEngine._validate.
+    ChatRequest (app/schemas/__init__.py) now carries `str_strip_whitespace=True`
+    + `min_length=1` (added in bf7ada3d, "real gates"). Pydantic strips the
+    value and then checks min_length on the *stripped* result, so "   " is
+    now rejected at schema construction the same way "" already was — this
+    invariant moved one layer earlier and got strictly stronger, not weaker.
+    `ChatEngine._validate`'s own `not message.strip()` branch (chat_engine.py
+    :224) is therefore unreachable through the public `chat()`/`chat_advanced()`
+    surface now; it still guards any internal caller that builds a ChatRequest
+    a different way.
     """
     engine = _new_engine()
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(ValidationError):
         await engine.chat("   ", user_id="u3")
-
-    assert exc_info.value.status_code == 400
 
 
 # ---------------------------------------------------------------------------

@@ -40,9 +40,9 @@ def test_stub_raises_outside_pytest_rather_than_warning(stub_source: str):
         "the stub must fail closed outside pytest — a warning lets a production "
         "ingest proceed and write differently-chunked vectors"
     )
-    assert (
-        "warnings.warn(" not in stub_source
-    ), "a warning here is not a guard; it was the original defect"
+    assert "warnings.warn(" not in stub_source, (
+        "a warning here is not a guard; it was the original defect"
+    )
 
 
 def test_guard_keys_on_pytest(stub_source: str):

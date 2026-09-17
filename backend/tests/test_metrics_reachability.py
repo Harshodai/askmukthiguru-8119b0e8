@@ -11,6 +11,7 @@ Dead (must NOT reappear in app/metrics.py):
   SEMANTIC_CACHE_LOOKUP_LATENCY, WEB_SEARCH_HIT_TOTAL,
   WEB_SEARCH_MISS_TOTAL, MEDITATION_SESSIONS, LLM_REQUEST_DURATION
 """
+
 import pathlib
 
 LIVE = ["LLM_ERRORS", "LLM_LATENCY", "RETRIEVAL_LATENCY", "CACHE_HIT_RATIO"]
@@ -58,6 +59,4 @@ def test_dead_collectors_absent():
 
     src = pathlib.Path("app/metrics.py").read_text()
     for name in DEAD:
-        assert not re.search(rf"^{name}\s*=", src, re.M), (
-            f"dead collector {name} still declared"
-        )
+        assert not re.search(rf"^{name}\s*=", src, re.M), f"dead collector {name} still declared"

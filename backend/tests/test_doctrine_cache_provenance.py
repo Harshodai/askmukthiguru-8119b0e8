@@ -36,7 +36,11 @@ def test_entries_without_citations_are_skipped_at_load(tmp_path):
         json.dumps(
             [
                 {"question": "What is deeksha?", "answer": "Deeksha is a transmission."},
-                {"question": "What is deeksha?", "answer": "Deeksha is a transmission.", "citations": []},
+                {
+                    "question": "What is deeksha?",
+                    "answer": "Deeksha is a transmission.",
+                    "citations": [],
+                },
                 {
                     "question": "What is soul sync?",
                     "answer": "Soul Sync is a 7-minute meditation.",

@@ -10,7 +10,7 @@ from contextvars import ContextVar
 request_id_var: ContextVar[str] = ContextVar("request_id", default="-")
 correlation_id_var: ContextVar[str] = ContextVar("correlation_id", default="-")
 # Queue lifecycle data is internal diagnostics only; never project it to clients.
-queue_timing_var: ContextVar[dict] = ContextVar("queue_timing", default={})
+queue_timing_var: ContextVar[dict] = ContextVar("queue_timing", default={})  # noqa: B039 — never mutated in place, only ever replaced via .set(); reset() falling back to it is intentional (see test_job_queue.py)
 
 
 def get_request_id() -> str:

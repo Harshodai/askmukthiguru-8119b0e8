@@ -679,7 +679,11 @@ async def get_optional_user(
         return {"id": "anonymous", "email": None, "is_anonymous": True}
 
     is_privileged = user.get("is_superuser") or user.get("role") == "service_role"
-    if not user.get("is_anonymous") and not is_privileged and not _is_allowed_email_domain(user.get("email")):
+    if (
+        not user.get("is_anonymous")
+        and not is_privileged
+        and not _is_allowed_email_domain(user.get("email"))
+    ):
         logger.warning(
             "get_optional_user: rejecting authenticated user with non-allowlisted email domain"
         )

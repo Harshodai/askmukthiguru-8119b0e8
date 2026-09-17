@@ -4,6 +4,7 @@ Overrides the root conftest's autouse fixtures that import ``app.main``
 (and its heavy dependency chain) so that pure unit tests run without
 triggering the full application import graph.
 """
+
 import pytest
 
 

@@ -1,9 +1,10 @@
 """Cost tracking and optimization for memory system."""
+
 import datetime as dt
 import time
-from typing import Dict, Any, Optional
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Any, Optional
 
 
 class CostCategory(str, Enum):
@@ -22,11 +23,11 @@ class CostEntry:
     latency_ms: float = 0.0
     cost_usd: float = 0.0
     timestamp: str = ""
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         if not self.timestamp:
-            self.timestamp = dt.datetime.now(dt.timezone.utc).isoformat()
+            self.timestamp = dt.datetime.now(dt.UTC).isoformat()
 
 
 class CostTracker:
@@ -52,12 +53,9 @@ class CostTracker:
 
     def get_window_cost(self, category: Optional[CostCategory] = None) -> float:
         self._maybe_rotate_window()
-        return sum(
-            e.cost_usd for e in self._entries
-            if category is None or e.category == category
-        )
+        return sum(e.cost_usd for e in self._entries if category is None or e.category == category)
 
-    def get_budget_usage(self) -> Dict[str, Any]:
+    def get_budget_usage(self) -> dict[str, Any]:
         current = self.get_window_cost()
         return {
             "budget_usd": self.budget_usd,
@@ -71,7 +69,7 @@ class CostTracker:
     def is_budget_available(self, estimated_cost: float = 0.01) -> bool:
         return (self.get_window_cost() + estimated_cost) <= self.budget_usd
 
-    def get_cost_breakdown(self) -> Dict[str, float]:
+    def get_cost_breakdown(self) -> dict[str, float]:
         self._maybe_rotate_window()
         breakdown = {}
         for cat in CostCategory:
@@ -85,7 +83,7 @@ class CostTracker:
             self._entries.clear()
             self._window_start = time.time()
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         self._maybe_rotate_window()
         return {
             "total_entries": len(self._entries),
@@ -100,7 +98,7 @@ class CostTracker:
 
 def estimate_consolidation_cost(
     db_client, user_id: str, llm_cost_per_run: float = 0.005
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     result = (
         db_client.table("canonical_memories")
         .select("id")

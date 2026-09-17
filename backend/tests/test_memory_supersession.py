@@ -8,7 +8,6 @@ Criteria A2.3, A2.4, A2.5 from latency-at-scale-and-correctness-plan-2026-08-26.
 
 from __future__ import annotations
 
-import asyncio
 import uuid
 from typing import Any, Optional
 from unittest.mock import AsyncMock, MagicMock
@@ -16,11 +15,10 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from services.memory_service import (
+    _SINGLE_VALUED_FACT_KEY_PATTERNS,
     MemoryService,
     _derive_fact_key,
-    _SINGLE_VALUED_FACT_KEY_PATTERNS,
 )
-
 
 # ---------------------------------------------------------------------------
 # In-Memory Mock Supabase Client for State Tracking & Bi-Temporal Invariants
@@ -245,9 +243,7 @@ class TestDeriveFactKey:
             == "user:mental_state"
         )
         assert (
-            _derive_fact_key(
-                "I like tea", metadata={"fact_key": "user:preference:beverage"}
-            )
+            _derive_fact_key("I like tea", metadata={"fact_key": "user:preference:beverage"})
             == "user:preference:beverage"
         )
 
@@ -485,7 +481,9 @@ class TestMemorySupersessionSuite:
 
         listed = await service.list_memories(user_id=user_id)
         assert listed["total"] == 1
-        assert listed["memories"][0]["content"] == "Current Spiritual Goal: Daily Soul Sync and Seva"
+        assert (
+            listed["memories"][0]["content"] == "Current Spiritual Goal: Daily Soul Sync and Seva"
+        )
 
     async def test_criterion_a2_5_repeated_supersessions_stay_bounded(self):
         """Criterion A2.5: Successive updates to a single-valued relation produce
@@ -561,7 +559,9 @@ class TestMemorySupersessionSuite:
 
         monkeypatch.setattr(openai, "AsyncOpenAI", MockAsyncOpenAI)
         monkeypatch.setattr("services.memory_service.settings.llm_provider", "openrouter")
-        monkeypatch.setattr("services.memory_service.settings.openrouter_classify_model", "test-model")
+        monkeypatch.setattr(
+            "services.memory_service.settings.openrouter_classify_model", "test-model"
+        )
 
         # Insert 16 episodic reflections to trigger compaction threshold (> 15)
         for i in range(16):
@@ -576,7 +576,10 @@ class TestMemorySupersessionSuite:
         rows = client.tables["guru_memories"]
         assert len(rows) == 3
         assert len(rows) <= 8
-        assert rows[0]["content"] == "Seeker practices daily morning meditation and breathing exercises"
+        assert (
+            rows[0]["content"]
+            == "Seeker practices daily morning meditation and breathing exercises"
+        )
 
     async def test_anonymous_sessions_do_not_persist(self):
         """Anonymous sessions (e.g. anon:<session_id>) do not write to store."""

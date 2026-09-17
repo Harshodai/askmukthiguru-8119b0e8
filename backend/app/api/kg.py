@@ -287,7 +287,9 @@ async def kg_sparql(req: SparqlRequest, user=Depends(require_aal2)) -> SparqlRes
         async with _KG_QUERY_SEMAPHORE:
             columns, rows = await asyncio.wait_for(asyncio.to_thread(_run), timeout=timeout_s)
     except TimeoutError:
-        logger.warning("kg/sparql query timed out (>%.0fs) user=%s", timeout_s, sanitize_log_input(str(uid)))
+        logger.warning(
+            "kg/sparql query timed out (>%.0fs) user=%s", timeout_s, sanitize_log_input(str(uid))
+        )
         raise HTTPException(status_code=504, detail="Query timed out.")
     except HTTPException:
         raise
@@ -399,7 +401,9 @@ async def kg_personal_subgraph(
     if not _KG_PERSONAL_RATE_LIMITER.is_allowed(limit_key):
         raise HTTPException(status_code=429, detail="Rate limit exceeded. Try again later.")
 
-    is_anonymous = user.get("is_anonymous") if isinstance(user, dict) else getattr(user, "is_anonymous", False)
+    is_anonymous = (
+        user.get("is_anonymous") if isinstance(user, dict) else getattr(user, "is_anonymous", False)
+    )
     if not uid or uid == "anonymous" or is_anonymous:
         return SubgraphResponse(nodes=[], edges=[], query="", count=0)
 
@@ -421,7 +425,9 @@ async def kg_personal_subgraph(
         logger.warning("kg/personal-subgraph timed out for user=%s", sanitize_log_input(str(uid)))
         return SubgraphResponse(nodes=[], edges=[], query="", count=0)
     except Exception as exc:  # noqa: BLE001
-        logger.warning("kg/personal-subgraph failed for user=%s: %s", sanitize_log_input(str(uid)), exc)
+        logger.warning(
+            "kg/personal-subgraph failed for user=%s: %s", sanitize_log_input(str(uid)), exc
+        )
         return SubgraphResponse(nodes=[], edges=[], query="", count=0)
 
     if not isinstance(result, dict):
@@ -432,20 +438,24 @@ async def kg_personal_subgraph(
 
     nodes: list[KGNode] = []
     for n in raw_nodes:
-        nodes.append(KGNode(
-            id=str(n.get("id", "")),
-            label=str(n.get("label", "")),
-            type=str(n.get("type", "Concept")),
-            teacher=n.get("teacher"),
-        ))
+        nodes.append(
+            KGNode(
+                id=str(n.get("id", "")),
+                label=str(n.get("label", "")),
+                type=str(n.get("type", "Concept")),
+                teacher=n.get("teacher"),
+            )
+        )
 
     edges: list[KGEdge] = []
     for e in raw_edges:
-        edges.append(KGEdge(
-            source=str(e.get("source", "")),
-            target=str(e.get("target", "")),
-            label=e.get("type") or e.get("label"),
-        ))
+        edges.append(
+            KGEdge(
+                source=str(e.get("source", "")),
+                target=str(e.get("target", "")),
+                label=e.get("type") or e.get("label"),
+            )
+        )
 
     return SubgraphResponse(
         nodes=nodes,

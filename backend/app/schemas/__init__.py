@@ -5,7 +5,7 @@ import logging
 from typing import Any, Literal, Optional
 from urllib.parse import urlparse
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.schemas.compliance_provenance import (
     AIProvenanceManifest,
@@ -32,6 +32,8 @@ class ReleaseManifestPublic(BaseModel):
     model identifiers, build timestamp) stays on internal/telemetry paths.
     """
 
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+
     release_id: str = Field(..., description="Release identifier")
     policy_version: Optional[str] = Field(default=None, description="Model policy version")
     schema_version: Optional[str] = Field(default=None, description="Response schema version")
@@ -43,6 +45,8 @@ _HISTORY_TURNS_MAX = 50
 
 class MessagePayload(BaseModel):
     """Single message in the conversation history."""
+
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
     role: str = Field(..., description="'user' or 'assistant'")
     # C4: bound to match ChatRequest.user_message so one history turn can never
@@ -61,6 +65,8 @@ class MessagePayload(BaseModel):
 class AssistantContext(BaseModel):
     """Optional assistant override for a chat turn."""
 
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+
     slug: str = Field(..., description="Assistant identifier")
     system_prompt: Optional[str] = Field(
         default=None, description="Assistant-specific system persona"
@@ -72,6 +78,8 @@ class AssistantContext(BaseModel):
 
 class ResponsePreferences(BaseModel):
     """Explicit response-form controls; never inferred from seeker traits."""
+
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
     mode: Literal["balanced_guidance", "concise", "reflective_guidance", "teaching_explanation"] = (
         Field(default="balanced_guidance", description="Requested response presentation mode")
@@ -89,6 +97,8 @@ class ResponsePreferences(BaseModel):
 
 class ChatRequest(BaseModel):
     """Chat API request body — matches frontend's sendMessage format."""
+
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
     # C4 body-size budget: at most _HISTORY_TURNS_MAX turns of at most
     # _MESSAGE_CONTENT_MAX chars each (~500k chars worst case, matching the
@@ -350,3 +360,17 @@ class LiveLogisticsEvent(BaseModel):
         if parsed.scheme != "https" or not parsed.netloc:
             raise ValueError("live logistics URLs must be absolute HTTPS URLs")
         return value
+
+
+def parse_chat_request_json(raw_json: str) -> ChatRequest:
+    """Parse a raw JSON body into ChatRequest via Pydantic v2 native path.
+
+    Uses model_validate_json() (single-pass, no intermediate dict) instead of
+    json.loads + model_validate.
+    """
+    return ChatRequest.model_validate_json(raw_json)
+
+
+def parse_message_payload_json(raw_json: str) -> MessagePayload:
+    """Parse a raw JSON body into MessagePayload via model_validate_json()."""
+    return MessagePayload.model_validate_json(raw_json)

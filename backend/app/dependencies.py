@@ -74,6 +74,11 @@ def get_container() -> ServiceContainer:
     return _container
 
 
+async def get_container_async() -> ServiceContainer:
+    """Async dependency for FastAPI routes. Prevents worker thread allocation (L-DOCKER-9)."""
+    return get_container()
+
+
 def startup() -> None:
     """Initialize the service container on application startup."""
     get_container()
@@ -112,6 +117,7 @@ __all__ = [
     "_REQUIRED_SINGLETONS",
     "_create_llm_service",
     "get_container",
+    "get_container_async",
     "startup",
     "shutdown",
     "async_shutdown",

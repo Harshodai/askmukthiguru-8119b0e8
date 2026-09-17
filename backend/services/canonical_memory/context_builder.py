@@ -18,7 +18,7 @@ from __future__ import annotations
 import logging
 import re
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Optional
 
@@ -44,11 +44,11 @@ def _estimate_tokens(text: str) -> int:
 class QueryIntent(str, Enum):
     """Broad query categories that drive budget allocation."""
 
-    PREFERENCE = "preference"         # user-specific, memory-heavy
-    PERSONAL_HISTORY = "personal"     # follow-up / recall
-    SPIRITUAL_FACTUAL = "knowledge"   # doctrine / spiritual teaching
-    COMPARISON = "comparison"         # comparing concepts
-    UNKNOWN = "unknown"               # default balanced split
+    PREFERENCE = "preference"  # user-specific, memory-heavy
+    PERSONAL_HISTORY = "personal"  # follow-up / recall
+    SPIRITUAL_FACTUAL = "knowledge"  # doctrine / spiritual teaching
+    COMPARISON = "comparison"  # comparing concepts
+    UNKNOWN = "unknown"  # default balanced split
 
 
 # Keywords/patterns for intent classification (no LLM, deterministic)
@@ -124,11 +124,11 @@ DEFAULT_TOKEN_BUDGET = 1024
 
 # Budget splits per intent: (memory%, history%, knowledge%)
 _BUDGET_SPLITS: dict[QueryIntent, tuple[float, float, float]] = {
-    QueryIntent.PREFERENCE:           (0.60, 0.15, 0.25),  # memory-heavy
-    QueryIntent.PERSONAL_HISTORY:     (0.25, 0.55, 0.20),  # history-heavy
-    QueryIntent.SPIRITUAL_FACTUAL:    (0.10, 0.10, 0.80),  # knowledge-heavy
-    QueryIntent.COMPARISON:           (0.15, 0.15, 0.70),  # knowledge-heavy
-    QueryIntent.UNKNOWN:              (0.30, 0.30, 0.40),  # balanced
+    QueryIntent.PREFERENCE: (0.60, 0.15, 0.25),  # memory-heavy
+    QueryIntent.PERSONAL_HISTORY: (0.25, 0.55, 0.20),  # history-heavy
+    QueryIntent.SPIRITUAL_FACTUAL: (0.10, 0.10, 0.80),  # knowledge-heavy
+    QueryIntent.COMPARISON: (0.15, 0.15, 0.70),  # knowledge-heavy
+    QueryIntent.UNKNOWN: (0.30, 0.30, 0.40),  # balanced
 }
 
 
@@ -136,9 +136,9 @@ _BUDGET_SPLITS: dict[QueryIntent, tuple[float, float, float]] = {
 class BudgetAllocation:
     """Token budget allocation for a single layer."""
 
-    layer: str           # "memory", "history", "knowledge"
-    tokens: int          # token budget for this layer
-    percentage: float    # percentage of total budget (for observability)
+    layer: str  # "memory", "history", "knowledge"
+    tokens: int  # token budget for this layer
+    percentage: float  # percentage of total budget (for observability)
 
     def estimated_tokens(self) -> int:
         """Rough token count for budget enforcement."""
@@ -164,11 +164,13 @@ def allocate_budget(
     allocations: list[BudgetAllocation] = []
     for layer, pct in zip(layers, splits):
         tokens = int(total_budget * pct)
-        allocations.append(BudgetAllocation(
-            layer=layer,
-            tokens=tokens,
-            percentage=pct,
-        ))
+        allocations.append(
+            BudgetAllocation(
+                layer=layer,
+                tokens=tokens,
+                percentage=pct,
+            )
+        )
 
     # Adjust rounding: ensure allocations sum to total_budget
     allocated_tokens = sum(a.tokens for a in allocations)
@@ -185,18 +187,19 @@ def allocate_budget(
 # Data classes
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class LayerBlock:
     """A formatted, provenance-labeled context block for one layer."""
 
-    layer: str                           # "memory" | "history" | "knowledge"
-    content: str                         # formatted text (ready for injection)
-    provenance_label: str                # e.g. "[Memory: canonical_memories]"
-    token_count: int                     # estimated tokens
-    budget: BudgetAllocation             # the budget allocation used
-    included: bool                       # whether this layer is included
-    deduplicated: bool = False           # True if some items were removed by dedup
-    injection_fenced: bool = False       # True if injection resistance was applied
+    layer: str  # "memory" | "history" | "knowledge"
+    content: str  # formatted text (ready for injection)
+    provenance_label: str  # e.g. "[Memory: canonical_memories]"
+    token_count: int  # estimated tokens
+    budget: BudgetAllocation  # the budget allocation used
+    included: bool  # whether this layer is included
+    deduplicated: bool = False  # True if some items were removed by dedup
+    injection_fenced: bool = False  # True if injection resistance was applied
 
     @property
     def char_count(self) -> int:
@@ -214,16 +217,19 @@ class ContextResult:
     memory_block: LayerBlock
     history_block: LayerBlock
     knowledge_block: LayerBlock
-    total_tokens: int                    # sum across all included layers
-    intent: QueryIntent                  # classified intent
-    query: str                           # original query
-    latency_ms: float = 0.0             # orchestration time (ms)
+    total_tokens: int  # sum across all included layers
+    intent: QueryIntent  # classified intent
+    query: str  # original query
+    latency_ms: float = 0.0  # orchestration time (ms)
 
     @property
     def included_blocks(self) -> list[LayerBlock]:
         """Return only the layers that are included."""
-        return [b for b in [self.memory_block, self.history_block, self.knowledge_block]
-                if b.included and b.content]
+        return [
+            b
+            for b in [self.memory_block, self.history_block, self.knowledge_block]
+            if b.included and b.content
+        ]
 
     @property
     def included_token_count(self) -> int:
@@ -327,8 +333,7 @@ def _format_history_block(
         return "", 0, False
 
     valid_messages = [
-        m for m in session_messages
-        if m.get("role") in ("user", "assistant") and m.get("content")
+        m for m in session_messages if m.get("role") in ("user", "assistant") and m.get("content")
     ]
     if not valid_messages:
         return "", 0, False
@@ -429,13 +434,14 @@ def _format_knowledge_block(
 # Cross-layer deduplication
 # ---------------------------------------------------------------------------
 
+
 def _normalize_for_dedup(text: str) -> str:
     """Normalize text for dedup comparison (lowercase, strip punctuation/spaces)."""
     text = text.lower().strip()
     # Remove common prefixes
     for prefix in ("i am", "i'm", "user is", "user was", "the ", "a "):
         if text.startswith(prefix):
-            text = text[len(prefix):]
+            text = text[len(prefix) :]
     # Collapse whitespace and punctuation
     text = re.sub(r"[^\w\s]", " ", text)
     text = re.sub(r"\s+", " ", text).strip()
@@ -533,6 +539,7 @@ def _check_injection_risk(text: str) -> bool:
 # ---------------------------------------------------------------------------
 # Main orchestrator
 # ---------------------------------------------------------------------------
+
 
 class AdaptiveContextOrchestrator:
     """Dynamically allocate context budget across Memory, History, Knowledge layers.
@@ -650,12 +657,14 @@ class AdaptiveContextOrchestrator:
         # 4. Cross-layer deduplication (memory takes priority over knowledge)
         if memory_content and knowledge_content:
             # Extract raw statements for dedup comparison
-            memory_stmts = [b.split("] ", 1)[-1].split(" (confidence=")[0]
-                            for b in memory_content.split("\n")
-                            if b.startswith("- [")]
-            knowledge_texts = [b.split("  ", 1)[-1]
-                               for b in knowledge_content.split("\n")
-                               if b.startswith("  ")]
+            memory_stmts = [
+                b.split("] ", 1)[-1].split(" (confidence=")[0]
+                for b in memory_content.split("\n")
+                if b.startswith("- [")
+            ]
+            knowledge_texts = [
+                b.split("  ", 1)[-1] for b in knowledge_content.split("\n") if b.startswith("  ")
+            ]
 
             if memory_stmts and knowledge_texts:
                 filtered_mem, filtered_know = deduplicate_across_layers(
@@ -715,7 +724,11 @@ class AdaptiveContextOrchestrator:
 
         logger.info(
             "Context assembled: intent=%s, tokens=%d (mem=%d, hist=%d, know=%d), latency=%.1fms",
-            intent.value, total_tokens, memory_tokens, history_tokens, knowledge_tokens,
+            intent.value,
+            total_tokens,
+            memory_tokens,
+            history_tokens,
+            knowledge_tokens,
             latency_ms,
         )
 
@@ -757,21 +770,27 @@ class AdaptiveContextOrchestrator:
 
         return ContextResult(
             memory_block=LayerBlock(
-                layer="memory", content=memory_content,
+                layer="memory",
+                content=memory_content,
                 provenance_label="[Memory: canonical_memories]",
-                token_count=memory_tokens, budget=memory_budget,
+                token_count=memory_tokens,
+                budget=memory_budget,
                 included=bool(memory_content),
             ),
             history_block=LayerBlock(
-                layer="history", content=history_content,
+                layer="history",
+                content=history_content,
                 provenance_label="[History: this_session]",
-                token_count=history_tokens, budget=history_budget,
+                token_count=history_tokens,
+                budget=history_budget,
                 included=bool(history_content),
             ),
             knowledge_block=LayerBlock(
-                layer="knowledge", content=knowledge_content,
+                layer="knowledge",
+                content=knowledge_content,
                 provenance_label="[Knowledge: spiritual_wisdom]",
-                token_count=knowledge_tokens, budget=knowledge_budget,
+                token_count=knowledge_tokens,
+                budget=knowledge_budget,
                 included=bool(knowledge_content),
             ),
             total_tokens=total_tokens,
@@ -784,6 +803,7 @@ class AdaptiveContextOrchestrator:
 # ---------------------------------------------------------------------------
 # Convenience factory
 # ---------------------------------------------------------------------------
+
 
 def create_orchestrator(
     memory_retriever: Any = None,
@@ -826,7 +846,9 @@ if __name__ == "__main__":
     assert alloc[2].tokens == 256, f"Knowledge tokens: {alloc[2].tokens}"  # 25% = 256
 
     alloc_know = allocate_budget(QueryIntent.SPIRITUAL_FACTUAL, 1024)
-    assert alloc_know[2].tokens == 820, f"Knowledge tokens: {alloc_know[2].tokens}"  # 80% = 819 + 1 remainder
+    assert alloc_know[2].tokens == 820, (
+        f"Knowledge tokens: {alloc_know[2].tokens}"
+    )  # 80% = 819 + 1 remainder
 
     # Context assembly (sync mode, no retrievers)
     orchestrator = create_orchestrator()
@@ -841,13 +863,17 @@ if __name__ == "__main__":
         knowledge_chunks=[],
     )
     assert result.intent == QueryIntent.SPIRITUAL_FACTUAL
-    assert result.knowledge_block.included or not result.knowledge_block.included  # just checking it builds
+    assert (
+        result.knowledge_block.included or not result.knowledge_block.included
+    )  # just checking it builds
     print(f"\n  Context assembled: intent={result.intent.value}, tokens={result.total_tokens}")
 
     # Deduplication
     mem_stmts = ["User lives in Mumbai India", "User prefers Hindi"]
     know_texts = ["User lives in Mumbai India", "The guru teaches about meditation"]
     filtered_mem, filtered_know = deduplicate_across_layers(mem_stmts, know_texts, 0.6)
-    assert len(filtered_know) == 1, f"Expected 1 knowledge, got {len(filtered_know)}"  # "Mumbai" should be deduped
+    assert len(filtered_know) == 1, (
+        f"Expected 1 knowledge, got {len(filtered_know)}"
+    )  # "Mumbai" should be deduped
 
     print("\ncanonical_memory context_builder self-check: OK")

@@ -11,27 +11,27 @@ Run: cd backend && .venv/bin/pytest tests/test_canonical_memory_resolution.py -v
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Optional
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
 from services.canonical_memory.judge import DecisionType, MemoryDecision
 from services.canonical_memory.models import MemoryCandidate, MemoryType
-from services.canonical_memory.resolver import MemoryResolver, ResolutionResult
-
+from services.canonical_memory.resolver import MemoryResolver
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _uid() -> str:
     return str(uuid.uuid4())
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _make_candidate(**overrides: Any) -> MemoryCandidate:
@@ -106,6 +106,7 @@ def _make_existing_memory(**overrides: Any) -> dict:
 # Mock Supabase chain helper
 # ---------------------------------------------------------------------------
 
+
 class MockSupabase:
     """Simulates the Supabase client chain for resolver testing.
 
@@ -136,45 +137,45 @@ class _TableProxy:
         self._insert_data: Optional[dict] = None
         self._update_data: Optional[dict] = None
 
-    def select(self, *args: Any) -> "_TableProxy":
+    def select(self, *args: Any) -> _TableProxy:
         return self
 
-    def insert(self, data: dict) -> "_TableProxy":
+    def insert(self, data: dict) -> _TableProxy:
         self._insert_data = data
         return self
 
-    def update(self, data: dict) -> "_TableProxy":
+    def update(self, data: dict) -> _TableProxy:
         self._update_data = data
         return self
 
-    def delete(self) -> "_TableProxy":
+    def delete(self) -> _TableProxy:
         return self
 
-    def eq(self, field: str, value: Any) -> "_TableProxy":
+    def eq(self, field: str, value: Any) -> _TableProxy:
         self._filters[field] = value
         return self
 
-    def is_(self, field: str, value: Any) -> "_TableProxy":
+    def is_(self, field: str, value: Any) -> _TableProxy:
         self._filters[field] = value
         return self
 
-    def in_(self, field: str, values: list) -> "_TableProxy":
+    def in_(self, field: str, values: list) -> _TableProxy:
         self._filters[field] = ("in", values)
         return self
 
-    def order(self, field: str, desc: bool = False) -> "_TableProxy":
+    def order(self, field: str, desc: bool = False) -> _TableProxy:
         self._order_field = field
         self._order_desc = desc
         return self
 
-    def limit(self, n: int) -> "_TableProxy":
+    def limit(self, n: int) -> _TableProxy:
         self._limit_n = n
         return self
 
-    def range(self, start: int, end: int) -> "_TableProxy":
+    def range(self, start: int, end: int) -> _TableProxy:
         return self
 
-    def single(self) -> "_TableProxy":
+    def single(self) -> _TableProxy:
         return self
 
     def execute(self) -> MagicMock:
@@ -198,7 +199,7 @@ class _TableProxy:
         elif self._update_data is not None:
             # UPDATE — apply to matching rows
             updated = []
-            for mem_id, mem in self._mock.memories.items():
+            for _mem_id, mem in self._mock.memories.items():
                 if self._matches(mem):
                     mem.update(self._update_data)
                     updated.append(mem)
@@ -249,6 +250,7 @@ class _TableProxy:
 # 1. CREATE
 # ---------------------------------------------------------------------------
 
+
 class TestCreateResolution:
     @pytest.mark.asyncio
     async def test_create_inserts_new_memory(self):
@@ -294,9 +296,7 @@ class TestCreateResolution:
             statement="User prefers concise answers.",
             fact_key="user:prefers_tone",
         )
-        decision = _make_decision(
-            candidate=new_candidate, decision=DecisionType.CREATE
-        )
+        decision = _make_decision(candidate=new_candidate, decision=DecisionType.CREATE)
 
         result = await resolver.resolve(decision, user_id="user-001")
 
@@ -348,9 +348,7 @@ class TestCreateResolution:
             statement="User is interested in yoga.",
             fact_key="user:spiritual_interest",
         )
-        decision = _make_decision(
-            candidate=new_candidate, decision=DecisionType.CREATE
-        )
+        decision = _make_decision(candidate=new_candidate, decision=DecisionType.CREATE)
 
         result = await resolver.resolve(decision, user_id="user-001")
 
@@ -363,6 +361,7 @@ class TestCreateResolution:
 # ---------------------------------------------------------------------------
 # 2. UPDATE
 # ---------------------------------------------------------------------------
+
 
 class TestUpdateResolution:
     @pytest.mark.asyncio
@@ -418,7 +417,7 @@ class TestUpdateResolution:
             superseded_memory_id=old_id,
         )
 
-        result = await resolver.resolve(decision, user_id="user-001")
+        _result = await resolver.resolve(decision, user_id="user-001")
 
         assert len(mock_db.events) >= 1
         event = mock_db.events[-1]
@@ -429,6 +428,7 @@ class TestUpdateResolution:
 # ---------------------------------------------------------------------------
 # 3. MERGE
 # ---------------------------------------------------------------------------
+
 
 class TestMergeResolution:
     @pytest.mark.asyncio
@@ -484,16 +484,14 @@ class TestMergeResolution:
         resolver = MemoryResolver(mock_db)
 
         id_a = _uid()
-        mock_db.memories[id_a] = _make_existing_memory(
-            id=id_a, user_id="user-001", status="active"
-        )
+        mock_db.memories[id_a] = _make_existing_memory(id=id_a, user_id="user-001", status="active")
 
         decision = _make_decision(
             decision=DecisionType.MERGE,
             merged_memory_ids=[id_a],
         )
 
-        result = await resolver.resolve(decision, user_id="user-001")
+        _result = await resolver.resolve(decision, user_id="user-001")
 
         event = mock_db.events[-1]
         assert event["event_type"] == "MERGED"
@@ -504,6 +502,7 @@ class TestMergeResolution:
 # 4. IGNORE
 # ---------------------------------------------------------------------------
 
+
 class TestIgnoreResolution:
     @pytest.mark.asyncio
     async def test_ignore_does_nothing(self):
@@ -512,9 +511,7 @@ class TestIgnoreResolution:
         resolver = MemoryResolver(mock_db)
 
         candidate = _make_candidate()
-        decision = _make_decision(
-            candidate=candidate, decision=DecisionType.IGNORE
-        )
+        decision = _make_decision(candidate=candidate, decision=DecisionType.IGNORE)
 
         result = await resolver.resolve(decision, user_id="user-001")
 
@@ -542,6 +539,7 @@ class TestIgnoreResolution:
 # ---------------------------------------------------------------------------
 # 5. EXPIRE
 # ---------------------------------------------------------------------------
+
 
 class TestExpireResolution:
     @pytest.mark.asyncio
@@ -613,6 +611,7 @@ class TestExpireResolution:
 # 6. DELETE
 # ---------------------------------------------------------------------------
 
+
 class TestDeleteResolution:
     @pytest.mark.asyncio
     async def test_delete_sets_status_deleted(self):
@@ -682,7 +681,7 @@ class TestDeleteResolution:
             superseded_memory_id=target_id,
         )
 
-        result = await resolver.resolve(decision, user_id="user-001")
+        _result = await resolver.resolve(decision, user_id="user-001")
 
         event = mock_db.events[-1]
         assert event["event_type"] == "DELETED"
@@ -723,6 +722,7 @@ class TestDeleteResolution:
 # 7. ESCALATE
 # ---------------------------------------------------------------------------
 
+
 class TestEscalateResolution:
     @pytest.mark.asyncio
     async def test_escalate_does_nothing(self):
@@ -761,6 +761,7 @@ class TestEscalateResolution:
 # ---------------------------------------------------------------------------
 # 8. Idempotency
 # ---------------------------------------------------------------------------
+
 
 class TestIdempotency:
     @pytest.mark.asyncio
@@ -828,6 +829,7 @@ class TestIdempotency:
 # 9. Audit events
 # ---------------------------------------------------------------------------
 
+
 class TestAuditEvents:
     @pytest.mark.asyncio
     async def test_every_mutation_creates_audit_event(self):
@@ -846,9 +848,7 @@ class TestAuditEvents:
 
             if dec_type == DecisionType.CREATE:
                 candidate = _make_candidate()
-                decision = _make_decision(
-                    candidate=candidate, decision=dec_type
-                )
+                decision = _make_decision(candidate=candidate, decision=dec_type)
             else:
                 decision = _make_decision(decision=dec_type)
 
@@ -889,6 +889,7 @@ class TestAuditEvents:
 # ---------------------------------------------------------------------------
 # 10. Concurrent resolution
 # ---------------------------------------------------------------------------
+
 
 class TestConcurrentResolution:
     @pytest.mark.asyncio
@@ -951,6 +952,7 @@ class TestConcurrentResolution:
 # 11. Version management
 # ---------------------------------------------------------------------------
 
+
 class TestVersionManagement:
     @pytest.mark.asyncio
     async def test_new_memory_starts_at_version_1(self):
@@ -992,6 +994,7 @@ class TestVersionManagement:
 # ---------------------------------------------------------------------------
 # 12. Error handling
 # ---------------------------------------------------------------------------
+
 
 class TestErrorHandling:
     @pytest.mark.asyncio

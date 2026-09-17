@@ -16,6 +16,11 @@ from rag.graph_strategies import route_after_grading
 from rag.nodes import intent as intent_module
 from rag.nodes import retrieve_documents
 from rag.nodes.short_circuit import handle_fallback
+from services.voice.register import (
+    FALLBACK_RESPONSE,
+    PARTIAL_EVIDENCE_PREFACE,
+    is_refusal_text,
+)
 
 # ── Guardrails fail-closed ────────────────────────────────────────────────
 
@@ -191,7 +196,9 @@ async def test_handle_fallback_returns_safe_response():
     result = await handle_fallback(state, config=None)
 
     assert "final_answer" in result
-    assert "don't have" in result["final_answer"].lower()
+    # The property under test is "this is a refusal", not any particular
+    # phrasing of it -- match through the module that owns the copy.
+    assert is_refusal_text(result["final_answer"])
 
 
 @pytest.mark.asyncio
@@ -225,8 +232,9 @@ async def test_handle_fallback_uses_grounded_partial_when_docs_were_retrieved():
 
     assert result["verification"]["method"] == "grounded_partial_fallback"
     assert result["citations"] == ["https://example.com/beautiful-state"]
-    assert "grounded partial answer" in result["final_answer"]
-    assert "don't have that specific teaching" not in result["final_answer"]
+    # Serves the retrieved excerpts rather than a bare refusal.
+    assert PARTIAL_EVIDENCE_PREFACE in result["final_answer"]
+    assert FALLBACK_RESPONSE not in result["final_answer"]
 
 
 @pytest.mark.asyncio

@@ -172,7 +172,9 @@ class PipelineCoordinator:
             stable_session_id=stable_session_id,
             chat_body_messages=chat_body_messages,
             assistant_config_present=assistant_config_present,
-            assistant_scope=(assistant_resolution.scope if assistant_resolution is not None else None),
+            assistant_scope=(
+                assistant_resolution.scope if assistant_resolution is not None else None
+            ),
             assistant_authorized=(not assistant_slug or assistant_resolution is not None),
             incognito=bool(getattr(chat_body, "incognito", False)),
             # `is True`, not bool(): the request contract types this as a real
@@ -355,12 +357,14 @@ class PipelineCoordinator:
             if db is not None:
                 try:
                     resp = await asyncio.to_thread(
-                        lambda: db.table("canonical_memories")
-                        .select("id")
-                        .eq("user_id", user_id)
-                        .eq("status", "active")
-                        .limit(1)
-                        .execute()
+                        lambda: (
+                            db.table("canonical_memories")
+                            .select("id")
+                            .eq("user_id", user_id)
+                            .eq("status", "active")
+                            .limit(1)
+                            .execute()
+                        )
                     )
                     if getattr(resp, "data", None):
                         return True
@@ -619,6 +623,16 @@ class PipelineCoordinator:
             "scores": [c.get("score", 0.0) if isinstance(c, dict) else 1.0 for c in citations],
             "top_k": len(citations),
             "hit": len(citations) > 0,
+            # TrustNLP 2026 F21/F33: per-citation lane (qdrant/okf/
+            # neo4j_subgraph/lightrag), so a caller can tell which knowledge
+            # source produced a given citation instead of grepping logs.
+            # Deliberately reads "knowledge_source", not "content_type" --
+            # the latter is Qdrant's own payload field (video_enhanced/
+            # summary/contextual) and already means something else.
+            "lanes": [
+                c.get("knowledge_source", "qdrant") if isinstance(c, dict) else "qdrant"
+                for c in citations
+            ],
         }
 
     @staticmethod
@@ -678,9 +692,7 @@ class PipelineCoordinator:
                 duration_ms = max(0, int(float(duration) * 1000))
             except (TypeError, ValueError):
                 continue
-            spans.append(
-                {"span_name": str(name)[:64], "start_ms": 0, "duration_ms": duration_ms}
-            )
+            spans.append({"span_name": str(name)[:64], "start_ms": 0, "duration_ms": duration_ms})
 
         for record in stage_telemetry or []:
             if not isinstance(record, dict):

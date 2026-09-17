@@ -96,6 +96,17 @@ class InMemoryCacheAdapter(ICacheRepository):
         normalized = query.strip().lower()
         return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 
+    def _report_hit_ratio(self) -> None:
+        total = self._hits + self._misses
+        if not total:
+            return
+        try:
+            from app.metrics import set_cache_hit_ratio
+
+            set_cache_hit_ratio("exact", self._hits / total)
+        except Exception:
+            pass
+
     def get(self, query: str) -> Optional[dict]:
         """
         Look up a cached response for the given query.
@@ -107,10 +118,12 @@ class InMemoryCacheAdapter(ICacheRepository):
 
         if result is not None:
             self._hits += 1
+            self._report_hit_ratio()
             logger.info(f"Cache HIT (hits={self._hits}, misses={self._misses})")
             return result
 
         self._misses += 1
+        self._report_hit_ratio()
         return None
 
     def put(

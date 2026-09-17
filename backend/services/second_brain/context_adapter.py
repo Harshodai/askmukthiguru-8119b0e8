@@ -3,6 +3,7 @@
 The adapter never writes to Neo4j, public Qdrant, or the immutable corpus. It
 accepts already-authorized decrypted items and returns ephemeral concept links.
 """
+
 from __future__ import annotations
 
 from collections.abc import Iterable
@@ -34,7 +35,9 @@ class PrivateContextLink:
         }
 
 
-def build_private_context_links(owner_id: str, query: str, items: Iterable[Any]) -> list[PrivateContextLink]:
+def build_private_context_links(
+    owner_id: str, query: str, items: Iterable[Any]
+) -> list[PrivateContextLink]:
     """Resolve concepts against owner-authorized items without persistence."""
     if not owner_id or owner_id.startswith("anon:"):
         return []
@@ -50,14 +53,16 @@ def build_private_context_links(owner_id: str, query: str, items: Iterable[Any])
             confidence = max(0.0, min(1.0, float(getattr(item, "confidence", 0.8))))
         except (TypeError, ValueError):
             confidence = 0.8
-        links.append(PrivateContextLink(
-            item_id=str(getattr(item, "id", "")),
-            owner_id=item_owner,
-            kind=str(getattr(item, "kind", "reflection") or "reflection"),
-            text=text[:8000],
-            entity_ids=linked_entities,
-            confidence=confidence,
-        ))
+        links.append(
+            PrivateContextLink(
+                item_id=str(getattr(item, "id", "")),
+                owner_id=item_owner,
+                kind=str(getattr(item, "kind", "reflection") or "reflection"),
+                text=text[:8000],
+                entity_ids=linked_entities,
+                confidence=confidence,
+            )
+        )
     return links
 
 
@@ -73,7 +78,9 @@ def format_private_context_links(links: Iterable[PrivateContextLink]) -> str:
     for index, link in enumerate(links, start=1):
         safe_text = link.text.replace("```", "\\`\\`\\`")
         concepts = ", ".join(link.entity_ids) or "none"
-        lines.append(f"[{index}] item_id={link.item_id} kind={link.kind} confidence={link.confidence:.2f} concepts={concepts}")
+        lines.append(
+            f"[{index}] item_id={link.item_id} kind={link.kind} confidence={link.confidence:.2f} concepts={concepts}"
+        )
         lines.append(f"    memory: {safe_text}")
     lines.append("```")
     return "\n".join(lines)

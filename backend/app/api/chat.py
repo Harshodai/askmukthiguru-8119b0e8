@@ -12,6 +12,7 @@ from dataclasses import asdict
 from functools import wraps
 from typing import Any, Optional
 
+from cachetools import TTLCache
 from fastapi import (
     APIRouter,
     BackgroundTasks,
@@ -22,7 +23,6 @@ from fastapi import (
     Request,
     UploadFile,
 )
-from cachetools import TTLCache
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from app.assistant_authorization import authorize_chat_assistant
@@ -30,9 +30,9 @@ from app.chat_uploads import MAX_SINGLE_BYTES, extract_chat_attachments
 from app.config import settings
 from app.core.limiter import limiter
 from app.core.user_usage_monitor import get_user_monitor
-from app.dependencies import ServiceContainer, get_container
+from app.dependencies import ServiceContainer, get_container_async
 from app.grounding import grounding_state_for
-from app.release_manifest import get_release_manifest
+from app.release_manifest import to_public_manifest_dict
 from app.sanitization import sanitize_log_input, sanitize_user_input
 from app.schemas import ChatRequest, ChatResponse, MessagePayload
 from app.security_utils import is_benchmark_request
@@ -62,7 +62,7 @@ async def chat_upload_endpoint(
     files: list[UploadFile] = File(...),
     language_code: Optional[str] = Form(None),
     session_id: Optional[str] = Form(None),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ):
     """Extract bounded evidence for the next chat turn without persisting uploads.
 
@@ -285,7 +285,24 @@ async def populate_server_side_history(
             sc.table("conversations").select("user_id").eq("id", chat_body.session_id).execute
         )
         if not resp.data:
-            raise HTTPException(status_code=404, detail="Conversation not found")
+            # A missing row is a NEW conversation, not a forbidden one, and 404
+            # here is a live race: the frontend's Supabase upsert is
+            # fire-and-forget (`void syncConversationToDb(...)`,
+            # src/lib/chatStorage.ts:560) while `saveConversation` awaits only
+            # the local write, so the chat POST can reach us before the row
+            # commits. Locally the upsert usually wins; against a remote
+            # Supabase it often does not, which made a signed-in seeker's FIRST
+            # message in a new conversation fail with
+            # "Conversation not found". Serving it as an empty history is both
+            # correct (a conversation with no row has no history) and leaks
+            # nothing. The ownership check below is untouched: a row that
+            # exists and belongs to someone else still gets 403.
+            logger.info(
+                "No conversation row for session_id yet; treating as a new "
+                "conversation and continuing with empty history."
+            )
+            chat_body.messages = []
+            return
 
         owner_id = resp.data[0].get("user_id")
         if str(owner_id) != str(user_id):
@@ -435,7 +452,6 @@ def _cache_language_key(message: str, language: str) -> str:
 
 from pydantic import BaseModel, Field
 
-
 # A title needs the opening of a message, never the whole thing. The field was
 # an unbounded `str` on an endpoint that is anonymous-accessible, rate-limited
 # only by request count, and outside the anonymous chat quota — so one caller
@@ -453,7 +469,7 @@ async def generate_title_endpoint(
     request: Request,
     body: TitleRequest,
     user: dict = Depends(get_optional_user),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ):
     """
     Synchronously generate a short 3-6 word title for a conversation
@@ -503,7 +519,7 @@ async def chat_endpoint(
     chat_body: ChatRequest,
     background_tasks: BackgroundTasks,
     user: dict = Depends(get_optional_user),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
     _tenant=Depends(set_tenant_from_request),
 ) -> ChatResponse | JSONResponse:
     """
@@ -661,7 +677,7 @@ async def chat_v2_endpoint(
     chat_body: ChatRequest,
     background_tasks: BackgroundTasks,
     user: dict = Depends(get_optional_user),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
     _tenant=Depends(set_tenant_from_request),
 ) -> ChatResponse:
     """Alternative chat endpoint backed by the ChatEngine facade (C3).
@@ -761,9 +777,15 @@ async def chat_v2_endpoint(
             None if getattr(result, "guidance_plan", None) is None else asdict(result.guidance_plan)
         ),
         grounding_state=grounding_state_for(result),
-        release_manifest=getattr(result, "release_manifest", None)
-        or get_release_manifest().to_dict(),
+        release_manifest=to_public_manifest_dict(getattr(result, "release_manifest", None)),
         provenance_manifest=_provenance_manifest_for_result(result),
+        # TrustNLP 2026 F21/F33: this field was declared on the schema and
+        # assigned nowhere in production code (only in
+        # tests/test_provenance_api.py), so it was structurally always null.
+        # Same projection already used for provenance_manifest above —
+        # ai_provenance is the loosely-typed dict[str, Any] twin of that
+        # strict model, not a second computation.
+        ai_provenance=_provenance_manifest_for_result(result),
     )
 
 
@@ -775,7 +797,7 @@ async def chat_stream_endpoint(
     chat_body: ChatRequest,
     background_tasks: BackgroundTasks,
     user: dict = Depends(get_optional_user),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
     _tenant=Depends(set_tenant_from_request),
 ) -> JSONResponse | StreamingResponse:
     """
@@ -902,7 +924,7 @@ async def chat_stream_endpoint(
 async def chat_stream_poll(
     job_id: str,
     request: Request,
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
     user: dict = Depends(get_optional_user),
 ):
     """
@@ -966,9 +988,7 @@ async def chat_stream_poll(
                             # authoritative final event.
                             if last_done_data is not None:
                                 return
-                            fallback = json.dumps(
-                                {"grounding_state": "system_error"}
-                            )
+                            fallback = json.dumps({"grounding_state": "system_error"})
                             yield f"event: done\\ndata: {fallback}\\n\\n"
                             return
                     continue
@@ -1033,7 +1053,7 @@ async def get_breath_teaching(
     request: Request,
     technique_id: str,
     user: dict = Depends(get_current_user_from_supabase),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> dict:
     """
     Return an LLM-generated teaching from the Sri Preethaji / Sri Krishnaji knowledge
@@ -1135,7 +1155,7 @@ async def get_breath_teaching(
 
 @router.get("/admin/concept-graph")
 async def get_concept_graph(
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
     user: dict = Depends(get_current_user_from_supabase),
 ):
     """Query Neo4j for spiritual concept nodes and relationships. Admin only."""

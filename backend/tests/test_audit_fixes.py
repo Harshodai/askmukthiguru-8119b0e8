@@ -5,6 +5,7 @@ import pytest
 from rag.nodes.generation import format_final_answer
 from rag.nodes.short_circuit import rewrite_query
 from rag.nodes.verification import reflect_on_answer, verify_answer
+from services.voice.register import is_refusal_text
 
 
 @pytest.mark.asyncio
@@ -58,7 +59,10 @@ async def test_format_final_answer_gating_floor(monkeypatch):
     # Should fall back due to confidence score below settings.confidence_gating_floor (4.0)
     res = await format_final_answer(state)
     assert "final_answer" in res
-    assert "I don't have that specific teaching" in res["final_answer"]
+    # Assert against the CONSTANT, not a literal. The previous literal pinned
+    # the old wording, so rewriting the refusal copy broke this test while the
+    # behaviour it guards (fall back below the confidence floor) was unchanged.
+    assert is_refusal_text(res["final_answer"])
 
 
 @pytest.mark.asyncio

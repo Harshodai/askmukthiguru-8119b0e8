@@ -4,21 +4,19 @@ Verifies identical case-insensitive normalization and canonical entity resolutio
 """
 
 import pytest
+
 from domain.spiritual_ontology import (
     canonical_entity_id as domain_canonical_entity_id,
-    normalize_entity_name as domain_normalize_entity_name,
-    CANONICAL_ENTITY_ALIASES,
 )
-from services.spiritual_ontology import (
-    canonical_entity_id as service_canonical_entity_id,
-    normalize_entity_name as service_normalize_entity_name,
+from rag.nodes.utils import (
+    DOCTRINE_SYNONYMS,
 )
 from rag.nodes.utils import (
     canonical_entity_id as rag_canonical_entity_id,
-    normalize_entity_name as rag_normalize_entity_name,
-    DOCTRINE_SYNONYMS,
 )
-
+from services.spiritual_ontology import (
+    canonical_entity_id as service_canonical_entity_id,
+)
 
 REQUIRED_CORE_ENTITIES = {
     "beautiful state": "Beautiful State",
@@ -156,7 +154,9 @@ def test_layer_equivalence_parity():
         d_res = domain_canonical_entity_id(term)
         s_res = service_canonical_entity_id(term)
         r_res = rag_canonical_entity_id(term)
-        assert d_res == s_res == r_res, f"Drift detected for '{term}': domain={d_res}, service={s_res}, rag={r_res}"
+        assert d_res == s_res == r_res, (
+            f"Drift detected for '{term}': domain={d_res}, service={s_res}, rag={r_res}"
+        )
 
 
 def test_doctrine_synonyms_alignment_with_canonical_id():

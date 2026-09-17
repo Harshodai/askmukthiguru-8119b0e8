@@ -397,7 +397,9 @@ async def test_memory_service_compaction(monkeypatch):
     await service.compact_memories("a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6")
 
     # Verify interactions
-    table_mock.select.assert_called_with("id, content, source, claim, confidence, summary, fact_key, valid_from")
+    table_mock.select.assert_called_with(
+        "id, content, source, claim, confidence, summary, fact_key, valid_from"
+    )
 
     table_mock.delete.assert_called()
     table_mock.insert.assert_called_with(

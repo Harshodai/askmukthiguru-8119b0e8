@@ -69,6 +69,7 @@ class AbstractLLMService(abc.ABC):
     def _estimate_tokens(text: str) -> int:
         """Language-aware token estimate via shared compressor."""
         from rag.compressor import estimate_tokens
+
         return estimate_tokens(text)
 
     def _extract_reasoning_content(self, text: str) -> str:

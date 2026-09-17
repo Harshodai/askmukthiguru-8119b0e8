@@ -29,7 +29,7 @@ import logging
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 # Add backend directory to sys.path
 _BACKEND_DIR = Path(__file__).resolve().parent.parent
@@ -56,7 +56,12 @@ DOCTRINAL_EVAL_CASES = [
         "category": "Four Sacred Secrets",
         "category_key": "doctrine_four_secrets",
         "question": "What are the Four Sacred Secrets?",
-        "expected_keywords": ["spiritual vision", "inner truth", "universal intelligence", "spiritual right action"],
+        "expected_keywords": [
+            "spiritual vision",
+            "inner truth",
+            "universal intelligence",
+            "spiritual right action",
+        ],
         "expected_citations": ["Four Sacred Secrets", "Sri Preethaji", "Sri Krishnaji"],
         "should_abstain": False,
         "language": "en",
@@ -76,19 +81,30 @@ DOCTRINAL_EVAL_CASES = [
         "category": "Four Sacred Secrets",
         "category_key": "doctrine_four_secrets",
         "question": "How do Inner Truth (Second Secret) and Spiritual Right Action (Fourth Secret) connect?",
-        "expected_keywords": ["inner truth", "spiritual right action", "awareness", "action from connection"],
+        "expected_keywords": [
+            "inner truth",
+            "spiritual right action",
+            "awareness",
+            "action from connection",
+        ],
         "expected_citations": ["Four Sacred Secrets"],
         "should_abstain": False,
         "language": "en",
     },
-
     # 2. Soul Sync Meditation (Meditation Practices & Steps)
     {
         "id": "DOC-SSM-001",
         "category": "Soul Sync Meditation",
         "category_key": "doctrine_soul_sync",
         "question": "How do I practice Soul Sync meditation step by step?",
-        "expected_keywords": ["breathe", "humming", "pause", "a-hummm", "golden light", "intention"],
+        "expected_keywords": [
+            "breathe",
+            "humming",
+            "pause",
+            "a-hummm",
+            "golden light",
+            "intention",
+        ],
         "expected_citations": ["Soul Sync"],
         "should_abstain": False,
         "language": "en",
@@ -98,7 +114,13 @@ DOCTRINAL_EVAL_CASES = [
         "category": "Soul Sync Meditation",
         "category_key": "doctrine_soul_sync",
         "question": "What is the role of the 3-minute Serene Mind conscious breathing practice?",
-        "expected_keywords": ["3 minutes", "conscious breathing", "calm", "stress reduction", "serene mind"],
+        "expected_keywords": [
+            "3 minutes",
+            "conscious breathing",
+            "calm",
+            "stress reduction",
+            "serene mind",
+        ],
         "expected_citations": ["Serene Mind"],
         "should_abstain": False,
         "language": "en",
@@ -113,14 +135,19 @@ DOCTRINAL_EVAL_CASES = [
         "should_abstain": False,
         "language": "en",
     },
-
     # 3. Deeksha & Neuroscience (Neurobiological Transformation & Brain States)
     {
         "id": "DOC-DEE-001",
         "category": "Deeksha & Neuroscience",
         "category_key": "doctrine_deeksha",
         "question": "What is Deeksha and how does it affect the brain neurobiologically?",
-        "expected_keywords": ["frontal lobe", "parietal lobe", "neurobiological", "oneness blessing", "default mode network"],
+        "expected_keywords": [
+            "frontal lobe",
+            "parietal lobe",
+            "neurobiological",
+            "oneness blessing",
+            "default mode network",
+        ],
         "expected_citations": ["Deeksha", "Oneness Blessing"],
         "should_abstain": False,
         "language": "en",
@@ -130,7 +157,13 @@ DOCTRINAL_EVAL_CASES = [
         "category": "Deeksha & Neuroscience",
         "category_key": "doctrine_deeksha",
         "question": "How does Deeksha support moving from a suffering state to a beautiful state?",
-        "expected_keywords": ["beautiful state", "suffering state", "connection", "peace", "calming"],
+        "expected_keywords": [
+            "beautiful state",
+            "suffering state",
+            "connection",
+            "peace",
+            "calming",
+        ],
         "expected_citations": ["Deeksha", "Beautiful State"],
         "should_abstain": False,
         "language": "en",
@@ -145,7 +178,6 @@ DOCTRINAL_EVAL_CASES = [
         "should_abstain": False,
         "language": "te",
     },
-
     # 4. Manifest 2026 & Monthly Powers (Synthesis & Power Evolution)
     {
         "id": "DOC-MAN-001",
@@ -172,19 +204,30 @@ DOCTRINAL_EVAL_CASES = [
         "category": "Manifest 2026 & Monthly Powers",
         "category_key": "doctrine_manifest",
         "question": "What is the relationship between Karma Cleansing (September) and Rebirth (December) in Manifest 2026?",
-        "expected_keywords": ["karma cleansing", "rebirth", "clearing past patterns", "transformation"],
+        "expected_keywords": [
+            "karma cleansing",
+            "rebirth",
+            "clearing past patterns",
+            "transformation",
+        ],
         "expected_citations": ["Manifest 2026"],
         "should_abstain": False,
         "language": "en",
     },
-
     # 5. Ekam Architecture & Doctrinal Boundaries (Adversarial Traps & Abstentions)
     {
         "id": "DOC-EKA-001",
         "category": "Ekam Architecture & Boundaries",
         "category_key": "doctrine_ekam_architecture",
         "question": "What is Ekam, where is it located, and what is its architectural purpose?",
-        "expected_keywords": ["Oneness", "India", "sanctuary", "temple of consciousness", "architectural", "field"],
+        "expected_keywords": [
+            "Oneness",
+            "India",
+            "sanctuary",
+            "temple of consciousness",
+            "architectural",
+            "field",
+        ],
         "expected_citations": ["Ekam"],
         "should_abstain": False,
         "language": "en",
@@ -204,7 +247,13 @@ DOCTRINAL_EVAL_CASES = [
         "category": "Ekam Architecture & Boundaries",
         "category_key": "adversarial_abstention",
         "question": "How does Deeksha allow a person to levitate physically in mid-air?",
-        "expected_keywords": ["unable to find", "neurobiological", "consciousness", "not levitation", "no teaching"],
+        "expected_keywords": [
+            "unable to find",
+            "neurobiological",
+            "consciousness",
+            "not levitation",
+            "no teaching",
+        ],
         "expected_citations": [],
         "should_abstain": True,
         "language": "en",
@@ -226,15 +275,26 @@ def _normalize_citation(text: str) -> str:
     return text.strip().lower().replace("https://", "").replace("http://", "").rstrip("/")
 
 
-def calculate_answer_relevancy(answer: str, expected_keywords: List[str], should_abstain: bool) -> float:
+def calculate_answer_relevancy(
+    answer: str, expected_keywords: list[str], should_abstain: bool
+) -> float:
     if not answer:
         return 0.0
     if should_abstain:
         abstain_signals = [
-            "unable to find", "do not have specific teaching", "no specific teaching",
-            "only four sacred secrets", "no fifth secret", "only 12 months",
-            "not levitation", "no record", "cannot find", "limited to four",
-            "does not exist", "fabricated", "not a recognized"
+            "unable to find",
+            "do not have specific teaching",
+            "no specific teaching",
+            "only four sacred secrets",
+            "no fifth secret",
+            "only 12 months",
+            "not levitation",
+            "no record",
+            "cannot find",
+            "limited to four",
+            "does not exist",
+            "fabricated",
+            "not a recognized",
         ]
         answer_lower = answer.lower()
         matched = any(sig in answer_lower for sig in abstain_signals)
@@ -246,7 +306,9 @@ def calculate_answer_relevancy(answer: str, expected_keywords: List[str], should
     return round(found / len(expected_keywords), 3)
 
 
-def calculate_context_precision(citations: List[str], expected_citations: List[str], should_abstain: bool) -> float:
+def calculate_context_precision(
+    citations: list[str], expected_citations: list[str], should_abstain: bool
+) -> float:
     if should_abstain:
         # For adversarial abstentions, 0 citations or clean unswapped citations is 100% precision
         return 1.0 if len(citations) == 0 else 0.5
@@ -254,7 +316,7 @@ def calculate_context_precision(citations: List[str], expected_citations: List[s
         return 1.0 if len(citations) > 0 else 0.5
     if not citations:
         return 0.0
-    
+
     # Check match against expected citations keywords/titles
     normalized_cites = [_normalize_citation(c) for c in citations]
     matches = 0
@@ -271,13 +333,13 @@ async def _get_anon_token(client: httpx.AsyncClient, endpoint: str) -> str:
     return r.json()["token"]
 
 
-async def evaluate_suite(endpoint: str) -> Dict[str, Any]:
+async def evaluate_suite(endpoint: str) -> dict[str, Any]:
     logger.info("Starting Cold-Path Comprehensive RAGAS Evaluation against %s", endpoint)
     logger.info("Cache Status: DISABLED (incognito=True enforced on every turn)")
     logger.info("Total Evaluated Doctrinal Cases: %d", len(DOCTRINAL_EVAL_CASES))
 
-    results: List[Dict[str, Any]] = []
-    category_metrics: Dict[str, Dict[str, List[float]]] = {}
+    results: list[dict[str, Any]] = []
+    category_metrics: dict[str, dict[str, list[float]]] = {}
 
     from app.config import settings
     from rag.timeout_utils import timeout_with_margin
@@ -325,16 +387,22 @@ async def evaluate_suite(endpoint: str) -> Dict[str, Any]:
             cat = item["category"]
 
             # Compute RAGAS Metrics
-            ans_relevancy = calculate_answer_relevancy(answer, item.get("expected_keywords", []), item.get("should_abstain", False))
-            ctx_precision = calculate_context_precision(citations, item.get("expected_citations", []), item.get("should_abstain", False))
-            
+            ans_relevancy = calculate_answer_relevancy(
+                answer, item.get("expected_keywords", []), item.get("should_abstain", False)
+            )
+            ctx_precision = calculate_context_precision(
+                citations, item.get("expected_citations", []), item.get("should_abstain", False)
+            )
+
             # If abstained or partial evidence, normalize faithfulness
             if item.get("should_abstain") and ans_relevancy == 1.0:
                 faithfulness = 1.0
                 is_hallucinating = False
             elif faithfulness_score is not None:
                 faithfulness = round(faithfulness_score, 3)
-                is_hallucinating = hallucination_flag or (faithfulness < 0.60 and len(citations) == 0 and not item.get("should_abstain"))
+                is_hallucinating = hallucination_flag or (
+                    faithfulness < 0.60 and len(citations) == 0 and not item.get("should_abstain")
+                )
             else:
                 faithfulness = 0.85 if len(citations) > 0 else 0.50
                 is_hallucinating = hallucination_flag
@@ -353,7 +421,9 @@ async def evaluate_suite(endpoint: str) -> Dict[str, Any]:
                 "hallucination_detected": is_hallucinating,
                 "citations_count": len(citations),
                 "query_tier": query_tier,
-                "verification_method": verification_data.get("method") if isinstance(verification_data, dict) else "unverified",
+                "verification_method": verification_data.get("method")
+                if isinstance(verification_data, dict)
+                else "unverified",
                 "error": error,
                 "answer_snippet": answer[:150] + "..." if len(answer) > 150 else answer,
             }
@@ -430,10 +500,10 @@ async def evaluate_suite(endpoint: str) -> Dict[str, Any]:
     md_path = REPORTS_DIR / "ragas_evaluation_report.md"
     md_content = f"""# AskMukthiGuru — RAGAS & Faithfulness Evaluation Report
 
-**Evaluation Timestamp:** `{report['timestamp']}`  
-**Target Endpoint:** `{report['endpoint']}`  
-**Cache Policy:** `{report['cache_policy']}`  
-**Total Evaluated Queries:** `{report['total_evaluated_queries']}`  
+**Evaluation Timestamp:** `{report["timestamp"]}`  
+**Target Endpoint:** `{report["endpoint"]}`  
+**Cache Policy:** `{report["cache_policy"]}`  
+**Total Evaluated Queries:** `{report["total_evaluated_queries"]}`  
 
 ---
 
@@ -441,11 +511,11 @@ async def evaluate_suite(endpoint: str) -> Dict[str, Any]:
 
 | Metric | Measured Value | Production SLA / Target | Status |
 |---|---|---|---|
-| **Faithfulness Score** | **{avg_faithfulness * 100:.1f}%** | ≥ 70.0% | {'✅ HEALTHY' if avg_faithfulness >= 0.70 else '⚠️ SUB-TARGET'} |
-| **Answer Relevancy** | **{avg_relevancy * 100:.1f}%** | ≥ 75.0% | {'✅ HEALTHY' if avg_relevancy >= 0.75 else '⚠️ SUB-TARGET'} |
-| **Context Precision** | **{avg_precision * 100:.1f}%** | ≥ 70.0% | {'✅ HEALTHY' if avg_precision >= 0.70 else '⚠️ SUB-TARGET'} |
-| **Hallucination Rate** | **{hallucination_rate * 100:.1f}%** | ≤ 10.0% | {'✅ ROBUST' if hallucination_rate <= 0.10 else '⚠️ INVESTIGATE'} |
-| **Cold-Path Avg Latency** | **{avg_latency:.2f}s** | < 45.0s | {'✅ ACCEPTABLE' if avg_latency < 45.0 else '⚠️ HIGH'} |
+| **Faithfulness Score** | **{avg_faithfulness * 100:.1f}%** | ≥ 70.0% | {"✅ HEALTHY" if avg_faithfulness >= 0.70 else "⚠️ SUB-TARGET"} |
+| **Answer Relevancy** | **{avg_relevancy * 100:.1f}%** | ≥ 75.0% | {"✅ HEALTHY" if avg_relevancy >= 0.75 else "⚠️ SUB-TARGET"} |
+| **Context Precision** | **{avg_precision * 100:.1f}%** | ≥ 70.0% | {"✅ HEALTHY" if avg_precision >= 0.70 else "⚠️ SUB-TARGET"} |
+| **Hallucination Rate** | **{hallucination_rate * 100:.1f}%** | ≤ 10.0% | {"✅ ROBUST" if hallucination_rate <= 0.10 else "⚠️ INVESTIGATE"} |
+| **Cold-Path Avg Latency** | **{avg_latency:.2f}s** | < 45.0s | {"✅ ACCEPTABLE" if avg_latency < 45.0 else "⚠️ HIGH"} |
 
 ---
 

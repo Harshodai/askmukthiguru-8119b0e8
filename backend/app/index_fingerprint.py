@@ -14,8 +14,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass
-from typing import Any, Mapping
+from typing import Any
 
 
 class IndexFingerprintError(RuntimeError):
@@ -141,9 +142,7 @@ def build_index_fingerprint(
         chunk_size=int(getattr(settings, "rag_chunk_size", 0) or 0),
         chunk_overlap=int(getattr(settings, "rag_chunk_overlap", 0) or 0),
         adaptive_chunking_enabled=bool(getattr(settings, "use_adaptive_chunking", False)),
-        proposition_chunking=_as_str(
-            getattr(settings, "use_proposition_chunking", None), "never"
-        ),
+        proposition_chunking=_as_str(getattr(settings, "use_proposition_chunking", None), "never"),
         late_chunking_enabled=bool(getattr(settings, "reingest_late_chunking", False)),
         metadata_schema_version=_as_str(
             getattr(settings, "retrieval_metadata_schema_version", None), "v1"

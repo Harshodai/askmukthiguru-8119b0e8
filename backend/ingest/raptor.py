@@ -32,6 +32,7 @@ from sklearn.mixture import GaussianMixture
 from app.config import settings
 from services.embedding_service import EmbeddingService
 from services.ollama_service import OllamaService
+from services.provenance import ChunkProvenance
 from services.qdrant_service import QdrantService
 
 logger = logging.getLogger(__name__)
@@ -147,6 +148,11 @@ class RaptorIndexer:
             {
                 "content_type": "summary",
                 "raptor_level": 1,
+                # Always machine_summary by construction (raptor_level=1) — see
+                # services/provenance.py, the classifier scripts/ops/backfill_chunk_provenance.py
+                # applied to the existing corpus for the same field.
+                "provenance": ChunkProvenance.MACHINE_SUMMARY.value,
+                "provenance_rationale": "raptor_level_1_or_content_type_summary",
                 "cluster_id": s["cluster_id"],
                 "source_chunks": s["source_count"],
                 "source_urls": s.get("source_urls", []),

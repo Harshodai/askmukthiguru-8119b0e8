@@ -49,8 +49,9 @@ def mock_qdrant():
 @pytest.fixture
 def semantic_adapter(mock_embedder, mock_redis, mock_qdrant):
     """Instantiate SemanticCacheAdapter with mocked Qdrant and Redis clients."""
-    with patch("redis.from_url", return_value=mock_redis), patch(
-        "services.cache.semantic_adapter.QdrantClient", return_value=mock_qdrant
+    with (
+        patch("redis.from_url", return_value=mock_redis),
+        patch("services.cache.semantic_adapter.QdrantClient", return_value=mock_qdrant),
     ):
         adapter = SemanticCacheAdapter(
             embedding_service=mock_embedder,
@@ -185,9 +186,7 @@ class TestSemanticAdapterRoundtrip:
         assert cached is None
         assert semantic_adapter._misses == 1
 
-    def test_invalidate_by_query_no_type_error(
-        self, semantic_adapter, mock_qdrant, mock_redis
-    ):
+    def test_invalidate_by_query_no_type_error(self, semantic_adapter, mock_qdrant, mock_redis):
         query = "en:how to attain peace"
 
         result = semantic_adapter.invalidate_by_query(query)
@@ -209,8 +208,9 @@ class TestStartupSafetyAssertions:
         assert settings.semantic_cache_similarity >= 0.92
 
     def test_lifespan_raises_when_similarity_below_floor_in_production(self):
-        with patch.object(settings, "semantic_cache_similarity", 0.85), patch.dict(
-            os.environ, {"ENVIRONMENT": "production"}
+        with (
+            patch.object(settings, "semantic_cache_similarity", 0.85),
+            patch.dict(os.environ, {"ENVIRONMENT": "production"}),
         ):
             from app.config import settings as patched_settings
 
@@ -224,8 +224,9 @@ class TestStartupSafetyAssertions:
                 assert "below the 0.92 correctness floor" in str(exc_info.value)
 
     def test_lifespan_allows_low_similarity_in_test_environment(self):
-        with patch.object(settings, "semantic_cache_similarity", 0.85), patch.dict(
-            os.environ, {"ENVIRONMENT": "test"}
+        with (
+            patch.object(settings, "semantic_cache_similarity", 0.85),
+            patch.dict(os.environ, {"ENVIRONMENT": "test"}),
         ):
             from app.config import settings as patched_settings
 

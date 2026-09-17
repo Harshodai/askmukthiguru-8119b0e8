@@ -5,7 +5,10 @@ from scripts.ops.corpus_audit import _validate_qdrant_base_url
 
 def test_qdrant_http_url_is_normalized():
     assert _validate_qdrant_base_url("http://qdrant:6333/") == "http://qdrant:6333"
-    assert _validate_qdrant_base_url("https://qdrant.example.test/base") == "https://qdrant.example.test/base"
+    assert (
+        _validate_qdrant_base_url("https://qdrant.example.test/base")
+        == "https://qdrant.example.test/base"
+    )
 
 
 @pytest.mark.parametrize(

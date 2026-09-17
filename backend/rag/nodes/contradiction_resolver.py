@@ -8,9 +8,9 @@ patterns from ConflictRAG and Enterprise Trust RAG.
 
 from __future__ import annotations
 
-from enum import IntEnum
 import logging
 import re
+from enum import IntEnum
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -23,6 +23,7 @@ class AuthorityRank(IntEnum):
       Rank 2 (Weight 0.7): Q&A sessions, podcasts, video transcripts
       Rank 3 (Weight 0.4): Community summaries, staging OKF, secondary notes
     """
+
     CANONICAL = 1
     DISCOURSE_MEDIA = 2
     COMMUNITY_SECONDARY = 3
@@ -91,14 +92,40 @@ OPPOSITE_RELATIONS: dict[str, set[str]] = {
 
 # Domain-specific antonym pairs for polarity conflict detection
 DOMAIN_ANTONYMS: list[tuple[set[str], set[str]]] = [
-    ({"peace", "peaceful", "serene", "calm", "tranquil", "stillness"},
-     {"agitation", "agitated", "anxiety", "anxious", "conflict", "distress", "restless", "suffering"}),
-    ({"effective", "potent", "beneficial", "sacred", "transformative", "genuine"},
-     {"ineffective", "harmful", "detrimental", "fake", "fabricated", "useless", "myth", "placebo"}),
-    ({"liberation", "mukthi", "freedom", "enlightenment", "awakening"},
-     {"bondage", "illusion", "maya", "ignorance", "entanglement"}),
-    ({"truth", "true", "authentic", "canonical"},
-     {"false", "untrue", "fake", "fabricated", "myth", "distorted"}),
+    (
+        {"peace", "peaceful", "serene", "calm", "tranquil", "stillness"},
+        {
+            "agitation",
+            "agitated",
+            "anxiety",
+            "anxious",
+            "conflict",
+            "distress",
+            "restless",
+            "suffering",
+        },
+    ),
+    (
+        {"effective", "potent", "beneficial", "sacred", "transformative", "genuine"},
+        {
+            "ineffective",
+            "harmful",
+            "detrimental",
+            "fake",
+            "fabricated",
+            "useless",
+            "myth",
+            "placebo",
+        },
+    ),
+    (
+        {"liberation", "mukthi", "freedom", "enlightenment", "awakening"},
+        {"bondage", "illusion", "maya", "ignorance", "entanglement"},
+    ),
+    (
+        {"truth", "true", "authentic", "canonical"},
+        {"false", "untrue", "fake", "fabricated", "myth", "distorted"},
+    ),
 ]
 
 # Negation prefixes and adverbs
@@ -110,8 +137,17 @@ NEGATION_PATTERNS = re.compile(
 
 # Number words to digits for factual count conflict detection
 NUMBER_WORDS: dict[str, int] = {
-    "zero": 0, "one": 1, "two": 2, "three": 3, "four": 4,
-    "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
+    "zero": 0,
+    "one": 1,
+    "two": 2,
+    "three": 3,
+    "four": 4,
+    "five": 5,
+    "six": 6,
+    "seven": 7,
+    "eight": 8,
+    "nine": 9,
+    "ten": 10,
 }
 
 # Known core spiritual entities for fallback detection
@@ -188,11 +224,17 @@ def get_source_authority(item: dict[str, Any]) -> tuple[int, float]:
     title = str(item.get("title") or meta.get("title") or "").lower()
     channel = str(item.get("channel") or "").lower()
 
-    if any(k in url or k in title for k in ("canonical_book", "four sacred secrets", "scripture", "canonical")):
+    if any(
+        k in url or k in title
+        for k in ("canonical_book", "four sacred secrets", "scripture", "canonical")
+    ):
         return AuthorityRank.CANONICAL.value, 1.0
     if "youtube.com" in url or "youtu.be" in url or "video" in channel or "podcast" in url:
         return AuthorityRank.DISCOURSE_MEDIA.value, 0.7
-    if any(k in url or k in title for k in ("community", "staging", "notes", "wiki", "forum", "secondary")):
+    if any(
+        k in url or k in title
+        for k in ("community", "staging", "notes", "wiki", "forum", "secondary")
+    ):
         return AuthorityRank.COMMUNITY_SECONDARY.value, 0.4
 
     # Default to Rank 3 (Community / Secondary)
@@ -208,9 +250,21 @@ def _get_source_id(item: dict[str, Any]) -> str:
         or item.get("source_id")
         or item.get("title")
         or item.get("name")
-        or (item.get("metadata", {}).get("source_url") if isinstance(item.get("metadata"), dict) else None)
-        or (item.get("metadata", {}).get("title") if isinstance(item.get("metadata"), dict) else None)
-        or (item.get("provenance", {}).get("source") if isinstance(item.get("provenance"), dict) else None)
+        or (
+            item.get("metadata", {}).get("source_url")
+            if isinstance(item.get("metadata"), dict)
+            else None
+        )
+        or (
+            item.get("metadata", {}).get("title")
+            if isinstance(item.get("metadata"), dict)
+            else None
+        )
+        or (
+            item.get("provenance", {}).get("source")
+            if isinstance(item.get("provenance"), dict)
+            else None
+        )
         or "unknown_source"
     )
 
@@ -222,7 +276,16 @@ def extract_entity_keys(item: dict[str, Any]) -> set[str]:
         return keys
 
     # Check direct entity fields
-    for field in ("entity_ids", "entities", "entity_id", "entity", "name", "concept", "subject", "title"):
+    for field in (
+        "entity_ids",
+        "entities",
+        "entity_id",
+        "entity",
+        "name",
+        "concept",
+        "subject",
+        "title",
+    ):
         val = item.get(field)
         if isinstance(val, str) and val.strip():
             norm = _normalize_entity(val)
@@ -265,7 +328,7 @@ def extract_entity_keys(item: dict[str, Any]) -> set[str]:
                     keys.add(norm)
 
     # If no structured entity keys found, scan text for known core entities
-    text = (item.get("text") or item.get("content") or item.get("description") or "")
+    text = item.get("text") or item.get("content") or item.get("description") or ""
     if text:
         text_lower = text.lower()
         for known in _KNOWN_CORE_ENTITIES:
@@ -343,12 +406,21 @@ def detect_conflict(item_a: dict[str, Any], item_b: dict[str, Any]) -> tuple[boo
         for ca in claims_a:
             for cb in claims_b:
                 if isinstance(ca, dict) and isinstance(cb, dict):
-                    if ca.get("predicate") == cb.get("predicate") and ca.get("polarity") != cb.get("polarity"):
-                        return True, f"Polarity claim conflict on '{entity_str}': {ca.get('predicate')}"
+                    if ca.get("predicate") == cb.get("predicate") and ca.get("polarity") != cb.get(
+                        "polarity"
+                    ):
+                        return (
+                            True,
+                            f"Polarity claim conflict on '{entity_str}': {ca.get('predicate')}",
+                        )
 
     # 3. Textual / Lexical conflict detection (ConflictRAG pattern)
-    text_a = (item_a.get("text") or item_a.get("content") or item_a.get("description") or "").lower()
-    text_b = (item_b.get("text") or item_b.get("content") or item_b.get("description") or "").lower()
+    text_a = (
+        item_a.get("text") or item_a.get("content") or item_a.get("description") or ""
+    ).lower()
+    text_b = (
+        item_b.get("text") or item_b.get("content") or item_b.get("description") or ""
+    ).lower()
 
     if not text_a or not text_b:
         return False, ""
@@ -370,12 +442,29 @@ def detect_conflict(item_a: dict[str, Any], item_b: dict[str, Any]) -> tuple[boo
     has_neg_b = bool(NEGATION_PATTERNS.search(text_b))
     if has_neg_a != has_neg_b:
         # One has explicit negation. Check if they share key non-stop words describing the entity
-        words_a = set(re.findall(r"\b\w{4,}\b", text_a)) - {"which", "their", "about", "there", "these", "would"}
-        words_b = set(re.findall(r"\b\w{4,}\b", text_b)) - {"which", "their", "about", "there", "these", "would"}
+        words_a = set(re.findall(r"\b\w{4,}\b", text_a)) - {
+            "which",
+            "their",
+            "about",
+            "there",
+            "these",
+            "would",
+        }
+        words_b = set(re.findall(r"\b\w{4,}\b", text_b)) - {
+            "which",
+            "their",
+            "about",
+            "there",
+            "these",
+            "would",
+        }
         shared_predicates = (words_a & words_b) - {e.replace(" ", "") for e in common_entities}
         # Tightened requirement: shared predicates must include a verb-bearing action word
         if len(shared_predicates) >= 2 and any(_is_verb_predicate(w) for w in shared_predicates):
-            return True, f"Negation asymmetry on shared predicates {list(shared_predicates)[:3]} for '{entity_str}'"
+            return (
+                True,
+                f"Negation asymmetry on shared predicates {list(shared_predicates)[:3]} for '{entity_str}'",
+            )
 
     # Check for numeric count mismatch on specific entities (e.g. "four sacred secrets" vs "five")
     numbers_a = _extract_adjacent_entity_numbers(text_a, common_entities)
@@ -388,10 +477,37 @@ def detect_conflict(item_a: dict[str, Any], item_b: dict[str, Any]) -> tuple[boo
 
 
 _VERB_PREDICATE_STEMS = (
-    "calm", "align", "creat", "lead", "caus", "heal", "help", "bring", "teach",
-    "give", "prevent", "practic", "requir", "transform", "awaken", "liberat",
-    "connect", "dissolv", "cultivat", "produc", "achiev", "destroy", "block",
-    "guid", "enabl", "increas", "decreas", "reduc", "improv", "elevat", "harm",
+    "calm",
+    "align",
+    "creat",
+    "lead",
+    "caus",
+    "heal",
+    "help",
+    "bring",
+    "teach",
+    "give",
+    "prevent",
+    "practic",
+    "requir",
+    "transform",
+    "awaken",
+    "liberat",
+    "connect",
+    "dissolv",
+    "cultivat",
+    "produc",
+    "achiev",
+    "destroy",
+    "block",
+    "guid",
+    "enabl",
+    "increas",
+    "decreas",
+    "reduc",
+    "improv",
+    "elevat",
+    "harm",
 )
 
 
@@ -422,9 +538,7 @@ def _extract_adjacent_entity_numbers(text: str, entities: set[str]) -> set[int]:
             if len(ew) >= 3:
                 entity_words.add(ew)
 
-    entity_token_positions: set[int] = {
-        idx for idx, w in enumerate(words) if w in entity_words
-    }
+    entity_token_positions: set[int] = {idx for idx, w in enumerate(words) if w in entity_words}
     if not entity_token_positions:
         return set()
 
@@ -528,14 +642,18 @@ def resolve_contradictions(
                     # Graph entity has higher authority; vector chunk is suppressed
                     suppressed_chunk_indices.add(chunk_idx)
                     winning_ranks.append(entity_rank)
-                    conflicts_detected.append({
-                        "entity": list(extract_entity_keys(chunk) & extract_entity_keys(entity)),
-                        "winner_source": entity_src,
-                        "winner_rank": entity_rank,
-                        "loser_source": chunk_src,
-                        "loser_rank": chunk_rank,
-                        "reason": reason,
-                    })
+                    conflicts_detected.append(
+                        {
+                            "entity": list(
+                                extract_entity_keys(chunk) & extract_entity_keys(entity)
+                            ),
+                            "winner_source": entity_src,
+                            "winner_rank": entity_rank,
+                            "loser_source": chunk_src,
+                            "loser_rank": chunk_rank,
+                            "reason": reason,
+                        }
+                    )
                     logger.info(
                         "Contradiction resolved: '%s' (Rank %d) overruled '%s' (Rank %d). Reason: %s",
                         entity_src,
@@ -547,14 +665,18 @@ def resolve_contradictions(
                 elif can_suppress and chunk_rank < entity_rank:
                     # Vector chunk has higher authority; vector chunk is preserved, graph claim demoted
                     winning_ranks.append(chunk_rank)
-                    conflicts_detected.append({
-                        "entity": list(extract_entity_keys(chunk) & extract_entity_keys(entity)),
-                        "winner_source": chunk_src,
-                        "winner_rank": chunk_rank,
-                        "loser_source": entity_src,
-                        "loser_rank": entity_rank,
-                        "reason": reason,
-                    })
+                    conflicts_detected.append(
+                        {
+                            "entity": list(
+                                extract_entity_keys(chunk) & extract_entity_keys(entity)
+                            ),
+                            "winner_source": chunk_src,
+                            "winner_rank": chunk_rank,
+                            "loser_source": entity_src,
+                            "loser_rank": entity_rank,
+                            "reason": reason,
+                        }
+                    )
                     logger.info(
                         "Contradiction resolved: '%s' (Rank %d) overruled '%s' (Rank %d). Reason: %s",
                         chunk_src,
@@ -565,14 +687,18 @@ def resolve_contradictions(
                     )
                 else:
                     winning_ranks.append(min(chunk_rank, entity_rank))
-                    conflicts_detected.append({
-                        "entity": list(extract_entity_keys(chunk) & extract_entity_keys(entity)),
-                        "winner_source": chunk_src,
-                        "winner_rank": chunk_rank,
-                        "loser_source": entity_src,
-                        "loser_rank": entity_rank,
-                        "reason": reason,
-                    })
+                    conflicts_detected.append(
+                        {
+                            "entity": list(
+                                extract_entity_keys(chunk) & extract_entity_keys(entity)
+                            ),
+                            "winner_source": chunk_src,
+                            "winner_rank": chunk_rank,
+                            "loser_source": entity_src,
+                            "loser_rank": entity_rank,
+                            "reason": reason,
+                        }
+                    )
 
     # Phase 2: Detect conflicts among Vector Chunks themselves
     for i, chunk_a in enumerate(chunks):
@@ -598,26 +724,34 @@ def resolve_contradictions(
                     # chunk_a has higher authority
                     suppressed_chunk_indices.add(j)
                     winning_ranks.append(rank_a)
-                    conflicts_detected.append({
-                        "entity": list(extract_entity_keys(chunk_a) & extract_entity_keys(chunk_b)),
-                        "winner_source": src_a,
-                        "winner_rank": rank_a,
-                        "loser_source": src_b,
-                        "loser_rank": rank_b,
-                        "reason": reason,
-                    })
+                    conflicts_detected.append(
+                        {
+                            "entity": list(
+                                extract_entity_keys(chunk_a) & extract_entity_keys(chunk_b)
+                            ),
+                            "winner_source": src_a,
+                            "winner_rank": rank_a,
+                            "loser_source": src_b,
+                            "loser_rank": rank_b,
+                            "reason": reason,
+                        }
+                    )
                 elif can_suppress and rank_b < rank_a:
                     # chunk_b has higher authority
                     suppressed_chunk_indices.add(i)
                     winning_ranks.append(rank_b)
-                    conflicts_detected.append({
-                        "entity": list(extract_entity_keys(chunk_a) & extract_entity_keys(chunk_b)),
-                        "winner_source": src_b,
-                        "winner_rank": rank_b,
-                        "loser_source": src_a,
-                        "loser_rank": rank_a,
-                        "reason": reason,
-                    })
+                    conflicts_detected.append(
+                        {
+                            "entity": list(
+                                extract_entity_keys(chunk_a) & extract_entity_keys(chunk_b)
+                            ),
+                            "winner_source": src_b,
+                            "winner_rank": rank_b,
+                            "loser_source": src_a,
+                            "loser_rank": rank_a,
+                            "reason": reason,
+                        }
+                    )
                     break  # chunk_a is suppressed, stop checking against it
                 elif can_suppress:
                     # Equal rank tie-break: higher retrieval score wins
@@ -630,24 +764,32 @@ def resolve_contradictions(
                         suppressed_chunk_indices.add(i)
                         winning_ranks.append(rank_b)
                         break
-                    conflicts_detected.append({
-                        "type": "authority_tie",
-                        "entity": list(extract_entity_keys(chunk_a) & extract_entity_keys(chunk_b)),
-                        "chunk_id": chunk_a.get("id", ""),
-                        "entity_id": chunk_b.get("id", ""),
-                        "reason": "equal_authority_rank_tie",
-                    })
+                    conflicts_detected.append(
+                        {
+                            "type": "authority_tie",
+                            "entity": list(
+                                extract_entity_keys(chunk_a) & extract_entity_keys(chunk_b)
+                            ),
+                            "chunk_id": chunk_a.get("id", ""),
+                            "entity_id": chunk_b.get("id", ""),
+                            "reason": "equal_authority_rank_tie",
+                        }
+                    )
                 else:
                     # Telemetry-only conflict without chunk suppression
                     winning_ranks.append(min(rank_a, rank_b))
-                    conflicts_detected.append({
-                        "entity": list(extract_entity_keys(chunk_a) & extract_entity_keys(chunk_b)),
-                        "winner_source": src_a,
-                        "winner_rank": rank_a,
-                        "loser_source": src_b,
-                        "loser_rank": rank_b,
-                        "reason": reason,
-                    })
+                    conflicts_detected.append(
+                        {
+                            "entity": list(
+                                extract_entity_keys(chunk_a) & extract_entity_keys(chunk_b)
+                            ),
+                            "winner_source": src_a,
+                            "winner_rank": rank_a,
+                            "loser_source": src_b,
+                            "loser_rank": rank_b,
+                            "reason": reason,
+                        }
+                    )
 
     # Construct filtered and annotated chunk list
     filtered_chunks: list[dict[str, Any]] = []

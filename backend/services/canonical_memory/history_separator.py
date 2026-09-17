@@ -39,7 +39,8 @@ def _estimate_tokens(text: str) -> int:
     if not text:
         return 0
     indic_chars = sum(
-        1 for ch in text
+        1
+        for ch in text
         if unicodedata.category(ch).startswith(("Lo",))  # "Lo" = Letter, other
         and ord(ch) > 0x0900  # Devanagari and above in Unicode block
     )
@@ -47,10 +48,7 @@ def _estimate_tokens(text: str) -> int:
     if total == 0:
         return 0
     indic_ratio = indic_chars / total
-    char_ratio = (
-        _TOKEN_CHAR_RATIO_EN * (1 - indic_ratio)
-        + _TOKEN_CHAR_RATIO_INDIC * indic_ratio
-    )
+    char_ratio = _TOKEN_CHAR_RATIO_EN * (1 - indic_ratio) + _TOKEN_CHAR_RATIO_INDIC * indic_ratio
     return max(1, int(total / char_ratio))
 
 
@@ -61,6 +59,7 @@ def _estimate_tokens(text: str) -> int:
 # chars, so \b fires *inside* Telugu/Tamil/Kannada words.  This helper
 # checks that a regex match is a standalone word, not a substring of a
 # larger Indic word.
+
 
 def _is_standalone_word(text: str, start: int, end: int) -> bool:
     """Return True if the match at [start:end) is a complete word.
@@ -301,8 +300,7 @@ def classify_conversation_turn(
     if transient_topics:
         classification.transient_topics = transient_topics
         classification.is_temporal = bool(
-            "temporal_reference" in transient_topics
-            or "transient_state" in transient_topics
+            "temporal_reference" in transient_topics or "transient_state" in transient_topics
         )
         classification.session_context["type"] = "transient"
         classification.session_context["topics"] = transient_topics
@@ -322,7 +320,6 @@ def classify_conversation_turn(
         re.IGNORECASE,
     )
     if explicit_re.search(user_text):
-        has_durable_patterns = True
         # Strip the explicit prefix and treat the rest as durable
         cleaned = explicit_re.sub("", user_text).strip(" ,.:;")
         if cleaned and len(cleaned.split()) >= 2:
@@ -337,7 +334,6 @@ def classify_conversation_turn(
 
     # Check for preference patterns
     if _DURABLE_PREFERENCE_RE.search(user_text):
-        has_durable_patterns = True
         # Extract the preference statement
         pref_match = re.search(
             r"(?:i\s*(?:prefer|like|love|enjoy|hate|dislike|want|need|wish)"
@@ -409,7 +405,6 @@ def classify_conversation_turn(
     )
     goal_match = goal_re.search(user_text)
     if goal_match:
-        has_durable_patterns = True
         goal_text = goal_match.group(0).strip()
         goal_text = re.split(r"[.!?।]", goal_text)[0].strip()
         if len(goal_text) > 200:
@@ -445,15 +440,65 @@ def classify_conversation_turn(
 # ---------------------------------------------------------------------------
 
 _FACT_KEY_MAP: list[tuple[re.Pattern, str]] = [
-    (re.compile(r"live[sd]?\s+in|resident\s+of|based\s+in|रहत[ााई]|నివసిస్తున్నా|வாழ்கிறேன்", re.I), "user:lives_in"),
-    (re.compile(r"work[s]?\s+(?:as|at|in)|occupation|profession|job|काम\s+करत[ााई]|పని\s*చేస్తు|வேலை\s*செய்", re.I), "user:occupation"),
-    (re.compile(r"prefer[s]?\s+(?:concise|brief|short|detailed|thorough|simple)|like[s]?\s+(?:concise|detailed)|पसंद.*(?:संक्षिप्त|विस्तृత)|ఇష్టం.*(?:సంక్షిప్తం|వివరంగా)", re.I), "user:prefers_tone"),
-    (re.compile(r"prefer[s]?\s+(?:deep|surface|brief)|like[s]?\s+(?:deep|surface)|deep(?:er)?\s+(?:explanation|understanding)", re.I), "user:prefers_depth"),
-    (re.compile(r"prefer[s]?\s+(?:hindi|telugu|tamil|kannada|marathi|english)|speak(?:s|ing)?\s+(?:hindi|telugu|tamil|kannada|marathi)|हिंदी\s+में|తెలుగు\s*లో|தமிழில்", re.I), "user:prefers_language"),
-    (re.compile(r"meditat(?:e|ion|ing)\s+(?:for|experience|practice|level|years?)|vipassana|mindfulness\s+(?:practice|experience)|ధ్యానం|தியானம்|ಧ್ಯಾನ", re.I), "user:meditation_experience"),
-    (re.compile(r"current(?:ly)?\s+(?:working|project|task)|my\s+project|इस\s+समय.*प्रोजेक्ट|ప్రస్తుతం.*ప్రాజెక్ట్", re.I), "user:current_project"),
-    (re.compile(r"(?:interested|interest|passionate|fond)\s+in|spiritual|yoga|meditation|chanting", re.I), "user:spiritual_interest"),
-    (re.compile(r"my\s+(?:guru|teacher|master|mentor|friend|wife|husband|child|family|parent)|गुरु|परिवार|మాస్టారు|குரு", re.I), "user:relationship"),
+    (
+        re.compile(r"live[sd]?\s+in|resident\s+of|based\s+in|रहत[ााई]|నివసిస్తున్నా|வாழ்கிறேன்", re.I),
+        "user:lives_in",
+    ),
+    (
+        re.compile(
+            r"work[s]?\s+(?:as|at|in)|occupation|profession|job|काम\s+करत[ााई]|పని\s*చేస్తు|வேலை\s*செய்",
+            re.I,
+        ),
+        "user:occupation",
+    ),
+    (
+        re.compile(
+            r"prefer[s]?\s+(?:concise|brief|short|detailed|thorough|simple)|like[s]?\s+(?:concise|detailed)|पसंद.*(?:संक्षिप्त|विस्तृత)|ఇష్టం.*(?:సంక్షిప్తం|వివరంగా)",
+            re.I,
+        ),
+        "user:prefers_tone",
+    ),
+    (
+        re.compile(
+            r"prefer[s]?\s+(?:deep|surface|brief)|like[s]?\s+(?:deep|surface)|deep(?:er)?\s+(?:explanation|understanding)",
+            re.I,
+        ),
+        "user:prefers_depth",
+    ),
+    (
+        re.compile(
+            r"prefer[s]?\s+(?:hindi|telugu|tamil|kannada|marathi|english)|speak(?:s|ing)?\s+(?:hindi|telugu|tamil|kannada|marathi)|हिंदी\s+में|తెలుగు\s*లో|தமிழில்",
+            re.I,
+        ),
+        "user:prefers_language",
+    ),
+    (
+        re.compile(
+            r"meditat(?:e|ion|ing)\s+(?:for|experience|practice|level|years?)|vipassana|mindfulness\s+(?:practice|experience)|ధ్యానం|தியானம்|ಧ್ಯಾನ",
+            re.I,
+        ),
+        "user:meditation_experience",
+    ),
+    (
+        re.compile(
+            r"current(?:ly)?\s+(?:working|project|task)|my\s+project|इस\s+समय.*प्रोजेक्ट|ప్రస్తుతం.*ప్రాజెక్ట్",
+            re.I,
+        ),
+        "user:current_project",
+    ),
+    (
+        re.compile(
+            r"(?:interested|interest|passionate|fond)\s+in|spiritual|yoga|meditation|chanting", re.I
+        ),
+        "user:spiritual_interest",
+    ),
+    (
+        re.compile(
+            r"my\s+(?:guru|teacher|master|mentor|friend|wife|husband|child|family|parent)|गुरु|परिवार|మాస్టారు|குரு",
+            re.I,
+        ),
+        "user:relationship",
+    ),
 ]
 
 
@@ -469,15 +514,61 @@ def _infer_memory_type(text: str) -> str:
     """Infer memory_type from statement content."""
     text_lower = text.lower()
     # Order matters: check goals before preferences (goals contain "want to")
-    if any(kw in text_lower for kw in ("goal", "plan", "project", "target", "trying to", "working on", "want to", "aim to", "लक्ष्य", "ప్రణాళిக")):
+    if any(
+        kw in text_lower
+        for kw in (
+            "goal",
+            "plan",
+            "project",
+            "target",
+            "trying to",
+            "working on",
+            "want to",
+            "aim to",
+            "लक्ष्य",
+            "ప్రణాళిக",
+        )
+    ):
         return "GOAL"
-    if any(kw in text_lower for kw in ("prefer", "like", "love", "hate", "dislike", "want", "need", "पसंद", "ఇష్టం", "பிடிக்கும்")):
+    if any(
+        kw in text_lower
+        for kw in (
+            "prefer",
+            "like",
+            "love",
+            "hate",
+            "dislike",
+            "want",
+            "need",
+            "पसंद",
+            "ఇష్టం",
+            "பிடிக்கும்",
+        )
+    ):
         return "PREFERENCE"
-    if any(kw in text_lower for kw in ("interested", "interest", "passionate", "fond", "spiritual", "yoga", "meditation", "practice")):
+    if any(
+        kw in text_lower
+        for kw in (
+            "interested",
+            "interest",
+            "passionate",
+            "fond",
+            "spiritual",
+            "yoga",
+            "meditation",
+            "practice",
+        )
+    ):
         return "INTEREST"
-    if any(kw in text_lower for kw in ("my name", "i am", "i'm", "i live", "i work", "my family", "मैं", "नేను", "நான்")):
+    if any(
+        kw in text_lower
+        for kw in ("my name", "i am", "i'm", "i live", "i work", "my family", "मैं", "नేను", "நான்")
+    ):
         return "PROFILE"
-    if any(kw in text_lower for kw in ("my guru", "my teacher", "my friend", "my wife", "my husband", "guru", "परिवार")):
+    if any(
+        kw in text_lower
+        for kw in ("my guru", "my teacher", "my friend", "my wife", "my husband", "guru", "परिवार")
+    ):
         return "RELATIONSHIP"
     return "REFLECTION"
 
@@ -514,8 +605,7 @@ def build_history_context(
 
     # Filter to valid messages
     valid_messages = [
-        m for m in session_messages
-        if m.get("role") in ("user", "assistant") and m.get("content")
+        m for m in session_messages if m.get("role") in ("user", "assistant") and m.get("content")
     ]
 
     if not valid_messages:
@@ -564,9 +654,7 @@ def build_history_context(
 # Separation validator
 # ---------------------------------------------------------------------------
 
-_HISTORY_MARKERS = re.compile(
-    r"\[History:.*?\]|Seeker:|Guru:|- (?:Seeker|Guru):"
-)
+_HISTORY_MARKERS = re.compile(r"\[History:.*?\]|Seeker:|Guru:|- (?:Seeker|Guru):")
 
 _MEMORY_MARKERS = re.compile(
     r"\[Memory:.*?\]|\[Memory Context.*?\]|canonical_memory|memory_type.*?:|confidence.*?:"
@@ -592,36 +680,26 @@ def validate_separation(
 
     # Check: memory_context should not contain history markers
     if memory_context and _HISTORY_MARKERS.search(memory_context):
-        logger.warning(
-            "Separation violation: memory_context contains history markers"
-        )
+        logger.warning("Separation violation: memory_context contains history markers")
         return False
 
     # Check: history_context should not contain memory markers
     if history_context and _MEMORY_MARKERS.search(history_context):
-        logger.warning(
-            "Separation violation: history_context contains memory markers"
-        )
+        logger.warning("Separation violation: history_context contains memory markers")
         return False
 
     # Check: history should not contain memory-type metadata patterns
     if history_context:
         # Look for memory candidate JSON-like patterns
         if re.search(r'"memory_type"\s*:', history_context):
-            logger.warning(
-                "Separation violation: history_context contains memory_type metadata"
-            )
+            logger.warning("Separation violation: history_context contains memory_type metadata")
             return False
         if re.search(r'"fact_key"\s*:', history_context):
-            logger.warning(
-                "Separation violation: history_context contains fact_key metadata"
-            )
+            logger.warning("Separation violation: history_context contains fact_key metadata")
             return False
         # Plain-text fact_key pattern (e.g. "fact_key: user:lives_in")
         if re.search(r"fact_key:\s*\S+", history_context):
-            logger.warning(
-                "Separation violation: history_context contains fact_key metadata"
-            )
+            logger.warning("Separation violation: history_context contains fact_key metadata")
             return False
 
     return True

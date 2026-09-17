@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import math
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -45,7 +44,7 @@ def _build_history(total_chars: int) -> list[dict]:
     msgs = []
     char_per_turn = 200
     turns = total_chars // char_per_turn + 1
-    for i in range(turns):
+    for _i in range(turns):
         msgs.append({"role": "user", "content": "x" * char_per_turn})
         msgs.append({"role": "assistant", "content": "y" * char_per_turn})
     return msgs
@@ -141,8 +140,7 @@ class TestImportanceWeighting:
 
     def test_max_memories_respected(self):
         memories = [
-            FakeMemory(session_id=f"m{i}", started_at=1000000 + i * 100000)
-            for i in range(10)
+            FakeMemory(session_id=f"m{i}", started_at=1000000 + i * 100000) for i in range(10)
         ]
         result = weighted_memory_selection(memories, max_memories=3)
         assert len(result) == 3

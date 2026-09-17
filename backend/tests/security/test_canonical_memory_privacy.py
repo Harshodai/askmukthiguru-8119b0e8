@@ -1,12 +1,9 @@
 """Tests for canonical memory privacy and data governance (Phase 14)."""
-import datetime as dt
-from typing import Any, Dict, List, Optional
-from unittest.mock import MagicMock, patch
 
-import pytest
+import datetime as dt
+from typing import Any, Optional
 
 from services.canonical_memory.privacy import ConsentScope, MemoryPrivacyManager
-
 
 # ── Helpers ──────────────────────────────────────────────────────────
 
@@ -14,17 +11,17 @@ from services.canonical_memory.privacy import ConsentScope, MemoryPrivacyManager
 class _FakeResult:
     """Mimics Supabase query result with a ``data`` attribute."""
 
-    def __init__(self, data: Optional[List[Dict]] = None) -> None:
+    def __init__(self, data: Optional[list[dict]] = None) -> None:
         self.data = data or []
 
 
 class _FakeTable:
     """In-memory fake for a single Supabase table."""
 
-    def __init__(self, store: Dict[str, List[Dict]], table_name: str) -> None:
+    def __init__(self, store: dict[str, list[dict]], table_name: str) -> None:
         self._store = store
         self._table_name = table_name
-        self._filters: Dict[str, Any] = {}
+        self._filters: dict[str, Any] = {}
 
     # ── chaining ─────────────────────────────────────────────────────
     def select(self, *_a: str) -> "_FakeTable":
@@ -39,13 +36,11 @@ class _FakeTable:
 
     def execute(self) -> _FakeResult:
         rows = self._store.get(self._table_name, [])
-        filtered = [
-            r for r in rows if all(r.get(k) == v for k, v in self._filters.items())
-        ]
+        filtered = [r for r in rows if all(r.get(k) == v for k, v in self._filters.items())]
         self._filters = {}
         return _FakeResult(filtered)
 
-    def upsert(self, record: Dict) -> "_FakeTable":
+    def upsert(self, record: dict) -> "_FakeTable":
         rows = self._store.setdefault(self._table_name, [])
         for i, r in enumerate(rows):
             if r.get("user_id") == record["user_id"] and r.get("scope") == record.get("scope"):
@@ -62,7 +57,7 @@ class _FakeDB:
     """In-memory fake for the Supabase client."""
 
     def __init__(self) -> None:
-        self._stores: Dict[str, List[Dict]] = {}
+        self._stores: dict[str, list[dict]] = {}
 
     def table(self, name: str) -> _FakeTable:
         return _FakeTable(self._stores, name)
@@ -197,8 +192,8 @@ class TestRetentionStatus:
 
     def test_retention_finds_expired(self):
         mgr, db = _make_manager()
-        old = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=400)).isoformat()
-        fresh = dt.datetime.now(dt.timezone.utc).isoformat()
+        old = (dt.datetime.now(dt.UTC) - dt.timedelta(days=400)).isoformat()
+        fresh = dt.datetime.now(dt.UTC).isoformat()
         db._stores["canonical_memories"] = [
             {"id": "m1", "user_id": "u1", "created_at": old, "last_used_at": old},
             {"id": "m2", "user_id": "u1", "created_at": fresh, "last_used_at": fresh},
@@ -211,9 +206,15 @@ class TestRetentionStatus:
 
     def test_retention_excludes_deleted(self):
         mgr, db = _make_manager()
-        old = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=500)).isoformat()
+        old = (dt.datetime.now(dt.UTC) - dt.timedelta(days=500)).isoformat()
         db._stores["canonical_memories"] = [
-            {"id": "m1", "user_id": "u1", "created_at": old, "last_used_at": old, "deleted_at": old},
+            {
+                "id": "m1",
+                "user_id": "u1",
+                "created_at": old,
+                "last_used_at": old,
+                "deleted_at": old,
+            },
         ]
         status = mgr.get_retention_status("u1")
         assert status["total_active"] == 0

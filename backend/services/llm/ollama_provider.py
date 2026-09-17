@@ -83,4 +83,4 @@ class OllamaProvider(LLMProvider):
     def is_circuit_open(self) -> bool:
         """Public probe — the OllamaService owns ``_circuit_breaker``."""
         breaker = getattr(self._service, "_circuit_breaker", None)
-        return breaker is not None and not breaker.can_execute()
+        return breaker is not None and breaker.is_open()

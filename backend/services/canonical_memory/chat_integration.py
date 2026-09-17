@@ -14,11 +14,10 @@ Design principles:
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import re
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Optional, Protocol
 
 from app.config import settings
@@ -29,6 +28,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Feature flags — read from Settings with safe defaults
 # ---------------------------------------------------------------------------
+
 
 def _flag(name: str, default: bool = False) -> bool:
     """Read a feature flag from settings, returning default if absent.
@@ -66,6 +66,7 @@ def _ff_memory_influence() -> bool:
 # ---------------------------------------------------------------------------
 # Protocol / type aliases for loose coupling
 # ---------------------------------------------------------------------------
+
 
 class MemoryRetrieverProto(Protocol):
     async def retrieve(
@@ -171,6 +172,7 @@ def detect_explicit_command(query: str) -> Optional[str]:
 # Main integration class
 # ---------------------------------------------------------------------------
 
+
 def _decision_action(decision: Any) -> str:
     """Read a MemoryDecision's action, whatever the field is called.
 
@@ -260,13 +262,9 @@ class CanonicalMemoryIntegration:
         # --- Canonical retrieval path ---
         canonical_context = ""
         try:
-            canonical_context = await self._canonical_context(
-                user_id, query, session_messages
-            )
+            canonical_context = await self._canonical_context(user_id, query, session_messages)
         except Exception as exc:
-            logger.warning(
-                "Canonical memory context failed, falling back to legacy: %s", exc
-            )
+            logger.warning("Canonical memory context failed, falling back to legacy: %s", exc)
             canonical_context = ""
 
         # Shadow mode: run canonical for logging, but serve legacy
@@ -330,9 +328,7 @@ class CanonicalMemoryIntegration:
                 user_id, query, response, session_id, session_messages or []
             )
         except Exception as exc:
-            logger.warning(
-                "Canonical memory post-response failed (non-fatal): %s", exc
-            )
+            logger.warning("Canonical memory post-response failed (non-fatal): %s", exc)
 
     # --- Explicit memory commands ---
 
@@ -350,11 +346,11 @@ class CanonicalMemoryIntegration:
             return ""
 
         if command.startswith("remember:"):
-            fact = command[len("remember:"):]
+            fact = command[len("remember:") :]
             return await self._handle_remember(user_id, fact)
 
         if command.startswith("forget:"):
-            fact = command[len("forget:"):]
+            fact = command[len("forget:") :]
             return await self._handle_forget(user_id, fact)
 
         if command == "recall":
@@ -426,6 +422,7 @@ class CanonicalMemoryIntegration:
                 )
             if semantic_m:
                 from app.orchestrator_utils import _format_scored_memory_block
+
                 parts.append(_format_scored_memory_block(semantic_m))
 
             return "\n\n".join(parts) if parts else ""
@@ -602,6 +599,7 @@ class CanonicalMemoryIntegration:
 # ---------------------------------------------------------------------------
 # Convenience factory
 # ---------------------------------------------------------------------------
+
 
 def create_chat_integration(
     context_orchestrator: Any,

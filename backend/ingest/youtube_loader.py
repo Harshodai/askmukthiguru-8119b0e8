@@ -32,8 +32,12 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 # Pre-extracted transcript staleness thresholds (in seconds)
-PRE_EXTRACTED_MAX_AGE_WARN = getattr(settings, "pre_extracted_max_age_warn", 7 * 24 * 60 * 60)  # 7 days — warn but use
-PRE_EXTRACTED_MAX_AGE_SKIP = getattr(settings, "pre_extracted_max_age_skip", 30 * 24 * 60 * 60)  # 30 days — skip, re-fetch from YouTube
+PRE_EXTRACTED_MAX_AGE_WARN = getattr(
+    settings, "pre_extracted_max_age_warn", 7 * 24 * 60 * 60
+)  # 7 days — warn but use
+PRE_EXTRACTED_MAX_AGE_SKIP = getattr(
+    settings, "pre_extracted_max_age_skip", 30 * 24 * 60 * 60
+)  # 30 days — skip, re-fetch from YouTube
 
 
 def fetch_youtube_title(video_id: str) -> Optional[str]:
@@ -679,9 +683,7 @@ def fetch_transcript_hybrid(
             if not transcript_text:
                 continue
 
-            logger.info(
-                f"[{video_id}] Found pre-extracted transcript in {video_id}.md!"
-            )
+            logger.info(f"[{video_id}] Found pre-extracted transcript in {video_id}.md!")
             # extract title if possible
             parsed_title = title
             parsed_speaker = ""
@@ -690,21 +692,15 @@ def fetch_transcript_hybrid(
                 if line.startswith("# "):
                     parsed_title = line[2:].strip()
                 elif line.startswith("**Channel:**"):
-                    parsed_speaker = (
-                        line.split("**Channel:**", 1)[1].strip().strip("`")
-                    )
+                    parsed_speaker = line.split("**Channel:**", 1)[1].strip().strip("`")
                 elif line.startswith("**Language:**"):
-                    parsed_language = (
-                        line.split("**Language:**", 1)[1].strip().strip("`")
-                    )
+                    parsed_language = line.split("**Language:**", 1)[1].strip().strip("`")
             # If parsed title looks like a video ID, fetch real YouTube title via oEmbed
             if _is_video_id_title(parsed_title):
                 yt_title = fetch_youtube_title(video_id)
                 if yt_title:
                     parsed_title = yt_title
-                    logger.info(
-                        f"[{video_id}] Fetched real YouTube title via oEmbed: {yt_title}"
-                    )
+                    logger.info(f"[{video_id}] Fetched real YouTube title via oEmbed: {yt_title}")
             return {
                 "text": transcript_text,
                 "source_url": source_url,

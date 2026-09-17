@@ -35,9 +35,10 @@ from app.config import settings  # noqa: E402
 
 QUESTION_PROMPT = (
     "Read this excerpt from a spiritual teaching. Write ONE specific question "
-    "that this excerpt answers and that a seeker might actually ask. Use the "
-    "excerpt's own distinctive vocabulary. Reply with the question only, no "
-    "preamble, no quotes.\n\nExcerpt:\n{text}"
+    "that this excerpt answers and that a seeker might actually ask, in their "
+    "own everyday words rather than the excerpt's vocabulary — the way someone "
+    "would ask before having read this passage. Reply with the question only, "
+    "no preamble, no quotes.\n\nExcerpt:\n{text}"
 )
 
 
@@ -113,8 +114,13 @@ async def main() -> int:
         chunks = _sample_chunks(qdrant._client, args.collection, args.n, args.seed)
         print(f"sampled {len(chunks)} chunks from {args.collection}", flush=True)
         for chunk in chunks:
+            # F18: llm._generate_fast resolves to the same model
+            # (openrouter_classify_model) that batch_grade_relevance uses in
+            # production, so that model was writing and grading its own
+            # questions. llm.generate uses the distinct generation model
+            # (openrouter_model) instead — never the production grader.
             q = (
-                await llm._generate_fast(
+                await llm.generate(
                     "You write precise retrieval evaluation questions.",
                     QUESTION_PROMPT.format(text=chunk["text"][:1800]),
                 )
@@ -158,20 +164,26 @@ async def main() -> int:
     ranks = [r["rank"] for r in rows]
     found = [r for r in ranks if r is not None]
     n = len(rows)
+    lenient_recall = round(sum(1 for r in rows if r["same_source_in_topk"]) / n, 4) if n else None
     report = {
         "collection": args.collection,
         "mode": "dense_only" if args.dense_only else "hybrid_dense_sparse",
         "questions": n,
         "k": args.k,
+        # F18: headline metric. The corpus holds many near-duplicate chunks
+        # from the same talk, and relevance labeling here is single-gold
+        # binary (see _ndcg_at_k) — a retriever returning a better chunk from
+        # the SAME source as the sampled one still scores zero on strict
+        # recall_at_1 below. lenient_recall_at_k_same_source credits that
+        # case and is the more honest top-line number; strict recall_at_1 is
+        # kept for regression-diffing against past runs, not as ground truth.
+        "lenient_recall_at_k_same_source": lenient_recall,
         "recall_at_1": round(sum(1 for r in found if r <= 1) / n, 4) if n else None,
         "recall_at_5": round(sum(1 for r in found if r <= 5) / n, 4) if n else None,
         f"recall_at_{args.k}": round(len(found) / n, 4) if n else None,
         "mrr_at_k": round(sum(1.0 / r for r in found) / n, 4) if n else None,
         "ndcg_at_k": round(sum(_ndcg_at_k(r, args.k) for r in ranks) / n, 4) if n else None,
         "median_rank_when_found": statistics.median(found) if found else None,
-        "lenient_recall_at_k_same_source": (
-            round(sum(1 for r in rows if r["same_source_in_topk"]) / n, 4) if n else None
-        ),
         "rows": rows,
     }
     Path(args.out).write_text(json.dumps(report, indent=2))

@@ -56,9 +56,9 @@ def test_required_ontology_failure_rolls_back_qdrant(method_name: str):
 @pytest.mark.parametrize("method_name", SINGLE_DOC_PATHS)
 def test_rollback_precedes_the_error_return(method_name: str):
     block = _ontology_block(method_name)
-    assert block.index("self._rollback_reindex") < block.index(
-        '"status": "error"'
-    ), f"{method_name}: rollback must run before the error return, not after"
+    assert block.index("self._rollback_reindex") < block.index('"status": "error"'), (
+        f"{method_name}: rollback must run before the error return, not after"
+    )
 
 
 @pytest.mark.parametrize("method_name", SINGLE_DOC_PATHS)

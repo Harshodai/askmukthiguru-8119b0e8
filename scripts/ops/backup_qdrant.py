@@ -7,7 +7,7 @@ with checksums, and verifies integrity by testing restore to a temp location.
 
 Usage:
     python scripts/ops/backup_qdrant.py
-    python scripts/ops/backup_qdrant.py --collection spiritual_wisdom --retention 7
+    python scripts/ops/backup_qdrant.py --collection spiritual_wisdom_contextual --retention 7
     python scripts/ops/backup_qdrant.py --verify-only /path/to/snapshot.snapshot
 
 Environment:
@@ -35,7 +35,7 @@ QDRANT_URL = os.environ.get("QDRANT_URL", "http://localhost:6333")
 BACKUP_BASE_DIR = Path(
     os.environ.get("BACKUP_BASE_DIR", Path(__file__).resolve().parents[2] / "backups" / "qdrant")
 )
-DEFAULT_COLLECTION = "spiritual_wisdom"
+DEFAULT_COLLECTION = "spiritual_wisdom_contextual"
 DEFAULT_RETENTION = 7  # keep last N backups
 
 

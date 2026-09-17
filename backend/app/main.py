@@ -17,6 +17,7 @@ import secrets
 import sys
 import time
 import uuid
+from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -27,8 +28,6 @@ from fastapi import (
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from collections.abc import Awaitable, Callable
-
 from fastapi.responses import JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
@@ -70,7 +69,7 @@ except Exception:
 # Backward-compatible module-level coalescer (tests patch app.main.coalescer).
 from app.coalescer import build_coalescer as _build_coalescer
 from app.config import settings
-from app.context import correlation_id_var
+from app.context import correlation_id_var, set_request_id
 from app.dependencies import async_shutdown, get_container, startup
 from app.metrics import REQUEST_COUNT
 from app.observability import init_observability
@@ -291,7 +290,11 @@ def assert_neo4j_constraints_ready(driver) -> None:
             + ". Run the maintenance runner before serving traffic; "
             "unconstrained concurrent MERGE produces duplicate nodes."
         )
-    logger.info("Neo4j constraint assert OK: %d/%d required constraints present", len(present & set(REQUIRED_NEO4J_CONSTRAINTS)), len(REQUIRED_NEO4J_CONSTRAINTS))
+    logger.info(
+        "Neo4j constraint assert OK: %d/%d required constraints present",
+        len(present & set(REQUIRED_NEO4J_CONSTRAINTS)),
+        len(REQUIRED_NEO4J_CONSTRAINTS),
+    )
 
 
 async def _background_startup_body(container, fastapi_app) -> None:
@@ -827,6 +830,7 @@ class CorrelationIDMiddleware:
             cid = str(uuid.uuid4())[:8]
 
         correlation_id_var.set(cid)
+        set_request_id(cid)
 
         async def send_wrapper(message):
             if message["type"] == "http.response.start":
@@ -921,21 +925,22 @@ else:
         backoff_base=settings.auth_backoff_base_seconds,
         backoff_multiplier=settings.auth_backoff_multiplier,
     )
-    _ADMIN_RATE_LIMITER = TTLRateLimiter(
-        ttl=60.0, max_requests=_admin_rl_max
-    )
+    _ADMIN_RATE_LIMITER = TTLRateLimiter(ttl=60.0, max_requests=_admin_rl_max)
     logger.warning(
         "Auth/Admin rate limiters: process-local (Redis not configured) — not safe for multi-worker deploy"
     )
 
 
 # Auth endpoint rate limiter middleware — tight limits on login/reset/register
+# /api/auth/anon-session included (F-COST-1): unthrottled anon-session minting
+# lets one IP mint ~200 sessions/min x anon_quota_messages free LLM turns/min.
 _AUTH_LIMIT_PATHS: frozenset[str] = frozenset(
     {
         "/api/auth/jwt/login",
         "/api/auth/register",
         "/api/auth/forgot-password",
         "/api/auth/reset-password",
+        "/api/auth/anon-session",
     }
 )
 
@@ -965,9 +970,7 @@ async def auth_rate_limit_middleware(
             email = body.get("email") or body.get("username") or ""
             if email:
                 acct_key = f"auth_rl:acct:{email}"
-                acct_allowed, acct_retry_after = await _AUTH_RATE_LIMITER.is_allowed_async(
-                    acct_key
-                )
+                acct_allowed, acct_retry_after = await _AUTH_RATE_LIMITER.is_allowed_async(acct_key)
                 if not acct_allowed:
                     await _AUTH_RATE_LIMITER.record_attempt_async(ip_key, success=False)
                     return JSONResponse(
@@ -1064,7 +1067,9 @@ async def request_timeout_middleware(request: Request, call_next):
     if request.url.path in _STREAMING_PATHS:
         return await call_next(request)
     timeout_val: float = float(
-        getattr(settings, "middleware_timeout", float(getattr(settings, "pipeline_timeout", 180)) + 15)
+        getattr(
+            settings, "middleware_timeout", float(getattr(settings, "pipeline_timeout", 180)) + 15
+        )
     )
     try:
         return await asyncio.wait_for(call_next(request), timeout=timeout_val)

@@ -100,9 +100,7 @@ def _source_authority(citations: list) -> float:
         "isha.sadhguru.org",
         "iskcon.org",
     )
-    urls = [
-        (c.get("url") or "") if isinstance(c, dict) else str(c or "") for c in citations
-    ]
+    urls = [(c.get("url") or "") if isinstance(c, dict) else str(c or "") for c in citations]
     boost = sum(1 for u in urls if any(d in u.lower() for d in _HIGH_AUTH_DOMAINS))
     base = min(1.0, len(citations) / 5.0)
     return min(1.0, base + boost * 0.1)

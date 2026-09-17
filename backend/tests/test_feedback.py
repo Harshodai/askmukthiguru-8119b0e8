@@ -6,7 +6,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-
 # ── retry_analysis unit tests (no app import needed) ────────────────
 
 
@@ -102,9 +101,7 @@ class TestRateFeedbackSchema:
     def test_valid_positive(self):
         from app.api.feedback import RateFeedbackRequest
 
-        req = RateFeedbackRequest(
-            message_id="msg-1", feedback_type="positive", query_text="hi"
-        )
+        req = RateFeedbackRequest(message_id="msg-1", feedback_type="positive", query_text="hi")
         assert req.feedback_type == "positive"
 
     def test_valid_negative(self):

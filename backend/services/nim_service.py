@@ -17,7 +17,12 @@ from typing import Optional
 
 import httpx
 from anyio import Lock as AsyncLock
-from tenacity import AsyncRetrying, retry_if_exception_type, stop_after_attempt, wait_exponential_jitter
+from tenacity import (
+    AsyncRetrying,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential_jitter,
+)
 
 from app.config import settings
 from app.constants import CircuitBreakerProvider
@@ -37,10 +42,21 @@ from rag.prompts import (
 )
 from services.circuit_breaker import (
     CircuitBreakerConfig,
+    CircuitOpenException,
     DefaultCircuitBreaker,
 )
 
 logger = logging.getLogger(__name__)
+
+
+class ProviderConnectionError(RuntimeError):
+    """Transient provider failure (HTTP 5xx / timeout) on the gateway path.
+
+    Mirrors services.llm_gateway.ProviderConnectionError (same contract; kept
+    local so this module never imports the gateway). Raised only when
+    ``strict_gateway=True`` so the gateway circuit breaker can trip. The
+    standalone path keeps returning the canned graceful-degradation string.
+    """
 
 
 class NimService:
@@ -144,6 +160,8 @@ class NimService:
             logger.warning(f"NIM returned 429 — rate limiter exhausted for {delay:.1f}s")
 
     async def _graceful_degradation(self, messages: list[dict], operation: str = "fallback") -> str:
+        # Standalone/offline path ONLY — gateway callers pass strict_gateway=True
+        # and receive ProviderConnectionError instead of this canned string.
         # Last-ditch: try OpenRouter if available even for non-rate-limit failures
         if self._openrouter_fallback is not None:
             try:
@@ -181,6 +199,7 @@ class NimService:
     def _estimate_tokens(text: str) -> int:
         """Language-aware token estimate via shared compressor."""
         from rag.compressor import estimate_tokens
+
         return estimate_tokens(text)
 
     def _track_token_usage(self, *, tokens_in: int, tokens_out: int, model: str) -> None:
@@ -197,16 +216,25 @@ class NimService:
             logger.warning(f"Failed to record NIM token usage: {exc}")
 
     async def _fallback_to_openrouter(
-        self, messages: list[dict], model: str, max_tokens: int, temperature: float, operation: str
+        self,
+        messages: list[dict],
+        model: str,
+        max_tokens: int,
+        temperature: float,
+        operation: str,
+        strict_gateway: bool = False,
     ) -> str:
         """Try OpenRouter when NIM and Sarvam are unavailable. Returns graceful degradation if no fallback."""
         if self._openrouter_fallback is None:
+            if strict_gateway:
+                raise ProviderConnectionError(
+                    f"NIM {operation} failed with no OpenRouter fallback (gateway path)"
+                )
             return await self._graceful_degradation(messages, operation=operation)
         try:
             logger.warning(f"NIM/Sarvam failed for {operation}; trying OpenRouter fallback")
             target_model = (
-                getattr(settings, "openrouter_generation_model", None)
-                or "deepseek/deepseek-chat"
+                getattr(settings, "openrouter_generation_model", None) or "deepseek/deepseek-chat"
             )
             content = await self._openrouter_fallback._call_api(
                 messages=messages,
@@ -220,13 +248,27 @@ class NimService:
                 return content
         except Exception as e:
             logger.warning(f"OpenRouter fallback failed for {operation}: {e}")
+            if strict_gateway:
+                raise ProviderConnectionError(
+                    f"NIM {operation} failed including OpenRouter fallback (gateway path)"
+                ) from e
         return await self._graceful_degradation(messages, operation=operation)
 
     async def _fallback_to_sarvam(
-        self, messages: list[dict], model: str, max_tokens: int, temperature: float, operation: str
+        self,
+        messages: list[dict],
+        model: str,
+        max_tokens: int,
+        temperature: float,
+        operation: str,
+        strict_gateway: bool = False,
     ) -> str:
         """Try Sarvam when NIM is unavailable. Returns graceful degradation if no fallback."""
         if self._sarvam_fallback is None:
+            if strict_gateway:
+                raise ProviderConnectionError(
+                    f"NIM {operation} failed with no Sarvam fallback (gateway path)"
+                )
             return await self._graceful_degradation(messages, operation=operation)
         try:
             logger.warning(f"NIM failed for {operation}; trying Sarvam fallback")
@@ -242,8 +284,17 @@ class NimService:
                 return content
         except Exception as e:
             logger.warning(f"Sarvam fallback failed for {operation}: {e}")
+            if strict_gateway:
+                raise ProviderConnectionError(
+                    f"NIM {operation} failed including Sarvam fallback (gateway path)"
+                ) from e
         return await self._fallback_to_openrouter(
-            messages, model, max_tokens, temperature, operation
+            messages,
+            model,
+            max_tokens,
+            temperature,
+            operation,
+            strict_gateway=strict_gateway,
         )
 
     async def _call_api(
@@ -253,11 +304,17 @@ class NimService:
         max_tokens: int = 2048,
         temperature: float = 0.1,
         operation: str = "generate",
+        strict_gateway: bool = False,
         **kwargs,
     ) -> str:
         await self._enforce_rate_limit()
 
         if not self._circuit.can_execute():
+            if strict_gateway:
+                raise CircuitOpenException(
+                    provider="nim",
+                    message="Circuit breaker OPEN in _call_api (gateway path)",
+                )
             logger.warning(f"NIM circuit breaker open — graceful degradation for {operation}")
             return await self._graceful_degradation(messages, operation=operation)
 
@@ -311,15 +368,37 @@ class NimService:
                 isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code == 429
             )
             is_connection_error = isinstance(
-                exc, (httpx.RemoteProtocolError, httpx.ConnectError, httpx.TimeoutException)
+                exc,
+                (
+                    httpx.RemoteProtocolError,
+                    httpx.ConnectError,
+                    httpx.TimeoutException,
+                    TimeoutError,
+                    asyncio.TimeoutError,
+                ),
             )
+            is_server_error = (
+                isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code >= 500
+            )
+            if strict_gateway and (is_server_error or is_connection_error):
+                # Gateway path: raise so the gateway breaker trips instead of
+                # mistaking canned graceful text for a success.
+                self._circuit.record_failure()
+                raise ProviderConnectionError(
+                    f"NIM {type(exc).__name__} during {operation}"
+                ) from exc
             if is_rate_limit or is_connection_error:
                 if is_rate_limit:
                     await self._record_rate_limit_response()
                 reason = "rate limited (429)" if is_rate_limit else type(exc).__name__
                 logger.warning(f"NIM {reason} during {operation} — trying fallback")
                 return await self._fallback_to_sarvam(
-                    messages, model, max_tokens, temperature, operation
+                    messages,
+                    model,
+                    max_tokens,
+                    temperature,
+                    operation,
+                    strict_gateway=strict_gateway,
                 )
             self._circuit.record_failure()
             logger.error(f"NIM call failed during {operation} (model={model}): {exc}")
@@ -743,7 +822,7 @@ class NimService:
 
     @property
     def is_available(self) -> bool:
-        return bool(self._api_key) and self._circuit.can_execute()
+        return bool(self._api_key) and not self._circuit.is_open()
 
     async def health_check(self) -> bool:
         try:

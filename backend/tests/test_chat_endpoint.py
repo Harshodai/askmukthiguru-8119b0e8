@@ -231,10 +231,17 @@ def test_chat_endpoint_success(mock_log_query_trace):
 
 @patch("app.main.telemetry_sink.log_query_trace")
 def test_chat_endpoint_empty_message(mock_log_query_trace):
-    """Verify that an empty message returns a 400 error."""
+    """Verify that an empty (whitespace-only) message is rejected.
+
+    `ChatRequest.user_message` (app/schemas/__init__.py) carries
+    `str_strip_whitespace=True` + `min_length=1` (added in bf7ada3d, "real
+    gates"), so an all-whitespace message now fails Pydantic body validation
+    with 422 before the endpoint's own handler code — and the old in-handler
+    400 branch this test targeted no longer exists in app/api/chat.py.
+    """
     payload = {"user_message": "   ", "session_id": "test-session", "messages": []}
     response = client.post("/api/chat", json=payload)
-    assert response.status_code == 400
+    assert response.status_code == 422
 
 
 @patch("app.main.telemetry_sink.log_query_trace")
@@ -564,7 +571,16 @@ def test_stream_endpoint_queue_full_releases_reservation():
 
 
 def test_stream_endpoint_empty_message_releases_reservation():
-    """An inline-stream empty message must return the reservation (no pipeline)."""
+    """An inline-stream empty message never reaches the pipeline or the quota gate.
+
+    `ChatRequest.user_message` now carries `min_length=1` with
+    `str_strip_whitespace=True` (bf7ada3d), so a whitespace-only message fails
+    FastAPI body validation (422) before the endpoint body — and therefore
+    before `_enforce_anon_quota` — ever runs. There is no reservation to
+    release, since none was ever taken; the same invariant is now enforced one
+    layer earlier, and this test's job is to prove the quota gate is never
+    invoked, not that its release was called.
+    """
     container = mock_get_container()
 
     mock_quota = MagicMock()
@@ -586,10 +602,9 @@ def test_stream_endpoint_empty_message_releases_reservation():
     try:
         payload = {"user_message": "   ", "session_id": "test-session", "messages": []}
         response = client.post("/api/chat/stream", json=payload)
-        assert response.status_code == 200
-        mock_quota.release.assert_awaited_once_with(
-            {"id": "test-user-id", "email": "test@example.com"}, "res-3"
-        )
+        assert response.status_code == 422
+        mock_quota.check_and_record.assert_not_awaited()
+        mock_quota.release.assert_not_awaited()
         container.rag_graph.ainvoke.assert_not_awaited()
     finally:
         app.dependency_overrides[get_container] = mock_get_container

@@ -1,4 +1,11 @@
-"""Golden-set evaluator. Calls the deployed backend for each question,
+"""Golden-set evaluator.
+
+NOTE (2026-09-16): evaluation/bench.py is the consolidated golden-bank
+runner (one CLI, one schema). This script stays for its RAGAS-library
+faithfulness/answer_relevancy/context_precision/context_recall metrics,
+which bench.py does not compute.
+
+Calls the deployed backend for each question,
 runs RAGAS faithfulness, answer_relevancy, context_precision, and
 context_recall, and enforces an answer-source diversity guard. Exits
 non-zero when any threshold fails so the GitHub Actions gate blocks the
@@ -19,12 +26,17 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 from pathlib import Path
 from typing import Any
 
 import httpx
+
+BACKEND_ROOT = Path(__file__).resolve().parent.parent
+if str(BACKEND_ROOT) not in sys.path:
+    sys.path.insert(0, str(BACKEND_ROOT))
+
+from app.config import settings  # noqa: E402
 
 
 def call_backend(url: str, token: str | None, question: str) -> dict[str, Any]:
@@ -56,11 +68,11 @@ def main() -> int:
     p.add_argument("--min-distinct-sources", type=int, default=2)
     args = p.parse_args()
 
-    backend_url = os.environ.get("BACKEND_URL")
+    backend_url = settings.backend_url
     if not backend_url:
         print("BACKEND_URL not set, eval skipped", file=sys.stderr)
         return 1
-    token = os.environ.get("BACKEND_TOKEN")
+    token = settings.backend_token
 
     items = json.loads(args.dataset.read_text())["items"]
     questions, answers, contexts, refs = [], [], [], []

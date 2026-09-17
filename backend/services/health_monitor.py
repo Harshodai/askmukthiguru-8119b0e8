@@ -172,6 +172,18 @@ class HealthMonitor:
         for name in ("qdrant", "redis", "supabase", "openrouter", "sarvam"):
             self._detectors[name] = AccrualFailureDetector(name=name)
 
+    def reset_all(self) -> None:
+        """Clear all dependency health state.
+
+        HealthMonitor is a process-wide singleton by design (it tracks real
+        dependency health across the app's lifetime), but that means nothing
+        else ever clears `_consecutive_failures` between failures except a
+        recorded success — so a test simulating 3+ consecutive provider
+        failures permanently marks that provider unhealthy for every later
+        test in the same pytest process. Test-only reset hook.
+        """
+        self._init_detectors()
+
     def record_heartbeat(self, name: str, success: bool) -> None:
         detector = self._detectors.get(name)
         if detector is None:

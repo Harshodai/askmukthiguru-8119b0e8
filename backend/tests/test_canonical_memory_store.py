@@ -10,16 +10,16 @@ Run: cd backend && .venv/bin/pytest tests/test_canonical_memory_store.py -v
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
-
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _uid() -> str:
     """Return a random UUID string."""
@@ -47,11 +47,11 @@ def _make_memory_row(**overrides: Any) -> dict:
         "evidence_count": 1,
         "embedding_id": None,
         "metadata": {},
-        "created_at": datetime.now(timezone.utc).isoformat(),
-        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
+        "updated_at": datetime.now(UTC).isoformat(),
         "last_used_at": None,
         "last_confirmed_at": None,
-        "valid_from": datetime.now(timezone.utc).isoformat(),
+        "valid_from": datetime.now(UTC).isoformat(),
         "valid_to": None,
         "expires_at": None,
         "version": 1,
@@ -68,7 +68,7 @@ def _make_audit_row(**overrides: Any) -> dict:
         "action": "created",
         "old_state": None,
         "new_state": None,
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
     }
     row.update(overrides)
     return row
@@ -77,6 +77,7 @@ def _make_audit_row(**overrides: Any) -> dict:
 # ---------------------------------------------------------------------------
 # Mock Supabase chain helper
 # ---------------------------------------------------------------------------
+
 
 def _chain_mock(return_data: Any = None, return_count: int = 0) -> MagicMock:
     """Build a supabase-mock chain: table.select.eq.order.limit.execute."""
@@ -107,6 +108,7 @@ def _chain_mock(return_data: Any = None, return_count: int = 0) -> MagicMock:
 # 1. CRUD — Create
 # ---------------------------------------------------------------------------
 
+
 class TestCreateMemory:
     def test_insert_returns_row(self):
         supabase = _chain_mock()
@@ -116,12 +118,14 @@ class TestCreateMemory:
 
         result = (
             supabase.table("canonical_memories")
-            .insert({
-                "user_id": mem["user_id"],
-                "memory_type": mem["memory_type"],
-                "statement": mem["statement"],
-                "status": "active",
-            })
+            .insert(
+                {
+                    "user_id": mem["user_id"],
+                    "memory_type": mem["memory_type"],
+                    "statement": mem["statement"],
+                    "status": "active",
+                }
+            )
             .execute()
         )
 
@@ -150,6 +154,7 @@ class TestCreateMemory:
 # 2. CRUD — Read
 # ---------------------------------------------------------------------------
 
+
 class TestReadMemories:
     def test_list_own_memories(self):
         user_id = _uid()
@@ -169,18 +174,14 @@ class TestReadMemories:
 
     def test_list_empty_when_no_memories(self):
         supabase = _chain_mock(return_data=[])
-        result = (
-            supabase.table("canonical_memories")
-            .select("*")
-            .eq("user_id", _uid())
-            .execute()
-        )
+        result = supabase.table("canonical_memories").select("*").eq("user_id", _uid()).execute()
         assert result.data == []
 
 
 # ---------------------------------------------------------------------------
 # 3. CRUD — Update
 # ---------------------------------------------------------------------------
+
 
 class TestUpdateMemory:
     def test_update_statement(self):
@@ -220,6 +221,7 @@ class TestUpdateMemory:
 # 4. CRUD — Delete (soft + hard)
 # ---------------------------------------------------------------------------
 
+
 class TestDeleteMemory:
     def test_soft_delete_sets_status(self):
         supabase = _chain_mock()
@@ -242,18 +244,14 @@ class TestDeleteMemory:
         supabase = _chain_mock(return_data=[])
         supabase.table.return_value.delete.return_value.eq.return_value.execute.return_value.data = []
 
-        result = (
-            supabase.table("canonical_memories")
-            .delete()
-            .eq("user_id", user_id)
-            .execute()
-        )
+        result = supabase.table("canonical_memories").delete().eq("user_id", user_id).execute()
         assert result.data == []
 
 
 # ---------------------------------------------------------------------------
 # 5. RLS enforcement
 # ---------------------------------------------------------------------------
+
 
 class TestRLSEnforcement:
     def test_cross_user_access_denied(self):
@@ -262,16 +260,11 @@ class TestRLSEnforcement:
         user_a = _uid()
         user_b = _uid()
         mem_a = _make_memory_row(user_id=user_a)
-        mem_b = _make_memory_row(user_id=user_b)
+        _mem_b = _make_memory_row(user_id=user_b)
 
         # Simulating RLS: query as user_a only returns user_a's row
         supabase = _chain_mock(return_data=[mem_a])
-        result = (
-            supabase.table("canonical_memories")
-            .select("*")
-            .eq("user_id", user_a)
-            .execute()
-        )
+        result = supabase.table("canonical_memories").select("*").eq("user_id", user_a).execute()
         returned_ids = [r["user_id"] for r in result.data]
         assert user_b not in returned_ids
 
@@ -285,6 +278,7 @@ class TestRLSEnforcement:
 # ---------------------------------------------------------------------------
 # 6. Unique fact_key constraint
 # ---------------------------------------------------------------------------
+
 
 class TestUniqueFactKey:
     def test_second_active_same_fact_key_supersedes_first(self):
@@ -311,7 +305,7 @@ class TestUniqueFactKey:
         table.update.return_value.eq.return_value.execute.return_value = supersede_result
         result_supersede = (
             supabase.table("canonical_memories")
-            .update({"status": "superseded", "valid_to": datetime.now(timezone.utc).isoformat()})
+            .update({"status": "superseded", "valid_to": datetime.now(UTC).isoformat()})
             .eq("id", first["id"])
             .execute()
         )
@@ -323,12 +317,14 @@ class TestUniqueFactKey:
         table.insert.return_value.execute.return_value = insert_result
         result_insert = (
             supabase.table("canonical_memories")
-            .insert({
-                "user_id": user_id,
-                "fact_key": fact_key,
-                "statement": second["statement"],
-                "status": "active",
-            })
+            .insert(
+                {
+                    "user_id": user_id,
+                    "fact_key": fact_key,
+                    "statement": second["statement"],
+                    "status": "active",
+                }
+            )
             .execute()
         )
         assert result_insert.data[0]["statement"] == "Lives in Mumbai"
@@ -337,8 +333,12 @@ class TestUniqueFactKey:
     def test_different_fact_keys_coexist(self):
         """Multi-valued fact keys (e.g. spiritual_interest) should coexist."""
         user_id = _uid()
-        mem1 = _make_memory_row(user_id=user_id, fact_key="spiritual_interest", statement="Interested in meditation")
-        mem2 = _make_memory_row(user_id=user_id, fact_key="spiritual_interest", statement="Interested in yoga")
+        mem1 = _make_memory_row(
+            user_id=user_id, fact_key="spiritual_interest", statement="Interested in meditation"
+        )
+        mem2 = _make_memory_row(
+            user_id=user_id, fact_key="spiritual_interest", statement="Interested in yoga"
+        )
 
         supabase = _chain_mock(return_data=[mem1, mem2])
         result = (
@@ -354,6 +354,7 @@ class TestUniqueFactKey:
 # ---------------------------------------------------------------------------
 # 7. Version increments
 # ---------------------------------------------------------------------------
+
 
 class TestVersioning:
     def test_optimistic_concurrency_version_check(self):
@@ -392,6 +393,7 @@ class TestVersioning:
 # 8. Invalid state transitions
 # ---------------------------------------------------------------------------
 
+
 class TestStateTransitions:
     VALID_TRANSITIONS = {
         "active": {"superseded", "expired", "deleted"},
@@ -423,6 +425,7 @@ class TestStateTransitions:
 # ---------------------------------------------------------------------------
 # 9. Concurrent writes (simulated)
 # ---------------------------------------------------------------------------
+
 
 class TestConcurrentWrites:
     def test_version_conflict_on_simultaneous_update(self):
@@ -476,6 +479,7 @@ class TestConcurrentWrites:
 # ---------------------------------------------------------------------------
 # 10. Idempotent upsert
 # ---------------------------------------------------------------------------
+
 
 class TestIdempotentUpsert:
     def test_upsert_with_fact_key_supersedes_existing(self):
@@ -542,6 +546,7 @@ class TestIdempotentUpsert:
 # 11. Audit events
 # ---------------------------------------------------------------------------
 
+
 class TestAuditEvents:
     def test_created_event_recorded(self):
         audit = _make_audit_row(action="created")
@@ -587,6 +592,7 @@ class TestAuditEvents:
 # 12. GDPR deletion
 # ---------------------------------------------------------------------------
 
+
 class TestGDPREDeletion:
     def test_purge_all_user_data_removes_memories(self):
         """DELETE FROM canonical_memories WHERE user_id = X should remove
@@ -595,20 +601,12 @@ class TestGDPREDeletion:
         supabase = _chain_mock(return_data=[])
 
         # Delete canonical_memories
-        result_mem = (
-            supabase.table("canonical_memories")
-            .delete()
-            .eq("user_id", user_id)
-            .execute()
-        )
+        result_mem = supabase.table("canonical_memories").delete().eq("user_id", user_id).execute()
         assert result_mem.data == []
 
         # Delete audit events (cascade handles this, but explicit for defense)
         result_audit = (
-            supabase.table("memory_audit_events")
-            .delete()
-            .eq("user_id", user_id)
-            .execute()
+            supabase.table("memory_audit_events").delete().eq("user_id", user_id).execute()
         )
         assert result_audit.data == []
 
@@ -617,12 +615,7 @@ class TestGDPREDeletion:
         user_id = _uid()
         supabase = _chain_mock(return_data=[])
 
-        result = (
-            supabase.table("canonical_memories")
-            .select("*")
-            .eq("user_id", user_id)
-            .execute()
-        )
+        result = supabase.table("canonical_memories").select("*").eq("user_id", user_id).execute()
         assert result.data == []
         assert len(result.data) == 0
 
@@ -631,9 +624,10 @@ class TestGDPREDeletion:
 # 13. Temporal fields
 # ---------------------------------------------------------------------------
 
+
 class TestTemporalFields:
     def test_valid_from_set_on_create(self):
-        mem = _make_memory_row(valid_from=datetime.now(timezone.utc).isoformat())
+        mem = _make_memory_row(valid_from=datetime.now(UTC).isoformat())
         assert mem["valid_from"] is not None
 
     def test_valid_to_null_when_active(self):
@@ -643,12 +637,12 @@ class TestTemporalFields:
     def test_valid_to_set_when_superseded(self):
         mem = _make_memory_row(
             status="superseded",
-            valid_to=datetime.now(timezone.utc).isoformat(),
+            valid_to=datetime.now(UTC).isoformat(),
         )
         assert mem["valid_to"] is not None
 
     def test_expires_at_for_temporary_context(self):
-        future = datetime(2026, 12, 31, tzinfo=timezone.utc).isoformat()
+        future = datetime(2026, 12, 31, tzinfo=UTC).isoformat()
         mem = _make_memory_row(
             memory_type="TEMPORARY_CONTEXT",
             expires_at=future,
@@ -659,6 +653,7 @@ class TestTemporalFields:
 # ---------------------------------------------------------------------------
 # 14. Metadata and evidence
 # ---------------------------------------------------------------------------
+
 
 class TestMetadataAndEvidence:
     def test_metadata_jsonb_default(self):

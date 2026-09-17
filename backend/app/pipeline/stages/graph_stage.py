@@ -23,8 +23,8 @@ from app.assistant_registry import resolve_assistant_scope
 from app.config import settings
 from app.orchestrator_utils import get_expected_keywords, select_graph_for_query
 from app.pipeline.result import PipelineResult  # noqa: F401  (re-export hint)
-from app.release_manifest import get_release_manifest
 from app.pipeline.stages.base import Stage
+from app.release_manifest import get_release_manifest
 from rag.graph import create_initial_state
 from rag.timeout_utils import TimeoutBudget, budget_var
 from services.user_profile_service import _is_persistable_user_id
@@ -122,7 +122,9 @@ class GraphStage(Stage):
             else:
                 resolution = await resolve_effective_assistant(requested_slug, _user, container)
                 if resolution is None and requested_slug:
-                    logger.warning("Rejecting assistant without authorized scope: %r", requested_slug)
+                    logger.warning(
+                        "Rejecting assistant without authorized scope: %r", requested_slug
+                    )
                     requested_slug = None
                     scope = resolve_assistant_scope(None)
                     if assistant is not None:
@@ -184,8 +186,7 @@ class GraphStage(Stage):
                 initial_state["total_conversations"] = _profile.total_conversations
                 initial_state["total_meditations_completed"] = _profile.total_meditations_completed
                 initial_state["codemix_preference"] = (
-                    initial_state.get("codemix_preference", False)
-                    or _profile.codemix_preference
+                    initial_state.get("codemix_preference", False) or _profile.codemix_preference
                 )
                 initial_state["last_distress_assessment"] = _profile.last_distress_assessment
                 initial_state["topics_of_interest"] = list(_profile.topics_of_interest or [])
@@ -432,9 +433,7 @@ class GraphStage(Stage):
         attachment_context = _attachment_context_from_request(chat_body)
         attachment_fp = hashlib.sha256(attachment_context.encode("utf-8")).hexdigest()[:16]
         elapsed_admission = (
-            max(0.0, time.time() - ctx.start_time)
-            if getattr(ctx, "start_time", 0.0) > 0
-            else 0.0
+            max(0.0, time.time() - ctx.start_time) if getattr(ctx, "start_time", 0.0) > 0 else 0.0
         )
         remaining_timeout = max(0.0, float(settings.pipeline_timeout) - elapsed_admission)
         start_lat = time.time()
@@ -442,7 +441,9 @@ class GraphStage(Stage):
             # P1-BE-7: coalesce key carries a bounded digest, never raw user text.
             lang_code = lang_detection.primary.value if lang_detection else "en"
             if remaining_timeout <= 0.0:
-                raise TimeoutError("Pipeline admission deadline expired before GraphStage execution")
+                raise TimeoutError(
+                    "Pipeline admission deadline expired before GraphStage execution"
+                )
             result = await asyncio.wait_for(
                 coalescer.get_or_run(
                     _coalesce_key(
@@ -502,9 +503,15 @@ class GraphStage(Stage):
         # instead of a second get_or_create_profile round trip.
         updated_level = result.get("updated_spiritual_level")
         _prof = ctx.state.get("user_profile")
-        if updated_level and container.user_profile and _prof and _is_persistable_user_id(ctx.user_id):
+        if (
+            updated_level
+            and container.user_profile
+            and _prof
+            and _is_persistable_user_id(ctx.user_id)
+        ):
             try:
                 from services.user_profile_service import SpiritualLevel
+
                 _prof.spiritual_level = SpiritualLevel(updated_level)
                 await container.user_profile.update_profile(_prof)
             except Exception as _persist_err:

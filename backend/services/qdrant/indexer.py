@@ -32,6 +32,7 @@ def retry_with_backoff(max_retries=3, initial_delay=1):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             import random
+
             delay = initial_delay
             last_exception = None
             for attempt in range(max_retries):
@@ -267,7 +268,9 @@ class QdrantIndexer:
             payload.setdefault("embedding_dimension", settings.embedding_dimension)
             payload.setdefault(
                 "chunker_version",
-                "boundary_v1" if getattr(settings, "use_boundary_chunker", True) else "recursive_v1",
+                "boundary_v1"
+                if getattr(settings, "use_boundary_chunker", True)
+                else "recursive_v1",
             )
             point = PointStruct(
                 id=point_id,

@@ -116,7 +116,56 @@ exit 0. Full offline `neo4j-admin database load` NOT attempted (live single-DB
 Community instance; replacing it is an outage). Next step: replay/load against
 a stopped scratch instance in a maintenance window.
 
-## R5 load attempt — 2026-09-13 (20 concurrent users)
+## F-BKP-1 fix + restore drill — 2026-09-16 (Phase 0 item 4)
+
+**Bug**: `infrastructure/cron/mukthiguru-backup:22` and `scripts/ops/backup_qdrant.py`'s
+`DEFAULT_COLLECTION` both said `spiritual_wisdom` — a collection that no
+longer exists on this host (`GET /collections` lists only
+`spiritual_wisdom_contextual` and dated `spiritual_wisdom_ingest_backup_*`
+snapshots). The nightly cron job was backing up nothing; a restore from it
+would have created an empty collection while the actual production data
+(`spiritual_wisdom_contextual`, 12,904 points) was never captured. **Fixed**:
+both now say `spiritual_wisdom_contextual`.
+
+**Restore drill, run for real against the live local stack** (not the older
+`guru_tone_podcast`/2026-08-01 artifacts referenced above — a fresh backup of
+the actual live, now-correctly-named collection):
+
+```
+$ backend/.venv/bin/python scripts/ops/backup_qdrant.py \
+    --collection spiritual_wisdom_contextual --retention 7
+[+] Remote snapshot created: spiritual_wisdom_contextual-...-2026-09-16-15-32-41.snapshot
+[+] Saved backups/qdrant/spiritual_wisdom_contextual_20260916_153241.snapshot (182.06 MB)
+[+] Checksum OK
+[+] Archive OK (14 entries)
+[+] Test-restore OK
+[+] Point count matches: 12904
+[✅] Backup verified
+```
+
+Then, independently of the script's own internal test-restore, a second
+from-scratch restore into a throwaway collection (`_p0_bkp1_restore_drill`,
+created only from this artifact — never touching live) proving it can
+actually answer a query:
+
+```
+upload ?priority=snapshot: {"result": true, "status": "ok"}
+status -> green, points_count = 12904 (matches live exactly)
+scrolled point 00002161-94f2-515c-906c-ca271e50cd4e:
+  payload includes real doctrine text ("[Source: Oneness Abundance
+  festival | Riddhi - Siddhi -Buddhi | Ekam | Speaker: Ekam / O&O
+  Academy | Topic: Divine Prote...")
+query (that point's own dense vector, using=dense, limit=3):
+  hit 1: same point id, score=1.0000005
+  hit 2: e3d42ff9-..., score=0.890
+  hit 3: 3e6c38c1-..., score=0.871
+scratch collection dropped; live spiritual_wisdom_contextual points_count
+  confirmed unchanged at 12904 afterward.
+```
+
+**Result: PASS** — a semantic query was served from data restored from the
+cron artifact alone, on the correctly-named live collection. The backup is
+no longer a ritual.
 
 Nightly workflow path (`.github/workflows/nightly-load.yml`, locust chat sweep
 at `-u 20`): **BLOCKED** — `locust` module absent in both `backend/.venv` and

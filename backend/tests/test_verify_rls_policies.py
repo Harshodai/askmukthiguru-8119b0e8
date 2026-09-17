@@ -6,8 +6,6 @@ from io import StringIO
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 backend_dir = Path(__file__).resolve().parent.parent
 if str(backend_dir) not in sys.path:
     sys.path.insert(0, str(backend_dir))
@@ -47,6 +45,7 @@ def _build_mock_supabase_client(leak_table: str | None = None) -> MagicMock:
     mock_table.insert.return_value = mock_insert_builder
 
     if leak_table:
+
         def table_side_effect(name: str) -> MagicMock:
             t = MagicMock()
             t.select.return_value = t
@@ -127,7 +126,9 @@ def test_make_test_email() -> None:
 def test_is_permission_or_rls_error() -> None:
     """Test classification of expected security rejections vs unexpected errors."""
     assert _is_permission_or_rls_error(Exception("42501 permission denied for table")) is True
-    assert _is_permission_or_rls_error(Exception("new row violates row-level security policy")) is True
+    assert (
+        _is_permission_or_rls_error(Exception("new row violates row-level security policy")) is True
+    )
     assert _is_permission_or_rls_error(Exception("PGRST301 JWT expired")) is True
     assert _is_permission_or_rls_error(Exception("HTTP 401 Unauthorized")) is True
     assert _is_permission_or_rls_error(Exception("HTTP 403 Forbidden")) is True

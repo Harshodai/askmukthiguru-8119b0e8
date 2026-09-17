@@ -14,7 +14,7 @@ def test_qdrant_search_always_binds_tenant_and_corpus_scope() -> None:
     searcher = QdrantSearcher(MagicMock(), "teachings")
     observed: dict[str, object] = {}
 
-    def dense(_vector, _limit, search_filter, _params=None):
+    def dense(_vector, _limit, search_filter, _params=None, grouping_keys=None, group_size=2):
         observed["filter"] = search_filter
         return []
 

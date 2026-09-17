@@ -1,7 +1,8 @@
 import time
-from enum import Enum
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Optional
+
 
 class RouteLayer(str, Enum):
     CACHE_CHECK = "CACHE_CHECK"
@@ -14,19 +15,20 @@ class RouteLayer(str, Enum):
     GRAPH_GENERATION = "GRAPH_GENERATION"
     PIPELINE_COORDINATOR = "PIPELINE_COORDINATOR"
 
+
 class RouteDecision(str, Enum):
     # Cache
     HOT_CACHE = "hot_cache"
     VECTOR_CACHE_P90 = "vector_cache_p90"
     SEMANTIC_CACHE = "semantic_cache"
     DOCTRINE_CACHE = "doctrine_cache"
-    
+
     # Short-circuits
     INSTANT_GREETING = "instant_greeting"
     CRISIS_PREEMPTED = "crisis_preempted"
     BOUNDED_COMPARISON = "bounded_comparison_short_circuit"
     NO_CONTEXT_SHORT_CIRCUIT = "no_context_short_circuit"
-    
+
     # Graph execution
     QUERY = "query"
     FACTUAL = "factual"
@@ -37,19 +39,20 @@ class RouteDecision(str, Enum):
     SAFETY_VIOLATION = "safety_violation"
     LIVE_LOGISTICS = "live_logistics"
     COMPARATIVE = "comparative"
-    
+
     # Fallbacks
     LIMITED_COMPARISON_FALLBACK = "limited_comparison_fallback"
     REFLECTIVE_FALLBACK = "reflective_fallback"
-    
+
     # Generation engines
     GROUNDED_PARTIAL = "grounded_partial_evidence"
     WEB_RESULTS = "official_live_web_results"
-    
+
     # Error states
     ERROR = "error"
     TIMEOUT = "timeout"
     BLOCKED = "blocked"
+
 
 @dataclass
 class RoutingProvenance:
@@ -71,8 +74,9 @@ class RoutingProvenance:
             "reason": self.reason,
             "latency_ms": self.latency_ms,
             "timestamp": self.timestamp,
-            "upstream_decision": self.upstream_decision
+            "upstream_decision": self.upstream_decision,
         }
+
 
 # Mapping of sub-variants / legacy aliases to canonical RouteDecision values
 ROUTE_DECISION_ALIASES: dict[str, str] = {
@@ -103,4 +107,3 @@ def record_routing_decision(ctx: object, provenance: "RoutingProvenance") -> Non
     if isinstance(chain, list):
         provenance.decision = canonicalize_route_decision(provenance.decision)
         chain.append(provenance.to_dict())
-

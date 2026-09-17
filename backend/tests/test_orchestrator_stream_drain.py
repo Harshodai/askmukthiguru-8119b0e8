@@ -82,9 +82,10 @@ async def test_stream_drain_awaits_terminal_result_instead_of_calling_unset_resu
     container = SimpleNamespace(job_queue=object())
     task = AwaitableCompletedTask(_result())
 
-    with patch("redis.asyncio.from_url", return_value=redis), patch(
-        "app.orchestrator.logger.warning"
-    ) as warning:
+    with (
+        patch("redis.asyncio.from_url", return_value=redis),
+        patch("app.orchestrator.logger.warning") as warning,
+    ):
         await _drain_stream_to_redis(__import__("asyncio").Queue(), task, "job-1", container)
 
     assert warning.call_count == 0

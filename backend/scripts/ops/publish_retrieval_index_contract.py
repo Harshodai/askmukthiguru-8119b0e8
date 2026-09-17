@@ -62,9 +62,7 @@ def _qdrant_publication_counts(client: Any, collection: str) -> tuple[int, int]:
     counted = client.count(collection_name=collection, exact=True)
     points = int(getattr(counted, "count", 0) or 0)
     if points <= 0:
-        raise RuntimeError(
-            f"Qdrant collection {collection!r} has no points; refusing publication."
-        )
+        raise RuntimeError(f"Qdrant collection {collection!r} has no points; refusing publication.")
     sources: set[str] = set()
     offset = None
     while True:
@@ -77,9 +75,7 @@ def _qdrant_publication_counts(client: Any, collection: str) -> tuple[int, int]:
         )
         for point in page:
             payload = getattr(point, "payload", None) or {}
-            source = (
-                payload.get("source_url") or payload.get("source_id") or payload.get("source")
-            )
+            source = payload.get("source_url") or payload.get("source_id") or payload.get("source")
             if isinstance(source, str) and source.strip():
                 sources.add(source.strip())
         if offset is None:

@@ -21,6 +21,7 @@ configure_threading()
 from celery import Celery
 from kombu import Exchange, Queue
 
+
 def _derive_celery_url(base_url: str) -> str:
     """Ensure Celery uses DB 1 if default DB 0 was supplied in REDIS_URL."""
     if "@" in base_url:

@@ -21,9 +21,9 @@ from __future__ import annotations
 import argparse
 import asyncio
 import logging
+import os
 import sys
 import time
-import os
 from pathlib import Path
 from typing import Any, Optional
 from urllib.parse import urlparse
@@ -34,9 +34,9 @@ import neo4j as _neo4j_lib
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(BACKEND_DIR))
 
+from app.config import settings
 from ingest.handlers.checkpoint import IngestionCheckpoint
 from ingest.pipeline import IngestionPipeline, _okf_extract_for_video
-from app.config import settings
 from services.embedding_service import EmbeddingService
 from services.openrouter_service import OpenRouterService
 from services.qdrant_service import QdrantService
@@ -159,9 +159,7 @@ async def bulk_ingest_async(
     try:
         neo4j_uri = os.environ.get("NEO4J_URI", "bolt://localhost:7687")
         neo4j_pass = os.environ.get("NEO4J_PASSWORD", "mukthiguru_neo4j_pass")
-        _neo4j_driver = _neo4j_lib.GraphDatabase.driver(
-            neo4j_uri, auth=("neo4j", neo4j_pass)
-        )
+        _neo4j_driver = _neo4j_lib.GraphDatabase.driver(neo4j_uri, auth=("neo4j", neo4j_pass))
         logger.info("Neo4j driver connected for ontology writes")
     except Exception as _e:
         logger.warning("Neo4j unavailable — graph writes disabled: %s", _e)
@@ -170,6 +168,7 @@ async def bulk_ingest_async(
     _lightrag_svc = None
     try:
         from services.lightrag_service import LightRAGService
+
         _lightrag_svc = LightRAGService()
         logger.info("LightRAG service ready for ingestion")
     except Exception as _e:
@@ -184,7 +183,7 @@ async def bulk_ingest_async(
     )
 
     # Lower RAPTOR cluster_size: default 8 skips short discourses (3-5 chunks)
-    if hasattr(pipeline, '_raptor') and pipeline._raptor is not None:
+    if hasattr(pipeline, "_raptor") and pipeline._raptor is not None:
         pipeline._raptor._cluster_size = 3
         logger.info("RAPTOR cluster_size -> 3 (enables short-video tree build)")
 
@@ -197,8 +196,8 @@ async def bulk_ingest_async(
     # attribute (ingest/pipeline.py), same pattern as the RAPTOR override above.
     if os.environ.get("AUDIT_LLM_PROVIDER", "").strip().lower() in ("sarvam_cloud", "sarvam"):
         try:
-            from services.sarvam_service import SarvamCloudService
             from ingest.quality_gate import DataQualityGate
+            from services.sarvam_service import SarvamCloudService
 
             sarvam_svc = SarvamCloudService()
             pipeline._auditor = DataQualityGate(
@@ -218,9 +217,7 @@ async def bulk_ingest_async(
     for idx, src in enumerate(sources, 1):
         if checkpoint.is_processed(src):
             stats["skipped"] += 1
-            logger.info(
-                "  [%d/%d] ⏭ Skipping already processed source: %s", idx, len(sources), src
-            )
+            logger.info("  [%d/%d] ⏭ Skipping already processed source: %s", idx, len(sources), src)
             continue
         # production-audit finding IC-4: this outer checkpoint's keyspace (raw
         # source URL) is disjoint from the pipeline's own internal idempotency
@@ -228,12 +225,18 @@ async def bulk_ingest_async(
         # against a SECOND bulk_ingest_video.py invocation racing this one on
         # the same source URL — not a full fix for the deeper keyspace split
         # (which would need threading a shared checkpoint instance through the
-        # pipeline, a larger refactor). TTL-bound, not explicitly released —
-        # see the ingest_raw_text comment in ingest/pipeline.py for why.
+        # pipeline, a larger refactor left out of scope here — see F-CKPT-1).
+        # F-ING-1 (fixed): released in ingest_one's `finally` below on every
+        # completion path this process lives to reach; a real kill -9 still
+        # relies on the documented TTL self-expiry (acquire_lock docstring) —
+        # no in-process code can run after the process is gone.
         if not checkpoint.acquire_lock(src):
             stats["skipped"] += 1
             logger.info(
-                "  [%d/%d] ⏭ Skipping source already claimed by another run: %s", idx, len(sources), src
+                "  [%d/%d] ⏭ Skipping source already claimed by another run: %s",
+                idx,
+                len(sources),
+                src,
             )
             continue
         batch_tasks_args.append((src, idx))
@@ -244,7 +247,11 @@ async def bulk_ingest_async(
         logger.info("🎉 All %d sources are already processed and checkpointed!", len(sources))
         return {"status": "complete", "stats": stats, "results": []}
 
-    logger.info("📦 Scheduled batch of %d unprocessed sources (out of %d total)", len(batch_tasks_args), len(sources))
+    logger.info(
+        "📦 Scheduled batch of %d unprocessed sources (out of %d total)",
+        len(batch_tasks_args),
+        len(sources),
+    )
 
     async def ingest_one(src: str, idx: int) -> dict[str, Any]:
         async with semaphore:
@@ -292,7 +299,11 @@ async def bulk_ingest_async(
                     if enable_okf:
                         video_id = None
                         src_host = (urlparse(src).hostname or "").lower() if src else ""
-                        if src_host in ("youtube.com", "youtu.be", "www.youtube.com") or src_host.endswith(".youtube.com"):
+                        if src_host in (
+                            "youtube.com",
+                            "youtu.be",
+                            "www.youtube.com",
+                        ) or src_host.endswith(".youtube.com"):
                             from ingest.youtube_loader import extract_video_id
 
                             video_id = extract_video_id(src)
@@ -309,7 +320,12 @@ async def bulk_ingest_async(
                             except Exception as okf_err:
                                 logger.warning("         └─ OKF dispatch note: %s", okf_err)
 
-                    return {"source": src, "status": "success", "chunks": chunks, "summaries": summaries}
+                    return {
+                        "source": src,
+                        "status": "success",
+                        "chunks": chunks,
+                        "summaries": summaries,
+                    }
                 else:
                     stats["failed"] += 1
                     msg = res.get("message", "Unknown error")
@@ -332,12 +348,20 @@ async def bulk_ingest_async(
                 logger.error(
                     "  [%d/%d] ❌ Error (%0.1fs): %s — %s", idx, len(sources), elapsed, e, src
                 )
-                await asyncio.to_thread(
-                    checkpoint.save, src, {"status": "error", "error": str(e)}
-                )
+                await asyncio.to_thread(checkpoint.save, src, {"status": "error", "error": str(e)})
                 return {"source": src, "status": "error", "error": str(e)}
             finally:
+                # F-ING-1: acquire_lock() at line ~233 was never paired with a
+                # release_lock(), so the 900s TTL was the only way a source's
+                # reservation ever cleared — wedging every same-process retry
+                # of a failed/errored source for up to 15 minutes even though
+                # this worker is still alive and knows it's done with it.
+                # release_lock() is itself best-effort (self-expires via TTL
+                # on failure, see its docstring), so this cannot raise past
+                # the ingest result above.
+                await asyncio.to_thread(checkpoint.release_lock, src)
                 import gc
+
                 gc.collect()
 
     tasks = [ingest_one(src, idx) for src, idx in batch_tasks_args]
@@ -370,7 +394,9 @@ if __name__ == "__main__":
     parser.add_argument("--input", help="Directory or text file containing URLs/files")
     parser.add_argument("--url", help="Single video or article URL to ingest")
     parser.add_argument("--workers", type=int, default=2, help="Concurrent workers")
-    parser.add_argument("--batch-size", type=int, default=25, help="Batch size before memory recycling")
+    parser.add_argument(
+        "--batch-size", type=int, default=25, help="Batch size before memory recycling"
+    )
     parser.add_argument("--dry-run", action="store_true", help="List sources without ingesting")
     parser.add_argument("--disable-okf", action="store_true", help="Disable OKF extraction")
     args = parser.parse_args()

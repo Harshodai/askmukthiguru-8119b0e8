@@ -36,6 +36,7 @@ class DoctrineService:
     async def get_doctrine(self, assistant_slug: str) -> dict[str, Any]:
         """Fetch and cache doctrine metadata for an assistant."""
         import asyncio
+
         now = time.time()
 
         # Check cache
@@ -46,6 +47,7 @@ class DoctrineService:
         client = self._get_client()
         if client:
             try:
+
                 def _fetch():
                     return (
                         client.table("assistant_doctrines")
@@ -61,7 +63,9 @@ class DoctrineService:
                     self._last_fetch[assistant_slug] = now
                     return doc
             except Exception as e:
-                logger.debug(f"Failed to fetch doctrine from DB for {assistant_slug} (non-fatal): {e}")
+                logger.debug(
+                    f"Failed to fetch doctrine from DB for {assistant_slug} (non-fatal): {e}"
+                )
 
         # Return cached fallback and cache negative hit for TTL to prevent blocking next turns
         fallback = {"synonyms_json": {}, "canonical_terms": []}

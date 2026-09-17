@@ -15,13 +15,12 @@ Design principles:
 from __future__ import annotations
 
 import logging
-import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Optional
 
 from services.canonical_memory.judge import DecisionType, MemoryDecision
-from services.canonical_memory.models import MemoryCandidate, SINGLE_VALUED_FACT_KEYS
+from services.canonical_memory.models import SINGLE_VALUED_FACT_KEYS, MemoryCandidate
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +28,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Resolution result
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class ResolutionResult:
@@ -42,6 +42,7 @@ class ResolutionResult:
         audit_event_id: ID of the audit event written.
         metadata: Arbitrary metadata for observability.
     """
+
     action: str
     memory_id: Optional[str] = None
     superseded_ids: list[str] = field(default_factory=list)
@@ -53,6 +54,7 @@ class ResolutionResult:
 # ---------------------------------------------------------------------------
 # Memory Resolver
 # ---------------------------------------------------------------------------
+
 
 class MemoryResolver:
     """Applies judge decisions to the canonical Postgres store via Supabase.
@@ -73,9 +75,7 @@ class MemoryResolver:
     # Public API
     # ------------------------------------------------------------------
 
-    async def resolve(
-        self, decision: MemoryDecision, user_id: str
-    ) -> ResolutionResult:
+    async def resolve(self, decision: MemoryDecision, user_id: str) -> ResolutionResult:
         """Apply the judge's decision to the canonical store.
 
         Args:
@@ -105,9 +105,7 @@ class MemoryResolver:
         try:
             return await handler(decision, user_id)
         except Exception as e:
-            logger.exception(
-                "Resolution failed for decision %s: %s", decision.decision, e
-            )
+            logger.exception("Resolution failed for decision %s: %s", decision.decision, e)
             return ResolutionResult(
                 action="error",
                 reason=f"Resolution failed: {e}",
@@ -117,23 +115,19 @@ class MemoryResolver:
     # CREATE
     # ------------------------------------------------------------------
 
-    async def _create(
-        self, decision: MemoryDecision, user_id: str
-    ) -> ResolutionResult:
+    async def _create(self, decision: MemoryDecision, user_id: str) -> ResolutionResult:
         """Create a new memory in the canonical store.
 
         If the candidate has a fact_key that already has an active memory,
         the old memory is superseded first (fact-key supersession).
         """
         candidate = decision.candidate
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
 
         # Check for existing active memory with same fact_key
         superseded_ids: list[str] = []
         if candidate.fact_key:
-            existing = await self._find_active_by_fact_key(
-                user_id, candidate.fact_key
-            )
+            existing = await self._find_active_by_fact_key(user_id, candidate.fact_key)
             if existing is not None:
                 # Single-valued key → supersede old; multi-valued → skip if
                 # same semantic content (judge should have caught this, but
@@ -144,16 +138,18 @@ class MemoryResolver:
                         existing["version"],
                         user_id,
                         reason=(
-                            f"Superseded by new {candidate.fact_key} value: "
-                            f"{candidate.statement}"
+                            f"Superseded by new {candidate.fact_key} value: {candidate.statement}"
                         ),
                     )
                     if sup_result:
                         superseded_ids.append(existing["id"])
                 else:
                     # Multi-valued: check semantic similarity for dedup
-                    existing_norm = (existing.get("normalized_statement") or
-                                     existing.get("statement", "")).lower().strip()
+                    existing_norm = (
+                        (existing.get("normalized_statement") or existing.get("statement", ""))
+                        .lower()
+                        .strip()
+                    )
                     candidate_norm = candidate.normalized()
                     if self._text_similar(existing_norm, candidate_norm, threshold=0.92):
                         # Exact duplicate → idempotent, return existing
@@ -196,23 +192,19 @@ class MemoryResolver:
     # UPDATE
     # ------------------------------------------------------------------
 
-    async def _update(
-        self, decision: MemoryDecision, user_id: str
-    ) -> ResolutionResult:
+    async def _update(self, decision: MemoryDecision, user_id: str) -> ResolutionResult:
         """Update an existing memory: supersede old, create new version.
 
         Increments version on the new memory. Sets valid_to on the old.
         """
         candidate = decision.candidate
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
 
         target_id = decision.superseded_memory_id
         if not target_id:
             # Fallback: try to find by fact_key
             if candidate.fact_key:
-                existing = await self._find_active_by_fact_key(
-                    user_id, candidate.fact_key
-                )
+                existing = await self._find_active_by_fact_key(user_id, candidate.fact_key)
                 if existing:
                     target_id = existing["id"]
 
@@ -234,9 +226,7 @@ class MemoryResolver:
                     target_id,
                     old_version,
                     user_id,
-                    reason=(
-                        f"Superseded by update: {decision.reason}"
-                    ),
+                    reason=(f"Superseded by update: {decision.reason}"),
                 )
                 if sup_ok:
                     superseded_ids.append(target_id)
@@ -250,9 +240,7 @@ class MemoryResolver:
                             superseded_ids=[target_id],
                             reason="Memory already superseded",
                         )
-                    logger.warning(
-                        "Optimistic lock failed for memory %s", target_id
-                    )
+                    logger.warning("Optimistic lock failed for memory %s", target_id)
                     return ResolutionResult(
                         action="error",
                         reason=f"Optimistic lock failed for {target_id}",
@@ -288,16 +276,14 @@ class MemoryResolver:
     # MERGE
     # ------------------------------------------------------------------
 
-    async def _merge(
-        self, decision: MemoryDecision, user_id: str
-    ) -> ResolutionResult:
+    async def _merge(self, decision: MemoryDecision, user_id: str) -> ResolutionResult:
         """Merge two related memories into one.
 
         Supersedes both source memories and creates a merged result
         with combined evidence.
         """
         candidate = decision.candidate
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
 
         merged_ids = decision.merged_memory_ids or []
         superseded_ids: list[str] = []
@@ -340,10 +326,7 @@ class MemoryResolver:
             event_type="MERGED",
             old_version=None,
             new_version=1,
-            reason=(
-                f"Merged from {len(superseded_ids)} memories: "
-                + "; ".join(superseded_ids)
-            ),
+            reason=(f"Merged from {len(superseded_ids)} memories: " + "; ".join(superseded_ids)),
             actor="resolver",
         )
 
@@ -363,9 +346,7 @@ class MemoryResolver:
     # IGNORE
     # ------------------------------------------------------------------
 
-    async def _ignore(
-        self, decision: MemoryDecision, user_id: str
-    ) -> ResolutionResult:
+    async def _ignore(self, decision: MemoryDecision, user_id: str) -> ResolutionResult:
         """Ignore the candidate — no store mutation."""
         return ResolutionResult(
             action="ignored",
@@ -376,22 +357,18 @@ class MemoryResolver:
     # EXPIRE
     # ------------------------------------------------------------------
 
-    async def _expire(
-        self, decision: MemoryDecision, user_id: str
-    ) -> ResolutionResult:
+    async def _expire(self, decision: MemoryDecision, user_id: str) -> ResolutionResult:
         """Expire a memory — set status='expired' and valid_to.
 
         For temporary context memories that have exceeded their TTL.
         """
         candidate = decision.candidate
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
 
         # Find the active memory to expire
         target_id = decision.superseded_memory_id
         if not target_id and candidate.fact_key:
-            existing = await self._find_active_by_fact_key(
-                user_id, candidate.fact_key
-            )
+            existing = await self._find_active_by_fact_key(user_id, candidate.fact_key)
             if existing:
                 target_id = existing["id"]
 
@@ -444,29 +421,23 @@ class MemoryResolver:
     # DELETE
     # ------------------------------------------------------------------
 
-    async def _delete(
-        self, decision: MemoryDecision, user_id: str
-    ) -> ResolutionResult:
+    async def _delete(self, decision: MemoryDecision, user_id: str) -> ResolutionResult:
         """Soft-delete a memory — set status='deleted'.
 
         Triggered by explicit user 'forget X' instruction.
         """
         candidate = decision.candidate
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
 
         target_id = decision.superseded_memory_id
         if not target_id and candidate.fact_key:
-            existing = await self._find_active_by_fact_key(
-                user_id, candidate.fact_key
-            )
+            existing = await self._find_active_by_fact_key(user_id, candidate.fact_key)
             if existing:
                 target_id = existing["id"]
 
         # Fallback: try semantic search against all active memories
         if not target_id:
-            target_id = await self._find_by_semantic_match(
-                user_id, candidate.statement
-            )
+            target_id = await self._find_by_semantic_match(user_id, candidate.statement)
 
         if not target_id:
             return ResolutionResult(
@@ -517,9 +488,7 @@ class MemoryResolver:
     # ESCALATE
     # ------------------------------------------------------------------
 
-    async def _escalate(
-        self, decision: MemoryDecision, user_id: str
-    ) -> ResolutionResult:
+    async def _escalate(self, decision: MemoryDecision, user_id: str) -> ResolutionResult:
         """Escalate to user confirmation — no store mutation."""
         return ResolutionResult(
             action="escalated",
@@ -531,9 +500,7 @@ class MemoryResolver:
     # Store operations (Supabase client)
     # ------------------------------------------------------------------
 
-    async def _find_active_by_fact_key(
-        self, user_id: str, fact_key: str
-    ) -> Optional[dict]:
+    async def _find_active_by_fact_key(self, user_id: str, fact_key: str) -> Optional[dict]:
         """Find the active memory for a user + fact_key combination."""
         try:
             result = (
@@ -568,9 +535,7 @@ class MemoryResolver:
             logger.error("Failed to get memory %s: %s", memory_id, e)
             return None
 
-    async def _insert_memory(
-        self, candidate: MemoryCandidate, now: str, user_id: str
-    ) -> str:
+    async def _insert_memory(self, candidate: MemoryCandidate, now: str, user_id: str) -> str:
         """Insert a new memory row and return its ID."""
         import uuid
 
@@ -590,7 +555,9 @@ class MemoryResolver:
             "source_conversation_id": getattr(candidate, "source_conversation_id", None),
             "source_message_id": getattr(candidate, "source_message_id", None),
             "source_turn_index": candidate.source_turn_index,
-            "extraction_method": candidate.extraction_method if hasattr(candidate, "extraction_method") else "llm",
+            "extraction_method": candidate.extraction_method
+            if hasattr(candidate, "extraction_method")
+            else "llm",
             "evidence_count": 1,
             "created_at": now,
             "updated_at": now,
@@ -623,32 +590,32 @@ class MemoryResolver:
 
         Returns True if superseded successfully, False if version mismatch.
         """
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         try:
             result = (
                 self._db.table("canonical_memories")
-                .update({
-                    "status": "superseded",
-                    "valid_to": now,
-                    "updated_at": now,
-                    "version": expected_version + 1,
-                })
+                .update(
+                    {
+                        "status": "superseded",
+                        "valid_to": now,
+                        "updated_at": now,
+                        "version": expected_version + 1,
+                    }
+                )
                 .eq("id", memory_id)
                 .eq("version", expected_version)
                 .eq("user_id", user_id)
                 .execute()
             )
-            # Supabase update doesn't return affected rows directly;
-            # if no exception, assume success. Version mismatch will
-            # result in 0 rows updated (idempotent on next attempt).
-            return True
+            # A version mismatch filters the UPDATE to 0 rows without raising,
+            # so success must be verified from the returned rows, not just
+            # the absence of an exception.
+            return bool(result.data)
         except Exception as e:
             logger.error("Failed to supersede memory %s: %s", memory_id, e)
             return False
 
-    async def _update_status(
-        self, memory_id: str, new_status: str, now: str
-    ) -> bool:
+    async def _update_status(self, memory_id: str, new_status: str, now: str) -> bool:
         """Update a memory's status and valid_to."""
         try:
             update_fields: dict = {
@@ -658,36 +625,34 @@ class MemoryResolver:
             if new_status in ("superseded", "expired", "deleted"):
                 update_fields["valid_to"] = now
 
-            self._db.table("canonical_memories").update(update_fields).eq(
+            self._db.table("canonical_memories").update(update_fields).eq("id", memory_id).execute()
+            return True
+        except Exception as e:
+            logger.error(
+                "Failed to update status for %s to %s: %s",
+                memory_id,
+                new_status,
+                e,
+            )
+            return False
+
+    async def _update_field(self, memory_id: str, field_name: str, value: Any) -> bool:
+        """Update a single field on a memory."""
+        try:
+            self._db.table("canonical_memories").update({field_name: value}).eq(
                 "id", memory_id
             ).execute()
             return True
         except Exception as e:
             logger.error(
-                "Failed to update status for %s to %s: %s",
-                memory_id, new_status, e,
-            )
-            return False
-
-    async def _update_field(
-        self, memory_id: str, field_name: str, value: Any
-    ) -> bool:
-        """Update a single field on a memory."""
-        try:
-            self._db.table("canonical_memories").update(
-                {field_name: value}
-            ).eq("id", memory_id).execute()
-            return True
-        except Exception as e:
-            logger.error(
                 "Failed to update field %s on %s: %s",
-                field_name, memory_id, e,
+                field_name,
+                memory_id,
+                e,
             )
             return False
 
-    async def _find_by_semantic_match(
-        self, user_id: str, statement: str
-    ) -> Optional[str]:
+    async def _find_by_semantic_match(self, user_id: str, statement: str) -> Optional[str]:
         """Find a memory by text similarity (fallback for delete).
 
         Searches active memories for the user and compares normalized
@@ -712,8 +677,8 @@ class MemoryResolver:
 
             for row in rows:
                 existing_norm = (
-                    row.get("normalized_statement") or row.get("statement", "")
-                ).strip().lower()
+                    (row.get("normalized_statement") or row.get("statement", "")).strip().lower()
+                )
                 sim = self._text_similarity_ratio(candidate_norm, existing_norm)
                 if sim > best_sim and sim >= 0.75:
                     best_sim = sim
@@ -742,25 +707,28 @@ class MemoryResolver:
         import uuid
 
         event_id = str(uuid.uuid4())
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
 
         try:
-            self._db.table("canonical_memory_events").insert({
-                "id": event_id,
-                "user_id": user_id,
-                "memory_id": memory_id,
-                "event_type": event_type,
-                "actor": actor,
-                "old_version": old_version,
-                "new_version": new_version,
-                "reason": reason,
-                "created_at": now,
-            }).execute()
+            self._db.table("canonical_memory_events").insert(
+                {
+                    "id": event_id,
+                    "user_id": user_id,
+                    "memory_id": memory_id,
+                    "event_type": event_type,
+                    "actor": actor,
+                    "old_version": old_version,
+                    "new_version": new_version,
+                    "reason": reason,
+                    "created_at": now,
+                }
+            ).execute()
             return event_id
         except Exception as e:
             logger.error(
                 "Failed to write audit event for memory %s: %s",
-                memory_id, e,
+                memory_id,
+                e,
             )
             return None
 
@@ -778,9 +746,7 @@ class MemoryResolver:
         return SequenceMatcher(None, a, b).ratio()
 
     @staticmethod
-    def _text_similar(
-        a: str, b: str, threshold: float = 0.92
-    ) -> bool:
+    def _text_similar(a: str, b: str, threshold: float = 0.92) -> bool:
         """Check if two normalized texts are semantically similar."""
         from difflib import SequenceMatcher
 
@@ -793,6 +759,7 @@ class MemoryResolver:
 # Convenience factory
 # ---------------------------------------------------------------------------
 
+
 def create_resolver(supabase_client: Any) -> MemoryResolver:
     """Factory to create a MemoryResolver with a Supabase client."""
     return MemoryResolver(supabase_client)
@@ -804,7 +771,8 @@ def create_resolver(supabase_client: Any) -> MemoryResolver:
 
 if __name__ == "__main__":
     from unittest.mock import MagicMock
-    from services.canonical_memory.judge import MemoryDecision, DecisionType
+
+    from services.canonical_memory.judge import DecisionType, MemoryDecision
     from services.canonical_memory.models import MemoryCandidate, MemoryType
 
     # Quick self-check with mock Supabase client
@@ -832,6 +800,7 @@ if __name__ == "__main__":
     )
 
     import asyncio
+
     result = asyncio.run(resolver.resolve(decision, user_id="test-user-001"))
     print(f"Action: {result.action}")
     print(f"Memory ID: {result.memory_id}")

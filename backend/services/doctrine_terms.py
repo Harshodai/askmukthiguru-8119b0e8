@@ -518,7 +518,7 @@ def correction_term_lines() -> str:
 
 if __name__ == "__main__":
     assert apply_corrections("The energy at Akam is profound.") == "The energy at Ekam is profound."
-    assert apply_corrections("Sri Pretty Ji teaches.") == "Sri Preethaji teaches."
+    assert apply_corrections("Sri Pretty Ji speaks.") == "Sri Preethaji speaks."
     assert apply_corrections("We did soul sink today.") == "We did Soul Sync today."
     # Tamil "akam" (lowercase, inner self) must survive
     assert "akam" in apply_corrections("The word akam means the inner self.")

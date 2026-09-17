@@ -7,6 +7,7 @@ Provides a persistent cloud-backed database to store query traces,
 evaluations, and user feedback via Supabase.
 """
 
+import asyncio
 import json
 import logging
 import math
@@ -14,12 +15,11 @@ import re
 from datetime import UTC, datetime, timedelta
 from typing import Any, Optional
 
-from supabase import Client, create_client
-
 from app.config import get_settings
 from app.route_taxonomy import canonicalize_route_decision
 from app.sanitization import sanitize_log_input
 from app.security_utils import validate_iso_date, validate_session_id, validate_user_id
+from supabase import Client, create_client
 
 logger = logging.getLogger(__name__)
 
@@ -52,13 +52,17 @@ def _percentile(values: list[float], percentile: int) -> float:
     return ordered[lower] + (ordered[upper] - ordered[lower]) * weight
 
 
-def _quality_snapshot(response_rows: list[dict[str, Any]], feedback_rows: list[dict[str, Any]]) -> dict[str, Any]:
+def _quality_snapshot(
+    response_rows: list[dict[str, Any]], feedback_rows: list[dict[str, Any]]
+) -> dict[str, Any]:
     """Build quality distributions from existing telemetry columns only.
 
     This intentionally returns aggregates, never raw answers or queries, so the
     admin surface can expose quality trends without widening the privacy boundary.
     """
-    answers = [r.get("response_text") for r in response_rows if isinstance(r.get("response_text"), str)]
+    answers = [
+        r.get("response_text") for r in response_rows if isinstance(r.get("response_text"), str)
+    ]
     lengths = [float(len(answer)) for answer in answers]
     faithfulness = [
         float(r["faithfulness"])
@@ -84,15 +88,23 @@ def _quality_snapshot(response_rows: list[dict[str, Any]], feedback_rows: list[d
     feedback_count = len(feedback_rows)
     negative_feedback = sum(1 for row in feedback_rows if row.get("rating", 0) <= 0)
     return {
-        "refusal_rate": sum(1 for answer in answers if _looks_like_refusal(answer)) / len(answers) if answers else 0.0,
+        "refusal_rate": sum(1 for answer in answers if _looks_like_refusal(answer)) / len(answers)
+        if answers
+        else 0.0,
         "response_length_chars_p50": int(_percentile(lengths, 50)),
         "response_length_chars_p95": int(_percentile(lengths, 95)),
         "response_length_chars_min": int(min(lengths, default=0)),
         "response_length_chars_max": int(max(lengths, default=0)),
         "faithfulness_p50": round(_percentile(faithfulness_nonzero, 50), 4),
         "faithfulness_p95": round(_percentile(faithfulness_nonzero, 95), 4),
-        "faithfulness_below_floor_rate": sum(1 for value in faithfulness_nonzero if value < floor) / len(faithfulness_nonzero) if faithfulness_nonzero else 0.0,
-        "faithfulness_zero_rate": sum(1 for value in faithfulness if value <= 0.0) / len(faithfulness) if faithfulness else 0.0,
+        "faithfulness_below_floor_rate": sum(1 for value in faithfulness_nonzero if value < floor)
+        / len(faithfulness_nonzero)
+        if faithfulness_nonzero
+        else 0.0,
+        "faithfulness_zero_rate": sum(1 for value in faithfulness if value <= 0.0)
+        / len(faithfulness)
+        if faithfulness
+        else 0.0,
         "faithfulness_sample_size": len(faithfulness),
         "feedback_count": feedback_count,
         "feedback_coverage": feedback_count / len(response_rows) if response_rows else 0.0,
@@ -117,7 +129,9 @@ def _get_client() -> Optional[Client]:
         return None
     try:
         opts = ClientOptions(postgrest_client_timeout=4, storage_client_timeout=4)
-        _cached_supabase_client = create_client(settings.supabase_url, settings.supabase_key, options=opts)
+        _cached_supabase_client = create_client(
+            settings.supabase_url, settings.supabase_key, options=opts
+        )
         return _cached_supabase_client
     except Exception as e:
         logger.warning("Failed to initialize Supabase client: %s", e)
@@ -190,6 +204,7 @@ async def log_router_decision(
     }
 
     try:
+
         def _sync_insert():
             client.table("router_decisions").insert(decision_payload).execute()
 
@@ -297,7 +312,9 @@ async def log_query_trace(query_data: dict, response_data: dict) -> None:
                 )
             client.table("trigger_events").insert(trigger_payloads).execute()
 
-        logger.debug(f"Successfully logged trace {sanitize_log_input(str(query_data.get('id')))} to Supabase")
+        logger.debug(
+            f"Successfully logged trace {sanitize_log_input(str(query_data.get('id')))} to Supabase"
+        )
 
     except Exception as e:
         logger.error(f"Failed to log telemetry trace to Supabase: {e}")
@@ -541,7 +558,9 @@ async def log_ingestion_run(run_data: dict) -> None:
         # Filter out None values to let Postgres defaults kick in
         payload = {k: v for k, v in payload.items() if v is not None}
         client.table("ingestion_runs").insert(payload).execute()
-        logger.info(f"Successfully logged ingestion run {sanitize_log_input(str(run_data.get('id')))} to Supabase")
+        logger.info(
+            f"Successfully logged ingestion run {sanitize_log_input(str(run_data.get('id')))} to Supabase"
+        )
     except Exception as e:
         logger.error(f"Failed to log ingestion run to Supabase: {e}")
 
@@ -1673,10 +1692,7 @@ async def get_query_trace(query_id: str) -> Optional[dict[str, Any]]:
         prompt_version_id = query.get("prompt_version_id")
         if prompt_version_id:
             prompt_resp = (
-                client.table("prompt_versions")
-                .select("*")
-                .eq("id", prompt_version_id)
-                .execute()
+                client.table("prompt_versions").select("*").eq("id", prompt_version_id).execute()
             )
             prompt = prompt_resp.data[0] if prompt_resp.data else None
 
@@ -1780,23 +1796,32 @@ async def get_node_latencies(limit: int = 1000) -> list[dict[str, Any]]:
         logger.error(f"Failed to query node latencies: {e}")
         return []
 
+
 async def get_routing_distribution(hours: int = 24) -> list[dict]:
     """Route decision distribution from chat_queries over the given window."""
     client = _get_client()
     if not client:
         return []
     from datetime import datetime, timedelta
+
     cutoff = (datetime.now(UTC) - timedelta(hours=hours)).isoformat()
     try:
+
         def _query():
             # Query chat_queries for route_decision distribution
-            resp = client.table("chat_queries").select(
-                "route_decision, latency_ms"
-            ).gte("created_at", cutoff).not_.is_("route_decision", "null").execute()
+            resp = (
+                client.table("chat_queries")
+                .select("route_decision, latency_ms")
+                .gte("created_at", cutoff)
+                .not_.is_("route_decision", "null")
+                .execute()
+            )
             return resp.data or []
+
         rows = await asyncio.wait_for(asyncio.to_thread(_query), timeout=5.0)
         # Aggregate in Python (Supabase REST doesn't support GROUP BY)
         from collections import defaultdict
+
         agg = defaultdict(lambda: {"count": 0, "total_latency": 0, "latencies": []})
         for row in rows:
             raw_rd = row.get("route_decision") or "unknown"
@@ -1808,17 +1833,26 @@ async def get_routing_distribution(hours: int = 24) -> list[dict]:
         result = []
         for rd, data in sorted(agg.items(), key=lambda x: x[1]["count"], reverse=True):
             latencies = sorted(data["latencies"])
-            p95_idx = max(0, min(math.ceil(0.95 * len(latencies)) - 1, len(latencies) - 1)) if latencies else 0
-            result.append({
-                "route_decision": rd,
-                "count": data["count"],
-                "avg_latency_ms": round(data["total_latency"] / data["count"], 1) if data["count"] else 0,
-                "p95_latency_ms": latencies[p95_idx] if latencies else 0,
-            })
+            p95_idx = (
+                max(0, min(math.ceil(0.95 * len(latencies)) - 1, len(latencies) - 1))
+                if latencies
+                else 0
+            )
+            result.append(
+                {
+                    "route_decision": rd,
+                    "count": data["count"],
+                    "avg_latency_ms": round(data["total_latency"] / data["count"], 1)
+                    if data["count"]
+                    else 0,
+                    "p95_latency_ms": latencies[p95_idx] if latencies else 0,
+                }
+            )
         return result
     except Exception as e:
         logger.warning("get_routing_distribution failed: %s", e)
         return []
+
 
 async def get_routing_tier_distribution(hours: int = 24) -> list[dict]:
     """Query tier distribution from router_decisions table."""
@@ -1826,20 +1860,29 @@ async def get_routing_tier_distribution(hours: int = 24) -> list[dict]:
     if not client:
         return []
     from datetime import datetime, timedelta
+
     cutoff = (datetime.now(UTC) - timedelta(hours=hours)).isoformat()
     try:
+
         def _query():
-            resp = client.table("router_decisions").select(
-                "tier, method, confidence, shadow_tier"
-            ).gte("created_at", cutoff).execute()
+            resp = (
+                client.table("router_decisions")
+                .select("tier, method, confidence, shadow_tier")
+                .gte("created_at", cutoff)
+                .execute()
+            )
             return resp.data or []
+
         rows = await asyncio.wait_for(asyncio.to_thread(_query), timeout=5.0)
         from collections import defaultdict
-        agg = defaultdict(lambda: {"count": 0, "total_confidence": 0.0, "shadow_tiers": defaultdict(int)})
+
+        agg = defaultdict(
+            lambda: {"count": 0, "total_confidence": 0.0, "shadow_tiers": defaultdict(int)}
+        )
         for row in rows:
             key = (row.get("tier") or "unknown", row.get("method") or "unknown")
             agg[key]["count"] += 1
-            agg[key]["total_confidence"] += (row.get("confidence") or 0.0)
+            agg[key]["total_confidence"] += row.get("confidence") or 0.0
             st = row.get("shadow_tier")
             if st:
                 agg[key]["shadow_tiers"][st] += 1
@@ -1849,7 +1892,9 @@ async def get_routing_tier_distribution(hours: int = 24) -> list[dict]:
                 "tier": tier,
                 "method": method,
                 "count": data["count"],
-                "avg_confidence": round(data["total_confidence"] / data["count"], 4) if data["count"] else 0,
+                "avg_confidence": round(data["total_confidence"] / data["count"], 4)
+                if data["count"]
+                else 0,
             }
             if data["shadow_tiers"]:
                 entry["shadow_tier_distribution"] = dict(data["shadow_tiers"])
@@ -1859,21 +1904,31 @@ async def get_routing_tier_distribution(hours: int = 24) -> list[dict]:
         logger.warning("get_routing_tier_distribution failed: %s", e)
         return []
 
+
 async def get_routing_timeseries(hours: int = 24, bucket_minutes: int = 60) -> list[dict]:
     """Time-bucketed route_decision distribution for chart rendering."""
     client = _get_client()
     if not client:
         return []
     from datetime import datetime, timedelta
+
     cutoff = (datetime.now(UTC) - timedelta(hours=hours)).isoformat()
     try:
+
         def _query():
-            resp = client.table("chat_queries").select(
-                "created_at, route_decision"
-            ).gte("created_at", cutoff).not_.is_("route_decision", "null").order("created_at").execute()
+            resp = (
+                client.table("chat_queries")
+                .select("created_at, route_decision")
+                .gte("created_at", cutoff)
+                .not_.is_("route_decision", "null")
+                .order("created_at")
+                .execute()
+            )
             return resp.data or []
+
         rows = await asyncio.wait_for(asyncio.to_thread(_query), timeout=10.0)
         from collections import defaultdict
+
         buckets = defaultdict(lambda: defaultdict(int))
         for row in rows:
             ts = row.get("created_at", "")
@@ -1893,15 +1948,18 @@ async def get_routing_timeseries(hours: int = 24, bucket_minutes: int = 60) -> l
         result = []
         for bucket_key in sorted(buckets.keys()):
             for rd, count in buckets[bucket_key].items():
-                result.append({
-                    "bucket": bucket_key,
-                    "route_decision": rd,
-                    "count": count,
-                })
+                result.append(
+                    {
+                        "bucket": bucket_key,
+                        "route_decision": rd,
+                        "count": count,
+                    }
+                )
         return result
     except Exception as e:
         logger.warning("get_routing_timeseries failed: %s", e)
         return []
+
 
 async def get_routing_layer_stats(hours: int = 24) -> list[dict]:
     """Per-layer routing statistics from route_metadata in chat_queries."""
@@ -1909,13 +1967,20 @@ async def get_routing_layer_stats(hours: int = 24) -> list[dict]:
     if not client:
         return []
     from datetime import datetime, timedelta
+
     cutoff = (datetime.now(UTC) - timedelta(hours=hours)).isoformat()
     try:
+
         def _query():
-            resp = client.table("chat_queries").select(
-                "route_decision, latency_ms"
-            ).gte("created_at", cutoff).not_.is_("route_decision", "null").execute()
+            resp = (
+                client.table("chat_queries")
+                .select("route_decision, latency_ms")
+                .gte("created_at", cutoff)
+                .not_.is_("route_decision", "null")
+                .execute()
+            )
             return resp.data or []
+
         rows = await asyncio.wait_for(asyncio.to_thread(_query), timeout=5.0)
         # Categorize route_decisions into layers
         layer_map = {
@@ -1944,6 +2009,7 @@ async def get_routing_layer_stats(hours: int = 24) -> list[dict]:
             "timeout": "pipeline_coordinator",
         }
         from collections import defaultdict
+
         agg = defaultdict(lambda: {"count": 0, "total_latency": 0, "decisions": defaultdict(int)})
         for row in rows:
             raw_rd = row.get("route_decision") or "unknown"
@@ -1956,12 +2022,16 @@ async def get_routing_layer_stats(hours: int = 24) -> list[dict]:
         result = []
         for layer, data in sorted(agg.items(), key=lambda x: x[1]["count"], reverse=True):
             top_decisions = sorted(data["decisions"].items(), key=lambda x: x[1], reverse=True)[:5]
-            result.append({
-                "layer": layer,
-                "decision_count": data["count"],
-                "avg_latency_ms": round(data["total_latency"] / data["count"], 1) if data["count"] else 0,
-                "top_decisions": [{"decision": d, "count": c} for d, c in top_decisions],
-            })
+            result.append(
+                {
+                    "layer": layer,
+                    "decision_count": data["count"],
+                    "avg_latency_ms": round(data["total_latency"] / data["count"], 1)
+                    if data["count"]
+                    else 0,
+                    "top_decisions": [{"decision": d, "count": c} for d, c in top_decisions],
+                }
+            )
         return result
     except Exception as e:
         logger.warning("get_routing_layer_stats failed: %s", e)
@@ -1974,15 +2044,22 @@ async def get_routing_confidence_heatmap(hours: int = 24) -> list[dict]:
     if not client:
         return []
     from datetime import datetime, timedelta
+
     cutoff = (datetime.now(UTC) - timedelta(hours=hours)).isoformat()
     try:
+
         def _query():
-            resp = client.table("router_decisions").select(
-                "tier, method, confidence"
-            ).gte("created_at", cutoff).execute()
+            resp = (
+                client.table("router_decisions")
+                .select("tier, method, confidence")
+                .gte("created_at", cutoff)
+                .execute()
+            )
             return resp.data or []
+
         rows = await asyncio.wait_for(asyncio.to_thread(_query), timeout=5.0)
         from collections import defaultdict
+
         heatmap = defaultdict(lambda: defaultdict(int))
         low_confidence_count = 0
         total_count = len(rows)
@@ -1999,17 +2076,19 @@ async def get_routing_confidence_heatmap(hours: int = 24) -> list[dict]:
         result = []
         for key, buckets in sorted(heatmap.items()):
             tier, method = key.split("|", 1)
-            result.append({
-                "tier": tier,
-                "method": method,
-                "buckets": dict(buckets),
-            })
+            result.append(
+                {
+                    "tier": tier,
+                    "method": method,
+                    "buckets": dict(buckets),
+                }
+            )
         # Add alert metadata
         alert = None
         if total_count > 0 and (low_confidence_count / total_count) > 0.30:
             alert = {
                 "level": "warning",
-                "message": f"Confidence drift detected: {low_confidence_count}/{total_count} ({round(low_confidence_count/total_count*100, 1)}%) routing decisions have confidence < 0.5",
+                "message": f"Confidence drift detected: {low_confidence_count}/{total_count} ({round(low_confidence_count / total_count * 100, 1)}%) routing decisions have confidence < 0.5",
                 "low_confidence_pct": round(low_confidence_count / total_count * 100, 1),
             }
         return {"heatmap": result, "alert": alert, "total_decisions": total_count}

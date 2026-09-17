@@ -14,6 +14,7 @@ Features:
 import asyncio
 import json
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -50,6 +51,65 @@ CHECKPOINT_FILE = Path(
     os.getenv("LIGHTRAG_CHECKPOINT_FILE", str(PROJECT_ROOT / "data" / "lightrag_checkpoint.json"))
 )
 CHECKPOINT_FILE.parent.mkdir(parents=True, exist_ok=True)
+
+LIGHTRAG_PIECE_SIZE = 1500
+_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?\u0964\n])\s+")
+_CONTEXT_HEADER_RE = re.compile(r"^(\[Context:[^\]]+\]\s*)", re.DOTALL)
+
+
+def chunk_sentences(text: str, size: int = LIGHTRAG_PIECE_SIZE) -> list[str]:
+    """Split text into <=size chunks on sentence boundaries (stdlib only).
+
+    If text contains a leading [Context: ...] header, it is preserved and
+    prepended to each chunk so graph extraction never loses speaker/situational grounding.
+    Sentences are packed greedily so no chunk cuts mid-sentence; a single
+    over-long sentence falls back to a hard cut so pieces stay bounded.
+    Short texts return unchanged as a single piece.
+    """
+    if not text:
+        return [text]
+
+    # Extract leading [Context: ...] header if present
+    match = _CONTEXT_HEADER_RE.match(text)
+    header = ""
+    body = text
+    if match:
+        header = match.group(1).strip()
+        body = text[len(match.group(0)):].strip()
+        if not body:
+            return [text]
+
+    effective_size = max(300, size - len(header) - 1) if header else size
+
+    if len(body) <= effective_size:
+        return [text]
+
+    sentences = [s for s in _SENTENCE_SPLIT_RE.split(body) if s]
+    if not sentences:
+        return [text]
+
+    chunks: list[str] = []
+    current = ""
+    for sentence in sentences:
+        while len(sentence) > effective_size:
+            if current:
+                chunks.append(f"{header}\n{current}".strip() if header else current)
+                current = ""
+            chunks.append(
+                f"{header}\n{sentence[:effective_size]}".strip() if header else sentence[:effective_size]
+            )
+            sentence = sentence[effective_size:]
+        if not sentence:
+            continue
+        candidate = f"{current} {sentence}".strip() if current else sentence
+        if len(candidate) <= effective_size:
+            current = candidate
+        else:
+            chunks.append(f"{header}\n{current}".strip() if header else current)
+            current = sentence
+    if current:
+        chunks.append(f"{header}\n{current}".strip() if header else current)
+    return chunks or [text]
 
 
 def load_checkpoint():
@@ -123,25 +183,50 @@ async def process_single_point(lightrag_svc, point, sem, counter_lock, counters,
                     accounted = True
             return False
 
+        # Ingestion safety invariant (L-INGEST-1): gate every point through
+        # find_artifact() before graph ingestion so LLM/ASR/provider artifacts
+        # already sitting in Qdrant payloads never reach the graph.
+        try:
+            from services.text_quality_filter import find_artifact
+        except ImportError:
+            find_artifact = None
+        if find_artifact is not None:
+            artifact = find_artifact(text)
+            if artifact is not None:
+                async with counter_lock:
+                    if not accounted:
+                        counters["processed"] += 1
+                        counters["failed"] += 1
+                        accounted = True
+                _pid = str(getattr(point, "id", "?"))[:8]
+                print(f"⚠️ Point {_pid}... rejected by quality gate: {artifact[:80]!r}", flush=True)
+                return False
+
+        pieces = chunk_sentences(text)
+
         async with sem:
             t0 = time.time()
-            retry_count = 0
             insert_timeout = float(os.getenv("LIGHTRAG_INSERT_TIMEOUT", "60.0"))
-
-            while retry_count < 2:
-                try:
-                    ok = await lightrag_svc.safe_ainsert(text=text, file_paths=[source], timeout=insert_timeout)
-                    break
-                except Exception as e:
-                    retry_count += 1
-                    if "rate limit" in str(e).lower() or "429" in str(e):
-                        rate_stats["rate_limit_hits"] += 1
-                        await asyncio.sleep(2.0 * retry_count)
-                    else:
-                        await asyncio.sleep(0.5)
-            else:
-                # Both retries exhausted — mark as failed.
-                ok = False
+            ok = True
+            for piece in pieces:
+                retry_count = 0
+                piece_ok = False
+                while retry_count < 2:
+                    try:
+                        piece_ok = await lightrag_svc.safe_ainsert(text=piece, file_paths=[source], timeout=insert_timeout)
+                        break
+                    except Exception as e:
+                        retry_count += 1
+                        if "rate limit" in str(e).lower() or "429" in str(e):
+                            rate_stats["rate_limit_hits"] += 1
+                            await asyncio.sleep(2.0 * retry_count)
+                        else:
+                            await asyncio.sleep(0.5)
+                else:
+                    # Both retries exhausted — mark this piece as failed.
+                    piece_ok = False
+                if not piece_ok:
+                    ok = False
 
             elapsed = time.time() - t0
             await asyncio.sleep(0.05)

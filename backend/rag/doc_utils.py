@@ -83,6 +83,40 @@ def sort_docs_canonically(docs: list[dict]) -> list[dict]:
     return sorted(docs, key=doc_hash)
 
 
+def _doc_relevance(doc: dict) -> float:
+    """Best-effort relevance score across the keys builders actually set."""
+    for key in ("rerank_score", "relevance", "score"):
+        value = doc.get(key)
+        if isinstance(value, bool):
+            continue
+        if isinstance(value, (int, float)):
+            return float(value)
+    return 0.0
+
+
+def sort_docs_litm_aware(docs: list[dict] | None) -> list[dict]:
+    """Two-tier lost-in-the-middle-aware canonical ordering.
+
+    Tier 1 (attention edges): the #1 relevance doc anchors index 0 and #2
+    anchors index -1, where LLM attention is strongest. Tier 2 (interior):
+    ranks 3..N hash-sort by ``doc_hash`` so identical doc sets still produce
+    byte-for-byte identical interiors regardless of vector score ordering
+    (preserves the prompt-cache benefit of ``sort_docs_canonically``).
+    Relevance ties break by hash, so the output is fully input-order
+    independent. N=0/1 pass through; N=2 orders by relevance (hash on ties).
+    """
+    items = list(docs or [])
+    count = len(items)
+    if count <= 1:
+        return items
+    ranked = sorted(items, key=lambda d: (-_doc_relevance(d), doc_hash(d)))
+    if count == 2:
+        return ranked
+    head, tail = ranked[0], ranked[1]
+    interior = sorted(ranked[2:], key=doc_hash)
+    return [head, *interior, tail]
+
+
 if __name__ == "__main__":
     assert doc_text({"text": "a"}) == "a"
     assert doc_text({"content": "b"}) == "b"
@@ -96,4 +130,16 @@ if __name__ == "__main__":
     s1 = sort_docs_canonically([d1, d2])
     s2 = sort_docs_canonically([d2, d1])
     assert s1 == s2, "Canonical document sorting failed"
+
+    assert sort_docs_litm_aware([]) == []
+    assert sort_docs_litm_aware([d1]) == [d1]
+    lo = {"text": "low doc", "rerank_score": 0.1}
+    hi = {"text": "high doc", "rerank_score": 0.9}
+    assert sort_docs_litm_aware([lo, hi])[0] == hi
+    assert sort_docs_litm_aware([lo, hi]) == sort_docs_litm_aware([hi, lo])
+    docs5 = [{"text": f"doc{i}", "rerank_score": float(i)} for i in range(5)]
+    o1 = sort_docs_litm_aware(docs5)
+    o2 = sort_docs_litm_aware(list(reversed(docs5)))
+    assert o1 == o2, "LITM-aware sorting is input-order dependent"
+    assert o1[0]["text"] == "doc4" and o1[-1]["text"] == "doc3"
     print("doc_utils self-check OK")

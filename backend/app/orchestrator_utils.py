@@ -110,6 +110,7 @@ async def _translate_cached(
     _translation_cache_put(text, source_lang, target_lang, translated)
     return translated
 
+
 # Query patterns live in rag.query_patterns so intent routing and graph
 # selection pull from a single source. Aliased here with the original
 # leading-underscore names so existing call sites are unchanged.
@@ -130,10 +131,21 @@ from rag.query_patterns import (
 )
 
 
+def normalize_cache_prompt(prompt: str) -> str:
+    """Canonicalize a prompt for cache keys: strip, Unicode casefold, collapse ws, trim ?!."""
+    import unicodedata
+
+    text = unicodedata.normalize("NFC", str(prompt or "").strip())
+    text = text.casefold()
+    text = re.sub(r"\s+", " ", text).strip()
+    text = text.rstrip("?!.")
+    return text
+
+
 def cache_language_key(message: str, language: str) -> str:
-    """Generate a cache key based on the language and trimmed message."""
+    """Generate a cache key based on the language and normalized message."""
     normalized_lang = (language or "en").lower().strip()
-    return f"{normalized_lang}:{message.strip()}"
+    return f"{normalized_lang}:{normalize_cache_prompt(message)}"
 
 
 CLASSIFY_COMPLEXITY_PROMPT = """You are an expert query complexity classifier for a RAG spiritual application (Mukthi Guru).
@@ -243,7 +255,10 @@ async def select_graph_for_query(
             q,
         )
     )
-    is_multi_part = any(re.search(patn, q) for patn in _MULTI_PART_INDICATORS) and not is_definition_practice_faq
+    is_multi_part = (
+        any(re.search(patn, q) for patn in _MULTI_PART_INDICATORS)
+        and not is_definition_practice_faq
+    )
 
     # Doctrine keyword fast-path: known spiritual terms get fast even at 25 tokens
     if detected_intent in ("FACTUAL", "QUERY"):
@@ -637,18 +652,25 @@ def _flatten_emotional_arcs(memories: list) -> list[dict[str, Any]]:
                 content = getattr(mem, "content", "") or ""
                 combined = f"{insight} {content}".lower()
                 for kw, sig in [
-                    ("grief", "grief"), ("anxiety", "anxiety"), ("anxious", "anxiety"),
-                    ("anger", "anger"), ("angry", "anger"), ("lonely", "loneliness"),
-                    ("alone", "loneliness"), ("meaningless", "meaninglessness"),
+                    ("grief", "grief"),
+                    ("anxiety", "anxiety"),
+                    ("anxious", "anxiety"),
+                    ("anger", "anger"),
+                    ("angry", "anger"),
+                    ("lonely", "loneliness"),
+                    ("alone", "loneliness"),
+                    ("meaningless", "meaninglessness"),
                 ]:
                     if kw in combined:
                         signal = sig
                         break
-            turns.append({
-                "distress_level": distress_level,
-                "signal": signal,
-                "timestamp": getattr(mem, "created_at", 0) or 0,
-            })
+            turns.append(
+                {
+                    "distress_level": distress_level,
+                    "signal": signal,
+                    "timestamp": getattr(mem, "created_at", 0) or 0,
+                }
+            )
         elif hasattr(mem, "emotional_arc"):
             arc = getattr(mem, "emotional_arc", None)
             if isinstance(arc, list):
@@ -744,7 +766,9 @@ def _format_second_brain_block(
             if formatted:
                 return formatted
         except Exception as exc:
-            logger.warning("Private-memory concept linking failed; using safe legacy block: %s", exc)
+            logger.warning(
+                "Private-memory concept linking failed; using safe legacy block: %s", exc
+            )
     now = datetime.now(UTC).timestamp()
     lines = [
         "```second-brain-context",
@@ -789,6 +813,24 @@ def _is_persona_fresh(updated_at: Optional[str], max_age_days: int) -> bool:
         parsed = parsed.replace(tzinfo=UTC)
     age = datetime.now(UTC) - parsed
     return age <= timedelta(days=max_age_days)
+
+
+def _scrub_memory_context(memory_context: str) -> str:
+    """PII scrubbing gap (System Design for the LLM Era, Ch2 "Respecting user
+    privacy" / RAG data-cleaning pattern): PIIScrubber only ever wrapped the
+    telemetry-logging path (telemetry_sink.py/telemetry_db.py), never the
+    live prompt. memory_context is fact-extracted from a seeker's own
+    conversation turns (canonical memory, Second Brain, persona blocks) and
+    is interpolated directly into a future prompt -- so a phone number or
+    email a seeker typed once could otherwise resurface, unfiltered, in a
+    later answer. Single chokepoint: every return path in
+    prepare_user_memory goes through this before the caller ever sees it.
+    """
+    if not memory_context:
+        return memory_context
+    from app.telemetry_db import PIIScrubber
+
+    return PIIScrubber.scrub(memory_context)
 
 
 async def prepare_user_memory(
@@ -845,13 +887,13 @@ async def prepare_user_memory(
             logger.warning(f"Second Brain recall failed: {e}")
 
     if not container.user_profile:
-        return memory_context, distress_history, None
+        return _scrub_memory_context(memory_context), distress_history, None
 
     # Signed anonymous session IDs use the ``anon:<token>`` form. They are
     # intentionally non-persistable and must never trigger profile creation,
     # durable memory reads, persona lookups, or per-turn profile updates.
     if not user_id or not _is_persistable_user_id(user_id):
-        return memory_context, distress_history, None
+        return _scrub_memory_context(memory_context), distress_history, None
 
     # --- Canonical memory (read path) ---
     # Served first and, when it returns something, served INSTEAD of the legacy
@@ -877,11 +919,9 @@ async def prepare_user_memory(
                 timeout=float(getattr(settings, "canonical_memory_timeout", 2.0)),
             )
             if canonical_block:
-                logger.info(
-                    "Canonical memory context served (%d chars)", len(canonical_block)
-                )
+                logger.info("Canonical memory context served (%d chars)", len(canonical_block))
                 return canonical_block, distress_history, None
-        except (TimeoutError, asyncio.TimeoutError):
+        except TimeoutError:
             logger.warning("Canonical memory context timed out; using legacy memory")
         except Exception as exc:
             logger.warning("Canonical memory context failed (fail-open): %s", exc)
@@ -970,24 +1010,18 @@ async def prepare_user_memory(
     try:
         from services.layered_memory.persona_store import get_persona, save_persona
 
-        persona_md, persona_updated_at = await get_persona(
-            container.supabase_client, user_id
-        )
+        persona_md, persona_updated_at = await get_persona(container.supabase_client, user_id)
         if persona_md and _is_persona_fresh(
             persona_updated_at, max_age_days=settings.persona_max_age_days
         ):
             persona_lines = [
-                ln
-                for ln in persona_md.splitlines()
-                if ln.strip() and not ln.startswith("#")
+                ln for ln in persona_md.splitlines() if ln.strip() and not ln.startswith("#")
             ]
             persona_summary = "\n".join(persona_lines[:8])
             if persona_summary:
                 persona_block = f"USER PERSONA SUMMARY:\n{persona_summary}"
                 memory_context = (
-                    f"{memory_context}\n\n{persona_block}"
-                    if memory_context
-                    else persona_block
+                    f"{memory_context}\n\n{persona_block}" if memory_context else persona_block
                 )
         elif persona_md and not _is_persona_fresh(
             persona_updated_at, max_age_days=settings.persona_max_age_days
@@ -1018,9 +1052,7 @@ async def prepare_user_memory(
                             ]
                             persona_summary = "\n".join(persona_lines[:8])
                             if persona_summary:
-                                persona_block = (
-                                    f"USER PERSONA SUMMARY:\n{persona_summary}"
-                                )
+                                persona_block = f"USER PERSONA SUMMARY:\n{persona_summary}"
                                 memory_context = (
                                     f"{memory_context}\n\n{persona_block}"
                                     if memory_context
@@ -1033,19 +1065,13 @@ async def prepare_user_memory(
             if not persona_refreshed:
                 # Fall through to stale persona with flag
                 persona_lines = [
-                    ln
-                    for ln in persona_md.splitlines()
-                    if ln.strip() and not ln.startswith("#")
+                    ln for ln in persona_md.splitlines() if ln.strip() and not ln.startswith("#")
                 ]
                 persona_summary = "\n".join(persona_lines[:8])
                 if persona_summary:
-                    persona_block = (
-                        f"[STALE PERSONA]\nUSER PERSONA SUMMARY:\n{persona_summary}"
-                    )
+                    persona_block = f"[STALE PERSONA]\nUSER PERSONA SUMMARY:\n{persona_summary}"
                     memory_context = (
-                        f"{memory_context}\n\n{persona_block}"
-                        if memory_context
-                        else persona_block
+                        f"{memory_context}\n\n{persona_block}" if memory_context else persona_block
                     )
     except Exception as e:
         logger.warning(f"Persona context injection failed: {e}")
@@ -1056,7 +1082,7 @@ async def prepare_user_memory(
             if recent_emotion.get("distress_level", 0) >= 2:
                 distress_history.append(recent_emotion)
 
-    return memory_context, distress_history, profile
+    return _scrub_memory_context(memory_context), distress_history, profile
 
 
 REFERENTIAL_WORDS = {"it", "that", "this", "they", "earlier", "before", "mentioned", "those"}

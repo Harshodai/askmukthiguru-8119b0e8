@@ -48,12 +48,17 @@ def _qdrant_scroll_url() -> tuple[str, dict[str, str]]:
     if parsed.scheme not in {"http", "https"} or not parsed.hostname:
         raise RuntimeError("QDRANT_URL must be an absolute http(s) URL")
     api_key = os.environ.get("QDRANT_API_KEY", "").strip()
-    if api_key and parsed.scheme != "https" and parsed.hostname not in {
-        "localhost",
-        "127.0.0.1",
-        "qdrant",
-        "qdrant.railway.internal",
-    }:
+    if (
+        api_key
+        and parsed.scheme != "https"
+        and parsed.hostname
+        not in {
+            "localhost",
+            "127.0.0.1",
+            "qdrant",
+            "qdrant.railway.internal",
+        }
+    ):
         raise RuntimeError("QDRANT_API_KEY requires HTTPS or an explicitly trusted private host")
     headers = {"api-key": api_key} if api_key else {}
     url = f"{base_url}/collections/lightrag_vdb_chunks_baai_bge_m3_1024d/points/scroll"

@@ -9,11 +9,11 @@ spent, into `handle_fallback` with grounding_state=abstained — measured live o
 and is the authority; reflection contributes feedback only.
 """
 
-import pytest
 from unittest.mock import MagicMock
 
-from rag.nodes import verification
-from rag.nodes import _services
+import pytest
+
+from rag.nodes import _services, verification
 
 UNFAITHFUL = {
     "is_faithful": False,
@@ -77,12 +77,8 @@ async def test_feedback_reports_the_real_criterion(mock_ld):
 @pytest.mark.asyncio
 async def test_bounded_scorer_stamps_scorer_strength(mock_ld):
     """Every verdict records whether the semantic scorer produced it."""
-    lex = await verification._score_faithfulness_bounded(
-        mock_ld, "q", "ctx", "ans", semantic=False
-    )
-    sem = await verification._score_faithfulness_bounded(
-        mock_ld, "q", "ctx", "ans", semantic=True
-    )
+    lex = await verification._score_faithfulness_bounded(mock_ld, "q", "ctx", "ans", semantic=False)
+    sem = await verification._score_faithfulness_bounded(mock_ld, "q", "ctx", "ans", semantic=True)
     assert lex["semantic"] is False
     assert sem["semantic"] is True
 

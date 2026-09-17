@@ -1,5 +1,7 @@
 """Tests for canonical memory canary deployment — Phase 24."""
+
 import pytest
+
 from services.canonical_memory.canary import (
     CanaryConfig,
     CanaryDeployment,
