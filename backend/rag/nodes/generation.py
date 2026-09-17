@@ -2952,7 +2952,18 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
             orphan_citations_stripped = orphan_count > 0
         except Exception as _cite_err:
             logger.warning("Citation post-verification failed (non-fatal): %s", _cite_err)
-            citations_verified = (state.get("verification") or {}).get("citations_verified", True)
+            # Default FALSE, never True. "We could not check" is not "verified".
+            # This default was `True`, and it is the upstream source of the
+            # F-VERIFY-1 invariant violation that crashed whole requests:
+            # measured live 2026-09-17, a golden_qa_bank run lost 12% of its
+            # answers to `ValueError: citations_verified=True is incompatible
+            # with hallucination_flag=True` raised in PipelineResult, ~48-69s
+            # into the request, after an ONNX reranker OOM degraded
+            # verification to faithfulness_score=0.0. The seeker saw "The Guru
+            # encountered an error."
+            citations_verified = bool(
+                (state.get("verification") or {}).get("citations_verified", False)
+            )
 
     refusal_action, refusal_answer = _evidence_refusal_action(answer, relevant_docs)
     if refusal_action == "retry" and _is_simple_meditation_comparison_request(

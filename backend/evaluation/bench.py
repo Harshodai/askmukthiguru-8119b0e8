@@ -454,6 +454,38 @@ async def _ask_authenticated(
 # ═══════════════════════════════════════════════════════════════════════════
 
 
+_UNMEASURED_FLAGS = {"unmeasured_no_evidence", "unmeasured_evidence_window"}
+
+
+def _real_misattribution(flags: list[str] | None) -> bool:
+    """True only for flags that are an actual measured misattribution.
+
+    An UNMEASURED flag (`unmeasured_no_evidence` = evidence lookup failed;
+    `unmeasured_evidence_window` = the quote was not in the chunk window we
+    fetched, which is not proof it is absent from the corpus) means the check
+    could not run conclusively -- it must
+    not inflate the misattribution rate (that would make a broken dependency
+    look like a doctrinal failure) nor be dropped silently (that would make an
+    unmeasured run look clean).
+    """
+    return bool([f for f in (flags or []) if f not in _UNMEASURED_FLAGS])
+
+
+# How many chunks are pulled per citation URL to form the traceability
+# haystack. A long discourse has MORE chunks than this, so the window is a
+# SUBSET of the cited source, not the whole of it -- see _quote_is_traceable
+# for why a miss inside a truncated window cannot be called a fabrication.
+_EVIDENCE_WINDOW = 50
+
+
+class EvidenceUnavailable(RuntimeError):
+    """Citation->chunk evidence could not be resolved for this row.
+
+    Raised instead of returning an empty list so the misattribution gate can
+    report UNMEASURED rather than silently scoring against an empty haystack.
+    """
+
+
 def _citation_evidence(qdrant_client: Any, collection: str, urls: list[str]) -> list[dict]:
     """Read-only join from this answer's citation URLs back to the Qdrant
     chunks that back them: provenance class + teacher_ids + a text snippet.
@@ -461,8 +493,10 @@ def _citation_evidence(qdrant_client: Any, collection: str, urls: list[str]) -> 
     many-chunks-per-url approximation, not an exact per-citation match --
     good enough to catch a regression or a misattribution, not a
     courtroom-grade per-citation trace. ponytail: documented ceiling."""
-    if not urls or qdrant_client is None:
+    if not urls:
         return []
+    if qdrant_client is None:
+        raise EvidenceUnavailable("no Qdrant client (construction failed at startup)")
     try:
         from qdrant_client.models import FieldCondition, Filter, MatchAny
 
@@ -470,21 +504,38 @@ def _citation_evidence(qdrant_client: Any, collection: str, urls: list[str]) -> 
         pts, _ = qdrant_client.scroll(
             collection_name=collection,
             scroll_filter=flt,
-            limit=50,
+            limit=_EVIDENCE_WINDOW,
             with_payload=True,
             with_vectors=False,
         )
+        # Mark a truncated window so traceability can tell "not in the corpus"
+        # apart from "not in the 50 chunks we looked at".
+        window_truncated = len(pts) >= _EVIDENCE_WINDOW
         return [
             {
                 "url": p.payload.get("source_url"),
                 "provenance": p.payload.get("provenance"),
                 "teacher_ids": p.payload.get("teacher_ids") or [],
                 "text": p.payload.get("text") or "",
+                "window_truncated": window_truncated,
             }
             for p in pts
         ]
-    except Exception:
-        return []
+    except EvidenceUnavailable:
+        raise
+    except Exception as exc:
+        # NEVER `return []` here. An empty haystack makes _misattribution_flags
+        # structurally unable to do its job: quote_not_traceable fires on EVERY
+        # quoted answer (nothing to match against) and teacher_mismatch is
+        # skipped entirely (`if mentioned and evidence`). Measured live
+        # 2026-09-17: a host-side run with the compose-internal
+        # `QDRANT_URL=http://qdrant:6333` (unresolvable off the compose
+        # network, per the root CLAUDE.md gotcha) silently produced
+        # "misattribution rate 25% (top-severity gate)" from ZERO evidence on
+        # all 8 rows. The gate must be falsifiable by the failure it claims to
+        # detect -- so an unreachable Qdrant now marks the row UNMEASURED and
+        # fails the gate loudly instead of inventing a number.
+        raise EvidenceUnavailable(f"{type(exc).__name__}: {exc}") from exc
 
 
 def _machine_summary_share(evidence: list[dict]) -> float | None:
@@ -494,9 +545,83 @@ def _machine_summary_share(evidence: list[dict]) -> float | None:
     return round(sum(1 for p in provenances if p == "machine_summary") / len(provenances), 4)
 
 
-# Straight and curly double-quote spans, >=20 chars -- long enough to be a
-# real claimed quotation rather than a scare-quoted word.
-_QUOTE_RE = re.compile(r'["“]([^"“”]{20,})["”]')
+# Quoted spans, properly PAIRED: a straight pair "..." or a curly pair "...".
+#
+# The length floor is applied AFTER pairing, never inside the pattern. The
+# previous form, r'["“]([^"“”]{20,})["”]', put the floor inside and could
+# re-anchor on a CLOSING quote: given `"I-consciousness" dissolves into
+# limitless oneness. Sri Krishnaji explains: "..."`, the 15-char first pair
+# fails the {20,} floor, the engine advances, opens a new match on that pair's
+# own closing quote, and captures the PROSE BETWEEN the two quotations as if
+# it were a quotation. Measured live 2026-09-17: this produced
+# `quote_not_traceable` on 2 of 8 golden_qa_bank questions -- a 25%
+# "misattribution rate" on the top-severity gate -- from answers whose real
+# quotations were all traceable. This product quotes short doctrinal terms
+# ("Beautiful State", "I-consciousness") constantly, so the misfire is the
+# common case, not an edge case. Pairing first and filtering after is what
+# makes the floor mean "this quotation is long enough to be a claimed
+# quotation" instead of "start scanning at the 21st character after any quote".
+_QUOTE_PAIR_RE = re.compile(r'"([^"]*)"|“([^”]*)”')
+_MIN_CLAIMED_QUOTE_CHARS = 20
+
+
+_MATCH_NOISE_RE = re.compile(r"[^\w\s]+")
+
+
+def _match_norm(text: str) -> str:
+    """Lowercase, drop punctuation, collapse whitespace.
+
+    Used on both the claimed quotation and the evidence chunk so that
+    traceability is judged on words, not on whether the model reproduced a
+    comma. See the call site in _misattribution_flags.
+    """
+    return " ".join(_MATCH_NOISE_RE.sub(" ", text.lower()).split())
+
+
+_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
+# Below this a normalized fragment is too generic to prove anything either way
+# ("it is a state", "and so on"), so it is not held against the quote.
+_MIN_TRACEABLE_SENTENCE_CHARS = 25
+
+
+def _quote_is_traceable(quote: str, haystacks: list[str]) -> bool:
+    """True when every substantive sentence of `quote` appears in some chunk.
+
+    Checked sentence-by-sentence rather than as one contiguous run. The
+    previous form took the quote's first 60 normalized characters and required
+    THAT exact run inside a single chunk, which fails on a faithful quotation
+    the model assembled across two chunks -- and this product does exactly
+    that, inline citation markers and all. Measured live 2026-09-17:
+    `qa-core-003` was flagged `quote_not_traceable` while all four sentences of
+    its quotation were verified present in the corpus, because the 60-char
+    prefix straddled a chunk boundary.
+
+    Per-sentence is also the STRICTER check where it matters: a fabricated
+    sentence smuggled into an otherwise-real quotation passes a prefix test
+    and fails this one.
+    """
+    sentences = [
+        norm
+        for raw in _SENTENCE_SPLIT_RE.split(quote)
+        if len(norm := _match_norm(raw)) >= _MIN_TRACEABLE_SENTENCE_CHARS
+    ]
+    if not sentences:
+        # Nothing substantive enough to verify -- fall back to the whole span
+        # so a short quote is still checked rather than waved through.
+        whole = _match_norm(quote)
+        return not whole or any(whole in h for h in haystacks)
+    return all(any(s in h for h in haystacks) for s in sentences)
+
+
+def _quoted_spans(text: str) -> list[str]:
+    """Properly-paired quoted spans at or above the claimed-quotation floor."""
+    return [
+        span
+        for straight, curly in _QUOTE_PAIR_RE.findall(text)
+        if len(span := (straight or curly).strip()) >= _MIN_CLAIMED_QUOTE_CHARS
+    ]
+
+
 # First-person teaching-claim phrasing OUTSIDE quotes -- the product speaks
 # ABOUT the gurus, never AS them (owner decision, docs/VOICE_SAMPLE_AB.md).
 _FIRST_PERSON_TEACHING_RE = re.compile(
@@ -530,17 +655,41 @@ def _misattribution_flags(answer: str, evidence: list[dict]) -> list[str]:
     if not answer:
         return flags
 
-    unquoted = _QUOTE_RE.sub(" ", answer)
+    # Blank out EVERY quoted pair (not just long ones) before looking for a
+    # first-person teaching claim: "I teach ..." inside a short attributed
+    # quotation is the teacher's own words, which is exactly what the product
+    # is supposed to do.
+    unquoted = _QUOTE_PAIR_RE.sub(" ", answer)
     if _FIRST_PERSON_TEACHING_RE.search(unquoted):
         flags.append("first_person_teaching_claim")
 
-    quotes = [m.group(1).strip() for m in _QUOTE_RE.finditer(answer)]
+    quotes = _quoted_spans(answer)
     if quotes:
-        haystacks = [e["text"].lower() for e in evidence if e.get("text")]
+        # Normalize BOTH sides before matching. The model routinely
+        # re-punctuates a quotation it is reproducing faithfully -- a trailing
+        # period for a comma, an ellipsis, a curly apostrophe, collapsed
+        # whitespace across a line break. Exact substring matching scored all
+        # of those as "this quote is not in the evidence", i.e. as the
+        # top-severity misattribution class, which is precisely the failure
+        # mode this gate must not invent.
+        haystacks = [_match_norm(e["text"]) for e in evidence if e.get("text")]
+        # The haystack is the first _EVIDENCE_WINDOW chunks of the cited
+        # sources, not the whole of them. When that window was truncated, a
+        # sentence we cannot find may simply live in a chunk we never fetched
+        # -- calling that a fabricated quotation is an accusation the data
+        # does not support. Verified live 2026-09-17: all three sentences
+        # flagged `quote_not_traceable` on qa-core-001 (a video with 80+
+        # chunks) were confirmed present by a full 12,904-point corpus scan,
+        # including `"I teach people to live in a Beautiful State"` -- a
+        # first-person quotation attributed to Sri Preethaji by name, i.e.
+        # exactly the claim this gate must never get wrong in either
+        # direction.
+        window_truncated = any(e.get("window_truncated") for e in evidence)
         for q in quotes:
-            qlow = q.lower()[:120]
-            if not any(qlow[:60] in h for h in haystacks):
-                flags.append("quote_not_traceable")
+            if not _quote_is_traceable(q, haystacks):
+                flags.append(
+                    "unmeasured_evidence_window" if window_truncated else "quote_not_traceable"
+                )
                 break
 
     mentioned = {m.group(1).lower() for m in _TEACHER_MENTION_RE.finditer(answer)}
@@ -617,9 +766,25 @@ def score_row(
     )
 
     urls = [c.get("url") for c in citations if c.get("url")]
-    evidence = _citation_evidence(qdrant_client, settings.qdrant_collection, urls)
+    evidence_unavailable = False
+    try:
+        evidence = _citation_evidence(qdrant_client, settings.qdrant_collection, urls)
+    except EvidenceUnavailable as exc:
+        # Fail LOUD and UNMEASURED, never quietly "clean". See the comment in
+        # _citation_evidence: scoring misattribution against an empty haystack
+        # is worse than not scoring it, because it looks like a measurement.
+        evidence = []
+        evidence_unavailable = True
+        print(
+            f"  !! EVIDENCE_UNAVAILABLE id={item.get('id')} -- "
+            f"misattribution UNMEASURED for this row: {exc}",
+            file=sys.stderr,
+        )
     machine_summary_share = _machine_summary_share(evidence)
-    misattribution_flags = _misattribution_flags(answer, evidence)
+    if evidence_unavailable:
+        misattribution_flags = ["unmeasured_no_evidence"]
+    else:
+        misattribution_flags = _misattribution_flags(answer, evidence)
 
     return EvalRow(
         id=item["id"],
@@ -750,7 +915,18 @@ def aggregate(rows: list[EvalRow], mode: str, sources: list[str], started_at: st
         hallucination_flag_rate=round(sum(bool(r.hallucination_flag) for r in rows) / n, 4)
         if n
         else 0.0,
-        misattribution_rate=round(sum(1 for r in rows if r.misattribution_flags) / n, 4)
+        # An UNMEASURED row is neither clean nor misattributed -- counting it
+        # as either is a lie. It is reported on its own axis and gated
+        # separately (see eval_max_misattribution_unmeasured_rate).
+        misattribution_rate=round(
+            sum(1 for r in rows if _real_misattribution(r.misattribution_flags)) / n, 4
+        )
+        if n
+        else 0.0,
+        misattribution_unmeasured_rate=round(
+            sum(1 for r in rows if _UNMEASURED_FLAGS & set(r.misattribution_flags or [])) / n,
+            4,
+        )
         if n
         else 0.0,
         lane_fired=lane_fired,
@@ -960,7 +1136,15 @@ def print_summary(report: EvalReport) -> None:
         f"system_error rate            {report.system_error_rate:.0%}  (pipeline broke, e.g. circuit breaker OPEN)"
     )
     print(f"hallucination flag rate      {report.hallucination_flag_rate:.0%}")
-    print(f"misattribution rate          {report.misattribution_rate:.0%}  (top-severity gate)")
+    if report.misattribution_unmeasured_rate:
+        print(
+            f"misattribution rate          UNMEASURED on "
+            f"{report.misattribution_unmeasured_rate:.0%} of rows -- citation evidence "
+            f"could not be resolved (is QDRANT_URL reachable from here?). "
+            f"Measured on the rest: {report.misattribution_rate:.0%}  (top-severity gate)"
+        )
+    else:
+        print(f"misattribution rate          {report.misattribution_rate:.0%}  (top-severity gate)")
     print(
         f"latency p50/p95/max (s)      {report.latency_p50_s}/{report.latency_p95_s}/{report.latency_max_s}"
     )

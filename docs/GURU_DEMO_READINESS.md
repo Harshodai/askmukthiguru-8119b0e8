@@ -1175,14 +1175,18 @@ recognise as not his the moment he reads it, with no investigation at all.
 
 This is the deliverable the audit exists for: the specific questions that can be asked in front of Sri Preethaji and Sri Krishnaji with the attribution chain provably intact.
 
+> **SUPERSEDED — read the CORRECTED RE-DERIVATION immediately below this
+> block first.** The `25% misattribution` figure stated here was produced by a
+> broken detector, not by the product. Four separate defects in
+> `evaluation/bench.py` were found and fixed on 2026-09-17; the corrected
+> measurement is **0% misattribution measured, 12% explicitly unmeasured**.
+> The per-question verdicts in 4A/4B below are likewise superseded.
+
 **RE-DERIVED 2026-09-17, post-F3/F4 fix, against the live local Docker stack**
 (real Qdrant/Redis/Memgraph, real OpenRouter LLM calls, `evaluation/bench.py`
 — the repo's own unified eval harness, `--sources golden_qa_bank --sample 8`,
-8 questions, no mocks). **Honest result: NOT fully demo-safe.**
-`misattribution_rate = 25% (2/8)`, the `misattribution_rate` gate **FAILS**
-(threshold 5%). This is a large improvement over the pre-fix state (100%
-broken, F3 alone guaranteed a `machine_summary` at rank 1 for every question)
-but is not zero, and must not be rounded up to "safe."
+8 questions, no mocks). **Result as first reported: `misattribution_rate =
+25% (2/8)`.** See the correction below — this number was a detector artifact.
 
 | Question ID | Category | Status | Flag |
 | :--- | :--- | :--- | :--- |
@@ -1229,6 +1233,89 @@ treat as unresolved, not as cleared.
 re-evaluated since the F3/F4 fix** — this run sampled 8. Before a real demo,
 run the full 47-question set (`--sources golden_qa_bank` with no `--sample`
 cap) and re-derive this table from the complete result, not this partial one.
+
+---
+
+## 4C. CORRECTED RE-DERIVATION — 2026-09-17 (supersedes 4A/4B above)
+
+The `25%` (and a subsequent `38%`) misattribution figures were **detector
+defects, not product misattribution**. Every quotation traced to ground truth
+was real. Four separate bugs in `evaluation/bench.py`, each found by checking
+the flagged rows against the corpus instead of trusting the number:
+
+1. **The gate was scoring against an empty haystack.** `_citation_evidence`
+   swallowed an unreachable Qdrant (`QDRANT_URL=http://qdrant:6333` is the
+   compose-internal name; the harness runs on the host) into `return []`. With
+   no evidence, `quote_not_traceable` fires on *every* quoted answer and
+   `teacher_mismatch` never runs — yet the run printed a confident
+   "misattribution rate 25% (top-severity gate)". Fixed: raises
+   `EvidenceUnavailable`; such rows are flagged `unmeasured_no_evidence` and
+   fail a new `misattribution_unmeasured_rate` gate (threshold 0).
+2. **Quote-pairing regex re-anchored on closing quotes.** The `>=20`-char
+   floor lived *inside* the pattern, so a short pair like `"I-consciousness"`
+   (15 chars) failed the floor, the engine re-anchored on that pair's own
+   closing quote, and captured the *prose between two quotations* as if the
+   product had claimed it as a quote. This product quotes short doctrinal
+   terms constantly, so the misfire was the common case. Fixed: pair first,
+   apply the length floor after.
+3. **Exact substring matching.** A faithfully reproduced quotation that the
+   model re-punctuated (`change.` for `change,`) scored as untraceable. Fixed:
+   normalize both sides (lowercase, strip punctuation, collapse whitespace).
+4. **Traceability required a 60-char contiguous run inside ONE chunk, over a
+   50-chunk window.** A faithful quote assembled across two chunks failed; and
+   for a video with 80+ chunks, anything quoted from beyond the window read as
+   fabricated. Verified by a full 12,904-point corpus scan: all three
+   sentences flagged on `qa-core-001` were present — including
+   `"I teach people to live in a Beautiful State"`, a first-person quotation
+   attributed to Sri Preethaji by name, i.e. precisely the claim this gate
+   must never get wrong in either direction. Fixed: per-sentence traceability
+   (stricter against a fabricated sentence hidden inside a real quote), and a
+   miss inside a *truncated* window is now reported as
+   `unmeasured_evidence_window`, not as a fabrication.
+
+**Corrected measurement** (same 8 questions, live stack, `QDRANT_URL` pointed
+at `localhost`, all four fixes in place):
+
+| Metric | Value |
+| :--- | :--- |
+| misattribution_rate (measured) | **0%** |
+| misattribution_unmeasured_rate | **12%** (1/8 — `qa-fss-002`, truncated evidence window) |
+| system_error_rate | **0%** (was 12% — see below) |
+| doctrinal contradictions | 0/8 |
+| citation validity | 1.00 |
+| latency p95 | 51.7s |
+
+The run still reports **GATES FAILED**, and that is the correct outcome: it
+fails on `misattribution_unmeasured_rate`, i.e. the harness refuses to certify
+a row it could not conclusively verify. That is the intended behaviour — an
+unmeasurable top-severity gate must fail, not quietly pass.
+
+**Product bug fixed in the same pass (`system_error_rate` 12% → 0%).** One
+question in every run was losing its answer entirely: an ONNX reranker OOM
+(`Failed to allocate memory for requested buffer of size 163577856`) degraded
+verification to `faithfulness_score=0.0`, `citations_verified` still carried
+its old default of `True`, and `PipelineResult.__post_init__` **raised** on
+the contradiction — discarding 48–69 seconds of completed retrieval,
+generation and verification and showing the seeker "The Guru encountered an
+error." Two fixes: `citations_verified` now defaults to `False` at source
+("we could not check" is not "verified"), and the F-VERIFY-1 invariant now
+**coerces and logs** instead of raising — it still guarantees no consumer ever
+sees both flags True, without destroying a finished answer over a metadata
+contradiction. `qa-core-002` now returns a correct evidence-only answer
+("Rather than put words in their mouths, let me give you theirs directly")
+with zero misattribution flags.
+
+**Still open, and NOT fixed here:**
+- The ONNX reranker OOM itself (the *trigger*). `rerank_documents` still fails
+  on it; the "FlashRank fallback" reuses the same ONNX session and fails
+  identically. Reranking is degraded on those requests.
+- `qa-fss-001` ("What are the Four Sacred Secrets?" — the flagship demo
+  question) intermittently **refuses while holding 7 retrieved documents**.
+  It answered with full coverage in some runs and refused in others. A false
+  abstention on the single most likely demo question is a demo risk in its own
+  right, even though refusal ranks below misattribution in the owner's
+  severity order.
+- 39 of 47 Golden QA Bank questions remain un-run since the F3/F4 fix.
 
 ---
 

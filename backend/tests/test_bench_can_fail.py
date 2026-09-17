@@ -157,13 +157,22 @@ def test_aggregate_gates_pass_on_a_clean_report():
     }
     rows = [
         score_row(
-            item, good_raw, latency_s=1.0, mode="anonymous", qdrant_client=None, voice_profile=None
+            item,
+            good_raw,
+            latency_s=1.0,
+            mode="anonymous",
+            # A real client is required for a PASSING report: an unresolvable
+            # one now marks misattribution UNMEASURED and fails the gate, so
+            # "clean" can no longer be reached without actually measuring it.
+            qdrant_client=_StubQdrant(),
+            voice_profile=None,
         )
         for _ in range(5)
     ]
     report = aggregate(rows, mode="e2e:anonymous", sources=["golden_qa_bank"], started_at="t0")
 
     assert report.contradiction_count == 0
+    assert report.misattribution_unmeasured_rate == 0.0
     assert report.gates_passed is True
 
 
@@ -188,6 +197,32 @@ def test_benchmarks_run_entrypoint():
     assert run_main is bench_main
 
 
+class _StubQdrant:
+    """Minimal stand-in for QdrantClient.scroll so scoring tests exercise the
+    real citation->evidence path instead of the unmeasured branch."""
+
+    def __init__(self, texts: list[str] | None = None):
+        self._texts = texts if texts is not None else ["the teachings speak of a beautiful state"]
+
+    def scroll(self, **_kwargs):
+        pts = [
+            type(
+                "P",
+                (),
+                {
+                    "payload": {
+                        "source_url": "http://invalid-url",
+                        "provenance": "verbatim_speech",
+                        "teacher_ids": ["preethaji", "krishnaji"],
+                        "text": t,
+                    }
+                },
+            )()
+            for t in self._texts
+        ]
+        return pts, None
+
+
 def test_misattribution_and_zero_retrieval_trigger_gate_failure():
     """First-person teaching claim + zero-retrieval canary must trigger gate failures."""
     item = _item()
@@ -198,7 +233,12 @@ def test_misattribution_and_zero_retrieval_trigger_gate_failure():
         "evaluation_trace": {"retrieved_count": 0},
     }
     row = score_row(
-        item, bad_raw, latency_s=1.0, mode="anonymous", qdrant_client=None, voice_profile=None
+        item,
+        bad_raw,
+        latency_s=1.0,
+        mode="anonymous",
+        qdrant_client=_StubQdrant(),
+        voice_profile=None,
     )
     assert "first_person_teaching_claim" in row.misattribution_flags
     assert row.zero_retrieval_canary is True
@@ -208,6 +248,110 @@ def test_misattribution_and_zero_retrieval_trigger_gate_failure():
     failed_names = {g.name for g in report.gates if not g.passed}
     assert "misattribution_rate" in failed_names
     assert "zero_retrieval_rate" in failed_names
+
+
+def test_short_quoted_term_does_not_fake_a_quote_not_traceable():
+    """A short quoted doctrinal term must not make the prose AFTER it look
+    like a claimed quotation.
+
+    Regression for the 2026-09-17 live finding: `_QUOTE_RE` applied its
+    >=20-char floor INSIDE the pattern, so a 15-char pair like
+    `"I-consciousness"` failed the floor, the engine re-anchored on that
+    pair's own CLOSING quote, and captured the prose running up to the next
+    quotation as if the product had claimed it as a quote. That produced a
+    25% `misattribution_rate` on the top-severity gate from answers whose
+    real quotations were all traceable.
+    """
+    from evaluation.bench import _misattribution_flags, _quoted_spans
+
+    answer = (
+        'The "I-consciousness" dissolves into limitless oneness. '
+        'Sri Krishnaji explains: "awareness is the beginning of all change."'
+    )
+    # Only the real quotation is a claimed quote; the inter-quote prose is not.
+    assert _quoted_spans(answer) == ["awareness is the beginning of all change."]
+
+    traceable = [{"text": "he taught that awareness is the beginning of all change, always."}]
+    assert _misattribution_flags(answer, traceable) == []
+
+    # ...and it still fires when the quotation genuinely is not in evidence.
+    untraceable = [{"text": "an unrelated passage about something else entirely."}]
+    assert "quote_not_traceable" in _misattribution_flags(answer, untraceable)
+
+
+def test_quote_assembled_across_two_chunks_is_traceable_but_fabrication_is_not():
+    """A faithful quotation spanning two evidence chunks must pass; a
+    fabricated sentence hidden inside an otherwise-real one must not.
+
+    Regression for the 2026-09-17 live finding: traceability was judged by
+    requiring the quote's first 60 normalized characters to appear
+    CONTIGUOUSLY in a single chunk. `qa-core-003` was flagged
+    `quote_not_traceable` while every sentence of its quotation was verified
+    present in the corpus -- the 60-char prefix simply straddled a chunk
+    boundary. Per-sentence checking fixes that without weakening the gate.
+    """
+    from evaluation.bench import _misattribution_flags
+
+    two_chunks = [
+        {"text": "he said these are states of love, of joy, of peace. and more besides."},
+        {"text": "later: your sense of self expands until there is no circumference at all."},
+    ]
+    faithful = (
+        'The teaching: "These are states of love, of joy, of peace. '
+        'Your sense of self expands until there is no circumference."'
+    )
+    assert _misattribution_flags(faithful, two_chunks) == []
+
+    fabricated = (
+        'The teaching: "These are states of love, of joy, of peace. '
+        'Wealth is the true measure of a realised being."'
+    )
+    assert "quote_not_traceable" in _misattribution_flags(fabricated, two_chunks)
+
+
+def test_unresolvable_evidence_is_unmeasured_not_silently_clean():
+    """The top-severity gate must fail closed when it cannot read evidence.
+
+    Regression for the 2026-09-17 live finding: `_citation_evidence` swallowed
+    an unreachable Qdrant (`QDRANT_URL=http://qdrant:6333` from the host) into
+    `return []`, so `quote_not_traceable` fired on EVERY quoted answer with
+    nothing to match against and `teacher_mismatch` never ran -- and the run
+    still printed a confident "misattribution rate 25% (top-severity gate)".
+    An unmeasurable gate must report UNMEASURED and fail, never a number.
+    """
+
+    class _DeadQdrant:
+        def scroll(self, **_kwargs):
+            raise ConnectionError("nodename nor servname provided, or not known")
+
+    item = _item()
+    raw = {
+        # A quoted span that would be flagged quote_not_traceable against an
+        # empty haystack -- the exact false positive this guards.
+        "response": 'The teaching is clear: "a long quoted span of at least twenty characters".',
+        "grounding_state": "grounded",
+        "citations": [{"url": "http://example.com/teaching"}],
+        "evaluation_trace": {"retrieved_count": 5},
+    }
+
+    for dead_client in (_DeadQdrant(), None):
+        row = score_row(
+            item,
+            raw,
+            latency_s=1.0,
+            mode="anonymous",
+            qdrant_client=dead_client,
+            voice_profile=None,
+        )
+        assert row.misattribution_flags == ["unmeasured_no_evidence"], row.misattribution_flags
+        # Must NOT be reported as a measured misattribution...
+        report = aggregate([row], mode="e2e:anonymous", sources=["golden_qa_bank"], started_at="t0")
+        assert report.misattribution_rate == 0.0
+        assert report.misattribution_unmeasured_rate == 1.0
+        # ...and must NOT be reportable as passing.
+        failed = {g.name for g in report.gates if not g.passed}
+        assert "misattribution_unmeasured_rate" in failed, failed
+        assert report.gates_passed is False
 
 
 if __name__ == "__main__":
@@ -221,4 +365,7 @@ if __name__ == "__main__":
     test_all_unified_sources_load_cleanly_without_collision()
     test_benchmarks_run_entrypoint()
     test_misattribution_and_zero_retrieval_trigger_gate_failure()
+    test_short_quoted_term_does_not_fake_a_quote_not_traceable()
+    test_quote_assembled_across_two_chunks_is_traceable_but_fabrication_is_not()
+    test_unresolvable_evidence_is_unmeasured_not_silently_clean()
     print("bench self-check OK: harness correctly goes red on wrong answers, green on correct ones")

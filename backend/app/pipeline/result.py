@@ -6,8 +6,11 @@ accidental mutation during the pipeline flow.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import asdict, dataclass, field
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -156,20 +159,58 @@ class PipelineResult:
         citations_verified=True claim, in either the top-level field or the
         `verification` dict — no consumer could trust either field if both
         were allowed to be True on the same result. Enforced once, here, so
-        no call site (present or future) can reconstruct the bad state."""
+        no call site (present or future) can reconstruct the bad state.
+
+        COERCES rather than raises (changed 2026-09-17). The invariant's
+        purpose is that no consumer ever sees both True; forcing
+        citations_verified to False satisfies that purpose exactly, and in the
+        only safe direction — an answer flagged as hallucinating is never
+        marked verified. Raising did something strictly worse: it destroyed a
+        finished answer over a *metadata* inconsistency. Measured live
+        2026-09-17 on a golden_qa_bank run, 12% of questions (1/8) were lost
+        this way — 48-69 seconds of retrieval, generation and verification
+        discarded at the assembly boundary, and the seeker shown "The Guru
+        encountered an error. Please try again." The trigger was an ONNX
+        reranker OOM degrading verification to faithfulness_score=0.0 while
+        `citations_verified` still carried its old default of True (now fixed
+        at source in rag/nodes/generation.py).
+
+        A metadata contradiction is a reason to distrust the metadata, not a
+        reason to throw away the answer. It is logged at ERROR and recorded in
+        route_metadata so it stays visible rather than becoming silent."""
+        # `object.__setattr__` because this dataclass is frozen -- coercion is
+        # the one place a field is rewritten after construction, deliberately.
+        contradiction = ""
         if self.hallucination_flag and self.citations_verified is True:
-            raise ValueError(
-                "PipelineResult: citations_verified=True is incompatible with "
-                f"hallucination_flag=True (faithfulness_score={self.faithfulness_score!r})"
+            contradiction = (
+                "citations_verified=True is incompatible with hallucination_flag=True "
+                f"(faithfulness_score={self.faithfulness_score!r})"
             )
+            object.__setattr__(self, "citations_verified", False)
         if (
             self.hallucination_flag
             and isinstance(self.verification, dict)
             and self.verification.get("citations_verified") is True
         ):
-            raise ValueError(
-                "PipelineResult.verification['citations_verified']=True is "
-                "incompatible with hallucination_flag=True"
+            contradiction += (
+                " verification['citations_verified']=True is incompatible "
+                "with hallucination_flag=True"
+            )
+            object.__setattr__(
+                self, "verification", {**self.verification, "citations_verified": False}
+            )
+
+        if contradiction:
+            logger.error(
+                "F-VERIFY-1: coerced citations_verified to False -- %s", contradiction.strip()
+            )
+            object.__setattr__(
+                self,
+                "route_metadata",
+                {
+                    **(self.route_metadata or {}),
+                    "verify_invariant_coerced": contradiction.strip(),
+                },
             )
 
     def with_latency(self, latency_ms: int) -> PipelineResult:

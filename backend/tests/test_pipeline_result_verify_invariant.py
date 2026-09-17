@@ -21,22 +21,40 @@ def _base_kwargs(**overrides):
     return kwargs
 
 
-def test_top_level_citations_verified_true_with_hallucination_rejected():
-    with pytest.raises(ValueError, match="citations_verified=True"):
-        PipelineResult(**_base_kwargs(citations_verified=True))
+def test_top_level_citations_verified_true_with_hallucination_is_coerced_not_fatal():
+    """The invariant holds for consumers -- but by COERCION, not by raising.
+
+    Changed 2026-09-17 after measuring the cost of raising: on a live
+    golden_qa_bank run 12% of questions (1/8) lost a finished answer at the
+    assembly boundary (48-69s of work discarded, seeker shown "The Guru
+    encountered an error") because an ONNX reranker OOM degraded verification
+    to faithfulness_score=0.0 while citations_verified still defaulted True.
+    A metadata contradiction must not destroy the answer.
+    """
+    result = PipelineResult(**_base_kwargs(citations_verified=True))
+
+    # The guarantee the invariant exists for: no consumer ever sees both True.
+    assert result.hallucination_flag is True
+    assert result.citations_verified is False
+    # ...and the answer survived rather than being thrown away.
+    assert result.final_answer == "answer"
+    # ...and the contradiction is recorded, not silently swallowed.
+    assert "citations_verified" in result.route_metadata.get("verify_invariant_coerced", "")
 
 
-def test_verification_dict_citations_verified_true_with_hallucination_rejected():
-    with pytest.raises(ValueError, match="citations_verified"):
-        PipelineResult(
-            **_base_kwargs(
-                verification={
-                    "passed": False,
-                    "method": "x",
-                    "citations_verified": True,
-                }
-            )
+def test_verification_dict_citations_verified_true_with_hallucination_is_coerced():
+    result = PipelineResult(
+        **_base_kwargs(
+            verification={
+                "passed": False,
+                "method": "x",
+                "citations_verified": True,
+            }
         )
+    )
+    assert result.verification["citations_verified"] is False
+    assert result.final_answer == "answer"
+    assert result.route_metadata.get("verify_invariant_coerced")
 
 
 def test_hallucination_flag_true_with_citations_verified_false_is_allowed():

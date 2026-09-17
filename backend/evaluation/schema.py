@@ -147,6 +147,11 @@ class EvalReport(BaseModel):
     system_error_rate: float = 0.0
     hallucination_flag_rate: float = 0.0
     misattribution_rate: float = 0.0
+    # Rows where citation->chunk evidence could not be resolved at all, so the
+    # misattribution check could not run. Tracked separately because an
+    # unmeasured row is neither clean nor misattributed, and a run that cannot
+    # measure its own top-severity gate must not be reportable as passing it.
+    misattribution_unmeasured_rate: float = 0.0
     lane_fired: dict[str, int] = Field(default_factory=dict)
 
     latency_p50_s: float = 0.0
@@ -198,6 +203,17 @@ def build_gates(report: EvalReport, settings: Any) -> list[GateResult]:
             "misattribution_rate",
             report.misattribution_rate,
             settings.eval_max_misattribution_rate,
+            "<=",
+        ),
+        # Fail closed on an unmeasurable top-severity gate. A run that could
+        # not resolve citation evidence cannot claim a misattribution rate at
+        # all, so it must not be able to report PASS by scoring an empty
+        # haystack (live 2026-09-17: a host-side run with the compose-internal
+        # QDRANT_URL printed a confident "25%" from zero evidence).
+        (
+            "misattribution_unmeasured_rate",
+            report.misattribution_unmeasured_rate,
+            getattr(settings, "eval_max_misattribution_unmeasured_rate", 0.0),
             "<=",
         ),
     ]
@@ -261,6 +277,7 @@ if __name__ == "__main__":
         eval_max_zero_retrieval_rate = 0.05
         eval_max_latency_p95_s = 90.0
         eval_max_misattribution_rate = 0.05
+        eval_max_misattribution_unmeasured_rate = 0.0
         eval_max_system_error_rate = 0.0
 
     gates = build_gates(r, _S())

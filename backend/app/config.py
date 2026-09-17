@@ -1305,6 +1305,11 @@ class Settings(BaseSettings):
     # teaching, or presents non-verbatim prose as their speech is worse than
     # a refusal. Kept stricter than every other gate.
     eval_max_misattribution_rate: float = Field(default=0.05, ge=0.0, le=1.0)
+    # Zero by default and it should stay there: a row whose citation evidence
+    # could not be resolved cannot be scored for misattribution at all, and a
+    # run that cannot measure its top-severity gate must fail rather than
+    # report a number it did not measure.
+    eval_max_misattribution_unmeasured_rate: float = Field(default=0.0, ge=0.0, le=1.0)
     # A system_error response (grounding_state=system_error / intent=ERROR)
     # means the pipeline itself broke -- e.g. circuit breaker OPEN -- not
     # that it made a considered doctrinal call. Zero-tolerance by default.
