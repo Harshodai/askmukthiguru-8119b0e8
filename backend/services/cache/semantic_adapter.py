@@ -213,8 +213,19 @@ class SemanticCacheAdapter(ICacheRepository):
                         )
                         return cached
                 else:
-                    # Redis TTL expired, but Qdrant vector remains. Act as miss.
-                    pass
+                    # Redis TTL expired but the Qdrant vector was never
+                    # deleted -- it would otherwise sit in the collection
+                    # forever (no TTL support on the Qdrant side), degrading
+                    # HNSW search quality as dead points accumulate. Clean up
+                    # the one we just found; tasks/cache_maintenance_tasks.py
+                    # sweeps the rest (entries nobody re-queries would never
+                    # hit this reactive path).
+                    try:
+                        self._qdrant.delete(
+                            collection_name=self._collection, points_selector=[point_id]
+                        )
+                    except Exception as del_err:
+                        logger.warning(f"Semantic cache stale-point cleanup failed: {del_err}")
         except Exception as e:
             logger.error(f"Semantic cache get error: {e}")
 
@@ -260,6 +271,12 @@ class SemanticCacheAdapter(ICacheRepository):
                             "tenant_id": scope.tenant_id,
                             "corpus_id": scope.corpus_id,
                             "teacher_id": scope.teacher_id,
+                            # Mirrors the Redis payload's cached_at -- the
+                            # scheduled sweep (tasks/cache_maintenance_tasks.py)
+                            # needs an age it can filter on without touching
+                            # Redis, since the whole point is to catch entries
+                            # whose Redis key is already gone.
+                            "cached_at": payload["cached_at"],
                         },
                     )
                 ],

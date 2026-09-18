@@ -23,6 +23,19 @@
 #   docker compose down                             # Stop all services
 # ============================================================
 
+# Docker's default json-file log driver has no size cap -- left unset, a
+# long-running container's stdout/stderr grows on disk without bound. None of
+# the services below had this configured. Applied to the ones that actually
+# produce sustained log volume in production (the app services and the
+# databases they talk to on every request); left off the dev/observability
+# extras (jaeger/prometheus/grafana/supabase-*/frontend/gptcache-server),
+# which aren't part of the always-on default profile.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   # ============================================================
   # Graph Databases: Memgraph (Primary, 7687) & Neo4j (Fallback, 7689)
@@ -32,6 +45,7 @@ services:
   memgraph:
     image: memgraph/memgraph-mage:latest
     container_name: mukthiguru-memgraph
+    logging: *default-logging
     ports:
       - "7687:7687" # Bolt Protocol (Primary)
       - "7444:7444" # WebSocket / Memgraph Lab
@@ -88,6 +102,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: mukthiguru-redis
+    logging: *default-logging
     ports:
       - "6379:6379"
     command: >
@@ -135,6 +150,7 @@ services:
   qdrant:
     image: qdrant/qdrant:v1.18.0
     container_name: mukthiguru-qdrant
+    logging: *default-logging
     ports:
       - "6333:6333" # REST API
       - "6334:6334" # gRPC
@@ -163,6 +179,7 @@ services:
     container_name: mukthiguru-backend
     labels:
       - "autoheal=true"
+    logging: *default-logging
     ports:
       - "8000:8000"
     env_file:
@@ -392,6 +409,7 @@ services:
       dockerfile: backend/Dockerfile
     container_name: mukthiguru-celery-worker
     profiles: [ingestion]
+    logging: *default-logging
     healthcheck:
       test: ["CMD-SHELL", "celery -A celery_config inspect ping -d celery@$$HOSTNAME --timeout 5 || exit 1"]
       interval: 30s

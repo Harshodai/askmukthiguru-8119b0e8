@@ -185,6 +185,11 @@ class TestSemanticAdapterRoundtrip:
         cached = semantic_adapter.get("en:expired question")
         assert cached is None
         assert semantic_adapter._misses == 1
+        # Found 2026-09-18: Qdrant has no TTL, so a hit whose Redis payload
+        # already expired must be deleted here or it accumulates forever.
+        mock_qdrant.delete.assert_called_once_with(
+            collection_name=semantic_adapter._collection, points_selector=["point_expired_789"]
+        )
 
     def test_invalidate_by_query_no_type_error(self, semantic_adapter, mock_qdrant, mock_redis):
         query = "en:how to attain peace"

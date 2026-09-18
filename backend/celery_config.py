@@ -102,6 +102,10 @@ celery_app.conf.update(
             "task": "tasks.memory_outbox_tasks.drain_memory_outbox",
             "schedule": 60.0,
         },
+        "prune-semantic-cache": {
+            "task": "tasks.cache_maintenance_tasks.prune_semantic_cache",
+            "schedule": 3600.0,  # hourly -- semantic_cache_ttl is 7 days, no need to run more often
+        },
     },
 )
 
