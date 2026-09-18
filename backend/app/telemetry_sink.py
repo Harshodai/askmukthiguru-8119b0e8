@@ -138,6 +138,27 @@ class SupabaseTelemetrySink:
         except ValueError:
             return str(uuid.uuid5(uuid.NAMESPACE_DNS, val_str))
 
+    def _coerce_int(self, val: Any) -> Optional[int]:
+        """Round a numeric to int for an INTEGER column, or drop it if unusable.
+
+        Postgres rejects a float for an integer column outright, and the whole
+        row is lost. Measured live 2026-09-17:
+            invalid input syntax for type integer: "108.43"
+        killed a `chat_responses` insert. That matters more than one missing
+        row: `scripts/ops/hallucination_anomaly.py` reads this table, so an
+        insert failure makes the anomaly job read "no hallucinations" when the
+        truth is "no data" -- the sink's own error message says exactly this.
+        Coercing at the sink covers every caller, rather than trusting each one
+        to pass a pre-rounded millisecond value.
+        """
+        if val is None or isinstance(val, bool):
+            return None
+        try:
+            return int(round(float(val)))
+        except (TypeError, ValueError):
+            logger.warning("Telemetry: dropping non-numeric integer field value %r", val)
+            return None
+
     def _stable_child_id(self, query_id: str, logical: str) -> str:
         """Deterministic UUID for a trace child row, derived from the parent
         trace id plus a logical event identity (e.g. 'response'). The worker is
@@ -161,7 +182,7 @@ class SupabaseTelemetrySink:
             "user_id": user_id,
             "query_text": trace.query_text,
             "model": trace.model,
-            "latency_ms": trace.latency_ms,
+            "latency_ms": self._coerce_int(trace.latency_ms),
             "status": trace.status,
             "created_at": trace.created_at,
             "response_text": trace.response_text,
@@ -180,10 +201,10 @@ class SupabaseTelemetrySink:
             "provider": trace.provider,
             "route_decision": trace.route_decision,
             "cache_hit": trace.cache_hit,
-            "ttft_ms": trace.ttft_ms,
+            "ttft_ms": self._coerce_int(trace.ttft_ms),
             "tokens_per_second": trace.tokens_per_second,
-            "prompt_tokens": trace.prompt_tokens,
-            "completion_tokens": trace.completion_tokens,
+            "prompt_tokens": self._coerce_int(trace.prompt_tokens),
+            "completion_tokens": self._coerce_int(trace.completion_tokens),
             "cost_estimate": trace.cost_estimate,
             "evaluation_trace": trace.evaluation_trace,
             "assistant_slug": trace.assistant_slug,
@@ -317,7 +338,7 @@ class SupabaseTelemetrySink:
         user_id = self._coerce_uuid(p.get("user_id"))
         query_text = p.get("query_text")
         model = p.get("model")
-        latency_ms = p.get("latency_ms")
+        latency_ms = self._coerce_int(p.get("latency_ms"))
         status = p.get("status")
         created_at = p.get("created_at")
         response_text = p.get("response_text")
@@ -333,10 +354,10 @@ class SupabaseTelemetrySink:
         provider = p.get("provider")
         route_decision = p.get("route_decision")
         cache_hit = p.get("cache_hit")
-        ttft_ms = p.get("ttft_ms")
+        ttft_ms = self._coerce_int(p.get("ttft_ms"))
         tokens_per_second = p.get("tokens_per_second")
-        prompt_tokens = p.get("prompt_tokens")
-        completion_tokens = p.get("completion_tokens")
+        prompt_tokens = self._coerce_int(p.get("prompt_tokens"))
+        completion_tokens = self._coerce_int(p.get("completion_tokens"))
         cost_estimate = p.get("cost_estimate")
         evaluation_trace = p.get("evaluation_trace")
         citations_verified = p.get("citations_verified")

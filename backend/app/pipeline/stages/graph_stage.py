@@ -170,6 +170,7 @@ class GraphStage(Stage):
                 initial_state["codemix_preference"] = True
             initial_state["memory_context"] = memory_context
             initial_state["user_id"] = ctx.user_id or "anonymous"
+            initial_state["stable_session_id"] = ctx.stable_session_id or "anonymous"
             # Attachment evidence is a per-turn input, separate from personal memory.
             # The generation layer labels it as untrusted material and never persists it.
             attachment_context = _attachment_context_from_request(chat_body)

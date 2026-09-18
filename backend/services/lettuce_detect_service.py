@@ -32,7 +32,9 @@ Contract (preserved across both paths, callers in
 
 import logging
 import re
+import threading
 import time
+from typing import Any, ClassVar
 
 from app.config import settings
 
@@ -194,6 +196,13 @@ class LettuceDetectService:
     heuristic so the build does not hard-depend on torch/transformers.
     """
 
+    # Shared across every instance in the process -- see _load_real_detector.
+    _shared_detector: ClassVar[Any] = None
+    _shared_load_attempted: ClassVar[bool] = False
+    # score_faithfulness is sync and runs via asyncio.to_thread, so concurrent
+    # requests hit _load_real_detector from separate threadpool threads.
+    _shared_load_lock: ClassVar[threading.Lock] = threading.Lock()
+
     def __init__(self, embedder=None) -> None:
         """Initialize the service.
 
@@ -241,49 +250,80 @@ class LettuceDetectService:
         hand the local snapshot dir to the detector as ``model_path`` —
         matching the ONNX reranker pattern (``services/onnx_reranker.py::_load``).
         """
-        if self._real_load_attempted:
-            return self._real_detector
-        self._real_load_attempted = True
+        # Class-level cache: the loaded detector is shared by EVERY instance in
+        # the process. It was previously per-instance, so the startup warm-up in
+        # app/main.py loaded the model into a throwaway LettuceDetectService
+        # while the pipeline's own instance still paid the full load on its
+        # first real request. Measured live 2026-09-17: three requests hit
+        # "Faithfulness scorer exceeded 8.0s deadline" while completed scorings
+        # took only 1.5-3.3ms -- the gap was the model load, not inference.
+        # That deadline fails CLOSED, so each timeout rejected a good answer and
+        # triggered a regeneration, doubling that request's latency AND token
+        # cost. Ingestion also builds many instances per run (same lesson as
+        # OpenRouterService's shared rate limiter), each of which would
+        # otherwise reload the model.
+        if LettuceDetectService._shared_load_attempted:
+            return LettuceDetectService._shared_detector
 
-        try:
-            from huggingface_hub import snapshot_download
-            from lettucedetect.models.inference import HallucinationDetector
-        except ImportError as e:
-            logger.warning(
-                "LettuceDetect real detector unavailable (ImportError: %s). "
-                "Falling back to heuristic. Install lettucedetect>=0.2.2 to enable.",
-                e,
-            )
-            return None
+        # Double-checked locking. The flag must only become True AFTER the
+        # load fully resolves (success or failure) -- setting it any earlier
+        # means a thread can observe "attempted" from OUTSIDE the lock (the
+        # fast-path check above) while the load is still in progress inside
+        # another thread's held lock, and get None back even though the real
+        # detector finishes loading moments later. That was the bug found
+        # 2026-09-18: `_shared_load_attempted = True` was set before the ~8s
+        # load (see L-WARM-1) even started, so ANY concurrent request during
+        # that window silently downgraded to the heuristic scorer with no
+        # warning. Startup warm-up (app/main.py) covers the common case, but
+        # this is still a genuine race for a request landing before warm-up
+        # completes, or after a runtime config flip re-enables
+        # lettucedetect_enabled. `finally` guarantees the flag flips exactly
+        # once, still inside the lock, regardless of which branch returns.
+        with LettuceDetectService._shared_load_lock:
+            if LettuceDetectService._shared_load_attempted:
+                return LettuceDetectService._shared_detector
 
-        try:
-            # Pin the revision via snapshot_download, then load from the
-            # local dir. This is the same pattern as OnnxReranker._load —
-            # the package's TransformerDetector calls from_pretrained on
-            # the path we give it, so the pinned snapshot is what loads.
-            local_path = snapshot_download(
-                repo_id=_LETTUCE_MODEL_ID,
-                revision=_LETTUCE_MODEL_REVISION,
-                resume_download=True,
-            )
-            self._real_detector = HallucinationDetector(
-                method="transformer",
-                model_path=local_path,
-            )
-            logger.info(
-                "LettuceDetect real detector loaded: %s @ %s",
-                _LETTUCE_MODEL_ID,
-                _LETTUCE_MODEL_REVISION,
-            )
-            return self._real_detector
-        except Exception as e:
-            logger.warning(
-                "LettuceDetect real detector failed to load (%s: %s). "
-                "Falling back to heuristic for this process.",
-                type(e).__name__,
-                e,
-            )
-            return None
+            try:
+                try:
+                    from huggingface_hub import snapshot_download
+                    from lettucedetect.models.inference import HallucinationDetector
+                except ImportError as e:
+                    logger.warning(
+                        "LettuceDetect real detector unavailable (ImportError: %s). "
+                        "Falling back to heuristic. Install lettucedetect>=0.2.2 to enable.",
+                        e,
+                    )
+                    return None
+
+                # Pin the revision via snapshot_download, then load from the
+                # local dir. This is the same pattern as OnnxReranker._load —
+                # the package's TransformerDetector calls from_pretrained on
+                # the path we give it, so the pinned snapshot is what loads.
+                local_path = snapshot_download(
+                    repo_id=_LETTUCE_MODEL_ID,
+                    revision=_LETTUCE_MODEL_REVISION,
+                    resume_download=True,
+                )
+                LettuceDetectService._shared_detector = HallucinationDetector(
+                    method="transformer",
+                    model_path=local_path,
+                )
+                logger.info(
+                    "LettuceDetect real detector loaded: %s @ %s",
+                    _LETTUCE_MODEL_ID,
+                    _LETTUCE_MODEL_REVISION,
+                )
+                return LettuceDetectService._shared_detector
+            except Exception as e:
+                logger.warning(
+                    "LettuceDetect real detector failed to load (%s: %s). "
+                    "Falling back to heuristic for this process.",
+                    type(e).__name__,
+                    e,
+                )
+                return None
+            finally:
+                LettuceDetectService._shared_load_attempted = True
 
     # ------------------------------------------------------------------
     # Public contract

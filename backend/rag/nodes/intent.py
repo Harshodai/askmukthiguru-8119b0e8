@@ -1328,6 +1328,25 @@ async def handle_casual(state: GraphState, config: Optional[RunnableConfig] = No
             "🙏 Namaste! I am Mukthi Guru, here to walk with you on the "
             "path of spiritual awakening. Please share what is in your heart."
         )
+
+    # handle_casual never runs retrieval, so it has zero context to verify any
+    # quoted span against -- unlike handle_distress/format_final_answer, there
+    # is no docs list to pass _unquote_unverifiable_spans (an empty one is a
+    # deliberate no-op there, for callers where "no docs" usually just means
+    # nothing was retrieved this turn). Here it always means no source could
+    # possibly exist, so any attributed quotation is unverifiable by
+    # construction -- strip unconditionally rather than call a guard whose
+    # empty-docs default would silently let it straight through.
+    from rag.nodes.generation import strip_all_attributed_quotes
+
+    response, _unquoted = strip_all_attributed_quotes(response)
+    if _unquoted:
+        logger.warning(
+            "Casual handler: removed quotation marks from %d span(s) -- "
+            "no retrieval context exists on this path to verify against",
+            _unquoted,
+        )
+
     return {
         "final_answer": response,
         "intent": "CASUAL",
@@ -1513,11 +1532,29 @@ Retrieved teachings from Sri Preethaji and Sri Krishnaji:
     # built above (line ~757) never includes source_url, so a distress-routed
     # answer can free-generate a fake video ID. Reuse the same cleanup the
     # QUERY path already applies instead of duplicating URL-validation logic.
-    from rag.nodes.generation import _clean_inline_citations
+    from rag.nodes.generation import _clean_inline_citations, _unquote_unverifiable_spans
 
     response = _clean_inline_citations(response)
     if not response or not response.strip():
         response = get_distress_response()
+
+    # Same bypass, same fix pattern as the cleanup above: this handler's own
+    # prompt tells the model to use "{voice_teacher}'s words naturally, as if
+    # the guru is speaking directly" (see the prompt built above), which is an
+    # open invitation to fabricate a quotation attributed to a living teacher.
+    # format_final_answer demotes any quoted span not verbatim in the
+    # retrieved context; this path skipped that guard entirely, and it is
+    # exactly how the ground-truthed fabrication in
+    # docs/GURU_DEMO_READINESS.md §4E.1 ("...waves passing through the ocean
+    # of consciousness") reached a seeker (verification.method ==
+    # "distress_safety_preemption", set below).
+    response, _unquoted = _unquote_unverifiable_spans(response, relevant_docs)
+    if _unquoted:
+        logger.warning(
+            "Distress handler: removed quotation marks from %d span(s) not found "
+            "verbatim in context -- the claim may be grounded, but the attribution was not",
+            _unquoted,
+        )
 
     # Same bypass-of-format_final_answer problem as the URL cleanup above:
     # this path never populated citations, so a distress answer that DID

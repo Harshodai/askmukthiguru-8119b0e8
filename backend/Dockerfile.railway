@@ -52,6 +52,14 @@ USER appuser
 # Pre-cache the ONNX INT8 quantized BGE-M3 model & tokenizer at build time for fast cold-start
 RUN python3 -c "from huggingface_hub import snapshot_download; snapshot_download('gpahal/bge-m3-onnx-int8', revision='2b34e84df040034d4b9eabb62383a87c18955822'); from transformers import AutoTokenizer; AutoTokenizer.from_pretrained('BAAI/bge-m3', revision='5617a9f61b028005a4858fdac845db406aefb181')" && \
     rm -rf /app/.cache/huggingface/hub/models--*/*/locks /tmp/*
+
+# Pre-cache the PyTorch CrossEncoder reranker (settings.reranker_model_cpu,
+# services/reranker_service.py) that RERANKER_BACKEND=onnx_int8 falls back to
+# when OnnxReranker fails to load. Uncached, that fallback would attempt a
+# ~470MB HF download at request time inside this memory-constrained container.
+# Pinned commit, resolved 2026-09-17 (see scripts/download_models.py).
+RUN python3 -c "from sentence_transformers import CrossEncoder; CrossEncoder('cross-encoder/mmarco-mMiniLMv2-L12-H384-v1', revision='1427fd652930e4ba29e8149678df786c240d8825')" && \
+    rm -rf /app/.cache/huggingface/hub/models--*/*/locks /tmp/*
 USER root
 
 # Copy app code with explicit ownership

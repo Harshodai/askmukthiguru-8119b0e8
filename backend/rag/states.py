@@ -182,6 +182,20 @@ class GraphState(TypedDict):
     selected_docs: Optional[
         list
     ]  # post-budget survivors from context_engineer (read by generate_answer)
+    # The documents generate_answer ACTUALLY built its prompt from, after its
+    # own local token-budget truncation and context compression. Verification
+    # must score the answer against THIS, not against `relevant_docs`.
+    #
+    # `relevant_docs` is an earlier snapshot written by grade_documents /
+    # reranking, before context_engineer selected and generate_answer truncated.
+    # Scoring against it meant a sentence grounded in the prompt's OKF or
+    # knowledge-graph content had no matching text in the scorer's context and
+    # was reported unsupported -- a faithfulness failure invented by a context
+    # mismatch rather than by the answer. Measured live 2026-09-17: deep and
+    # standard tiers (which run context_engineer) failed verification while
+    # tier2_simple (which does not) passed. The lenient word-overlap heuristic
+    # had masked this for as long as the real NLI detector was uninstalled.
+    verification_context_docs: Optional[list]
 
     # Explainable Retrieval
     citation_reasoning: Annotated[dict, add_dicts]  # {url: reasoning}
@@ -191,6 +205,11 @@ class GraphState(TypedDict):
 
     # NEW: User & Language Context
     user_id: Optional[str]
+    # Stable per-conversation id (anon:<session> or authed user id). Passed to
+    # OpenRouter as a top-level session_id so its sticky routing can pin
+    # follow-up turns to the same upstream provider node, which is required
+    # for the automatic (no cache_control) prompt caching DeepSeek/Llama use.
+    stable_session_id: Optional[str]
     detected_language: Optional[str]
     memory_context: Optional[str]
     # User-selected answer voice ("gentle" | "direct" | "poetic"); None = default.

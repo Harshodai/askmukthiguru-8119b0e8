@@ -261,38 +261,76 @@ REQUIRED_NEO4J_CONSTRAINTS: tuple[str, ...] = (
 )
 
 
-def assert_neo4j_constraints_ready(driver) -> None:
-    """P5 startup readiness assert: required Neo4j uniqueness constraints exist.
+# (label, property) each required constraint maps to, mirroring
+# seed_ontology.py's migrations. Memgraph's `SHOW CONSTRAINT INFO` drops
+# constraint names entirely (unlike Neo4j's `SHOW CONSTRAINTS YIELD name`) —
+# `CREATE CONSTRAINT <name> ... FOR (t:Label) REQUIRE t.prop IS UNIQUE` is
+# accepted (with a warning) but the name is discarded, so identity has to be
+# matched by (label, property) instead.
+_CONSTRAINT_LABEL_PROPERTY: dict[str, tuple[str, str]] = {
+    "UNIQUE_TEACHER_NAME": ("Teacher", "name"),
+    "UNIQUE_CONCEPT_NAME": ("Concept", "name"),
+    "UNIQUE_PRACTICE_NAME": ("Practice", "name"),
+    "UNIQUE_USER_ID": ("User", "id"),
+    "UNIQUE_GLOBALMEMORY_ID": ("GlobalMemory", "id"),
+    "UNIQUE_SEEKERTURN_ID": ("SeekerTurn", "turn_id"),
+    "UNIQUE_GURUTEACHING_NAME": ("GuruTeaching", "name"),
+    "UNIQUE_GURURESPONSE_ID": ("GuruResponse", "artifact_id"),
+    "UNIQUE_STATE_NAME": ("State", "name"),
+    "UNIQUE_INFERENCEACTIVITY_ID": ("InferenceActivity", "activity_id"),
+    "UNIQUE_SOFTWAREAGENT_ID": ("SoftwareAgent", "agent_id"),
+    "UNIQUE_WISDOMCHUNK_ID": ("WisdomChunk", "chunk_id"),
+}
 
-    Strictly read-only — runs SHOW CONSTRAINTS and never creates anything
+
+def assert_neo4j_constraints_ready(driver) -> None:
+    """P5 startup readiness assert: required Memgraph uniqueness constraints exist.
+
+    Strictly read-only — runs SHOW CONSTRAINT INFO and never creates anything
     (startup schema mutations live in the standalone maintenance runner;
     see the read-only invariant below). Raises RuntimeError listing missing
     constraints when connected but incomplete, which the lifespan wrapper
     converts to startup_error (not-ready). Returns silently when the driver
     is unavailable or unreachable — that is degraded mode, reported by the
     neo4j health check, not a constraint violation.
+
+    Uses Memgraph's `SHOW CONSTRAINT INFO`, not Neo4j's `SHOW CONSTRAINTS` —
+    the stack migrated to Memgraph (see CLAUDE.md) and Memgraph rejects the
+    Neo4j syntax, which previously made this assert always fail open.
     """
     if driver is None:
         logger.warning("Neo4j constraint assert skipped: driver unavailable (degraded mode)")
         return
     try:
         with driver.session() as session:
-            records = session.run("SHOW CONSTRAINTS YIELD name")
-            present = {r["name"] for r in records if r["name"]}
+            records = session.run("SHOW CONSTRAINT INFO")
+            present = {
+                (r["label"], tuple(r["properties"]))
+                for r in records
+                if r.get("label") and r.get("properties")
+            }
     except Exception as exc:
-        logger.warning("Neo4j constraint assert skipped: SHOW CONSTRAINTS failed: %s", exc)
+        logger.warning("Neo4j constraint assert skipped: SHOW CONSTRAINT INFO failed: %s", exc)
         return
-    missing = [n for n in REQUIRED_NEO4J_CONSTRAINTS if n not in present]
+    missing = [
+        n
+        for n in REQUIRED_NEO4J_CONSTRAINTS
+        if (
+            _CONSTRAINT_LABEL_PROPERTY[n][0],
+            (_CONSTRAINT_LABEL_PROPERTY[n][1],),
+        )
+        not in present
+    ]
     if missing:
         raise RuntimeError(
-            "Neo4j uniqueness constraints missing: "
+            "Neo4j/Memgraph uniqueness constraints missing: "
             + ", ".join(missing)
             + ". Run the maintenance runner before serving traffic; "
             "unconstrained concurrent MERGE produces duplicate nodes."
         )
     logger.info(
         "Neo4j constraint assert OK: %d/%d required constraints present",
-        len(present & set(REQUIRED_NEO4J_CONSTRAINTS)),
+        len(REQUIRED_NEO4J_CONSTRAINTS) - len(missing),
         len(REQUIRED_NEO4J_CONSTRAINTS),
     )
 
@@ -579,6 +617,28 @@ async def _background_startup_body(container, fastapi_app) -> None:
             )
     except Exception as _semantic_warmup_err:
         logger.warning("Semantic-router warm-up failed (non-fatal): %s", _semantic_warmup_err)
+
+    # LettuceDetect warm-up. The real NLI detector (ModernBERT) lazy-loads on
+    # the FIRST score_faithfulness call, and that first call was measured at
+    # 7945ms against `faithfulness_verification_timeout` (default 8.0s) on
+    # 2026-09-17 -- so the very first request after a deploy could blow its own
+    # faithfulness budget and fall back to the heuristic. That is the
+    # anti-hallucination gate degrading at exactly the moment the container is
+    # coldest, silently. Paying the load here, before traffic, removes the race
+    # for every worker. Non-fatal: a warm-up failure must never block startup,
+    # and the scorer still lazy-loads on demand if this does not run.
+    try:
+        if getattr(settings, "lettucedetect_enabled", False):
+            from services.lettuce_detect_service import LettuceDetectService
+
+            _t0 = time.time()
+            _ld = LettuceDetectService(embedder=getattr(container, "embedding", None))
+            await asyncio.to_thread(_ld._load_real_detector)
+            logger.info(
+                "LettuceDetect warm-up complete: latency=%dms", int((time.time() - _t0) * 1000)
+            )
+    except Exception as _lettuce_warmup_err:
+        logger.warning("LettuceDetect warm-up failed (non-fatal): %s", _lettuce_warmup_err)
 
     _app_deps.startup_complete = True
     logger.info("=== Mukthi Guru Backend Ready ===")

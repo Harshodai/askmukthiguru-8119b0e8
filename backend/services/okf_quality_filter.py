@@ -38,6 +38,21 @@ _LEAKAGE_PATTERNS = _SHARED_ARTIFACT_PATTERNS + (
 )
 _LEAKAGE_RE = re.compile("|".join(_LEAKAGE_PATTERNS), re.IGNORECASE | re.MULTILINE)
 
+# Shortest quotation that may be judged "fabricated" for restating the Summary.
+# Below this a genuine short teaching line could legitimately appear in both.
+_MIN_FABRICATED_QUOTE_CHARS = 60
+_MATCH_NOISE_RE = re.compile(r"[^\w\s]+")
+
+# A quotation longer than this must end on a sentence terminator; below it, a
+# short quoted term or phrase is a legitimate gloss, not a truncated teaching.
+_MIN_COMPLETE_QUOTE_CHARS = 40
+_QUOTE_TERMINATORS = ".!?…\"'"
+
+
+def _normalise_for_match(text: str) -> str:
+    """Lowercase, strip punctuation, collapse whitespace — for quote/summary comparison."""
+    return " ".join(_MATCH_NOISE_RE.sub(" ", text.lower()).split())
+
 
 class OKFQualityFilter:
     """Filters and validates synthesized OKF entries."""
@@ -78,6 +93,25 @@ class OKFQualityFilter:
         if leak:
             return False, f"Extraction artifact / prompt leakage in body: {leak.group(0)!r}"
 
+        # A "quotation" that merely restates the entry's own machine-written
+        # Summary is not a quotation -- it is the extractor's prose wearing
+        # quotation marks, and several such entries name a LIVING teacher as the
+        # speaker. That is the single worst output this product can produce.
+        fabricated = cls._fabricated_quote(body)
+        if fabricated:
+            quote, attribution = fabricated
+            return False, (
+                "Fabricated quote: quoted text is the entry's own machine-written "
+                f"Summary, attributed to {attribution!r}: {quote[:80]!r}"
+            )
+
+        truncated = cls._truncated_quote(body)
+        if truncated:
+            return False, (
+                "Truncated quote: the quotation is cut off mid-sentence, so it "
+                f"misquotes the teacher it attributes: ...{truncated[-60:]!r}"
+            )
+
         # Verify doctrine-specific validation
         body_lower = body.lower()
         if (
@@ -89,6 +123,60 @@ class OKFQualityFilter:
             logger.debug(f"OKF Warning: '{title}' has low doctrine term density.")
 
         return True, ""
+
+    @classmethod
+    def _fabricated_quote(cls, body: str) -> tuple[str, str] | None:
+        """Return (quote, attribution) if a blockquote restates the ## Summary.
+
+        Found live 2026-09-17: 26 of 488 quotations across the OKF bundle were
+        the entry's own Summary paragraph repeated verbatim inside quotation
+        marks, and 5 of those carried "-- Sri Preethaji". The extractor writes a
+        machine summary, then re-emits it as a "## Quotes" blockquote attributed
+        to a living teacher. Every OKF entry is injected verbatim into answers,
+        so promoting one of these quotes fabricated speech and attached a real
+        person's name to it.
+
+        Matching is normalised (case/punctuation-insensitive, whitespace
+        collapsed) because the extractor re-punctuates between the two copies.
+        The >=60-character floor keeps a genuinely short quotation that happens
+        to also appear in the summary from tripping this -- a teacher really can
+        be quoted in one short line that the summary then reuses.
+        """
+        summary_match = re.search(r"##\s*Summary\s*\n(.*?)(?=\n##\s|\Z)", body, re.S)
+        if not summary_match:
+            return None
+        summary = _normalise_for_match(summary_match.group(1))
+        if not summary:
+            return None
+
+        for quote, attribution in re.findall(r'^>\s*"(.+?)"(?:\s*—\s*(.*))?$', body, re.M):
+            normalised = _normalise_for_match(quote)
+            if len(normalised) >= _MIN_FABRICATED_QUOTE_CHARS and normalised in summary:
+                return quote, (attribution or "").strip() or "unattributed"
+        return None
+
+    @classmethod
+    def _truncated_quote(cls, body: str) -> str | None:
+        """Return a quotation that is cut off mid-sentence, if any.
+
+        The extractor slices a fixed number of characters out of a transcript
+        chunk, so quotes routinely stop mid-word: 127 live entries carried one
+        on 2026-09-17, including "...step away from all this tumul" and
+        "...everything in this universe i". The words are genuinely the
+        teacher's, which makes this subtler than fabrication — but a quotation
+        mark around half a sentence still misquotes a living teacher, and it is
+        injected verbatim into answers.
+
+        The repair is always subtractive (cut back to the last complete
+        sentence, or drop the quote) — never complete a quote from inference.
+        """
+        for quote, _attrib in re.findall(r'^>\s*"(.+?)"(?:\s*—\s*(.*))?$', body, re.M):
+            stripped = quote.strip()
+            # Short fragments are legitimately used as glossed terms; only a
+            # substantial span reads to a seeker as a full quoted teaching.
+            if len(stripped) > _MIN_COMPLETE_QUOTE_CHARS and stripped[-1] not in _QUOTE_TERMINATORS:
+                return stripped
+        return None
 
     @classmethod
     def filter_duplicate_entries(cls, entries: list[dict[str, Any]]) -> list[dict[str, Any]]:

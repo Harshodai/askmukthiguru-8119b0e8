@@ -494,7 +494,15 @@ def apply_corrections(text: str) -> str:
     Chains the derived lexicon after the map. This is the lexicon's only entry
     point: the audited ``apply_corrections_with_ledger`` path must not receive
     lexicon edits, because they cannot be recorded reversibly in the ledger.
+
+    Repairs pypdf's ligature-drop corruption (see services/pdf_ligature_repair.py)
+    BEFORE term correction -- a NUL-corrupted word ("su\x00ering") never matches
+    a doctrine-term variant, so running term correction first would just leave
+    the corruption in place.
     """
+    from services.pdf_ligature_repair import repair_ligature_drops
+
+    text = repair_ligature_drops(text)
     corrected, _ = apply_corrections_with_ledger(text)
     return _apply_lexicon_corrections(corrected)
 

@@ -457,6 +457,83 @@ def _evidence_refusal_action(answer: str, relevant_docs: list[dict]) -> tuple[st
     return "retry", answer
 
 
+_QUOTE_SPAN_RE = re.compile(r'"([^"\n]{25,})"|“([^”\n]{25,})”')
+_QUOTE_NOISE_RE = re.compile(r"[^\w\s]+")
+_MIN_QUOTE_SENTENCE_CHARS = 25
+
+
+def _quote_norm(text: str) -> str:
+    return " ".join(_QUOTE_NOISE_RE.sub(" ", text.lower()).split())
+
+
+def _unquote_unverifiable_spans(answer: str, docs: list[dict]) -> tuple[str, int]:
+    """Strip quotation marks from any quoted span not present in the context.
+
+    Quotation marks around a sentence are an assertion that a LIVING teacher
+    said those exact words. Nothing verified that: LettuceDetect scores whether
+    a CLAIM is entailed by the context, so a claim entailed in substance passes
+    even when the quotation itself was invented. Measured live 2026-09-17 on
+    the 47-question bank -- an answer scoring faithfulness 1.0 carried
+    `"the mind's tendency to suffer is not your true nature..."`, a sentence
+    appearing nowhere in the 12,904-point corpus or the doctrine bundle.
+
+    The repair demotes rather than deletes: the quotation marks come off and
+    the prose survives as the assistant's own paraphrase, which is what it
+    actually was. Deleting the sentence would destroy a substantively grounded
+    answer to fix a punctuation-level attribution error -- the same trade
+    rejected in L-INVARIANT-1. Only the false *attribution* is removed.
+    """
+    if not answer or not docs:
+        return answer, 0
+
+    haystack = _quote_norm(" ".join(str(d.get("text") or "") for d in docs))
+    if not haystack:
+        return answer, 0
+
+    removed = 0
+
+    def _replace(match: re.Match) -> str:
+        nonlocal removed
+        span = match.group(1) or match.group(2) or ""
+        normalised = _quote_norm(span)
+        if len(normalised) < _MIN_QUOTE_SENTENCE_CHARS or normalised in haystack:
+            return match.group(0)
+        removed += 1
+        return span
+
+    rewritten = _QUOTE_SPAN_RE.sub(_replace, answer)
+    return rewritten, removed
+
+
+def strip_all_attributed_quotes(answer: str) -> tuple[str, int]:
+    """Demote EVERY quoted span, unconditionally -- for callers with zero
+    retrieved context to check a quote against (e.g. handle_casual, which
+    never runs retrieval).
+
+    `_unquote_unverifiable_spans` treats an empty `docs` list as "nothing to
+    check, let it through" -- the right default for a caller where an empty
+    list usually just means retrieval found nothing. That default is wrong
+    here: a casual-path answer has no possible source AT ALL, so any span
+    claiming to be a teacher's exact words is unverifiable by construction,
+    not merely unverified.
+    """
+    if not answer:
+        return answer, 0
+
+    removed = 0
+
+    def _replace(match: re.Match) -> str:
+        nonlocal removed
+        span = match.group(1) or match.group(2) or ""
+        if len(_quote_norm(span)) < _MIN_QUOTE_SENTENCE_CHARS:
+            return match.group(0)
+        removed += 1
+        return span
+
+    rewritten = _QUOTE_SPAN_RE.sub(_replace, answer)
+    return rewritten, removed
+
+
 def _redact_unsupported_sentences(verification: dict, *, floor: float) -> tuple[str, int] | None:
     """Rebuild the draft from only the sentences the verifier could ground.
 
@@ -2167,6 +2244,10 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
         context_chars=len(context) + len(attachment_context),
     )
     route_metadata = generation_kwargs.pop("_route_metadata", {})
+    # Stable per-conversation id -- lets OpenRouter's sticky routing pin
+    # repeat turns to the same upstream node so DeepSeek/Llama's automatic
+    # prompt caching (no cache_control markup for them) can ever hit.
+    generation_kwargs["session_id"] = state.get("stable_session_id")
 
     # Propagate contradiction resolution metadata into route_metadata
     c_meta = state.get("contradiction_meta") or {}
@@ -2634,6 +2715,12 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
     output = {
         "answer": answer,
         "citations": citations,
+        # Hand verification the context this answer was ACTUALLY written from.
+        # `surviving_docs` is the post-budget, post-compression set that fed
+        # build_knowledge_block; `relevant_docs` in state is an earlier
+        # pre-context_engineer snapshot. Scoring against the wrong one reported
+        # grounded sentences as unsupported (see GraphState.verification_context_docs).
+        "verification_context_docs": surviving_docs or relevant_docs,
         **route_metadata,
         "citation_reasoning": {},
         "evaluation_trace": _trace_update(
@@ -3668,6 +3755,29 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
 
     # Citations are returned in the citations field, we do not append them to the answer text.
     pass
+
+    # Last line of defence on attribution: a quoted span that is not verbatim in
+    # the retrieved context is not a quotation, whatever the faithfulness score
+    # says. Demote it to prose before the answer ships.
+    #
+    # Must check against the SAME evidence the verifier scored against, not a
+    # narrower snapshot -- bare `relevant_docs` misses injected OKF doctrine and
+    # knowledge-graph text that generate_answer's prompt actually contained (see
+    # _verification_docs's docstring / L-VERIFY-2 in lessons.md, the identical
+    # bug already fixed for verify_answer/reflect_on_answer but not ported here).
+    # A genuine quote grounded in OKF/KG content would otherwise get its
+    # quotation marks stripped even though the attribution is real.
+    from rag.nodes.verification import _verification_docs
+
+    answer, _unquoted = _unquote_unverifiable_spans(
+        answer, _verification_docs(state, relevant_docs)
+    )
+    if _unquoted:
+        logger.warning(
+            "Final: removed quotation marks from %d span(s) not found verbatim in context "
+            "-- the claim may be grounded, but the attribution was not",
+            _unquoted,
+        )
 
     answer = scrub(answer)
 

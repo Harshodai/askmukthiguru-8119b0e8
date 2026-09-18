@@ -369,3 +369,97 @@ if __name__ == "__main__":
     test_quote_assembled_across_two_chunks_is_traceable_but_fabrication_is_not()
     test_unresolvable_evidence_is_unmeasured_not_silently_clean()
     print("bench self-check OK: harness correctly goes red on wrong answers, green on correct ones")
+
+
+# --- 2026-09-17: OKF-sourced quotes and denied quotes are not misattribution ---
+# On the 47-question golden bank, 5 rows were flagged `quote_not_traceable`.
+# Ground-truth checking each against the 12,904-point corpus AND the OKF bundle
+# found only ONE real fabrication; 3 were real doctrine the detector could not
+# see (OKF entries are injected into answers but are not Qdrant chunks, so they
+# have no citation evidence to resolve against), and 1 was the model quoting the
+# questioner's own phrase in order to DENY it. Crying wolf on a top-severity
+# gate is itself a safety failure -- see L-GATE-1.
+
+
+def test_quote_present_only_in_okf_bundle_is_not_misattribution(monkeypatch):
+    from evaluation import bench
+
+    quote = "An unagitated consciousness is the seat of abundance and fortune."
+    monkeypatch.setattr(bench, "_doctrine_bundle_text", lambda: bench._match_norm(quote))
+    assert bench._quote_in_doctrine_bundle(quote) is True
+
+
+def test_fabricated_quote_is_still_flagged_when_absent_from_doctrine(monkeypatch):
+    """The gate must keep its teeth: this quote is in neither corpus nor bundle."""
+    from evaluation import bench
+
+    monkeypatch.setattr(bench, "_doctrine_bundle_text", lambda: bench._match_norm("unrelated"))
+    fabricated = (
+        "the mind's tendency to suffer is not your true nature, it is merely a "
+        "pattern that has taken root within you."
+    )
+    assert bench._quote_in_doctrine_bundle(fabricated) is False
+
+
+def test_quote_the_answer_denies_is_not_treated_as_a_claim():
+    from evaluation import bench
+
+    answer = (
+        "The teachings I have access to do not mention a "
+        '"Sixth State of Consciousness" beyond the Beautiful State.'
+    )
+    assert bench._quote_is_denied("Sixth State of Consciousness", answer) is True
+
+
+def test_quote_the_answer_asserts_is_still_a_claim():
+    """Only negation suppresses the flag — a positive attribution must still count."""
+    from evaluation import bench
+
+    answer = 'Sri Krishnaji describes the "Sixth State of Consciousness" in chapter four.'
+    assert bench._quote_is_denied("Sixth State of Consciousness", answer) is False
+
+
+# --- 2026-09-18: a "quote" carrying the app's own citation markup is not a quote ---
+# Measured on the demo-safe subset: the "wealth and peace" row was flagged
+# quote_not_traceable on text that starts mid-sentence and spans two [1]
+# markers -- the pairing regex closed one quotation against the opening of a
+# later one. A false positive on a TOP-SEVERITY gate is itself a safety
+# failure (L-GATE-1): it trains the reader to discount the real alert. In the
+# SAME run a genuinely fabricated quotation was present and must still fire.
+
+
+def test_span_containing_inline_citation_markup_is_not_a_claimed_quote():
+    from evaluation.bench import _quoted_spans
+
+    answer = (
+        'Happiness comes from within" rather than external achievements. [1] This '
+        "inner state of happiness is the necessary origin for all meaningful "
+        'action, vision, and worldly wealth. [1] When you operate"'
+    )
+    assert _quoted_spans(answer) == []
+
+
+def test_real_fabricated_quotation_still_fires():
+    """The gate must keep its teeth: this exact span was a REAL fabrication."""
+    from evaluation.bench import _quoted_spans
+
+    answer = (
+        'The teachings describe it thus: "These are states of love, of joy, of '
+        'peace. Each of these states is a state of one consciousness."'
+    )
+    assert len(_quoted_spans(answer)) == 1
+
+
+def test_source_and_cite_markup_forms_are_all_rejected():
+    from evaluation.bench import _quoted_spans
+
+    for marker in ("[Source: Some Video Title]", "[CITE:2]", "[12]"):
+        answer = f'"a span long enough to clear the floor {marker} and continue onward"'
+        assert _quoted_spans(answer) == [], marker
+
+
+def test_ordinary_quotation_without_markup_is_unaffected():
+    from evaluation.bench import _quoted_spans
+
+    answer = 'He said "You become limitless and infinite in that moment of awakening."'
+    assert len(_quoted_spans(answer)) == 1

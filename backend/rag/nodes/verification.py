@@ -27,6 +27,51 @@ from .utils import emit_status, log_metrics, settings
 logger = logging.getLogger(__name__)
 
 
+def _verification_docs(state: dict, fallback: list) -> list:
+    """The documents the answer was actually generated from.
+
+    Verification must score against the generator's real context. `generate_answer`
+    reads `selected_docs` (written by context_engineer), then applies its OWN token
+    budget and context compression, and publishes the survivors as
+    `verification_context_docs`. `relevant_docs` is an earlier snapshot from
+    grade_documents/reranking and can be missing text the prompt contained --
+    notably injected OKF doctrine and knowledge-graph relationship blocks.
+
+    Scoring an answer against a context the generator never saw reports grounded
+    sentences as unsupported. Measured live 2026-09-17: deep/standard tiers (which
+    run context_engineer) failed verification and degraded to "grounded partial
+    evidence" while tier2_simple (which does not) passed at 1.0. This had been
+    latent for as long as the real NLI detector was uninstalled and the lenient
+    word-overlap heuristic was scoring instead.
+
+    Returns the UNION of the caller's list and the generator-side lists, never a
+    subset of either. Measured 2026-09-17: an earlier version of this helper
+    PREFERRED `verification_context_docs`, which is the post-budget,
+    post-compression survivor set and therefore *smaller* than `relevant_docs`.
+    That shrank the scorer's evidence and made verification stricter, taking
+    low-faithfulness rows from 7/47 to 12/47 on the golden bank -- the opposite
+    of the intent. An answer grounded in a subset is also grounded in the
+    superset, so the union is the only direction that cannot invent failures.
+    """
+    seen: set[str] = set()
+    merged: list = []
+    for docs in (
+        fallback,
+        state.get("selected_docs") or [],
+        state.get("verification_context_docs") or [],
+    ):
+        for doc in docs or []:
+            # Dedup on text, not identity: the same chunk reaches these lists as
+            # separate dict objects (copies are made during truncation), so an
+            # identity check would duplicate the entire context.
+            marker = doc_text(doc) if isinstance(doc, dict) else str(doc)
+            if marker in seen:
+                continue
+            seen.add(marker)
+            merged.append(doc)
+    return merged or fallback
+
+
 async def _score_faithfulness_bounded(
     lettuce_detect,
     question: str,
@@ -219,14 +264,21 @@ async def reflect_on_answer(state: GraphState, config: dict = None) -> dict:
     lettuce_detect = _services._lettuce_detect
     ollama = _services._ollama  # noqa: F841 — preserved per "do not delete" mandate; used by disabled self-consistency block below
 
-    if not answer or not relevant_docs:
+    # Check the SAME union generate_answer's context can draw from, not the bare
+    # Qdrant-retrieval snapshot -- an answer grounded entirely in injected OKF
+    # doctrine or knowledge-graph text (relevant_docs empty, root CLAUDE.md:
+    # "OKF injection no longer requires non-empty vector-search results") would
+    # otherwise be rejected here as "no retrieved documents" before verification
+    # ever looks at what it was actually grounded in.
+    verification_docs = _verification_docs(state, relevant_docs)
+    if not answer or not verification_docs:
         return {
             "needs_correction": True,
             "reflection_feedback": "Empty answer or no retrieved documents.",
         }
 
     await emit_status(config, "Reviewing the response for clarity...")
-    context = "\n\n".join(doc_text(doc) for doc in relevant_docs)
+    context = "\n\n".join(doc_text(doc) for doc in verification_docs)
     # Deep verification remains semantic and authoritative below; reflection is
     # a correction hint only, so keep its pass bounded and avoid duplicate CPU
     # embedding work on complex answers or when retrieval was already high confidence.
@@ -292,7 +344,31 @@ async def reflect_on_answer(state: GraphState, config: dict = None) -> dict:
     # needs_correction burned the whole rewrite budget and ended in an abstention
     # on answers the authoritative check would have passed. Keep the feedback,
     # drop the veto.
-    is_valid = (is_faithful_strict or not reflection_semantic) and not persona_violation
+    # The semantic branch used to veto on `is_faithful_strict`, which is
+    # ZERO-TOLERANCE (len(unsupported_sentences) == 0). Since `reflection_semantic`
+    # is True only for `standard` and `tier4_deep`, `standard` was the ONE tier
+    # where a single ungrounded sentence in ten forced a full regeneration --
+    # every other tier skipped the veto entirely via `not reflection_semantic`.
+    #
+    # Measured live 2026-09-17 on the 47-question bank: `standard` was 0 OK / 4
+    # LOW on faithfulness AND owned every slow row (96.8s, 114.2s, 123.3s,
+    # 137.6s), while `tier2_simple` ran 14 OK / 1 LOW. The rewrite was not
+    # rescuing those answers -- it was buying a second generation (double
+    # latency, double tokens, double cost) and still ending LOW.
+    #
+    # So the veto now fires only when the draft is BROADLY ungrounded (aggregate
+    # score below `faithfulness_floor`), which is what a rewrite can plausibly
+    # fix, rather than on any single unsupported sentence. This does NOT let
+    # ungrounded text reach a seeker: `verify_answer` still runs afterwards, is
+    # authoritative, keeps its own zero-tolerance `is_faithful`, and
+    # `_redact_unsupported_sentences` still strips any sentence that fails.
+    # Reflection goes back to being the correction HINT the comment above and
+    # CLAUDE.md both describe ("verify_answer decides").
+    reflection_floor = float(getattr(settings, "faithfulness_floor", 0.6))
+    broadly_ungrounded = reflection_semantic and float(ld_result.get("score") or 0.0) < (
+        reflection_floor
+    )
+    is_valid = not broadly_ungrounded and not persona_violation
     if is_valid or ("doesn't know" in answer.lower() and not persona_violation):
         logger.info(f"Self-Reflection: Answer is VALID. {feedback}")
         return {
@@ -359,8 +435,12 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
             "relevancy_score": 0.0,
         }
 
-    # Fast-path for empty context (can't verify anything meaningfully)
-    if not answer or not relevant_docs:
+    # Fast-path for empty context (can't verify anything meaningfully). Check
+    # the union, not bare relevant_docs -- an answer grounded entirely in
+    # injected OKF/KG text (relevant_docs empty) is genuinely verifiable and
+    # must not skip straight to an unverified "faithful" pass.
+    verification_docs = _verification_docs(state, relevant_docs)
+    if not answer or not verification_docs:
         logger.info("Combined verify: no answer/docs — fast-pass (no_context)")
         # no_context marks "nothing to be faithful to" (retrieval returned
         # zero docs, or empty answer). Downstream telemetry must NOT record
@@ -380,7 +460,7 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
             "relevancy_score": 0.0,
         }
 
-    context = "\n\n".join(doc_text(doc) for doc in relevant_docs)
+    context = "\n\n".join(doc_text(doc) for doc in verification_docs)
     if not context or len(context.strip()) < 200:
         logger.warning("Combined verify: context too short — fast-fail")
         return {
@@ -636,8 +716,10 @@ async def combined_grade_and_verify(state: GraphState, config: dict = None) -> d
             "relevancy_score": 0.0,
         }
 
-    # Empty context fast-pass
-    if not answer or not relevant_docs:
+    # Empty context fast-pass. Check the union, not bare relevant_docs -- same
+    # rationale as verify_answer above.
+    verification_docs = _verification_docs(state, relevant_docs)
+    if not answer or not verification_docs:
         logger.info("Combined grade+verify: no answer/docs — fast-pass (no_context)")
         return {
             "is_faithful": True,
@@ -653,7 +735,7 @@ async def combined_grade_and_verify(state: GraphState, config: dict = None) -> d
             "relevancy_score": 0.0,
         }
 
-    context = "\n\n".join(doc_text(doc) for doc in relevant_docs)
+    context = "\n\n".join(doc_text(doc) for doc in verification_docs)
     if not context or len(context.strip()) < 200:
         logger.warning("Combined grade+verify: context too short — fast-fail")
         return {
@@ -799,7 +881,7 @@ async def _verify_with_gateway(state: GraphState, config: dict = None) -> dict |
 
     answer = state.get("answer", "")
     relevant_docs = state.get("relevant_docs", [])
-    context = "\n\n".join(doc_text(doc) for doc in relevant_docs)
+    context = "\n\n".join(doc_text(doc) for doc in _verification_docs(state, relevant_docs))
 
     ld_result = state.get("lettuce_detect_result")
     claims = list(ld_result.get("claims", [])) if isinstance(ld_result, dict) else []

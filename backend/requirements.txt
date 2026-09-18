@@ -24,7 +24,13 @@ langchain-sarvam>=0.1.0
 sarvamai>=0.1.0
 
 # --- Vector Database ---
-qdrant-client>=1.13.0,<2.0
+# Pinned to 1.18.0 exactly, 2026-09-17. Under 1.19.0 `query_points_groups`
+# returns ZERO groups for a prefetch + FusionQuery (RRF/DBSF) hybrid query, so
+# parent-document grouping silently degraded to a flat query on 10/10 live
+# searches and the candidate-diversity guarantee was lost. Identical query and
+# identical Qdrant server (1.18.0) returns 29 groups under client 1.18.0.
+# Re-test grouping end to end before raising this pin.
+qdrant-client==1.18.0
 
 # --- Supabase ---
 supabase>=2.0.0
@@ -40,7 +46,13 @@ sentence-transformers==3.4.1
 transformers==4.57.6  # NOT upgraded to 5.x: conflicts with sentence-transformers==3.4.1 (requires transformers<5.0.0). Bumping needs sentence-transformers/peft/FlagEmbedding co-upgraded and re-validated against the embedding/reranking pipeline first — see docs/operations/prod-readiness-remediation-2026-08-24.md. PYSEC-2025-217, PYSEC-2026-2288/2289/2290 remain open.
 peft==0.14.0
 FlagEmbedding==1.4.0
-# Optional LettuceDetect is installed from requirements-optional-ml.txt.
+# LettuceDetect moved into the BASE image 2026-09-17. It was previously
+# confined to requirements-optional-ml.txt, which neither Dockerfile installs,
+# so `lettucedetect_enabled=True` (app/config.py) resolved to the heuristic
+# fallback in every build. The anti-hallucination faithfulness gate this
+# product is built around was not the NLI detector it claimed to be.
+# Requires numpy>=2.2.2 — see the pyarrow/numpy block below.
+lettucedetect>=0.2.2
 # It requires NumPy 2.x and is disabled by default; base production keeps the
 # tested NumPy <2.0/PyArrow compatibility contract.
 # TODO(onnx-reranker-colbert): ragatouille is now deprecated — the ONNX-native
@@ -147,10 +159,25 @@ instructor>=1.0.0
 # --- MarkItDown Document Parser ---
 markitdown>=0.0.1a2
 
-# Pin pyarrow for datasets compat (avoid AttributeError: module 'pyarrow' has no attribute 'PyExtensionType')
-pyarrow>=12.0.0,<15.0.0
-# Pin numpy to <2.0.0 for compatibility with pyarrow <15.0.0
-numpy<2.0.0
+# pyarrow/numpy raised together 2026-09-17 to admit lettucedetect.
+#
+# The old pins were `pyarrow>=12,<15` + `numpy<2.0.0`. That combination made
+# the real LettuceDetect NLI detector UNINSTALLABLE (it requires numpy>=2.2.2),
+# so `lettucedetect_enabled=True` silently fell back to a cosine/word-overlap
+# heuristic in every image ever built — the faithfulness gate documented in
+# CLAUDE.md was never actually running in production.
+#
+# The `<15` pin existed for an old datasets incompatibility
+# (AttributeError: module 'pyarrow' has no attribute 'PyExtensionType'), fixed
+# in modern datasets. Verified by the staged compatibility test that the
+# requirements-optional-ml.txt comment demanded before enabling this:
+#   numpy 2.x + pyarrow 14.x  -> FAILS HARD ("numpy.core.multiarray failed to
+#                                import"; pyarrow 14 is built against the
+#                                numpy 1.x ABI)
+#   numpy 2.3.5 + pyarrow>=15 -> imports clean, roundtrip OK, lettucedetect OK
+# Do NOT reinstate `pyarrow<15` without also removing lettucedetect.
+pyarrow>=15.0.0
+numpy>=2.2.2,<3.0.0
 
 
 langdetect

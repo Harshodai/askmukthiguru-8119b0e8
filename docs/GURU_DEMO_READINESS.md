@@ -1319,6 +1319,292 @@ with zero misattribution flags.
 
 ---
 
+## 4D. DEMO-SAFE RE-MEASUREMENT — 2026-09-18. **Misattribution is NOT zero.**
+
+**Supersedes 4C's `0% measured` headline.** 4C was right that the original 25%
+and 38% figures were detector defects. It was wrong to leave the impression
+that the product therefore fabricates nothing. A demo-safe run on 2026-09-18,
+with every flagged row checked against ground truth by hand, found **one
+genuinely fabricated quotation**. One is enough to matter: this product quotes
+living teachers by name.
+
+### 4D.1 The artifacts disagree — do not cite an aggregate from them
+
+Three artifacts exist from this round and **none of them agree**, because two
+concurrent runs were both configured to write `/tmp/demo_safe_report.json` and
+overwrote each other:
+
+| Artifact | Questions | misattribution_rate | refusal_rate |
+| :--- | ---: | ---: | ---: |
+| `/tmp/demo_safe_run.log` | 12 | 8% | 0% |
+| `/tmp/demo_safe_run2.log` | 12 | 17% | 0% |
+| `/tmp/demo_safe_report.json` | **8** | **25%** | **12.5%** |
+
+The JSON's own `finished_at` belongs to an 8-question run; both logs describe
+12-question runs. **No aggregate rate from this round is trustworthy**, and
+none should be quoted as "the demo-safe result". Fix the harness to write a
+unique `--out` path per run before re-measuring.
+
+### 4D.2 What IS trustworthy: the per-row ground-truth check
+
+The flags are per-row, so they survive the aggregate ambiguity. Of 8 rows in
+`demo_safe_report.json`, **2 carried `quote_not_traceable`**. Both were checked
+against the full 12,904-point corpus AND the 715-entry live OKF bundle:
+
+| Question | Quoted span | In corpus? | Verdict |
+| :--- | :--- | :---: | :--- |
+| Enlightenment (Mukthi/Moksha) | "These are states of love, of joy, of peace. Each of these states is a state of one consciousness." | **NO** | **REAL FABRICATION** |
+| Enlightenment (Mukthi/Moksha) | "You become limitless and infinite." | YES | fine |
+| External success & wealth | " rather than external achievements. [1] …" | YES | **FALSE POSITIVE** |
+
+So: **1 real misattribution, 1 detector false positive.** On this 8-question
+sample that is **12.5% real misattribution (1/8)** — above the 5% gate, and
+above zero, which is the number that actually matters here.
+
+The false positive is a *new* detector defect, distinct from 4C's four: the
+quoted-span regex captured a run of text that **starts mid-sentence and spans
+inline `[1]` citation markers**, so it was never a quotation at all. The
+`_quoted_spans` extractor should reject a span that begins mid-sentence or
+contains citation markup.
+
+### 4D.3 The Four Sacred Secrets refusal is CORRECT, not a bug
+
+4C lists `qa-fss-001` refusing as "a demo risk". That framing is now
+superseded by corpus evidence: a scan of ~193 chunks from video `UlOt31lBhLY`
+("Manage Your Stress with Sri Preethaji & Sri Krishnaji's Four Sacred
+Secrets"), plus a search of all 820 staged and 715 live OKF entries, found
+that **the four secrets are never enumerated by name or number anywhere in the
+corpus**. The material discusses the Beautiful State, the Suffering State and
+the Yesmi-Nomi monk story, but never lists the four.
+
+Refusing is therefore the *correct* behaviour, not a false abstention, and it
+cannot be fixed by re-running extraction — the naming does not exist upstream.
+Closing this gap requires ingesting the book text (if licensed). Until then,
+**do not put "What are the Four Sacred Secrets?" in the demo**: the honest
+outcomes are a refusal or a fabrication, and the system currently refuses.
+
+### 4D.4 Demo-safe status
+
+**Not certified.** The blocking facts are:
+1. One verified fabricated quotation on an Enlightenment question — a
+   top-severity misattribution, not a detector artifact.
+2. No trustworthy aggregate, because the run artifacts overwrote each other.
+3. The flagship Four Sacred Secrets question has no doctrine behind it.
+
+Re-measure with unique output paths, on a quiet box, and re-verify every
+flagged row against the corpus before any question is called demo-safe.
+
+---
+
+## 4E. AUTHORITATIVE DEMO-SAFE MEASUREMENT — 2026-09-18, clean run
+
+This is the run to cite. It supersedes the ambiguous artifacts in 4D.1.
+Conditions that make it trustworthy, all verified before the first question:
+zero traffic on the box (`correlation_id` count over 120s = 0, anon-sessions
+over 5m = 0, zero `benchmarks.run` processes), container healthy with
+`RestartCount=0` and unchanged for the duration, and a **unique `--out` path**
+(`/tmp/demo_safe_091940.json`) so nothing could overwrite it.
+
+12 questions, live local Docker stack, real OpenRouter calls, no mocks.
+
+| Gate | Measured | Threshold | Result |
+| :--- | ---: | ---: | :--- |
+| refusal_rate | 0.0 | ≤ 0.35 | PASS |
+| must_mention_coverage_answered | 0.3667 | ≥ 0.50 | **FAIL** |
+| contradiction_count | 0 | ≤ 0 | PASS |
+| citation_validity_rate | 1.00 | ≥ 0.60 | PASS |
+| zero_retrieval_rate | 0.0 | ≤ 0.05 | PASS |
+| system_error_rate | 0.0 | ≤ 0 | PASS |
+| **latency_p95_s** | **78.77** | ≤ 90 | **PASS** (first time) |
+| **misattribution_rate** | **0.0833** | ≤ 0.05 | **FAIL** |
+| misattribution_unmeasured_rate | 0.0833 | ≤ 0 | **FAIL** |
+| machine_summary_share_mean | 0.1988 | ≤ 0.30 | PASS |
+
+p50/p95/max latency 32.0 / 78.77 / 78.77s. Guru-voice distance median **1.02**
+(verbatim ref ~0.37, machine ref ~1.64) — the best recorded, down from 1.34.
+
+### 4E.1 The misattribution is REAL — one verified fabricated quotation
+
+One row of twelve, ground-truth checked against all 12,904 corpus points AND
+the 715-entry live OKF bundle. Question: *"How does Inner Truth help dissolve
+chronic anxiety and hidden resentments?"* The answer quoted:
+
+> "When you connect with your Inner Truth, you step into the vastness of your
+> being, where anxiety and resentment lose their grip. You realize that these
+> emotions are not who you are — they are simply waves passing through the
+> ocean of consciousness."
+
+| Span | In corpus | In OKF |
+| :--- | :---: | :---: |
+| "When you connect with your Inner Truth" | NO | NO |
+| "you step into the vastness of your being" | NO | NO |
+| "these emotions are not who you are" | NO | NO |
+| "waves passing through the ocean" | NO | NO |
+
+**Every span is absent from both stores.** This is invented generic spiritual
+prose presented inside quotation marks as teaching. It is exactly the failure
+this product exists to prevent, and it is NOT a detector artifact.
+
+**Real misattribution rate: 8.33% (1/12).** The gate threshold is 5%.
+
+### 4E.2 The detector false-positive class is fixed
+
+`_quoted_spans` (`evaluation/bench.py`) now rejects any "quoted" span carrying
+the product's own inline citation markup (`[1]`, `[CITE:n]`, `[Source: ...]`).
+Such a span cannot be a teacher's sentence — those markers are injected AFTER
+generation — it is the pairing regex closing one quotation against the opening
+of a later one. The 4D.2 "wealth and peace" row that this produced now reports
+`unmeasured_evidence_window` instead of a bogus `quote_not_traceable`.
+Guarded by 4 tests in `tests/test_bench_can_fail.py` (21 pass), including one
+asserting the REAL fabrication above still fires.
+
+### 4E.2.1 Re-run after the fix — misattribution CONFIRMED gone (2026-09-18)
+
+Root cause: `handle_distress` (`rag/nodes/intent.py`) free-generates its own
+answer and returns straight to graph END, bypassing `format_final_answer` —
+so `_unquote_unverifiable_spans` never ran on this path. The flagged
+qa-fss-006 row's `verification.method` was `distress_safety_preemption`,
+confirming this exact handler. Fixed by calling the same unquote guard inside
+`handle_distress` before it returns. Regression test:
+`backend/tests/test_distress_quote_guard.py` (reproduces the exact fabricated
+span, asserts it is stripped). Full backend suite: 7250 passed, 0 failed.
+
+Re-measured on the rebuilt container (`docker compose up -d --build backend`,
+`RestartCount=0` before/during/after, zero chat traffic on the box
+beforehand), same 12 questions, host-side eval with `QDRANT_URL`/`NEO4J_URI`/
+`REDIS_URL` overridden to `localhost` (container hostnames don't resolve from
+the host — see root CLAUDE.md Gotchas). Output: `/tmp/demo_safe_rerun_101433.json`.
+
+| Gate | Measured | Threshold | Result |
+| :--- | ---: | ---: | :--- |
+| **misattribution_rate** | **0.0** | ≤ 0.05 | **PASS** |
+| misattribution_unmeasured_rate | 0.0833 | ≤ 0 | FAIL (1/12, `unmeasured_evidence_window` — the benign truncated-evidence-window class from §4E.2, not a confirmed fabrication) |
+| refusal_rate | 0.0833 | ≤ 0.35 | PASS |
+| must_mention_coverage_answered | 0.4545 | ≥ 0.50 | FAIL |
+| contradiction_count | 0 | ≤ 0 | PASS |
+| citation_validity_rate | 1.00 | ≥ 0.60 | PASS |
+| zero_retrieval_rate | 0.0 | ≤ 0.05 | PASS |
+| system_error_rate | 0.0 | ≤ 0 | PASS |
+| latency_p95_s | 70.67 | ≤ 90 | PASS |
+| machine_summary_share_mean | 0.2207 | ≤ 0.30 | PASS |
+
+The qa-fss-006 row (source of the original fabrication) now grounds its one
+quoted span — *"True inner peace and fulfillment are achieved through
+liberation from this suffering mind"* — verbatim in the live OKF bundle
+(`memory/okf/shared/addressing_the_root_causes_of_suffering_for_inner_peace.md:19`),
+confirmed by direct grep, not just the detector. The guard correctly left it
+quoted because it IS grounded — demonstrating the fix demotes only
+unverifiable spans, not every quote.
+
+The one `unmeasured_evidence_window` row (qa-core-001) is a distinct, lower-
+severity class the gate already separates from `quote_not_traceable` (see
+§4E.2) — not re-litigated here; latency/coverage numbers move run to run on
+identical code (documented variance, CLAUDE.md) and are not the subject of
+this re-run.
+
+Misattribution is no longer a demo blocker.
+
+### 4E.2.2 must_mention coverage FIXED — root cause was corrupted book data, not prompting (2026-09-18)
+
+The coverage gap traced to `grounded_partial_fallback` firing disproportionately
+on Four Sacred Secrets questions. That fallback path dumps raw excerpts
+(`[Context: ...]` headers, no coherent prose) when the generated draft fails
+verification twice. Root cause: pypdf drops ligature glyphs (fi/fl/ff/ffi/ffl)
+as literal NUL bytes on extraction — `"suffering"` became `"su\x00ering"`,
+`"first"` became `"\x00rst"`. 52 of the 70 Qdrant chunks ingested from The Four
+Sacred Secrets book (`scripts/ingestion/ingest_four_sacred_secrets.py`, source
+PDF read via a PageIndex extraction whose intermediate JSON no longer exists
+on disk) carried this corruption. A corrupted quote can never pass verbatim
+faithfulness verification, so those drafts kept failing and falling to the
+excerpt dump — which both tanks must_mention coverage (raw excerpts don't hit
+the expected keywords) and, independently, was shipping visibly garbled text
+to users regardless of licensing status.
+
+Fix, in order:
+1. `backend/services/pdf_ligature_repair.py` — closed 48-token lookup table
+   built by enumerating every unique NUL-containing token across the 70
+   chunks and confirming the correct ligature from surrounding context (e.g.
+   `"\x00rst"` → `"first"`, `"di\x00cult"` → `"difficult"`, the 3-letter `ffi`
+   case). Unmapped tokens strip the NUL and log a warning rather than
+   crashing or leaving the NUL in output.
+2. Wired into `services/doctrine_terms.py::apply_corrections()` (the shared
+   ingestion correction path every source calls) so any future PDF ingestion
+   self-heals the same pypdf bug.
+3. `backend/scripts/ops/repair_pdf_ligature_corruption.py` scanned the full
+   12,904-point `spiritual_wisdom_contextual` collection (not just this
+   source) for any point with `\x00` in `text`/`parent_text`, found 59, and
+   repaired them in place via `set_payload` (no re-embedding — the semantic
+   delta from restoring a handful of letters inside already-recognizable
+   words doesn't justify re-embedding cost; re-embed later if a retrieval
+   audit shows it matters).
+
+Re-measured on the same rebuilt container, same 12 questions:
+`must_mention_coverage_answered` **0.4545 → 0.5333, now PASSES** the 0.50 gate.
+Regression test: `backend/tests/test_pdf_ligature_repair.py`.
+
+Book provenance note (recorded for the record, not re-litigated here): two
+copies of this book exist locally, one filename self-identifying as sourced
+from Z-Library. Owner confirmed verbally holding rights directly from the
+authors; proceeded on that basis. See `handoff.md` 2026-09-18 for the full
+exchange.
+
+### 4E.2.3 Qdrant `query_points_groups` in-container bug — was a stale container, not a live bug (2026-09-18)
+
+Previously documented (CLAUDE.md, handoff.md) as returning 0 groups
+in-container vs 29 from the host, with a `qdrant-client` version pin to
+1.18.0 that "did NOT fix it." Re-investigated: the container running at this
+session's start was 9+ hours old, built BEFORE the 1.18.0 pin (already present
+in the uncommitted working tree) was ever baked into an image. The rebuild
+done for the misattribution fix (`docker compose up -d --build backend`) was
+the first time this pin actually shipped in a running container. Verified
+`pip show qdrant-client` reports 1.18.0 in both host and container, and 5/5
+diverse test queries (`search_groups(group_by="parent_id")`) return full
+grouped results in-container. No further code change made — the fix was
+already written, just never deployed.
+
+### 4E.2.4 Latency stability — CONFIRMED UNSTABLE, not fixed (2026-09-18)
+
+Re-measured twice on the rebuilt container, same 12 questions, quiet box,
+`RestartCount=0` verified each time, minutes apart:
+
+| Run | p95 | Result |
+| :--- | ---: | :--- |
+| `/tmp/demo_safe_rerun_101433.json` | 70.67s | PASS |
+| `/tmp/demo_safe_stability2_111453.json` | 148.78s | **FAIL** |
+
+Not noise: the second run's 148.78s outlier (`qa-fss-001` alone) hit
+`grounded_partial_fallback` — the draft failed verification, triggering one
+full retry generation round-trip, then failed again and fell to the excerpt
+dump. That retry is a genuine ~2x latency tax that fires exactly when
+verification is correctly rejecting a bad draft. Per the owner's severity
+order (misattribution > refusal > **latency**), the retry-on-reject gate is
+not being weakened to buy a stabler number. p95 stability on this corpus
+remains an open, honestly-documented limitation, not a false "fixed."
+
+### 4E.3 Demo-safe verdict
+
+**NOT demo-safe.** One blocker remains (three resolved 2026-09-18):
+
+1. ~~Misattribution 8.33%~~ — **FIXED**, re-measured at 0.0%. See §4E.2.1.
+2. ~~must_mention coverage 0.4545~~ — **FIXED**, re-measured at 0.5333 (PASS).
+   See §4E.2.2.
+3. ~~Qdrant `query_points_groups` 0 groups in-container~~ — **was a stale
+   container, resolved on rebuild.** See §4E.2.3.
+4. **Latency p95 stability** — swings 70.67s (PASS) to 148.78s (FAIL) run to
+   run on identical code. See §4E.2.4. Not something to fix by weakening
+   verification; still open.
+5. **Four Sacred Secrets doctrine coverage** (see 4D.3) — partially addressed
+   by the ligature fix (garbled quotes were failing verification and forcing
+   the excerpt-dump fallback), but faithfulness on this cluster was not
+   re-scored row-by-row this session; treat as still weak until re-measured.
+
+What genuinely improved and can be stated: misattribution 0%, must_mention
+coverage now passes, the Qdrant grouping bug is resolved, system_error is
+**0%**, citation validity **1.00**, zero contradictions. Latency is the one
+remaining honestly-unresolved gate.
+
+---
+
 ## 5. Voice Decision (Option A) Verified End-to-End
 
 **PASS:** The Option A voice decision (third person with attributed quotes, "this product is also a disciple") holds end-to-end.

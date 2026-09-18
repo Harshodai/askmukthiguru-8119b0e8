@@ -223,6 +223,44 @@ def check_pipeline_stage_order(pipeline: Any = None) -> DriftCheckResult:
     )
 
 
+def _collect_endpoints(routes: Any, prefix: str = "") -> set[tuple[str, str]]:
+    """Collect (METHOD, path) for every route, descending into included routers.
+
+    FastAPI 0.141 does NOT flatten `include_router()` into `app.routes`: each
+    inclusion stays as a nested `_IncludedRouter` whose own `.path` is None and
+    whose real routes live in `.routes`. A flat one-level scan therefore found
+    4 endpoints on a 29-router app and reported every chat/profile/memory route
+    as "missing" -- so this guard has been failing in every built image (the
+    lockfile has pinned fastapi 0.141.1 all along), and only passed locally on
+    a stale venv. The routes themselves were always fine; the CHECKER was
+    blind. Recursing fixes it and keeps working if FastAPI flattens again.
+    """
+    found: set[tuple[str, str]] = set()
+    for route in routes or ():
+        path = getattr(route, "path", None)
+        methods = getattr(route, "methods", None)
+        full = f"{prefix}{path}" if path else prefix
+        if path and methods:
+            for method in methods:
+                found.add((method.upper(), full))
+        # FastAPI 0.141 `include_router()` leaves a `_IncludedRouter` holding the
+        # original APIRouter plus an include_context carrying the prefix; the
+        # child routes keep their own unprefixed paths, so the prefix must be
+        # re-applied here.
+        included = getattr(route, "original_router", None)
+        if included is not None:
+            context = getattr(route, "include_context", None)
+            sub_prefix = getattr(context, "prefix", "") or ""
+            found |= _collect_endpoints(getattr(included, "routes", ()), prefix + sub_prefix)
+            continue
+
+        nested = getattr(route, "routes", None)
+        if nested:
+            # A Mount carries its own path as the prefix for its children.
+            found |= _collect_endpoints(nested, full if path else prefix)
+    return found
+
+
 def check_fastapi_routes(app_obj: Any = None) -> DriftCheckResult:
     """Verify all critical chat, memory, and profile routes exist in FastAPI application."""
     if app_obj is None:
@@ -230,13 +268,7 @@ def check_fastapi_routes(app_obj: Any = None) -> DriftCheckResult:
 
         app_obj = default_app
 
-    registered_endpoints: set[tuple[str, str]] = set()
-    for route in app_obj.routes:
-        path = getattr(route, "path", None)
-        methods = getattr(route, "methods", None)
-        if path and methods:
-            for m in methods:
-                registered_endpoints.add((m.upper(), path))
+    registered_endpoints = _collect_endpoints(app_obj.routes)
 
     missing: list[str] = []
     for method, path in CRITICAL_ROUTES:

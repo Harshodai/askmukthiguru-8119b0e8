@@ -170,13 +170,14 @@ def test_all_critical_routes_exist_on_live_app():
     """Explicitly verify that each defined critical route exists on live app."""
     from app.main import app
 
-    registered_endpoints = set()
-    for route in app.routes:
-        path = getattr(route, "path", None)
-        methods = getattr(route, "methods", None)
-        if path and methods:
-            for m in methods:
-                registered_endpoints.add((m.upper(), path))
+    # Use the checker's own collector rather than re-implementing the scan.
+    # This test previously duplicated a flat one-level walk of app.routes,
+    # which under FastAPI 0.141 sees only `_IncludedRouter` wrappers (path=None)
+    # and therefore reported every included route as missing. Two copies of the
+    # same traversal meant fixing the checker alone left this test red.
+    from scripts.ops.check_architecture_drift import _collect_endpoints
+
+    registered_endpoints = _collect_endpoints(app.routes)
 
     for method, path in CRITICAL_ROUTES:
         assert (method, path) in registered_endpoints, f"Missing critical endpoint: {method} {path}"

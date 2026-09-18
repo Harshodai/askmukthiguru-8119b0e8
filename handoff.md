@@ -1,3 +1,207 @@
+# AskMukthiGuru — Session Handoff
+**Date:** 2026-09-18 | **Branch:** `main` | **Status:** all work UNCOMMITTED in the working tree. 7249 tests pass, 0 fail. Ruff check + format clean. Container healthy.
+
+> Newest handoff first. Everything below the `---` divider at the end of this
+> section is the previous 2026-09-12 handoff, retained unchanged.
+
+## 1. The goal
+
+Make Mukthi Guru production-ready for a Railway deploy. It is a
+zero-hallucination RAG guide answering as a disciple of Sri Preethaji & Sri
+Krishnaji — **living teachers**. The owner's severity order is absolute and
+governs every trade-off made below:
+
+> **misattribution > refusal > latency**
+
+Putting invented words in a living teacher's mouth is the worst possible
+output. A refusal is disappointing. A slow answer is merely annoying.
+
+## 2. Current state of the code
+
+### Deployed and verified working
+| Area | State |
+| :--- | :--- |
+| Test suite | **7249 passed, 0 failed**, 12 skipped |
+| Lint/format | ruff clean across 906 files |
+| Container | healthy, `RestartCount=0`, LettuceDetect warm-up 1.4s at startup |
+| Memgraph constraints | **12/12 present** (11 were missing; seeded this session) |
+| OKF doctrine | **715 live entries**, `compiled.json` in sync, 0 gate failures |
+| Latency p95 | **78.77s — PASSES** the 90s gate (was 123.28s) |
+| system_error_rate | **0%** (was 6.38%) |
+| citation validity | 1.00 · contradictions 0 · guru-voice distance 1.02 (best yet) |
+
+### Fixed this session
+| Gate | Was | Now | Fix |
+| :--- | ---: | ---: | :--- |
+| misattribution_rate | 0.0833 (REAL fabrication) | **0.0** | `handle_distress` (`rag/nodes/intent.py`) free-generates and returns straight to END, bypassing `format_final_answer` — so `_unquote_unverifiable_spans` never ran on that path. Added the same guard call inside `handle_distress`. Regression test: `backend/tests/test_distress_quote_guard.py`. |
+| must_mention_coverage_answered | 0.4545 (FAIL) | **0.5333 (PASS)** | Root cause was NOT prompting — it was corrupted source data. pypdf drops ligature glyphs (fi/fl/ff/ffi/ffl) as literal NUL bytes; 52/70 Qdrant chunks from The Four Sacred Secrets book carried this (`"su\x00ering"` for `"suffering"`). Corrupted quotes couldn't pass verification, so those answers fell through to the raw-excerpt `grounded_partial_fallback` path — which dumps `[Context: ...]` headers and garbled prose instead of a coherent, keyword-bearing answer. Fixed at the data layer: `services/pdf_ligature_repair.py` (48-token lookup table, built from every unique corrupted token in the ingested book), wired into `services/doctrine_terms.py::apply_corrections()` (so all future re-ingestion self-heals) and applied in-place to the 59 already-corrupted Qdrant points via `scripts/ops/repair_pdf_ligature_corruption.py`. Regression test: `backend/tests/test_pdf_ligature_repair.py`. |
+| Qdrant `query_points_groups` returns 0 groups | in-container, 29 from host | **fixed — not a live bug** | The container running at session start was serving a stale image built before `qdrant-client` was pinned to 1.18.0 in `requirements.lock`. Today's `docker compose up -d --build backend` (done for the misattribution fix) baked the pinned version in. Verified 5/5 diverse queries return full grouped results in-container after rebuild — no code change was needed beyond the pin already in the working tree. |
+
+### Still FAILING
+| Gate | Measured | Threshold | Nature |
+| :--- | ---: | ---: | :--- |
+| misattribution_unmeasured_rate | 0.0833 | 0 | 1 row, truncated evidence window (benign class, §4E.2) |
+| **latency_p95_s — CONFIRMED UNSTABLE, not fixed** | 70.67s (PASS) then 148.78s (FAIL), two runs on the same rebuilt container, same 12 questions, minutes apart | ≤ 90 | Not noise — the 148.78s run's outlier row (`qa-fss-001`, 148.78s alone) hit `grounded_partial_fallback`: draft fails verification → one full retry generation round-trip → still fails → raw-excerpt dump. That retry is a real ~2x latency tax that fires precisely when verification is doing its job (rejecting a bad draft). Per the owner's severity order (misattribution > refusal > **latency**), this is not something to fix by weakening the retry-on-reject verification gate. Not resolved; documented honestly rather than cherry-picking the good run. |
+
+Book provenance note: two copies of The Four Sacred Secrets exist in
+`~/Downloads/` on this machine, one filename self-identifying as sourced from
+Z-Library (a piracy site). Owner confirmed verbally they hold rights from the
+book's authors directly ("I have enough rights from the owners itself") —
+proceeded on that basis per explicit instruction. Not independently verified
+beyond that statement; flagged here for the record.
+
+Original authoritative measurement (misattribution still present):
+`/tmp/demo_safe_091940.json`. Post-misattribution-fix run:
+`/tmp/demo_safe_rerun_101433.json` (p95 70.67s, coverage 0.4545, pre-ligature-fix).
+Post-ligature-fix stability run: `/tmp/demo_safe_stability2_111453.json`
+(p95 148.78s, coverage 0.5333). All quiet-box, unique-output-path,
+`RestartCount=0` verified. Written up in `docs/GURU_DEMO_READINESS.md`
+§4E / §4E.2.1 / §4E.2.2.
+
+## 3. Files actively edited (all uncommitted)
+
+**29 code/doc files, 791 OKF doctrine files, 701 untracked.**
+
+Core pipeline:
+- `backend/services/onnx_reranker.py` — batch at 8 pairs (`reranker_batch_size`)
+- `backend/services/reranker_service.py` — guard the unguarded retry; degrade to retrieval order
+- `backend/rag/nodes/verification.py` — `_verification_docs()` union; reflection veto relaxed
+- `backend/rag/nodes/generation.py` — `_unquote_unverifiable_spans()`; publishes `verification_context_docs`
+- `backend/rag/states.py` — `verification_context_docs`, `stable_session_id`
+- `backend/rag/prompts/system.py` — bans coaching-question sign-offs
+- `backend/services/lettuce_detect_service.py` — **class-level** detector cache
+- `backend/services/okf_quality_filter.py` — fabricated-quote + truncated-quote gates
+- `backend/services/qdrant/searcher.py` — real per-key grouping diagnostics
+- `backend/services/openrouter_service.py` — `session_id` sticky routing
+- `backend/app/main.py` — Memgraph `SHOW CONSTRAINT INFO`; LettuceDetect warm-up
+- `backend/app/telemetry_sink.py` — `_coerce_int()` for INTEGER columns
+- `backend/app/config.py` — `reranker_batch_size`, persona budget 2400, LightRAG timeout held at 4.0
+- `backend/evaluation/bench.py` — OKF-bundle fallback, denial detection, 429 retry, safety_redirect fix, `_quoted_spans` citation-markup filter
+- `backend/requirements.txt` / `.lock` — numpy 2.5.3, pyarrow 25, lettucedetect 0.2.3, **qdrant-client pinned 1.18.0**
+
+New tests: `test_okf_fabricated_quote_gate.py`, `test_unverifiable_quote_guard.py`,
+`test_verification_context_matches_generation.py`, `test_lettuce_detector_shared.py`,
+`test_telemetry_int_coercion.py`, `test_reflection_standard_tier_no_zero_tolerance_veto.py`
+
+## 4. Tried and FAILED — do not repeat these
+
+| Attempt | Result | Why it failed |
+| :--- | :--- | :--- |
+| Prefer `verification_context_docs` in the verifier | **Made it worse: 7/47 → 12/47 low-faith rows** | That list is a post-budget SUBSET of `relevant_docs`, so it SHRANK the evidence. Fixed by using the UNION. Prove set-inclusion direction before changing what a gate sees. |
+| `session_id` sticky routing for prompt caching | Inconclusive | Reaches payload, prefix byte-stable, matches OpenRouter docs — yet mostly `cached_tokens=0`. **One `cached_tokens=3200` hit WAS observed**, so it is not dead, just intermittent. Keep; it costs nothing. |
+| Raising LightRAG timeout 4.0 → 7.0s | Reverted | On a **fail-open** lane a timeout is a budget, not a correctness control. Raising it only burns more latency, and no quality gain was measured. |
+| Swapping the reranker model | Rejected | jina-v2/v3 are CC-BY-NC (licence-incompatible); Qwen3/mxbai are 5-14× too big. **The model was never the problem — it was OOMing.** |
+| Six benchmark runs for a clean latency number | All contaminated | Concurrent sessions, mid-run redeploys, and two runs writing the SAME `--out` path. Only the 7th (quiet box + unique path) is citable. |
+| Opus agent tasked to measure in a "quiet window" | Correctly refused to run | Box was never quiet. It declined rather than produce a 7th invalid number. That was the right call. |
+| Four Sacred Secrets extraction run | Produced 20 entries, **none** naming the four secrets | The four are never enumerated anywhere in 193 corpus chunks. Not closeable by extraction. |
+
+## 5. Next steps, in priority order
+
+1. ~~Fix the real fabrication (TOP severity).~~ **DONE this session.** Root
+   cause: `handle_distress` bypasses `format_final_answer`, so
+   `_unquote_unverifiable_spans` never ran on that path. Fixed, tested,
+   re-measured at 0.0% on a rebuilt container. See §4E.2.1 in
+   `docs/GURU_DEMO_READINESS.md`.
+2. ~~must_mention coverage 0.4545 vs 0.50.~~ **DONE this session.** Root cause
+   was corrupted book data (pypdf ligature-drop, `\x00` bytes), not
+   prompting — fixed at the data layer, re-measured at 0.5333 (PASS). See
+   §4E.2.2 in `docs/GURU_DEMO_READINESS.md`.
+3. **The Four Sacred Secrets book is already ingested** (70 chunks,
+   `domain_rights_status=licensed`) — this session discovered the earlier
+   "not closeable by extraction" note above referred to a separate OKF-entry
+   extraction attempt, not this raw Qdrant ingestion. Owner confirmed rights.
+   The corruption in that ingestion is fixed (item 2); whether to ingest MORE
+   of the book, or address the two local copies (one Z-Library-sourced,
+   flagged and accepted by owner) is still open — not re-litigated this
+   session per explicit instruction to focus on fixing over provenance.
+4. ~~Re-measure twice on a quiet box~~ **DONE this session — result: UNSTABLE,
+   not stable.** 70.67s (PASS) then 148.78s (FAIL), same code, minutes apart.
+   Root cause of the outlier identified (verification-retry round-trip on
+   `grounded_partial_fallback`), not "fixed" — fixing it would mean weakening
+   the retry-on-reject gate, which the severity order forbids. See §4E.2.4.
+5. ~~Qdrant `query_points_groups` returns 0 groups in-container~~ **DONE this
+   session — was a stale container**, not a live bug. The 1.18.0 pin was
+   already correct; it just hadn't been deployed. Confirmed fixed by the
+   rebuild. See §4E.2.3.
+6. **Publish the retrieval-index contract** — enforcement is OFF and needs a
+   source-rights manifest that does not exist in the repo. Operator decision.
+7. **Commit.** Nothing has been committed. Growing further this session
+   (5 new files) — consider splitting doctrine/data-repair from code in
+   separate commits.
+
+## 6. What was learned, and the result of each try
+
+### The biggest lesson: verify the gate before believing the number
+This happened **three separate times**:
+- "25% misattribution" → four detector bugs, **zero** real misattribution.
+- "11% misattribution" → 4 of 5 were false positives; 1 was real.
+- "system_error 6%, abstention 0.00" → safety redirects miscounted as
+  pipeline errors; abstention computed over a **single** row.
+
+A number from a gate is a hypothesis about the product AND a hypothesis about
+the gate. **Always ground-truth one flagged row before acting.**
+
+### False positives on a safety gate are themselves a safety failure
+Crying wolf at 25%/11% trains everyone to discount the one alert that is real.
+When the real fabrication finally appeared, the honest reaction was "probably
+another detector bug". It was not.
+
+### A check that "skips" on error is not a check
+Memgraph constraint verification logged `skipped` for months. It was hiding
+**11 of 12 missing constraints**. After a DB migration, re-verify every piece
+of introspection Cypher/SQL — engines diverge most in the metadata surfaces
+health checks are built on.
+
+### A feature flag says nothing about whether the package is installed
+`lettucedetect_enabled=True` while `lettucedetect` was in an optional
+requirements file **no Dockerfile installs**. The anti-hallucination gate this
+product is built around had never run. The fallback kept everything green.
+
+### Measurement hygiene is a first-class engineering concern
+Six of seven runs were worthless. Causes: shared container, shared OpenRouter
+account (~1% 429s), mid-run redeploys, and two runs writing the same output
+path. **Unique `--out` per run; verify quiet before and container `StartedAt`
+after.**
+
+### Trust subagent evidence, not subagent verdicts
+A subagent graded 5 OKF entries "Ready"; **4 were wrong**. Another promoted 3
+entries, 2 of which asserted a `"Soul Sync Meditation Step 3"` that exists
+nowhere in the corpus. They verified *provenance* but not *integrity*. Their
+raw findings (file:line, log lines, corpus hits) were reliable; their
+conclusions were not.
+
+### My own worst mistake
+I "fixed" the verifier's context and made faithfulness **worse** (7→12 low
+rows) because I assumed a superset where there was a subset. Only the
+re-measurement caught it. A plausible mechanism plus a confident code comment
+is not evidence.
+
+## 7. Things not asked for, but you need to know
+
+- **An orphaned detached benchmark ran for over an hour** spending real
+  OpenRouter budget with nobody reading its output. `run_in_background`
+  survives the session that starts it. Check `ps aux | grep benchmarks.run`.
+- **Cost tail regressed 4.2×**: median $0.00181/query (at baseline) but max
+  **$0.00758** and 22,608 input tokens. Same root cause as the latency tail —
+  a failed verification regenerates, doubling tokens, time and money.
+- **Memgraph uses 598MiB of a 1GiB cap (58%)** — CLAUDE.md claims the
+  migration cut it to "~60-100MB". **6× the documented figure.** Will OOM on
+  Railway if the cap is copied from the doc.
+- **Telemetry inserts were silently failing** (`invalid input syntax for type
+  integer: "108.43"`), and the hallucination-anomaly job reads that table — it
+  would have read "no hallucinations" when the truth was "no data". Fixed.
+- **`CLAUDE.md` claim corrected**: only 4,337 of 12,904 Qdrant points carry
+  `teacher_id="ekam"`, not 100%. Code assuming that literal sees 1/3 of the corpus.
+- **A fallback-model log line is NOT proof of throttling** — 7 of 9
+  `llama-3.3-70b` calls were `rewrite_query` routed there BY CONFIG.
+- **26 fabricated quotes were caught in staging and never shipped.** The
+  staging review gate works. Do not weaken `_excluded_parts`.
+- **`lessons.md` gained 11 new entries** this session (L-ONNX-1, L-FALLBACK-1,
+  L-LOG-1, L-DOCTRINE-1, L-MASK-1, L-DEP-1, L-GATE-2, L-WARM-1, L-VERIFY-2,
+  L-VERIFY-3, L-EVAL-1, L-GRAPH-2, L-LATENCY-2).
+
+---
+
 # AskMukthiGuru — Ruthless Production Audit Handoff
 **Date:** 2026-09-12 | **Branch:** `main` | **Status:** 21 fixes (R1-R21) committed and pushed to `origin/main`; R22 (B22 latency) + B23 groundwork (toggle, not a default change) landed uncommitted; audit continuing
 
@@ -6,6 +210,265 @@
 > section, followed by the 2026-08-27 corpus-ingestion handoff. Note that
 > older documents citing `handoff.md` by line number now point lower in the
 > file.
+
+---
+
+## 2026-09-17 — OpenRouter Prompt-Cache Fix (cached_tokens stuck at 0), In Progress
+
+### 1. Task and status
+Investigate why `cached_tokens` was 0 across an hour of real `mukthiguru-backend`
+traffic and fix it if safe. **Code changes are done and unit-tested; the live
+before/after benchmark proof is NOT done yet** — Docker rebuild (task
+`bk2xejdjw`) just completed (exit 0) as this handoff was being written. Next
+session: pick up at §5, starting from `docker compose up -d backend`.
+
+### 2. Root cause (confirmed against OpenRouter's own current docs, not guessed)
+`services/openrouter_service.py`'s `is_anthropic = "anthropic/" in model or "claude" in model`
+gate is correct to skip `cache_control: {"type": "ephemeral"}` for
+`deepseek/deepseek-chat` / `meta-llama/llama-3.1-8b-instruct` — that markup is
+Anthropic/Gemini/Qwen-only syntax. **DeepSeek and Llama on OpenRouter cache
+their prompt prefix automatically, no markup needed.** So the `is_anthropic`
+branch was never the bug.
+
+The real bug: OpenRouter's automatic caching depends on **sticky routing** —
+re-routing a follow-up request to the *same upstream provider node* that
+served the previous one, so that node's disk/prefix cache can be hit at all.
+Without an explicit `session_id`, OpenRouter's default sticky-routing key is
+a hash of the first system message + first user message. Our system prompt
+(`rag/nodes/generation.py`, `context_engineer`) embeds per-turn
+personalization (user-level classification, tone preference, distress
+history, experience blocks) directly into the persona text on every single
+call — so that hash almost never repeats, sticky routing never engages, and
+every request is a cold cache miss on a random upstream node. This explains
+zero `cached_tokens` AND zero `cache_write_tokens` for an entire hour: not a
+parsing bug (verified `prompt_tokens_details.cached_tokens` is the right key
+and is already parsed correctly at `services/openrouter_service.py:510-518`),
+a real absence of routing correlation.
+
+Sourced from OpenRouter's own docs (fetched live via WebFetch, not from
+training data): `https://openrouter.ai/docs/guides/best-practices/prompt-caching`
+and `https://openrouter.ai/blog/tutorials/prompt-caching-sticky-routing/` —
+the fix is a **top-level `session_id` field in the request body** (or
+`x-session-id` header); explicit `provider.order` would override sticky
+routing, but we don't set one (`openrouter_provider_sort` defaults empty).
+
+### 3. Fix implemented (all uncommitted, working tree)
+Plumbed a stable per-conversation id through as OpenRouter's documented
+sticky-routing key, gated behind a new setting, zero effect on verification
+or answer content:
+
+- `backend/app/config.py` — new `openrouter_sticky_session_routing_enabled: bool = True`.
+- `backend/rag/states.py` — new `GraphState["stable_session_id"]: Optional[str]`.
+- `backend/app/pipeline/stages/graph_stage.py` — `initial_state["stable_session_id"] = ctx.stable_session_id or "anonymous"`, right next to the existing `user_id` seed line. `ctx.stable_session_id` already existed in `PipelineContext`, unused for this purpose until now — it's the same normalized anon/authed session id `memory_stage.py` already uses for memory attribution (see root `CLAUDE.md`'s caching-invariants section).
+- `backend/rag/nodes/generation.py` — `generate_answer`: `generation_kwargs["session_id"] = state.get("stable_session_id")`, right after `_route_metadata` is popped. Flows via `**generation_kwargs` into whichever provider is live.
+- `backend/services/openrouter_service.py` — three call sites now read `kwargs.get("session_id")` and set `payload["session_id"]` when present and the setting is on: `_call_api` (non-streaming, used by `generate()`), `generate_stream`, and `_stream_completion`. The fallback-model retry path (`_call_api` calling itself with `_is_fallback_attempt=True`) already forwards `**kwargs`, so `session_id` survives a 429 fallback automatically — no extra plumbing needed there.
+
+Did **not** touch: `cache_control` gating logic itself (confirmed correct as-is
+for non-Anthropic models), `onnx_reranker.py`, `reranker_service.py` (explicitly
+out of scope, separate concurrent workstream per this session's task), and did
+not touch `_generate_fast` call sites used by intent/classify/HyDE/rewrite —
+those are short, high-variance prompts with much lower cache-hit potential;
+scoped the fix to `generate_answer`, the dominant ~14.45s-per-request cost.
+
+### 4. What's verified so far
+- `.venv/bin/pytest tests/test_openrouter.py tests/test_nodes.py tests/test_chat_endpoint.py tests/test_retrieve_documents_contract.py` — all pass (7+29 tests), no regression from the new field/kwarg.
+- `ast.parse` clean on all 5 edited files.
+- Confirmed via `docker ps` that `mukthiguru-backend` has **no source volume mount** (`docker-compose.yml` backend service uses `build: {context: .., dockerfile: backend/Dockerfile}` with no bind mount) — a plain restart would NOT pick up these edits, an image rebuild is required. Kicked off `docker compose build backend`; task `bk2xejdjw` completed exit 0 as of this handoff.
+
+### 5. Next step (in priority order) — NOT DONE YET, do this first
+1. `docker compose up -d backend` (from `backend/`) to recreate the container on the freshly built image.
+2. `curl -s localhost:8000/api/health` — confirm `ready: true`.
+3. Run the benchmark **twice** (provider latency varies run to run — this repo's own measured-baselines section warns `navigate_and_hyde` alone varied 12.1s→24.3s across identical-code runs, so a single sample proves nothing):
+   ```
+   cd backend && QDRANT_URL=http://localhost:6333 .venv/bin/python -u -m benchmarks.run \
+     --mode e2e --sources golden_qa_bank --sample 8 --auth anonymous \
+     --endpoint http://localhost:8000 --pace-seconds 2
+   ```
+4. `docker compose logs backend | grep "OpenRouter Cache Hit"` (the log line already exists at `services/openrouter_service.py`, guarded by `cached_tokens > 0 or cache_write_tokens > 0`) — this is the actual proof. If still all zero after 2+ runs with real conversational continuation (same `session_id` across turns), the sticky-routing theory is wrong or OpenRouter's `session_id` key isn't behaving as documented for these providers, and that needs to be reported honestly rather than declared fixed.
+5. Report real before/after `cached_tokens` counts and `generate_answer` latency numbers — do not claim the fix works without this. **A single-turn conversation won't show a cache hit either** — nothing to hit yet on turn 1. The benchmark needs to send multi-turn conversations reusing the same `session_id` to have any chance of a hit — check whether `benchmarks/run.py`'s `--mode e2e` sends multi-turn conversations or single-shot requests; if single-shot, this benchmark can't prove the fix and a small standalone multi-turn script (same `session_id`, 2-3 follow-up turns, 5-10s apart) will be needed instead.
+
+### 6. Honest caveat
+This fix is well-sourced (OpenRouter's own current docs, fetched live) and
+low-risk (pure metadata plumbing, no prompt/verification content changed),
+but it is **unproven against the real system** as of this handoff. Sticky
+routing's 10-minute-inactivity window and per-provider behavior for
+`deepseek/deepseek-chat` specifically (vs. the DeepSeek-official API directly)
+were not independently verified beyond the fetched docs — treat "should fix
+it" as the honest status until §5 step 4 produces a real non-zero
+`cached_tokens` line in the logs.
+
+### 7. Live result (2026-09-17, same session) — plumbing confirmed, cache hit NOT confirmed
+
+Added a temporary `logger.warning("CACHE_DEBUG ...")` line in `_call_api`
+(still in the file) to prove `session_id` actually reaches the OpenRouter
+payload before spending more time on it. Ran a real multi-turn probe against
+the live rebuilt container (`docker compose up -d backend` after the rebuild
+in §4/§5 completed).
+
+**Confirmed working:** `CACHE_DEBUG session_id='cd5e4404-36fb-5070-b8c1-6f5bd734a3dc' sticky_enabled=True in_payload=True sys_prefix_hash=9d1bbe39c56c ...` —
+the plumbing from `GraphState.stable_session_id` through `generation_kwargs`
+into the OpenRouter payload works exactly as designed.
+
+**NOT confirmed:** the actual cache hit. On the SAME request's automatic
+retry-after-reject path (`rag/nodes/generation.py`'s graduated-gating retry,
+`retry_count=0→1`), two consecutive `deepseek/deepseek-chat` calls fired
+seconds apart, same `session_id`, **identical system-prompt prefix hash**
+(`9d1bbe39c56c` on both), and OpenRouter's own usage line reported
+`cached_tokens=0 cache_write_tokens=0` **on both calls**:
+```
+OPENROUTER_CALL_TIMING ... attempts=1 total_ms=7423.5  prompt_tokens=2714 ... cached_tokens=0 cache_write_tokens=0
+OPENROUTER_CALL_TIMING ... attempts=1 total_ms=19864.2 prompt_tokens=2778 ... cached_tokens=0 cache_write_tokens=0
+```
+If sticky routing + DeepSeek's automatic caching worked as the fetched docs
+describe, the second call — same session_id, same node it should have been
+routed back to, identical prefix — should have shown at minimum a cache
+write on call 1 and a read on call 2. It showed neither. **Do not report this
+fix as proven to reduce latency or cost.** It is correctly implemented per
+OpenRouter's documented contract, but live evidence does not yet show it
+working end to end. Untested alternative explanations, in order of
+suspicion, for the next session to check:
+1. `session_id` sticky routing may be a feature gated to certain OpenRouter
+   account tiers/plans, undocumented in the public best-practices page —
+   check the account's OpenRouter dashboard/plan directly, or ask OpenRouter
+   support, rather than assuming the public docs are the whole contract.
+2. Two calls, seconds apart, from one probe run may simply be too small a
+   sample — DeepSeek's disk cache write could have a longer propagation
+   delay than assumed. Re-test with a longer-lived conversation (10+ minutes,
+   several real turns) before concluding the mechanism doesn't work at all.
+3. `openrouter_provider_sort=""` (empty, unset) was assumed neutral — worth
+   confirming OpenRouter isn't still load-balancing across multiple
+   upstream DeepSeek-compatible providers per call even with `session_id` set
+   (i.e. that sticky routing is actually being honored, not silently ignored
+   because some other provider-preference field conflicts with it).
+
+Also observed, unrelated to this fix, worth flagging separately: shortly
+after this test the container cycled into a `ready:false` boot state citing
+`Neo4j/Memgraph uniqueness constraints missing` (`UNIQUE_CONCEPT_NAME`,
+`UNIQUE_PRACTICE_NAME`, etc.) — a pre-existing infra/maintenance-runner issue,
+not caused by anything in this section's changes, and out of scope for this
+task. A concurrent session/agent also appears to be active against this same
+repo and container (added the `CACHE_DEBUG` line and `hashlib` import found
+on re-reading `services/openrouter_service.py` mid-session, not written by
+this session) — expect interleaved traffic and possible further container
+restarts if picking this back up while that's still true.
+
+### 8. Second fix (2026-09-17, same session) — provider-throughput sort for raw latency
+
+The `session_id` sticky-caching fix above did not pan out. Went after the
+raw latency problem directly instead: OpenRouter's own provider-performance
+data shows `deepseek/deepseek-chat` runs on 16+ upstream providers with a
+measured **4-57 tokens/sec spread**. That matches this repo's own live
+symptom exactly — two same-prompt, same-model calls seconds apart at 7.4s vs
+19.9s. This is provider *selection* variance, not something query
+optimization or prompt shrinking fixes.
+
+**Change:** `backend/app/config.py` — `openrouter_provider_sort` default
+changed from `""` (unset) to `"throughput"`, and
+`openrouter_preferred_min_throughput_p90` default changed from `0.0` to
+`20.0` (floors out the slowest commodity hosts per OpenRouter's own "Recipe
+2" pattern, without pinning to one provider, which would fight the
+sticky-session-id load balancing from §2-§7). Sourced from
+`https://openrouter.ai/docs/guides/best-practices/latency-and-performance`
+(fetched live) — confirmed `sort=throughput` optimizes tokens/sec during
+generation (not TTFT), composes cleanly with `session_id` sticky routing
+(the doc explicitly says so), and this repo's own `model_policy.py` already
+validates and wires this exact settings pair correctly (`provider_preferences()`
+produced `{'sort': {'by': 'throughput', 'partition': 'model'}, 'preferred_min_throughput': {'p90': 20.0}}`,
+verified by direct call before deploying).
+
+**Result — deployed, weak positive signal, not conclusively proven:**
+Rebuilt and redeployed the container. Two problems fought a clean before/after:
+(1) my own probe script failed both times with a client-side 281s timeout —
+the job queue was saturated by heavy CONCURRENT traffic from another
+session/process (many distinct `correlation_id`s, multiple `rewrite_query`
+retry chains visible in the logs at the same time as my calls) — an
+environment-contention problem, not a bug in this change; (2) with that
+caveat, the server-side `OPENROUTER_CALL_TIMING` numbers for
+`operation=standard model=deepseek/deepseek-chat` post-deploy (~25 calls,
+mixed with that concurrent load) clustered mostly 10-18s, median ≈14.5s, max
+18889ms — vs. the pre-fix baseline (5 calls, §7) of 7423/19864/24399/18358/18799ms,
+median ≈18.8s, max 24399ms. Directionally consistent with the fix helping
+(~20-25% lower median, ~6.5s lower ceiling) but **not a controlled
+measurement** — both samples ran under different, uncontrolled concurrent
+load, sample sizes are small, and provider-selection effect is not isolated
+from queue-contention effect. Do not report this as a proven latency win.
+Re-run the comparison with the stack quiet (no concurrent session hitting
+it) before trusting a number here.
+
+**Not touched, deliberately:** the unconditional `"reasoning": {"max_tokens": ...}`
+block already in `_call_api`'s payload (silently ignored by non-reasoning
+models per the existing code comment, verified against `gemma-3-12b-it` --
+not re-verified against `deepseek/deepseek-chat` specifically this session,
+worth a quick check next time but low suspicion); `_generate_fast` call
+sites (classify/HyDE/rewrite) inherit the same `provider_preferences()`
+change automatically since it comes from the shared `OpenRouterModelPolicy`,
+so no separate plumbing was needed there, and their `OPENROUTER_CALL_TIMING`
+lines above (197ms-7.7s) show the same provider-selection benefit should
+already apply to them too, unverified in isolation.
+
+### 9. Correction (2026-09-17, reported by a concurrent peer session, `askmukthiguru-8119b0e8-8b`, NOT independently re-verified by this session)
+
+We share one OpenRouter account; both sessions' traffic was contaminating
+each other's measurements all evening, which explains a lot of the noise in
+§4-§8. The peer session asked for a ~30 min quiet window starting ~19:15
+(this session complied, held off all `/api/chat`/`benchmarks/`/rebuild
+traffic) and reported back three corrections to this handoff, sourced from
+their own docker-logs read, not re-checked here:
+
+1. **§2's "cached_tokens stuck at 0 forever" conclusion is wrong.** The peer
+   observed a real `cached_tokens=3200` hit with the `"OpenRouter Cache Hit"`
+   log line firing on `deepseek/deepseek-chat`. Every sample in this
+   session's own testing (§2, §4, §7, §8) happened to land on misses — small
+   sample size, not a proof the mechanism is dead. **Re-open item 1 from §7's
+   next-steps** — the `session_id` fix may actually be working; it just
+   needs a larger sample to show a hit rate, not a binary yes/no from 3-5
+   calls.
+2. **`session_id` sticky-routing plumbing independently confirmed correct**
+   by the peer too: reaches the payload, identical across turns, and the
+   system-prompt prefix hash is byte-stable turn to turn (confirms this
+   session's own `CACHE_DEBUG` reading in §7 — personalization blocks are
+   appended after the persona/constitution text, not prepended, so the
+   prefix that matters for cache-prefix-matching stays intact). The
+   remaining variance is upstream provider routing, not our prompt
+   construction — consistent with §8's `provider_sort=throughput` fix being
+   the more load-bearing of the two changes.
+3. **`OpenRouterBudgetGuard` is Sarvam-only** — the `SARVAM_*` budget
+   settings never gated OpenRouter calls at all. Rule out budget-guard
+   throttling as an explanation for the fallback-to-`llama-3.3-70b-instruct`
+   behavior observed in this session's last probe (§8's "quiet stack" test
+   that still took >200s and fell back) — if it's not the budget guard, the
+   429/fallback is most likely the shared account's OpenRouter-side rate
+   limit being hit by combined traffic from both sessions, which is exactly
+   why the quiet window was requested.
+
+**Update — the >200s fallback question is answered (peer-reported, sourced
+from real log strings, not the digit "429"):** 7 rate-limit events total in
+a 60-minute window, ALL inside one 6-minute burst (19:13:39-19:19:56), zero
+in the following 28 minutes despite continuous traffic. ~1% 4xx rate overall
+(187×2xx vs 2×4xx). Verdict: **bursty and self-clearing, not an
+account-wide hard ceiling** — the existing backoff+fallback already absorbs
+it. `provider_sort=throughput` (§8) does NOT need a rate-limit-aware
+companion fix on this evidence. Caveat stated by the peer themselves: this
+was measured entirely under multi-session concurrent load, so it's "~1%
+even under concurrency," not a clean single-writer baseline — don't cite it
+as proof of a specific single-session rate. Also worth remembering for
+future fallback-model sightings: 7 of 9 `llama-3.3-70b-instruct` calls in
+that hour were `operation=rewrite_query` routed there BY CONFIG, not a 429
+fallback — a fallback-model log line alone is not evidence of throttling.
+
+**Still open:** an unexplained THIRD traffic source was spotted after this
+exchange — 12 anon-sessions/5min hitting `/api/chat` that neither this
+session nor the peer session (`askmukthiguru-8119b0e8-8b`) originated. This
+session confirmed via `ps aux` that no probe/benchmark process of its own
+was running. Possible orphaned/detached process from an earlier session
+(this one's own earlier `probe_sticky_cache.py`/`probe_throughput.py` runs
+all completed and exited cleanly, per their task outputs, so not those) —
+worth checking `docker exec mukthiguru-backend ps aux` for something running
+inside the container itself, and whether it's quietly spending OpenRouter
+budget. Whoever picks this up next: find and kill it before trusting any
+further latency/cache measurement, and re-open the `session_id` caching
+question with a larger sample (10+ calls) rather than trusting either
+session's small-sample conclusion from tonight.
 
 ---
 

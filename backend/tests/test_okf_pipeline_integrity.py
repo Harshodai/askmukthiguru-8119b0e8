@@ -106,12 +106,25 @@ def test_excluded_dirs_never_enter_the_compiled_index(excluded_dir: str):
 
 
 @pytest.mark.parametrize(
-    "provider", ["MultiProviderLLMService", "OpenRouterService", "OllamaService"]
+    ("provider", "source_token"),
+    [
+        # The multi-provider leg is reached through the `get_llm_service()`
+        # factory in services.multi_provider_llm, NOT by naming the class. This
+        # test previously asserted the literal string "MultiProviderLLMService"
+        # and so failed permanently against a chain that was in fact complete —
+        # a brittle source-string assertion reporting a defect that did not
+        # exist, which is how it came to be waved through as "known failing".
+        # Assert on the symbol the code actually uses.
+        ("multi-provider", "multi_provider_llm"),
+        ("OpenRouter", "OpenRouterService"),
+        ("Ollama", "OllamaService"),
+    ],
 )
-def test_extractor_llm_chain_has_all_fallbacks(provider: str):
+def test_extractor_llm_chain_has_all_fallbacks(provider: str, source_token: str):
     """This is the copy ingestion/Celery/admin import; it must fall back to Ollama."""
-    assert provider in inspect.getsource(extractor._call_llm), (
-        f"{provider} missing from _call_llm — OKF extraction raises under LLM_PROVIDER=ollama"
+    assert source_token in inspect.getsource(extractor._call_llm), (
+        f"{provider} leg ({source_token}) missing from _call_llm — "
+        "OKF extraction raises under LLM_PROVIDER=ollama"
     )
 
 

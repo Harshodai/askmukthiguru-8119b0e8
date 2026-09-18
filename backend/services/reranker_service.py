@@ -302,6 +302,17 @@ class RerankerService:
             len(documents) <= cross_encoder_cutoff or settings.use_cross_encoder_only
         )
 
+        # Whether the cross-encoder already raised *in this call*. The
+        # last-resort branch below must not re-run the backend that just
+        # failed: when RERANKER_BACKEND=onnx_int8 the ONNX session is loaded as
+        # _fallback_reranker AND _is_fallback is True, so a cross-encoder OOM
+        # skipped the FlashRank branch and fell straight into an unguarded
+        # second _run_cross_encoder call on the same broken session. That
+        # re-raise is what propagated out of _rerank_sync and killed the
+        # rerank_documents node outright (measured live 2026-09-17) instead of
+        # degrading to the retrieval ordering.
+        cross_encoder_failed = False
+
         if use_cross_primary:
             try:
                 if self._fallback_reranker is None:
@@ -310,6 +321,7 @@ class RerankerService:
                 if result is not None:
                     return result[:top_k]
             except Exception as e:
+                cross_encoder_failed = True
                 logger.error(f"CrossEncoder primary failed, falling back to FlashRank: {e}")
 
         if not self._is_fallback and self._ranker is not None:
@@ -363,16 +375,29 @@ class RerankerService:
                 )
                 self._load_fallback()
 
-        if self._fallback_reranker is not None:
-            result = self._run_cross_encoder(query, documents, effective_min_score, start_time)
-            if result is not None:
-                return result[:top_k]
+        if self._fallback_reranker is not None and not cross_encoder_failed:
+            try:
+                result = self._run_cross_encoder(query, documents, effective_min_score, start_time)
+                if result is not None:
+                    return result[:top_k]
+            except Exception as e:
+                logger.error(f"CrossEncoder last-resort rerank failed: {e}", exc_info=True)
 
+        # Every backend failed. Fall back to the retrieval ordering rather than
+        # raising or returning []: these are real retrieved documents, so
+        # passing them through costs relevance, not grounding, and every
+        # downstream gate (grading, faithfulness, citation verification) still
+        # runs on them. Raising here instead destroyed the whole answer.
         logger.error(
-            f"Reranker: both FlashRank and CrossEncoder backends unavailable/failed for "
-            f"{len(documents)} docs -- returning empty list, not a legitimate zero-match result"
+            f"Reranker: all backends unavailable/failed for {len(documents)} docs -- "
+            f"degrading to retrieval order (NOT a legitimate zero-match result)"
         )
-        return []
+        degraded = []
+        for doc in documents[:top_k]:
+            copied = doc.copy()
+            copied["rerank_degraded"] = True
+            degraded.append(copied)
+        return degraded
 
     def teaching_boost(
         self,

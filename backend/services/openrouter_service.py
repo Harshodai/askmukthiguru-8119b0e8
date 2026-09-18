@@ -460,6 +460,29 @@ class OpenRouterService:
             if param in kwargs:
                 payload[param] = kwargs[param]
 
+        # DeepSeek/Llama cache their prefix automatically -- no cache_control
+        # markup exists for them (that's Anthropic/Gemini/Qwen-only syntax).
+        # What they DO need is OpenRouter's sticky routing to land repeat
+        # turns on the same upstream node; without a stable session_id,
+        # OpenRouter's default same-request-hash correlation breaks every
+        # turn because our system prompt embeds per-turn personalization, so
+        # cached_tokens stays 0 forever. See CLAUDE.md.
+        # MEASURED 2026-09-17: this matches OpenRouter's documented sticky-routing
+        # mechanism and it still does NOT produce cache hits on this account.
+        # Verified end to end -- session_id reaches the payload, is identical
+        # across turns, and the system-prompt prefix is byte-stable (same sha256
+        # of the first 400 chars every turn; the personalization blocks are
+        # APPENDED after the persona, so they do not disturb the prefix). Three
+        # same-session turns of an identical question still logged
+        # cached_tokens=0 / cache_write_tokens=0 with no speedup
+        # (28.1s / 44.7s / 24.6s vs a 29.6s / 29.0s baseline). The remaining
+        # cause is upstream -- routing not landing on a warm node, or
+        # deepseek-chat not echoing cache stats for this tier -- not anything
+        # app code controls. Kept because it is correct per the docs and costs
+        # nothing. Do NOT re-derive this: re-measure cached_tokens first.
+        session_id = kwargs.get("session_id")
+        if session_id and settings.openrouter_sticky_session_routing_enabled:
+            payload["session_id"] = session_id
         headers = {}
         if is_anthropic:
             headers["anthropic-beta"] = "prompt-caching-2024-07-31"
@@ -780,6 +803,9 @@ class OpenRouterService:
             "stream": True,
             "stream_options": {"include_usage": True},
         }
+        session_id = kwargs.get("session_id")
+        if session_id and settings.openrouter_sticky_session_routing_enabled:
+            payload["session_id"] = session_id
 
         if not self._circuit.can_execute():
             raise CircuitOpenException(
@@ -976,6 +1002,9 @@ class OpenRouterService:
             "stream": True,
             "stream_options": {"include_usage": True},
         }
+        session_id = kwargs.get("session_id")
+        if session_id and settings.openrouter_sticky_session_routing_enabled:
+            payload["session_id"] = session_id
 
         is_anthropic = "anthropic/" in model or "claude" in model
         headers = {}

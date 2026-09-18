@@ -319,7 +319,14 @@ class QdrantSearcher:
 
                 if grouping_keys:
                     hits = None
-                    last_grp_err = None
+                    # Per-key outcome, so the failure log below can distinguish
+                    # "Qdrant raised" from "Qdrant answered with zero groups".
+                    # The previous log printed only last_grp_err, which is None
+                    # in the successful-but-empty case -- producing the
+                    # undiagnosable "failed for keys [...]: None" that fired on
+                    # 10/10 searches in the 2026-09-17 run while never saying
+                    # why parent grouping was dead.
+                    grp_outcomes: list[str] = []
                     for grp_key in grouping_keys:
                         try:
                             grouped_res = self._client.query_points_groups(
@@ -348,14 +355,20 @@ class QdrantSearcher:
                             # A successful-but-empty group response must not win over
                             # a broader key (or the ungrouped fallback below) that
                             # might still find matches — keep trying.
+                            grp_outcomes.append(f"{grp_key}=0hits/{len(grouped_res.groups)}groups")
                             continue
                         except Exception as grp_err:
-                            last_grp_err = grp_err
+                            grp_outcomes.append(
+                                f"{grp_key}=raised({type(grp_err).__name__}: {grp_err})"
+                            )
                             continue
 
                     if hits is None:
                         logger.warning(
-                            f"query_points_groups failed for keys {grouping_keys}: {last_grp_err}. Falling back to flat query_points."
+                            "query_points_groups produced no usable hits (%s). "
+                            "Falling back to flat query_points -- parent-document "
+                            "diversity is NOT being applied on this search.",
+                            "; ".join(grp_outcomes) or "no keys attempted",
                         )
                         results = self._client.query_points(
                             collection_name=self._collection,

@@ -27,6 +27,10 @@ _MODEL_REVISIONS = {
     "BAAI/bge-m3": "5617a9f61b028005a4858fdac845db406aefb181",
     "BAAI/bge-reranker-v2-m3": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
     "cross-encoder/ms-marco-MiniLM-L6-v2": "c5ee24cb16019beea0893ab7796b1df96625c6b8",
+    # PyTorch CrossEncoder fallback for CPU deployments (reranker_model_cpu in
+    # app/config.py) when RERANKER_BACKEND=onnx_int8's OnnxReranker fails to
+    # load — resolved 2026-09-17.
+    "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1": "1427fd652930e4ba29e8149678df786c240d8825",
     "sentence-transformers/all-MiniLM-L6-v2": "1110a243fdf4706b3f48f1d95db1a4f5529b4d41",
     "meta-llama/Llama-Guard-3-1B": "acf7aafa60f0410f8f42b1fa35e077d705892029",
     "protectai/distilroberta-base-rejection-v1": "86520b5f35829cf9209a449e1716b56c70ddd802",
@@ -67,6 +71,16 @@ CrossEncoder(
     "cross-encoder/ms-marco-MiniLM-L6-v2", revision=_pin("cross-encoder/ms-marco-MiniLM-L6-v2")
 )
 print("ms-marco reranker cache populated")
+
+# 3b. CrossEncoder CPU fallback reranker (settings.reranker_model_cpu) — this is
+# the model OnnxReranker actually falls back to on CPU deployments (Railway),
+# not ms-marco-MiniLM-L6-v2 above. Uncached, it silently downloads ~470MB at
+# request time inside a memory-constrained container the first time ONNX fails.
+CrossEncoder(
+    "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
+    revision=_pin("cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"),
+)
+print("mmarco-mMiniLMv2-L12 (reranker_model_cpu fallback) cache populated")
 
 # 4. SemanticRouter / on-device intent classifier
 SentenceTransformer(

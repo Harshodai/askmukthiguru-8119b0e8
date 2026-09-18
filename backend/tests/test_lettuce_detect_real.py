@@ -106,6 +106,19 @@ def test_fallback_when_import_fails(monkeypatch):
 
     monkeypatch.setattr(settings, "lettucedetect_enabled", True)
 
+    # The loaded detector is cached at CLASS level (one load per process, so the
+    # app/main.py warm-up actually warms the pipeline's instance -- see
+    # tests/test_lettuce_detector_shared.py). An earlier test in this process may
+    # therefore have already loaded the real model, in which case the simulated
+    # ImportError below is never reached and this test silently exercises the
+    # real detector instead of the fallback it exists to cover. Reset the shared
+    # cache so the poisoned import is actually hit; monkeypatch restores it
+    # afterwards so this test does not evict a legitimately loaded model.
+    from services.lettuce_detect_service import LettuceDetectService as _LDS
+
+    monkeypatch.setattr(_LDS, "_shared_detector", None)
+    monkeypatch.setattr(_LDS, "_shared_load_attempted", False)
+
     # Poison the import: insert a failing importer for ``lettucedetect`` and
     # the ``huggingface_hub`` snapshot path. ``_load_real_detector`` catches
     # ImportError and returns None, which routes to the heuristic.

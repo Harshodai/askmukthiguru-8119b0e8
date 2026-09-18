@@ -240,12 +240,28 @@ class Settings(BaseSettings):
     openrouter_allowed_providers: str = ""
     # Optional provider-routing experiment. Empty sort preserves OpenRouter's
     # normal load balancing; latency/throughput sorting is server-side only.
-    openrouter_provider_sort: str = ""
+    # "throughput" (tok/sec during generation, not TTFT) -- deepseek/deepseek-chat
+    # runs on 16+ OpenRouter-aggregated upstream providers with a measured
+    # 4-57 tok/s spread (OpenRouter's own provider-performance data, fetched
+    # 2026-09-17). generate_answer's own live logs show the exact symptom:
+    # two same-prefix calls seconds apart at 7.4s (~37 tok/s) vs 19.9s
+    # (~15 tok/s) for near-identical completion length -- provider selection,
+    # not model or prompt size, is the dominant latency variable here.
+    openrouter_provider_sort: str = "throughput"
     openrouter_provider_partition: str = "model"
     openrouter_preferred_max_latency_p90: float = Field(default=0.0, ge=0.0, le=300.0)
-    openrouter_preferred_min_throughput_p90: float = Field(default=0.0, ge=0.0, le=10000.0)
+    # Floor out the slowest commodity hosts (OpenRouter's own "Recipe 2":
+    # combine a sort with a throughput floor so routing never lands on an
+    # oversubscribed slow host) without pinning to one provider, which would
+    # cost the sticky-session-id caching path its load-balancing.
+    openrouter_preferred_min_throughput_p90: float = Field(default=20.0, ge=0.0, le=10000.0)
     openrouter_require_no_training: bool = True
     openrouter_allow_provider_fallbacks: bool = True
+    # Sends the stable per-conversation id as top-level session_id so
+    # OpenRouter's sticky routing pins follow-up turns to the same upstream
+    # node -- required for DeepSeek/Llama's automatic (no cache_control)
+    # prompt caching to ever hit. See CLAUDE.md cache-routing note.
+    openrouter_sticky_session_routing_enabled: bool = True
     openrouter_enforce_model_policy: bool = True
     openrouter_daily_budget_usd: float = Field(default=10.0, gt=0)
     openrouter_monthly_budget_usd: float = Field(default=100.0, gt=0)
@@ -486,6 +502,13 @@ class Settings(BaseSettings):
     # Rollback: set RERANKER_BACKEND=flagembedding in .env and restart.
     reranker_backend: str = "onnx_int8"
     reranker_onnx_model: str = "temsa/mmarco-mMiniLMv2-L12-H384-v1-onnx-cpu-qint8"
+    # Query-document pairs scored per ONNX session.run(). The self-attention
+    # buffer scales with batch x heads x seq x seq (~12.6MB per pair at 12
+    # heads / 512 tokens), so an unbounded batch asked onnxruntime's arena for
+    # a single 156MB allocation and it refused -- killing every
+    # rerank_documents node in a live 2026-09-17 run. 8 keeps the largest
+    # single allocation near 100MB. Raise only with measured memory headroom.
+    reranker_batch_size: int = Field(default=8, ge=1, le=64)
     enable_colbert: bool = False
 
     # --- Whisper / Transcription ---
@@ -865,6 +888,26 @@ class Settings(BaseSettings):
     # only_need_context=True (retrieval, not generation) and a hard timeout.
     # Unbounded aquery latency is why it was removed from the hot path.
     rag_lightrag_context_injection_enabled: bool = True
+    # Measured 2026-09-17 (local `LightRAGService.aquery(mode="local",
+    # only_need_context=True)` against live Memgraph/Qdrant, two multi-concept
+    # queries): 6.75s and 0.42s. Even with only_need_context=True, "local" mode
+    # still makes one LLM round trip for query-keyword extraction before graph
+    # lookup — that call, not the graph traversal itself, is what blows past a
+    # 4.0s budget under normal provider latency variance (not just tail
+    # conditions). This directly explains the two observed prod timeouts in a
+    # 47-question run. Raised to 7.0s to clear the measured slow case; this
+    # widens only the narrow multi-concept lane's fail-open timeout — the
+    # capped/labeled context injection below is unaffected either way.
+    # HELD AT 4.0 (a 7.0 raise was proposed and reverted 2026-09-17).
+    # Raising a fail-open timeout is strictly a LATENCY COST: on the slow case
+    # the request now waits 7s instead of 4s before giving up, and it only pays
+    # off if the 4-7s completions add answer quality. That benefit was never
+    # measured -- the proposal rested on two samples (6.75s and 0.42s) with no
+    # quality delta -- while `latency_p95_s` is currently FAILING its gate
+    # (91-99s against a 90s threshold). The lane fires on ~4% of queries and
+    # injects at most 1500 chars scored 0.35, so the upside is small and the
+    # downside lands directly on the gate we are trying to pass. Raise this
+    # only with a measured quality win attached.
     rag_lightrag_context_timeout: float = 4.0
     rag_lightrag_context_mode: str = "local"
     # Kept deliberately small: graph context is paid for twice, once in
@@ -927,7 +970,15 @@ class Settings(BaseSettings):
     # Internal telemetry confidence assigned to an abstention (no supporting evidence).
     generation_no_evidence_confidence: float = 2.0
     # Persona system-prompt token budget; pinned by tests/test_answer_path_regressions.py.
-    generation_persona_token_budget: int = 2150
+    # Must fit the WHOLE guru constitution — cap_to_token_budget silently
+    # truncates the tail, and the tail is where the prohibitions live, so a too
+    # small budget drops exactly the rules that keep the voice honest. Raised
+    # 2150 -> 2400 on 2026-09-17 when the "no coaching-question sign-off"
+    # prohibition pushed the persona to 1752 words (1752 * 1.3 ratio = 2278
+    # tokens). Guarded by tests/test_answer_path_regressions.py::
+    # test_persona_budget_fits_the_whole_constitution — if that test fails,
+    # raise this; never trim the constitution to fit.
+    generation_persona_token_budget: int = 2400
     # Default max length for extractive document compression before truncation.
     generation_compression_max_chars: int = 1500
     # Truncation marker appended when compressed text still exceeds the char budget.

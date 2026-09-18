@@ -45,6 +45,27 @@ _ONNX_RERANKER_REVISION = "59d3305e534a9abf92f6eb6238c34b748a89dc83"
 # tokenizer files ever diverge from the upstream cross-encoder/ repo.
 
 
+# Pairs scored per session.run(). See OnnxReranker.predict for why an
+# unbounded batch is what broke production on 2026-09-17.
+_DEFAULT_RERANK_BATCH_SIZE = 8
+
+
+def _resolve_batch_size() -> int:
+    """Read the batch size from settings, tolerating an absent setting.
+
+    Imported lazily and defensively: scripts/validate_onnx_reranker.py and the
+    __main__ self-check below construct an OnnxReranker without a fully
+    populated app.config (no LLM creds), and a reranker must not become
+    unloadable because a settings import failed.
+    """
+    try:
+        from app.config import settings
+
+        return max(1, int(getattr(settings, "reranker_batch_size", _DEFAULT_RERANK_BATCH_SIZE)))
+    except Exception:  # pragma: no cover - config-less contexts only
+        return _DEFAULT_RERANK_BATCH_SIZE
+
+
 def _hf_cache_dir(model_id: str) -> Path:
     """Return a stable, HF_HOME-aware directory for a model.
 
@@ -70,11 +91,12 @@ class OnnxReranker:
         scores = reranker.predict([("what is karma?", "Karma is ..."), ...])
     """
 
-    def __init__(self, model_id: Optional[str] = None) -> None:
+    def __init__(self, model_id: Optional[str] = None, batch_size: Optional[int] = None) -> None:
         self._session = None
         self._tokenizer = None
         self._has_token_type_ids: bool = False
         self._lock = threading.Lock()
+        self._batch_size = batch_size or _resolve_batch_size()
         self._load(model_id or _ONNX_RERANKER_MODEL_ID)
 
     # ------------------------------------------------------------------
@@ -196,11 +218,35 @@ class OnnxReranker:
 
         Returns a list of floats in [0, 1] (sigmoid-normalised logits).
         Order matches the input pairs.
+
+        Scored in fixed-size batches. Scoring a whole candidate list in one
+        session.run() allocates a self-attention buffer proportional to
+        batch x heads x seq x seq: at 12 heads and the 512-token max length
+        that is ~12.6MB PER PAIR, so an ordinary 13-24 document candidate set
+        asks onnxruntime's arena for one 150-160MB buffer and it refuses:
+
+            Failed to allocate memory for requested buffer of size 163577856
+
+        Measured live 2026-09-17 -- every rerank_documents node in a
+        golden_qa_bank run died this way in under 100ms, and the "fallback to
+        FlashRank" path in reranker_service._run_cross_encoder re-entered this
+        same method, so the retry failed identically and the node raised.
+        Batching bounds the largest single allocation no matter how many
+        candidates retrieval hands over. Scores are unchanged: each pair is
+        independent, so batching affects only padding width, and padded
+        positions are masked out by attention_mask.
         """
         import numpy as np
 
         if not pairs:
             return []
+
+        batch_size = max(1, int(self._batch_size))
+        if len(pairs) > batch_size:
+            scores: list[float] = []
+            for start in range(0, len(pairs), batch_size):
+                scores.extend(self.predict(pairs[start : start + batch_size]))
+            return scores
 
         queries = [q for q, _ in pairs]
         docs = [d for _, d in pairs]
