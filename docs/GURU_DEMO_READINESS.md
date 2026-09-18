@@ -1581,18 +1581,78 @@ order (misattribution > refusal > **latency**), the retry-on-reject gate is
 not being weakened to buy a stabler number. p95 stability on this corpus
 remains an open, honestly-documented limitation, not a false "fixed."
 
+### 4E.2.5 Post-code-review re-verification (2026-09-18, third run) — misattribution holds, coverage/latency don't this time
+
+Re-ran after the code-review fixes landed (commit `aea79ef0`: quote-guard
+union fix in `format_final_answer`, the same union fix ported to
+`reflect_on_answer`/`verify_answer`/`combined_grade_and_verify`'s emptiness
+checks, `handle_casual`'s unconditional quote strip, `LettuceDetectService`'s
+load-lock). Same 12 questions, quiet box, `--out /tmp/demo_safe_reverify_125302.json`.
+
+| Gate | Measured | Threshold | Result |
+| :--- | ---: | ---: | :--- |
+| misattribution_rate | **0.0** | ≤ 0.05 | **PASS** |
+| misattribution_unmeasured_rate | 0.1667 (2/12) | ≤ 0 | FAIL |
+| refusal_rate | 0.0833 | ≤ 0.35 | PASS |
+| must_mention_coverage_answered | **0.4** | ≥ 0.50 | **FAIL** |
+| contradiction_count | 0 | ≤ 0 | PASS |
+| citation_validity_rate | 1.00 | ≥ 0.60 | PASS |
+| zero_retrieval_rate | 0.0 | ≤ 0.05 | PASS |
+| system_error_rate | 0.0 | ≤ 0 | PASS |
+| latency_p95_s | 106.9 | ≤ 90 | FAIL |
+| machine_summary_share_mean | 0.1993 | ≤ 0.30 | PASS |
+
+**Misattribution holds** — both flagged rows (`qa-core-002`, `qa-fss-004`)
+are the benign `unmeasured_evidence_window` class, not `quote_not_traceable`.
+Ground-truthed directly against live Qdrant this time (not just trusted the
+detector): all three of `qa-core-002`'s quoted spans — Sri Krishnaji's
+near-death/awakening account ("the root cause of all suffering is obsessive
+self-centric thinking...", "no separate beings, no separate things... I was
+the universe", "no longer a man who was suffering... I was limitless") —
+confirmed present verbatim in the corpus by direct text-match query. Zero
+real fabrications found. `qa-fss-004` used the raw-excerpt fallback path
+(verbatim `[CITE:n]`-tagged retrieved text), grounded by construction.
+
+**must_mention coverage regressed below threshold again** (0.5333 →
+0.6 → 0.4 across three runs today) and **latency is unstable in the same
+direction as before** (106.9s, a third distinct p95 value after 70.67s and
+148.78s). Neither is a new bug from today's code-review fixes — both are the
+same previously-documented sources of run-to-run variance (LLM sampling
+non-determinism affecting how often `grounded_partial_fallback` fires, which
+simultaneously drags down coverage and inflates latency on whichever
+questions it hits). This run's `qa-core-006`, `qa-fss-001`, `qa-fss-003` all
+scored coverage 0.0 — worth a closer look in a future session at why these
+specific three keep landing at zero rather than assuming it's noise every time.
+
+**Correction to §4E.2.2's implicit claim**: that section reported coverage
+"FIXED... now PASSES" based on one post-fix run (0.5333) and a second
+stability run (0.6) that also passed. A third run today shows it can still
+fail (0.4). The ligature-corruption fix was real and did measurably help
+(compare to the original 0.3667/0.4545 pre-fix baseline in §4E), but it did
+not make coverage a reliable PASS — it remains a noisy metric near the
+threshold, not a solved gate. Do not cite "coverage fixed" without re-checking.
+
 ### 4E.3 Demo-safe verdict
 
-**NOT demo-safe.** One blocker remains (three resolved 2026-09-18):
+**NOT demo-safe.** Two blockers remain (two resolved 2026-09-18):
 
-1. ~~Misattribution 8.33%~~ — **FIXED**, re-measured at 0.0%. See §4E.2.1.
-2. ~~must_mention coverage 0.4545~~ — **FIXED**, re-measured at 0.5333 (PASS).
-   See §4E.2.2.
+1. ~~Misattribution 8.33%~~ — **FIXED, and holds across THREE independent
+   runs today** (0.0%, 0.0%, 0.0%), including a third round of code-review
+   fixes and direct ground-truthing of every flagged row against the live
+   corpus. This is the one gate with genuine confidence behind it now. See
+   §4E.2.1 and §4E.2.5.
+2. **must_mention coverage — NOT reliably fixed, still a blocker.** Three
+   post-ligature-fix runs: 0.5333 (PASS), 0.6 (PASS), 0.4 (FAIL). The
+   ligature-corruption fix measurably helped off the original 0.3667/0.4545
+   baseline, but coverage remains a noisy metric that swings across the
+   0.50 threshold run to run — do not treat it as solved. See §4E.2.2 and
+   the correction in §4E.2.5.
 3. ~~Qdrant `query_points_groups` 0 groups in-container~~ — **was a stale
    container, resolved on rebuild.** See §4E.2.3.
-4. **Latency p95 stability** — swings 70.67s (PASS) to 148.78s (FAIL) run to
-   run on identical code. See §4E.2.4. Not something to fix by weakening
-   verification; still open.
+4. **Latency p95 stability — confirmed unstable across THREE runs**: 70.67s
+   (PASS), 148.78s (FAIL), 106.9s (FAIL). 2 of 3 fail the 90s gate. See
+   §4E.2.4 and §4E.2.5. Not something to fix by weakening verification;
+   still open, and now the majority-observed state rather than an outlier.
 5. **Four Sacred Secrets doctrine coverage** (see 4D.3) — partially addressed
    by the ligature fix (garbled quotes were failing verification and forcing
    the excerpt-dump fallback), but faithfulness on this cluster was not

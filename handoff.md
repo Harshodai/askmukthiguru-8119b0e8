@@ -38,8 +38,13 @@ ready-to-paste subagent prompt covering item 1.
 
 ### REFUSAL / completeness
 
-4. **must_mention coverage 0.5333 vs 0.50 — thin margin, not a comfortable
-   pass.** One bad sample away from failing again.
+4. **must_mention coverage — NOT reliably above 0.50, confirmed by a third
+   run.** 0.5333 (PASS) → 0.6 (PASS) → 0.4 (FAIL) across three post-fix runs
+   today. The ligature-corruption fix genuinely helped vs. the 0.3667/0.4545
+   pre-fix baseline, but this is not a solved gate — it's a noisy metric
+   straddling the threshold. `qa-core-006`, `qa-fss-001`, `qa-fss-003` scored
+   0.0 on the third run; worth investigating whether those three specifically
+   have a real cause or it's genuinely just sampling variance.
 5. **`qa-fss-001` ("What are the Four Sacred Secrets outlined by...") still
    fails.** faithfulness 0.0, `grounded_partial_fallback`, every run this
    session. Retrieval never surfaces a single chunk that enumerates all four
@@ -53,24 +58,40 @@ ready-to-paste subagent prompt covering item 1.
 
 ### LATENCY (lowest severity by design, but still unresolved)
 
-7. **p95 confirmed unstable**, 70.67s (PASS) to 148.78s (FAIL) on identical
-   code, minutes apart. Root cause identified (verification-retry round trip
-   on `grounded_partial_fallback`) and deliberately NOT eliminated — doing so
+7. **p95 confirmed unstable across THREE runs, now the majority state**:
+   70.67s (PASS), 148.78s (FAIL), 106.9s (FAIL) — 2 of 3 fail the 90s gate.
+   Root cause identified (verification-retry round trip on
+   `grounded_partial_fallback`) and deliberately NOT eliminated — doing so
    would weaken the retry-on-reject gate, forbidden by the owner's own
-   severity order. Documented, not fixed. Re-measuring more times would only
-   confirm instability, not resolve it — an actual fix needs either a faster
-   retry-path model or accepting the variance.
+   severity order. Documented, not fixed. A real fix needs either a faster
+   retry-path model or accepting the variance as a stated trade-off.
 
-### Re-verification owed from this session's own last set of fixes
+### Re-verification owed from this session's own last set of fixes — DONE
 
-8. **The demo-safe benchmark has NOT been re-run since the code-review fixes
-   landed** (quote-guard union in `format_final_answer`, the
-   `verification.py` empty-context union fix ×3, the `handle_casual`
-   unconditional quote strip, the `LettuceDetectService` lock). All backend
-   unit/integration tests pass (7263/0), but none of them exercise the full
-   live pipeline end-to-end the way `evaluation.bench` does. This is the
-   single highest-value next action before trusting any of today's numbers
-   as still current.
+8. ~~The demo-safe benchmark has NOT been re-run since the code-review fixes
+   landed~~ **DONE.** A subagent (launched, then resumed twice — first
+   attempt silently died when backgrounded past its own turn boundary,
+   second attempt was a genuine mid-run checkpoint correctly identified and
+   NOT restarted) ran the real 12-question e2e benchmark
+   (`/tmp/demo_safe_reverify_125302.json`). Result: **misattribution holds
+   at 0.0% for the third independent time**, with both flagged rows
+   ground-truthed directly against live Qdrant (all 3 quoted spans in
+   `qa-core-002` confirmed verbatim in the corpus — Sri Krishnaji's
+   near-death/awakening account). Coverage and latency did NOT hold this
+   run (see items 4 and 7) — not a new regression, the same documented
+   variance, but real and now recorded honestly rather than cherry-picked
+   from the two better runs. Full writeup: `docs/GURU_DEMO_READINESS.md`
+   §4E.2.5.
+
+   **Process note for next time**: a subagent instructed to "wait for a
+   background process, then report" will stop its own turn and NOT reliably
+   receive a wake-up when that process exits, if the process was started
+   inside its own shell rather than through a harness-tracked mechanism. The
+   parent session had to poll directly (`while ps -p <pid>; do sleep 5; done`
+   via a harness-tracked backgrounded Bash call) to actually catch
+   completion. Don't trust a subagent's "I'll wait for the notification"
+   claim at face value — verify the process is actually still running or
+   already produced real output before accepting a report as final.
 
 ### Lower-priority code-review findings, left unfixed on purpose (see this
 ### session's `ReportFindings` call for full detail)
