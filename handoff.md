@@ -1,8 +1,128 @@
 # AskMukthiGuru — Session Handoff
-**Date:** 2026-09-18 | **Branch:** `main` | **Status:** all work UNCOMMITTED in the working tree. 7249 tests pass, 0 fail. Ruff check + format clean. Container healthy.
+**Date:** 2026-09-18 | **Branch:** `main` | **Status:** COMMITTED (2 new commits: `3339b670` data/okf, `aea79ef0` fix/code-review — 10 commits total ahead of `origin/main`, **NOT YET PUSHED**, push was denied by the permission layer mid-session, needs an explicit human approval or re-attempt). 7263 tests pass, 0 fail. Ruff check + format clean. Docker stack (backend/qdrant/memgraph/redis) all healthy. Railway production **paused** (scaled to 0 replicas both regions, on request) — it was CRASHED since 2026-09-11 before the pause and that crash was never diagnosed.
 
 > Newest handoff first. Everything below the `---` divider at the end of this
 > section is the previous 2026-09-12 handoff, retained unchanged.
+
+## 0. PROD-READINESS CHECKLIST — what's actually left, ruthlessly, in severity order
+
+This is the authoritative "what remains" list as of 2026-09-18 end of session.
+Everything below is either unverified, unfixed, or explicitly deferred — no
+padding, no items included just to look thorough. See §12 below for a
+ready-to-paste subagent prompt covering item 1.
+
+### TOP severity (misattribution)
+
+1. **Only a 12-question sample has ever confirmed misattribution=0%.** Every
+   measurement this session (§4E.2.1 onward in `docs/GURU_DEMO_READINESS.md`)
+   used the same `golden_qa_bank` 12-question subset (first 12 items:
+   `qa-core-001..006`, `qa-fss-001..006`). The other 8 question sources
+   (`abstention_eval`, `golden_dataset` 589 items, `question_bank` 417,
+   `golden_questions` 50, `priority_languages` 12, `mukthi_guru_v1` 51,
+   `injection_crosslingual` 30, `injection_multilingual` 20 — see
+   `evaluation/bench.py::DEFAULT_SOURCES`) have NOT been re-run against
+   today's code at all. A misattribution rate of 0% on 12 questions is not
+   the same claim as 0% overall.
+2. **Four Sacred Secrets book rights: verbal confirmation only, no artifact.**
+   Owner confirmed "I have enough rights from the owners itself" — accepted
+   and acted on, but no license document, email, or manifest exists in the
+   repo. Item 6 below (source-rights manifest) is the concrete deliverable
+   that would close this.
+3. **Backup RPO is unbounded.** `infrastructure/cron/mukthiguru-backup`
+   exists in-repo but was never installed on this host (confirmed again this
+   session: `/etc/cron.d/mukthiguru-backup` absent). If Qdrant or Memgraph
+   corrupts or is lost, there is currently no recovery path. Also: the doc
+   assumes Linux `/etc/cron.d/`, but this host is macOS — the mechanism
+   itself needs to be a `launchd` plist, not a straight reinstall of the
+   documented cron file.
+
+### REFUSAL / completeness
+
+4. **must_mention coverage 0.5333 vs 0.50 — thin margin, not a comfortable
+   pass.** One bad sample away from failing again.
+5. **`qa-fss-001` ("What are the Four Sacred Secrets outlined by...") still
+   fails.** faithfulness 0.0, `grounded_partial_fallback`, every run this
+   session. Retrieval never surfaces a single chunk that enumerates all four
+   secrets together — this looks like a genuine retrieval/corpus gap for
+   broad enumeration questions, not a data-corruption issue (that's fixed).
+   Not investigated further this session.
+6. **Full-coverage evaluation has not been run against current code at
+   all.** `.venv/bin/python -m evaluation.bench --mode e2e` with no
+   `--sources`/`--sample` limit (all 9 sources, ~1,200+ questions, hours) has
+   never executed against this session's fixes.
+
+### LATENCY (lowest severity by design, but still unresolved)
+
+7. **p95 confirmed unstable**, 70.67s (PASS) to 148.78s (FAIL) on identical
+   code, minutes apart. Root cause identified (verification-retry round trip
+   on `grounded_partial_fallback`) and deliberately NOT eliminated — doing so
+   would weaken the retry-on-reject gate, forbidden by the owner's own
+   severity order. Documented, not fixed. Re-measuring more times would only
+   confirm instability, not resolve it — an actual fix needs either a faster
+   retry-path model or accepting the variance.
+
+### Re-verification owed from this session's own last set of fixes
+
+8. **The demo-safe benchmark has NOT been re-run since the code-review fixes
+   landed** (quote-guard union in `format_final_answer`, the
+   `verification.py` empty-context union fix ×3, the `handle_casual`
+   unconditional quote strip, the `LettuceDetectService` lock). All backend
+   unit/integration tests pass (7263/0), but none of them exercise the full
+   live pipeline end-to-end the way `evaluation.bench` does. This is the
+   single highest-value next action before trusting any of today's numbers
+   as still current.
+
+### Lower-priority code-review findings, left unfixed on purpose (see this
+### session's `ReportFindings` call for full detail)
+
+9. `evaluation/bench.py::_DENIAL_RE` can mask a real fabricated quote if an
+   unrelated negation appears earlier in the same sentence (eval-harness
+   accuracy issue, not a live-product issue).
+10. `pdf_ligature_repair.py`'s corruption-token regex can over-merge across
+    hyphens for a future unmapped word (degrades to a visible typo, not a
+    wrong silent repair — documented, acceptable fallback).
+11. Three code-duplication items: `openrouter_service.py`'s sticky-`session_id`
+    block copy-pasted 3×; quote-normalization logic re-implemented 3× across
+    `evaluation/bench.py`, `rag/nodes/generation.py`,
+    `services/okf_quality_filter.py`; `okf_quality_filter.py`'s
+    fabricated/truncated-quote checks each re-run the same regex independently.
+
+### Infra / ops (not code — needs a human or a different kind of agent)
+
+12. **Backup cron never installed** (see item 3) — needs sudo + a macOS
+    `launchd` plist, not the Linux cron file as documented.
+13. **Memgraph uses ~570-600MB of its 1GB cap (55-60%)**, 6× the "~60-100MB"
+    figure `CLAUDE.md` documents for the Neo4j→Memgraph migration. Not
+    actively broken (well under the cap), but if Railway's own memory
+    allocation for this service is sized off the documented figure rather
+    than the measured one, it will be undersized.
+14. **Supabase auth/backup gaps, all traced to the Free plan ceiling**:
+    leaked-password protection OFF, min password length 6, no CAPTCHA, zero
+    backups/PITR possible at any settings. Needs a Pro-plan decision, not a
+    code fix.
+15. **Frontend was not touched or tested at all this session.** No `npm test`,
+    `npm run lint`, `npm run build`, or `npm run test:e2e` was run. This
+    entire session was backend-only. Frontend prod-readiness is completely
+    unverified.
+16. **The retrieval-index / source-rights manifest still does not exist**
+    (item 6 in §5 below, carried from the 2026-09-12 handoff). This is the
+    actual deliverable that would resolve item 2 above properly, rather than
+    resting on a verbal confirmation.
+
+### Railway (currently paused, revisit only after the above)
+
+17. **The original crash was never diagnosed.** The service was CRASHED
+    since 2026-09-11 when this session started; it was paused (scaled to 0
+    replicas), not fixed. Before any redeploy, pull the crash logs from that
+    deployment (`2d75a191-1d1c-420c-b4c5-e7340bec28ea`) and find out why it
+    died — pausing a crashed service doesn't answer that question, it just
+    stops it from trying and failing again.
+18. **Railway's env vars need a parity check against local `.env`** before
+    any redeploy — several settings changed this session and in prior
+    sessions (`reranker_batch_size`, `openrouter_provider_sort`,
+    `openrouter_preferred_min_throughput_p90`, persona budget, LightRAG
+    timeout, `RERANKER_BACKEND`, etc.) and Railway's variable set was last
+    confirmed synced long before most of these landed.
 
 ## 1. The goal
 
@@ -198,7 +318,59 @@ is not evidence.
   staging review gate works. Do not weaken `_excluded_parts`.
 - **`lessons.md` gained 11 new entries** this session (L-ONNX-1, L-FALLBACK-1,
   L-LOG-1, L-DOCTRINE-1, L-MASK-1, L-DEP-1, L-GATE-2, L-WARM-1, L-VERIFY-2,
-  L-VERIFY-3, L-EVAL-1, L-GRAPH-2, L-LATENCY-2).
+  L-VERIFY-3, L-EVAL-1, L-GRAPH-2, L-LATENCY-2) plus 4 more from the later
+  2026-09-18 session (L-INVARIANT-2, L-INGEST-1, L-DEPLOY-1, L-LATENCY-3).
+
+## 8. Ready-to-use subagent prompt — item 8 (post-fix re-verification)
+
+This is the single highest-value next action (§0 item 8) and is
+self-contained enough to hand to a fresh subagent with no other context.
+Copy verbatim:
+
+> Read `handoff.md` §0 (PROD-READINESS CHECKLIST) and
+> `docs/GURU_DEMO_READINESS.md` §4E onward first — that is the full context
+> for what changed and why. Do not re-derive it from git log.
+>
+> This session landed several fixes to `backend/rag/nodes/intent.py`,
+> `backend/rag/nodes/generation.py`, `backend/rag/nodes/verification.py`, and
+> `backend/services/lettuce_detect_service.py` (commit `aea79ef0`, see its
+> message for the full list) but never re-ran the live end-to-end demo-safe
+> benchmark afterward — only the unit/integration test suite (7263/0 passed,
+> which doesn't exercise the full pipeline the way `evaluation.bench` does).
+>
+> Task: confirm the fixes hold under a real run, honestly.
+>
+> 1. Verify the box is quiet: `ps aux | grep benchmarks.run` must be empty,
+>    and `docker logs mukthiguru-backend --since 2m | grep -c "POST /api/chat"`
+>    must be 0.
+> 2. Check `docker inspect --format='{{.RestartCount}}' mukthiguru-backend`
+>    and `{{.State.Health.Status}}` before starting — must be healthy,
+>    `RestartCount` noted so you can confirm it didn't change mid-run.
+> 3. Run (from `backend/`, with the host-vs-container URL overrides this repo
+>    needs — see root `CLAUDE.md` "Gotchas"):
+>    `QDRANT_URL=http://localhost:6333 NEO4J_URI=bolt://localhost:7687 REDIS_URL=redis://:mukthiguru_redis_pass@localhost:6379/0 .venv/bin/python -m evaluation.bench --mode e2e --auth anonymous --sources golden_qa_bank --sample 12 --out /tmp/<unique_name>.json`
+>    — use a genuinely unique `--out` filename, do not overwrite a prior run.
+> 4. Report the gate table exactly as printed (misattribution_rate,
+>    misattribution_unmeasured_rate, must_mention_coverage_answered,
+>    latency_p95_s, all of them) — do not cherry-pick.
+> 5. For ANY row with a `misattribution_flags` entry, ground-truth it against
+>    the actual corpus/OKF bundle before believing the flag — this project's
+>    own history (handoff.md §6, "verify the gate before believing the
+>    number") shows most flags have been detector false positives, but the
+>    one real one (this session's whole reason for existing) was real. Check,
+>    don't assume either way.
+> 6. If everything holds: update `docs/GURU_DEMO_READINESS.md` with a new
+>    dated subsection recording the confirmation, same pattern as §4E.2.1
+>    through §4E.2.4. If something regressed: STOP, do not paper over it,
+>    report exactly what broke and why before touching any gate's threshold
+>    or logic.
+> 7. Do not commit or push without being asked. Do not touch Railway — it is
+>    intentionally paused.
+
+Other items in §0 (2, 3, 6, 9-18) are either genuine external/product
+decisions (rights manifest, Supabase plan, backup cron sudo access) or lower
+priority — hand those to a human or a separate, narrower prompt per item
+rather than one subagent trying to do everything in §0 at once.
 
 ---
 
