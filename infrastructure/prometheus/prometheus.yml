@@ -11,7 +11,16 @@ alerting:
         - targets: ['alertmanager:9093']
 
 scrape_configs:
+  # AMK-F-001: this used to scrape '/metrics', which is admin + AAL2 and
+  # answered 401 to every scrape. Prometheus stored nothing, so all six rules in
+  # alerting-rules.yml evaluated against an empty series set and could never
+  # fire. '/internal/metrics' is the scraper's own credentialed path; it serves
+  # the identical exposition and fails closed when METRICS_SCRAPE_TOKEN is unset
+  # (404), which shows up here as a DOWN target rather than as silence.
   - job_name: 'mukthiguru-backend'
-    metrics_path: '/metrics'
+    metrics_path: '/internal/metrics'
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prometheus/scrape_token
     static_configs:
       - targets: ['backend:8000']

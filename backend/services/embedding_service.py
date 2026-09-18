@@ -48,6 +48,7 @@ from services.circuit_breaker import (
     CircuitOpenException,
     DefaultCircuitBreaker,
 )
+from services.native_inference_gate import native_inference
 
 logger = logging.getLogger(__name__)
 
@@ -1030,19 +1031,24 @@ class EmbeddingService:
         last_err = None
         for attempt in range(1, max_retries + 1):
             try:
-                inputs = self._onnx_tokenizer(
-                    prefixed_texts,
-                    padding=True,
-                    truncation=True,
-                    return_tensors="np",
-                )
-                ort_out = self._onnx_session.run(
-                    None,
-                    {
-                        "input_ids": inputs["input_ids"].astype("int64"),
-                        "attention_mask": inputs["attention_mask"].astype("int64"),
-                    },
-                )
+                # Gated: the tokenised batch and the session's attention
+                # buffer are native allocations. Unbounded concurrency here is
+                # what produced the std::bad_alloc / exit-137 crashes
+                # (AMK-B-002, AMK-C-001).
+                with native_inference("embed_onnx"):
+                    inputs = self._onnx_tokenizer(
+                        prefixed_texts,
+                        padding=True,
+                        truncation=True,
+                        return_tensors="np",
+                    )
+                    ort_out = self._onnx_session.run(
+                        None,
+                        {
+                            "input_ids": inputs["input_ids"].astype("int64"),
+                            "attention_mask": inputs["attention_mask"].astype("int64"),
+                        },
+                    )
                 dense_vecs = ort_out[0].tolist()
                 sparse_raw = ort_out[1]
                 input_ids = inputs["input_ids"].tolist()
@@ -1218,16 +1224,17 @@ class EmbeddingService:
         last_err = None
         for attempt in range(1, max_retries + 1):
             try:
-                inputs = self._onnx_tokenizer(
-                    texts, padding=True, truncation=True, return_tensors="np"
-                )
-                ort_out = self._onnx_session.run(
-                    None,
-                    {
-                        "input_ids": inputs["input_ids"].astype("int64"),
-                        "attention_mask": inputs["attention_mask"].astype("int64"),
-                    },
-                )
+                with native_inference("embed_onnx_colbert"):
+                    inputs = self._onnx_tokenizer(
+                        texts, padding=True, truncation=True, return_tensors="np"
+                    )
+                    ort_out = self._onnx_session.run(
+                        None,
+                        {
+                            "input_ids": inputs["input_ids"].astype("int64"),
+                            "attention_mask": inputs["attention_mask"].astype("int64"),
+                        },
+                    )
                 dense_vecs = ort_out[0].tolist()
                 sparse_raw = ort_out[1]
                 input_ids = inputs["input_ids"].tolist()

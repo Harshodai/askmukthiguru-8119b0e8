@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import hmac
 import inspect
 import logging
 import threading
@@ -372,6 +373,20 @@ async def _build_health_response(container: ServiceContainer) -> JSONResponse:
         **backpressure,
     }
 
+    # AMK-B-002 / AMK-C-001: the chat semaphore counts requests; this counts
+    # the native ONNX/torch inference slots they contend for. The second
+    # number is the one that actually predicts an OOM kill, so it has to be
+    # visible on its own -- admission can look healthy while inference queues.
+    from services.native_inference_gate import gate_state
+
+    native_gate = dict(gate_state() or {})
+    results["native_inference_gate"] = {
+        "ok": not native_gate.get("saturated", False),
+        "latency_ms": 0,
+        "critical": False,
+        **native_gate,
+    }
+
     # LightRAG
     # critical=False (2026-09-06, prod-readiness fix): root CLAUDE.md's own
     # failover invariant documents LightRAG/Neo4j degradation as a graceful
@@ -648,5 +663,44 @@ async def debug_headers(
 async def get_metrics(user: dict = Depends(require_aal2)) -> Response:
     """Prometheus metrics endpoint. Admin only — may expose system internals."""
     _require_admin(user)
+    data, content_type = metrics_endpoint()
+    return Response(content=data, media_type=content_type)
+
+
+@router.get("/internal/metrics", include_in_schema=False)
+async def scrape_metrics(request: Request) -> Response:
+    """Same exposition as /metrics, for an automated scraper.
+
+    AMK-F-001: `/metrics` is admin + AAL2, which is right for a human-facing
+    endpoint that exposes system internals — but Prometheus cannot hold an AAL2
+    Supabase session. The configured scrape of `backend:8000/metrics` therefore
+    returned 401 forever, so Prometheus stored no samples and all six alert
+    rules in `infrastructure/prometheus/alerting-rules.yml` evaluated against an
+    empty series set. They could not fire. Alerting was configured, wired, and
+    incapable of ever going off.
+
+    This is a SEPARATE credential, not a loophole in the admin one:
+
+    * `/metrics` is untouched — no new path into it, no weakened dependency.
+    * Fails closed. With `metrics_scrape_token` unset (the default) every
+      request here is rejected; an absent secret grants nothing.
+    * Constant-time comparison, so the token is not discoverable by timing.
+    * Excluded from the OpenAPI schema: a scraper does not read docs, and the
+      endpoint should not advertise itself.
+
+    Rotate by changing `METRICS_SCRAPE_TOKEN` and restarting both containers.
+    """
+    expected = getattr(settings, "metrics_scrape_token", None)
+    if not expected:
+        raise HTTPException(
+            status_code=404,
+            detail="Not found",
+        )
+
+    header = request.headers.get("Authorization", "")
+    presented = header[7:] if header.startswith("Bearer ") else ""
+    if not presented or not hmac.compare_digest(presented, str(expected)):
+        raise HTTPException(status_code=401, detail="Invalid scrape credentials")
+
     data, content_type = metrics_endpoint()
     return Response(content=data, media_type=content_type)

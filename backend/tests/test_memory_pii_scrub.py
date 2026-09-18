@@ -65,7 +65,7 @@ def test_prepare_user_memory_scrubs_second_brain_pii():
         ]
     )
 
-    memory_context, _, _ = asyncio.run(
+    memory_context, _, _, _ = asyncio.run(
         prepare_user_memory(
             container,
             "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6",

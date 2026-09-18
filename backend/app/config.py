@@ -616,6 +616,43 @@ class Settings(BaseSettings):
     # Set to 8 to align with realistic 60 RPM Sarvam limits for 8-step Standard path.
     max_concurrent_chat: int = Field(default=8, ge=1)
 
+    # Concurrent native (ONNX/torch) model-inference slots per process.
+    #
+    # This is a MEMORY bound, and only a memory bound. The crash it was first
+    # written for (AMK-B-002/AMK-C-001) turned out not to be a memory problem
+    # at all: the backend died of `Fatal Python error: Segmentation fault`
+    # inside torch's Linear.forward at 4.1GB of a 6GB limit with
+    # OOMKilled=false, because one shared LettuceDetect ModernBERT module was
+    # being run from several threads at once. Thread-safety is enforced where
+    # it belongs — an exclusive lock on that module in
+    # lettuce_detect_service.py — not by squeezing this number.
+    #
+    # Sized from measurement, 2026-09-18, 6 concurrent full-pipeline chats:
+    # at 2 slots the box survived but paid 787s of queueing across 24 requests
+    # (lettuce_nli 441s, embed_onnx 266s, rerank_onnx 80s) for headroom it did
+    # not need. ONNX Runtime's session.run() is thread-safe, so these slots
+    # exist to cap peak RSS, nothing more. Re-derive with
+    # `scripts/ops/gate1_load_test.py --container ... --mem-budget-pct` against
+    # the box being shipped to, never by guess.
+    native_inference_max_concurrent: int = Field(default=6, ge=1)
+
+    # Shared secret that lets a metrics SCRAPER read /metrics without an admin
+    # session. AMK-F-001: /metrics is `Depends(require_aal2)` + admin — correct,
+    # since it exposes system internals — but Prometheus cannot hold an AAL2
+    # Supabase session, so the configured scrape returned 401 and every one of
+    # the six alert rules in infrastructure/prometheus/alerting-rules.yml
+    # evaluated against no data and could never fire. Alerting existed on paper
+    # only.
+    #
+    # Fails CLOSED: unset (the default) grants nothing and the endpoint stays
+    # admin-only. It is never a fallback for a failed admin check, only a
+    # separate, equally explicit credential.
+    metrics_scrape_token: Optional[str] = None
+    # Seconds a queued inference call waits for a slot before shedding load.
+    # Generous on purpose: waiting beats an OOM kill (latency is the lowest
+    # of the three invariants — misattribution > refusal > latency).
+    native_inference_wait_timeout: float = Field(default=60.0, gt=0)
+
     # --- Request Queue (Phase 1A — horizontal scaling) ---
     # When True, incoming requests are enqueued to Redis Streams and
     # processed by workers from a consumer group (enables multi-replica).

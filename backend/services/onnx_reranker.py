@@ -27,9 +27,10 @@ from __future__ import annotations
 
 import logging
 import os
-import threading
 from pathlib import Path
 from typing import Optional
+
+from services.native_inference_gate import native_inference
 
 logger = logging.getLogger(__name__)
 
@@ -95,7 +96,6 @@ class OnnxReranker:
         self._session = None
         self._tokenizer = None
         self._has_token_type_ids: bool = False
-        self._lock = threading.Lock()
         self._batch_size = batch_size or _resolve_batch_size()
         self._load(model_id or _ONNX_RERANKER_MODEL_ID)
 
@@ -271,9 +271,14 @@ class OnnxReranker:
         if self._has_token_type_ids and "token_type_ids" in inputs:
             feed["token_type_ids"] = inputs["token_type_ids"].astype("int64")
 
-        # ONNX InferenceSession.run() IS thread-safe for concurrent reads,
-        # but we hold the lock conservatively to match the BGE-M3 encoder pattern.
-        with self._lock:
+        # ONNX InferenceSession.run() IS thread-safe for concurrent reads. The
+        # bound here is about MEMORY, not correctness: this allocates a
+        # batch x heads x seq x seq attention buffer, and it shares an
+        # allocator with the BGE-M3 encoder and the LettuceDetect NLI model.
+        # A per-instance lock bounded this call site to 1 but left the three
+        # models free to peak together, which is what exhausted the box
+        # (AMK-B-002). One shared gate bounds the real resource.
+        with native_inference("rerank_onnx"):
             logits = self._session.run(None, feed)[0]  # shape: [batch, 1]
 
         # Apply sigmoid to convert raw logits -> [0, 1] probabilities.

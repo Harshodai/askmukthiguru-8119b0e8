@@ -29,6 +29,7 @@ import logging
 import math
 import statistics
 import sys
+import threading
 import time
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
@@ -422,7 +423,10 @@ async def run_gate1_load_test(
 
     async with httpx.AsyncClient(
         transport=transport,
-        base_url=client_base_url if is_inprocess else None,
+        # httpx rejects base_url=None outright, so the live-HTTP mode of this
+        # script had never actually run (TypeError before the first request).
+        # In live mode `endpoint` is already absolute, so an empty base is right.
+        base_url=client_base_url if is_inprocess else "",
         limits=limits,
         timeout=timeout,
     ) as client:
@@ -580,6 +584,201 @@ async def run_gate1_load_test(
     return summary
 
 
+# ======================================================================
+# Container resource watchdog (AMK-B-002 / AMK-C-001 regression gate)
+# ======================================================================
+#
+# The load generator above proves the API answers. It does NOT prove the box
+# survives, which is the thing that actually broke: a 6-concurrent burst
+# (below the configured ceiling of 8) killed the backend twice --- once as an
+# onnxruntime std::bad_alloc abort, once as `Exited (137)` from the HOST
+# kernel's OOM killer with `OOMKilled: false`, because the sum of per-container
+# limits exceeded the VM's real memory. Neither shows up in latency or error
+# rate until the connections are already reset.
+#
+# So the gate asserts three things the HTTP results cannot:
+#   1. the container is still running at the end,
+#   2. it did not restart underneath us (a fast restart can otherwise look
+#      like a brief error blip and then "recovery"),
+#   3. peak RSS stayed under a real budget --- by default a fraction of the
+#      HOST's total memory, not the container's own mem_limit, because the
+#      limit is what was overcommitted in the first place.
+
+
+def _docker_bin() -> Optional[str]:
+    """Locate the docker CLI (it is not always on PATH on macOS)."""
+    import shutil
+
+    found = shutil.which("docker")
+    if found:
+        return found
+    fallback = Path.home() / ".docker" / "bin" / "docker"
+    return str(fallback) if fallback.exists() else None
+
+
+def _docker(*args: str, timeout: int = 15) -> Optional[str]:
+    """Run a docker command, returning stripped stdout or None on any failure."""
+    import subprocess
+
+    binary = _docker_bin()
+    if not binary:
+        return None
+    try:
+        out = subprocess.run(
+            [binary, *args], capture_output=True, text=True, timeout=timeout, check=False
+        )
+    except Exception:
+        return None
+    return out.stdout.strip() if out.returncode == 0 else None
+
+
+def _host_mem_mb() -> Optional[float]:
+    """Total memory available to the Docker daemon's VM/host, in MB."""
+    raw = _docker("info", "--format", "{{.MemTotal}}")
+    try:
+        return float(raw) / (1024 * 1024) if raw else None
+    except ValueError:
+        return None
+
+
+class ContainerWatch:
+    """Samples a container's memory while the load test runs.
+
+    Sampling is best-effort: if docker is unavailable the watch reports
+    ``available=False`` and the gate degrades to the HTTP-only verdict rather
+    than failing the run. It must never turn a green load test red just
+    because the CLI was missing.
+    """
+
+    def __init__(self, container: str, interval: float = 2.0) -> None:
+        self.container = container
+        self.interval = interval
+        self.samples: list[float] = []
+        self.available = False
+        self.start_restarts: Optional[int] = None
+        self.end_restarts: Optional[int] = None
+        self.end_running: Optional[bool] = None
+        self._stop = threading.Event()
+        self._thread: Optional[threading.Thread] = None
+
+    # -- lifecycle ----------------------------------------------------
+    def start(self) -> None:
+        self.start_restarts = self._restart_count()
+        self.available = self.start_restarts is not None
+        if not self.available:
+            logger.warning(
+                "Container watch disabled: docker CLI or container %r unavailable. "
+                "Load results will NOT include a survival assertion.",
+                self.container,
+            )
+            return
+        self._thread = threading.Thread(target=self._run, daemon=True)
+        self._thread.start()
+
+    def stop(self) -> None:
+        self._stop.set()
+        if self._thread:
+            self._thread.join(timeout=self.interval * 2)
+        if self.available:
+            self.end_restarts = self._restart_count()
+            self.end_running = self._is_running()
+
+    # -- sampling -----------------------------------------------------
+    def _run(self) -> None:
+        while not self._stop.is_set():
+            mb = self._mem_mb()
+            if mb is not None:
+                self.samples.append(mb)
+            self._stop.wait(self.interval)
+
+    def _mem_mb(self) -> Optional[float]:
+        raw = _docker(
+            "stats", "--no-stream", "--format", "{{.MemUsage}}", self.container, timeout=20
+        )
+        if not raw:
+            return None
+        # "3.07GiB / 6GiB" -> 3144.0. Docker reports binary units on this
+        # host, but decimal ones elsewhere; an unparsed sample yields zero
+        # samples and the verdict then FAILS for "no memory samples" — a
+        # regression gate that cries wolf gets ignored, so parse both.
+        used = raw.split("/")[0].strip()
+        units = (
+            ("GiB", 1024.0),
+            ("MiB", 1.0),
+            ("KiB", 1 / 1024.0),
+            ("GB", 1000.0 * 1000.0 * 1000.0 / (1024.0 * 1024.0)),
+            ("MB", 1000.0 * 1000.0 / (1024.0 * 1024.0)),
+            ("kB", 1000.0 / (1024.0 * 1024.0)),
+            ("B", 1 / 1048576.0),
+        )
+        for suffix, mult in units:
+            if used.endswith(suffix):
+                try:
+                    return float(used[: -len(suffix)].strip()) * mult
+                except ValueError:
+                    return None
+        return None
+        return None
+
+    def _restart_count(self) -> Optional[int]:
+        raw = _docker("inspect", "--format", "{{.RestartCount}}", self.container)
+        try:
+            return int(raw) if raw is not None else None
+        except ValueError:
+            return None
+
+    def _is_running(self) -> bool:
+        return _docker("inspect", "--format", "{{.State.Running}}", self.container) == "true"
+
+    # -- verdict ------------------------------------------------------
+    def verdict(self, budget_mb: Optional[float]) -> dict:
+        peak = max(self.samples) if self.samples else None
+        failures: list[str] = []
+
+        if not self.available:
+            return {
+                "available": False,
+                "reason": "docker CLI or container not reachable; survival not asserted",
+                "passed": None,
+            }
+
+        if self.end_running is False:
+            failures.append(
+                f"container {self.container} is NOT running after the load test "
+                "(this is the exit-137 crash class, AMK-B-002)"
+            )
+        if (
+            self.start_restarts is not None
+            and self.end_restarts is not None
+            and self.end_restarts > self.start_restarts
+        ):
+            failures.append(
+                f"container restarted during the run "
+                f"({self.start_restarts} -> {self.end_restarts}) — it died and came back, "
+                "which the HTTP results alone would show only as a transient error blip"
+            )
+        if peak is not None and budget_mb is not None and peak > budget_mb:
+            failures.append(
+                f"peak memory {peak:.0f}MB exceeded the budget {budget_mb:.0f}MB — "
+                "headroom gone, next burst is the OOM kill"
+            )
+        if peak is None:
+            failures.append("no memory samples collected; peak could not be asserted")
+
+        return {
+            "available": True,
+            "container": self.container,
+            "peak_mem_mb": round(peak, 1) if peak is not None else None,
+            "budget_mem_mb": round(budget_mb, 1) if budget_mb is not None else None,
+            "samples": len(self.samples),
+            "restart_count_start": self.start_restarts,
+            "restart_count_end": self.end_restarts,
+            "running_at_end": self.end_running,
+            "passed": not failures,
+            "failures": failures,
+        }
+
+
 def main():
     parser = argparse.ArgumentParser(description="Gate 1 20-Concurrent Load Testing Harness")
     parser.add_argument(
@@ -606,21 +805,76 @@ def main():
         default="none",
         help="Simulate chaos failure",
     )
+    parser.add_argument(
+        "--container",
+        type=str,
+        default="mukthiguru-backend",
+        help="Container to watch for survival/peak memory (default: mukthiguru-backend). "
+        "Pass an empty string to skip the survival assertion.",
+    )
+    parser.add_argument(
+        "--mem-budget-mb",
+        type=float,
+        default=None,
+        help="Absolute peak-memory budget in MB. Overrides --mem-budget-pct. "
+        "For a production sizing check, pass the TARGET box's budget, not this host's.",
+    )
+    parser.add_argument(
+        "--mem-budget-pct",
+        type=float,
+        default=60.0,
+        help="Peak-memory budget as %% of the Docker host's TOTAL memory (default: 60). "
+        "Deliberately measured against the host, not the container mem_limit — "
+        "overcommitted per-container limits are what caused AMK-C-001.",
+    )
     args = parser.parse_args()
 
-    summary = asyncio.run(
-        run_gate1_load_test(
-            concurrency=args.concurrency,
-            total_requests=args.requests,
-            base_url=args.base_url,
-            test_key=args.test_key,
-            chaos=args.chaos,
+    watch = ContainerWatch(args.container) if args.container else None
+    if watch:
+        watch.start()
+    try:
+        summary = asyncio.run(
+            run_gate1_load_test(
+                concurrency=args.concurrency,
+                total_requests=args.requests,
+                base_url=args.base_url,
+                test_key=args.test_key,
+                chaos=args.chaos,
+            )
         )
-    )
+    finally:
+        if watch:
+            watch.stop()
+
     print(
         f"\nGate 1 Result: {summary['gate1_verdict']} (Throughput: {summary['throughput_rps']} RPS, p95: {summary['latency_percentiles_ms']['p95']}ms)"
     )
 
+    if not watch:
+        return 0
+
+    budget = args.mem_budget_mb
+    host_mb = _host_mem_mb()
+    if budget is None and host_mb:
+        budget = host_mb * (args.mem_budget_pct / 100.0)
+    verdict = watch.verdict(budget)
+    summary["container_survival"] = verdict
+
+    if verdict.get("available") is False:
+        print(f"Container survival: SKIPPED ({verdict['reason']})")
+        return 0
+
+    print(
+        f"Container survival: {'PASS' if verdict['passed'] else 'FAIL'} — "
+        f"peak {verdict['peak_mem_mb']}MB / budget {verdict['budget_mem_mb']}MB "
+        f"over {verdict['samples']} samples, "
+        f"restarts {verdict['restart_count_start']}->{verdict['restart_count_end']}, "
+        f"running={verdict['running_at_end']}"
+    )
+    for failure in verdict["failures"]:
+        print(f"  FAIL: {failure}")
+    return 0 if verdict["passed"] else 1
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main() or 0)

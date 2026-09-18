@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 import os
+from typing import Optional
 
 from fastapi import FastAPI
 
@@ -27,6 +28,36 @@ def _is_enabled() -> bool:
         "no",
         "off",
     }
+
+
+def _collector_reachable(endpoint: str, timeout: float = 1.5) -> Optional[bool]:
+    """Best-effort TCP probe of the OTLP collector.
+
+    AMK-F-001: ``OTEL_ENABLED`` defaults to true and the gRPC exporter connects
+    lazily, so ``init_observability`` logged "tracing initialized" and returned
+    True whether or not anything was listening. The Jaeger service in
+    docker-compose.yml sits behind ``profiles: [observability]`` and therefore
+    does not start with a plain ``docker compose up``, so the normal state of
+    this system was: tracing reports healthy, every span is dropped, and the
+    first person to go looking for a trace during an incident finds nothing.
+
+    Returns True/False, or None when the endpoint could not be parsed (in which
+    case we say nothing rather than guess).
+    """
+    import socket
+    from urllib.parse import urlparse
+
+    parsed = urlparse(endpoint if "//" in endpoint else f"//{endpoint}")
+    host, port = parsed.hostname, parsed.port
+    if not host:
+        return None
+    if port is None:
+        port = 4317
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except OSError:
+        return False
 
 
 def init_observability(app: FastAPI) -> bool:
@@ -82,6 +113,20 @@ def init_observability(app: FastAPI) -> bool:
             endpoint,
             excluded_urls,
         )
+
+        # Say so out loud when the spans have nowhere to go. Tracing that
+        # silently discards everything is worse than tracing that is off,
+        # because it reads as covered.
+        if _collector_reachable(endpoint) is False:
+            logger.warning(
+                "OpenTelemetry is ENABLED but no OTLP collector is listening at %s — "
+                "every span produced by this process will be discarded. "
+                "Start one with `docker compose --profile observability up -d jaeger` "
+                "(UI on :16686), point OTEL_EXPORTER_OTLP_ENDPOINT at an existing "
+                "collector, or set OTEL_ENABLED=false to stop paying for spans "
+                "nobody receives.",
+                endpoint,
+            )
         return True
     except Exception as exc:
         logger.warning("Failed to initialize OpenTelemetry tracing: %s", exc)

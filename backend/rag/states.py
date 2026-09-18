@@ -212,6 +212,11 @@ class GraphState(TypedDict):
     stable_session_id: Optional[str]
     detected_language: Optional[str]
     memory_context: Optional[str]
+    # AMK-B-006: user-stated facts ONLY (canonical memories), kept apart from
+    # memory_context, which also carries persona text and prior assistant
+    # answers. This is the one slice of memory that may be used as evidence by
+    # the faithfulness gate; see rag/nodes/verification.py::_verification_context.
+    canonical_memory_evidence: Optional[str]
     # User-selected answer voice ("gentle" | "direct" | "poetic"); None = default.
     guru_tone: Optional[str]
     # Ephemeral attachment evidence supplied for the current turn only.

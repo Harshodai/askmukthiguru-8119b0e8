@@ -130,6 +130,24 @@ class MemoryOutbox:
         query = query.eq("id", outbox_id).eq("locked_by", self._worker_id)
         await self._execute(query)
 
+    async def mark_step_done(self, outbox_id: str, steps: list[str]) -> None:
+        """Persist which enrichment sub-steps have already committed.
+
+        AMK-C-005: the drain loop's side effects are not individually
+        idempotent, so a row reclaimed after a worker crash would otherwise
+        re-run every write. Recording progress lets the reclaim RESUME.
+
+        A plain overwrite is safe here rather than an array_append RPC:
+        ``claim_memory_outbox`` hands the row to exactly one worker, and the
+        ``locked_by`` guard below means a worker whose lock was stolen by the
+        staleness reclaim silently writes nothing instead of clobbering the
+        new owner's progress.
+        """
+        values = {"completed_steps": sorted(set(steps))}
+        query = self._client.table("memory_outbox").update(values)
+        query = query.eq("id", outbox_id).eq("locked_by", self._worker_id)
+        await self._execute(query)
+
     async def mark_failed(self, outbox_id: str, error: str) -> None:
         values = {
             "status": "failed",

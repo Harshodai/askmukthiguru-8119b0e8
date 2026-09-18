@@ -1,0 +1,62 @@
+# ==============================================================================
+# AskMukthiGuru — Alertmanager LOCAL / self-hosted configuration
+#
+# This is what `docker compose up -d` mounts. Deliberately self-contained: no
+# PagerDuty, no Slack, no secrets, nothing outside the box. Alerts group,
+# inhibit and resolve here and are read in Alertmanager's own UI at
+# http://localhost:9093 or via `GET :9093/api/v2/alerts`.
+#
+# WHY THIS FILE EXISTS (2026-09-18, AMK-F-001): compose used to mount
+# `alertmanager.yml`, which is the PRODUCTION artifact and carries seven literal
+# `${PD_SERVICE_KEY}` / `${SLACK_WEBHOOK_URL}` placeholders until `envsubst`
+# renders it. Alertmanager validates receiver URLs when it loads its config, so
+# mounting that file could never have started the container — and because the
+# service also sat behind a compose profile and never launched, nobody found
+# out. `tests/test_observability.py::test_alertmanager_config_validity` asserts
+# alertmanager.yml keeps its PagerDuty/Slack receivers, so that file is left
+# exactly as it was.
+#
+# PRODUCTION renders alertmanager.template.yml over alertmanager.yml and mounts
+# THAT. Do not merge the two: the point is that this one needs no secrets and
+# that one needs several.
+# ==============================================================================
+
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: default
+  group_by: ['alertname', 'severity', 'service']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+
+  # Same severity taxonomy as the production tree, so the labels in
+  # alerting-rules.yml keep their meaning and the prod config drops in without
+  # re-deriving the route tree.
+  routes:
+    - match:
+        severity: critical
+      receiver: default
+    - match:
+        severity: page
+      receiver: default
+    - match:
+        severity: warn
+      receiver: default
+
+receivers:
+  # A receiver with no notifier is valid and intentional: the alert still fires,
+  # groups, inhibits and resolves, and is visible in the UI and the v2 API. It
+  # simply is not pushed to a third-party SaaS. Add `webhook_configs` here to
+  # forward alerts to an internal service.
+  - name: default
+
+inhibit_rules:
+  # One incident, one notification: a paging alert silences the merely-elevated
+  # version of the same condition.
+  - source_match:
+      severity: page
+    target_match:
+      severity: warn
+    equal: ['alertname', 'service']

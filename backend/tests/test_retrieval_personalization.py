@@ -116,7 +116,7 @@ async def test_circuit_breaker_skips_second_brain_on_timeout():
     container.second_brain.unlock = AsyncMock(side_effect=asyncio.TimeoutError)
     container.user_profile = None
 
-    memory_context, distress, _profile = await prepare_user_memory(
+    memory_context, distress, _profile, _ = await prepare_user_memory(
         container, "user-1", [{"role": "user", "content": "hi"}]
     )
     # Should not crash; second_brain failure is non-fatal
@@ -140,7 +140,7 @@ async def test_circuit_breaker_total_budget_respected():
     container.user_profile = None
 
     start = time.perf_counter()
-    memory_context, distress, _profile = await prepare_user_memory(
+    memory_context, distress, _profile, _ = await prepare_user_memory(
         container, "user-1", [{"role": "user", "content": "hi"}]
     )
     elapsed = time.perf_counter() - start
@@ -200,7 +200,7 @@ async def test_persona_stale_includes_flag():
             return_value=[],
         ),
     ):
-        memory_context, distress, _profile = await prepare_user_memory(
+        memory_context, distress, _profile, _ = await prepare_user_memory(
             container, "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", [{"role": "user", "content": "hi"}]
         )
 

@@ -16,7 +16,7 @@
 # Usage:
 #   docker compose up -d                            # Start serving stack; no worker/tracing
 #   COMPOSE_PROFILES=ingestion docker compose up -d       # + Celery ingestion worker
-#   COMPOSE_PROFILES=observability OTEL_ENABLED=true docker compose up -d # + tracing/metrics
+#   docker compose up -d   # tracing + metrics + dashboards included by default
 #   COMPOSE_PROFILES=cache docker compose up -d           # + gptcache-server
 #   COMPOSE_PROFILES=ingestion,observability,cache docker compose up -d  # everything
 #   docker compose logs -f                          # Watch logs
@@ -133,7 +133,13 @@ services:
   jaeger:
     image: jaegertracing/all-in-one:1.76.0
     container_name: mukthiguru-jaeger
-    profiles: [observability]
+    # AMK-F-001: this service used to carry an `observability` compose
+    # profile, so a plain `docker compose up -d` never started it. Meanwhile
+    # OTEL_ENABLED defaulted to false AND Prometheus is configured
+    # to scrape backend:8000/metrics — so the stack reported healthy while
+    # discarding every span and scraping nothing. Observability that needs a
+    # remembered flag is observability you do not have during the incident
+    # that needed it. On by default now; drop it with `--scale <svc>=0`.
     restart: unless-stopped
     environment:
       - COLLECTOR_OTLP_ENABLED=true
@@ -179,6 +185,8 @@ services:
     container_name: mukthiguru-backend
     labels:
       - "autoheal=true"
+      # AMK-B-002: covers the Exited/SIGKILL class autoheal cannot see.
+      - "liveness-watchdog=true"
     logging: *default-logging
     ports:
       - "8000:8000"
@@ -195,6 +203,10 @@ services:
       # container's ability to spawn new OS threads, not a Python-level
       # executor leak (confirmed: cgroup pids.current was only 30 when it
       # broke, well under any pids limit).
+      # AMK-F-001: credential for the Prometheus scrape of
+      # /internal/metrics. Unset = that endpoint 404s and the scrape target
+      # shows DOWN, which is a visible failure rather than a silent one.
+      - METRICS_SCRAPE_TOKEN=${METRICS_SCRAPE_TOKEN:-}
       - OMP_NUM_THREADS=2
       - MKL_NUM_THREADS=2
       - OPENBLAS_NUM_THREADS=2
@@ -312,7 +324,12 @@ services:
       - CELERY_TASK_ALWAYS_EAGER=${CELERY_TASK_ALWAYS_EAGER:-false}
       # OpenTelemetry
       # Tracing is opt-in locally because Jaeger is an observability profile.
-      - OTEL_ENABLED=${OTEL_ENABLED:-false}
+      # AMK-F-001: defaulted to false, and the collector was profile-gated,
+      # so tracing was off twice over. Both are on by default now; set
+      # OTEL_ENABLED=false to opt out. `app/observability.py` probes the
+      # collector at startup and warns loudly if nothing is listening, so a
+      # misconfigured endpoint is visible instead of silently dropping spans.
+      - OTEL_ENABLED=${OTEL_ENABLED:-true}
       - OTEL_TRACES_EXPORTER=otlp
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317
       - OTEL_SERVICE_NAME=mukthiguru-backend
@@ -516,18 +533,30 @@ services:
   prometheus:
     image: prom/prometheus:v2.51.0
     container_name: mukthiguru-prometheus
-    profiles: [observability]
+    # AMK-F-001: on by default — see the note on the jaeger service above.
     ports:
       - "9090:9090"
     volumes:
       - ../infrastructure/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ../infrastructure/prometheus/alerting-rules.yml:/etc/prometheus/alerting-rules.yml:ro
       - prometheus_data:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
-      - '--web.console.templates=/usr/share/prometheus/consoles'
+    environment:
+      # Read by the entrypoint below and written to a file, because Prometheus
+      # does no variable interpolation in its own config and its
+      # `credentials_file` wants a path. Keeping the secret in the environment
+      # means it is never committed — same rule as every other secret here.
+      - METRICS_SCRAPE_TOKEN=${METRICS_SCRAPE_TOKEN:-}
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        printf '%s' "$$METRICS_SCRAPE_TOKEN" > /etc/prometheus/scrape_token
+        chmod 600 /etc/prometheus/scrape_token
+        exec /bin/prometheus \
+          --config.file=/etc/prometheus/prometheus.yml \
+          --storage.tsdb.path=/prometheus \
+          --web.console.libraries=/usr/share/prometheus/console_libraries \
+          --web.console.templates=/usr/share/prometheus/consoles
     depends_on:
       backend:
         condition: service_healthy
@@ -542,11 +571,15 @@ services:
   alertmanager:
     image: prom/alertmanager:v0.27.0
     container_name: mukthiguru-alertmanager
-    profiles: [observability]
+    # AMK-F-001: on by default — see the note on the jaeger service above.
     ports:
       - "9093:9093"
     volumes:
-      - ../infrastructure/prometheus/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      # AMK-F-001: alertmanager.yml is the PRODUCTION artifact and still
+      # holds unrendered ${PD_SERVICE_KEY}/${SLACK_WEBHOOK_URL} placeholders,
+      # which Alertmanager rejects at config load. Mount the self-contained
+      # local config instead; render the template to a separate file for prod.
+      - ../infrastructure/prometheus/alertmanager.local.yml:/etc/alertmanager/alertmanager.yml:ro
       - alertmanager_data:/alertmanager
     command:
       - '--config.file=/etc/alertmanager/alertmanager.yml'
@@ -562,7 +595,7 @@ services:
   grafana:
     image: grafana/grafana:10.4.1
     container_name: mukthiguru-grafana
-    profiles: [observability]
+    # AMK-F-001: on by default — see the note on the jaeger service above.
     ports:
       - "3000:3000"
     environment:
@@ -745,6 +778,49 @@ services:
       - AUTOHEAL_START_PERIOD=60
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+
+  # AMK-B-002: autoheal above watches Docker HEALTHCHECK transitions, so it
+  # only ever sees a container that is RUNNING and reporting unhealthy. The
+  # crash class that actually took the backend down was `Exited (137)` — a
+  # SIGKILL from the host OOM killer — where there is no running container
+  # left to report anything. autoheal logged nothing for the whole window and
+  # `restart: unless-stopped` was observed not to bring it back either; a human
+  # had to run `docker start`. This sidecar covers that gap and nothing else.
+  #
+  # Opt a container in with `liveness-watchdog=true`, NOT the autoheal label,
+  # so the two watchdogs can be scoped independently.
+  #
+  # Exit codes 0 and 143 are treated as intentional shutdowns (`docker stop` /
+  # `docker compose stop`) and left alone. A `docker kill` also exits 137 and
+  # WILL be restarted — stop the watchdog first if that is what you meant.
+  liveness-watchdog:
+    image: docker:27-cli
+    container_name: mukthiguru-liveness-watchdog
+    restart: unless-stopped
+    environment:
+      - WATCH_LABEL=liveness-watchdog=true
+      - WATCH_INTERVAL=${LIVENESS_WATCHDOG_INTERVAL:-15}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command:
+      - sh
+      - -c
+      - |
+        echo "[liveness-watchdog] watching label=$$WATCH_LABEL every $${WATCH_INTERVAL}s"
+        while true; do
+          for c in $$(docker ps -a --filter "label=$$WATCH_LABEL" --filter "status=exited" --filter "status=dead" --format '{{.Names}}'); do
+            code=$$(docker inspect --format '{{.State.ExitCode}}' "$$c" 2>/dev/null || echo "")
+            if [ "$$code" = "0" ] || [ "$$code" = "143" ]; then
+              echo "[liveness-watchdog] $$c exited $$code (intentional) — leaving stopped"
+              continue
+            fi
+            echo "[liveness-watchdog] $$c is down with exit code $$code — restarting"
+            docker start "$$c" >/dev/null 2>&1 \
+              && echo "[liveness-watchdog] $$c restarted" \
+              || echo "[liveness-watchdog] $$c restart FAILED"
+          done
+          sleep "$$WATCH_INTERVAL"
+        done
 
 volumes:
   gptcache_data:

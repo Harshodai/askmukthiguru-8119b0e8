@@ -36,6 +36,9 @@ class RerankerService:
         self._ranker = None
         self._fallback_reranker = None
         self._lock = threading.Lock()
+        # Exclusive access to a PyTorch CrossEncoder fallback (see
+        # _run_cross_encoder). Unused on the ONNX path.
+        self._torch_predict_lock = threading.Lock()
         self._is_fallback = False
         logger.info("FlashRank Reranker service initialized (lazy load)")
 
@@ -235,8 +238,21 @@ class RerankerService:
         import torch
 
         pairs = [(query, doc["text"]) for doc in documents]
-        with torch.inference_mode():
-            raw_scores = self._fallback_reranker.predict(pairs)
+        if getattr(self, "_reranker_outputs_probs", False):
+            # OnnxReranker: session.run() is thread-safe and takes the shared
+            # native-inference memory gate inside its own predict().
+            with torch.inference_mode():
+                raw_scores = self._fallback_reranker.predict(pairs)
+        else:
+            # PyTorch CrossEncoder: NOT thread-safe. One shared module object
+            # (this service is a container singleton) called from a thread per
+            # in-flight chat races inside torch and segfaults the interpreter —
+            # the same defect that killed the box via LettuceDetect (AMK-B-002).
+            # embedding_service.rerank() already serializes its own copy of this
+            # exact fallback; this call site had been missed.
+            with self._torch_predict_lock:
+                with torch.inference_mode():
+                    raw_scores = self._fallback_reranker.predict(pairs)
 
         # OnnxReranker.predict() already applies sigmoid and returns [0,1]
         # probabilities; sentence-transformers CrossEncoder returns raw logits.

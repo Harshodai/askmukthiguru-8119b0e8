@@ -105,6 +105,7 @@ class GraphStage(Stage):
         meditation_step = ctx.meditation_step
         lang_detection = ctx.state.get("lang_detection")
         memory_context = ctx.state.get("memory_context", "")
+        canonical_memory_evidence = ctx.state.get("canonical_memory_evidence", "")
         proactive_data = ctx.proactive_data or ctx.state.get("proactive_serene_mind")
         chat_body = ctx.request
         stream_queue = ctx.stream_queue
@@ -169,6 +170,7 @@ class GraphStage(Stage):
             if lang_detection and getattr(lang_detection, "is_codemixed", False):
                 initial_state["codemix_preference"] = True
             initial_state["memory_context"] = memory_context
+            initial_state["canonical_memory_evidence"] = canonical_memory_evidence
             initial_state["user_id"] = ctx.user_id or "anonymous"
             initial_state["stable_session_id"] = ctx.stable_session_id or "anonymous"
             # Attachment evidence is a per-turn input, separate from personal memory.

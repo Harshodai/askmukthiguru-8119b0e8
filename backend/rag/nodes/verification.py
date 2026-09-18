@@ -72,6 +72,86 @@ def _verification_docs(state: dict, fallback: list) -> list:
     return merged or fallback
 
 
+# The seeker's own recorded facts are evidence, but they are NOT doctrine. The
+# label travels with the text so that anything reading this context can tell the
+# two apart, and so a human reading a trace can too.
+MEMORY_EVIDENCE_LABEL = (
+    "[RECORDED ABOUT THIS SEEKER — stated by them, not a teaching, never citable as doctrine]"
+)
+
+# Hard cap on memory admitted as evidence. The canonical retriever is bounded at
+# 20 memories / 2000 tokens, which is larger than the graph-context injection
+# that measurably dropped faithfulness from 1.0 to 0.50 when left uncapped (see
+# root CLAUDE.md, "Knowledge graph: what reaches an answer now"). More evidence
+# makes an entailment scorer more permissive, so the one place that must stay
+# small is the one feeding the gate. Recall answers need a handful of facts, not
+# a dossier.
+MEMORY_EVIDENCE_MAX_CHARS = 1500
+
+
+def _trim_memory_evidence(raw: str | None) -> str:
+    """Bound the memory block without cutting a fact in half.
+
+    A bare slice can leave "My favourite colour is chart", which is not a
+    smaller truth — it is a different one, handed to an entailment scorer as
+    evidence. Canonical memories arrive one per line, so trimming at the last
+    line boundary inside the budget drops whole facts and keeps the survivors
+    intact. Falls back to a hard slice only when a single line already exceeds
+    the budget.
+    """
+    text = (raw or "").strip()
+    if len(text) <= MEMORY_EVIDENCE_MAX_CHARS:
+        return text
+    head = text[:MEMORY_EVIDENCE_MAX_CHARS]
+    cut = head.rfind("\n")
+    return head[:cut].rstrip() if cut > 0 else head.rstrip()
+
+
+def _verification_context(state: dict, fallback: list) -> str:
+    """The evidence string the faithfulness scorer is allowed to ground against.
+
+    AMK-B-006: canonical memory was stored correctly, isolated correctly, and
+    injected into the generation prompt correctly — and then deleted from every
+    answer. A seeker who stored "my favourite colour is chartreuse" and asked
+    "what is my favourite colour?" got a generic teaching excerpt, because the
+    scorer only ever saw retrieved doctrine, found no chunk supporting a claim
+    about the seeker, and `_redact_unsupported_sentences` dropped the sentence.
+    The feature was inert for its own owner.
+
+    The fix is a SECOND evidence class, not a lower bar. A stored memory really
+    does entail a statement about the seeker, so a sentence recalling it is
+    genuinely grounded — in the seeker's own record. Nothing about the doctrine
+    threshold changes, and an ungrounded claim about a TEACHING still fails
+    exactly as before.
+
+    Two guards keep this from becoming a misattribution hole:
+
+    * Only `canonical_memory_evidence` is admitted — user-stated facts. The
+      broader `memory_context` is deliberately NOT used: it blends persona
+      summaries and prior assistant answers, and grounding an answer in the
+      system's own earlier output is circular.
+    * This text never enters `relevant_docs`, so `extract_citations` cannot see
+      it and cannot attribute it to Sri Preethaji or Sri Krishnaji. It grounds a
+      sentence; it can never source one.
+    """
+    docs = _verification_docs(state, fallback)
+    context = "\n\n".join(doc_text(doc) for doc in docs)
+
+    memory_evidence = _trim_memory_evidence(state.get("canonical_memory_evidence"))
+    if not memory_evidence:
+        return context
+
+    # Memory goes FIRST, ahead of doctrine. The detector has its own input
+    # ceiling and drops the tail when the context overruns it; doctrine is the
+    # bulk of this string, so anything appended after it is what disappears on a
+    # long deep-tier answer — silently re-breaking AMK-B-006 for exactly the
+    # answers with the most context. Fronting a block of at most
+    # MEMORY_EVIDENCE_MAX_CHARS moves doctrine's truncation point by that much
+    # and no more, which it already tolerates today.
+    block = f"{MEMORY_EVIDENCE_LABEL}\n{memory_evidence}"
+    return f"{block}\n\n{context}" if context else block
+
+
 async def _score_faithfulness_bounded(
     lettuce_detect,
     question: str,
@@ -278,7 +358,7 @@ async def reflect_on_answer(state: GraphState, config: dict = None) -> dict:
         }
 
     await emit_status(config, "Reviewing the response for clarity...")
-    context = "\n\n".join(doc_text(doc) for doc in verification_docs)
+    context = _verification_context(state, relevant_docs)
     # Deep verification remains semantic and authoritative below; reflection is
     # a correction hint only, so keep its pass bounded and avoid duplicate CPU
     # embedding work on complex answers or when retrieval was already high confidence.
@@ -460,7 +540,7 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
             "relevancy_score": 0.0,
         }
 
-    context = "\n\n".join(doc_text(doc) for doc in verification_docs)
+    context = _verification_context(state, relevant_docs)
     if not context or len(context.strip()) < 200:
         logger.warning("Combined verify: context too short — fast-fail")
         return {
@@ -735,7 +815,7 @@ async def combined_grade_and_verify(state: GraphState, config: dict = None) -> d
             "relevancy_score": 0.0,
         }
 
-    context = "\n\n".join(doc_text(doc) for doc in verification_docs)
+    context = _verification_context(state, relevant_docs)
     if not context or len(context.strip()) < 200:
         logger.warning("Combined grade+verify: context too short — fast-fail")
         return {
@@ -881,7 +961,7 @@ async def _verify_with_gateway(state: GraphState, config: dict = None) -> dict |
 
     answer = state.get("answer", "")
     relevant_docs = state.get("relevant_docs", [])
-    context = "\n\n".join(doc_text(doc) for doc in _verification_docs(state, relevant_docs))
+    context = _verification_context(state, relevant_docs)
 
     ld_result = state.get("lettuce_detect_result")
     claims = list(ld_result.get("claims", [])) if isinstance(ld_result, dict) else []

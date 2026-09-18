@@ -944,6 +944,93 @@ against production, via the Supabase Management API (`GET
   Supabase. Re-check before trusting any "prod is up" claim elsewhere in this
   file; it decays fast and was not re-verified after this was written.
 
+## Native model concurrency invariant (2026-09-18)
+
+**Any shared PyTorch/transformers module in this process is exclusive at
+inference.** Not for correctness of the output — for the survival of the
+interpreter. `LettuceDetectService._shared_detector` is a `ClassVar` (one torch
+module per process) and `score_faithfulness` runs from a thread per in-flight
+chat; concurrent `forward()` on it produced `Fatal Python error: Segmentation
+fault` under a 6-request burst, at 4.11 GiB of a 6 GiB limit with
+`OOMKilled: false`. The two audit findings that recorded those crashes
+(AMK-B-002, AMK-C-001) both diagnosed memory exhaustion; both were wrong, and
+their corrections are inline in `audit/track_{B,C}_findings.md`.
+
+- Torch modules: hold an exclusive lock. `lettuce_detect_service`
+  (`_shared_predict_lock`), `reranker_service` (`_torch_predict_lock`),
+  `embedding_service` (`_inference_lock`, which already did this).
+- ONNX Runtime sessions: `session.run()` IS thread-safe — no lock. They go under
+  `services/native_inference_gate.py` instead, which is a **memory** bound and
+  nothing else (`native_inference_max_concurrent`, default 6). It did not fix
+  the crash and could not have.
+- `/api/health` reports `native_inference_gate` next to `chat_backpressure`. The
+  second number is the one that predicts trouble; admission can look healthy
+  while inference queues.
+- `max_concurrent_chat` stays at **8**. On the Railway Pro target (32 GB) memory
+  does not bind until ~73 concurrent (~324 MB marginal per chat over a ~2300 MB
+  model baseline). The binding limits are the OpenRouter account rate limit and
+  the now-serialized verification pass. Re-derive with
+  `backend/scripts/ops/gate1_load_test.py` (asserts container survival, restart
+  count and peak memory; exits non-zero on breach) — never by guess. Full
+  write-up: `docs/engineering-notes/concurrency-ceiling-2026-09-18.md`.
+- `docker-compose.yml` runs two watchdogs. `autoheal` watches Docker HEALTHCHECK
+  transitions and therefore only ever sees a *running* container; it logged
+  nothing across the whole outage. `liveness-watchdog` covers the `Exited`/`dead`
+  case, skipping exit codes 0 and 143 so an intentional `docker stop` is
+  respected.
+
+**Memory as verification evidence (AMK-B-006).** `rag/nodes/verification.py`'s
+`_verification_context` admits `canonical_memory_evidence` — user-stated facts —
+as a second evidence class, capped at `MEMORY_EVIDENCE_MAX_CHARS`. The doctrine
+threshold is unchanged. The broader `memory_context` is deliberately NOT
+admitted: it carries persona text and prior assistant turns, and grounding an
+answer in the system's own earlier output is circular. Memory never enters
+`relevant_docs`, so `extract_citations` can never attribute it to a teacher — it
+can ground a sentence, never source one.
+
+## Observability: on by default (2026-09-18)
+
+`docker compose up -d` now starts **Jaeger, Prometheus, Alertmanager and
+Grafana**. They were all already in the repo, all behind
+`profiles: [observability]`, and therefore had never run. Four independent
+silent failures had to be fixed before any of it worked; see
+`lessons.md` L-OBS-1 for the full account.
+
+| Surface | URL | Notes |
+| :--- | :--- | :--- |
+| Jaeger traces | http://localhost:16686 | `OTEL_ENABLED` now defaults to **true** (was `false`). `app/observability.py` TCP-probes the collector at startup and warns loudly when nothing is listening, so a bad endpoint is visible rather than silently dropping spans. |
+| Prometheus | http://localhost:9090 | Scrapes `/internal/metrics`, **not** `/metrics`. |
+| Alertmanager | http://localhost:9093 | Self-contained config, no PagerDuty/Slack secret needed. |
+| Grafana | http://localhost:3000 | Provisioned Prometheus datasource + "MukthiGuru Performance Monitoring" dashboard. |
+
+**`/metrics` vs `/internal/metrics`.** `/metrics` is `Depends(require_aal2)` +
+admin and stays that way — it exposes system internals. Prometheus cannot hold
+an AAL2 Supabase session, so scraping it returned `401` forever and every alert
+rule evaluated against no data. `/internal/metrics` serves the identical
+exposition behind `METRICS_SCRAPE_TOKEN`:
+
+- **Fails closed** — token unset (the default) means the endpoint 404s. An
+  absent secret grants nothing, and the failure shows as a DOWN Prometheus
+  target rather than as silence.
+- Constant-time compare; excluded from the OpenAPI schema.
+- It is a *separate* credential, never a fallback for a failed admin check. Do
+  not "simplify" this by relaxing the guard on `/metrics`.
+
+Generate a token with `python3 -c 'import secrets; print(secrets.token_urlsafe(32))'`
+and set `METRICS_SCRAPE_TOKEN` in `backend/.env` (never committed; documented in
+`backend/.env.example`). Both the backend and Prometheus read it from there.
+
+**Two alertmanager configs, on purpose.** Compose mounts
+`infrastructure/prometheus/alertmanager.local.yml` — self-contained, no
+notifier, no secrets; alerts group, inhibit and resolve and are read in the
+Alertmanager UI. `alertmanager.yml` remains the **production** artifact
+(PagerDuty + Slack receivers, rendered from `alertmanager.template.yml` with
+`envsubst`) and is asserted by
+`tests/test_observability.py::test_alertmanager_config_validity` — do not
+repurpose it. Mounting it directly is what previously made the container
+unstartable: it carries seven unrendered `${...}` placeholders and Alertmanager
+validates receiver URLs at config load.
+
 ## Caching invariants
 
 `cache_key` is `(language, message)` only — it carries **no `user_id` and no `tenant_id`** — and every tier (hot, exact, semantic, vector) is process- or Redis-wide. `CacheUpdateStage` therefore **must not** cache an answer that `context_engineer` personalized with `memory_context`, or one seeker's private context gets replayed to the next person asking the same question. Guarded in `app/pipeline/stages/cache_stage.py`; regression test in `backend/tests/test_cache_personalization_leak.py`.

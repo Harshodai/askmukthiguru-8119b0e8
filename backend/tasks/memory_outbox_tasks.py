@@ -12,6 +12,59 @@ app = celery_app
 logger = logging.getLogger(__name__)
 
 
+# AMK-C-005: each enrichment write below is a side effect on a different store,
+# and none of them is idempotent. `mark_processed` only runs after all of them
+# succeed, so a worker that DIES mid-loop (not one that raises — that path is
+# handled) leaves the row to be reclaimed by claim_memory_outbox's 10-minute
+# staleness rule and re-run from the top, writing the user's episodic memory,
+# L1 atoms and L2 scene block a second time.
+#
+# Recording each step as it commits makes a reclaimed row resume instead of
+# restart. This narrows the duplicate window from "all five writes, including
+# two LLM calls" to "the single step that was in flight at the instant of the
+# crash". It does not close it: a crash between a side effect and its marker
+# still replays that one step. Closing it fully needs the destination stores to
+# accept an idempotency key, which they do not today.
+STEP_PROFILE = "profile_conversation"
+STEP_EXTRACT = "extract_and_write"
+STEP_EPISODIC = "episodic_log"
+STEP_L1 = "l1_atoms"
+STEP_L2 = "l2_scene"
+
+
+class _StepTracker:
+    """Tracks which enrichment sub-steps have committed for one outbox row."""
+
+    def __init__(self, outbox, outbox_id: str, already_done) -> None:
+        self._outbox = outbox
+        self._outbox_id = outbox_id
+        self._done = {str(step) for step in (already_done or [])}
+
+    def done(self, step: str) -> bool:
+        return step in self._done
+
+    async def record(self, step: str) -> None:
+        """Persist that `step` committed. Never fails the row.
+
+        A failed marker write only costs us the resume optimisation for that
+        step — the enrichment itself already succeeded, and losing the marker
+        degrades to the old at-least-once behaviour rather than to data loss.
+        """
+        self._done.add(step)
+        recorder = getattr(self._outbox, "mark_step_done", None)
+        if recorder is None:
+            return
+        try:
+            await recorder(self._outbox_id, sorted(self._done))
+        except Exception as exc:
+            logger.warning(
+                "Outbox %s: could not record completed step %s (%s). A reclaim will re-run it.",
+                self._outbox_id,
+                step,
+                exc,
+            )
+
+
 async def _drain_once(limit: int = 50) -> dict[str, int]:
     from app.dependencies import get_container
     from services.tenant_context import TenantContext
@@ -38,8 +91,9 @@ async def _drain_once(limit: int = 50) -> dict[str, int]:
                 await outbox.mark_failed(outbox_id, "consent revoked before processing")
                 failed += 1
                 continue
+            steps = _StepTracker(outbox, outbox_id, row.get("completed_steps"))
             profile = getattr(container, "user_profile", None)
-            if profile is not None:
+            if profile is not None and not steps.done(STEP_PROFILE):
                 try:
                     import time
 
@@ -70,6 +124,7 @@ async def _drain_once(limit: int = 50) -> dict[str, int]:
                         follow_up_suggestions=[],
                     )
                     await profile.save_conversation_memory(record)
+                    await steps.record(STEP_PROFILE)
                 except Exception as exc:
                     logger.warning("Outbox profile persistence failed: %s", exc)
             prior = list(payload.get("prior_messages") or [])
@@ -79,8 +134,10 @@ async def _drain_once(limit: int = 50) -> dict[str, int]:
                     {"role": "assistant", "content": payload["assistant_answer"]},
                 ]
             )
-            await memory_service.extract_and_write(user_id, row["session_id"], prior)
-            if episodic is not None:
+            if not steps.done(STEP_EXTRACT):
+                await memory_service.extract_and_write(user_id, row["session_id"], prior)
+                await steps.record(STEP_EXTRACT)
+            if episodic is not None and not steps.done(STEP_EPISODIC):
                 await episodic.log_episode(
                     user_id=user_id,
                     query=payload["user_message"],
@@ -88,41 +145,46 @@ async def _drain_once(limit: int = 50) -> dict[str, int]:
                     citations=payload.get("citations") or [],
                     intent=payload.get("intent"),
                 )
-            try:
-                from services.layered_memory.l1_extractor import extract_atoms
+                await steps.record(STEP_EPISODIC)
+            if not steps.done(STEP_L1):
+                try:
+                    from services.layered_memory.l1_extractor import extract_atoms
 
-                atoms = await extract_atoms(
-                    user_msg=payload["user_message"],
-                    assistant_msg=payload["assistant_answer"],
-                    prior_messages=payload.get("prior_messages") or [],
-                    previous_scene_name=payload.get("intent") or "General",
-                )
-                if atoms:
-                    await memory_service.add_atoms(user_id, row["session_id"], atoms)
-            except Exception as exc:
-                logger.warning("Outbox L1 enrichment failed: %s", exc)
-            try:
-                from services.layered_memory.l2_scene_compressor import (
-                    compress_turns_to_scene,
-                    save_scene_block,
-                )
-
-                block = await compress_turns_to_scene(
-                    [
-                        {"role": "user", "content": payload["user_message"]},
-                        {"role": "assistant", "content": payload["assistant_answer"]},
-                    ]
-                )
-                if block and getattr(container, "supabase_client", None):
-                    await save_scene_block(
-                        container.supabase_client,
-                        user_id,
-                        tenant_id,
-                        row["session_id"],
-                        block,
+                    atoms = await extract_atoms(
+                        user_msg=payload["user_message"],
+                        assistant_msg=payload["assistant_answer"],
+                        prior_messages=payload.get("prior_messages") or [],
+                        previous_scene_name=payload.get("intent") or "General",
                     )
-            except Exception as exc:
-                logger.warning("Outbox L2 enrichment failed: %s", exc)
+                    if atoms:
+                        await memory_service.add_atoms(user_id, row["session_id"], atoms)
+                    await steps.record(STEP_L1)
+                except Exception as exc:
+                    logger.warning("Outbox L1 enrichment failed: %s", exc)
+            if not steps.done(STEP_L2):
+                try:
+                    from services.layered_memory.l2_scene_compressor import (
+                        compress_turns_to_scene,
+                        save_scene_block,
+                    )
+
+                    block = await compress_turns_to_scene(
+                        [
+                            {"role": "user", "content": payload["user_message"]},
+                            {"role": "assistant", "content": payload["assistant_answer"]},
+                        ]
+                    )
+                    if block and getattr(container, "supabase_client", None):
+                        await save_scene_block(
+                            container.supabase_client,
+                            user_id,
+                            tenant_id,
+                            row["session_id"],
+                            block,
+                        )
+                    await steps.record(STEP_L2)
+                except Exception as exc:
+                    logger.warning("Outbox L2 enrichment failed: %s", exc)
             await outbox.mark_processed(outbox_id)
             processed += 1
         except Exception as exc:

@@ -37,6 +37,35 @@ import time
 from typing import Any, ClassVar
 
 from app.config import settings
+from services.native_inference_gate import NativeInferenceBusy, native_inference
+
+# Slack added to the caller's own verification budget when waiting for the
+# shared torch module.
+_PREDICT_LOCK_SLACK_S = 2.0
+_PREDICT_LOCK_FALLBACK_S = 10.0
+
+
+def _predict_lock_timeout() -> float:
+    """How long to wait for the shared detector before shedding.
+
+    Deliberately tied to `faithfulness_verification_timeout` (default 8s), which
+    is the budget `_score_faithfulness_bounded` gives this call. A longer wait is
+    not patience, it is a leak: that wrapper uses `asyncio.wait_for` over
+    `asyncio.to_thread`, and cancelling a `wait_for` does NOT stop the thread.
+    A thread parked on this lock after its caller has already given up still
+    occupies a threadpool slot and will still run a now-worthless NLI pass when
+    the lock frees. An earlier draft of this used a flat 120s, which under load
+    would queue threads for two minutes on behalf of callers that left after
+    eight seconds.
+    """
+    try:
+        from app.config import settings
+
+        budget = float(getattr(settings, "faithfulness_verification_timeout", 0) or 0)
+    except Exception:  # pragma: no cover - config must never break scoring
+        budget = 0.0
+    return (budget + _PREDICT_LOCK_SLACK_S) if budget > 0 else _PREDICT_LOCK_FALLBACK_S
+
 
 logger = logging.getLogger(__name__)
 
@@ -154,6 +183,36 @@ _NON_ASSERTION_PREFIXES = (
 )
 
 
+# An optative ("may this ...", "may your ...") is a blessing, not a claim. The
+# prefix tuple above only caught the exact string "may you", so the persona's
+# very common closing line -- "May this knowledge bring a smile to your heart as
+# you continue your journey." -- was scored as a factual assertion, matched
+# against doctrine, and returned 0.005. Measured live 2026-09-18 on a memory
+# recall answer: two claims, the real one at 1.00 and the blessing at 0.005,
+# averaged to 0.50, fell under the 0.60 floor, and sent a correct answer down
+# the grounded_partial_evidence path.
+#
+# Excluding it is not a weaker gate. A blessing has no truth value, so there is
+# nothing for the scorer to match and its low score carries no information --
+# it is indistinguishable from a fabrication while being the opposite of one.
+# The month "May" is excluded by requiring a pronoun/determiner after it.
+_OPTATIVE_RE = re.compile(
+    r"^may\s+(?:you|your|this|these|that|those|the|it|we|our|all|he|she|they|his|her|their)\b",
+    re.IGNORECASE,
+)
+# Kept deliberately narrow. A bare "blessings" prefix would also swallow
+# "Blessings are described in the teachings as ...", which IS a checkable claim
+# about doctrine -- and dropping a real claim from the denominator is the one
+# direction that weakens the gate rather than de-noising it.
+_BENEDICTION_PREFIXES = (
+    "wishing you",
+    "blessings to you",
+    "blessings upon",
+    "with love and blessings",
+    "go well",
+)
+
+
 def _is_assertion(sentence: str) -> bool:
     """True when a sentence states something that could be checked against sources.
 
@@ -173,6 +232,10 @@ def _is_assertion(sentence: str) -> bool:
     lowered = re.sub(r"^[^\w]+", "", lowered).strip()
     # Strip conversational addressing/salutations
     lowered = re.sub(r"^(?:dear one|beloved|friend|seeker)[,\s]+", "", lowered).strip()
+    if _OPTATIVE_RE.match(lowered):
+        return False
+    if lowered.startswith(_BENEDICTION_PREFIXES):
+        return False
     return not lowered.startswith(_NON_ASSERTION_PREFIXES)
 
 
@@ -202,6 +265,23 @@ class LettuceDetectService:
     # score_faithfulness is sync and runs via asyncio.to_thread, so concurrent
     # requests hit _load_real_detector from separate threadpool threads.
     _shared_load_lock: ClassVar[threading.Lock] = threading.Lock()
+    # AMK-B-002, re-root-caused 2026-09-18: the backend was NOT dying of memory
+    # exhaustion. It died of `Fatal Python error: Segmentation fault` with the
+    # faulting thread inside torch's Linear.forward under
+    # modeling_modernbert.py, at 4.1GB of a 6GB limit with OOMKilled=false.
+    #
+    # `_shared_detector` is a ClassVar: ONE torch module object for the whole
+    # process. A transformers model is not safe to run `forward()` on from
+    # several threads at once, and score_faithfulness is called from a thread
+    # per in-flight chat. Two concurrent verifications on one module raced and
+    # took the interpreter down — which is why bounding MEMORY did not help and
+    # why every observed crash dump named modernbert/lettucedetect.
+    #
+    # Inference on the shared module is therefore exclusive. This is a real
+    # throughput ceiling on the verification path and it is the correct trade:
+    # the faithfulness gate must never be skipped, and a queued verification is
+    # strictly better than a segfault that drops every in-flight request.
+    _shared_predict_lock: ClassVar[threading.Lock] = threading.Lock()
 
     def __init__(self, embedder=None) -> None:
         """Initialize the service.
@@ -379,12 +459,46 @@ class LettuceDetectService:
             }
 
         try:
-            predictions = detector.predict(
-                context=[context],
-                question=query if query else None,
-                answer=clean_answer,
-                output_format="spans",
+            # Two bounds, for two different hazards:
+            #   _shared_predict_lock -- EXCLUSIVE access to this one torch
+            #                        module, because concurrent forward() on it
+            #                        segfaults (see the ClassVar comment above).
+            #   native_inference  -- process-wide memory ceiling shared with the
+            #                        embedding encoder and the ONNX reranker.
+            #
+            # ORDER MATTERS, and it is model-lock first. Taking the gate first
+            # parks every waiting verification inside a scarce inference slot,
+            # so N queued NLI passes hold N slots while exactly one of them
+            # works -- starving the embedding encoder and the reranker of the
+            # gate entirely. This way a waiter holds nothing, and only the
+            # thread that will actually run consumes a slot.
+            #
+            # No deadlock risk: nothing anywhere acquires the gate and then
+            # reaches for this lock, so the two are always taken in this order.
+            lock_timeout = _predict_lock_timeout()
+            if not self._shared_predict_lock.acquire(timeout=lock_timeout):
+                raise NativeInferenceBusy(
+                    f"LettuceDetect model lock not acquired within "
+                    f"{lock_timeout:.1f}s; shedding to the heuristic scorer"
+                )
+            try:
+                with native_inference("lettuce_nli"):
+                    predictions = detector.predict(
+                        context=[context],
+                        question=query if query else None,
+                        answer=clean_answer,
+                        output_format="spans",
+                    )
+            finally:
+                self._shared_predict_lock.release()
+        except NativeInferenceBusy as e:
+            # Load shedding, not a detector failure. The heuristic scorer is a
+            # real faithfulness check, so the answer is still gated — it is not
+            # waved through. Never weaken the gate to save latency.
+            logger.warning(
+                "LettuceDetect shed under load (%s). Falling back to heuristic scorer.", e
             )
+            return self._score_heuristic(query, context, answer)
         except Exception as e:
             logger.warning(
                 "LettuceDetect real detector.predict failed (%s: %s). Falling back to heuristic.",

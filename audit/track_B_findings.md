@@ -161,6 +161,29 @@ See AMK-B-001 through AMK-B-008 below (several are shared with Phase 2/6, cross-
 **Regression Test:** A load test (`backend/scripts/load_test.py` or `scripts/benchmarks/load_test.py`, both already in the repo) run at realistic concurrency (6-10 simultaneous `/api/chat` calls sustained for several minutes) as a CI/pre-release gate, asserting the container's `docker inspect --format '{{.State.Status}}'` stays `running` throughout and `/api/health` stays `200` at the end.
 **Verification:** Re-run the same load test after the fix; confirm no crash and that `/api/health` never drops below `ready:true` for an extended window (e.g., 15 minutes at the target QPS from the SPOF table).
 
+> **CORRECTED 2026-09-18 — the Root Cause above is wrong. The evidence is not.**
+> Live reproduction at concurrency 6 captured `Fatal Python error: Segmentation
+> fault`, faulting thread inside `torch/nn/modules/linear.py::forward` under
+> `modeling_modernbert`, reached from
+> `lettuce_detect_service.py::_score_with_real_detector` — at **4.11 GiB of a
+> 6 GiB limit** with `State.OOMKilled: false`. It is not memory exhaustion.
+> `LettuceDetectService._shared_detector` is a `ClassVar` (one torch module per
+> process) and `score_faithfulness` runs from a thread per in-flight chat;
+> concurrent `forward()` on one transformers module races and kills the
+> interpreter. `State.ExitCode` reads 0 because the entrypoint masks the child's
+> signal, which is why this looked like a clean shutdown.
+> **Fixed** by an exclusive `_shared_predict_lock` on that module (and the same
+> for the PyTorch CrossEncoder path in `reranker_service`, which had the same
+> latent defect). Verified: same burst, container survived, `RestartCount` 0→0,
+> peak 3613 MB. Regression test:
+> `backend/tests/test_native_inference_concurrency.py` (negative control
+> confirms it catches the regression: 8 threads inside `forward`, 23 races).
+> The autoheal gap in item (2) was real and is fixed by the `liveness-watchdog`
+> sidecar in `backend/docker-compose.yml`. Item (1)'s concurrency limiter was
+> added (`services/native_inference_gate.py`) but is a memory bound only — it
+> did not and could not fix this crash. Full write-up:
+> `docs/engineering-notes/concurrency-ceiling-2026-09-18.md`.
+
 ---
 
 ### AMK-B-003 — "Tell me more" / follow-up quick-actions inject the entire previous answer as literal prompt text
@@ -216,6 +239,26 @@ i.e., the entire prior answer **including the internal redaction meta-commentary
 **Required Fix:** Either (a) allow personal-memory-derived facts to bypass/pass the doctrine-groundedness gate specifically for direct self-referential recall questions (a distinct verification path from doctrine-answer verification), or (b) if the product intent is that canonical memory should only ever *influence tone/context* rather than be directly recalled verbatim, change the response to explicitly acknowledge what it does/doesn't know about the user rather than silently substituting an unrelated teaching.
 **Regression Test:** An integration test: seed a canonical memory for a test user, ask a direct recall question, assert the fact (or an explicit "here's what I remember about you" framing referencing it) appears in the response — not a generic doctrine excerpt.
 **Verification:** Repeat the manual `curl` sequence in Phase 6 Step 4 above post-fix and confirm A's answer references the stored fact.
+
+> **FIXED 2026-09-18, option (a), verified live end to end.** Two defects, not
+> one. First, the faithfulness scorer only ever saw retrieved doctrine, so a
+> memory-derived sentence had nothing to be entailed by and was redacted:
+> `rag/nodes/verification.py::_verification_context` now admits
+> `canonical_memory_evidence` as a SEPARATE evidence class. The doctrine
+> threshold is unchanged, only user-stated canonical facts are admitted (never
+> the broader `memory_context`, which carries prior assistant turns and would
+> make grounding circular), and the text never enters `relevant_docs`, so
+> `extract_citations` can never attribute it to a teacher.
+> Second, with the memory claim scoring 1.00/supported the answer STILL did not
+> ship: the persona's closing blessing "May this knowledge bring a smile to your
+> heart" was scored as a factual claim at 0.005, averaging to 0.50 and falling
+> under the 0.60 floor. `_NON_ASSERTION_PREFIXES` held `"may you"` but not
+> `"may this"`; `_is_assertion` now filters optatives and benedictions
+> generally. Live result as the memory's owner:
+> *"Your favorite color is chartreuse, and you live in Erode, Tamil Nadu."*
+> Cross-user leak re-tested after the fix — user B (zero memories) asking the
+> identical question received no trace of user A's data.
+> Regression tests: `backend/tests/test_memory_evidence_class.py`.
 
 ---
 

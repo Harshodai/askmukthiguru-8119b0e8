@@ -1,3 +1,128 @@
+## Sep 18, 2026 — Crash-Under-Load Re-Root-Caused; Memory Made Non-Inert: 5W Analysis
+
+**Session shape.** Continued the ruthless production-readiness audit against the Railway Pro (32 GB / 32 vCPU) deploy target. Re-root-caused the two "independent" crash-under-load findings (AMK-B-002, AMK-C-001): they are one defect, and not the one the audit named — a segfault on a shared torch module, not memory exhaustion. Made canonical memory actually reach an answer (AMK-B-006) without touching the faithfulness threshold, which surfaced a second defect behind it (optatives scored as factual claims). Made the memory outbox resumable across a worker crash (AMK-C-005). Made a silently-discarding tracing pipeline say so (AMK-F-001). Turned the repo's load-test script into a real survival gate — and found it had never run in live mode at all. Measured the concurrency ceiling instead of asserting one, and concluded `max_concurrent_chat` should NOT move. Turned on an observability stack that was fully built and had never once run. Backend 7284 tests, frontend 555, mypy held at its 1335 baseline.
+
+### L-CONCUR-4. A shared torch module is a segfault, not a memory problem — and "out of memory" is the diagnosis everyone reaches for first
+- **Who**: Claude Opus 5, continuing the 2026-09-18 audit.
+- **What**: `AMK-B-002` and `AMK-C-001` both recorded the backend dying under a 6-request burst and both concluded native memory pressure — recommending a lower `max_concurrent_chat` and higher container limits. Neither was the cause. Live reproduction captured `Fatal Python error: Segmentation fault` with the faulting thread inside `torch/nn/modules/linear.py::forward` under `modeling_modernbert`, reached from `lettuce_detect_service.py::_score_with_real_detector` — at **4.11 GiB of a 6 GiB limit**, `OOMKilled: false`. `LettuceDetectService._shared_detector` is a `ClassVar`: one torch module for the whole process, `forward()`-ed from a thread per in-flight chat.
+- **When**: 2026-09-18.
+- **Where**: `backend/services/lettuce_detect_service.py`, `backend/services/reranker_service.py`, `backend/services/native_inference_gate.py`, `backend/docker-compose.yml`, `backend/scripts/ops/gate1_load_test.py`.
+- **Why**:
+  - *Mechanism*: a transformers model is not safe to run `forward()` on concurrently. Two threads inside one module race on shared buffers and take the interpreter down with SIGSEGV. A negative control confirmed the shape: with the lock removed, 8 threads were inside `forward()` simultaneously and 23 races were observed in 24 calls.
+  - *Why the memory story was believable*: the crash dumps named ONNX/torch frames, an `std::bad_alloc` from the reranker appeared in the same log window, and the compose file genuinely does overcommit (per-container limits sum to ≥10.5 GiB on a 7.75 GiB VM). Every circumstantial signal pointed at memory. The one measurement that falsified it — peak RSS at the moment of death — had not been taken.
+  - *Why it was invisible*: the entrypoint masks the child's signal, so `docker inspect` reports `ExitCode=0`. A segfault looked like a clean shutdown.
+  - *Corroboration*: `embedding_service.rerank()` already carried the comment *"PyTorch CrossEncoder fallback: not thread-safe, serialize"* and held `_inference_lock`. The rule was known here. Two call sites had simply missed it.
+- **Rule / Invariant**: Any shared PyTorch/transformers module in this codebase is exclusive at inference. Adding one to a service means adding its lock in the same commit. ONNX Runtime sessions are exempt (`session.run()` is thread-safe) and belong under the shared memory gate instead. **And: before accepting "it ran out of memory", read peak RSS and `OOMKilled` at the moment of death. A crash dump full of allocator frames is where an OOM *and* a segfault both leave their fingerprints.**
+
+### L-OPS-9. A watchdog that only watches HEALTHCHECK cannot see a dead container
+- **Who**: Claude Opus 5.
+- **What**: `mukthiguru-autoheal` produced zero log output across the entire outage window. It watches Docker HEALTHCHECK "unhealthy" transitions, so it only ever observes a container that is *running* and reporting badly — never one that is `Exited`. `restart: unless-stopped` was also observed not to recover the hard failure. Added a `liveness-watchdog` sidecar that restarts `Exited`/`dead` containers, skipping exit codes 0 and 143 so an intentional `docker stop` is respected.
+- **When**: 2026-09-18.
+- **Where**: `backend/docker-compose.yml`.
+- **Why**: *Verified, not assumed* — a probe container with `--restart=no` was SIGKILLed and came back with `RestartCount=0`, so only the sidecar could have restarted it; a second probe exiting 0 was correctly left stopped.
+- **Rule / Invariant**: Liveness and health are two different watches. A stack needs both, and each needs a test that actually kills something.
+
+### L-MEMORY-4. A feature can be fully wired, fully isolated, and still do nothing
+- **Who**: Claude Opus 5.
+- **What**: Canonical memory passed every test the audit ran — CRUD, versioning, GDPR export, 36 cross-user RLS probes — and was still useless: the owner of a memory asking a direct recall question got an unrelated teaching excerpt. `memory_used: true`, fact retrieved, fact injected into the prompt, fact deleted from the answer. The faithfulness scorer only ever saw retrieved doctrine, found nothing supporting a claim about the seeker, and the redaction pass dropped the sentence.
+- **When**: 2026-09-18.
+- **Where**: `backend/rag/nodes/verification.py` (`_verification_context`), `backend/app/orchestrator_utils.py`, `backend/rag/states.py`, `backend/services/lettuce_detect_service.py`.
+- **Why**:
+  - *Fix shape*: a second evidence class, not a lower threshold. A stored memory genuinely entails a statement about the seeker, so grounding one in the other is honest. Verified live: the claim `"Your favorite color is chartreuse, and you live in Erode, Tamil Nadu."` scored **1.00, supported**.
+  - *What is NOT admitted*: only `canonical_memory_evidence` (user-stated facts). The broader `memory_context` blends persona summaries and prior **assistant** turns — grounding an answer in the system's own earlier output is circular, and would let a fabricated doctrinal claim launder itself into evidence one turn later.
+  - *Never citable*: the memory text never enters `relevant_docs`, so `extract_citations` cannot attribute it to Sri Preethaji or Sri Krishnaji. It can ground a sentence; it can never source one.
+  - *A second defect was hiding behind the first*: with memory grounded at 1.00 the answer STILL did not ship, because the persona's closing blessing — "May this knowledge bring a smile to your heart" — was scored as a factual claim at 0.005, averaging the answer to 0.50 and pushing it under the 0.60 floor. `_NON_ASSERTION_PREFIXES` contained `"may you"` but not `"may this"`. A blessing has no truth value; scoring it produces a number indistinguishable from a fabrication while being the opposite of one.
+- **Rule / Invariant**: "Isolated correctly" and "works" are separate claims needing separate evidence. A privacy audit that proves user B cannot see user A's data proves nothing about whether user A can. **Always run the control case.** And when a fix makes a feature reach users for the first time, re-run the leak test — verified here, user B still got no trace of user A's data.
+
+### L-CONCUR-5. I bounded the wrong resource first, and the bound cost 787 seconds to prove it
+- **Who**: Claude Opus 5.
+- **What**: Accepting the audit's memory diagnosis, the first fix shipped was `services/native_inference_gate.py` with `native_inference_max_concurrent=2` — a process-wide cap on concurrent native inference. It did not stop the crash (the box segfaulted again at concurrency 6). It did impose **787 s of queueing across 24 requests** (`lettuce_nli` 441 s, `embed_onnx` 266 s, `rerank_onnx` 80 s), pushed p95 to the 60 s client timeout, and produced 503s. Raising it to 6 after the real fix cut queueing to 155 s with peak RSS only rising 3613 → 4242 MB, still under budget.
+- **When**: 2026-09-18.
+- **Where**: `backend/services/native_inference_gate.py`, `backend/app/config.py`.
+- **Why**: ONNX Runtime's `session.run()` is thread-safe and the models were nowhere near the memory limit, so throttling them bought nothing and cost everything. The hazard was thread-safety in ONE torch module; the bound belonged there, as a lock, not spread across every native call as a smaller number.
+- **Rule / Invariant**: A limit is only correct if it bounds the resource that is actually scarce. Before adding one, name the resource and produce the measurement showing it is exhausted. The gate was kept — peak RSS is worth bounding — but its docstring and config comment now say plainly that it is a memory bound, did not fix the crash, and could not have. **Do not let a mitigation that shipped alongside a fix inherit credit for it.**
+
+### L-LATENCY-2. Attribute latency before claiming a latency result
+- **Who**: Claude Opus 5.
+- **What**: After the serialization fix the load test still read FAIL (0.16 RPS, p95 60 s), which looks exactly like "the new lock wrecked throughput". Log attribution showed otherwise: the OpenRouter rate limiter slept **347 s across 79 events** in a single 24-request run. That is an account-level cap, not a code defect, and it — not the lock, not the gate — is what sets throughput on this box.
+- **When**: 2026-09-18.
+- **Why**: A first attempt at this attribution used `docker logs --since 7m`, which spanned two runs and produced numbers nearly identical to the previous run's. They looked plausible and were contaminated. Re-measuring with explicit timestamps filtered to the run window gave the real figures.
+- **Rule / Invariant**: `--since <duration>` on a log query silently merges adjacent runs. Filter by absolute timestamp when comparing runs. And never report a throughput number as caused by your change until the other candidate causes have been measured and subtracted — here the honest conclusion was "the crash is fixed, throughput is capped by the provider, and `max_concurrent_chat` should not move".
+
+### L-VERIFY-4. A blessing is not a claim, and scoring it looks identical to catching a lie
+- **Who**: Claude Opus 5.
+- **What**: With canonical memory grounded at 1.00, a correct recall answer STILL failed to ship. The persona's closing line — *"May this knowledge bring a smile to your heart as you continue your journey."* — was scored as a factual assertion at **0.005**, averaging the two-claim answer to 0.50, under the 0.60 floor, routing it to `grounded_partial_evidence`. `_NON_ASSERTION_PREFIXES` contained `"may you"` but not `"may this"`.
+- **When**: 2026-09-18.
+- **Where**: `backend/services/lettuce_detect_service.py` (`_is_assertion`, `_OPTATIVE_RE`, `_BENEDICTION_PREFIXES`).
+- **Why**: An optative has no truth value. There is nothing in the corpus for the scorer to match it against, so it returns a low similarity that is **indistinguishable from a fabricated claim while being the opposite of one**. Excluding it is not a weaker gate; including it was noise in the denominator. The month "May" is preserved as an assertion by requiring a pronoun/determiner after it (`May 2026 marked…` still scores).
+- **Rule / Invariant**: A hardcoded prefix tuple against generated prose is a liability — the model writes "may this", "may these", "may your journey", and the list had one of them. Prefer a pattern over an enumeration for open-ended natural-language classes, and give it a self-check with both the cases it must reject AND the near-miss it must keep (the month). **When a faithfulness score looks wrong, read the per-claim breakdown before touching the threshold**: here the trace showed 1.00 and 0.005 side by side and named the defect instantly.
+
+### L-TEST-4. A green test proves nothing until you have watched it go red
+- **Who**: Claude Opus 5.
+- **What**: `tests/test_native_inference_concurrency.py` passed the moment it was written. That is exactly when a concurrency test is least trustworthy — a probe that cannot observe overlap passes whether or not the lock exists. Neutralising the lock with a no-op stub and re-running produced **23 races with 8 threads simultaneously inside `forward()`**, confirming the probe discriminates.
+- **When**: 2026-09-18.
+- **Rule / Invariant**: For any test guarding a race, a resource bound, or an invariant that fails catastrophically in production, run the negative control in the same sitting: break the thing deliberately, watch the test fail, restore it. A segfault regression cannot be caught after the fact by any amount of assertion.
+
+### L-OPS-10. The regression gate had never run, and the pipe hid it
+- **Who**: Claude Opus 5.
+- **What**: `backend/scripts/ops/gate1_load_test.py` — the repo's 20-concurrent-user load harness — passed `base_url=None` to `httpx.AsyncClient` in live-HTTP mode and raised `TypeError` before the first request. Only its in-process mode had ever been exercised. Separately, the first invocation was piped to `tail`, so the shell reported **exit code 0** for a run that had crashed with a traceback.
+- **When**: 2026-09-18.
+- **Where**: `backend/scripts/ops/gate1_load_test.py`.
+- **Why**: The script also could not have caught what it existed to catch: it measured latency and error rates but never asked whether the container was still alive. A ~1 s crash-and-restart shows up in HTTP results as a brief error blip and then "recovery". It now samples `docker stats` throughout and asserts liveness, `RestartCount`, and peak memory against a fraction of **host** memory (not the container limit — overcommitted limits were the thing under suspicion), exiting non-zero on breach.
+- **Rule / Invariant**: An ops script in the repo is not evidence it works; run it before citing it. `cmd | tail` returns `tail`'s exit status — use `${PIPESTATUS[0]}`, or do not pipe when the exit code is the thing you care about. And a survival assertion belongs in any load test whose failure mode is "the process dies".
+
+### L-CONFIG-3. The dead-settings scanner is a regex, and it was right
+- **Who**: Claude Opus 5.
+- **What**: `tests/test_wiring_invariants.py::test_no_undeclared_dead_settings` failed on two newly added fields (`native_inference_max_concurrent`, `native_inference_wait_timeout`). They *were* read — through a lazy `getattr(_settings(), "field", default)` accessor written to dodge an import cycle. The scanner matches `getattr(\s*\w+\s*,\s*["\'](\w+)["\']`; `_settings()` is a call, not `\w+`, so the reads were invisible.
+- **When**: 2026-09-18.
+- **Where**: `backend/services/native_inference_gate.py`.
+- **Why**: The cycle being dodged did not exist — `app/config.py` imports no services, and `embedding_service.py` imports `settings` at module top already. The fix was in the new code, not the test: a plain top-level `from app.config import settings` and direct attribute reads.
+- **Rule / Invariant**: When a lint/wiring invariant fires on new code, assume the invariant is right and the new code is hiding something. A read the scanner cannot see is also a read a human grepping `settings.` cannot see — that is the actual point of the check, not an artifact of it. Same session, same shape: a `mypy` ratchet caught 5 new errors that were one missing return annotation after changing a function's arity. **Ratchets earn their keep at exactly the moment they are inconvenient.**
+
+### L-PROC-5. Never edit a source file while a suite that reads source is running
+- **Who**: Claude Opus 5.
+- **What**: A full-suite run reported `test_source_no_longer_vetoes_on_the_strict_boolean` FAILED. It passes in isolation. Cause: `rag/nodes/verification.py` was edited (a memory-evidence cap added) *while* that run was in flight, and the test calls `inspect.getsource(verification.reflect_on_answer)` — which resolves line numbers cached at import time against the file as it exists on disk **now**. Shifted lines, wrong function body, spurious failure.
+- **When**: 2026-09-18.
+- **Rule / Invariant**: This repo has several `inspect.getsource` invariant tests. Treat a running suite as holding a lock on `backend/**/*.py`. Editing markdown, migrations or docs mid-run is fine; editing an imported module is not, and the failure it produces looks like a real regression in code you just touched — the most expensive kind of false alarm.
+
+### L-PROC-6. Handoff prose decays faster than the thing it describes
+- **Who**: Claude Opus 5.
+- **What**: The session handoff stated the backend is "a baked image, no live source mount", and instructed rebuilding the container to deploy backend changes. `docker compose config` shows `backend/{app,services,rag,guardrails,routers,schemas,tasks,tests,benchmarks,domain}` all bind-mounted into `/app`. A `docker compose restart backend` picks up Python edits; no rebuild needed — verified by confirming a new `/api/health` key appeared after a restart alone.
+- **When**: 2026-09-18.
+- **Why**: Following the instruction would have cost a multi-minute image rebuild on every one of the ~six backend iterations this session.
+- **Rule / Invariant**: Same rule this repo already wrote down as `L-PROC-3` ("md files are claims, grep is evidence"), now extended to handoffs and to operational instructions, not just architecture claims. One `docker compose config` beat a paragraph. **Check the cheap mechanical fact before paying the expensive ritual it prescribes.**
+
+### L-SEC-5. Making an inert feature live re-opens every question its inertness was hiding
+- **Who**: Claude Opus 5.
+- **What**: Before this session, canonical memory could not leak into an answer because it never reached an answer at all. The Phase 6 isolation PASS was partly an artifact of that. Making memory functional (`L-MEMORY-4`) meant the isolation evidence no longer covered the live behaviour, so the cross-user probe was re-run afterwards: user B, zero memories, identical question — no trace of user A's data. Two further guards were added rather than assumed: memory text never enters `relevant_docs` (so `extract_citations` cannot attribute a seeker's private fact to Sri Preethaji or Sri Krishnaji), and the evidence is capped at `MEMORY_EVIDENCE_MAX_CHARS = 1500` because an entailment scorer gets more permissive as its evidence grows — the same failure this repo already measured when uncapped graph context dropped faithfulness 1.0 → 0.50.
+- **When**: 2026-09-18.
+- **Where**: `backend/rag/nodes/verification.py`, `backend/tests/test_memory_evidence_class.py`.
+- **Rule / Invariant**: A safety test's result is scoped to the behaviour that existed when it ran. When a change moves a feature from "does nothing" to "does something", every prior PASS about that feature is stale — re-run it, do not cite it. And when private data becomes eligible to reach an answer, decide explicitly whether it may also be *cited*; grounding and sourcing are separate permissions.
+
+### L-OBS-1. Observability was 90% built and 0% working — four independent silent failures in one stack
+- **Who**: Claude Opus 5.
+- **What**: The question put to the user was "wire tracing, or accept manual log diagnosis?". The answer turned out to be neither: the whole stack was already in the repo — Jaeger, Prometheus with a scrape job, six SLO alert rules, Alertmanager with a routing tree, Grafana with a provisioned datasource and dashboard. None of it had ever run. Four separate defects, each individually silent, each sufficient on its own:
+  1. **All four services carried `profiles: [observability]`**, so a plain `docker compose up -d` started none of them.
+  2. **`OTEL_ENABLED` defaulted to `false`** in `docker-compose.yml` — so even with a collector up, the backend emitted nothing. (The audit finding AMK-F-001 asserted the opposite, that it defaulted true and silently discarded. Both roads lead to no traces; the stated mechanism was wrong.)
+  3. **The committed `alertmanager.yml` was the un-rendered template**, still holding seven literal `${PD_SERVICE_KEY}` / `${SLACK_WEBHOOK_URL}` placeholders. Alertmanager validates receiver URLs at config load, so the container could not have started even if it had been launched.
+  4. **Prometheus scraped `/metrics`, which is `Depends(require_aal2)` + admin, and got `401` forever.** A scraper cannot hold an AAL2 Supabase session. Prometheus stored zero samples, so all six alert rules evaluated against an empty series set and were incapable of firing. Alerting existed, was configured, was correct — and could never go off.
+- **When**: 2026-09-18.
+- **Where**: `backend/docker-compose.yml`, `infrastructure/prometheus/{prometheus.yml,alertmanager.yml}`, `backend/app/api/health.py`, `backend/app/config.py`.
+- **Why**: Each defect hides the next. Fixing the profile gate alone gets you containers that crash or sit idle. Fixing the crash gets you a scraper that 401s. Fixing the scrape gets you a backend emitting no spans. Nothing in the system ever said any of this out loud, because every component was individually "healthy": the backend was up, the config files existed, the rules parsed.
+- **Fixes, each verified rather than assumed**: profile gate removed (4 services); `OTEL_ENABLED` defaults true; compose re-pointed at a new self-contained `alertmanager.local.yml` that needs no PagerDuty/Slack secret and starts clean — `alertmanager.yml` itself left untouched, because a test already pinned it as the production artifact (my first attempt repurposed it and that test caught me); and a new `GET /internal/metrics` serving the same exposition behind a dedicated `METRICS_SCRAPE_TOKEN`, **fail-closed** (unset = 404), constant-time compared, excluded from the OpenAPI schema, with `/metrics` itself left completely untouched. Verified live: Prometheus target `up`, **126 `guru_*` series stored**, all six rules `health=ok`, Jaeger holding real traces from `mukthiguru-backend`, Grafana serving the provisioned dashboard, and unauthenticated/bad-token scrapes both `401`.
+- **Rule / Invariant**: **A compose profile is an off switch that looks like organisation.** Anything load-bearing for an incident must run by default — the flag you have to remember is the flag you will not have set when you need it. And when adding a scraper to an authenticated endpoint, give it its own fail-closed credential rather than relaxing the human one; a second explicit door is safer than a wider existing one. Most of all: **"is it configured?" and "does it work?" are different questions, and only the second one matters.** Four config files here were all correct.
+
+### L-PROC-4. Findings carry evidence and a diagnosis; only one of them is data
+- **Who**: Claude Opus 5.
+- **What**: Three findings this session had solid evidence and wrong or incomplete root causes (`AMK-B-002`/`AMK-C-001` memory-vs-segfault; `AMK-B-006` named the redaction gate but not the optative-scoring defect behind it). Acting on the written "Required Fix" alone would have produced a lower `max_concurrent_chat`, a false "fixed", and a still-crashing box.
+- **When**: 2026-09-18.
+- **Rule / Invariant**: Reuse a finding's *evidence* — repro steps, log excerpts, file:line — and re-derive its *diagnosis* against the live system before writing code. Cheapest possible discriminator first: here, one `docker inspect` field (`OOMKilled: false`) falsified the entire memory hypothesis in seconds.
+
+### Open, not fixed — observed this session
+- **Spurious 503s under load.** `app/api/chat.py`'s `backpressure_semaphore` uses `asyncio.wait_for(sem.acquire(), timeout=0.01)`. During the gate-2 run, 5 requests received 503 at concurrency 6 against a ceiling of 8 — slots existed. A 10 ms deadline on an event loop under GIL pressure from native inference can expire while the semaphore is free, so the backpressure signal is partly measuring loop latency rather than admission. Dropped to 2 occurrences at gate 6. Not diagnosed further; worth a look before trusting `chat_backpressure` telemetry.
+- **Verification throughput is now 1 per process by construction.** The exclusive lock on the shared torch module is correct but it is a ceiling. The next real lever is a small POOL of detector instances (one module per slot, ~600 MB each), affordable at 32 GB, which would lift it directly. Not attempted.
+- **`supabase/migrations/20260918000000_memory_outbox_completed_steps.sql` is written but unapplied.** AMK-C-005's fix is inert until it runs. The worker degrades safely in the meantime (`mark_step_done` is `getattr`-guarded and a missing column path just replays as before), but it is not fixed in any live database yet.
+
 ## Sep 15, 2026 — Live Golden Benchmark, Latency Deep-Dive & AnyIO Thread Hardening: 5W Analysis
 
 **Session shape.** Executed live end-to-end evaluation against OpenRouter inference with cold-path enforcement (`cache_bypass=True`, `incognito=True`) across the golden dataset while all four data stores (Memgraph 7687, Qdrant 6333, Redis 6379, Backend 8000) ran live inside Docker. Persisted complete generated answers, citations, faithfulness scores, and execution traces to disk (`docs/LIVE_GOLDEN_EVAL_ANSWERS.md` and `backend/benchmarks/reports/live_golden_eval_answers.json`). Root-caused and permanently eliminated the AnyIO worker thread exhaustion crash (`RuntimeError: can't start new thread` / `L-DOCKER-9`), resolved `ReleaseManifestPublic` schema validation errors, and extracted stage-by-stage pipeline latency telemetry revealing that 86.6% of response latency stems from 3 sequential LLM calls rather than vector or graph retrieval.

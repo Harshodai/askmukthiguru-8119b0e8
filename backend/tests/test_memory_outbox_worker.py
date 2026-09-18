@@ -167,3 +167,150 @@ def test_drain_memory_outbox_task_entrypoint():
         # Direct task invocation
         res = drain_memory_outbox.apply()
         assert res.result == expected_result
+
+
+# ======================================================================
+# AMK-C-005 — crash-and-reclaim must not duplicate enrichment writes
+# ======================================================================
+
+
+def _wire(container, outbox, memory_svc, episodic, profile):
+    container.memory_outbox = outbox
+    container.memory_service = memory_svc
+    container.episodic_memory_service = episodic
+    container.user_profile = profile
+    container.supabase_client = MagicMock()
+
+
+def _recorded_steps(outbox) -> list[str]:
+    """Last step-list the drain persisted via mark_step_done."""
+    calls = outbox.mark_step_done.await_args_list
+    return list(calls[-1].args[1]) if calls else []
+
+
+@pytest.mark.asyncio
+async def test_reclaim_after_crash_does_not_rerun_committed_enrichment():
+    """A row reclaimed after a worker crash resumes; it does not re-write.
+
+    claim_memory_outbox() reclaims any row stuck in 'processing' for 10
+    minutes, including one whose worker was SIGKILLed after the enrichment
+    writes but before mark_processed(). Without per-step markers that replays
+    every write — a second episodic memory, a second set of L1 atoms, a second
+    L2 scene block for one conversation turn (AMK-C-005).
+    """
+    container = MagicMock()
+    outbox = AsyncMock()
+    memory_svc = AsyncMock()
+    episodic = AsyncMock()
+    profile = AsyncMock()
+    _wire(container, outbox, memory_svc, episodic, profile)
+
+    outbox.get_pending.return_value = [_mock_outbox_row()]
+    outbox.active_consent.return_value = {"granted": True, "consent_version": "memory-v1"}
+
+    patches = (
+        patch("app.dependencies.get_container", return_value=container),
+        patch.object(settings, "feature_memory_write", True),
+        patch(
+            "services.layered_memory.l1_extractor.extract_atoms",
+            new=AsyncMock(return_value=[{"text": "atom"}]),
+        ),
+        patch(
+            "services.layered_memory.l2_scene_compressor.compress_turns_to_scene",
+            new=AsyncMock(return_value={"scene": "s"}),
+        ),
+        patch(
+            "services.layered_memory.l2_scene_compressor.save_scene_block",
+            new=AsyncMock(return_value=None),
+        ),
+    )
+
+    # --- attempt 1: all enrichment commits, then the worker "dies" ---------
+    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+        await _drain_once(limit=10)
+
+    committed = _recorded_steps(outbox)
+    assert committed, "no completed steps were recorded — a reclaim would replay everything"
+    assert "extract_and_write" in committed
+    assert "episodic_log" in committed
+
+    # --- attempt 2: the staleness reclaim hands the SAME row back ----------
+    memory_svc.reset_mock()
+    episodic.reset_mock()
+    profile.reset_mock()
+    outbox.reset_mock()
+    outbox.get_pending.return_value = [_mock_outbox_row() | {"completed_steps": committed}]
+    outbox.active_consent.return_value = {"granted": True, "consent_version": "memory-v1"}
+
+    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+        result = await _drain_once(limit=10)
+
+    assert result == {"claimed": 1, "processed": 1, "failed": 0}
+    memory_svc.extract_and_write.assert_not_awaited()
+    episodic.log_episode.assert_not_awaited()
+    memory_svc.add_atoms.assert_not_awaited()
+    profile.save_conversation_memory.assert_not_awaited()
+    # The row still finishes — resuming must not strand it in 'processing'.
+    outbox.mark_processed.assert_awaited_once_with("outbox-1")
+
+
+@pytest.mark.asyncio
+async def test_reclaim_resumes_only_the_steps_that_had_not_committed():
+    """Partial progress replays the missing step and nothing else."""
+    container = MagicMock()
+    outbox = AsyncMock()
+    memory_svc = AsyncMock()
+    episodic = AsyncMock()
+    _wire(container, outbox, memory_svc, episodic, None)
+
+    # extract_and_write committed before the crash; episodic did not.
+    row = _mock_outbox_row() | {"completed_steps": ["extract_and_write"]}
+    outbox.get_pending.return_value = [row]
+    outbox.active_consent.return_value = {"granted": True, "consent_version": "memory-v1"}
+
+    with (
+        patch("app.dependencies.get_container", return_value=container),
+        patch.object(settings, "feature_memory_write", True),
+        patch("services.layered_memory.l1_extractor.extract_atoms", new=AsyncMock(return_value=[])),
+        patch(
+            "services.layered_memory.l2_scene_compressor.compress_turns_to_scene",
+            new=AsyncMock(return_value=None),
+        ),
+    ):
+        result = await _drain_once(limit=10)
+
+    assert result == {"claimed": 1, "processed": 1, "failed": 0}
+    memory_svc.extract_and_write.assert_not_awaited()
+    episodic.log_episode.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_step_marker_failure_degrades_to_replay_not_to_row_failure():
+    """A failed marker write must not fail the row.
+
+    Losing a marker costs the resume optimisation for one step; failing the
+    row would cost the user's memory entirely. The first is the correct
+    degradation.
+    """
+    container = MagicMock()
+    outbox = AsyncMock()
+    memory_svc = AsyncMock()
+    _wire(container, outbox, memory_svc, None, None)
+
+    outbox.get_pending.return_value = [_mock_outbox_row()]
+    outbox.active_consent.return_value = {"granted": True, "consent_version": "memory-v1"}
+    outbox.mark_step_done.side_effect = RuntimeError("supabase unavailable")
+
+    with (
+        patch("app.dependencies.get_container", return_value=container),
+        patch.object(settings, "feature_memory_write", True),
+        patch("services.layered_memory.l1_extractor.extract_atoms", new=AsyncMock(return_value=[])),
+        patch(
+            "services.layered_memory.l2_scene_compressor.compress_turns_to_scene",
+            new=AsyncMock(return_value=None),
+        ),
+    ):
+        result = await _drain_once(limit=10)
+
+    assert result == {"claimed": 1, "processed": 1, "failed": 0}
+    outbox.mark_processed.assert_awaited_once_with("outbox-1")

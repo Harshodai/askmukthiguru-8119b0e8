@@ -135,6 +135,28 @@ No new *code-level* concurrency bugs found in the streaming/cancellation path it
 **Regression Test:** A repeatable load-test script that fires N concurrent full-pipeline `/api/chat` requests (N = configured `max_concurrent_chat`) against a fresh backend and asserts (1) the container is still running afterward (`docker inspect .State.Running`), (2) `docker stats` peak memory stayed under X% of the actual available host memory, not just under the container's own `mem_limit`. This audit's `burst_test.py` (saved at the scratchpad path used this session) is a starting point but was not written as a permanent regression test — it should be moved into the repo (e.g. `backend/scripts/ops/` or a `benchmarks/` script) if kept.
 **Verification:** Re-run the same burst (6-8 concurrent real chat requests) against the box the fix will actually run on (production sizing, not local Docker Desktop) and confirm the container survives with memory headroom remaining, not just that it happened not to die this particular time.
 
+> **CORRECTED 2026-09-18 — same defect as AMK-B-002, and it is not overcommit.**
+> The overcommit arithmetic in the Root Cause is accurate as arithmetic, but it
+> is not what killed the process. Re-reproduced at concurrency 6: peak container
+> memory **4.11 GiB of 6 GiB**, `OOMKilled: false`, and the log carries
+> `Fatal Python error: Segmentation fault` with the faulting thread inside
+> torch's `Linear.forward` under `modeling_modernbert`. The host OOM killer was
+> never involved. See the AMK-B-002 correction for the mechanism.
+> **Measured ceiling** (what this finding actually asked for): marginal cost
+> ~324 MB per concurrent chat over a ~2300 MB resident-model baseline, so the
+> memory-only ceiling is ~13 concurrent on 8 GB and ~73 on 32 GB. The deploy
+> target is Railway Pro (32 GB), where memory does not bind at any realistic
+> concurrency. `max_concurrent_chat` therefore **stays at 8**: the real limits
+> are the OpenRouter rate limiter (347 s of sleeping across 79 events in one
+> 24-request run) and the now-serialized verification pass. Lowering it would
+> refuse traffic the box can hold.
+> The regression test this finding asked for now exists as a permanent script:
+> `backend/scripts/ops/gate1_load_test.py` asserts container liveness, restart
+> count and peak memory against a fraction of HOST memory, and exits non-zero on
+> breach. (Its live-HTTP mode had never worked — `base_url=None` raised
+> `TypeError` before the first request; fixed.) Full write-up:
+> `docs/engineering-notes/concurrency-ceiling-2026-09-18.md`.
+
 ### AMK-C-002 — Jobs claimed by a worker that dies (not merely cancelled) are never reclaimed; client polling gets stuck "processing" forever
 **Severity:** HIGH
 **Launch Blocker:** YES (directly caused by, and will recur independently of, AMK-C-001 — any process death mid-job hits this, including a future deploy, host restart, or k8s eviction)
@@ -174,6 +196,23 @@ No new *code-level* concurrency bugs found in the streaming/cancellation path it
 **Required Fix:** Make each enrichment write idempotent keyed on `outbox_id` (e.g., an `outbox_id` column/tag on the written memory/episode/atom/scene rows, checked before insert), or record a completion marker per sub-step so a reclaimed row resumes rather than restarts, or simplest: wrap all four writes in a single transaction/outbox-pattern-correct "exactly once to the outside world" primitive if the underlying stores support it.
 **Regression Test:** Claim a row, run the four enrichment writes, kill the process before calling `mark_processed`, wait past the 10-minute staleness window (or fake `locked_at`), let another drain pick it up, and assert the enrichment writes are NOT duplicated.
 **Verification:** Count episodic/L1/L2 rows for a synthetic outbox row before and after the simulated crash-and-reclaim; confirm counts increase by 1, not 2.
+
+> **FIXED 2026-09-18 (resume-marker variant).** `memory_outbox.completed_steps`
+> (migration `20260918000000_memory_outbox_completed_steps.sql`) records each of
+> the five enrichment sub-steps as it commits; `_drain_once` skips the ones
+> already done, so a reclaimed row RESUMES instead of restarting.
+> `claim_memory_outbox` returns `outbox.*` and does not reset the column, so no
+> change to that function was needed.
+> **Honest limit**: this narrows the duplicate window from "all five writes,
+> including two LLM calls" to "the single step in flight at the instant of the
+> crash" — it does not close it. Closing it fully needs the destination stores to
+> accept an idempotency key, which they do not today. A failed marker write is
+> deliberately non-fatal: losing a marker costs the resume optimisation for one
+> step, whereas failing the row would cost the seeker's memory entirely.
+> Regression tests: `backend/tests/test_memory_outbox_worker.py`
+> (`test_reclaim_after_crash_does_not_rerun_committed_enrichment`,
+> `test_reclaim_resumes_only_the_steps_that_had_not_committed`,
+> `test_step_marker_failure_degrades_to_replay_not_to_row_failure`).
 
 ### AMK-C-006 — `llm_cache.py` docstring and log line claim Qdrant usage; the actual implementation is a bounded local map cache
 **Severity:** LOW

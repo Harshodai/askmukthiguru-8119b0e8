@@ -623,6 +623,24 @@ INGEST_QUALITY_GATE_REJECTIONS_TOTAL = Counter(
 )
 
 
+# ===================================================================
+# Native inference gate (AMK-B-002 / AMK-C-001)
+# ===================================================================
+
+NATIVE_INFERENCE_WAIT_SECONDS = Histogram(
+    "native_inference_wait_seconds",
+    "Time a native (ONNX/torch) inference call waited for a concurrency slot",
+    ["op"],
+    buckets=[0.001, 0.01, 0.1, 0.5, 1, 2, 5, 10, 30, 60],
+)
+
+NATIVE_INFERENCE_REJECTED_TOTAL = Counter(
+    "native_inference_rejected_total",
+    "Native inference calls shed because no slot freed within the wait timeout",
+    ["op"],
+)
+
+
 if __name__ == "__main__":
     for _tier, _th in sorted(SLO_THRESHOLDS.items()):
         assert isinstance(_th, (int, float)) and _th > 0, _tier

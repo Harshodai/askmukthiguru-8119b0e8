@@ -135,3 +135,47 @@ def test_hallucination_anomaly_workflow_validity():
     assert any("Hallucination Anomaly Check" in name for name in step_names)
     assert any("Job Summary" in name for name in step_names)
     assert any("Alert on Threshold Breach" in name for name in step_names)
+
+
+def test_alertmanager_local_config_is_startable():
+    """The config compose actually mounts must not need secrets to load.
+
+    AMK-F-001: compose used to mount `alertmanager.yml`, the production artifact,
+    which still contains `${PD_SERVICE_KEY}` / `${SLACK_WEBHOOK_URL}` until
+    envsubst renders it. Alertmanager validates receiver URLs when it loads its
+    config, so that mount could never have started the container. The service was
+    also profile-gated and never launched, so it went unnoticed for as long as it
+    existed. This pins the file compose mounts, not the one prod renders.
+    """
+    import pathlib
+
+    import yaml
+
+    repo_root = pathlib.Path(__file__).resolve().parent.parent.parent
+    local_path = repo_root / "infrastructure" / "prometheus" / "alertmanager.local.yml"
+    assert local_path.exists(), f"Missing local alertmanager config at {local_path}"
+
+    raw = local_path.read_text(encoding="utf-8")
+    body = "\n".join(line for line in raw.splitlines() if not line.lstrip().startswith("#"))
+    assert "${" not in body, (
+        "the mounted alertmanager config contains an unrendered placeholder; "
+        "Alertmanager will refuse to start"
+    )
+
+    config = yaml.safe_load(raw)
+    assert "route" in config and "receivers" in config and "inhibit_rules" in config
+    receiver_names = {r["name"] for r in config["receivers"]}
+    assert config["route"]["receiver"] in receiver_names
+    for route in config["route"].get("routes", []):
+        assert route["receiver"] in receiver_names, f"route points at unknown receiver: {route}"
+
+
+def test_compose_mounts_the_startable_alertmanager_config():
+    """Guard the wiring itself, not just the file's contents."""
+    import pathlib
+
+    repo_root = pathlib.Path(__file__).resolve().parent.parent.parent
+    compose = (repo_root / "backend" / "docker-compose.yml").read_text(encoding="utf-8")
+    assert "alertmanager.local.yml:/etc/alertmanager/alertmanager.yml" in compose, (
+        "compose must mount the secret-free local config, not the prod artifact"
+    )

@@ -5,6 +5,23 @@ branch `main`, commit `96fd24a5` (13 commits ahead of `origin/main`, unpushed at
 audit time). Methodology and per-phase checkpoint status:
 `ASKMUKTHIGURU_AUDIT_PROGRESS.md`. Full evidence per track: `audit/track_{A-F}_findings.md`.
 
+> ## Status update — 2026-09-18 (later session)
+>
+> Five more findings closed. **Two root causes in this document are wrong** and
+> are corrected in place in `audit/track_{B,C}_findings.md`; read those before
+> acting on anything below about crashes or concurrency.
+>
+> | Finding | Status | Note |
+> | :--- | :--- | :--- |
+> | AMK-B-002 | **Fixed** | Root cause was NOT memory. Segfault from concurrent `forward()` on one shared torch module (`LettuceDetect._shared_detector`), at 4.11 GiB of 6 GiB with `OOMKilled: false`. Fixed with an exclusive lock; verified surviving the same burst. |
+> | AMK-C-001 | **Fixed** (same defect) | Overcommit arithmetic is correct but was not the killer. Ceiling now measured: ~324 MB per concurrent chat, ~73 concurrent on 32 GB. `max_concurrent_chat` stays at 8 — the binding limits are the OpenRouter rate limiter and the serialized verification pass, not memory. |
+> | AMK-C-005 | **Fixed** | `memory_outbox.completed_steps` makes a reclaimed row resume, not restart. Narrows but does not close the at-least-once window — see the finding. |
+> | AMK-B-006 | **Fixed**, verified live | Canonical memory now reaches answers as its own evidence class. Doctrine threshold untouched; memory is never citable. Cross-user leak re-tested after the fix. |
+> | AMK-F-001 | **Partly fixed** | The silent no-op is now loud: startup warns when `OTEL_ENABLED` is on and no collector is listening. Whether to run Jaeger by default remains an operator decision. |
+>
+> Everything else in this document stands. Sizing, measurements and the
+> re-derivation procedure: `docs/engineering-notes/concurrency-ceiling-2026-09-18.md`.
+
 This document is a synthesis of 6 parallel live-testing investigation tracks
 (A-F, covering Phases 2-19) plus direct orchestrator work (Phases 0, 1, 20).
 Every finding below traces to a specific track file with exact evidence —
