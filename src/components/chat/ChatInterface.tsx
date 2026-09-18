@@ -796,7 +796,7 @@ export const ChatInterface = () => {
             setRefreshTrigger(prev => prev + 1);
           }
            // DB trigger `touch_user_last_message` handles profile columns on chat message insert.
-          try { localStorage.setItem('askmukthiguru_last_seen', Date.now().toString()); } catch {}
+          try { localStorage.setItem('askmukthiguru_last_seen', Date.now().toString()); } catch { /* storage may be unavailable (private browsing, quota, disabled) -- best-effort */ }
         } finally {
           if (mySaveId === latestSaveIdRef.current) {
             isSavingRef.current = false;

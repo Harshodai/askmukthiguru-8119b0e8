@@ -254,6 +254,21 @@ class CanonicalMemoryRetriever:
         # 4. Filter out candidates with no statement (phantom vectors)
         candidates = {mid: m for mid, m in candidates.items() if m.statement}
 
+        # 4b. Hard-exclude deleted memories. Found 2026-09-18 ruthless audit
+        # (AMK-D-002): _composite_score below only rank-penalizes
+        # status="deleted" via _STATUS_PRIORITY (score * 0.0), which zeroes
+        # the score but does not remove the candidate -- it can still win a
+        # slot if every other candidate also has a non-positive score (e.g.
+        # nothing else matched well). Combined with the delete endpoint's
+        # Qdrant deindex being fire-and-forget (errors only logged, never
+        # retried), a transient Qdrant failure at delete time leaves an
+        # orphaned vector that this hard filter is the only thing stopping
+        # from resurfacing a memory the user explicitly asked to forget.
+        # _search_by_fact_key/_search_by_statement already filter
+        # status="active" at the query level; this is the equivalent
+        # guarantee for the vector-search + hydration path.
+        candidates = {mid: m for mid, m in candidates.items() if m.status != "deleted"}
+
         # 5. Rank by composite score
         now = datetime.now(UTC)
         for m in candidates.values():

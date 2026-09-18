@@ -340,7 +340,7 @@ const AuthPage = () => {
       }
 
       let onboardedCached = false;
-      try { onboardedCached = localStorage.getItem(ONBOARDED_FLAG_KEY) === '1'; } catch {}
+      try { onboardedCached = localStorage.getItem(ONBOARDED_FLAG_KEY) === '1'; } catch { /* storage may be unavailable (private browsing, quota, disabled) -- best-effort */ }
       if (onboardedCached) {
         recordStep('navigate', 'ok', 0, { meta: { to: '/chat', cached: true } });
         navigate('/chat', { replace: true });
@@ -839,7 +839,7 @@ const AuthPage = () => {
 
   const handleLanguageComplete = (code: string) => {
     setLanguage(code);
-    try { localStorage.setItem(ONBOARDED_FLAG_KEY, '1'); } catch {}
+    try { localStorage.setItem(ONBOARDED_FLAG_KEY, '1'); } catch { /* storage may be unavailable (private browsing, quota, disabled) -- best-effort */ }
     endAuthRun('ok');
     if (sessionHandleTimeoutRef.current) {
       clearTimeout(sessionHandleTimeoutRef.current);

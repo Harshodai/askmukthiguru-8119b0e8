@@ -419,7 +419,7 @@ class SupabaseTelemetrySink:
                 "query_id": query_id,
                 "source_docs": retrieval_metadata.get("source_docs", []),
                 "scores": retrieval_metadata.get("scores", []),
-                "top_k": retrieval_metadata.get("top_k", 0),
+                "top_k": self._coerce_int(retrieval_metadata.get("top_k", 0)),
                 "retrieval_hit": retrieval_metadata.get("hit", False),
             }
 
@@ -433,8 +433,8 @@ class SupabaseTelemetrySink:
                         # DB column is `name` (original schema). main.py uses `span_name` key
                         # in intermediate dicts — normalize here before DB write.
                         "name": span.get("span_name") or span.get("name") or "unknown",
-                        "start_ms": span.get("start_ms", 0),
-                        "duration_ms": span.get("duration_ms", 0),
+                        "start_ms": self._coerce_int(span.get("start_ms", 0)),
+                        "duration_ms": self._coerce_int(span.get("duration_ms", 0)),
                         # attributes column added by migration 20260601090000
                         "attributes": span.get("attributes") or {},
                     }
@@ -581,9 +581,14 @@ class SupabaseTelemetrySink:
                         e,
                     )
 
-        # Run in executor
-        loop = asyncio.get_running_loop()
-        await loop.run_in_executor(None, do_inserts)
+        # Run in executor. asyncio.to_thread (not raw loop.run_in_executor)
+        # is required here -- found 2026-09-18 ruthless audit (AMK-F-002):
+        # run_in_executor does NOT propagate contextvars into the worker
+        # thread, so the correlation_id set on the calling request's context
+        # was silently absent from every log line do_inserts emits on
+        # failure, making a telemetry write error unattributable to any
+        # request. to_thread copies the context, run_in_executor does not.
+        await asyncio.to_thread(do_inserts)
 
 
 class TelemetryWorker:

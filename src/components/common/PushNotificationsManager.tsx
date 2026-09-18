@@ -48,7 +48,7 @@ export const PushNotificationsManager = () => {
         if (!res.ok) {
           console.warn(TAG, 'register failed:', res.status, await res.text());
         } else {
-          try { localStorage.setItem(PUSH_DEVICE_STORAGE_KEY, JSON.stringify({ platform, token })); } catch {}
+          try { localStorage.setItem(PUSH_DEVICE_STORAGE_KEY, JSON.stringify({ platform, token })); } catch { /* storage may be unavailable (private browsing, quota, disabled) -- best-effort */ }
         }
       } catch (e) {
         console.warn(TAG, 'register error:', e);

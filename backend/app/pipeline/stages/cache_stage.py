@@ -338,10 +338,22 @@ class CacheCheckStage(Stage):
         SEARCH_PATH_TOTAL.labels(path="p99").inc()
 
         # --- 3. Exact + Semantic cache ---
+        # Both to_thread calls below are wrapped -- unlike every other blocking
+        # call in the hot path (retrieval.py), these were unguarded. Found
+        # 2026-09-18 ruthless audit (AMK-A-002): under thread-pool exhaustion
+        # (RuntimeError: can't start new thread), an unguarded call here
+        # propagated uncaught through the whole pipeline and crashed the
+        # request instead of degrading to a cache miss -- the asymmetry that
+        # made the underlying thread exhaustion (AMK-A-001) a hard outage
+        # instead of a graceful slowdown.
         user_id_for_cache = ctx.user_id if ctx.user_id and ctx.user_id != "anonymous" else None
-        cached = await asyncio.to_thread(
-            container.exact_cache.get, cache_key, user_id=user_id_for_cache
-        )
+        try:
+            cached = await asyncio.to_thread(
+                container.exact_cache.get, cache_key, user_id=user_id_for_cache
+            )
+        except Exception as e:
+            logger.warning(f"Exact cache lookup failed (non-fatal, treating as miss): {e}")
+            cached = None
         # Shared semantic cache has no user scoping (unlike exact_cache above,
         # which is hashed with user_id when present) — a personalized query
         # must never fall through to it.
@@ -351,9 +363,13 @@ class CacheCheckStage(Stage):
             and container.semantic_cache
             and container.semantic_cache.is_available
         ):
-            cached = await asyncio.to_thread(
-                container.semantic_cache.get, semantic_query, threshold=threshold
-            )
+            try:
+                cached = await asyncio.to_thread(
+                    container.semantic_cache.get, semantic_query, threshold=threshold
+                )
+            except Exception as e:
+                logger.warning(f"Semantic cache lookup failed (non-fatal, treating as miss): {e}")
+                cached = None
 
         if cached is not None:
             REQUEST_COUNT.labels(status="cache_hit").inc()

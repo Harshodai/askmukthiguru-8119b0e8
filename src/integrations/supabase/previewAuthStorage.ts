@@ -35,6 +35,17 @@ export function brokeredPreviewStorage() {
     new Promise((resolve) => {
       const requestId = newId();
       let done = false;
+      // `timer` is read inside `finish` (defined below, before the
+      // setTimeout call) but only ever invoked asynchronously -- from the
+      // timer itself or the message listener -- strictly after this
+      // synchronous executor body finishes running, so `timer` is always
+      // initialized by the time `finish` actually reads it despite the
+      // closure being declared first.
+      // Declared separately from its single assignment on purpose (read
+      // inside the `finish` closure defined between them); reordering to
+      // satisfy prefer-const would touch closure ordering in code that's
+      // sensitive to cross-window postMessage auth timing.
+      // eslint-disable-next-line prefer-const
       let timer: ReturnType<typeof setTimeout>;
       const finish = (r: { ok: boolean; value?: string | null } | null) => {
         if (done) return;

@@ -351,6 +351,43 @@ class TestRankingOrdersByRelevance:
         score_super = retriever._composite_score(m_super, "test", now)
         assert score_active > score_super
 
+    def test_deleted_memory_never_returned_even_with_top_score(self):
+        """AMK-D-002 (2026-09-18 audit): a deleted memory must be hard-excluded,
+        not merely rank-penalized. _STATUS_PRIORITY zeroing the score is not
+        enough on its own -- if it's the only candidate, a zeroed score still
+        wins the (only) slot. This is the "forget this" promise: a memory the
+        user deleted must never resurface, even if a Qdrant deindex failure
+        left its vector behind.
+        """
+        user_id = _uid()
+        mem_id = _uid()
+        # Highest possible semantic score, and the only candidate -- if the
+        # hard filter is missing, this wins by default regardless of status.
+        vector_results = [
+            {"id": mem_id, "score": 1.0, "memory_type": "PREFERENCE", "status": "deleted"},
+        ]
+        hydrate_row = _make_memory_row(user_id, mem_id, status="deleted")
+
+        retriever, mock_db, mock_vi, mock_embed = _build_retriever(vector_results=vector_results)
+
+        mock_hydrate_execute = MagicMock()
+        mock_hydrate_execute.return_value.data = [hydrate_row]
+        mock_hydrate_eq = MagicMock()
+        mock_hydrate_eq.return_value.in_ = MagicMock(
+            return_value=MagicMock(execute=mock_hydrate_execute)
+        )
+        mock_hydrate_select = MagicMock()
+        mock_hydrate_select.return_value.eq = mock_hydrate_eq
+        mock_db.table.return_value.select = mock_hydrate_select
+
+        import asyncio
+
+        result = asyncio.run(retriever.retrieve(user_id, "concise answers"))
+
+        assert result.memories == [], (
+            f"deleted memory {mem_id} must never be returned, got {result.memories}"
+        )
+
     def test_evidence_count_boosts_score(self):
         """Higher evidence count boosts ranking."""
         now = datetime.now(UTC)

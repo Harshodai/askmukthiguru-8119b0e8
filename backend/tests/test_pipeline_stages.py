@@ -296,6 +296,34 @@ async def test_cache_check_stage_passes_through_on_miss(coordinator):
     assert result is None, "CacheCheckStage must pass through (None) on a cache miss"
 
 
+@pytest.mark.asyncio
+async def test_cache_check_stage_degrades_to_miss_on_exact_cache_exception(coordinator):
+    """AMK-A-002 (2026-09-18 audit): exact_cache.get raising (e.g. thread-pool
+    exhaustion under concurrent load, RuntimeError: can't start new thread)
+    must degrade to a cache miss, not propagate and crash the whole pipeline
+    run. This was the one unguarded asyncio.to_thread call in the hot path --
+    every other blocking call in retrieval.py already had this guard.
+    """
+    coordinator.container = _mock_container(cache_hit=None)
+    coordinator.container.exact_cache.get.side_effect = RuntimeError("can't start new thread")
+    import services.hot_cache as hc
+
+    hc.hot_cache._store.clear()
+    coordinator._vector_cache = None
+
+    ctx = _build_ctx(coordinator.container, coordinator)
+    settings.hybrid_search_enabled = False
+    try:
+        result = await CacheCheckStage().run(ctx)
+    finally:
+        settings.hybrid_search_enabled = True
+
+    assert result is None, (
+        "CacheCheckStage must pass through as a cache miss when the underlying "
+        "cache lookup raises, not propagate the exception"
+    )
+
+
 # ---------------------------------------------------------------------------
 # Non-short-circuit stages — must always return None
 # ---------------------------------------------------------------------------

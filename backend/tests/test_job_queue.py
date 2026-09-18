@@ -47,6 +47,13 @@ class _MemoryRedis:
     async def expire(self, key: str, seconds: int) -> bool:
         return True
 
+    async def scan(self, cursor: int, match: str = "*", count: int = 100):
+        prefix, _, suffix = match.partition("*")
+        keys = [
+            k for k in self.hashes if k.startswith(prefix) and (not suffix or k.endswith(suffix))
+        ]
+        return 0, keys
+
     async def lrem(self, key: str, count: int, value: str) -> int:
         values = self.lists.setdefault(key, [])
         removed = 0
@@ -310,6 +317,61 @@ async def test_enqueue_degrades_to_in_memory_fallback_on_redis_outage() -> None:
     assert cancelled is True
     job_after_cancel = await service.get_job(job_id)
     assert job_after_cancel["status"] == JobStatus.CANCELLED.value
+
+
+@pytest.mark.asyncio
+async def test_stale_processing_job_is_marked_failed_not_left_hanging() -> None:
+    """AMK-C-002 (2026-09-18 audit, live-reproduced 3x this session): a job
+    whose worker was SIGKILLed mid-execution never reaches _process_job's
+    finally block, so it stays status=PROCESSING forever with nothing to
+    ever resolve it -- a client's GET /api/jobs/{id} poll hangs indefinitely.
+    The sweep must find it (lease/dispatch window expired) and mark it
+    FAILED so the poll resolves, without touching a job that's still legitimately
+    in flight (dispatch_started_at recent) or already terminal.
+    """
+    redis = _MemoryRedis()
+    service = JobQueueService("redis://unused")
+    service._redis = redis
+    service._lease_ttl = 300
+
+    now = 10_000.0
+    stuck_id = "job_stuck_from_crash"
+    redis.hashes[f"job:{stuck_id}:meta"] = {
+        "status": JobStatus.PROCESSING.value,
+        "dispatch_started_at": str(now - 301),  # just past the lease TTL
+    }
+    redis.lists["job_queue:pending"] = [stuck_id]
+
+    still_running_id = "job_still_running"
+    redis.hashes[f"job:{still_running_id}:meta"] = {
+        "status": JobStatus.PROCESSING.value,
+        "dispatch_started_at": str(now - 5),  # well within the lease TTL
+    }
+
+    done_id = "job_already_done"
+    redis.hashes[f"job:{done_id}:meta"] = {
+        "status": JobStatus.COMPLETED.value,
+        "dispatch_started_at": str(now - 10_000),
+    }
+
+    import app.services.job_queue as job_queue_module
+
+    monkeypatch_time = now
+    orig_time = job_queue_module.time.time
+    job_queue_module.time.time = lambda: monkeypatch_time
+    try:
+        failed_count = await service._sweep_stale_processing_jobs()
+    finally:
+        job_queue_module.time.time = orig_time
+
+    assert failed_count == 1
+    assert redis.hashes[f"job:{stuck_id}:meta"]["status"] == JobStatus.FAILED.value
+    assert stuck_id not in redis.lists["job_queue:pending"]
+    assert redis.values[f"job:{stuck_id}:error"]  # a real message, not empty
+
+    # Untouched: still-running job and already-terminal job.
+    assert redis.hashes[f"job:{still_running_id}:meta"]["status"] == JobStatus.PROCESSING.value
+    assert redis.hashes[f"job:{done_id}:meta"]["status"] == JobStatus.COMPLETED.value
 
 
 @pytest.mark.asyncio

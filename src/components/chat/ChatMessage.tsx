@@ -436,10 +436,17 @@ const FeedbackButtons = ({ messageId, queryText, messageContent }: {
   const submit = async (type: 'positive' | 'negative') => {
     setFeedback(type);
     try {
-      const { getAccessToken } = await import('@/lib/chat/transport');
+      // getAccessToken actually lives in ./auth (transport.ts itself imports
+      // it from there) -- this previously imported it from ./transport,
+      // which never exported it, so the destructure silently produced
+      // undefined. Calling undefined() throws synchronously (before the
+      // .catch() below can run), which landed in the outer try/catch and
+      // reset feedback to null -- every thumbs up/down silently failed to
+      // submit, with the buttons just reappearing, no visible error.
+      const { getAccessToken } = await import('@/lib/chat/auth');
       const { BACKEND_URL } = await import('@/lib/backendUrl');
       // Use a dynamic import to avoid circular deps; fall back to fetch directly
-      const token = await (getAccessToken as () => Promise<string | null>)().catch(() => null);
+      const token = await getAccessToken().catch(() => undefined);
       const response = await fetch(`${BACKEND_URL}/api/feedback/rate`, {
         method: 'POST',
         headers: {

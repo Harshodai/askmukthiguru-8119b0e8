@@ -117,13 +117,13 @@ export async function getKpis(range: { from?: Date; to?: Date }): Promise<KpiSna
 
   rows.forEach(row => {
     // Check responses for hallucination and retrieval hits
-    const responses = row.chat_responses || [];
+    const responses = (row.chat_responses || []) as unknown as Record<string, unknown>[];
     if (responses.length > 0) {
        const res = responses[0];
        if (res.hallucination_flag) hallucinationCount++;
 
        // A retrieval hit means it cited at least one document
-       let citations = res.citations || [];
+       let citations: unknown = res.citations || [];
        if (typeof citations === "string") {
           try { citations = JSON.parse(citations); } catch(e) {}
        }
@@ -133,8 +133,8 @@ export async function getKpis(range: { from?: Date; to?: Date }): Promise<KpiSna
     }
 
     // Check triggers for DISTRESS/Serene Mind
-    const triggers = row.trigger_events || [];
-    if (triggers.length > 0 && triggers.some((t: any) => t.trigger_type === 'DISTRESS' || t.trigger_type === 'meditation')) {
+    const triggers = (row.trigger_events || []) as unknown as Array<{ trigger_type?: string }>;
+    if (triggers.length > 0 && triggers.some((t) => t.trigger_type === 'DISTRESS' || t.trigger_type === 'meditation')) {
        sereneMindTriggerCount++;
     }
 
@@ -367,8 +367,8 @@ export async function getQualityData(range?: { from?: Date; to?: Date }): Promis
   const rows = (data || []) as unknown as Record<string, unknown>[];
 
   const low_confidence = rows
-    .filter((r) => typeof r.confidence === "number" && r.confidence < 0.6)
-    .sort((a, b) => a.confidence - b.confidence)
+    .filter((r) => typeof r.confidence === "number" && (r.confidence as number) < 0.6)
+    .sort((a, b) => (a.confidence as number) - (b.confidence as number))
     .slice(0, 20)
     .map((r) => ({ id: r.id, confidence: r.confidence, response_text: r.response_text || "", created_at: r.created_at }));
 
@@ -378,9 +378,10 @@ export async function getQualityData(range?: { from?: Date; to?: Date }): Promis
 
   const disagreements: any[] = [];
   rows.forEach((r) => {
-    if (!fbMap.has(r.query_id)) return;
-    const rating = fbMap.get(r.query_id)!;
-    const judgeGood = (r.faithfulness ?? 0) > 0.8;
+    const queryId = r.query_id as string;
+    if (!fbMap.has(queryId)) return;
+    const rating = fbMap.get(queryId)!;
+    const judgeGood = ((r.faithfulness as number) ?? 0) > 0.8;
     if (judgeGood && rating < 0) disagreements.push({ id: r.id, kind: "judge_good_user_bad", faithfulness: r.faithfulness, response_text: r.response_text || "" });
     else if (!judgeGood && rating > 0) disagreements.push({ id: r.id, kind: "judge_bad_user_good", faithfulness: r.faithfulness, response_text: r.response_text || "" });
   });
@@ -442,7 +443,7 @@ export async function getSimilarityTrend(range?: { from?: Date; to?: Date }, buc
   const to = range?.to ?? new Date();
   const { data } = await fromUntyped("retrieval_events").select("scores, chat_queries!inner(created_at)")
     .gte("chat_queries.created_at", from.toISOString()).lte("chat_queries.created_at", to.toISOString());
-  const bs = bucketize((data || []) as unknown as Array<{ scores?: number[]; chat_queries?: { created_at?: string }; created_at?: string }>, from, to, buckets, (r) => new Date(r.chat_queries?.created_at || r.created_at).getTime());
+  const bs = bucketize((data || []) as unknown as Array<{ scores?: number[]; chat_queries?: { created_at?: string }; created_at?: string }>, from, to, buckets, (r) => new Date(r.chat_queries?.created_at || r.created_at || 0).getTime());
   return bs.map((b) => {
     const scores = b.items.map((r: any) => (r.scores?.[0] ?? 0)).filter((s: number) => s > 0);
     return { bucket: b.bucket, avg_top_score: scores.length ? scores.reduce((s: number, x: number) => s + x, 0) / scores.length : 0 };
@@ -459,7 +460,12 @@ export async function getEmptyRetrievals(range?: { from?: Date; to?: Date }, lim
   if (range?.from) q = q.gte("chat_queries.created_at", range.from.toISOString());
   if (range?.to) q = q.lte("chat_queries.created_at", range.to.toISOString());
   const { data } = await q.order("created_at", { referencedTable: "chat_queries", ascending: false });
-  return ((data || []) as unknown as Array<Record<string, unknown>>)
+  return ((data || []) as unknown as Array<{
+    query_id: string;
+    source_docs?: unknown[];
+    scores?: number[];
+    chat_queries?: { query_text?: string; created_at?: string };
+  }>)
     .filter((r) => !r.source_docs || r.source_docs.length === 0 || (r.scores?.[0] ?? 0) < 0.3)
     .slice(0, limit)
     .map((r) => ({
@@ -516,7 +522,7 @@ export async function pollLiveFeed(): Promise<ChatQuery[]> {
 // ============================================================================
 export async function createPromptVersion(p: Partial<PromptVersion>): Promise<PromptVersion> {
   const { data } = await fromUntyped("prompt_versions")
-    .insert({ name: p.name, version: p.version, body: (p as Record<string, unknown>).content ?? (p as Record<string, unknown>).body ?? p.body, active: false })
+    .insert({ name: p.name, version: p.version, body: (p as Record<string, unknown>).content ?? (p as Record<string, unknown>).body, active: false })
     .select()
     .single();
   return data as PromptVersion;

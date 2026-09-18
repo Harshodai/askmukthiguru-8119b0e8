@@ -55,7 +55,7 @@ export function useAssistants() {
   const setSelectedSlug = useCallback((slug: string) => {
     setSelectedSlugState(slug);
     if (typeof window !== "undefined") {
-      try { window.localStorage.setItem(SELECTED_KEY, slug); } catch {}
+      try { window.localStorage.setItem(SELECTED_KEY, slug); } catch { /* storage may be unavailable (private browsing, quota, disabled) -- best-effort */ }
     }
   }, []);
 

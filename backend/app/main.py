@@ -640,6 +640,34 @@ async def _background_startup_body(container, fastapi_app) -> None:
     except Exception as _lettuce_warmup_err:
         logger.warning("LettuceDetect warm-up failed (non-fatal): %s", _lettuce_warmup_err)
 
+    # Second Brain vault key check. Found 2026-09-18 ruthless audit
+    # (AMK-B-007): BRAIN_KEK being unset took the entire feature down with a
+    # generic 500 on every vault call, discoverable only by a user hitting
+    # it -- there was no startup signal at all. This can't be a hard crash
+    # (Second Brain is one feature among many; taking down chat because a
+    # vault key is missing would trade a contained failure for a total one),
+    # but it must be loud and immediate, not silent-until-a-user-complains.
+    try:
+        from services.second_brain.crypto import derive_server_kek
+
+        _kek_val = getattr(settings, "brain_kek", None)
+        if hasattr(_kek_val, "get_secret_value"):
+            _kek_val = _kek_val.get_secret_value()
+        if not _kek_val:
+            logger.warning(
+                "STARTUP: BRAIN_KEK is not set -- Second Brain vault provisioning will fail "
+                "with a 500 for every user until this is configured."
+            )
+        else:
+            derive_server_kek(str(_kek_val))
+            logger.info("Second Brain vault key check: OK")
+    except Exception as _brain_kek_err:
+        logger.warning(
+            "STARTUP: BRAIN_KEK is set but invalid (%s) -- Second Brain vault provisioning "
+            "will fail with a 500 for every user until this is fixed.",
+            _brain_kek_err,
+        )
+
     _app_deps.startup_complete = True
     logger.info("=== Mukthi Guru Backend Ready ===")
 

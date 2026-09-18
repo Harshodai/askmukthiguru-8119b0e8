@@ -250,6 +250,7 @@ class JobQueueService:
         self._workers: list[asyncio.Task] = []
         self._running = False
         self._degraded_to_memory = False
+        self._stale_sweeper: asyncio.Task | None = None
 
     async def _get_redis(self):
         if self._degraded_to_memory:
@@ -317,6 +318,14 @@ class JobQueueService:
         if self._queue is None:
             self._queue = asyncio.Queue(maxsize=self._max_queue)
         r = await self._get_redis()
+        # Sweep BEFORE recovering `pending`: a job whose worker was SIGKILLed
+        # (not gracefully cancelled) never reaches _process_job's finally
+        # block, so it stays claimed (status=processing, lease held) with no
+        # path back to a terminal state -- GET /api/jobs/{id} would poll
+        # "processing" forever. Found 2026-09-18 ruthless audit (AMK-C-002),
+        # live-reproduced: this exact crash class hit 3 times in one session
+        # (thread exhaustion, host-memory OOM, ONNX/torch bad_alloc).
+        swept = await self._sweep_stale_processing_jobs()
         pending = await r.lrange("job_queue:pending", 0, -1)
         recovered = 0
         for job_id in pending:
@@ -328,13 +337,92 @@ class JobQueueService:
         for i in range(self._semaphore.value):
             worker = asyncio.create_task(self._worker_loop(worker_factory, i))
             self._workers.append(worker)
+        # Also sweep periodically, not just at startup -- a peer worker
+        # process dying (in a multi-replica deployment) is invisible to this
+        # process's own start() but still leaves a stuck job for clients of
+        # THIS process to poll.
+        self._stale_sweeper = asyncio.create_task(self._stale_sweep_loop())
         logger.info(
             f"JobQueue: started {len(self._workers)} workers, "
-            f"recovered {recovered}/{len(pending)} pending jobs"
+            f"recovered {recovered}/{len(pending)} pending jobs, "
+            f"failed {swept} stale-processing job(s) from a prior crash"
         )
+
+    async def _stale_sweep_loop(self) -> None:
+        """Periodic safety net for AMK-C-002 beyond the one-time startup sweep."""
+        try:
+            while self._running:
+                await asyncio.sleep(self._lease_ttl)
+                try:
+                    await self._sweep_stale_processing_jobs()
+                except Exception as e:
+                    logger.warning(f"JobQueue: stale-processing sweep failed (non-fatal): {e}")
+        except asyncio.CancelledError:
+            pass
+
+    async def _sweep_stale_processing_jobs(self) -> int:
+        """Fail (not silently re-run) any job stuck in PROCESSING past the
+        lease TTL with no worker still owning it -- a lease expiring is the
+        signal that the worker that claimed it is gone, since a live worker
+        would still hold it. Marking FAILED rather than re-queueing is the
+        deliberate choice: silently re-running a chat job means re-calling
+        the LLM, an unbounded cost/latency surprise the client never asked
+        for. A clear failure lets the client's own retry logic decide.
+        """
+        r = await self._get_redis()
+        failed = 0
+        cursor = 0
+        now = time.time()
+        while True:
+            cursor, keys = await r.scan(cursor, match="job:*:meta", count=200)
+            for key in keys:
+                meta = await r.hgetall(key)
+                if not meta or meta.get("status") != JobStatus.PROCESSING.value:
+                    continue
+                started = self._safe_float(meta.get("dispatch_started_at")) or self._safe_float(
+                    meta.get("claimed_at")
+                )
+                if started is None or (now - started) < self._lease_ttl:
+                    continue  # lease not yet expired -- a live worker may still own it
+                job_id = key[len("job:") : -len(":meta")]
+                # Atomic PROCESSING -> FAILED, same pattern as the claim script,
+                # so two sweepers (or a sweeper racing a slow-but-alive worker
+                # that finishes right at this instant) cannot both act on it.
+                marked = await r.eval(
+                    _CLAIM_LUA,
+                    1,
+                    key,
+                    JobStatus.PROCESSING.value,
+                    JobStatus.FAILED.value,
+                    str(now),
+                )
+                if marked:
+                    await r.hset(
+                        key,
+                        mapping={"completed_at": str(now)},
+                    )
+                    await r.set(
+                        f"job:{job_id}:error",
+                        "Worker process was lost while this job was running "
+                        "(crash or restart). Please retry your request.",
+                    )
+                    await r.lrem("job_queue:pending", 1, job_id)
+                    failed += 1
+                    logger.warning(
+                        f"JobQueue: {job_id} was stuck PROCESSING with an expired "
+                        f"lease (worker crash) -- marked FAILED so the client's "
+                        f"poll resolves instead of hanging"
+                    )
+            if cursor == 0:
+                break
+        return failed
 
     async def stop(self) -> None:
         self._running = False
+        if self._stale_sweeper:
+            self._stale_sweeper.cancel()
+            await asyncio.gather(self._stale_sweeper, return_exceptions=True)
+            self._stale_sweeper = None
         for w in self._workers:
             w.cancel()
         if self._workers:
