@@ -29,7 +29,6 @@ By recognizing the Maras and confronting them, one can reduce their influence an
 
 ### Quotes
 
-> "Exact quote from transcript" — Sri Krishnaji
 
 ---
 

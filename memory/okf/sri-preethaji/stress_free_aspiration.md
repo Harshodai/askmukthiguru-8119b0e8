@@ -32,11 +32,11 @@ The passage emphasizes the importance of changing the fuel for aspiration, sugge
 - **Broken Finger**: A physical injury that requires medical attention.
 - **Doctor**: The doctor is a medical professional who diagnoses and treats physical ailments.
 - **Stressful State**: A state characterized by feelings of anxiety, tension, or overwhelm.
-- **Chaos**: A state of disorder, confusion, or randomness.
+
 - **Deeksha**: A spiritual practice that involves receiving energy and guidance from a spiritual teacher, facilitating an enlightened state.
 - **Mukthi Gurus**: Spiritual guides who provide enlightenment and guidance.
 - **Divine**: The concept representing the ultimate reality or the source of all existence, encompassing multiple deities and the idea of a cosmic being.
 - **Consciousness**: The awareness of one's own existence and the ability to perceive the world around oneself.
 - **Soul_Sync_Meditation_Step_Three**: A step in a meditation practice that involves connecting with the soul.
-- **Haywire**: A state of disorientation or confusion.
+
 - **State**: A concept that can refer to various contexts, including the current condition or situation of an individual, their experience.

@@ -3,7 +3,7 @@ type: teaching
 title: "The Nature of Love and Happiness"
 source: "https://www.youtube.com/watch?v=OLPF727ETSg"
 video_id: OLPF727ETSg
-tags: [p, r, e, s, e, n, c, e, ,,  , l, o, v, e, ,,  , h, a, p, p, i, n, e, s, s]
+tags: ["presencelovehappiness"]
 teacher: "sri-preethaji"
 ---
 

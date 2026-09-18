@@ -3,7 +3,7 @@ type: teaching
 title: "Power of Observation"
 source: "https://www.youtube.com/watch?v=utRatnFr-S8"
 video_id: utRatnFr-S8
-tags: [a, t, m, a, ,,  , m, e, d, i, t, a, t, i, o, n, ,,  , s, o, u, l,  , s, y, n, c, ,,  , s, r, i,  , p, r, e, e, t, h, a, j, i]
+tags: ["atmameditationsoulsyncsripreethaji"]
 teacher: "sri-preethaji"
 ---
 

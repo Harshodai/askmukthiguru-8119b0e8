@@ -3,7 +3,7 @@ type: teaching
 title: "Ekam Mti: The Essence of Unity"
 source: "https://www.youtube.com/watch?v=88NOQTz5_yI"
 video_id: 88NOQTz5_yI
-tags: [s, r, i,  , p, r, e, e, t, h, a, j, i, ,,  , s, r, i,  , k, r, i, s, h, n, a, j, i, ,,  , t, r, u, t, h,  , o, f,  , s, u, f, f, e, r, i, n, g, ,,  , e, k, a, m]
+tags: ["sripreethajisrikrishnajitruthofsufferingekam"]
 teacher: "sri-preethaji"
 ---
 

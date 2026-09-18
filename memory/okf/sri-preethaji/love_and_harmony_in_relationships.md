@@ -17,7 +17,6 @@ In the realm of nurturing children's emotional well-being and recognizing their 
 - **Emotional Support and Appreciation**: Teachers should celebrate students' achievements and make their happiness as important as their performance. This approach prioritizes students' emotional health over academic performance.
 
 #### Quotes
-> "Exact quote from transcript" — Sri Krishnaji
 
 #### Related Concepts
 - **Love**: Love is a multifaceted and complex phenomenon that encompasses various aspects of human experience. It is a central theme in the Manifest journey, characterized by forgiveness, compassion, and a heartfelt connection with others. Love can be intense and all-consuming, leading to profound feelings of connection and attachment. However, it can also lead to heartbreak and suffering, underscoring the bittersweet nature of romantic relationships. In fact, love is often considered the fourth and highest stage of romantic relationships, representing an enlightened consciousness and a deep appreciation for one's partner. Beyond romantic relationships, love is a fundamental aspect of the Field of Abundance, allowing individuals to form meaningful connections and relationships with others. It is also an experience of connection and compassion that can be felt and expressed through simple acts, such as kindness and generosity.

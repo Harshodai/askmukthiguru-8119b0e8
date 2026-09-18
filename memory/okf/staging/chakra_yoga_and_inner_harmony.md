@@ -3,7 +3,7 @@ type: teaching
 title: "Chakra Yoga and Inner Harmony"
 source: "https://www.youtube.com/watch?v=Ip7C7KJBxBk"
 video_id: Ip7C7KJBxBk
-tags: [o, n, e, n, e, s, s, ,,  , s, a, d, h, a, n, a]
+tags: ["onenesssadhana"]
 teacher: "sri-preethaji"
 ---
 

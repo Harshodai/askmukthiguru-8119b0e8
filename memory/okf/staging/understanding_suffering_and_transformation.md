@@ -3,7 +3,7 @@ type: teaching
 title: "Understanding Suffering and Transformation"
 source: "https://www.youtube.com/watch?v=md0y8j1SxBk"
 video_id: md0y8j1SxBk
-tags: [o, n, e, n, e, s, s, ,,  , m, o, k, s, h, a, ,,  , a, w, a, k, e, n, i, n, g]
+tags: ["onenessmokshaawakening"]
 teacher: "sri-preethaji"
 ---
 

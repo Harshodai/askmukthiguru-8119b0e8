@@ -3,7 +3,7 @@ type: teaching
 title: "The Historical Roots of Yoga: A Journey Towards Spiritual Enlightenment"
 source: "https://www.youtube.com/watch?v=OnAAtrwsfOc"
 video_id: OnAAtrwsfOc
-tags: [y, o, g, a, ,,  , s, p, i, r, i, t, u, a, l,  , g, r, o, w, t, h, ,,  , e, n, l, i, g, h, t, e, n, m, e, n, t, ,,  , h, i, s, t, o, r, y]
+tags: ["yogaspiritualgrowthenlightenmenthistory"]
 teacher: "sri-preethaji"
 ---
 

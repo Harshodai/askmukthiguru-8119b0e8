@@ -7,6 +7,7 @@ tags: [Addiction, Suffering, Mental States]
 teacher: "sri-preethaji"
 ---
 
+
 # Understanding Addictions and Their Roots
 
 # Understanding Addictions and Their Roots
@@ -25,8 +26,6 @@ Addictions are a cycle of pleasure leading to suffering, with underlying mental 
    - Transform these negative emotions into positive ones.
    - Practice mindfulness and meditation to manage and reduce the impact of these emotions.
 
-## Quotes
-> "Addictions are a cycle of pleasure leading to suffering, with underlying mental states of suffering as the root cause." — Sri Preethaji
 
 ## Related Concepts
 - **Stressful State:** The state of being "stressful" is highlighted as a valid subject for consideration.

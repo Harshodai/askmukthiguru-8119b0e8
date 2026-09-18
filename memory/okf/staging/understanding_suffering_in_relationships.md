@@ -3,7 +3,7 @@ type: teaching
 title: "Understanding Suffering in Relationships"
 source: "https://www.youtube.com/watch?v=i4DQFbs_RKU"
 video_id: i4DQFbs_RKU
-tags: [a, w, a, k, e, n, i, n, g, ,,  , p, r, o, s, p, e, r, i, t, y]
+tags: ["awakeningprosperity"]
 teacher: "sri-preethaji"
 ---
 

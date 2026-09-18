@@ -3,7 +3,7 @@ type: teaching
 title: "Relationship with EGO"
 source: "https://www.youtube.com/watch?v=9yaEGbPIxPk"
 video_id: 9yaEGbPIxPk
-tags: [s, r, i,  , k, r, i, s, h, n, a, j, i, ,,  , s, r, i,  , p, r, e, e, t, h, a, j, i]
+tags: ["srikrishnajisripreethaji"]
 teacher: "sri-preethaji"
 ---
 

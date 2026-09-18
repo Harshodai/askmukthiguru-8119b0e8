@@ -3,7 +3,7 @@ type: teaching
 title: "Oneness as Ultimate Enlightenment"
 source: "https://www.youtube.com/watch?v=NWrTrDIQ9XE"
 video_id: NWrTrDIQ9XE
-tags: [o, n, e, n, e, s, s, ,,  , e, n, l, i, g, h, t, e, n, m, e, n, t, ,,  , u, n, i, t, y, ,,  , i, n, t, e, r, c, o, n, n, e, c, t, e, d, n, e, s, s]
+tags: ["onenessenlightenmentunityinterconnectedness"]
 teacher: "sri-krishnaji"
 ---
 

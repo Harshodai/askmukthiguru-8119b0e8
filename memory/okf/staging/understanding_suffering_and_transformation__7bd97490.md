@@ -3,7 +3,7 @@ type: teaching
 title: "Understanding Suffering and Transformation"
 source: "https://www.youtube.com/watch?v=EThkIHrfXWo"
 video_id: EThkIHrfXWo
-tags: [a, w, a, k, e, n, i, n, g, ,,  , s, p, i, r, i, t, u, a, l,  , p, r, o, c, e, s, s, ,,  , s, o, u, l,  , m, a, t, e, ,,  , C, O, V, I, D,  , c, r, i, s, i, s, ,,  , c, o, m, m, u, n, i, t, y,  , c, e, n, t, e, r, ,,  , h, a, l, l, ,,  , h, e, a, r, t]
+tags: ["awakeningspiritualprocesssoulmateCOVIDcrisiscommunitycenterhallheart"]
 teacher: "both"
 ---
 

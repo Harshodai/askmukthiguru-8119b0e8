@@ -7,6 +7,7 @@ tags: [consciousness, prosperity]
 teacher: "both"
 ---
 
+
 # Energetics of Food and Cooking
 
 # Energetics of Food and Cooking
@@ -20,7 +21,6 @@ In the spiritual framework of mindful eating, food is viewed as a profound carri
 - The second stage is the act of cooking, where the cook's emotional state acts as a fundamental influence on the food's energetic quality.
 
 ## Quotes
-> "In the spiritual framework of mindful eating, food is viewed as a profound carrier of energetic and emotional impressions that directly shape the consciousness and well-being of the consumer."
 > "The first stage of food is its cultivation, governed by the principle that just as chemicals harm human skin, they harm plants, transferring the plant's energetic suffering into the consumer's body to manifest as sickness."
 
 ## Related Concepts

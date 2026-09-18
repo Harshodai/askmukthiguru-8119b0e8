@@ -3,7 +3,7 @@ type: teaching
 title: "The Role of Individual Effort in Creating a Better Future"
 source: "https://www.youtube.com/watch?v=-YQLpNmH0MQ"
 video_id: -YQLpNmH0MQ
-tags: [p, r, e, s, e, n, c, e, ,,  , f, u, t, u, r, e, ,,  , i, n, d, i, v, i, d, u, a, l,  , e, f, f, o, r, t]
+tags: ["presencefutureindividualeffort"]
 teacher: "sri-preethaji"
 ---
 

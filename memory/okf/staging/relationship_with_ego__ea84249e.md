@@ -3,9 +3,10 @@ type: teaching
 title: "Relationship with EGO"
 source: "YouTube https://www.youtube.com/watch?v=H7N4PSoJZMU"
 video_id: H7N4PSoJZMU
-tags: [s, r, i,  , p, r, e, e, t, h, a, j, i, ,,  , s, r, i,  , k, r, i, s, h, n, a, j, i]
+tags: ["sripreethajisrikrishnaji"]
 teacher: "sri-preethaji"
 ---
+
 
 # Relationship with EGO
 
@@ -17,9 +18,6 @@ The video discusses the contrast between ambition and passion as states of being
 ## Key Teachings
 - **Ambition vs. Passion**: Ambition is driven by self-obsession and is focused on personal gain, while passion is driven by a vision and impacts others, leading to a reduced self-obsession and a more altruistic approach to success.
 
-## Quotes
-> "Ambition is driven by self-obsession and is focused on personal gain, while passion is driven by a vision and impacts others, leading to a reduced self-obsession and a more altruistic approach to success."
-> - Sri Preethaji
 
 ## Related Concepts
 - **Self-obsession**: The state of being driven by one's own desires and interests.

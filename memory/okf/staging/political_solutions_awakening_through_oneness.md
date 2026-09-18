@@ -3,7 +3,7 @@ type: teaching
 title: "Political Solutions: Awakening Through Oneness"
 source: "https://www.youtube.com/watch?v=R3ZRYoTxhUE"
 video_id: R3ZRYoTxhUE
-tags: [c, o, n, s, c, i, o, u, s, n, e, s, s, ,,  , e, k, a, m, ,,  , o, o,  , a, c, a, d, e, m, y, ,,  , o, n, e, n, e, s, s]
+tags: ["consciousnessekamooacademyoneness"]
 teacher: "sri-preethaji"
 ---
 

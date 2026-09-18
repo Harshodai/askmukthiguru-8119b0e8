@@ -3,7 +3,7 @@ type: teaching
 title: "Relationship with EGO"
 source: "Break The Jinx of Failure Patterns | Speaker: Sri Preethaji & Sri Krishnaji | Topic: Relationship with EGO"
 video_id: Gae2J6ExMsY
-tags: [s, r, i,  , p, r, e, e, t, h, a, j, i, ,,  , s, r, i,  , k, r, i, s, h, n, a, j, i]
+tags: ["sripreethajisrikrishnaji"]
 teacher: "sri-preethaji"
 ---
 

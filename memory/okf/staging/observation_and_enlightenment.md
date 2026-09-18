@@ -7,6 +7,7 @@ tags: [moksha, meditation, sri krishnaji]
 teacher: "sri-krishnaji"
 ---
 
+
 # Observation and Enlightenment
 
 # Title
@@ -17,8 +18,6 @@ The Limitless Field Meditation led by Sri Krishnaji had a profound impact on the
 ## Key Teachings
 - **Observation-Based Meditation**: This practice involves actively observing and analyzing the world around us, leading to direct, intuitive experiences like mystic visions. It is distinct from mere noticing or witnessing, as it involves a deliberate and critical examination of one's environment and surroundings.
 
-## Quotes
-> "The Limitless Field Meditation led by Sri Krishnaji had a profound impact on the speaker's personal growth and sense of inner peace."
 
 ## Related Concepts
 - **Observation**: A practice that involves actively observing and analyzing the world around us, leading to direct, intuitive experiences like mystic visions. It is distinct from mere noticing or witnessing, as it involves a deliberate and critical examination of one's environment and surroundings.

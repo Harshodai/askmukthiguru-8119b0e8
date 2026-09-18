@@ -7,6 +7,7 @@ tags: [awakening, addiction, transformation]
 teacher: "sri-preethaji"
 ---
 
+
 # Observation and Transformation: Recognizing and Transforming Addictive States
 
 # Title
@@ -20,8 +21,6 @@ Understanding the addictive states of the mind and recognizing the cycle of plea
 - These are easy addictions that many youth are getting addicted to.
 - They often move into pleasurable fantasies to escape these states.
 
-## Quotes
-> "The key is to observe these states and transform them into positive experiences." — Sri Preethaji
 
 ## Related Concepts
 - Soul Mate: A soul mate is a person who brings joy, unconditional love, and security into one's life.

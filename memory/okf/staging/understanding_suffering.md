@@ -7,6 +7,7 @@ tags: [suffering, aspiration, comparison, judgment]
 teacher: "sri-preethaji"
 ---
 
+
 # Understanding Suffering
 
 # Understanding Suffering
@@ -19,8 +20,6 @@ The passage emphasizes the pervasive issue of comparison and judgment in aspirat
 - **Root Cause**: The speaker suggests that the root of the problem lies in the comparison and judgment that individuals face, which can lead to stress and pressure.
 - **Positive Mindset**: The speaker encourages individuals to adopt a more positive mindset and reduce the impact of comparison and judgment.
 
-## Quotes
-> "The root of the problem lies in the comparison and judgment that individuals face, which can lead to stress and pressure." — Sri Preethaji
 
 ## Related Concepts
 - **Comparison and Judgment**: The concept of comparison and judgment is central to the passage, emphasizing how these negative influences can hinder the pursuit of aspiration.

@@ -3,7 +3,7 @@ type: teaching
 title: "Nature of Suffering"
 source: "https://www.youtube.com/watch?v=v55cSB0foxM"
 video_id: v55cSB0foxM
-tags: [s, r, i,  , p, r, e, e, t, h, a, j, i, ,,  , s, r, i,  , k, r, i, s, h, n, a, j, i, ,,  , t, r, u, t, h,  , o, f,  , s, u, f, f, e, r, i, n, g]
+tags: ["sripreethajisrikrishnajitruthofsuffering"]
 teacher: "sri-preethaji"
 ---
 

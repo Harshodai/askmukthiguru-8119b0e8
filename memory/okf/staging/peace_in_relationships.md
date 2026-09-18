@@ -7,6 +7,7 @@ tags: [peace, relationships, love, gratitude]
 teacher: "sri-preethaji"
 ---
 
+
 # Peace in Relationships
 
 # Title
@@ -19,8 +20,6 @@ The concept of peace is often approached as a hope or belief rather than a livin
 - Cultivating a natural state of consciousness
 - Recognizing peace as a living experience
 
-## Quotes
-> "The concept of peace is often approached as a hope or belief rather than a living experience."
 
 ## Related Concepts
 - Love

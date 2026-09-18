@@ -3,7 +3,7 @@ type: teaching
 title: "Moving Meditations for Observation"
 source: "https://www.youtube.com/watch?v=h8DQ0GlvD8I"
 video_id: h8DQ0GlvD8I
-tags: [e, k, a, m, ,,  , p, r, e, s, e, n, c, e]
+tags: ["ekampresence"]
 teacher: "sri-preethaji"
 ---
 

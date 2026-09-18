@@ -20,7 +20,7 @@ The infinite consciousness is described as an ocean, where every life form is a 
 - Each individual form arises within the vastness of this consciousness.
 
 ## Quotes
-> "The infinite consciousness is the ocean, in which every life form is but a wave of subjective awareness that rises and subsides. You are a form that has arisen in this vast con" — Unknown Channel
+> "The infinite consciousness is the ocean, in which every life form is but a wave of subjective awareness that rises and subsides." — Unknown Channel
 
 ## Related Concepts
 - Zero and Infinity: The discovery of zero and infinity is attributed to the enlightened consciousness of Indian sages.

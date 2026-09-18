@@ -3,7 +3,7 @@ type: teaching
 title: "Understanding Suffering and Ego"
 source: "https://www.youtube.com/watch?v=tGvaofifDzI"
 video_id: tGvaofifDzI
-tags: [b, e, a, u, t, i, f, u, l,  , s, t, a, t, e, ,,  , m, e, d, i, t, a, t, i, o, n]
+tags: ["beautifulstatemeditation"]
 teacher: "sri-preethaji"
 ---
 

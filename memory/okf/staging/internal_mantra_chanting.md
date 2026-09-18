@@ -7,6 +7,7 @@ tags: [soul sync, mantra, meditation, breathing]
 teacher: "both"
 ---
 
+
 # Internal Mantra Chanting
 
 # Internal Mantra Chanting
@@ -20,8 +21,6 @@ Internal mantra chanting is the fourth phase of the soul sync meditation, which 
 - It is part of a structured eight-breath sequence.
 - The sequence is designed to guide the practitioner through progressive stages of meditation.
 
-## Quotes
-> "Internal Mantra Chanting is the fourth phase of the soul sync meditation, which follows the observation of the natural pause between breaths. In this phase, the practitioner transitions into internally chanting a mantra while exhaling, as part of a structured eight-breath sequence designed to guide the practitioner through progressive stages of meditation." — Sri Preethaji
 
 ## Related Concepts
 - soul sync: A structured meditation practice involving an eight-breath sequence.

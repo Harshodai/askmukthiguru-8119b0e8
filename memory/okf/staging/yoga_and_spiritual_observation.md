@@ -7,6 +7,7 @@ tags: [soul-sync-meditation, yoga, spiritual observation]
 teacher: "sri-preethaji"
 ---
 
+
 # Yoga and Spiritual Observation
 
 # Yoga and Spiritual Observation
@@ -16,9 +17,6 @@ Yoga is a profound practice that transcends mere physical exercise. It should be
 
 ## Key Teachings
 - **Spiritual Observation**: Yoga is not just about physical postures; it is a practice that involves observing the world around you, leading to direct, intuitive experiences like mystic visions. This practice is distinct from mere noticing or witnessing, as it involves a deliberate and critical examination of one's environment and surroundings.
-
-## Quotes
-> "Yoga is a journey of self-discovery and transformation, leading to the ultimate goal of achieving Samadhi, or the absolute dissolution of ignorance and separation."
 
 ## Related Concepts
 - **Observation**: Yoga is a practice that involves actively observing and analyzing the world around us, leading to direct, intuitive experiences like mystic visions. This practice is distinct from mere noticing or witnessing, as it involves a deliberate and critical examination of one's environment and surroundings.

@@ -3,7 +3,7 @@ type: teaching
 title: "Abundance and Ego Relationship"
 source: "https://www.youtube.com/watch?v=mgfhxq9bn8Q"
 video_id: mgfhxq9bn8Q
-tags: [ , p, r, o, s, p, e, r, i, t, y, ,,  , c, o, n, s, c, i, o, u, s, n, e, s, s, ,,  , j, n, a, n, a]
+tags: ["prosperityconsciousnessjnana"]
 teacher: "sri-preethaji"
 ---
 

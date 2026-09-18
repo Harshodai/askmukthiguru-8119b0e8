@@ -19,7 +19,6 @@ Observation and self-awareness are crucial practices in spiritual awakening. Rec
 - The Divine Mother's compassion is vital in healing and nurturing future generations, ensuring continuity and positivity.
 
 ## Quotes
-> "Exact quote from transcript" — Sri Krishnaji
 
 ## Related Concepts
 - Deeksha: A spiritual practice that involves receiving energy and guidance from a spiritual teacher, facilitating an enlightened state.

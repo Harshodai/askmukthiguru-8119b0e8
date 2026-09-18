@@ -3,7 +3,7 @@ type: teaching
 title: "Celebrating Ugadi: A Joyful Celebration of Suffering"
 source: "https://www.youtube.com/watch?v=46g5U6v3SGc"
 video_id: 46g5U6v3SGc
-tags: [o, o,  , a, c, a, d, e, m, y, ,,  , e, k, a, m, ,,  , s, r, i,  , k, r, i, s, h, n, a, j, i, ,,  , t, r, u, t, h,  , o, f,  , s, u, f, f, e, r, i, n, g, ,,  , s, r, i,  , p, r, e, e, t, h, a, j, i]
+tags: ["ooacademyekamsrikrishnajitruthofsufferingsripreethaji"]
 teacher: "sri-preethaji"
 ---
 

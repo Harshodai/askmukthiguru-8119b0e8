@@ -20,7 +20,6 @@ Ugadi is presented as a significant spiritual celebration in Hindu tradition, ma
 - The celebration of Ugadi symbolizes the importance of embracing all aspects of existence with equanimity and gratitude. (Unknown Channel)
 
 ## Quotes
-> "Ugadi is the day you create your new inner univers" — Unknown Channel
 
 ## Related Concepts
 - awakening: A state of profound understanding characterized by a state of consciousness free from suffering, with intense awareness and no compulsive attachment to the past or future.

@@ -3,7 +3,7 @@ type: teaching
 title: "Understanding Suffering"
 source: "https://www.youtube.com/watch?v=69IrsSXeBTg"
 video_id: 69IrsSXeBTg
-tags: [m, e, d, i, t, a, t, i, o, n, ,,  , s, u, f, f, e, r, i, n, g, ,,  , s, p, i, r, i, t, u, a, l,  , p, r, a, c, t, i, c, e, s]
+tags: ["meditationsufferingspiritualpractices"]
 teacher: "sri-preethaji"
 ---
 

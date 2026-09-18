@@ -3,7 +3,7 @@ type: teaching
 title: "Understanding Suffering and Growth"
 source: "https://www.youtube.com/watch?v=9yaEGbPIxPk"
 video_id: 9yaEGbPIxPk
-tags: [p, r, o, s, p, e, r, i, t, y, ,,  , p, r, e, s, e, n, c, e]
+tags: ["prosperitypresence"]
 teacher: "sri-preethaji"
 ---
 

@@ -19,7 +19,6 @@ The concept of exponential growth in consciousness emphasizes the importance of 
 - **7-Day Journey**: A transformative process that transforms one into a different human being.
 
 ## Quotes
-> "Exact quote from transcript" — Sri Krishnaji
 
 ## Related Concepts
 - **Deeksha**: A spiritual practice involving receiving energy and guidance from a spiritual teacher, facilitating an enlightened state.

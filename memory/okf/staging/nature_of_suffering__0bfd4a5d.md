@@ -7,6 +7,7 @@ tags: [oo academy, ekam, sri krishnaji, truth of suffering, sri preethaji]
 teacher: "sri-preethaji"
 ---
 
+
 # Nature of Suffering
 
 # Nature of Suffering
@@ -17,8 +18,6 @@ The nature of suffering is often misunderstood as a constant and unchanging stat
 ## Key Teachings
 - **Sri Preethaji says:** "The essence of Ugaadi or Gudi Padwa is not just about celebrating the arrival of spring, but also about accepting all aspects of life's experiences, including birth, death, and the movement between order and disorder."
 
-## Quotes
-> "The essence of Ugaadi or Gudi Padwa is not just about celebrating the arrival of spring, but also about accepting all aspects of life's experiences, including birth, death, and the movement between order and disorder."
 
 ## Related Concepts
 - **Concept Name:** **Cyclical Nature of Suffering**

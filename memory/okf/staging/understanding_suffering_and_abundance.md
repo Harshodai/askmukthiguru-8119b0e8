@@ -3,7 +3,7 @@ type: teaching
 title: "Understanding Suffering and Abundance"
 source: "https://www.youtube.com/watch?v=EFJZ2l5Rc10"
 video_id: EFJZ2l5Rc10
-tags: [p, r, o, s, p, e, r, i, t, y, ,,  , c, o, n, s, c, i, o, u, s, n, e, s, s]
+tags: ["prosperityconsciousness"]
 teacher: "sri-preethaji"
 ---
 

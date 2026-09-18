@@ -3,7 +3,7 @@ type: teaching
 title: "Awakening Experiences"
 source: "https://www.youtube.com/watch?v=R3ZRYoTxhUE"
 video_id: R3ZRYoTxhUE
-tags: [a, w, a, k, e, n, i, n, g, ,,  , c, o, n, s, c, i, o, u, s, n, e, s, s]
+tags: ["awakeningconsciousness"]
 teacher: "sri-preethaji"
 ---
 

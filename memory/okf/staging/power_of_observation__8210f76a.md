@@ -3,7 +3,7 @@ type: teaching
 title: "Power of Observation"
 source: "https://www.youtube.com/watch?v=EhY6npcnSs8"
 video_id: EhY6npcnSs8
-tags: [s, r, i,  , p, r, e, e, t, h, a, j, i, ,,  , o, o,  , a, c, a, d, e, m, y, ,,  , e, k, a, m, ,,  , s, r, i,  , k, r, i, s, h, n, a, j, i]
+tags: ["sripreethajiooacademyekamsrikrishnaji"]
 teacher: "sri-preethaji"
 ---
 

@@ -3,7 +3,7 @@ type: teaching
 title: "The Power of Observation and Relationship with EGO"
 source: "https://www.youtube.com/watch?v=Gae2J6ExMsY"
 video_id: Gae2J6ExMsY
-tags: [s, r, i,  , p, r, e, e, t, h, a, j, i, ,,  , s, r, i,  , k, r, i, s, h, n, a, j, i]
+tags: ["sripreethajisrikrishnaji"]
 teacher: "sri-preethaji"
 ---
 

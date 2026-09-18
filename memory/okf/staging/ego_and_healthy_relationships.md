@@ -7,6 +7,7 @@ tags: [relationship, ego, healthy, growth]
 teacher: "sri-preethaji"
 ---
 
+
 # EGO and Healthy Relationships
 
 # EGO and Healthy Relationships
@@ -17,9 +18,6 @@ In a relationship, the initial attraction often stems from euphoria and exciteme
 ## Key Teachings
 - **Evolution in Consciousness**: To build a lasting connection, one must evolve in consciousness, becoming a resilient individual who can overcome hurt and disappointment.
 - **Personal Growth**: Focusing on personal growth is crucial for building a healthy relationship.
-
-## Quotes
-> "To build a lasting connection, one must evolve in consciousness, becoming a resilient individual who can overcome hurt and disappointment." — Sri Preethaji
 
 ## Related Concepts
 - **Ego**: The identification of oneself with the mind and the body, the sense of self or identity, the distinction between the self and the ego, and the idea of self-centeredness or a sense of separateness.

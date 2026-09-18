@@ -7,6 +7,7 @@ tags: [sri preethaji, truth of suffering, sri krishnaji]
 teacher: "sri-preethaji"
 ---
 
+
 # Nature of Suffering
 
 # Nature of Suffering
@@ -19,7 +20,6 @@ The nature of suffering is a fundamental aspect of human existence, often stemmi
 - **Sri Krishnaji says:** "The root cause of suffering lies in the mind's inability to accept reality as it is."
 
 ## Quotes
-> "The nature of suffering is a fundamental aspect of human existence, often stemming from unresolved emotional wounds and past experiences."
 > — Sri Krishnaji
 
 ## Related Concepts

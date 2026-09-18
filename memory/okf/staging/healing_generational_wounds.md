@@ -7,6 +7,7 @@ tags: [healing, generational trauma, acceptance, cellular memory, forgiveness, a
 teacher: "both"
 ---
 
+
 # Healing Generational Wounds
 
 # Healing Generational Wounds
@@ -19,8 +20,6 @@ The universal struggle for acceptance stems from deep-seated, intergenerational 
 - This primal hurt is stored in the body's cellular memory, manifesting as a constant yearning for external validation from parents, society, and the self.
 - Because these wounds are inherited, humanity must actively heal from the collective traumas it has created, such as systemic gender discrimination.
 
-## Quotes
-> "The universal struggle for acceptance stems from deep-seated, intergenerational trauma that often originates in the womb, where a parent's rejection can implant a foundational sense of non-acceptance."
 
 ## Related Concepts
 - Ancestral Karma: A concept referring to karmic cycles passed down through generations that the healing journey addresses.

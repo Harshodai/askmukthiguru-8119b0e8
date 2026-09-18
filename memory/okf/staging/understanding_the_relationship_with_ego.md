@@ -7,6 +7,7 @@ tags: [ego, relationship with EGO, transforming consciousness]
 teacher: "sri-preethaji"
 ---
 
+
 # Understanding the Relationship with EGO
 
 # Understanding the Relationship with EGO
@@ -23,8 +24,6 @@ The training offered by Oh, no Academy emphasizes the use of powerful meditation
 
 - **The Way Out and Journey**: The training emphasizes the concept of the way out, suggesting a path to freedom or resolution, and the journey, which is a path of being without doing.
 
-## Quotes
-> "The training offered by Oh, no Academy emphasizes the use of powerful meditation and wisdom lessons created by Prieta ji, which are widely recognized and embraced by various groups around the world. The training focuses on transforming consciousness and improving the world."
 
 ## Related Concepts
 - **ego**: The concept of the ego, which relates to the identification of oneself with the mind and the body, the sense of self or identity, and the distinction between the self and the ego, and the idea of self-centeredness or a sense of separateness.

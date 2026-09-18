@@ -3,7 +3,7 @@ type: teaching
 title: "The Power of Observation"
 source: "https://www.youtube.com/watch?v=xTVHvMHakow"
 video_id: xTVHvMHakow
-tags: [s, a, d, h, a, k, ,,  , p, r, o, s, p, e, r, i, t, y]
+tags: ["sadhakprosperity"]
 teacher: "both"
 ---
 

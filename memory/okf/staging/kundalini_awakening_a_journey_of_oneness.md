@@ -3,7 +3,7 @@ type: teaching
 title: "Kundalini Awakening: A Journey of Oneness"
 source: "https://www.youtube.com/watch?v=EBBd2MOeOIU"
 video_id: EBBd2MOeOIU
-tags: [s, r, i,  , p, r, e, e, t, h, a, j, i, ,,  , a, w, a, k, e, n, i, n, g, ,,  , o, n, e, n, e, s, s]
+tags: ["sripreethajiawakeningoneness"]
 teacher: "sri-preethaji"
 ---
 

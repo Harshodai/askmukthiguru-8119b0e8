@@ -7,6 +7,7 @@ tags: [awakening, suffering, transformation]
 teacher: "sri-preethaji"
 ---
 
+
 # Exploring Suffering and Transformation
 
 # Exploring Suffering and Transformation
@@ -18,8 +19,6 @@ The historical and psychological reasons for humanity's inclination towards war 
 - The inbuilt aggression and territoriality in humans, as evidenced by the recurring nature of war throughout history, suggest that these tendencies are deeply ingrained in our species.
 - The historical and psychological reasons for humanity's inclination towards war are deeply rooted in its evolutionary history and cultural conditioning.
 
-## Quotes
-> "The inbuilt aggression and territoriality in humans, as evidenced by the recurring nature of war throughout history, suggest that these tendencies are deeply ingrained in our species."
 
 ## Related Concepts
 - **Soul Mate**: A soul mate is a person who brings joy, unconditional love, and security into one's life.

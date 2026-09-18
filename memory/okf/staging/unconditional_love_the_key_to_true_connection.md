@@ -3,7 +3,7 @@ type: teaching
 title: "Unconditional Love: The Key to True Connection"
 source: "https://www.youtube.com/watch?v=HCs6I_BNtxo"
 video_id: HCs6I_BNtxo
-tags: [l, o, v, e, ,,  , c, o, m, p, a, s, s, i, o, n, ,,  , r, e, l, a, t, i, o, n, s, h, i, p]
+tags: ["lovecompassionrelationship"]
 teacher: "sri-preethaji"
 ---
 

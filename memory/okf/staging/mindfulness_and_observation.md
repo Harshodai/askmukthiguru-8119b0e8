@@ -3,9 +3,10 @@ type: teaching
 title: "Mindfulness and Observation"
 source: "https://www.youtube.com/watch?v=qajcmg64VNI"
 video_id: qajcmg64VNI
-tags: [m, a, n, t, r, a, ,,  , p, r, e, s, e, n, c, e]
+tags: ["mantrapresence"]
 teacher: "sri-preethaji"
 ---
+
 
 # Mindfulness and Observation
 
@@ -17,8 +18,6 @@ Chanting the mantra "Shantir Bhavatu" can significantly reduce stress and anxiet
 ## Key Teachings
 - Chanting the mantra "Shantir Bhavatu" can reduce stress and anxiety in the immediate environment by bringing peace vibrations.
 
-## Quotes
-> "Chanting the mantra 'Shantir Bhavatu' can significantly reduce stress and anxiety in the immediate environment by bringing peace vibrations."
 
 ## Related Concepts
 - Mindful Awareness: A key aspect of the path to liberation.

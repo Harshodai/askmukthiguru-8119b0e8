@@ -20,7 +20,6 @@ The Oneness Yoga Challenge is a universal program designed to cater to individua
 - It encourages dedication to the challenge, fostering a sense of oneness and unity.
 
 ## Quotes
-> "Exact quote from transcript" — Sri Krishnaji
 
 ## Related Concepts
 - **Observation**: Observation is a practice that involves actively observing and analyzing the world around us. It is a key element in the text, focusing on the act of observing, which allows one to perceive beyond the senses and lead to direct, intuitive experiences like mystic visions. This practice is distinct from mere noticing or witnessing, as it involves a deliberate and critical examination of one's environment and surroundings.

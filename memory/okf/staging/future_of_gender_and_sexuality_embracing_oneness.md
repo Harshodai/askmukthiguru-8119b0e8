@@ -3,7 +3,7 @@ type: teaching
 title: "Future of Gender and Sexuality: Embracing Oneness"
 source: "https://www.youtube.com/watch?v=Nq2VYAIQyCs"
 video_id: Nq2VYAIQyCs
-tags: [t, r, u, t, h,  , o, f,  , s, u, f, f, e, r, i, n, g, ,,  , o, n, e, n, e, s, s]
+tags: ["truthofsufferingoneness"]
 teacher: "sri-krishnaji"
 ---
 
