@@ -269,15 +269,27 @@ def _get_encoder():
     if _ENCODER is not None:
         return _ENCODER
     try:
+        import os as _os
+
         from sentence_transformers import SentenceTransformer
 
+        _cache_dir = _os.environ.get("SENTENCE_TRANSFORMERS_HOME")
+        # The full org-scoped name is what download_models.py caches; use it so
+        # SentenceTransformer finds the pre-baked snapshot rather than creating
+        # a new model from scratch (which logs a spurious "Creating a new one" warning).
+        _model_name = "sentence-transformers/all-MiniLM-L6-v2"
         try:
-            _ENCODER = SentenceTransformer("all-MiniLM-L6-v2", local_files_only=True)
+            _ENCODER = SentenceTransformer(
+                _model_name,
+                cache_folder=_cache_dir,
+                local_files_only=True,
+            )
         except Exception:
-            _ENCODER = SentenceTransformer("all-MiniLM-L6-v2")
-        logger.info("On-device intent classifier: loaded all-MiniLM-L6-v2")
+            # Network fallback: allow download on first cold start
+            _ENCODER = SentenceTransformer(_model_name, cache_folder=_cache_dir)
+        logger.info("On-device intent classifier: loaded %s", _model_name)
     except Exception as exc:
-        logger.warning(f"On-device classifier: sentence-transformers unavailable ({exc})")
+        logger.warning("On-device classifier: sentence-transformers unavailable (%s)", exc)
         _ENCODER = False
     return _ENCODER
 

@@ -435,8 +435,11 @@ async def _background_startup_body(container, fastapi_app) -> None:
                     f"Retrieval index '{_collection}' has no published compatibility contract. "
                     "Run the controlled publication step before enabling this release."
                 )
-            logger.warning(
-                "Lifespan: no published retrieval-index contract for %s; enforcement is disabled",
+            # Enforcement is disabled (opt-in): degraded to debug so routine
+            # production startups don't surface a WARNING for a known-intended state.
+            logger.debug(
+                "Lifespan: no published retrieval-index contract for %s; "
+                "enforcement is disabled — publish to Redis to enable validation",
                 _collection,
             )
             # Preserve a development diagnostic without claiming it was a
@@ -457,30 +460,59 @@ async def _background_startup_body(container, fastapi_app) -> None:
             raise
         logger.warning(f"Lifespan: retrieval-index contract check error (non-critical): {e}")
 
-    # Verify multilingual reranker model is cached (fail fast on cold start to surface missing models)
+    # Verify reranker model is cached (fail fast on cold start to surface missing models).
+    # In QUANTIZED_ONLY / onnx_int8 mode the PyTorch CrossEncoder is intentionally absent;
+    # check the ONNX reranker path (HF_HOME hub snapshot) instead.
     logger.info("Lifespan: verifying reranker model availability...")
     try:
         import os as _os
 
-        _reranker_model = getattr(
-            settings, "reranker_model_cpu", "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
+        _reranker_backend = _os.environ.get(
+            "RERANKER_BACKEND", getattr(settings, "reranker_backend", "onnx_int8")
         )
+        _quantized_only = _os.environ.get("QUANTIZED_ONLY", "").lower() in ("true", "1", "yes")
+        _hf_home = _os.environ.get("HF_HOME", "/app/.cache/huggingface")
         _model_cache = _os.environ.get(
-            "SENTENCE_TRANSFORMERS_HOME", "/app/model_cache/sentence_transformers"
+            "SENTENCE_TRANSFORMERS_HOME", "/app/.cache/sentence_transformers"
         )
-        # Convert model ID to cache path format (slashes → dashes)
-        _model_dir = _os.path.join(_model_cache, _reranker_model.replace("/", "_"))
-        _alt_model_dir = _os.path.join(_model_cache, _reranker_model.replace("/", "__"))
-        if _os.path.isdir(_model_dir) or _os.path.isdir(_alt_model_dir):
-            logger.info("Lifespan: reranker model %s found in cache — OK", _reranker_model)
-        else:
-            logger.warning(
-                "Lifespan: reranker model %s NOT in cache at %s — will download on first use (cold start latency expected)",
-                _reranker_model,
-                _model_cache,
+
+        if _reranker_backend == "onnx_int8" or _quantized_only:
+            # ONNX INT8 path: snapshot lives under HF_HOME/hub/models--temsa--mmarco-...
+            _onnx_reranker_id = getattr(
+                settings,
+                "reranker_onnx_model",
+                "temsa/mmarco-mMiniLMv2-L12-H384-v1-onnx-cpu-qint8",
             )
+            _onnx_path = _os.path.join(
+                _hf_home, "hub", "models--" + _onnx_reranker_id.replace("/", "--")
+            )
+            if _os.path.isdir(_onnx_path):
+                logger.info(
+                    "Lifespan: ONNX reranker %s found in HF hub cache — OK", _onnx_reranker_id
+                )
+            else:
+                logger.warning(
+                    "Lifespan: ONNX reranker %s NOT in cache at %s — will download on first use",
+                    _onnx_reranker_id,
+                    _onnx_path,
+                )
+        else:
+            _reranker_model = getattr(
+                settings, "reranker_model_cpu", "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
+            )
+            # sentence_transformers uses slash→underscore or slash→doubleunderscore naming
+            _model_dir = _os.path.join(_model_cache, _reranker_model.replace("/", "_"))
+            _alt_model_dir = _os.path.join(_model_cache, _reranker_model.replace("/", "__"))
+            if _os.path.isdir(_model_dir) or _os.path.isdir(_alt_model_dir):
+                logger.info("Lifespan: reranker model %s found in cache — OK", _reranker_model)
+            else:
+                logger.warning(
+                    "Lifespan: reranker model %s NOT in cache at %s — will download on first use",
+                    _reranker_model,
+                    _model_cache,
+                )
     except Exception as e:
-        logger.warning(f"Lifespan: reranker cache check error (non-critical): {e}")
+        logger.warning("Lifespan: reranker cache check error (non-critical): %s", e)
 
     # Pre-warm LettuceDetect if enabled to prevent 20s cold-start latency spike on first user turn
     if getattr(settings, "lettucedetect_enabled", False) and getattr(
@@ -873,8 +905,9 @@ if settings.is_production:
     cors_origins_regex = _build_origin_regex(cors_origins)
     if len(cors_origins_exact) < len(cors_origins):
         removed = [o for o in cors_origins if o == "*" or "*" in o]
-        logger.warning(
-            "CORS wildcard origins removed in production: %s",
+        logger.info(
+            "CORS wildcard origins converted to regex patterns in production: %s "
+            "(served via CORSMiddleware allow_origin_regex — not dropped)",
             removed,
         )
     if not cors_origins_exact:
@@ -1302,7 +1335,7 @@ if ui_path:
     app.mount("/static-ingest", StaticFiles(directory=str(ui_path), html=True), name="ingest")
     logger.info(f"✅ Ingestion UI mounted at /static-ingest (from {ui_path})")
 else:
-    logger.warning("⚠️ Ingestion UI directory not found. UI will not be available.")
+    logger.info("Ingestion UI directory not found — static UI not mounted (expected in production container)")
 
 # === Mount Chat UI ===
 chat_ui_possible_paths = [
@@ -1321,7 +1354,7 @@ if chat_ui_path:
     app.mount("/static-chat", StaticFiles(directory=str(chat_ui_path), html=True), name="chat")
     logger.info(f"✅ Premium Chat UI mounted at /static-chat (from {chat_ui_path})")
 else:
-    logger.warning("⚠️ Chat UI directory not found.")
+    logger.info("Chat UI directory not found — static UI not mounted (expected in production container)")
 
 # === Mount Gradio UI (gated; disabled by default in production) ===
 if os.getenv("ENABLE_GRADIO_UI", "false").lower() in ("1", "true", "yes"):

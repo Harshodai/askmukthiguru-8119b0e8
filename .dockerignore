@@ -38,6 +38,9 @@ mcp-servers/
 .venv/
 backend/.venv/
 venv/
+backend/venv/
+**/venv/
+**/.venv/
 .venv_whisper/
 .venv_host/
 
@@ -67,7 +70,11 @@ scripts/railway_logs.txt
 !backend/requirements.lock
 **/*.tmp
 .pytest_cache/
+**/.pytest_cache/
 .ruff_cache/
+**/.ruff_cache/
+**/.mypy_cache/
+**/.hypothesis/
 coverage/
 htmlcov/
 

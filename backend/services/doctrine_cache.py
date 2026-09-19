@@ -148,23 +148,46 @@ class DoctrineCache:
             self._raw = {}
 
     def _load_from_supabase(self) -> None:
-        """Load doctrine FAQs from Supabase table ``doctrine_faqs``."""
+        """Load doctrine FAQs from Supabase table ``doctrine_faqs``.
+
+        Attempts to fetch ``citations`` alongside ``question`` and ``answer``.
+        Falls back to ``question,answer`` only if ``citations`` column is absent
+        (schema migration lag), so the cache still warms up without ERROR logs.
+        """
         try:
             # supabase client is synchronous; wrap in to_thread if we ever need async,
             # but init runs in sync context during service construction.
-            res = (
-                self._supabase.table("doctrine_faqs")
-                .select("question,answer,citations")
-                .eq("is_active", True)
-                .execute()
-            )
+            try:
+                res = (
+                    self._supabase.table("doctrine_faqs")
+                    .select("question,answer,citations")
+                    .eq("is_active", True)
+                    .execute()
+                )
+            except Exception as _col_err:
+                # citations column may not exist yet (schema migration lag) — fall back
+                _err_str = str(_col_err)
+                if "citations" in _err_str and "does not exist" in _err_str:
+                    logger.debug(
+                        "doctrine_faqs.citations column absent — fetching question,answer only"
+                    )
+                    res = (
+                        self._supabase.table("doctrine_faqs")
+                        .select("question,answer")
+                        .eq("is_active", True)
+                        .execute()
+                    )
+                else:
+                    raise
             rows = getattr(res, "data", []) or []
+            # citations is optional — default to None if column absent
+            _row_keys = ("answer", "citations") if rows and "citations" in rows[0] else ("answer",)
             self._raw = dict(
                 filter(
                     None,
                     (
                         _coerce_entry(
-                            row.get("question"), {k: row.get(k) for k in ("answer", "citations")}
+                            row.get("question"), {k: row.get(k) for k in _row_keys}
                         )
                         for row in rows
                     ),

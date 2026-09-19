@@ -488,7 +488,7 @@ class RedisBackedRateLimiter:
         # Lazy-init Redis connection — imports are deferred so this module
         # stays importable even if redis-py is not installed.
         self._redis_url = redis_url
-        self._connect()
+        self._connect(_startup=True)
 
     # Minimum wall-clock gap between Redis reconnect attempts while in
     # fallback mode (seconds). Redis outage at boot would otherwise leave
@@ -512,7 +512,7 @@ class RedisBackedRateLimiter:
         self._last_reconnect_attempt = time.time()
         self._connect()
 
-    def _connect(self) -> None:
+    def _connect(self, *, _startup: bool = False) -> None:
         try:
             import redis
 
@@ -524,14 +524,30 @@ class RedisBackedRateLimiter:
             )
             # Ping to verify connectivity at construction time.
             self._redis.ping()
+            if self._fallback_active:
+                # Reconnected after a previous outage — log at INFO
+                import logging
+                logging.getLogger(__name__).info(
+                    "RedisBackedRateLimiter: Redis reconnected — resuming distributed rate limiting"
+                )
             self._fallback_active = False
         except Exception as exc:
             import logging
 
-            logging.getLogger(__name__).warning(
-                "RedisBackedRateLimiter: Redis unavailable (%s) — falling back to process-local limiter",
-                exc,
-            )
+            _log = logging.getLogger(__name__)
+            if _startup:
+                # At construction time, Redis may not be ready yet (container startup ordering).
+                # _maybe_reconnect() will retry — log at INFO to avoid noisy deploy logs.
+                _log.info(
+                    "RedisBackedRateLimiter: Redis not yet ready at startup (%s) — "
+                    "using process-local fallback until Redis is available",
+                    exc,
+                )
+            else:
+                _log.warning(
+                    "RedisBackedRateLimiter: Redis unavailable (%s) — falling back to process-local limiter",
+                    exc,
+                )
             self._redis = None
             self._fallback_active = True
 

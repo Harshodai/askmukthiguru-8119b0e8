@@ -55,14 +55,14 @@ def test_wildcard_with_regex_metacharacters_is_literal(monkeypatch):
 
 
 def test_production_warns_on_filtered_origins(monkeypatch, caplog):
-    """Production emits a warning when wildcards are stripped from origins."""
-    with caplog.at_level(logging.WARNING, logger="app.main"):
+    """Production logs when wildcard origins are converted to regex patterns."""
+    with caplog.at_level(logging.INFO, logger="app.main"):
         _reload_cors_state(
             monkeypatch,
             origins="https://app.example.com,https://*.example.com",
             is_production=True,
         )
-    assert any("wildcard origins removed" in rec.message for rec in caplog.records)
+    assert any("wildcard origins converted to regex" in rec.message for rec in caplog.records)
 
 
 def test_production_warns_when_exact_origins_empty(monkeypatch, caplog):

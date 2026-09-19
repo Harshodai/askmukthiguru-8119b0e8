@@ -1,4 +1,39 @@
-## Sep 19, 2026 (Session 2) — Production Bugs Fixed, Data Migrations Verified, Docker Image Slashed
+## Sep 19, 2026 (Session 3) — Zero-WARNING Production Logs: All Startup Warnings Eliminated
+
+### L-WARN-1. doctrine_faqs.citations column missing — SELECT fallback pattern for schema lag
+- **Who**: Antigravity agent, 2026-09-19 session 3.
+- **What**: `services/doctrine_cache.py` SELECT included `citations` column that didn't exist in deployed Supabase table, causing WARNING on every boot: `'column doctrine_faqs.citations does not exist'`.
+- **Fix**: (a) Inner try/except on the Supabase SELECT — if `42703` error and `citations` appears in msg, re-issue SELECT with `question,answer` only. (b) Created `supabase/migrations/20260919000000_add_doctrine_faqs_citations.sql` to add the column via `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`.
+- **Rule**: Always probe schema lag defensively. SELECT with optional columns must gracefully fall back, AND a migration must add the column so the fallback is only transient.
+
+### L-WARN-2. QUANTIZED_ONLY mode must check ONNX reranker path, not PyTorch CrossEncoder path
+- **Who**: Antigravity agent, 2026-09-19 session 3.
+- **What**: `app/main.py` reranker cache check looked in `SENTENCE_TRANSFORMERS_HOME` for `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1` which is intentionally skipped by `download_models.py` in `QUANTIZED_ONLY=true`. The ONNX reranker IS cached at `HF_HOME/hub/models--temsa--mmarco...` but the check didn't look there.
+- **Fix**: When `RERANKER_BACKEND=onnx_int8 OR QUANTIZED_ONLY=true`, check `HF_HOME/hub/models--temsa--mmarco-mMiniLMv2-L12-H384-v1-onnx-cpu-qint8` dir instead.
+- **Rule**: Model cache checks must be mode-aware. Always check the ACTUAL path used by the active backend (ONNX vs PyTorch).
+
+### L-WARN-3. SentenceTransformer short name vs org-scoped name lookup mismatch
+- **Who**: Antigravity agent, 2026-09-19 session 3.
+- **What**: `rag/nodes/on_device_intent.py` loaded `all-MiniLM-L6-v2` (short name) while `download_models.py` caches `sentence-transformers/all-MiniLM-L6-v2` (org-scoped). SentenceTransformer couldn't find the cache and logged: `No sentence-transformers model found with name sentence-transformers/all-MiniLM-L6-v2. Creating a new one with mean pooling.`
+- **Fix**: Use full org-scoped name `sentence-transformers/all-MiniLM-L6-v2` + `cache_folder=SENTENCE_TRANSFORMERS_HOME` + `local_files_only=True` with network fallback.
+- **Rule**: Model loading must use the EXACT name that was used during caching. Short aliases and org-prefixed names resolve to different cache directories.
+
+### L-WARN-4. RedisBackedRateLimiter startup race — WARNING vs INFO log level
+- **Who**: Antigravity agent, 2026-09-19 session 3.
+- **What**: `_connect()` called at `__init__` would log WARNING when Redis refused at boot. Railway starts all services "simultaneously" — Redis may not be accepting connections for 1-3s after the backend starts. This produced 4 WARNING lines every deploy even though `_maybe_reconnect()` handles this correctly within 30s.
+- **Fix**: Added `_startup: bool = False` kwarg to `_connect()`. `__init__` passes `_startup=True`, which logs at INFO. Runtime reconnect failures keep WARNING. Added reconnect-success INFO log.
+- **Rule**: At construction time, transient infrastructure unavailability is expected. Use INFO, not WARNING. Reserve WARNING for runtime degradation after a previously healthy connection.
+
+### L-WARN-5. Index contract / CORS / UI directory — known-intended states should not be WARNING
+- **Who**: Antigravity agent, 2026-09-19 session 3.
+- **What**: Three additional WARNING log lines were expected/intended:
+  1. `Lifespan: no published retrieval-index contract for spiritual_wisdom` — enforcement is opt-in (`index_contract_enforcement_enabled=False`). Expected until Redis-published.
+  2. `CORS wildcard origins removed in production` — not removed; converted to regex. Factually wrong message.
+  3. `⚠️ Chat/Ingestion UI directory not found` — the container never bundles frontend (served by Lovable CDN).
+- **Fix**: All three downgraded to DEBUG/INFO. CORS message corrected to `converted to regex patterns`. CORS test updated to match new message/level.
+- **Rule**: Log level must match "is this actionable right now?" If enforcement is disabled by design, or the behavior is expected-and-correct, it's INFO or DEBUG — never WARNING.
+
+
 
 ### L-DOCKER-2. Blind find-delete of "testing" directories corrupts PyTorch's core imports
 - **Who**: Antigravity agent, 2026-09-19 session 2.
