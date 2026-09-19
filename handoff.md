@@ -158,6 +158,43 @@ Specific target outcomes:
 1. **Toggle Inactivity Sleep in Railway UI**: Backend service ➡️ Settings ➡️ Sleep on Inactivity ➡️ 15m.
 2. **Add Celery Worker Service in Railway UI (Optional)**: If batch ingestion of new videos is triggered, add service pointing to `python start_worker.py`.
 
+---
+
+## 9. Phase-Wise Production Execution Plan
+
+### Phase 1: Data Migration & Parity Verification [✅ 100% COMPLETE]
+- [x] **Task 1.1**: Migrate & verify `spiritual_wisdom_contextual` in Railway Qdrant (12,904 points — 100% parity).
+- [x] **Task 1.2**: Migrate & verify Memgraph graph database (6,430 nodes / 4,188 relationships).
+- [x] **Task 1.3**: Wire LightRAG vector dbs (`lightrag_vdb_*`: 6,712 entities, 5,003 rels, 2,386 chunks).
+- [x] **Task 1.4**: Configure `QDRANT_COLLECTION=spiritual_wisdom_contextual` on Railway backend service.
+- [x] **Task 1.5**: Snapshot legacy 89k `spiritual_wisdom` (974MB) and delete from active Qdrant storage.
+
+### Phase 2: Container Optimization & Memory Engineering [✅ 100% COMPLETE]
+- [x] **Task 2.1**: Multi-stage Docker build isolating `/opt/venv` from build-time compilers.
+- [x] **Task 2.2**: CPU-only PyTorch wheels (`--extra-index-url https://download.pytorch.org/whl/cpu`) eliminating CUDA bloat.
+- [x] **Task 2.3**: Quantized-only ONNX INT8 model caching (`gpahal/bge-m3-onnx-int8`, `temsa/mmarco-...-qint8`).
+- [x] **Task 2.4**: Strip unneeded debug symbols from shared libraries (`strip --strip-unneeded`).
+- [x] **Task 2.5**: Background `malloc_trim(0)` pump running every 120s + post-warmup forced GC.
+- [x] **Task 2.6**: Set `PYTHON_MEMORY_LIMIT_MB=5120` to prevent premature RLIMIT kills.
+
+### Phase 3: Production Log Cleanliness & Bug Remediation [✅ 100% COMPLETE]
+- [x] **Task 3.1**: Supabase schema lag defense on `doctrine_faqs.citations` (catches code `42703`).
+- [x] **Task 3.2**: ONNX-aware reranker cache checks under `QUANTIZED_ONLY=true`.
+- [x] **Task 3.3**: Org-scoped intent model caching (`sentence-transformers/all-MiniLM-L6-v2`).
+- [x] **Task 3.4**: Redis boot race log demotion to INFO via `_startup=True`.
+- [x] **Task 3.5**: LangGraph `RunnableConfig` typing across all 17 node handlers.
+- [x] **Task 3.6**: Attribution floor reducer fix preserving teacher citations on grounded answers.
+
+### Phase 4: Cost Optimization & Scale-to-Zero [IN PROGRESS ⏳]
+- [x] **Task 4.1**: On-demand Celery worker script (`start_worker.py`) polling Redis and exiting on idle.
+- [x] **Task 4.2**: Railway Infrastructure-as-Code (`.railway/railway.ts`) migration; removed deprecated `railway.json`.
+- [ ] **Task 4.3**: Toggle "Sleep on Inactivity" (15m) in Railway dashboard under service settings (manual UI).
+- [ ] **Task 4.4**: Deploy Celery worker service pointing to `python start_worker.py` when video batch ingestion is initiated (optional UI).
+
+### Phase 5: Long-Tail Evaluation & Quality Benchmarks [READY TO RUN ⏳]
+- [ ] **Task 5.1**: Run RAGAS production evaluation (`run_ragas_eval.py`) against `https://api.askmukthiguru.com/api/chat`.
+- [ ] **Task 5.2**: Measure end-to-end latency bounds (<10s simple, <25s multi-concept relational graph).
+- [ ] **Task 5.3**: Execute NDCG integration test against `spiritual_wisdom_contextual`.
 
 ---
 
