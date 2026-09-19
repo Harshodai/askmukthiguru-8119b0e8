@@ -589,6 +589,7 @@
     "verificationSent": "We sent you a verification link to complete sign-up. Tip: visit /auth/diagnostics after signing in to verify role + profile setup.",
     "enterEmailFirst": "Enter your email above first, then tap Forgot password.",
     "passwordResetSent": "We sent you a link to reset your password.",
+    "passwordBreached": "This password has appeared in a known data breach. For your security, please choose a stronger, unique password.",
     "couldNotConnectGoogle": "Could not connect to Google.",
     "couldNotConnectGoogleRetry": "Could not connect to Google. Please try again.",
     "couldNotConnectFacebook": "Could not connect to Facebook.",

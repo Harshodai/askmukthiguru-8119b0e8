@@ -11,6 +11,7 @@ import { Sparkles, Lock, AlertCircle } from 'lucide-react';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { useTranslation } from 'react-i18next';
 import { buildCanonical } from '@/lib/domain';
+import { checkPasswordBreached, BREACHED_PASSWORD_MESSAGE } from '@/lib/passwordBreachCheck';
 
 const ResetPasswordPage = () => {
   usePageMeta({
@@ -25,6 +26,7 @@ const ResetPasswordPage = () => {
   const [ready, setReady] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   // The recovery flow lands here with a hash like #access_token=...&type=recovery.
   // Supabase auto-exchanges it; we just wait for a session to appear.
@@ -47,6 +49,18 @@ const ResetPasswordPage = () => {
     if (password !== confirm) return setError('Passwords do not match.');
 
     setLoading(true);
+    const breachCheck = await checkPasswordBreached(password);
+    if (breachCheck.breached) {
+      setLoading(false);
+      const msg = t('auth.passwordBreached', BREACHED_PASSWORD_MESSAGE);
+      setError(msg);
+      toast({
+        title: 'Password Insecure',
+        description: msg,
+        variant: 'destructive',
+      });
+      return;
+    }
     try {
       const { error: updateError } = await supabase.auth.updateUser({ password });
       if (updateError) throw updateError;

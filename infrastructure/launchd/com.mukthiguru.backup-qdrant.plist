@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Mukthi Guru — macOS launchd Agent for Qdrant Backups
+  ======================================================
+  Replaces Linux /etc/cron.d/mukthiguru-backup on macOS host.
+
+  Install:
+    1. Copy plist to user LaunchAgents:
+       cp infrastructure/launchd/com.mukthiguru.backup-qdrant.plist ~/Library/LaunchAgents/
+    2. Load agent:
+       launchctl load ~/Library/LaunchAgents/com.mukthiguru.backup-qdrant.plist
+    3. Verify registration:
+       launchctl list | grep com.mukthiguru.backup-qdrant
+    4. Optional immediate manual trigger:
+       launchctl start com.mukthiguru.backup-qdrant
+    5. Unload when needed:
+       launchctl unload ~/Library/LaunchAgents/com.mukthiguru.backup-qdrant.plist
+
+  Schedule: Runs daily at 02:00 local time.
+  Logs: backups/qdrant/backup-qdrant.log, backups/qdrant/backup-qdrant-error.log
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.mukthiguru.backup-qdrant</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/bin/python3</string>
+        <string>/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/scripts/ops/backup_qdrant.py</string>
+        <string>--collection</string>
+        <string>spiritual_wisdom_contextual</string>
+        <string>--retention</string>
+        <string>7</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>QDRANT_URL</key>
+        <string>http://localhost:6333</string>
+        <key>BACKUP_BASE_DIR</key>
+        <string>/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backups/qdrant</string>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/Users/harshodaikolluru/.docker/bin</string>
+    </dict>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>2</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backups/qdrant/backup-qdrant.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backups/qdrant/backup-qdrant-error.log</string>
+
+    <key>RunAtLoad</key>
+    <false/>
+</dict>
+</plist>

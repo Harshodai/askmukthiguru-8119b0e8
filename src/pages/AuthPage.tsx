@@ -29,6 +29,7 @@ import {
   NATIVE_REDIRECT,
   GOOGLE_GSI_SDK_URL,
 } from '@/lib/authConstants';
+import { checkPasswordBreached, BREACHED_PASSWORD_MESSAGE } from '@/lib/passwordBreachCheck';
 
 const isNativePlatform = Capacitor.isNativePlatform();
 
@@ -449,6 +450,12 @@ const AuthPage = () => {
         }
         if (!isEmailAllowed(email)) {
           setError("Registration is only allowed for verified @gmail.com or @hotmail.com/@outlook.com emails.");
+          setLoading(false);
+          return;
+        }
+        const breachCheck = await checkPasswordBreached(password);
+        if (breachCheck.breached) {
+          setError(t('auth.passwordBreached', BREACHED_PASSWORD_MESSAGE));
           setLoading(false);
           return;
         }

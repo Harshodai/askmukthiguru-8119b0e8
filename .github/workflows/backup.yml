@@ -1,0 +1,103 @@
+name: Supabase Database Backup (Free Path)
+
+on:
+  schedule:
+    # Run daily at 03:00 UTC
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup-supabase:
+    name: Dump and Archive Supabase DB (Roles, Schema, Data)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Enforce Private Destination Gate
+        run: |
+          echo "=== Destination Security Gate ==="
+          # If the repository is public, workflow artifacts can be downloaded by anyone.
+          # To prevent leaking sensitive user data and credentials, fail loudly.
+          IS_PRIVATE="${{ github.event.repository.private }}"
+          if [ "$IS_PRIVATE" = "false" ]; then
+            echo "::error::SECURITY VIOLATION: Repository is public! Storing database dumps (roles, schema, data) in public GitHub workflow artifacts is prohibited. Destination must be private."
+            exit 1
+          fi
+          echo "Destination repository is private. Privacy gate passed."
+
+      - name: Validate Supabase DB URL Secret
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ]; then
+            echo "::error::SUPABASE_DB_URL secret is not set or empty. Please set the secret in repository Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          echo "SUPABASE_DB_URL secret is present."
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Dump Roles
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          echo "Dumping database roles..."
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f roles.sql --role-only
+          if [ ! -s roles.sql ]; then
+            echo "::error::roles.sql is empty or missing after dump."
+            exit 1
+          fi
+          echo "Roles dumped successfully ($(wc -l < roles.sql) lines, $(wc -c < roles.sql) bytes)."
+
+      - name: Dump Schema
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          echo "Dumping database schema..."
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f schema.sql
+          if [ ! -s schema.sql ]; then
+            echo "::error::schema.sql is empty or missing after dump."
+            exit 1
+          fi
+          echo "Schema dumped successfully ($(wc -l < schema.sql) lines, $(wc -c < schema.sql) bytes)."
+
+      - name: Dump Data
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          echo "Dumping database data..."
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f data.sql --data-only --use-copy
+          if [ ! -s data.sql ]; then
+            echo "::error::data.sql is empty or missing after dump."
+            exit 1
+          fi
+          echo "Data dumped successfully ($(wc -l < data.sql) lines, $(wc -c < data.sql) bytes)."
+
+      - name: Package Backup and Compute Checksum
+        run: |
+          TS=$(date -u +%Y%m%d_%H%M%S)
+          ARCHIVE_NAME="supabase_backup_${TS}.tar.gz"
+          tar -czf "$ARCHIVE_NAME" roles.sql schema.sql data.sql
+          sha256sum "$ARCHIVE_NAME" > "${ARCHIVE_NAME}.sha256"
+          echo "ARCHIVE_NAME=$ARCHIVE_NAME" >> "$GITHUB_ENV"
+          echo "Backup archive created: $ARCHIVE_NAME ($(du -h "$ARCHIVE_NAME" | cut -f1))"
+          cat "${ARCHIVE_NAME}.sha256"
+
+      - name: Upload Backup Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARCHIVE_NAME }}
+          path: |
+            ${{ env.ARCHIVE_NAME }}
+            ${{ env.ARCHIVE_NAME }}.sha256
+          retention-days: 7
+          if-no-files-found: error
