@@ -3,35 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuthStatus } from '@/hooks/useAuthStatus';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from 'react-i18next';
-import { GOOGLE_GSI_SDK_URL, GOOGLE_CLIENT_ID_FALLBACK } from '@/lib/authConstants';
-
-function generateNonce(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let nonce = '';
-  if (typeof window !== 'undefined' && window.crypto) {
-    const values = new Uint32Array(16);
-    window.crypto.getRandomValues(values);
-    for (let i = 0; i < values.length; i++) {
-      nonce += chars[values[i] % chars.length];
-    }
-  }
-  return nonce;
-}
-
-async function sha256Hex(input: string): Promise<string | null> {
-  const webCrypto = typeof window !== 'undefined' ? window.crypto : undefined;
-  if (!webCrypto?.subtle) {
-    // Google One Tap requires a hashed nonce. On an insecure Docker/test
-    // origin Web Crypto may be unavailable; skip the optional prompt rather
-    // than throwing a page-level error or weakening nonce validation.
-    return null;
-  }
-  const encoder = new TextEncoder();
-  const data = encoder.encode(input);
-  const hashBuffer = await webCrypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
+import { GOOGLE_GSI_SDK_URL, GOOGLE_CLIENT_ID_FALLBACK, generateNonce, sha256Hex } from '@/lib/authConstants';
 
 export const GoogleOneTap = () => {
   const { status } = useAuthStatus();
@@ -83,7 +55,11 @@ export const GoogleOneTap = () => {
               const { error } = await supabase.auth.signInWithIdToken({
                 provider: 'google',
                 token: response.credential,
-                nonce: hashedNonce,
+                // Supabase hashes this itself to compare against the ID
+                // token's nonce claim -- must be the RAW value, not the
+                // hash we gave Google. Passing hashedNonce here caused a
+                // deterministic mismatch on every real attempt.
+                nonce: rawNonce,
               });
               if (error) throw error;
               justSucceededRef.current = true;

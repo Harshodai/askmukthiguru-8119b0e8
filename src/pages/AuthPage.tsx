@@ -29,6 +29,8 @@ import {
   NATIVE_REDIRECT,
   GOOGLE_GSI_SDK_URL,
   GOOGLE_CLIENT_ID_FALLBACK,
+  generateNonce,
+  sha256Hex,
 } from '@/lib/authConstants';
 import { checkPasswordBreached, BREACHED_PASSWORD_MESSAGE } from '@/lib/passwordBreachCheck';
 
@@ -90,22 +92,6 @@ const friendlyError = (err: Error | { message: string }): string => {
   if (msg.includes('weak_password') || msg.includes('password'))
     return 'Password must be at least 6 characters long.';
   return err.message || 'Something went wrong. Please try again.';
-};
-
-const generateNonce = (): string => {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let nonce = '';
-  const cryptoObj = typeof window !== 'undefined' ? window.crypto : (typeof crypto !== 'undefined' ? crypto : null);
-  if (cryptoObj?.getRandomValues) {
-    const values = new Uint32Array(16);
-    cryptoObj.getRandomValues(values);
-    for (let i = 0; i < values.length; i++) {
-      nonce += chars[values[i] % chars.length];
-    }
-  } else if (cryptoObj?.randomUUID) {
-    nonce = cryptoObj.randomUUID().replace(/-/g, '').slice(0, 16);
-  }
-  return nonce;
 };
 
 type GoogleStep = 'idle' | 'connecting' | 'redirecting' | 'returning' | 'finalizing';
@@ -813,10 +799,20 @@ const AuthPage = () => {
       document.body.appendChild(script);
     }
 
-    const initGoogleSDK = () => {
+    const initGoogleSDK = async () => {
       if (typeof window.google !== 'undefined') {
         if (!googleInitializedRef.current) {
           nonceRef.current = generateNonce();
+          // Google's initialize() needs the SHA-256 HASH of the nonce (it
+          // goes into the ID token's `nonce` claim verbatim); Supabase's
+          // signInWithIdToken() below needs the RAW value (it hashes it
+          // itself to compare against that claim). Sending the raw value
+          // to Google here -- as this code did before -- makes the token's
+          // claim equal the raw nonce, so Supabase's SHA-256(raw) comparison
+          // always fails: a deterministic "Nonces mismatch" on every real
+          // attempt, confirmed live 2026-09-19, not a race condition.
+          const hashedNonce = await sha256Hex(nonceRef.current);
+          if (!hashedNonce || googleInitializedRef.current) return;
 
           const allowedOrigins = [
             window.location.origin,
@@ -828,7 +824,7 @@ const AuthPage = () => {
             callback: (res) => handleCallbackRef.current?.(res),
             auto_select: false,
             cancel_on_tap_outside: true,
-            nonce: nonceRef.current,
+            nonce: hashedNonce,
             // `data_fedcm` was never a real IdConfiguration field -- this is
             // the correct one. `use_fedcm_for_prompt` (a different field,
             // also checked) is now DEPRECATED and silently ignored by

@@ -20,3 +20,43 @@ export const GOOGLE_GSI_SDK_URL = 'https://accounts.google.com/gsi/client';
  */
 export const GOOGLE_CLIENT_ID_FALLBACK =
   '1004985929687-iic001qgjb54vfd2gi3stu2uticc6ats.apps.googleusercontent.com';
+
+/**
+ * Google One Tap / GSI nonce helpers. Supabase's signInWithIdToken() expects
+ * the RAW nonce (it hashes it internally to compare against the ID token's
+ * `nonce` claim); Google's accounts.id.initialize() expects the SHA-256 HASH
+ * of that same raw value (it goes into the token's `nonce` claim verbatim).
+ * Mixing these up -- passing the same value to both, whichever it is --
+ * produces a deterministic "Nonces mismatch" on every real sign-in attempt,
+ * not an intermittent race. Confirmed live 2026-09-19.
+ */
+export const generateNonce = (): string => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let nonce = '';
+  const cryptoObj = typeof window !== 'undefined' ? window.crypto : (typeof crypto !== 'undefined' ? crypto : null);
+  if (cryptoObj?.getRandomValues) {
+    const values = new Uint32Array(16);
+    cryptoObj.getRandomValues(values);
+    for (let i = 0; i < values.length; i++) {
+      nonce += chars[values[i] % chars.length];
+    }
+  } else if (cryptoObj?.randomUUID) {
+    nonce = cryptoObj.randomUUID().replace(/-/g, '').slice(0, 16);
+  }
+  return nonce;
+};
+
+export const sha256Hex = async (input: string): Promise<string | null> => {
+  const webCrypto = typeof window !== 'undefined' ? window.crypto : undefined;
+  if (!webCrypto?.subtle) {
+    // Web Crypto may be unavailable on an insecure (non-HTTPS) origin --
+    // skip the optional prompt rather than throwing a page-level error or
+    // weakening nonce validation.
+    return null;
+  }
+  const encoder = new TextEncoder();
+  const data = encoder.encode(input);
+  const hashBuffer = await webCrypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+};
