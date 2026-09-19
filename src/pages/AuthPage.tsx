@@ -28,6 +28,7 @@ import {
   ONBOARDED_FLAG_KEY,
   NATIVE_REDIRECT,
   GOOGLE_GSI_SDK_URL,
+  GOOGLE_CLIENT_ID_FALLBACK,
 } from '@/lib/authConstants';
 import { checkPasswordBreached, BREACHED_PASSWORD_MESSAGE } from '@/lib/passwordBreachCheck';
 
@@ -140,6 +141,15 @@ const AuthPage = () => {
   const nonceRef = useRef<string | null>(null);
   const handleCallbackRef = useRef<((response: GoogleOneTapResponse) => void) | null>(null);
   const oneTapInFlightRef = useRef(false);
+  // Set the instant a signInWithIdToken call succeeds, cleared after a short
+  // window. Covers the gap the in-flight ref can't: a SECOND, sequential GSI
+  // callback (not concurrent) arriving after the first has already finished
+  // and cleared oneTapInFlightRef, whose stale nonce mismatches and falls into
+  // the catch block below. That block used a single, immediate getSession()
+  // check to decide "already signed in" -- racy if Supabase's client-side
+  // session write hasn't landed yet, and a lost race fired a second, visible
+  // signInWithOAuth redirect. This flag is checked FIRST, before any retry.
+  const oneTapJustSucceededRef = useRef(false);
 
   useEffect(() => {
     if (!isNativePlatform) return;
@@ -719,6 +729,10 @@ const AuthPage = () => {
 
       recordStep('google_one_tap', 'ok', 0);
       endAuthRun('ok');
+      oneTapJustSucceededRef.current = true;
+      setTimeout(() => {
+        oneTapJustSucceededRef.current = false;
+      }, 5000);
 
       toast({
         title: t('auth.welcomeBack'),
@@ -732,10 +746,26 @@ const AuthPage = () => {
         // already redeemed it and signed the user in. Only fall back to a full
         // OAuth redirect if there's genuinely no session yet, or a signed-in
         // user gets bounced through a second, redundant Google redirect.
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
+        //
+        // Cheapest check first: did a sign-in from THIS tab just succeed?
+        // No network round trip, no race with Supabase's own session write.
+        if (oneTapJustSucceededRef.current) {
           endAuthRun('ok');
           return;
+        }
+        // Fall back to getSession(), retried with backoff -- the first
+        // signInWithIdToken call's session write may not have landed yet on
+        // the very first check, and a false negative here fires a second,
+        // visible OAuth redirect for a user who is already signed in.
+        for (const delayMs of [0, 150, 400]) {
+          if (delayMs > 0) {
+            await new Promise((resolve) => setTimeout(resolve, delayMs));
+          }
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            endAuthRun('ok');
+            return;
+          }
         }
         const { error: oauthError } = await supabase.auth.signInWithOAuth({
           provider: 'google',
@@ -757,7 +787,7 @@ const AuthPage = () => {
   }, [handleGoogleOneTapResponse]);
 
   useEffect(() => {
-    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID_FALLBACK;
     if (
       !clientId ||
       isNativePlatform ||
@@ -791,7 +821,17 @@ const AuthPage = () => {
             auto_select: false,
             cancel_on_tap_outside: true,
             nonce: nonceRef.current,
-            data_fedcm: true,
+            // `data_fedcm` was never a real IdConfiguration field -- this is
+            // the correct one. `use_fedcm_for_prompt` (a different field,
+            // also checked) is now DEPRECATED and silently ignored by
+            // Google's own current API reference; FedCM for the One Tap
+            // prompt itself is mandatory on supporting browsers, not
+            // optional. `use_fedcm_for_button` is the real, still-active
+            // flag, and it governs the rendered button's own FedCM path.
+            use_fedcm_for_button: true,
+            // Real, documented, currently-active field for upgraded One Tap
+            // UX on Safari/ITP browsers -- previously unset (silently off).
+            itp_support: true,
             allowed_parent_origin: allowedOrigins,
           });
           googleInitializedRef.current = true;
@@ -915,7 +955,7 @@ const AuthPage = () => {
             </Button>
           )}
 
-          {!isNativePlatform && import.meta.env.VITE_GOOGLE_CLIENT_ID && isTopLevelFrame ? (
+          {!isNativePlatform && isTopLevelFrame ? (
             <div
               ref={googleButtonRef}
               className="w-full flex justify-center min-h-[44px]"

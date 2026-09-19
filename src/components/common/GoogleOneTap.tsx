@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthStatus } from '@/hooks/useAuthStatus';
-import { GOOGLE_GSI_SDK_URL } from '@/lib/authConstants';
+import { GOOGLE_GSI_SDK_URL, GOOGLE_CLIENT_ID_FALLBACK } from '@/lib/authConstants';
 
 function generateNonce(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -39,8 +39,8 @@ export const GoogleOneTap = () => {
   useEffect(() => {
     if (status !== 'anonymous' || initialized.current) return;
 
-    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-    if (!clientId || (typeof window !== 'undefined' && !window.isSecureContext)) return;
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID_FALLBACK;
+    if (typeof window !== 'undefined' && !window.isSecureContext) return;
 
     let script = document.querySelector(`script[src="${GOOGLE_GSI_SDK_URL}"]`) as HTMLScriptElement;
     if (!script) {
