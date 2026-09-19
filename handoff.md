@@ -160,41 +160,95 @@ Specific target outcomes:
 
 ---
 
-## 9. Phase-Wise Production Execution Plan
+## 9. Comprehensive Workstream Mapping (W1–W7 Audit & Production Roadmaps)
 
-### Phase 1: Data Migration & Parity Verification [✅ 100% COMPLETE]
-- [x] **Task 1.1**: Migrate & verify `spiritual_wisdom_contextual` in Railway Qdrant (12,904 points — 100% parity).
-- [x] **Task 1.2**: Migrate & verify Memgraph graph database (6,430 nodes / 4,188 relationships).
-- [x] **Task 1.3**: Wire LightRAG vector dbs (`lightrag_vdb_*`: 6,712 entities, 5,003 rels, 2,386 chunks).
-- [x] **Task 1.4**: Configure `QDRANT_COLLECTION=spiritual_wisdom_contextual` on Railway backend service.
-- [x] **Task 1.5**: Snapshot legacy 89k `spiritual_wisdom` (974MB) and delete from active Qdrant storage.
+This section correlates the **original 7 Production Readiness Workstreams (W1–W7)** from `plan-on-top-of-recursive-lightning.md` and `task.md` with the newly completed data migrations, container reductions, and live Railway deployments.
 
-### Phase 2: Container Optimization & Memory Engineering [✅ 100% COMPLETE]
-- [x] **Task 2.1**: Multi-stage Docker build isolating `/opt/venv` from build-time compilers.
-- [x] **Task 2.2**: CPU-only PyTorch wheels (`--extra-index-url https://download.pytorch.org/whl/cpu`) eliminating CUDA bloat.
-- [x] **Task 2.3**: Quantized-only ONNX INT8 model caching (`gpahal/bge-m3-onnx-int8`, `temsa/mmarco-...-qint8`).
-- [x] **Task 2.4**: Strip unneeded debug symbols from shared libraries (`strip --strip-unneeded`).
-- [x] **Task 2.5**: Background `malloc_trim(0)` pump running every 120s + post-warmup forced GC.
-- [x] **Task 2.6**: Set `PYTHON_MEMORY_LIMIT_MB=5120` to prevent premature RLIMIT kills.
+### Workstream Status Overview
 
-### Phase 3: Production Log Cleanliness & Bug Remediation [✅ 100% COMPLETE]
-- [x] **Task 3.1**: Supabase schema lag defense on `doctrine_faqs.citations` (catches code `42703`).
-- [x] **Task 3.2**: ONNX-aware reranker cache checks under `QUANTIZED_ONLY=true`.
-- [x] **Task 3.3**: Org-scoped intent model caching (`sentence-transformers/all-MiniLM-L6-v2`).
-- [x] **Task 3.4**: Redis boot race log demotion to INFO via `_startup=True`.
-- [x] **Task 3.5**: LangGraph `RunnableConfig` typing across all 17 node handlers.
-- [x] **Task 3.6**: Attribution floor reducer fix preserving teacher citations on grounded answers.
+| Workstream | Scope / Objective | Current Status | Primary Evidence / Artifact |
+|---|---|---|---|
+| **W1** | **Prove Answer Quality** (Full 1,238-Question Eval across 9 Sources) | ⏳ Ready to execute against Railway | Live smoke test passed with 1.0 LettuceDetect faithfulness; `qa-fss-001` excluded as known corpus gap. |
+| **W2** | **Make the Gates Real** (Fix `gate1_load_test.py` exit code, unmask security audit) | ✅ ACCEPTED | Exit code fixed; RED/GREEN reporting verified; RLS + AAL2 added to `prelaunch.sh`. |
+| **W3** | **Cheap Findings (11 Items)** (SSRF, exception leak, citations, PIL, await, etc.) | ✅ ACCEPTED | All 11 resolved (commits `4106d8f0`, `6b22e9f8`). Backend test suite clean. |
+| **W4** | **Backups & Free Disaster Recovery** (Supabase, Qdrant snapshot, Memgraph dump) | ✅ ACCEPTED | Standalone Qdrant snapshot script (`qdrant_backup.py`), launchd plist, 974MB snapshot verified. |
+| **W5** | **Contradiction Gate** (Hard reject on doctrinal contradiction via NLI) | ✅ ACCEPTED | 4-way NLI contradiction gate added (commit `c8ff843c`). Rejection independent of ratio floor. |
+| **W6** | **Railway Image & Cold Start Footprint** (7.8GB ➡️ ~2.2GB, ONNX pre-cache) | ✅ COMPLETED | Multi-stage build, CPU-only wheels, INT8 ONNX baking, `strip --strip-unneeded` applied. |
+| **W7** | **Railway Deploy & Data Parity** (Memgraph + Contextual Qdrant Parity) | ✅ COMPLETED | 12,904 Qdrant points, 6,430 Memgraph nodes, 18/18 health checks green, live chat verified. |
 
-### Phase 4: Cost Optimization & Scale-to-Zero [IN PROGRESS ⏳]
-- [x] **Task 4.1**: On-demand Celery worker script (`start_worker.py`) polling Redis and exiting on idle.
-- [x] **Task 4.2**: Railway Infrastructure-as-Code (`.railway/railway.ts`) migration; removed deprecated `railway.json`.
-- [ ] **Task 4.3**: Toggle "Sleep on Inactivity" (15m) in Railway dashboard under service settings (manual UI).
-- [ ] **Task 4.4**: Deploy Celery worker service pointing to `python start_worker.py` when video batch ingestion is initiated (optional UI).
+---
 
-### Phase 5: Long-Tail Evaluation & Quality Benchmarks [READY TO RUN ⏳]
-- [ ] **Task 5.1**: Run RAGAS production evaluation (`run_ragas_eval.py`) against `https://api.askmukthiguru.com/api/chat`.
-- [ ] **Task 5.2**: Measure end-to-end latency bounds (<10s simple, <25s multi-concept relational graph).
-- [ ] **Task 5.3**: Execute NDCG integration test against `spiritual_wisdom_contextual`.
+### Detailed W1–W7 Workstream Execution Breakdown
+
+#### W1 — Prove Answer Quality [Status: Evaluation Pipeline Ready ⏳]
+- **Starting Mandate**: Full eval across all 9 question sources, 1,238 questions without `--sample`. Stop testing on tiny 6-question sets.
+- **Corpus Reality Handled**: `qa-fss-001` confirmed as genuine corpus gap (Second, Third, and Fourth Sacred Secrets had 0 chunks in corpus; First has 41).
+- **Current Live Status**:
+  - Live chat turns on Railway production return grounded responses with authentic YouTube citations (`UlOt31lBhLY`) and 1.0 faithfulness score on LettuceDetect.
+  - Multi-concept queries (`Soul Sync and Beautiful State`) successfully traverse both OKF ontology and LightRAG in 22 seconds.
+- **Next Command**: `cd backend && .venv/bin/python -m benchmarks.run --mode e2e` against Railway endpoint.
+
+#### W2 — Make the Gates Real [Status: ACCEPTED ✅]
+- **Starting Mandate**: `gate1_load_test.py` must fail when HTTP errors occur (previously exited 0 on container verdict). `run_emergent_audit.sh` must not swallow exit codes.
+- **Accomplished**:
+  - Fixed `gate1_load_test.py` exit code parsing from `gate1_verdict`.
+  - Added RLS cross-user and security AAL2 end-to-end tests into `prelaunch.sh`.
+  - Implemented RED/GREEN gate reporting.
+
+#### W3 — Cheap Findings (11 Items) [Status: ACCEPTED ✅]
+- **Starting Mandate**: Clear 11 identified code review findings without regressions.
+- **Accomplished**:
+  - AMK-D-001: Deleted weak private-IP bypass in SSRF guard; routed through DNS-resolving `_is_url_safe`.
+  - AMK-E-002: Sanitized OpenRouter 401/403 exceptions to prevent credential/trace leakage.
+  - AMK-A-004: Added `citations_verified` tracking in generation nodes.
+  - AMK-E-006: Resolved container healthcheck start period drift.
+  - AMK-E-004: Added PIL `verify()` prior to OCR execution on uploaded images.
+  - AMK-F-013: Added missing `await` statements in test suites.
+  - AMK-C-006: Corrected docstring/logging in local LLM cache.
+  - AMK-F-010: Frontend TypeScript typecheck parity.
+
+#### W4 — Backups & Free Path [Status: ACCEPTED ✅]
+- **Starting Mandate**: RPO was unbounded. No automated backups existed.
+- **Accomplished**:
+  - Created `scripts/ops/qdrant_backup.py` with direct REST snapshotting and pruning.
+  - Created safety snapshot of legacy Qdrant collection (`spiritual_wisdom-2937117541588631-2026-09-19-10-30-23.snapshot`, 974MB).
+  - Configured GitHub Actions and macOS launchd plist automation.
+  - Added HaveIBeenPwned (HIBP) k-anonymity check on user registration path.
+
+#### W5 — Contradiction Gate [Status: ACCEPTED ✅]
+- **Starting Mandate**: LettuceDetect previously lacked a distinct contradiction split; a contradicting claim could pass if 60% of other claims were supported.
+- **Accomplished**:
+  - Integrated 4-way NLI contradiction detection gate (`deep_contradiction_gate` in `backend/rag/graph_strategies.py`).
+  - Strict contradiction triggers immediate fail-closed rejection regardless of average ratio floor.
+  - Hardened concurrency under `_shared_predict_lock` to avoid PyTorch C-extension segfaults.
+
+#### W6 — Railway Image Size & Cold Start Footprint [Status: COMPLETED ✅]
+- **Starting Mandate**: Slashed image from 7.8GB down to target ~2.2GB. Ensure model weights are pre-baked so cold-starts don't OOM.
+- **Accomplished**:
+  - `Dockerfile.railway` converted to multi-stage build.
+  - Installed CPU-only PyTorch wheels (`--extra-index-url https://download.pytorch.org/whl/cpu`).
+  - Baked only INT8 ONNX quantized models (`QUANTIZED_ONLY=true`).
+  - Added `strip --strip-unneeded` across all `.so` binaries in `/opt/venv/lib/`.
+  - Purged `.git` directories and static `.a` files.
+  - Implemented dynamic memory reclamation (`malloc_trim(0)` pump every 120s).
+
+#### W7 — Railway Deploy & Full Parity Verification [Status: COMPLETED ✅]
+- **Starting Mandate**: Standing verdict was NO-GO (paused, crashed since Sep 11). Must achieve full parity with local Docker data and green `/api/health`.
+- **Accomplished**:
+  - Deployed commit `c009bc9a` / `8a2699da` on Railway.
+  - Qdrant parity: Verified **12,904 points** in `spiritual_wisdom_contextual` (100% exact match).
+  - Memgraph parity: Verified **6,430 nodes and 4,188 relationships** (100% exact match).
+  - LightRAG: Linked 3 Qdrant vector collections and Memgraph graph backend.
+  - Legacy cleanup: Pruned 89k uncontextual points from Qdrant.
+  - Health check: Verified **all 18 subservices report `ok: true`**.
+  - Worker optimization: Built `backend/start_worker.py` for on-demand Celery startup to eliminate idle billing.
+
+---
+
+### Remaining Immediate Operational Steps
+1. **Enable Scale-to-Zero**: In Railway dashboard ➡️ Service `askmukthiguru-8119b0e8` ➡️ Settings ➡️ Sleep on Inactivity ➡️ 15m.
+2. **Deploy Worker Service (Optional)**: If batch ingestion tasks are queued, launch service with `python start_worker.py`.
+3. **Execute Benchmark (W1)**: Run `.venv/bin/python -m benchmarks.run --mode e2e`.
 
 ---
 
