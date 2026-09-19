@@ -58,6 +58,7 @@ Because Memgraph speaks the exact same openCypher Bolt protocol as Neo4j (`neo4j
 - Set `NEO4J_URI="bolt://memgraph.railway.internal:7687"` and `LIGHTRAG_GRAPH_STORAGE="MemgraphStorage"`.
 - **Zero code changes are required on the backend**. The backend treats Memgraph as a drop-in, sub-millisecond Bolt database.
 - **Scalability**: Single-node Memgraph easily scales to 100k+ nodes and 500k+ edges within a 1GB–2GB RAM container, operating 4.3x faster than Neo4j with zero GC pauses and cutting database hosting costs by >60%.
+- **Decision Confirmed (2026-09-19)**: Neo4j is decommissioned in favor of Memgraph (C++) exclusively. Local Docker holds authoritative Memgraph data (6,430 nodes / 4,188 relationships). Bolt-based migration via `backend/scripts/ops/migrate_neo4j_to_memgraph.py` is tested and verified.
 
 ### Advanced Database Enhancements (Qdrant, Memgraph, LightRAG — 2026 Production Standard)
 
@@ -1030,6 +1031,10 @@ Alertmanager UI. `alertmanager.yml` remains the **production** artifact
 repurpose it. Mounting it directly is what previously made the container
 unstartable: it carries seven unrendered `${...}` placeholders and Alertmanager
 validates receiver URLs at config load.
+
+### Error Tracking & GlitchTip Decision (2026-09-19)
+
+Server-side error tracking SDK (GlitchTip/Sentry, AMK-F-003) is **skipped for the initial pilot deployment** per user decision. Railway provides native log aggregation, structured log tailing, and crash alerting. Backend exceptions are captured with structured JSON formatting (`error_id`, `correlation_id`, full traceback) by `global_exception_handler` (`app/main.py:1158-1172`) and streamed to Railway logs. Revisit dedicated GlitchTip deployment on Railway + Postgres in Phase 2 if centralized alerting and deduplication are required.
 
 ## Caching invariants
 

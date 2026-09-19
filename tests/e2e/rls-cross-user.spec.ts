@@ -59,7 +59,7 @@ function runSupabaseStatus(): string | null {
       const out = spawnSync('npx', ['supabase', 'status', '--output', 'json'], {
         env: { ...process.env, PATH: path },
         encoding: 'utf8',
-        timeout: 60_000,
+        timeout: 3_000,
       });
       if (out.status === 0 && out.stdout?.includes('{')) return out.stdout;
     } catch {

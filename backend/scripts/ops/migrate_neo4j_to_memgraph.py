@@ -1,9 +1,29 @@
 """
-Export / Import utility for migrating Neo4j graph data to Memgraph.
-Supports:
-  1. python3 -m scripts.ops.migrate_neo4j_to_memgraph export --output data/neo4j_graph_dump.json
-  2. python3 -m scripts.ops.migrate_neo4j_to_memgraph import --input data/neo4j_graph_dump.json --uri bolt://localhost:7687
-  3. python3 -m scripts.ops.migrate_neo4j_to_memgraph verify --uri bolt://localhost:7687
+Graph migration: export a Bolt graph to JSON, import it into another Bolt graph,
+verify the result against the dump, then strip migration markers.
+
+Works in both directions and against both engines (Neo4j 5.x and Memgraph 3.x) --
+the only engine-specific surface is index DDL, which is detected at runtime.
+
+    python3 -m scripts.ops.migrate_neo4j_to_memgraph export \
+        --uri bolt://localhost:7687 --output data/graph_dump.json
+
+    python3 -m scripts.ops.migrate_neo4j_to_memgraph import \
+        --uri bolt://<target>:7687 --input data/graph_dump.json
+
+    python3 -m scripts.ops.migrate_neo4j_to_memgraph verify \
+        --uri bolt://<target>:7687 --against data/graph_dump.json
+
+    python3 -m scripts.ops.migrate_neo4j_to_memgraph finalize \
+        --uri bolt://<target>:7687
+
+`import` is idempotent and safe to re-run against a partially-migrated target: it
+MERGEs on migration markers rather than CREATEing. Those markers are what make a
+retry safe, so they are removed by a separate `finalize` step and NOT by `import`.
+Run `finalize` only once `verify` has passed.
+
+Railway note: Bolt (7687) is not routable from outside the Railway private network.
+Expose it with a TCP proxy first -- see scripts/ops/railway_graph_migrate.sh.
 """
 
 from __future__ import annotations
@@ -11,17 +31,61 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import re
+import sys
 import time
+from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
 
-from neo4j import GraphDatabase
+from neo4j import GraphDatabase, Session
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
-logger = logging.getLogger("migrate_neo4j_to_memgraph")
+logger = logging.getLogger("migrate_graph")
+
+# Migration markers. Present only between `import` and `finalize`.
+NODE_MARKER_LABEL = "_MigrationNode"
+NODE_MARKER_PROP = "_migration_id"
+REL_MARKER_PROP = "_migration_rid"
+
+# Only identifiers matching this may be interpolated into Cypher. Labels and
+# relationship types cannot be parametrized, so every one is checked against the
+# pattern before it reaches a query string.
+SAFE_IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+# Payload indexes the application depends on, recreated on the target after import.
+TARGET_INDEXES: tuple[tuple[str, str], ...] = (
+    ("base", "entity_id"),
+    ("base", "entity_name"),
+    ("base", "entity_type"),
+    ("base", "source_id"),
+    ("base", "tenant_id"),
+    ("Teacher", "name"),
+    ("Concept", "name"),
+    ("Practice", "name"),
+)
+
+
+class MigrationError(RuntimeError):
+    """Raised when a migration step cannot complete safely."""
+
+
+def _check_identifier(name: str, kind: str) -> str:
+    if not SAFE_IDENTIFIER.match(name):
+        raise MigrationError(f"Refusing to interpolate unsafe {kind} into Cypher: {name!r}")
+    return name
+
+
+def _server_kind(session: Session) -> str:
+    """Return 'memgraph' or 'neo4j'. Index DDL differs between the two."""
+    try:
+        session.run("SHOW VERSION").single()
+        return "memgraph"
+    except Exception:
+        return "neo4j"
 
 
 def _sanitize_val(val: Any) -> Any:
@@ -39,218 +103,377 @@ def _sanitize_val(val: Any) -> Any:
     return str(val)
 
 
-def export_neo4j(uri: str, user: str, password: str, output_path: Path) -> dict[str, Any]:
-    """Export all nodes and relationships from Neo4j to a JSON dump."""
-    logger.info(f"Connecting to source Neo4j at {uri}...")
+def _connect(uri: str, user: str, password: str):
     auth = (user, password) if user or password else None
     driver = GraphDatabase.driver(uri, auth=auth)
     driver.verify_connectivity()
+    return driver
 
-    nodes_data: list[dict[str, Any]] = []
-    rels_data: list[dict[str, Any]] = []
 
-    start_time = time.time()
+# --------------------------------------------------------------------------- export
+
+
+def export_graph(uri: str, user: str, password: str, output_path: Path) -> dict[str, Any]:
+    """Export every node and relationship to a JSON dump with a count manifest."""
+    logger.info(f"Connecting to source at {uri}...")
+    driver = _connect(uri, user, password)
+    start = time.time()
 
     with driver.session() as session:
-        logger.info("Fetching nodes from Neo4j...")
-        node_result = session.run(
-            "MATCH (n) RETURN elementId(n) AS elem_id, id(n) AS legacy_id, labels(n) AS labels, properties(n) AS props"
-        )
-        for record in node_result:
-            nodes_data.append(
-                {
-                    "elem_id": record["elem_id"],
-                    "legacy_id": record["legacy_id"],
-                    "labels": record["labels"],
-                    "props": _sanitize_val(record["props"]),
-                }
-            )
-        logger.info(f"Fetched {len(nodes_data)} nodes.")
+        logger.info(f"Source engine: {_server_kind(session)}")
 
-        logger.info("Fetching relationships from Neo4j...")
-        rel_result = session.run(
-            "MATCH (a)-[r]->(b) "
-            "RETURN elementId(a) AS start_elem_id, id(a) AS start_legacy_id, "
-            "elementId(b) AS end_elem_id, id(b) AS end_legacy_id, "
-            "type(r) AS rel_type, properties(r) AS props"
-        )
-        for record in rel_result:
-            rels_data.append(
-                {
-                    "start_elem_id": record["start_elem_id"],
-                    "start_legacy_id": record["start_legacy_id"],
-                    "end_elem_id": record["end_elem_id"],
-                    "end_legacy_id": record["end_legacy_id"],
-                    "rel_type": record["rel_type"],
-                    "props": _sanitize_val(record["props"]),
-                }
+        nodes = [
+            {
+                "elem_id": rec["elem_id"],
+                "labels": rec["labels"],
+                "props": _sanitize_val(rec["props"]),
+            }
+            for rec in session.run(
+                "MATCH (n) RETURN elementId(n) AS elem_id, labels(n) AS labels, "
+                "properties(n) AS props"
             )
-        logger.info(f"Fetched {len(rels_data)} relationships.")
+        ]
+        logger.info(f"Fetched {len(nodes)} nodes.")
+
+        rels = [
+            {
+                "rel_id": rec["rel_id"],
+                "start_elem_id": rec["start_elem_id"],
+                "end_elem_id": rec["end_elem_id"],
+                "rel_type": rec["rel_type"],
+                "props": _sanitize_val(rec["props"]),
+            }
+            for rec in session.run(
+                "MATCH (a)-[r]->(b) RETURN elementId(r) AS rel_id, "
+                "elementId(a) AS start_elem_id, elementId(b) AS end_elem_id, "
+                "type(r) AS rel_type, properties(r) AS props"
+            )
+        ]
+        logger.info(f"Fetched {len(rels)} relationships.")
 
     driver.close()
 
-    dump_payload = {
+    payload = {
         "timestamp": time.time(),
-        "node_count": len(nodes_data),
-        "relationship_count": len(rels_data),
-        "nodes": nodes_data,
-        "relationships": rels_data,
+        "source_uri": uri,
+        "node_count": len(nodes),
+        "relationship_count": len(rels),
+        "label_histogram": dict(Counter(lbl for n in nodes for lbl in n["labels"])),
+        "reltype_histogram": dict(Counter(r["rel_type"] for r in rels)),
+        "nodes": nodes,
+        "relationships": rels,
     }
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(output_path, "w", encoding="utf-8") as f:
-        json.dump(dump_payload, f, indent=2)
-
-    elapsed = time.time() - start_time
+    output_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     logger.info(
-        f"✅ Exported {len(nodes_data)} nodes and {len(rels_data)} relationships to {output_path} in {elapsed:.2f}s"
+        f"Exported {len(nodes)} nodes / {len(rels)} relationships to {output_path} "
+        f"in {time.time() - start:.2f}s"
     )
-    return dump_payload
+    return payload
 
 
-def import_memgraph(
+# --------------------------------------------------------------------------- indexes
+
+
+def _create_marker_index(session: Session, engine: str) -> None:
+    """Index the migration marker. Without it, relationship wiring is a full scan."""
+    if engine == "memgraph":
+        stmt = f"CREATE INDEX ON :{NODE_MARKER_LABEL}({NODE_MARKER_PROP})"
+    else:
+        stmt = (
+            f"CREATE INDEX migration_marker_idx IF NOT EXISTS "
+            f"FOR (n:{NODE_MARKER_LABEL}) ON (n.{NODE_MARKER_PROP})"
+        )
+    try:
+        session.run(stmt).consume()
+    except Exception as exc:  # already exists
+        logger.debug(f"Marker index notice: {exc}")
+
+
+def _drop_marker_index(session: Session, engine: str) -> None:
+    if engine == "memgraph":
+        stmt = f"DROP INDEX ON :{NODE_MARKER_LABEL}({NODE_MARKER_PROP})"
+    else:
+        stmt = "DROP INDEX migration_marker_idx IF EXISTS"
+    try:
+        session.run(stmt).consume()
+    except Exception as exc:
+        logger.debug(f"Marker index drop notice: {exc}")
+
+
+def _create_target_indexes(session: Session, engine: str) -> None:
+    for label, prop in TARGET_INDEXES:
+        _check_identifier(label, "label")
+        _check_identifier(prop, "property")
+        if engine == "memgraph":
+            stmt = f"CREATE INDEX ON :{label}({prop})"
+        else:
+            stmt = f"CREATE INDEX IF NOT EXISTS FOR (n:{label}) ON (n.{prop})"
+        try:
+            session.run(stmt).consume()
+        except Exception as exc:
+            logger.debug(f"Index {label}({prop}): {exc}")
+
+
+# --------------------------------------------------------------------------- import
+
+
+def _import_nodes(session: Session, nodes: list[dict[str, Any]], batch_size: int) -> None:
+    """MERGE nodes one UNWIND batch per distinct label set.
+
+    Labels cannot be parametrized, so nodes are grouped by their label set and each
+    group gets its own statement. 6,430 nodes across 13 label sets is ~13 distinct
+    statements instead of 6,430 round trips.
+    """
+    groups: dict[tuple[str, ...], list[dict[str, Any]]] = defaultdict(list)
+    for node in nodes:
+        groups[tuple(sorted(node["labels"] or []))].append(node)
+
+    logger.info(f"Importing {len(nodes)} nodes across {len(groups)} label sets...")
+    done = 0
+    for labels, group in groups.items():
+        for label in labels:
+            _check_identifier(label, "label")
+        label_str = ":".join([*labels, NODE_MARKER_LABEL])
+        cypher = (
+            f"UNWIND $rows AS row "
+            f"MERGE (n:{label_str} {{{NODE_MARKER_PROP}: row.id}}) "
+            f"SET n += row.props"
+        )
+        for i in range(0, len(group), batch_size):
+            rows = [{"id": n["elem_id"], "props": n["props"]} for n in group[i : i + batch_size]]
+            session.run(cypher, rows=rows).consume()
+            done += len(rows)
+            logger.info(f"  nodes {done}/{len(nodes)}")
+
+
+def _import_relationships(session: Session, rels: list[dict[str, Any]], batch_size: int) -> None:
+    """MERGE relationships one UNWIND batch per relationship type.
+
+    Edges are keyed on their source elementId, not on (start, type, end): this graph
+    contains parallel same-type edges between the same pair, which a MERGE without a
+    distinguishing property would silently collapse into one.
+    """
+    groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for idx, rel in enumerate(rels):
+        groups[rel["rel_type"]].append({**rel, "_fallback_rid": f"idx:{idx}"})
+
+    logger.info(f"Importing {len(rels)} relationships across {len(groups)} types...")
+    done = 0
+    for rel_type, group in groups.items():
+        _check_identifier(rel_type, "relationship type")
+        cypher = (
+            f"UNWIND $rows AS row "
+            f"MATCH (a:{NODE_MARKER_LABEL} {{{NODE_MARKER_PROP}: row.s}}) "
+            f"MATCH (b:{NODE_MARKER_LABEL} {{{NODE_MARKER_PROP}: row.e}}) "
+            f"MERGE (a)-[r:{rel_type} {{{REL_MARKER_PROP}: row.rid}}]->(b) "
+            f"SET r += row.props"
+        )
+        for i in range(0, len(group), batch_size):
+            rows = [
+                {
+                    "s": r["start_elem_id"],
+                    "e": r["end_elem_id"],
+                    "rid": str(r.get("rel_id") or r["_fallback_rid"]),
+                    "props": r["props"],
+                }
+                for r in group[i : i + batch_size]
+            ]
+            session.run(cypher, rows=rows).consume()
+            done += len(rows)
+            logger.info(f"  relationships {done}/{len(rels)}")
+
+
+def import_graph(
     uri: str, user: str, password: str, input_path: Path, batch_size: int = 500
 ) -> None:
-    """Import nodes and relationships from JSON dump into Memgraph."""
-    logger.info(f"Loading dump from {input_path}...")
-    with open(input_path, encoding="utf-8") as f:
-        data = json.load(f)
-
+    """Import a dump into the target. Idempotent; leaves migration markers in place."""
+    data = json.loads(input_path.read_text(encoding="utf-8"))
     nodes = data.get("nodes", [])
     rels = data.get("relationships", [])
-    logger.info(f"Dump contains {len(nodes)} nodes and {len(rels)} relationships.")
+    logger.info(f"Dump {input_path}: {len(nodes)} nodes, {len(rels)} relationships.")
 
-    logger.info(f"Connecting to target Memgraph at {uri}...")
-    auth = (user, password) if user or password else None
-    driver = GraphDatabase.driver(uri, auth=auth)
-    driver.verify_connectivity()
-
-    start_time = time.time()
+    driver = _connect(uri, user, password)
+    start = time.time()
 
     with driver.session() as session:
-        # 1. Create index on _migration_id for fast relationship wiring
-        logger.info("Setting up indices in Memgraph...")
-        try:
-            session.run("CREATE INDEX ON :_MigrationNode(migration_id);").consume()
-        except Exception as e:
-            logger.warning(f"Index creation notice: {e}")
+        engine = _server_kind(session)
+        logger.info(f"Target engine: {engine} at {uri}")
 
-        # 2. Insert nodes in batches
-        logger.info(f"Importing {len(nodes)} nodes in batches of {batch_size}...")
-        for i in range(0, len(nodes), batch_size):
-            batch = nodes[i : i + batch_size]
-            for item in batch:
-                elem_id = item["elem_id"]
-                labels = item["labels"] or []
-                # Include helper label _MigrationNode
-                label_str = (
-                    ":" + ":".join(labels + ["_MigrationNode"]) if labels else ":_MigrationNode"
-                )
-                props = item["props"]
-                props["_migration_id"] = elem_id
+        _create_marker_index(session, engine)
+        _import_nodes(session, nodes, batch_size)
+        _create_target_indexes(session, engine)
+        _import_relationships(session, rels, batch_size)
 
-                cypher = f"CREATE (n{label_str}) SET n = $props"
-                session.run(cypher, props=props)
-            logger.info(f"Inserted nodes {min(i + batch_size, len(nodes))}/{len(nodes)}")
-
-        # 3. Create indices on standard labels
-        for common_label, prop in [
-            ("Teacher", "name"),
-            ("Concept", "name"),
-            ("Practice", "name"),
-            ("base", "entity_id"),
-        ]:
-            try:
-                session.run(f"CREATE INDEX ON :{common_label}({prop});").consume()
-            except Exception as e:
-                logger.debug(f"Index for {common_label}({prop}): {e}")
-
-        # 4. Insert relationships in batches
-        logger.info(f"Importing {len(rels)} relationships in batches of {batch_size}...")
-        for i in range(0, len(rels), batch_size):
-            batch = rels[i : i + batch_size]
-            for item in batch:
-                start_id = item["start_elem_id"]
-                end_id = item["end_elem_id"]
-                rel_type = item["rel_type"]
-                props = item["props"]
-
-                cypher = f"""
-                MATCH (a:_MigrationNode {{_migration_id: $start_id}})
-                MATCH (b:_MigrationNode {{_migration_id: $end_id}})
-                CREATE (a)-[r:{rel_type}]->(b)
-                SET r = $props
-                """
-                session.run(cypher, start_id=start_id, end_id=end_id, props=props)
-            logger.info(f"Inserted relationships {min(i + batch_size, len(rels))}/{len(rels)}")
-
-        # 5. Clean up helper label and migration_id property
-        logger.info("Cleaning up temporary migration metadata...")
-        try:
-            session.run(
-                "MATCH (n:_MigrationNode) REMOVE n:_MigrationNode, n._migration_id"
-            ).consume()
-            session.run("DROP INDEX ON :_MigrationNode(migration_id);").consume()
-        except Exception as e:
-            logger.warning(f"Cleanup notice: {e}")
-
-        # 6. Verify counts
-        m_nodes = session.run("MATCH (n) RETURN count(n) AS c").single()["c"]
-        m_rels = session.run("MATCH ()-[r]->() RETURN count(r) AS c").single()["c"]
+        live_nodes = session.run("MATCH (n) RETURN count(n) AS c").single()["c"]
+        live_rels = session.run("MATCH ()-[r]->() RETURN count(r) AS c").single()["c"]
 
     driver.close()
-    elapsed = time.time() - start_time
     logger.info(
-        f"✅ Migration complete in {elapsed:.2f}s! Memgraph has {m_nodes} nodes and {m_rels} relationships."
+        f"Import finished in {time.time() - start:.2f}s. "
+        f"Target now holds {live_nodes} nodes / {live_rels} relationships."
     )
+    logger.info("Migration markers retained so a retry stays safe. Run `verify`, then `finalize`.")
 
 
-def verify_counts(uri: str, user: str, password: str) -> None:
-    auth = (user, password) if user or password else None
-    driver = GraphDatabase.driver(uri, auth=auth)
-    with driver.session() as s:
-        n = s.run("MATCH (n) RETURN count(n) AS c").single()["c"]
-        r = s.run("MATCH ()-[r]->() RETURN count(r) AS c").single()["c"]
-        logger.info(f"Graph Database at {uri}: {n} nodes, {r} relationships")
+# --------------------------------------------------------------------------- verify
+
+
+def verify_graph(uri: str, user: str, password: str, against: Path | None) -> bool:
+    """Compare the live target against the dump manifest. Returns True when it matches."""
+    driver = _connect(uri, user, password)
+    with driver.session() as session:
+        live = {
+            "node_count": session.run("MATCH (n) RETURN count(n) AS c").single()["c"],
+            "relationship_count": session.run("MATCH ()-[r]->() RETURN count(r) AS c").single()[
+                "c"
+            ],
+            "label_histogram": {
+                rec["l"]: rec["c"]
+                for rec in session.run("MATCH (n) UNWIND labels(n) AS l RETURN l, count(*) AS c")
+                if rec["l"] != NODE_MARKER_LABEL
+            },
+            "reltype_histogram": {
+                rec["t"]: rec["c"]
+                for rec in session.run("MATCH ()-[r]->() RETURN type(r) AS t, count(*) AS c")
+            },
+        }
     driver.close()
 
+    logger.info(
+        f"Target {uri}: {live['node_count']} nodes, {live['relationship_count']} relationships"
+    )
+    if against is None:
+        logger.warning("No --against dump supplied; counts reported but NOT verified.")
+        return True
 
-def main():
-    parser = argparse.ArgumentParser(description="Migrate Neo4j to Memgraph")
+    expected = json.loads(against.read_text(encoding="utf-8"))
+    return _report_mismatches(expected, live)
+
+
+def _report_mismatches(expected: dict[str, Any], live: dict[str, Any]) -> bool:
+    """Log every discrepancy between dump and target. Returns True when identical."""
+    failures: list[str] = []
+
+    for key in ("node_count", "relationship_count"):
+        if expected.get(key) != live[key]:
+            failures.append(f"{key}: dump={expected.get(key)} target={live[key]}")
+
+    for key in ("label_histogram", "reltype_histogram"):
+        exp_hist: dict[str, int] = expected.get(key, {})
+        live_hist: dict[str, int] = live[key]
+        for name in sorted(set(exp_hist) | set(live_hist)):
+            if exp_hist.get(name, 0) != live_hist.get(name, 0):
+                failures.append(
+                    f"{key}[{name}]: dump={exp_hist.get(name, 0)} target={live_hist.get(name, 0)}"
+                )
+
+    if failures:
+        logger.error(f"VERIFY FAILED -- {len(failures)} mismatch(es):")
+        for line in failures:
+            logger.error(f"  {line}")
+        return False
+
+    logger.info(
+        f"VERIFY PASSED -- {live['node_count']} nodes, {live['relationship_count']} "
+        f"relationships, {len(live['label_histogram'])} labels, "
+        f"{len(live['reltype_histogram'])} relationship types all match the dump."
+    )
+    return True
+
+
+# --------------------------------------------------------------------------- finalize
+
+
+def finalize_graph(uri: str, user: str, password: str, batch_size: int = 1000) -> None:
+    """Strip migration markers. Run only after `verify` passes -- this ends retry safety."""
+    driver = _connect(uri, user, password)
+    with driver.session() as session:
+        engine = _server_kind(session)
+
+        removed = _drain(
+            session,
+            f"MATCH (n:{NODE_MARKER_LABEL}) WITH n LIMIT $limit "
+            f"REMOVE n:{NODE_MARKER_LABEL}, n.{NODE_MARKER_PROP} RETURN count(*) AS c",
+            batch_size,
+        )
+        logger.info(f"Cleared node markers from {removed} nodes.")
+
+        removed = _drain(
+            session,
+            f"MATCH ()-[r]->() WHERE r.{REL_MARKER_PROP} IS NOT NULL WITH r LIMIT $limit "
+            f"REMOVE r.{REL_MARKER_PROP} RETURN count(*) AS c",
+            batch_size,
+        )
+        logger.info(f"Cleared relationship markers from {removed} relationships.")
+
+        _drop_marker_index(session, engine)
+    driver.close()
+    logger.info("Finalize complete. The target is now a plain graph with no migration metadata.")
+
+
+def _drain(session: Session, cypher: str, batch_size: int) -> int:
+    """Run a LIMIT-ed mutation repeatedly until it stops matching rows.
+
+    Batched because the target runs under a hard memory cap (Memgraph is started with
+    --memory-limit=512); a single transaction touching every node can exceed it.
+    """
+    total = 0
+    while True:
+        count = session.run(cypher, limit=batch_size).single()["c"]
+        if not count:
+            return total
+        total += count
+
+
+# --------------------------------------------------------------------------- cli
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Migrate a Bolt graph between servers")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    # Export
+    def _common(sub: argparse.ArgumentParser) -> None:
+        sub.add_argument("--uri", default="bolt://localhost:7687")
+        sub.add_argument("--user", default="neo4j")
+        sub.add_argument("--password", default="")
+
     exp = subparsers.add_parser("export")
-    exp.add_argument("--uri", default="bolt://localhost:7687")
-    exp.add_argument("--user", default="neo4j")
-    exp.add_argument("--password", default="mukthiguru_neo4j_pass")
-    exp.add_argument("--output", default="data/neo4j_graph_dump.json")
+    _common(exp)
+    exp.add_argument("--output", default="data/graph_dump.json")
 
-    # Import
     imp = subparsers.add_parser("import")
-    imp.add_argument("--uri", default="bolt://localhost:7687")
-    imp.add_argument("--user", default="")
-    imp.add_argument("--password", default="")
-    imp.add_argument("--input", default="data/neo4j_graph_dump.json")
-    imp.add_argument("--batch-size", type=int, default=200)
+    _common(imp)
+    imp.add_argument("--input", default="data/graph_dump.json")
+    imp.add_argument("--batch-size", type=int, default=500)
 
-    # Verify
     ver = subparsers.add_parser("verify")
-    ver.add_argument("--uri", default="bolt://localhost:7687")
-    ver.add_argument("--user", default="")
-    ver.add_argument("--password", default="")
+    _common(ver)
+    ver.add_argument(
+        "--against", default=None, help="Dump to compare against; omit for counts only"
+    )
+
+    fin = subparsers.add_parser("finalize")
+    _common(fin)
+    fin.add_argument("--batch-size", type=int, default=1000)
 
     args = parser.parse_args()
 
     if args.command == "export":
-        export_neo4j(args.uri, args.user, args.password, Path(args.output))
+        export_graph(args.uri, args.user, args.password, Path(args.output))
     elif args.command == "import":
-        import_memgraph(
+        import_graph(
             args.uri, args.user, args.password, Path(args.input), batch_size=args.batch_size
         )
     elif args.command == "verify":
-        verify_counts(args.uri, args.user, args.password)
+        against = Path(args.against) if args.against else None
+        if not verify_graph(args.uri, args.user, args.password, against):
+            return 1
+    elif args.command == "finalize":
+        finalize_graph(args.uri, args.user, args.password, batch_size=args.batch_size)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

@@ -31,7 +31,7 @@ function discoverLocalSupabaseEnv(): string {
     const out = execSync('npx supabase status --output json', {
       env: { ...process.env, PATH: path },
       encoding: 'utf8',
-      timeout: 60_000,
+      timeout: 3_000,
     });
     const json = JSON.parse(out.slice(out.indexOf('{')));
     if (json.API_URL && json.ANON_KEY) {
@@ -125,6 +125,7 @@ export default defineConfig({
     // same project its Alice/Bob accounts were actually created in.
     command: `VITE_BACKEND_URL= VITE_NATIVE_BACKEND= VITE_GOOGLE_CLIENT_ID= VITE_ENABLE_E2E_DIAGNOSTICS=true ${discoverLocalSupabaseEnv()} npm run build && npm run preview -- --host 127.0.0.1`,
     port: 4173,
+    timeout: 120 * 1000,
     reuseExistingServer: !process.env.CI,
   },
 });
