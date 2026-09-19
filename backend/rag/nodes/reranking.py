@@ -6,6 +6,8 @@ import asyncio
 import logging
 import re
 
+from langchain_core.runnables import RunnableConfig
+
 from app.tracing import trace_rag_node
 from rag.compressor import compress_documents
 from rag.doc_utils import doc_text
@@ -34,7 +36,7 @@ def _limit_rerank_candidates(documents: list[dict], query_tier: str) -> list[dic
 
 @trace_rag_node("rerank_documents")
 @log_metrics
-async def rerank_documents(state: GraphState, config: dict = None) -> dict:
+async def rerank_documents(state: GraphState, config: RunnableConfig | None = None) -> dict:
     """Rerank Documents (CrossEncoder) with adaptive thresholds and MMR."""
     question = state.get("rewritten_query") or state["question"]
     documents = state.get("documents", [])
@@ -234,7 +236,7 @@ async def rerank_documents(state: GraphState, config: dict = None) -> dict:
 
 @trace_rag_node("grade_documents")
 @log_metrics
-async def grade_documents(state: GraphState, config: dict = None) -> dict:
+async def grade_documents(state: GraphState, config: RunnableConfig | None = None) -> dict:
     """CRAG: Grade documents using rerank score confidence, escalating to LLM grading only for ambiguous scores."""
     ollama = _services._ollama
     embedder = _services._embedder
@@ -451,7 +453,7 @@ async def grade_documents(state: GraphState, config: dict = None) -> dict:
 
 @trace_rag_node("enrich_context")
 @log_metrics
-async def enrich_context(state: GraphState, config: dict = None) -> dict:
+async def enrich_context(state: GraphState, config: RunnableConfig | None = None) -> dict:
     """Fetch neighbor chunks for the top relevant documents (RAG Made Simple Ch 8)."""
     relevant_docs = state.get("relevant_docs", [])
     qdrant = _services._qdrant

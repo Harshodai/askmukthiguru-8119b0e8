@@ -1,5 +1,18 @@
 ## Sep 19, 2026 (Session 3) — Zero-WARNING Production Logs, Qdrant Contextual Switch, and LightRAG Verification
 
+### L-LANGGRAPH-WARN-1. Node functions must type config as RunnableConfig | None, not dict
+- **Who**: Antigravity agent, 2026-09-19 session 3.
+- **What**: In LangGraph 0.2+, registering node functions with `config: dict = None` triggers runtime `UserWarning: The 'config' parameter should be typed as 'RunnableConfig' or 'RunnableConfig | None', not 'dict'`. This emitted 17 warning lines into startup logs during graph compilation.
+- **Fix**: Imported `from langchain_core.runnables import RunnableConfig` and updated all node handler signatures across `retrieval.py`, `reranking.py`, `short_circuit.py`, `verification.py`, and `web_search.py` to `config: RunnableConfig | None = None`.
+- **Rule**: All LangGraph graph node functions receiving `config` must strictly use `RunnableConfig | None = None` type annotations.
+
+### L-IMAGE-STRIP-1. Stripping unneeded debug symbols from builder wheels reduces image size
+- **Who**: Antigravity agent, 2026-09-19 session 3.
+- **What**: Production backend Docker image was previously ~7.8GB due to unquantized PyTorch models, CUDA libraries, and unstripped shared objects in wheels.
+- **Fix**: (1) Multi-stage `/opt/venv` build with CPU-only wheels (`--extra-index-url https://download.pytorch.org/whl/cpu`). (2) `QUANTIZED_ONLY=true` ONNX INT8 model baking (~1.3GB vs ~7.5GB). (3) Added `binutils` to builder and ran `strip --strip-unneeded` on all `/opt/venv/lib/**/*.so*` binaries, dropping hundreds of MB of debug symbol bloat. (4) Purged `.git` directories in HuggingFace cache and `.a` static libraries.
+- **Rule**: Production multi-stage Docker builds must strip `.so` files and remove unneeded compilation artifacts before copying the virtualenv into the runtime image.
+
+
 ### L-MIGRATE-QDRANT-1. Railway QDRANT_COLLECTION must match contextual collection
 - **Who**: Antigravity agent, 2026-09-19 session 3.
 - **What**: Railway environment had `QDRANT_COLLECTION=spiritual_wisdom` pointing at legacy 89,116-point uncontextual collection, ignoring the codebase default `spiritual_wisdom_contextual` (12,904 clean contextual chunks). The legacy collection consumed ~1 GB RAM in Qdrant and had uncleaned prompt text.

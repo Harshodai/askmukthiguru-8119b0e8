@@ -21,6 +21,8 @@ from services.confidence_scorer import (
     confidence_calibration_status,
 )
 
+from langchain_core.runnables import RunnableConfig
+
 from . import _services
 from .utils import emit_status, log_metrics, settings
 
@@ -320,7 +322,7 @@ def check_persona_adherence(answer: str) -> str | None:
 
 @trace_rag_node("reflect_on_answer")
 @log_metrics
-async def reflect_on_answer(state: GraphState, config: dict = None) -> dict:
+async def reflect_on_answer(state: GraphState, config: RunnableConfig | None = None) -> dict:
     """Self-Reflection RAG loop with LettuceDetect and self-consistency checking."""
     verification = state.get("verification") or {}
     ver_method = verification.get("method") if isinstance(verification, dict) else None
@@ -479,7 +481,7 @@ async def reflect_on_answer(state: GraphState, config: dict = None) -> dict:
 
 @trace_rag_node("verify_answer")
 @log_metrics
-async def verify_answer(state: GraphState, config: dict = None) -> dict:
+async def verify_answer(state: GraphState, config: RunnableConfig | None = None) -> dict:
     """Enhanced Combined Self-RAG + CoVe verification with actual claim verification.
 
     Local NLI claim entailment (LettuceDetect) directly informs is_valid and
@@ -791,7 +793,7 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
 
 @trace_rag_node("combined_grade_and_verify")
 @log_metrics
-async def combined_grade_and_verify(state: GraphState, config: dict = None) -> dict:
+async def combined_grade_and_verify(state: GraphState, config: RunnableConfig | None = None) -> dict:
     """Combined grading + verification that skips LLM when local checks pass.
 
     Runs LettuceDetect faithfulness (local, no LLM) and constitutional
@@ -996,7 +998,9 @@ async def combined_grade_and_verify(state: GraphState, config: dict = None) -> d
     return await verify_answer(state, config)
 
 
-async def _verify_with_gateway(state: GraphState, config: dict = None) -> dict | None:
+async def _verify_with_gateway(
+    state: GraphState, config: RunnableConfig | None = None
+) -> dict | None:
     """Verification path for tier3_complex / tier4_deep using container.llm_gateway.
 
     Runs a single combined Self-RAG + CoVe call via the gateway and returns the
@@ -1083,7 +1087,7 @@ async def _verify_with_gateway(state: GraphState, config: dict = None) -> dict |
 
 
 async def _cove_subquestion_check(
-    question: str, answer: str, context: str, ollama, config: dict | None = None
+    question: str, answer: str, context: str, ollama, config: RunnableConfig | None = None
 ):
     """Lightweight CoVe: generate sub-questions and score support.
     Returns dict with passed, details, and confidence.

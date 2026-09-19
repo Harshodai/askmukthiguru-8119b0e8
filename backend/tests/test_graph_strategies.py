@@ -30,10 +30,14 @@ async def test_deep_graph_adds_contradiction_gate_for_tier4_deep():
 
 
 @pytest.mark.asyncio
-async def test_deep_contradiction_gate_fail_closed_no_services():
+async def test_deep_contradiction_gate_fail_closed_no_services(monkeypatch):
     """deep_contradiction_gate must fail closed when no gateway or lettuce is available."""
     from rag.graph_strategies import deep_contradiction_gate
+    from rag.nodes import _services
     from rag.states import GraphState
+
+    monkeypatch.setattr(_services, "_llm_gateway", None)
+    monkeypatch.setattr(_services, "_lettuce_detect", None)
 
     state = GraphState(
         question="q",

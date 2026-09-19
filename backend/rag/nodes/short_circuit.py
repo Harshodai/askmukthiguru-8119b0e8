@@ -7,6 +7,8 @@ import re
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
+from langchain_core.runnables import RunnableConfig
+
 from app.tracing import trace_rag_node
 from rag.states import GraphState
 from rag.timeout_utils import get_node_timeout
@@ -135,7 +137,7 @@ class RewrittenQuery(BaseModel):
 
 @trace_rag_node("regenerate_gate")
 @log_metrics
-async def regenerate_gate(state: GraphState, config: dict = None) -> dict:
+async def regenerate_gate(state: GraphState, config: RunnableConfig | None = None) -> dict:
     """Opt-in cheap correction: consume one rewrite attempt without re-retrieving.
 
     A pure faithfulness/persona failure on documents `grade_documents` already
@@ -158,7 +160,7 @@ async def regenerate_gate(state: GraphState, config: dict = None) -> dict:
 
 @trace_rag_node("rewrite_query")
 @log_metrics
-async def rewrite_query(state: GraphState, config: dict = None) -> dict:
+async def rewrite_query(state: GraphState, config: RunnableConfig | None = None) -> dict:
     """CRAG: Self-correcting query rewrite."""
     rewrite_count = state.get("rewrite_count", 0) + 1
     original = state.get("rewritten_query") or state["question"]
@@ -207,7 +209,7 @@ async def rewrite_query(state: GraphState, config: dict = None) -> dict:
 
 @trace_rag_node("handle_fallback")
 @log_metrics
-async def handle_fallback(state: GraphState, config: dict = None) -> dict:
+async def handle_fallback(state: GraphState, config: RunnableConfig | None = None) -> dict:
     """Return a bounded, honest fallback without discarding safe general help."""
     await emit_status(config, "Preparing a graceful response...")
     if _is_simple_meditation_comparison_request(state.get("question", "")):

@@ -5,6 +5,8 @@ from __future__ import annotations
 import logging
 from datetime import UTC, datetime, timedelta
 
+from langchain_core.runnables import RunnableConfig
+
 from app.config import settings
 from app.constants import IntentType
 from app.schemas import LiveLogisticsEvent
@@ -17,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 @trace_rag_node("web_search")
 @log_metrics
-async def web_search_node(state: GraphState, config: dict = None) -> dict:
+async def web_search_node(state: GraphState, config: RunnableConfig | None = None) -> dict:
     """Fetch official event, schedule, and booking results only.
 
     General temporal questions deliberately do not invoke live search. This
