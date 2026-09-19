@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthStatus } from '@/hooks/useAuthStatus';
+import { useToast } from '@/hooks/use-toast';
+import { useTranslation } from 'react-i18next';
 import { GOOGLE_GSI_SDK_URL, GOOGLE_CLIENT_ID_FALLBACK } from '@/lib/authConstants';
 
 function generateNonce(): string {
@@ -33,8 +35,19 @@ async function sha256Hex(input: string): Promise<string | null> {
 
 export const GoogleOneTap = () => {
   const { status } = useAuthStatus();
+  const { toast } = useToast();
+  const { t } = useTranslation();
   const initialized = useRef(false);
   const nonce = useRef('');
+  // Same double-callback race as AuthPage.tsx's handleGoogleOneTapResponse:
+  // GSI can invoke this callback twice for one sign-in. Without these guards,
+  // a second, sequential callback reuses an already-consumed nonce, throws
+  // "Nonces mismatch", and — because this component previously only
+  // console.error'd on failure with no toast on success either — the whole
+  // interaction looked silently broken even when the first callback had
+  // already signed the user in. Reported live 2026-09-19.
+  const inFlightRef = useRef(false);
+  const justSucceededRef = useRef(false);
 
   useEffect(() => {
     if (status !== 'anonymous' || initialized.current) return;
@@ -64,6 +77,8 @@ export const GoogleOneTap = () => {
         g.accounts.id.initialize({
           client_id: clientId,
           callback: async (response) => {
+            if (inFlightRef.current) return;
+            inFlightRef.current = true;
             try {
               const { error } = await supabase.auth.signInWithIdToken({
                 provider: 'google',
@@ -71,13 +86,28 @@ export const GoogleOneTap = () => {
                 nonce: hashedNonce,
               });
               if (error) throw error;
+              justSucceededRef.current = true;
+              setTimeout(() => { justSucceededRef.current = false; }, 5000);
+              toast({ title: t('auth.welcomeBack'), description: t('auth.signedInOneTap') });
             } catch (err) {
+              const msg = err instanceof Error ? err.message : String(err);
               console.error('[Google OneTap] Sign-in failed:', err);
+              if (msg.includes('Nonces mismatch') || msg.includes('nonce')) {
+                if (justSucceededRef.current) return;
+                for (const delayMs of [0, 150, 400]) {
+                  if (delayMs > 0) await new Promise((r) => setTimeout(r, delayMs));
+                  const { data: { session } } = await supabase.auth.getSession();
+                  if (session) return;
+                }
+              }
+              toast({ title: t('auth.oneTapFailed'), variant: 'destructive' });
+            } finally {
+              inFlightRef.current = false;
             }
           },
           auto_select: true,
           cancel_on_tap_outside: true,
-          data_fedcm: true,
+          itp_support: true,
           nonce: hashedNonce,
         });
 
