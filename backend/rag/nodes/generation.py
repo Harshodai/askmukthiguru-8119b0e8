@@ -2917,9 +2917,18 @@ def _enforce_attribution_floor(fn):
         if not isinstance(result, dict):
             return result
         answer = result.get("final_answer")
-        # Citations present => attribution is sourced, which is the product's
-        # intended voice (Option A, third person with attributed quotes).
-        if not answer or result.get("citations"):
+        # Citations check: must use explicit len() rather than truthiness.
+        # result["citations"] may be [] after _sanitize_citations filters non-URL
+        # entries even when state had valid citations going into format_final_answer.
+        # An empty list is falsy but does NOT mean zero citations were present —
+        # the sourced answer should never be stripped in that case.
+        result_citations = result.get("citations")
+        state_citations = state.get("citations")
+        has_citations = (
+            (result_citations is not None and len(result_citations) > 0)
+            or (state_citations is not None and len(state_citations) > 0)
+        )
+        if not answer or has_citations:
             return result
 
         guarded_answer, removed = voice_register.strip_unsourced_attributions(answer)

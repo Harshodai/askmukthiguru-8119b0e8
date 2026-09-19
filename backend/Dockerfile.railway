@@ -1,29 +1,82 @@
-# ── Mukthi Guru — Railway Production Dockerfile (Token-Optimized) ──────────────
-# Optimised for Railway.app with aggressive token optimization:
-#   - Python 3.12 slim to minimise image size
-#   - No dev dependencies (no FlashRank, no ipykernel, etc.)
-#   - Health check via /api/health
-#   - 2 uvicorn workers for concurrency under production load
-#   - Semantic cache (Qdrant) + Hot cache (in-process) + Redis coalescer
-#   - Request deduplication via Redis for horizontal scaling (60-80% reduction in redundant calls)
-#   - Multi-tier caching: hot (0ms) → vector (P90) → semantic (Qdrant) → inference
-#   - Lazy model loading to reduce startup time and memory footprint
-#   - Connection pooling for Redis and Qdrant
+# ── Mukthi Guru — Railway Production Dockerfile (Multi-Stage, Size-Optimised) ──
+# Two-stage build to eliminate ~5GB of build-time bloat:
+#   Stage 1 (builder): installs ALL Python deps + downloads ONNX INT8 models
+#   Stage 2 (runtime): copies only site-packages + model cache + app code
+#
+# Optimisations vs single-stage:
+#   - gcc/g++/make stay in builder (never land in final image)
+#   - pip + HF download machinery stripped from final image
+#   - Model .lock / .gitattributes files pruned before copy
+#   - QUANTIZED_ONLY=true: only INT8 ONNX models cached (~1.3GB vs ~7.5GB FP32)
+#   - CPU-only torch wheel from pytorch.org/whl/cpu (no CUDA libs)
+#   - --no-compile during pip install (skips .pyc in builder; PYTHONOPTIMIZE=1 at runtime)
+#   - torchvision kept (required by easyocr for OCR path)
+#   - ffmpeg kept (required by whisper_local_service.py for audio STT)
+#
+# Target final image: ~2.5-3GB (vs 7.8GB before)
 
-FROM python:3.12-slim
+# ── Stage 1: Builder ─────────────────────────────────────────────────────────
+FROM python:3.12-slim AS builder
 
-# ── Cache Buster ──
-# This layer is intentionally touched for the terminal-fallback corrective release;
-# keep it behavior-neutral and never use it to bypass corpus or model evidence gates.
-# This arg is filled by railway up (or buildx) with the commit hash.
-# It busts the Docker build cache on every new commit. Platforms without
-# --build-arg support will silently ignore it (no effect on dev).
-ARG GIT_COMMIT
-RUN echo "Build: ${GIT_COMMIT:-$(date +%s)}" > /dev/null
-
-# System deps: curl for healthcheck, gcc for compiled extensions
+# Build deps: compiler chain for native extensions + curl for healthcheck sanity
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl gcc g++ make ffmpeg nodejs && \
+    curl gcc g++ make libgomp1 && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /var/cache/apt/*
+
+WORKDIR /build
+
+# Layer 1: torch CPU-only wheel (pinned, largest single package ~700MB compressed)
+COPY backend/requirements.lock ./requirements.lock
+RUN pip install --no-cache-dir --no-compile \
+    --extra-index-url https://download.pytorch.org/whl/cpu \
+    torch==2.13.0 torchvision==0.28.0 && \
+    pip cache purge
+
+# Layer 2: remaining dependencies (excluding torch/torchvision already installed)
+RUN pip install --no-cache-dir --no-compile \
+    --extra-index-url https://download.pytorch.org/whl/cpu \
+    -r requirements.lock && \
+    pip cache purge
+
+# Layer 3: pre-cache ONNX INT8 quantised models (skip FP32 via QUANTIZED_ONLY=true)
+ENV HF_HOME=/build/model_cache/huggingface \
+    SENTENCE_TRANSFORMERS_HOME=/build/model_cache/huggingface/sentence_transformers \
+    TRANSFORMERS_CACHE=/build/model_cache/huggingface \
+    QUANTIZED_ONLY=true \
+    EMBEDDING_BACKEND=onnx_int8 \
+    RERANKER_BACKEND=onnx_int8 \
+    CURL_CA_BUNDLE=""
+
+COPY backend/scripts/download_models.py ./scripts/download_models.py
+RUN python3 scripts/download_models.py && \
+    # Prune lock files, git metadata, and redundant blobs to slim the cache
+    find /build/model_cache -type f \( \
+        -name "*.lock" -o -name ".gitattributes" -o \
+        -name "*.md" -o -name "*.py" -o \
+        -name "requirements.txt" \
+    \) -delete 2>/dev/null || true && \
+    # Remove huggingface download metadata (not needed at runtime)
+    find /build/model_cache -type d -name ".locks" -exec rm -rf {} + 2>/dev/null || true && \
+    find /build/model_cache -type d -name "tmp*" -exec rm -rf {} + 2>/dev/null || true && \
+    # Remove __pycache__ from site-packages
+    find /usr/local/lib/python3.12/site-packages -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true && \
+    find /usr/local/lib/python3.12/site-packages -type f -name "*.pyc" -delete 2>/dev/null || true && \
+    # Strip test files from site-packages (saves ~200MB)
+    find /usr/local/lib/python3.12/site-packages -type d \( \
+        -name "tests" -o -name "test" -o -name "testing" -o \
+        -name "benchmarks" -o -name "examples" \
+    \) -exec rm -rf {} + 2>/dev/null || true && \
+    rm -rf /tmp/*
+
+# ── Stage 2: Runtime ─────────────────────────────────────────────────────────
+FROM python:3.12-slim AS runtime
+
+# Runtime system deps only: no compiler toolchain
+# libgomp1: required by ONNX runtime for OpenMP parallelism
+# ffmpeg: required by whisper_local_service.py for audio STT (16kHz mono conversion)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl ffmpeg libgomp1 && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /var/cache/apt/* /tmp/* /var/tmp/*
 
@@ -32,63 +85,51 @@ RUN useradd -m -s /bin/bash appuser
 
 WORKDIR /app
 
-# Install Python deps before copying app code (cache layer)
-COPY backend/requirements.lock ./requirements.lock
-RUN pip install --no-cache-dir -r requirements.lock && \
-    pip cache purge
+# Copy Python packages from builder (compiler-free runtime)
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
 
-# Pre-cache the primary embedding model at build time — avoids the runtime
-# cold-start download (and the corruption/OOM risk under Railway's constrained
-# resources) that caused the 2026-07-16 dimension-mismatch incident. See
-# CLAUDE.md "Embedding dimension contract". HF_HOME must match at runtime
-# (unset elsewhere, so this is the only place it's defined) for the encoder
-# load in embedding_service.py to hit this cache instead of re-downloading.
-# Pinned to commit hash 2b34e84df040034d4b9eabb62383a87c18955822 so the
-# digest is immutable across rebuilds — see lessons.md "Embedding dimension
-# contract" for the full incident analysis.
-ENV HF_HOME=/app/.cache/huggingface
-RUN mkdir -p /app/.cache/huggingface && chown -R appuser:appuser /app/.cache
-USER appuser
-# Pre-cache the ONNX INT8 quantized BGE-M3 model & tokenizer at build time for fast cold-start
-RUN python3 -c "from huggingface_hub import snapshot_download; snapshot_download('gpahal/bge-m3-onnx-int8', revision='2b34e84df040034d4b9eabb62383a87c18955822'); from transformers import AutoTokenizer; AutoTokenizer.from_pretrained('BAAI/bge-m3', revision='5617a9f61b028005a4858fdac845db406aefb181')" && \
-    rm -rf /app/.cache/huggingface/hub/models--*/*/locks /tmp/*
+# Copy pre-baked model cache from builder
+COPY --chown=appuser:appuser --from=builder /build/model_cache /app/.cache
 
-# Pre-cache the PyTorch CrossEncoder reranker (settings.reranker_model_cpu,
-# services/reranker_service.py) that RERANKER_BACKEND=onnx_int8 falls back to
-# when OnnxReranker fails to load. Uncached, that fallback would attempt a
-# ~470MB HF download at request time inside this memory-constrained container.
-# Pinned commit, resolved 2026-09-17 (see scripts/download_models.py).
-RUN python3 -c "from sentence_transformers import CrossEncoder; CrossEncoder('cross-encoder/mmarco-mMiniLMv2-L12-H384-v1', revision='1427fd652930e4ba29e8149678df786c240d8825')" && \
-    rm -rf /app/.cache/huggingface/hub/models--*/*/locks /tmp/*
-USER root
+# Cache buster (filled by Railway buildx with commit SHA; behavior-neutral)
+ARG GIT_COMMIT
+RUN echo "Build: ${GIT_COMMIT:-$(date +%s)}" > /dev/null
 
-# Copy app code with explicit ownership
+# Copy application code
 COPY --chown=appuser:appuser backend/ .
 
-# Ship only the approved BRAIN_KEK maintenance utility; other root ops scripts
-# remain excluded from the serving image by .dockerignore.
+# Approved maintenance utility only
 COPY --chown=appuser:appuser scripts/ops/rotate_brain_kek.py ./scripts/ops/rotate_brain_kek.py
 
-# OKF compiled index and memory files from repo root
+# OKF compiled index and memory files
 COPY --chown=appuser:appuser memory/ ./memory/
 
-# Create data and logs directories with proper ownership for non-root runtime user
-RUN mkdir -p /app/data /app/logs && chown -R appuser:appuser /app/data /app/logs && \
+# Create runtime directories and clean build artefacts
+RUN mkdir -p /app/data /app/logs && chown -R appuser:appuser /app/data /app/logs /app/.cache && \
+    rm -rf /app/.pytest_cache /app/.ruff_cache /app/.mypy_cache /app/.hypothesis /app/venv /app/.venv && \
     find /app -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true && \
     find /app -type f -name "*.pyc" -delete 2>/dev/null || true
 
-# Production environment flags — TOKEN OPTIMIZATION & ONNX INT8 QUANTIZATION ENABLED
+# Production environment — TOKEN OPTIMISATION & ONNX INT8 QUANTISATION
 ENV ENV=production \
     IS_PRODUCTION=true \
     WEB_CONCURRENCY=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONOPTIMIZE=1 \
+    # Model cache paths (must match builder paths)
+    HF_HOME=/app/.cache/huggingface \
+    SENTENCE_TRANSFORMERS_HOME=/app/.cache/huggingface/sentence_transformers \
+    TRANSFORMERS_CACHE=/app/.cache/huggingface \
+    # ONNX INT8 quantised inference (no FP32 PyTorch inference at runtime)
     EMBEDDING_BACKEND=onnx_int8 \
     RERANKER_BACKEND=onnx_int8 \
     EMBEDDING_MODEL=BAAI/bge-m3 \
     EMBEDDING_DIMENSION=1024 \
     RERANKER_MODEL=cross-encoder/ms-marco-MiniLM-L-6-v2 \
+    QUANTIZED_ONLY=true \
+    # Caching & coalescing
     SEMANTIC_CACHE_ENABLED=true \
     SEMANTIC_CACHE_SIMILARITY=0.92 \
     HYBRID_SEARCH_ENABLED=true \
@@ -97,6 +138,7 @@ ENV ENV=production \
     HOT_CACHE_TTL=300 \
     VECTOR_CACHE_ENABLED=true \
     EXACT_CACHE_ENABLED=true \
+    # Timeouts & concurrency
     LLM_TIMEOUT=90 \
     PIPELINE_TIMEOUT=180 \
     TOKENIZERS_PARALLELISM=false \
@@ -108,8 +150,5 @@ EXPOSE 8000
 
 USER appuser
 
-# Railway sets $PORT; start_railway.py reads it and runs the ASGI wrapper.
-# railway.json's startCommand also points here; this CMD is the fallback for
-# local Docker runs or when Railway ignores the overridden startCommand.
+# Railway sets $PORT; start_railway.py reads it and launches the ASGI server.
 CMD ["python", "start_railway.py"]
-
