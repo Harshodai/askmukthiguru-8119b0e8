@@ -142,11 +142,19 @@ class ToneExtractor:
         guru_segments = [s for s in segments if s["speaker"] in ("krishnaji", "preethaji")]
 
         if not guru_segments:
-            chunks = self._chunk_transcript(transcript_text, max_chars=1500)
-            fallback_guru = (
-                default_guru if default_guru in ("krishnaji", "preethaji") else "preethaji"
+            # Name-substring matching found no reliable speaker boundaries --
+            # true for any transcript without explicit "NAME:" headers, which
+            # is the normal case for auto-generated captions. Blindly
+            # chunking the WHOLE transcript and labelling all of it as
+            # default_guru is how an interviewer's own intro/book-plug ended
+            # up stored as if the teacher said it (verified live 2026-09-19,
+            # UlOt31lBhLY_chunk_0). Fabricating an attribution we cannot
+            # actually make is worse than producing no exemplars here.
+            logger.warning(
+                f"ToneExtractor: no reliable speaker segments found for '{source_id}' "
+                "in the deterministic fallback -- skipping rather than guessing attribution."
             )
-            guru_segments = [{"speaker": fallback_guru, "text": c} for c in chunks]
+            return []
 
         for idx, seg in enumerate(guru_segments):
             chunk = seg["text"]
@@ -166,8 +174,13 @@ class ToneExtractor:
                 guru_name=guru_name,
                 speaker_role=guru_name,
                 interviewer_name="Interviewer/Seeker",
-                seeker_question="How do I overcome stress, live in peace, and balance external goals with inner state?",
-                seeker_emotional_state="seeking inner peace amid external ambition",
+                # This deterministic path has no way to know the real
+                # question asked at this point in the transcript. Leaving it
+                # empty (rather than a fixed, confident-sounding guess) is
+                # honest: IRPO ranking then treats it as no-match instead of
+                # a false match against every retrieval.
+                seeker_question="",
+                seeker_emotional_state="",
                 guru_response=chunk,
                 phrasing_dna=phrasing,
                 teaching_concept=concept,

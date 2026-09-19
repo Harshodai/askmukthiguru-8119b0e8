@@ -32,8 +32,10 @@ if not os.getenv("SARVAM_API_KEY") and (not provider or provider == "sarvam_clou
 # Ensure backend path is in sys.path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "backend"))
 
+from app.config import settings
 from services.guru_brain.guru_brain_service import get_guru_brain_service
 from services.guru_brain.tone_extractor import ToneExtractor
+from services.llm_factory import LLMServiceFactory
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("ingest_guru_tone_podcast")
@@ -43,7 +45,18 @@ TRANSCRIPT_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "backend", 
 
 async def main():
     logger.info("Starting Guru Brain Podcast Ingestion CLI...")
-    extractor = ToneExtractor()
+    # ToneExtractor() with no llm_service silently falls through to a crude
+    # line-matching deterministic fallback -- it hardcodes one fake
+    # seeker_question for every chunk and mislabels whole videos under a
+    # single default_guru when no explicit "NAME:" speaker headers exist in
+    # the transcript (they never do, for auto-generated captions). That is
+    # exactly how the Marie Forleo interview's intro/book-plug ended up
+    # stored as if Sri Krishnaji said it. Passing a real llm_service makes
+    # extract_exemplars_from_transcript use _extract_with_llm instead, which
+    # actually reads context to separate interviewer from guru and derives a
+    # real per-segment question.
+    llm_service = LLMServiceFactory.create(settings.llm_provider)
+    extractor = ToneExtractor(llm_service=llm_service)
     guru_brain = get_guru_brain_service()
 
     total_exemplars = []
