@@ -318,7 +318,12 @@ export const fetchProfileFromServer = async () => {
     const response = await fetch(`${BACKEND_URL}/api/profile`, {
       headers: {
         'Authorization': `Bearer ${session.access_token}`
-      }
+      },
+      // Unbounded fetch here stalled the post-sign-in redirect for the full
+      // 15s AuthPage watchdog whenever the backend was cold/unreachable
+      // (reproduced live 2026-09-19: Railway backend slow to respond).
+      // This call is a best-effort profile sync, not required for sign-in.
+      signal: AbortSignal.timeout(5000),
     });
 
     const contentType = response.headers.get('content-type') ?? '';
