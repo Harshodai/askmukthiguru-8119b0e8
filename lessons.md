@@ -1,3 +1,47 @@
+## Sep 19, 2026 (Session 2) — Production Bugs Fixed, Data Migrations Verified, Docker Image Slashed
+
+**Session shape.** Continued ruthless production-hardening. Verified Railway Memgraph/Qdrant migrations complete (6,430 nodes / 4,188 rels already present). Fixed two production bugs live in Railway logs. Built multi-stage Dockerfile targeting ~2.5GB from 7.8GB. Committed commit f5a53027 and deployed.
+
+### L-PROD-BUGS-1. Empty list [] is falsy — caused false-positive teacher attribution stripping on sourced answers
+- **Who**: Antigravity agent, 2026-09-19 session 2.
+- **What**: Attribution floor guard stripped teacher sentences from answers that HAD 4 citations. Root cause: _sanitize_citations filtered to URL-only; post-sanitize result was []. Empty list is falsy. Guard used truthiness-based `or` — both returned [] = falsy — guard fired incorrectly.
+- **Log signature**: `ATTRIBUTION FLOOR: removed 2 sentence(s) while citations=[]` immediately after `Fast-tier answer accepted (citations=4)`.
+- **Where**: `backend/rag/nodes/generation.py` `_enforce_attribution_floor._guarded`.
+- **Fix**: replaced `result.get("citations") or state.get("citations")` with explicit `len() > 0` checks for both result_citations and state_citations.
+- **Cascade**: false-positive stripped citations from result -> grounding_state=abstained -> cache_stage skipped caching. One bug caused 3 separate log symptoms.
+- **Rule / Invariant**: NEVER use Python truthiness to check a list that should be non-empty. `[] or fallback` silently chooses the fallback. Use explicit `len(x) > 0`. This applies everywhere citations, documents, or collections are checked.
+
+### L-PROD-BUGS-2. RuntimeWarning from async code in sync context means silent data loss
+- **Who**: Antigravity agent, 2026-09-19.
+- **What**: `_persist_trace_span` used `asyncio.create_task()` to background a Supabase INSERT. When called from sync context, this raises; the except called `create_task()` again — same failure. Result: every trace_span silently dropped.
+- **Log signature**: `RuntimeWarning: coroutine '_persist_trace_span.<locals>._insert' was never awaited`.
+- **Where**: `backend/rag/nodes/utils.py` `_persist_trace_span._insert`.
+- **Fix**: Made `_insert()` sync, dispatch via `loop.run_in_executor(None, _insert)` if loop running, else `threading.Thread(target=_insert, daemon=True).start()`.
+- **Rule / Invariant**: Tracing sidecars must handle both sync and async call sites. Use `threading.Thread(daemon=True)` as the universal fallback for fire-and-forget side effects.
+
+### L-DOCKER-1. Multi-stage builds eliminate 5+ GB by keeping compiler toolchain out of final image
+- **Who**: Antigravity agent, 2026-09-19.
+- **What**: Railway backend image was 7.8GB. Single-stage Dockerfile included gcc/g++/make, all of pip, HF download machinery, model lock files, test dirs from site-packages.
+- **Where**: `backend/Dockerfile.railway`.
+- **Strategy**: Two-stage build. Builder: installs all deps + downloads ONNX INT8 models + prunes. Runtime: copies only site-packages + model cache + app code. Also strips tests/benchmarks/examples dirs (~200MB), model lock files, pycache.
+- **QUANTIZED_ONLY=true**: skips ~7.5GB FP32 models. Only INT8 ONNX (~1.3GB) baked in.
+- **Target**: ~2.5-3GB final image (was 7.8GB).
+- **Rule / Invariant**: Compiler toolchain (gcc, g++, make, pip itself) belongs only in builder stage. `COPY --from=builder /usr/local/lib/python3.12/site-packages` is the correct runtime pattern.
+
+### L-RAILWAY-1. Railway CLI truncates env var values — always use `railway run printenv` to verify
+- **Who**: Antigravity agent, 2026-09-19.
+- **What**: `railway variables --service X` showed `NEO4J_URI = bolt://` and `QDRANT_URL = http://` — looked like missing config. Actually `bolt://memgraph.railway.internal:7687` and `http://qdrant.railway.internal:6333` — correct and complete.
+- **Fix**: Use `railway run --service X printenv | grep VAR_NAME` for full untruncated values.
+- **Rule / Invariant**: Never act on truncated `railway variables` output for connection strings.
+
+### L-RAILWAY-2. Railway Memgraph requires no credentials — private network is the security boundary
+- **What**: `NEO4J_USER=` and `NEO4J_PASSWORD=` empty looked like misconfiguration. Correct: Railway Memgraph has no auth by default; it is only reachable on `*.railway.internal` private network.
+- **Rule / Invariant**: Document intentional no-auth clearly. External TCP proxy still requires proxy host/port but no Bolt credentials.
+
+### L-MIGRATION-STATUS-1. Data migrations complete without leaving visible markers — always checkpoint explicitly
+- **What**: Session summary claimed Memgraph migration was NOT STARTED. Railway Memgraph already had 6,430 nodes / 4,188 rels matching local exactly. Done in prior session without confirmation written.
+- **Rule / Invariant**: After every migration write: collection/service name, point/node/rel count, timestamp, verification command. "Not started" and "done but unverified" look identical from outside.
+
 ## Sep 19, 2026 — The Graph Had No Migration Path; Built and Proved One: 5W Analysis
 
 **Session shape.** The Railway NO-GO verdict listed "graph: no working migration path" as an unresolved blocker. Confirmed it, then closed it. The migration script already existed and was unwired, unproven, and would have silently lost data on a live graph. Rewrote it into an idempotent, engine-agnostic, verifiable path and ran the full drill against both Memgraph 3.13.1 and Neo4j 5.17.0. 15 new regression tests, negative control performed on all three load-bearing guards.
