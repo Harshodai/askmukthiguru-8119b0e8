@@ -251,6 +251,303 @@ def _split_claims(text: str) -> list[str]:
     return assertions or sentences
 
 
+# ---------------------------------------------------------------------------
+# Contradiction Detection Invariants & Classification (Workstream W5)
+# ---------------------------------------------------------------------------
+
+_CANONICAL_DOCTRINE_CONTRADICTIONS = (
+    (
+        re.compile(
+            r"\b(?:three|four|five|six|seven|eight|nine|ten|\d+)\s+states\s+of\s+being\b",
+            re.IGNORECASE,
+        ),
+        "Doctrine invariant: Ekam/Oneness doctrine asserts only two states of being (suffering and beautiful state).",
+    ),
+    (
+        re.compile(r"\b(?:multiple|many|several)\s+states\s+of\s+being\b", re.IGNORECASE),
+        "Doctrine invariant: Ekam/Oneness doctrine asserts only two states of being.",
+    ),
+    (
+        re.compile(
+            r"\bsuffering\s+is\s+(?:the\s+)?natural(?:\s+state|\s+to\b|\s+for\b)",
+            re.IGNORECASE,
+        ),
+        "Doctrine invariant: Suffering is not natural to human consciousness.",
+    ),
+    (
+        re.compile(
+            r"\b(?:escape|retreat|flee)\s+to\s+(?:the\s+)?(?:himalayas|mountains|forests|caves)\b",
+            re.IGNORECASE,
+        ),
+        "Doctrine invariant: The teachings do not advocate renunciation or escaping to the mountains.",
+    ),
+    (
+        re.compile(
+            r"\brenounce\s+(?:the\s+world|your\s+family|all\s+possessions|marriage|society)\b",
+            re.IGNORECASE,
+        ),
+        "Doctrine invariant: The teachings do not advocate renouncing worldly life or family.",
+    ),
+    (
+        re.compile(
+            r"\b(?:wealth|money)\s+is\s+(?:evil|bad|sinful|unspiritual|a\s+sin)\b",
+            re.IGNORECASE,
+        ),
+        "Doctrine invariant: Wealth creation from a beautiful state is encouraged, not evil.",
+    ),
+    (
+        re.compile(
+            r"\bthinking\s+about\s+yourself\s+is\s+(?:evil|sinful|a\s+sin)\b",
+            re.IGNORECASE,
+        ),
+        "Doctrine invariant: Self-absorption causes suffering, but is not considered a sin or evil.",
+    ),
+)
+
+_NUM_WORDS: dict[str, int] = {
+    "zero": 0,
+    "one": 1,
+    "two": 2,
+    "three": 3,
+    "four": 4,
+    "five": 5,
+    "six": 6,
+    "seven": 7,
+    "eight": 8,
+    "nine": 9,
+    "ten": 10,
+    "eleven": 11,
+    "twelve": 12,
+    "single": 1,
+}
+
+_NUM_PHRASE_RE = re.compile(
+    r"\b(?:only\s+)?(zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|\d+)\s+([a-z]{3,20}(?:\s+[a-z]{3,20}){0,3})\b",
+    re.IGNORECASE,
+)
+
+_NUM_IGNORED_ENTITIES = {
+    "minutes",
+    "hours",
+    "days",
+    "weeks",
+    "months",
+    "years",
+    "seconds",
+    "percent",
+    "times",
+    "people",
+    "persons",
+    "participants",
+    "questions",
+    "pages",
+    "chapters",
+    "verses",
+    "lines",
+}
+
+
+def _parse_num(tok: str) -> int | None:
+    tok_clean = tok.strip().lower()
+    if tok_clean.isdigit():
+        return int(tok_clean)
+    return _NUM_WORDS.get(tok_clean)
+
+
+def _extract_num_phrases(text: str) -> list[tuple[int, str]]:
+    phrases: list[tuple[int, str]] = []
+    for match in _NUM_PHRASE_RE.finditer(text):
+        num_str, entity = match.group(1), match.group(2)
+        num_val = _parse_num(num_str)
+        if num_val is None:
+            continue
+        norm_entity = " ".join(entity.lower().split())
+        first_word = norm_entity.split()[0]
+        if first_word in _NUM_IGNORED_ENTITIES or norm_entity in _NUM_IGNORED_ENTITIES:
+            continue
+        phrases.append((num_val, norm_entity))
+    return phrases
+
+
+_NEGATION_WORDS = {
+    "not",
+    "no",
+    "never",
+    "cannot",
+    "can't",
+    "neither",
+    "nor",
+    "isn't",
+    "aren't",
+    "wasn't",
+    "weren't",
+    "doesn't",
+    "don't",
+    "didn't",
+    "won't",
+    "wouldn't",
+    "hardly",
+    "scarcely",
+    "barely",
+}
+
+_STOP_WORDS = {
+    "the",
+    "a",
+    "an",
+    "is",
+    "are",
+    "was",
+    "were",
+    "be",
+    "been",
+    "being",
+    "and",
+    "or",
+    "in",
+    "on",
+    "at",
+    "to",
+    "for",
+    "of",
+    "with",
+    "by",
+    "that",
+    "this",
+    "these",
+    "those",
+    "it",
+    "its",
+    "as",
+    "from",
+    "into",
+    "also",
+    "than",
+    "then",
+    "there",
+    "here",
+}
+
+_ANTONYM_PAIRS = {
+    ("natural", "unnatural"),
+    ("natural", "artificial"),
+    ("permanent", "temporary"),
+    ("connected", "disconnected"),
+    ("peace", "conflict"),
+    ("truth", "illusion"),
+    ("conscious", "unconscious"),
+    ("separable", "inseparable"),
+}
+
+
+def _detect_contradiction(
+    claim: str,
+    context: str,
+    context_chunks: list[str] | None = None,
+) -> tuple[bool, str | None]:
+    """Check if an assertion directly contradicts context or canonical doctrine.
+
+    Returns (True, reason) if contradictory, (False, None) otherwise.
+    Optatives, blessings, questions, and non-assertions always return (False, None)
+    per L-VERIFY-4.
+    """
+    if not _is_assertion(claim):
+        return False, None
+
+    clean_claim = claim.strip()
+    if not clean_claim:
+        return False, None
+
+    # 1. Canonical doctrine invariants
+    for pattern, reason in _CANONICAL_DOCTRINE_CONTRADICTIONS:
+        if pattern.search(clean_claim):
+            return True, reason
+
+    # 2. Numerical mutual exclusivity against context
+    claim_nums = _extract_num_phrases(clean_claim)
+    if claim_nums and context:
+        ctx_nums = _extract_num_phrases(context)
+        for c_val, c_ent in claim_nums:
+            for ctx_val, ctx_ent in ctx_nums:
+                if c_val != ctx_val:
+                    # Match exact entity or substantial substring overlap
+                    if c_ent == ctx_ent or (
+                        len(c_ent) >= 6 and (c_ent in ctx_ent or ctx_ent in c_ent)
+                    ):
+                        return (
+                            True,
+                            f"Numerical mutual exclusivity contradiction on '{c_ent}': "
+                            f"context asserts {ctx_val}, claim asserts {c_val}.",
+                        )
+
+    # 3. Contextual polarity inversion & antonym opposition
+    if not context:
+        return False, None
+
+    claim_tokens = [w.lower() for w in re.findall(r"\b[a-z]{2,}\b", clean_claim)]
+    claim_negations = [w for w in claim_tokens if w in _NEGATION_WORDS]
+    claim_content = set(
+        w for w in claim_tokens if w not in _STOP_WORDS and w not in _NEGATION_WORDS
+    )
+    if len(claim_content) < 3:
+        return False, None
+
+    claim_neg = len(claim_negations) % 2 == 1
+
+    # Split context into sentences and clauses for fine-grained alignment
+    ctx_sentences = [
+        s.strip()
+        for s in re.split(r"[.!?\n]+|;\s*|,\s+(?:and|but|while|whereas)\s+", context)
+        if len(s.strip()) > 10
+    ]
+
+    for ctx_sent in ctx_sentences:
+        ctx_tokens = [w.lower() for w in re.findall(r"\b[a-z]{2,}\b", ctx_sent)]
+        ctx_negations = [w for w in ctx_tokens if w in _NEGATION_WORDS]
+        ctx_content = set(
+            w for w in ctx_tokens if w not in _STOP_WORDS and w not in _NEGATION_WORDS
+        )
+        if len(ctx_content) < 3:
+            continue
+
+        overlap = claim_content & ctx_content
+        recall = len(overlap) / len(claim_content)
+        jaccard = (
+            len(overlap) / len(claim_content | ctx_content)
+            if (claim_content | ctx_content)
+            else 0.0
+        )
+
+        # High lexical overlap means both sentences make a claim about the same core entities/predicates
+        if len(overlap) >= 3 and (recall >= 0.70 or jaccard >= 0.50):
+            ctx_neg = len(ctx_negations) % 2 == 1
+            if claim_neg != ctx_neg:
+                return (
+                    True,
+                    f"Polarity inversion contradiction: context states '{ctx_sent}', "
+                    f"but claim asserts opposite polarity: '{clean_claim}'",
+                )
+
+        # Antonym opposition check
+        for ant1, ant2 in _ANTONYM_PAIRS:
+            matched_c = ant1 if ant1 in claim_content else (ant2 if ant2 in claim_content else None)
+            matched_ctx = ant2 if matched_c == ant1 else (ant1 if matched_c == ant2 else None)
+            if matched_c and matched_ctx and matched_ctx in ctx_content:
+                rem_c = claim_content - {matched_c}
+                rem_ctx = ctx_content - {matched_ctx}
+                rem_overlap = rem_c & rem_ctx
+                if len(rem_overlap) >= 2 and (len(rem_overlap) / len(rem_c) >= 0.60):
+                    ctx_neg = len(ctx_negations) % 2 == 1
+                    if claim_neg == ctx_neg:
+                        return (
+                            True,
+                            f"Antonym contradiction on '{matched_c}' vs '{matched_ctx}': "
+                            f"context states '{ctx_sent}', but claim asserts '{clean_claim}'",
+                        )
+
+    return False, None
+
+
 class LettuceDetectService:
     """Faithfulness scorer with a real span-level detector behind a flag.
 
@@ -444,6 +741,8 @@ class LettuceDetectService:
                 "details": "Empty input.",
                 "unsupported_sentences": [],
                 "claims": [],
+                "has_contradiction": False,
+                "contradictions": [],
             }
 
         # Strip the source citation block the formatter appends — it is
@@ -456,6 +755,8 @@ class LettuceDetectService:
                 "details": "Empty answer after citation strip.",
                 "unsupported_sentences": [],
                 "claims": [],
+                "has_contradiction": False,
+                "contradictions": [],
             }
 
         try:
@@ -508,16 +809,60 @@ class LettuceDetectService:
             return self._score_heuristic(query, context, answer)
 
         duration = (time.time() - start) * 1000
+        claims_list = _split_claims(clean_answer)
+
         if not predictions:
+            claims = []
+            contradictions = []
+            for claim in claims_list:
+                is_contra, contra_reason = _detect_contradiction(claim, context)
+                if is_contra:
+                    contradictions.append(contra_reason or claim)
+                    claims.append(
+                        {
+                            "text": claim,
+                            "score": 0.0,
+                            "supported": False,
+                            "classification": "contradiction",
+                            "contradiction": True,
+                            "contradiction_reason": contra_reason,
+                        }
+                    )
+                else:
+                    claims.append(
+                        {
+                            "text": claim,
+                            "score": 1.0,
+                            "supported": True,
+                            "classification": "entailment",
+                            "contradiction": False,
+                            "contradiction_reason": None,
+                        }
+                    )
+
+            if contradictions:
+                return {
+                    "is_faithful": False,
+                    "score": 0.0,
+                    "has_contradiction": True,
+                    "contradictions": contradictions,
+                    "max_span_confidence": 1.0,
+                    "details": (
+                        f"real LettuceDetect: doctrinal contradiction detected ({duration:.1f}ms): "
+                        + " | ".join(contradictions)
+                    ),
+                    "unsupported_sentences": [c["text"] for c in claims if c.get("contradiction")],
+                    "claims": claims,
+                }
+
             return {
                 "is_faithful": True,
                 "score": 1.0,
+                "has_contradiction": False,
+                "contradictions": [],
                 "details": f"real LettuceDetect: no hallucinated spans ({duration:.1f}ms)",
                 "unsupported_sentences": [],
-                "claims": [
-                    {"text": claim, "score": 1.0, "supported": True}
-                    for claim in _split_claims(clean_answer)
-                ],
+                "claims": claims,
             }
 
         max_conf = max(
@@ -526,7 +871,8 @@ class LettuceDetectService:
         )
         span_texts = [p.get("text", "") for p in predictions]
         claims = []
-        for claim in _split_claims(clean_answer):
+        contradictions = []
+        for claim in claims_list:
             claim_norm = _norm_for_span_match(claim)
             # Spans come back with surrounding whitespace and their own casing;
             # matching them raw against the claim missed every one, so `claims`
@@ -541,13 +887,62 @@ class LettuceDetectService:
                 (float(p.get("confidence", 0.0)) for p in claim_spans),
                 default=0.0,
             )
-            claims.append(
-                {
-                    "text": claim,
-                    "score": 1.0 - claim_confidence,
-                    "supported": not claim_spans,
-                }
-            )
+            is_contra, contra_reason = _detect_contradiction(claim, context)
+            if is_contra:
+                contradictions.append(contra_reason or claim)
+                claims.append(
+                    {
+                        "text": claim,
+                        "score": 0.0,
+                        "supported": False,
+                        "classification": "contradiction",
+                        "contradiction": True,
+                        "contradiction_reason": contra_reason,
+                    }
+                )
+            elif not claim_spans:
+                claims.append(
+                    {
+                        "text": claim,
+                        "score": 1.0 - claim_confidence,
+                        "supported": True,
+                        "classification": "entailment",
+                        "contradiction": False,
+                        "contradiction_reason": None,
+                    }
+                )
+            else:
+                claims.append(
+                    {
+                        "text": claim,
+                        "score": 1.0 - claim_confidence,
+                        "supported": False,
+                        "classification": "neutral",
+                        "contradiction": False,
+                        "contradiction_reason": None,
+                    }
+                )
+
+        if contradictions:
+            return {
+                "is_faithful": False,
+                "score": 0.0,
+                "has_contradiction": True,
+                "contradictions": contradictions,
+                "max_span_confidence": max_conf,
+                "details": (
+                    "real LettuceDetect: doctrinal contradiction detected: "
+                    + " | ".join(contradictions)
+                ),
+                "unsupported_sentences": span_texts
+                + [
+                    c["text"]
+                    for c in claims
+                    if c.get("contradiction") and c["text"] not in span_texts
+                ],
+                "claims": claims,
+            }
+
         # `score` is compared against settings.faithfulness_floor, which is a
         # grounded-proportion threshold. `1 - max_span_confidence` is not that:
         # one confidently-flagged span drove it to ~0 no matter how much of the
@@ -559,6 +954,8 @@ class LettuceDetectService:
         return {
             "is_faithful": False,
             "score": grounded_ratio,
+            "has_contradiction": False,
+            "contradictions": [],
             "max_span_confidence": max_conf,
             "details": (
                 f"real LettuceDetect: {len(predictions)} hallucinated spans "
@@ -590,6 +987,8 @@ class LettuceDetectService:
                 "details": "Empty input.",
                 "unsupported_sentences": [],
                 "claims": [],
+                "has_contradiction": False,
+                "contradictions": [],
             }
 
         # Clean answer to remove source citation lists to prevent false negatives
@@ -606,6 +1005,8 @@ class LettuceDetectService:
                 "details": "No testable sentences.",
                 "unsupported_sentences": [],
                 "claims": [],
+                "has_contradiction": False,
+                "contradictions": [],
             }
 
         # C2: emoji auto-pass branch removed — it bypassed faithfulness scoring unconditionally.
@@ -621,6 +1022,7 @@ class LettuceDetectService:
         unsupported_sentences = []
         scores = []
         claims: list[dict[str, object]] = []
+        contradictions: list[str] = []
 
         if self.embedder and use_semantic:
             try:
@@ -643,16 +1045,51 @@ class LettuceDetectService:
                         similarities.append(float(np.dot(s_norm, c_norm)))
 
                     max_sim = max(similarities) if similarities else 0.0
-                    scores.append(max_sim)
 
-                    # S3: doctrine-vocabulary boost removed. It rewarded the surface
-                    # feature a fluent fabrication reproduces (a sentence containing
-                    # "deeksha" cleared over half the bar), weakening the grounding
-                    # check it sat inside. Compare raw similarity to the threshold.
                     threshold = getattr(settings, "lettuce_detect_threshold", 0.25)
                     supported = max_sim >= threshold
-                    claims.append({"text": sentence, "score": max_sim, "supported": supported})
-                    if not supported:
+
+                    is_contra, contra_reason = _detect_contradiction(
+                        sentence, context, context_chunks
+                    )
+                    if is_contra:
+                        contradictions.append(contra_reason or sentence)
+                        scores.append(0.0)
+                        claims.append(
+                            {
+                                "text": sentence,
+                                "score": 0.0,
+                                "supported": False,
+                                "classification": "contradiction",
+                                "contradiction": True,
+                                "contradiction_reason": contra_reason,
+                            }
+                        )
+                        unsupported_sentences.append((sentence, 0.0))
+                    elif supported:
+                        scores.append(max_sim)
+                        claims.append(
+                            {
+                                "text": sentence,
+                                "score": max_sim,
+                                "supported": True,
+                                "classification": "entailment",
+                                "contradiction": False,
+                                "contradiction_reason": None,
+                            }
+                        )
+                    else:
+                        scores.append(max_sim)
+                        claims.append(
+                            {
+                                "text": sentence,
+                                "score": max_sim,
+                                "supported": False,
+                                "classification": "neutral",
+                                "contradiction": False,
+                                "contradiction_reason": None,
+                            }
+                        )
                         unsupported_sentences.append((sentence, max_sim))
             except Exception as e:
                 logger.warning(
@@ -661,29 +1098,109 @@ class LettuceDetectService:
                 # Fallback to token-level overlap matching
                 for sentence in sentences:
                     overlap = self._compute_lexical_overlap(sentence, context)
-                    scores.append(overlap)
                     supported = overlap >= 0.45
-                    claims.append({"text": sentence, "score": overlap, "supported": supported})
-                    if not supported:
+                    is_contra, contra_reason = _detect_contradiction(
+                        sentence, context, context_chunks
+                    )
+                    if is_contra:
+                        contradictions.append(contra_reason or sentence)
+                        scores.append(0.0)
+                        claims.append(
+                            {
+                                "text": sentence,
+                                "score": 0.0,
+                                "supported": False,
+                                "classification": "contradiction",
+                                "contradiction": True,
+                                "contradiction_reason": contra_reason,
+                            }
+                        )
+                        unsupported_sentences.append((sentence, 0.0))
+                    elif supported:
+                        scores.append(overlap)
+                        claims.append(
+                            {
+                                "text": sentence,
+                                "score": overlap,
+                                "supported": True,
+                                "classification": "entailment",
+                                "contradiction": False,
+                                "contradiction_reason": None,
+                            }
+                        )
+                    else:
+                        scores.append(overlap)
+                        claims.append(
+                            {
+                                "text": sentence,
+                                "score": overlap,
+                                "supported": False,
+                                "classification": "neutral",
+                                "contradiction": False,
+                                "contradiction_reason": None,
+                            }
+                        )
                         unsupported_sentences.append((sentence, overlap))
         else:
             # Word overlap fallback
             for sentence in sentences:
                 overlap = self._compute_lexical_overlap(sentence, context)
-                scores.append(overlap)
                 supported = overlap >= 0.45
-                claims.append({"text": sentence, "score": overlap, "supported": supported})
-                if not supported:
+                is_contra, contra_reason = _detect_contradiction(sentence, context, context_chunks)
+                if is_contra:
+                    contradictions.append(contra_reason or sentence)
+                    scores.append(0.0)
+                    claims.append(
+                        {
+                            "text": sentence,
+                            "score": 0.0,
+                            "supported": False,
+                            "classification": "contradiction",
+                            "contradiction": True,
+                            "contradiction_reason": contra_reason,
+                        }
+                    )
+                    unsupported_sentences.append((sentence, 0.0))
+                elif supported:
+                    scores.append(overlap)
+                    claims.append(
+                        {
+                            "text": sentence,
+                            "score": overlap,
+                            "supported": True,
+                            "classification": "entailment",
+                            "contradiction": False,
+                            "contradiction_reason": None,
+                        }
+                    )
+                else:
+                    scores.append(overlap)
+                    claims.append(
+                        {
+                            "text": sentence,
+                            "score": overlap,
+                            "supported": False,
+                            "classification": "neutral",
+                            "contradiction": False,
+                            "contradiction_reason": None,
+                        }
+                    )
                     unsupported_sentences.append((sentence, overlap))
 
-        avg_score = sum(scores) / len(scores) if scores else 1.0
+        has_contradiction = bool(contradictions)
+        if has_contradiction:
+            avg_score = 0.0
+            is_faithful = False
+        else:
+            avg_score = sum(scores) / len(scores) if scores else 1.0
+            is_faithful = len(unsupported_sentences) == 0
 
-        # Faithfulness determined by sentence-level scoring only (auto-pass removed)
-        is_faithful = len(unsupported_sentences) == 0
         duration = (time.time() - start) * 1000
 
         details = f"Scored {len(sentences)} sentences in {duration:.2f}ms. "
-        if not is_faithful:
+        if has_contradiction:
+            details += f"Doctrinal contradiction detected: {'; '.join(contradictions)}"
+        elif not is_faithful:
             details += f"Hallucination detected in {len(unsupported_sentences)} sentences: "
             details += "; ".join([f"'{s}' (score: {sc:.2f})" for s, sc in unsupported_sentences])
         else:
@@ -695,6 +1212,8 @@ class LettuceDetectService:
         return {
             "is_faithful": is_faithful,
             "score": avg_score,
+            "has_contradiction": has_contradiction,
+            "contradictions": contradictions,
             "details": details,
             "unsupported_sentences": [s for s, _ in unsupported_sentences],
             "claims": claims,
