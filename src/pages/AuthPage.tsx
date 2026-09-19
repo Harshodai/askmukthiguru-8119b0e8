@@ -602,7 +602,7 @@ const AuthPage = () => {
       const { error: supabaseError } = await supabase.auth.signInWithOAuth({
         provider: 'facebook',
         options: {
-          redirectTo: isNativePlatform ? NATIVE_REDIRECT : window.location.origin,
+          redirectTo: isNativePlatform ? NATIVE_REDIRECT : window.location.origin + '/auth',
         },
       });
       recordStep('oauth_init', supabaseError ? 'error' : 'ok', Math.round(performance.now() - initT0), {
@@ -642,7 +642,7 @@ const AuthPage = () => {
       const { error: supabaseError } = await supabase.auth.signInWithOAuth({
         provider: 'apple',
         options: {
-          redirectTo: isNativePlatform ? NATIVE_REDIRECT : window.location.origin,
+          redirectTo: isNativePlatform ? NATIVE_REDIRECT : window.location.origin + '/auth',
         },
       });
       recordStep('oauth_init', supabaseError ? 'error' : 'ok', Math.round(performance.now() - initT0), {
@@ -769,7 +769,15 @@ const AuthPage = () => {
         }
         const { error: oauthError } = await supabase.auth.signInWithOAuth({
           provider: 'google',
-          options: { redirectTo: window.location.origin },
+          options: {
+            // Must match the primary OAuth path's redirectTo (line ~560): the
+            // bare origin lands on Index.tsx, which has no onAuthStateChange
+            // -> handleSession redirect logic, so a real sign-in completes
+            // but the user sees no visible change and never reaches /chat or
+            // /profile. Reported live 2026-09-19: "clicked my email, nothing
+            // changed" -- this fallback's mismatched redirectTo was why.
+            redirectTo: isNativePlatform ? NATIVE_REDIRECT : window.location.origin + '/auth',
+          },
         });
         if (!oauthError) return;
       }
