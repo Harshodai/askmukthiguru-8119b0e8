@@ -4,6 +4,8 @@ echo "=== Security Headers & CORS Audit ==="
 
 ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 
+issues=0
+
 # Check CORS configuration
 echo "1. CORS Configuration"
 if grep -q 'allow_origins=' "$ROOT_DIR/backend/app/main.py" 2>/dev/null; then
@@ -11,6 +13,7 @@ if grep -q 'allow_origins=' "$ROOT_DIR/backend/app/main.py" 2>/dev/null; then
   echo "   CORS setting found: $cors_setting"
   if echo "$cors_setting" | grep -q '"\*"'; then
     echo "   ⚠️  CORS allows ALL origins (*)"
+    issues=$((issues + 1))
   else
     echo "   ✅ CORS restricted to specific origins"
   fi
@@ -25,6 +28,7 @@ for header in "X-Content-Type-Options" "X-Frame-Options" "Strict-Transport-Secur
     echo "   ✅ $header"
   else
     echo "   ⚠️  $header NOT FOUND in backend"
+    issues=$((issues + 1))
   fi
 done
 
@@ -38,6 +42,7 @@ if [ -f "$nginx_file" ]; then
       echo "   ✅ $header in nginx.conf"
     else
       echo "   ⚠️  $header NOT FOUND in nginx.conf"
+      issues=$((issues + 1))
     fi
   done
 fi
@@ -49,7 +54,14 @@ if grep -q 'Content-Security-Policy' "$ROOT_DIR/backend/app/main.py" 2>/dev/null
   echo "   ✅ CSP in backend middleware"
 else
   echo "   ⚠️  CSP missing in backend"
+  issues=$((issues + 1))
 fi
 
 echo ""
-echo "Audit complete."
+if [ "$issues" -gt 0 ]; then
+  echo "❌ Security Headers & CORS audit FAILED: $issues issue(s) found."
+  exit 1
+else
+  echo "✅ Security Headers & CORS audit PASSED: all checks clean."
+  exit 0
+fi

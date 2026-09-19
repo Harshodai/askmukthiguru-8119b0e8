@@ -72,7 +72,10 @@ echo ""
 echo "Total endpoints: $found"
 echo "Unauthenticated: $unauth"
 if [ "$unauth" -eq 0 ]; then
-  echo "All endpoints have auth dependency"
+  echo "✅ All endpoints have auth dependency"
+  echo "Audit complete: PASSED."
+  exit 0
+else
+  echo "❌ API Endpoint Auth audit FAILED: $unauth unauthenticated endpoint(s) found."
+  exit 1
 fi
-echo ""
-echo "Audit complete."

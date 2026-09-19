@@ -61,4 +61,11 @@ if [ -d "$ROOT_DIR/src" ]; then
 fi
 
 echo ""
-echo "Audit complete."
+total_pii=$((found + ${frontend_found:-0}))
+if [ "$total_pii" -gt 0 ]; then
+  echo "❌ Personal Data Flow audit FAILED: $total_pii potential PII log statement(s) found."
+  exit 1
+else
+  echo "✅ Personal Data Flow audit PASSED: no PII log statements found."
+  exit 0
+fi

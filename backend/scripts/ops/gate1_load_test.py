@@ -827,7 +827,41 @@ def main():
         "Deliberately measured against the host, not the container mem_limit — "
         "overcommitted per-container limits are what caused AMK-C-001.",
     )
+    parser.add_argument(
+        "--check-report",
+        type=str,
+        default=None,
+        help="Check verdict of an existing report JSON file instead of executing a new test run.",
+    )
     args = parser.parse_args()
+
+    if args.check_report:
+        report_path = Path(args.check_report)
+        if not report_path.is_absolute():
+            if not report_path.exists() and (_BACKEND_DIR / report_path).exists():
+                report_path = _BACKEND_DIR / report_path
+        if not report_path.exists():
+            print(f"Report file not found: {report_path}", file=sys.stderr)
+            return 1
+        with open(report_path, encoding="utf-8") as f:
+            summary = json.load(f)
+        http_passed = summary.get("gate1_verdict") == "PASS"
+        container_survival = summary.get("container_survival", {})
+        container_passed = (
+            container_survival.get("passed", True)
+            if container_survival.get("available") is not False
+            else True
+        )
+        print(
+            f"\nGate 1 Result (Report Check): {summary.get('gate1_verdict')} "
+            f"(Throughput: {summary.get('throughput_rps')} RPS, "
+            f"p95: {summary.get('latency_percentiles_ms', {}).get('p95')}ms)"
+        )
+        if not http_passed:
+            print("  FAIL: gate1_verdict is FAIL in report")
+        if not container_passed:
+            print("  FAIL: container survival failed in report")
+        return 0 if (http_passed and container_passed) else 1
 
     watch = ContainerWatch(args.container) if args.container else None
     if watch:
@@ -849,9 +883,10 @@ def main():
     print(
         f"\nGate 1 Result: {summary['gate1_verdict']} (Throughput: {summary['throughput_rps']} RPS, p95: {summary['latency_percentiles_ms']['p95']}ms)"
     )
+    http_passed = summary.get("gate1_verdict") == "PASS"
 
     if not watch:
-        return 0
+        return 0 if http_passed else 1
 
     budget = args.mem_budget_mb
     host_mb = _host_mem_mb()
@@ -862,7 +897,7 @@ def main():
 
     if verdict.get("available") is False:
         print(f"Container survival: SKIPPED ({verdict['reason']})")
-        return 0
+        return 0 if http_passed else 1
 
     print(
         f"Container survival: {'PASS' if verdict['passed'] else 'FAIL'} — "
@@ -873,7 +908,7 @@ def main():
     )
     for failure in verdict["failures"]:
         print(f"  FAIL: {failure}")
-    return 0 if verdict["passed"] else 1
+    return 0 if (http_passed and verdict["passed"]) else 1
 
 
 if __name__ == "__main__":

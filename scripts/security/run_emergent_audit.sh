@@ -18,16 +18,24 @@ echo ""
 echo "=== Emergent Security Audit ==="
 echo ""
 
+AUDIT_FAILED=0
+
 run_audit() {
   local name="$1"
   local script="$2"
   echo "Running: $name..."
   echo "## $name" >> "$REPORT_FILE"
   echo '```' >> "$REPORT_FILE"
-  bash "$SCRIPT_DIR/$script" >> "$REPORT_FILE" 2>&1 || true
+  local exit_code=0
+  bash "$SCRIPT_DIR/$script" >> "$REPORT_FILE" 2>&1 || exit_code=$?
   echo '```' >> "$REPORT_FILE"
   echo "" >> "$REPORT_FILE"
-  echo "  ✅ Done"
+  if [ "$exit_code" -ne 0 ]; then
+    echo "  ❌ Failed (exit code $exit_code)"
+    AUDIT_FAILED=$((AUDIT_FAILED + 1))
+  else
+    echo "  ✅ Done"
+  fi
 }
 
 run_audit "1. Secret Leak Prevention" "audit_secrets.sh"
@@ -44,3 +52,11 @@ echo ""
 total_issues=$(grep -o '⚠️' "$REPORT_FILE" 2>/dev/null | wc -l | tr -d ' ' || echo 0)
 total_passed=$(grep -o '✅' "$REPORT_FILE" 2>/dev/null | wc -l | tr -d ' ' || echo 0)
 echo "Report Summary: $total_passed checks passed, $total_issues issues found"
+
+if [ "$AUDIT_FAILED" -gt 0 ] || [ "$total_issues" -gt 0 ]; then
+  echo "❌ Emergent Security Audit FAILED: $AUDIT_FAILED failed audit suite(s), $total_issues issue(s) detected."
+  exit 1
+fi
+
+echo "✅ Emergent Security Audit PASSED: all checks clean."
+exit 0

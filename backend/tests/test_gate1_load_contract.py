@@ -97,3 +97,57 @@ async def test_gate1_harness_mock_execution(tmp_path, monkeypatch):
     assert summary["status_code_distribution"] == {200: 8}
     assert (tmp_path / "gate1_load_test_report.json").exists()
     assert (tmp_path / "gate1_load_test_report.md").exists()
+
+
+def test_main_http_fail_exits_nonzero(monkeypatch):
+    """Verify main() exits non-zero (1) when HTTP verdict is FAIL even with no container watch."""
+    import scripts.ops.gate1_load_test as gate1_mod
+
+    fail_summary = {
+        "gate1_verdict": "FAIL",
+        "throughput_rps": 0.5,
+        "latency_percentiles_ms": {"p95": 5000.0},
+    }
+
+    monkeypatch.setattr(gate1_mod, "run_gate1_load_test", AsyncMock(return_value=fail_summary))
+    monkeypatch.setattr("sys.argv", ["gate1_load_test.py", "--container", ""])
+
+    exit_code = gate1_mod.main()
+    assert exit_code == 1, f"Expected main() to exit 1 on HTTP FAIL, got {exit_code}"
+
+
+def test_main_http_pass_exits_zero(monkeypatch):
+    """Verify main() exits 0 when HTTP verdict is PASS with no container watch."""
+    import scripts.ops.gate1_load_test as gate1_mod
+
+    pass_summary = {
+        "gate1_verdict": "PASS",
+        "throughput_rps": 10.0,
+        "latency_percentiles_ms": {"p95": 50.0},
+    }
+
+    monkeypatch.setattr(gate1_mod, "run_gate1_load_test", AsyncMock(return_value=pass_summary))
+    monkeypatch.setattr("sys.argv", ["gate1_load_test.py", "--container", ""])
+
+    exit_code = gate1_mod.main()
+    assert exit_code == 0, f"Expected main() to exit 0 on HTTP PASS, got {exit_code}"
+
+
+def test_main_check_report_flag(tmp_path, monkeypatch):
+    """Verify --check-report exits 1 on FAIL report and 0 on PASS report."""
+    import json
+
+    import scripts.ops.gate1_load_test as gate1_mod
+
+    fail_file = tmp_path / "fail_report.json"
+    pass_file = tmp_path / "pass_report.json"
+
+    fail_file.write_text(json.dumps({"gate1_verdict": "FAIL", "throughput_rps": 1.0, "latency_percentiles_ms": {"p95": 200}}))
+    pass_file.write_text(json.dumps({"gate1_verdict": "PASS", "throughput_rps": 5.0, "latency_percentiles_ms": {"p95": 50}}))
+
+    monkeypatch.setattr("sys.argv", ["gate1_load_test.py", "--check-report", str(fail_file)])
+    assert gate1_mod.main() == 1
+
+    monkeypatch.setattr("sys.argv", ["gate1_load_test.py", "--check-report", str(pass_file)])
+    assert gate1_mod.main() == 0
+

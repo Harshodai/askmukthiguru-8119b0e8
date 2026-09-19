@@ -124,8 +124,26 @@ run_build() {
 
 run_unit() { npm test -- --run; }
 
+check_suite_env() {
+  local suite="$1"
+  if [[ "$suite" == "rls-cross-user" ]]; then
+    if [[ -z "${SUPABASE_URL:-}" || -z "${SUPABASE_ANON_KEY:-}" || -z "${SUPABASE_SERVICE_ROLE_KEY:-}" ]]; then
+      if ! curl -s -m 2 http://127.0.0.1:54321/auth/v1/health >/dev/null 2>&1 && \
+         ! curl -s -m 2 http://localhost:54321/auth/v1/health >/dev/null 2>&1; then
+        red "✗ Suite '${suite}' requires SUPABASE_URL, SUPABASE_ANON_KEY, and SUPABASE_SERVICE_ROLE_KEY (or local Supabase on port 54321)."
+        red "  Missing required environment variables — failing loudly instead of skipping green."
+        return 1
+      fi
+    fi
+  fi
+  return 0
+}
+
 run_playwright_suite() {
   local suite="$1"
+  if ! check_suite_env "$suite"; then
+    return 1
+  fi
   npx playwright test --project=chromium "tests/e2e/${suite}.spec.ts"
 }
 
@@ -147,32 +165,38 @@ DEFAULT_SUITES=(
   security-aal2
 )
 
-IFS=' ' read -r -a SUITES <<< "${SUITES:-${DEFAULT_SUITES[*]}}"
+run_prelaunch() {
+  IFS=' ' read -r -a SUITES <<< "${SUITES:-${DEFAULT_SUITES[*]}}"
 
-bold "═══════════════════════════════════════════════════════════════"
-bold "  AskMukthiGuru — Pre-launch gate"
-bold "═══════════════════════════════════════════════════════════════"
-echo "BASE_URL      = ${BASE_URL:-http://localhost:8080 (local dev server via playwright.config.ts)}"
-echo "Suites        = ${SUITES[*]}"
-echo "Skip build    = ${SKIP_BUILD:-0}"
-
-maybe_seed_user
-run_step "Build"        run_build
-run_step "Unit (vitest)" run_unit
-
-for suite in "${SUITES[@]}"; do
-  run_step "e2e: $suite" run_playwright_suite "$suite"
-done
-
-bold ""
-bold "═══════════════════════════════════════════════════════════════"
-if [[ ${#FAILED[@]} -eq 0 ]]; then
-  green "  ALL GREEN — safe to publish."
   bold "═══════════════════════════════════════════════════════════════"
-  exit 0
-fi
+  bold "  AskMukthiGuru — Pre-launch gate"
+  bold "═══════════════════════════════════════════════════════════════"
+  echo "BASE_URL      = ${BASE_URL:-http://localhost:8080 (local dev server via playwright.config.ts)}"
+  echo "Suites        = ${SUITES[*]}"
+  echo "Skip build    = ${SKIP_BUILD:-0}"
 
-red   "  FAILED: ${FAILED[*]}"
-red   "  Do NOT publish. Fix reds, re-run scripts/prelaunch.sh."
-bold  "═══════════════════════════════════════════════════════════════"
-exit 1
+  maybe_seed_user
+  run_step "Build"        run_build
+  run_step "Unit (vitest)" run_unit
+
+  for suite in "${SUITES[@]}"; do
+    run_step "e2e: $suite" run_playwright_suite "$suite"
+  done
+
+  bold ""
+  bold "═══════════════════════════════════════════════════════════════"
+  if [[ ${#FAILED[@]} -eq 0 ]]; then
+    green "  ALL GREEN — safe to publish."
+    bold "═══════════════════════════════════════════════════════════════"
+    exit 0
+  fi
+
+  red   "  FAILED: ${FAILED[*]}"
+  red   "  Do NOT publish. Fix reds, re-run scripts/prelaunch.sh."
+  bold  "═══════════════════════════════════════════════════════════════"
+  exit 1
+}
+
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  run_prelaunch "$@"
+fi

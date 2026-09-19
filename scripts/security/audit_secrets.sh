@@ -23,22 +23,36 @@ EXCLUDE_DIRS="--exclude-dir=.git --exclude-dir=.venv --exclude-dir=.venv_host --
 
 echo "Scanning for potential hardcoded secrets..."
 found=0
-for pattern in "${patterns[@]}"; do
-  while IFS= read -r line; do
-    echo "  POTENTIAL: $line"
-    found=$((found + 1))
-  done < <(grep -rn "$pattern" "$ROOT_DIR" \
-    --include="*.py" --include="*.ts" --include="*.tsx" --include="*.js" \
-    --include="*.yml" --include="*.yaml" --include="*.sh" \
-    --include="*.conf" --include="*.json" \
-    $EXCLUDE_DIRS \
-    2>/dev/null || true)
-done
+warnings=0
+
+# Use git grep --untracked if in a git repo to respect .gitignore and avoid scanning large vendor/cache dirs
+if git -C "$ROOT_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  for pattern in "${patterns[@]}"; do
+    while IFS= read -r line; do
+      echo "  POTENTIAL: $line"
+      found=$((found + 1))
+    done < <(git -C "$ROOT_DIR" grep --untracked -nE "$pattern" -- \
+      "*.py" "*.ts" "*.tsx" "*.js" "*.yml" "*.yaml" "*.sh" "*.conf" "*.json" \
+      2>/dev/null || true)
+  done
+else
+  for pattern in "${patterns[@]}"; do
+    while IFS= read -r line; do
+      echo "  POTENTIAL: $line"
+      found=$((found + 1))
+    done < <(grep -rn "$pattern" "$ROOT_DIR" \
+      --include="*.py" --include="*.ts" --include="*.tsx" --include="*.js" \
+      --include="*.yml" --include="*.yaml" --include="*.sh" \
+      --include="*.conf" --include="*.json" \
+      $EXCLUDE_DIRS \
+      2>/dev/null || true)
+  done
+fi
 
 if [ "$found" -eq 0 ]; then
-  echo "  No potential secrets found in source files."
+  echo "  ✅ No potential secrets found in source files."
 else
-  echo "  Found $found potential secret(s) — review each above."
+  echo "  ⚠️  Found $found potential secret(s) — review each above."
   echo "  False positives may include test fixtures with placeholder keys."
 fi
 
@@ -54,12 +68,14 @@ echo "=== .env.example Check ==="
 if [ -f "$ROOT_DIR/.env.example" ]; then
   echo "  .env.example exists"
   if grep -qiE '(sk_live|pk_live|ghp_|AIza)' "$ROOT_DIR/.env.example" 2>/dev/null; then
-    echo "  WARNING: .env.example contains what looks like real secrets!"
+    echo "  ⚠️  WARNING: .env.example contains what looks like real secrets!"
+    warnings=$((warnings + 1))
   else
-    echo "  .env.example contains only placeholder values"
+    echo "  ✅ .env.example contains only placeholder values"
   fi
 else
-  echo "  WARNING: .env.example does not exist"
+  echo "  ⚠️  WARNING: .env.example does not exist"
+  warnings=$((warnings + 1))
 fi
 
 # Check .env is in .gitignore
@@ -67,11 +83,18 @@ echo ""
 echo "=== Env File Check ==="
 if [ -f "$ROOT_DIR/.env" ]; then
   if grep -q ".env" "$ROOT_DIR/.gitignore" 2>/dev/null; then
-    echo "  .env is in .gitignore"
+    echo "  ✅ .env is in .gitignore"
   else
-    echo "  WARNING: .env is NOT in .gitignore"
+    echo "  ⚠️  WARNING: .env is NOT in .gitignore"
+    warnings=$((warnings + 1))
   fi
 fi
 
 echo ""
-echo "Audit complete."
+if [ "$found" -gt 0 ] || [ "$warnings" -gt 0 ]; then
+  echo "❌ Secret leak audit FAILED: $found potential secret(s), $warnings warning(s) found."
+  exit 1
+else
+  echo "✅ Secret leak audit PASSED: no secrets or warnings found."
+  exit 0
+fi
