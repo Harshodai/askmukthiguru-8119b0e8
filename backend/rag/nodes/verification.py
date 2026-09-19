@@ -165,6 +165,8 @@ async def _score_faithfulness_bounded(
         return {
             "score": 0.0,
             "is_faithful": False,
+            "has_contradiction": False,
+            "contradictions": [],
             "details": "LettuceDetect service not available",
             "claims": [],
             "unsupported_sentences": [],
@@ -190,6 +192,8 @@ async def _score_faithfulness_bounded(
         return {
             "score": 0.0,
             "is_faithful": False,
+            "has_contradiction": False,
+            "contradictions": [],
             "timed_out": True,
             "claims": [],
             "unsupported_sentences": [],
@@ -209,6 +213,8 @@ async def _score_faithfulness_bounded(
         return {
             "score": 0.0,
             "is_faithful": False,
+            "has_contradiction": False,
+            "contradictions": [],
             "error": str(exc),
             "claims": [],
             "unsupported_sentences": [],
@@ -398,6 +404,7 @@ async def reflect_on_answer(state: GraphState, config: dict = None) -> dict:
     consistency_feedback = ""
 
     feedback_parts = []
+    has_contradiction = bool(ld_result.get("has_contradiction"))
     if not is_faithful_strict:
         # Report the criterion that actually decided, not a threshold nobody
         # compared against: the verdict is all-sentences-grounded, and
@@ -408,6 +415,11 @@ async def reflect_on_answer(state: GraphState, config: dict = None) -> dict:
             f"(mean similarity {ld_result['score']:.2f}, scorer="
             f"{'semantic' if reflection_semantic else 'lexical-overlap'})"
         )
+    if has_contradiction:
+        contra_msg = "; ".join(
+            ld_result.get("contradictions") or ["Doctrinal contradiction detected"]
+        )
+        feedback_parts.append(f"Doctrinal contradiction detected: {contra_msg}")
     if not consistency_check_passed:
         feedback_parts.append(consistency_feedback)
     if persona_violation:
@@ -445,10 +457,10 @@ async def reflect_on_answer(state: GraphState, config: dict = None) -> dict:
     # Reflection goes back to being the correction HINT the comment above and
     # CLAUDE.md both describe ("verify_answer decides").
     reflection_floor = float(getattr(settings, "faithfulness_floor", 0.6))
-    broadly_ungrounded = reflection_semantic and float(ld_result.get("score") or 0.0) < (
-        reflection_floor
-    )
-    is_valid = not broadly_ungrounded and not persona_violation
+    broadly_ungrounded = (
+        reflection_semantic and float(ld_result.get("score") or 0.0) < reflection_floor
+    ) or has_contradiction
+    is_valid = not broadly_ungrounded and not persona_violation and not has_contradiction
     if is_valid or ("doesn't know" in answer.lower() and not persona_violation):
         logger.info(f"Self-Reflection: Answer is VALID. {feedback}")
         return {
@@ -571,6 +583,33 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
     faithfulness_score = float(ld_result.get("score", 0.0))
     claims = list(ld_result.get("claims", []))
     unsupported_sentences = list(ld_result.get("unsupported_sentences", []))
+    has_contradiction = bool(ld_result.get("has_contradiction"))
+
+    # Contradiction hard-reject (W5): actively contradicting doctrine is the worst
+    # failure mode. Hard-reject immediately with score=0.0 and passed=False.
+    if has_contradiction:
+        contradictions = ld_result.get("contradictions", [])
+        contra_summary = "; ".join(contradictions) or "Doctrine contradiction"
+        logger.warning(
+            "Combined verify: doctrinal contradiction detected (%s) — hard rejecting answer",
+            contra_summary,
+        )
+        return {
+            "is_faithful": False,
+            "verification": {
+                "passed": False,
+                "has_contradiction": True,
+                "contradictions": contradictions,
+                "details": f"Doctrinal contradiction detected: {contra_summary}",
+                "cove_pass_ratio": 0.0,
+                "claims": claims,
+            },
+            "confidence_score": 0.0,
+            "confidence_reason": None,
+            "confidence_calibration_status": confidence_calibration_status(),
+            "faithfulness_score": 0.0,
+            "relevancy_score": 0.0,
+        }
 
     # Evaluate claim-level support
     unsupported_claims = [c for c in claims if not c.get("supported", False)]
@@ -581,6 +620,7 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
         bool(ld_result.get("is_faithful", False))
         and meets_faithfulness_floor
         and not has_unsupported_claims
+        and not has_contradiction
     )
 
     # A2.6 / A2.7: When claim-level support passes (faithfulness >= settings.faithfulness_floor
@@ -853,6 +893,7 @@ async def combined_grade_and_verify(state: GraphState, config: dict = None) -> d
     faithfulness_score = float(ld_result.get("score", 0.0))
     claims = list(ld_result.get("claims", []))
     unsupported_sentences = list(ld_result.get("unsupported_sentences", []))
+    has_contradiction = bool(ld_result.get("has_contradiction"))
 
     unsupported_claims = [c for c in claims if not c.get("supported", False)]
     has_unsupported_claims = bool(unsupported_claims) or bool(unsupported_sentences)
@@ -862,6 +903,7 @@ async def combined_grade_and_verify(state: GraphState, config: dict = None) -> d
         bool(ld_result.get("is_faithful", False))
         and meets_faithfulness_floor
         and not has_unsupported_claims
+        and not has_contradiction
         and not constitutional_issue
         and not persona_issue
     )
@@ -923,22 +965,30 @@ async def combined_grade_and_verify(state: GraphState, config: dict = None) -> d
         claim_level_passed,
     )
 
-    # A constitutional or persona violation is decisive on its own — never let
-    # verify_answer's LLM path (which does not check either) override it with
-    # a successful faithfulness verdict.
-    if constitutional_issue or persona_issue:
-        issue = constitutional_issue or persona_issue
+    # A contradiction, constitutional violation, or persona violation is decisive
+    # on its own — never let verify_answer's LLM path override it with a successful
+    # faithfulness verdict.
+    if has_contradiction or constitutional_issue or persona_issue:
+        issue = (
+            f"Doctrinal contradiction detected: {'; '.join(ld_result.get('contradictions', []))}"
+            if has_contradiction
+            else (constitutional_issue or persona_issue)
+        )
         logger.warning("Combined grade+verify: failing fast on local violation — %s", issue)
         return {
             "is_faithful": False,
             "verification": {
                 "passed": False,
+                "has_contradiction": has_contradiction,
+                "contradictions": ld_result.get("contradictions", []),
                 "details": issue,
                 "cove_pass_ratio": 0.0,
                 "claims": claims,
             },
             "confidence_score": 0.0,
-            "faithfulness_score": faithfulness_score,
+            "confidence_reason": None,
+            "confidence_calibration_status": confidence_calibration_status(),
+            "faithfulness_score": 0.0 if has_contradiction else faithfulness_score,
             "relevancy_score": 0.0,
         }
 

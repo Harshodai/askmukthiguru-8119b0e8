@@ -111,3 +111,43 @@ def sanitize_log_input(text: Optional[str] = "") -> str:
     if text is None:
         return ""
     return str(text).replace("\r", "").replace("\n", " ")[:500]
+
+
+def sanitize_client_error(error: Optional[str]) -> str:
+    """
+    Sanitize an error string before returning it to end-users or HTTP clients.
+    Strips raw tracebacks, internal exception class names, URLs, API keys,
+    and returns a generic, user-safe error message.
+    """
+    if not error:
+        return "An error occurred while processing your request. Please try again."
+    err_str = str(error).strip()
+    has_leak = any(
+        signal in err_str.lower()
+        for signal in (
+            "traceback",
+            "exception",
+            "error:",
+            "http://",
+            "https://",
+            "api_key",
+            "sk-",
+            "bearer",
+            "line ",
+            "file ",
+            "connection",
+            "timeout",
+            "status code",
+            "openrouter",
+            "qdrant",
+            "redis",
+            "neo4j",
+            "postgres",
+            "supabase",
+            "unauthorized",
+            "forbidden",
+        )
+    )
+    if has_leak or len(err_str) > 200:
+        return "An error occurred while processing your request. Please try again."
+    return err_str

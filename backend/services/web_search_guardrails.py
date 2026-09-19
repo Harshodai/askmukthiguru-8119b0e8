@@ -179,20 +179,6 @@ def check_query_repetition(query: str) -> tuple[bool, str]:
 # ─── SSRF / URL Security Guardrails ──────────────────────────────────────────
 
 
-def _is_private_ip(hostname: str) -> bool:
-    """Check if hostname resolves to a private IP."""
-    try:
-        # Try parsing as IP directly
-        ip = ipaddress.ip_address(hostname)
-        for network in _PRIVATE_NETWORKS:
-            if ip in network:
-                return True
-    except ValueError:
-        # Not an IP, skip (DNS resolution not done here to avoid delays)
-        pass
-    return False
-
-
 def validate_url_scheme(url: str) -> tuple[bool, str]:
     """Ensure URL uses allowed scheme only."""
     try:
@@ -220,11 +206,13 @@ def check_url_safety(url: str) -> tuple[bool, str]:
         if parsed.scheme not in _ALLOWED_SCHEMES:
             return False, f"Blocked scheme: {parsed.scheme}"
 
-        # Check for private IP in hostname
-        hostname = parsed.hostname or ""
-        if _is_private_ip(hostname):
-            return False, "Blocked private IP address"
+        # Check for private/loopback/link-local IP via DNS resolution (AMK-D-001)
+        from ingest.pipeline import is_url_safe
 
+        if not is_url_safe(url):
+            return False, "Blocked private, loopback, or unsafe IP address"
+
+        hostname = parsed.hostname or ""
         # Check for localhost
         if hostname in ("localhost", "127.0.0.1", "::1", "0.0.0.0"):
             return False, "Blocked localhost reference"

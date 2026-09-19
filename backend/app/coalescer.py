@@ -40,6 +40,7 @@ class _InMemoryCoalescer:
         self._locks: dict = {}
         self._lock_created: dict = {}
         self._results: dict = {}
+        self._tasks: dict[str, asyncio.Task] = {}
         self._ttl = ttl
         # Number of active/queued waiters per key. Used to decide when it is
         # safe to evict a lock entry; asyncio.Lock.locked() is not enough
@@ -61,12 +62,13 @@ class _InMemoryCoalescer:
         stale_locks = [
             k
             for k, ts in self._lock_created.items()
-            if now - ts > self._ttl and self._lock_users.get(k, 0) == 0
+            if now - ts > self._ttl and self._lock_users.get(k, 0) == 0 and k not in self._tasks
         ]
         for k in stale_locks:
             self._locks.pop(k, None)
             self._lock_created.pop(k, None)
             self._lock_users.pop(k, None)
+            self._tasks.pop(k, None)
 
     async def get_or_run(self, key: str, coro_func: typing.Callable[[], typing.Any]):
         self._cleanup()
@@ -79,7 +81,7 @@ class _InMemoryCoalescer:
             self._lock_created[key] = time.monotonic()
             self._lock_users[key] = 0
 
-        is_collapsed = self._locks[key].locked()
+        is_collapsed = self._locks[key].locked() or key in self._tasks
         if is_collapsed:
             COLLAPSED_REQUESTS.inc()
 
@@ -88,9 +90,30 @@ class _InMemoryCoalescer:
             async with self._locks[key]:
                 if key in self._results:
                     return self._results[key][0]
-                result = await coro_func()
-                self._results[key] = (result, time.monotonic())
-                return result
+
+                task = self._tasks.get(key)
+                if task is None:
+
+                    async def _work() -> typing.Any:
+                        try:
+                            result = await coro_func()
+                            self._results[key] = (result, time.monotonic())
+                            return result
+                        finally:
+                            self._tasks.pop(key, None)
+
+                    task = asyncio.create_task(_work())
+
+                    def _handle_done(t: asyncio.Task) -> None:
+                        if not t.cancelled():
+                            exc = t.exception()
+                            if exc:
+                                logger.debug("Coalesced task failed: %s", exc)
+
+                    task.add_done_callback(_handle_done)
+                    self._tasks[key] = task
+
+            return await asyncio.shield(task)
         finally:
             self._lock_users[key] = max(0, self._lock_users.get(key, 1) - 1)
 

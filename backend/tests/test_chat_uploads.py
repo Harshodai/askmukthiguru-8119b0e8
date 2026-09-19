@@ -43,15 +43,21 @@ def test_ocr_timeout_does_not_hang_extraction() -> None:
             await asyncio.sleep(3600)
             return {"text": "should never get here"}
 
+    import io
+
+    from PIL import Image
+
+    buf = io.BytesIO()
+    Image.new("RGB", (1, 1)).save(buf, format="PNG")
+    valid_png = buf.getvalue()
+
     import app.chat_uploads as chat_uploads
 
     original_timeout = chat_uploads._OCR_TIMEOUT_SECONDS
     chat_uploads._OCR_TIMEOUT_SECONDS = 0.05
     try:
         result = asyncio.run(
-            extract_chat_attachment(
-                "photo.png", "image/png", b"\x89PNG\r\n\x1a\n", ocr_service=_SlowOcr()
-            )
+            extract_chat_attachment("photo.png", "image/png", valid_png, ocr_service=_SlowOcr())
         )
     finally:
         chat_uploads._OCR_TIMEOUT_SECONDS = original_timeout
@@ -70,3 +76,22 @@ def test_combined_upload_limit_fails_closed() -> None:
                 * 3,
             )
         )
+
+
+def test_malformed_image_fails_fast_without_calling_ocr() -> None:
+    """Malformed image must fail immediately without invoking OCR (AMK-E-004)."""
+    ocr_called = False
+
+    class _MockOcr:
+        async def extract_text_from_file(self, path: str) -> dict:
+            nonlocal ocr_called
+            ocr_called = True
+            await asyncio.sleep(0.5)
+            return {"text": "should not be called"}
+
+    payload = b"NOTAPNGCONTENT" * 100
+    result = asyncio.run(
+        extract_chat_attachment("bad.png", "image/png", payload, ocr_service=_MockOcr())
+    )
+    assert result["status"] == "invalid_image"
+    assert not ocr_called

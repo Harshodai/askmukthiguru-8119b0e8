@@ -81,6 +81,7 @@ def _create_test_state(
 @pytest.fixture
 def mock_verification_services():
     mock_ollama = AsyncMock()
+    mock_ollama.generate = AsyncMock(return_value="")
     mock_embedder = MagicMock()
     mock_qdrant = MagicMock()
     mock_lightrag = MagicMock()

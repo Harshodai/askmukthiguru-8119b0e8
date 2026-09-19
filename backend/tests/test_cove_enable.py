@@ -69,6 +69,7 @@ def _mock_state(query_tier: str, answer: str = "answer text") -> GraphState:
 def mock_gateway_services(monkeypatch):
     """Patch services with a mocked LLM gateway and LettuceDetect."""
     mock_ollama = AsyncMock()
+    mock_ollama.generate = AsyncMock(return_value="")
     mock_embedder = MagicMock()
     mock_qdrant = MagicMock()
     mock_lightrag = MagicMock()

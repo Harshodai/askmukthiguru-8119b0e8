@@ -546,8 +546,18 @@ def _redact_unsupported_sentences(verification: dict, *, floor: float) -> tuple[
     Returns None when redaction would not leave a usable answer, so the caller
     falls through to the existing grounded-excerpt behaviour.
     """
+    # Contradiction hard-reject invariant (W5): an answer containing a doctrinal
+    # contradiction must never be salvaged or shipped under redaction.
+    if verification.get("has_contradiction"):
+        return None
     claims = verification.get("claims")
     if not isinstance(claims, list) or not claims:
+        return None
+    if any(
+        isinstance(c, dict)
+        and (c.get("contradiction") or c.get("classification") == "contradiction")
+        for c in claims
+    ):
         return None
     supported = [c for c in claims if isinstance(c, dict) and c.get("supported")]
     removed = len(claims) - len(supported)
@@ -1715,7 +1725,11 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
                 "is_faithful": True,
                 "confidence_score": 0.9,
                 "faithfulness_score": 0.9,
-                "verification": {"passed": True, "method": "official_live_web_results"},
+                "verification": {
+                    "passed": True,
+                    "method": "official_live_web_results",
+                    "citations_verified": True,
+                },
                 "grounding_state": "grounded",
                 "evaluation_trace": _trace_update(
                     state,
@@ -1756,7 +1770,11 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
             "confidence_score": NO_EVIDENCE_CONFIDENCE,
             "faithfulness_score": 0.0,
             "grounding_state": "abstained",
-            "verification": {"passed": True, "method": "no_context_short_circuit"},
+            "verification": {
+                "passed": True,
+                "method": "no_context_short_circuit",
+                "citations_verified": False,
+            },
             "evaluation_trace": _trace_update(
                 state,
                 generated_answer_chars=len(answer),
@@ -1917,7 +1935,11 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
             "confidence_score": NO_EVIDENCE_CONFIDENCE,
             "faithfulness_score": 0.0,
             "grounding_state": "abstained",
-            "verification": {"passed": True, "method": route_decision},
+            "verification": {
+                "passed": True,
+                "method": route_decision,
+                "citations_verified": False,
+            },
             "evaluation_trace": _trace_update(
                 state,
                 generated_answer_chars=len(answer),
@@ -2059,7 +2081,11 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
                 "confidence_score": NO_EVIDENCE_CONFIDENCE,
                 "faithfulness_score": 0.0,
                 "grounding_state": "abstained",
-                "verification": {"passed": True, "method": "empty_context_abstention"},
+                "verification": {
+                    "passed": True,
+                    "method": "empty_context_abstention",
+                    "citations_verified": False,
+                },
                 "evaluation_trace": {"abstention_reason": "no retrieved context or memory"},
             }
 
@@ -2112,7 +2138,11 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
                 "confidence_score": NO_EVIDENCE_CONFIDENCE,
                 "faithfulness_score": 0.0,
                 "grounding_state": "abstained",
-                "verification": {"passed": True, "method": "empty_context_abstention"},
+                "verification": {
+                    "passed": True,
+                    "method": "empty_context_abstention",
+                    "citations_verified": False,
+                },
                 "evaluation_trace": {"abstention_reason": "no retrieved context or memory"},
             }
 
@@ -3066,7 +3096,11 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
             "intent": intent,
             "_needs_retry": False,
             "is_faithful": False,
-            "verification": {"passed": False, "method": "limited_comparison_fallback"},
+            "verification": {
+                "passed": False,
+                "method": "limited_comparison_fallback",
+                "citations_verified": citations_verified,
+            },
             "faithfulness_score": 0.0,
             "confidence_score": 0.0,
             "citations_verified": citations_verified,
@@ -3089,7 +3123,11 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
             "intent": intent,
             "_needs_retry": False,
             "is_faithful": False,
-            "verification": {"passed": False, "method": "reflective_peace_meaning_fallback"},
+            "verification": {
+                "passed": False,
+                "method": "reflective_peace_meaning_fallback",
+                "citations_verified": citations_verified,
+            },
             "faithfulness_score": 0.0,
             "confidence_score": 0.0,
             "citations_verified": citations_verified,
@@ -3115,7 +3153,11 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
             "intent": intent,
             "_needs_retry": False,
             "is_faithful": False,
-            "verification": {"passed": False, "method": "reflective_meaning_fallback"},
+            "verification": {
+                "passed": False,
+                "method": "reflective_meaning_fallback",
+                "citations_verified": citations_verified,
+            },
             "faithfulness_score": 0.0,
             "confidence_score": 0.0,
             "citations_verified": citations_verified,
@@ -3142,7 +3184,11 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
             "intent": intent,
             "_needs_retry": False,
             "is_faithful": False,
-            "verification": {"passed": False, "method": "reflective_practice_fallback"},
+            "verification": {
+                "passed": False,
+                "method": "reflective_practice_fallback",
+                "citations_verified": citations_verified,
+            },
             "faithfulness_score": 0.0,
             "confidence_score": 0.0,
             "citations_verified": citations_verified,
@@ -3186,6 +3232,7 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
                     "passed": False,
                     "method": "grounded_partial_evidence",
                     "partial": True,
+                    "citations_verified": True,
                 },
                 # Report the draft's MEASURED faithfulness, not a sentinel zero.
                 # scripts/ops/hallucination_anomaly.py takes the median of this
@@ -3243,6 +3290,7 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
                     "passed": False,
                     "method": "grounded_partial_evidence",
                     "partial": True,
+                    "citations_verified": True,
                 },
                 # Report the draft's MEASURED faithfulness, not a sentinel zero.
                 # scripts/ops/hallucination_anomaly.py takes the median of this
@@ -3267,7 +3315,11 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
             "route_decision": "no_context_short_circuit",
             "_needs_retry": False,
             "is_faithful": False,
-            "verification": {"passed": False, "method": "refusal_quality_gate"},
+            "verification": {
+                "passed": False,
+                "method": "refusal_quality_gate",
+                "citations_verified": False,
+            },
             "faithfulness_score": 0.0,
             "confidence_score": 0.0,
             "citations_verified": False,
@@ -3427,6 +3479,7 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
                     "method": fast_verification.get("method", "fast_tier_lettuce_detect"),
                     "score": fast_score,
                     "measured": measured,
+                    "citations_verified": citations_verified,
                 },
                 "faithfulness_score": fast_score,
                 "confidence_score": fast_confidence,
@@ -3666,6 +3719,7 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
                     "method": "redacted_unsupported_claims",
                     "redacted_sentences": removed_count,
                     "faithfulness_score": redacted_faithfulness,
+                    "citations_verified": True,
                 },
                 "faithfulness_score": redacted_faithfulness,
                 "confidence_score": confidence,
@@ -3693,6 +3747,7 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
                     "passed": False,
                     "method": "grounded_partial_evidence",
                     "partial": True,
+                    "citations_verified": True,
                 },
                 # See the note on the other grounded_partial_evidence returns:
                 # emit the measured score, never a sentinel that pollutes the

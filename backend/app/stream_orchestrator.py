@@ -127,6 +127,8 @@ class ChatStreamRequestOrchestrator:
             _in_think = False  # live <think> sanitizer: inside a think block
             _think_buf = ""  # discarded think content / post-block remainder
             _ttft_recorded = False
+            _ttft_val: float | None = None
+            _stream_token_chunks = 0
             _t0 = asyncio.get_event_loop().time()
             completed = False
             try:
@@ -196,13 +198,13 @@ class ChatStreamRequestOrchestrator:
                             event_data = json.dumps(event_data)
                         yield f"event: {event_type}\ndata: {event_data}\n\n"
                     elif isinstance(item, str):
+                        _stream_token_chunks += 1
                         if not _ttft_recorded:
+                            _ttft_val = asyncio.get_event_loop().time() - _t0
                             try:
                                 from app.metrics import TTFT_SECONDS
 
-                                TTFT_SECONDS.labels(provider="stream").observe(
-                                    asyncio.get_event_loop().time() - _t0
-                                )
+                                TTFT_SECONDS.labels(provider="stream").observe(_ttft_val)
                             except Exception as _e:
                                 logger.debug(
                                     "[stream cleanup] suppressed non-critical error: %s", _e
@@ -371,6 +373,17 @@ class ChatStreamRequestOrchestrator:
             # separately so clients do not persist an earlier raw refusal.
             final_payload = json.dumps(result.final_answer, ensure_ascii=False)
             yield f"event: final\ndata: {final_payload}\n\n"
+
+            # Observe TPOT (Time Per Output Token)
+            if _ttft_recorded and _ttft_val is not None and _stream_token_chunks > 1:
+                try:
+                    from app.metrics import TPOT_SECONDS
+
+                    stream_elapsed = asyncio.get_event_loop().time() - _t0
+                    tpot = (stream_elapsed - _ttft_val) / max(1, _stream_token_chunks - 1)
+                    TPOT_SECONDS.labels(provider="stream").observe(tpot)
+                except Exception as _e:
+                    logger.debug("[stream cleanup] suppressed non-critical error: %s", _e)
 
             # Done event with metadata
             meta = json.dumps(_stream_done_metadata(result))

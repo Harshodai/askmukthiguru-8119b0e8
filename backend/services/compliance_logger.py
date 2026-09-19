@@ -39,7 +39,7 @@ import json
 import logging
 import os
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
@@ -64,6 +64,32 @@ def _get_audit_path(base_dir: Path = _DEFAULT_AUDIT_DIR) -> Path:
 def _hash_prompt(text: str) -> str:
     """SHA-256 hash of the prompt text — GDPR-safe, no plaintext stored."""
     return "sha256:" + hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def cleanup_compliance_audit_files(
+    retention_days: int = 90, base_dir: Optional[Path] = None
+) -> int:
+    """Purge compliance_audit_YYYY-MM-DD.jsonl files older than retention_days (AMK-C-004)."""
+    target_dir = base_dir if base_dir is not None else _DEFAULT_AUDIT_DIR
+    if not target_dir.exists():
+        return 0
+
+    now = datetime.now(tz=UTC)
+    cutoff = now - timedelta(days=retention_days)
+    purged_count = 0
+
+    for path in target_dir.glob(f"{_AUDIT_FILE_PREFIX}_*.jsonl"):
+        try:
+            date_str = path.stem.replace(f"{_AUDIT_FILE_PREFIX}_", "")
+            file_date = datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=UTC)
+            if file_date < cutoff:
+                path.unlink(missing_ok=True)
+                purged_count += 1
+                logger.info("Purged expired compliance audit file: %s", path.name)
+        except Exception as e:
+            logger.warning("Error evaluating compliance audit file %s: %s", path.name, e)
+
+    return purged_count
 
 
 # -----------------------------------------------------------------------

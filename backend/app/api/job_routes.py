@@ -38,6 +38,11 @@ async def get_job(
     if job is None or not (bool(owner) and bool(uid) and owner == uid):
         # Return 404 on mismatch to avoid confirming existence.
         raise HTTPException(status_code=404, detail="Job not found or expired")
+    if job.get("error"):
+        job = dict(job)
+        from app.sanitization import sanitize_client_error
+
+        job["error"] = sanitize_client_error(job["error"])
     return job
 
 

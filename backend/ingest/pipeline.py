@@ -417,21 +417,26 @@ class IngestionPipeline:
             logger.debug("Tier-4 audio-transcribe fallback failed for %s: %s", video_id, e)
             return None
 
+
+def is_url_safe(url: str) -> bool:
+    """Return False if URL resolves to private, loopback, or link‑local IPs."""
+    try:
+        parsed = urllib.parse.urlparse(url)
+        hostname = parsed.hostname
+        if not hostname:
+            return False
+        for info in socket.getaddrinfo(hostname, None):
+            ip_str = info[4][0]
+            ip_obj = ipaddress.ip_address(ip_str)
+            if ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local:
+                return False
+    except Exception:
+        return False
+    return True
+
     def _is_url_safe(self, url: str) -> bool:
         """Return False if URL resolves to private, loopback, or link‑local IPs."""
-        try:
-            parsed = urllib.parse.urlparse(url)
-            hostname = parsed.hostname
-            if not hostname:
-                return False
-            for info in socket.getaddrinfo(hostname, None):
-                ip_str = info[4][0]
-                ip_obj = ipaddress.ip_address(ip_str)
-                if ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local:
-                    return False
-        except Exception:
-            return False
-        return True
+        return is_url_safe(url)
 
     def _get_neo4j_driver(self):
         global _INGESTION_NEO4J_DRIVER

@@ -10,21 +10,16 @@ logger = logging.getLogger(__name__)
 
 
 def init_llm_cache(embedding_func: Optional[Callable] = None):
-    """Initialize a map-based exact-match LLM call cache via GPTCache."""
-    # embedding_func argument kept for API compatibility but intentionally unused:
-    # MapDataManager uses the prompt string as the key.
     """
-    Initializes the global LangChain cache using GPTCache with SEMANTIC similarity.
+    Initializes the global LangChain cache using GPTCache with exact-match caching.
 
-    Uses Qdrant (already running) as vector store + BGE-M3 embeddings (already loaded).
+    Uses a local map manager (MapDataManager) persisted to flat files.
     This intercepts redundant LLM calls (particularly during LightRAG extraction)
     to drastically cut down latency and repetition.
 
     Args:
-        embedding_func: Optional custom embedding function. If provided, it will be
-            used instead of creating a new SBERT instance. This is useful when
-            the caller already has an EmbeddingService loaded and wants to avoid
-            loading the model twice.
+        embedding_func: Kept for API compatibility; MapDataManager uses prompt text
+            keys directly, so caller embedding functions are unused.
 
     Gracefully skips if gptcache is not installed.
     """
@@ -80,7 +75,7 @@ def init_llm_cache(embedding_func: Optional[Callable] = None):
             )
 
         set_llm_cache(GPTCache(init_gptcache))
-        logger.info("GPTCache semantic caching attached to LangChain (Qdrant + shared embedder)")
+        logger.info("GPTCache exact-match call caching attached to LangChain (local map manager)")
     except ImportError:
         logger.info(
             "GPTCache not installed — skipping LLM call caching. Install with: pip install gptcache"

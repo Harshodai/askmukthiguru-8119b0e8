@@ -45,10 +45,8 @@ from services.ingestion_tracker import build_tracker as build_ingestion_tracker
 from services.krutrim_service import KrutrimService
 from services.language_router import LanguageRouter
 from services.lightrag_service import lightrag_service
-from services.model_registry import ModelRegistry  # Unit 25
 from services.ocr_service import OCRService
 from services.qdrant_service import QdrantService
-from services.sarvam_failover import SarvamFailoverService
 from services.serene_mind_engine import SereneMindEngine
 from services.user_profile_service import UserProfileService
 from services.web_search_service import WebSearchService
@@ -212,22 +210,9 @@ class ServiceContainer:
         # OpenRouter free-tier service for fast/simple queries
         self.openrouter = OpenRouterService()
 
-        # Multi-provider LLM failover router (circuit breakers + rate limiting)
+        # Multi-provider LLM failover router & model registry (inert on request path; AMK-E-003)
         self.multi_provider_llm = None
-        try:
-            from services.multi_provider_llm import get_llm_service as get_multi_provider_llm
-
-            self.multi_provider_llm = get_multi_provider_llm()
-            logger.info("MultiProviderLLMService initialized (failover ready)")
-        except Exception as e:
-            logger.warning(f"MultiProviderLLMService init skipped: {e}")
-
-        # Model registry with cross-provider failover
-        if isinstance(self.ollama, OllamaProvider):
-            self.model_registry = ModelRegistry(self.ollama._service, self.krutrim)
-        else:
-            self.model_registry = SarvamFailoverService(self.ollama._service, self.krutrim)
-            logger.info("SarvamFailoverService active: cross-provider failover enabled")
+        self.model_registry = None
 
         # Circuit Breaker Registry (provider-agnostic)
         self.circuit_breaker_registry = initialize_circuit_breakers()

@@ -60,6 +60,8 @@ celery_app = Celery(
         "tasks.okf_compile_tasks",
         "tasks.cancel_flow_tasks",
         "tasks.contextual_reingest_task",
+        "tasks.cache_maintenance_tasks",
+        "tasks.retention_tasks",
     ],
 )
 
@@ -105,6 +107,10 @@ celery_app.conf.update(
         "prune-semantic-cache": {
             "task": "tasks.cache_maintenance_tasks.prune_semantic_cache",
             "schedule": 3600.0,  # hourly -- semantic_cache_ttl is 7 days, no need to run more often
+        },
+        "cleanup-retention-data": {
+            "task": "tasks.retention_tasks.cleanup_retention_data",
+            "schedule": 86400.0,  # every 24h
         },
     },
 )

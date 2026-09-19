@@ -639,7 +639,15 @@ async def chat_endpoint(
                 if job and job["status"] == "completed" and job["result"]:
                     return ChatResponse(**job["result"])
                 if job and job["status"] == "failed":
-                    raise HTTPException(status_code=500, detail=job.get("error", "Pipeline failed"))
+                    from app.sanitization import sanitize_client_error
+
+                    raw_err = job.get("error", "Pipeline failed")
+                    logger.error(
+                        "Synchronous wait on failed job %s: %s",
+                        sanitize_log_input(job_id),
+                        sanitize_log_input(str(raw_err)),
+                    )
+                    raise HTTPException(status_code=500, detail=sanitize_client_error(raw_err))
                 await asyncio.sleep(0.5)
             raise HTTPException(status_code=504, detail="Pipeline timeout")
 

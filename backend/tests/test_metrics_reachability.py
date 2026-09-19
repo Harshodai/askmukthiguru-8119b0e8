@@ -60,3 +60,30 @@ def test_dead_collectors_absent():
     src = pathlib.Path("app/metrics.py").read_text()
     for name in DEAD:
         assert not re.search(rf"^{name}\s*=", src, re.M), f"dead collector {name} still declared"
+
+
+def test_metrics_have_external_callsites():
+    """AMK-F-005: RETRIEVAL_LATENCY, LLM_LATENCY, and TPOT_SECONDS must have call sites outside app/metrics.py."""
+    backend_dir = pathlib.Path(__file__).resolve().parent.parent
+    py_files = [
+        p
+        for p in backend_dir.rglob("*.py")
+        if p.name != "metrics.py"
+        and not any(
+            part.startswith(".") or part.startswith("test") or part == "tests" for part in p.parts
+        )
+    ]
+
+    for metric_name, helper_name in [
+        ("RETRIEVAL_LATENCY", "observe_retrieval_latency"),
+        ("LLM_LATENCY", "observe_llm_latency"),
+        ("TPOT_SECONDS", None),
+    ]:
+        matches = []
+        for p in py_files:
+            text = p.read_text(errors="ignore")
+            if metric_name in text or (helper_name and helper_name in text):
+                matches.append(str(p.relative_to(backend_dir)))
+        assert len(matches) > 0, (
+            f"{metric_name} (and {helper_name}) has no call site outside app/metrics.py (checked {len(py_files)} files)"
+        )

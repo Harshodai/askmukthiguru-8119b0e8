@@ -79,12 +79,14 @@ async def ingest_endpoint(
     if not url:
         raise HTTPException(status_code=400, detail="URL cannot be empty")
 
+    from ingest.pipeline import is_url_safe
     from services.web_search_guardrails import check_url_safety
 
     url_safe, url_reason = check_url_safety(url)
-    if not url_safe:
+    if not url_safe or not is_url_safe(url):
+        reason = url_reason or "Blocked private or loopback IP address"
         raise HTTPException(
-            status_code=400, detail=f"URL rejected by security guardrails: {url_reason}"
+            status_code=400, detail=f"URL rejected by security guardrails: {reason}"
         )
 
     try:

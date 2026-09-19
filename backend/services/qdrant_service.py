@@ -238,11 +238,22 @@ class QdrantService:
             logger.warning(str(exc))
             raise exc
 
+        import time
+
+        t0 = time.perf_counter()
         try:
             result = self._searcher.search(
                 query_vector, limit, content_type, sparse_vector, raptor_level, **kwargs
             )
             self._circuit.record_success()
+            try:
+                from app.metrics import observe_retrieval_latency
+
+                observe_retrieval_latency(
+                    source="qdrant", seconds=max(0.0, time.perf_counter() - t0)
+                )
+            except Exception as _e:
+                logger.debug("[qdrant] suppressed metric observation error: %s", _e)
             return result
         except (ConnectionError, TimeoutError, OSError) as e:
             self._circuit.record_failure()
@@ -273,6 +284,9 @@ class QdrantService:
             logger.warning(str(exc))
             raise exc
 
+        import time
+
+        t0 = time.perf_counter()
         try:
             result = self._searcher.search_groups(
                 query_vector=query_vector,
@@ -286,6 +300,14 @@ class QdrantService:
                 **kwargs,
             )
             self._circuit.record_success()
+            try:
+                from app.metrics import observe_retrieval_latency
+
+                observe_retrieval_latency(
+                    source="qdrant", seconds=max(0.0, time.perf_counter() - t0)
+                )
+            except Exception as _e:
+                logger.debug("[qdrant] suppressed metric observation error: %s", _e)
             return result
         except (ConnectionError, TimeoutError, OSError) as e:
             self._circuit.record_failure()

@@ -27,7 +27,7 @@ def _is_retryable_openrouter_error(exc: BaseException) -> bool:
     latency before the inevitable graceful-degradation fallback. Other
     transient httpx/timeout errors are still worth a retry.
     """
-    if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code == 429:
+    if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code in (401, 403, 429):
         return False
     return isinstance(exc, (httpx.HTTPError, asyncio.TimeoutError))
 
@@ -591,6 +591,17 @@ class OpenRouterService:
                 str(data.get("choices", [{}])[0].get("finish_reason") or "unknown")[:32],
             )
 
+            try:
+                from app.metrics import observe_llm_latency
+
+                observe_llm_latency(
+                    model=model,
+                    operation=operation,
+                    seconds=max(0.0, time.perf_counter() - call_started),
+                )
+            except Exception as _e:
+                logger.debug("[openrouter] suppressed metric observation error: %s", _e)
+
             return content
 
         except Exception as exc:
@@ -607,6 +618,21 @@ class OpenRouterService:
             # Do NOT count 429 (rate limit) as a circuit breaker failure.
             # 429 is a transient quota signal — the service is up but throttling.
             # Only count service errors (5xx) and non-HTTP failures.
+            is_auth_error = isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code in (
+                401,
+                403,
+            )
+            if is_auth_error:
+                self._circuit.record_failure()
+                logger.error(
+                    f"OpenRouter auth error ({exc.response.status_code}) during {operation} (model={model}) — graceful degradation"
+                )
+                if strict_gateway:
+                    raise ProviderConnectionError(
+                        f"OpenRouter auth error ({exc.response.status_code}) during {operation}"
+                    ) from exc
+                return await self._graceful_degradation(messages, operation=operation)
+
             is_rate_limit = (
                 isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code == 429
             )

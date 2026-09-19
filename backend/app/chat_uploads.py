@@ -158,6 +158,14 @@ async def _extract_media_text(
         if ocr_service is None:
             return "", "ocr_unavailable"
         try:
+            from PIL import Image, UnidentifiedImageError
+
+            with Image.open(path) as img:
+                img.verify()
+        except (UnidentifiedImageError, OSError, Exception) as exc:
+            logger.warning("Image verification failed for %s: %s", name, exc)
+            return "", "invalid_image"
+        try:
             result = await asyncio.wait_for(
                 ocr_service.extract_text_from_file(path), timeout=_OCR_TIMEOUT_SECONDS
             )

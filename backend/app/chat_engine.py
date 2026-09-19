@@ -44,7 +44,7 @@ from fastapi import HTTPException
 from app.config import settings
 from app.dependencies import ServiceContainer
 from app.grounding import grounding_state_for
-from app.metrics import TTFT_SECONDS
+from app.metrics import TPOT_SECONDS, TTFT_SECONDS
 from app.release_manifest import get_release_manifest
 from app.sanitization import sanitize_log_input
 from app.schemas import ChatRequest
@@ -357,6 +357,8 @@ class ChatEngine:
         assembled_text: list[str] = []
         stream_started_at = time.monotonic()
         first_token_observed = False
+        first_token_at: float | None = None
+        streamed_chunks_count = 0
 
         try:
             while True:
@@ -374,27 +376,33 @@ class ChatEngine:
                     assembled_text.append(chunk_text)
                     if not is_final:
                         # Mid-stream chunks yielded immediately for low latency
-                        if chunk_text and not first_token_observed:
-                            first_token_observed = True
-                            try:
-                                TTFT_SECONDS.labels(provider="pipeline").observe(
-                                    time.monotonic() - stream_started_at
-                                )
-                            except Exception:
-                                logger.debug("TTFT metric emission failed", exc_info=True)
+                        if chunk_text:
+                            streamed_chunks_count += 1
+                            if not first_token_observed:
+                                first_token_observed = True
+                                first_token_at = time.monotonic()
+                                try:
+                                    TTFT_SECONDS.labels(provider="pipeline").observe(
+                                        first_token_at - stream_started_at
+                                    )
+                                except Exception:
+                                    logger.debug("TTFT metric emission failed", exc_info=True)
                         yield ChatChunk(text=chunk_text, is_final=False)
                     # Final chunk handled below after tone adaptation
                 else:
                     chunk_text = str(item)
                     assembled_text.append(chunk_text)
-                    if chunk_text and not first_token_observed:
-                        first_token_observed = True
-                        try:
-                            TTFT_SECONDS.labels(provider="pipeline").observe(
-                                time.monotonic() - stream_started_at
-                            )
-                        except Exception:
-                            logger.debug("TTFT metric emission failed", exc_info=True)
+                    if chunk_text:
+                        streamed_chunks_count += 1
+                        if not first_token_observed:
+                            first_token_observed = True
+                            first_token_at = time.monotonic()
+                            try:
+                                TTFT_SECONDS.labels(provider="pipeline").observe(
+                                    first_token_at - stream_started_at
+                                )
+                            except Exception:
+                                logger.debug("TTFT metric emission failed", exc_info=True)
                     yield ChatChunk(text=chunk_text)
         except asyncio.CancelledError:
             logger.info("Chat stream cancelled by client; cancelling pipeline task")
@@ -433,6 +441,12 @@ class ChatEngine:
                 )
             except Exception:
                 logger.debug("TTFT metric emission failed", exc_info=True)
+        elif first_token_observed and streamed_chunks_count > 1 and first_token_at is not None:
+            try:
+                tpot = (time.monotonic() - first_token_at) / max(1, streamed_chunks_count - 1)
+                TPOT_SECONDS.labels(provider="pipeline").observe(tpot)
+            except Exception:
+                logger.debug("TPOT metric emission failed", exc_info=True)
         yield ChatChunk(
             text=final_text,
             is_final=True,

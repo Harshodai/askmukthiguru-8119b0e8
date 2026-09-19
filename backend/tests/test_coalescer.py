@@ -47,6 +47,37 @@ async def test_in_memory_coalescer_concurrency():
     assert call_count == 1  # Only run once
 
 
+@pytest.mark.asyncio
+async def test_in_memory_coalescer_cancellation_shield():
+    """When the first caller of _InMemoryCoalescer is cancelled, the shared task must continue
+    running and the second caller must receive the completed result (AMK-A-003)."""
+    coalescer = _InMemoryCoalescer(ttl=5.0)
+    call_count = 0
+    work_started = asyncio.Event()
+
+    async def slow_task():
+        nonlocal call_count
+        call_count += 1
+        work_started.set()
+        await asyncio.sleep(0.3)
+        return {"result": "completed"}
+
+    # Start caller 1 and caller 2 concurrently
+    task1 = asyncio.create_task(coalescer.get_or_run("cancel_key", slow_task))
+    await work_started.wait()
+    task2 = asyncio.create_task(coalescer.get_or_run("cancel_key", slow_task))
+
+    # Cancel caller 1 mid-execution
+    task1.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task1
+
+    # Caller 2 must still receive the completed result and slow_task must only run once
+    result2 = await task2
+    assert result2 == {"result": "completed"}
+    assert call_count == 1
+
+
 @pytest.mark.skipif(not _redis_up, reason="Redis not reachable at test URL")
 @pytest.mark.asyncio
 async def test_redis_coalescer_concurrency():

@@ -2294,6 +2294,16 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
         retrieval_stage_times,
     )
 
+    try:
+        from app.metrics import observe_retrieval_latency
+
+        observe_retrieval_latency(
+            source=retrieval_lane or "qdrant",
+            seconds=max(0.0, time.perf_counter() - retrieval_started),
+        )
+    except Exception as _e:
+        logger.debug("[retrieval] suppressed metric observation error: %s", _e)
+
     return {
         "documents": all_docs,
         "raw_documents": raw_docs_copy,
