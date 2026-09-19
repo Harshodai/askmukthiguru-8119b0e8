@@ -1,47 +1,41 @@
-# ── Mukthi Guru — Railway Production Dockerfile (Multi-Stage, Size-Optimised) ──
-# Two-stage build to eliminate ~5GB of build-time bloat:
-#   Stage 1 (builder): installs ALL Python deps + downloads ONNX INT8 models
-#   Stage 2 (runtime): copies only site-packages + model cache + app code
+# ── Mukthi Guru — Railway Production Dockerfile (Multi-Stage, Memory-Optimised) ──
+# Architecture:
+#   Stage 1 (builder): Installs Python dependencies in /opt/venv, pre-caches INT8 ONNX models
+#   Stage 2 (runtime): Copies clean /opt/venv + model cache + app code
 #
-# Optimisations vs single-stage:
-#   - gcc/g++/make stay in builder (never land in final image)
-#   - pip + HF download machinery stripped from final image
-#   - Model .lock / .gitattributes files pruned before copy
-#   - QUANTIZED_ONLY=true: only INT8 ONNX models cached (~1.3GB vs ~7.5GB FP32)
-#   - CPU-only torch wheel from pytorch.org/whl/cpu (no CUDA libs)
-#   - --no-compile during pip install (skips .pyc in builder; PYTHONOPTIMIZE=1 at runtime)
-#   - torchvision kept (required by easyocr for OCR path)
-#   - ffmpeg kept (required by whisper_local_service.py for audio STT)
-#
-# Target final image: ~2.5-3GB (vs 7.8GB before)
+# Key optimizations:
+#   - Full virtual environment isolation (/opt/venv) preserves PyTorch C-extensions
+#   - Build tools (gcc, g++, make) stay in builder stage only (eliminates ~400MB)
+#   - Pip cache purged, unneeded build artifacts omitted
+#   - CPU-only PyTorch wheel via https://download.pytorch.org/whl/cpu (saves ~2.5GB CUDA bloat)
+#   - QUANTIZED_ONLY=true: Bakes in only INT8 ONNX models (~1.3GB vs ~7.5GB unquantized)
+#   - Target final image: ~2.5GB (down from 7.8GB)
+#   - Runtime uses malloc_trim + gc.collect to minimize resident memory (RSS)
 
 # ── Stage 1: Builder ─────────────────────────────────────────────────────────
 FROM python:3.12-slim AS builder
 
-# Build deps: compiler chain for native extensions + curl for healthcheck sanity
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl gcc g++ make libgomp1 && \
+    curl gcc g++ make && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /var/cache/apt/*
 
 WORKDIR /build
 
-# Layer 1: torch CPU-only wheel (pinned, largest single package ~700MB compressed)
-COPY backend/requirements.lock ./requirements.lock
-RUN pip install --no-cache-dir --no-compile \
-    --extra-index-url https://download.pytorch.org/whl/cpu \
-    torch==2.13.0 torchvision==0.28.0 && \
-    pip cache purge
+# Create clean virtualenv
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 
-# Layer 2: remaining dependencies (excluding torch/torchvision already installed)
-RUN pip install --no-cache-dir --no-compile \
+# Install all locked dependencies with CPU wheels for torch/torchvision
+COPY backend/requirements.lock ./requirements.lock
+RUN pip install --no-cache-dir \
     --extra-index-url https://download.pytorch.org/whl/cpu \
     -r requirements.lock && \
     pip cache purge
 
-# Layer 3: pre-cache ONNX INT8 quantised models (skip FP32 via QUANTIZED_ONLY=true)
+# Pre-cache runtime models (ONNX INT8 quantized models + tokenizers only)
 ENV HF_HOME=/build/model_cache/huggingface \
-    SENTENCE_TRANSFORMERS_HOME=/build/model_cache/huggingface/sentence_transformers \
+    SENTENCE_TRANSFORMERS_HOME=/build/model_cache/sentence_transformers \
     TRANSFORMERS_CACHE=/build/model_cache/huggingface \
     QUANTIZED_ONLY=true \
     EMBEDDING_BACKEND=onnx_int8 \
@@ -50,44 +44,25 @@ ENV HF_HOME=/build/model_cache/huggingface \
 
 COPY backend/scripts/download_models.py ./scripts/download_models.py
 RUN python3 scripts/download_models.py && \
-    # Prune lock files, git metadata, and redundant blobs to slim the cache
-    find /build/model_cache -type f \( \
-        -name "*.lock" -o -name ".gitattributes" -o \
-        -name "*.md" -o -name "*.py" -o \
-        -name "requirements.txt" \
-    \) -delete 2>/dev/null || true && \
-    # Remove huggingface download metadata (not needed at runtime)
+    find /build/model_cache -type f -name "*.lock" -delete 2>/dev/null || true && \
     find /build/model_cache -type d -name ".locks" -exec rm -rf {} + 2>/dev/null || true && \
-    find /build/model_cache -type d -name "tmp*" -exec rm -rf {} + 2>/dev/null || true && \
-    # Remove __pycache__ from site-packages
-    find /usr/local/lib/python3.12/site-packages -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true && \
-    find /usr/local/lib/python3.12/site-packages -type f -name "*.pyc" -delete 2>/dev/null || true && \
-    # Strip test files from site-packages (saves ~200MB)
-    find /usr/local/lib/python3.12/site-packages -type d \( \
-        -name "tests" -o -name "test" -o -name "testing" -o \
-        -name "benchmarks" -o -name "examples" \
-    \) -exec rm -rf {} + 2>/dev/null || true && \
-    rm -rf /tmp/*
+    find /build/model_cache -type d -name "tmp*" -exec rm -rf {} + 2>/dev/null || true
 
 # ── Stage 2: Runtime ─────────────────────────────────────────────────────────
 FROM python:3.12-slim AS runtime
 
-# Runtime system deps only: no compiler toolchain
-# libgomp1: required by ONNX runtime for OpenMP parallelism
-# ffmpeg: required by whisper_local_service.py for audio STT (16kHz mono conversion)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl ffmpeg libgomp1 && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /var/cache/apt/* /tmp/* /var/tmp/*
 
-# Create non-root user
 RUN useradd -m -s /bin/bash appuser
 
 WORKDIR /app
 
-# Copy Python packages from builder (compiler-free runtime)
-COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
+# Copy complete virtualenv from builder
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 
 # Copy pre-baked model cache from builder
 COPY --chown=appuser:appuser --from=builder /build/model_cache /app/.cache
@@ -105,24 +80,23 @@ COPY --chown=appuser:appuser scripts/ops/rotate_brain_kek.py ./scripts/ops/rotat
 # OKF compiled index and memory files
 COPY --chown=appuser:appuser memory/ ./memory/
 
-# Create runtime directories and clean build artefacts
+# Create runtime directories with non-root ownership
 RUN mkdir -p /app/data /app/logs && chown -R appuser:appuser /app/data /app/logs /app/.cache && \
-    rm -rf /app/.pytest_cache /app/.ruff_cache /app/.mypy_cache /app/.hypothesis /app/venv /app/.venv && \
     find /app -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true && \
     find /app -type f -name "*.pyc" -delete 2>/dev/null || true
 
-# Production environment — TOKEN OPTIMISATION & ONNX INT8 QUANTISATION
+# Production environment
 ENV ENV=production \
     IS_PRODUCTION=true \
     WEB_CONCURRENCY=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONOPTIMIZE=1 \
-    # Model cache paths (must match builder paths)
+    # Model cache paths
     HF_HOME=/app/.cache/huggingface \
-    SENTENCE_TRANSFORMERS_HOME=/app/.cache/huggingface/sentence_transformers \
+    SENTENCE_TRANSFORMERS_HOME=/app/.cache/sentence_transformers \
     TRANSFORMERS_CACHE=/app/.cache/huggingface \
-    # ONNX INT8 quantised inference (no FP32 PyTorch inference at runtime)
+    # Inference configurations
     EMBEDDING_BACKEND=onnx_int8 \
     RERANKER_BACKEND=onnx_int8 \
     EMBEDDING_MODEL=BAAI/bge-m3 \
@@ -138,7 +112,7 @@ ENV ENV=production \
     HOT_CACHE_TTL=300 \
     VECTOR_CACHE_ENABLED=true \
     EXACT_CACHE_ENABLED=true \
-    # Timeouts & concurrency
+    # Timeouts & thread controls
     LLM_TIMEOUT=90 \
     PIPELINE_TIMEOUT=180 \
     TOKENIZERS_PARALLELISM=false \
@@ -150,5 +124,4 @@ EXPOSE 8000
 
 USER appuser
 
-# Railway sets $PORT; start_railway.py reads it and launches the ASGI server.
 CMD ["python", "start_railway.py"]

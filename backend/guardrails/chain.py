@@ -8,9 +8,6 @@ from app.metrics import GUARDRAILS_PROVIDER_DEGRADED
 from guardrails.base import BaseGuardrailHandler
 from guardrails.disabled_handler import DisabledGuardrailHandler
 from guardrails.lightweight_handler import LightweightGuardrailHandler
-from guardrails.llama_guard_handler import LlamaGuardHandler
-from guardrails.nemo_handler import NeMoGuardrailHandler
-from guardrails.rejection_handler import RejectionClassifierHandler
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +30,10 @@ class GuardrailsChain:
             logger.info("Guardrails DISABLED via config (not recommended for production)")
             self._head = DisabledGuardrailHandler()
         elif provider == "llama_guard":
+            from guardrails.llama_guard_handler import LlamaGuardHandler
+            from guardrails.nemo_handler import NeMoGuardrailHandler
+            from guardrails.rejection_handler import RejectionClassifierHandler
+
             lightweight = LightweightGuardrailHandler()
             llama = LlamaGuardHandler()
             rejection = RejectionClassifierHandler()
@@ -65,6 +66,9 @@ class GuardrailsChain:
                     self._provider_name = "lightweight"
                 self._head = lightweight
         elif provider == "rejection_classifier":
+            from guardrails.nemo_handler import NeMoGuardrailHandler
+            from guardrails.rejection_handler import RejectionClassifierHandler
+
             lightweight = LightweightGuardrailHandler()
             rejection = RejectionClassifierHandler()
             nemo = NeMoGuardrailHandler()

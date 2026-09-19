@@ -1,5 +1,29 @@
 ## Sep 19, 2026 (Session 2) — Production Bugs Fixed, Data Migrations Verified, Docker Image Slashed
 
+### L-DOCKER-2. Blind find-delete of "testing" directories corrupts PyTorch's core imports
+- **Who**: Antigravity agent, 2026-09-19 session 2.
+- **What**: In an attempt to slim site-packages, `find /usr/local/lib/python3.12/site-packages -type d -name "testing" -exec rm -rf` was run. This deleted `torch/testing`. In PyTorch, `torch/__init__.py` explicitly executes `from torch import testing as testing`.
+- **Failure symptom**: On initial import, torch raised `ModuleNotFoundError: No module named 'torch.testing'`. When swallowed by a try/except, `torch._C` remained in memory while `torch` was removed from `sys.modules`. A subsequent import executed `torch._C._rpc_init()` again, throwing `RuntimeError: generic_type: cannot initialize type "RpcBackendOptions": an object with that name is already defined`.
+- **Fix**: Use clean multi-stage virtualenv isolation (`/opt/venv`). NEVER delete directories named `testing` or `test` from site-packages.
+- **Rule / Invariant**: Multi-stage Python builds must copy the complete `/opt/venv` tree. Never run broad `find -delete` on package code.
+
+### L-MEM-1. Python gc.collect() does not return pages to Linux; malloc_trim(0) does
+- **Who**: Antigravity agent, 2026-09-19 session 2.
+- **What**: Backend memory was reported at its peak permanently on Railway. Python garbage collection (`gc.collect()`) reclaims Python heap objects, but glibc's malloc arena retains freed pages in process virtual memory (RSS) for future allocations. To Docker/cgroups, memory looks permanently pinned at peak usage.
+- **Fix**: Call `ctypes.CDLL("libc.so.6").malloc_trim(0)` after model warm-up and run a background trimmer pump every 120s in `start_railway.py`. This forces glibc to release free arena pages back to the Linux kernel via `madvise`/`sbrk`.
+- **Rule / Invariant**: High-memory Python containers on Linux must call `malloc_trim(0)` after batch loads and warmup phases.
+
+### L-MEM-2. Python memory limit must match container headroom, not artificially choke heap
+- **Who**: Antigravity agent, 2026-09-19 session 2.
+- **What**: `PYTHON_MEMORY_LIMIT_MB` was set to `3584` (3.5 GB) on Railway, despite Railway provisioning a 6GB container. This set `RLIMIT_DATA` to 3.5GB, causing premature allocation failures while 2.5GB of RAM was idle.
+- **Fix**: Increased `PYTHON_MEMORY_LIMIT_MB` to `5120` (5 GB) on Railway, giving the process room to handle burst allocations while preserving OS buffer margin.
+
+### L-GUARDRAILS-1. Heavy guardrail handlers must be lazily imported
+- **Who**: Antigravity agent, 2026-09-19 session 2.
+- **What**: `guardrails/chain.py` imported `LlamaGuardHandler` and `RejectionClassifierHandler` at module scope. Both imported PyTorch and transformers on startup, even when `GUARDRAILS_PROVIDER=lightweight`.
+- **Fix**: Lazily import heavy handlers only when `settings.guardrails_provider` matches `llama_guard` or `rejection_classifier`. For `lightweight`, no PyTorch or transformer models are imported.
+- **Rule / Invariant**: Provider plugins in a chain-of-responsibility must not import their dependencies at module level if alternative lightweight providers exist.
+
 **Session shape.** Continued ruthless production-hardening. Verified Railway Memgraph/Qdrant migrations complete (6,430 nodes / 4,188 rels already present). Fixed two production bugs live in Railway logs. Built multi-stage Dockerfile targeting ~2.5GB from 7.8GB. Committed commit f5a53027 and deployed.
 
 ### L-PROD-BUGS-1. Empty list [] is falsy — caused false-positive teacher attribution stripping on sourced answers

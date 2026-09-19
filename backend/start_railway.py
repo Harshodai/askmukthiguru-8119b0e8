@@ -191,6 +191,33 @@ async def _run_executor_canary_pump():
         pass
 
 
+async def _run_memory_trimmer_pump():
+    """Periodically trim process memory (malloc_trim) on Linux to release idle heap pages back to OS.
+
+    Python's glibc allocator retains freed memory pages in its arena bins; without
+    malloc_trim(0), process RSS stays pegged at peak allocation even after gc.collect().
+    """
+    import gc
+    try:
+        import ctypes
+        _libc = ctypes.CDLL("libc.so.6")
+        _has_trim = hasattr(_libc, "malloc_trim")
+    except Exception:
+        _has_trim = False
+
+    try:
+        while True:
+            await asyncio.sleep(120)
+            gc.collect()
+            if _has_trim:
+                try:
+                    _libc.malloc_trim(0)
+                except Exception:
+                    pass
+    except asyncio.CancelledError:
+        pass
+
+
 async def _run_real_lifespan():
     global _real_app, _lifespan_startup_done, _last_heartbeat, _last_executor_canary
     global _lifespan_failed
@@ -204,6 +231,7 @@ async def _run_real_lifespan():
     # hit an unbound pump (e.g. when the import above raises).
     pump = None
     executor_pump = None
+    memory_pump = None
     try:
         real_app, real_lifespan = await asyncio.to_thread(_import_real_app)
         _real_app = real_app
@@ -216,6 +244,8 @@ async def _run_real_lifespan():
         # P2-OPS-1: pump the executor canary alongside it -- catches thread-pool
         # starvation the event-loop-only heartbeat above cannot see.
         executor_pump = asyncio.create_task(_run_executor_canary_pump())
+        # Memory pump: periodically trim idle glibc heap pages back to the kernel
+        memory_pump = asyncio.create_task(_run_memory_trimmer_pump())
 
         async with real_lifespan(real_app):
             _lifespan_startup_done = True
@@ -223,7 +253,14 @@ async def _run_real_lifespan():
             import gc
 
             gc.collect()
-            logger.info("Post-warmup garbage collection complete (memory freed for steady state)")
+            try:
+                import ctypes
+                _libc = ctypes.CDLL("libc.so.6")
+                if hasattr(_libc, "malloc_trim"):
+                    _libc.malloc_trim(0)
+            except Exception:
+                pass
+            logger.info("Post-warmup garbage collection & malloc_trim complete (memory freed for steady state)")
             await _shutdown_event.wait()
             logger.info("Real lifespan exiting on shutdown event")
     except asyncio.CancelledError:
@@ -243,6 +280,8 @@ async def _run_real_lifespan():
             pump.cancel()
         if executor_pump is not None:
             executor_pump.cancel()
+        if memory_pump is not None:
+            memory_pump.cancel()
         _last_heartbeat = 0.0
         _last_executor_canary = 0.0
 

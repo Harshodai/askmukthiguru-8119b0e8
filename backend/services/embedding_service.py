@@ -429,10 +429,24 @@ class EmbeddingService:
 
             self._onnx_session = session
             # Tokenizer loaded from BAAI/bge-m3 at the immutable revision
-            # _ONNX_TOKENIZER_REVISION — never a repo head. The encoder snapshot
-            # above is separately revision-pinned (HF_REVISION / _ONNX_ENCODER_REVISION).
+            # _ONNX_TOKENIZER_REVISION — never a repo head. When pre-cached on disk,
+            # pass the local snapshot directory to AutoTokenizer.from_pretrained to prevent
+            # transformers from triggering remote HF API calls (e.g. is_base_mistral check)
+            # which fail when running offline/containerized.
+            candidate_dirs = [
+                Path(hf_home) / "models--BAAI--bge-m3" / "snapshots" / self._ONNX_TOKENIZER_REVISION,
+                Path(hf_home) / "hub" / "models--BAAI--bge-m3" / "snapshots" / self._ONNX_TOKENIZER_REVISION,
+                Path(hf_home) / "sentence_transformers" / "models--BAAI--bge-m3" / "snapshots" / self._ONNX_TOKENIZER_REVISION,
+                Path(hf_home) / "sentence_transformers" / "models--BAAI--bge-m3",
+                Path(hf_home) / "models--BAAI--bge-m3",
+            ]
+            tok_path = "BAAI/bge-m3"
+            for cand in candidate_dirs:
+                if cand.is_dir():
+                    tok_path = str(cand)
+                    break
             self._onnx_tokenizer = AutoTokenizer.from_pretrained(
-                "BAAI/bge-m3",
+                tok_path,
                 revision=self._ONNX_TOKENIZER_REVISION,
                 model_max_length=8192,
             )

@@ -24,10 +24,13 @@ def configure_threading() -> None:
         ("NUMEXPR_NUM_THREADS", "1"),
     ):
         os.environ.setdefault(key, value)
-    try:
-        import torch
+    import sys
 
-        torch.set_num_threads(1)
-        torch.set_num_interop_threads(1)
-    except Exception:
-        pass
+    if "torch" in sys.modules:
+        try:
+            import torch
+
+            torch.set_num_threads(1)
+            torch.set_num_interop_threads(1)
+        except Exception:
+            pass

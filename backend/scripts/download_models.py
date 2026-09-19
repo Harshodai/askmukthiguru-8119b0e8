@@ -21,7 +21,7 @@ os.environ.update(
     }
 )
 
-# Immutable revisions (commit SHAs), resolved 2026-08-01.
+# Immutable revisions (commit SHAs), resolved 2026-08-01 / 2026-08-11.
 _MODEL_REVISIONS = {
     "intfloat/multilingual-e5-small": "614241f622f53c4eeff9890bdc4f31cfecc418b3",
     "BAAI/bge-m3": "5617a9f61b028005a4858fdac845db406aefb181",
@@ -35,6 +35,10 @@ _MODEL_REVISIONS = {
     "meta-llama/Llama-Guard-3-1B": "acf7aafa60f0410f8f42b1fa35e077d705892029",
     "protectai/distilroberta-base-rejection-v1": "86520b5f35829cf9209a449e1716b56c70ddd802",
     "temsa/mmarco-mMiniLMv2-L12-H384-v1-onnx-cpu-qint8": "59d3305e534a9abf92f6eb6238c34b748a89dc83",
+    # ONNX INT8 quantized BGE-M3 model for CPU inference (EMBEDDING_BACKEND=onnx_int8)
+    "gpahal/bge-m3-onnx-int8": "2b34e84df040034d4b9eabb62383a87c18955822",
+    # LettuceDetect token classification model for hallucination / faithfulness verification
+    "KRLabsOrg/lettucedect-base-modernbert-en-v1": "bbd77832f52f9bd87546a3924c032467921f5c34",
 }
 
 
@@ -51,36 +55,38 @@ def _pin(model_id: str) -> str:
     return revision
 
 
+QUANTIZED_ONLY = os.environ.get("QUANTIZED_ONLY", "").lower() in ("true", "1", "yes")
+if QUANTIZED_ONLY:
+    print("QUANTIZED_ONLY=true: Skipping unquantized PyTorch FP32 models (saving ~7.5GB)")
+
 # 1. SentenceTransformers cache (for SentenceTransformer API)
 from sentence_transformers import SentenceTransformer  # noqa: E402
 
-SentenceTransformer(
-    "intfloat/multilingual-e5-small", revision=_pin("intfloat/multilingual-e5-small")
-)
-SentenceTransformer("BAAI/bge-m3", revision=_pin("BAAI/bge-m3"))
-print("sentence_transformers cache populated")
+if not QUANTIZED_ONLY:
+    SentenceTransformer(
+        "intfloat/multilingual-e5-small", revision=_pin("intfloat/multilingual-e5-small")
+    )
+    SentenceTransformer("BAAI/bge-m3", revision=_pin("BAAI/bge-m3"))
+    print("sentence_transformers cache populated")
 
-# 2. BGE Reranker cache (for reranker API — used via CrossEncoder API)
-from sentence_transformers import CrossEncoder  # noqa: E402
+    # 2. BGE Reranker cache (for reranker API — used via CrossEncoder API)
+    from sentence_transformers import CrossEncoder  # noqa: E402
 
-CrossEncoder("BAAI/bge-reranker-v2-m3", revision=_pin("BAAI/bge-reranker-v2-m3"))
-print("bge-reranker cache populated")
+    CrossEncoder("BAAI/bge-reranker-v2-m3", revision=_pin("BAAI/bge-reranker-v2-m3"))
+    print("bge-reranker cache populated")
 
-# 3. CrossEncoder fallback reranker
-CrossEncoder(
-    "cross-encoder/ms-marco-MiniLM-L6-v2", revision=_pin("cross-encoder/ms-marco-MiniLM-L6-v2")
-)
-print("ms-marco reranker cache populated")
+    # 3. CrossEncoder fallback reranker
+    CrossEncoder(
+        "cross-encoder/ms-marco-MiniLM-L6-v2", revision=_pin("cross-encoder/ms-marco-MiniLM-L6-v2")
+    )
+    print("ms-marco reranker cache populated")
 
-# 3b. CrossEncoder CPU fallback reranker (settings.reranker_model_cpu) — this is
-# the model OnnxReranker actually falls back to on CPU deployments (Railway),
-# not ms-marco-MiniLM-L6-v2 above. Uncached, it silently downloads ~470MB at
-# request time inside a memory-constrained container the first time ONNX fails.
-CrossEncoder(
-    "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
-    revision=_pin("cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"),
-)
-print("mmarco-mMiniLMv2-L12 (reranker_model_cpu fallback) cache populated")
+    # 3b. CrossEncoder CPU fallback reranker
+    CrossEncoder(
+        "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
+        revision=_pin("cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"),
+    )
+    print("mmarco-mMiniLMv2-L12 (reranker_model_cpu fallback) cache populated")
 
 # 4. SemanticRouter / on-device intent classifier
 SentenceTransformer(
@@ -89,31 +95,32 @@ SentenceTransformer(
 )
 print("all-MiniLM-L6-v2 cache populated")
 
-# 5. Llama Guard / Rejection classifier (optional, skip on failure)
-try:
-    from transformers import AutoModelForCausalLM, AutoTokenizer  # noqa: E402
+if not QUANTIZED_ONLY:
+    # 5. Llama Guard / Rejection classifier (optional, skip on failure)
+    try:
+        from transformers import AutoModelForCausalLM, AutoTokenizer  # noqa: E402
 
-    _llama_guard_rev = _pin("meta-llama/Llama-Guard-3-1B")
-    AutoTokenizer.from_pretrained("meta-llama/Llama-Guard-3-1B", revision=_llama_guard_rev)
-    AutoModelForCausalLM.from_pretrained("meta-llama/Llama-Guard-3-1B", revision=_llama_guard_rev)
-    print("llama-guard cache populated")
-except Exception as e:
-    print(f"llama-guard download skipped: {e}")
+        _llama_guard_rev = _pin("meta-llama/Llama-Guard-3-1B")
+        AutoTokenizer.from_pretrained("meta-llama/Llama-Guard-3-1B", revision=_llama_guard_rev)
+        AutoModelForCausalLM.from_pretrained("meta-llama/Llama-Guard-3-1B", revision=_llama_guard_rev)
+        print("llama-guard cache populated")
+    except Exception as e:
+        print(f"llama-guard download skipped: {e}")
 
-# 6. Rejection Classifier (optional) — used by RejectionClassifierHandler
-try:
-    from transformers import AutoModelForSequenceClassification, AutoTokenizer  # noqa: E402
+    # 6. Rejection Classifier (optional) — used by RejectionClassifierHandler
+    try:
+        from transformers import AutoModelForSequenceClassification, AutoTokenizer  # noqa: E402
 
-    _rejection_rev = _pin("protectai/distilroberta-base-rejection-v1")
-    AutoTokenizer.from_pretrained(
-        "protectai/distilroberta-base-rejection-v1", revision=_rejection_rev
-    )
-    AutoModelForSequenceClassification.from_pretrained(
-        "protectai/distilroberta-base-rejection-v1", revision=_rejection_rev
-    )
-    print("rejection classifier cache populated")
-except Exception as e:
-    print(f"rejection classifier download skipped: {e}")
+        _rejection_rev = _pin("protectai/distilroberta-base-rejection-v1")
+        AutoTokenizer.from_pretrained(
+            "protectai/distilroberta-base-rejection-v1", revision=_rejection_rev
+        )
+        AutoModelForSequenceClassification.from_pretrained(
+            "protectai/distilroberta-base-rejection-v1", revision=_rejection_rev
+        )
+        print("rejection classifier cache populated")
+    except Exception as e:
+        print(f"rejection classifier download skipped: {e}")
 
 # 7. ONNX INT8 reranker (temsa) — used by OnnxReranker via snapshot_download.
 # The snapshot must land under HF_HOME/hub/models--<org>--<model> (the same
@@ -140,5 +147,67 @@ try:
     print("onnx int8 reranker cache populated")
 except Exception as e:
     print(f"onnx int8 reranker download skipped: {e}")
+
+# 8. ONNX INT8 embedding model (gpahal/bge-m3-onnx-int8)
+# Used by EmbeddingService._load_onnx_encoder. It expects the model snapshot under
+# HF_HOME/hub/models--gpahal--bge-m3-onnx-int8
+try:
+    from huggingface_hub import snapshot_download  # noqa: E402
+
+    _onnx_embed_id = "gpahal/bge-m3-onnx-int8"
+    _onnx_embed_rev = _pin(_onnx_embed_id)
+    _onnx_embed_cache = os.path.join(
+        os.environ["HF_HOME"],
+        "hub",
+        "models--" + _onnx_embed_id.replace("/", "--"),
+    )
+    snapshot_download(
+        repo_id=_onnx_embed_id,
+        revision=_onnx_embed_rev,
+        local_dir=_onnx_embed_cache,
+        local_dir_use_symlinks=False,
+        resume_download=True,
+        ignore_patterns=["*.md", "*.py", "requirements.txt"],
+    )
+    print("onnx int8 bge-m3 embedder cache populated")
+except Exception as e:
+    print(f"onnx int8 embedder download skipped: {e}")
+
+# 9. BGE-M3 Tokenizer (BAAI/bge-m3)
+# Explicitly cached for EmbeddingService._load_onnx_encoder
+try:
+    from transformers import AutoTokenizer  # noqa: E402
+
+    _bge_m3_rev = _pin("BAAI/bge-m3")
+    AutoTokenizer.from_pretrained("BAAI/bge-m3", revision=_bge_m3_rev)
+    print("bge-m3 tokenizer cache populated")
+except Exception as e:
+    print(f"bge-m3 tokenizer download skipped: {e}")
+
+# 10. LettuceDetect ModernBERT model (KRLabsOrg/lettucedect-base-modernbert-en-v1)
+# Used by LettuceDetectService._load_real_detector.
+try:
+    from huggingface_hub import snapshot_download  # noqa: E402
+
+    _lettuce_id = "KRLabsOrg/lettucedect-base-modernbert-en-v1"
+    _lettuce_rev = _pin(_lettuce_id)
+    _lettuce_path = snapshot_download(
+        repo_id=_lettuce_id,
+        revision=_lettuce_rev,
+        resume_download=True,
+    )
+    try:
+        from lettucedetect.models.inference import HallucinationDetector  # noqa: E402
+
+        HallucinationDetector(method="transformer", model_path=_lettuce_path)
+        print("lettucedect detector cache populated and pre-warmed")
+    except Exception as e:
+        from transformers import AutoModelForTokenClassification, AutoTokenizer  # noqa: E402
+
+        AutoTokenizer.from_pretrained(_lettuce_path)
+        AutoModelForTokenClassification.from_pretrained(_lettuce_path)
+        print(f"lettucedect token classification cache populated (fallback: {e})")
+except Exception as e:
+    print(f"lettucedect download skipped: {e}")
 
 print("All models cached successfully")

@@ -668,6 +668,18 @@ async def _background_startup_body(container, fastapi_app) -> None:
             _brain_kek_err,
         )
 
+    # Reclaim startup memory: garbage collect and release glibc arena pages back to OS
+    try:
+        import gc
+        gc.collect()
+        import ctypes
+        _libc = ctypes.CDLL("libc.so.6")
+        if hasattr(_libc, "malloc_trim"):
+            _libc.malloc_trim(0)
+        logger.info("Lifespan: post-warmup memory trim complete (released to OS)")
+    except Exception:
+        pass
+
     _app_deps.startup_complete = True
     logger.info("=== Mukthi Guru Backend Ready ===")
 

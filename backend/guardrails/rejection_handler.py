@@ -4,9 +4,6 @@ import asyncio
 import logging
 from typing import Any
 
-import torch
-from transformers import AutoModelForSequenceClassification, AutoTokenizer
-
 from app.tracing import rag_span
 from guardrails.base import BaseGuardrailHandler
 
@@ -31,6 +28,9 @@ class RejectionClassifierHandler(BaseGuardrailHandler):
 
     def _load_model(self) -> None:
         try:
+            import torch
+            from transformers import AutoModelForSequenceClassification, AutoTokenizer
+
             model_id = "protectai/distilroberta-base-rejection-v1"
             self._device = (
                 "cuda"
@@ -76,6 +76,8 @@ class RejectionClassifierHandler(BaseGuardrailHandler):
             return False, 0.0
 
         def _infer(t: str) -> tuple[bool, float]:
+            import torch
+
             inputs = self._tokenizer(
                 [t],
                 return_tensors="pt",
