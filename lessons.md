@@ -1,4 +1,21 @@
-## Sep 19, 2026 (Session 3) — Zero-WARNING Production Logs: All Startup Warnings Eliminated
+## Sep 19, 2026 (Session 3) — Zero-WARNING Production Logs, Qdrant Contextual Switch, and LightRAG Verification
+
+### L-MIGRATE-QDRANT-1. Railway QDRANT_COLLECTION must match contextual collection
+- **Who**: Antigravity agent, 2026-09-19 session 3.
+- **What**: Railway environment had `QDRANT_COLLECTION=spiritual_wisdom` pointing at legacy 89,116-point uncontextual collection, ignoring the codebase default `spiritual_wisdom_contextual` (12,904 clean contextual chunks). The legacy collection consumed ~1 GB RAM in Qdrant and had uncleaned prompt text.
+- **Fix**: (1) Created snapshot `spiritual_wisdom-2937117541588631-2026-09-19-10-30-23.snapshot` (974 MB) via Qdrant API. (2) Set `QDRANT_COLLECTION=spiritual_wisdom_contextual` on Railway service `askmukthiguru-8119b0e8`. (3) Safely deleted `spiritual_wisdom` from Railway Qdrant, freeing memory and disk. (4) Live smoke tests confirmed retrieval now uses `spiritual_wisdom_contextual` with verified YouTube citations.
+- **Rule**: When upgrading collection schemas (contextual chunking, OKF tags), always update the deployed environment variable to point to the new collection, verify live search, snapshot the old collection, and prune it.
+
+### L-LIGHTRAG-LINK-1. Dual-level LightRAG graph vectors and Memgraph storage in production
+- **Who**: Antigravity agent, 2026-09-19 session 3.
+- **What**: User requested verifying and linking LightRAG to ensure production readiness across vector and graph layers.
+- **Architecture**:
+  - Vector backend: `QdrantVectorDBStorage` pointing at `lightrag_vdb_entities_baai_bge_m3_1024d` (6,712 points), `lightrag_vdb_relationships_baai_bge_m3_1024d` (5,003 points), `lightrag_vdb_chunks_baai_bge_m3_1024d` (2,386 points).
+  - Graph backend: `MemgraphStorage` over `bolt://memgraph.railway.internal:7687` (6,430 nodes / 4,188 rels).
+  - Lifespan: Inline initialization with 120s timeout and circuit breaker protection.
+  - Hot path: Consulted for multi-concept queries (`_graph_multi_concept`) with bounded character caps and `only_need_context=True` to preserve sub-second response times.
+- **Verification**: Health endpoint `/api/health` reports `"lightrag": {"ok": true}`, `"neo4j": {"ok": true}`, `"qdrant": {"ok": true}`. Live chat turns confirmed grounded answers with citation preservation.
+
 
 ### L-WARN-1. doctrine_faqs.citations column missing — SELECT fallback pattern for schema lag
 - **Who**: Antigravity agent, 2026-09-19 session 3.
