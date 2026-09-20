@@ -28,6 +28,7 @@ export const CODE_BY_KIND: Record<MessageErrorKind, { code: string; nextStep: st
   unauthorized: { code: 'AUTH_401', nextStep: 'Sign in again to continue. Your draft is saved.' },
   rate_limited: { code: 'RATE_429', nextStep: 'The Guru is serving many seekers right now. Retrying automatically…' },
   quota_exceeded: { code: 'QUOTA_402', nextStep: 'Sign in to continue your conversation with the Guru.' },
+  context_exhausted: { code: 'CONTEXT_409', nextStep: 'Continue this conversation in a new chat. Your current conversation remains available.' },
   server_error: { code: 'MODEL_5XX', nextStep: 'The model is recovering. Retry in a moment.' },
   network: { code: 'NET_OFFLINE', nextStep: 'Check your connection, then retry.' },
   timeout: { code: 'TIMEOUT_504', nextStep: 'Deep wisdom takes time. Please try again — it will be faster on the second attempt.' },
