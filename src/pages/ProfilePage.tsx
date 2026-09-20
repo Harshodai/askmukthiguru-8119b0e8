@@ -551,8 +551,8 @@ const ProfilePage = () => {
             <TabsContent value="profile" className="space-y-6 mt-0">
               <Card className="rounded-xl border border-hairline bg-card shadow-none">
                 <CardHeader className="pb-4">
-                  <CardTitle className="text-lg font-semibold text-foreground">Personal Details</CardTitle>
-                  <CardDescription>Tell the Guru about yourself and your spiritual focus.</CardDescription>
+                  <CardTitle className="text-lg font-semibold text-foreground">{t("profile.personalDetails.title")}</CardTitle>
+                  <CardDescription>{t("profile.personalDetails.subtitle")}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6 p-5 sm:p-7">
                   <div className="space-y-3">
@@ -564,31 +564,31 @@ const ProfilePage = () => {
                       onChange={handleAvatarPick}
                     />
                     <div className="space-y-1.5">
-                      <Label htmlFor="displayName" className="text-sm font-medium">Display Name</Label>
+                      <Label htmlFor="displayName" className="text-sm font-medium">{t("profile.personalDetails.displayName")}</Label>
                       <Input
                         id="displayName"
                         value={form.displayName}
                         onChange={(e) => patch('displayName', e.target.value)}
-                        placeholder="How should I address you?"
+                        placeholder={t("profile.personalDetails.displayNamePlaceholder", "How should I address you?")}
                         maxLength={40}
                         className="min-h-[44px] rounded-xl"
                       />
                     </div>
                     {profile.avatarDataUrl && (
                       <Button variant="ghost" size="sm" onClick={handleRemoveAvatar} className="text-destructive hover:text-destructive hover:bg-destructive/10 text-xs min-h-[36px] px-2.5 rounded-lg">
-                        <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Remove photo
+                        <Trash2 className="w-3.5 h-3.5 mr-1.5" /> {t("profile.personalDetails.removePhoto", "Remove photo")}
                       </Button>
                     )}
                   </div>
 
 
                   <div className="space-y-2">
-                    <Label htmlFor="bio" className="text-sm font-medium">Your Path & Intention</Label>
+                    <Label htmlFor="bio" className="text-sm font-medium">{t("profile.personalDetails.bio")}</Label>
                     <Textarea
                       id="bio"
                       value={form.bio}
                       onChange={(e) => patch('bio', e.target.value)}
-                      placeholder="Share what brings you here or your current spiritual challenges..."
+                      placeholder={t("profile.personalDetails.bioPlaceholder", "Share what brings you here or your current spiritual challenges...")}
                       className="min-h-[120px] resize-none rounded-xl"
                       maxLength={280}
                     />
@@ -633,7 +633,7 @@ const ProfilePage = () => {
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium">Guidance Depth</Label>
+                      <Label className="text-sm font-medium">{t("profile.personalDetails.guidanceDepth", "Guidance depth")}</Label>
                       <Select
                         value={form.familiarityLevel || 'seeker'}
                         onValueChange={(v) => patch('familiarityLevel', v as 'seeker' | 'practitioner' | 'advanced')}
@@ -643,15 +643,15 @@ const ProfilePage = () => {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="seeker">
-                            <span className="font-medium">Seeker</span>
+                            <span className="font-medium">{t("profile.personalDetails.seeker", "Seeker")}</span>
                             <span className="ml-2 text-xs text-muted-foreground">Clear Sanskrit explanations</span>
                           </SelectItem>
                           <SelectItem value="practitioner">
-                            <span className="font-medium">Practitioner</span>
+                            <span className="font-medium">{t("profile.personalDetails.practitioner", "Practitioner")}</span>
                             <span className="ml-2 text-xs text-muted-foreground">Balanced meditation guidance</span>
                           </SelectItem>
                           <SelectItem value="advanced">
-                            <span className="font-medium">Advanced</span>
+                            <span className="font-medium">{t("profile.personalDetails.advanced", "Advanced")}</span>
                             <span className="ml-2 text-xs text-muted-foreground">Deep philosophical terms</span>
                           </SelectItem>
                         </SelectContent>
@@ -694,7 +694,7 @@ const ProfilePage = () => {
                       Unsaved changes
                     </p>
                   ) : (
-                    <p className="text-xs text-muted-foreground">All profile details are up to date</p>
+                    <p className="text-xs text-muted-foreground">{t("profile.personalDetails.upToDate", "All profile details are up to date")}</p>
                   )}
                 </div>
                 <Button
@@ -703,7 +703,7 @@ const ProfilePage = () => {
                   className="w-full sm:w-auto min-h-[44px] h-11 px-8 bg-ojas hover:bg-ojas-light text-primary-foreground shadow-sm gap-2 font-medium rounded-xl"
                 >
                   <Save className="w-4 h-4" />
-                  {isOnboarding ? "Complete Onboarding" : "Save Changes"}
+                  {isOnboarding ? t("profile.personalDetails.completeOnboarding", "Complete Onboarding") : t("profile.personalDetails.saveChanges", "Save Changes")}
                 </Button>
               </div>
             </TabsContent>
@@ -730,8 +730,8 @@ const ProfilePage = () => {
 
               <Card className="rounded-2xl border border-hairline bg-card shadow-sm">
                 <CardHeader className="pb-4">
-                  <CardTitle className="text-lg font-serif font-semibold text-foreground">Journey Overview</CardTitle>
-                  <CardDescription>Your activity across conversations, practice, and reflection.</CardDescription>
+                  <CardTitle className="text-lg font-serif font-semibold text-foreground">{t("profile.journey.title", "Journey Overview")}</CardTitle>
+                  <CardDescription>{t("profile.journey.subtitle", "Your activity across conversations, practice, and reflection.")}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {metricsLoading && !metrics && (
@@ -755,7 +755,7 @@ const ProfilePage = () => {
                         <div className="rounded-2xl border border-hairline bg-card px-4 py-3.5 flex flex-col gap-1">
                           <div className="flex items-center gap-1.5 text-muted-foreground">
                             <Flame className="w-3.5 h-3.5" />
-                            <span className="text-[10px] uppercase tracking-[0.14em] font-medium text-muted-foreground">Conversations</span>
+                            <span className="text-[10px] uppercase tracking-[0.14em] font-medium text-muted-foreground">{t("profile.journey.conversations")}</span>
                           </div>
                           <p className="text-2xl font-serif font-semibold text-foreground tabular-nums leading-none mt-1">
                             {metrics.totalConversations}
@@ -764,7 +764,7 @@ const ProfilePage = () => {
                         <div className="rounded-2xl border border-hairline bg-card px-4 py-3.5 flex flex-col gap-1">
                           <div className="flex items-center gap-1.5 text-muted-foreground">
                             <MessageCircle className="w-3.5 h-3.5" />
-                            <span className="text-[10px] uppercase tracking-[0.14em] font-medium text-muted-foreground">Messages</span>
+                            <span className="text-[10px] uppercase tracking-[0.14em] font-medium text-muted-foreground">{t("profile.journey.messages", "Messages")}</span>
                           </div>
                           <p className="text-2xl font-serif font-semibold text-foreground tabular-nums leading-none mt-1">
                             {metrics.totalMessages}
@@ -773,7 +773,7 @@ const ProfilePage = () => {
                         <div className="rounded-2xl border border-hairline bg-card px-4 py-3.5 flex flex-col gap-1">
                           <div className="flex items-center gap-1.5 text-muted-foreground">
                             <Target className="w-3.5 h-3.5" />
-                            <span className="text-[10px] uppercase tracking-[0.14em] font-medium text-muted-foreground">Course progress</span>
+                            <span className="text-[10px] uppercase tracking-[0.14em] font-medium text-muted-foreground">{t("profile.journey.courseProgress", "Course progress")}</span>
                           </div>
                           <p className="text-2xl font-serif font-semibold text-foreground tabular-nums leading-none mt-1">
                             {metrics.courseCompletionPercent}%
@@ -783,16 +783,16 @@ const ProfilePage = () => {
                       <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1.5">
                           <Heart className="w-3.5 h-3.5 text-ojas" />
-                          {metrics.activeHealingCourse ?? 'No active healing course'}
+                          {metrics.activeHealingCourse ?? t("profile.journey.noActiveCourse", "No active healing course")}
                         </span>
                         <span className="flex items-center gap-1.5">
                           <TrendingUp className="w-3.5 h-3.5" />
-                          Distress {metrics.averageDistressLevel ?? '—'} · {metrics.distressTrend}
+                          {t("profile.journey.distress", "Distress")} {metrics.averageDistressLevel ?? "—"} · {metrics.distressTrend}
                         </span>
                         {metrics.lastActiveAt && (
                           <span className="flex items-center gap-1.5">
                             <Sparkles className="w-3.5 h-3.5" />
-                            Last active {formatRelativeTime(new Date(metrics.lastActiveAt))}
+                            {t("profile.journey.lastActive", "Last active")} {formatRelativeTime(new Date(metrics.lastActiveAt))}
                           </span>
                         )}
                       </div>
@@ -1001,8 +1001,8 @@ const ProfilePage = () => {
               </div>
               <Card className="rounded-2xl border border-hairline bg-card shadow-sm">
                 <CardHeader className="pb-4">
-                  <CardTitle className="text-lg font-serif font-semibold text-foreground">Appearance</CardTitle>
-                  <CardDescription>Customize the interface theme.</CardDescription>
+                  <CardTitle className="text-lg font-serif font-semibold text-foreground">{t("profile.appearance.title")}</CardTitle>
+                  <CardDescription>{t("profile.appearance.subtitle")}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-3 gap-3">
@@ -1030,14 +1030,14 @@ const ProfilePage = () => {
 
               <Card className="rounded-2xl border border-hairline bg-card shadow-sm">
                 <CardHeader className="pb-4">
-                  <CardTitle className="text-lg font-serif font-semibold text-foreground">Voice & Audio</CardTitle>
-                  <CardDescription>Configure Text-to-Speech playback.</CardDescription>
+                  <CardTitle className="text-lg font-serif font-semibold text-foreground">{t("profile.audio.title")}</CardTitle>
+                  <CardDescription>{t("profile.audio.subtitle")}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="flex items-center justify-between gap-4">
                     <div className="space-y-0.5">
-                      <Label>Enable Guru Voice</Label>
-                      <p className="text-xs text-muted-foreground">Read teachings aloud automatically</p>
+                      <Label>{t("profile.audio.enableVoice")}</Label>
+                      <p className="text-xs text-muted-foreground">{t("profile.audio.enableVoiceSubtitle")}</p>
                     </div>
                     <Switch
                       checked={form.ttsEnabled}
@@ -1049,8 +1049,8 @@ const ProfilePage = () => {
                     <div className="space-y-4 pt-2">
                       <div className="flex items-center justify-between gap-4">
                         <div className="space-y-0.5">
-                          <Label>Auto-play Guru Responses</Label>
-                          <p className="text-xs text-muted-foreground">Read each teaching aloud as it arrives</p>
+                          <Label>{t("profile.audio.autoplay", "Auto-play Guru Responses")}</Label>
+                          <p className="text-xs text-muted-foreground">{t("profile.audio.autoplaySubtitle", "Read each teaching aloud as it arrives")}</p>
                         </div>
                         <Switch
                           checked={form.voiceAutoplay ?? false}
@@ -1059,7 +1059,7 @@ const ProfilePage = () => {
                       </div>
 
                       <div className="flex justify-between text-xs text-muted-foreground">
-                        <Label>Speech Rate</Label>
+                        <Label>{t("profile.audio.speechRate")}</Label>
                         <span>{form.ttsRate}x</span>
                       </div>
                       <Slider
@@ -1071,8 +1071,8 @@ const ProfilePage = () => {
                       />
 
                       <div className="space-y-2 pt-2">
-                        <Label>Guru Voice (Mayura)</Label>
-                        <p className="text-xs text-muted-foreground">Choose the voice personality for Indic language audio.</p>
+                        <Label>{t("profile.audio.voiceName")}</Label>
+                        <p className="text-xs text-muted-foreground">{t("profile.audio.voiceSubtitle")}</p>
                         <Select value={normalizeVoice(form.preferredVoice)} onValueChange={(v) => patch('preferredVoice', v)}>
                           <SelectTrigger className="rounded-xl min-h-[44px]">
                             <SelectValue />
@@ -1094,17 +1094,17 @@ const ProfilePage = () => {
 
               <Card className="rounded-2xl border border-hairline bg-card shadow-sm">
                 <CardHeader className="pb-4">
-                  <CardTitle className="text-lg font-serif font-semibold text-foreground">Reminders</CardTitle>
-                  <CardDescription>Stay consistent with your spiritual goals.</CardDescription>
+                  <CardTitle className="text-lg font-serif font-semibold text-foreground">{t("profile.reminders.title")}</CardTitle>
+                  <CardDescription>{t("profile.reminders.subtitle")}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="flex items-center justify-between gap-4">
                     <div className="space-y-0.5">
                       <Label className="flex items-center gap-2">
-                        Meditation Reminders
+                        {t("profile.reminders.title", "Meditation reminders")}
                         {form.meditationReminders ? <BellRing className="w-3.5 h-3.5 text-ojas" /> : <Bell className="w-3.5 h-3.5" />}
                       </Label>
-                      <p className="text-xs text-muted-foreground">Daily notification to find your center</p>
+                      <p className="text-xs text-muted-foreground">{t("profile.reminders.dailySubtitle")}</p>
                     </div>
                     <Switch
                       checked={form.meditationReminders}
@@ -1128,7 +1128,7 @@ const ProfilePage = () => {
                   {form.meditationReminders && (
                     <div className="space-y-4 pt-2">
                       <div className="flex justify-between items-center">
-                        <Label className="text-xs text-muted-foreground uppercase tracking-wider">Scheduled for</Label>
+                        <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("profile.reminders.scheduledFor")}</Label>
                         <Badge variant="outline" className="text-ojas border-hairline bg-ojas/5">
                           {formatTime(form.reminderTimeMinutes)}
                         </Badge>
@@ -1147,7 +1147,7 @@ const ProfilePage = () => {
                           className="h-8 text-[11px] gap-2 rounded-xl border-hairline"
                           onClick={() => fireTestReminder(toast)}
                         >
-                          <Bell className="w-3.5 h-3.5" /> Send test reminder
+                          <Bell className="w-3.5 h-3.5" /> {t("profile.reminders.test", "Send test reminder")}
                         </Button>
                       </div>
                     </div>
@@ -1158,8 +1158,8 @@ const ProfilePage = () => {
               {/* Demarcated Account & Data Section */}
               <Card className="rounded-2xl border border-hairline bg-card shadow-sm">
                 <CardHeader className="pb-4">
-                  <CardTitle className="text-lg font-serif font-semibold text-foreground">Account & Data</CardTitle>
-                  <CardDescription>Export your data, clear local history, or delete your account.</CardDescription>
+                  <CardTitle className="text-lg font-serif font-semibold text-foreground">{t("profile.danger.accountTitle", "Account & Data")}</CardTitle>
+                  <CardDescription>{t("profile.danger.accountSubtitle", "Export your data, clear local history, or delete your account.")}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="space-y-2">
