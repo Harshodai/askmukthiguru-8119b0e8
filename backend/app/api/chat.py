@@ -523,6 +523,8 @@ def _conversation_context_limit_response(chat_body: ChatRequest) -> JSONResponse
         [message.model_dump() for message in chat_body.messages],
         chat_body.user_message,
         chat_body.language or "en",
+        conversation_summary=chat_body.conversation_summary if not chat_body.incognito else None,
+        attachment_context=chat_body.attachment_context if not chat_body.incognito else None,
     )
     if not budget.exhausted:
         return None
