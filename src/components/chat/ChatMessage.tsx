@@ -858,7 +858,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                     className="text-[10px] text-muted-foreground/80 ml-auto bg-muted/40 hover:bg-ojas/15 hover:text-ojas px-2.5 py-0.5 rounded-full transition-colors font-medium shrink-0"
                     aria-label={t('chat.viewSources')}
                   >
-                    Open →
+                    {t('common.open')}
                   </button>
                 </summary>
 
