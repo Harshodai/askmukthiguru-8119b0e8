@@ -402,9 +402,9 @@ const ProfilePage = () => {
         message: '',
         category: 'Feedback'
       });
-      toast({ title: 'Message sent', description: 'We will get back to you within 24-48 hours.' });
+      toast({ title: t('profile.support.messageSent', 'Message sent'), description: t('profile.support.responseTime', 'We will get back to you within 24–48 hours.') });
     } catch (err) {
-      toast({ title: 'Failed to send', description: err instanceof Error ? err.message : 'Please try again.', variant: 'destructive' });
+      toast({ title: t('profile.support.sendFailed', 'Failed to send'), description: err instanceof Error ? err.message : t('profile.support.tryAgain', 'Please try again.'), variant: 'destructive' });
     } finally {
       setSupportLoading(false);
     }
@@ -1184,9 +1184,9 @@ const ProfilePage = () => {
                             a.download = `askmukthiguru-cloud-export-${new Date().toISOString().slice(0, 10)}.json`;
                             a.click();
                             URL.revokeObjectURL(url);
-                            toast({ title: 'Cloud data exported' });
+                            toast({ title: t('profile.danger.cloudExported', 'Cloud data exported') });
                           } catch (e) {
-                            toast({ title: 'Export failed', description: e instanceof Error ? e.message : 'unknown', variant: 'destructive' });
+                            toast({ title: t('profile.danger.exportFailed', 'Export failed'), description: e instanceof Error ? e.message : t('common.unknown', 'Unknown error'), variant: 'destructive' });
                           }
                         }}
                       >
@@ -1278,7 +1278,7 @@ const ProfilePage = () => {
                               onComplete={async ({ saved, retention }) => {
                                 setCancelOpen(false);
                                 if (saved) {
-                                  toast({ title: 'Offer applied', description: 'Glad you are staying.' });
+                                  toast({ title: t('cancelFlow.offerApplied', 'Offer applied'), description: t('cancelFlow.offerAppliedDesc', 'Your preferences have been kept.') });
                                   return;
                                 }
                                 if (retention === 'delete_immediately') {
@@ -1289,7 +1289,7 @@ const ProfilePage = () => {
                                     deleteAllData();
                                     resetProfile();
                                     await supabase.auth.signOut();
-                                    toast({ title: 'Account deleted' });
+                                    toast({ title: t('profile.danger.accountDeleted', 'Account deleted') });
                                     navigate('/', { replace: true });
                                   } catch (e) {
                                     toast({ title: 'Sign-out failed', description: e instanceof Error ? e.message : 'unknown', variant: 'destructive' });
@@ -1299,7 +1299,7 @@ const ProfilePage = () => {
                                     await supabase.auth.signOut();
                                     toast({
                                       title: 'Deletion scheduled',
-                                      description: 'Your account is scheduled for deletion. You can reactivate anytime before the deletion date.',
+                                      description: t('profile.danger.deletionScheduledDesc', 'Your account is scheduled for deletion. You can reactivate anytime before the deletion date.'),
                                     });
                                     navigate('/', { replace: true });
                                   } catch (e) {
@@ -1317,7 +1317,7 @@ const ProfilePage = () => {
                     <p className="text-[11px] text-muted-foreground pt-1">
                       Need help debugging access?{' '}
                       <a href="/auth/diagnostics" className="text-ojas hover:underline">
-                        Open auth diagnostics
+                        {t('profile.support.authDiagnostics', 'Open auth diagnostics')}
                       </a>
                     </p>
                   </div>
@@ -1342,10 +1342,10 @@ const ProfilePage = () => {
                       <CheckCircle2 className="h-12 w-12 text-prana" />
                       <p className="text-lg font-medium font-serif">Message sent!</p>
                       <p className="text-sm text-muted-foreground max-w-sm">
-                        We will get back to you within 24&ndash;48 hours. For urgent matters, please include &quot;URGENT&quot; in your subject line.
+                        {t('profile.support.sentDescription', 'We will get back to you within 24–48 hours. For urgent matters, please include "URGENT" in your subject line.')}
                       </p>
                       <Button variant="outline" className="mt-4 rounded-xl border-hairline" onClick={() => setSupportSent(false)}>
-                        Send another message
+                        {t('profile.support.sendAnother', 'Send another message')}
                       </Button>
                     </div>
                   ) : (
