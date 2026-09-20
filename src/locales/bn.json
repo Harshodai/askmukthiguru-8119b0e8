@@ -554,7 +554,21 @@
       "edit": "বার্তা সম্পাদনা করুন",
       "remove": "কিউ থেকে সরান",
       "regionLabel": "কিউতে থাকা বার্তা"
-    }
+    },
+    "voiceConversationUnavailable": "ভয়েস কথোপকথন উপলভ্য নয়",
+    "voiceConversationUnavailableDesc": "হ্যান্ডস-ফ্রি কথোপকথনের জন্য এই ব্রাউজারে মাইক্রোফোন ও ভয়েস আউটপুট দরকার।",
+    "voiceStreaming": "ভয়েস স্ট্রিমিং",
+    "voiceRecording": "ভয়েস রেকর্ডিং",
+    "switchLangButton": "বদলান",
+    "speaking": "বলছে…",
+    "dismissError": "ত্রুটি বন্ধ করুন",
+    "temporaryChat": "অস্থায়ী চ্যাট",
+    "temporaryChatTitle": "অস্থায়ী চ্যাট: চ্যাট ইতিহাস, ব্যক্তিগত স্মৃতি বা ব্যক্তিগত জ্ঞান মানচিত্রে সংরক্ষিত হয় না।",
+    "personalized": "ব্যক্তিগতকৃত",
+    "personalizedTitle": "সাধারণ চ্যাট আপনার প্রোফাইল ও উপযুক্ত ব্যক্তিগত স্মৃতি ব্যবহার করতে পারে।",
+    "voiceMode": "ভয়েস",
+    "signInAgain": "আবার সাইন ইন করুন",
+    "reload": "পুনরায় লোড করুন"
   },
   "notFound": {
     "message": "ওহ! পৃষ্ঠাটি খুঁজে পাওয়া যায়নি",
