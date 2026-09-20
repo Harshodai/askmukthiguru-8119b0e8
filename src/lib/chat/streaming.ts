@@ -5,6 +5,7 @@ import { buildAssistantContext } from './assistant';
 import { httpStatusToErrorCode } from './errors';
 import { fetchWithRetry } from './fetchWithRetry';
 import { recordMetric } from './telemetry';
+import { loadProfile } from '@/lib/profileStorage';
 import type { MessagePayload, ResponsePreferences, StreamChunk } from './types';
 
 /** Error augmented with HTTP/transport metadata for caller telemetry. */
@@ -79,6 +80,8 @@ export async function* sendMessageStreaming(
     ...(summary && !incognito ? { conversation_summary: summary.slice(0, 4000) } : {}),
     language: languageOverride ?? getCurrentConfig().language ?? 'en',
     incognito,
+    // Profile voice preference; backend applies it as a generation-time persona hint.
+    ...(!incognito ? { guru_tone: loadProfile().guruTone } : {}),
     ...(responsePreferences ? { response_preferences: { mode: responsePreferences.mode, include_practice: responsePreferences.includePractice, include_reflection: responsePreferences.includeReflection, action_depth: responsePreferences.actionDepth } } : {}),
     stream: true,
     ...(lastSereneMindAt != null

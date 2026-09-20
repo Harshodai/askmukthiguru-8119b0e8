@@ -273,4 +273,48 @@ describe('ChatInterface', () => {
       expect(guruBubbles[1]).toHaveTextContent('Content was blocked by safety policy');
     });
   });
+
+  it('persists streamed teachingPreview on final message commit without closure race', async () => {
+    const teachingItem = {
+      title: 'Discourse on Witnessing',
+      teacher: 'Sri Preethaji',
+      url: 'https://example.com/witnessing',
+      excerpt: 'Be with what is.',
+    };
+
+    vi.mocked(sendMessageStreaming).mockImplementation(() => ({
+      [Symbol.asyncIterator]: async function* () {
+        yield { type: 'teaching_preview', items: [teachingItem] };
+        yield { type: 'token', text: 'Peace arises in witnessing.' };
+        yield {
+          type: 'done',
+          blocked: false,
+          intent: 'QUERY',
+          citations: [],
+          meditationStep: 0,
+          followUpSuggestions: [],
+        };
+      },
+    } as any));
+
+    render(
+      <BrowserRouter>
+        <ChatInterface />
+      </BrowserRouter>
+    );
+
+    await waitFor(() => {
+      expect(setCurrentConversationId).toHaveBeenCalledWith('test-conv-id');
+    });
+
+    const input = screen.getByLabelText('Your message');
+    fireEvent.change(input, { target: { value: 'tell me about witnessing' } });
+    fireEvent.click(screen.getByLabelText('Send message'));
+
+    await waitFor(() => {
+      const guruBubbles = screen.getAllByTestId('message-bubble-guru');
+      expect(guruBubbles).toHaveLength(2);
+      expect(guruBubbles[1]).toHaveTextContent('Peace arises in witnessing.');
+    });
+  });
 });

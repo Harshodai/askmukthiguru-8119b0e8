@@ -69,6 +69,40 @@ const injectCitationLinks = (content: string, citationsLen: number): string => {
  */
 export const safeUrlTransform = (url: string): string =>  /^(https?:|mailto:|#)/i.test(url) ? url : '';
 
+/** Extract a valid 11-character YouTube video ID from a source URL. */
+const getYouTubeId = (url: string): string | null => {
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname.toLowerCase().replace(/^www\./, '');
+    let candidate: string | null = null;
+    if (hostname === 'youtu.be') {
+      candidate = parsed.pathname.split('/').filter(Boolean)[0] ?? null;
+    } else if (hostname === 'youtube.com') {
+      if (parsed.pathname === '/watch') candidate = parsed.searchParams.get('v');
+      if (parsed.pathname.startsWith('/embed/')) candidate = parsed.pathname.split('/')[2] ?? null;
+      if (parsed.pathname.startsWith('/shorts/')) candidate = parsed.pathname.split('/')[2] ?? null;
+    }
+    return candidate && /^[A-Za-z0-9_-]{11}$/.test(candidate) ? candidate : null;
+  } catch {
+    return null;
+  }
+};
+
+/** Check if a URL is a usable HTTP(S) source. */
+const isUsableSourceUrl = (url: string): boolean => {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
+    if (!parsed.hostname) return false;
+    const hostname = parsed.hostname.toLowerCase().replace(/^www\./, '');
+    if (hostname === 'youtube.com' || hostname === 'youtu.be') {
+      return getYouTubeId(url) !== null;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 /**
  * True when a guru answer is a crisis/helpline response. Such answers must never
@@ -110,7 +144,8 @@ const TeachingGroundingCard = ({
 
   const isAbstained = groundingState === 'abstained';
   const isUnverifiedAttribution = guidanceAttribution?.source_backed === false || citationsVerified === false;
-  const isVerified = citationsVerified === true || (items.length > 0 && !isUnverifiedAttribution);
+  const isExplicitlyVerified = citationsVerified === true && !isUnverifiedAttribution;
+  const isSupporting = !isExplicitlyVerified && !isUnverifiedAttribution;
 
   if (items.length === 0 && !isAbstained) return null;
 
@@ -135,24 +170,33 @@ const TeachingGroundingCard = ({
     );
   }
 
-  const badgeLabel = isUnverifiedAttribution
-    ? t('chat.teachingContext.unverifiedBadge', 'General Spiritual Context')
-    : isVerified
+  const badgeLabel = isExplicitlyVerified
     ? t('chat.teachingContext.verifiedBadge', 'Verified Sacred Teaching')
-    : t('chat.teachingContext.supportingBadge', 'Supporting Context');
+    : isSupporting
+    ? t('chat.teachingContext.supportingBadge', 'Supporting Context')
+    : t('chat.teachingContext.unverifiedBadge', 'General Spiritual Context');
 
   return (
     <aside
       data-testid="teaching-grounding"
       aria-label={t('chat.teachingContext.title')}
-      className="mb-3.5 w-full rounded-xl border border-ojas/15 bg-ojas/[0.035] px-3.5 py-3 text-start backdrop-blur-sm"
+      className={cn(
+        'mb-3.5 w-full rounded-xl border px-3.5 py-3 text-start backdrop-blur-sm',
+        isExplicitlyVerified
+          ? 'border-ojas/20 bg-ojas/[0.04]'
+          : isSupporting
+          ? 'border-border/60 bg-card/60'
+          : 'border-amber-500/20 bg-amber-500/[0.03]'
+      )}
     >
       <div className="flex flex-wrap items-center justify-between gap-2 text-[15px] leading-5 font-medium text-foreground">
         <div className="flex items-center gap-2">
-          {isVerified ? (
+          {isExplicitlyVerified ? (
             <BookOpen className="h-4 w-4 shrink-0 text-ojas" aria-hidden="true" />
+          ) : isSupporting ? (
+            <Sparkles className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
           ) : (
-            <Sparkles className="h-4 w-4 shrink-0 text-ojas/80" aria-hidden="true" />
+            <Sparkles className="h-4 w-4 shrink-0 text-amber-500" aria-hidden="true" />
           )}
           <span>{t('chat.teachingContext.title')}</span>
           <span className="text-[15px] font-normal text-muted-foreground/70">
@@ -162,11 +206,11 @@ const TeachingGroundingCard = ({
         <span
           className={cn(
             'inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium',
-            isUnverifiedAttribution
-              ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
-              : isVerified
+            isExplicitlyVerified
               ? 'bg-ojas/10 text-ojas border border-ojas/20'
-              : 'bg-muted text-muted-foreground'
+              : isSupporting
+              ? 'bg-muted/80 text-muted-foreground border border-border/40'
+              : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
           )}
         >
           {badgeLabel}
@@ -180,42 +224,45 @@ const TeachingGroundingCard = ({
       )}
 
       <div className="mt-2.5 space-y-2.5">
-        {items.map((item, index) => (
-          <div key={item.url || item.title + '-' + index} className="min-w-0">
-            <div className="text-[15px] leading-5 font-medium text-foreground">
-              {item.url ? (
-                <a
-                  href={item.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-ojas hover:underline underline-offset-2"
-                  aria-label={t('chat.openSourceAria', {
-                    number: index + 1,
-                    domain: (() => {
-                      try {
-                        return new URL(item.url).hostname.replace(/^www\./, '');
-                      } catch {
-                        return item.url;
-                      }
-                    })(),
-                  })}
-                >
-                  {item.title}
-                </a>
-              ) : (
-                item.title
+        {items.map((item, index) => {
+          const safeUrl = item.url && isUsableSourceUrl(item.url) ? safeUrlTransform(item.url) : null;
+          return (
+            <div key={item.url || item.title + '-' + index} className="min-w-0">
+              <div className="text-[15px] leading-5 font-medium text-foreground">
+                {safeUrl ? (
+                  <a
+                    href={safeUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-ojas hover:underline underline-offset-2"
+                    aria-label={t('chat.openSourceAria', {
+                      number: index + 1,
+                      domain: (() => {
+                        try {
+                          return new URL(safeUrl).hostname.replace(/^www\./, '');
+                        } catch {
+                          return safeUrl;
+                        }
+                      })(),
+                    })}
+                  >
+                    {item.title}
+                  </a>
+                ) : (
+                  item.title
+                )}
+              </div>
+              {item.teacher && (
+                <div className="mt-0.5 text-[14px] leading-tight text-muted-foreground font-medium">{item.teacher}</div>
+              )}
+              {item.excerpt && (
+                <blockquote className="mt-1 border-s-2 border-ojas/30 ps-3 text-[15px] leading-[1.75] text-muted-foreground line-clamp-3">
+                  {item.excerpt}
+                </blockquote>
               )}
             </div>
-            {item.teacher && (
-              <div className="mt-0.5 text-[14px] leading-tight text-muted-foreground font-medium">{item.teacher}</div>
-            )}
-            {item.excerpt && (
-              <blockquote className="mt-1 border-s-2 border-ojas/30 ps-3 text-[15px] leading-[1.75] text-muted-foreground line-clamp-3">
-                {item.excerpt}
-              </blockquote>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
     </aside>
   );
@@ -306,40 +353,6 @@ const getDomain = (url: string): string => {
   }
 };
 
-/** Extract a valid 11-character YouTube video ID from a source URL. */
-const getYouTubeId = (url: string): string | null => {
-  try {
-    const parsed = new URL(url);
-    const hostname = parsed.hostname.toLowerCase().replace(/^www\./, '');
-    let candidate: string | null = null;
-    if (hostname === 'youtu.be') {
-      candidate = parsed.pathname.split('/').filter(Boolean)[0] ?? null;
-    } else if (hostname === 'youtube.com') {
-      if (parsed.pathname === '/watch') candidate = parsed.searchParams.get('v');
-      if (parsed.pathname.startsWith('/embed/')) candidate = parsed.pathname.split('/')[2] ?? null;
-      if (parsed.pathname.startsWith('/shorts/')) candidate = parsed.pathname.split('/')[2] ?? null;
-    }
-    return candidate && /^[A-Za-z0-9_-]{11}$/.test(candidate) ? candidate : null;
-  } catch {
-    return null;
-  }
-};
-
-/** Check if a URL is a usable HTTP(S) source. */
-const isUsableSourceUrl = (url: string): boolean => {
-  try {
-    const parsed = new URL(url);
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
-    if (!parsed.hostname) return false;
-    const hostname = parsed.hostname.toLowerCase().replace(/^www\./, '');
-    if (hostname === 'youtube.com' || hostname === 'youtu.be') {
-      return getYouTubeId(url) !== null;
-    }
-    return true;
-  } catch {
-    return false;
-  }
-};
 
 /** Check if a URL is a valid YouTube source. */
 const isYouTubeUrl = (url: string): boolean => getYouTubeId(url) !== null;

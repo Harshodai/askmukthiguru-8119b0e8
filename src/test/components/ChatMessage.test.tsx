@@ -59,11 +59,14 @@ vi.mock('react-i18next', async () => {
   const en = (await import('@/locales/en.json')).default as Record<string, unknown>;
   return {
     useTranslation: () => ({
-      t: (key: string, opts?: Record<string, unknown>) => {
+      t: (key: string, optsOrFallback?: Record<string, unknown> | string, maybeOpts?: Record<string, unknown>) => {
+        const fallback = typeof optsOrFallback === 'string' ? optsOrFallback : undefined;
+        const opts = typeof optsOrFallback === 'object' && optsOrFallback !== null ? optsOrFallback : maybeOpts;
         const value = key
           .split('.')
           .reduce((acc: unknown, part: string) => (acc as Record<string, unknown> | null)?.[part], en);
-        return (typeof value === 'string' ? value : key).replace(
+        const resolved = typeof value === 'string' ? value : (fallback ?? key);
+        return resolved.replace(
           /\{\{(\w+)\}\}/g,
           (_, name: string) => String(opts?.[name] ?? `{{${name}}}`),
         );
@@ -348,4 +351,73 @@ describe('ChatMessage guidance plan', () => {
     expect(container.querySelector('img[onerror]')).toBeNull();
     expect((window as unknown as { __xss_fired?: boolean }).__xss_fired).toBeUndefined();
   });
+
+  describe('TeachingGroundingCard verification & URL security', () => {
+    const preview = [{
+      title: 'Discourse on Stillness',
+      teacher: 'Sri Krishnaji',
+      url: 'https://example.com/stillness',
+      excerpt: 'Stillness is the sacred doorway.',
+    }];
+
+    it('displays Verified Sacred Teaching only when citationsVerified is true', () => {
+      render(
+        <ChatMessage
+          message={makeGuruMessage({
+            teachingPreview: preview,
+            citationsVerified: true,
+          })}
+        />,
+        { wrapper },
+      );
+      expect(screen.getByText('Verified Sacred Teaching')).toBeInTheDocument();
+    });
+
+    it('displays Supporting Context when items exist but citationsVerified is not explicitly true', () => {
+      render(
+        <ChatMessage
+          message={makeGuruMessage({
+            teachingPreview: preview,
+            citationsVerified: null,
+          })}
+        />,
+        { wrapper },
+      );
+      expect(screen.getByText('Supporting Context')).toBeInTheDocument();
+      expect(screen.queryByText('Verified Sacred Teaching')).not.toBeInTheDocument();
+    });
+
+    it('displays General Spiritual Context when citationsVerified is false', () => {
+      render(
+        <ChatMessage
+          message={makeGuruMessage({
+            teachingPreview: preview,
+            citationsVerified: false,
+          })}
+        />,
+        { wrapper },
+      );
+      expect(screen.getByText('General Spiritual Context')).toBeInTheDocument();
+      expect(screen.queryByText('Verified Sacred Teaching')).not.toBeInTheDocument();
+    });
+
+    it('sanitizes unsafe teaching URLs and does not render them as clickable links', () => {
+      render(
+        <ChatMessage
+          message={makeGuruMessage({
+            teachingPreview: [{
+              title: 'Unsafe Teaching Link',
+              teacher: 'Sri Krishnaji',
+              url: 'javascript:alert(1)',
+              excerpt: 'Excerpt with unsafe URL.',
+            }],
+          })}
+        />,
+        { wrapper },
+      );
+      expect(screen.getByText('Unsafe Teaching Link')).toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: /Unsafe Teaching Link/i })).not.toBeInTheDocument();
+    });
+  });
 });
+

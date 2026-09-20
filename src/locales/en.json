@@ -605,7 +605,13 @@
     },
     "teachingContext": {
       "title": "Teachings grounding this answer",
-      "sourceCount": "{{count}} relevant teaching(s) found"
+      "sourceCount": "{{count}} relevant teaching(s) found",
+      "verifiedBadge": "Verified Sacred Teaching",
+      "supportingBadge": "Supporting Context",
+      "unverifiedBadge": "General Spiritual Context",
+      "unverifiedNote": "Discourse attribution is unverified; offered as general spiritual guidance.",
+      "noDirectDiscourse": "No direct discourse match",
+      "abstainedDescription": "This contemplation is offered from foundational spiritual principles without direct discourse citations."
     },
     "contemplating": "Contemplating deeply — this may take a moment…",
     "answerTakingShape": "The answer is taking form…",

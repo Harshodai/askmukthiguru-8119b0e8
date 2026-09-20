@@ -138,4 +138,18 @@ describe('incognito stream request propagation', () => {
     const [, options] = fetchWithRetryMock.mock.calls[0];
     expect(JSON.parse(options.body).incognito).toBe(true);
   });
+
+  it('sends guru_tone from user profile to the streaming endpoint when not incognito', async () => {
+    fetchWithRetryMock.mockClear();
+    fetchWithRetryMock.mockResolvedValue(sseResponse('event: done\ndata: {"intent":"CASUAL","citations":[]}\n\ndata: [DONE]\n\n'));
+
+    for await (const _chunk of sendMessageStreaming([], 'tell me about peace', 0, undefined, undefined, undefined, undefined, false)) {
+      // iterate stream
+    }
+
+    const [, options] = fetchWithRetryMock.mock.calls[0];
+    const body = JSON.parse(options.body);
+    expect(body).toHaveProperty('guru_tone');
+    expect(['gentle', 'direct', 'poetic']).toContain(body.guru_tone);
+  });
 });

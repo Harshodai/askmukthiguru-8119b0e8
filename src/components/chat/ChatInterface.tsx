@@ -1457,7 +1457,12 @@ export const ChatInterface = () => {
                     content: fullContent,
                     intent: finalIntent,
                     citations: streamedCitations.length > 0 ? streamedCitations : undefined,
-                    teachingPreview: teachingPreview.length > 0 ? teachingPreview : undefined,
+                    teachingPreview:
+                      streamedTeachingPreview.length > 0
+                        ? streamedTeachingPreview
+                        : (teachingPreviewsFromCitations(streamedCitations).length > 0
+                            ? teachingPreviewsFromCitations(streamedCitations)
+                            : (teachingPreview.length > 0 ? teachingPreview : undefined)),
                     followUpSuggestions: streamedFollowUpSuggestions.length > 0 ? streamedFollowUpSuggestions : undefined,
                     language: turnLanguage,
                     confidenceScore: streamedConfidenceScore ?? undefined,
