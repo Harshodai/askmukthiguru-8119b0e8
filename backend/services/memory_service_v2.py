@@ -1127,13 +1127,6 @@ class MemoryServiceV2(MemoryService):
         # Check memories count from both Neo4j and Supabase
         neo4j_mems = []
         supabase_mems = []
-        concept_nodes: dict[str, list[str]] = {}
-
-        def _associate_concept(concept_name: str, item_id: str) -> None:
-            c_key = concept_name.lower().strip()
-            if c_key:
-                concept_nodes.setdefault(c_key, []).append(item_id)
-
         try:
             driver = await asyncio.to_thread(self._get_neo4j)
             if driver is not None:
@@ -1240,7 +1233,6 @@ class MemoryServiceV2(MemoryService):
                     clabel = r["clabel"] or "Concept"
                     _add_node(f"concept:{cid}", cid, clabel, cid if clabel == "Teacher" else None)
                     _add_edge(f"memory:{mid}", f"concept:{cid}", "RELATES_TO")
-                    _associate_concept(cid, f"memory:{mid}")
                     personal_concept_ids.add(cid)
                     referenced_concept_ids.add(cid)
             except Exception as e:
@@ -1318,7 +1310,6 @@ class MemoryServiceV2(MemoryService):
                     continue
                 _add_node(f"concept:{cid}", cid, "Concept")
                 _add_edge(f"notebook:{nid}", f"concept:{cid}", "REFERENCES")
-                _associate_concept(cid, f"notebook:{nid}")
 
         # Query and add relationships between the matched ontology concepts
         personal_concept_ids = {
