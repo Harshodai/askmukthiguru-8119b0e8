@@ -568,7 +568,22 @@
     "personalizedTitle": "ਆਮ ਚੈਟ ਤੁਹਾਡੀ ਪ੍ਰੋਫਾਈਲ ਅਤੇ ਯੋਗ ਨਿੱਜੀ ਯਾਦਾਂ ਵਰਤ ਸਕਦੀ ਹੈ।",
     "voiceMode": "ਵੌਇਸ",
     "signInAgain": "ਦੁਬਾਰਾ ਸਾਈਨ ਇਨ ਕਰੋ",
-    "reload": "ਮੁੜ ਲੋਡ ਕਰੋ"
+    "reload": "ਮੁੜ ਲੋਡ ਕਰੋ",
+    "guidance": {
+      "tryNow": "ਹੁਣ ਇਹ ਅਜ਼ਮਾਓ",
+      "goDeeper": "ਹੋਰ ਡੂੰਘਾਈ ਵਿੱਚ ਜਾਓ",
+      "ariaLabel": "ਵਿਕਲਪਿਕ ਮਾਰਗਦਰਸ਼ਨ ਯੋਜਨਾ"
+    },
+    "optionalPractice": "ਵਿਕਲਪਿਕ ਅਭਿਆਸ",
+    "sereneMindOfferAria": "ਵਿਕਲਪਿਕ ਸੇਰੀਨ ਮਾਈਂਡ ਅਭਿਆਸ",
+    "continueChatting": "ਤੁਸੀਂ ਗੱਲਬਾਤ ਜਾਰੀ ਰੱਖ ਸਕਦੇ ਹੋ।",
+    "personalization": {
+      "header": "ਇਸ ਗੱਲਬਾਤ ਲਈ ਵਿਅਕਤੀਗਤ ਬਣਾਇਆ ਗਿਆ",
+      "profileEnabled": "ਇਸ ਜਵਾਬ ਲਈ ਤੁਹਾਡੀ ਪ੍ਰੋਫ਼ਾਈਲ ਨਿੱਜੀਕਰਨ ਸਮਰੱਥ ਸੀ।",
+      "personalMemoryUsed": "ਯੋਗ ਨਿੱਜੀ ਯਾਦ/ਸੰਦਰਭ ਜਵਾਬ ਮਾਡਲ ਨੂੰ ਦਿੱਤਾ ਗਿਆ ਸੀ।",
+      "graphMatched": "ਤੁਹਾਡੇ ਨਿੱਜੀ ਸੰਦਰਭ ਗ੍ਰਾਫ ਨੇ {{count}} ਧਾਰਨਾ ਲਿੰਕ ਮਿਲਾਏ।",
+      "privateMemoryNotShown": "ਨਿੱਜੀ ਯਾਦ ਦਾ ਪਾਠ ਇੱਥੇ ਨਹੀਂ ਦਿਖਾਇਆ ਜਾਂਦਾ।"
+    }
   },
   "notFound": {
     "message": "ਓਹੋ! ਪੰਨਾ ਨਹੀਂ ਮਿਲਿਆ",
