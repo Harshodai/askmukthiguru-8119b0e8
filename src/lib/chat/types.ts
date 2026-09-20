@@ -83,6 +83,13 @@ export interface AnswerEvidence {
   citations_verified?: boolean | null;
 }
 
+export interface PersonalizationProvenance {
+  used: boolean;
+  profile_preferences?: boolean;
+  personal_memory?: boolean;
+  private_graph_links?: number;
+}
+
 
 export type BackendMetadata = Record<string, unknown>;
 
@@ -115,6 +122,7 @@ export interface AIResponse {
   liveLogisticsEvents?: LiveLogisticsEvent[];
   guidancePlan?: GuidancePlan | null;
   answerEvidence?: AnswerEvidence | null;
+  personalizationProvenance?: PersonalizationProvenance | null;
   groundingState?: GroundingState;
   faithfulnessScore?: number | null;
   relevancyScore?: number | null;
@@ -191,6 +199,7 @@ export type StreamChunk =
       liveLogisticsEvents?: LiveLogisticsEvent[];
   guidancePlan?: GuidancePlan | null;
       answerEvidence?: AnswerEvidence | null;
+      personalizationProvenance?: PersonalizationProvenance | null;
       groundingState?: GroundingState;
       faithfulnessScore?: number | null;
       relevancyScore?: number | null;
