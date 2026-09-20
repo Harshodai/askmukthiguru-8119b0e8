@@ -2712,7 +2712,7 @@ return (
         <SheetHeader>
           <SheetTitle>{t('common.details')}</SheetTitle>
           <SheetDescription>
-            Review the full text before sending to the Guru.
+            {t('chat.editingLabel')}
           </SheetDescription>
         </SheetHeader>
         <p className="text-foreground text-base leading-relaxed whitespace-pre-wrap break-words px-1 mt-2">
