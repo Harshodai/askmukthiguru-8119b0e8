@@ -357,7 +357,7 @@
     },
     "closeFeedbackPanel": "अभिप्राय पॅनेल बंद करा",
     "feedbackCommentPlaceholder": "पर्यायी: आम्हाला अधिक सांगा…",
-    "teachingReference": "अध्यापन संदर्भ",
+    "teachingReference": "शिकवणी संदर्भ",
     "teaching": "शिकवण",
     "clearAnswer": "स्पष्ट उत्तर",
     "relevantSources": "संबंधित स्रोत",
@@ -653,7 +653,10 @@
     "sereneMindOfferFooter": "आधी शिकवण; योग्य वाटल्यासच सुरू करा.",
     "videoUnavailable": "व्हिडिओ उपलब्ध नाही",
     "videoEmbedUnavailable": "हा व्हिडिओ एम्बेड करता येत नाही",
-    "youTubeThumbnail": "YouTube थंबनेल"
+    "youTubeThumbnail": "YouTube थंबनेल",
+    "videoSource": "व्हिडिओ स्रोत {{letter}}",
+    "academyReference": "O&O अकादमी संदर्भ",
+    "sourceLabel": "स्रोत {{number}}"
   },
   "notFound": {
     "message": "अरेरे! पृष्ठ सापडले नाही",
