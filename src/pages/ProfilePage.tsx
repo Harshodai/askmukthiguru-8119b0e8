@@ -530,6 +530,8 @@ const ProfilePage = () => {
                 displayName={profile.displayName || 'Seeker'}
                 email={user?.email || ''}
                 familiarityLevel={form.familiarityLevel || 'Seeker'}
+                languageLabel={LANGUAGES.find((language) => language.code === form.preferredLanguage)?.name ?? form.preferredLanguage}
+                toneLabel={form.guruTone.charAt(0).toUpperCase() + form.guruTone.slice(1)}
                 avatarDataUrl={profile.avatarDataUrl}
                 avatarUrl={profile.avatarUrl}
                 stats={stats}
