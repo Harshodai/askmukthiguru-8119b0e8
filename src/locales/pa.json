@@ -357,7 +357,7 @@
     },
     "closeFeedbackPanel": "ਫੀਡਬੈਕ ਪੈਨਲ ਬੰਦ ਕਰੋ",
     "feedbackCommentPlaceholder": "ਵਿਕਲਪਿਕ: ਸਾਨੂੰ ਹੋਰ ਦੱਸੋ…",
-    "teachingReference": "ਸਿੱਖਿਆ ਦਾ ਹਵਾਲਾ",
+    "teachingReference": "ਸਿੱਖਿਆ ਹਵਾਲਾ",
     "teaching": "ਸਿੱਖਿਆ",
     "clearAnswer": "ਸਪੱਸ਼ਟ ਜਵਾਬ",
     "relevantSources": "ਸੰਬੰਧਿਤ ਸਰੋਤ",
@@ -653,7 +653,10 @@
     "sereneMindOfferFooter": "ਪਹਿਲਾਂ ਸਿੱਖਿਆ; ਸਹੀ ਲੱਗੇ ਤਾਂ ਹੀ ਸ਼ੁਰੂ ਕਰੋ।",
     "videoUnavailable": "ਵੀਡੀਓ ਉਪਲਬਧ ਨਹੀਂ",
     "videoEmbedUnavailable": "ਇਸ ਵੀਡੀਓ ਨੂੰ ਐਂਬੇਡ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਦਾ",
-    "youTubeThumbnail": "YouTube ਥੰਬਨੇਲ"
+    "youTubeThumbnail": "YouTube ਥੰਬਨੇਲ",
+    "videoSource": "ਵੀਡੀਓ ਸਰੋਤ {{letter}}",
+    "academyReference": "O&O ਅਕੈਡਮੀ ਹਵਾਲਾ",
+    "sourceLabel": "ਸਰੋਤ {{number}}"
   },
   "notFound": {
     "message": "ਓਹੋ! ਪੰਨਾ ਨਹੀਂ ਮਿਲਿਆ",
