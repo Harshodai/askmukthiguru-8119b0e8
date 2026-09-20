@@ -28,6 +28,7 @@ interface JourneyOverviewProps {
   onNavigate: (tab: 'profile' | 'stats' | 'conversations' | 'memory' | 'settings') => void;
   onContinueChat: (conversationId?: string) => void;
   onPractice: () => void;
+  onKnowledgeGraph: () => void;
 }
 
 const Metric = ({ label, value, icon: Icon }: { label: string; value: string | number; icon: typeof Flame }) => (
@@ -54,6 +55,7 @@ export const JourneyOverview = ({
   onNavigate,
   onContinueChat,
   onPractice,
+  onKnowledgeGraph,
 }: JourneyOverviewProps) => {
   const recentConversations = conversations.slice(0, 3);
   const insights = personalInsights.slice(0, 2);
@@ -211,10 +213,41 @@ export const JourneyOverview = ({
 
       <Card className="rounded-3xl border-hairline bg-card shadow-sm">
         <CardHeader className="pb-3">
+          <CardTitle className="text-base font-semibold">How your guidance is personalized</CardTitle>
+          <CardDescription>Regular chats can use your profile and eligible saved memories. Temporary chats do not.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-2.5">
+          <div className="flex items-start gap-3 rounded-2xl border border-hairline bg-background/40 px-4 py-3">
+            <Pencil className="mt-0.5 h-4 w-4 shrink-0 text-ojas" />
+            <div>
+              <p className="text-sm font-medium text-foreground">Profile preferences</p>
+              <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">Your language, guidance tone, and familiarity level shape how the Guru responds.</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3 rounded-2xl border border-hairline bg-background/40 px-4 py-3">
+            <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-ojas" />
+            <div>
+              <p className="text-sm font-medium text-foreground">Saved personal context</p>
+              <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">Eligible memories, reflections, and persona context can be recalled when relevant.</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3 rounded-2xl border border-hairline bg-background/40 px-4 py-3">
+            <LockKeyhole className="mt-0.5 h-4 w-4 shrink-0 text-ojas" />
+            <div>
+              <p className="text-sm font-medium text-foreground">Temporary chat</p>
+              <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">No personal-memory recall and no saved chat history for that session.</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="rounded-3xl border-hairline bg-card shadow-sm">
+        <CardHeader className="pb-3">
           <CardTitle className="text-base font-semibold">Your spaces</CardTitle>
           <CardDescription>Everything else stays one layer away, so the journey stays simple.</CardDescription>
+          <CardDescription>Everything else stays one layer away, so the journey stays simple.</CardDescription>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <button type="button" onClick={() => onNavigate('memory')} className="rounded-2xl border border-hairline p-4 text-left hover:border-ojas/30 hover:bg-ojas/5 transition-colors">
             <UserRound className="w-4 h-4 text-ojas" />
             <p className="mt-3 text-sm font-medium">Memory & notes</p>
@@ -229,6 +262,11 @@ export const JourneyOverview = ({
             <Pencil className="w-4 h-4 text-ojas" />
             <p className="mt-3 text-sm font-medium">Personalize guidance</p>
             <p className="mt-1 text-xs text-muted-foreground">Your name, tone, language, familiarity, and preferences.</p>
+          </button>
+          <button type="button" onClick={onKnowledgeGraph} className="rounded-2xl border border-hairline p-4 text-left hover:border-ojas/30 hover:bg-ojas/5 transition-colors">
+            <Sparkles className="w-4 h-4 text-ojas" />
+            <p className="mt-3 text-sm font-medium">Your wisdom map</p>
+            <p className="mt-1 text-xs text-muted-foreground">Explore the graph built from your authorized personal context.</p>
           </button>
         </CardContent>
       </Card>
