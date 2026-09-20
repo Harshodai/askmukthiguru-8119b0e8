@@ -186,9 +186,12 @@ class QdrantService:
         vectors: list[list[float]],
         metadatas: list[dict],
         sparse_vectors: Optional[list[dict]] = None,
+        replace_source_url: Optional[str] = None,
     ) -> int:
-        """Batch upsert text chunks with dense + optional sparse vectors."""
-        return self._indexer.upsert_chunks(texts, vectors, metadatas, sparse_vectors)
+        """Batch upsert text chunks with optional two-phase source replacement."""
+        return self._indexer.upsert_chunks(
+            texts, vectors, metadatas, sparse_vectors, replace_source_url=replace_source_url
+        )
 
     def check_source_exists(self, source_url: str) -> bool:
         """Check if any points with this source_url already exist (dedup check)."""
