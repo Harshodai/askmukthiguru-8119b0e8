@@ -417,7 +417,7 @@
     "switchToIt": "सहायक मेन्यू से इसे स्विच करें।",
     "teaching": "अध्यापन",
     "teachingAlt": "गुरुओं का आज का शिक्षण",
-    "teachingReference": "शिक्षण संदर्भ",
+    "teachingReference": "शिक्षा संदर्भ",
     "technicalDetail": "तकनीकी विवरण",
     "tellMeMore": "मुझे और बताइए।",
     "tellMeMoreQuery": "मुझे इसके बारे में और बताइए: {{content}}",
@@ -609,7 +609,10 @@
     "sereneMindOfferFooter": "पहले शिक्षा को समझें; तभी शुरू करें जब यह आपको सही लगे।",
     "videoUnavailable": "वीडियो उपलब्ध नहीं है",
     "videoEmbedUnavailable": "इस वीडियो को एम्बेड नहीं किया जा सकता",
-    "youTubeThumbnail": "YouTube थंबनेल"
+    "youTubeThumbnail": "YouTube थंबनेल",
+    "videoSource": "वीडियो स्रोत {{letter}}",
+    "academyReference": "O&O अकादमी संदर्भ",
+    "sourceLabel": "स्रोत {{number}}"
   },
   "mood": {
     "bannerTitle": "आज आप कैसा महसूस कर रहे हैं?",
