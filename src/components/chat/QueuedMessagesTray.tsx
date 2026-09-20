@@ -89,7 +89,7 @@ export const QueuedMessagesTray: React.FC<QueuedMessagesTrayProps> = ({
                     </p>
                     {item.attachedFiles && item.attachedFiles.length > 0 && (
                       <div className="flex items-center gap-1 mt-1 text-[10px] text-muted-foreground">
-                        <Paperclip className="w-3 h-3 text-saffron-gold" />
+                        <Paperclip className="w-3 h-3 text-ojas" />
                         <span>{item.attachedFiles.length} {item.attachedFiles.length === 1 ? t("chat.queue.fileAttached", "file attached") : t("chat.queue.filesAttached", "files attached")}</span>
                       </div>
                     )}
