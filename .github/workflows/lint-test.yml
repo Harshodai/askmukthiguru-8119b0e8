@@ -52,6 +52,11 @@ jobs:
         # to English, so this deep-parity gate prevents untranslated UI scope creep.
         run: node scripts/check_i18n_coverage.mjs
 
+      - name: Check i18n translation quality (P1-FE-12)
+        # Key parity alone cannot detect corrupted values or placeholder drift.
+        # Keep the locale bundles semantically sane at the data-contract level.
+        run: node scripts/check_i18n_quality.mjs
+
       - name: Build frontend
         run: npm run build
         env:
