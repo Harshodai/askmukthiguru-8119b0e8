@@ -439,7 +439,7 @@
     "selectLanguage": "زبان منتخب کریں",
     "searchLanguages": "{{count}} زبانوں میں تلاش کریں…",
     "autoTranslateNotice": "انگریزی کے علاوہ پیغامات گرو کو بھیجنے سے پہلے خودکار طور پر ترجمہ کیے جاتے ہیں۔",
-    "noLangMatch": "\"{{query}}\" سے مطابقت رکھنے والی کوئی زبان نہیں ملی",
+    "noLangMatch": "آپ کی تلاش سے کوئی زبان مماثل نہیں۔",
     "localVoiceEnabled": "مقامی آواز فعال ہے",
     "voiceNotInBrowser": "اس براؤزر میں آواز معاون نہیں ہے",
     "cloudVoice": "کلاؤڈ وائس (Sarvam)",
@@ -532,6 +532,28 @@
       "title": "گفتگو کی سیاقی حد پوری ہو گئی ہے",
       "description": "یہ گفتگو اپنی محفوظ سیاقی حد تک پہنچ گئی ہے۔ جاری رکھنے کے لیے نئی چیٹ شروع کریں۔",
       "continueNewChat": "نئی چیٹ میں جاری رکھیں"
+    },
+    "keyboardHint": "بھیجنے کے لیے Enter · نئی سطر کے لیے Shift+Enter",
+    "processingAttachment": "منسلکہ تیار کیا جا رہا ہے…",
+    "attachMedia": "میڈیا یا دستاویز منسلک کریں",
+    "voiceConversationOn": "وائس گفتگو جاری ہے — فطری انداز میں بولیں؛ گرو جواب آواز میں دیں گے۔",
+    "turnOffVoiceConversation": "وائس گفتگو بند کریں",
+    "voiceConversation": "وائس گفتگو",
+    "queueMessage": "پیغام قطار میں رکھیں",
+    "queueFollowUp": "قطار میں رکھیں",
+    "stopGenerating": "جواب بنانا روکیں",
+    "queue": {
+      "messageQueued": "پیغام قطار میں ہے",
+      "messagesQueued": "پیغامات قطار میں ہیں",
+      "autoDispatch": "موجودہ جواب کے بعد خود بخود بھیجا جائے گا",
+      "clearAll": "سب صاف کریں",
+      "fileAttached": "فائل منسلک",
+      "filesAttached": "فائلیں منسلک",
+      "sendNowTitle": "ابھی بھیجیں — موجودہ جواب رک جائے گا",
+      "sendNow": "ابھی بھیجیں",
+      "edit": "پیغام میں ترمیم کریں",
+      "remove": "قطار سے ہٹائیں",
+      "regionLabel": "قطار میں موجود پیغامات"
     }
   },
   "notFound": {
