@@ -2378,6 +2378,23 @@ return (
                   streamingId={streamingMessageId}
                   streamingContent={deferredStreamingContent}
                   onRegenerate={handleRegenerate}
+                  onStartNewChat={async () => {
+                    const priorMessages = messages;
+                    let continuationSummary = currentConversation?.summary?.trim() || '';
+                    if (!continuationSummary && priorMessages.some((m) => m.role === 'user')) {
+                      try {
+                        continuationSummary = await generateSummary(priorMessages);
+                      } catch {
+                        continuationSummary = priorMessages
+                          .filter((m) => m.role === 'user')
+                          .slice(-5)
+                          .map((m) => m.content.trim())
+                          .filter(Boolean)
+                          .join('\n');
+                      }
+                    }
+                    await handleNewConversation(continuationSummary);
+                  }}
                   onEditUserMessage={undefined}
                   onSubmitEdit={handleSubmitEdit}
                   onAction={handleInlineAction}
