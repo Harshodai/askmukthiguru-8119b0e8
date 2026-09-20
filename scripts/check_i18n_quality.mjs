@@ -50,6 +50,8 @@ const IDENTICAL_VALUE_ALLOWLIST = new Set([
   'onboarding.tour.stepIndicator',
   'profile.support.emailPlaceholder',
   'common.crisisNumbers',
+  'nav.appName',
+  'practices.detail.youtubeShort',
 ]);
 
 
