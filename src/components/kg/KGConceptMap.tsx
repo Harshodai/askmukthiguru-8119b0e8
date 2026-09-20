@@ -479,7 +479,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
             className="inline-flex items-center justify-center gap-2 rounded-2xl border border-border/50 bg-card/60 px-4 py-3.5 text-sm text-muted-foreground hover:bg-card"
           >
             <X className="h-4 w-4" />
-            Clear
+            {t('common.clear')}
           </button>
         )}
       </form>
@@ -498,7 +498,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
             onClick={() => void fetchSubgraph(submitted)}
             className="rounded-lg border border-border/50 bg-background/50 px-3 py-1.5 font-medium text-foreground hover:bg-background"
           >
-            Retry live map
+            {t('common.retry')}
           </button>
         </div>
       )}
@@ -511,13 +511,13 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
                 <div className="rounded-full border border-ojas/20 bg-ojas/5 p-3">
                   <Loader2 className="h-5 w-5 animate-spin text-ojas" />
                 </div>
-                <span>Building your wisdom map…</span>
+                <span>{t('kg.loading')}</span>
               </div>
             </div>
           ) : data && data.nodes.length ? (
             <>
               <div className="absolute left-4 top-4 z-10 rounded-2xl border border-white/10 bg-black/45 px-3 py-2 backdrop-blur">
-                <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-white/50">Map view</div>
+                <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-white/50">{t('kg.title')}</div>
                 <div className="mt-0.5 text-xs text-white/80">
                   {data.query ? t('kg.noConceptsFor', { query: data.query }) : t('kg.help')}
                 </div>
@@ -577,7 +577,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
               <div className="mb-4 rounded-2xl border border-ojas/15 bg-ojas/5 p-4">
                 <Sparkles className="h-6 w-6 text-ojas" />
               </div>
-              <h3 className="font-serif text-xl font-semibold text-foreground">Your map starts with your data.</h3>
+              <h3 className="font-serif text-xl font-semibold text-foreground"">{t('kg.title')}</h3>
               <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">
                 {t('kg.searchToVisualise')}
               </p>
@@ -624,7 +624,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
               {selectedNode.data.contentPreview && (
                 <div className="mt-5 rounded-2xl border border-border/50 bg-background/50 p-3.5">
                   <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/70">
-                    Personal context
+                    {t('chat.personalization.header')}
                   </div>
                   <p className="mt-2 text-sm leading-6 text-foreground/85">
                     {selectedNode.data.contentPreview}
@@ -634,7 +634,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
 
               <div className="mt-5">
                 <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/70">
-                  Real connections
+                  {t('kg.relationships')}
                 </div>
                 {selectedConnections.length ? (
                   <div className="mt-2 divide-y divide-border/40 overflow-hidden rounded-2xl border border-border/50">
