@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Cookie } from 'lucide-react';
@@ -56,7 +57,7 @@ export function CookieBanner() {
     <div
       className="fixed bottom-4 left-4 right-4 sm:bottom-6 sm:left-6 sm:right-6 z-50 max-w-md mx-auto animate-slide-up"
       role="dialog"
-      aria-label="Cookie consent"
+      aria-label={t('common.cookieConsent', 'Cookie consent')}
     >
       <div className="bg-card border border-border/60 rounded-2xl shadow-2xl p-4 sm:p-6 backdrop-blur-xl">
         <div className="flex items-start gap-3">
@@ -71,7 +72,7 @@ export function CookieBanner() {
           <button
             onClick={() => handleAccept(false)}
             className="flex-shrink-0 p-1 text-muted-foreground/60 hover:text-foreground transition-colors"
-            aria-label="Dismiss"
+            aria-label={t('common.close')}
           >
             <X className="w-4 h-4" />
           </button>
