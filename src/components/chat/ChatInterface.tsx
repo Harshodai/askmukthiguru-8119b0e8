@@ -1068,6 +1068,36 @@ export const ChatInterface = () => {
     const cacheInput = attachmentContext ? `${aiText}\n${attachmentContext}` : aiText;
     const allMsgs = [...messageHistory, { role: 'user' as const, content: cacheInput }];
     const cacheKey = `${turnLanguage}:${hashMessages(allMsgs)}`;
+
+    // Summary helper — fire-and-forget after every ~6 user messages.
+    // Temporary Chat is a hard privacy boundary: it must never produce or
+    // update durable continuation summaries.
+    const maybeSummarize = () => {
+      if (isIncognito) return;
+      const userMsgCount = allMsgs.filter(m => m.role === 'user').length;
+      if (userMsgCount > 0 && userMsgCount % 6 === 0 && currentConversation?.id) {
+        generateSummary(allMsgs).then(async (summary) => {
+          if (summary) {
+            await updateConversationSummary(currentConversation.id, summary);
+            setCurrentConversation(prev => prev ? { ...prev, summary } : null);
+          }
+        }).catch(() => { /* non-fatal */ });
+      }
+    };
+
+    const drainNextQueuedMessage = () => {
+      const nextMsg = queuedMessagesRef.current[0];
+      if (!nextMsg) return;
+      setQueuedMessages((prev) => prev.slice(1));
+      setTimeout(() => {
+        submitImplRef.current(undefined, nextMsg.text, {
+          forceImmediate: true,
+          languageOverride: nextMsg.language,
+          attachmentOverride: nextMsg.attachedFiles,
+        });
+      }, 350);
+    };
+
     const cached = options.bypassCache ? null : getCachedResponse(cacheKey);
 
     // The backend owns durable history/personalization. The client still sends a
@@ -1138,18 +1168,6 @@ export const ChatInterface = () => {
     let checkpointInterval: ReturnType<typeof setInterval> | undefined;
     let jsonCompletedSuccessfully = false;
 
-    const drainNextQueuedMessage = () => {
-      const nextMsg = queuedMessagesRef.current[0];
-      if (!nextMsg) return;
-      setQueuedMessages((prev) => prev.slice(1));
-      setTimeout(() => {
-        submitImplRef.current(undefined, nextMsg.text, {
-          forceImmediate: true,
-          languageOverride: nextMsg.language,
-          attachmentOverride: nextMsg.attachedFiles,
-        });
-      }, 350);
-    };
 
     if (!isAwaitingSereneMind) {
       try {
