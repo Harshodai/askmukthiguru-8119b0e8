@@ -26,7 +26,7 @@ interface JourneyOverviewProps {
     image_url?: string | null;
   } | null;
   onNavigate: (tab: 'profile' | 'stats' | 'conversations' | 'memory' | 'settings') => void;
-  onContinueChat: () => void;
+  onContinueChat: (conversationId?: string) => void;
   onPractice: () => void;
 }
 
@@ -164,7 +164,7 @@ export const JourneyOverview = ({
                   <button
                     type="button"
                     key={conversation.id}
-                    onClick={onContinueChat}
+                    onClick={() => onContinueChat(conversation.id)}
                     className="w-full rounded-2xl border border-hairline bg-background/40 px-4 py-3 text-left hover:border-ojas/30 hover:bg-ojas/5 transition-colors"
                   >
                     <p className="font-medium text-sm text-foreground truncate">{conversation.preview || 'Untitled conversation'}</p>
