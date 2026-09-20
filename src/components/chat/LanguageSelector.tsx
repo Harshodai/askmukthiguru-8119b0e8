@@ -391,8 +391,8 @@ export const LanguageSelector = ({
                         setSearchQuery(e.target.value);
                         setFocusedIndex(0);
                       }}
-                      placeholder={t('language.searchPlaceholder')}
-                      aria-label={t('language.searchPlaceholder')}
+                      placeholder={t('language.searchPlaceholder', { count: LANGUAGES.length })}
+                      aria-label={t('language.searchPlaceholder', { count: LANGUAGES.length })}
                       className="w-full h-9 rounded-lg border border-border/60 bg-background px-2.5 text-sm outline-none focus:ring-2 focus:ring-ojas/30"
                     />
                   </div>
