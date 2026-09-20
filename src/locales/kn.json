@@ -356,7 +356,7 @@
     },
     "closeFeedbackPanel": "ಪ್ರತಿಕ್ರಿಯೆ ಫಲಕವನ್ನು ಮುಚ್ಚಿ",
     "feedbackCommentPlaceholder": "ಐಚ್ಛಿಕ: ನಮಗೆ ಇನ್ನಷ್ಟು ತಿಳಿಸಿ…",
-    "teachingReference": "ಶಿಕ್ಷಣ ಉಲ್ಲೇಖ",
+    "teachingReference": "ಬೋಧನಾ ಉಲ್ಲೇಖ",
     "teaching": "ಶಿಕ್ಷಣ",
     "clearAnswer": "ಸ್ಪಷ್ಟ ಉತ್ತರ",
     "relevantSources": "ಸಂಬಂಧಿತ ಮೂಲಗಳು",
@@ -652,7 +652,10 @@
     "sereneMindOfferFooter": "ಮೊದಲು ಬೋಧನೆ; ಸರಿಯೆಂದು ಅನಿಸಿದಾಗ ಮಾತ್ರ ಪ್ರಾರಂಭಿಸಿ.",
     "videoUnavailable": "ವೀಡಿಯೊ ಲಭ್ಯವಿಲ್ಲ",
     "videoEmbedUnavailable": "ಈ ವೀಡಿಯೊವನ್ನು ಎಂಬೆಡ್ ಮಾಡಲು ಸಾಧ್ಯವಿಲ್ಲ",
-    "youTubeThumbnail": "YouTube ಥಂಬ್‌ನೇಲ್"
+    "youTubeThumbnail": "YouTube ಥಂಬ್‌ನೇಲ್",
+    "videoSource": "ವೀಡಿಯೊ ಮೂಲ {{letter}}",
+    "academyReference": "O&O ಅಕಾಡೆಮಿ ಉಲ್ಲೇಖ",
+    "sourceLabel": "ಮೂಲ {{number}}"
   },
   "notFound": {
     "message": "ಹೇಳಿಕೊಳ್ಳಲು ಸಾಧ್ಯವಿಲ್ಲ!",
