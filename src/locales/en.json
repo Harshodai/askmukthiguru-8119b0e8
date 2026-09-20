@@ -608,7 +608,45 @@
       "sourceCount": "{{count}} relevant teaching(s) found"
     },
     "contemplating": "Contemplating deeply — this may take a moment…",
-    "answerTakingShape": "The answer is taking form…"
+    "answerTakingShape": "The answer is taking form…",
+    "liveLogistics": {
+      "ariaLabel": "Verified event and booking information",
+      "official": "Official event information",
+      "details": "Official details",
+      "booking": "Booking"
+    },
+    "healingPath": {
+      "ariaLabel": "Healing path",
+      "dismiss": "Dismiss healing path"
+    },
+    "streaming": {
+      "retrievalEngine": "Retrieval Engine",
+      "discourseSources": "Discourse Sources"
+    },
+    "voice": {
+      "pause": "Pause Guru Voice",
+      "listen": "Listen to Guru Voice",
+      "label": "Guru Voice"
+    },
+    "linkSearch": {
+      "playVideo": "Play Video",
+      "openOriginal": "Open original link",
+      "transcriptPlaceholder": "Search within this transcript…",
+      "loading": "Retrieving verified transcript & index points…",
+      "teachingsPlaceholder": "Search related teachings across Ekam & spiritual archives…"
+    },
+    "mobile": {
+      "closeMenu": "Close menu",
+      "deleteConversation": "Delete conversation"
+    },
+    "sacredPractice": {
+      "begin": "Begin"
+    },
+    "message": {
+      "retry": "Retry",
+      "editingNotice": "Editing — earlier replies will be regenerated",
+      "unverified": "I could not verify the quoted teaching against a linked source, so I am not presenting it as a teacher attribution. Please retry to request a grounded answer."
+    }
   },
   "notFound": {
     "message": "Oops! Page not found",
