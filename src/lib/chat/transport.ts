@@ -27,6 +27,7 @@ const buildRequestBody = (
   incognito: boolean,
   responsePreferences?: ResponsePreferences,
   attachmentContext?: string,
+  languageOverride?: string,
 ) => {
   const date = new Date();
   const timeZone = typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata' : 'Asia/Kolkata';
@@ -55,7 +56,7 @@ const buildRequestBody = (
     ...(summary && !incognito ? { conversation_summary: summary.slice(0, 4000) } : {}),
     meditation_step: meditationStep,
     session_id: sessionId,
-    language: getCurrentConfig().language || 'en',
+    language: languageOverride ?? getCurrentConfig().language ?? 'en',
     incognito,
     // Profile voice preference; backend applies it as a generation-time persona hint.
     ...(!incognito ? { guru_tone: loadProfile().guruTone } : {}),
