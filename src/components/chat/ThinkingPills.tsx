@@ -178,7 +178,7 @@ export const ThinkingPills = ({
           hasSteps ? 'cursor-pointer' : 'cursor-default'
         }`}
         aria-expanded={expanded}
-        aria-label={t('chat.toggleThinking') === 'chat.toggleThinking' ? 'Toggle thinking details' : t('chat.toggleThinking')}
+        aria-label={t('chat.toggleThinking', 'Toggle thinking details')}
       >
         <Loader2 className="w-3.5 h-3.5 text-ojas animate-spin flex-shrink-0" />
 
@@ -268,9 +268,12 @@ export const ThinkingPills = ({
         <div className="w-full max-w-xl rounded-xl border border-ojas/15 bg-ojas/[0.035] px-3 py-2.5">
           <div className="flex items-center gap-2 text-sm font-medium text-foreground">
             <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-ojas/10 text-ojas">◈</span>
-            <span>{t('chat.teachingContext.title')}</span>
+            <span>{t('chat.references')}</span>
             <span className="text-sm font-normal text-muted-foreground/70">
-              {t('chat.teachingContext.sourceCount', { count: teachingPreview.length })}
+              {t(teachingPreview.length === 1 ? 'chat.sourceCount_one' : 'chat.sourceCount_other', {
+                count: teachingPreview.length,
+                citationCount: teachingPreview.length,
+              })}
             </span>
           </div>
           <div className="mt-2 space-y-1.5">
