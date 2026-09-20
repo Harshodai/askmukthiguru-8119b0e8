@@ -69,7 +69,11 @@ export const chatErrorBus = {
       summary: messageError.description,
       detail: messageError.detail,
       messageId,
-      retryable: messageError.kind !== 'telemetry_failed' && messageError.actionLabel !== 'sign_in' && messageError.actionLabel !== 'reload',
+      retryable:
+        messageError.retryable ??
+        (messageError.kind !== 'telemetry_failed' &&
+          messageError.actionLabel !== 'sign_in' &&
+          messageError.actionLabel !== 'reload'),
     });
   },
   dismiss(): void {
