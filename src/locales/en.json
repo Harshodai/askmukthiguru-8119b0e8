@@ -527,7 +527,12 @@
     "translationUnavailable": "Translation unavailable",
     "saveAsNote": "Save as note",
     "showOriginal": "Show original",
-    "translateTo": "Translate to {{lang}}"
+    "translateTo": "Translate to {{lang}}",
+    "contextLimit": {
+      "title": "Conversation context limit reached",
+      "description": "This conversation has reached its safe context limit. Start a new chat to continue.",
+      "continueNewChat": "Continue in a new chat"
+    }
   },
   "notFound": {
     "message": "Oops! Page not found",
