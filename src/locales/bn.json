@@ -303,7 +303,23 @@
     "copyTrace": "ট্রেস কপি করুন",
     "cause": "কারণ",
     "nextStep": "পরবর্তী পদক্ষেপ",
-    "thinking": "চিন্তা করছি",
+    "thinking": {
+      "safety": "নিরাপত্তা পরীক্ষা",
+      "understanding": "আপনার প্রশ্নটি বুঝছি",
+      "searching": "শিক্ষাগুলিতে খুঁজছি",
+      "reranking": "প্রাসঙ্গিকতা উন্নত করছি",
+      "filtering": "প্রাসঙ্গিকতা যাচাই করছি",
+      "synthesizing": "শিক্ষাগুলো একত্র করছি",
+      "composing": "নির্দেশনা তৈরি করছি",
+      "verifying": "শিক্ষার উৎস যাচাই করছি",
+      "hello": "অভিবাদন",
+      "practice": "অনুশীলনে পথ দেখাচ্ছি",
+      "contemplating": "চিন্তা করছি",
+      "queued": "সারিতে আছে",
+      "analyzing": "আপনার উত্তর প্রস্তুত করছি…",
+      "stepLabel": "ধাপ {{step}}/{{total}}: {{label}}",
+      "stepProgress": "ধাপ {{step}}/{{total}}: {{label}} ({{percentage}}%)"
+    },
     "toggleThinking": "চিন্তার বিবরণ পরিবর্তন করুন",
     "reflecting": "শিক্ষার উপর Reflect করছি…",
     "stillWorking": "এখনও এটি নিয়ে কাজ করছি…",
@@ -583,6 +599,10 @@
       "personalMemoryUsed": "উপযুক্ত ব্যক্তিগত স্মৃতি/প্রসঙ্গ উত্তর মডেলকে দেওয়া হয়েছিল।",
       "graphMatched": "আপনার ব্যক্তিগত প্রসঙ্গ গ্রাফ {{count}}টি ধারণার লিঙ্ক মিলিয়েছে।",
       "privateMemoryNotShown": "ব্যক্তিগত স্মৃতির লেখা এখানে দেখানো হয় না।"
+    },
+    "teachingContext": {
+      "title": "এই উত্তরের ভিত্তি হওয়া শিক্ষাগুলি",
+      "sourceCount": "{{count}}টি প্রাসঙ্গিক শিক্ষা পাওয়া গেছে"
     }
   },
   "notFound": {
