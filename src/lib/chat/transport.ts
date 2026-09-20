@@ -337,6 +337,7 @@ export const sendMessage = async (
         liveLogisticsEvents: data.live_logistics_events ?? [],
         guidancePlan: data.guidance_plan ?? null,
         answerEvidence: data.answer_evidence ?? null,
+        personalizationProvenance: data.personalization_provenance ?? null,
         groundingState: data.grounding_state ?? 'abstained',
         faithfulnessScore: data.faithfulness_score ?? null,
         relevancyScore: data.relevancy_score ?? null,
