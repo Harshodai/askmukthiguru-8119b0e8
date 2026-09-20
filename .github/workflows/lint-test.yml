@@ -47,9 +47,9 @@ jobs:
         run: node scripts/check_metrics_schema_parity.mjs
 
       - name: Check i18n locale coverage (P1-FE-11)
-        # Every real locale file must expose the same top-level namespaces
-        # as en.json (source of truth). A missing namespace renders raw key
-        # strings to users; this gate prevents silent scope creep.
+        # Every real locale file must expose the same leaf translation keys
+        # as en.json (source of truth). Missing nested keys silently fall back
+        # to English, so this deep-parity gate prevents untranslated UI scope creep.
         run: node scripts/check_i18n_coverage.mjs
 
       - name: Build frontend
