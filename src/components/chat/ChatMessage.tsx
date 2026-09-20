@@ -148,7 +148,7 @@ const SereneMindOfferCard = ({ offer }: { offer: NonNullable<Message["sereneMind
               <Play className="h-3.5 w-3.5" aria-hidden="true" />
               {t('chat.startSereneMind')}
             </button>
-            <span className="self-center text-[11px] text-muted-foreground">You can continue chatting instead.</span>
+            <span className="self-center text-[11px] text-muted-foreground">{t('chat.continueChatting')}</span>
           </div>
         </div>
       </div>
