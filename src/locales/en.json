@@ -303,7 +303,23 @@
     "copyTrace": "Copy trace",
     "cause": "Cause",
     "nextStep": "Next step",
-    "thinking": "Thinking",
+    "thinking": {
+      "safety": "Safety check",
+      "understanding": "Understanding your question",
+      "searching": "Searching the teachings",
+      "reranking": "Refining relevance",
+      "filtering": "Filtering for relevance",
+      "synthesizing": "Bringing the teachings together",
+      "composing": "Composing guidance",
+      "verifying": "Verifying the teaching sources",
+      "hello": "Saying hello",
+      "practice": "Guiding practice",
+      "contemplating": "Contemplating",
+      "queued": "Queued",
+      "analyzing": "Preparing your answer…",
+      "stepLabel": "Step {{step}}/{{total}}: {{label}}",
+      "stepProgress": "Step {{step}}/{{total}}: {{label}} ({{percentage}}%)"
+    },
     "toggleThinking": "Toggle thinking details",
     "reflecting": "Reflecting on the teachings…",
     "stillWorking": "Still working on it…",
@@ -583,6 +599,10 @@
       "personalMemoryUsed": "Eligible personal memory/context was provided to the answer model.",
       "graphMatched": "Your personal context graph matched {{count}} concept links.",
       "privateMemoryNotShown": "Private memory text is not shown here."
+    },
+    "teachingContext": {
+      "title": "Teachings grounding this answer",
+      "sourceCount": "{{count}} relevant teaching(s) found"
     }
   },
   "notFound": {
