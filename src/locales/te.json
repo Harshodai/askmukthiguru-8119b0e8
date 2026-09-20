@@ -434,7 +434,10 @@
       "queued": "క్యూలో ఉంది",
       "analyzing": "మీ సమాధానాన్ని సిద్ధం చేస్తున్నాను…",
       "stepLabel": "దశ {{step}}/{{total}}: {{label}}",
-      "stepProgress": "దశ {{step}}/{{total}}: {{label}} ({{percentage}}%)"
+      "stepProgress": "దశ {{step}}/{{total}}: {{label}} ({{percentage}}%)",
+      "rotatingReflecting": "గురుజీ మీ ప్రశ్నపై లోతుగా మననం చేస్తున్నారు…",
+      "rotatingConnecting": "పవిత్రమైన జ్ఞానంతో అనుసంధానమవుతున్నాం…",
+      "rotatingAlmostReady": "దాదాపు సిద్ధంగా ఉంది — లోతైన జ్ఞానానికి సమయం పడుతుంది…"
     },
     "todaysLine": "నేటి గీతం",
     "todaysTeaching": "నేటి బోధన",
