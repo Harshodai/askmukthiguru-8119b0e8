@@ -169,7 +169,7 @@ export const LanguageSelector = ({
         window.removeEventListener('scroll', handleScroll, true);
       };
     }
-  }, [isOpen, updatePosition, selectedLanguage, filteredLanguages]);
+  }, [isOpen, updatePosition, selectedLanguage, searchQuery]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
@@ -281,9 +281,6 @@ export const LanguageSelector = ({
     );
   }, [searchQuery]);
 
-  // ponytail: flat list, no search — LANGUAGES is a compact priority set, a search
-  // box was pure friction (matches a compact picker pattern).
-  // Add search back only if LANGUAGES grows past ~12 entries.
   const renderLanguageRows = () => (
     <>
       {filteredLanguages.map((lang, idx) => {
