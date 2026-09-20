@@ -82,7 +82,7 @@
         >
           <Globe className="w-4 h-4 text-ojas" />
           <span className="text-foreground font-medium hidden sm:inline">
-{currentLang?.native || t('common.signIn')}
+{currentLang?.native || selectedLanguage}
           </span>
           <span className="text-foreground font-medium sm:hidden text-base">
             {currentLang?.code.toUpperCase()}
@@ -108,7 +108,7 @@
                 className="fixed w-72 max-w-[calc(100vw-2rem)] flex flex-col bg-popover border border-border rounded-2xl shadow-2xl z-[100] overflow-hidden"
                 style={{ bottom: coords.bottom, left: coords.left, maxHeight: Math.min(320, coords.maxHeight) }}
                 role="listbox"
-                {t('chat.selectLanguageAria', 'Select language')}
+                aria-label={t('chat.selectLanguageAria', 'Select language')}
               >
                 <div className="px-3 py-2.5 border-b border-border bg-card space-y-2">
                   <div className="flex items-center gap-2">
