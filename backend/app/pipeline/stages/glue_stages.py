@@ -325,7 +325,9 @@ class RequestStateStage(Stage):
             state["response_preferences"] = preferences.model_dump(mode="json")
         elif isinstance(preferences, dict):
             state["response_preferences"] = dict(preferences)
-        state["guru_tone"] = getattr(ctx.request, "guru_tone", None)
+        # Do not carry saved profile tone into Temporary Chat. The request
+        # remains language-aware, but personal preference context is excluded.
+        state["guru_tone"] = None if getattr(ctx.request, "incognito", False) else getattr(ctx.request, "guru_tone", None)
         ctx.state = state
         return None
 
