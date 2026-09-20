@@ -1017,7 +1017,7 @@ class MemoryServiceV2(MemoryService):
     _KG_TTL = 60.0
 
     async def build_personal_knowledge_graph(
-        self, user_id: Optional[str], view: str = "personal"
+        self, user_id: Optional[str], view: str = "personal", limit: int = 50, query: str = ""
     ) -> dict[str, list[dict]]:
         """Build a {nodes, edges} knowledge graph for the user.
 
