@@ -357,7 +357,7 @@
     },
     "closeFeedbackPanel": "মতামত পেনেল বন্ধ কৰক",
     "feedbackCommentPlaceholder": "আমাক জনাওক আমি কেনেদৰে উন্নত কৰিব পাৰোঁ…",
-    "teachingReference": "শিক্ষা প্ৰসংগ",
+    "teachingReference": "শিক্ষা উল্লেখ",
     "teaching": "শিক্ষা",
     "clearAnswer": "উত্তৰ পৰিষ্কাৰ কৰক",
     "relevantSources": "প্ৰাসংগিক উৎসসমূহ",
@@ -653,7 +653,10 @@
     "sereneMindOfferFooter": "প্ৰথমে শিক্ষা; সঠিক যেন লাগিলেহে আৰম্ভ কৰক।",
     "videoUnavailable": "ভিডিঅ’ উপলব্ধ নহয়",
     "videoEmbedUnavailable": "এই ভিডিঅ’টো এম্বেড কৰিব নোৱাৰি",
-    "youTubeThumbnail": "YouTube থাম্বনেইল"
+    "youTubeThumbnail": "YouTube থাম্বনেইল",
+    "videoSource": "ভিডিঅ’ উৎস {{letter}}",
+    "academyReference": "O&O একাডেমী উল্লেখ",
+    "sourceLabel": "উৎস {{number}}"
   },
   "notFound": {
     "message": "পৃষ্ঠাখন বিচাৰি পোৱা নগ'ল",
