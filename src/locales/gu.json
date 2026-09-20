@@ -527,7 +527,12 @@
     "translationUnavailable": "અનુવાદ ઉપલબ્ધ નથી",
     "saveAsNote": "નોંધ તરીકે સાચવો",
     "showOriginal": "મૂળ લખાણ જુઓ",
-    "translateTo": "{{lang}} માં અનુવાદ કરો"
+    "translateTo": "{{lang}} માં અનુવાદ કરો",
+    "contextLimit": {
+      "title": "વાતચીતની સંદર્ભ મર્યાદા પહોંચી ગઈ છે",
+      "description": "આ વાતચીત તેની સુરક્ષિત સંદર્ભ મર્યાદા સુધી પહોંચી ગઈ છે. ચાલુ રાખવા માટે નવી ચેટ શરૂ કરો.",
+      "continueNewChat": "નવી ચેટમાં ચાલુ રાખો"
+    }
   },
   "notFound": {
     "message": "અરેરે! પૃષ્ઠ મળ્યું નથી",
