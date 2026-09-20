@@ -653,7 +653,10 @@
     "sereneMindOfferFooter": "The teaching comes first; start only if it feels right.",
     "videoUnavailable": "Video unavailable",
     "videoEmbedUnavailable": "This video can't be embedded",
-    "youTubeThumbnail": "YouTube thumbnail"
+    "youTubeThumbnail": "YouTube thumbnail",
+    "videoSource": "Video Source {{letter}}",
+    "academyReference": "O&O Academy Reference",
+    "sourceLabel": "Source {{number}}"
   },
   "notFound": {
     "message": "Oops! Page not found",
