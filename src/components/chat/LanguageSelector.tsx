@@ -15,7 +15,7 @@
                   ref={popoverRef}
                   className="fixed z-[100] flex flex-col overflow-hidden rounded-xl border border-hairline bg-popover shadow-lg w-72 max-w-[calc(100vw-2rem)]"
                   style={{ bottom: coords.bottom, left: coords.left, maxHeight: Math.min(320, coords.maxHeight) }}
-                  role="listbox"
+                  role="dialog"
                   aria-label={t('chat.selectLanguageAria', 'Select language')}
                 >
                   {/* Header */}
@@ -37,7 +37,7 @@
                   </div>
 
                   {/* Language list */}
-                  <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin">
+                  <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin" role="listbox" aria-label={t('chat.selectLanguageAria', 'Select language')}>
                     {filteredLanguages.length > 0 ? (
                       <div className="py-1">{renderLanguageRows()}</div>
                     ) : (
@@ -107,7 +107,7 @@
                 ref={popoverRef}
                 className="fixed w-72 max-w-[calc(100vw-2rem)] flex flex-col bg-popover border border-border rounded-2xl shadow-2xl z-[100] overflow-hidden"
                 style={{ bottom: coords.bottom, left: coords.left, maxHeight: Math.min(320, coords.maxHeight) }}
-                role="listbox"
+                role="dialog"
                 aria-label={t('chat.selectLanguageAria', 'Select language')}
               >
                 <div className="px-3 py-2.5 border-b border-border bg-card space-y-2">
@@ -126,7 +126,7 @@
                     className="w-full h-9 rounded-lg border border-border/60 bg-background px-2.5 text-sm outline-none focus:ring-2 focus:ring-ojas/30"
                   />
                 </div>
-                <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin">
+                <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin" role="listbox" aria-label={t('chat.selectLanguageAria', 'Select language')}>
                   {filteredLanguages.length > 0 ? (
                     <div className="py-1">{renderLanguageRows()}</div>
                   ) : (
