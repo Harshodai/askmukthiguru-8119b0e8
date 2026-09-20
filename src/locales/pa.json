@@ -554,7 +554,21 @@
       "edit": "ਸੁਨੇਹਾ ਸੋਧੋ",
       "remove": "ਕਤਾਰ ਤੋਂ ਹਟਾਓ",
       "regionLabel": "ਕਤਾਰ ਵਿੱਚ ਸੁਨੇਹੇ"
-    }
+    },
+    "voiceConversationUnavailable": "ਵੌਇਸ ਗੱਲਬਾਤ ਉਪਲਬਧ ਨਹੀਂ",
+    "voiceConversationUnavailableDesc": "ਹੈਂਡਸ-ਫ੍ਰੀ ਗੱਲਬਾਤ ਲਈ ਇਸ ਬ੍ਰਾਊਜ਼ਰ ਨੂੰ ਮਾਈਕ੍ਰੋਫੋਨ ਅਤੇ ਵੌਇਸ ਆਉਟਪੁੱਟ ਦੀ ਲੋੜ ਹੈ।",
+    "voiceStreaming": "ਵੌਇਸ ਸਟ੍ਰੀਮਿੰਗ",
+    "voiceRecording": "ਵੌਇਸ ਰਿਕਾਰਡਿੰਗ",
+    "switchLangButton": "ਬਦਲੋ",
+    "speaking": "ਬੋਲ ਰਿਹਾ ਹੈ…",
+    "dismissError": "ਗਲਤੀ ਬੰਦ ਕਰੋ",
+    "temporaryChat": "ਅਸਥਾਈ ਚੈਟ",
+    "temporaryChatTitle": "ਅਸਥਾਈ ਚੈਟ: ਚੈਟ ਇਤਿਹਾਸ, ਨਿੱਜੀ ਯਾਦਾਂ ਜਾਂ ਨਿੱਜੀ ਗਿਆਨ ਨਕਸ਼ੇ ਵਿੱਚ ਸੁਰੱਖਿਅਤ ਨਹੀਂ ਹੋਵੇਗੀ।",
+    "personalized": "ਵਿਅਕਤੀਗਤ",
+    "personalizedTitle": "ਆਮ ਚੈਟ ਤੁਹਾਡੀ ਪ੍ਰੋਫਾਈਲ ਅਤੇ ਯੋਗ ਨਿੱਜੀ ਯਾਦਾਂ ਵਰਤ ਸਕਦੀ ਹੈ।",
+    "voiceMode": "ਵੌਇਸ",
+    "signInAgain": "ਦੁਬਾਰਾ ਸਾਈਨ ਇਨ ਕਰੋ",
+    "reload": "ਮੁੜ ਲੋਡ ਕਰੋ"
   },
   "notFound": {
     "message": "ਓਹੋ! ਪੰਨਾ ਨਹੀਂ ਮਿਲਿਆ",
