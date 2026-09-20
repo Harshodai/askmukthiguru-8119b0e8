@@ -508,7 +508,7 @@ const FeedbackButtons = ({ messageId, queryText, messageContent }: {
 };
 
 const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
-  ({ message, queryText, index = 0, isStreaming = false, isLastGuru = false, onRegenerate, onEditUserMessage, onSubmitEdit, onAction, onCitationClick }, ref) => {
+  ({ message, queryText, index = 0, isStreaming = false, isLastGuru = false, onRegenerate, onStartNewChat, onEditUserMessage, onSubmitEdit, onAction, onCitationClick }, ref) => {
     const { t } = useTranslation();
   const isContextExhaustedError = message.error?.kind === 'context_exhausted';
   const errorTitle = isContextExhaustedError ? t('chat.contextLimit.title') : message.error?.title;
@@ -1565,6 +1565,7 @@ export const ChatMessage = memo(ChatMessageInner, (prev, next) => {
     prev.queryText === next.queryText &&
     prev.onAction === next.onAction &&
     prev.onRegenerate === next.onRegenerate &&
+    prev.onStartNewChat === next.onStartNewChat &&
     prev.onSubmitEdit === next.onSubmitEdit &&
     prev.onEditUserMessage === next.onEditUserMessage &&
     prev.onCitationClick === next.onCitationClick
