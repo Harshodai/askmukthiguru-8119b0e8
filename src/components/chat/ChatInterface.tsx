@@ -1070,6 +1070,13 @@ export const ChatInterface = () => {
     const cacheKey = `${turnLanguage}:${hashMessages(allMsgs)}`;
     const cached = options.bypassCache ? null : getCachedResponse(cacheKey);
 
+    // The backend owns durable history/personalization. The client still sends a
+    // bounded fallback history for new/racy conversations where the server-side
+    // row has not committed yet.
+    const requestHistory = isIncognito ? [] : messageHistory.slice(-50);
+    const requestSummary = isIncognito ? undefined : currentConversation?.summary;
+    const requestSessionId = isIncognito ? undefined : currentConversation?.id;
+
     if (cached) {
       const guruMessage: Message = {
         id: generateId(),
