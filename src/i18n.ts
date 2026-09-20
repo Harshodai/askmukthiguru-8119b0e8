@@ -81,6 +81,12 @@ i18n
     returnNull: false,
   });
 
+export const changeUiLanguage = async (lng: string): Promise<void> => {
+  const base = baseLanguage(lng);
+  await loadLocale(base);
+  await i18n.changeLanguage(base);
+};
+
 i18n.on('languageChanged', (lng) => {
   syncDocumentLanguage(lng);
 });
