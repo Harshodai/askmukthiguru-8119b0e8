@@ -693,7 +693,7 @@ export const ChatInterface = () => {
     },
     onError: (error) => {
       toast({
-        title: 'Voice Error',
+        title: t('chat.voiceError', 'Voice Error'),
         description: error,
         variant: 'destructive',
       });
@@ -709,15 +709,15 @@ export const ChatInterface = () => {
       if (sessionStorage.getItem(dismissKey)) return;
 
       toast({
-        title: `🌐 Detected ${detectedLangObj.name}`,
-        description: `Switch conversation language to ${detectedLangObj.native}?`,
+        title: t('chat.detectedLang', { name: detectedLangObj.name }),
+        description: t('chat.switchLang', { native: detectedLangObj.native }),
         duration: 8000,
         action: (
           <ToastAction
-            altText={`Switch to ${detectedLangObj.name}`}
+            altText={t('chat.switchLang', { native: detectedLangObj.native })}
             onClick={() => handleLanguageChange(detectedLangObj.code)}
           >
-            Switch
+            {t('chat.switchLangButton', 'Switch')}
           </ToastAction>
         ),
       });
@@ -730,8 +730,8 @@ export const ChatInterface = () => {
   const handleVoiceToggle = useCallback(() => {
     if (!voiceSupported) {
       toast({
-        title: 'Voice Not Supported',
-        description: 'Your browser does not support voice recognition.',
+        title: t('chat.voiceNotSupported'),
+        description: t('chat.voiceNotSupportedDesc'),
         variant: 'destructive',
       });
       return;
@@ -759,8 +759,8 @@ export const ChatInterface = () => {
   const handleHandsFreeVoiceToggle = useCallback(() => {
     if (!voiceSupported || !ttsSupported) {
       toast({
-        title: 'Voice Conversation Unavailable',
-        description: 'This browser needs microphone access and voice output support for hands-free conversation.',
+        title: t('chat.voiceConversationUnavailable', 'Voice conversation unavailable'),
+        description: t('chat.voiceConversationUnavailableDesc', 'This browser needs microphone access and voice output support for hands-free conversation.'),
         variant: 'destructive',
       });
       return;
@@ -800,8 +800,8 @@ export const ChatInterface = () => {
   const handleTtsToggle = useCallback(() => {
     if (!ttsSupported) {
       toast({
-        title: 'Text-to-Speech Not Supported',
-        description: 'Your browser does not support text-to-speech.',
+        title: t('chat.ttsNotSupported'),
+        description: t('chat.ttsNotSupportedDesc'),
         variant: 'destructive',
       });
       return;
@@ -2557,7 +2557,7 @@ return (
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                 </span>
                 <span className="text-[10px] text-emerald-400 font-semibold tracking-wider uppercase">
-                  {currentLanguage === 'en' ? 'Voice Streaming (Low Latency)' : 'Voice Recording'}
+                  {currentLanguage === 'en' ? t('chat.voiceStreaming', 'Voice streaming') : t('chat.voiceRecording', 'Voice recording')}
                 </span>
               </div>
               {/* Animated Audio Equalizer Bars */}
@@ -2574,7 +2574,7 @@ return (
                 {interimTranscript}
               </p>
             ) : (
-              <p className="text-xs text-muted-foreground italic">Start speaking...</p>
+              <p className="text-xs text-muted-foreground italic">{t('chat.startSpeaking')}</p>
             )}
           </motion.div>
         )}
@@ -2598,12 +2598,12 @@ return (
                 />
               ))}
             </motion.div>
-            <span className="text-sm text-prana font-medium">Speaking...</span>
+            <span className="text-sm text-prana font-medium">{t('chat.speaking', 'Speaking…')}</span>
             <button
               onClick={stopSpeaking}
               className="text-xs text-prana/70 hover:text-prana underline ml-1"
             >
-              Stop
+              {t('chat.stop', 'Stop')}
             </button>
           </motion.div>
         )}
@@ -2622,7 +2622,7 @@ return (
             <button
               onClick={clearVoiceError}
               className="ml-1 p-0.5 rounded-full hover:bg-destructive/20 text-destructive transition-colors"
-              aria-label="Dismiss error"
+              aria-label={t('chat.dismissError', 'Dismiss error')}
             >
               <X className="w-3.5 h-3.5" />
             </button>
