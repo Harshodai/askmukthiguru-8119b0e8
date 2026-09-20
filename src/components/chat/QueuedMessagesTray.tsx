@@ -61,7 +61,7 @@ export const QueuedMessagesTray: React.FC<QueuedMessagesTrayProps> = ({
                 onClick={onClearAll}
                 className="text-destructive/80 hover:text-destructive transition-colors"
               >
-                {t("chat.queue.clearAll", "Clear all")}
+                {t('chat.queue.clearAll')}
               </button>
             )}
           </div>
@@ -101,7 +101,7 @@ export const QueuedMessagesTray: React.FC<QueuedMessagesTrayProps> = ({
                   <button
                     type="button"
                     onClick={() => onSendNow(item.id)}
-                    title={t("chat.queue.sendNowTitle", "Send now — interrupts the current answer")}
+                    title={t('chat.queue.sendNowTitle')}
                     className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-ojas/10 hover:bg-ojas/20 text-ojas text-[11px] font-medium transition-all"
                   >
                     <Zap className="w-3 h-3 fill-current" />
@@ -120,7 +120,7 @@ export const QueuedMessagesTray: React.FC<QueuedMessagesTrayProps> = ({
                   <button
                     type="button"
                     onClick={() => onRemove(item.id)}
-                    title={t("chat.queue.remove", "Remove from queue")}
+                    title={t('chat.queue.remove')}
                     className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
