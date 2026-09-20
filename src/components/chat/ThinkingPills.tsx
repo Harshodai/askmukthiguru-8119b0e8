@@ -174,7 +174,7 @@ export const ThinkingPills = ({
         type="button"
         onClick={() => hasSteps && setExpanded((v) => !v)}
         disabled={!hasSteps}
-        className={`group inline-flex items-center gap-2 min-h-[32px] text-sm font-sans font-medium text-muted-foreground ${
+        className={`group inline-flex items-center gap-2 min-h-[32px] text-[15px] leading-5 font-sans font-normal text-muted-foreground ${
           hasSteps ? 'cursor-pointer' : 'cursor-default'
         }`}
         aria-expanded={expanded}
@@ -196,7 +196,7 @@ export const ThinkingPills = ({
         </AnimatePresence>
 
         {elapsed >= 5 && (
-          <span className="text-sm tabular-nums text-muted-foreground/60">{elapsed}s</span>
+          <span className="text-[15px] leading-5 tabular-nums text-muted-foreground/60">{elapsed}s</span>
         )}
 
         {hasSteps && (
@@ -217,7 +217,7 @@ export const ThinkingPills = ({
             transition={{ duration: 0.22, ease: 'easeOut' }}
             className="overflow-hidden w-full"
           >
-            <ul className="ml-1.5 border-l border-border/40 pl-3 py-1 space-y-2">
+            <ul className="ml-1.5 border-l border-border/40 pl-3 py-1 space-y-2.5">
               {displaySteps.map((step, idx) => {
                 const isDone = step.status === 'done';
                 const isActive = step.status === 'active';
@@ -243,7 +243,7 @@ export const ThinkingPills = ({
                   ? t('chat.thinking.stepLabel', { step: step.step, total: step.totalSteps, label: translatedStepLabel })
                   : translatedStepLabel;
                 return (
-                  <li key={step.id || `step-${idx}`} className="flex items-center gap-2 text-sm font-sans">
+                  <li key={step.id || `step-${idx}`} className="flex items-center gap-2 text-[15px] leading-5 font-sans">
                     <span className="w-3.5 h-3.5 flex items-center justify-center flex-shrink-0">
                       {isDone ? (
                         <Check className="w-3 h-3 text-prana" />
@@ -266,7 +266,7 @@ export const ThinkingPills = ({
 
       {teachingPreview.length > 0 && (
         <div className="w-full max-w-xl rounded-xl border border-ojas/15 bg-ojas/[0.035] px-3 py-2.5">
-          <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+          <div className="flex items-center gap-2 text-[15px] leading-5 font-medium text-foreground">
             <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-ojas/10 text-ojas">◈</span>
             <span>{t('chat.references')}</span>
             <span className="text-sm font-normal text-muted-foreground/70">
@@ -284,7 +284,7 @@ export const ThinkingPills = ({
                   {item.teacher ? <span className="font-normal text-muted-foreground"> · {item.teacher}</span> : null}
                 </div>
                 {item.excerpt && (
-                  <div className="line-clamp-2 text-sm leading-5 text-muted-foreground">
+                  <div className="line-clamp-2 text-[15px] leading-6 text-muted-foreground">
                     {item.excerpt}
                   </div>
                 )}
