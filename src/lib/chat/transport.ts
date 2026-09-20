@@ -305,10 +305,12 @@ export const sendMessage = async (
             // Ignore JSON parse errors
           }
           const isQuota = errorData?.quota_exceeded === true;
-          const errorCode = httpStatusToErrorCode(response.status, isQuota);
-          const friendly = isQuota
-            ? "You've reached the free-message limit. Sign in to continue."
-            : `API error: ${response.status}${errorData?.detail ? ` - ${errorData.detail}` : ''}`;
+          const errorCode = httpStatusToErrorCode(response.status, isQuota, errorData?.error_code);
+          const friendly = errorCode === 'context_exhausted'
+            ? 'This conversation has reached its safe context limit.'
+            : isQuota
+              ? "You've reached the free-message limit. Sign in to continue."
+              : `API error: ${response.status}${errorData?.detail ? ` - ${errorData.detail}` : ''}`;
           return {
             content: '',
             error: friendly,
