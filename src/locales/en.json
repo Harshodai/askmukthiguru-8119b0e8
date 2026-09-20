@@ -554,7 +554,21 @@
       "edit": "Edit message",
       "remove": "Remove from queue",
       "regionLabel": "Queued messages"
-    }
+    },
+    "voiceConversationUnavailable": "Voice conversation unavailable",
+    "voiceConversationUnavailableDesc": "This browser needs microphone access and voice output support for hands-free conversation.",
+    "voiceStreaming": "Voice streaming",
+    "voiceRecording": "Voice recording",
+    "switchLangButton": "Switch",
+    "speaking": "Speaking…",
+    "dismissError": "Dismiss error",
+    "temporaryChat": "Temporary chat",
+    "temporaryChatTitle": "Temporary chat: not saved to chat history, personal memory, or your personal wisdom map.",
+    "personalized": "Personalized",
+    "personalizedTitle": "Regular chats can use your profile and eligible personal memory.",
+    "voiceMode": "Voice",
+    "signInAgain": "Sign in again",
+    "reload": "Reload"
   },
   "notFound": {
     "message": "Oops! Page not found",
