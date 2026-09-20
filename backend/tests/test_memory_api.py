@@ -147,3 +147,27 @@ def test_forget_memory_not_found(mock_dependencies):
 
     assert response.status_code == 404
     assert "detail" in response.json()
+
+
+def test_personal_knowledge_graph_requires_authenticated_identity(mock_dependencies, monkeypatch):
+    from app.api import memory as memory_api
+
+    monkeypatch.setattr(memory_api, "_resolve_kg_user_id", AsyncMock(return_value=None))
+    response = client.get("/api/memory/knowledge-graph?view=personal")
+
+    assert response.status_code == 401
+
+
+def test_public_knowledge_graph_allows_anonymous_ontology_view(mock_dependencies, monkeypatch):
+    from app.api import memory as memory_api
+
+    monkeypatch.setattr(memory_api, "_resolve_kg_user_id", AsyncMock(return_value=None))
+    mock_dependencies.memory_service.build_personal_knowledge_graph.return_value = {
+        "nodes": [],
+        "edges": [],
+    }
+
+    response = client.get("/api/memory/knowledge-graph?view=ontology")
+
+    assert response.status_code == 200
+    assert response.json() == {"nodes": [], "edges": [], "count": 0}
