@@ -124,9 +124,14 @@ export const DesktopSidebar = ({
   }>;
 
   const filtered = search
-    ? conversations.filter(c =>
-        c.preview.toLowerCase().includes(search.toLowerCase())
-      )
+    ? conversations.filter((conversation) => {
+        const term = search.toLowerCase().trim();
+        if (!term) return true;
+        return (
+          conversation.preview.toLowerCase().includes(term) ||
+          conversation.messages.some((message) => message.content.toLowerCase().includes(term))
+        );
+      })
     : conversations;
 
   const groups = groupConversations(filtered);
