@@ -581,7 +581,7 @@
       "header": "Personalized for this conversation",
       "profileEnabled": "Your profile personalization was enabled for this response.",
       "personalMemoryUsed": "Eligible personal memory/context was provided to the answer model.",
-      "graphMatched": "Your personal context graph matched {{count}} concept link.",
+      "graphMatched": "Your personal context graph matched {{count}} concept links.",
       "privateMemoryNotShown": "Private memory text is not shown here."
     }
   },
