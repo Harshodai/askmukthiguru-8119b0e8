@@ -142,8 +142,12 @@ const ProfilePage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const tabParam = searchParams.get('tab');
-  const initialTab = (tabParam === 'privacy' || tabParam === 'memory') ? 'memory' : (tabParam || 'profile');
-  const [tab, setTab] = useState(initialTab);
+  const PROFILE_TABS = ['profile', 'stats', 'conversations', 'memory', 'settings'] as const;
+  type ProfileTab = typeof PROFILE_TABS[number];
+  const initialTab: ProfileTab = PROFILE_TABS.includes(tabParam as ProfileTab)
+    ? (tabParam as ProfileTab)
+    : 'profile';
+  const [tab, setTab] = useState<ProfileTab>(initialTab);
   const { profile, update } = useProfile();
   const { toast } = useToast();
   const { t } = useTranslation();
@@ -466,6 +470,30 @@ const ProfilePage = () => {
                   )}
                 </div>
               )}
+              {!isOnboarding && (
+                <div className="flex flex-wrap gap-2 pt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="min-h-[40px] rounded-xl gap-1.5 border-hairline"
+                    onClick={() => navigate('/chat')}
+                  >
+                    <MessageCircle className="w-3.5 h-3.5" />
+                    Continue chatting
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="min-h-[40px] rounded-xl gap-1.5 border-hairline"
+                    onClick={() => navigate('/practices')}
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    Choose a practice
+                  </Button>
+                </div>
+              )}
             </div>
           </section>
 
@@ -474,11 +502,14 @@ const ProfilePage = () => {
         <div className="space-y-6">
           <Tabs value={tab} onValueChange={setTab} className="w-full">
             {/* Compact segmented navigation; scrolls safely on narrow devices. */}
-            <div className="-mx-4 sm:mx-0 px-4 sm:px-0 overflow-x-auto momentum-scroll no-tap-highlight">
-              <TabsList className="inline-flex w-max sm:w-full sm:grid sm:grid-cols-5 gap-0 mb-5 bg-muted/50 p-1 rounded-xl">
-                <TabsTrigger value="conversations" className="rounded-lg min-h-[44px] text-xs px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors">{t('profile.tabs.conversations', 'Conversations')}</TabsTrigger>
+            <div className="sticky top-14 z-20 -mx-4 sm:mx-0 px-4 sm:px-0 py-1 bg-background/90 backdrop-blur-xl border-b border-transparent overflow-x-auto momentum-scroll no-tap-highlight">
+              <TabsList
+                aria-label="Profile sections"
+                className="inline-flex w-max sm:w-full sm:grid sm:grid-cols-5 gap-0 mb-2 bg-muted/50 p-1 rounded-xl"
+              >
                 <TabsTrigger value="profile" className="rounded-lg min-h-[44px] text-xs px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors">{t('profile.tabs.profile', 'Profile')}</TabsTrigger>
                 <TabsTrigger value="stats" className="rounded-lg min-h-[44px] text-xs px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors">{t('profile.tabs.insights', 'Insights')}</TabsTrigger>
+                <TabsTrigger value="conversations" className="rounded-lg min-h-[44px] text-xs px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors">{t('profile.tabs.conversations', 'Conversations')}</TabsTrigger>
                 <TabsTrigger value="memory" className="rounded-lg min-h-[44px] text-xs px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors">{t('profile.tabs.memory', 'Memory')}</TabsTrigger>
                 <TabsTrigger value="settings" className="rounded-lg min-h-[44px] text-xs px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors">{t('profile.tabs.settings', 'Settings')}</TabsTrigger>
               </TabsList>
@@ -667,7 +698,7 @@ const ProfilePage = () => {
               <Card className="rounded-2xl border border-hairline bg-card shadow-sm">
                 <CardHeader className="pb-4">
                   <CardTitle className="text-lg font-serif font-semibold text-foreground">Journey Overview</CardTitle>
-                  <CardDescription>Your path across conversations, practice, and healing.</CardDescription>
+                  <CardDescription>Your activity across conversations, practice, and reflection.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {metricsLoading && !metrics && (
@@ -770,7 +801,7 @@ const ProfilePage = () => {
               <Card className="rounded-2xl border border-hairline bg-card shadow-sm">
                 <CardHeader className="pb-4">
                   <CardTitle className="text-lg font-serif font-semibold text-foreground">Recent Insights</CardTitle>
-                  <CardDescription>Patterns woven from your practice, mood, and conversations.</CardDescription>
+                  <CardDescription>Patterns derived from your recorded practice, reported mood, and saved memories.</CardDescription>
                 </CardHeader>
                 <CardContent>
                   {personalInsights.length > 0 ? (
