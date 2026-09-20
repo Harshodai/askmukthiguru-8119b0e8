@@ -165,12 +165,15 @@ export async function* sendMessageStreaming(
         // Ignore JSON parse errors
       }
       const isQuota = errorData?.quota_exceeded === true;
-      const errorDetail = isQuota
-        ? "You've reached the free-message limit. Sign in to continue."
-        : `Job stream failed: ${response.status}${errorData?.detail ? ` - ${errorData.detail}` : ''}`;
+      const errorCode = httpStatusToErrorCode(response.status, isQuota, errorData?.error_code);
+      const errorDetail = errorCode === 'context_exhausted'
+        ? 'This conversation has reached its safe context limit.'
+        : isQuota
+          ? "You've reached the free-message limit. Sign in to continue."
+          : `Job stream failed: ${response.status}${errorData?.detail ? ` - ${errorData.detail}` : ''}`;
       const err = new Error(errorDetail);
       (err as RichError).status = response.status;
-      (err as RichError).errorCode = httpStatusToErrorCode(response.status, isQuota);
+      (err as RichError).errorCode = errorCode;
       if (typeof errorData?.remaining === 'number') (err as RichError).quotaRemaining = errorData.remaining;
       if (typeof errorData?.total_limit === 'number') (err as RichError).quotaTotalLimit = errorData.total_limit;
       throw err;
@@ -185,12 +188,15 @@ export async function* sendMessageStreaming(
       // Ignore JSON parse errors
     }
     const isQuota = errorData?.quota_exceeded === true;
-    const errorDetail = isQuota
-      ? "You've reached the free-message limit. Sign in to continue."
-      : `Streaming failed: ${response.status}${errorData?.detail ? ` - ${errorData.detail}` : ''}`;
+    const errorCode = httpStatusToErrorCode(response.status, isQuota, errorData?.error_code);
+    const errorDetail = errorCode === 'context_exhausted'
+      ? 'This conversation has reached its safe context limit.'
+      : isQuota
+        ? "You've reached the free-message limit. Sign in to continue."
+        : `Streaming failed: ${response.status}${errorData?.detail ? ` - ${errorData.detail}` : ''}`;
     const error = new Error(errorDetail);
     (error as RichError).status = response.status;
-    (error as RichError).errorCode = httpStatusToErrorCode(response.status, isQuota);
+    (error as RichError).errorCode = errorCode;
     if (typeof errorData?.remaining === 'number') (error as RichError).quotaRemaining = errorData.remaining;
     if (typeof errorData?.total_limit === 'number') (error as RichError).quotaTotalLimit = errorData.total_limit;
     throw error;
@@ -330,7 +336,17 @@ export async function* sendMessageStreaming(
         // Handle error events
         if (currentEvent === 'error') {
           currentEvent = 'message';
-          yield { type: 'error', text: payload.trim() };
+          try {
+            const errorData = JSON.parse(payload) as { detail?: unknown; error_code?: unknown; code?: unknown };
+            const code = errorData.error_code ?? errorData.code;
+            yield {
+              type: 'error',
+              text: typeof errorData.detail === 'string' ? errorData.detail : payload.trim(),
+              errorCode: httpStatusToErrorCode(409, false, code),
+            };
+          } catch {
+            yield { type: 'error', text: payload.trim() };
+          }
           continue;
         }
 
