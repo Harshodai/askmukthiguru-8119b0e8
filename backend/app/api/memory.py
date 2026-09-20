@@ -660,8 +660,18 @@ async def personal_knowledge_graph_endpoint(
         )
 
     user_id = await _resolve_kg_user_id(request)
+    normalized_view = (view or "personal").strip().lower()
+    if normalized_view not in {"personal", "ontology"}:
+        raise HTTPException(status_code=400, detail="Unsupported knowledge-graph view.")
 
-    result = await svc.build_personal_knowledge_graph(user_id, view=view)
+    # Personal graph access is user data. Anonymous callers may only request the
+    # public ontology view; accepting "personal" with a missing user id silently
+    # fell back to public data and made the auth contract dependent on service
+    # implementation details.
+    if normalized_view == "personal" and not user_id:
+        raise HTTPException(status_code=401, detail="Authentication required for the personal knowledge graph.")
+
+    result = await svc.build_personal_knowledge_graph(user_id, view=normalized_view)
 
     return PersonalKGResponse(
         nodes=[KGNode(**n) for n in result["nodes"]],
@@ -731,8 +741,13 @@ async def export_knowledge_graph_endpoint(
         )
 
     user_id = await _resolve_kg_user_id(request)
+    normalized_view = (body.view or "personal").strip().lower()
+    if normalized_view not in {"personal", "ontology"}:
+        raise HTTPException(status_code=400, detail="Unsupported knowledge-graph view.")
+    if normalized_view == "personal" and not user_id:
+        raise HTTPException(status_code=401, detail="Authentication required for the personal knowledge graph.")
 
-    result = await svc.build_personal_knowledge_graph(user_id, view=body.view)
+    result = await svc.build_personal_knowledge_graph(user_id, view=normalized_view)
 
     try:
         html_content = await asyncio.wait_for(
