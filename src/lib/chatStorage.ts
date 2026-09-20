@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { AnswerEvidence, BackendMetadata, Citation, GuidancePlan, GroundingState, LiveLogisticsEvent, ProactiveSereneMindTrigger } from './chat/types';
+import type { AnswerEvidence, BackendMetadata, Citation, GuidancePlan, GroundingState, LiveLogisticsEvent, ProactiveSereneMindTrigger, TeachingPreview } from './chat/types';
 import { supabase } from '@/integrations/supabase/client';
 import { Capacitor } from '@capacitor/core';
 import { Preferences } from '@capacitor/preferences';
@@ -70,6 +70,8 @@ export interface Message {
   /** Requested language of this message’s rendered content (BCP-47 or base code). */
   language?: string;
   feedback?: MessageFeedback;
+  /** Public teaching evidence retrieved for this answer; never contains private memory. */
+  teachingPreview?: TeachingPreview[];
   /** Memory facts the backend retrieved and used to ground this guru reply. */
   memoriesUsed?: string[];
   /** Non-null when this guru bubble represents a failed response (network/auth/server). */
@@ -130,6 +132,12 @@ const MessageSchema = z.object({
   content: z.string(),
   timestamp: z.coerce.date(),
   citations: z.array(CitationSchema).optional(),
+  teachingPreview: z.array(z.object({
+    title: z.string(),
+    teacher: z.string().nullable().optional(),
+    url: z.string().url().nullable().optional(),
+    excerpt: z.string().nullable().optional(),
+  })).max(3).optional(),
   language: z.string().optional(),
   confidenceScore: z.number().optional(),
   confidenceReason: z.string().optional(),
