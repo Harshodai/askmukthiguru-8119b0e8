@@ -235,8 +235,8 @@ export const saveProfile = (profile: UserProfile, syncWithServer: boolean = true
     localStorage.setItem('askmukthiguru_profile.preferredLanguage', uiLang);
     // Dynamic import avoids an import cycle (i18n → react-i18next) and keeps this
     // module usable in non-React contexts/tests.
-    void import('@/i18n').then(({ default: i18n }) => {
-      if (i18n.language !== uiLang) i18n.changeLanguage(uiLang);
+    void import('@/i18n').then(({ setLocale }) => setLocale(uiLang)).catch(() => {
+      // UI locale sync remains best-effort here; the profile value is already persisted.
     });
 
     if (syncWithServer) {
