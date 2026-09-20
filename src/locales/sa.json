@@ -554,7 +554,21 @@
       "edit": "सन्देशं सम्पादयतु",
       "remove": "पङ्क्तितः अपनयतु",
       "regionLabel": "पङ्क्तिस्थिताः सन्देशाः"
-    }
+    },
+    "voiceConversationUnavailable": "वाचिकसंवादः उपलब्धः नास्ति",
+    "voiceConversationUnavailableDesc": "हस्तरहितसंवादाय अस्य ब्राउजरस्य सूक्ष्मग्राहकः वाचिकनिर्गमश्च आवश्यकौ स्तः।",
+    "voiceStreaming": "वाचिकप्रवाहः",
+    "voiceRecording": "वाचिकलेखनम्",
+    "switchLangButton": "परिवर्तयतु",
+    "speaking": "वदति…",
+    "dismissError": "दोषं निराकरोतु",
+    "temporaryChat": "तात्कालिकः संवादः",
+    "temporaryChatTitle": "तात्कालिकः संवादः संवादे, वैयक्तिकस्मृतौ वा वैयक्तिकज्ञानमानचित्रे न संरक्ष्यते।",
+    "personalized": "वैयक्तिकीकरणम्",
+    "personalizedTitle": "सामान्यसंवादः भवतः प्रोफाइलं योग्यां वैयक्तिकस्मृतिं च उपयोजयितुं शक्नोति।",
+    "voiceMode": "वाणी",
+    "signInAgain": "पुनः प्रवेशं कुरुत",
+    "reload": "पुनः लोड् कुरुत"
   },
   "notFound": {
     "message": "अहो! पृष्ठं न लब्धम्",
