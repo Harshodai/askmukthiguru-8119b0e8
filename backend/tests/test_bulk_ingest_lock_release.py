@@ -49,8 +49,15 @@ def test_release_lock_clears_reservation_immediately():
     def _delete(key):
         held.pop(key, None)
 
+    def _eval(_script, _numkeys, key, token):
+        if held.get(key) == token:
+            held.pop(key, None)
+            return 1
+        return 0
+
     mock_redis.set.side_effect = _set
     mock_redis.delete.side_effect = _delete
+    mock_redis.eval.side_effect = _eval
     mock_redis.ping.return_value = True
 
     with patch("redis.from_url", return_value=mock_redis):
