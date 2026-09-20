@@ -883,6 +883,11 @@ async def chat_stream_endpoint(
         await _release_anon_quota(user, container, quota)
         raise
 
+    context_limit_response = _conversation_context_limit_response(chat_body)
+    if context_limit_response is not None:
+        await _release_anon_quota(user, container, quota)
+        return context_limit_response
+
     if (
         container.job_queue
         and settings.queue_enabled
