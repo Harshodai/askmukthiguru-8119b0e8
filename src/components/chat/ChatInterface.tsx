@@ -917,6 +917,7 @@ export const ChatInterface = () => {
     historyMessages?: Message[];
     bypassCache?: boolean;
     forceImmediate?: boolean;
+    languageOverride?: string;
   };
   type SubmitEvent = React.FormEvent | React.KeyboardEvent<HTMLTextAreaElement> | React.MouseEvent;
 
@@ -929,6 +930,7 @@ export const ChatInterface = () => {
       e.preventDefault();
     }
     const textToSend = overrideText ?? inputValue;
+    const turnLanguage = options.languageOverride ?? currentLanguage;
     if (!textToSend.trim()) {
       return;
     }
@@ -938,6 +940,7 @@ export const ChatInterface = () => {
       const newQueued: QueuedMessage = {
         id: generateId(),
         text: textToSend.trim(),
+        language: currentLanguage,
         attachedFiles: attachedFiles.length > 0 ? attachedFiles.map((f) => ({ name: f.name, content: f.content })) : undefined,
         timestamp: Date.now(),
       };
@@ -991,7 +994,7 @@ export const ChatInterface = () => {
       role: 'user',
       content: textToSend.trim(), // always show original language in chat bubble
       timestamp: new Date(),
-      language: currentLanguage,
+      language: turnLanguage,
     };
 
     if (appendUser) {
@@ -1010,7 +1013,7 @@ export const ChatInterface = () => {
     // is cleared (lines above), so it cannot block user message rendering or
     // input clearing. Instrumented below to confirm that contract holds.
     let textForAI = textToSend.trim();
-    if (translateActive) {
+    if (translateActive && turnLanguage === currentLanguage) {
       const translateT0 = performance.now();
       try {
         textForAI = await translateToEnglish(textToSend.trim());
@@ -1063,7 +1066,7 @@ export const ChatInterface = () => {
     // questions in different scripts deduplicate properly.
     const cacheInput = attachmentContext ? `${aiText}\n${attachmentContext}` : aiText;
     const allMsgs = [...messageHistory, { role: 'user' as const, content: cacheInput }];
-    const cacheKey = `${currentLanguage}:${hashMessages(allMsgs)}`;
+    const cacheKey = `${turnLanguage}:${hashMessages(allMsgs)}`;
     const cached = options.bypassCache ? null : getCachedResponse(cacheKey);
 
     if (cached) {
@@ -1142,6 +1145,7 @@ export const ChatInterface = () => {
           undefined,
           responsePreferences,
           attachmentContext,
+          turnLanguage,
         );
 
         // Show pipeline thinking pills — start with Safety check active immediately to eliminate blank gap
@@ -1155,7 +1159,7 @@ export const ChatInterface = () => {
           id: streamingGuruId,
           role: 'guru',
           content: '',
-          language: currentLanguage,
+          language: turnLanguage,
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, emptyGuru]);
@@ -1385,7 +1389,7 @@ export const ChatInterface = () => {
                     intent: finalIntent,
                     citations: streamedCitations.length > 0 ? streamedCitations : undefined,
                     followUpSuggestions: streamedFollowUpSuggestions.length > 0 ? streamedFollowUpSuggestions : undefined,
-                    language: currentLanguage,
+                    language: turnLanguage,
                     confidenceScore: streamedConfidenceScore ?? undefined,
                     confidenceReason: streamedConfidenceReason ?? undefined,
                     liveLogisticsEvents: streamedLiveLogisticsEvents.length > 0 ? streamedLiveLogisticsEvents : undefined,
@@ -1634,6 +1638,7 @@ openSereneMind('audio');
         undefined,
         responsePreferences,
         attachmentContext,
+        turnLanguage,
       );
 
       setIsTyping(false);
@@ -1693,7 +1698,7 @@ openSereneMind('audio');
           content: response.content || (response.errorCode
             ? 'The Guru is resting. Please try again in a moment.'
             : ''),
-          language: currentLanguage,
+          language: turnLanguage,
           timestamp: new Date(),
           citations: response.citations && response.citations.length > 0 ? response.citations : undefined,
           error: responseError,
@@ -1848,7 +1853,7 @@ const handleSendNowQueued = useCallback((id: string) => {
   }
   setIsTyping(false);
   setIsStreaming(false);
-  submitImplRef.current(undefined, target.text, { forceImmediate: true });
+  submitImplRef.current(undefined, target.text, { forceImmediate: true, languageOverride: target.language });
 }, []);
 
 const handleEditQueued = useCallback((id: string) => {
