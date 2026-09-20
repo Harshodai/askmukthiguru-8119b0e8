@@ -52,11 +52,19 @@ def max_chat_input_tokens() -> int:
         0.90,
         max(0.0, float(getattr(settings, "context_system_prompt_reserve", 0.20))),
     )
+    history_reserve = min(
+        0.40,
+        max(0.0, float(getattr(settings, "context_history_reserve", 0.10))),
+    )
     output_reserve = max(
         1,
         int(getattr(settings, "llm_max_tokens_deep", 1500)),
     )
-    available = int(total * (1.0 - system_reserve)) - output_reserve
+    # Reserve explicit headroom for both the system/persona layer and the
+    # conversation-history layer. The returned budget is for dynamic request
+    # inputs (hydrated history + current turn + continuation/attachment context).
+    reserved = min(0.90, system_reserve + history_reserve)
+    available = int(total * (1.0 - reserved)) - output_reserve
     return max(256, available)
 
 
@@ -64,6 +72,8 @@ def assess_conversation_context(
     messages: list[dict[str, Any]] | None,
     user_message: str,
     language: str = "en",
+    conversation_summary: str | None = None,
+    attachment_context: str | None = None,
 ) -> ConversationContextBudget:
     """Estimate current conversation input size conservatively."""
 
