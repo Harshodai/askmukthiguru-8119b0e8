@@ -653,7 +653,10 @@
     "sereneMindOfferFooter": "ପ୍ରଥମେ ଶିକ୍ଷା; ଠିକ୍ ଲାଗିଲେ ମାତ୍ର ଆରମ୍ଭ କରନ୍ତୁ।",
     "videoUnavailable": "ଭିଡିଓ ଉପଲବ୍ଧ ନାହିଁ",
     "videoEmbedUnavailable": "ଏହି ଭିଡିଓକୁ ଏମ୍ବେଡ୍ କରିହେବ ନାହିଁ",
-    "youTubeThumbnail": "YouTube ଥମ୍ବନେଲ"
+    "youTubeThumbnail": "YouTube ଥମ୍ବନେଲ",
+    "videoSource": "ଭିଡିଓ ଉତ୍ସ {{letter}}",
+    "academyReference": "O&O ଏକାଡେମୀ ସନ୍ଦର୍ଭ",
+    "sourceLabel": "ଉତ୍ସ {{number}}"
   },
   "notFound": {
     "message": "କ୍ଷମା କରିବେ! ପୃଷ୍ଠା ମିଳିଲା ନାହିଁ",
