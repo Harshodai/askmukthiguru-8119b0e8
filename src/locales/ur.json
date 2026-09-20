@@ -554,7 +554,21 @@
       "edit": "پیغام میں ترمیم کریں",
       "remove": "قطار سے ہٹائیں",
       "regionLabel": "قطار میں موجود پیغامات"
-    }
+    },
+    "voiceConversationUnavailable": "وائس گفتگو دستیاب نہیں",
+    "voiceConversationUnavailableDesc": "ہینڈز فری گفتگو کے لیے اس براؤزر کو مائیکروفون اور وائس آؤٹ پٹ کی ضرورت ہے۔",
+    "voiceStreaming": "وائس اسٹریمنگ",
+    "voiceRecording": "وائس ریکارڈنگ",
+    "switchLangButton": "تبدیل کریں",
+    "speaking": "بول رہا ہے…",
+    "dismissError": "خرابی بند کریں",
+    "temporaryChat": "عارضی چیٹ",
+    "temporaryChatTitle": "عارضی چیٹ: چیٹ کی تاریخ، ذاتی یادداشت یا ذاتی علمی نقشے میں محفوظ نہیں ہوگی۔",
+    "personalized": "ذاتی نوعیت",
+    "personalizedTitle": "عام چیٹس آپ کے پروفائل اور اہل ذاتی یادداشت سے فائدہ اٹھا سکتی ہیں۔",
+    "voiceMode": "وائس",
+    "signInAgain": "دوبارہ سائن اِن کریں",
+    "reload": "دوبارہ لوڈ کریں"
   },
   "notFound": {
     "message": "اوہو! صفحہ نہیں ملا",
