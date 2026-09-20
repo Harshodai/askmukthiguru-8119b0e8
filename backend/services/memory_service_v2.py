@@ -1443,20 +1443,53 @@ class MemoryServiceV2(MemoryService):
                     "query": normalized_query,
                 }
         else:
-            ranked = sorted(
-                (
-                    (
-                        30.0 if node["type"] in {"Concept", "State", "Practice", "Teacher"} else
-                        20.0 if node["type"] == "Memory" else 15.0,
-                        min(degree.get(nid, 0), 10) * 0.2,
-                        nid,
-                    )
-                    for nid, node in nodes.items()
-                    if nid != user_node_id
-                ),
-                key=lambda item: (-item[0], -item[1], item[2]),
-            )
-            selected = {user_node_id, *(nid for *_, nid in ranked[: max(1, limit - 1)])}
+            # Default personal view is deliberately balanced around the seeker's
+            # own records. Concepts support the memories; they do not replace them.
+            memory_ids = [
+                nid
+                for nid, node in nodes.items()
+                if nid != user_node_id and node["type"] == "Memory"
+            ]
+            notebook_ids = [
+                nid
+                for nid, node in nodes.items()
+                if nid != user_node_id and node["type"] == "NotebookItem"
+            ]
+            concept_ids = [
+                nid
+                for nid, node in nodes.items()
+                if nid != user_node_id and node["type"] in {"Concept", "State", "Practice", "Teacher"}
+            ]
+
+            def _created_key(nid: str) -> str:
+                return str(nodes[nid].get("created_at") or "")
+
+            memory_ids.sort(key=lambda nid: (-min(degree.get(nid, 0), 10), _created_key(nid)), reverse=False)
+            memory_ids.sort(key=lambda nid: _created_key(nid), reverse=True)
+            notebook_ids.sort(key=lambda nid: _created_key(nid), reverse=True)
+            concept_ids.sort(key=lambda nid: (-degree.get(nid, 0), str(nodes[nid].get("label") or "")))
+
+            selected: set[str] = {user_node_id}
+            remaining = max(1, limit - 1)
+
+            # Show recent personal records first.
+            for nid in memory_ids[: min(18, remaining)]:
+                selected.add(nid)
+            remaining = max(0, limit - len(selected))
+
+            for nid in notebook_ids[: min(5, remaining)]:
+                selected.add(nid)
+            remaining = max(0, limit - len(selected))
+
+            # Prefer concepts that are actually connected to the selected records.
+            connected_concepts = [
+                nid
+                for nid in concept_ids
+                if any(nid in adjacency.get(item_id, set()) for item_id in selected)
+            ]
+            for nid in connected_concepts[:remaining]:
+                selected.add(nid)
+
             result = {
                 "nodes": [node for nid, node in nodes.items() if nid in selected],
                 "edges": [edge for edge in edges if edge["source"] in selected and edge["target"] in selected],
