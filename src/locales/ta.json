@@ -317,7 +317,10 @@
       "queued": "வரிசையில்",
       "analyzing": "உங்கள் பதிலைத் தயாரிக்கிறேன்…",
       "stepLabel": "படி {{step}}/{{total}}: {{label}}",
-      "stepProgress": "படி {{step}}/{{total}}: {{label}} ({{percentage}}%)"
+      "stepProgress": "படி {{step}}/{{total}}: {{label}} ({{percentage}}%)",
+      "rotatingReflecting": "குருஜி உங்கள் கேள்வியைப் பற்றி ஆழ்ந்து சிந்திக்கிறார்…",
+      "rotatingConnecting": "புனித ஞானத்துடன் இணைகிறோம்…",
+      "rotatingAlmostReady": "கிட்டத்தட்ட தயாராகிறது — ஆழ்ந்த ஞானத்திற்கு நேரம் தேவை…"
     },
     "toggleThinking": "சிந்தனை விவரங்களை மாற்று",
     "reflecting": "போதனைகளைப் பிரதிபலிக்கிறது...",
