@@ -67,6 +67,11 @@ async def emit_teaching_preview(config: Optional[dict], documents: list[dict] | 
         for doc in documents:
             if not isinstance(doc, dict):
                 continue
+            metadata = doc.get("metadata") or {}
+            # Synthetic KG/graph relationship records explain topology, not the
+            # teachers' words. Never present them as a "teaching" preview.
+            if metadata.get("type") == "graph_context":
+                continue
             url = str(doc.get("source_url") or doc.get("url") or "").strip()
             title = str(doc.get("title") or (doc.get("metadata") or {}).get("title") or "").strip()
             if not url and not title:
