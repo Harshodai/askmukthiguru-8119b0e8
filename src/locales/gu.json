@@ -275,7 +275,7 @@
     "references": "સંદર્ભો",
     "sourceDocuments": "સ્રોત દસ્તાવેજો",
     "videoLessons": "વિડિઓ પાઠ ({{count}})",
-    "watchOnYouTube": "YouTube પર જુઓ",
+    "watchOnYouTube": "YouTube પર જુઓ ↗",
     "playYouTube": "YouTube વગાડો",
     "openSources_one": "{{count}} સ્રોત ખોલો",
     "openSources_other": "{{count}} સ્રોતો ખોલો",
@@ -647,7 +647,13 @@
       "editingNotice": "સંપાદન — અગાઉના જવાબો ફરી બનાવવામાં આવશે",
       "unverified": "લિંક કરેલા સ્ત્રોત સાથે આ ઉદ્ધૃત શિક્ષણની હું ચકાસણી કરી શક્યો નથી, તેથી તેને ગુરુની શિક્ષા તરીકે રજૂ કરતો નથી. આધારિત જવાબ માટે ફરી પ્રયાસ કરો."
     },
-    "verifiedAt": "ચકાસેલું: {{date}}"
+    "verifiedAt": "ચકાસેલું: {{date}}",
+    "unverifiedTeaching": "જોડાયેલા સ્રોતથી ઉદ્ધૃત શિક્ષણની ચકાસણી હું કરી શક્યો નથી, તેથી તેને ગુરુની શિક્ષા તરીકે રજૂ કરતો નથી. આધારિત જવાબ માટે ફરી પ્રયાસ કરો.",
+    "sereneMindOfferDefaultReason": "એક નાનો અભ્યાસ તમને સ્થિર થવામાં અને ફરી જોડાવામાં મદદ કરી શકે છે.",
+    "sereneMindOfferFooter": "પહેલા શિક્ષણ; યોગ્ય લાગે ત્યારે જ શરૂ કરો.",
+    "videoUnavailable": "વિડિયો ઉપલબ્ધ નથી",
+    "videoEmbedUnavailable": "આ વિડિયો એમ્બેડ કરી શકાતો નથી",
+    "youTubeThumbnail": "YouTube થંબનેલ"
   },
   "notFound": {
     "message": "અરેરે! પૃષ્ઠ મળ્યું નથી",
