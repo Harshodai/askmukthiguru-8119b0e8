@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 export interface QueuedMessage {
   id: string;
   text: string;
+  language?: string;
   attachedFiles?: Array<{ name: string; content: string }>;
   timestamp: number;
 }
