@@ -1278,7 +1278,27 @@
       "bio": "আপনার পথ ও সংকল্প",
       "language": "পছন্দের ভাষা",
       "tone": "গুরুর স্বর",
-      "unsavedChanges": "অসংরক্ষিত পরিবর্তন..."
+      "unsavedChanges": "অসংরক্ষিত পরিবর্তন...",
+      "guidanceDepth": "নির্দেশনার গভীরতা",
+      "seeker": "অন্বেষী",
+      "seekerHint": "সহজ সংস্কৃত ব্যাখ্যা",
+      "practitioner": "অনুশীলনকারী",
+      "practitionerHint": "সুষম ধ্যান নির্দেশনা",
+      "advanced": "উন্নত",
+      "advancedHint": "গভীর দার্শনিক শব্দ",
+      "guidancePreview": "আপনার নির্দেশনার পূর্বরূপ",
+      "sourceAware": "উৎস-সচেতন নকশা: যাচাই করা উদ্ধৃতির যথাযথ স্বীকৃতি থাকে; সমর্থনহীন প্রশ্নে স্পষ্ট সীমা বা ব্যাখ্যা দেওয়া হয়।",
+      "toneDirectPreview": "স্পষ্ট, সংক্ষিপ্ত নির্দেশনা দ্রুত ব্যবহারিক পরবর্তী পদক্ষেপে নিয়ে যায়।",
+      "tonePoeticPreview": "শিক্ষাকে স্পষ্ট ও কার্যকর রেখে চিন্তাশীল, চিত্রময় ভাষা ব্যবহার করে।",
+      "toneGentlePreview": "আপনার অভিজ্ঞতার জন্য জায়গা রেখে কোমল, স্থির নির্দেশনা পরবর্তী পদক্ষেপ দেখায়।",
+      "advancedPreview": "শিক্ষণের সঙ্গে মানানসই হলে গভীর দার্শনিক শব্দ ব্যবহার করা যায়।",
+      "practitionerPreview": "শিক্ষাকে ব্যবহারিক প্রতিফলন বা ধ্যানের ইঙ্গিতের সঙ্গে ভারসাম্য করে।",
+      "seekerPreview": "আধ্যাত্মিক শব্দ সহজভাবে ব্যাখ্যা করে তারপর এগিয়ে যায়।",
+      "upToDate": "আপনার প্রোফাইলের সব তথ্য আপডেট আছে",
+      "completeOnboarding": "সেটআপ সম্পূর্ণ করুন",
+      "saveChanges": "পরিবর্তন সংরক্ষণ করুন",
+      "saved": "প্রোফাইল সংরক্ষিত হয়েছে",
+      "savedDesc": "আপনার পছন্দ আপডেট হয়েছে।"
     },
     "activitySummary": {
       "title": "কার্যকলাপের সারসংক্ষেপ",
@@ -1288,17 +1308,22 @@
     },
     "insights": {
       "title": "সাম্প্রতিক অন্তর্দৃষ্টি",
-      "subtitle": "আপনার সাধনা, মনের ভাব এবং কথোপকথন থেকে প্রাপ্ত প্যাটার্ন।",
-      "empty": "এখনও কোনো অন্তর্দৃষ্টি নেই। আপনার আধ্যাত্মিক প্যাটার্ন উন্মোচন করতে সাধনা চালিয়ে যান।"
+      "subtitle": "আপনার অনুশীলন, মনের অবস্থা ও কথোপকথন থেকে ফুটে ওঠা ধরণ।",
+      "empty": "এখনও কোনও অন্তর্দৃষ্টি নেই। আপনার আধ্যাত্মিক ধরণ ফুটিয়ে তুলতে অনুশীলন চালিয়ে যান।"
     },
     "conversations": {
       "title": "কথোপকথন",
-      "subtitle": "আপনার চ্যাট ইতিহাস পরিচালনা ও পরিমার্জন করুন।",
-      "keepFor": "কথোপকথন সংরক্ষণ করুন",
-      "empty": "কোনো কথোপকথন নেই।",
-      "deleteAll": "সমস্ত কথোপকথন মুছে ফেলুন",
-      "confirmDeleteTitle": "সমস্ত কথোপকথন মুছে ফেলবেন?",
-      "confirmDeleteMessage": "নিশ্চিত করতে DELETE টাইপ করুন। এই কাজটি পূর্বাবস্থায় ফেরানো যাবে না।"
+      "subtitle": "আপনার চ্যাট ইতিহাস পরিচালনা করুন।",
+      "keepFor": "কথোপকথন রাখার সময়কাল",
+      "empty": "কোনও কথোপকথন নেই।",
+      "deleteAll": "সব কথোপকথন মুছুন",
+      "confirmDeleteTitle": "সব কথোপকথন মুছবেন?",
+      "confirmDeleteMessage": "নিশ্চিত করতে DELETE লিখুন। এটি ফিরিয়ে নেওয়া যাবে না।",
+      "days": "দিন",
+      "oneYear": "১ বছর",
+      "saveRetention": "রিটেনশন সংরক্ষণ করুন",
+      "retentionSet": "রিটেনশন {{days}} দিনের জন্য সেট হয়েছে",
+      "deleted": "সব কথোপকথন মুছে ফেলা হয়েছে"
     },
     "appearance": {
       "title": "চেহারা ও থিম",
@@ -1311,13 +1336,18 @@
       "enableVoiceSubtitle": "উপদেশগুলো স্বয়ংক্রিয়ভাবে উচ্চস্বরে পড়ুন",
       "speechRate": "কথা বলার গতি",
       "voiceName": "গুরুর কণ্ঠস্বর (Mayura)",
-      "voiceSubtitle": "ভারতীয় ভাষার অডিওর জন্য কণ্ঠস্বরের রূপ নির্বাচন করুন।"
+      "voiceSubtitle": "ভারতীয় ভাষার অডিওর জন্য কণ্ঠস্বরের রূপ নির্বাচন করুন।",
+      "autoplay": "গুরুর উত্তর স্বয়ংক্রিয়ভাবে চালান",
+      "autoplaySubtitle": "শিক্ষা আসার সঙ্গে সঙ্গে তা শুনুন"
     },
     "reminders": {
       "title": "অনুস্মারক",
       "subtitle": "আপনার আধ্যাত্মিক লক্ষ্যে অবিচল ও নিয়মিত থাকুন।",
       "dailySubtitle": "অন্তরের কেন্দ্র খুঁজে পেতে দৈনিক বিজ্ঞপ্তি",
-      "scheduledFor": "নির্ধারিত সময়"
+      "scheduledFor": "নির্ধারিত সময়",
+      "test": "পরীক্ষামূলক রিমাইন্ডার পাঠান",
+      "permissionsRequired": "অনুমতি প্রয়োজন",
+      "permissionsDescription": "রিমাইন্ডার ব্যবহার করতে ব্রাউজার সেটিংসে নোটিফিকেশন চালু করুন।"
     },
     "danger": {
       "subtitle": "আপনার ডেটা এক্সপোর্ট করুন অথবা আপনার অ্যাকাউন্ট স্থায়ীভাবে মুছে ফেলুন।",
@@ -1334,7 +1364,13 @@
       "cloudMemoriesErased": "Cloud memories erased",
       "cloudMemoriesErasedDesc": "All reflections, second brain notes, and spiritual memories have been permanently deleted.",
       "cloudMemoriesEraseFailed": "Memory erasure failed",
-      "deleteAccountBtn": "Delete Account"
+      "deleteAccountBtn": "Delete Account",
+      "accountTitle": "অ্যাকাউন্ট ও ডেটা",
+      "accountSubtitle": "ডেটা রপ্তানি করুন, স্থানীয় ইতিহাস মুছুন বা অ্যাকাউন্ট মুছে দিন।",
+      "exportData": "ডেটা রপ্তানি",
+      "exportLocalData": "স্থানীয় ডেটা রপ্তানি",
+      "exportCloudData": "ক্লাউড ডেটা রপ্তানি",
+      "zone": "সতর্কতা অঞ্চল"
     },
     "support": {
       "title": "সহায়তার সাথে যোগাযোগ করুন",
@@ -1344,7 +1380,13 @@
       "category": "বিভাগ",
       "subject": "বিষয়",
       "message": "বার্তা",
-      "attachments": "সংযুক্তি"
+      "attachments": "সংযুক্তি",
+      "description": "প্রশ্ন, প্রতিক্রিয়া বা সমস্যা হয়েছে? আমরা সাহায্য করতে এখানে আছি।",
+      "optional": "ঐচ্ছিক",
+      "namePlaceholder": "আপনার নাম",
+      "emailPlaceholder": "you@example.com",
+      "subjectPlaceholder": "সংক্ষিপ্ত সারাংশ",
+      "messagePlaceholder": "কীভাবে সাহায্য করতে পারি বলুন..."
     },
     "memory": {
       "mapTitle": "চেতনা মানচিত্র",
@@ -1375,7 +1417,7 @@
       "recentConversations": "সাম্প্রতিক কথোপকথন",
       "pickUp": "যেখানে থেমেছিলেন সেখান থেকে শুরু করুন।",
       "viewAll": "সব দেখুন",
-      "untitledConversation": "শিরোনামহীন কথোপকথন",
+      "untitledConversation": "নামহীন কথোপকথন",
       "conversationsWillAppear": "আপনার কথোপকথন এখানে দেখা যাবে।",
       "startFirstConversation": "আপনার প্রথম কথোপকথন শুরু করুন",
       "reflections": "সাম্প্রতিক আত্মচিন্তা",
@@ -1398,7 +1440,27 @@
       "personalizeGuidanceDesc": "আপনার নাম, টোন, ভাষা, পরিচিতির স্তর ও পছন্দ।",
       "wisdomMap": "আপনার জ্ঞান মানচিত্র",
       "wisdomMapDesc": "আপনার সংরক্ষিত আত্মচিন্তা, নোট ও সংযুক্ত শিক্ষার ভিত্তিতে তৈরি মানচিত্র অন্বেষণ করুন।",
-      "wisdomOfDay": "আজকের জ্ঞান"
+      "wisdomOfDay": "আজকের জ্ঞান",
+      "title": "আপনার যাত্রা",
+      "subtitle": "কথোপকথন, অনুশীলন ও প্রতিফলনে আপনার কার্যকলাপ।",
+      "messages": "বার্তা",
+      "courseProgress": "কোর্সের অগ্রগতি",
+      "noActiveCourse": "কোনও সক্রিয় কোর্স নেই",
+      "distress": "মানসিক চাপ",
+      "lastActive": "শেষ সক্রিয়তা"
+    },
+    "tone": {
+      "gentle": "কোমল",
+      "direct": "সরাসরি",
+      "poetic": "কাব্যিক",
+      "gentleHint": "নরম, যত্নশীল উত্তর",
+      "directHint": "স্পষ্ট, সংক্ষিপ্ত শিক্ষা",
+      "poeticHint": "লিরিক্যাল, রূপকসমৃদ্ধ"
+    },
+    "theme": {
+      "light": "আলো",
+      "dark": "অন্ধকার",
+      "system": "সিস্টেম"
     }
   },
   "commandPalette": {
