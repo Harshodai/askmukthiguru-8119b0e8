@@ -67,7 +67,7 @@ const PracticeDetailPage = () => {
             We couldn't find that practice
           </h1>
           <Button onClick={() => navigate('/practices')}>
-            <ArrowLeft className="w-4 h-4 mr-2" /> Back to practices
+            <ArrowLeft className="w-4 h-4 mr-2" /> {t('practices.detail.backToPractices', 'Back to practices')}
           </Button>
         </div>
       </PublicShell>
@@ -152,6 +152,7 @@ const PracticeDetailPage = () => {
                 variant="outline"
                 size="sm"
                 onClick={handleShare}
+                aria-label={t('practices.detail.shareGuide', 'Share practice guide')}
                 className="gap-1.5"
               >
                 {shareCopied ? (
@@ -177,10 +178,11 @@ const PracticeDetailPage = () => {
                   });
                 }}
                 aria-pressed={fav}
+                aria-label={fav ? t('practices.detail.removeFavorite', 'Remove from favorites') : t('practices.detail.addFavorite', 'Add to favorites')}
                 className="gap-1.5"
               >
                 <Star className={cn('w-4 h-4', fav ? 'fill-ojas text-ojas' : 'text-muted-foreground')} />
-                <span className="hidden sm:inline">{fav ? 'Favorited' : 'Add to favorites'}</span>
+                <span className="hidden sm:inline">{fav ? t('practices.detail.favorited', 'Favorited') : t('practices.detail.addFavorite', 'Add to favorites')}</span>
               </Button>
             </div>
           </div>
@@ -199,7 +201,7 @@ const PracticeDetailPage = () => {
               <a href={watchUrl} target="_blank" rel="noopener noreferrer">
                 <ExternalLink className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">{t('practices.detail.openInYouTube')}</span>
-                <span className="sm:hidden">YouTube</span>
+                <span className="sm:hidden">{t('practices.detail.youtubeShort', 'YouTube')}</span>
               </a>
             </Button>
           </CardHeader>
@@ -258,7 +260,7 @@ const PracticeDetailPage = () => {
                 <a href={audioWatch} target="_blank" rel="noopener noreferrer">
                   <ExternalLink className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline">{t('practices.detail.openInYouTube')}</span>
-                  <span className="sm:hidden">YouTube</span>
+                  <span className="sm:hidden">{t('practices.detail.youtubeShort', 'YouTube')}</span>
                 </a>
               </Button>
             </CardHeader>
@@ -281,7 +283,7 @@ const PracticeDetailPage = () => {
         {/* Purpose */}
         <Card>
           <CardHeader>
-            <h2 className="text-base font-semibold leading-none tracking-tight">{t('practices.detail.whyPractice')}</h2>
+            <h2 className="text-base font-semibold leading-none tracking-tight">{t('practices.detail.whyPractice', 'Why practice')}</h2>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-foreground/90 leading-relaxed">
@@ -293,7 +295,7 @@ const PracticeDetailPage = () => {
         {/* How it works */}
         <Card>
           <CardHeader>
-            <h2 className="text-base font-semibold leading-none tracking-tight">{t('practices.detail.howToDoIt')}</h2>
+            <h2 className="text-base font-semibold leading-none tracking-tight">{t('practices.detail.howToDoIt', 'How to do it')}</h2>
           </CardHeader>
           <CardContent>
             <ol className="space-y-4 text-sm text-foreground/90 leading-relaxed list-decimal list-inside">
@@ -315,7 +317,7 @@ const PracticeDetailPage = () => {
         {/* Key Benefits */}
         <Card>
           <CardHeader>
-            <h2 className="text-base font-semibold leading-none tracking-tight">{t('practices.detail.keyBenefits')}</h2>
+            <h2 className="text-base font-semibold leading-none tracking-tight">{t('practices.detail.keyBenefits', 'Key benefits')}</h2>
           </CardHeader>
           <CardContent>
             <ul className="space-y-3 text-sm text-foreground/90 leading-relaxed list-disc list-inside">
