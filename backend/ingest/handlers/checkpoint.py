@@ -30,6 +30,8 @@ class IngestionCheckpoint:
         self.filepath.parent.mkdir(exist_ok=True)
         self.redis_client = None
         self.supabase_client = None
+        self._redis_configured = False
+        self._held_lock_tokens: dict[str, str] = {}
         self.tenant_id = self._default_tenant_id()
         try:
             from services.tenant_context import TenantContext
@@ -45,7 +47,8 @@ class IngestionCheckpoint:
 
             from app.config import settings
 
-            if getattr(settings, "redis_url", None):
+            self._redis_configured = bool(getattr(settings, "redis_url", None))
+            if self._redis_configured:
                 self.redis_client = redis.from_url(settings.redis_url, socket_timeout=2.0)
                 self.redis_client.ping()
                 logger.info(
@@ -347,25 +350,55 @@ class IngestionCheckpoint:
         caller must still call release_lock() when done (success or failure).
         """
         if not getattr(self, "redis_client", None):
+            # If Redis is explicitly configured but unavailable, fail closed.
+            # Continuing without a distributed reservation can create duplicate
+            # ingestion work across Celery workers/processes.
+            if getattr(self, "_redis_configured", False):
+                logger.error(
+                    "IngestionCheckpoint.acquire_lock: configured Redis is unavailable; "
+                    "refusing ingestion lock acquisition"
+                )
+                return False
             return True
+
+        import uuid
+
+        key = f"{self._get_redis_key(chunk_id)}:lock"
+        token = str(uuid.uuid4())
         try:
-            key = f"{self._get_redis_key(chunk_id)}:lock"
-            return bool(self.redis_client.set(key, "1", nx=True, ex=ttl_seconds))
+            acquired = bool(self.redis_client.set(key, token, nx=True, ex=ttl_seconds))
+            if acquired:
+                self._held_lock_tokens[key] = token
+            return acquired
         except Exception as e:
-            logger.warning(
-                f"IngestionCheckpoint.acquire_lock failed (proceeding without lock): {e}"
+            logger.error(
+                f"IngestionCheckpoint.acquire_lock failed closed because Redis is required: {e}"
             )
-            return True
+            return False
 
     def release_lock(self, chunk_id: str) -> None:
         if not getattr(self, "redis_client", None):
             return
+
+        key = f"{self._get_redis_key(chunk_id)}:lock"
+        token = self._held_lock_tokens.pop(key, None)
+        if token is None:
+            # Never delete a lock owned by another worker/process.
+            return
+
         try:
-            key = f"{self._get_redis_key(chunk_id)}:lock"
-            self.redis_client.delete(key)
+            # Compare-and-delete makes release safe even when a lock's TTL has
+            # expired and another worker acquired the same key.
+            self.redis_client.eval(
+                "if redis.call('get', KEYS[1]) == ARGV[1] then "
+                "return redis.call('del', KEYS[1]) else return 0 end",
+                1,
+                key,
+                token,
+            )
         except Exception as e:
             logger.warning(
-                f"IngestionCheckpoint.release_lock failed (will self-expire via TTL): {e}"
+                f"IngestionCheckpoint.release_lock failed safely; TTL will self-expire: {e}"
             )
 
     def prune_stale_entries(self, active_hashes: list[str]):
