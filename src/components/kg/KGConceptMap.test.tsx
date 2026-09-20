@@ -47,22 +47,8 @@ vi.mock('@xyflow/react', async () => {
   };
 });
 
-const liveData = { nodes: [{ id: 'n1', label: 'Beautiful State', type: 'State', teacher: 'Sri Preethaji' }], edges: [] };
 
 const renderWithI18n = (ui: React.ReactElement) => render(<I18nextProvider i18n={i18n}>{ui}</I18nextProvider>);
-
-const advanceSimulation = async () => {
-  // Let the KG force-directed simulation run through its frames.
-  // Flush any pending state updates from the simulation init, then advance
-  // enough fake-RAF frames for the throttled setSimHeat to fire.
-  await act(async () => {
-    await Promise.resolve();
-    for (let i = 0; i < 40; i++) {
-      await vi.advanceTimersByTimeAsync(16);
-    }
-    await Promise.resolve();
-  });
-};
 
 describe('KGConceptMap', () => {
   beforeEach(() => {
