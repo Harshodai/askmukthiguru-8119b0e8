@@ -293,7 +293,7 @@ export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextTo
         playNativeTTS(text, langOverride);
       }
     },
-    [isSupported, playNativeTTS, lang, langOverride, speaker]
+    [isSupported, playNativeTTS, lang, speaker]
   );
 
   const stop = useCallback(() => {
