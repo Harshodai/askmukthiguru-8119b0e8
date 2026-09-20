@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, act } from '@testing-library/react';
 import { I18nextProvider } from 'react-i18next';
 import i18n from '@/i18n';
 import { KGConceptMap, DEMO_DATA } from '@/components/kg/KGConceptMap';
@@ -14,13 +14,15 @@ vi.mock('@xyflow/react', async () => {
     Controls: () => null,
     Handle: () => null,
     MiniMap: () => null,
-    Position: { Top: 'top', Bottom: 'bottom' },
+    Position: { Top: 'top', Right: 'right', Bottom: 'bottom', Left: 'left' },
     ReactFlow: ({
       nodes,
+      edges,
       onNodeClick,
       children,
     }: {
       nodes: Array<{ id: string; data: { label: string } }>;
+      edges?: Array<{ id: string; sourceHandle?: string; targetHandle?: string }>;
       onNodeClick?: (event: unknown, node: { id: string }) => void;
       children?: React.ReactNode;
     }) => (
@@ -35,6 +37,9 @@ vi.mock('@xyflow/react', async () => {
           >
             {node.data.label}
           </button>
+        ))}
+        {edges?.map((edge) => (
+          <div key={edge.id} data-testid="kg-edge" data-source-handle={edge.sourceHandle ?? ''} data-target-handle={edge.targetHandle ?? ''} />
         ))}
         {children}
       </div>
@@ -165,11 +170,36 @@ describe('KGConceptMap', () => {
     expect(screen.queryByText('base')).not.toBeInTheDocument();
   });
 
-  it('keeps the curated demo graph limited to on-brand teachers', () => {
+  it('attaches graph edges to directional handles instead of defaulting to top/bottom', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              nodes: [
+                { id: 'a', label: 'A', type: 'Memory' },
+                { id: 'b', label: 'B', type: 'Concept' },
+              ],
+              edges: [{ id: 'a-b', source: 'a', target: 'b', type: 'RELATES_TO' }],
+            }),
+        }),
+      ),
+    );
+
+    renderWithI18n(<KGConceptMap />);
+    await waitFor(() => expect(screen.getByTestId('kg-edge')).toBeInTheDocument());
+    const edge = screen.getByTestId('kg-edge');
+    expect(edge.getAttribute('data-source-handle')).toMatch(/^source-/);
+    expect(edge.getAttribute('data-target-handle')).toMatch(/^target-/);
+  });
+
+  it('keeps the curated demo graph limited to on-brand teachers', () =>
     const names = DEMO_DATA.nodes.map((n) => n.label.toLowerCase());
     const teachers = DEMO_DATA.nodes.map((n) => (n.teacher || '').toLowerCase());
     const hasOffBrand = [...names, ...teachers].some((s) => s.includes('krishnamurti'));
     expect(hasOffBrand).toBe(false);
     expect(DEMO_DATA.nodes.some((n) => n.label === 'Sri Krishnaji')).toBe(true);
   });
-});;
+});
