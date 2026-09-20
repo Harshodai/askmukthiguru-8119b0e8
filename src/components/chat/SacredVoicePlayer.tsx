@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { Play, Pause } from 'lucide-react';
 
@@ -16,6 +17,7 @@ export const SacredVoicePlayer: React.FC<SacredVoicePlayerProps> = ({
   speed = 1.0,
   onChangeSpeed,
 }) => {
+  const { t } = useTranslation();
   const speeds = [0.8, 1.0, 1.2];
 
   return (
@@ -25,7 +27,7 @@ export const SacredVoicePlayer: React.FC<SacredVoicePlayerProps> = ({
           type="button"
           onClick={onTogglePlay}
           className="flex h-7 w-7 items-center justify-center rounded-full bg-saffron-gold text-primary-foreground shadow-sm hover:bg-amber-500 transition-colors"
-          aria-label={isSpeaking ? 'Pause Guru Voice' : 'Listen to Guru Voice'}
+          aria-label={isSpeaking ? t('chat.voice.pause') : t('chat.voice.listen')}
         >
           {isSpeaking ? <Pause className="h-3.5 w-3.5 fill-current" /> : <Play className="h-3.5 w-3.5 fill-current ml-0.5" />}
         </button>
@@ -43,7 +45,7 @@ export const SacredVoicePlayer: React.FC<SacredVoicePlayerProps> = ({
           ))}
         </div>
 
-        <span className="font-serif text-xs text-saffron-gold font-medium">Guru Voice</span>
+        <span className="font-serif text-xs text-saffron-gold font-medium">{t('chat.voice.label')}</span>
       </div>
 
       {onChangeSpeed && (
