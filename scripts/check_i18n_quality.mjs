@@ -40,6 +40,19 @@ const placeholders = (value) =>
 const en = flattenLeaves(read('en'));
 let failed = false;
 
+// These values intentionally remain identical across locales because they are
+// placeholders, route-independent code-like values, contact details, or a
+// machine-readable progress token rather than user prose.
+const IDENTICAL_VALUE_ALLOWLIST = new Set([
+  'auth.emailPlaceholder',
+  'auth.passwordPlaceholder',
+  'chat.inviteCodePlaceholder',
+  'onboarding.tour.stepIndicator',
+  'profile.support.emailPlaceholder',
+  'common.crisisNumbers',
+]);
+
+
 for (const lng of LOCALES.slice(1)) {
   const locale = flattenLeaves(read(lng));
 
@@ -54,6 +67,17 @@ for (const lng of LOCALES.slice(1)) {
 
     if (!targetValue.trim()) {
       console.error(`[fail] ${lng}: empty translation for ${key}`);
+      failed = true;
+    }
+
+    if (
+      sourceValue.trim().length >= 4 &&
+      targetValue === sourceValue &&
+      !IDENTICAL_VALUE_ALLOWLIST.has(key)
+    ) {
+      console.error(
+        `[fail] ${lng}: value is identical to English for user-facing key ${key}: ${JSON.stringify(targetValue)}`,
+      );
       failed = true;
     }
 
