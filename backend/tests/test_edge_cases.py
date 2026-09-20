@@ -243,14 +243,12 @@ async def test_llm_api_failure():
     app.dependency_overrides[get_container] = lambda: mock_container
 
     payload = {"user_message": "What is peace?", "session_id": "llm-fail", "messages": []}
-    try:
-        response = client.post("/api/chat", json=payload)
-        assert response.status_code in (200, 500)
-        if response.status_code == 200:
-            data = response.json()
-            assert "response" in data
-    except (RuntimeError, ExceptionGroup):
-        pass
+    response = client.post("/api/chat", json=payload)
+    assert response.status_code in (200, 503, 504), (
+        f"LLM dependency failure must be represented as a handled response, got {response.status_code}"
+    )
+    if response.status_code == 200:
+        assert "response" in response.json()
 
     # Server must still be healthy after the failure
     health = client.get("/api/health")
@@ -770,13 +768,10 @@ async def test_cascading_failure_two_dependencies_down():
     app.dependency_overrides[get_container] = lambda: mock_container
 
     payload = {"user_message": "Hello", "session_id": "cascading-fail", "messages": []}
-    try:
-        response = client.post("/api/chat", json=payload)
-        # Under compound failure the system must not hang; a 500 here is an acceptable
-        # degraded outcome, but the process itself must stay alive (checked via /health below).
-        assert response.status_code in (200, 500)
-    except (ConnectionError, CircuitOpenException, RuntimeError, ExceptionGroup):
-        pass
+    response = client.post("/api/chat", json=payload)
+    assert response.status_code in (200, 503, 504), (
+        f"compound dependency failure must be represented as a handled response, got {response.status_code}"
+    )
 
     health = client.get("/api/health")
     assert health.status_code == 200
