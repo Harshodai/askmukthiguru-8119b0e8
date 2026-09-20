@@ -554,7 +554,21 @@
       "edit": "સંદેશ સંપાદિત કરો",
       "remove": "કતારમાંથી દૂર કરો",
       "regionLabel": "કતારમાં રહેલા સંદેશા"
-    }
+    },
+    "voiceConversationUnavailable": "વૉઇસ વાતચીત ઉપલબ્ધ નથી",
+    "voiceConversationUnavailableDesc": "હેન્ડ્સ-ફ્રી વાતચીત માટે આ બ્રાઉઝરને માઇક્રોફોન અને વૉઇસ આઉટપુટની જરૂર છે.",
+    "voiceStreaming": "વૉઇસ સ્ટ્રીમિંગ",
+    "voiceRecording": "વૉઇસ રેકોર્ડિંગ",
+    "switchLangButton": "બદલો",
+    "speaking": "બોલી રહ્યું છે…",
+    "dismissError": "ભૂલ બંધ કરો",
+    "temporaryChat": "અસ્થાયી ચેટ",
+    "temporaryChatTitle": "અસ્થાયી ચેટ: ચેટ ઇતિહાસ, વ્યક્તિગત સ્મૃતિ અથવા વ્યક્તિગત જ્ઞાન નકશામાં સાચવાતી નથી.",
+    "personalized": "વ્યક્તિગત",
+    "personalizedTitle": "સામાન્ય ચેટ તમારા પ્રોફાઇલ અને યોગ્ય વ્યક્તિગત સ્મૃતિનો ઉપયોગ કરી શકે છે.",
+    "voiceMode": "વૉઇસ",
+    "signInAgain": "ફરી સાઇન ઇન કરો",
+    "reload": "ફરી લોડ કરો"
   },
   "notFound": {
     "message": "અરેરે! પૃષ્ઠ મળ્યું નથી",
