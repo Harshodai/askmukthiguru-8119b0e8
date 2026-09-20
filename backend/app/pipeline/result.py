@@ -27,6 +27,16 @@ class AnswerEvidence:
 
 
 @dataclass(frozen=True)
+class PersonalizationProvenance:
+    """Safe, user-facing explanation of personal context used for one answer."""
+
+    used: bool
+    profile_preferences: bool = False
+    personal_memory: bool = False
+    private_graph_links: int = 0
+
+
+@dataclass(frozen=True)
 class TeachingAttribution:
     """Safe, UI-ready attribution that never represents the assistant as a teacher."""
 
@@ -145,6 +155,7 @@ class PipelineResult:
     live_logistics_events: list[dict] = field(default_factory=list)
     # Populated only from structured retrieval/release/policy facts.
     answer_evidence: AnswerEvidence | None = None
+    personalization_provenance: PersonalizationProvenance | None = None
     # Populated only from structured practice, language, and citation fields.
     guidance_plan: GuidancePlan | None = None
     # Release provenance and model policy manifest
