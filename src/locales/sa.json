@@ -288,7 +288,10 @@
       "queued": "पङ्क्तौ",
       "analyzing": "भवतः उत्तरं सज्जयामि…",
       "stepLabel": "चरणम् {{step}}/{{total}}: {{label}}",
-      "stepProgress": "चरणम् {{step}}/{{total}}: {{label}} ({{percentage}}%)"
+      "stepProgress": "चरणम् {{step}}/{{total}}: {{label}} ({{percentage}}%)",
+      "rotatingReflecting": "गुरुः भवतः प्रश्नं मन्यते…",
+      "rotatingConnecting": "पवित्रज्ञानेन सह संयोजयामः…",
+      "rotatingAlmostReady": "प्रायः सिद्धम् — गभीरज्ञानाय समयः अपेक्ष्यते…"
     },
     "reflecting": "उपदेशान् अवधारयन् अस्ति…",
     "drawingFromTeachings": "उपदेशेभ्यः ज्ञानं गृह्णन् अस्ति…",
