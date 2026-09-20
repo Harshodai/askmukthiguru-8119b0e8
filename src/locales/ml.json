@@ -1382,7 +1382,21 @@
       "edit": "സന്ദേശം തിരുത്തുക",
       "remove": "ക്യൂവിൽ നിന്ന് നീക്കുക",
       "regionLabel": "ക്യൂവിലുള്ള സന്ദേശങ്ങൾ"
-    }
+    },
+    "voiceConversationUnavailable": "വോയ്സ് സംഭാഷണം ലഭ്യമല്ല",
+    "voiceConversationUnavailableDesc": "ഹാൻഡ്സ്-ഫ്രീ സംഭാഷണത്തിന് ഈ ബ്രൗസറിന് മൈക്രോഫോണും വോയ്സ് ഔട്ട്പുട്ടും ആവശ്യമാണ്.",
+    "voiceStreaming": "വോയ്സ് സ്ട്രീമിംഗ്",
+    "voiceRecording": "വോയ്സ് റെക്കോർഡിംഗ്",
+    "switchLangButton": "മാറ്റുക",
+    "speaking": "സംസാരിക്കുന്നു…",
+    "dismissError": "പിശക് അടയ്ക്കുക",
+    "temporaryChat": "താൽക്കാലിക ചാറ്റ്",
+    "temporaryChatTitle": "താൽക്കാലിക ചാറ്റ്: ചാറ്റ് ചരിത്രത്തിലോ വ്യക്തിഗത ഓർമ്മയിലോ വ്യക്തിഗത ജ്ഞാനമാപ്പിലോ സംരക്ഷിക്കില്ല.",
+    "personalized": "വ്യക്തിഗതമാക്കിയത്",
+    "personalizedTitle": "സാധാരണ ചാറ്റുകൾക്ക് നിങ്ങളുടെ പ്രൊഫൈലും യോഗ്യമായ വ്യക്തിഗത ഓർമ്മയും ഉപയോഗിക്കാം.",
+    "voiceMode": "വോയ്സ്",
+    "signInAgain": "വീണ്ടും സൈൻ ഇൻ ചെയ്യുക",
+    "reload": "റീലോഡ് ചെയ്യുക"
   },
   "commandPalette": {
     "searchPlaceholder": "Search AskMukthiGuru…",
