@@ -421,7 +421,23 @@
     "technicalDetail": "तकनीकी विवरण",
     "tellMeMore": "मुझे और बताइए।",
     "tellMeMoreQuery": "मुझे इसके बारे में और बताइए: {{content}}",
-    "thinking": "चिंतन",
+    "thinking": {
+      "safety": "सुरक्षा जाँच",
+      "understanding": "आपके प्रश्न को समझ रहा हूँ",
+      "searching": "शिक्षाओं में खोज रहा हूँ",
+      "reranking": "प्रासंगिकता सुधार रहा हूँ",
+      "filtering": "प्रासंगिकता छाँट रहा हूँ",
+      "synthesizing": "शिक्षाओं को एक साथ ला रहा हूँ",
+      "composing": "मार्गदर्शन तैयार कर रहा हूँ",
+      "verifying": "शिक्षा स्रोतों की पुष्टि कर रहा हूँ",
+      "hello": "अभिवादन",
+      "practice": "अभ्यास में मार्गदर्शन",
+      "contemplating": "चिंतन कर रहा हूँ",
+      "queued": "कतार में",
+      "analyzing": "आपका उत्तर तैयार कर रहा हूँ…",
+      "stepLabel": "चरण {{step}}/{{total}}: {{label}}",
+      "stepProgress": "चरण {{step}}/{{total}}: {{label}} ({{percentage}}%)"
+    },
     "todaysLine": "आज का पंक्ति",
     "todaysTeaching": "आज का पाठ",
     "todaysWisdom": "आज का ज्ञान",
@@ -539,6 +555,10 @@
       "personalMemoryUsed": "उपयुक्त व्यक्तिगत स्मृति/संदर्भ उत्तर मॉडल को दिया गया था।",
       "graphMatched": "आपके व्यक्तिगत संदर्भ ग्राफ ने {{count}} अवधारणा लिंक मिलाए।",
       "privateMemoryNotShown": "व्यक्तिगत स्मृति का पाठ यहाँ नहीं दिखाया जाता।"
+    },
+    "teachingContext": {
+      "title": "इस उत्तर का आधार बनी शिक्षाएँ",
+      "sourceCount": "{{count}} प्रासंगिक शिक्षाएँ मिलीं"
     }
   },
   "mood": {
