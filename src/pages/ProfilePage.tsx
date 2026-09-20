@@ -668,16 +668,16 @@ const ProfilePage = () => {
                     </div>
                     <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
                       {form.guruTone === 'direct'
-                        ? 'Clear, concise guidance that comes to the practical next step quickly.'
+                        ? t('profile.personalDetails.toneDirectPreview', 'Clear, concise guidance that comes to the practical next step quickly.')
                         : form.guruTone === 'poetic'
-                          ? 'Reflective language with imagery, while keeping the teaching clear and useful.'
-                          : 'Warm, steady guidance that makes room for your experience before offering a next step.'}
+                          ? t('profile.personalDetails.tonePoeticPreview', 'Reflective language with imagery, while keeping the teaching clear and useful.')
+                          : t('profile.personalDetails.toneGentlePreview', 'Warm, steady guidance that makes room for your experience before offering a next step.')}
                       {' '}
                       {form.familiarityLevel === 'advanced'
-                        ? 'It can use deeper philosophical terms when the teaching supports them.'
+                        ? t('profile.personalDetails.advancedPreview', 'It can use deeper philosophical terms when the teaching supports them.')
                         : form.familiarityLevel === 'practitioner'
-                          ? 'It balances a teaching with a practical reflection or meditation cue.'
-                          : 'It explains spiritual terms plainly before building on them.'}
+                          ? t('profile.personalDetails.practitionerPreview', 'It balances a teaching with a practical reflection or meditation cue.')
+                          : t('profile.personalDetails.seekerPreview', 'It explains spiritual terms plainly before building on them.')}
                     </p>
                     <p className="mt-2 text-xs text-ojas/90">
                       {t('profile.personalDetails.sourceAware', 'Source-aware by design: verified quotations remain attributed; unsupported questions receive a clear limit or clarification.')}
@@ -818,7 +818,7 @@ const ProfilePage = () => {
                       <div className="flex items-center gap-1.5 mb-2">
                         <Sparkles className="w-3.5 h-3.5 text-ojas" />
                         <span className="text-[10px] font-semibold text-ojas uppercase tracking-[0.14em]">
-                          Wisdom of the Day
+                          {t('profile.journey.wisdomOfDay', 'Wisdom of the Day')}
                         </span>
                       </div>
                       {dailyTeaching.caption && (
@@ -833,8 +833,8 @@ const ProfilePage = () => {
 
               <Card className="rounded-2xl border border-hairline bg-card shadow-sm">
                 <CardHeader className="pb-4">
-                  <CardTitle className="text-lg font-serif font-semibold text-foreground">Recent Insights</CardTitle>
-                  <CardDescription>Patterns derived from your recorded practice, reported mood, and saved memories.</CardDescription>
+                  <CardTitle className="text-lg font-serif font-semibold text-foreground">{t('profile.insights.title')}</CardTitle>
+                  <CardDescription>{t('profile.insights.subtitle')}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   {personalInsights.length > 0 ? (
@@ -856,9 +856,9 @@ const ProfilePage = () => {
                       <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mx-auto text-muted-foreground">
                         <Target className="w-6 h-6" />
                       </div>
-                      <p className="text-sm text-muted-foreground">No insights yet. Continue your practices to reveal your spiritual patterns.</p>
+                      <p className="text-sm text-muted-foreground">{t('profile.insights.empty')}</p>
                       <Button variant="outline" size="sm" onClick={() => navigate('/practices')} className="mt-2 rounded-xl border-hairline">
-                        Start a practice <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
+                        {t('profile.journey.choosePractice', 'Choose a practice')} <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
                       </Button>
                     </div>
                   )}
@@ -870,13 +870,13 @@ const ProfilePage = () => {
             <TabsContent value="conversations" className="space-y-6 mt-0">
               <Card className="rounded-2xl border border-hairline bg-card shadow-sm">
                 <CardHeader className="pb-4">
-                  <CardTitle className="text-lg font-serif font-semibold text-foreground">Conversations</CardTitle>
-                  <CardDescription>Manage and prune your chat history.</CardDescription>
+                  <CardTitle className="text-lg font-serif font-semibold text-foreground">{t('profile.conversations.title')}</CardTitle>
+                  <CardDescription>{t('profile.conversations.subtitle')}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {/* ── Days-based retention control ─────────────────────── */}
                   <div className="space-y-3">
-                    <Label className="text-sm font-medium">Keep conversations for</Label>
+                    <Label className="text-sm font-medium">{t('profile.conversations.keepFor')}</Label>
                     <div className="flex items-center gap-3">
                       <Input
                         type="number"
@@ -886,7 +886,7 @@ const ProfilePage = () => {
                         onChange={e => setRetentionDays_(Math.max(1, Math.min(365, parseInt(e.target.value) || 90)))}
                         className="w-20 rounded-xl"
                       />
-                      <span className="text-sm text-muted-foreground">days</span>
+                      <span className="text-sm text-muted-foreground">{t('profile.conversations.days', 'days')}</span>
                     </div>
                     {/* Quick-select day presets */}
                     <div className="flex flex-wrap gap-2">
@@ -901,7 +901,7 @@ const ProfilePage = () => {
                               : 'text-muted-foreground hover:border-ojas/50'
                           }`}
                         >
-                          {d === 365 ? '1 yr' : `${d}d`}
+                          {d === 365 ? t('profile.conversations.oneYear', '1 yr') : `${d}d`}
                         </button>
                       ))}
                     </div>
@@ -917,21 +917,21 @@ const ProfilePage = () => {
                       onClick={async () => {
                         saveRetentionDays(retentionDays);
                         setConversations(await loadConversations());
-                        toast({ title: `Retention set to ${retentionDays} days` });
+                        toast({ title: t('profile.conversations.retentionSet', { days: retentionDays }) });
                       }}
                     >
-                      Save retention
+                      {t('profile.conversations.saveRetention', 'Save retention')}
                     </Button>
                   </div>
 
                   {conversations.length === 0 ? (
-                    <p className="text-muted-foreground">No conversations.</p>
+                    <p className="text-muted-foreground">{t('profile.conversations.empty')}</p>
                   ) : (
                     <ul className="space-y-2">
                       {conversations.map(conv => (
                         <li key={conv.id} className="flex items-center justify-between p-3 border border-hairline rounded-xl bg-card hover:bg-muted/20 transition-colors">
                           <div className="flex-1 min-w-0 pr-3">
-                            <p className="font-medium truncate">{conv.preview || 'Untitled'}</p>
+                            <p className="font-medium truncate">{conv.preview || t('profile.journey.untitledConversation')}</p>
                             <p className="text-xs text-muted-foreground">{formatRelativeTime(conv.updatedAt)}</p>
                           </div>
                           <Button variant="ghost" size="sm" onClick={async () => { await deleteConversation(conv.id); setConversations(prev => prev.filter(c => c.id !== conv.id)); setConversationCount(prev => Math.max(0, prev - 1)); }} aria-label={`Delete conversation: ${conv.preview || 'Untitled'}`} className="rounded-lg">
@@ -944,20 +944,20 @@ const ProfilePage = () => {
 
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="destructive" className="mt-4 rounded-xl">Delete all conversations</Button>
+                      <Button variant="destructive" className="mt-4 rounded-xl">{t('profile.conversations.deleteAll')}</Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent className="rounded-2xl">
                       <AlertDialogHeader>
-                        <AlertDialogTitle>Delete all conversations?</AlertDialogTitle>
+                        <AlertDialogTitle>{t('profile.conversations.confirmDeleteTitle')}</AlertDialogTitle>
                         <AlertDialogDescription>
-                          Type <code>DELETE</code> to confirm. This action cannot be undone.
+                          {t('profile.conversations.confirmDeleteMessage')}
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <div className="py-2">
                         <Input value={deleteAllConfirm} onChange={e => setDeleteAllConfirm(e.target.value)} placeholder="Type DELETE to confirm" className="rounded-xl" />
                       </div>
                       <AlertDialogFooter>
-                        <AlertDialogCancel onClick={() => setDeleteAllConfirm('')} className="rounded-xl">Cancel</AlertDialogCancel>
+                        <AlertDialogCancel onClick={() => setDeleteAllConfirm('')} className="rounded-xl">{t('common.cancel', 'Cancel')}</AlertDialogCancel>
                         <AlertDialogAction onClick={async () => {
                           if (deleteAllConfirm.trim().toUpperCase() === 'DELETE') {
                             const currentId = await getCurrentConversationId();
@@ -968,7 +968,7 @@ const ProfilePage = () => {
                             setConversations(prev => prev.filter(c => c.id === currentId));
                             setConversationCount(prev => Math.max(0, prev - toDelete.length));
                             setDeleteAllConfirm('');
-                            toast({ title: 'All conversations deleted' });
+                            toast({ title: t('profile.conversations.deleted', 'All conversations deleted') });
                           }
                         }} disabled={deleteAllConfirm.trim().toUpperCase() !== 'DELETE'} className="rounded-xl">Confirm</AlertDialogAction>
                       </AlertDialogFooter>
@@ -1190,13 +1190,13 @@ const ProfilePage = () => {
                           }
                         }}
                       >
-                        <Download className="w-4 h-4" /> Export Cloud Data
+                        <Download className="w-4 h-4" /> {t('profile.danger.exportCloudData', 'Export cloud data')}
                       </Button>
                     </div>
                   </div>
 
                   <div className="pt-4 border-t border-hairline space-y-3">
-                    <h4 className="text-[10px] uppercase tracking-[0.14em] font-medium text-destructive/80">Danger Zone</h4>
+                    <h4 className="text-[10px] uppercase tracking-[0.14em] font-medium text-destructive/80">{t('profile.danger.zone', 'Danger zone')}</h4>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
@@ -1331,7 +1331,7 @@ const ProfilePage = () => {
                     <div>
                       <CardTitle className="text-lg font-serif font-semibold text-foreground">{t('profile.support.title')}</CardTitle>
                       <CardDescription>
-                        Have a question, feedback, or run into an issue? We are here to help.
+                        {t('profile.support.description', 'Have a question, feedback, or run into an issue? We are here to help.')}
                       </CardDescription>
                     </div>
                   </div>
@@ -1353,29 +1353,29 @@ const ProfilePage = () => {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
                           <Label htmlFor="s-name">Name <span className="text-muted-foreground">(optional)</span></Label>
-                          <Input id="s-name" value={supportForm.name} onChange={e => setSupportForm(p => ({ ...p, name: e.target.value }))} placeholder="Your name" disabled={!!resolveName()} className="min-h-[44px] rounded-xl" />
+                          <Input id="s-name" value={supportForm.name} onChange={e => setSupportForm(p => ({ ...p, name: e.target.value }))} placeholder={t('profile.support.namePlaceholder', 'Your name')} disabled={!!resolveName()} className="min-h-[44px] rounded-xl" />
                         </div>
                         <div className="space-y-1.5">
-                          <Label htmlFor="s-email">Your Email <span className="text-destructive">*</span></Label>
-                          <Input id="s-email" type="email" value={supportForm.email} onChange={e => setSupportForm(p => ({ ...p, email: e.target.value }))} placeholder="you@example.com" required disabled={!!resolveEmail()} className="min-h-[44px] rounded-xl" />
+                          <Label htmlFor="s-email">{t('profile.support.email')} <span className="text-destructive">*</span></Label>
+                          <Input id="s-email" type="email" value={supportForm.email} onChange={e => setSupportForm(p => ({ ...p, email: e.target.value }))} placeholder={t('profile.support.emailPlaceholder', 'you@example.com')} required disabled={!!resolveEmail()} className="min-h-[44px] rounded-xl" />
                         </div>
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                          <Label htmlFor="s-category">Category</Label>
+                          <Label htmlFor="s-category">{t('profile.support.category')}</Label>
                           <select id="s-category" value={supportForm.category} onChange={e => setSupportForm(p => ({ ...p, category: e.target.value }))} className="flex min-h-[44px] h-11 w-full rounded-xl border border-hairline bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
                             {supportCategories.map(c => <option key={c} value={c}>{c}</option>)}
                           </select>
                         </div>
                         <div className="space-y-1.5">
-                          <Label htmlFor="s-subject">Subject <span className="text-destructive">*</span></Label>
-                          <Input id="s-subject" value={supportForm.subject} onChange={e => setSupportForm(p => ({ ...p, subject: e.target.value }))} placeholder="Brief summary" required className="min-h-[44px] rounded-xl" />
+                          <Label htmlFor="s-subject">{t('profile.support.subject')} <span className="text-destructive">*</span></Label>
+                          <Input id="s-subject" value={supportForm.subject} onChange={e => setSupportForm(p => ({ ...p, subject: e.target.value }))} placeholder={t('profile.support.subjectPlaceholder', 'Brief summary')} required className="min-h-[44px] rounded-xl" />
                         </div>
                       </div>
 
                       <div className="space-y-1.5">
-                        <Label htmlFor="s-message">Message <span className="text-destructive">*</span></Label>
+                        <Label htmlFor="s-message">{t('profile.support.message')} <span className="text-destructive">*</span></Label>
                         <Textarea id="s-message" value={supportForm.message} onChange={e => setSupportForm(p => ({ ...p, message: e.target.value }))} placeholder="Describe your issue, feedback, or request in detail. Include what you were doing, what you expected, and what happened." className="min-h-[140px] resize-none rounded-xl" required />
                       </div>
 
