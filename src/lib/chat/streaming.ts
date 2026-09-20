@@ -278,6 +278,22 @@ export async function* sendMessageStreaming(
           continue;
         }
 
+        if (currentEvent === 'teaching_preview') {
+          currentEvent = 'message';
+          try {
+            const payloadData = JSON.parse(payload);
+            const items = Array.isArray(payloadData?.items)
+              ? payloadData.items
+                  .filter((item: unknown) => item && typeof item === 'object' && typeof (item as { title?: unknown }).title === 'string')
+                  .slice(0, 3)
+              : [];
+            yield { type: 'teaching_preview', items };
+          } catch {
+            // Ignore malformed optional evidence previews.
+          }
+          continue;
+        }
+
         // Handle the authoritative normalized answer emitted after raw tokens.
         if (currentEvent === 'final') {
           currentEvent = 'message';
