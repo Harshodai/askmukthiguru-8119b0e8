@@ -419,7 +419,23 @@
     "technicalDetail": "సాంకేతిక వివరాలు",
     "tellMeMore": "చెప్పండి, ఇంకా చెప్పండి.",
     "tellMeMoreQuery": "దీని గురించి నాకు మరింత చెప్పండి: {{content}}",
-    "thinking": "ఆలోచన",
+    "thinking": {
+      "safety": "భద్రతా తనిఖీ",
+      "understanding": "మీ ప్రశ్నను అర్థం చేసుకుంటున్నాను",
+      "searching": "బోధనల్లో వెతుకుతున్నాను",
+      "reranking": "సంబంధితతను మెరుగుపరుస్తున్నాను",
+      "filtering": "సంబంధితతను వడపోత చేస్తున్నాను",
+      "synthesizing": "బోధనలను కలిపి చూస్తున్నాను",
+      "composing": "మార్గదర్శకాన్ని రూపొందిస్తున్నాను",
+      "verifying": "బోధన మూలాలను ధృవీకరిస్తున్నాను",
+      "hello": "అభివాదం",
+      "practice": "సాధనకు మార్గదర్శనం",
+      "contemplating": "ఆలోచిస్తున్నాను",
+      "queued": "క్యూలో ఉంది",
+      "analyzing": "మీ సమాధానాన్ని సిద్ధం చేస్తున్నాను…",
+      "stepLabel": "దశ {{step}}/{{total}}: {{label}}",
+      "stepProgress": "దశ {{step}}/{{total}}: {{label}} ({{percentage}}%)"
+    },
     "todaysLine": "నేటి గీతం",
     "todaysTeaching": "నేటి బోధన",
     "todaysWisdom": "నేటి జ్ఞానం",
@@ -539,6 +555,10 @@
       "personalMemoryUsed": "అర్హత కలిగిన వ్యక్తిగత స్మృతి/సందర్భం సమాధాన మోడల్‌కు అందించబడింది.",
       "graphMatched": "మీ వ్యక్తిగత సందర్భ గ్రాఫ్ {{count}} కాన్సెప్ట్ లింక్‌లను సరిపోల్చింది.",
       "privateMemoryNotShown": "వ్యక్తిగత స్మృతి వచనం ఇక్కడ చూపబడదు."
+    },
+    "teachingContext": {
+      "title": "ఈ సమాధానానికి ఆధారమైన బోధనలు",
+      "sourceCount": "{{count}} సంబంధిత బోధనలు లభించాయి"
     }
   },
   "notFound": {
