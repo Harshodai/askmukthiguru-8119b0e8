@@ -623,10 +623,10 @@ const ProfilePage = () => {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {tones.map(t => (
-                            <SelectItem key={t.value} value={t.value}>
-                              <span className="font-medium">{t(`profile.tone.${t.value}` , t.label)}</span>
-                              <span className="ml-2 text-xs text-muted-foreground">{t(`profile.tone.${t.value}Hint`, t.hint)}</span>
+                          {tones.map(tone => (
+                            <SelectItem key={tone.value} value={tone.value}>
+                              <span className="font-medium">{t(`profile.tone.${tone.value}`, tone.label)}</span>
+                              <span className="ml-2 text-xs text-muted-foreground">{t(`profile.tone.${tone.value}Hint`, tone.hint)}</span>
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -1006,22 +1006,22 @@ const ProfilePage = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-3 gap-3">
-                    {themes.map(t => (
+                    {themes.map(theme => (
                       <button
-                        key={t.value}
+                        key={theme.value}
                         onClick={() => {
-                          patch('theme', t.value);
+                          patch('theme', theme.value);
                           applyThemeNow(t.value);
                         }}
                         className={cn(
                           "flex flex-col items-center gap-2 p-3 rounded-xl border border-hairline transition-all min-h-[44px]",
-                          form.theme === t.value
+                          form.theme === theme.value
                             ? "bg-ojas/5 border-ojas text-ojas ring-1 ring-ojas/30"
                             : "bg-card hover:bg-muted/30 text-muted-foreground hover:text-foreground"
                         )}
                       >
-                        <t.icon className="w-5 h-5" />
-                        <span className="text-xs font-medium">{t(`profile.theme.${t.value}`, t.label)}</span>
+                        <theme.icon className="w-5 h-5" />
+                        <span className="text-xs font-medium">{t(`profile.theme.${theme.value}`, theme.label)}</span>
                       </button>
                     ))}
                   </div>
