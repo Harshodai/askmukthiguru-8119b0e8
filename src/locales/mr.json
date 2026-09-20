@@ -603,7 +603,9 @@
     "teachingContext": {
       "title": "या उत्तरामागील आधारभूत शिक्षणे",
       "sourceCount": "{{count}} संबंधित शिक्षणे सापडली"
-    }
+    },
+    "contemplating": "सखोल चिंतन करत आहे — याला थोडा वेळ लागू शकतो…",
+    "answerTakingShape": "उत्तर आकार घेत आहे…"
   },
   "notFound": {
     "message": "अरेरे! पृष्ठ सापडले नाही",
