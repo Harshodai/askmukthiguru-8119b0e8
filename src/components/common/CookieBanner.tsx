@@ -1,4 +1,3 @@
-import { useTranslation } from 'react-i18next';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Cookie } from 'lucide-react';
