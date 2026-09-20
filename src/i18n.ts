@@ -17,6 +17,15 @@ const SUPPORTED = ['en', 'hi', 'te', 'kn', 'ta', 'mr', 'bn', 'gu', 'ml', 'ur', '
 
 const baseLanguage = (lng?: string) => (lng ?? 'en').split('-')[0];
 
+const RTL_LANGUAGES = new Set(['ur']);
+
+const syncDocumentLanguage = (lng: string) => {
+  if (typeof document === 'undefined') return;
+  const base = baseLanguage(lng);
+  document.documentElement.lang = base;
+  document.documentElement.dir = RTL_LANGUAGES.has(base) ? 'rtl' : 'ltr';
+};
+
 /** Fetch + register a locale bundle once. No-op for en / unknown / already-loaded. */
 const loadLocale = async (lng: string): Promise<void> => {
   const load = localeLoaders[`./locales/${lng}.json`];
@@ -57,10 +66,12 @@ i18n
   });
 
 i18n.on('languageChanged', (lng) => {
+  syncDocumentLanguage(lng);
   void loadLocale(baseLanguage(lng));
 });
 
 // The detector may resolve to a non-English language before any change event.
+syncDocumentLanguage(i18n.language);
 void loadLocale(baseLanguage(i18n.language));
 
 export default i18n;
