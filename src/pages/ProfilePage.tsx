@@ -542,6 +542,7 @@ const ProfilePage = () => {
                   navigate(conversationId ? `/chat?conversation=${conversationId}` : '/chat');
                 }}
                 onPractice={() => navigate('/practices')}
+                onKnowledgeGraph={() => navigate('/knowledge-graph')}
               />
             </TabsContent>
 
