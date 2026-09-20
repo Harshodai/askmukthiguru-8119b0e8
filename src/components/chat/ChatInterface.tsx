@@ -85,7 +85,6 @@ import { useAutoTranslate } from '@/hooks/useAutoTranslate';
 import {
   OptimisticPlaceholder,
   SlowResponseHint,
-  buildMessageError,
   buildPersonalisedWelcome,
 } from './ChatHelpers';
 
@@ -918,6 +917,7 @@ export const ChatInterface = () => {
     bypassCache?: boolean;
     forceImmediate?: boolean;
     languageOverride?: string;
+    attachmentOverride?: { name: string; content: string }[];
   };
   type SubmitEvent = React.FormEvent | React.KeyboardEvent<HTMLTextAreaElement> | React.MouseEvent;
 
@@ -1036,8 +1036,9 @@ export const ChatInterface = () => {
 
     // Keep uploaded material separate from the user question. The backend treats
     // it as bounded, untrusted evidence instead of mixing it into personal memory.
-    const attachmentContext = attachedFiles.length > 0
-      ? attachedFiles
+    const filesForTurn = options.attachmentOverride ?? attachedFiles;
+    const attachmentContext = filesForTurn.length > 0
+      ? filesForTurn
         .map(f => `[Attached File: ${f.name}]\n${f.content}`)
         .join('\n\n')
         .slice(0, 8000)
@@ -1099,6 +1100,7 @@ export const ChatInterface = () => {
 
     // Summary helper — fire-and-forget after every ~6 user messages
     const maybeSummarize = () => {
+      if (isIncognito) return;
       const userMsgCount = allMsgs.filter(m => m.role === 'user').length;
       if (userMsgCount > 0 && userMsgCount % 6 === 0 && currentConversation?.id) {
         generateSummary(allMsgs).then(async (summary) => {
@@ -1119,9 +1121,24 @@ export const ChatInterface = () => {
     const streamingGuruId = generateId();
     let streamingWorked = false;
     let contextExhaustedThisTurn = false;
+    let streamAbortedByUser = false;
     let fullContent = '';
     let finalIntent = 'CASUAL';
     let checkpointInterval: ReturnType<typeof setInterval> | undefined;
+    let jsonCompletedSuccessfully = false;
+
+    const drainNextQueuedMessage = () => {
+      const nextMsg = queuedMessagesRef.current[0];
+      if (!nextMsg) return;
+      setQueuedMessages((prev) => prev.slice(1));
+      setTimeout(() => {
+        submitImplRef.current(undefined, nextMsg.text, {
+          forceImmediate: true,
+          languageOverride: nextMsg.language,
+          attachmentOverride: nextMsg.attachedFiles,
+        });
+      }, 350);
+    };
 
     if (!isAwaitingSereneMind) {
       try {
@@ -1526,6 +1543,7 @@ openSereneMind('audio');
         const wasAborted =
           err?.name === 'AbortError' || streamControllerRef.current?.signal.aborted;
         if (wasAborted) {
+          streamAbortedByUser = true;
           // User clicked Stop — keep whatever streamed, append a clear marker.
           const stopped = (fullContent || '').trimEnd() + '\n\n_Stopped by you._';
           setMessages((prev) =>
@@ -1602,19 +1620,12 @@ openSereneMind('audio');
       if (contextExhaustedThisTurn) {
         return;
       }
-      hapticAudio.playCompletionChime();
-      if (!isIncognito) maybeSummarize();
 
-      // Auto-dequeue and dispatch next queued message if available (Claude/Manus style)
-      const remainingQueue = queuedMessagesRef.current;
-      if (remainingQueue.length > 0) {
-        const nextMsg = remainingQueue[0];
-        setQueuedMessages((prev) => prev.slice(1));
-        setTimeout(() => {
-          submitImpl(undefined, nextMsg.text, {
-            forceImmediate: true,
-          });
-        }, 350);
+      // Only a genuinely completed, non-blocked answer advances the queue.
+      if (streamCompleted && !streamedBlocked && !streamAbortedByUser) {
+        hapticAudio.playCompletionChime();
+        if (!isIncognito) maybeSummarize();
+        drainNextQueuedMessage();
       }
       return;
     }
@@ -1725,6 +1736,7 @@ openSereneMind('audio');
         };
         setMessages((prev) => [...prev, guruMessage]);
         if (!responseError) {
+          jsonCompletedSuccessfully = !response.blocked && Boolean(response.content);
           setCachedResponse(cacheKey, response.content, guruMessage.citations);
           if (!response.blocked && response.content) {
             window.dispatchEvent(new CustomEvent('askmukthiguru:chat_response_success'));
@@ -1810,17 +1822,9 @@ openSereneMind('audio');
   } finally {
     setIsTyping(false);
     setShowInstantPill(false);
-    maybeSummarize();
-
-    const remainingQueue = queuedMessagesRef.current;
-    if (remainingQueue.length > 0) {
-      const nextMsg = remainingQueue[0];
-      setQueuedMessages((prev) => prev.slice(1));
-      setTimeout(() => {
-        submitImplRef.current(undefined, nextMsg.text, {
-          forceImmediate: true,
-        });
-      }, 350);
+    if (jsonCompletedSuccessfully) {
+      maybeSummarize();
+      drainNextQueuedMessage();
     }
   }
 };
@@ -1853,7 +1857,11 @@ const handleSendNowQueued = useCallback((id: string) => {
   }
   setIsTyping(false);
   setIsStreaming(false);
-  submitImplRef.current(undefined, target.text, { forceImmediate: true, languageOverride: target.language });
+  submitImplRef.current(undefined, target.text, {
+    forceImmediate: true,
+    languageOverride: target.language,
+    attachmentOverride: target.attachedFiles,
+  });
 }, []);
 
 const handleEditQueued = useCallback((id: string) => {
@@ -1984,6 +1992,7 @@ const handleNewConversation = useCallback(async (continuationSummary?: string) =
     setIncognitoMode(false);
   }
   const newConversation = createNewConversation();
+  const safeContinuationSummary = isIncognito ? undefined : continuationSummary;
 
   const welcomeMessage: Message = {
     id: generateId(),
@@ -2002,7 +2011,9 @@ const handleNewConversation = useCallback(async (continuationSummary?: string) =
 
   newConversation.messages = [welcomeMessage];
   newConversation.preview = getConversationPreview([welcomeMessage]);
-  if (continuationSummary?.trim()) newConversation.summary = continuationSummary.trim().slice(0, 4000);
+  if (safeContinuationSummary?.trim()) {
+    newConversation.summary = safeContinuationSummary.trim().slice(0, 4000);
+  }
 
   await saveConversation(newConversation);
 
