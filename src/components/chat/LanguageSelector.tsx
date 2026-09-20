@@ -348,8 +348,8 @@ export const LanguageSelector = ({
             className="flex min-h-[44px] min-w-[44px] items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             aria-haspopup="listbox"
             aria-expanded={isOpen}
-            aria-label={`Selected language: ${lang?.name ?? selectedLanguage}. Click to change.`}
-            title={`Language: ${lang?.name ?? selectedLanguage}`}
+            aria-label={t('chat.languageSelected', { name: lang?.name ?? selectedLanguage })}
+            title={t('language.ariaLabel', { name: lang?.name ?? selectedLanguage })}
           >
             <Languages className="w-4 h-4 flex-shrink-0 text-ojas" aria-hidden="true" />
             <span>{label}</span>
@@ -389,8 +389,8 @@ export const LanguageSelector = ({
                         setSearchQuery(e.target.value);
                         setFocusedIndex(0);
                       }}
-                      placeholder={t('language.searchPlaceholder', { count: LANGUAGES.length })}
-                      aria-label={t('language.searchPlaceholder', { count: LANGUAGES.length })}
+                      placeholder={t('chat.searchLanguages', { count: LANGUAGES.length })}
+                      aria-label={t('chat.searchLanguages', { count: LANGUAGES.length })}
                       className="w-full h-9 rounded-lg border border-border/60 bg-background px-2.5 text-sm outline-none focus:ring-2 focus:ring-ojas/30"
                     />
                   </div>
@@ -437,7 +437,7 @@ export const LanguageSelector = ({
           whileTap={{ scale: 0.98 }}
           aria-haspopup="listbox"
           aria-expanded={isOpen}
-          aria-label={t('language.ariaLabel', { name: currentLang?.name ?? 'English' })}
+          aria-label={t('language.ariaLabel', { name: currentLang?.name ?? LANGUAGES[0]?.name ?? 'English' })}
         >
           <Globe className="w-4 h-4 text-ojas" />
           <span className="text-foreground font-medium hidden sm:inline">
