@@ -318,7 +318,10 @@
       "queued": "শাৰীত আছে",
       "analyzing": "আপোনাৰ উত্তৰ প্ৰস্তুত কৰি আছোঁ…",
       "stepLabel": "পদক্ষেপ {{step}}/{{total}}: {{label}}",
-      "stepProgress": "পদক্ষেপ {{step}}/{{total}}: {{label}} ({{percentage}}%)"
+      "stepProgress": "পদক্ষেপ {{step}}/{{total}}: {{label}} ({{percentage}}%)",
+      "rotatingReflecting": "গুৰুজী আপোনাৰ প্ৰশ্নটোৰ ওপৰত মনন কৰি আছে…",
+      "rotatingConnecting": "পৱিত্ৰ জ্ঞানৰ সৈতে সংযোগ কৰিছোঁ…",
+      "rotatingAlmostReady": "প্ৰায় সাজু — গভীৰ জ্ঞানৰ বাবে সময় লাগে…"
     },
     "toggleThinking": "চিন্তাৰ বিৱৰণ টগল কৰক",
     "reflecting": "শিক্ষাসমূহৰ ওপৰত আত্মচিন্তন কৰা হৈছে…",
