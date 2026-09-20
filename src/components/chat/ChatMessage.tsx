@@ -79,11 +79,28 @@ export const safeUrlTransform = (url: string): string =>
 const isCrisisAnswer = (content: string): boolean =>
   /🆘/.test(content) || /immediate crisis|crisis, please reach out|helpline/i.test(content);
 
-const TeachingGroundingCard = ({ citations }: { citations: Citation[] }) => {
+const TeachingGroundingCard = ({
+  citations,
+  teachingPreview = [],
+}: {
+  citations: Citation[];
+  teachingPreview?: Message['teachingPreview'];
+}) => {
   const { t } = useTranslation();
-  const items = citations
-    .filter((citation) => Boolean(citation.title || citation.quote || citation.textSnippet))
+  const previewItems = (teachingPreview ?? [])
+    .filter((item) => Boolean(item.title || item.excerpt))
     .slice(0, 2);
+  const items = previewItems.length > 0
+    ? previewItems.map((item) => ({
+        title: item.title,
+        teacher: item.teacher ?? undefined,
+        source: undefined as string | undefined,
+        url: item.url ?? undefined,
+        excerpt: item.excerpt ?? undefined,
+      }))
+    : citations
+      .filter((citation) => Boolean(citation.title || citation.quote || citation.textSnippet))
+      .slice(0, 2);
 
   if (items.length === 0) return null;
 
@@ -117,9 +134,9 @@ const TeachingGroundingCard = ({ citations }: { citations: Citation[] }) => {
                   citation.title || t('chat.references')
                 )}
               </div>
-              {(citation.speaker || citation.source) && (
+              {(citation.speaker || citation.source || (citation as typeof citation & { teacher?: string }).teacher) && (
                 <div className="mt-0.5 text-sm text-muted-foreground">
-                  {[citation.speaker, citation.source].filter(Boolean).join(' · ')}
+                  {[citation.speaker, (citation as typeof citation & { teacher?: string }).teacher, citation.source].filter(Boolean).join(' · ')}
                 </div>
               )}
               {excerpt && (
@@ -1274,7 +1291,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
               <SereneMindOfferCard offer={message.sereneMindOffer} />
             )}
             {isGuru && !isStreaming && citations.length > 0 && (
-              <TeachingGroundingCard citations={citations} />
+              <TeachingGroundingCard citations={citations} teachingPreview={message.teachingPreview} />
             )}
 
             {isGuru && citations.length > 0 && (
