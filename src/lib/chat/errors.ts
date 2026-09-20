@@ -1,3 +1,4 @@
+import type { MessageError } from '@/lib/chatStorage';
 import type { AIErrorCode } from './types';
 
 export function httpStatusToErrorCode(
@@ -15,20 +16,13 @@ export function httpStatusToErrorCode(
   return 'unknown';
 }
 
-export interface BuiltChatError {
-  kind: AIErrorCode;
-  title: string;
-  description: string;
-  retryable: boolean;
-  actionLabel?: 'retry' | 'sign_in' | 'reload' | 'new_chat';
-  detail?: string;
-}
+export type BuiltChatError = MessageError;
 
 export function buildMessageError(
   code: AIErrorCode | string | undefined,
   message?: string,
   status?: number,
-): BuiltChatError {
+): MessageError {
   const normalized = code as AIErrorCode;
   switch (normalized) {
     case 'context_exhausted':
