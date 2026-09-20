@@ -318,7 +318,10 @@
       "queued": "ଧାଡ଼ିରେ",
       "analyzing": "ଆପଣଙ୍କ ଉତ୍ତର ପ୍ରସ୍ତୁତ କରୁଛି…",
       "stepLabel": "ପଦକ୍ଷେପ {{step}}/{{total}}: {{label}}",
-      "stepProgress": "ପଦକ୍ଷେପ {{step}}/{{total}}: {{label}} ({{percentage}}%)"
+      "stepProgress": "ପଦକ୍ଷେପ {{step}}/{{total}}: {{label}} ({{percentage}}%)",
+      "rotatingReflecting": "ଗୁରୁଜୀ ଆପଣଙ୍କ ପ୍ରଶ୍ନ ଉପରେ ମନନ କରୁଛନ୍ତି…",
+      "rotatingConnecting": "ପବିତ୍ର ଜ୍ଞାନ ସହିତ ଯୋଡ଼ୁଛୁ…",
+      "rotatingAlmostReady": "ପ୍ରାୟ ପ୍ରସ୍ତୁତ — ଗଭୀର ଜ୍ଞାନକୁ ସମୟ ଲାଗେ…"
     },
     "toggleThinking": "ଚିନ୍ତା ବିବରଣୀ ଟଗଲ୍ କରନ୍ତୁ",
     "reflecting": "ଶିକ୍ଷା ଉପରେ ଚିନ୍ତନ କରୁଛନ୍ତି…",
