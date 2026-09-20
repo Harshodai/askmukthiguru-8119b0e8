@@ -53,6 +53,14 @@ When someone is in deep distress, gently encourage them to seek professional hel
       } catch {
         // ignore
       }
+
+      // Keep the UI locale synchronized with the AI/request locale from every
+      // call site. Dynamic import avoids the i18n -> config module cycle.
+      void import('@/i18n').then(({ default: i18n }) => {
+        if (i18n.language !== language) void i18n.changeLanguage(language);
+      }).catch(() => {
+        // UI locale sync is best-effort; request language remains updated.
+      });
     }
   },
 
