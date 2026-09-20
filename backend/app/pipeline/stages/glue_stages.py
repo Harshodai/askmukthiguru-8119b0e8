@@ -12,6 +12,7 @@ import asyncio
 import functools
 import logging
 import random
+import re
 import time
 from typing import TYPE_CHECKING
 
@@ -25,6 +26,7 @@ from app.pipeline.result import (
     GuidancePlan,
     PipelineResult,
     TeachingAttribution,
+    PersonalizationProvenance,
 )
 from app.pipeline.stages.base import Stage
 from app.release_manifest import get_release_manifest
@@ -526,6 +528,32 @@ class ResultAssemblyStage(Stage):
                 ),
             )
 
+        # Public-safe personalization provenance is derived from request-scoped
+        # context actually sent to generation, never from frontend state.
+        _memory_ctx = str(ctx.state.get("memory_context") or "")
+        _canonical_ctx = str(ctx.state.get("canonical_memory_evidence") or "")
+        _private_graph_links = 0
+        _graph_marker = re.search(r"Personal context graph matches:\s*(\d+)", _memory_ctx)
+        if _graph_marker:
+            _private_graph_links = int(_graph_marker.group(1))
+        _personal_memory_used = bool(_memory_ctx or _canonical_ctx)
+        _persisted_user = bool(
+            ctx.user_id
+            and not ctx.incognito
+            and not str(ctx.user_id).startswith("anon:")
+            and str(ctx.user_id) != "anonymous"
+        )
+        _personalization = (
+            PersonalizationProvenance(
+                used=True,
+                profile_preferences=_persisted_user,
+                personal_memory=_personal_memory_used,
+                private_graph_links=_private_graph_links,
+            )
+            if (_persisted_user or _personal_memory_used or _private_graph_links > 0)
+            else None
+        )
+
         ctx.result = PipelineResult(
             final_answer=ctx.final_answer,
             intent=ctx.intent,
@@ -584,6 +612,7 @@ class ResultAssemblyStage(Stage):
                 ctx.citations,
                 response_data,
             ),
+            personalization_provenance=_personalization,
             guidance_plan=_guidance_plan(
                 ctx,
                 graph_result,
