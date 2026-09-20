@@ -7,7 +7,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
 import {
-  Send, Square, Flame, Sparkles, Plus, Mic, X, FileText, CornerDownLeft,
+  Send, Square, Flame, Sparkles, Plus, Mic, X, FileText, CornerDownLeft, AudioLines,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -47,6 +47,7 @@ interface ChatComposerProps {
   isAwaitingSereneMind: boolean;
   isQuotaExceeded?: boolean;
   isListening: boolean;
+  isHandsFreeVoice: boolean;
   currentLanguage: string;
   voiceEnabled: boolean;
   ttsEnabled: boolean;
@@ -58,6 +59,7 @@ interface ChatComposerProps {
   showInstantPill: boolean;
   isLandingMode: boolean;
   onVoiceToggle: () => void;
+  onHandsFreeVoiceToggle: () => void;
   onTtsToggle: () => void;
   onLanguageChange: (code: string) => void;
   capabilities?: {
@@ -94,6 +96,7 @@ function ChatComposerInner({
   isAwaitingSereneMind,
   isQuotaExceeded,
   isListening,
+  isHandsFreeVoice,
   currentLanguage,
   voiceEnabled,
   ttsEnabled,
@@ -105,6 +108,7 @@ function ChatComposerInner({
   showInstantPill,
   isLandingMode,
   onVoiceToggle,
+  onHandsFreeVoiceToggle,
   onTtsToggle,
   onLanguageChange,
   capabilities,
@@ -138,7 +142,7 @@ function ChatComposerInner({
     video: actionCapabilities.videoAttachments ?? actionCapabilities.textAttachments,
   };
   const attachmentsAvailable = Object.values(attachmentCapabilities).some(Boolean);
-  const hasMoreActions = actionCapabilities.sereneMind || actionCapabilities.guidedMeditation || attachmentsAvailable;
+  const hasMoreActions = actionCapabilities.sereneMind || actionCapabilities.guidedMeditation || attachmentsAvailable || actionCapabilities.voiceInput;
   const attachmentAccept = [
     ...(attachmentCapabilities.text ? ['.txt', '.md', '.markdown', '.csv', '.tsv', '.json', '.log', '.xml', '.html', '.htm', '.yaml', '.yml'] : []),
     ...(attachmentCapabilities.documents ? ['.pdf', '.docx', '.pptx', '.xlsx'] : []),
@@ -292,6 +296,22 @@ function ChatComposerInner({
           disabled={isAwaitingSereneMind || isQuotaExceeded}
         />
 
+        {isHandsFreeVoice && (
+          <div className="mx-3 mb-1.5 flex items-center justify-between gap-3 rounded-xl border border-ojas/25 bg-ojas/5 px-3 py-2 text-xs">
+            <div className="flex min-w-0 items-center gap-2 text-foreground">
+              <AudioLines className="w-3.5 h-3.5 text-ojas shrink-0" />
+              <span className="truncate">Voice conversation is on — speak naturally; the Guru will answer aloud.</span>
+            </div>
+            <button
+              type="button"
+              onClick={onHandsFreeVoiceToggle}
+              className="shrink-0 rounded-lg px-2 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              Stop
+            </button>
+          </div>
+        )}
+
         <PromptInputFooter className="flex items-center gap-1.5 px-3 pb-3 pt-2">
           <PromptInputTools>
             <LanguageSelector
@@ -337,6 +357,12 @@ function ChatComposerInner({
                     <DropdownMenuItem disabled={isUploading} onClick={() => fileInputRef.current?.click()}>
                       <FileText className="w-4 h-4 mr-2 text-ojas" />
                       {isUploading ? 'Processing attachment…' : 'Attach media or document'}
+                    </DropdownMenuItem>
+                  )}
+                  {actionCapabilities.voiceInput && (
+                    <DropdownMenuItem onClick={onHandsFreeVoiceToggle}>
+                      <AudioLines className="w-4 h-4 mr-2 text-ojas" />
+                      {isHandsFreeVoice ? 'Turn off voice conversation' : 'Voice conversation'}
                     </DropdownMenuItem>
                   )}
                 </DropdownMenuContent>
