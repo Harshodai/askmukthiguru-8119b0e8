@@ -1007,7 +1007,16 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                       <p>• Eligible personal memory/context was available to ground the response.</p>
                     )}
                     {(message.personalizationProvenance.private_graph_links ?? 0) > 0 && (
-                      <p>• Your personal wisdom graph matched {message.personalizationProvenance.private_graph_links} concept link{message.personalizationProvenance.private_graph_links === 1 ? '' : 's'} for this question.</p>
+                      <>
+                        <p>• Your personal context graph matched {message.personalizationProvenance.private_graph_links} concept link{message.personalizationProvenance.private_graph_links === 1 ? '' : 's'} for this question.</p>
+                        <button
+                          type="button"
+                          onClick={() => navigate('/knowledge-graph')}
+                          className="text-[11px] font-medium text-ojas hover:underline"
+                        >
+                          View your Wisdom Map →
+                        </button>
+                      </>
                     )}
                     <p className="text-muted-foreground/70">Private memory text is not shown here.</p>
                   </div>
