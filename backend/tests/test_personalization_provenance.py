@@ -1,4 +1,3 @@
-import asyncio
 from types import SimpleNamespace
 
 from app.pipeline.result import PersonalizationProvenance, PipelineResult
