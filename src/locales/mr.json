@@ -318,7 +318,10 @@
       "queued": "रांगेत",
       "analyzing": "तुमचे उत्तर तयार करत आहे…",
       "stepLabel": "पायरी {{step}}/{{total}}: {{label}}",
-      "stepProgress": "पायरी {{step}}/{{total}}: {{label}} ({{percentage}}%)"
+      "stepProgress": "पायरी {{step}}/{{total}}: {{label}} ({{percentage}}%)",
+      "rotatingReflecting": "गुरुजी तुमच्या प्रश्नावर चिंतन करत आहेत…",
+      "rotatingConnecting": "पवित्र ज्ञानाशी जोडत आहोत…",
+      "rotatingAlmostReady": "जवळजवळ तयार — सखोल ज्ञानाला वेळ लागतो…"
     },
     "toggleThinking": "विचार तपशील टॉगल करा",
     "reflecting": "शिकवणींवर विचार करत आहे...",
