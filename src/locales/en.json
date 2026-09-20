@@ -1278,7 +1278,27 @@
       "bio": "Your Path & Intention",
       "language": "Preferred Language",
       "tone": "Guru's Tone",
-      "unsavedChanges": "Unsaved changes..."
+      "unsavedChanges": "Unsaved changes...",
+      "guidanceDepth": "Guidance depth",
+      "seeker": "Seeker",
+      "seekerHint": "Clear Sanskrit explanations",
+      "practitioner": "Practitioner",
+      "practitionerHint": "Balanced meditation guidance",
+      "advanced": "Advanced",
+      "advancedHint": "Deep philosophical terms",
+      "guidancePreview": "Your guidance preview",
+      "sourceAware": "Source-aware by design: verified quotations remain attributed; unsupported questions receive a clear limit or clarification.",
+      "toneDirectPreview": "Clear, concise guidance that comes to the practical next step quickly.",
+      "tonePoeticPreview": "Reflective language with imagery, while keeping the teaching clear and useful.",
+      "toneGentlePreview": "Warm, steady guidance that makes room for your experience before offering a next step.",
+      "advancedPreview": "It can use deeper philosophical terms when the teaching supports them.",
+      "practitionerPreview": "It balances a teaching with a practical reflection or meditation cue.",
+      "seekerPreview": "It explains spiritual terms plainly before building on them.",
+      "upToDate": "All profile details are up to date",
+      "completeOnboarding": "Complete Onboarding",
+      "saveChanges": "Save Changes",
+      "saved": "Profile saved",
+      "savedDesc": "Your preferences are updated."
     },
     "activitySummary": {
       "title": "Activity Summary",
@@ -1298,7 +1318,12 @@
       "empty": "No conversations.",
       "deleteAll": "Delete all conversations",
       "confirmDeleteTitle": "Delete all conversations?",
-      "confirmDeleteMessage": "Type DELETE to confirm. This action cannot be undone."
+      "confirmDeleteMessage": "Type DELETE to confirm. This action cannot be undone.",
+      "days": "days",
+      "oneYear": "1 yr",
+      "saveRetention": "Save retention",
+      "retentionSet": "Retention set to {{days}} days",
+      "deleted": "All conversations deleted"
     },
     "appearance": {
       "title": "Appearance",
@@ -1311,13 +1336,18 @@
       "enableVoiceSubtitle": "Read teachings aloud automatically",
       "speechRate": "Speech Rate",
       "voiceName": "Guru Voice (Mayura)",
-      "voiceSubtitle": "Choose the voice personality for Indic language audio."
+      "voiceSubtitle": "Choose the voice personality for Indic language audio.",
+      "autoplay": "Auto-play Guru Responses",
+      "autoplaySubtitle": "Read each teaching aloud as it arrives"
     },
     "reminders": {
       "title": "Reminders",
       "subtitle": "Stay consistent with your spiritual goals.",
       "dailySubtitle": "Daily notification to find your center",
-      "scheduledFor": "Scheduled for"
+      "scheduledFor": "Scheduled for",
+      "test": "Send test reminder",
+      "permissionsRequired": "Permissions required",
+      "permissionsDescription": "Please enable notifications in your browser settings to use reminders."
     },
     "danger": {
       "subtitle": "Export your data, or permanently delete your account.",
@@ -1334,7 +1364,13 @@
       "cloudMemoriesErased": "Cloud memories erased",
       "cloudMemoriesErasedDesc": "All reflections, second brain notes, and spiritual memories have been permanently deleted.",
       "cloudMemoriesEraseFailed": "Memory erasure failed",
-      "deleteAccountBtn": "Delete Account"
+      "deleteAccountBtn": "Delete Account",
+      "accountTitle": "Account & Data",
+      "accountSubtitle": "Export your data, clear local history, or delete your account.",
+      "exportData": "Export data",
+      "exportLocalData": "Export local data",
+      "exportCloudData": "Export cloud data",
+      "zone": "Danger zone"
     },
     "support": {
       "title": "Contact Support",
@@ -1344,7 +1380,13 @@
       "category": "Category",
       "subject": "Subject",
       "message": "Message",
-      "attachments": "Attachments"
+      "attachments": "Attachments",
+      "description": "Have a question, feedback, or run into an issue? We are here to help.",
+      "optional": "optional",
+      "namePlaceholder": "Your name",
+      "emailPlaceholder": "you@example.com",
+      "subjectPlaceholder": "Brief summary",
+      "messagePlaceholder": "Tell us how we can help..."
     },
     "memory": {
       "mapTitle": "Consciousness Map",
@@ -1398,7 +1440,27 @@
       "personalizeGuidanceDesc": "Your name, tone, language, familiarity, and preferences.",
       "wisdomMap": "Your wisdom map",
       "wisdomMapDesc": "Explore the graph built from your saved reflections, notes, and linked teachings.",
-      "wisdomOfDay": "Wisdom of the Day"
+      "wisdomOfDay": "Wisdom of the Day",
+      "title": "Journey Overview",
+      "subtitle": "Your activity across conversations, practice, and reflection.",
+      "messages": "Messages",
+      "courseProgress": "Course progress",
+      "noActiveCourse": "No active healing course",
+      "distress": "Distress",
+      "lastActive": "Last active"
+    },
+    "tone": {
+      "gentle": "Gentle",
+      "direct": "Direct",
+      "poetic": "Poetic",
+      "gentleHint": "Soft, nurturing replies",
+      "directHint": "Clear, concise teachings",
+      "poeticHint": "Lyrical, metaphor-rich"
+    },
+    "theme": {
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System"
     }
   },
   "commandPalette": {
