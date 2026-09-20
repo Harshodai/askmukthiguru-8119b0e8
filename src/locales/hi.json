@@ -313,7 +313,7 @@
     "newMessagesShort": "{{count}} नया",
     "nextStep": "अगला कदम",
     "noCitations": "कोई उद्धरण उपलब्ध नहीं है",
-    "noLangMatch": "कोई भाषा \"{{query}}\" से मेल नहीं खाती।",
+    "noLangMatch": "आपकी खोज से कोई भाषा मेल नहीं खाती।",
     "noSources": "इस बातचीत में अभी तक कोई स्रोत उद्धृत नहीं किया गया है।",
     "notHelpful": "उपयोगी नहीं है।",
     "openConversations": "बातचीत",
@@ -488,6 +488,28 @@
       "title": "बातचीत की संदर्भ सीमा पूरी हो गई",
       "description": "यह बातचीत अपनी सुरक्षित संदर्भ सीमा तक पहुँच गई है। जारी रखने के लिए नई चैट शुरू करें।",
       "continueNewChat": "नई चैट में जारी रखें"
+    },
+    "keyboardHint": "भेजने के लिए Enter दबाएँ · नई पंक्ति के लिए Shift+Enter",
+    "processingAttachment": "अटैचमेंट तैयार हो रहा है…",
+    "attachMedia": "मीडिया या दस्तावेज़ जोड़ें",
+    "voiceConversationOn": "वॉइस बातचीत चालू है — स्वाभाविक रूप से बोलें; गुरु उत्तर बोलकर देंगे।",
+    "turnOffVoiceConversation": "वॉइस बातचीत बंद करें",
+    "voiceConversation": "वॉइस बातचीत",
+    "queueMessage": "संदेश कतार में जोड़ें",
+    "queueFollowUp": "कतार में रखें",
+    "stopGenerating": "उत्तर बनाना रोकें",
+    "queue": {
+      "messageQueued": "संदेश कतार में है",
+      "messagesQueued": "संदेश कतार में हैं",
+      "autoDispatch": "वर्तमान उत्तर के बाद अपने-आप भेजा जाएगा",
+      "clearAll": "सब हटाएँ",
+      "fileAttached": "फ़ाइल संलग्न",
+      "filesAttached": "फ़ाइलें संलग्न",
+      "sendNowTitle": "अभी भेजें — वर्तमान उत्तर रुक जाएगा",
+      "sendNow": "अभी भेजें",
+      "edit": "संदेश संपादित करें",
+      "remove": "कतार से हटाएँ",
+      "regionLabel": "कतार में संदेश"
     }
   },
   "mood": {
