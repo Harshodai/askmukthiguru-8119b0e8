@@ -418,7 +418,7 @@ function ChatComposerInner({
                   <PromptInputSubmit
                     type="submit"
                     size="icon-sm"
-                    className="min-h-[44px] sm:h-9 px-3 rounded-xl bg-saffron-gold text-zinc-950 hover:bg-amber-400 font-semibold text-xs shadow-md transition-all flex items-center gap-1.5"
+                    className="min-h-[44px] sm:h-9 px-3 rounded-xl bg-ojas text-zinc-950 hover:bg-ojas-light font-semibold text-xs shadow-md transition-all flex items-center gap-1.5"
                     aria-label={t('chat.queueMessage', 'Queue message')}
                     title={t('chat.queueMessage', 'Queue follow-up message')}
                   >
