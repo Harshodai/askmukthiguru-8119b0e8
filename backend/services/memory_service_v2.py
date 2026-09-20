@@ -1019,16 +1019,16 @@ class MemoryServiceV2(MemoryService):
 
     async def build_personal_knowledge_graph(
         self, user_id: Optional[str], view: str = "personal", limit: int = 50, query: str = ""
-    ) -> dict[str, list[dict]]:
-        """Build a {nodes, edges} knowledge graph for the user.
+    ) -> dict[str, Any]:
+        """Build a personal knowledge graph from real persisted relationships.
 
-        - view=="ontology" or no user_id → public teaching ontology (limit 200).
-        - view=="personal" with user_id → consciousness map: user + memories +
-          concept edges + memory↔memory SHARED_STATE edges (Supermemory-style
-          peer links so isolated memories still connect through shared meaning).
-        Results are cached for 60s per (user_id, view).
+        Personal view includes the authenticated user's memories, study notes,
+        ontology concepts actually linked to those records, and persisted
+        memory-to-memory / ontology edges. Querying focuses the returned
+        subgraph; it does not manufacture relationships or seed placeholder
+        state nodes.
         """
-        normalized_query = re.sub(r"\\s+", " ", (query or "").strip().lower())
+        normalized_query = re.sub(r"\s+", " ", (query or "").strip().lower())
         cache_key = (user_id or "anon", view, int(limit), normalized_query[:200])
         cached = self._KG_CACHE.get(cache_key)
         if cached and cached[1] > time.time():
