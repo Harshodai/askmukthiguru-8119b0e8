@@ -542,6 +542,8 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
     const displayContent = useMemo(() => {
       if (!isGuru || citations.length > 0 || !hasUnverifiedAttribution) return message.content;
       return t('chat.unverifiedTeaching');
+    }, [isGuru, citations.length, groundingState, hasUnverifiedAttribution, message.content, t]);
+
     const [showWisdomCard, setShowWisdomCard] = useState(false);
     const [copied, setCopied] = useState(false);
     const [saved, setSaved] = useState(false);
