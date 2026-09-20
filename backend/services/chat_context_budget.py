@@ -52,8 +52,12 @@ def max_chat_input_tokens() -> int:
         0.90,
         max(0.0, float(getattr(settings, "context_system_prompt_reserve", 0.20))),
     )
-    request_ceiling = max(1, int(getattr(settings, "max_tokens_per_request", total)))
-    return max(256, min(request_ceiling, int(total * (1.0 - system_reserve))))
+    output_reserve = max(
+        1,
+        int(getattr(settings, "llm_max_tokens_deep", 1500)),
+    )
+    available = int(total * (1.0 - system_reserve)) - output_reserve
+    return max(256, available)
 
 
 def assess_conversation_context(
