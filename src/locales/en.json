@@ -439,7 +439,7 @@
     "selectLanguage": "Select Language",
     "searchLanguages": "Search {{count}} languages…",
     "autoTranslateNotice": "Non-English messages are auto-translated before being sent to the Guru.",
-    "noLangMatch": "No language matches \"{{query}}\"",
+    "noLangMatch": "No languages match your search.",
     "localVoiceEnabled": "Local Voice Enabled",
     "voiceNotInBrowser": "Voice not supported in this browser",
     "cloudVoice": "Cloud Voice (Sarvam)",
@@ -532,6 +532,28 @@
       "title": "Conversation context limit reached",
       "description": "This conversation has reached its safe context limit. Start a new chat to continue.",
       "continueNewChat": "Continue in a new chat"
+    },
+    "keyboardHint": "Enter to send · Shift+Enter for a new line",
+    "processingAttachment": "Processing attachment…",
+    "attachMedia": "Attach media or document",
+    "voiceConversationOn": "Voice conversation is on — speak naturally; the Guru will answer aloud.",
+    "turnOffVoiceConversation": "Turn off voice conversation",
+    "voiceConversation": "Voice conversation",
+    "queueMessage": "Queue message",
+    "queueFollowUp": "Queue",
+    "stopGenerating": "Stop generating",
+    "queue": {
+      "messageQueued": "Message queued",
+      "messagesQueued": "Messages queued",
+      "autoDispatch": "Auto-sends after the current response",
+      "clearAll": "Clear all",
+      "fileAttached": "file attached",
+      "filesAttached": "files attached",
+      "sendNowTitle": "Send now — interrupts the current answer",
+      "sendNow": "Send now",
+      "edit": "Edit message",
+      "remove": "Remove from queue",
+      "regionLabel": "Queued messages"
     }
   },
   "notFound": {
