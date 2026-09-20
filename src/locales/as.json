@@ -1278,7 +1278,27 @@
       "bio": "আপোনাৰ পথ আৰু সংকল্প",
       "language": "প্ৰিয় ভাষা",
       "tone": "গুৰুৰ বাৰ্তালাপৰ শৈলী",
-      "unsavedChanges": "সংৰক্ষণ নকৰা পৰিৱৰ্তনসমূহ..."
+      "unsavedChanges": "সংৰক্ষণ নকৰা পৰিৱৰ্তনসমূহ...",
+      "guidanceDepth": "নিৰ্দেশনাৰ গভীৰতা",
+      "seeker": "সন্ধানী",
+      "seekerHint": "সহজ সংস্কৃত ব্যাখ্যা",
+      "practitioner": "অনুশীলনকাৰী",
+      "practitionerHint": "সন্তুলিত ধ্যান নিৰ্দেশনা",
+      "advanced": "উন্নত",
+      "advancedHint": "গভীৰ দাৰ্শনিক শব্দ",
+      "guidancePreview": "আপোনাৰ নিৰ্দেশনাৰ পূৰ্বদৰ্শন",
+      "sourceAware": "উৎস-সচেতন নক্সা: পৰীক্ষিত উদ্ধৃতিসমূহক যথাযথ স্বীকৃতি দিয়া হয়; সমৰ্থনহীন প্ৰশ্নত স্পষ্ট সীমা বা ব্যাখ্যা দিয়া হয়।",
+      "toneDirectPreview": "স্পষ্ট আৰু সংক্ষিপ্ত নিৰ্দেশনাই আপোনাক সোনকালে ব্যৱহাৰিক পৰৱৰ্তী পদক্ষেপলৈ লৈ যায়।",
+      "tonePoeticPreview": "শিক্ষাক স্পষ্ট আৰু উপযোগী ৰাখি চিন্তাশীল আৰু চিত্ৰধৰ্মী ভাষা ব্যৱহাৰ কৰে।",
+      "toneGentlePreview": "আপোনাৰ অভিজ্ঞতাৰ বাবে স্থান ৰখা কোমল আৰু স্থিৰ নিৰ্দেশনাই পৰৱৰ্তী পদক্ষেপ দেখুৱায়।",
+      "advancedPreview": "শিক্ষাৰ সৈতে উপযুক্ত হ’লে গভীৰ দাৰ্শনিক শব্দ ব্যৱহাৰ কৰিব পাৰি।",
+      "practitionerPreview": "শিক্ষাক ব্যৱহাৰিক আত্মচিন্তা বা ধ্যানৰ সংকেতৰ সৈতে সন্তুলিত কৰে।",
+      "seekerPreview": "আধ্যাত্মিক শব্দসমূহ সহজভাৱে ব্যাখ্যা কৰি আগুৱাই নিয়ে।",
+      "upToDate": "আপোনাৰ প্ৰফাইলৰ সকলো বিৱৰণ আপডেট আছে",
+      "completeOnboarding": "ছেটআপ সম্পূৰ্ণ কৰক",
+      "saveChanges": "পৰিৱৰ্তন সংৰক্ষণ কৰক",
+      "saved": "প্ৰফাইল সংৰক্ষিত",
+      "savedDesc": "আপোনাৰ পছন্দসমূহ আপডেট কৰা হৈছে।"
     },
     "activitySummary": {
       "title": "কাৰ্যকলাপৰ সাৰাংশ",
@@ -1288,17 +1308,22 @@
     },
     "insights": {
       "title": "শেহতীয়া অন্তৰ্দৃষ্টি",
-      "subtitle": "আপোনাৰ অভ্যাস, মানসিক অৱস্থা আৰু কথোপকথনৰ পৰা প্ৰাপ্ত আৰ্হি।",
-      "empty": "এতিয়ালৈ কোনো অন্তৰ্দৃষ্টি নাই। আপোনাৰ আধ্যাত্মিক আৰ্হি প্ৰকাশ কৰিবলৈ অভ্যাস অব্যাহত ৰাখক।"
+      "subtitle": "আপোনাৰ অনুশীলন, মনোভাৱ আৰু কথোপকথনৰ পৰা ওলাই অহা ধৰণসমূহ।",
+      "empty": "এতিয়াও কোনো অন্তৰ্দৃষ্টি নাই। আধ্যাত্মিক ধৰণসমূহ প্ৰকাশ পাবলৈ অনুশীলন অব্যাহত ৰাখক।"
     },
     "conversations": {
-      "title": "কথোপকথনসমূহ",
-      "subtitle": "আপোনাৰ চেটৰ ইতিহাস পৰিচালনা আৰু পৰিষ্কাৰ কৰক।",
-      "keepFor": "কথোপকথন ৰাখক",
+      "title": "কথোপকথন",
+      "subtitle": "আপোনাৰ চেট ইতিহাস পৰিচালনা কৰক।",
+      "keepFor": "কথোপকথন কিমান দিন ৰাখিব",
       "empty": "কোনো কথোপকথন নাই।",
       "deleteAll": "সকলো কথোপকথন মচি পেলাওক",
       "confirmDeleteTitle": "সকলো কথোপকথন মচি পেলাবনে?",
-      "confirmDeleteMessage": "নিশ্চিত কৰিবলৈ DELETE টাইপ কৰক। এই কাৰ্য্য পুনৰুদ্ধাৰ কৰিব নোৱাৰি।"
+      "confirmDeleteMessage": "নিশ্চিত কৰিবলৈ DELETE লিখক। এই কাৰ্য উভতাব নোৱাৰি।",
+      "days": "দিন",
+      "oneYear": "১ বছৰ",
+      "saveRetention": "সংৰক্ষণ সময় সংৰক্ষণ কৰক",
+      "retentionSet": "সংৰক্ষণ সময় {{days}} দিনলৈ নিৰ্ধাৰিত হৈছে",
+      "deleted": "সকলো কথোপকথন মচি পেলোৱা হৈছে"
     },
     "appearance": {
       "title": "ৰূপৰেখা",
@@ -1311,13 +1336,18 @@
       "enableVoiceSubtitle": "শিক্ষাসমূহ স্বয়ংক্ৰিয়ভাৱে পঢ়ি শুনাওক",
       "speechRate": "কথা কোৱাৰ গতি",
       "voiceName": "গুৰুৰ কণ্ঠ (Mayura)",
-      "voiceSubtitle": "ভাৰতীয় ভাষাৰ অডিঅ'ৰ বাবে কণ্ঠৰ ব্যক্তিত্ব বাছক।"
+      "voiceSubtitle": "ভাৰতীয় ভাষাৰ অডিঅ'ৰ বাবে কণ্ঠৰ ব্যক্তিত্ব বাছক।",
+      "autoplay": "গুৰুৰ উত্তৰ স্বয়ংক্ৰিয়ভাৱে চলাওক",
+      "autoplaySubtitle": "শিক্ষা আহিলেই শব্দত শুনক"
     },
     "reminders": {
       "title": "স্মাৰকসমূহ",
       "subtitle": "আপোনাৰ আধ্যাত্মিক লক্ষ্যত নিৰন্তৰ হৈ থাকক।",
       "dailySubtitle": "নিজৰ মানসিক স্থিৰতা বিচাৰি পাবলৈ দৈনিক জাননী",
-      "scheduledFor": "নিৰ্ধাৰিত সময়"
+      "scheduledFor": "নিৰ্ধাৰিত সময়",
+      "test": "পৰীক্ষামূলক ৰিমাইণ্ডাৰ পঠিয়াওক",
+      "permissionsRequired": "অনুমতি প্ৰয়োজন",
+      "permissionsDescription": "ৰিমাইণ্ডাৰৰ বাবে ব্ৰাউজাৰ ছেটিংছত জাননী সক্ৰিয় কৰক।"
     },
     "danger": {
       "subtitle": "আপোনাৰ ডাটা এক্সপ'ৰ্ট কৰক, বা একাউণ্ট চিৰদিনৰ বাবে মচি পেলাওক।",
@@ -1334,7 +1364,13 @@
       "cloudMemoriesErased": "Cloud memories erased",
       "cloudMemoriesErasedDesc": "All reflections, second brain notes, and spiritual memories have been permanently deleted.",
       "cloudMemoriesEraseFailed": "Memory erasure failed",
-      "deleteAccountBtn": "Delete Account"
+      "deleteAccountBtn": "Delete Account",
+      "accountTitle": "একাউণ্ট আৰু ডাটা",
+      "accountSubtitle": "ডাটা ৰপ্তানি কৰক, স্থানীয় ইতিহাস পৰিষ্কাৰ কৰক বা একাউণ্ট মচি পেলাওক।",
+      "exportData": "ডাটা ৰপ্তানি",
+      "exportLocalData": "স্থানীয় ডাটা ৰপ্তানি",
+      "exportCloudData": "ক্লাউড ডাটা ৰপ্তানি",
+      "zone": "সতৰ্কতা অঞ্চল"
     },
     "support": {
       "title": "সহায়তাৰ বাবে যোগাযোগ কৰক",
@@ -1344,7 +1380,13 @@
       "category": "শ্ৰেণী",
       "subject": "বিষয়",
       "message": "বাৰ্তা",
-      "attachments": "সংলগ্ন নথি"
+      "attachments": "সংলগ্ন নথি",
+      "description": "প্ৰশ্ন, মতামত বা সমস্যা আছে নেকি? আমি সহায় কৰিবলৈ ইয়াত আছোঁ।",
+      "optional": "ঐচ্ছিক",
+      "namePlaceholder": "আপোনাৰ নাম",
+      "emailPlaceholder": "you@example.com",
+      "subjectPlaceholder": "চমু সাৰাংশ",
+      "messagePlaceholder": "আমি কেনেকৈ সহায় কৰিব পাৰোঁ কওক..."
     },
     "memory": {
       "mapTitle": "চেতনাৰ মানচিত্ৰ",
@@ -1368,14 +1410,14 @@
       "conversations": "কথোপকথন",
       "keepMoving": "আপোনাৰ যাত্ৰা আগবঢ়াই নিন",
       "keepMovingDesc": "ছেটিংছত নোযোৱাকৈ পৰৱৰ্তী সৰু পদক্ষেপটো বাছনি কৰক।",
-      "choosePractice": "এটা অভ্যাস বাছনি কৰক",
+      "choosePractice": "এটা অনুশীলন বাছক",
       "choosePracticeDesc": "নিৰ্দেশিত ধ্যানলৈ উভতি যাওক বা নতুন অভ্যাস বিচাৰক।",
       "seePractice": "আপোনাৰ অভ্যাস চাওক",
       "seePracticeDesc": "বিৱৰণমূলক কাৰ্যকলাপ, ধাৰাবাহিকতা আৰু অভ্যাসৰ ইতিহাস চাওক।",
       "recentConversations": "শেহতীয়া কথোপকথন",
       "pickUp": "য’ত এৰিছিল তাতেই আগবাঢ়ক।",
       "viewAll": "সকলো চাওক",
-      "untitledConversation": "শিৰোনামাবিহীন কথোপকথন",
+      "untitledConversation": "নামবিহীন কথোপকথন",
       "conversationsWillAppear": "আপোনাৰ কথোপকথনসমূহ ইয়াত দেখা যাব।",
       "startFirstConversation": "আপোনাৰ প্ৰথম কথোপকথন আৰম্ভ কৰক",
       "reflections": "শেহতীয়া আত্মচিন্তা",
@@ -1398,7 +1440,27 @@
       "personalizeGuidanceDesc": "আপোনাৰ নাম, শৈলী, ভাষা, পৰিচিতিৰ স্তৰ আৰু পছন্দসমূহ।",
       "wisdomMap": "আপোনাৰ জ্ঞান মানচিত্ৰ",
       "wisdomMapDesc": "আপোনাৰ সংৰক্ষিত আত্মচিন্তা, টোকা আৰু সংযুক্ত শিক্ষাৰ পৰা গঠিত মানচিত্ৰ অন্বেষণ কৰক।",
-      "wisdomOfDay": "আজিৰ জ্ঞান"
+      "wisdomOfDay": "আজিৰ জ্ঞান",
+      "title": "আপোনাৰ যাত্ৰা",
+      "subtitle": "কথোপকথন, অনুশীলন আৰু আত্মচিন্তনত আপোনাৰ কাৰ্যকলাপ।",
+      "messages": "বাৰ্তা",
+      "courseProgress": "কোৰ্চৰ অগ্ৰগতি",
+      "noActiveCourse": "কোনো সক্ৰিয় কোৰ্চ নাই",
+      "distress": "চাপ",
+      "lastActive": "শেষ সক্ৰিয়তা"
+    },
+    "tone": {
+      "gentle": "কোমল",
+      "direct": "সোজা",
+      "poetic": "কাব্যিক",
+      "gentleHint": "কোমল আৰু যত্নশীল উত্তৰ",
+      "directHint": "স্পষ্ট, সংক্ষিপ্ত শিক্ষা",
+      "poeticHint": "লয়ময়, ৰূপকসমৃদ্ধ"
+    },
+    "theme": {
+      "light": "পোহৰ",
+      "dark": "আন্ধাৰ",
+      "system": "ছিষ্টেম"
     }
   },
   "commandPalette": {
