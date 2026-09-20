@@ -274,7 +274,7 @@ export const ThinkingPills = ({
             </span>
           </div>
           <div className="mt-2 space-y-1.5">
-            {teachingPreview.slice(0, 2).map((item) => (
+            {teachingPreview.slice(0, 3).map((item) => (
               <div key={item.url ?? item.title} className="min-w-0">
                 <div className="truncate text-[15px] leading-5 font-medium text-foreground">
                   {item.url ? (
