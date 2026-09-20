@@ -93,7 +93,7 @@ export default function SecondBrainPage() {
       setLoadError(message);
       setLoading(false);
       toast({
-        title: t('brain.unavailable', "Reflections unavailable"),
+        title: t('brain.unavailable'),
         description: message,
         variant: "destructive",
       });
