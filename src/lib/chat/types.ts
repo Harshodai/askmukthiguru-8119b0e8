@@ -30,6 +30,7 @@ export type AIErrorCode =
   | 'timeout'
   | 'network'
   | 'quota_exceeded'
+  | 'context_exhausted'
   | 'unknown';
 
 /** Healing course recommended by the backend (streak-based assignment).
@@ -216,7 +217,7 @@ export type StreamChunk =
       modelProvider?: string | null;
       queryTier?: string | null;
     }
-  | { type: 'error'; text: string };
+  | { type: 'error'; text: string; errorCode?: AIErrorCode };
 
 export interface RecordMetricInput {
   type: string;
