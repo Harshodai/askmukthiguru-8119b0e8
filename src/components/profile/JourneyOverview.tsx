@@ -1,4 +1,4 @@
-import { ArrowRight, Clock, Flame, LockKeyhole, MessageCircle, Pencil, Sparkles, UserRound } from 'lucide-react';
+import { ArrowRight, Brain, Clock, Flame, LockKeyhole, MessageCircle, Pencil, Sparkles, UserRound } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,6 +11,8 @@ interface JourneyOverviewProps {
   displayName: string;
   email: string;
   familiarityLevel: string;
+  languageLabel: string;
+  toneLabel: string;
   avatarDataUrl?: string | null;
   avatarUrl?: string | null;
   stats: MeditationStats;
@@ -45,6 +47,8 @@ export const JourneyOverview = ({
   displayName,
   email,
   familiarityLevel,
+  languageLabel,
+  toneLabel,
   avatarDataUrl,
   avatarUrl,
   stats,
@@ -214,14 +218,18 @@ export const JourneyOverview = ({
       <Card className="rounded-3xl border-hairline bg-card shadow-sm">
         <CardHeader className="pb-3">
           <CardTitle className="text-base font-semibold">How your guidance is personalized</CardTitle>
-          <CardDescription>Regular chats can use your profile and eligible saved memories. Temporary chats do not.</CardDescription>
+          <CardDescription>Regular chats can use these preferences plus eligible saved memories. Temporary chats bypass personal memory.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-2.5">
           <div className="flex items-start gap-3 rounded-2xl border border-hairline bg-background/40 px-4 py-3">
             <Pencil className="mt-0.5 h-4 w-4 shrink-0 text-ojas" />
             <div>
               <p className="text-sm font-medium text-foreground">Profile preferences</p>
-              <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">Your language, guidance tone, and familiarity level shape how the Guru responds.</p>
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                <span className="rounded-full border border-hairline bg-card px-2 py-0.5 text-[11px] text-muted-foreground">{languageLabel}</span>
+                <span className="rounded-full border border-hairline bg-card px-2 py-0.5 text-[11px] text-muted-foreground">{toneLabel} tone</span>
+                <span className="rounded-full border border-hairline bg-card px-2 py-0.5 text-[11px] text-muted-foreground">{familiarityLevel} guidance</span>
+              </div>
             </div>
           </div>
           <div className="flex items-start gap-3 rounded-2xl border border-hairline bg-background/40 px-4 py-3">
@@ -245,7 +253,6 @@ export const JourneyOverview = ({
         <CardHeader className="pb-3">
           <CardTitle className="text-base font-semibold">Your spaces</CardTitle>
           <CardDescription>Everything else stays one layer away, so the journey stays simple.</CardDescription>
-          <CardDescription>Everything else stays one layer away, so the journey stays simple.</CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <button type="button" onClick={() => onNavigate('memory')} className="rounded-2xl border border-hairline p-4 text-left hover:border-ojas/30 hover:bg-ojas/5 transition-colors">
@@ -264,9 +271,9 @@ export const JourneyOverview = ({
             <p className="mt-1 text-xs text-muted-foreground">Your name, tone, language, familiarity, and preferences.</p>
           </button>
           <button type="button" onClick={onKnowledgeGraph} className="rounded-2xl border border-hairline p-4 text-left hover:border-ojas/30 hover:bg-ojas/5 transition-colors">
-            <Sparkles className="w-4 h-4 text-ojas" />
+            <Brain className="w-4 h-4 text-ojas" />
             <p className="mt-3 text-sm font-medium">Your wisdom map</p>
-            <p className="mt-1 text-xs text-muted-foreground">Explore the graph built from your authorized personal context.</p>
+            <p className="mt-1 text-xs text-muted-foreground">Explore the graph built from your saved reflections, notes, and linked teachings.</p>
           </button>
         </CardContent>
       </Card>
