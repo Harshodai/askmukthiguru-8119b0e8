@@ -325,9 +325,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
             t('kg.personalMapUnavailable', 'Your personal wisdom map is unavailable right now. Please try again.'),
           );
         } else {
-          setData(DEMO_DATA);
-          setIsDemo(true);
-          setError(null);
+          setError(t('kg.errorLoading', "Couldn't load graph: {{error}}", { error: 'live data unavailable' }));
         }
       } finally {
         setLoading(false);
@@ -413,37 +411,35 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
           <div className="mb-2 flex items-center gap-2">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-ojas/20 bg-ojas/5 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-ojas">
               <Sparkles className="h-3 w-3" />
-              {isPersonal ? 'Your Wisdom Map' : isDemo ? 'Example Map' : 'Teaching Map'}
+              {isPersonal ? t('kg.title') : isDemo ? t('kg.showingDemo') : t('kg.title')}
             </span>
             {isPersonal && (
               <span className="text-[11px] text-muted-foreground">
-                Built from your saved memories, reflections, notes, and real teaching links.
+                {t('kg.subtitle')}
               </span>
             )}
           </div>
           <h2 className="font-serif text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
-            {isPersonal ? 'See how your inner journey connects.' : 'Explore the teaching network.'}
+            {isPersonal ? t('profile.journey.wisdomMap') : t('kg.title')}
           </h2>
           <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
-            {isPersonal
-              ? 'Start with your recent personal context, then search to focus the map around a memory, practice, state, or teaching.'
-              : 'Search a concept or practice to explore its relationships in the teaching ontology.'}
+            {t('kg.help')}
           </p>
         </div>
 
         {data && (
           <div className="grid grid-cols-3 gap-2 md:grid-cols-4">
-            <Metric value={data.nodes.length} label="nodes" />
-            <Metric value={data.edges.length} label="links" />
+            <Metric value={data.nodes.length} label={t('kg.relatedConcepts')} />
+            <Metric value={data.edges.length} label={t('kg.relationships')} />
             <Metric
               value={data.nodes.filter((node) => node.type.toLowerCase() === 'memory').length}
-              label="memories"
+              label={t('profile.tabs.memory')}
             />
             <Metric
               value={data.nodes.filter((node) =>
                 ['concept', 'practice', 'state', 'teacher'].includes(node.type.toLowerCase()),
               ).length}
-              label="teachings"
+              label={t('chat.teaching')}
               hideOnMobile
             />
           </div>
@@ -452,7 +448,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
 
       <form onSubmit={submit} className="flex flex-col gap-2 sm:flex-row">
         <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="pointer-events-none absolute start-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
@@ -462,7 +458,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
                 : 'Search a concept, teaching, or practice…'
             }
             aria-label="Knowledge graph query"
-            className="w-full rounded-2xl border border-border/50 bg-card/60 py-3.5 pl-11 pr-4 text-sm text-foreground shadow-sm outline-none backdrop-blur focus:border-ojas/50 focus:ring-2 focus:ring-ojas/10"
+            className="w-full rounded-2xl border border-border/50 bg-card/60 py-3.5 ps-11 pe-4 text-sm text-foreground shadow-sm outline-none backdrop-blur focus:border-ojas/50 focus:ring-2 focus:ring-ojas/10"
           />
         </div>
         <button
@@ -496,7 +492,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
 
       {isDemo && data && (
         <div className="flex flex-wrap items-center justify-center gap-3 rounded-2xl border border-ojas/10 bg-ojas/5 px-4 py-3 text-center text-xs text-muted-foreground">
-          <span>Live teaching data is unavailable, so this is a guided example.</span>
+          <span>{t('kg.showingDemo')}</span>
           <button
             type="button"
             onClick={() => void fetchSubgraph(submitted)}
@@ -507,8 +503,8 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
         </div>
       )}
 
-      <div className="grid min-h-[650px] gap-4 xl:grid-cols-[minmax(0,1fr)_310px]">
-        <div className="relative overflow-hidden rounded-[28px] border border-border/50 bg-[#0f0c08] shadow-2xl shadow-black/20">
+      <div className="grid min-h-[520px] gap-4 xl:grid-cols-[minmax(0,1fr)_310px]">
+        <div className="relative overflow-hidden rounded-[28px] border border-border/50 bg-[#0f0c08] shadow-2xl shadow-black/20 min-h-[520px]">
           {loading ? (
             <div className="flex h-[650px] items-center justify-center">
               <div className="flex flex-col items-center gap-3 text-sm text-muted-foreground">
@@ -523,7 +519,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
               <div className="absolute left-4 top-4 z-10 rounded-2xl border border-white/10 bg-black/45 px-3 py-2 backdrop-blur">
                 <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-white/50">Map view</div>
                 <div className="mt-0.5 text-xs text-white/80">
-                  {data.query ? `Focused on “${data.query}”` : 'Your connected context'}
+                  {data.query ? t('kg.noConceptsFor', { query: data.query }) : t('kg.help')}
                 </div>
               </div>
 
@@ -560,7 +556,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
                 />
               </ReactFlow>
 
-              <div className="absolute bottom-4 left-4 right-4 z-10 flex flex-wrap items-center gap-2">
+              <div className="absolute bottom-4 inset-x-4 z-10 flex flex-wrap items-center gap-2">
                 {typeCounts.map(([type, count]) => {
                   const visual = getNodeVisual(type);
                   return (
@@ -569,7 +565,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
                       className="flex items-center gap-1.5 rounded-full border border-white/10 bg-black/45 px-2.5 py-1.5 text-[10px] text-white/70 backdrop-blur"
                     >
                       <span className="h-2 w-2 rounded-full" style={{ background: visual.accent }} />
-                      {type === 'NotebookItem' ? 'Notebook' : type}
+                      {type === 'NotebookItem' ? t('nav.notebooks') : type}
                       <span className="text-white/40">{count}</span>
                     </div>
                   );
@@ -583,7 +579,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
               </div>
               <h3 className="font-serif text-xl font-semibold text-foreground">Your map starts with your data.</h3>
               <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">
-                Save a reflection, memory, or study note and the map will connect those real items to the teachings they reference.
+                {t('kg.searchToVisualise')}
               </p>
             </div>
           )}
@@ -652,29 +648,29 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
                     ))}
                   </div>
                 ) : (
-                  <p className="mt-2 text-sm text-muted-foreground">No relationships are recorded for this node yet.</p>
+                  <p className="mt-2 text-sm text-muted-foreground">{t('kg.noResults')}</p>
                 )}
               </div>
 
               <div className="mt-auto pt-5 text-[10px] leading-5 text-muted-foreground">
-                This panel shows the relationships returned by the personal graph service. The map does not invent links just to make the graph look connected.
+                {t('kg.relationships')}
               </div>
             </div>
           ) : (
             <div className="flex h-full min-h-[300px] flex-col justify-between">
               <div>
-                <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/70">How to use it</div>
+                <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/70">{t('kg.help')}</div>
                 <div className="mt-3 space-y-3 text-sm leading-6 text-foreground/85">
-                  <GuideStep number="01" title="Start with the map" text="Your personal graph is built from real saved context." />
-                  <GuideStep number="02" title="Search to focus" text="Enter a memory, practice, state, or teaching to see a focused neighborhood." />
-                  <GuideStep number="03" title="Inspect a node" text="Select any node to see the actual connections behind it." />
+                  <GuideStep number="01" title={t('kg.title')} text={t('kg.searchToVisualise')} />
+                  <GuideStep number="02" title={t('kg.searchPlaceholderDetailed')} text={t('kg.help')} />
+                  <GuideStep number="03" title={t('kg.conceptDetail')} text={t('kg.relationships')} />
                 </div>
               </div>
 
               <div className="rounded-2xl border border-ojas/15 bg-ojas/5 p-3.5">
-                <div className="text-xs font-semibold text-foreground">Personal by default</div>
+                <div className="text-xs font-semibold text-foreground">{t('profile.journey.personalized')}</div>
                 <p className="mt-1.5 text-[11px] leading-5 text-muted-foreground">
-                  Authenticated users see their own memory and notebook relationships. Private memory text is only shown inside this authenticated graph.
+                  {t('profile.journey.savedContextDesc')}
                 </p>
               </div>
             </div>
