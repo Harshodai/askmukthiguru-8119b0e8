@@ -1278,7 +1278,27 @@
       "bio": "ਤੁਹਾਡਾ ਮਾਰਗ ਅਤੇ ਇਰਾਦਾ",
       "language": "ਪਸੰਦੀਦਾ ਭਾਸ਼ਾ",
       "tone": "ਗੁਰੂ ਜੀ ਦੀ ਸ਼ੈਲੀ",
-      "unsavedChanges": "ਅਣਸੰਭਾਲੀਆਂ ਤਬਦੀਲੀਆਂ..."
+      "unsavedChanges": "ਅਣਸੰਭਾਲੀਆਂ ਤਬਦੀਲੀਆਂ...",
+      "guidanceDepth": "ਮਾਰਗਦਰਸ਼ਨ ਦੀ ਡੂੰਘਾਈ",
+      "seeker": "ਸਾਧਕ",
+      "seekerHint": "ਸਧਾਰਨ ਸੰਸਕ੍ਰਿਤ ਵਿਆਖਿਆਵਾਂ",
+      "practitioner": "ਅਭਿਆਸੀ",
+      "practitionerHint": "ਸੰਤੁਲਿਤ ਧਿਆਨ ਮਾਰਗਦਰਸ਼ਨ",
+      "advanced": "ਉੱਨਤ",
+      "advancedHint": "ਡੂੰਘੇ ਦਰਸ਼ਨੀ ਸ਼ਬਦ",
+      "guidancePreview": "ਤੁਹਾਡੇ ਮਾਰਗਦਰਸ਼ਨ ਦੀ ਝਲਕ",
+      "sourceAware": "ਸਰੋਤ-ਅਧਾਰਿਤ ਡਿਜ਼ਾਈਨ: ਪ੍ਰਮਾਣਿਤ ਉਧਾਰਣਾਂ ਨੂੰ ਸਹੀ ਸ੍ਰੇਯ ਦਿੱਤਾ ਜਾਂਦਾ ਹੈ; ਬਿਨਾਂ ਸਮਰਥਨ ਵਾਲੇ ਸਵਾਲਾਂ ਲਈ ਸਪਸ਼ਟ ਸੀਮਾ ਜਾਂ ਵਿਆਖਿਆ ਦਿੱਤੀ ਜਾਂਦੀ ਹੈ।",
+      "toneDirectPreview": "ਸਪਸ਼ਟ ਅਤੇ ਸੰਖੇਪ ਮਾਰਗਦਰਸ਼ਨ ਜਲਦੀ ਅਗਲੇ ਵਿਹਾਰਕ ਕਦਮ ਤੱਕ ਲੈ ਜਾਂਦਾ ਹੈ।",
+      "tonePoeticPreview": "ਸਿੱਖਿਆ ਨੂੰ ਸਪਸ਼ਟ ਅਤੇ ਲਾਭਦਾਇਕ ਰੱਖਦੇ ਹੋਏ ਚਿੰਤਨਸ਼ੀਲ ਅਤੇ ਚਿੱਤਰਾਤਮਕ ਭਾਸ਼ਾ ਵਰਤਦਾ ਹੈ।",
+      "toneGentlePreview": "ਨਰਮ ਅਤੇ ਸਥਿਰ ਮਾਰਗਦਰਸ਼ਨ ਤੁਹਾਡੇ ਅਨੁਭਵ ਲਈ ਥਾਂ ਬਣਾਉਂਦਾ ਹੋਇਆ ਅਗਲਾ ਕਦਮ ਦਿਖਾਉਂਦਾ ਹੈ।",
+      "advancedPreview": "ਜਿੱਥੇ ਸਿੱਖਿਆ ਅਨੁਕੂਲ ਹੋਵੇ, ਡੂੰਘੇ ਦਰਸ਼ਨੀ ਸ਼ਬਦ ਵਰਤੇ ਜਾ ਸਕਦੇ ਹਨ।",
+      "practitionerPreview": "ਸਿੱਖਿਆ ਨੂੰ ਵਿਹਾਰਕ ਚਿੰਤਨ ਜਾਂ ਧਿਆਨ ਸੰਕੇਤ ਨਾਲ ਸੰਤੁਲਿਤ ਕਰਦਾ ਹੈ।",
+      "seekerPreview": "ਆਧਿਆਤਮਿਕ ਸ਼ਬਦ ਸੌਖੇ ਤਰੀਕੇ ਨਾਲ ਸਮਝਾ ਕੇ ਅੱਗੇ ਲੈ ਜਾਂਦਾ ਹੈ।",
+      "upToDate": "ਤੁਹਾਡੇ ਪ੍ਰੋਫਾਈਲ ਦੇ ਸਾਰੇ ਵੇਰਵੇ ਅੱਪਡੇਟ ਹਨ",
+      "completeOnboarding": "ਸੈਟਅਪ ਪੂਰਾ ਕਰੋ",
+      "saveChanges": "ਤਬਦੀਲੀਆਂ ਸੁਰੱਖਿਅਤ ਕਰੋ",
+      "saved": "ਪ੍ਰੋਫਾਈਲ ਸੁਰੱਖਿਅਤ",
+      "savedDesc": "ਤੁਹਾਡੀਆਂ ਪਸੰਦਾਂ ਅੱਪਡੇਟ ਹੋ ਗਈਆਂ ਹਨ।"
     },
     "activitySummary": {
       "title": "ਗਤੀਵਿਧੀ ਦਾ ਸਾਰ",
@@ -1287,18 +1307,23 @@
       "meditations": "ਧਿਆਨ ਅਭਿਆਸ"
     },
     "insights": {
-      "title": "ਹਾਲੀਆ ਅੰਤਰਦ੍ਰਿਸ਼ਟੀਆਂ",
-      "subtitle": "ਤੁਹਾਡੇ ਅਭਿਆਸ, ਮੂਡ ਅਤੇ ਗੱਲਬਾਤਾਂ ਤੋਂ ਬਣੇ ਪੈਟਰਨ।",
-      "empty": "ਅਜੇ ਕੋਈ ਅੰਤਰਦ੍ਰਿਸ਼ਟੀ ਨਹੀਂ ਹੈ। ਆਪਣੇ ਅਧਿਆਤਮਿਕ ਪੈਟਰਨਾਂ ਨੂੰ ਪ੍ਰਗਟ ਕਰਨ ਲਈ ਆਪਣੇ ਅਭਿਆਸ ਜਾਰੀ ਰੱਖੋ।"
+      "title": "ਹਾਲੀਆ ਅੰਦਰੂਨੀ ਝਲਕਾਂ",
+      "subtitle": "ਤੁਹਾਡੇ ਅਭਿਆਸ, ਮਨੋਭਾਵ ਅਤੇ ਗੱਲਬਾਤਾਂ ਤੋਂ ਉਭਰਦੇ ਨਮੂਨੇ।",
+      "empty": "ਹਾਲੇ ਕੋਈ ਝਲਕ ਨਹੀਂ। ਆਪਣੇ ਆਧਿਆਤਮਿਕ ਨਮੂਨੇ ਉਭਰਨ ਲਈ ਅਭਿਆਸ ਜਾਰੀ ਰੱਖੋ।"
     },
     "conversations": {
       "title": "ਗੱਲਬਾਤਾਂ",
-      "subtitle": "ਆਪਣੇ ਗੱਲਬਾਤ ਇਤਿਹਾਸ ਦਾ ਪ੍ਰਬੰਧਨ ਕਰੋ।",
-      "keepFor": "ਗੱਲਬਾਤਾਂ ਨੂੰ ਇਸ ਸਮੇਂ ਲਈ ਰੱਖੋ",
+      "subtitle": "ਆਪਣਾ ਚੈਟ ਇਤਿਹਾਸ ਸੰਭਾਲੋ।",
+      "keepFor": "ਗੱਲਬਾਤਾਂ ਕਿੰਨੇ ਸਮੇਂ ਰੱਖਣੀਆਂ",
       "empty": "ਕੋਈ ਗੱਲਬਾਤ ਨਹੀਂ।",
       "deleteAll": "ਸਾਰੀਆਂ ਗੱਲਬਾਤਾਂ ਮਿਟਾਓ",
-      "confirmDeleteTitle": "ਕੀ ਸਾਰੀਆਂ ਗੱਲਬਾਤਾਂ ਮਿਟਾਉਣੀਆਂ ਹਨ?",
-      "confirmDeleteMessage": "ਪੁਸ਼ਟੀ ਕਰਨ ਲਈ DELETE ਟਾਈਪ ਕਰੋ। ਇਹ ਕਾਰਵਾਈ ਵਾਪਸ ਨਹੀਂ ਲਈ ਜਾ ਸਕਦੀ।"
+      "confirmDeleteTitle": "ਸਾਰੀਆਂ ਗੱਲਬਾਤਾਂ ਮਿਟਾਉਣੀਆਂ ਹਨ?",
+      "confirmDeleteMessage": "ਪੁਸ਼ਟੀ ਲਈ DELETE ਲਿਖੋ। ਇਹ ਕਾਰਵਾਈ ਵਾਪਸ ਨਹੀਂ ਹੋ ਸਕਦੀ।",
+      "days": "ਦਿਨ",
+      "oneYear": "1 ਸਾਲ",
+      "saveRetention": "ਰੱਖਣ ਦੀ ਮਿਆਦ ਸੁਰੱਖਿਅਤ ਕਰੋ",
+      "retentionSet": "ਰੱਖਣ ਦੀ ਮਿਆਦ {{days}} ਦਿਨ ਲਈ ਸੈਟ ਹੈ",
+      "deleted": "ਸਾਰੀਆਂ ਗੱਲਬਾਤਾਂ ਮਿਟਾ ਦਿੱਤੀਆਂ"
     },
     "appearance": {
       "title": "ਦਿੱਖ",
@@ -1311,13 +1336,18 @@
       "enableVoiceSubtitle": "ਸਿੱਖਿਆਵਾਂ ਨੂੰ ਸਵੈਚਲਿਤ ਤੌਰ 'ਤੇ ਉੱਚੀ ਆਵਾਜ਼ ਵਿੱਚ ਪੜ੍ਹੋ",
       "speechRate": "ਬੋਲਣ ਦੀ ਗਤੀ",
       "voiceName": "ਗੁਰੂ ਆਵਾਜ਼ (ਮਯੂਰਾ)",
-      "voiceSubtitle": "ਭਾਰਤੀ ਭਾਸ਼ਾ ਆਡੀਓ ਲਈ ਆਵਾਜ਼ ਦੀ ਸ਼ਖਸੀਅਤ ਚੁਣੋ।"
+      "voiceSubtitle": "ਭਾਰਤੀ ਭਾਸ਼ਾ ਆਡੀਓ ਲਈ ਆਵਾਜ਼ ਦੀ ਸ਼ਖਸੀਅਤ ਚੁਣੋ।",
+      "autoplay": "ਗੁਰੂ ਦੇ ਜਵਾਬ ਆਪ ਚਲਾਓ",
+      "autoplaySubtitle": "ਸਿੱਖਿਆ ਆਉਂਦੇ ਹੀ ਆਵਾਜ਼ ਵਿੱਚ ਸੁਣੋ"
     },
     "reminders": {
       "title": "ਰੀਮਾਈਂਡਰ",
       "subtitle": "ਆਪਣੇ ਅਧਿਆਤਮਿਕ ਟੀਚਿਆਂ ਨਾਲ ਇਕਸਾਰ ਰਹੋ।",
       "dailySubtitle": "ਆਪਣੇ ਕੇਂਦਰ ਨੂੰ ਲੱਭਣ ਲਈ ਰੋਜ਼ਾਨਾ ਸੂਚਨਾ",
-      "scheduledFor": "ਇਸ ਸਮੇਂ ਲਈ ਨਿਰਧਾਰਿਤ"
+      "scheduledFor": "ਇਸ ਸਮੇਂ ਲਈ ਨਿਰਧਾਰਿਤ",
+      "test": "ਟੈਸਟ ਰਿਮਾਈਂਡਰ ਭੇਜੋ",
+      "permissionsRequired": "ਇਜਾਜ਼ਤ ਲੋੜੀਂਦੀ ਹੈ",
+      "permissionsDescription": "ਰਿਮਾਈਂਡਰ ਲਈ ਬ੍ਰਾਊਜ਼ਰ ਸੈਟਿੰਗਾਂ ਵਿੱਚ ਸੂਚਨਾਵਾਂ ਚਾਲੂ ਕਰੋ।"
     },
     "danger": {
       "subtitle": "ਆਪਣਾ ਡਾਟਾ ਐਕਸਪੋਰਟ ਕਰੋ, ਜਾਂ ਆਪਣਾ ਖਾਤਾ ਪੱਕੇ ਤੌਰ 'ਤੇ ਮਿਟਾਓ।",
@@ -1334,7 +1364,13 @@
       "cloudMemoriesErased": "Cloud memories erased",
       "cloudMemoriesErasedDesc": "All reflections, second brain notes, and spiritual memories have been permanently deleted.",
       "cloudMemoriesEraseFailed": "Memory erasure failed",
-      "deleteAccountBtn": "Delete Account"
+      "deleteAccountBtn": "Delete Account",
+      "accountTitle": "ਖਾਤਾ ਅਤੇ ਡਾਟਾ",
+      "accountSubtitle": "ਡਾਟਾ ਨਿਰਯਾਤ ਕਰੋ, ਸਥਾਨਕ ਇਤਿਹਾਸ ਸਾਫ਼ ਕਰੋ ਜਾਂ ਖਾਤਾ ਮਿਟਾਓ।",
+      "exportData": "ਡਾਟਾ ਨਿਰਯਾਤ",
+      "exportLocalData": "ਸਥਾਨਕ ਡਾਟਾ ਨਿਰਯਾਤ",
+      "exportCloudData": "ਕਲਾਊਡ ਡਾਟਾ ਨਿਰਯਾਤ",
+      "zone": "ਸਾਵਧਾਨੀ ਖੇਤਰ"
     },
     "support": {
       "title": "ਸਹਾਇਤਾ ਟੀਮ ਨਾਲ ਸੰਪਰਕ ਕਰੋ",
@@ -1344,7 +1380,13 @@
       "category": "ਸ਼੍ਰੇਣੀ",
       "subject": "ਵਿਸ਼ਾ",
       "message": "ਸੁਨੇਹਾ",
-      "attachments": "ਨੱਥੀ ਫਾਈਲਾਂ"
+      "attachments": "ਨੱਥੀ ਫਾਈਲਾਂ",
+      "description": "ਕੋਈ ਸਵਾਲ, ਫੀਡਬੈਕ ਜਾਂ ਸਮੱਸਿਆ ਹੈ? ਅਸੀਂ ਮਦਦ ਲਈ ਇੱਥੇ ਹਾਂ।",
+      "optional": "ਵਿਕਲਪਿਕ",
+      "namePlaceholder": "ਤੁਹਾਡਾ ਨਾਮ",
+      "emailPlaceholder": "you@example.com",
+      "subjectPlaceholder": "ਛੋਟਾ ਸਾਰ",
+      "messagePlaceholder": "ਦੱਸੋ ਅਸੀਂ ਕਿਵੇਂ ਮਦਦ ਕਰ ਸਕਦੇ ਹਾਂ..."
     },
     "memory": {
       "mapTitle": "ਚੇਤਨਾ ਦਾ ਨਕਸ਼ਾ",
@@ -1368,14 +1410,14 @@
       "conversations": "ਗੱਲਬਾਤਾਂ",
       "keepMoving": "ਆਪਣਾ ਸਫ਼ਰ ਜਾਰੀ ਰੱਖੋ",
       "keepMovingDesc": "ਸੈਟਿੰਗਾਂ ਵਿੱਚ ਜਾਣ ਦੀ ਬਜਾਏ ਅਗਲਾ ਛੋਟਾ ਕਦਮ ਚੁਣੋ।",
-      "choosePractice": "ਇੱਕ ਅਭਿਆਸ ਚੁਣੋ",
+      "choosePractice": "ਅਭਿਆਸ ਚੁਣੋ",
       "choosePracticeDesc": "ਮਾਰਗਦਰਸ਼ਿਤ ਧਿਆਨ ਵੱਲ ਵਾਪਸ ਜਾਓ ਜਾਂ ਨਵਾਂ ਅਭਿਆਸ ਲੱਭੋ।",
       "seePractice": "ਆਪਣਾ ਅਭਿਆਸ ਵੇਖੋ",
       "seePracticeDesc": "ਵਿਸਥਾਰਿਤ ਗਤੀਵਿਧੀ, ਲੜੀ ਅਤੇ ਅਭਿਆਸ ਇਤਿਹਾਸ ਵੇਖੋ।",
       "recentConversations": "ਹਾਲੀਆ ਗੱਲਬਾਤਾਂ",
       "pickUp": "ਜਿੱਥੇ ਛੱਡਿਆ ਸੀ ਉੱਥੋਂ ਜਾਰੀ ਰੱਖੋ।",
       "viewAll": "ਸਭ ਵੇਖੋ",
-      "untitledConversation": "ਬਿਨਾਂ ਸਿਰਲੇਖ ਵਾਲੀ ਗੱਲਬਾਤ",
+      "untitledConversation": "ਬਿਨਾਂ ਨਾਮ ਦੀ ਗੱਲਬਾਤ",
       "conversationsWillAppear": "ਤੁਹਾਡੀਆਂ ਗੱਲਬਾਤਾਂ ਇੱਥੇ ਦਿਖਾਈ ਦੇਣਗੀਆਂ।",
       "startFirstConversation": "ਆਪਣੀ ਪਹਿਲੀ ਗੱਲਬਾਤ ਸ਼ੁਰੂ ਕਰੋ",
       "reflections": "ਹਾਲੀਆ ਆਤਮ-ਚਿੰਤਨ",
@@ -1398,7 +1440,27 @@
       "personalizeGuidanceDesc": "ਤੁਹਾਡਾ ਨਾਮ, ਅੰਦਾਜ਼, ਭਾਸ਼ਾ, ਜਾਣ-ਪਛਾਣ ਦਾ ਪੱਧਰ ਅਤੇ ਤਰਜੀਹਾਂ।",
       "wisdomMap": "ਤੁਹਾਡਾ ਗਿਆਨ ਨਕਸ਼ਾ",
       "wisdomMapDesc": "ਆਪਣੀਆਂ ਸੁਰੱਖਿਅਤ ਆਤਮ-ਚਿੰਤਨਾਂ, ਨੋਟਸ ਅਤੇ ਜੁੜੀਆਂ ਸਿੱਖਿਆਵਾਂ ਤੋਂ ਬਣੇ ਨਕਸ਼ੇ ਨੂੰ ਵੇਖੋ।",
-      "wisdomOfDay": "ਅੱਜ ਦੀ ਸਿਆਣਪ"
+      "wisdomOfDay": "ਅੱਜ ਦੀ ਸਿਆਣਪ",
+      "title": "ਤੁਹਾਡੀ ਯਾਤਰਾ",
+      "subtitle": "ਗੱਲਬਾਤ, ਅਭਿਆਸ ਅਤੇ ਚਿੰਤਨ ਵਿੱਚ ਤੁਹਾਡੀ ਸਰਗਰਮੀ।",
+      "messages": "ਸੁਨੇਹੇ",
+      "courseProgress": "ਕੋਰਸ ਦੀ ਤਰੱਕੀ",
+      "noActiveCourse": "ਕੋਈ ਸਰਗਰਮ ਕੋਰਸ ਨਹੀਂ",
+      "distress": "ਤਣਾਅ",
+      "lastActive": "ਆਖਰੀ ਸਰਗਰਮੀ"
+    },
+    "tone": {
+      "gentle": "ਨਰਮ",
+      "direct": "ਸਿੱਧਾ",
+      "poetic": "ਕਾਵਿਆਤਮਕ",
+      "gentleHint": "ਨਰਮ ਅਤੇ ਸੰਭਾਲ ਵਾਲੇ ਜਵਾਬ",
+      "directHint": "ਸਪਸ਼ਟ ਅਤੇ ਸੰਖੇਪ ਸਿੱਖਿਆ",
+      "poeticHint": "ਲੈਅਤਮਕ, ਰੂਪਕਾਂ ਨਾਲ ਭਰਪੂਰ"
+    },
+    "theme": {
+      "light": "ਚਾਨਣ",
+      "dark": "ਹਨੇਰਾ",
+      "system": "ਸਿਸਟਮ"
     }
   },
   "commandPalette": {
