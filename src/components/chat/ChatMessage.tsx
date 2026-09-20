@@ -358,7 +358,7 @@ const LazyYouTube = ({ videoId, url }: { videoId: string; url: string }) => {
             width="100%"
             height="100%"
             src={`https://www.youtube.com/embed/${videoId}?autoplay=1&enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}`}
-            title="YouTube video player"
+            title={t('chat.youTubePlayer')}
             frameBorder="0"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
@@ -416,7 +416,7 @@ const LazyYouTube = ({ videoId, url }: { videoId: string; url: string }) => {
       className="rounded-xl overflow-hidden shadow-md border border-border/30 bg-black/5 aspect-video w-full max-w-[320px] relative cursor-pointer group"
       onClick={() => setLoaded(true)}
       role="button"
-      aria-label="Play YouTube video"
+      aria-label={t('chat.youTubePlayer')}
     >
       <img
         src={thumbnail}
@@ -1302,7 +1302,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                     type="button"
                     onClick={(e) => { e.preventDefault(); setSourcesOpen(true); }}
                     className="text-[10px] text-muted-foreground/80 ml-auto bg-muted/40 hover:bg-ojas/15 hover:text-ojas px-2.5 py-0.5 rounded-full transition-colors font-medium shrink-0"
-                    aria-label="View all sources in panel"
+                    aria-label={t('chat.viewSources')}
                   >
                     Open →
                   </button>
