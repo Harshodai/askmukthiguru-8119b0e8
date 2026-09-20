@@ -419,8 +419,8 @@ async def kg_personal_subgraph(
         import asyncio
 
         result = await asyncio.wait_for(
-            asyncio.to_thread(
-                lambda: memory_svc.build_personal_knowledge_graph(uid, view="personal", limit=limit, query=query.strip())
+            memory_svc.build_personal_knowledge_graph(
+                uid, view="personal", limit=limit, query=query.strip()
             ),
             timeout=15.0,
         )
