@@ -653,7 +653,10 @@
     "sereneMindOfferFooter": "پہلے تعلیم؛ صرف تب شروع کریں جب یہ آپ کو درست محسوس ہو۔",
     "videoUnavailable": "ویڈیو دستیاب نہیں",
     "videoEmbedUnavailable": "یہ ویڈیو ایمبیڈ نہیں کی جا سکتی",
-    "youTubeThumbnail": "YouTube تھمب نیل"
+    "youTubeThumbnail": "YouTube تھمب نیل",
+    "videoSource": "ویڈیو ماخذ {{letter}}",
+    "academyReference": "O&O اکیڈمی کا حوالہ",
+    "sourceLabel": "ماخذ {{number}}"
   },
   "notFound": {
     "message": "اوہو! صفحہ نہیں ملا",
