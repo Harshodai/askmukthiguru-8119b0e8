@@ -527,7 +527,12 @@
     "translationUnavailable": "ترجمہ دستیاب نہیں ہے",
     "saveAsNote": "بطور نوٹ محفوظ کریں",
     "showOriginal": "اصل دیکھیں",
-    "translateTo": "{{lang}} میں ترجمہ کریں"
+    "translateTo": "{{lang}} میں ترجمہ کریں",
+    "contextLimit": {
+      "title": "گفتگو کی سیاقی حد پوری ہو گئی ہے",
+      "description": "یہ گفتگو اپنی محفوظ سیاقی حد تک پہنچ گئی ہے۔ جاری رکھنے کے لیے نئی چیٹ شروع کریں۔",
+      "continueNewChat": "نئی چیٹ میں جاری رکھیں"
+    }
   },
   "notFound": {
     "message": "اوہو! صفحہ نہیں ملا",
