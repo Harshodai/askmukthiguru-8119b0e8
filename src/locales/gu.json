@@ -357,7 +357,7 @@
     },
     "closeFeedbackPanel": "પ્રતિસાદ પેનલ બંધ કરો",
     "feedbackCommentPlaceholder": "તમારો પ્રતિસાદ શેર કરો...",
-    "teachingReference": "ઉપદેશ સંદર્ભ",
+    "teachingReference": "શિક્ષણ સંદર્ભ",
     "teaching": "ઉપદેશ",
     "clearAnswer": "જવાબ સાફ કરો",
     "relevantSources": "પ્રાસંગિક સ્રોતો",
@@ -653,7 +653,10 @@
     "sereneMindOfferFooter": "પહેલા શિક્ષણ; યોગ્ય લાગે ત્યારે જ શરૂ કરો.",
     "videoUnavailable": "વિડિયો ઉપલબ્ધ નથી",
     "videoEmbedUnavailable": "આ વિડિયો એમ્બેડ કરી શકાતો નથી",
-    "youTubeThumbnail": "YouTube થંબનેલ"
+    "youTubeThumbnail": "YouTube થંબનેલ",
+    "videoSource": "વિડિયો સ્રોત {{letter}}",
+    "academyReference": "O&O અકાદમી સંદર્ભ",
+    "sourceLabel": "સ્રોત {{number}}"
   },
   "notFound": {
     "message": "અરેરે! પૃષ્ઠ મળ્યું નથી",
