@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { getInitials } from '@/lib/profileStorage';
 import type { MeditationStats } from '@/lib/meditationStorage';
 import type { Conversation } from '@/lib/chatStorage';
-import type { PersonalInsight } from '@/lib/personal{t('profile.journey.insights', 'Insights')}';
+import type { PersonalInsight } from '@/lib/personalInsights';
 
 interface JourneyOverviewProps {
   displayName: string;
@@ -18,7 +18,7 @@ interface JourneyOverviewProps {
   avatarUrl?: string | null;
   stats: MeditationStats;
   conversations: Conversation[];
-  personal{t('profile.journey.insights', 'Insights')}: PersonalInsight[];
+  personalInsights: PersonalInsight[];
   metrics?: {
     totalConversations?: number;
     totalMessages?: number;
@@ -43,14 +43,15 @@ const Metric = ({ label, value, icon: Icon }: { label: string; value: string | n
     "Conversations": "conversations",
   };
   return (
-  <div className="rounded-2xl border border-hairline bg-background/50 px-4 py-3.5">
-    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-      <Icon className="w-3.5 h-3.5 text-ojas" aria-hidden="true" />
-      <span>{label}</span>
+    <div className="rounded-2xl border border-hairline bg-background/50 px-4 py-3.5">
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <Icon className="w-3.5 h-3.5 text-ojas" aria-hidden="true" />
+        <span>{t(`profile.journey.${keyMap[label] ?? label}`, { defaultValue: label })}</span>
+      </div>
+      <p className="mt-1.5 text-xl font-semibold tabular-nums text-foreground">{value}</p>
     </div>
-    <p className="mt-1.5 text-xl font-semibold tabular-nums text-foreground">{value}</p>
-  </div>
-);
+  );
+};
 
 export const JourneyOverview = ({
   displayName,
@@ -62,7 +63,7 @@ export const JourneyOverview = ({
   avatarUrl,
   stats,
   conversations,
-  personal{t('profile.journey.insights', 'Insights')},
+  personalInsights,
   metrics,
   dailyWisdom,
   onNavigate,
@@ -72,7 +73,7 @@ export const JourneyOverview = ({
 }: JourneyOverviewProps) => {
   const { t } = useTranslation();
   const recentConversations = conversations.slice(0, 3);
-  const insights = personal{t('profile.journey.insights', 'Insights')}.slice(0, 2);
+  const insights = personalInsights.slice(0, 2);
 
   return (
     <div className="space-y-5">
@@ -90,7 +91,7 @@ export const JourneyOverview = ({
             <div className="min-w-0">
               <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">{familiarityLevel}</p>
               <h1 className="mt-1 text-2xl sm:text-3xl font-semibold tracking-tight text-foreground truncate">
-                {displayName || t('common.seeker', 'Seeker')}
+                {displayName || t('profile.journey.seeker', 'Seeker')}
               </h1>
               <p className="mt-1 text-sm text-muted-foreground truncate">{email}</p>
             </div>
@@ -228,7 +229,7 @@ export const JourneyOverview = ({
       <Card className="rounded-3xl border-hairline bg-card shadow-sm">
         <CardHeader className="pb-3">
           <CardTitle className="text-base font-semibold">{t('profile.journey.personalized', 'How your guidance is personalized')}</CardTitle>
-          <CardDescription>{t('profile.journey.personalizedDesc', 'Regular chats can use these preferences plus eligible saved memories. {t('profile.journey.temporaryChat', 'Temporary chat')}s bypass personal memory.')}</CardDescription>
+          <CardDescription>{t('profile.journey.personalizedDesc', 'Regular chats can use these preferences plus eligible saved memories. Temporary chats bypass personal memory.')}</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-2.5">
           <div className="flex items-start gap-3 rounded-2xl border border-hairline bg-background/40 px-4 py-3">
