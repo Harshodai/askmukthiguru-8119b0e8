@@ -994,6 +994,26 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                 )}
               </div>
 
+              {isGuru && message.personalizationProvenance?.used && !isStreaming && !message.error && !isCrisisAnswer(message.content) && (
+                <details className="mt-2 rounded-xl border border-ojas/15 bg-ojas/[0.035] px-3 py-2 text-[11px] text-muted-foreground max-w-xl">
+                  <summary className="cursor-pointer select-none text-ojas/80 font-medium">
+                    ✨ Personalized for this conversation
+                  </summary>
+                  <div className="mt-2 space-y-1.5 leading-relaxed">
+                    {message.personalizationProvenance.profile_preferences && (
+                      <p>• Your profile preferences shaped the response format or tone.</p>
+                    )}
+                    {message.personalizationProvenance.personal_memory && (
+                      <p>• Eligible personal memory/context was available to ground the response.</p>
+                    )}
+                    {(message.personalizationProvenance.private_graph_links ?? 0) > 0 && (
+                      <p>• Your personal wisdom graph matched {message.personalizationProvenance.private_graph_links} concept link{message.personalizationProvenance.private_graph_links === 1 ? '' : 's'} for this question.</p>
+                    )}
+                    <p className="text-muted-foreground/70">Private memory text is not shown here.</p>
+                  </div>
+                </details>
+              )}
+
               {/* Inline action buttons for the latest guru message only.
                   Suppressed on crisis/helpline answers (see isCrisisAnswer). */}
               {isGuru && isLastGuru && message.content && !isStreaming && onAction && !message.error && !message.content.includes('_Stopped by you._') && !isCrisisAnswer(message.content) && (
