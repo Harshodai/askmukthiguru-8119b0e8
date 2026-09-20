@@ -1278,7 +1278,27 @@
       "bio": "તમારો માર્ગ અને સંકલ્પ",
       "language": "પસંદગીની ભાષા",
       "tone": "ગુરુની શૈલી",
-      "unsavedChanges": "અસાચવેલા ફેરફારો..."
+      "unsavedChanges": "અસાચવેલા ફેરફારો...",
+      "guidanceDepth": "માર્ગદર્શનની ઊંડાઈ",
+      "seeker": "સાધક",
+      "seekerHint": "સરળ સંસ્કૃત સમજણ",
+      "practitioner": "અભ્યાસી",
+      "practitionerHint": "સંતુલિત ધ્યાન માર્ગદર્શન",
+      "advanced": "ઉન્નત",
+      "advancedHint": "ઊંડા તત્ત્વજ્ઞાનિક શબ્દો",
+      "guidancePreview": "તમારા માર્ગદર્શનનું પૂર્વાવલોકન",
+      "sourceAware": "સ્રોત-જાગૃત રચના: ચકાસેલા ઉદ્ધરણોને યોગ્ય શ્રેય મળે છે; આધાર વિનાના પ્રશ્નોને સ્પષ્ટ મર્યાદા અથવા સમજ આપવામાં આવે છે.",
+      "toneDirectPreview": "સ્પષ્ટ, સંક્ષિપ્ત માર્ગદર્શન તમને ઝડપથી વ્યવહારુ આગળના પગલા સુધી પહોંચાડે છે.",
+      "tonePoeticPreview": "શિક્ષણને સ્પષ્ટ અને ઉપયોગી રાખીને ચિંતનશીલ, ચિત્રાત્મક ભાષાનો ઉપયોગ કરે છે.",
+      "toneGentlePreview": "તમારા અનુભવને જગ્યા આપતું નરમ, સ્થિર માર્ગદર્શન આગળનું પગલું બતાવે છે.",
+      "advancedPreview": "શિક્ષણ અનુરૂપ હોય ત્યારે ઊંડા તત્ત્વજ્ઞાનિક શબ્દોનો ઉપયોગ થઈ શકે છે.",
+      "practitionerPreview": "શિક્ષણને વ્યવહારુ ચિંતન અથવા ધ્યાન સૂચન સાથે સંતુલિત કરે છે.",
+      "seekerPreview": "આધ્યાત્મિક શબ્દોને સરળ રીતે સમજાવે છે અને આગળ વધારે છે.",
+      "upToDate": "તમારી પ્રોફાઇલની બધી વિગતો અપડેટ છે",
+      "completeOnboarding": "સેટઅપ પૂર્ણ કરો",
+      "saveChanges": "ફેરફારો સાચવો",
+      "saved": "પ્રોફાઇલ સાચવાઈ",
+      "savedDesc": "તમારી પસંદગીઓ અપડેટ થઈ છે."
     },
     "activitySummary": {
       "title": "પ્રવૃત્તિ સારાંશ",
@@ -1287,18 +1307,23 @@
       "meditations": "ધ્યાન સાધનાઓ"
     },
     "insights": {
-      "title": "તાજેતરની આંતરદ્રષ્ટિ",
-      "subtitle": "તમારી સાધના, મનોસ્થિતિ અને સંવાદોમાંથી ગૂંથાયેલા પેટર્ન.",
-      "empty": "હજુ સુધી કોઈ આંતરદ્રષ્ટિ નથી. તમારી આધ્યાત્મિક પેટર્ન પ્રગટ કરવા માટે સાધના ચાલુ રાખો."
+      "title": "તાજેતરની અંતર્દૃષ્ટિઓ",
+      "subtitle": "તમારા અભ્યાસ, મનોભાવ અને વાતચીતમાંથી દેખાતા નમૂનાઓ.",
+      "empty": "હજુ કોઈ અંતર્દૃષ્ટિ નથી. તમારા આધ્યાત્મિક નમૂનાઓ ખુલવા માટે અભ્યાસ ચાલુ રાખો."
     },
     "conversations": {
-      "title": "વાતચીતો",
-      "subtitle": "તમારા ચેટ ઇતિહાસનું સંચાલન અને સફાઈ કરો.",
-      "keepFor": "વાતચીતો સાચવી રાખો",
+      "title": "વાતચીત",
+      "subtitle": "તમારો ચેટ ઇતિહાસ સંચાલિત કરો.",
+      "keepFor": "વાતચીત કેટલો સમય રાખવી",
       "empty": "કોઈ વાતચીત નથી.",
-      "deleteAll": "બધી વાતચીતો કાઢી નાખો",
-      "confirmDeleteTitle": "બધી વાતચીતો કાઢી નાખવી છે?",
-      "confirmDeleteMessage": "પુષ્ટિ કરવા માટે DELETE લખો. આ ક્રિયા પૂર્વવત્ કરી શકાતી નથી."
+      "deleteAll": "બધી વાતચીત કાઢી નાખો",
+      "confirmDeleteTitle": "બધી વાતચીત કાઢી નાખવી?",
+      "confirmDeleteMessage": "પુષ્ટિ માટે DELETE લખો. આ ક્રિયા પાછી લઈ શકાશે નહીં.",
+      "days": "દિવસ",
+      "oneYear": "1 વર્ષ",
+      "saveRetention": "રિટેન્શન સાચવો",
+      "retentionSet": "રિટેન્શન {{days}} દિવસ માટે સેટ કર્યું",
+      "deleted": "બધી વાતચીત કાઢી નાખવામાં આવી"
     },
     "appearance": {
       "title": "દેખાવ (Appearance)",
@@ -1311,13 +1336,18 @@
       "enableVoiceSubtitle": "શિક્ષણો અને ઉપદેશો આપમેળે મોટેથી સાંભળો",
       "speechRate": "બોલવાની ગતિ",
       "voiceName": "ગુરુ વાણી (મયૂરા - Mayura)",
-      "voiceSubtitle": "ભારતીય ભાષાના ઓડિયો માટે અવાજનું વ્યક્તિત્વ પસંદ કરો."
+      "voiceSubtitle": "ભારતીય ભાષાના ઓડિયો માટે અવાજનું વ્યક્તિત્વ પસંદ કરો.",
+      "autoplay": "ગુરુના જવાબો આપમેળે ચલાવો",
+      "autoplaySubtitle": "શિક્ષણ આવે ત્યારે તેને અવાજમાં સાંભળો"
     },
     "reminders": {
       "title": "રીમાઇન્ડર્સ (સ્મૃતિપત્રો)",
       "subtitle": "તમારા આધ્યાત્મિક લક્ષ્યો સાથે સુસંગત રહો.",
       "dailySubtitle": "તમારા આંતરિક કેન્દ્રને શોધવા માટે દૈનિક સૂચના",
-      "scheduledFor": "નિર્ધારિત સમય"
+      "scheduledFor": "નિર્ધારિત સમય",
+      "test": "ટેસ્ટ રિમાઇન્ડર મોકલો",
+      "permissionsRequired": "પરવાનગી જરૂરી",
+      "permissionsDescription": "રિમાઇન્ડર માટે બ્રાઉઝર સેટિંગ્સમાં સૂચનાઓ ચાલુ કરો."
     },
     "danger": {
       "subtitle": "તમારો ડેટા નિકાસ કરો અથવા તમારું એકાઉન્ટ કાયમ માટે કાઢી નાખો.",
@@ -1334,7 +1364,13 @@
       "cloudMemoriesErased": "Cloud memories erased",
       "cloudMemoriesErasedDesc": "All reflections, second brain notes, and spiritual memories have been permanently deleted.",
       "cloudMemoriesEraseFailed": "Memory erasure failed",
-      "deleteAccountBtn": "Delete Account"
+      "deleteAccountBtn": "Delete Account",
+      "accountTitle": "એકાઉન્ટ અને ડેટા",
+      "accountSubtitle": "ડેટા નિકાસ કરો, સ્થાનિક ઇતિહાસ સાફ કરો અથવા એકાઉન્ટ કાઢી નાખો.",
+      "exportData": "ડેટા નિકાસ",
+      "exportLocalData": "સ્થાનિક ડેટા નિકાસ",
+      "exportCloudData": "ક્લાઉડ ડેટા નિકાસ",
+      "zone": "ચેતવણી વિસ્તાર"
     },
     "support": {
       "title": "સહાય ટીમનો સંપર્ક કરો",
@@ -1344,7 +1380,13 @@
       "category": "શ્રેણી",
       "subject": "વિષય",
       "message": "સંદેશ",
-      "attachments": "જોડાણો (Attachments)"
+      "attachments": "જોડાણો (Attachments)",
+      "description": "પ્રશ્ન, પ્રતિસાદ અથવા સમસ્યા છે? અમે મદદ કરવા અહીં છીએ.",
+      "optional": "વૈકલ્પિક",
+      "namePlaceholder": "તમારું નામ",
+      "emailPlaceholder": "you@example.com",
+      "subjectPlaceholder": "ટૂંકો સારાંશ",
+      "messagePlaceholder": "અમે કેવી રીતે મદદ કરી શકીએ તે જણાવો..."
     },
     "memory": {
       "mapTitle": "ચેતના માનચિત્ર (Consciousness Map)",
@@ -1375,7 +1417,7 @@
       "recentConversations": "તાજેતરની વાતચીતો",
       "pickUp": "જ્યાં અટક્યા હતા ત્યાંથી આગળ વધો.",
       "viewAll": "બધું જુઓ",
-      "untitledConversation": "શીર્ષક વિનાની વાતચીત",
+      "untitledConversation": "નામ વિનાની વાતચીત",
       "conversationsWillAppear": "તમારી વાતચીત અહીં દેખાશે.",
       "startFirstConversation": "તમારી પ્રથમ વાતચીત શરૂ કરો",
       "reflections": "તાજેતરના આત્મચિંતન",
@@ -1398,7 +1440,27 @@
       "personalizeGuidanceDesc": "તમારું નામ, ટોન, ભાષા, પરિચયનું સ્તર અને પસંદગીઓ.",
       "wisdomMap": "તમારો જ્ઞાન નકશો",
       "wisdomMapDesc": "તમારા સાચવેલા આત્મચિંતન, નોંધો અને જોડાયેલા ઉપદેશોથી બનેલા નકશાને અન્વેષો.",
-      "wisdomOfDay": "આજનું જ્ઞાન"
+      "wisdomOfDay": "આજનું જ્ઞાન",
+      "title": "તમારી યાત્રા",
+      "subtitle": "વાતચીત, અભ્યાસ અને ચિંતનમાં તમારી પ્રવૃત્તિ.",
+      "messages": "સંદેશાઓ",
+      "courseProgress": "કોર્સ પ્રગતિ",
+      "noActiveCourse": "કોઈ સક્રિય કોર્સ નથી",
+      "distress": "તણાવ",
+      "lastActive": "છેલ્લે સક્રિય"
+    },
+    "tone": {
+      "gentle": "નરમ",
+      "direct": "સીધું",
+      "poetic": "કાવ્યાત્મક",
+      "gentleHint": "નરમ, કાળજીભર્યા જવાબો",
+      "directHint": "સ્પષ્ટ, સંક્ષિપ્ત શિક્ષણ",
+      "poeticHint": "લયબદ્ધ, રૂપકસભર"
+    },
+    "theme": {
+      "light": "પ્રકાશ",
+      "dark": "અંધારું",
+      "system": "સિસ્ટમ"
     }
   },
   "commandPalette": {
