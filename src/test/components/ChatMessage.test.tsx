@@ -126,6 +126,33 @@ describe('ChatMessage (regression)', () => {
     expect(screen.getByText('Clear answer')).toBeInTheDocument();
   });
 
+  it('uses one consolidated feedback surface per latest guru response', () => {
+    render(<ChatMessage message={makeGuruMessage()} isLastGuru />, { wrapper });
+    expect(screen.queryByTestId('feedback-buttons')).not.toBeInTheDocument();
+    expect(screen.getByTestId('engagement-yes')).toBeInTheDocument();
+  });
+
+  it('offers a localized new-chat action when context is exhausted', () => {
+    const onStartNewChat = vi.fn();
+    const message = makeGuruMessage({
+      error: {
+        kind: 'context_exhausted',
+        title: 'Conversation context limit reached',
+        description: 'This conversation has reached its safe context limit.',
+        actionLabel: 'new_chat',
+      },
+    });
+    render(
+      <ChatMessage message={message} isLastGuru onStartNewChat={onStartNewChat} />,
+      { wrapper },
+    );
+
+    const button = screen.getByRole('button', { name: /continue in a new chat/i });
+    expect(button).toBeInTheDocument();
+    fireEvent.click(button);
+    expect(onStartNewChat).toHaveBeenCalledTimes(1);
+  });
+
   it('confidence score is computed but not displayed', () => {
     render(<ChatMessage message={makeGuruMessage({ confidenceScore: 8 })} />, { wrapper });
     expect(screen.queryByText(/High confidence/)).not.toBeInTheDocument();
