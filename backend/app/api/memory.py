@@ -669,7 +669,9 @@ async def personal_knowledge_graph_endpoint(
     # fell back to public data and made the auth contract dependent on service
     # implementation details.
     if normalized_view == "personal" and not user_id:
-        raise HTTPException(status_code=401, detail="Authentication required for the personal knowledge graph.")
+        raise HTTPException(
+            status_code=401, detail="Authentication required for the personal knowledge graph."
+        )
 
     result = await svc.build_personal_knowledge_graph(user_id, view=normalized_view)
 
@@ -745,7 +747,9 @@ async def export_knowledge_graph_endpoint(
     if normalized_view not in {"personal", "ontology"}:
         raise HTTPException(status_code=400, detail="Unsupported knowledge-graph view.")
     if normalized_view == "personal" and not user_id:
-        raise HTTPException(status_code=401, detail="Authentication required for the personal knowledge graph.")
+        raise HTTPException(
+            status_code=401, detail="Authentication required for the personal knowledge graph."
+        )
 
     result = await svc.build_personal_knowledge_graph(user_id, view=normalized_view)
 

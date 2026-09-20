@@ -372,7 +372,9 @@ async def _ask_anonymous(client: httpx.AsyncClient, endpoint: str, question: str
             # run, 2026-09-19: 4/15 rows failed exactly this way.
             if exc.response.status_code != 429 or attempt == _RATE_LIMIT_RETRIES - 1:
                 raise
-            retry_after = exc.response.headers.get("retry-after") if exc.response is not None else None
+            retry_after = (
+                exc.response.headers.get("retry-after") if exc.response is not None else None
+            )
             if retry_after:
                 try:
                     delay = max(float(retry_after), 1.0)

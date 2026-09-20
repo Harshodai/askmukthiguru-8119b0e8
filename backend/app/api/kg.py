@@ -448,9 +448,7 @@ async def kg_personal_subgraph(
                 type=str(n.get("type", "Concept")),
                 teacher=n.get("teacher"),
                 state_category=n.get("state_category"),
-                content_preview=(
-                    str(n.get("content") or "")[:320] if n.get("content") else None
-                ),
+                content_preview=(str(n.get("content") or "")[:320] if n.get("content") else None),
             )
         )
 

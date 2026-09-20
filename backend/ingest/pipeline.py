@@ -434,7 +434,6 @@ class IngestionPipeline:
             logger.debug("Tier-4 audio-transcribe fallback failed for %s: %s", video_id, e)
             return None
 
-
     def _is_url_safe(self, url: str) -> bool:
         """Return False if URL resolves to private, loopback, or link‑local IPs."""
         return is_url_safe(url)

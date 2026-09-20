@@ -322,7 +322,6 @@ class ToneExtractor:
                 )
                 continue
 
-
         if all_exemplars:
             logger.info(
                 f"ToneExtractor: extracted {len(all_exemplars)} unique exemplars "

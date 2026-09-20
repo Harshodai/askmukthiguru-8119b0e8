@@ -198,8 +198,10 @@ async def _run_memory_trimmer_pump():
     malloc_trim(0), process RSS stays pegged at peak allocation even after gc.collect().
     """
     import gc
+
     try:
         import ctypes
+
         _libc = ctypes.CDLL("libc.so.6")
         _has_trim = hasattr(_libc, "malloc_trim")
     except Exception:
@@ -255,12 +257,15 @@ async def _run_real_lifespan():
             gc.collect()
             try:
                 import ctypes
+
                 _libc = ctypes.CDLL("libc.so.6")
                 if hasattr(_libc, "malloc_trim"):
                     _libc.malloc_trim(0)
             except Exception:
                 pass
-            logger.info("Post-warmup garbage collection & malloc_trim complete (memory freed for steady state)")
+            logger.info(
+                "Post-warmup garbage collection & malloc_trim complete (memory freed for steady state)"
+            )
             await _shutdown_event.wait()
             logger.info("Real lifespan exiting on shutdown event")
     except asyncio.CancelledError:

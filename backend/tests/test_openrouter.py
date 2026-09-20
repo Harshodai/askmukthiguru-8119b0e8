@@ -124,10 +124,13 @@ async def test_openrouter_rate_limit_is_shared_across_instances(monkeypatch):
     # leaves real counts under this key, making "the 3rd draw is refused"
     # flaky depending on suite order (found via a full-suite run, 2026-09-19:
     # passed standalone, failed inside `pytest` with no isolation).
+    import uuid
+
     from app.security_utils import _rate_limit_key_digest
 
-    import uuid
-    monkeypatch.setattr(OpenRouterService, "_RATE_LIMIT_KEY", f"openrouter:rpm:test:{uuid.uuid4().hex[:8]}")
+    monkeypatch.setattr(
+        OpenRouterService, "_RATE_LIMIT_KEY", f"openrouter:rpm:test:{uuid.uuid4().hex[:8]}"
+    )
 
     _digest = _rate_limit_key_digest(OpenRouterService._RATE_LIMIT_KEY)
     try:

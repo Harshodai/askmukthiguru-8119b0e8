@@ -8,6 +8,8 @@ import re
 import time
 from typing import Any, Optional
 
+from langchain_core.runnables import RunnableConfig
+
 from app.metrics import (
     COVERAGE_GAP_TOTAL,
     GUARDRAILS_BLOCKED,
@@ -28,8 +30,6 @@ from services.provenance_context import build_provenance_context
 from services.qdrant.source_policy import filter_blocked_sources
 from services.qdrant_service import QdrantService
 from services.tenant_context import TenantContext
-
-from langchain_core.runnables import RunnableConfig
 
 from . import _services
 from .utils import (

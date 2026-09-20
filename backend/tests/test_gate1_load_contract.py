@@ -142,12 +142,19 @@ def test_main_check_report_flag(tmp_path, monkeypatch):
     fail_file = tmp_path / "fail_report.json"
     pass_file = tmp_path / "pass_report.json"
 
-    fail_file.write_text(json.dumps({"gate1_verdict": "FAIL", "throughput_rps": 1.0, "latency_percentiles_ms": {"p95": 200}}))
-    pass_file.write_text(json.dumps({"gate1_verdict": "PASS", "throughput_rps": 5.0, "latency_percentiles_ms": {"p95": 50}}))
+    fail_file.write_text(
+        json.dumps(
+            {"gate1_verdict": "FAIL", "throughput_rps": 1.0, "latency_percentiles_ms": {"p95": 200}}
+        )
+    )
+    pass_file.write_text(
+        json.dumps(
+            {"gate1_verdict": "PASS", "throughput_rps": 5.0, "latency_percentiles_ms": {"p95": 50}}
+        )
+    )
 
     monkeypatch.setattr("sys.argv", ["gate1_load_test.py", "--check-report", str(fail_file)])
     assert gate1_mod.main() == 1
 
     monkeypatch.setattr("sys.argv", ["gate1_load_test.py", "--check-report", str(pass_file)])
     assert gate1_mod.main() == 0
-

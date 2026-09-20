@@ -5,9 +5,8 @@ from __future__ import annotations
 import logging
 import re
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
-
 from langchain_core.runnables import RunnableConfig
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 from app.tracing import trace_rag_node
 from rag.states import GraphState

@@ -57,7 +57,7 @@ async def test_lexical_tier_does_not_veto(mock_ld, tier):
 
 @pytest.mark.asyncio
 async def test_semantic_tier_vetoes_only_when_broadly_ungrounded(mock_ld, monkeypatch):
-    """"standard" runs the embedder, so its verdict is real and still gates —
+    """ "standard" runs the embedder, so its verdict is real and still gates —
     but on the AGGREGATE score, not on the zero-tolerance boolean.
 
     Changed 2026-09-17. The old predicate vetoed whenever `is_faithful` was

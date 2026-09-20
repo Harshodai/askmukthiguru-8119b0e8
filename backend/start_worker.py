@@ -55,9 +55,8 @@ WORKER_CONCURRENCY = int(os.environ.get("WORKER_CONCURRENCY", "2"))
 
 def _get_redis_client() -> redis.Redis:
     """Connect to Redis broker from environment."""
-    redis_url = (
-        os.environ.get("CELERY_BROKER_URL")
-        or os.environ.get("REDIS_URL", "redis://localhost:6379/1")
+    redis_url = os.environ.get("CELERY_BROKER_URL") or os.environ.get(
+        "REDIS_URL", "redis://localhost:6379/1"
     )
     return redis.from_url(redis_url, decode_responses=True, socket_timeout=5)
 
@@ -90,7 +89,9 @@ def _wait_for_work(r: redis.Redis) -> bool:
             return True
 
         if WORKER_MAX_WAIT_SECONDS > 0 and waited >= WORKER_MAX_WAIT_SECONDS:
-            logger.info("Max wait time (%ds) reached with no jobs. Exiting.", WORKER_MAX_WAIT_SECONDS)
+            logger.info(
+                "Max wait time (%ds) reached with no jobs. Exiting.", WORKER_MAX_WAIT_SECONDS
+            )
             return False
 
         depths = {q: _queue_depth(r, q) for q in CELERY_QUEUES if _queue_depth(r, q) > 0}
@@ -104,8 +105,11 @@ def _wait_for_work(r: redis.Redis) -> bool:
 def _launch_celery() -> subprocess.Popen:
     """Launch the Celery worker process."""
     cmd = [
-        sys.executable, "-m", "celery",
-        "-A", "celery_config.celery_app",
+        sys.executable,
+        "-m",
+        "celery",
+        "-A",
+        "celery_config.celery_app",
         "worker",
         "--loglevel=info",
         f"--concurrency={WORKER_CONCURRENCY}",

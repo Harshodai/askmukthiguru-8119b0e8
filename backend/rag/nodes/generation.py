@@ -2931,9 +2931,8 @@ def _enforce_attribution_floor(fn):
         # the sourced answer should never be stripped in that case.
         result_citations = result.get("citations")
         state_citations = state.get("citations")
-        has_citations = (
-            (result_citations is not None and len(result_citations) > 0)
-            or (state_citations is not None and len(state_citations) > 0)
+        has_citations = (result_citations is not None and len(result_citations) > 0) or (
+            state_citations is not None and len(state_citations) > 0
         )
         if not answer or has_citations:
             return result

@@ -102,7 +102,9 @@ if not QUANTIZED_ONLY:
 
         _llama_guard_rev = _pin("meta-llama/Llama-Guard-3-1B")
         AutoTokenizer.from_pretrained("meta-llama/Llama-Guard-3-1B", revision=_llama_guard_rev)
-        AutoModelForCausalLM.from_pretrained("meta-llama/Llama-Guard-3-1B", revision=_llama_guard_rev)
+        AutoModelForCausalLM.from_pretrained(
+            "meta-llama/Llama-Guard-3-1B", revision=_llama_guard_rev
+        )
         print("llama-guard cache populated")
     except Exception as e:
         print(f"llama-guard download skipped: {e}")

@@ -186,9 +186,7 @@ class DoctrineCache:
                 filter(
                     None,
                     (
-                        _coerce_entry(
-                            row.get("question"), {k: row.get(k) for k in _row_keys}
-                        )
+                        _coerce_entry(row.get("question"), {k: row.get(k) for k in _row_keys})
                         for row in rows
                     ),
                 )

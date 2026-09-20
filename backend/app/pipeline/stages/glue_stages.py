@@ -24,9 +24,9 @@ from app.pipeline.result import (
     ActionStep,
     AnswerEvidence,
     GuidancePlan,
+    PersonalizationProvenance,
     PipelineResult,
     TeachingAttribution,
-    PersonalizationProvenance,
 )
 from app.pipeline.stages.base import Stage
 from app.release_manifest import get_release_manifest
@@ -329,7 +329,11 @@ class RequestStateStage(Stage):
             state["response_preferences"] = dict(preferences)
         # Do not carry saved profile tone into Temporary Chat. The request
         # remains language-aware, but personal preference context is excluded.
-        state["guru_tone"] = None if getattr(ctx.request, "incognito", False) else getattr(ctx.request, "guru_tone", None)
+        state["guru_tone"] = (
+            None
+            if getattr(ctx.request, "incognito", False)
+            else getattr(ctx.request, "guru_tone", None)
+        )
         ctx.state = state
         return None
 

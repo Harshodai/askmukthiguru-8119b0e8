@@ -1196,7 +1196,6 @@ class MemoryServiceV2(MemoryService):
             if state_cat:
                 _add_node(f"state:{state_cat}", state_cat, "State", state_category=state_cat)
                 _add_edge(f"memory:{mid}", f"state:{state_cat}", "IN_STATE")
-                _associate_concept(state_cat, f"memory:{mid}")
 
         # Add Supabase memories if not already processed
         for m in supabase_mems:
@@ -1233,7 +1232,6 @@ class MemoryServiceV2(MemoryService):
                     clabel = r["clabel"] or "Concept"
                     _add_node(f"concept:{cid}", cid, clabel, cid if clabel == "Teacher" else None)
                     _add_edge(f"memory:{mid}", f"concept:{cid}", "RELATES_TO")
-                    personal_concept_ids.add(cid)
                     referenced_concept_ids.add(cid)
             except Exception as e:
                 logger.warning(f"Failed to query memory ontology rels: {e}")
@@ -1262,7 +1260,6 @@ class MemoryServiceV2(MemoryService):
             if not source_tokens or not concept_tokens:
                 return False
             normalized_concept = " ".join(concept.lower().split())
-            normalized_text = " ".join(text.lower().split())
             if " " in normalized_concept:
                 return concept_tokens.issubset(source_tokens)
             return len(normalized_concept) >= 4 and normalized_concept in source_tokens
@@ -1287,7 +1284,6 @@ class MemoryServiceV2(MemoryService):
                     continue
                 _add_node(target, cid, "Concept")
                 _add_edge(f"memory:{mid}", target, "RELATES_TO")
-                _associate_concept(cid, f"memory:{mid}")
                 existing_concept_edges.add((f"memory:{mid}", target))
 
         # 3. Add Study Notebook Items
@@ -1313,9 +1309,7 @@ class MemoryServiceV2(MemoryService):
 
         # Query and add relationships between the matched ontology concepts
         personal_concept_ids = {
-            n["label"]
-            for n in nodes.values()
-            if str(n.get("id", "")).startswith("concept:")
+            n["label"] for n in nodes.values() if str(n.get("id", "")).startswith("concept:")
         }
         if personal_concept_ids and driver is not None:
             try:
@@ -1421,7 +1415,12 @@ class MemoryServiceV2(MemoryService):
                     selected.update(adjacency.get(seed, set()))
                 ranked = sorted(
                     (
-                        (_score(nodes[nid]) + (4.0 if nid in selected else 0.0) + degree.get(nid, 0) * 0.1, nid)
+                        (
+                            _score(nodes[nid])
+                            + (4.0 if nid in selected else 0.0)
+                            + degree.get(nid, 0) * 0.1,
+                            nid,
+                        )
                         for nid in selected
                         if nid != user_node_id
                     ),
@@ -1430,7 +1429,11 @@ class MemoryServiceV2(MemoryService):
                 selected = {user_node_id, *(nid for _, nid in ranked[: max(1, limit - 1)])}
                 result = {
                     "nodes": [node for nid, node in nodes.items() if nid in selected],
-                    "edges": [edge for edge in edges if edge["source"] in selected and edge["target"] in selected],
+                    "edges": [
+                        edge
+                        for edge in edges
+                        if edge["source"] in selected and edge["target"] in selected
+                    ],
                     "query": normalized_query,
                 }
         else:
@@ -1449,7 +1452,8 @@ class MemoryServiceV2(MemoryService):
             concept_ids = [
                 nid
                 for nid, node in nodes.items()
-                if nid != user_node_id and node["type"] in {"Concept", "State", "Practice", "Teacher"}
+                if nid != user_node_id
+                and node["type"] in {"Concept", "State", "Practice", "Teacher"}
             ]
 
             def _created_key(nid: str) -> str:
@@ -1460,7 +1464,9 @@ class MemoryServiceV2(MemoryService):
                 reverse=True,
             )
             notebook_ids.sort(key=lambda nid: _created_key(nid), reverse=True)
-            concept_ids.sort(key=lambda nid: (-degree.get(nid, 0), str(nodes[nid].get("label") or "")))
+            concept_ids.sort(
+                key=lambda nid: (-degree.get(nid, 0), str(nodes[nid].get("label") or ""))
+            )
 
             selected: set[str] = {user_node_id}
             remaining = max(1, limit - 1)
@@ -1485,7 +1491,11 @@ class MemoryServiceV2(MemoryService):
 
             result = {
                 "nodes": [node for nid, node in nodes.items() if nid in selected],
-                "edges": [edge for edge in edges if edge["source"] in selected and edge["target"] in selected],
+                "edges": [
+                    edge
+                    for edge in edges
+                    if edge["source"] in selected and edge["target"] in selected
+                ],
                 "query": "",
             }
 

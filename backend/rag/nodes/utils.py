@@ -57,7 +57,11 @@ async def emit_teaching_preview(config: Optional[dict], documents: list[dict] | 
     if config is None or not documents:
         return
     try:
-        configurable = config.get("configurable", {}) if hasattr(config, "get") else getattr(config, "configurable", {}) or {}
+        configurable = (
+            config.get("configurable", {})
+            if hasattr(config, "get")
+            else getattr(config, "configurable", {}) or {}
+        )
         q = configurable.get("stream_queue")
         if q is None:
             return
@@ -93,12 +97,14 @@ async def emit_teaching_preview(config: Optional[dict], documents: list[dict] | 
             if len(excerpt) > 220:
                 excerpt = excerpt[:217].rstrip() + "…"
 
-            previews.append({
-                "title": title or "Teaching source",
-                "teacher": teacher or None,
-                "url": url or None,
-                "excerpt": excerpt or None,
-            })
+            previews.append(
+                {
+                    "title": title or "Teaching source",
+                    "teacher": teacher or None,
+                    "url": url or None,
+                    "excerpt": excerpt or None,
+                }
+            )
             if len(previews) >= 3:
                 break
 
@@ -1389,6 +1395,7 @@ def _persist_trace_span(
             loop.run_in_executor(None, _insert)
         except RuntimeError:
             import threading
+
             threading.Thread(target=_insert, daemon=True).start()
     except Exception as span_err:
         logger.debug("_persist_trace_span setup failed for node=%s: %s", node_name, span_err)

@@ -434,9 +434,20 @@ class EmbeddingService:
             # transformers from triggering remote HF API calls (e.g. is_base_mistral check)
             # which fail when running offline/containerized.
             candidate_dirs = [
-                Path(hf_home) / "models--BAAI--bge-m3" / "snapshots" / self._ONNX_TOKENIZER_REVISION,
-                Path(hf_home) / "hub" / "models--BAAI--bge-m3" / "snapshots" / self._ONNX_TOKENIZER_REVISION,
-                Path(hf_home) / "sentence_transformers" / "models--BAAI--bge-m3" / "snapshots" / self._ONNX_TOKENIZER_REVISION,
+                Path(hf_home)
+                / "models--BAAI--bge-m3"
+                / "snapshots"
+                / self._ONNX_TOKENIZER_REVISION,
+                Path(hf_home)
+                / "hub"
+                / "models--BAAI--bge-m3"
+                / "snapshots"
+                / self._ONNX_TOKENIZER_REVISION,
+                Path(hf_home)
+                / "sentence_transformers"
+                / "models--BAAI--bge-m3"
+                / "snapshots"
+                / self._ONNX_TOKENIZER_REVISION,
                 Path(hf_home) / "sentence_transformers" / "models--BAAI--bge-m3",
                 Path(hf_home) / "models--BAAI--bge-m3",
             ]

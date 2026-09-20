@@ -1,9 +1,12 @@
 from types import SimpleNamespace
 
+import services.second_brain.context_adapter as context_adapter
 from app.pipeline.result import PersonalizationProvenance, PipelineResult
 from app.schemas import ChatResponse
-import services.second_brain.context_adapter as context_adapter
-from services.second_brain.context_adapter import build_private_context_links, format_private_context_links
+from services.second_brain.context_adapter import (
+    build_private_context_links,
+    format_private_context_links,
+)
 
 
 def test_private_context_adapter_reports_graph_matches_for_the_exact_query(monkeypatch) -> None:
@@ -14,6 +17,7 @@ def test_private_context_adapter_reports_graph_matches_for_the_exact_query(monke
         text="I keep returning to stillness and the Beautiful State.",
         confidence=0.9,
     )
+
     def fake_resolver(value: str) -> list[str]:
         return ["stillness"] if "stillness" in value.lower() else []
 

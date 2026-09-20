@@ -59,6 +59,7 @@ def test_chat_request_accepts_bounded_continuation_summary():
 
     assert request.conversation_summary.startswith("A short summary")
 
+
 def test_context_budget_counts_continuation_summary_and_attachments(monkeypatch):
     monkeypatch.setattr(settings, "context_window_total", 1000)
     monkeypatch.setattr(settings, "context_system_prompt_reserve", 0.20)

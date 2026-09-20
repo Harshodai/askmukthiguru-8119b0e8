@@ -527,6 +527,7 @@ class RedisBackedRateLimiter:
             if self._fallback_active:
                 # Reconnected after a previous outage — log at INFO
                 import logging
+
                 logging.getLogger(__name__).info(
                     "RedisBackedRateLimiter: Redis reconnected — resuming distributed rate limiting"
                 )

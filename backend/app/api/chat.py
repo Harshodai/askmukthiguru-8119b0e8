@@ -35,7 +35,6 @@ from app.grounding import grounding_state_for
 from app.release_manifest import to_public_manifest_dict
 from app.sanitization import sanitize_log_input, sanitize_user_input
 from app.schemas import ChatRequest, ChatResponse, Citation, MessagePayload
-from services.chat_context_budget import CONTEXT_ERROR_CODE, assess_conversation_context
 from app.security_utils import is_benchmark_request
 from services.anon_quota_port import QuotaResult
 from services.auth_service import (
@@ -44,6 +43,7 @@ from services.auth_service import (
     require_scoped_identity,
     resolve_anon_identity,
 )
+from services.chat_context_budget import CONTEXT_ERROR_CODE, assess_conversation_context
 from services.cost_tracker import TokenAccumulator, get_cost_tracker, token_accumulator_var
 from services.tenant_context import TenantContext, set_tenant_from_request
 

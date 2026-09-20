@@ -96,6 +96,7 @@ def test_personal_subgraph_authed_uses_memory_service():
             "user-123", view="personal", limit=50, query=""
         )
 
+
 def test_personal_subgraph_propagates_query_and_safe_node_context():
     app = _make_app()
     app.dependency_overrides[require_aal2] = _authed_user
@@ -129,7 +130,6 @@ def test_personal_subgraph_propagates_query_and_safe_node_context():
         mock_svc.build_personal_knowledge_graph.assert_called_once_with(
             "user-123", view="personal", limit=24, query="stillness"
         )
-
 
 
 def test_personal_subgraph_authed_empty_personal_returns_empty():

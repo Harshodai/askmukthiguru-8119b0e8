@@ -542,7 +542,9 @@ async def prepare_request_state(
     else:
         chat_history_en = chat_history
 
-    conversation_summary = "" if chat_body.incognito else (chat_body.conversation_summary or "").strip()
+    conversation_summary = (
+        "" if chat_body.incognito else (chat_body.conversation_summary or "").strip()
+    )
 
     # Temporary Chat is a hard personalization boundary. Keep language and
     # safety processing available, but do not read durable profile/memory/persona

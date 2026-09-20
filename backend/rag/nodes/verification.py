@@ -6,6 +6,8 @@ import asyncio
 import logging
 import re
 
+from langchain_core.runnables import RunnableConfig
+
 from app.metrics import (
     CONFIDENCE_SCORES,
     FAITHFULNESS_SCORE,
@@ -20,8 +22,6 @@ from services.confidence_scorer import (
     calculate_confidence_reason,
     confidence_calibration_status,
 )
-
-from langchain_core.runnables import RunnableConfig
 
 from . import _services
 from .utils import emit_status, log_metrics, settings
@@ -793,7 +793,9 @@ async def verify_answer(state: GraphState, config: RunnableConfig | None = None)
 
 @trace_rag_node("combined_grade_and_verify")
 @log_metrics
-async def combined_grade_and_verify(state: GraphState, config: RunnableConfig | None = None) -> dict:
+async def combined_grade_and_verify(
+    state: GraphState, config: RunnableConfig | None = None
+) -> dict:
     """Combined grading + verification that skips LLM when local checks pass.
 
     Runs LettuceDetect faithfulness (local, no LLM) and constitutional

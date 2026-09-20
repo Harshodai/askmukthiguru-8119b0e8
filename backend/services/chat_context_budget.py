@@ -91,6 +91,12 @@ def assess_conversation_context(
     if user_message.strip():
         parts.append(user_message.strip())
 
+    if conversation_summary and conversation_summary.strip():
+        parts.append(conversation_summary.strip())
+
+    if attachment_context and attachment_context.strip():
+        parts.append(attachment_context.strip())
+
     estimated = estimate_tokens("\n".join(parts), language or "en")
     maximum = max_chat_input_tokens()
     warn_at = max(1, int(maximum * 0.80))

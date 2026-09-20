@@ -62,9 +62,7 @@ def test_missing_constraints_raise_loud():
 
     teacher = _CONSTRAINT_LABEL_PROPERTY["UNIQUE_TEACHER_NAME"]
     with pytest.raises(RuntimeError, match="UNIQUE_CONCEPT_NAME"):
-        assert_neo4j_constraints_ready(
-            _FakeDriver(present=[(teacher[0], (teacher[1],))])
-        )
+        assert_neo4j_constraints_ready(_FakeDriver(present=[(teacher[0], (teacher[1],))]))
 
 
 def test_no_driver_skips_degraded():
