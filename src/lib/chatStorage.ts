@@ -138,6 +138,12 @@ const MessageSchema = z.object({
     timestamp: z.coerce.date(),
   }).optional(),
   memoriesUsed: z.array(z.string()).optional(),
+  personalizationProvenance: z.object({
+    used: z.boolean(),
+    profile_preferences: z.boolean().optional(),
+    personal_memory: z.boolean().optional(),
+    private_graph_links: z.number().int().nonnegative().optional(),
+  }).nullable().optional(),
   liveLogisticsEvents: z.array(z.object({
     event_name: z.string(),
     official_source_url: z.string().url(),
