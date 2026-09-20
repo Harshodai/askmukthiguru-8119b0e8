@@ -103,11 +103,23 @@ const TeachingGroundingCard = ({ citations }: { citations: Citation[] }) => {
           return (
             <div key={citation.url || (citation.title || 'teaching') + '-' + index} className="min-w-0">
               <div className="text-sm font-medium leading-5 text-foreground">
-                {citation.title || t('chat.references')}
+                {citation.url ? (
+                  <a
+                    href={citation.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-ojas hover:underline underline-offset-2"
+                    aria-label={t('chat.openSourceAria', { number: index + 1, domain: (() => { try { return new URL(citation.url).hostname.replace(/^www\./, ''); } catch { return citation.url; } })() })}
+                  >
+                    {citation.title || t('chat.references')}
+                  </a>
+                ) : (
+                  citation.title || t('chat.references')
+                )}
               </div>
-              {citation.source && (
+              {(citation.speaker || citation.source) && (
                 <div className="mt-0.5 text-sm text-muted-foreground">
-                  {citation.source}
+                  {[citation.speaker, citation.source].filter(Boolean).join(' · ')}
                 </div>
               )}
               {excerpt && (
