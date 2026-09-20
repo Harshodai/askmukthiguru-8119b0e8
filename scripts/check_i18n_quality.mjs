@@ -35,7 +35,7 @@ const flattenLeaves = (value, prefix = '', out = {}) => {
 };
 
 const placeholders = (value) =>
-  [...value.matchAll(/{{\\s*([^}]+?)\\s*}}/g)].map((m) => m[1].trim()).sort();
+  [...value.matchAll(/{{\s*([^}]+?)\\s*}}/g)].map((m) => m[1].trim()).sort();
 
 const en = flattenLeaves(read('en'));
 let failed = false;
