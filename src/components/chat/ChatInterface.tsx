@@ -816,15 +816,15 @@ export const ChatInterface = () => {
       }
       setTtsEnabled(false);
       toast({
-        title: '🔇 Voice Output Disabled',
-        description: 'Guru responses will no longer be read aloud.',
+        title: `🔇 ${t('chat.voiceOutputDisabled', 'Voice Output Disabled')}`,
+        description: t('chat.voiceOutputDisabledDesc', 'Guru responses will no longer be read aloud.'),
         duration: 2000,
       });
     } else {
       setTtsEnabled(true);
       toast({
-        title: '🔊 Voice Output Enabled',
-        description: 'Guru responses will be read aloud.',
+        title: `🔊 ${t('chat.voiceOutputEnabled', 'Voice Output Enabled')}`,
+        description: t('chat.voiceOutputEnabledDesc', 'Guru responses will be read aloud.'),
         duration: 2000,
       });
     }
@@ -839,8 +839,8 @@ export const ChatInterface = () => {
 
     const newLangObj = LANGUAGES.find((l) => l.code === code);
     toast({
-      title: '🌐 Language Switched',
-      description: `Language set to ${newLangObj?.name ?? code}.`,
+      title: `🌐 ${t('chat.languageSwitched', 'Language Switched')}`,
+      description: t('chat.languageSetTo', { name: newLangObj?.native || newLangObj?.name || code }),
       duration: 3000,
     });
 
