@@ -442,7 +442,7 @@ const LazyYouTube = ({ videoId, url }: { videoId: string; url: string }) => {
     >
       <img
         src={thumbnail}
-        alt="YouTube thumbnail"
+        alt={t('chat.youTubeThumbnail')}
         className="w-full h-full object-cover"
         loading="lazy"
       />
@@ -473,17 +473,17 @@ const getSourceDisplayName = (citation: Citation, index: number): string => {
     const urlObj = new URL(url);
     const hostname = urlObj.hostname.replace(/^www\./, '');
     if (hostname.includes('youtube') || hostname.includes('youtu.be')) {
-      return `Video Source ${String.fromCharCode(65 + index)}`;
+      return t('chat.videoSource', { letter: String.fromCharCode(65 + index) });
     }
     if (hostname.includes('academy') || hostname.includes('ekam')) {
-      return `O&O Academy Reference`;
+      return t('chat.academyReference');
     }
     if (hostname.includes('preethaji') || hostname.includes('krishnaji')) {
-      return 'Teaching Reference';
+      return t('chat.teachingReference');
     }
     return hostname;
   } catch {
-    return `Source ${index + 1}`;
+    return t('chat.sourceLabel', { number: index + 1 });
   }
 };
 
