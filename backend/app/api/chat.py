@@ -761,6 +761,11 @@ async def chat_v2_endpoint(
         await _release_anon_quota(user, container, quota)
         raise
 
+    context_limit_response = _conversation_context_limit_response(chat_body)
+    if context_limit_response is not None:
+        await _release_anon_quota(user, container, quota)
+        return context_limit_response
+
     from app.chat_engine import ChatEngine
     from app.orchestrator import _provenance_manifest_for_result
 
