@@ -807,6 +807,13 @@ export const ChatInterface = () => {
 
     if (ttsEnabled) {
       stopSpeaking();
+      if (handsFreeVoiceRef.current) {
+        handsFreeVoiceRef.current = false;
+        voiceAwaitingPlaybackRef.current = false;
+        setIsHandsFreeVoice(false);
+        stopListening();
+        setVoiceEnabled(false);
+      }
       setTtsEnabled(false);
       toast({
         title: '🔇 Voice Output Disabled',
@@ -821,7 +828,7 @@ export const ChatInterface = () => {
         duration: 2000,
       });
     }
-  }, [ttsEnabled, ttsSupported, stopSpeaking, toast]);
+  }, [ttsEnabled, ttsSupported, stopSpeaking, stopListening, toast]);
 
   // Handle language change — persist to profile, push to AI service, restart STT in new lang
   const handleLanguageChange = useCallback((code: string) => {
