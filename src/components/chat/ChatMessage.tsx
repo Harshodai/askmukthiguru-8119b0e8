@@ -79,6 +79,49 @@ export const safeUrlTransform = (url: string): string =>
 const isCrisisAnswer = (content: string): boolean =>
   /🆘/.test(content) || /immediate crisis|crisis, please reach out|helpline/i.test(content);
 
+const TeachingGroundingCard = ({ citations }: { citations: Citation[] }) => {
+  const { t } = useTranslation();
+  const items = citations
+    .filter((citation) => Boolean(citation.title || citation.quote || citation.textSnippet))
+    .slice(0, 2);
+
+  if (items.length === 0) return null;
+
+  return (
+    <aside
+      data-testid="teaching-grounding"
+      aria-label={t('chat.teachingContext.title')}
+      className="w-full rounded-xl border border-ojas/15 bg-ojas/[0.035] px-3.5 py-3"
+    >
+      <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+        <BookOpen className="h-4 w-4 shrink-0 text-ojas" aria-hidden="true" />
+        <span>{t('chat.teachingContext.title')}</span>
+      </div>
+      <div className="mt-2 space-y-2.5">
+        {items.map((citation, index) => {
+          const excerpt = citation.quote || citation.textSnippet;
+          return (
+            <div key={citation.url || (citation.title || 'teaching') + '-' + index} className="min-w-0">
+              <div className="text-sm font-medium leading-5 text-foreground">
+                {citation.title || t('chat.references')}
+              </div>
+              {citation.source && (
+                <div className="mt-0.5 text-sm text-muted-foreground">
+                  {citation.source}
+                </div>
+              )}
+              {excerpt && (
+                <blockquote className="mt-1 border-l-2 border-ojas/25 pl-2.5 text-sm leading-5 text-muted-foreground line-clamp-3">
+                  “{excerpt}”
+                </blockquote>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </aside>
+  );
+};
 const GuidancePlanCard = ({ plan }: { plan: NonNullable<Message["guidancePlan"]> }) => {
   const { t } = useTranslation();
   return (
@@ -1218,6 +1261,10 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
             {isGuru && !isStreaming && message.sereneMindOffer?.triggered && !isCrisisAnswer(message.content) && (
               <SereneMindOfferCard offer={message.sereneMindOffer} />
             )}
+            {isGuru && !isStreaming && citations.length > 0 && (
+              <TeachingGroundingCard citations={citations} />
+            )}
+
             {isGuru && citations.length > 0 && (
               <details className="w-full rounded-xl border border-ojas/20 bg-gradient-to-br from-card/85 to-card/50 backdrop-blur-md px-4 py-3 group/details shadow-md transition-all duration-300">
                 <summary className="flex items-center gap-2.5 cursor-pointer list-none select-none">
