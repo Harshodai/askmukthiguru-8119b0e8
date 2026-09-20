@@ -103,6 +103,20 @@ describe('StreamChunk type discriminated union', () => {
     expect(chunk.text).toBe('Something went wrong');
   });
 
+  it('teaching preview chunk carries source-backed teaching items', () => {
+    const chunk: StreamChunk = {
+      type: 'teaching_preview',
+      items: [{
+        title: 'Awareness and the Beautiful State',
+        teacher: 'Sri Preethaji',
+        url: 'https://example.com/teaching',
+        excerpt: 'A source-backed excerpt.',
+      }],
+    };
+    expect(chunk.type).toBe('teaching_preview');
+    expect(chunk.items[0].teacher).toBe('Sri Preethaji');
+  });
+
   it('status chunk has text field', () => {
     const chunk: StreamChunk = { type: 'status', text: 'Searching...' };
     expect(chunk.type).toBe('status');
