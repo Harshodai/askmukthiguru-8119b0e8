@@ -68,7 +68,7 @@ const injectCitationLinks = (content: string, citationsLen: number): string => {
  */
 export const safeUrlTransform = (url: string): string =>
   /^(https?:|mailto:|#)/i.test(url) ? url : t('chat.noSources')
-    }, [citations.length, hasUnverifiedAttribution, isGuru, message.content]);
+    }, [citations.length, hasUnverifiedAttribution, isGuru, message.content, t]);
 
     const [showWisdomCard, setShowWisdomCard] = useState(false);
     const [copied, setCopied] = useState(false);
