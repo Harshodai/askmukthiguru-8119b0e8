@@ -554,7 +554,21 @@
       "edit": "संदेश संपादित करा",
       "remove": "रांगेतून काढा",
       "regionLabel": "रांगेतील संदेश"
-    }
+    },
+    "voiceConversationUnavailable": "व्हॉइस संभाषण उपलब्ध नाही",
+    "voiceConversationUnavailableDesc": "हँड्स-फ्री संभाषणासाठी या ब्राउझरला मायक्रोफोन आणि व्हॉइस आउटपुट आवश्यक आहे.",
+    "voiceStreaming": "व्हॉइस स्ट्रीमिंग",
+    "voiceRecording": "व्हॉइस रेकॉर्डिंग",
+    "switchLangButton": "बदला",
+    "speaking": "बोलत आहे…",
+    "dismissError": "त्रुटी बंद करा",
+    "temporaryChat": "तात्पुरती चॅट",
+    "temporaryChatTitle": "तात्पुरती चॅट: चॅट इतिहास, वैयक्तिक स्मृती किंवा वैयक्तिक ज्ञान नकाशात जतन केली जात नाही.",
+    "personalized": "वैयक्तिकृत",
+    "personalizedTitle": "नियमित चॅट तुमचे प्रोफाइल आणि पात्र वैयक्तिक स्मृती वापरू शकतात.",
+    "voiceMode": "व्हॉइस",
+    "signInAgain": "पुन्हा साइन इन करा",
+    "reload": "रीलोड करा"
   },
   "notFound": {
     "message": "अरेरे! पृष्ठ सापडले नाही",
