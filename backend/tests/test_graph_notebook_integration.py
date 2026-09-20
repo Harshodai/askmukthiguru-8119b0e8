@@ -79,37 +79,32 @@ async def test_build_personal_knowledge_graph_injects_notebook_items():
 
 
 @pytest.mark.asyncio
-async def test_build_personal_knowledge_graph_concept_sharing_edges():
-    # Verify automatic SHARED_CONCEPT edge generation for matching concepts
+async def test_build_personal_knowledge_graph_does_not_create_synthetic_peer_edges():
+    # The personal map must contain only persisted/derived relationships.
+    # It must not manufacture SHARED_* ring edges just to make the graph denser.
     mock_supabase = MagicMock()
     mock_embed = MagicMock()
 
-    # Memory mentioning "Beautiful State"
     mock_list_mems = AsyncMock(
         return_value={
             "memories": [
                 {
-                    "id": "mem-abc",
-                    "content": "I felt in a beautiful state today",
+                    "id": "mem-1",
+                    "content": "I felt calm and present",
+                    "state_category": "Beautiful State",
                     "created_at": "2026-07-12T19:00:00Z",
-                }
+                },
+                {
+                    "id": "mem-2",
+                    "content": "I returned to stillness",
+                    "state_category": "Beautiful State",
+                    "created_at": "2026-07-13T19:00:00Z",
+                },
             ]
         }
     )
-
-    mock_notebooks_resp = MagicMock()
-    mock_notebooks_resp.data = [{"id": "nb-123", "title": "My Wisdom Notes"}]
-
-    # NotebookItem query mentioning "Beautiful State"
-    mock_items_resp = MagicMock()
-    mock_items_resp.data = [
-        {
-            "id": "item-789",
-            "query": "How to stay in a beautiful state?",
-            "answer": "Connect with inner peace.",
-            "created_at": "2026-07-12T19:10:00Z",
-        }
-    ]
+    mock_notebooks_resp = MagicMock(data=[])
+    mock_items_resp = MagicMock(data=[])
 
     def mock_table_chain(table_name):
         mock_tbl = MagicMock()
@@ -129,22 +124,12 @@ async def test_build_personal_knowledge_graph_concept_sharing_edges():
     service.list_memories = mock_list_mems
     service._get_neo4j = MagicMock(return_value=None)
 
-    res = await service.build_personal_knowledge_graph("user-456", view="personal")
-    edges = res["edges"]
-    # Verify a SHARED_CONCEPT edge exists between the memory and the notebook item
-    shared_edge = next(
-        (
-            e
-            for e in edges
-            if e["label"] == "SHARED_CONCEPT"
-            and (
-                (e["source"] == "memory:mem-abc" and e["target"] == "notebook:item-789")
-                or (e["source"] == "notebook:item-789" and e["target"] == "memory:mem-abc")
-            )
-        ),
-        None,
-    )
-    assert shared_edge is not None
+    res = await service.build_personal_knowledge_graph("user-no-synthetic", view="personal")
+    labels = [e.get("label") for e in res["edges"]]
+
+    assert "SHARED_STATE" not in labels
+    assert "SHARED_CONCEPT" not in labels
+    assert any(e["label"] == "IN_STATE" for e in res["edges"])
 
 
 @pytest.mark.asyncio
