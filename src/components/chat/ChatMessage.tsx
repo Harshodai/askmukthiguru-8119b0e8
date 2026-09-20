@@ -1001,10 +1001,10 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                   </summary>
                   <div className="mt-2 space-y-1.5 leading-relaxed">
                     {message.personalizationProvenance.profile_preferences && (
-                      <p>• Your profile preferences shaped the response format or tone.</p>
+                      <p>• Your profile personalization was enabled for this response.</p>
                     )}
                     {message.personalizationProvenance.personal_memory && (
-                      <p>• Eligible personal memory/context was available to ground the response.</p>
+                      <p>• Eligible personal memory/context was provided to the answer model.</p>
                     )}
                     {(message.personalizationProvenance.private_graph_links ?? 0) > 0 && (
                       <>
