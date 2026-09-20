@@ -425,7 +425,7 @@ const ProfilePage = () => {
   }
 
   return (
-    <AppShell title={isOnboarding ? "Welcome, Seeker" : "My Profile"}>
+    <AppShell title={isOnboarding ? t('profile.page.welcome', 'Welcome, Seeker') : t('profile.page.title', 'My Profile')}>
       <div className="profile-focus-flow max-w-2xl mx-auto px-4 sm:px-6 py-5 sm:py-8 space-y-5 safe-x safe-bottom">
         {/* ── Profile hero: avatar, name, email, streak — calm, flat, generous ── */}
         {!isOnboarding && tab !== 'journey' && (
@@ -449,10 +449,10 @@ const ProfilePage = () => {
             </div>
             <div className="flex-1 min-w-0 text-left space-y-1.5">
               <p className="text-[11px] uppercase tracking-normal font-medium text-muted-foreground">
-                {profile.familiarityLevel || 'Seeker'}
+                {profile.familiarityLevel ? t(`profile.personalDetails.${profile.familiarityLevel}`, profile.familiarityLevel) : t('profile.personalDetails.seeker', 'Seeker')}
               </p>
               <h1 id="profile-name" className="text-xl sm:text-2xl font-semibold text-foreground tracking-normal leading-tight truncate">
-                {profile.displayName || 'Seeker'}
+                {profile.displayName || t('profile.personalDetails.seeker', 'Seeker')}
               </h1>
               <p className="text-sm text-muted-foreground/80 truncate">
                 {user?.email ?? 'Your sacred journey with Sri Preethaji & Sri Krishnaji'}
@@ -625,8 +625,8 @@ const ProfilePage = () => {
                         <SelectContent>
                           {tones.map(t => (
                             <SelectItem key={t.value} value={t.value}>
-                              <span className="font-medium">{t.label}</span>
-                              <span className="ml-2 text-xs text-muted-foreground">{t.hint}</span>
+                              <span className="font-medium">{t(`profile.tone.${t.value}` , t.label)}</span>
+                              <span className="ml-2 text-xs text-muted-foreground">{t(`profile.tone.${t.value}Hint`, t.hint)}</span>
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -1021,7 +1021,7 @@ const ProfilePage = () => {
                         )}
                       >
                         <t.icon className="w-5 h-5" />
-                        <span className="text-xs font-medium">{t.label}</span>
+                        <span className="text-xs font-medium">{t(`profile.theme.${t.value}`, t.label)}</span>
                       </button>
                     ))}
                   </div>
