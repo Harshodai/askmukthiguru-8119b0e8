@@ -300,7 +300,7 @@
     "searchingTradition": "\"{{topic}}\" विषये {{tradition}} उपदेशेषु अन्विष्यते…",
     "references": "सन्दर्भाः",
     "sourceDocuments": "मूलदस्तावेजाः",
-    "teachingReference": "उपदेशसन्दर्भः",
+    "teachingReference": "शिक्षण-सन्दर्भः",
     "aiLabel": "एआई-निर्मितम्",
     "aiLabelWithSources_one": "एआई-निर्मितम् · {{count}} उद्गमः",
     "aiLabelWithSources_other": "एआई-निर्मितम् · {{count}} उद्गमाः",
@@ -653,7 +653,10 @@
     "sereneMindOfferFooter": "प्रथमं शिक्षणम्; यदा उचितं मन्यते तदा एव आरभताम्।",
     "videoUnavailable": "चित्रफलकं न उपलब्धम्",
     "videoEmbedUnavailable": "एतत् चित्रफलकं समावेशयितुं न शक्यते",
-    "youTubeThumbnail": "YouTube चित्रलघुचित्रम्"
+    "youTubeThumbnail": "YouTube चित्रलघुचित्रम्",
+    "videoSource": "चित्रफलकस्रोतः {{letter}}",
+    "academyReference": "O&O अकादमी-सन्दर्भः",
+    "sourceLabel": "स्रोतः {{number}}"
   },
   "notFound": {
     "message": "अहो! पृष्ठं न लब्धम्",
