@@ -1310,6 +1310,13 @@ export const ChatInterface = () => {
           if (chunk.type === 'teaching_preview') {
             streamedTeachingPreview = chunk.items;
             setTeachingPreview(chunk.items);
+            setMessages((prev) =>
+              prev.map((message) =>
+                message.id === streamingGuruId
+                  ? { ...message, teachingPreview: chunk.items }
+                  : message,
+              ),
+            );
             continue;
           }
 
