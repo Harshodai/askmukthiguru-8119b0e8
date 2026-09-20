@@ -84,6 +84,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isDemo, setIsDemo] = useState(false);
+  const [isPersonal, setIsPersonal] = useState(false);
 
   // Layout forces / controls
   const [repulsion, setRepulsion] = useState(600);
@@ -156,6 +157,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
       demoTimerRef.current = null;
     }
     setIsDemo(false);
+    setIsPersonal(false);
     setLoading(true);
     setError(null);
     setData(null);
@@ -173,10 +175,12 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
       const baseUrl = (endpoint ?? '').replace(/\/api\/chat\/?$/, '');
       const token = await getAccessToken();
 
-      // Authenticated users get their personal knowledge graph;
-      // anonymous users get the public ontology subgraph.
+      // Signed-in seekers get only their personal graph on this surface.
+      // Anonymous visitors explore the public teaching ontology.
+      const hasPersonalScope = Boolean(token);
+      setIsPersonal(hasPersonalScope);
       let url: string;
-      if (token) {
+      if (hasPersonalScope) {
         url = `${baseUrl}/api/kg/personal-subgraph?limit=50`;
       } else {
         url = `${baseUrl}/api/kg/subgraph?query=${encodeURIComponent(q.trim() || 'beautiful state')}&limit=24`;
@@ -198,17 +202,19 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
         demoTimerRef.current = null;
       }
       if (!json.nodes || json.nodes.length === 0) {
-        // Personal graph empty: fall back to ontology subgraph for this query
-        if (token) {
-          const fallbackUrl = `${baseUrl}/api/kg/subgraph?query=${encodeURIComponent(q.trim() || 'beautiful state')}&limit=24`;
-          const fbRes = await fetch(fallbackUrl, { signal: AbortSignal.timeout(8000) });
-          if (fbRes.ok) {
-            const fbJson = (await fbRes.json()) as Subgraph;
-            if (fbJson.nodes && fbJson.nodes.length > 0) {
-              setData(fbJson);
-              setError(null);
-              setIsDemo(false);
-              setPan({ x: 0, y: 0 });
+        setData(null);
+        setIsDemo(false);
+        setError(
+          hasPersonalScope
+            ? t('kg.noPersonalConcepts', 'Your personal map is empty for now. Save a reflection or use Memory to build it.')
+            : t('kg.noConceptsFor', { query: q }),
+        );
+      } else {
+        setData(json);
+        setError(null);
+        setIsDemo(false);
+      }
+      setPan({ x: 0, y: 0 });
               setZoom(1);
               return;
             }
@@ -231,10 +237,20 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
         demoTimerRef.current = null;
       }
       const message = err instanceof Error ? err.message : String(err);
-      setData(DEMO_DATA);
-      setIsDemo(true);
-      setError(null);
-      console.warn('[Wisdom Map] live graph unavailable; showing demo data', message);
+      setData(null);
+      setError(
+        token
+          ? t('kg.personalMapUnavailable', 'Your personal map is unavailable right now. Please try again.')
+          : t('kg.mapUnavailable', 'The teaching map is unavailable right now. Please try again.'),
+      );
+      // Demo data is appropriate only for anonymous discovery. Never present
+      // synthetic public nodes as a signed-in seeker’s personal map.
+      if (!token) {
+        setData(DEMO_DATA);
+        setIsDemo(true);
+        setError(null);
+      }
+      console.warn('[Wisdom Map] live graph unavailable', message);
       setPan({ x: 0, y: 0 });
       setZoom(1);
     } finally {
@@ -541,6 +557,17 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
 
   return (
     <div className="flex flex-col gap-4 w-full max-w-5xl mx-auto p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="inline-flex items-center rounded-full border border-ojas/20 bg-ojas/5 px-2.5 py-1 text-[11px] font-medium text-ojas">
+          {isPersonal ? 'Your personal map' : isDemo ? 'Example map' : 'Teaching map'}
+        </span>
+        {isPersonal && (
+          <span className="text-[11px] text-muted-foreground">
+            Built from your saved reflections and authorized personal context.
+          </span>
+        )}
+      </div>
+
       <form onSubmit={submit} className="flex gap-3">
         <div className="relative flex-1 rounded-full bg-card/45 ring-1 ring-border/40 backdrop-blur-xl shadow-lg flex items-center">
           <Search className="absolute left-4.5 w-4.5 h-4.5 text-muted-foreground/80 pointer-events-none" />
