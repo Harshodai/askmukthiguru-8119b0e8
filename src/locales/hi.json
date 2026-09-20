@@ -510,7 +510,21 @@
       "edit": "संदेश संपादित करें",
       "remove": "कतार से हटाएँ",
       "regionLabel": "कतार में संदेश"
-    }
+    },
+    "voiceConversationUnavailable": "वॉइस बातचीत उपलब्ध नहीं है",
+    "voiceConversationUnavailableDesc": "हैंड्स-फ्री बातचीत के लिए इस ब्राउज़र को माइक्रोफ़ोन और वॉइस आउटपुट की अनुमति चाहिए।",
+    "voiceStreaming": "वॉइस स्ट्रीमिंग",
+    "voiceRecording": "वॉइस रिकॉर्डिंग",
+    "switchLangButton": "बदलें",
+    "speaking": "बोल रहे हैं…",
+    "dismissError": "त्रुटि हटाएँ",
+    "temporaryChat": "अस्थायी चैट",
+    "temporaryChatTitle": "अस्थायी चैट: चैट इतिहास, व्यक्तिगत स्मृति या व्यक्तिगत ज्ञान मानचित्र में सेव नहीं होती।",
+    "personalized": "व्यक्तिगत",
+    "personalizedTitle": "नियमित चैट आपके प्रोफ़ाइल और योग्य व्यक्तिगत स्मृति का उपयोग कर सकती हैं।",
+    "voiceMode": "वॉइस",
+    "signInAgain": "फिर से साइन इन करें",
+    "reload": "रीलोड करें"
   },
   "mood": {
     "bannerTitle": "आज आप कैसा महसूस कर रहे हैं?",
