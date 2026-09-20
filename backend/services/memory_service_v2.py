@@ -1464,8 +1464,10 @@ class MemoryServiceV2(MemoryService):
             def _created_key(nid: str) -> str:
                 return str(nodes[nid].get("created_at") or "")
 
-            memory_ids.sort(key=lambda nid: (-min(degree.get(nid, 0), 10), _created_key(nid)), reverse=False)
-            memory_ids.sort(key=lambda nid: _created_key(nid), reverse=True)
+            memory_ids.sort(
+                key=lambda nid: (_created_key(nid), min(degree.get(nid, 0), 10)),
+                reverse=True,
+            )
             notebook_ids.sort(key=lambda nid: _created_key(nid), reverse=True)
             concept_ids.sort(key=lambda nid: (-degree.get(nid, 0), str(nodes[nid].get("label") or "")))
 
