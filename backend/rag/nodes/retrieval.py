@@ -38,6 +38,7 @@ from .utils import (
     _llm_retrieval_expansions,
     _trace_update,
     emit_status,
+    emit_teaching_preview,
     expand_query_with_synonyms,
     inject_doctrine_keywords,
     log_metrics,
@@ -2305,6 +2306,8 @@ async def retrieve_documents(state: GraphState, config: RunnableConfig | None = 
         )
     except Exception as _e:
         logger.debug("[retrieval] suppressed metric observation error: %s", _e)
+
+    await emit_teaching_preview(config, all_docs)
 
     return {
         "documents": all_docs,
