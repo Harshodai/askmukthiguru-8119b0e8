@@ -32,6 +32,7 @@ import {
 } from '@/lib/chat/attachmentLimits';
 import { telemetryEvents } from '@/lib/telemetryEvents';
 import { ChatErrorBanner } from './ChatErrorBanner';
+import { buildMessageError } from '@/lib/chat/errors';
 import { AiTransparencyBanner } from '@/components/compliance/AiTransparencyBanner';
 import { hapticAudio } from '@/lib/audio/hapticAudio';
 
@@ -132,6 +133,7 @@ export const ChatInterface = () => {
   }, []);
 
   const [quotaExceeded, setQuotaExceeded] = useState(false);
+  const [conversationContextExhausted, setConversationContextExhausted] = useState(false);
   const [quotaMeta, setQuotaMeta] = useState<{ remaining?: number; totalLimit?: number }>({});
   const [responsePreferences, setResponsePreferences] = useState<ResponsePreferences>(() => loadResponsePreferences());
   const updateResponsePreferences = useCallback((next: ResponsePreferences) => {
@@ -963,6 +965,9 @@ export const ChatInterface = () => {
       currentJobIdRef.current = null;
     }
 
+    // A context-exhausted conversation is intentionally read-only until the seeker continues in a new chat.
+    if (conversationContextExhausted) return;
+
     // Anonymous quota gate: once the backend has refused a message, don't keep
     // sending (avoids wasting quota retries and gives a stable UI state).
     if (quotaExceeded) {
@@ -1316,8 +1321,9 @@ export const ChatInterface = () => {
           }
 
           if (chunk.type === 'error') {
-            toast({ title: 'Server error', description: chunk.text, variant: 'destructive' });
-            continue;
+            const msgError = buildMessageError(chunk.errorCode, chunk.text);
+            if (msgError.kind === 'context_exhausted') setConversationContextExhausted(true);
+            throw Object.assign(new Error(chunk.text), { errorCode: chunk.errorCode });
           }
 
           if (chunk.type === 'final') {
@@ -1663,6 +1669,7 @@ openSereneMind('audio');
         const responseError = response.errorCode
           ? buildMessageError(response.errorCode, response.error)
           : undefined;
+        if (responseError?.kind === 'context_exhausted') setConversationContextExhausted(true);
         if (responseError?.kind === 'quota_exceeded') {
           setQuotaExceeded(true);
           setQuotaMeta({ remaining: response.quotaRemaining, totalLimit: response.quotaTotalLimit });
@@ -1951,7 +1958,7 @@ const handleSubmitEdit = useCallback((messageId: string, newContent: string) => 
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [isStreaming, isTyping, messages]);
 
-const handleNewConversation = useCallback(async () => {
+const handleNewConversation = useCallback(async (continuationSummary?: string) => {
   stopSpeaking();
   if (isIncognito) {
     setIsIncognito(false);
@@ -1976,12 +1983,15 @@ const handleNewConversation = useCallback(async () => {
 
   newConversation.messages = [welcomeMessage];
   newConversation.preview = getConversationPreview([welcomeMessage]);
+  if (continuationSummary?.trim()) newConversation.summary = continuationSummary.trim().slice(0, 4000);
+
   await saveConversation(newConversation);
 
   setCurrentConversation(newConversation);
   await setCurrentConversationId(newConversation.id);
   setMessages([welcomeMessage]);
   setRecommendedCourse(null);
+  setConversationContextExhausted(false);
   setRefreshTrigger(prev => prev + 1);
 }, [stopSpeaking, isIncognito, profile.prePracticeLog, selected?.slug]);
 
@@ -2004,6 +2014,7 @@ const handleNewIncognitoConversation = async () => {
   setCurrentConversation(newConversation);
   setMessages([welcomeMessage]);
   setRecommendedCourse(null);
+  setConversationContextExhausted(false);
   setRefreshTrigger(prev => prev + 1);
 };
 
@@ -2020,6 +2031,7 @@ const handleSelectConversation = useCallback(async (conversation: Conversation) 
   await setCurrentConversationId(conversation.id);
   setMessages(conversation.messages);
   setRecommendedCourse(null);
+  setConversationContextExhausted(false);
   // Scroll to bottom when switching conversations
   isNearBottomRef.current = true;
   requestAnimationFrame(() => {
@@ -2219,7 +2231,23 @@ return (
 
 
       {/* Global chat error banner */}
-      <ChatErrorBanner onRetry={handleRegenerate} />
+      <ChatErrorBanner onRetry={handleRegenerate} onStartNewChat={async () => {
+        const priorMessages = messages;
+        let continuationSummary = currentConversation?.summary?.trim() || '';
+        if (!continuationSummary && priorMessages.some((m) => m.role === 'user')) {
+          try {
+            continuationSummary = await generateSummary(priorMessages);
+          } catch {
+            continuationSummary = priorMessages
+              .filter((m) => m.role === 'user')
+              .slice(-5)
+              .map((m) => m.content.trim())
+              .filter(Boolean)
+              .join('\n');
+          }
+        }
+        await handleNewConversation(continuationSummary);
+      }} />
 
       {/* EU AI Act Article 50(1) Transparency Banner */}
       <AiTransparencyBanner />
