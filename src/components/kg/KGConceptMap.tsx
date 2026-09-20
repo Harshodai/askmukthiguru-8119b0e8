@@ -104,8 +104,14 @@ function WisdomNode({ data, selected }: NodeProps<WisdomFlowNode>) {
           : '0 10px 24px rgba(0,0,0,.22)',
       }}
     >
-      <Handle type="target" position={Position.Top} className="!h-1 !w-8 !border-0 !bg-transparent" />
-      <Handle type="source" position={Position.Bottom} className="!h-1 !w-8 !border-0 !bg-transparent" />
+      <Handle id="target-top" type="target" position={Position.Top} className="!h-1 !w-8 !border-0 !bg-transparent" />
+      <Handle id="target-right" type="target" position={Position.Right} className="!h-8 !w-1 !border-0 !bg-transparent" />
+      <Handle id="target-bottom" type="target" position={Position.Bottom} className="!h-1 !w-8 !border-0 !bg-transparent" />
+      <Handle id="target-left" type="target" position={Position.Left} className="!h-8 !w-1 !border-0 !bg-transparent" />
+      <Handle id="source-top" type="source" position={Position.Top} className="!h-1 !w-8 !border-0 !bg-transparent" />
+      <Handle id="source-right" type="source" position={Position.Right} className="!h-8 !w-1 !border-0 !bg-transparent" />
+      <Handle id="source-bottom" type="source" position={Position.Bottom} className="!h-1 !w-8 !border-0 !bg-transparent" />
+      <Handle id="source-left" type="source" position={Position.Left} className="!h-8 !w-1 !border-0 !bg-transparent" />
 
       <div className="flex items-start gap-2.5">
         <span
@@ -182,8 +188,8 @@ function layoutGraph(data: Subgraph): WisdomFlowNode[] {
     items.forEach((node, index) => {
       const angle = startAngle + (index / items.length) * Math.PI * 2;
       positions.set(node.id, {
-        x: center.x + Math.cos(angle) * radius - 105,
-        y: center.y + Math.sin(angle) * radius * yScale - 43,
+        x: center.x + Math.cos(angle) * radius - 110,
+        y: center.y + Math.sin(angle) * radius * yScale - 48,
       });
     });
   };
@@ -215,9 +221,30 @@ function layoutGraph(data: Subgraph): WisdomFlowNode[] {
         contentPreview: node.content_preview,
         degree: degree.get(node.id) ?? 0,
       },
-      style: { width: 210 } satisfies CSSProperties,
+      style: { width: 220 } satisfies CSSProperties,
     };
   });
+}
+
+function directionalHandles(
+  source: { x: number; y: number },
+  target: { x: number; y: number },
+) {
+  const dx = target.x - source.x;
+  const dy = target.y - source.y;
+  const horizontal = Math.abs(dx) >= Math.abs(dy);
+
+  if (horizontal) {
+    return {
+      sourceHandle: dx >= 0 ? 'source-right' : 'source-left',
+      targetHandle: dx >= 0 ? 'target-left' : 'target-right',
+    };
+  }
+
+  return {
+    sourceHandle: dy >= 0 ? 'source-bottom' : 'source-top',
+    targetHandle: dy >= 0 ? 'target-top' : 'target-bottom',
+  };
 }
 
 function edgeStyle(label?: string | null, active = false) {
@@ -318,20 +345,31 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
   const flowEdges = useMemo<Edge[]>(() => {
     if (!data) return [];
     const selected = selectedNodeId;
+    const positions = new Map(flowNodes.map((node) => [node.id, node.position]));
+
     return data.edges
       .filter((edge) => edge.source && edge.target)
-      .map((edge, index) => ({
-        id: `edge-${index}-${edge.source}-${edge.target}`,
-        source: edge.source,
-        target: edge.target,
-        type: 'smoothstep',
-        label: edge.label && !['HAS_MEMORY', 'SAVED_NOTE'].includes(edge.label) ? edge.label : undefined,
-        labelStyle: { fill: '#a8a29e', fontSize: 9, fontWeight: 500 },
-        labelBgStyle: { fill: '#15120e', fillOpacity: 0.9 },
-        labelBgPadding: [4, 2] as [number, number],
-        style: edgeStyle(edge.label, Boolean(selected && (edge.source === selected || edge.target === selected))),
-      }));
-  }, [data, selectedNodeId]);
+      .map((edge, index) => {
+        const sourcePosition = positions.get(edge.source) ?? { x: 0, y: 0 };
+        const targetPosition = positions.get(edge.target) ?? { x: 0, y: 0 };
+        const handles = directionalHandles(sourcePosition, targetPosition);
+
+        return {
+          id: `edge-${index}-${edge.source}-${edge.target}`,
+          source: edge.source,
+          target: edge.target,
+          sourceHandle: handles.sourceHandle,
+          targetHandle: handles.targetHandle,
+          type: 'smoothstep',
+          pathOptions: { borderRadius: 14, offset: 18 },
+          label: edge.label && !['HAS_MEMORY', 'SAVED_NOTE'].includes(edge.label) ? edge.label : undefined,
+          labelStyle: { fill: '#d6d3d1', fontSize: 9, fontWeight: 600 },
+          labelBgStyle: { fill: '#15120e', fillOpacity: 0.92 },
+          labelBgPadding: [5, 3] as [number, number],
+          style: edgeStyle(edge.label, Boolean(selected && (edge.source === selected || edge.target === selected))),
+        };
+      });
+  }, [data, flowNodes, selectedNodeId]);
 
   const selectedNode = useMemo(
     () => flowNodes.find((node) => node.id === selectedNodeId) ?? null,
