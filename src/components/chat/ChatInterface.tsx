@@ -40,7 +40,6 @@ import { derivePrePracticeInsights } from '@/lib/profileStorage';
 import { sendMessage, sendMessageStreaming, uploadChatAttachment, MessagePayload, StreamChunk, generateSummary, generateConversationTitle, setLanguage as setAILanguage, ProactiveSereneMindTrigger, RecommendedCourse, getAIConfig } from '@/lib/aiService';
 import type { BackendMetadata, LiveLogisticsEvent, GuidancePlan, AnswerEvidence, GroundingState } from '@/lib/chat/types';
 import { getCourse } from '@/lib/healingCourses';
-import { memoryApi } from '@/lib/memoryApi';
 import { supabase } from '@/integrations/supabase/client';
 import { getLastCompletedMeditationTimestamp, loadMeditationSessions } from '@/lib/meditationStorage';
 import { hashMessages, getCachedResponse, setCachedResponse, clearResponseCache } from '@/lib/responseCache';
@@ -1014,24 +1013,10 @@ export const ChatInterface = () => {
       }
     };
 
-    // ── Memory: fetch relevant context before sending ─────────────────
-    // failures are silent (best-effort).
-    const requestHistory = isIncognito ? [] : messageHistory;
-    const requestSummary = isIncognito ? undefined : currentConversation?.summary;
-    const requestSessionId = isIncognito ? undefined : currentConversation?.id;
-    let seekerContext = '';
-    if (!isIncognito) {
-      try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        // Memory search uses aiText (English) for better semantic matching
-        const relevant = await memoryApi.getRelevant(aiText, 5);
-        if (relevant.length > 0) {
-          seekerContext = relevant.map((m) => `- ${m.content}`).join('\n');
-        }
-      }
-      } catch { /* memory is best-effort — never block the chat */ }
-    }
+    // Memory/personalization is assembled server-side in one bounded context
+    // pipeline. Keeping the browser out of the memory lookup avoids a duplicate
+    // embedding/retrieval pass and gives the server a single privacy boundary.
+    const seekerContext = undefined;
 
     // Try streaming first (skip when awaiting Serene Mind to avoid leaking blocked content during stream)
     const streamingGuruId = generateId();
