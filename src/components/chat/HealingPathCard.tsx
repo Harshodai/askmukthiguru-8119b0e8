@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, X, Check, Play, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -248,7 +249,7 @@ export function HealingPathCard({
         exit={{ opacity: 0, y: 8 }}
         className="mx-auto mb-3 w-full max-w-3xl rounded-2xl border border-primary/20 bg-primary/[0.04] p-4 backdrop-blur-sm"
         role="region"
-        aria-label="Healing path"
+        aria-label={t('chat.healingPath.ariaLabel')}
       >
         <div className="flex items-start gap-3">
           <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
@@ -345,7 +346,7 @@ export function HealingPathCard({
             type="button"
             onClick={() => setDismissed(true)}
             className="rounded-full p-1 text-muted-foreground/70 transition hover:bg-muted hover:text-foreground"
-            aria-label="Dismiss healing path"
+            aria-label={t('chat.healingPath.dismiss')}
           >
             <X className="h-4 w-4" />
           </button>
