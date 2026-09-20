@@ -601,7 +601,7 @@ const ProfilePage = () => {
                     <div className="space-y-2">
                       <Label className="text-sm font-medium flex items-center gap-1.5">
                         <Globe className="w-3.5 h-3.5 text-ojas" />
-                        Preferred Language
+                        {t('profile.personalDetails.language')}
                       </Label>
                       <Select value={form.preferredLanguage} onValueChange={(v) => patch('preferredLanguage', v)}>
                         <SelectTrigger className="min-h-[44px] rounded-xl">
@@ -617,7 +617,7 @@ const ProfilePage = () => {
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium">Guru's Tone</Label>
+                      <Label className="text-sm font-medium">{t('profile.personalDetails.tone')}</Label>
                       <Select value={form.guruTone} onValueChange={(v) => patch('guruTone', v as GuruTone)}>
                         <SelectTrigger className="min-h-[44px] rounded-xl">
                           <SelectValue />
@@ -664,7 +664,7 @@ const ProfilePage = () => {
                     className="rounded-xl border border-hairline bg-muted/30 px-4 py-3.5"
                   >
                     <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                      Your guidance preview
+                      {t('profile.journey.personalized')}
                     </div>
                     <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
                       {form.guruTone === 'direct'
@@ -680,7 +680,7 @@ const ProfilePage = () => {
                           : 'It explains spiritual terms plainly before building on them.'}
                     </p>
                     <p className="mt-2 text-xs text-ojas/90">
-                      Source-aware by design: verified quotations remain attributed; unsupported questions receive a clear limit or clarification.
+                      {t('profile.personalDetails.sourceAware', 'Source-aware by design: verified quotations remain attributed; unsupported questions receive a clear limit or clarification.')}
                     </p>
                   </div>
                 </CardContent>
@@ -691,7 +691,7 @@ const ProfilePage = () => {
                   {dirty ? (
                     <p className="text-xs text-ojas font-medium flex items-center gap-1.5">
                       <span className="w-2 h-2 rounded-full bg-ojas inline-block" />
-                      Unsaved changes
+                      {t('profile.personalDetails.unsavedChanges')}
                     </p>
                   ) : (
                     <p className="text-xs text-muted-foreground">{t("profile.personalDetails.upToDate", "All profile details are up to date")}</p>
@@ -1113,8 +1113,8 @@ const ProfilePage = () => {
                           const ok = await requestNotificationPermission();
                           if (!ok) {
                             toast({
-                              title: "Permissions required",
-                              description: "Please enable notifications in your browser settings to use reminders.",
+                              title: t('profile.reminders.permissionsRequired', 'Permissions required'),
+                              description: t('profile.reminders.permissionsDescription', 'Please enable notifications in your browser settings to use reminders.'),
                               variant: "destructive"
                             });
                             return;
@@ -1166,7 +1166,7 @@ const ProfilePage = () => {
                     <h4 className="text-[10px] uppercase tracking-[0.14em] font-medium text-muted-foreground">Export Data</h4>
                     <div className="flex flex-col sm:flex-row gap-3">
                       <Button variant="outline" className="flex-1 gap-2 rounded-xl min-h-[44px] border-hairline" onClick={handleExport}>
-                        <Download className="w-4 h-4" /> Export Local Data
+                        <Download className="w-4 h-4" /> {t('profile.danger.exportLocalData', 'Export local data')}
                       </Button>
                       <Button
                         variant="outline"
@@ -1329,7 +1329,7 @@ const ProfilePage = () => {
                   <div className="flex items-center gap-3">
                     <Mail className="h-5 w-5 text-ojas" />
                     <div>
-                      <CardTitle className="text-lg font-serif font-semibold text-foreground">Contact Support</CardTitle>
+                      <CardTitle className="text-lg font-serif font-semibold text-foreground">{t('profile.support.title')}</CardTitle>
                       <CardDescription>
                         Have a question, feedback, or run into an issue? We are here to help.
                       </CardDescription>
