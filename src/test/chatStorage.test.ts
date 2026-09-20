@@ -102,6 +102,31 @@ describe('chatStorage', () => {
       });
     });
 
+    it('round-trips public teaching evidence with a conversation', async () => {
+      const conv = createNewConversation();
+      conv.messages = [{
+        id: 'guru-teaching-1',
+        role: 'guru',
+        content: 'Grounded answer',
+        timestamp: new Date('2026-09-20T10:00:00.000Z'),
+        teachingPreview: [{
+          title: 'Awareness and the Beautiful State',
+          teacher: 'Sri Preethaji',
+          url: 'https://example.com/teaching',
+          excerpt: 'A source-backed teaching excerpt.',
+        }],
+      }];
+      await saveConversation(conv);
+
+      const loaded = await loadConversations();
+      expect(loaded[0].messages[0].teachingPreview).toEqual([{
+        title: 'Awareness and the Beautiful State',
+        teacher: 'Sri Preethaji',
+        url: 'https://example.com/teaching',
+        excerpt: 'A source-backed teaching excerpt.',
+      }]);
+    });
+
     it('deletes conversations', async () => {
       const conv = createNewConversation();
       await saveConversation(conv);
