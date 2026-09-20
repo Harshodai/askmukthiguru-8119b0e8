@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Message } from '@/lib/chatStorage';
+import type { TeachingPreview } from '@/lib/chat/types';
 import { evidenceSupport } from '@/lib/chat/evidenceSupport';
 import { FEATURE_FLAGS } from '@/lib/featureFlags';
 import { cn } from '@/lib/utils';
@@ -84,47 +85,20 @@ const TeachingGroundingCard = ({
   teachingPreview = [],
 }: {
   citations: Citation[];
-  teachingPreview?: Message['teachingPreview'];
+  teachingPreview?: TeachingPreview[];
 }) => {
   const { t } = useTranslation();
-  type GroundingItem = {
-    title?: string;
-    teacher?: string;
-    speaker?: string;
-    source?: string;
-    url?: string;
-    excerpt?: string;
-  };
-
-  const items: GroundingItem[] =
-    (teachingPreview ?? [])
-      .filter((item) => Boolean(item.title || item.excerpt))
-      .slice(0, 2)
-      .map((item) => ({
-        title: item.title,
-        teacher: item.teacher ?? undefined,
-        url: item.url ?? undefined,
-        excerpt: item.excerpt ?? undefined,
-      })).length > 0
-      ? (teachingPreview ?? [])
-          .filter((item) => Boolean(item.title || item.excerpt))
-          .slice(0, 2)
-          .map((item) => ({
-            title: item.title,
-            teacher: item.teacher ?? undefined,
-            url: item.url ?? undefined,
-            excerpt: item.excerpt ?? undefined,
-          }))
-      : citations
-          .filter((citation) => Boolean(citation.title || citation.quote || citation.textSnippet))
-          .slice(0, 2)
-          .map((citation) => ({
-            title: citation.title ?? undefined,
-            speaker: citation.speaker ?? undefined,
-            source: citation.source ?? undefined,
-            url: citation.url ?? undefined,
-            excerpt: citation.quote || citation.textSnippet || undefined,
-          }));
+  const items = teachingPreview.length > 0
+    ? teachingPreview.slice(0, 3)
+    : citations
+        .filter((citation) => Boolean(citation.title || citation.quote || citation.textSnippet))
+        .slice(0, 3)
+        .map((citation) => ({
+          title: citation.title || citation.source || t('chat.references'),
+          teacher: citation.speaker ?? null,
+          url: citation.url || null,
+          excerpt: citation.quote || citation.textSnippet || null,
+        }));
 
   if (items.length === 0) return null;
 
@@ -132,49 +106,57 @@ const TeachingGroundingCard = ({
     <aside
       data-testid="teaching-grounding"
       aria-label={t('chat.teachingContext.title')}
-      className="w-full rounded-xl border border-ojas/15 bg-ojas/[0.035] px-3.5 py-3"
+      className="mb-3 w-full rounded-xl border border-ojas/15 bg-ojas/[0.035] px-3.5 py-3"
     >
-      <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+      <div className="flex items-center gap-2 text-[15px] leading-5 font-medium text-foreground">
         <BookOpen className="h-4 w-4 shrink-0 text-ojas" aria-hidden="true" />
         <span>{t('chat.teachingContext.title')}</span>
+        <span className="text-[15px] leading-5 font-normal text-muted-foreground/70">
+          {t('chat.teachingContext.sourceCount', { count: items.length })}
+        </span>
       </div>
-      <div className="mt-2 space-y-2.5">
-        {items.map((citation, index) => {
-          const excerpt = citation.excerpt;
-          return (
-            <div key={citation.url || (citation.title || 'teaching') + '-' + index} className="min-w-0">
-              <div className="text-sm font-medium leading-5 text-foreground">
-                {citation.url ? (
-                  <a
-                    href={citation.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="hover:text-ojas hover:underline underline-offset-2"
-                    aria-label={t('chat.openSourceAria', { number: index + 1, domain: (() => { try { return new URL(citation.url).hostname.replace(/^www\./, ''); } catch { return citation.url; } })() })}
-                  >
-                    {citation.title || t('chat.references')}
-                  </a>
-                ) : (
-                  citation.title || t('chat.references')
-                )}
-              </div>
-              {(citation.speaker || citation.teacher || citation.source) && (
-                <div className="mt-0.5 text-sm text-muted-foreground">
-                  {[citation.speaker, citation.teacher, citation.source].filter(Boolean).join(' · ')}
-                </div>
-              )}
-              {excerpt && (
-                <blockquote className="mt-1 border-l-2 border-ojas/25 pl-2.5 text-sm leading-5 text-muted-foreground line-clamp-3">
-                  “{excerpt}”
-                </blockquote>
+      <div className="mt-2.5 space-y-2.5">
+        {items.map((item, index) => (
+          <div key={item.url || item.title + '-' + index} className="min-w-0">
+            <div className="text-[15px] leading-5 font-medium text-foreground">
+              {item.url ? (
+                <a
+                  href={item.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-ojas hover:underline underline-offset-2"
+                  aria-label={t('chat.openSourceAria', {
+                    number: index + 1,
+                    domain: (() => {
+                      try {
+                        return new URL(item.url).hostname.replace(/^www\./, '');
+                      } catch {
+                        return item.url;
+                      }
+                    })(),
+                  })}
+                >
+                  {item.title}
+                </a>
+              ) : (
+                item.title
               )}
             </div>
-          );
-        })}
+            {item.teacher && (
+              <div className="mt-0.5 text-[15px] leading-5 text-muted-foreground">{item.teacher}</div>
+            )}
+            {item.excerpt && (
+              <blockquote className="mt-1 border-l-2 border-ojas/25 pl-2.5 text-[15px] leading-6 text-muted-foreground line-clamp-3">
+                “{item.excerpt}”
+              </blockquote>
+            )}
+          </div>
+        ))}
       </div>
     </aside>
   );
 };
+
 const GuidancePlanCard = ({ plan }: { plan: NonNullable<Message["guidancePlan"]> }) => {
   const { t } = useTranslation();
   return (
@@ -804,7 +786,12 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                       </div>
                     </div>
                   ) : (
-                    <div className="text-[15px] leading-[1.75] text-foreground selection:bg-ojas/20">
+                    <>
+                      <TeachingGroundingCard
+                        citations={citations}
+                        teachingPreview={message.teachingPreview}
+                      />
+                      <div className="text-[15px] leading-[1.75] text-foreground selection:bg-ojas/20">
                       {/* While streaming with no content, render nothing — the single
                         ThinkingPills indicator in ChatInterface is the source of truth.
                         This prevents two simultaneous "thinking" indicators. */}
@@ -932,7 +919,8 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                           {injectCitationLinks(displayContent, (message.citations ?? []).length)}
                         </ReactMarkdown>
                       )}
-                    </div>
+                      </div>
+                    </>
                   )
                 ) : isEditing ? (
                   <div className="flex flex-col gap-2.5 w-full">
