@@ -105,7 +105,7 @@ describe('ThinkingPills', () => {
     fireEvent.click(toggle);
     const rows = screen.getAllByText(/Safety check|Searching sacred wisdom/);
     expect(rows.length).toBeGreaterThan(0);
-    rows.forEach((row) => expect(row.className).toContain('text-sm'));
+    rows.forEach((row) => expect(row.className).toContain('text-[15px]'));
   });
 
   it('prevents false 100% completion before tokens arrive (caps at 95%)', () => {
