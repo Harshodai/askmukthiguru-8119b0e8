@@ -577,7 +577,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
               <div className="mb-4 rounded-2xl border border-ojas/15 bg-ojas/5 p-4">
                 <Sparkles className="h-6 w-6 text-ojas" />
               </div>
-              <h3 className="font-serif text-xl font-semibold text-foreground"">{t('kg.title')}</h3>
+              <h3 className="font-serif text-xl font-semibold text-foreground">{t('kg.title')}</h3>
               <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">
                 {t('kg.searchToVisualise')}
               </p>
