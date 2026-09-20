@@ -483,7 +483,7 @@ const ProfilePage = () => {
                     onClick={() => navigate('/chat')}
                   >
                     <MessageCircle className="w-3.5 h-3.5" />
-                    Continue chatting
+                    {t('profile.journey.continueChat')}
                   </Button>
                   <Button
                     type="button"
@@ -493,7 +493,7 @@ const ProfilePage = () => {
                     onClick={() => navigate('/practices')}
                   >
                     <Sparkles className="w-3.5 h-3.5" />
-                    Choose a practice
+                    {t('profile.journey.choosePractice')}
                   </Button>
                 </div>
               )}
@@ -644,15 +644,15 @@ const ProfilePage = () => {
                         <SelectContent>
                           <SelectItem value="seeker">
                             <span className="font-medium">{t("profile.personalDetails.seeker", "Seeker")}</span>
-                            <span className="ml-2 text-xs text-muted-foreground">Clear Sanskrit explanations</span>
+                            <span className="ms-2 text-xs text-muted-foreground">{t("profile.personalDetails.seekerHint")}</span>
                           </SelectItem>
                           <SelectItem value="practitioner">
                             <span className="font-medium">{t("profile.personalDetails.practitioner", "Practitioner")}</span>
-                            <span className="ml-2 text-xs text-muted-foreground">Balanced meditation guidance</span>
+                            <span className="ms-2 text-xs text-muted-foreground">{t("profile.personalDetails.practitionerHint")}</span>
                           </SelectItem>
                           <SelectItem value="advanced">
                             <span className="font-medium">{t("profile.personalDetails.advanced", "Advanced")}</span>
-                            <span className="ml-2 text-xs text-muted-foreground">Deep philosophical terms</span>
+                            <span className="ms-2 text-xs text-muted-foreground">{t("profile.personalDetails.advancedHint")}</span>
                           </SelectItem>
                         </SelectContent>
                       </Select>
@@ -970,7 +970,7 @@ const ProfilePage = () => {
                             setDeleteAllConfirm('');
                             toast({ title: t('profile.conversations.deleted', 'All conversations deleted') });
                           }
-                        }} disabled={deleteAllConfirm.trim().toUpperCase() !== 'DELETE'} className="rounded-xl">Confirm</AlertDialogAction>
+                        }} disabled={deleteAllConfirm.trim().toUpperCase() !== 'DELETE'} className="rounded-xl"	>{t('common.confirm')}</AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
