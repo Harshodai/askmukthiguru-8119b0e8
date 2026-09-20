@@ -1,5 +1,3 @@
-import pytest
-
 from app.config import settings
 from services.chat_context_budget import (
     CONTEXT_ERROR_CODE,
@@ -47,3 +45,15 @@ def test_context_budget_ignores_disallowed_roles():
 
 def test_error_code_is_stable():
     assert CONTEXT_ERROR_CODE == "conversation_context_exhausted"
+
+
+def test_chat_request_accepts_bounded_continuation_summary():
+    from app.schemas import ChatRequest
+
+    request = ChatRequest(
+        messages=[],
+        user_message="continue",
+        conversation_summary="A short summary of the previous conversation.",
+    )
+
+    assert request.conversation_summary.startswith("A short summary")
