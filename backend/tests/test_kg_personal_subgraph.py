@@ -213,7 +213,7 @@ def test_personal_subgraph_maps_edge_type_to_label():
     }
 
     mock_svc = MagicMock()
-    mock_svc.build_personal_knowledge_graph.return_value = fake_result
+    mock_svc.build_personal_knowledge_graph = AsyncMock(return_value=fake_result)
 
     with patch("app.api.kg.get_container") as mock_get:
         container = MagicMock()
