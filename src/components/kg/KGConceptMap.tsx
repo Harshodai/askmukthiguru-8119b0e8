@@ -181,7 +181,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
       setIsPersonal(hasPersonalScope);
       let url: string;
       if (hasPersonalScope) {
-        url = `${baseUrl}/api/kg/personal-subgraph?limit=50`;
+        url = `${baseUrl}/api/kg/personal-subgraph?limit=50&query=${encodeURIComponent(q.trim())}`;
       } else {
         url = `${baseUrl}/api/kg/subgraph?query=${encodeURIComponent(q.trim() || 'beautiful state')}&limit=24`;
       }
