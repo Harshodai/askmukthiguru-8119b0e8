@@ -262,6 +262,7 @@ class PipelineResult:
             daily_practice_card=self.daily_practice_card,
             live_logistics_events=self.live_logistics_events,
             answer_evidence=self.answer_evidence,
+            personalization_provenance=self.personalization_provenance,
             guidance_plan=self.guidance_plan,
             verification=self.verification,
             release_manifest=self.release_manifest,
