@@ -317,6 +317,10 @@ class ChatResponse(BaseModel):
         None,
         description="Typed evidence provenance for a response",
     )
+    personalization_provenance: Optional[dict[str, Any]] = Field(
+        default=None,
+        description="Public-safe explanation of personal context classes that influenced this answer; never includes raw private memory text.",
+    )
     # Must list every state the pipeline actually emits. The previous 4-value
     # Literal omitted bounded_hypothetical, capability_answer,
     # provenance_boundary and response_format_capability — all of which
