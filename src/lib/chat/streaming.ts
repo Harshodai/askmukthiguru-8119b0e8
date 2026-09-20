@@ -50,6 +50,7 @@ export async function* sendMessageStreaming(
   lastMessageId?: string,
   responsePreferences?: ResponsePreferences,
   attachmentContext?: string,
+  languageOverride?: string,
 ): AsyncGenerator<StreamChunk> {
   const { provider, endpoint, systemPrompt } = getCurrentConfig();
 
@@ -70,13 +71,13 @@ export async function* sendMessageStreaming(
   const buildBody = () => JSON.stringify({
     messages: [
       { role: 'system', content: systemPrompt },
-      ...(summary ? [{ role: 'system' as const, content: `SUMMARY OF PREVIOUS CONVERSATION: ${summary}` }] : []),
       ...trimmedMessages,
     ],
     user_message: userMessage,
     meditation_step: meditationStep,
     session_id: effectiveSessionId,
-    language: getCurrentConfig().language || 'en',
+    ...(summary && !incognito ? { conversation_summary: summary.slice(0, 4000) } : {}),
+    language: languageOverride ?? getCurrentConfig().language || 'en',
     incognito,
     ...(responsePreferences ? { response_preferences: { mode: responsePreferences.mode, include_practice: responsePreferences.includePractice, include_reflection: responsePreferences.includeReflection, action_depth: responsePreferences.actionDepth } } : {}),
     stream: true,
