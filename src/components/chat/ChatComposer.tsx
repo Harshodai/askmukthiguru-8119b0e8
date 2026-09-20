@@ -157,8 +157,8 @@ function ChatComposerInner({
 
     if (file.size > CHAT_MAX_SINGLE_ATTACHMENT_BYTES) {
       toast?.({
-        title: t('chat.attachmentTooLarge') === 'chat.attachmentTooLarge' ? 'Attachment too large' : t('chat.attachmentTooLarge'),
-        description: t('chat.attachmentSizeHint') === 'chat.attachmentSizeHint' ? `Please choose a file under ${formatMegabytes(CHAT_MAX_SINGLE_ATTACHMENT_BYTES)}.` : t('chat.attachmentSizeHint'),
+        title: t('chat.attachmentTooLarge'),
+        description: t('chat.attachmentSizeHint'),
         variant: 'destructive',
       });
       e.target.value = '';
@@ -170,8 +170,8 @@ function ChatComposerInner({
       await onAddFile(file);
     } catch (error) {
       toast?.({
-        title: 'Attachment processing failed',
-        description: error instanceof Error ? error.message : 'Please try another file.',
+        title: t('common.error'),
+        description: error instanceof Error ? error.message : t('common.retry'),
         variant: 'destructive',
       });
     } finally {
@@ -280,9 +280,7 @@ function ChatComposerInner({
           onBlur={onBlur}
           placeholder={
             isQuotaExceeded
-              ? t('chat.quotaExceededPlaceholder') === 'chat.quotaExceededPlaceholder'
-                ? 'Sign in to continue'
-                : t('chat.quotaExceededPlaceholder')
+              ? t('chat.quotaExceededPlaceholder')
               : isAwaitingSereneMind
                 ? t('chat.inputPlaceholderSereneMind')
                 : isListening
