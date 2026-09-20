@@ -37,22 +37,22 @@ export const QueuedMessagesTray: React.FC<QueuedMessagesTrayProps> = ({
       transition={{ duration: 0.25, ease: 'easeOut' }}
       className="w-full max-w-3xl mx-auto mb-2 px-3 sm:px-4"
     >
-      <div className="rounded-2xl border border-saffron-gold/30 bg-zinc-950/85 backdrop-blur-xl shadow-2xl p-3 ring-1 ring-white/10">
+      <div className="rounded-2xl border border-ojas/20 bg-card/95 backdrop-blur-xl shadow-lg p-3 ring-1 ring-border/20">
         {/* Header */}
         <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/10 text-xs">
-          <div className="flex items-center gap-2 text-saffron-gold font-mono font-semibold tracking-wider uppercase text-[11px]">
+          <div className="flex items-center gap-2 text-ojas font-mono font-semibold tracking-wider uppercase text-[11px]">
             <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-saffron-gold opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-saffron-gold" />
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-ojas opacity-40" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-ojas" />
             </span>
             <span>
-              {queue.length} {queue.length === 1 ? 'Message Queued' : 'Messages Queued'}
+              {queue.length} {queue.length === 1 ? t("chat.queue.messageQueued", "Message queued") : t("chat.queue.messagesQueued", "Messages queued")}
             </span>
           </div>
 
           <div className="flex items-center gap-3 text-[11px] text-white/50">
             <span className="hidden sm:inline-flex items-center gap-1 font-mono">
-              <CornerDownLeft className="w-3 h-3 text-saffron-gold" /> Auto-dispatches on response
+              <CornerDownLeft className="w-3 h-3 text-saffron-gold" /> {t("chat.queue.autoDispatch", "Auto-sends after the current response")}
             </span>
             {queue.length > 1 && onClearAll && (
               <button
@@ -60,7 +60,7 @@ export const QueuedMessagesTray: React.FC<QueuedMessagesTrayProps> = ({
                 onClick={onClearAll}
                 className="text-rose-400/80 hover:text-rose-300 transition-colors"
               >
-                Clear all
+                {t("chat.queue.clearAll", "Clear all")}
               </button>
             )}
           </div>
@@ -83,13 +83,13 @@ export const QueuedMessagesTray: React.FC<QueuedMessagesTrayProps> = ({
                     {idx + 1}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs text-white/90 line-clamp-2 leading-snug font-sans break-words">
+                    <p className="text-xs text-foreground/90 line-clamp-2 leading-snug font-sans break-words">
                       {item.text}
                     </p>
                     {item.attachedFiles && item.attachedFiles.length > 0 && (
-                      <div className="flex items-center gap-1 mt-1 text-[10px] text-white/50">
+                      <div className="flex items-center gap-1 mt-1 text-[10px] text-muted-foreground">
                         <Paperclip className="w-3 h-3 text-saffron-gold" />
-                        <span>{item.attachedFiles.length} file attached</span>
+                        <span>{item.attachedFiles.length} {item.attachedFiles.length === 1 ? t("chat.queue.fileAttached", "file attached") : t("chat.queue.filesAttached", "files attached")}</span>
                       </div>
                     )}
                   </div>
@@ -100,18 +100,18 @@ export const QueuedMessagesTray: React.FC<QueuedMessagesTrayProps> = ({
                   <button
                     type="button"
                     onClick={() => onSendNow(item.id)}
-                    title="Send now (interrupts current answer)"
-                    className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-saffron-gold/20 hover:bg-saffron-gold/30 text-saffron-gold text-[11px] font-medium transition-all"
+                    title={t("chat.queue.sendNowTitle", "Send now — interrupts the current answer")}
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-saffron-gold/20 hover:bg-saffron-gold/30 text-ojas text-[11px] font-medium transition-all"
                   >
                     <Zap className="w-3 h-3 fill-current" />
-                    <span className="hidden sm:inline">Send Now</span>
+                    <span className="hidden sm:inline">{t("chat.queue.sendNow", "Send now")}</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => onEdit(item.id)}
-                    title="Edit message"
-                    className="p-1.5 rounded-lg hover:bg-white/10 text-white/60 hover:text-white transition-colors"
+                    title={t("chat.queue.edit", "Edit message")}
+                    className="p-1.5 rounded-lg hover:bg-white/10 text-muted-foreground hover:text-foreground transition-colors"
                   >
                     <Edit3 className="w-3.5 h-3.5" />
                   </button>
@@ -119,8 +119,8 @@ export const QueuedMessagesTray: React.FC<QueuedMessagesTrayProps> = ({
                   <button
                     type="button"
                     onClick={() => onRemove(item.id)}
-                    title="Remove from queue"
-                    className="p-1.5 rounded-lg hover:bg-rose-500/20 text-white/60 hover:text-rose-400 transition-colors"
+                    title={t("chat.queue.remove", "Remove from queue")}
+                    className="p-1.5 rounded-lg hover:bg-rose-500/20 text-muted-foreground hover:text-destructive transition-colors"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
