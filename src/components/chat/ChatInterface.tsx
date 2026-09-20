@@ -113,6 +113,7 @@ export const ChatInterface = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
   const [isIncognito, setIsIncognito] = useState(false);
+  const [isHandsFreeVoice, setIsHandsFreeVoice] = useState(false);
   const [quotaExceeded, setQuotaExceeded] = useState(false);
   const [quotaMeta, setQuotaMeta] = useState<{ remaining?: number; totalLimit?: number }>({});
   const [responsePreferences, setResponsePreferences] = useState<ResponsePreferences>(() => loadResponsePreferences());
@@ -301,6 +302,9 @@ export const ChatInterface = () => {
   const lastGuruMessageRef = useRef<string>('');
   const isNearBottomRef = useRef(true);
   const titleGenerationRef = useRef<Set<string>>(new Set());
+  const handsFreeVoiceRef = useRef(false);
+  const voiceAwaitingPlaybackRef = useRef(false);
+  const voiceSubmitRef = useRef<(text: string) => void>(() => {});
   /** AbortController for the in-flight streaming request — Stop button calls .abort(). */
   const streamControllerRef = useRef<AbortController | null>(null);
   /** The current background job ID running on the backend. */
@@ -599,6 +603,7 @@ export const ChatInterface = () => {
 
   // Auto-speak ONLY for newly generated guru messages — never on initial mount
   // or when switching conversations (avoids unwanted speaker when entering /chat).
+
   const ttsInitializedRef = useRef(false);
   useEffect(() => {
     if (!ttsEnabled || messages.length === 0) {
@@ -625,8 +630,11 @@ export const ChatInterface = () => {
       lastMessage.content !== lastGuruMessageRef.current
     ) {
       lastGuruMessageRef.current = lastMessage.content;
-      // Honor the new opt-in autoplay flag; require user interaction for audio autoplay policy.
-      if (profile.voiceAutoplay && hasUserInteractedRef.current) {
+      // Regular autoplay is explicitly opt-in. Hands-free voice is a temporary
+      // session mode, so it may speak each completed answer without changing the
+      // saved profile preference.
+      if ((profile.voiceAutoplay || handsFreeVoiceRef.current) && hasUserInteractedRef.current) {
+        if (handsFreeVoiceRef.current) voiceAwaitingPlaybackRef.current = true;
         speak(stripPlainText(lastMessage.content));
       }
     }
@@ -653,8 +661,15 @@ export const ChatInterface = () => {
     useSarvam: currentLanguage !== 'en',
     onTranscript: (text, isFinal) => {
       if (isFinal) {
-        setInputValue(prev => prev + text + ' ');
+        const finalText = text.trim();
         resetTranscript();
+        if (!finalText) return;
+        if (handsFreeVoiceRef.current) {
+          setInputValue('');
+          voiceSubmitRef.current(finalText);
+        } else {
+          setInputValue(prev => prev + text + ' ');
+        }
       }
     },
     onError: (error) => {
@@ -692,7 +707,7 @@ export const ChatInterface = () => {
     },
   });
 
-  // Handle voice mode toggle
+  // Handle dictation microphone toggle.
   const handleVoiceToggle = useCallback(() => {
     if (!voiceSupported) {
       toast({
@@ -703,6 +718,16 @@ export const ChatInterface = () => {
       return;
     }
 
+    if (isHandsFreeVoice) {
+      handsFreeVoiceRef.current = false;
+      voiceAwaitingPlaybackRef.current = false;
+      setIsHandsFreeVoice(false);
+      stopListening();
+      stopSpeaking();
+      setVoiceEnabled(false);
+      return;
+    }
+
     if (voiceEnabled) {
       stopListening();
       setVoiceEnabled(false);
@@ -710,7 +735,47 @@ export const ChatInterface = () => {
       startListening();
       setVoiceEnabled(true);
     }
-  }, [voiceEnabled, voiceSupported, startListening, stopListening, toast]);
+  }, [voiceEnabled, voiceSupported, isHandsFreeVoice, startListening, stopListening, stopSpeaking, toast]);
+
+  const handleHandsFreeVoiceToggle = useCallback(() => {
+    if (!voiceSupported || !ttsSupported) {
+      toast({
+        title: 'Voice Conversation Unavailable',
+        description: 'This browser needs microphone access and voice output support for hands-free conversation.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (handsFreeVoiceRef.current) {
+      handsFreeVoiceRef.current = false;
+      voiceAwaitingPlaybackRef.current = false;
+      setIsHandsFreeVoice(false);
+      stopListening();
+      stopSpeaking();
+      setVoiceEnabled(false);
+      return;
+    }
+
+    handsFreeVoiceRef.current = true;
+    setIsHandsFreeVoice(true);
+    setTtsEnabled(true);
+    setVoiceEnabled(true);
+    hasUserInteractedRef.current = true;
+    startListening();
+  }, [voiceSupported, ttsSupported, startListening, stopListening, stopSpeaking, toast]);
+
+  useEffect(() => {
+    if (!isHandsFreeVoice) {
+      voiceAwaitingPlaybackRef.current = false;
+      return;
+    }
+    if (!isSpeaking && voiceAwaitingPlaybackRef.current) {
+      voiceAwaitingPlaybackRef.current = false;
+      startListening();
+      setVoiceEnabled(true);
+    }
+  }, [isHandsFreeVoice, isSpeaking, startListening]);
 
   // Handle TTS toggle
   const handleTtsToggle = useCallback(() => {
@@ -1724,6 +1789,11 @@ const handleSubmit = useCallback(
     submitImplRef.current(e, overrideText, options),
   [],
 );
+voiceSubmitRef.current = (text) => {
+  const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+  handleSubmit(fakeEvent, text, { forceImmediate: true, bypassCache: false });
+};
+
 
 const handleSendNowQueued = useCallback((id: string) => {
   const target = queuedMessagesRef.current.find((m) => m.id === id);
@@ -2177,6 +2247,7 @@ return (
                                   isStreaming={isStreaming}
                                   isAwaitingSereneMind={isAwaitingSereneMind}
                                   isListening={isListening}
+                                  isHandsFreeVoice={isHandsFreeVoice}
                                   currentLanguage={currentLanguage}
                                   voiceEnabled={voiceEnabled}
                                   ttsEnabled={ttsEnabled}
@@ -2188,6 +2259,7 @@ return (
                                   showInstantPill={showInstantPill}
                                   isLandingMode={true}
                                   onVoiceToggle={handleVoiceToggle}
+                                  onHandsFreeVoiceToggle={handleHandsFreeVoiceToggle}
                                   onTtsToggle={handleTtsToggle}
                                   onLanguageChange={handleLanguageChange}
             capabilities={chatCapabilities}
@@ -2336,6 +2408,7 @@ return (
             isAwaitingSereneMind={isAwaitingSereneMind}
             isQuotaExceeded={quotaExceeded}
             isListening={isListening}
+            isHandsFreeVoice={isHandsFreeVoice}
             currentLanguage={currentLanguage}
             voiceEnabled={voiceEnabled}
             ttsEnabled={ttsEnabled}
@@ -2347,6 +2420,7 @@ return (
             showInstantPill={showInstantPill}
             isLandingMode={false}
             onVoiceToggle={handleVoiceToggle}
+            onHandsFreeVoiceToggle={handleHandsFreeVoiceToggle}
             onTtsToggle={handleTtsToggle}
             onLanguageChange={handleLanguageChange}
             capabilities={chatCapabilities}
