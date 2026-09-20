@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { forwardRef, useState, useCallback, memo, useRef, useEffect, Suspense, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, ExternalLink, Share2, Shield, Copy, Check, RotateCcw, Pencil, BookOpen, Youtube, Play, AlertTriangle, LogIn, RefreshCw, Bookmark, StickyNote, Languages, Volume2, VolumeX } from 'lucide-react';
@@ -466,7 +467,7 @@ const LazyYouTube = ({ videoId, url }: { videoId: string; url: string }) => {
 
 /** Get a display name for a citation: the real title when known, else a
  *  domain-derived label (e.g., 'Video Source A') synthesized from the URL. */
-const getSourceDisplayName = (citation: Citation, index: number): string => {
+const getSourceDisplayName = (citation: Citation, index: number, t: TFunction): string => {
   if (citation.title) return citation.title;
   const url = citation.url;
   try {
@@ -1379,7 +1380,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                         const url = c.url;
                         const ytId = getYouTubeId(url);
                         const isYT = isYouTubeUrl(url);
-                        const displayName = getSourceDisplayName(c, i);
+                        const displayName = getSourceDisplayName(c, i, t);
                         const domain = getDomain(url);
 
                         return (
