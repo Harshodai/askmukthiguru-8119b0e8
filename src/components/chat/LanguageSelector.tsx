@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Globe, Mic, MicOff, Volume2, VolumeX, ChevronDown, Languages } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
@@ -109,6 +109,7 @@ export const LanguageSelector = ({
   const [isOpen, setIsOpen] = useState(false);
   const [internalLang, setInternalLang] = useState<string>(() => i18n?.language || 'en');
   const [focusedIndex, setFocusedIndex] = useState<number>(0);
+  const [searchQuery, setSearchQuery] = useState('');
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const popoverRef = useRef<HTMLDivElement | null>(null);
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -144,7 +145,8 @@ export const LanguageSelector = ({
   useEffect(() => {
     if (isOpen) {
       updatePosition();
-      const selectedIdx = LANGUAGES.findIndex((l) => l.code === selectedLanguage);
+      setSearchQuery('');
+      const selectedIdx = filteredLanguages.findIndex((l) => l.code === selectedLanguage);
       const initialIdx = selectedIdx >= 0 ? selectedIdx : 0;
       setFocusedIndex(initialIdx);
       // Move real DOM focus onto the selected option so roving tabindex is
@@ -167,7 +169,7 @@ export const LanguageSelector = ({
         window.removeEventListener('scroll', handleScroll, true);
       };
     }
-  }, [isOpen, updatePosition, selectedLanguage]);
+  }, [isOpen, updatePosition, selectedLanguage, filteredLanguages]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
@@ -198,7 +200,8 @@ export const LanguageSelector = ({
       if (event.key === 'ArrowDown') {
         event.preventDefault();
         setFocusedIndex((prev) => {
-          const next = (prev + 1) % LANGUAGES.length;
+          if (filteredLanguages.length === 0) return prev;
+          const next = (prev + 1) % filteredLanguages.length;
           itemRefs.current[next]?.focus();
           itemRefs.current[next]?.scrollIntoView({ block: 'nearest' });
           return next;
@@ -209,7 +212,8 @@ export const LanguageSelector = ({
       if (event.key === 'ArrowUp') {
         event.preventDefault();
         setFocusedIndex((prev) => {
-          const next = (prev - 1 + LANGUAGES.length) % LANGUAGES.length;
+          if (filteredLanguages.length === 0) return prev;
+          const next = (prev - 1 + filteredLanguages.length) % filteredLanguages.length;
           itemRefs.current[next]?.focus();
           itemRefs.current[next]?.scrollIntoView({ block: 'nearest' });
           return next;
@@ -227,7 +231,8 @@ export const LanguageSelector = ({
 
       if (event.key === 'End') {
         event.preventDefault();
-        const last = LANGUAGES.length - 1;
+        const last = filteredLanguages.length - 1;
+        if (last < 0) return;
         setFocusedIndex(last);
         itemRefs.current[last]?.focus();
         itemRefs.current[last]?.scrollIntoView({ block: 'nearest' });
@@ -236,7 +241,7 @@ export const LanguageSelector = ({
 
       if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault();
-        const selected = LANGUAGES[focusedIndex];
+        const selected = filteredLanguages[focusedIndex];
         if (selected) {
           handleLanguageChange(selected.code);
         }
@@ -264,16 +269,24 @@ export const LanguageSelector = ({
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [isOpen, focusedIndex, handleLanguageChange]);
+  }, [isOpen, focusedIndex, handleLanguageChange, filteredLanguages]);
 
   const currentLang = LANGUAGES.find((l) => l.code === selectedLanguage);
+
+  const filteredLanguages = useMemo(() => {
+    const query = searchQuery.trim().toLocaleLowerCase();
+    if (!query) return LANGUAGES;
+    return LANGUAGES.filter((lang) =>
+      [lang.name, lang.native, lang.code].some((value) => value.toLocaleLowerCase().includes(query))
+    );
+  }, [searchQuery]);
 
   // ponytail: flat list, no search — LANGUAGES is a compact priority set, a search
   // box was pure friction (matches a compact picker pattern).
   // Add search back only if LANGUAGES grows past ~12 entries.
   const renderLanguageRows = () => (
     <>
-      {LANGUAGES.map((lang, idx) => {
+      {filteredLanguages.map((lang, idx) => {
         const isSelected = selectedLanguage === lang.code;
         const isFocused = focusedIndex === idx;
         return (
@@ -285,7 +298,7 @@ export const LanguageSelector = ({
             onClick={() => handleLanguageChange(lang.code)}
             onFocus={() => setFocusedIndex(idx)}
             tabIndex={isFocused ? 0 : -1}
-            className={`w-full min-h-[48px] px-3 py-2 text-left hover:bg-ojas/10 transition-colors flex items-center gap-3 ${
+            className={`w-full min-h-[48px] px-3 py-2 text-start hover:bg-ojas/10 transition-colors flex items-center gap-3 ${
               isSelected ? 'bg-ojas/15' : ''
             } ${isFocused ? 'ring-1 ring-ojas/50 bg-ojas/10' : ''}`}
             role="option"
@@ -367,14 +380,32 @@ export const LanguageSelector = ({
                   aria-label={t('chat.selectLanguageAria', 'Select language')}
                 >
                   {/* Header */}
-                  <div className="px-3 py-2.5 border-b border-border bg-card/95 flex items-center gap-2">
-                    <Globe className="w-3.5 h-3.5 text-ojas" />
-                    <span className="text-xs font-semibold text-foreground">{t('chat.selectLanguage', 'Select Language')}</span>
+                  <div className="px-3 py-2.5 border-b border-border bg-card/95 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Globe className="w-3.5 h-3.5 text-ojas" />
+                      <span className="text-xs font-semibold text-foreground">{t('chat.selectLanguage', 'Select Language')}</span>
+                    </div>
+                    <input
+                      value={searchQuery}
+                      onChange={(e) => {
+                        setSearchQuery(e.target.value);
+                        setFocusedIndex(0);
+                      }}
+                      placeholder={t('language.searchPlaceholder')}
+                      aria-label={t('language.searchPlaceholder')}
+                      className="w-full h-9 rounded-lg border border-border/60 bg-background px-2.5 text-sm outline-none focus:ring-2 focus:ring-ojas/30"
+                    />
                   </div>
 
                   {/* Language list */}
                   <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin">
-                    <div className="py-1">{renderLanguageRows()}</div>
+                    {filteredLanguages.length > 0 ? (
+                      <div className="py-1">{renderLanguageRows()}</div>
+                    ) : (
+                      <p className="px-4 py-6 text-center text-xs text-muted-foreground">
+                        {t('chat.noLangMatch', 'No languages match your search.')}
+                      </p>
+                    )}
                   </div>
 
                   {/* Translation notice footer */}
@@ -440,14 +471,30 @@ export const LanguageSelector = ({
                 role="listbox"
                 {t('chat.selectLanguageAria', 'Select language')}
               >
-                <div className="px-3 py-2.5 border-b border-border bg-card flex items-center gap-2">
-                  <Globe className="w-3.5 h-3.5 text-ojas" />
-                  <span className="text-xs font-semibold text-foreground">{t('chat.selectLanguage', 'Select Language')}</span>
+                <div className="px-3 py-2.5 border-b border-border bg-card space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Globe className="w-3.5 h-3.5 text-ojas" />
+                    <span className="text-xs font-semibold text-foreground">{t('chat.selectLanguage', 'Select Language')}</span>
+                  </div>
+                  <input
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      setFocusedIndex(0);
+                    }}
+                    placeholder={t('language.searchPlaceholder')}
+                    aria-label={t('language.searchPlaceholder')}
+                    className="w-full h-9 rounded-lg border border-border/60 bg-background px-2.5 text-sm outline-none focus:ring-2 focus:ring-ojas/30"
+                  />
                 </div>
                 <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin">
-                  <div className="py-1">
-                    {renderLanguageRows()}
-                  </div>
+                  {filteredLanguages.length > 0 ? (
+                    <div className="py-1">{renderLanguageRows()}</div>
+                  ) : (
+                    <p className="px-4 py-6 text-center text-xs text-muted-foreground">
+                      {t('chat.noLangMatch', 'No languages match your search.')}
+                    </p>
+                  )}
                 </div>
                 <div className="px-3 py-2 border-t border-border bg-muted/30 flex items-start gap-2">
                   <Languages className="w-3.5 h-3.5 text-ojas flex-shrink-0 mt-0.5" />
