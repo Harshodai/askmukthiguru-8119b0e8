@@ -364,12 +364,12 @@ export const LanguageSelector = ({
                   className="fixed z-[100] flex flex-col overflow-hidden rounded-xl border border-hairline bg-popover shadow-lg w-72 max-w-[calc(100vw-2rem)]"
                   style={{ bottom: coords.bottom, left: coords.left, maxHeight: Math.min(320, coords.maxHeight) }}
                   role="listbox"
-                  aria-label="Select language"
+                  aria-label={t('chat.selectLanguageAria', 'Select language')}
                 >
                   {/* Header */}
                   <div className="px-3 py-2.5 border-b border-border bg-card/95 flex items-center gap-2">
                     <Globe className="w-3.5 h-3.5 text-ojas" />
-                    <span className="text-xs font-semibold text-foreground">Select Language</span>
+                    <span className="text-xs font-semibold text-foreground">{t('chat.selectLanguage', 'Select Language')}</span>
                   </div>
 
                   {/* Language list */}
@@ -438,11 +438,11 @@ export const LanguageSelector = ({
                 className="fixed w-72 max-w-[calc(100vw-2rem)] flex flex-col bg-popover border border-border rounded-2xl shadow-2xl z-[100] overflow-hidden"
                 style={{ bottom: coords.bottom, left: coords.left, maxHeight: Math.min(320, coords.maxHeight) }}
                 role="listbox"
-                aria-label="Select language"
+                {t('chat.selectLanguageAria', 'Select language')}
               >
                 <div className="px-3 py-2.5 border-b border-border bg-card flex items-center gap-2">
                   <Globe className="w-3.5 h-3.5 text-ojas" />
-                  <span className="text-xs font-semibold text-foreground">Select Language</span>
+                  <span className="text-xs font-semibold text-foreground">{t('chat.selectLanguage', 'Select Language')}</span>
                 </div>
                 <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin">
                   <div className="py-1">
