@@ -1278,7 +1278,27 @@
       "bio": "آپ کا راستہ اور ارادہ",
       "language": "پسندیدہ زبان",
       "tone": "گرو کا انداز گفتگو",
-      "unsavedChanges": "غیر محفوظ شدہ تبدیلیاں..."
+      "unsavedChanges": "غیر محفوظ شدہ تبدیلیاں...",
+      "guidanceDepth": "رہنمائی کی گہرائی",
+      "seeker": "سالک",
+      "seekerHint": "آسان سنسکرت وضاحتیں",
+      "practitioner": "مشق کرنے والا",
+      "practitionerHint": "متوازن مراقبہ کی رہنمائی",
+      "advanced": "اعلیٰ",
+      "advancedHint": "گہری فلسفیانہ اصطلاحات",
+      "guidancePreview": "آپ کی رہنمائی کا پیش منظر",
+      "sourceAware": "ماخذ پر مبنی ڈیزائن: تصدیق شدہ اقتباسات کو درست نسبت دی جاتی ہے؛ غیر معاون سوالات کے لیے واضح حد یا وضاحت دی جاتی ہے۔",
+      "toneDirectPreview": "واضح اور مختصر رہنمائی آپ کو جلد عملی اگلے قدم تک لے جاتی ہے۔",
+      "tonePoeticPreview": "تعلیم کو واضح اور مفید رکھتے ہوئے غوروفکر اور تصویری زبان استعمال کرتی ہے۔",
+      "toneGentlePreview": "نرم اور مستحکم رہنمائی آپ کے تجربے کے لیے جگہ بناتے ہوئے اگلا قدم دکھاتی ہے۔",
+      "advancedPreview": "جہاں تعلیم مناسب ہو وہاں گہری فلسفیانہ اصطلاحات استعمال کی جا سکتی ہیں۔",
+      "practitionerPreview": "تعلیم کو عملی غوروفکر یا مراقبہ کی ہدایت کے ساتھ متوازن کرتی ہے۔",
+      "seekerPreview": "روحانی اصطلاحات کو سادہ انداز میں سمجھا کر آگے بڑھتی ہے۔",
+      "upToDate": "آپ کے پروفائل کی تمام تفصیلات تازہ ہیں",
+      "completeOnboarding": "سیٹ اپ مکمل کریں",
+      "saveChanges": "تبدیلیاں محفوظ کریں",
+      "saved": "پروفائل محفوظ ہوگیا",
+      "savedDesc": "آپ کی ترجیحات اپ ڈیٹ ہوگئی ہیں۔"
     },
     "activitySummary": {
       "title": "سرگرمیوں کا خلاصہ",
@@ -1287,18 +1307,23 @@
       "meditations": "مراقبے کی مشقیں"
     },
     "insights": {
-      "title": "حالیہ بصیرت",
-      "subtitle": "آپ کی مشق، موڈ اور گفتگو سے بننے والے باطنی نمونے۔",
-      "empty": "ابھی تک کوئی بصیرت نہیں۔ اپنے روحانی رجحانات کو سمجھنے کے لیے مشقیں جاری رکھیں۔"
+      "title": "حالیہ بصیرتیں",
+      "subtitle": "آپ کی مشق، کیفیت اور گفتگو سے ابھرنے والے نمونے۔",
+      "empty": "ابھی کوئی بصیرت نہیں۔ اپنے روحانی نمونوں کو ابھرنے دینے کے لیے مشق جاری رکھیں۔"
     },
     "conversations": {
-      "title": "بات چیت",
-      "subtitle": "اپنی چیٹ ہسٹری کا نظم کریں اور پرانی گفتگو ہٹائیں۔",
-      "keepFor": "گفتگو کو محفوظ رکھنے کی مدت",
-      "empty": "کوئی گفتگو نہیں ہے۔",
+      "title": "گفتگو",
+      "subtitle": "اپنی چیٹ کی تاریخ منظم کریں۔",
+      "keepFor": "گفتگو کتنے عرصے رکھیں",
+      "empty": "کوئی گفتگو نہیں۔",
       "deleteAll": "تمام گفتگو حذف کریں",
-      "confirmDeleteTitle": "کیا تمام گفتگو حذف کر دیں؟",
-      "confirmDeleteMessage": "تصدیق کے لیے DELETE ٹائپ کریں۔ اس عمل کو واپس نہیں لایا جا سکتا۔"
+      "confirmDeleteTitle": "تمام گفتگو حذف کریں؟",
+      "confirmDeleteMessage": "تصدیق کے لیے DELETE لکھیں۔ یہ عمل واپس نہیں ہوسکتا۔",
+      "days": "دن",
+      "oneYear": "1 سال",
+      "saveRetention": "محفوظ رکھنے کی مدت محفوظ کریں",
+      "retentionSet": "محفوظ رکھنے کی مدت {{days}} دن مقرر کی گئی",
+      "deleted": "تمام گفتگو حذف کردی گئی"
     },
     "appearance": {
       "title": "ظاہری شکل",
@@ -1311,13 +1336,18 @@
       "enableVoiceSubtitle": "تعلیمات کو خودکار طور پر بلند آواز میں سنیں",
       "speechRate": "بولنے کی رفتار",
       "voiceName": "گرو کی آواز (مایورا)",
-      "voiceSubtitle": "ہندوستانی زبانوں کے لیے آواز کی شخصیت منتخب کریں۔"
+      "voiceSubtitle": "ہندوستانی زبانوں کے لیے آواز کی شخصیت منتخب کریں۔",
+      "autoplay": "گرو کے جوابات خود بخود چلائیں",
+      "autoplaySubtitle": "تعلیم آتے ہی اسے آواز میں سنیں"
     },
     "reminders": {
       "title": "یاد دہانیاں",
       "subtitle": "اپنے روحانی اہداف پر مستقل مزاج رہیں۔",
       "dailySubtitle": "روزانہ اپنے باطن سے جڑنے کی یاد دہانی",
-      "scheduledFor": "مقررہ وقت"
+      "scheduledFor": "مقررہ وقت",
+      "test": "ٹیسٹ یاد دہانی بھیجیں",
+      "permissionsRequired": "اجازت درکار ہے",
+      "permissionsDescription": "یاد دہانیوں کے لیے براؤزر کی ترتیبات میں اطلاعات فعال کریں۔"
     },
     "danger": {
       "subtitle": "اپنا ڈیٹا ایکسپورٹ کریں، یا اپنا اکاؤنٹ مستقل طور پر حذف کریں۔",
@@ -1334,7 +1364,13 @@
       "cloudMemoriesErased": "Cloud memories erased",
       "cloudMemoriesErasedDesc": "All reflections, second brain notes, and spiritual memories have been permanently deleted.",
       "cloudMemoriesEraseFailed": "Memory erasure failed",
-      "deleteAccountBtn": "Delete Account"
+      "deleteAccountBtn": "Delete Account",
+      "accountTitle": "اکاؤنٹ اور ڈیٹا",
+      "accountSubtitle": "ڈیٹا برآمد کریں، مقامی تاریخ صاف کریں، یا اکاؤنٹ حذف کریں۔",
+      "exportData": "ڈیٹا برآمد",
+      "exportLocalData": "مقامی ڈیٹا برآمد",
+      "exportCloudData": "کلاؤڈ ڈیٹا برآمد",
+      "zone": "حساس حصہ"
     },
     "support": {
       "title": "سپورٹ سے رابطہ کریں",
@@ -1344,7 +1380,13 @@
       "category": "کیٹیگری",
       "subject": "موضوع",
       "message": "پیغام",
-      "attachments": "منسلکات"
+      "attachments": "منسلکات",
+      "description": "کوئی سوال، رائے یا مسئلہ ہے؟ ہم مدد کے لیے یہاں ہیں۔",
+      "optional": "اختیاری",
+      "namePlaceholder": "آپ کا نام",
+      "emailPlaceholder": "you@example.com",
+      "subjectPlaceholder": "مختصر خلاصہ",
+      "messagePlaceholder": "بتائیں ہم کیسے مدد کرسکتے ہیں..."
     },
     "memory": {
       "mapTitle": "شعور کا نقشہ (Consciousness Map)",
@@ -1375,7 +1417,7 @@
       "recentConversations": "حالیہ گفتگوئیں",
       "pickUp": "جہاں رکے تھے وہیں سے جاری رکھیں۔",
       "viewAll": "سب دیکھیں",
-      "untitledConversation": "بے عنوان گفتگو",
+      "untitledConversation": "بے نام گفتگو",
       "conversationsWillAppear": "آپ کی گفتگو یہاں ظاہر ہوگی۔",
       "startFirstConversation": "اپنی پہلی گفتگو شروع کریں",
       "reflections": "حالیہ خود عکاسی",
@@ -1398,7 +1440,27 @@
       "personalizeGuidanceDesc": "آپ کا نام، انداز، زبان، واقفیت کی سطح اور ترجیحات۔",
       "wisdomMap": "آپ کا علمی نقشہ",
       "wisdomMapDesc": "اپنی محفوظ خود عکاسی، نوٹس اور منسلک تعلیمات سے بنے نقشے کو دریافت کریں۔",
-      "wisdomOfDay": "آج کی حکمت"
+      "wisdomOfDay": "آج کی حکمت",
+      "title": "آپ کا سفر",
+      "subtitle": "گفتگو، مشق اور غوروفکر میں آپ کی سرگرمی۔",
+      "messages": "پیغامات",
+      "courseProgress": "کورس کی پیش رفت",
+      "noActiveCourse": "کوئی فعال کورس نہیں",
+      "distress": "تناؤ",
+      "lastActive": "آخری سرگرمی"
+    },
+    "tone": {
+      "gentle": "نرم",
+      "direct": "براہ راست",
+      "poetic": "شاعرانہ",
+      "gentleHint": "نرم اور خیال رکھنے والے جوابات",
+      "directHint": "واضح اور مختصر تعلیم",
+      "poeticHint": "شاعرانہ اور استعاروں سے بھرپور"
+    },
+    "theme": {
+      "light": "روشن",
+      "dark": "تاریک",
+      "system": "سسٹم"
     }
   },
   "commandPalette": {
