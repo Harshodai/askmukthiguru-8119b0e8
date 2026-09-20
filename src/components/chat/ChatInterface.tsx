@@ -224,7 +224,7 @@ export const ChatInterface = () => {
   const handleAddFile = useCallback(async (file: File | { name: string; content: string }): Promise<boolean> => {
     if (attachedFiles.length >= CHAT_MAX_ATTACHMENTS) {
       toast({
-        title: "Attachment Limit Reached",
+        title: t('chat.attachmentTooLarge'),
         description: `You can upload a maximum of ${CHAT_MAX_ATTACHMENTS} files.`,
         variant: "destructive"
       });
@@ -245,7 +245,7 @@ export const ChatInterface = () => {
     const currentSize = attachedFiles.reduce((sum, f) => sum + f.content.length, 0);
     if (content.length > CHAT_MAX_SINGLE_ATTACHMENT_BYTES) {
       toast({
-        title: 'Attachment Too Large',
+        title: t('chat.attachmentTooLarge'),
         description: `Each extracted attachment must be under ${formatMegabytes(CHAT_MAX_SINGLE_ATTACHMENT_BYTES)}.`,
         variant: 'destructive',
       });
@@ -253,7 +253,7 @@ export const ChatInterface = () => {
     }
     if (currentSize + content.length > CHAT_MAX_TOTAL_ATTACHMENT_BYTES) {
       toast({
-        title: "File Too Large",
+        title: t('chat.attachmentTooLarge'),
         description: `Total attachment context cannot exceed ${formatMegabytes(CHAT_MAX_TOTAL_ATTACHMENT_BYTES)}.`,
         variant: "destructive"
       });
@@ -830,14 +830,14 @@ export const ChatInterface = () => {
       }
       setTtsEnabled(false);
       toast({
-        title: `🔇 ${t('chat.voiceOutputDisabled', 'Voice Output Disabled')}`,
+        title: `🔇 ${t('chat.voiceOutputDisabled')}`,
         description: t('chat.voiceOutputDisabledDesc', 'Guru responses will no longer be read aloud.'),
         duration: 2000,
       });
     } else {
       setTtsEnabled(true);
       toast({
-        title: `🔊 ${t('chat.voiceOutputEnabled', 'Voice Output Enabled')}`,
+        title: `🔊 ${t('chat.voiceOutputEnabled')}`,
         description: t('chat.voiceOutputEnabledDesc', 'Guru responses will be read aloud.'),
         duration: 2000,
       });
@@ -853,7 +853,7 @@ export const ChatInterface = () => {
 
     const newLangObj = LANGUAGES.find((l) => l.code === code);
     toast({
-      title: `🌐 ${t('chat.languageSwitched', 'Language Switched')}`,
+      title: `🌐 ${t('chat.languageSwitched')}`,
       description: t('chat.languageSetTo', { name: newLangObj?.native || newLangObj?.name || code }),
       duration: 3000,
     });
@@ -2153,15 +2153,15 @@ const handleDeleteConversation = async (id: string) => {
 
 const handleExportConversation = useCallback(() => {
   if (!currentConversation || messages.length === 0) {
-    toast({ title: 'Nothing to export yet', description: 'Send a message first.' });
+    toast({ title: t('chat.noSources'), description: 'Send a message first.' });
     return;
   }
   try {
     const filename = downloadConversationAsMarkdown({ ...currentConversation, messages });
-    toast({ title: 'Conversation exported', description: filename });
+    toast({ title: t('chat.exportMarkdown'), description: filename });
   } catch (err) {
     toast({
-      title: 'Export failed',
+      title: t('common.error'),
       description: err instanceof Error ? err.message : 'Could not save the file.',
       variant: 'destructive',
     });
