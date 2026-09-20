@@ -266,7 +266,7 @@ export default function SecondBrainPage() {
         {loading && (
           <div className="flex justify-center py-12" aria-live="polite">
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-            <span className="sr-only">Loading your reflections</span>
+            <span className="sr-only">{t('common.loading')}</span>
           </div>
         )}
 
@@ -274,8 +274,8 @@ export default function SecondBrainPage() {
           <Card className="p-6 border-destructive/30 bg-destructive/5" role="alert">
             <div className="space-y-3">
               <div>
-                <h2 className="font-semibold text-foreground">Reflections unavailable</h2>
-                <p className="text-sm text-muted-foreground mt-1">We could not load your reflections. Your data has not been deleted.</p>
+                <h2 className="font-semibold text-foreground">{t('brain.unavailable')}</h2>
+                <p className="text-sm text-muted-foreground mt-1">{t('brain.errors.requestFailed', { status: '—' })}</p>
                 <p className="text-sm text-muted-foreground mt-2">
                   My Reflections is an encrypted vault, separate from Profile Memory. If the vault is unavailable,
                   your Profile Memory may still be accessible.
@@ -283,10 +283,10 @@ export default function SecondBrainPage() {
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button type="button" variant="outline" onClick={() => void initialize()}>
-                  Try again
+                  {t('chat.tryAgain')}
                 </Button>
                 <Button asChild type="button" variant="ghost">
-                  <Link to="/profile?tab=memory">View Profile Memory</Link>
+                  <Link to="/profile?tab=memory">{t('profile.tabs.memory')}</Link>
                 </Button>
               </div>
             </div>
