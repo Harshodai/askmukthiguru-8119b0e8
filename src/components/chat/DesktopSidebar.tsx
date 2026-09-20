@@ -366,6 +366,10 @@ export const DesktopSidebar = ({
               <UserMenu />
             </div>
             <button
+              type="button"
+              onClick={() => navigate(buildChatOwnedPath('/profile', { tab: 'memory', conversationId: currentConversationId }))}
+              aria-label={t('desktopSidebar.openMemories', 'Open memories')}
+              title={t('desktopSidebar.openMemories', 'Open memories')}
               className="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-all text-[11px]"
             >
               <Brain className="w-3 h-3" />
