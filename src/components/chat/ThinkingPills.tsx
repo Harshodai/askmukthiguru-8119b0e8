@@ -167,7 +167,7 @@ export const ThinkingPills = ({
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -4, transition: { duration: 0.2 } }}
-      className="flex flex-col items-start gap-1 my-2 min-w-0"
+      className="flex flex-col items-start gap-2 my-2 min-w-0"
       data-testid="thinking-pills"
     >
       <button
@@ -268,24 +268,25 @@ export const ThinkingPills = ({
         <div className="w-full max-w-xl rounded-xl border border-ojas/15 bg-ojas/[0.035] px-3 py-2.5">
           <div className="flex items-center gap-2 text-[15px] leading-5 font-medium text-foreground">
             <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-ojas/10 text-ojas">◈</span>
-            <span>{t('chat.references')}</span>
-            <span className="text-sm font-normal text-muted-foreground/70">
-              {t(teachingPreview.length === 1 ? 'chat.sourceCount_one' : 'chat.sourceCount_other', {
-                count: teachingPreview.length,
-                citationCount: teachingPreview.length,
-              })}
+            <span>{t('chat.teachingContext.title')}</span>
+            <span className="text-[15px] leading-5 font-normal text-muted-foreground/70">
+              {t('chat.teachingContext.sourceCount', { count: teachingPreview.length })}
             </span>
           </div>
           <div className="mt-2 space-y-1.5">
             {teachingPreview.slice(0, 2).map((item) => (
               <div key={item.url ?? item.title} className="min-w-0">
-                <div className="truncate text-sm font-medium text-foreground">
-                  {item.title}
+                <div className="truncate text-[15px] leading-5 font-medium text-foreground">
+                  {item.url ? (
+                    <a href={item.url} target="_blank" rel="noopener noreferrer" className="hover:text-ojas hover:underline underline-offset-2">
+                      {item.title}
+                    </a>
+                  ) : item.title}
                   {item.teacher ? <span className="font-normal text-muted-foreground"> · {item.teacher}</span> : null}
                 </div>
                 {item.excerpt && (
                   <div className="line-clamp-2 text-[15px] leading-6 text-muted-foreground">
-                    {item.excerpt}
+                    “{item.excerpt}”
                   </div>
                 )}
               </div>
