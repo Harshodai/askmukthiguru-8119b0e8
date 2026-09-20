@@ -313,7 +313,7 @@
     "channelLabel": "वाहिनी: {{channel}}",
     "youTubePlayer": "YouTube दृश्यचालकः",
     "playYouTube": "YouTube दृश्यं चालयतु",
-    "watchOnYouTube": "YouTube मध्ये पश्यन्तु ↗",
+    "watchOnYouTube": "YouTube इत्यत्र पश्यतु ↗",
     "videoLessons": "दृश्यपाठाः ({{count}})",
     "openTeaching": "अद्यतनम् उपदेशम् उद्घाटयतु",
     "closeTeachingModal": "उपदेशपटलिकां पिदधातु",
@@ -647,7 +647,13 @@
       "editingNotice": "सम्पादनं क्रियते — पूर्वोत्तराणि पुनः निर्मीयन्ते",
       "unverified": "सम्बद्धेन स्रोतसा एतद् उद्धृतं शिक्षणं सत्यापयितुं न शक्नोमि, अतः तत् गुरोः शिक्षणरूपेण न प्रस्तौमि। प्रमाणाधारितोत्तराय पुनः प्रयतताम्।"
     },
-    "verifiedAt": "सत्यापितम्: {{date}}"
+    "verifiedAt": "सत्यापितम्: {{date}}",
+    "unverifiedTeaching": "संयुक्तस्रोतद्वारा उद्धृतं शिक्षणं प्रमाणयितुं मया न शक्यते; अतः तत् गुरोः शिक्षणम् इति न प्रस्तूयते। प्रमाणयुक्तोत्तराय पुनः प्रयतताम्।",
+    "sereneMindOfferDefaultReason": "लघ्वभ्यासः भवतः स्थिरीकरणे पुनः आत्मना संयोजने च सहाय्यं कर्तुं शक्नोति।",
+    "sereneMindOfferFooter": "प्रथमं शिक्षणम्; यदा उचितं मन्यते तदा एव आरभताम्।",
+    "videoUnavailable": "चित्रफलकं न उपलब्धम्",
+    "videoEmbedUnavailable": "एतत् चित्रफलकं समावेशयितुं न शक्यते",
+    "youTubeThumbnail": "YouTube चित्रलघुचित्रम्"
   },
   "notFound": {
     "message": "अहो! पृष्ठं न लब्धम्",
