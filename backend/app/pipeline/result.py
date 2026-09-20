@@ -305,6 +305,11 @@ class PipelineResult:
             "answer_evidence": (
                 None if self.answer_evidence is None else asdict(self.answer_evidence)
             ),
+            "personalization_provenance": (
+                None
+                if self.personalization_provenance is None
+                else asdict(self.personalization_provenance)
+            ),
             "guidance_plan": (None if self.guidance_plan is None else asdict(self.guidance_plan)),
             "release_manifest": self.release_manifest,
             "provenance_context": self.provenance_context,
