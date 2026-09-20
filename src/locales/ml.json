@@ -1497,7 +1497,9 @@
     "teachingContext": {
       "title": "ഈ മറുപടിയുടെ അടിസ്ഥാനമായ പഠിപ്പുകൾ",
       "sourceCount": "{{count}} പ്രസക്തമായ പഠിപ്പുകൾ കണ്ടെത്തി"
-    }
+    },
+    "contemplating": "ആഴത്തിൽ ചിന്തിക്കുന്നു — കുറച്ച് സമയം എടുത്തേക്കാം…",
+    "answerTakingShape": "മറുപടി രൂപം കൊണ്ടുവരുന്നു…"
   },
   "commandPalette": {
     "searchPlaceholder": "AskMukthiGuru തിരയുക…",
