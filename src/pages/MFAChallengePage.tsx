@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -116,7 +117,7 @@ const MFAChallengePage = () => {
       <div className="w-full max-w-md space-y-6 rounded-lg border bg-card p-8 shadow-sm">
         <div className="flex flex-col items-center text-center space-y-2">
           <ShieldCheck className="h-10 w-10 text-primary" />
-          <h1 className="text-2xl font-semibold">Two-factor authentication</h1>
+          <h1 className="text-2xl font-semibold">{t('auth.twoFactorTitle')}</h1>
           <p className="text-sm text-muted-foreground">
             Enter the 6-digit code from your authenticator app.
           </p>
@@ -128,7 +129,7 @@ const MFAChallengePage = () => {
         )}
         <form onSubmit={handleVerify} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="mfa-code">Verification code</Label>
+            <Label htmlFor="mfa-code">{t('auth.verificationCode')}</Label>
             <Input
               id="mfa-code"
               inputMode="numeric"
