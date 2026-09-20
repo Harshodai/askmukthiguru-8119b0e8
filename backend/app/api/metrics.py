@@ -117,16 +117,35 @@ async def get_metrics(
     return await asyncio.to_thread(_fetch_metrics)
 
 
-def _course_completion_percent(course_row: dict | None) -> float:
-    """Completion share of an active healing course.
+# Course curriculum is versioned in src/lib/healingCourses.ts. Keep the
+# backend denominator in one explicit audited mapping rather than inventing a
+# percentage from current_lesson_index (which is zero-based and can drift).
+COURSE_LESSON_COUNTS = {
+    "end-of-suffering": 4,
+    "walking-through-grief": 3,
+    "quieting-anxiety": 3,
+    "dissolving-conflict": 3,
+}
 
-    Lesson totals live in course content, not the DB; until a
-    content-driven denominator is available the percentage reports 0.0
-    and the frontend falls back to per-lesson progress.
-    """
+
+def _course_completion_percent(course_row: dict | None) -> float:
+    """Return the percentage of completed lessons for the active course."""
     if not course_row:
         return 0.0
-    return 0.0
+
+    slug = str(course_row.get("course_slug") or "").strip()
+    total = COURSE_LESSON_COUNTS.get(slug)
+    completed = course_row.get("completed_lessons") or []
+
+    if total is None:
+        # Unknown curriculum versions are intentionally not guessed.
+        return 0.0
+
+    if not isinstance(completed, (list, tuple)):
+        return 0.0
+
+    completed_count = min(total, len({str(item) for item in completed if item}))
+    return round((completed_count / total) * 100.0, 2)
 
 
 def _empty_metrics() -> UserMetrics:
