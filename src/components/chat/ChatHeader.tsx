@@ -22,7 +22,7 @@ export const ChatHeader = ({ onOpenMobileMenu, sidebarCollapsed, onToggleSidebar
           <div className="flex items-center gap-2 ml-1 min-w-0">
             <div
               className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-amber-600/40 bg-amber-950/20 text-amber-600 text-[11px] font-medium whitespace-nowrap"
-              title={t("chat.temporaryChatTitle", "Temporary chat: not saved to chat history, personal memory, or your personal wisdom map.")}
+              title={t('chat.temporaryChatTitle')}
               data-testid="temporary-chat-badge"
             >
               <EyeOff className="w-3 h-3" />
@@ -43,7 +43,7 @@ export const ChatHeader = ({ onOpenMobileMenu, sidebarCollapsed, onToggleSidebar
             {isPersonalized && (
               <span
                 className="hidden sm:inline-flex items-center gap-1 rounded-full border border-ojas/20 bg-ojas/5 px-2 py-0.5 text-[10px] font-medium text-ojas whitespace-nowrap"
-                title={t("chat.personalizedTitle", "Regular chats can use your profile and eligible personal memory.")}
+                title={t('chat.personalizedTitle')}
                 data-testid="personalization-badge"
               >
                 <Sparkles className="w-3 h-3" />
