@@ -303,7 +303,23 @@
     "copyTrace": "ਟਰੇਸ ਕਾਪੀ ਕਰੋ",
     "cause": "ਕਾਰਨ",
     "nextStep": "ਅਗਲਾ ਕਦਮ",
-    "thinking": "ਵਿਚਾਰ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ",
+    "thinking": {
+      "safety": "ਸੁਰੱਖਿਆ ਜਾਂਚ",
+      "understanding": "ਤੁਹਾਡਾ ਸਵਾਲ ਸਮਝ ਰਿਹਾ ਹਾਂ",
+      "searching": "ਸਿੱਖਿਆਵਾਂ ਵਿੱਚ ਖੋਜ ਰਿਹਾ ਹਾਂ",
+      "reranking": "ਸੰਬੰਧਿਤਤਾ ਸੁਧਾਰ ਰਿਹਾ ਹਾਂ",
+      "filtering": "ਸੰਬੰਧਿਤਤਾ ਛਾਂਟ ਰਿਹਾ ਹਾਂ",
+      "synthesizing": "ਸਿੱਖਿਆਵਾਂ ਨੂੰ ਜੋੜ ਰਿਹਾ ਹਾਂ",
+      "composing": "ਮਾਰਗਦਰਸ਼ਨ ਤਿਆਰ ਕਰ ਰਿਹਾ ਹਾਂ",
+      "verifying": "ਸਿੱਖਿਆ ਸਰੋਤਾਂ ਦੀ ਪੁਸ਼ਟੀ ਕਰ ਰਿਹਾ ਹਾਂ",
+      "hello": "ਸਤ ਸ੍ਰੀ ਅਕਾਲ",
+      "practice": "ਅਭਿਆਸ ਲਈ ਮਾਰਗਦਰਸ਼ਨ",
+      "contemplating": "ਚਿੰਤਨ ਕਰ ਰਿਹਾ ਹਾਂ",
+      "queued": "ਕਤਾਰ ਵਿੱਚ",
+      "analyzing": "ਤੁਹਾਡਾ ਜਵਾਬ ਤਿਆਰ ਕਰ ਰਿਹਾ ਹਾਂ…",
+      "stepLabel": "ਕਦਮ {{step}}/{{total}}: {{label}}",
+      "stepProgress": "ਕਦਮ {{step}}/{{total}}: {{label}} ({{percentage}}%)"
+    },
     "toggleThinking": "ਵਿਚਾਰ ਦੇ ਵੇਰਵੇ ਬਦਲੋ",
     "reflecting": "ਸਿੱਖਿਆਵਾਂ 'ਤੇ ਵਿਚਾਰ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ…",
     "stillWorking": "ਅਜੇ ਵੀ ਕੰਮ ਚੱਲ ਰਿਹਾ ਹੈ…",
@@ -583,6 +599,10 @@
       "personalMemoryUsed": "ਯੋਗ ਨਿੱਜੀ ਯਾਦ/ਸੰਦਰਭ ਜਵਾਬ ਮਾਡਲ ਨੂੰ ਦਿੱਤਾ ਗਿਆ ਸੀ।",
       "graphMatched": "ਤੁਹਾਡੇ ਨਿੱਜੀ ਸੰਦਰਭ ਗ੍ਰਾਫ ਨੇ {{count}} ਧਾਰਨਾ ਲਿੰਕ ਮਿਲਾਏ।",
       "privateMemoryNotShown": "ਨਿੱਜੀ ਯਾਦ ਦਾ ਪਾਠ ਇੱਥੇ ਨਹੀਂ ਦਿਖਾਇਆ ਜਾਂਦਾ।"
+    },
+    "teachingContext": {
+      "title": "ਇਸ ਜਵਾਬ ਦਾ ਆਧਾਰ ਬਣੀਆਂ ਸਿੱਖਿਆਵਾਂ",
+      "sourceCount": "{{count}} ਸੰਬੰਧਿਤ ਸਿੱਖਿਆਵਾਂ ਮਿਲੀਆਂ"
     }
   },
   "notFound": {
