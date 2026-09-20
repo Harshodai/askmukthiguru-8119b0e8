@@ -39,7 +39,7 @@ import { hapticAudio } from '@/lib/audio/hapticAudio';
 
 import { derivePrePracticeInsights } from '@/lib/profileStorage';
 import { sendMessage, sendMessageStreaming, uploadChatAttachment, MessagePayload, StreamChunk, generateSummary, generateConversationTitle, setLanguage as setAILanguage, ProactiveSereneMindTrigger, RecommendedCourse, getAIConfig } from '@/lib/aiService';
-import type { BackendMetadata, LiveLogisticsEvent, GuidancePlan, AnswerEvidence, GroundingState } from '@/lib/chat/types';
+import type { BackendMetadata, LiveLogisticsEvent, GuidancePlan, AnswerEvidence, GroundingState, TeachingPreview } from '@/lib/chat/types';
 import { getCourse } from '@/lib/healingCourses';
 import { supabase } from '@/integrations/supabase/client';
 import { getLastCompletedMeditationTimestamp, loadMeditationSessions } from '@/lib/meditationStorage';
@@ -301,6 +301,7 @@ export const ChatInterface = () => {
   const [showPipeline, setShowPipeline] = useState(false);
   // Heartbeat pulse for "Still processing..." status events
   const [pipelineHeartbeat, setPipelineHeartbeat] = useState(false);
+  const [teachingPreview, setTeachingPreview] = useState<TeachingPreview[]>([]);
   // Instant pill shown immediately on submit, before backend status events arrive
   const [showInstantPill, setShowInstantPill] = useState(false);
   // E6.2: the just-sent user query, surfaced in the optimistic placeholder pill.
@@ -980,6 +981,7 @@ export const ChatInterface = () => {
     // Show instant pill immediately on submit — appears before any backend status events
     setShowInstantPill(true);
     setPendingQuery(textToSend.trim());
+    setTeachingPreview([]);
 
     const appendUser = options.appendUser ?? true;
     const baseMessages = options.baseMessages ?? messages;
@@ -1288,6 +1290,11 @@ export const ChatInterface = () => {
                 },
               ];
             });
+            continue;
+          }
+
+          if (chunk.type === 'teaching_preview') {
+            setTeachingPreview(chunk.items);
             continue;
           }
 
@@ -2462,9 +2469,10 @@ return (
                       searchContext={showInstantPill ? pendingQuery : undefined}
                       fallbackLabel={
                         isStreaming && streamingContent === ''
-                          ? (rotatingThinkingLabel ?? 'The Guru is reflecting on the sacred teachings…')
-                          : 'Analyzing your question…'
+                          ? (rotatingThinkingLabel ?? t('chat.reflecting'))
+                          : t('chat.thinking.analyzing')
                       }
+                      teachingPreview={teachingPreview}
                     />
                     {isStreaming && streamingContent === '' && (
                       <div className="pl-10 -mt-1">
