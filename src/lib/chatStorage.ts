@@ -72,8 +72,6 @@ export interface Message {
   /** Requested language of this message’s rendered content (BCP-47 or base code). */
   language?: string;
   feedback?: MessageFeedback;
-  /** Public teaching evidence retrieved for this answer; never contains private memory. */
-  teachingPreview?: TeachingPreview[];
   /** Memory facts the backend retrieved and used to ground this guru reply. */
   memoriesUsed?: string[];
   /** Non-null when this guru bubble represents a failed response (network/auth/server). */
