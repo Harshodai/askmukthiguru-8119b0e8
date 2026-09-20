@@ -331,6 +331,8 @@ class KGNode(BaseModel):
     label: str
     type: str
     teacher: str | None = None
+    state_category: str | None = None
+    content_preview: str | None = None
 
 
 class KGEdge(BaseModel):
@@ -445,6 +447,10 @@ async def kg_personal_subgraph(
                 label=str(n.get("label", "")),
                 type=str(n.get("type", "Concept")),
                 teacher=n.get("teacher"),
+                state_category=n.get("state_category"),
+                content_preview=(
+                    str(n.get("content") or "")[:320] if n.get("content") else None
+                ),
             )
         )
 
