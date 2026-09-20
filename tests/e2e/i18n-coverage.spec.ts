@@ -30,7 +30,30 @@ const EXPECTED_NAV_PRACTICES: Record<string, string> = {
 
 // Public routes reachable without auth. Authenticated routes are covered by
 // e2e/session.spec.ts once a real Google OAuth session is available in CI.
-const PUBLIC_ROUTES = ["/", "/auth", "/privacy", "/terms", "/practices", "/spirit-guides", "/chat"];
+const PUBLIC_ROUTES = [
+  "/",
+  "/auth",
+  "/privacy",
+  "/terms",
+  "/practices",
+  "/practices/wisdom-reflection",
+  "/practices/soul-sync",
+  "/practices/serene-mind",
+  "/practices/beautiful-state",
+  "/practices/daily-reflection",
+  "/spirit-guides",
+  "/guides/spirit-guides",
+  "/guides/ai-spiritual-companion",
+  "/guides/beautiful-state-meditation",
+  "/guides/serene-mind-practice",
+  "/guides/self-centric-thinking",
+  "/guides/spiritual-guide-for-anxiety",
+  "/guides/suffering-to-beautiful-state",
+  "/notebooks",
+  "/knowledge-graph",
+  "/second-brain",
+  "/chat",
+];
 
 test.describe("i18n route coverage", () => {
   for (const lang of LOCALES) {
