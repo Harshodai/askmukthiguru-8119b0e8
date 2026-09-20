@@ -808,7 +808,7 @@ const ProfilePage = () => {
                     <div className="relative w-full sm:w-1/3 aspect-[16/10] sm:aspect-auto sm:min-h-[160px] overflow-hidden bg-muted/20">
                       <img
                         src={dailyTeaching.image_url}
-                        alt="Daily wisdom"
+                        alt={t('practices.dailyWisdom.title')}
                         className="w-full h-full object-cover"
                         loading="lazy"
                       />
@@ -954,7 +954,7 @@ const ProfilePage = () => {
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <div className="py-2">
-                        <Input value={deleteAllConfirm} onChange={e => setDeleteAllConfirm(e.target.value)} placeholder="Type DELETE to confirm" className="rounded-xl" />
+                        <Input value={deleteAllConfirm} onChange={e => setDeleteAllConfirm(e.target.value)} placeholder={t('profile.danger.typeDeleteToConfirm').replace(/[:：]\s*$/, '')} className="rounded-xl" />
                       </div>
                       <AlertDialogFooter>
                         <AlertDialogCancel onClick={() => setDeleteAllConfirm('')} className="rounded-xl">{t('common.cancel', 'Cancel')}</AlertDialogCancel>
