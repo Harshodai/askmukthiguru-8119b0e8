@@ -105,14 +105,14 @@ const PracticeDetailPage = () => {
       setShareCopied(true);
       toast({
         title: t('common.copied', 'Copied!'),
-        description: 'The practice guide and link were copied to your clipboard.',
+        description: t('practices.detail.shareFallbackDesc', 'The practice guide and link were copied to your clipboard.'),
       });
       setTimeout(() => setShareCopied(false), 2000);
     } catch (err) {
       console.debug('[PracticeDetail] Clipboard write unavailable:', err);
       toast({
-        title: 'Unable to share',
-        description: 'Please copy the link and practice steps manually.',
+        title: t('practices.detail.shareUnavailableTitle', 'Unable to share'),
+        description: t('practices.detail.shareUnavailableDesc', 'Please copy the link and practice steps manually.'),
         variant: 'destructive',
       });
     }
@@ -125,7 +125,7 @@ const PracticeDetailPage = () => {
           to="/practices"
           className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-ojas transition-colors"
         >
-          <ArrowLeft className="w-4 h-4" /> All practices
+          <ArrowLeft className="w-4 h-4" /> {t('practices.detail.backToPractices', 'Back to practices')}
         </Link>
 
         <motion.header
@@ -158,7 +158,7 @@ const PracticeDetailPage = () => {
                 {shareCopied ? (
                   <>
                     <Check className="w-4 h-4 text-emerald-500" />
-                    <span className="hidden sm:inline">Copied!</span>
+                    <span className="hidden sm:inline">{t('common.copied', 'Copied!')}</span>
                   </>
                 ) : (
                   <>
