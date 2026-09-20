@@ -50,6 +50,18 @@ import { ChatHeader } from './ChatHeader';
 import { TeacherGuidancePanel } from './TeacherGuidancePanel';
 import type { Citation, ResponsePreferences } from '@/lib/chat/types';
 import { shouldGateSereneMind } from '@/lib/chat/sereneMindGating';
+
+const teachingPreviewsFromCitations = (citations?: Citation[]): TeachingPreview[] =>
+  (citations ?? [])
+    .filter((citation) => Boolean(citation.title || citation.quote || citation.textSnippet))
+    .slice(0, 3)
+    .map((citation) => ({
+      title: citation.title || citation.source || 'Teaching source',
+      teacher: citation.speaker ?? null,
+      url: citation.url || null,
+      excerpt: citation.quote || citation.textSnippet || null,
+    }));
+
 import { DEFAULT_RESPONSE_PREFERENCES, loadResponsePreferences, saveResponsePreferences, clearResponsePreferences } from '@/lib/chat/responsePreferences';
 import { ScrollToBottomFab } from './ScrollToBottomFab';
 import { MobileConversationSheet } from './MobileConversationSheet';
@@ -1116,6 +1128,7 @@ export const ChatInterface = () => {
         content: cached.content,
         timestamp: new Date(),
         citations: cached.citations,
+        teachingPreview: teachingPreviewsFromCitations(cached.citations),
       };
       setMessages((prev) => [...prev, guruMessage]);
       setIsTyping(false);
@@ -1232,6 +1245,7 @@ export const ChatInterface = () => {
         let streamedConfidenceScore: number | null = null;
         let streamedConfidenceReason: string | null = null;
         let streamedLiveLogisticsEvents: LiveLogisticsEvent[] = [];
+        let streamedTeachingPreview: TeachingPreview[] = [];
         let streamedGuidancePlan: GuidancePlan | null = null;
         let streamedAnswerEvidence: AnswerEvidence | null = null;
         let streamedPersonalizationProvenance: import('@/lib/chat/types').PersonalizationProvenance | null = null;
@@ -1294,6 +1308,7 @@ export const ChatInterface = () => {
           }
 
           if (chunk.type === 'teaching_preview') {
+            streamedTeachingPreview = chunk.items;
             setTeachingPreview(chunk.items);
             continue;
           }
@@ -1735,7 +1750,7 @@ openSereneMind('audio');
           language: turnLanguage,
           timestamp: new Date(),
           citations: response.citations && response.citations.length > 0 ? response.citations : undefined,
-          teachingPreview: teachingPreview.length > 0 ? teachingPreview : undefined,
+          teachingPreview: teachingPreviewsFromCitations(response.citations),
           error: responseError,
           followUpSuggestions: response.followUpSuggestions && response.followUpSuggestions.length > 0 ? response.followUpSuggestions : undefined,
           liveLogisticsEvents: response.liveLogisticsEvents && response.liveLogisticsEvents.length > 0 ? response.liveLogisticsEvents : undefined,
