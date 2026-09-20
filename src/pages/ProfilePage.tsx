@@ -143,11 +143,14 @@ const ProfilePage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const tabParam = searchParams.get('tab');
+  const isOnboarding = searchParams.get('onboarding') === 'true';
   const PROFILE_TABS = ['journey', 'profile', 'stats', 'conversations', 'memory', 'settings'] as const;
   type ProfileTab = typeof PROFILE_TABS[number];
-  const initialTab: ProfileTab = PROFILE_TABS.includes(tabParam as ProfileTab)
-    ? (tabParam as ProfileTab)
-    : 'journey';
+  const initialTab: ProfileTab = isOnboarding
+    ? 'profile'
+    : PROFILE_TABS.includes(tabParam as ProfileTab)
+      ? (tabParam as ProfileTab)
+      : 'journey';
   const [tab, setTab] = useState<ProfileTab>(initialTab);
   const { profile, update } = useProfile();
   const { toast } = useToast();
@@ -411,7 +414,6 @@ const ProfilePage = () => {
   const supportCategories = ['Feedback', 'Bug Report', 'Feature Request', 'Other'];
 
 
-  const isOnboarding = searchParams.get('onboarding') === 'true';
   const setupMfaRedirect = searchParams.get('setup_mfa') === '1' ? searchParams.get('redirect') : null;
 
   if (authLoading) {
