@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import React, { useState, useEffect } from 'react';
 import { Info, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
