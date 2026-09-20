@@ -1,11 +1,12 @@
 import { ArrowRight, Brain, Clock, Flame, LockKeyhole, MessageCircle, Pencil, Sparkles, UserRound } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { getInitials } from '@/lib/profileStorage';
 import type { MeditationStats } from '@/lib/meditationStorage';
 import type { Conversation } from '@/lib/chatStorage';
-import type { PersonalInsight } from '@/lib/personalInsights';
+import type { PersonalInsight } from '@/lib/personal{t('profile.journey.insights', 'Insights')}';
 
 interface JourneyOverviewProps {
   displayName: string;
@@ -17,7 +18,7 @@ interface JourneyOverviewProps {
   avatarUrl?: string | null;
   stats: MeditationStats;
   conversations: Conversation[];
-  personalInsights: PersonalInsight[];
+  personal{t('profile.journey.insights', 'Insights')}: PersonalInsight[];
   metrics?: {
     totalConversations?: number;
     totalMessages?: number;
@@ -33,7 +34,15 @@ interface JourneyOverviewProps {
   onKnowledgeGraph: () => void;
 }
 
-const Metric = ({ label, value, icon: Icon }: { label: string; value: string | number; icon: typeof Flame }) => (
+const Metric = ({ label, value, icon: Icon }: { label: string; value: string | number; icon: typeof Flame }) => {
+  const { t } = useTranslation();
+  const keyMap: Record<string, string> = {
+    "Practice sessions": "practiceSessions",
+    "Minutes practiced": "minutesPracticed",
+    "Current streak": "currentStreak",
+    "Conversations": "conversations",
+  };
+  return (
   <div className="rounded-2xl border border-hairline bg-background/50 px-4 py-3.5">
     <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
       <Icon className="w-3.5 h-3.5 text-ojas" aria-hidden="true" />
@@ -53,7 +62,7 @@ export const JourneyOverview = ({
   avatarUrl,
   stats,
   conversations,
-  personalInsights,
+  personal{t('profile.journey.insights', 'Insights')},
   metrics,
   dailyWisdom,
   onNavigate,
@@ -61,8 +70,9 @@ export const JourneyOverview = ({
   onPractice,
   onKnowledgeGraph,
 }: JourneyOverviewProps) => {
+  const { t } = useTranslation();
   const recentConversations = conversations.slice(0, 3);
-  const insights = personalInsights.slice(0, 2);
+  const insights = personal{t('profile.journey.insights', 'Insights')}.slice(0, 2);
 
   return (
     <div className="space-y-5">
@@ -80,7 +90,7 @@ export const JourneyOverview = ({
             <div className="min-w-0">
               <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">{familiarityLevel}</p>
               <h1 className="mt-1 text-2xl sm:text-3xl font-semibold tracking-tight text-foreground truncate">
-                {displayName || 'Seeker'}
+                {displayName || t('common.seeker', 'Seeker')}
               </h1>
               <p className="mt-1 text-sm text-muted-foreground truncate">{email}</p>
             </div>
@@ -89,11 +99,11 @@ export const JourneyOverview = ({
           <div className="flex flex-wrap gap-2 shrink-0">
             <Button onClick={onContinueChat} className="min-h-[44px] rounded-xl gap-1.5 bg-ojas hover:bg-ojas-light text-primary-foreground">
               <MessageCircle className="w-4 h-4" />
-              Continue chatting
+              {t('profile.journey.continueChat', 'Continue chatting')}
             </Button>
             <Button onClick={() => onNavigate('profile')} variant="outline" className="min-h-[44px] rounded-xl gap-1.5 border-hairline">
               <Pencil className="w-4 h-4" />
-              Edit profile
+              {t('profile.journey.editProfile', 'Edit profile')}
             </Button>
           </div>
         </div>
@@ -111,9 +121,9 @@ export const JourneyOverview = ({
           <CardHeader className="pb-3">
             <CardTitle className="text-base font-semibold flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-ojas" />
-              Keep your journey moving
+              {t('profile.journey.keepMoving', 'Keep your journey moving')}
             </CardTitle>
-            <CardDescription>Choose the next small step instead of navigating through settings.</CardDescription>
+            <CardDescription>{t('profile.journey.keepMovingDesc', 'Choose the next small step instead of navigating through settings.')}</CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <button
@@ -127,8 +137,8 @@ export const JourneyOverview = ({
                 </div>
                 <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-ojas transition-colors" />
               </div>
-              <p className="mt-3 font-medium text-foreground">Choose a practice</p>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Return to a guided meditation or discover a new one.</p>
+              <p className="mt-3 font-medium text-foreground">{t('profile.journey.choosePractice', 'Choose a practice')}</p>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{t('profile.journey.choosePracticeDesc', 'Return to a guided meditation or discover a new one.')}</p>
             </button>
 
             <button
@@ -142,8 +152,8 @@ export const JourneyOverview = ({
                 </div>
                 <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-ojas transition-colors" />
               </div>
-              <p className="mt-3 font-medium text-foreground">See your practice</p>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Open detailed activity, streaks, and practice history.</p>
+              <p className="mt-3 font-medium text-foreground">{t('profile.journey.seePractice', 'See your practice')}</p>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{t('profile.journey.seePracticeDesc', 'Open detailed activity, streaks, and practice history.')}</p>
             </button>
           </CardContent>
         </Card>
@@ -154,12 +164,12 @@ export const JourneyOverview = ({
               <div>
                 <CardTitle className="text-base font-semibold flex items-center gap-2">
                   <MessageCircle className="w-4 h-4 text-ojas" />
-                  Recent conversations
+                  {t('profile.journey.recentConversations', 'Recent conversations')}
                 </CardTitle>
-                <CardDescription>Pick up where you left off.</CardDescription>
+                <CardDescription>{t('profile.journey.pickUp', 'Pick up where you left off.')}</CardDescription>
               </div>
               <Button variant="ghost" size="sm" onClick={() => onNavigate('conversations')} className="text-xs gap-1">
-                View all <ArrowRight className="w-3 h-3" />
+                {t('profile.journey.viewAll', 'View all')} <ArrowRight className="w-3 h-3" />
               </Button>
             </div>
           </CardHeader>
@@ -173,7 +183,7 @@ export const JourneyOverview = ({
                     onClick={() => onContinueChat(conversation.id)}
                     className="w-full rounded-2xl border border-hairline bg-background/40 px-4 py-3 text-left hover:border-ojas/30 hover:bg-ojas/5 transition-colors"
                   >
-                    <p className="font-medium text-sm text-foreground truncate">{conversation.preview || 'Untitled conversation'}</p>
+                    <p className="font-medium text-sm text-foreground truncate">{conversation.preview || '{t('profile.journey.untitledConversation', 'Untitled conversation')}'}</p>
                     <p className="text-xs text-muted-foreground mt-1">{conversation.updatedAt ? conversation.updatedAt.toLocaleString() : ''}</p>
                   </button>
                 ))}
@@ -181,8 +191,8 @@ export const JourneyOverview = ({
             ) : (
               <div className="rounded-2xl border border-dashed border-hairline px-4 py-6 text-center">
                 <MessageCircle className="w-7 h-7 mx-auto text-muted-foreground/60" />
-                <p className="mt-2 text-sm text-muted-foreground">Your conversations will appear here.</p>
-                <Button variant="outline" size="sm" className="mt-3 rounded-xl" onClick={onContinueChat}>Start your first conversation</Button>
+                <p className="mt-2 text-sm text-muted-foreground">{t('profile.journey.conversationsWillAppear', 'Your conversations will appear here.')}</p>
+                <Button variant="outline" size="sm" className="mt-3 rounded-xl" onClick={onContinueChat}>{t('profile.journey.startFirstConversation', 'Start your first conversation')}</Button>
               </div>
             )}
           </CardContent>
@@ -196,12 +206,12 @@ export const JourneyOverview = ({
               <div>
                 <CardTitle className="text-base font-semibold flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-ojas" />
-                  Recent reflections
+                  {t('profile.journey.reflections', 'Recent reflections')}
                 </CardTitle>
-                <CardDescription>Signals derived from what you have actually recorded.</CardDescription>
+                <CardDescription>{t('profile.journey.signalsRecorded', 'Signals derived from what you have actually recorded.')}</CardDescription>
               </div>
               <Button variant="ghost" size="sm" onClick={() => onNavigate('stats')} className="text-xs gap-1">
-                Insights <ArrowRight className="w-3 h-3" />
+                {t('profile.journey.insights', 'Insights')} <ArrowRight className="w-3 h-3" />
               </Button>
             </div>
           </CardHeader>
@@ -217,14 +227,14 @@ export const JourneyOverview = ({
 
       <Card className="rounded-3xl border-hairline bg-card shadow-sm">
         <CardHeader className="pb-3">
-          <CardTitle className="text-base font-semibold">How your guidance is personalized</CardTitle>
-          <CardDescription>Regular chats can use these preferences plus eligible saved memories. Temporary chats bypass personal memory.</CardDescription>
+          <CardTitle className="text-base font-semibold">{t('profile.journey.personalized', 'How your guidance is personalized')}</CardTitle>
+          <CardDescription>{t('profile.journey.personalizedDesc', 'Regular chats can use these preferences plus eligible saved memories. {t('profile.journey.temporaryChat', 'Temporary chat')}s bypass personal memory.')}</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-2.5">
           <div className="flex items-start gap-3 rounded-2xl border border-hairline bg-background/40 px-4 py-3">
             <Pencil className="mt-0.5 h-4 w-4 shrink-0 text-ojas" />
             <div>
-              <p className="text-sm font-medium text-foreground">Profile preferences</p>
+              <p className="text-sm font-medium text-foreground">{t('profile.journey.preferences', 'Profile preferences')}</p>
               <div className="mt-1.5 flex flex-wrap gap-1.5">
                 <span className="rounded-full border border-hairline bg-card px-2 py-0.5 text-[11px] text-muted-foreground">{languageLabel}</span>
                 <span className="rounded-full border border-hairline bg-card px-2 py-0.5 text-[11px] text-muted-foreground">{toneLabel} tone</span>
@@ -235,15 +245,15 @@ export const JourneyOverview = ({
           <div className="flex items-start gap-3 rounded-2xl border border-hairline bg-background/40 px-4 py-3">
             <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-ojas" />
             <div>
-              <p className="text-sm font-medium text-foreground">Saved personal context</p>
-              <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">Eligible memories, reflections, and persona context can be recalled when relevant.</p>
+              <p className="text-sm font-medium text-foreground">{t('profile.journey.savedContext', 'Saved personal context')}</p>
+              <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{t('profile.journey.savedContextDesc', 'Eligible memories, reflections, and persona context can be recalled when relevant.')}</p>
             </div>
           </div>
           <div className="flex items-start gap-3 rounded-2xl border border-hairline bg-background/40 px-4 py-3">
             <LockKeyhole className="mt-0.5 h-4 w-4 shrink-0 text-ojas" />
             <div>
-              <p className="text-sm font-medium text-foreground">Temporary chat</p>
-              <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">No personal-memory recall and no saved chat history for that session.</p>
+              <p className="text-sm font-medium text-foreground">{t('profile.journey.temporaryChat', 'Temporary chat')}</p>
+              <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{t('profile.journey.temporaryChatDesc', 'No personal-memory recall and no saved chat history for that session.')}</p>
             </div>
           </div>
         </CardContent>
@@ -251,29 +261,29 @@ export const JourneyOverview = ({
 
       <Card className="rounded-3xl border-hairline bg-card shadow-sm">
         <CardHeader className="pb-3">
-          <CardTitle className="text-base font-semibold">Your spaces</CardTitle>
-          <CardDescription>Everything else stays one layer away, so the journey stays simple.</CardDescription>
+          <CardTitle className="text-base font-semibold">{t('profile.journey.yourSpaces', 'Your spaces')}</CardTitle>
+          <CardDescription>{t('profile.journey.yourSpacesDesc', 'Everything else stays one layer away, so the journey stays simple.')}</CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <button type="button" onClick={() => onNavigate('memory')} className="rounded-2xl border border-hairline p-4 text-left hover:border-ojas/30 hover:bg-ojas/5 transition-colors">
             <UserRound className="w-4 h-4 text-ojas" />
-            <p className="mt-3 text-sm font-medium">Memory & notes</p>
-            <p className="mt-1 text-xs text-muted-foreground">Reflections, saved memories, and personal notes.</p>
+            <p className="mt-3 text-sm font-medium">{t('profile.journey.memoryNotes', 'Memory & notes')}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{t('profile.journey.memoryNotesDesc', 'Reflections, saved memories, and personal notes.')}</p>
           </button>
           <button type="button" onClick={() => onNavigate('settings')} className="rounded-2xl border border-hairline p-4 text-left hover:border-ojas/30 hover:bg-ojas/5 transition-colors">
             <LockKeyhole className="w-4 h-4 text-ojas" />
-            <p className="mt-3 text-sm font-medium">Privacy & security</p>
-            <p className="mt-1 text-xs text-muted-foreground">Security, theme, voice, reminders, and account controls.</p>
+            <p className="mt-3 text-sm font-medium">{t('profile.journey.privacySecurity', 'Privacy & security')}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{t('profile.journey.privacySecurityDesc', 'Security, theme, voice, reminders, and account controls.')}</p>
           </button>
           <button type="button" onClick={() => onNavigate('profile')} className="rounded-2xl border border-hairline p-4 text-left hover:border-ojas/30 hover:bg-ojas/5 transition-colors">
             <Pencil className="w-4 h-4 text-ojas" />
-            <p className="mt-3 text-sm font-medium">Personalize guidance</p>
-            <p className="mt-1 text-xs text-muted-foreground">Your name, tone, language, familiarity, and preferences.</p>
+            <p className="mt-3 text-sm font-medium">{t('profile.journey.personalizeGuidance', 'Personalize guidance')}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{t('profile.journey.personalizeGuidanceDesc', 'Your name, tone, language, familiarity, and preferences.')}</p>
           </button>
           <button type="button" onClick={onKnowledgeGraph} className="rounded-2xl border border-hairline p-4 text-left hover:border-ojas/30 hover:bg-ojas/5 transition-colors">
             <Brain className="w-4 h-4 text-ojas" />
-            <p className="mt-3 text-sm font-medium">Your wisdom map</p>
-            <p className="mt-1 text-xs text-muted-foreground">Explore the graph built from your saved reflections, notes, and linked teachings.</p>
+            <p className="mt-3 text-sm font-medium">{t('profile.journey.wisdomMap', 'Your wisdom map')}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{t('profile.journey.wisdomMapDesc', 'Explore the graph built from your saved reflections, notes, and linked teachings.')}</p>
           </button>
         </CardContent>
       </Card>
@@ -290,7 +300,7 @@ export const JourneyOverview = ({
             <div className="flex-1 p-5 flex flex-col justify-center">
               <div className="flex items-center gap-1.5 mb-2">
                 <Sparkles className="w-3.5 h-3.5 text-ojas" />
-                <span className="text-[10px] font-semibold text-ojas uppercase tracking-[0.14em]">Wisdom of the Day</span>
+                <span className="text-[10px] font-semibold text-ojas uppercase tracking-[0.14em]">{t('profile.journey.wisdomOfDay', 'Wisdom of the Day')}</span>
               </div>
               <p className="text-base text-foreground/90 font-serif leading-relaxed italic">&ldquo;{dailyWisdom.caption}&rdquo;</p>
             </div>
