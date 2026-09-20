@@ -603,7 +603,9 @@
     "teachingContext": {
       "title": "اس جواب کی بنیاد بننے والی تعلیمات",
       "sourceCount": "{{count}} متعلقہ تعلیمات ملیں"
-    }
+    },
+    "contemplating": "گہرائی سے غور کر رہا ہوں — کچھ وقت لگ سکتا ہے…",
+    "answerTakingShape": "جواب شکل اختیار کر رہا ہے…"
   },
   "notFound": {
     "message": "اوہو! صفحہ نہیں ملا",
