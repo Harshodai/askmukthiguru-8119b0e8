@@ -215,20 +215,6 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
         setIsDemo(false);
       }
       setPan({ x: 0, y: 0 });
-              setZoom(1);
-              return;
-            }
-          }
-        }
-        setData(null);
-        setIsDemo(false);
-        setError(t('kg.noConceptsFor', { query: q }));
-      } else {
-        setData(json);
-        setError(null);
-        setIsDemo(false);
-      }
-      setPan({ x: 0, y: 0 });
       setZoom(1);
     } catch (err) {
       if (requestId !== activeReqRef.current) return;
