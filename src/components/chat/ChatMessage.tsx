@@ -1430,7 +1430,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                           <Youtube className="w-3.5 h-3.5 text-red-500" />
                           {t('chat.videoLessons', { count: ytUrls.length })}
                         </p>
-                        
+
                         {ytUrls.length === 1 ? (
                           <div className="w-full max-w-[400px]">
                             <LazyYouTube videoId={ytUrls[0].videoId} url={ytUrls[0].url} />

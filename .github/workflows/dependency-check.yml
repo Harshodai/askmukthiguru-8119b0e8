@@ -21,6 +21,10 @@ on:
       - 'LICENSE-EXCEPTIONS.md'
       - '.github/workflows/dependency-check.yml'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   frontend-audit:
     name: Frontend npm audit

@@ -16,12 +16,79 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
-    // Signing: create android/key.properties with storeFile/storePassword/keyAlias/keyPassword
-    // then uncomment the signingConfigs + release.signingConfig blocks below for Play Store release.
+    // Release signing configuration:
+    // Resolves credentials from environment variables or key.properties (local, gitignored)
+    // Environment variables take precedence (ideal for CI/CD):
+    //   ANDROID_KEYSTORE_PATH, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD
+    // Local properties file fallback:
+    //   android/key.properties or android/app/key.properties
+    def keystorePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+    def keyAlias = System.getenv("ANDROID_KEY_ALIAS")
+    def keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+    def keystorePath = System.getenv("ANDROID_KEYSTORE_PATH")
+
+    def keyPropsFile = rootProject.file('key.properties')
+    if (!keyPropsFile.exists()) {
+        keyPropsFile = file('key.properties')
+    }
+
+    if (keyPropsFile.exists()) {
+        def props = new Properties()
+        keyPropsFile.withInputStream { props.load(it) }
+        keystorePath = keystorePath ?: props.getProperty('storeFile') ?: props.getProperty('storeFilePath') ?: props.getProperty('keystore.path')
+        keystorePassword = keystorePassword ?: props.getProperty('storePassword') ?: props.getProperty('keystore.password')
+        keyAlias = keyAlias ?: props.getProperty('keyAlias') ?: props.getProperty('key.alias')
+        keyPassword = keyPassword ?: props.getProperty('keyPassword') ?: props.getProperty('key.password')
+    }
+
+    keystorePath = keystorePath?.trim()
+    keystorePassword = keystorePassword?.trim()
+    keyAlias = keyAlias?.trim()
+    keyPassword = keyPassword?.trim()
+
+    if (keystorePath?.startsWith("~/")) {
+        keystorePath = System.getProperty("user.home") + keystorePath.substring(1)
+    }
+
+    File keystoreFile = null
+    if (keystorePath) {
+        def directFile = new File(keystorePath)
+        if (directFile.isAbsolute() && directFile.exists()) {
+            keystoreFile = directFile
+        } else if (rootProject.file(keystorePath).exists()) {
+            keystoreFile = rootProject.file(keystorePath)
+        } else if (file(keystorePath).exists()) {
+            keystoreFile = file(keystorePath)
+        }
+    }
+
+    boolean hasReleaseKey = keystoreFile != null && keystoreFile.exists() && keystorePassword && keyAlias && keyPassword
+
+    signingConfigs {
+        release {
+            if (hasReleaseKey) {
+                storeFile keystoreFile
+                storePassword keystorePassword
+                keyAlias keyAlias
+                keyPassword keyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            if (hasReleaseKey) {
+                signingConfig signingConfigs.release
+            } else {
+                if (keystorePath && (keystoreFile == null || !keystoreFile.exists())) {
+                    logger.warn("[Release Signing] Specified keystore not found at '${keystorePath}'. Falling back to debug signingConfig.")
+                } else {
+                    logger.info("[Release Signing] No release keystore configured (checked key.properties & ANDROID_* env vars). Falling back to debug signingConfig.")
+                }
+                signingConfig signingConfigs.debug
+            }
         }
     }
 }

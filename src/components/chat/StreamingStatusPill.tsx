@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Compass, BookOpen, ShieldCheck, ChevronDown, Activity } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-export type ThoughtStage = 
+export type ThoughtStage =
   | 'connecting'     // Connecting to sacred scriptures
   | 'synthesizing'   // Synthesizing discourse teachings
   | 'attributing'    // Attributing verified sources

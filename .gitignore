@@ -24,10 +24,12 @@ android/.gradle
 android/build
 android/app/build
 android/*.keystore
+android/*.jks
 android/key.properties
 android/local.properties
 android/app/google-services.json
 *.keystore
+*.jks
 key.properties
 local.properties
 

@@ -7,7 +7,7 @@ on:
     branches: [main, 'feat/**']
 
 concurrency:
-  group: production-readiness-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -68,3 +68,7 @@ jobs:
       - name: Pytest
         working-directory: backend
         run: python -m pytest -q
+        env:
+          PYTHONPATH: ${{ github.workspace }}/backend
+          JWT_SECRET: dummy-jwt-secret-key-for-ci-runs
+          OPENROUTER_API_KEY: mock-openrouter-key-for-ci

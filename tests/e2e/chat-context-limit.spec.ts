@@ -22,7 +22,12 @@ for (const locale of ['en', 'ur']) {
       localStorage.clear();
       sessionStorage.clear();
       localStorage.setItem('i18nextLng', lng);
+      localStorage.setItem('askmukthiguru_profile.preferredLanguage', lng);
+      localStorage.setItem('askmukthiguru_profile', JSON.stringify({
+        preferredLanguage: lng,
+      }));
       localStorage.setItem('askmukthiguru_consent_v1', 'accepted');
+      localStorage.setItem('askmukthiguru_disclaimer_accepted', 'true');
     }, locale);
 
     await page.route(/\/api\/chat(?:\/[^?]*)?(?:\?.*)?$/, async (route) => {
@@ -50,7 +55,7 @@ for (const locale of ['en', 'ur']) {
     await page.goto('/chat', { waitUntil: 'domcontentloaded' });
     await dismissOptionalDialog(page);
 
-    const input = page.getByRole('textbox', { name: /your message/i });
+    const input = page.locator('textarea[data-tour="chat-input"]');
     await expect(input).toBeVisible();
 
     const draft = locale === 'ur'
@@ -58,7 +63,7 @@ for (const locale of ['en', 'ur']) {
       : 'I want to continue this conversation';
     await input.fill(draft);
 
-    await page.getByLabel('Send message').click();
+    await page.locator('button[type="submit"]').click();
 
     const limitTitle = locale === 'ur'
       ? 'گفتگو کی سیاقی حد پوری ہو گئی ہے'
@@ -67,7 +72,7 @@ for (const locale of ['en', 'ur']) {
       ? 'نئی چیٹ میں جاری رکھیں'
       : 'Continue in a new chat';
 
-    await expect(page.getByText(limitTitle, { exact: true })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(limitTitle, { exact: true }).first()).toBeVisible({ timeout: 15000 });
     await expect(input).toHaveValue(draft);
     await expect(page.getByRole('button', { name: continueLabel })).toBeVisible();
 

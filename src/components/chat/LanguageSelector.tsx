@@ -123,7 +123,7 @@ export const LanguageSelector = ({
     );
   }, [searchQuery]);
 
-  
+
   const [voiceCapable, setVoiceCapable] = useState<Set<string>>(new Set(['en']));
   const { t } = useTranslation();
 
@@ -135,16 +135,16 @@ export const LanguageSelector = ({
       const viewportHeight = window.innerHeight;
       const viewportWidth = window.innerWidth;
       const margin = 8;
-      
+
       const bottom = Math.max(12, viewportHeight - rect.top + margin);
-      
+
       let left = rect.left;
       const menuWidth = Math.min(320, viewportWidth - 24);
-      
+
       if (left + menuWidth > viewportWidth - 12) {
         left = Math.max(12, viewportWidth - menuWidth - 12);
       }
-      
+
       const availableAbove = rect.top - margin - 20;
       const maxHeight = Math.max(0, Math.min(320, availableAbove));
       setCoords({ bottom, left, maxHeight });

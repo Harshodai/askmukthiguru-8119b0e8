@@ -1,0 +1,85 @@
+# ==============================================================================
+# AskMukthiGuru - Android Release Signing Configuration Example
+# ==============================================================================
+# Copy this file to `android/key.properties` for local release builds:
+#   cp android/key.properties.example android/key.properties
+#
+# IMPORTANT SECURITY NOTICE:
+# - NEVER commit `key.properties` or your keystore (`*.jks`/`*.keystore`) to Git!
+# - Ensure `key.properties` and `*.jks` remain in your `.gitignore` at all times.
+# - Keep a secure offline backup of your keystore file and passwords.
+#   If you lose the upload key/keystore, you cannot publish app updates to Google Play!
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. How to generate a new release keystore:
+# ------------------------------------------------------------------------------
+# Run the following command in terminal (from the project root or android directory):
+#
+#   keytool -genkey -v -keystore mukthiguru-release-key.jks \
+#           -alias mukthiguru \
+#           -keyalg RSA \
+#           -keysize 2048 \
+#           -validity 10000
+#
+# Follow the prompts to set a strong password, developer name, and organizational unit.
+# Place the resulting `mukthiguru-release-key.jks` in the `android/` directory.
+#
+# ------------------------------------------------------------------------------
+# 2. Local Configuration (key.properties):
+# ------------------------------------------------------------------------------
+# Path to the keystore file. Can be:
+# - Relative to the `android/` directory (e.g. `mukthiguru-release-key.jks`)
+# - Relative to `android/app/` (e.g. `../mukthiguru-release-key.jks`)
+# - Absolute path (e.g. `/Users/developer/keys/mukthiguru-release-key.jks` or `~/keys/...`)
+storeFile=mukthiguru-release-key.jks
+
+# Keystore password entered during keytool generation
+storePassword=YOUR_KEYSTORE_PASSWORD_HERE
+
+# Key alias chosen during keytool generation
+keyAlias=mukthiguru
+
+# Key password entered during keytool generation (often same as storePassword)
+keyPassword=YOUR_KEY_PASSWORD_HERE
+
+# ------------------------------------------------------------------------------
+# 3. CI/CD Environment Variables Alternative (GitHub Actions, Fastlane, etc.):
+# ------------------------------------------------------------------------------
+# In automated CI/CD pipelines, you do not need a `key.properties` file.
+# You can supply these environment variables directly:
+#
+#   ANDROID_KEYSTORE_PATH="/path/to/mukthiguru-release-key.jks"
+#   ANDROID_KEYSTORE_PASSWORD="YOUR_KEYSTORE_PASSWORD"
+#   ANDROID_KEY_ALIAS="mukthiguru"
+#   ANDROID_KEY_PASSWORD="YOUR_KEY_PASSWORD"
+#
+# Note: If environment variables are set, they take precedence over `key.properties`.
+#
+# ------------------------------------------------------------------------------
+# 4. Building for Google Play Store (Release AAB):
+# ------------------------------------------------------------------------------
+# Google Play Store requires Android App Bundles (.aab) for production uploads:
+#
+#   1. Sync web assets into Android:
+#      npm run build:mobile && npx cap sync android
+#
+#   2. Build the signed release bundle:
+#      cd android && ./gradlew bundleRelease
+#
+#   3. The generated AAB bundle will be located at:
+#      android/app/build/outputs/bundle/release/app-release.aab
+#
+# ------------------------------------------------------------------------------
+# 5. Building Release APK (for direct testing/sideloading):
+# ------------------------------------------------------------------------------
+# If you need an installable standalone APK:
+#
+#   cd android && ./gradlew assembleRelease
+#
+#   Output APK will be located at:
+#      android/app/build/outputs/apk/release/app-release.apk
+#
+# If no signing credentials are provided, the build system gracefully falls back
+# to debug signing so local builds and CI checks without secrets do not crash.
+# ==============================================================================

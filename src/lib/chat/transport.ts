@@ -36,7 +36,7 @@ const buildRequestBody = (
     localTimeStr = date.toLocaleTimeString('en-US', { timeZone, hour12: false });
   } catch { /* fallback */ }
   const localHour = parseInt(localTimeStr.split(':')[0], 10) || 12;
-  
+
   let timeOfDay = 'night';
   if (localHour >= 5 && localHour < 12) timeOfDay = 'morning';
   else if (localHour >= 12 && localHour < 17) timeOfDay = 'afternoon';

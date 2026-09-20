@@ -11,6 +11,10 @@ on:
   # Allow manual trigger from GitHub Actions UI
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   security-audit:
     name: Pre-Launch Security Checklist

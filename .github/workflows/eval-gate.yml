@@ -18,6 +18,10 @@ on:
     - cron: '0 2 * * *' # 02:00 UTC nightly
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
 env:
   FAITHFULNESS_THRESHOLD: '0.88'
   ANSWER_RELEVANCY_THRESHOLD: '0.80'

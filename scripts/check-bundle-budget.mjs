@@ -6,7 +6,7 @@
  * 1. Max individual JS chunk size: < 800 kB (0.8 MB)
  * 2. Total eager/core application JS size: < 3 MB. This is the JS referenced
  *    by dist/index.html, excluding locale chunks and route-lazy code.
- * 3. Total overall JS size (including all lazy routes and localized dictionaries): < 5 MB
+ * 3. Total overall JS size (including all lazy routes and 14 localized dictionaries): < 7 MB
  *
  * Exits with non-zero code if any budget is exceeded or if dist/assets is missing.
  *
@@ -49,7 +49,7 @@ const MAX_CORE_TOTAL_BYTES = parseBudgetValue(
 );
 const MAX_TOTAL_BYTES = parseBudgetValue(
   process.env.BUNDLE_MAX_TOTAL_MB,
-  5.0,
+  7.0,
   'BUNDLE_MAX_TOTAL_MB',
   1024 * 1024
 );

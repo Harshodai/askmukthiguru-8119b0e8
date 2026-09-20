@@ -1638,6 +1638,10 @@ openSereneMind('audio');
               setQuotaExceeded(true);
               setQuotaMeta({ remaining: err?.quotaRemaining, totalLimit: err?.quotaTotalLimit });
             }
+            if (msgError.kind === 'context_exhausted') {
+              setConversationContextExhausted(true);
+              setInputValue(textToSend.trim());
+            }
             setMessages((prev) =>
               prev.map((m) =>
                 m.id === streamingGuruId
@@ -1751,7 +1755,10 @@ openSereneMind('audio');
         const responseError = response.errorCode
           ? buildMessageError(response.errorCode, response.error)
           : undefined;
-        if (responseError?.kind === 'context_exhausted') setConversationContextExhausted(true);
+        if (responseError?.kind === 'context_exhausted') {
+          setConversationContextExhausted(true);
+          setInputValue(textToSend.trim());
+        }
         if (responseError?.kind === 'quota_exceeded') {
           setQuotaExceeded(true);
           setQuotaMeta({ remaining: response.quotaRemaining, totalLimit: response.quotaTotalLimit });
@@ -2081,6 +2088,7 @@ const handleNewConversation = useCallback(async (continuationSummary?: string) =
   setMessages([welcomeMessage]);
   setRecommendedCourse(null);
   setConversationContextExhausted(false);
+  setInputValue('');
   setRefreshTrigger(prev => prev + 1);
 }, [stopSpeaking, isIncognito, profile.prePracticeLog, selected?.slug]);
 
@@ -2792,4 +2800,3 @@ return (
   </div>
 );
 };
-

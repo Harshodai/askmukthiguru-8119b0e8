@@ -261,4 +261,3 @@ def test_personal_subgraph_user_isolation_cannot_access_other_user():
         mock_svc.build_personal_knowledge_graph.assert_called_once_with(
             "user-A", view="personal", limit=50, query=""
         )
-

@@ -420,4 +420,3 @@ describe('ChatMessage guidance plan', () => {
     });
   });
 });
-

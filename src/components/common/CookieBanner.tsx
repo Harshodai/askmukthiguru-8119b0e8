@@ -43,7 +43,7 @@ export function CookieBanner() {
     };
     localStorage.setItem(COOKIE_CONSENT_KEY, JSON.stringify(consent));
     setShow(false);
-    
+
     // If accepted, initialize analytics
     if (accepted) {
       initializeAnalytics();
@@ -105,7 +105,7 @@ function initializeAnalytics() {
     // function gtag(){window.dataLayer.push(arguments);}
     // gtag('js', new Date());
     // gtag('config', 'GA_MEASUREMENT_ID');
-    
+
     // Example for Plausible
     // const script = document.createElement('script');
     // script.defer = true;

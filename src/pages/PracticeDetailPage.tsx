@@ -221,7 +221,7 @@ const PracticeDetailPage = () => {
                   />
                   {/* Subtle dark overlay */}
                   <div className="absolute inset-0 bg-black/30 group-hover:bg-black/15 transition-colors duration-500" />
-                  
+
                   {/* Gold aura play button */}
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div className="relative flex items-center justify-center">
