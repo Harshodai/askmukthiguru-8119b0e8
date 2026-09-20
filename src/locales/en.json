@@ -568,7 +568,22 @@
     "personalizedTitle": "Regular chats can use your profile and eligible personal memory.",
     "voiceMode": "Voice",
     "signInAgain": "Sign in again",
-    "reload": "Reload"
+    "reload": "Reload",
+    "guidance": {
+      "tryNow": "Try this now",
+      "goDeeper": "Go deeper",
+      "ariaLabel": "Optional guidance plan"
+    },
+    "optionalPractice": "Optional practice",
+    "sereneMindOfferAria": "Optional Serene Mind practice",
+    "continueChatting": "You can continue chatting instead.",
+    "personalization": {
+      "header": "Personalized for this conversation",
+      "profileEnabled": "Your profile personalization was enabled for this response.",
+      "personalMemoryUsed": "Eligible personal memory/context was provided to the answer model.",
+      "graphMatched": "Your personal context graph matched {{count}} concept link.",
+      "privateMemoryNotShown": "Private memory text is not shown here."
+    }
   },
   "notFound": {
     "message": "Oops! Page not found",
