@@ -112,6 +112,14 @@ class ChatRequest(BaseModel):
         ..., min_length=1, max_length=10000, description="Current user message"
     )
     session_id: Optional[str] = Field(None, description="Optional session ID")
+    conversation_summary: Optional[str] = Field(
+        default=None,
+        max_length=4000,
+        description=(
+            "Optional compact summary intentionally carried into a fresh continuation chat; "
+            "never treated as the original transcript and ignored for Temporary Chat."
+        ),
+    )
     meditation_step: int = Field(default=0, description="Current meditation step (0 = none)")
     language: Optional[str] = Field(default="en", description="Preferred language")
     incognito: bool = Field(
