@@ -651,7 +651,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                           {message.error.detail && (
                             <details className="mt-1.5">
                               <summary className="text-[11px] text-muted-foreground cursor-pointer hover:text-foreground/70 select-none">
-                                Technical detail
+                                {t('chat.technicalDetail')}
                               </summary>
                               <pre className="mt-1 text-[11px] text-muted-foreground whitespace-pre-wrap break-all font-mono bg-background/40 rounded px-2 py-1.5 border border-border/40">
                                 {message.error.detail}
@@ -676,7 +676,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                                 className="inline-flex items-center gap-1.5 text-[12px] font-medium text-destructive hover:text-destructive/80 border border-destructive/30 hover:border-destructive/50 hover:bg-destructive/10 rounded-md px-2.5 py-1 transition-colors"
                               >
                                 <LogIn className="w-3 h-3" aria-hidden />
-                                Sign in again
+                                {t('chat.signInAgain', 'Sign in again')}
                               </button>
                             )}
                             {message.error.actionLabel === 'new_chat' && onStartNewChat && (
@@ -696,7 +696,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                                 className="inline-flex items-center gap-1.5 text-[12px] font-medium text-destructive hover:text-destructive/80 border border-destructive/30 hover:border-destructive/50 hover:bg-destructive/10 rounded-md px-2.5 py-1 transition-colors"
                               >
                                 <RefreshCw className="w-3 h-3" aria-hidden />
-                                Reload
+                                {t('chat.reload', 'Reload')}
                               </button>
                             )}
                           </div>
@@ -1278,7 +1278,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                       <div className="space-y-2">
                         <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/85 flex items-center gap-1.5 pl-0.5">
                           <Youtube className="w-3.5 h-3.5 text-red-500" />
-                          Video Lessons ({ytUrls.length})
+                          {t('chat.videoLessons', { count: ytUrls.length })}
                         </p>
                         
                         {ytUrls.length === 1 ? (
@@ -1301,7 +1301,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                   {/* Document/Link References Section */}
                   <div className="space-y-2">
                     <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/85 pl-0.5">
-                      Source Documents
+                      {t('chat.sourceDocuments')}
                     </p>
                     <div className="flex flex-col gap-2">
                       {citations.slice(0, 3).map((c, i) => {
