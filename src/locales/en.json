@@ -1461,6 +1461,10 @@
       "light": "Light",
       "dark": "Dark",
       "system": "System"
+    },
+    "page": {
+      "title": "My Profile",
+      "welcome": "Welcome, Seeker"
     }
   },
   "commandPalette": {
