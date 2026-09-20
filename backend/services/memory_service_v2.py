@@ -16,6 +16,7 @@ import inspect
 import json
 import logging
 import os
+import re
 import time
 import uuid
 from collections import OrderedDict
@@ -1309,14 +1310,15 @@ class MemoryServiceV2(MemoryService):
             _add_node(f"notebook:{nid}", label, "NotebookItem", content=f"Q: {query}\nA: {answer}")
             _add_edge(f"user:{user_id}", f"notebook:{nid}", "SAVED_NOTE")
 
-            # Find related concepts using content keyword matching
-            full_text = (query + " " + answer).lower()
-            for kw, cid in concept_keywords.items():
-                if kw in full_text:
-                    _add_node(f"concept:{cid}", cid, "Concept")
-                    _add_edge(f"notebook:{nid}", f"concept:{cid}", "REFERENCES")
-                    _associate_concept(cid, f"notebook:{nid}")
-                    concept_ids_in_graph.add(cid)
+            # Match only complete concept phrases/tokens; do not create
+            # edges from arbitrary substrings.
+            full_text = query + " " + answer
+            for cid in concept_catalog:
+                if not _matches_concept(full_text, cid):
+                    continue
+                _add_node(f"concept:{cid}", cid, "Concept")
+                _add_edge(f"notebook:{nid}", f"concept:{cid}", "REFERENCES")
+                _associate_concept(cid, f"notebook:{nid}")
 
         # Query and add relationships between the matched ontology concepts
         personal_concept_ids = {
