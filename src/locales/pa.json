@@ -527,7 +527,12 @@
     "translationUnavailable": "ਅਨੁਵਾਦ ਅਣਉਪਲਬਧ ਹੈ",
     "saveAsNote": "ਨੋਟ ਵਜੋਂ ਸੁਰੱਖਿਅਤ ਕਰੋ",
     "showOriginal": "ਅਸਲ ਦਿਖਾਓ",
-    "translateTo": "{{lang}} ਵਿੱਚ ਅਨੁਵਾਦ ਕਰੋ"
+    "translateTo": "{{lang}} ਵਿੱਚ ਅਨੁਵਾਦ ਕਰੋ",
+    "contextLimit": {
+      "title": "ਗੱਲਬਾਤ ਦੀ ਸੰਦਰਭ ਸੀਮਾ ਪੂਰੀ ਹੋ ਗਈ ਹੈ",
+      "description": "ਇਹ ਗੱਲਬਾਤ ਆਪਣੀ ਸੁਰੱਖਿਅਤ ਸੰਦਰਭ ਸੀਮਾ ਤੱਕ ਪਹੁੰਚ ਗਈ ਹੈ। ਜਾਰੀ ਰੱਖਣ ਲਈ ਨਵੀਂ ਚੈਟ ਸ਼ੁਰੂ ਕਰੋ।",
+      "continueNewChat": "ਨਵੀਂ ਚੈਟ ਵਿੱਚ ਜਾਰੀ ਰੱਖੋ"
+    }
   },
   "notFound": {
     "message": "ਓਹੋ! ਪੰਨਾ ਨਹੀਂ ਮਿਲਿਆ",
