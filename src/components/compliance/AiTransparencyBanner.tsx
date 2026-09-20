@@ -17,6 +17,7 @@ export const AiTransparencyBanner: React.FC<AiTransparencyBannerProps> = ({
   persistent = false,
   onDismiss,
 }) => {
+  const { t } = useTranslation();
   const [isDismissed, setIsDismissed] = useState<boolean>(true);
   const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
 
