@@ -1355,7 +1355,12 @@
     "translationUnavailable": "വിവർത്തനം ലഭ്യമല്ല",
     "saveAsNote": "കുറിപ്പായി സേവ് ചെയ്യുക",
     "showOriginal": "യഥാർത്ഥ രൂപം കാണിക്കുക",
-    "translateTo": "{{lang}} ഭാഷയിലേക്ക് വിവർത്തനം ചെയ്യുക"
+    "translateTo": "{{lang}} ഭാഷയിലേക്ക് വിവർത്തനം ചെയ്യുക",
+    "contextLimit": {
+      "title": "സംഭാഷണത്തിന്റെ കോൺടെക്സ്റ്റ് പരിധിയിലെത്തി",
+      "description": "ഈ സംഭാഷണം സുരക്ഷിത കോൺടെക്സ്റ്റ് പരിധിയിലെത്തി. തുടരാൻ ഒരു പുതിയ ചാറ്റ് ആരംഭിക്കുക.",
+      "continueNewChat": "പുതിയ ചാറ്റിൽ തുടരുക"
+    }
   },
   "commandPalette": {
     "searchPlaceholder": "Search AskMukthiGuru…",
