@@ -603,7 +603,9 @@
     "teachingContext": {
       "title": "Teachings grounding this answer",
       "sourceCount": "{{count}} relevant teaching(s) found"
-    }
+    },
+    "contemplating": "Contemplating deeply — this may take a moment…",
+    "answerTakingShape": "The answer is taking form…"
   },
   "notFound": {
     "message": "Oops! Page not found",
