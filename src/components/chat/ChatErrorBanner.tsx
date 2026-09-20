@@ -8,9 +8,10 @@ import { ErrorCodePanel } from './ErrorCodePanel';
 
 interface ChatErrorBannerProps {
   onRetry?: () => void;
+  onStartNewChat?: () => void;
 }
 
-export const ChatErrorBanner = ({ onRetry }: ChatErrorBannerProps) => {
+export const ChatErrorBanner = ({ onRetry, onStartNewChat }: ChatErrorBannerProps) => {
   const { t } = useTranslation();
   const [err, setErr] = useState<ChatBusError | null>(null);
   const [expanded, setExpanded] = useState(false);
@@ -20,6 +21,9 @@ export const ChatErrorBanner = ({ onRetry }: ChatErrorBannerProps) => {
   useEffect(() => { setExpanded(false); }, [err?.id]);
 
   const isAuth = err?.kind === 'unauthorized';
+  const isContextExhausted = err?.kind === 'context_exhausted';
+  const displayTitle = isContextExhausted ? t('chat.contextLimit.title') : err?.title;
+  const displaySummary = isContextExhausted ? t('chat.contextLimit.description') : err?.summary;
 
   return (
     <AnimatePresence>
@@ -39,12 +43,22 @@ export const ChatErrorBanner = ({ onRetry }: ChatErrorBannerProps) => {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-mono text-[10px] font-semibold text-destructive/90 tracking-wide">{err.code}</span>
-                <p className="text-[13px] text-foreground/90 font-medium truncate">{err.title}</p>
+                <p className="text-[13px] text-foreground/90 font-medium truncate">{displayTitle}</p>
               </div>
-              <p className="text-[12px] text-foreground/70 mt-0.5 line-clamp-2">{err.summary}</p>
+              <p className="text-[12px] text-foreground/70 mt-0.5 line-clamp-2">{displaySummary}</p>
 
               <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                {isAuth ? (
+                {isContextExhausted ? (
+                  onStartNewChat && (
+                    <button
+                      type="button"
+                      onClick={() => { onStartNewChat(); chatErrorBus.dismiss(); }}
+                      className="inline-flex items-center gap-1 text-[11px] font-medium text-destructive hover:text-destructive/80 border border-destructive/30 hover:bg-destructive/10 rounded-md px-2 py-1 transition-colors"
+                    >
+                      <RefreshCw className="w-3 h-3" /> {t('chat.contextLimit.continueNewChat')}
+                    </button>
+                  )
+                ) : isAuth ? (
                   <button
                     type="button"
                     onClick={() => navigate('/auth?redirect=/chat')}
