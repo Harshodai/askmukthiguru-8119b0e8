@@ -160,4 +160,44 @@ describe('useMetrics', () => {
     expect(result.current.error).toBe('HTTP 503');
     expect(result.current.metrics).toBeNull();
   });
+
+  it('bypasses cache when conversation:updated event fires without manual cache reset', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(validPayload));
+
+    const { result } = renderHook(() => useMetrics());
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+
+    // Do NOT reset cache — conversation:updated must bypass cache on its own
+    act(() => {
+      window.dispatchEvent(new Event('conversation:updated'));
+    });
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(result.current.metrics?.totalConversations).toBe(12));
+  });
+
+  it('scopes cached metrics by user ID and does not share cache across users', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ ...validPayload, total_conversations: 5 }));
+    getSessionMock.mockResolvedValue({
+      data: { session: { access_token: 'tok-alice', user: { id: 'user-alice' } } },
+    });
+
+    const first = renderHook(() => useMetrics());
+    await waitFor(() => expect(first.result.current.loading).toBe(false));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(first.result.current.metrics?.totalConversations).toBe(5);
+    first.unmount();
+
+    // Now user switches to Bob
+    fetchMock.mockResolvedValue(jsonResponse({ ...validPayload, total_conversations: 20 }));
+    getSessionMock.mockResolvedValue({
+      data: { session: { access_token: 'tok-bob', user: { id: 'user-bob' } } },
+    });
+
+    const second = renderHook(() => useMetrics());
+    await waitFor(() => expect(second.result.current.loading).toBe(false));
+    // Bob should not receive Alice's cached metrics (should trigger network fetch)
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(second.result.current.metrics?.totalConversations).toBe(20);
+  });
 });

@@ -9,9 +9,12 @@ from __future__ import annotations
 import os
 import re
 from dataclasses import asdict, dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from app.config import settings
+
+if TYPE_CHECKING:
+    from app.schemas import ReleaseManifestPublic
 
 
 class ReleaseManifestError(ValueError):
@@ -210,20 +213,30 @@ def validate_release_manifest(manifest: ReleaseManifest | None = None) -> None:
     target.validate()
 
 
-def to_public_manifest_dict(manifest: Any = None) -> dict[str, Any]:
-    """Convert any manifest representation to a valid ReleaseManifestPublic dictionary."""
+def to_public_manifest_dict(manifest: Any = None) -> ReleaseManifestPublic:
+    """Convert any manifest representation to a ReleaseManifestPublic instance.
+
+    Every caller (app/orchestrator.py, app/api/chat.py, this module's own
+    tests) feeds the result straight into a `ChatResponse.release_manifest`
+    field typed `ReleaseManifestPublic | None` -- pydantic already coerced a
+    plain dict into that model at construction time, so returning the model
+    directly (instead of the dict it was silently upgraded from) changes
+    nothing observable and matches the field's declared type.
+    """
+    from app.schemas import ReleaseManifestPublic
+
     if isinstance(manifest, dict):
-        return {
-            "release_id": str(manifest.get("release_id") or "prod-2026-08-17"),
-            "policy_version": manifest.get("policy_version"),
-            "schema_version": manifest.get("schema_version"),
-        }
+        return ReleaseManifestPublic(
+            release_id=str(manifest.get("release_id") or "prod-2026-08-17"),
+            policy_version=manifest.get("policy_version"),
+            schema_version=manifest.get("schema_version"),
+        )
     if hasattr(manifest, "to_public_dict"):
-        return manifest.to_public_dict()
+        return ReleaseManifestPublic(**manifest.to_public_dict())
     if hasattr(manifest, "release_id"):
-        return {
-            "release_id": str(getattr(manifest, "release_id", "prod-2026-08-17")),
-            "policy_version": getattr(manifest, "policy_version", None),
-            "schema_version": getattr(manifest, "schema_version", None),
-        }
-    return get_release_manifest().to_public_dict()
+        return ReleaseManifestPublic(
+            release_id=str(getattr(manifest, "release_id", "prod-2026-08-17")),
+            policy_version=getattr(manifest, "policy_version", None),
+            schema_version=getattr(manifest, "schema_version", None),
+        )
+    return ReleaseManifestPublic(**get_release_manifest().to_public_dict())

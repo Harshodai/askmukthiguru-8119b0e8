@@ -48,6 +48,12 @@ class ToneExtractor:
 
     def __init__(self, llm_service: Any = None) -> None:
         self.llm_service = llm_service
+        self.extraction_stats: dict[str, int] = {
+            "total_chunks": 0,
+            "successful_chunks": 0,
+            "truncated_chunks": 0,
+            "dropped_chunks": 0,
+        }
 
     def rule_based_speaker_diarization(
         self, text: str, default_guru: str = "preethaji"
@@ -142,11 +148,19 @@ class ToneExtractor:
         guru_segments = [s for s in segments if s["speaker"] in ("krishnaji", "preethaji")]
 
         if not guru_segments:
-            chunks = self._chunk_transcript(transcript_text, max_chars=1500)
-            fallback_guru = (
-                default_guru if default_guru in ("krishnaji", "preethaji") else "preethaji"
+            # Name-substring matching found no reliable speaker boundaries --
+            # true for any transcript without explicit "NAME:" headers, which
+            # is the normal case for auto-generated captions. Blindly
+            # chunking the WHOLE transcript and labelling all of it as
+            # default_guru is how an interviewer's own intro/book-plug ended
+            # up stored as if the teacher said it (verified live 2026-09-19,
+            # UlOt31lBhLY_chunk_0). Fabricating an attribution we cannot
+            # actually make is worse than producing no exemplars here.
+            logger.warning(
+                f"ToneExtractor: no reliable speaker segments found for '{source_id}' "
+                "in the deterministic fallback -- skipping rather than guessing attribution."
             )
-            guru_segments = [{"speaker": fallback_guru, "text": c} for c in chunks]
+            return []
 
         for idx, seg in enumerate(guru_segments):
             chunk = seg["text"]
@@ -166,8 +180,13 @@ class ToneExtractor:
                 guru_name=guru_name,
                 speaker_role=guru_name,
                 interviewer_name="Interviewer/Seeker",
-                seeker_question="How do I overcome stress, live in peace, and balance external goals with inner state?",
-                seeker_emotional_state="seeking inner peace amid external ambition",
+                # This deterministic path has no way to know the real
+                # question asked at this point in the transcript. Leaving it
+                # empty (rather than a fixed, confident-sounding guess) is
+                # honest: IRPO ranking then treats it as no-match instead of
+                # a false match against every retrieval.
+                seeker_question="",
+                seeker_emotional_state="",
                 guru_response=chunk,
                 phrasing_dna=phrasing,
                 teaching_concept=concept,
@@ -236,19 +255,37 @@ class ToneExtractor:
         seen_prefixes: set[str] = set()
 
         for chunk_idx, chunk_text in enumerate(chunks):
+            self.extraction_stats["total_chunks"] += 1
             user_prompt = (
                 f"Source ID: {source_id} (chunk {chunk_idx + 1}/{len(chunks)})\n\n"
                 f"Transcript snippet:\n{chunk_text}\n\n"
                 f"{extract_instruction}"
             )
             try:
-                resp = await self.llm_service.generate(system_prompt, user_prompt, temperature=0.2)
+                resp = await self.llm_service.generate(
+                    system_prompt, user_prompt, temperature=0.2, max_tokens=4096
+                )
                 raw_json = resp.strip()
                 start = raw_json.find("[")
                 end = raw_json.rfind("]")
                 if start == -1 or end == -1:
+                    self.extraction_stats["truncated_chunks"] += 1
+                    logger.warning(
+                        f"ToneExtractor: chunk {chunk_idx + 1}/{len(chunks)} for '{source_id}' "
+                        "produced truncated or missing JSON array bounds; skipping chunk."
+                    )
                     continue
-                items = json.loads(raw_json[start : end + 1])
+                try:
+                    items = json.loads(raw_json[start : end + 1])
+                except json.JSONDecodeError as jde:
+                    self.extraction_stats["truncated_chunks"] += 1
+                    logger.warning(
+                        f"ToneExtractor: chunk {chunk_idx + 1}/{len(chunks)} for '{source_id}' "
+                        f"JSON parse failed (possibly truncated): {jde}; skipping chunk."
+                    )
+                    continue
+
+                chunk_exemplar_count = 0
                 for i, item in enumerate(items):
                     response_text = item.get("guru_response", "")
                     # Deduplicate by first 80 chars of response
@@ -275,12 +312,16 @@ class ToneExtractor:
                             raw_segment=response_text,
                         )
                     )
+                    chunk_exemplar_count += 1
+                self.extraction_stats["successful_chunks"] += 1
             except Exception as chunk_exc:
+                self.extraction_stats["dropped_chunks"] += 1
                 logger.warning(
                     f"ToneExtractor: chunk {chunk_idx + 1}/{len(chunks)} extraction failed "
                     f"({chunk_exc}), skipping chunk."
                 )
                 continue
+
 
         if all_exemplars:
             logger.info(

@@ -34,7 +34,7 @@ import yaml
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _PROD_COMPOSE = _REPO_ROOT / "docker-compose.prod.yml"
-_RAILWAY_JSON = _REPO_ROOT / "railway.json"
+_RAILWAY_TS = _REPO_ROOT / ".railway" / "railway.ts"
 _HELM_VALUES = _REPO_ROOT / "k8s" / "helm" / "mukthiguru" / "values.yaml"
 _START_RAILWAY = _REPO_ROOT / "backend" / "start_railway.py"
 
@@ -99,11 +99,16 @@ def test_qdrant_version_matches_across_manifests():
 
 
 def test_railway_grace_window_strictly_under_healthcheck_timeout():
-    import json
-
-    with _RAILWAY_JSON.open() as f:
-        railway_config = json.load(f)
-    healthcheck_timeout = railway_config["deploy"]["healthcheckTimeout"]
+    """Reads .railway/railway.ts, the IaC source since railway.json was removed
+    2026-09-19. This proves the invariant against the repo's DECLARED value
+    only -- it cannot see whether that value was ever actually applied to the
+    live Railway service (a separate, live-verified gap: as of 2026-09-19 the
+    live service's healthcheckTimeout was 15s, not this file's 330s).
+    """
+    railway_ts = _RAILWAY_TS.read_text()
+    match = re.search(r"healthcheckTimeout:\s*(\d+)", railway_ts)
+    assert match, "could not find healthcheckTimeout in .railway/railway.ts"
+    healthcheck_timeout = int(match.group(1))
 
     start_railway_src = _START_RAILWAY.read_text()
     match = re.search(r"^_GRACE_SECONDS\s*=\s*(\d+)", start_railway_src, re.MULTILINE)
@@ -112,7 +117,7 @@ def test_railway_grace_window_strictly_under_healthcheck_timeout():
 
     assert grace_seconds < healthcheck_timeout, (
         f"_GRACE_SECONDS ({grace_seconds}) must stay strictly below "
-        f"railway.json's healthcheckTimeout ({healthcheck_timeout}). The grace "
+        f".railway/railway.ts's healthcheckTimeout ({healthcheck_timeout}). The grace "
         f"window returns 200 unconditionally; if it reached the healthcheck "
         f"timeout, a replica that never finishes booting would look healthy "
         f"for Railway's entire retry budget and the deploy would never fail."

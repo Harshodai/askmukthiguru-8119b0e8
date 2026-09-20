@@ -400,6 +400,11 @@ verified independently and directly (not by trusting the prior prod audit).
 ## Numbered Findings
 
 ### AMK-D-001 — SSRF pre-check (`check_url_safety`) lacks DNS resolution; is a weaker duplicate of the real guard
+> **ID collision, not the same finding as `handoff.md`'s "AMK-D-001" (2026-09-12 session, W3):**
+> that one is a different, already-fixed issue ("deleted weak private-IP bypass, routed through
+> DNS-resolving `_is_url_safe`"). This is a separate, still-OPEN 2026-09-18 finding about the
+> `check_url_safety` pre-check specifically. Two audits nine days apart independently reused the
+> same ID string for different problems. This finding's status is tracked HERE, in this file.
 Severity: MEDIUM
 Launch Blocker: NO
 Evidence: `backend/services/web_search_guardrails.py:182-193` (`_is_private_ip`)

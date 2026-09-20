@@ -360,7 +360,33 @@ async def _ask_anonymous(client: httpx.AsyncClient, endpoint: str, question: str
     # retry rather than recording a dead row.
     last: httpx.Response | None = None
     for attempt in range(_RATE_LIMIT_RETRIES):
-        token = await _get_anon_token(client, endpoint)
+        try:
+            token = await _get_anon_token(client, endpoint)
+        except httpx.HTTPStatusError as exc:
+            # /api/auth/anon-session is itself rate-limited (F-COST-1,
+            # app/main.py's auth_rate_limit_middleware, 5 req/60s per IP) --
+            # this call's own 429 previously propagated straight out of the
+            # loop (raise_for_status() inside _get_anon_token), skipping the
+            # backoff/retry path entirely and killing the row. Only the
+            # /api/chat 429 below was ever caught. Found via a live sanity
+            # run, 2026-09-19: 4/15 rows failed exactly this way.
+            if exc.response.status_code != 429 or attempt == _RATE_LIMIT_RETRIES - 1:
+                raise
+            retry_after = exc.response.headers.get("retry-after") if exc.response is not None else None
+            if retry_after:
+                try:
+                    delay = max(float(retry_after), 1.0)
+                except (ValueError, TypeError):
+                    delay = max(60.0, _RATE_LIMIT_BACKOFF_S * (2**attempt))
+            else:
+                delay = max(60.0, _RATE_LIMIT_BACKOFF_S * (2**attempt))
+            print(
+                f"[bench] anon-session 429; retry {attempt + 1}/{_RATE_LIMIT_RETRIES} "
+                f"in {delay:.0f}s",
+                file=sys.stderr,
+            )
+            await asyncio.sleep(delay)
+            continue
         r = await client.post(
             f"{endpoint}/api/chat",
             json={
@@ -377,7 +403,14 @@ async def _ask_anonymous(client: httpx.AsyncClient, endpoint: str, question: str
                 return {"_http": r.status_code, "_body": r.text[:300]}
             return r.json()
         last = r
-        delay = _RATE_LIMIT_BACKOFF_S * (2**attempt)
+        retry_after = r.headers.get("retry-after")
+        if retry_after:
+            try:
+                delay = max(float(retry_after), 1.0)
+            except (ValueError, TypeError):
+                delay = max(60.0, _RATE_LIMIT_BACKOFF_S * (2**attempt))
+        else:
+            delay = max(60.0, _RATE_LIMIT_BACKOFF_S * (2**attempt))
         print(
             f"[bench] 429 rate-limited; retry {attempt + 1}/{_RATE_LIMIT_RETRIES} in {delay:.0f}s",
             file=sys.stderr,

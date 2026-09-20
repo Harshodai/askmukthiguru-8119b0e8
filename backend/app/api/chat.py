@@ -34,7 +34,7 @@ from app.dependencies import ServiceContainer, get_container_async
 from app.grounding import grounding_state_for
 from app.release_manifest import to_public_manifest_dict
 from app.sanitization import sanitize_log_input, sanitize_user_input
-from app.schemas import ChatRequest, ChatResponse, MessagePayload
+from app.schemas import ChatRequest, ChatResponse, Citation, MessagePayload
 from services.chat_context_budget import CONTEXT_ERROR_CODE, assess_conversation_context
 from app.security_utils import is_benchmark_request
 from services.anon_quota_port import QuotaResult
@@ -709,7 +709,7 @@ async def chat_endpoint(
     return response
 
 
-@router.post("/chat/v2")
+@router.post("/chat/v2", response_model=None)
 @limiter.limit(settings.chat_rate_limit)
 @record_token_usage(endpoint="/api/chat/v2")
 @backpressure_semaphore
@@ -720,7 +720,7 @@ async def chat_v2_endpoint(
     user: dict = Depends(get_optional_user),
     container: ServiceContainer = Depends(get_container_async),
     _tenant=Depends(set_tenant_from_request),
-) -> ChatResponse:
+) -> ChatResponse | JSONResponse:
     """Alternative chat endpoint backed by the ChatEngine facade (C3).
 
     A/B surface for the unified ``app.chat_engine.ChatEngine`` deep-module
@@ -767,7 +767,7 @@ async def chat_v2_endpoint(
         return context_limit_response
 
     from app.chat_engine import ChatEngine
-    from app.orchestrator import _provenance_manifest_for_result
+    from app.orchestrator import _provenance_manifest_for_result, _strict_provenance_manifest
 
     engine = ChatEngine(container)
     try:
@@ -787,7 +787,7 @@ async def chat_v2_endpoint(
         response=result.final_answer,
         intent=result.intent,
         meditation_step=result.meditation_step,
-        citations=result.citations,
+        citations=[Citation(**c) for c in result.citations],
         blocked=result.blocked,
         block_reason=result.block_reason or None,
         trace_id=result.trace_id,
@@ -824,7 +824,7 @@ async def chat_v2_endpoint(
         ),
         grounding_state=grounding_state_for(result),
         release_manifest=to_public_manifest_dict(getattr(result, "release_manifest", None)),
-        provenance_manifest=_provenance_manifest_for_result(result),
+        provenance_manifest=_strict_provenance_manifest(result),
         # TrustNLP 2026 F21/F33: this field was declared on the schema and
         # assigned nowhere in production code (only in
         # tests/test_provenance_api.py), so it was structurally always null.

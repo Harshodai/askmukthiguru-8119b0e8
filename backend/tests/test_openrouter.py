@@ -115,6 +115,29 @@ async def test_openrouter_rate_limit_is_shared_across_instances(monkeypatch):
     instance) holds either way.
     """
     OpenRouterService.reset_shared_rate_limiter()
+
+    # reset_shared_rate_limiter() only clears the Python-side singleton
+    # reference; when Redis IS reachable (it is on a live dev/CI host, unlike
+    # this docstring's original assumption), the sliding-window state for the
+    # fixed "openrouter:rpm" identity lives in Redis itself and survives that
+    # reset. An earlier test in the same run that exercised rate limiting
+    # leaves real counts under this key, making "the 3rd draw is refused"
+    # flaky depending on suite order (found via a full-suite run, 2026-09-19:
+    # passed standalone, failed inside `pytest` with no isolation).
+    from app.security_utils import _rate_limit_key_digest
+
+    import uuid
+    monkeypatch.setattr(OpenRouterService, "_RATE_LIMIT_KEY", f"openrouter:rpm:test:{uuid.uuid4().hex[:8]}")
+
+    _digest = _rate_limit_key_digest(OpenRouterService._RATE_LIMIT_KEY)
+    try:
+        import redis as _redis_sync
+
+        _r = _redis_sync.Redis.from_url(settings.redis_url, socket_timeout=2)
+        _r.delete(f"rl:{_digest}", f"rl:fail:{_digest}", f"rl:lastfail:{_digest}")
+    except Exception:
+        pass  # No reachable Redis in this env -- nothing to purge, test still valid
+
     monkeypatch.setattr(settings, "openrouter_rpm_limit", 2)
 
     service_a = OpenRouterService()

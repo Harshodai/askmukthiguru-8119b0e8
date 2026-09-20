@@ -45,6 +45,7 @@ from app.config import settings
 from app.dependencies import ServiceContainer
 from app.grounding import grounding_state_for
 from app.metrics import TPOT_SECONDS, TTFT_SECONDS
+from app.pipeline.result import AnswerEvidence, GuidancePlan
 from app.release_manifest import get_release_manifest
 from app.sanitization import sanitize_log_input
 from app.schemas import ChatRequest
@@ -92,6 +93,14 @@ class ChatResult:
         self.grounding_state: str = "abstained"
         self.release_manifest: Optional[dict[str, Any]] = None
         self.provenance_context: Optional[dict[str, Any]] = None
+        # PipelineResult has these; _execute_batch below never copied them onto
+        # ChatResult, so any direct (unguarded) access on the /api/chat/v2 path
+        # raised AttributeError on every real request. Defaults match
+        # PipelineResult's own (app/pipeline/result.py).
+        self.verification: Optional[dict] = None
+        self.live_logistics_events: list[dict] = []
+        self.answer_evidence: Optional[AnswerEvidence] = None
+        self.guidance_plan: Optional[GuidancePlan] = None
 
 
 class ChatChunk:
@@ -318,6 +327,12 @@ class ChatEngine:
             getattr(pipeline_result, "release_manifest", None) or get_release_manifest().to_dict()
         )
         result.provenance_context = getattr(pipeline_result, "provenance_context", None)
+        result.verification = getattr(pipeline_result, "verification", None)
+        result.live_logistics_events = list(
+            getattr(pipeline_result, "live_logistics_events", None) or []
+        )
+        result.answer_evidence = getattr(pipeline_result, "answer_evidence", None)
+        result.guidance_plan = getattr(pipeline_result, "guidance_plan", None)
 
         if not chat_request.incognito:
             # Content-bearing telemetry is disabled for ephemeral chats.

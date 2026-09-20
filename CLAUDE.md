@@ -42,7 +42,7 @@ Folder-scoped guidance also exists — `backend/CLAUDE.md` (backend workflow, re
 - **Key Invariants & Guarantees**:
   1. **100% Bolt-Protocol Compatible**: Runs on port 7687 using the standard `neo4j` Python driver (`neo4j==6.2.0`). Existing queries across `cross_teacher_reasoning.py`, `memory_service_v2.py`, and `provenance_ontology_service.py` work without syntax rewrites.
   2. **LightRAG Native Support**: Uses `lightrag-hku`'s built-in `graph_storage="MemgraphStorage"` driven by `MEMGRAPH_URI` / `MEMGRAPH_USERNAME` / `MEMGRAPH_PASSWORD`.
-  3. **Memory Footprint**: Cuts idle RAM from ~700MB–1.5GB down to ~60MB–100MB (capped at 512MB in Docker Compose) with zero JVM garbage collection pauses.
+  3. **Memory Footprint**: Measured at **570.6 MiB live resident memory / 1 GiB limit** (node/rel counts: 6,430 nodes / 4,188 rels). Still a significant reduction vs Neo4j JVM's ~700MB–1.5GB with zero JVM garbage collection pauses (matches AMK-F-009).
   4. **Graph Algorithms**: Replaces Neo4j GDS plugin with Memgraph's native MAGE library (`pagerank.get`, `community_detection.get`).
   5. **Backward Compatibility**: `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD` environment variables remain supported as aliases for `MEMGRAPH_*`.
 
@@ -1440,24 +1440,39 @@ Services: **backend**, **qdrant**, **redis**, **neo4j**, **jaeger**
 - `k8s/helm/mukthiguru/` — Helm chart for Kubernetes deployment
 - `k8s/skaffold.yaml` — Skaffold configuration for local k8s development
 
-### Railway (Production Deployment)
+### Railway (Production Deployment & Cost Controls)
 - **Project**: `resilient-embrace` | **Service**: `askmukthiguru-8119b0e8` | **Environment**: `production`
-- **Status (Aug 11, 2026)**: Railway is **paused**. Before the next deploy, set `FORWARDED_ALLOW_IPS` (e.g. `10.0.0.0/8`) — `start_railway.py` fails startup without an explicit non-wildcard value (see backend CLAUDE.md hard rules). Dev continues on docker compose (plain uvicorn; no such var needed).
-- **Deploy method**: Use `railway up` (tarball upload) — **NOT** `railway redeploy --from-source`
-  - `railway up` uploads a tarball and deploys reliably
-  - `railway redeploy --from-source` gets stuck at INITIALIZING on this repo
-- **Replicas**: Set to **1 replica** in `railway.json` — 2 replicas caused second replica to fail init timeout
-- **Health checks**: 
-  - `/api/healthz` — intercepted by `start_railway.py` wrapper, returns 200 for a 180s grace period (`_GRACE_SECONDS = 180` in `start_railway.py`)
-  - `/api/health` — real per-service health, returns `ready: false` until `startup_complete=True`
-- **Docker path for CLI**: `export PATH="/Users/harshodaikolluru/.docker/bin:$PATH" && railway <cmd>`
-- **Link service**:
-  ```bash
-  railway link --project resilient-embrace --service askmukthiguru-8119b0e8
-  ```
-- **View logs**: `railway logs` (shows interleaved from all deployments; use `--deployment <id>` for specific)
-- **Environment variables**: Set via `railway variables --json '{"KEY": "value"}'` or dashboard
-- **Key env vars for backend**: `OPENROUTER_API_KEY`, `SUPABASE_URL`, `SUPABASE_KEY`, `QDRANT_URL`, `QDRANT_API_KEY`, `REDIS_URL`, `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD`, `IS_PRODUCTION=true`
+- **Current Status (Sep 20, 2026)**: **ALL SERVICES SCALED DOWN / OFFLINE (Compute = $0/hr)**.
+  - Backend, Memgraph, and Qdrant deployments removed via `railway down --service <name> --yes` to stop all compute charges.
+  - Managed `Redis` is `● Sleeping`.
+  - All data volumes (`qdrant-volume`, `memgraph-volume`, `redis-volume`) are preserved intact.
+- **Cost Analysis & Memory Utilization**:
+  - Railway charges **$10/GB RAM/month** ($0.000231/GB/min) and **$20/vCPU/month**.
+  - Total active memory baseline when running is **~3.72 GB RAM** (~$37-$42/month or ~$1.25-$1.40/day):
+    - Backend API: **~1.81 GB RAM** ($18.10/mo) — loads ONNX BGE-M3 (560MB), ONNX Reranker (570MB), LettuceDetect ModernBERT (350MB), MiniLM intent (90MB), and LangGraph runtime (250MB).
+    - Qdrant: **~1.33 GB RAM** ($13.30/mo) — HNSW index & segment caches for 12,904 chunks + LightRAG collections.
+    - Memgraph: **~0.57 GB RAM** (570.6 MiB / 1 GiB limit, $5.70/mo) — in-memory graph index for 6,430 nodes / 4,188 rels.
+    - Redis: **~0.01 GB RAM** ($0.10/mo) — hot cache & queues.
+  - **Why Serverless wasn't sleeping automatically**: Railway requires **10 minutes of complete inactivity** to trigger sleep. Incoming HTTP traffic hitting `/api/capabilities` and `/api/metrics` every 2-4 seconds continuously reset the inactivity timer.
+- **How to Spin Up Services (When Ready)**:
+  1. Databases:
+     ```bash
+     railway redeploy --service qdrant
+     railway redeploy --service memgraph
+     # Redis wakes up automatically upon receiving connections
+     ```
+  2. Backend:
+     ```bash
+     railway up
+     # OR: railway redeploy --service askmukthiguru-8119b0e8
+     ```
+  Or via Railway Dashboard ➡️ Select service ➡️ Deployments ➡️ Redeploy.
+- **Deploy method**: Multi-stage Dockerfile (`backend/Dockerfile.railway`) with CPU-only wheels and INT8 ONNX models (~2.2GB image).
+- **Health checks & Deployment Probes**:
+  - Effective live setting: Deployments configure `healthcheckPath: /api/health` with `healthcheckTimeout: 300` (or `healthcheckPath: /api/healthz` with `healthcheckTimeout: 120`). Target `/api/health` for deployment gating so Railway verifies full subservice readiness rather than relying on `/api/healthz`'s 180s grace masking.
+  - `/api/healthz` — liveness probe intercepted by `start_railway.py` wrapper, returns 200 during `_GRACE_SECONDS = 180` boot window, then monitors lifespan heartbeat and default executor starvation canaries.
+  - `/api/health` — readiness probe inspecting real per-service health; returns `ready: false` / 503 until `startup_complete=True` (all 18 subservices verified green).
+- **Key env vars for backend**: `OPENROUTER_API_KEY`, `SUPABASE_URL`, `SUPABASE_KEY`, `QDRANT_URL=http://qdrant.railway.internal:6333`, `QDRANT_COLLECTION=spiritual_wisdom_contextual`, `REDIS_URL=redis://...:6379`, `NEO4J_URI=bolt://memgraph.railway.internal:7687`, `FORWARDED_ALLOW_IPS=10.0.0.0/8`, `QUANTIZED_ONLY=true`, `PYTHON_MEMORY_LIMIT_MB=5120`
 
 ### CI/CD (`.github/workflows/`)
 - `build-deploy.yml` — Build and deploy pipeline

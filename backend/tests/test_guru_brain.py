@@ -88,6 +88,27 @@ def test_tone_extractor_phrasing_dna():
 
 
 @pytest.mark.asyncio
+async def test_deterministic_fallback_skips_rather_than_mislabels():
+    """Regression for the Marie Forleo interview bug: a caption-style
+    transcript with no explicit "NAME:" speaker headers used to fall through
+    to blindly chunking the WHOLE transcript and labelling all of it as
+    default_guru -- which is exactly how an interviewer's own book-plug intro
+    ended up stored in guru_tone_podcast as if Sri Krishnaji said it
+    (UlOt31lBhLY_chunk_0, verified live 2026-09-19). With no llm_service and
+    no real speaker boundaries, the extractor must return nothing rather
+    than guess an attribution."""
+    extractor = ToneExtractor()  # no llm_service -- forces the deterministic path
+    transcript = (
+        "Thank you both so much for being here. Their first book is available now. "
+        "It has been such a joy talking with you today about consciousness and growth."
+    )
+    exemplars = await extractor.extract_exemplars_from_transcript(
+        transcript_text=transcript, source_id="test_no_headers", default_guru="krishnaji"
+    )
+    assert exemplars == []
+
+
+@pytest.mark.asyncio
 async def test_guru_brain_service_indexing_and_search():
     service = GuruBrainService(qdrant_service=None, embedding_service=None)
 
