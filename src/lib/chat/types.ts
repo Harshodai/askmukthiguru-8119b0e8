@@ -103,6 +103,7 @@ export interface Citation {
   quote?: string;
   channel_name?: string;
   source?: string;
+  speaker?: string;
   timestampSeconds?: number;
   textSnippet?: string;
 }
