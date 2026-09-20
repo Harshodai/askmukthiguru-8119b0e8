@@ -273,7 +273,23 @@
     "guidedMeditation": "मार्गदर्शितं ध्यानम्",
     "sereneMindRequired": "सम्भाषणम् उद्घाटयितुं कृपया अधुनैव सेरीन् मैण्ड् कुर्वन्तु।",
     "stillWorking": "अद्यापि कार्यं प्रचलति…",
-    "thinking": "गुरुः चिन्तयति...",
+    "thinking": {
+      "safety": "सुरक्षा-परीक्षणम्",
+      "understanding": "भवतः प्रश्नं अवगच्छामि",
+      "searching": "शिक्षासु अन्वेषणं करोमि",
+      "reranking": "प्रासङ्गिकतां सुधारयामि",
+      "filtering": "प्रासङ्गिकतां छनयामि",
+      "synthesizing": "शिक्षाः समेकयामि",
+      "composing": "मार्गदर्शनं रचयामि",
+      "verifying": "शिक्षास्रोतांसि सत्यापयामि",
+      "hello": "नमस्कारः",
+      "practice": "अभ्यासाय मार्गदर्शनम्",
+      "contemplating": "चिन्तयामि",
+      "queued": "पङ्क्तौ",
+      "analyzing": "भवतः उत्तरं सज्जयामि…",
+      "stepLabel": "चरणम् {{step}}/{{total}}: {{label}}",
+      "stepProgress": "चरणम् {{step}}/{{total}}: {{label}} ({{percentage}}%)"
+    },
     "reflecting": "उपदेशान् अवधारयन् अस्ति…",
     "drawingFromTeachings": "उपदेशेभ्यः ज्ञानं गृह्णन् अस्ति…",
     "drawingFrom": "{{tradition}} उपदेशेभ्यः गृह्णन् अस्ति…",
@@ -583,6 +599,10 @@
       "personalMemoryUsed": "योग्यं वैयक्तिकं स्मरणं/सन्दर्भः उत्तर-प्रतिरूपाय प्रदत्तः।",
       "graphMatched": "भवतः वैयक्तिक-सन्दर्भ-गृहे {{count}} अवधारणा-संबन्धान् मेलितवान्।",
       "privateMemoryNotShown": "वैयक्तिकस्मरणस्य पाठः अत्र न प्रदर्श्यते।"
+    },
+    "teachingContext": {
+      "title": "अस्य उत्तरस्य आधारभूताः शिक्षाः",
+      "sourceCount": "{{count}} प्रासङ्गिकाः शिक्षाः प्राप्ताः"
     }
   },
   "notFound": {
