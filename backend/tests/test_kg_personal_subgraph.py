@@ -93,8 +93,43 @@ def test_personal_subgraph_authed_uses_memory_service():
         assert len(body["edges"]) == 2
 
         mock_svc.build_personal_knowledge_graph.assert_called_once_with(
-            "user-123", view="personal", limit=50
+            "user-123", view="personal", limit=50, query=""
         )
+
+def test_personal_subgraph_propagates_query_and_safe_node_context():
+    app = _make_app()
+    app.dependency_overrides[require_aal2] = _authed_user
+    client = TestClient(app)
+
+    fake_result = {
+        "nodes": [
+            {
+                "id": "memory:m1",
+                "label": "Stillness",
+                "type": "Memory",
+                "state_category": "Beautiful State",
+                "content": "A private reflection about stillness.",
+            }
+        ],
+        "edges": [],
+    }
+    mock_svc = MagicMock()
+    mock_svc.build_personal_knowledge_graph.return_value = fake_result
+
+    with patch("app.api.kg.get_container") as mock_get:
+        container = MagicMock()
+        container.memory_service = mock_svc
+        mock_get.return_value = container
+
+        resp = client.get("/api/kg/personal-subgraph?limit=24&query=stillness")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["nodes"][0]["state_category"] == "Beautiful State"
+        assert body["nodes"][0]["content_preview"] == "A private reflection about stillness."
+        mock_svc.build_personal_knowledge_graph.assert_called_once_with(
+            "user-123", view="personal", limit=24, query="stillness"
+        )
+
 
 
 def test_personal_subgraph_authed_empty_personal_returns_empty():
