@@ -64,6 +64,8 @@ export interface Message {
   content: string;
   timestamp: Date;
   citations?: Citation[];
+  /** Small source-backed teaching excerpts surfaced before/during the answer. */
+  teachingPreview?: TeachingPreview[];
   confidenceScore?: number;
   /** E3.2 one-line explainable reason for the confidence score (optional, forward-compat). */
   confidenceReason?: string;
