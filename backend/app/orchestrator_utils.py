@@ -542,24 +542,37 @@ async def prepare_request_state(
     else:
         chat_history_en = chat_history
 
-    (
-        memory_context,
-        distress_history,
-        user_profile,
-        canonical_memory_evidence,
-    ) = await prepare_user_memory(
-        container,
-        user_id,
-        chat_history_en,
-        user_msg_en=user_msg_en,
-    )
+    # Temporary Chat is a hard personalization boundary. Keep language and
+    # safety processing available, but do not read durable profile/memory/persona
+    # context or execute personalization side effects.
+    if chat_body.incognito:
+        memory_context = ""
+        distress_history = []
+        user_profile = None
+        canonical_memory_evidence = ""
+    else:
+        (
+            memory_context,
+            distress_history,
+            user_profile,
+            canonical_memory_evidence,
+        ) = await prepare_user_memory(
+            container,
+            user_id,
+            chat_history_en,
+            user_msg_en=user_msg_en,
+        )
 
     # Course assignment is a persistence side effect and is not consumed by the
     # first-response graph. Keep it eventual and observed instead of making every
     # chat wait behind another profile read plus Supabase write. The feature flag,
     # persistable-user gate, shared timeout, and exception boundary are retained.
     recommended_course = None
-    if settings.proactive_course_assignment_enabled and _is_persistable_user_id(user_id):
+    if (
+        not chat_body.incognito
+        and settings.proactive_course_assignment_enabled
+        and _is_persistable_user_id(user_id)
+    ):
         from services.healing_course_service import (
             course_slug_for_signal,
             evaluate_course_trigger,
