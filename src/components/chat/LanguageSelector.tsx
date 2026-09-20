@@ -114,6 +114,15 @@ export const LanguageSelector = ({
   const popoverRef = useRef<HTMLDivElement | null>(null);
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const selectedLanguage = value ?? internalLang;
+
+  const filteredLanguages = useMemo(() => {
+    const query = searchQuery.trim().toLocaleLowerCase();
+    if (!query) return LANGUAGES;
+    return LANGUAGES.filter((lang) =>
+      [lang.name, lang.native, lang.code].some((value) => value.toLocaleLowerCase().includes(query))
+    );
+  }, [searchQuery]);
+
   
   const [voiceCapable, setVoiceCapable] = useState<Set<string>>(new Set(['en']));
   const { t } = useTranslation();
@@ -272,14 +281,6 @@ export const LanguageSelector = ({
   }, [isOpen, focusedIndex, handleLanguageChange, filteredLanguages]);
 
   const currentLang = LANGUAGES.find((l) => l.code === selectedLanguage);
-
-  const filteredLanguages = useMemo(() => {
-    const query = searchQuery.trim().toLocaleLowerCase();
-    if (!query) return LANGUAGES;
-    return LANGUAGES.filter((lang) =>
-      [lang.name, lang.native, lang.code].some((value) => value.toLocaleLowerCase().includes(query))
-    );
-  }, [searchQuery]);
 
   const renderLanguageRows = () => (
     <>
