@@ -36,6 +36,7 @@ interface ChatMessageProps {
   isStreaming?: boolean;
   isLastGuru?: boolean;
   onRegenerate?: () => void;
+  onStartNewChat?: () => void;
   onEditUserMessage?: (message: Message) => void;
   onSubmitEdit?: (messageId: string, newContent: string) => void;
   onAction?: (query: string) => void;
@@ -509,6 +510,9 @@ const FeedbackButtons = ({ messageId, queryText, messageContent }: {
 const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
   ({ message, queryText, index = 0, isStreaming = false, isLastGuru = false, onRegenerate, onEditUserMessage, onSubmitEdit, onAction, onCitationClick }, ref) => {
     const { t } = useTranslation();
+  const isContextExhaustedError = message.error?.kind === 'context_exhausted';
+  const errorTitle = isContextExhaustedError ? t('chat.contextLimit.title') : message.error?.title;
+  const errorDescription = isContextExhaustedError ? t('chat.contextLimit.description') : message.error?.description;
     const isGuru = message.role === 'guru';
     const navigate = useNavigate();
     const { profile } = useProfile();
@@ -726,8 +730,8 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                       <div className="flex items-start gap-2.5">
                         <AlertTriangle className="w-4 h-4 mt-0.5 text-destructive shrink-0" aria-hidden />
                         <div className="flex-1 min-w-0">
-                          <p className="text-[13px] font-semibold text-destructive leading-tight">{message.error.title}</p>
-                          <p className="text-[12.5px] text-foreground/75 mt-1 leading-relaxed">{message.error.description}</p>
+                          <p className="text-[13px] font-semibold text-destructive leading-tight">{errorTitle}</p>
+                          <p className="text-[12.5px] text-foreground/75 mt-1 leading-relaxed">{errorDescription}</p>
                           {message.error.detail && (
                             <details className="mt-1.5">
                               <summary className="text-[11px] text-muted-foreground cursor-pointer hover:text-foreground/70 select-none">
@@ -757,6 +761,16 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                               >
                                 <LogIn className="w-3 h-3" aria-hidden />
                                 Sign in again
+                              </button>
+                            )}
+                            {message.error.actionLabel === 'new_chat' && onStartNewChat && (
+                              <button
+                                type="button"
+                                onClick={onStartNewChat}
+                                className="inline-flex items-center gap-1.5 text-[12px] font-medium text-destructive hover:text-destructive/80 border border-destructive/30 hover:border-destructive/50 hover:bg-destructive/10 rounded-md px-2.5 py-1 transition-colors"
+                              >
+                                <RefreshCw className="w-3 h-3" aria-hidden />
+                                {t('chat.contextLimit.continueNewChat')}
                               </button>
                             )}
                             {message.error.actionLabel === 'reload' && (
