@@ -3012,10 +3012,11 @@ class IngestionPipeline:
                 f"chunks from source_url={source_url} (whisperx cache)"
             )
 
-        # Check for existing content and delete for clean re-ingestion
+        # Do not delete the current source before the new batch is safely indexed.
+        # QdrantService performs a two-phase source replacement: upsert the new
+        # deterministic point set first, then delete only stale old point IDs.
         if qdrant.check_source_exists(source_url):
-            logger.info(f"Source already indexed, overwriting: {source_url}")
-            qdrant.delete_by_source(source_url)
+            logger.info(f"Source already indexed; performing safe replacement: {source_url}")
 
         # Defense-in-depth: Unicode NFC normalization, null byte stripping & doctrine corrections
         import unicodedata
@@ -3106,6 +3107,7 @@ class IngestionPipeline:
             embeddings["dense"],
             metadatas,
             sparse_vectors=embeddings["sparse"],
+            replace_source_url=source_url,
         )
 
         # Invalidate semantic cache entries similar to newly ingested content
