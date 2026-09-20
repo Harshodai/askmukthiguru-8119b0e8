@@ -3,7 +3,7 @@
  * check_i18n_coverage.mjs
  *
  * Verifies deep translation-key parity across the real locales
- * (en + hi/te/kn/ta/mr). Every leaf key present in en.json must exist at the
+ * (all exposed locales). Every leaf key present in en.json must exist at the
  * same nested path in each real locale; missing or extra leaf keys fail the check.
  *
  * Usage:
@@ -16,7 +16,9 @@ import { fileURLToPath } from 'node:url';
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const LOCALES_DIR = join(ROOT, 'src', 'locales');
 
-const REAL_LOCALES = ['en', 'hi', 'te', 'kn', 'ta', 'mr'];
+// All locale bundles exposed by LanguageSelector.tsx must participate in the
+// deep parity gate. Keep this list aligned with the product's public locale set.
+const REAL_LOCALES = ['en', 'hi', 'te', 'kn', 'ta', 'mr', 'bn', 'gu', 'ml', 'ur', 'pa', 'or', 'as', 'sa'];
 
 const read = (lng) => JSON.parse(readFileSync(join(LOCALES_DIR, `${lng}.json`), 'utf8'));
 
