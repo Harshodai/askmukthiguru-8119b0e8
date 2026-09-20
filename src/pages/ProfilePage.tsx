@@ -291,7 +291,7 @@ const ProfilePage = () => {
       reminderTimeMinutes: form.reminderTimeMinutes,
     });
     setDirty(false);
-    toast({ title: 'Profile saved', description: 'Your preferences are updated.' });
+    toast({ title: t('profile.personalDetails.saved', 'Profile saved'), description: t('profile.personalDetails.savedDesc', 'Your preferences are updated.') });
   };
 
   // Sync conversation list for profile UI
