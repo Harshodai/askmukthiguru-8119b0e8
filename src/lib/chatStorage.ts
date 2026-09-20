@@ -641,12 +641,31 @@ export const renameConversation = async (id: string, newTitle: string): Promise<
 
 
 export const updateConversationSummary = async (id: string, summary: string): Promise<void> => {
+  if (_incognito) return;
   try {
     const conversations = await loadConversations();
     const index = conversations.findIndex(c => c.id === id);
     if (index >= 0) {
       conversations[index].summary = summary;
+      conversations[index].updatedAt = new Date();
       await writeConversationsRaw(JSON.stringify(conversations));
+    }
+
+    // Keep the compact continuation summary durable across devices for
+    // authenticated users. This is best-effort so cloud sync cannot block chat.
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id;
+      if (userId) {
+        const { error } = await supabase
+          .from('conversations')
+          .update({ summary, updated_at: new Date().toISOString() })
+          .eq('id', id)
+          .eq('user_id', userId);
+        if (error) throw error;
+      }
+    } catch (cloudError) {
+      console.warn('Conversation summary cloud-sync skipped:', cloudError);
     }
   } catch (error) {
     console.error('Failed to update conversation summary:', error);
