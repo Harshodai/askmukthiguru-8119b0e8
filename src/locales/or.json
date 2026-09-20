@@ -1461,6 +1461,10 @@
       "light": "ଆଲୋକ",
       "dark": "ଅନ୍ଧାର",
       "system": "ସିଷ୍ଟମ୍"
+    },
+    "page": {
+      "title": "ମୋ ପ୍ରୋଫାଇଲ୍",
+      "welcome": "ସ୍ୱାଗତ, ସାଧକ"
     }
   },
   "commandPalette": {
