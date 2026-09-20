@@ -16,6 +16,13 @@ def mock_pipeline(monkeypatch):
     # tests exercise via _splitter._chunk_size. Disable it so these tests keep
     # covering the legacy splitter + header-prepend path they were written for.
     monkeypatch.setattr(settings, "use_boundary_chunker", False)
+    monkeypatch.setattr(
+        "ingest.pipeline.IngestionCheckpoint.acquire_lock",
+        lambda self, lock_key, ttl=3600: "mock_token",
+    )
+    monkeypatch.setattr(
+        "ingest.pipeline.IngestionCheckpoint.release_lock", lambda self, lock_key, lock_token: True
+    )
     qdrant = MagicMock()
     embedder = MagicMock()
     ollama = MagicMock()

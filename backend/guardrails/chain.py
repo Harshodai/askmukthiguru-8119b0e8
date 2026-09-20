@@ -8,6 +8,7 @@ from app.metrics import GUARDRAILS_PROVIDER_DEGRADED
 from guardrails.base import BaseGuardrailHandler
 from guardrails.disabled_handler import DisabledGuardrailHandler
 from guardrails.lightweight_handler import LightweightGuardrailHandler
+from guardrails.nemo_handler import NeMoGuardrailHandler
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +32,6 @@ class GuardrailsChain:
             self._head = DisabledGuardrailHandler()
         elif provider == "llama_guard":
             from guardrails.llama_guard_handler import LlamaGuardHandler
-            from guardrails.nemo_handler import NeMoGuardrailHandler
             from guardrails.rejection_handler import RejectionClassifierHandler
 
             lightweight = LightweightGuardrailHandler()
@@ -66,7 +66,6 @@ class GuardrailsChain:
                     self._provider_name = "lightweight"
                 self._head = lightweight
         elif provider == "rejection_classifier":
-            from guardrails.nemo_handler import NeMoGuardrailHandler
             from guardrails.rejection_handler import RejectionClassifierHandler
 
             lightweight = LightweightGuardrailHandler()

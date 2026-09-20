@@ -183,6 +183,12 @@ async def test_ingest_raw_text_includes_hyper_extract_when_enabled(mock_pipeline
     monkeypatch.setattr(settings, "use_hyper_extract_enrichment", True)
     monkeypatch.setattr(IngestionCheckpoint, "is_processed", lambda self, chunk_id: False)
     monkeypatch.setattr(IngestionCheckpoint, "save", lambda self, chunk_id: None)
+    monkeypatch.setattr(
+        IngestionCheckpoint, "acquire_lock", lambda self, lock_key, ttl=3600: "mock_token"
+    )
+    monkeypatch.setattr(
+        IngestionCheckpoint, "release_lock", lambda self, lock_key, lock_token: True
+    )
     mock_pipeline._qdrant.upsert_chunks.return_value = 1
     mock_pipeline._qdrant.check_source_exists.return_value = False
     mock_pipeline._embedder.encode_batch.return_value = {"dense": [[0.0]], "sparse": [{}]}
@@ -215,6 +221,12 @@ async def test_ingest_raw_text_omits_hyper_extract_when_disabled(mock_pipeline, 
     monkeypatch.setattr(settings, "use_hyper_extract_enrichment", False)
     monkeypatch.setattr(IngestionCheckpoint, "is_processed", lambda self, chunk_id: False)
     monkeypatch.setattr(IngestionCheckpoint, "save", lambda self, chunk_id: None)
+    monkeypatch.setattr(
+        IngestionCheckpoint, "acquire_lock", lambda self, lock_key, ttl=3600: "mock_token"
+    )
+    monkeypatch.setattr(
+        IngestionCheckpoint, "release_lock", lambda self, lock_key, lock_token: True
+    )
     mock_pipeline._qdrant.upsert_chunks.return_value = 1
     mock_pipeline._qdrant.check_source_exists.return_value = False
     mock_pipeline._embedder.encode_batch.return_value = {"dense": [[0.0]], "sparse": [{}]}

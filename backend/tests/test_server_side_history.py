@@ -80,12 +80,12 @@ async def test_populate_server_side_history_success():
     mock_conv_resp.data = [{"user_id": "user-123"}]
     mock_conv_query.execute.return_value = mock_conv_resp
 
-    # Mock messages fetch
+    # Mock messages fetch (desc=True returns newest first)
     mock_msg_query = MagicMock()
     mock_msg_resp = MagicMock()
     mock_msg_resp.data = [
-        {"role": "user", "content": "I am seeking peace"},
         {"role": "guru", "content": "Peace is within you"},
+        {"role": "user", "content": "I am seeking peace"},
     ]
     mock_msg_query.execute.return_value = mock_msg_resp
 
@@ -97,7 +97,9 @@ async def test_populate_server_side_history_success():
             return m
         elif name == "chat_messages":
             m = MagicMock()
-            m.select.return_value.eq.return_value.order.return_value = mock_msg_query
+            m.select.return_value.eq.return_value.order.return_value.limit.return_value = (
+                mock_msg_query
+            )
             return m
         return MagicMock()
 

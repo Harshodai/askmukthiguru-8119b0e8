@@ -74,7 +74,7 @@ def scroll(qdrant: str, collection: str, fields: list[str]) -> list[dict]:
         req = urllib.request.Request(
             url, data=json.dumps(body).encode(), headers={"Content-Type": "application/json"}
         )
-        with urllib.request.urlopen(req, timeout=60) as resp:
+        with urllib.request.urlopen(req, timeout=60) as resp:  # nosec B310 - internal qdrant scroll endpoint
             result = json.load(resp)["result"]
         out.extend(p["payload"] for p in result["points"])
         offset = result.get("next_page_offset")

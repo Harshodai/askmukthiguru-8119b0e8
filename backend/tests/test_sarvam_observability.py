@@ -5,6 +5,13 @@ from services import sarvam_service
 from services.sarvam_service import SarvamCloudService
 
 
+@pytest.fixture(autouse=True)
+def _disable_budget_guard(monkeypatch):
+    """These tests exercise observability and fallback mechanics, not the Redis-backed
+    spend guard — that guard is covered by its own tests/test_llm_budget_guard.py."""
+    monkeypatch.setattr(settings, "sarvam_budget_guard_enabled", False)
+
+
 class FakeSpan:
     def __init__(self, name, attributes):
         self.name = name

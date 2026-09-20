@@ -206,8 +206,8 @@ try:
     except Exception as e:
         from transformers import AutoModelForTokenClassification, AutoTokenizer  # noqa: E402
 
-        AutoTokenizer.from_pretrained(_lettuce_path)
-        AutoModelForTokenClassification.from_pretrained(_lettuce_path)
+        AutoTokenizer.from_pretrained(_lettuce_path)  # nosec B615 - local snapshot_download path
+        AutoModelForTokenClassification.from_pretrained(_lettuce_path)  # nosec B615 - local snapshot_download path
         print(f"lettucedect token classification cache populated (fallback: {e})")
 except Exception as e:
     print(f"lettucedect download skipped: {e}")

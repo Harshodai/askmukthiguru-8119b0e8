@@ -542,14 +542,15 @@ async def prepare_request_state(
     else:
         chat_history_en = chat_history
 
+    is_incognito = getattr(chat_body, "incognito", False)
     conversation_summary = (
-        "" if chat_body.incognito else (chat_body.conversation_summary or "").strip()
+        "" if is_incognito else (getattr(chat_body, "conversation_summary", None) or "").strip()
     )
 
     # Temporary Chat is a hard personalization boundary. Keep language and
     # safety processing available, but do not read durable profile/memory/persona
     # context or execute personalization side effects.
-    if chat_body.incognito:
+    if is_incognito:
         memory_context = ""
         distress_history = []
         user_profile = None
@@ -573,7 +574,7 @@ async def prepare_request_state(
     # persistable-user gate, shared timeout, and exception boundary are retained.
     recommended_course = None
     if (
-        not chat_body.incognito
+        not is_incognito
         and settings.proactive_course_assignment_enabled
         and _is_persistable_user_id(user_id)
     ):

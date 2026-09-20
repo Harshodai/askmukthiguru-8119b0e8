@@ -243,7 +243,7 @@ def test_acquire_and_release_lock_via_redis():
         assert ckpt.acquire_lock("source-1") is False
 
         ckpt.release_lock("source-1")
-        mock_redis.delete.assert_called_once()
+        mock_redis.eval.assert_called_once()
 
 
 def test_acquire_lock_without_redis_never_blocks():
@@ -253,6 +253,7 @@ def test_acquire_lock_without_redis_never_blocks():
     with (
         patch("redis.from_url", side_effect=Exception("Redis down")),
         patch("supabase.create_client", side_effect=Exception("Supabase down")),
+        patch("app.config.settings.redis_url", ""),
     ):
         ckpt = IngestionCheckpoint()
         assert ckpt.redis_client is None

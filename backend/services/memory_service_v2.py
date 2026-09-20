@@ -1206,9 +1206,18 @@ class MemoryServiceV2(MemoryService):
             claim = m.get("claim") or content[:30]
 
             # Extract state category if possible
-            state_cat = "Neutral"
-            _add_node(f"memory:{mid}", claim, "Memory", state_category=state_cat, content=content)
+            state_cat = str(m.get("state_category") or "").strip() or None
+            _add_node(
+                f"memory:{mid}",
+                claim,
+                "Memory",
+                state_category=state_cat or "Neutral",
+                content=content,
+            )
             _add_edge(f"user:{user_id}", f"memory:{mid}", "HAS_MEMORY")
+            if state_cat:
+                _add_node(f"state:{state_cat}", state_cat, "State", state_category=state_cat)
+                _add_edge(f"memory:{mid}", f"state:{state_cat}", "IN_STATE")
 
         # Now, query relationships between the memories and ontology concepts from Neo4j
         referenced_concept_ids = set()

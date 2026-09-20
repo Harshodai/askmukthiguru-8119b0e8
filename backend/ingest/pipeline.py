@@ -2821,7 +2821,7 @@ class IngestionPipeline:
                     f"Rollback FAILED for {source_url} — no backup data found in {backup_collection}"
                 )
         else:
-            self._qdrant.delete_by_source(source_url)
+            self._qdrant.delete_by_source(source_url=source_url)
             logger.warning(
                 f"Removed partially-indexed new source {source_url} after a downstream failure"
             )
