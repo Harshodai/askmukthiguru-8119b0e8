@@ -318,7 +318,10 @@
       "queued": "قطار میں",
       "analyzing": "آپ کا جواب تیار کر رہا ہوں…",
       "stepLabel": "مرحلہ {{step}}/{{total}}: {{label}}",
-      "stepProgress": "مرحلہ {{step}}/{{total}}: {{label}} ({{percentage}}%)"
+      "stepProgress": "مرحلہ {{step}}/{{total}}: {{label}} ({{percentage}}%)",
+      "rotatingReflecting": "گرو آپ کے سوال پر غور کر رہے ہیں…",
+      "rotatingConnecting": "مقدس حکمت سے جڑ رہے ہیں…",
+      "rotatingAlmostReady": "تقریباً تیار — گہری حکمت میں وقت لگتا ہے…"
     },
     "toggleThinking": "فکری عمل کی تفصیلات دیکھیں/چھپائیں",
     "reflecting": "تعلیمات پر غور کیا جا رہا ہے…",
