@@ -13,7 +13,7 @@ interface UseTextToSpeechOptions {
 }
 
 interface UseTextToSpeechReturn {
-  speak: (text: string) => void;
+  speak: (text: string, langOverride?: string) => void;
   stop: () => void;
   pause: () => void;
   resume: () => void;
@@ -119,7 +119,18 @@ export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextTo
     setCurrentVoice(fallbackVoice || voices[0] || null);
   }, [lang, voices]);
 
-  const playNativeTTS = useCallback((text: string) => {
+  const findVoiceForLanguage = useCallback((targetLang: string) => {
+    const preferredLangs = languageMap[targetLang] || languageMap.en;
+    for (const preferredLang of preferredLangs) {
+      const matchingVoice = voices.find(
+        (voice) => voice.lang.startsWith(preferredLang.split('-')[0]) || voice.lang === preferredLang,
+      );
+      if (matchingVoice) return matchingVoice;
+    }
+    return voices.find((voice) => voice.lang.startsWith('en')) || voices[0] || null;
+  }, [voices]);
+
+  const playNativeTTS = useCallback((text: string, languageOverride?: string) => {
     if (!isSupported) {
       const errMsg = 'Speech synthesis not supported in this browser.';
       setError(errMsg);
@@ -135,11 +146,12 @@ export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextTo
     utterance.pitch = pitch;
     utterance.volume = volume;
 
-    if (currentVoice) {
-      utterance.voice = currentVoice;
-      utterance.lang = currentVoice.lang;
+    const targetVoice = findVoiceForLanguage(languageOverride || lang);
+    if (targetVoice) {
+      utterance.voice = targetVoice;
+      utterance.lang = targetVoice.lang;
     } else {
-      const langCode = languageMap[lang]?.[0] || 'en-US';
+      const langCode = languageMap[languageOverride || lang]?.[0] || 'en-US';
       utterance.lang = langCode;
     }
 
@@ -176,10 +188,10 @@ export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextTo
 
     utteranceRef.current = utterance;
     window.speechSynthesis.speak(utterance);
-  }, [isSupported, currentVoice, lang, rate, pitch, volume]);
+  }, [isSupported, findVoiceForLanguage, lang, rate, pitch, volume]);
 
   const speak = useCallback(
-    async (text: string) => {
+    async (text: string, langOverride?: string) => {
       setError(null);
       setCurrentSentence(null);
 
@@ -212,7 +224,7 @@ export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextTo
           },
           body: JSON.stringify({
             text: text.slice(0, 5000),
-            target_language_code: lang,
+            target_language_code: langOverride || lang,
             speaker: speaker || 'shubh',
           }),
         });
@@ -278,10 +290,10 @@ export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextTo
         console.warn('Sarvam TTS failed, falling back to native TTS:', err);
         setIsSpeaking(false);
         setCurrentSentence(null);
-        playNativeTTS(text);
+        playNativeTTS(text, langOverride);
       }
     },
-    [isSupported, playNativeTTS, lang, speaker]
+    [isSupported, playNativeTTS, lang, langOverride, speaker]
   );
 
   const stop = useCallback(() => {
