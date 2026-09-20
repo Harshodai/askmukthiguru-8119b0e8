@@ -415,7 +415,7 @@
     "switchToIt": "సహాయక మెనూ నుండి దానికి మారండి.",
     "teaching": "బోధన",
     "teachingAlt": "గురువులు నేటి బోధన",
-    "teachingReference": "బోధనా సూచన",
+    "teachingReference": "బోధన మూలం",
     "technicalDetail": "సాంకేతిక వివరాలు",
     "tellMeMore": "చెప్పండి, ఇంకా చెప్పండి.",
     "tellMeMoreQuery": "దీని గురించి నాకు మరింత చెప్పండి: {{content}}",
@@ -609,7 +609,10 @@
     "sereneMindOfferFooter": "ముందుగా బోధన; సరైనదిగా అనిపించినప్పుడు మాత్రమే ప్రారంభించండి.",
     "videoUnavailable": "వీడియో అందుబాటులో లేదు",
     "videoEmbedUnavailable": "ఈ వీడియోను పొందుపరచడం సాధ్యం కాదు",
-    "youTubeThumbnail": "YouTube థంబ్‌నెయిల్"
+    "youTubeThumbnail": "YouTube థంబ్‌నెయిల్",
+    "videoSource": "వీడియో మూలం {{letter}}",
+    "academyReference": "O&O అకాడమీ మూలం",
+    "sourceLabel": "మూలం {{number}}"
   },
   "notFound": {
     "message": "అప్పుడు! పేజీ కనుగొనబడలేదు",
