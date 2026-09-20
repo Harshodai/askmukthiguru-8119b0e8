@@ -439,7 +439,7 @@
     "selectLanguage": "ભાષા પસંદ કરો",
     "searchLanguages": "{{count}} ભાષાઓ શોધો…",
     "autoTranslateNotice": "બિન-અંગ્રેજી સંદેશાઓ ગુરુ પાસે મોકલતા પહેલાં આપમેળે અનુવાદિત થાય છે.",
-    "noLangMatch": "કોઈ ભાષા \"{{query}}\" સાથે મેળ ખાતી નથી",
+    "noLangMatch": "તમારી શોધ સાથે કોઈ ભાષા મેળ ખાતી નથી.",
     "localVoiceEnabled": "સ્થાનિક અવાજ સક્ષમ છે",
     "voiceNotInBrowser": "આ ભાષા માટે કોઈ બ્રાઉઝર અવાજ મળ્યો નથી.",
     "cloudVoice": "ક્લાઉડ વોઇસ (Sarvam)",
@@ -532,6 +532,28 @@
       "title": "વાતચીતની સંદર્ભ મર્યાદા પહોંચી ગઈ છે",
       "description": "આ વાતચીત તેની સુરક્ષિત સંદર્ભ મર્યાદા સુધી પહોંચી ગઈ છે. ચાલુ રાખવા માટે નવી ચેટ શરૂ કરો.",
       "continueNewChat": "નવી ચેટમાં ચાલુ રાખો"
+    },
+    "keyboardHint": "મોકલવા Enter · નવી લાઇન માટે Shift+Enter",
+    "processingAttachment": "અટેચમેન્ટ તૈયાર થઈ રહ્યું છે…",
+    "attachMedia": "મીડિયા અથવા દસ્તાવેજ જોડો",
+    "voiceConversationOn": "વૉઇસ વાતચીત ચાલુ છે — સ્વાભાવિક રીતે બોલો; ગુરુ અવાજમાં જવાબ આપશે.",
+    "turnOffVoiceConversation": "વૉઇસ વાતચીત બંધ કરો",
+    "voiceConversation": "વૉઇસ વાતચીત",
+    "queueMessage": "સંદેશને કતારમાં મૂકો",
+    "queueFollowUp": "કતારમાં મૂકો",
+    "stopGenerating": "જવાબ બનાવવાનું રોકો",
+    "queue": {
+      "messageQueued": "સંદેશ કતારમાં છે",
+      "messagesQueued": "સંદેશો કતારમાં છે",
+      "autoDispatch": "હાલના જવાબ પછી આપમેળે મોકલાશે",
+      "clearAll": "બધું સાફ કરો",
+      "fileAttached": "ફાઇલ જોડાઈ",
+      "filesAttached": "ફાઇલો જોડાઈ",
+      "sendNowTitle": "હમણાં મોકલો — હાલનો જવાબ અટકશે",
+      "sendNow": "હમણાં મોકલો",
+      "edit": "સંદેશ સંપાદિત કરો",
+      "remove": "કતારમાંથી દૂર કરો",
+      "regionLabel": "કતારમાં રહેલા સંદેશા"
     }
   },
   "notFound": {
