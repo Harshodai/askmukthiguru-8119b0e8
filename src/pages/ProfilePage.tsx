@@ -500,7 +500,13 @@ const ProfilePage = () => {
         )}
 
         <div className="space-y-6">
-          <Tabs value={tab} onValueChange={setTab} className="w-full">
+          <Tabs
+              value={tab}
+              onValueChange={(value) => {
+                if (PROFILE_TABS.includes(value as ProfileTab)) setTab(value as ProfileTab);
+              }}
+              className="w-full"
+            >
             {/* Compact segmented navigation; scrolls safely on narrow devices. */}
             <div className="sticky top-14 z-20 -mx-4 sm:mx-0 px-4 sm:px-0 py-1 bg-background/90 backdrop-blur-xl border-b border-transparent overflow-x-auto momentum-scroll no-tap-highlight">
               <TabsList
