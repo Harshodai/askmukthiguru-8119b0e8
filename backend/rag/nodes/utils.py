@@ -47,6 +47,63 @@ from . import _services
 logger = logging.getLogger(__name__)
 
 
+async def emit_teaching_preview(config: Optional[dict], documents: list[dict] | None) -> None:
+    """Emit a small, public-safe preview of retrieved teaching evidence.
+
+    This is provenance, not model reasoning: only source metadata and a short
+    excerpt from retrieved corpus documents are exposed. Personal memory,
+    prompts, hidden state, and chain-of-thought are never serialized here.
+    """
+    if config is None or not documents:
+        return
+    try:
+        configurable = config.get("configurable", {}) if hasattr(config, "get") else getattr(config, "configurable", {}) or {}
+        q = configurable.get("stream_queue")
+        if q is None:
+            return
+
+        previews: list[dict] = []
+        seen: set[str] = set()
+        for doc in documents:
+            if not isinstance(doc, dict):
+                continue
+            url = str(doc.get("source_url") or doc.get("url") or "").strip()
+            title = str(doc.get("title") or (doc.get("metadata") or {}).get("title") or "").strip()
+            if not url and not title:
+                continue
+            key = url or title
+            if key in seen:
+                continue
+            seen.add(key)
+
+            teacher = str(
+                doc.get("speaker")
+                or doc.get("teacher")
+                or (doc.get("metadata") or {}).get("teacher")
+                or (doc.get("provenance") or {}).get("teacher")
+                or ""
+            ).strip()
+            text_value = str(doc.get("text") or doc.get("content") or "").strip()
+            excerpt = " ".join(text_value.split())
+            if len(excerpt) > 220:
+                excerpt = excerpt[:217].rstrip() + "…"
+
+            previews.append({
+                "title": title or "Teaching source",
+                "teacher": teacher or None,
+                "url": url or None,
+                "excerpt": excerpt or None,
+            })
+            if len(previews) >= 3:
+                break
+
+        if previews:
+            await q.put({"event": "teaching_preview", "data": {"items": previews}})
+    except Exception:
+        # Evidence preview is strictly best-effort and must never block retrieval.
+        pass
+
+
 # ---------------------------------------------------------------------------
 # Phase-2 / Truth-3: SSE status & bounded stage emission helpers
 # ---------------------------------------------------------------------------
