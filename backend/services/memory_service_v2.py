@@ -1027,7 +1027,8 @@ class MemoryServiceV2(MemoryService):
           peer links so isolated memories still connect through shared meaning).
         Results are cached for 60s per (user_id, view).
         """
-        cache_key = (user_id or "anon", view)
+        normalized_query = re.sub(r"\\s+", " ", (query or "").strip().lower())
+        cache_key = (user_id or "anon", view, int(limit), normalized_query[:200])
         cached = self._KG_CACHE.get(cache_key)
         if cached and cached[1] > time.time():
             return cached[0]
@@ -1184,19 +1185,6 @@ class MemoryServiceV2(MemoryService):
         # User is authenticated. Build the personalized Consciousness Map!
         _add_node(f"user:{user_id}", "You", "User")
 
-        # Set up state categories as base concepts so they exist in our graph
-        state_categories = [
-            "Beautiful State",
-            "Suffering State",
-            "Shrinking Self",
-            "Destructive Self",
-            "Inert Self",
-        ]
-        for sc in state_categories:
-            _add_node(f"concept:{sc}", sc, "Concept")
-
-        concept_ids_in_graph = set(state_categories)
-
         # Track memories we've processed
         processed_memory_ids = set()
 
@@ -1205,14 +1193,15 @@ class MemoryServiceV2(MemoryService):
             mid = m["id"]
             content = m.get("content", "")
             insight = m.get("insight") or content[:30]
-            state_cat = m.get("state_category") or "Neutral"
+            state_cat = str(m.get("state_category") or "").strip() or None
             processed_memory_ids.add(mid)
 
             _add_node(f"memory:{mid}", insight, "Memory", state_category=state_cat, content=content)
             _add_edge(f"user:{user_id}", f"memory:{mid}", "HAS_MEMORY")
 
-            if state_cat in state_categories:
-                _add_edge(f"memory:{mid}", f"concept:{state_cat}", "IN_STATE")
+            if state_cat:
+                _add_node(f"state:{state_cat}", state_cat, "State", state_category=state_cat)
+                _add_edge(f"memory:{mid}", f"state:{state_cat}", "IN_STATE")
                 _associate_concept(state_cat, f"memory:{mid}")
 
         # Add Supabase memories if not already processed
@@ -1251,39 +1240,62 @@ class MemoryServiceV2(MemoryService):
                     _add_node(f"concept:{cid}", cid, clabel, cid if clabel == "Teacher" else None)
                     _add_edge(f"memory:{mid}", f"concept:{cid}", "RELATES_TO")
                     _associate_concept(cid, f"memory:{mid}")
-                    concept_ids_in_graph.add(cid)
+                    personal_concept_ids.add(cid)
                     referenced_concept_ids.add(cid)
             except Exception as e:
                 logger.warning(f"Failed to query memory ontology rels: {e}")
 
-        # For any memories that were not in Neo4j, do keyword matching fallback
-        concept_keywords = {sc.lower(): sc for sc in state_categories}
-        try:
+        # Fallback matching is deliberately phrase/token based; broad substring
+        # matches created misleading concept edges in the previous implementation.
+        concept_catalog: list[str] = []
+        if driver is not None:
+            try:
 
-            def _get_all_concepts():
-                with driver.session() as session:
-                    res = session.run(
-                        "MATCH (c) WHERE c:Concept OR c:Teacher OR c:Practice RETURN c.entity_id AS eid"
-                    )
-                    return [r["eid"] for r in res]
+                def _get_all_concepts():
+                    with driver.session() as session:
+                        res = session.run(
+                            "MATCH (c) WHERE c:Concept OR c:Teacher OR c:Practice "
+                            "RETURN DISTINCT c.entity_id AS eid LIMIT 500"
+                        )
+                        return [str(r["eid"]) for r in res if r.get("eid")]
 
-            all_concepts = await asyncio.to_thread(_get_all_concepts)
-            for cid in all_concepts:
-                concept_keywords[cid.lower()] = cid
-        except Exception as _e:
-            logger.debug("[memory service] suppressed non-critical error: %s", _e)
+                concept_catalog = await asyncio.to_thread(_get_all_concepts)
+            except Exception as _e:
+                logger.debug("[memory service] concept fallback unavailable: %s", _e)
+
+        def _matches_concept(text: str, concept: str) -> bool:
+            source_tokens = set(re.findall(r"[a-z0-9][a-z0-9'-]{2,}", text.lower()))
+            concept_tokens = set(re.findall(r"[a-z0-9][a-z0-9'-]{2,}", concept.lower()))
+            if not source_tokens or not concept_tokens:
+                return False
+            normalized_concept = " ".join(concept.lower().split())
+            normalized_text = " ".join(text.lower().split())
+            if " " in normalized_concept:
+                return concept_tokens.issubset(source_tokens)
+            return len(normalized_concept) >= 4 and normalized_concept in source_tokens
+
+        existing_concept_edges = {
+            (e["source"], e["target"])
+            for e in edges
+            if e.get("source", "").startswith("memory:")
+            and e.get("target", "").startswith("concept:")
+        }
 
         for m in supabase_mems:
             mid = str(m.get("id", ""))
-            if mid in processed_memory_ids:
+            if not mid:
                 continue
-            content = m.get("content", "").lower()
-            for kw, cid in concept_keywords.items():
-                if kw in content:
-                    _add_node(f"concept:{cid}", cid, "Concept")
-                    _add_edge(f"memory:{mid}", f"concept:{cid}", "RELATES_TO")
-                    _associate_concept(cid, f"memory:{mid}")
-                    concept_ids_in_graph.add(cid)
+            content = f"{m.get('content') or ''} {m.get('claim') or ''}"
+            for cid in concept_catalog:
+                if not _matches_concept(content, cid):
+                    continue
+                target = f"concept:{cid}"
+                if (f"memory:{mid}", target) in existing_concept_edges:
+                    continue
+                _add_node(target, cid, "Concept")
+                _add_edge(f"memory:{mid}", target, "RELATES_TO")
+                _associate_concept(cid, f"memory:{mid}")
+                existing_concept_edges.add((f"memory:{mid}", target))
 
         # 3. Add Study Notebook Items
         for item in notebook_items:
@@ -1307,7 +1319,12 @@ class MemoryServiceV2(MemoryService):
                     concept_ids_in_graph.add(cid)
 
         # Query and add relationships between the matched ontology concepts
-        if concept_ids_in_graph:
+        personal_concept_ids = {
+            n["label"]
+            for n in nodes.values()
+            if str(n.get("id", "")).startswith("concept:")
+        }
+        if personal_concept_ids and driver is not None:
             try:
 
                 def _query_concept_rels():
@@ -1319,7 +1336,7 @@ class MemoryServiceV2(MemoryService):
                             "  AND c1.entity_id IN $cids AND c2.entity_id IN $cids "
                             "  AND type(r) IN ['EXPOUNDS', 'PRACTICE_FOR', 'CONTRASTS_WITH', 'SYNONYMOUS_WITH'] "
                             "RETURN c1.entity_id AS source, c2.entity_id AS target, type(r) AS rel_type",
-                            cids=list(concept_ids_in_graph),
+                            cids=list(personal_concept_ids),
                         )
                         return [r.data() for r in res]
 
@@ -1329,58 +1346,121 @@ class MemoryServiceV2(MemoryService):
             except Exception as e:
                 logger.warning(f"Failed to query concept rels: {e}")
 
-        # Memory↔Memory peer edges: group memories by state_category so isolated
-        # reflections still connect through shared meaning. Supermemory-style
-        # "similar memory" hint — one dashed edge per pair, capped to avoid
-        # visual noise on large graphs.
-        try:
-            by_state: dict[str, list[str]] = {}
-            for n in nodes.values():
-                if (
-                    n["type"] == "Memory"
-                    and n.get("state_category")
-                    and n["state_category"] != "Neutral"
-                ):
-                    by_state.setdefault(n["state_category"], []).append(n["id"])
-            _peer_cap = 40  # ponytail: bump if UI clarity holds at higher densities
-            _added = 0
-            for _state, mids in by_state.items():
-                if len(mids) < 2:
-                    continue
-                # Chain memories in a ring so each has ≤2 peer edges — dense
-                # enough to show clusters, sparse enough to stay legible.
-                for i, src in enumerate(mids):
-                    dst = mids[(i + 1) % len(mids)]
-                    _add_edge(src, dst, "SHARED_STATE")
-                    _added += 1
-                    if _added >= _peer_cap:
-                        break
-                if _added >= _peer_cap:
-                    break
-        except Exception as e:
-            logger.warning(f"Failed to add peer memory edges: {e}")
+        # Use only persisted memory↔memory relationships. The old implementation
+        # created ring/cycle edges purely to make the graph look connected.
+        if driver is not None and processed_memory_ids:
+            try:
 
-        # Add Concept Sharing peer edges (Recall principle)
-        try:
-            _concept_peer_cap = 40
-            _concept_peers_added = 0
-            for _c_key, items in concept_nodes.items():
-                unique_items = list(dict.fromkeys(items))
-                if len(unique_items) < 2:
-                    continue
-                # Chain items in a ring/cycle to avoid visual clutter
-                for i, src in enumerate(unique_items):
-                    dst = unique_items[(i + 1) % len(unique_items)]
-                    _add_edge(src, dst, "SHARED_CONCEPT")
-                    _concept_peers_added += 1
-                    if _concept_peers_added >= _concept_peer_cap:
-                        break
-                if _concept_peers_added >= _concept_peer_cap:
-                    break
-        except Exception as e:
-            logger.warning(f"Failed to add concept peer edges: {e}")
+                def _query_memory_memory_rels():
+                    with driver.session() as session:
+                        res = session.run(
+                            "MATCH (m1:GlobalMemory)-[r:RELATED_TO]-(m2:GlobalMemory) "
+                            "WHERE m1.id IN $mids AND m2.id IN $mids "
+                            "RETURN DISTINCT m1.id AS source, m2.id AS target, type(r) AS rel_type "
+                            "LIMIT 200",
+                            mids=list(processed_memory_ids),
+                        )
+                        return [r.data() for r in res]
 
-        result = {"nodes": list(nodes.values()), "edges": edges}
+                for r in await asyncio.to_thread(_query_memory_memory_rels):
+                    source = str(r.get("source") or "")
+                    target = str(r.get("target") or "")
+                    if source and target:
+                        _add_edge(
+                            f"memory:{source}",
+                            f"memory:{target}",
+                            r.get("rel_type") or "RELATED_TO",
+                        )
+            except Exception as e:
+                logger.warning(f"Failed to query memory↔memory relationships: {e}")
+
+        # Rank a query-focused subgraph from the real graph. An empty query
+        # returns the most connected recent view; a query returns matches plus
+        # their one-hop real neighbors.
+        user_node_id = f"user:{user_id}"
+        degree: dict[str, int] = {nid: 0 for nid in nodes}
+        adjacency: dict[str, set[str]] = {nid: set() for nid in nodes}
+        for edge in edges:
+            if edge["source"] in adjacency and edge["target"] in adjacency:
+                degree[edge["source"]] += 1
+                degree[edge["target"]] += 1
+                adjacency[edge["source"]].add(edge["target"])
+                adjacency[edge["target"]].add(edge["source"])
+
+        def _node_text(node: dict) -> str:
+            return " ".join(
+                [
+                    str(node.get("label") or ""),
+                    str(node.get("content") or "")[:500],
+                    str(node.get("state_category") or ""),
+                    str(node.get("type") or ""),
+                ]
+            ).lower()
+
+        def _score(node: dict) -> float:
+            if not normalized_query:
+                return 0.0
+            q_tokens = set(re.findall(r"[a-z0-9][a-z0-9'-]{2,}", normalized_query))
+            n_tokens = set(re.findall(r"[a-z0-9][a-z0-9'-]{2,}", _node_text(node)))
+            overlap = len(q_tokens & n_tokens)
+            score = overlap * 5.0
+            if normalized_query in _node_text(node):
+                score += 10.0
+            if normalized_query == str(node.get("label") or "").lower().strip():
+                score += 20.0
+            return score + min(degree.get(node["id"], 0), 8) * 0.2
+
+        if normalized_query:
+            scored = sorted(
+                (
+                    (_score(node), nid)
+                    for nid, node in nodes.items()
+                    if nid != user_node_id and _score(node) > 0
+                ),
+                key=lambda item: (-item[0], item[1]),
+            )
+            if not scored:
+                result = {"nodes": [], "edges": [], "query": normalized_query}
+            else:
+                seeds = [nid for _, nid in scored[: min(10, max(4, limit // 3))]]
+                selected = {user_node_id, *seeds}
+                for seed in seeds:
+                    selected.update(adjacency.get(seed, set()))
+                ranked = sorted(
+                    (
+                        (_score(nodes[nid]) + (4.0 if nid in selected else 0.0) + degree.get(nid, 0) * 0.1, nid)
+                        for nid in selected
+                        if nid != user_node_id
+                    ),
+                    key=lambda item: (-item[0], item[1]),
+                )
+                selected = {user_node_id, *(nid for _, nid in ranked[: max(1, limit - 1)])}
+                result = {
+                    "nodes": [node for nid, node in nodes.items() if nid in selected],
+                    "edges": [edge for edge in edges if edge["source"] in selected and edge["target"] in selected],
+                    "query": normalized_query,
+                }
+        else:
+            ranked = sorted(
+                (
+                    (
+                        30.0 if node["type"] in {"Concept", "State", "Practice", "Teacher"} else
+                        20.0 if node["type"] == "Memory" else 15.0,
+                        min(degree.get(nid, 0), 10) * 0.2,
+                        nid,
+                    )
+                    for nid, node in nodes.items()
+                    if nid != user_node_id
+                ),
+                key=lambda item: (-item[0], -item[1], item[2]),
+            )
+            selected = {user_node_id, *(nid for *_, nid in ranked[: max(1, limit - 1)])}
+            result = {
+                "nodes": [node for nid, node in nodes.items() if nid in selected],
+                "edges": [edge for edge in edges if edge["source"] in selected and edge["target"] in selected],
+                "query": "",
+            }
+
         enriched = copy.deepcopy(result)
 
         def _do_enrich():
