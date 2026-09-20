@@ -1163,7 +1163,7 @@ const ProfilePage = () => {
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="space-y-2">
-                    <h4 className="text-[10px] uppercase tracking-[0.14em] font-medium text-muted-foreground">Export Data</h4>
+                    <h4 className="text-[10px] uppercase tracking-[0.14em] font-medium text-muted-foreground">{t('profile.danger.exportData')}</h4>
                     <div className="flex flex-col sm:flex-row gap-3">
                       <Button variant="outline" className="flex-1 gap-2 rounded-xl min-h-[44px] border-hairline" onClick={handleExport}>
                         <Download className="w-4 h-4" /> {t('profile.danger.exportLocalData', 'Export local data')}
@@ -1174,7 +1174,7 @@ const ProfilePage = () => {
                         onClick={async () => {
                           try {
                             const { data: { session } } = await supabase.auth.getSession();
-                            if (!session) return toast({ title: 'Sign in first', variant: 'destructive' });
+                            if (!session) return toast({ title: t('common.signIn'), variant: 'destructive' });
                             const { data, error } = await supabase.functions.invoke('export-my-data');
                             if (error) throw error;
                             const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -1292,7 +1292,7 @@ const ProfilePage = () => {
                                     toast({ title: t('profile.danger.accountDeleted', 'Account deleted') });
                                     navigate('/', { replace: true });
                                   } catch (e) {
-                                    toast({ title: 'Sign-out failed', description: e instanceof Error ? e.message : 'unknown', variant: 'destructive' });
+                                    toast({ title: t('chat.errorCauseUnknown'), description: e instanceof Error ? e.message : t('common.error'), variant: 'destructive' });
                                   }
                                 } else {
                                   try {
@@ -1303,7 +1303,7 @@ const ProfilePage = () => {
                                     });
                                     navigate('/', { replace: true });
                                   } catch (e) {
-                                    toast({ title: 'Sign-out failed', description: e instanceof Error ? e.message : 'unknown', variant: 'destructive' });
+                                    toast({ title: t('chat.errorCauseUnknown'), description: e instanceof Error ? e.message : t('common.error'), variant: 'destructive' });
                                   }
                                 }
                               }}
@@ -1340,7 +1340,7 @@ const ProfilePage = () => {
                   {supportSent ? (
                     <div className="flex flex-col items-center justify-center py-8 text-center space-y-3">
                       <CheckCircle2 className="h-12 w-12 text-prana" />
-                      <p className="text-lg font-medium font-serif">Message sent!</p>
+                      <p className="text-lg font-medium font-serif">{t('profile.support.success')}</p>
                       <p className="text-sm text-muted-foreground max-w-sm">
                         {t('profile.support.sentDescription', 'We will get back to you within 24–48 hours. For urgent matters, please include "URGENT" in your subject line.')}
                       </p>
@@ -1352,7 +1352,7 @@ const ProfilePage = () => {
                     <form onSubmit={handleSupportSubmit} className="space-y-4">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                          <Label htmlFor="s-name">Name <span className="text-muted-foreground">(optional)</span></Label>
+                          <Label htmlFor="s-name">{t('profile.support.name')}</Label>
                           <Input id="s-name" value={supportForm.name} onChange={e => setSupportForm(p => ({ ...p, name: e.target.value }))} placeholder={t('profile.support.namePlaceholder', 'Your name')} disabled={!!resolveName()} className="min-h-[44px] rounded-xl" />
                         </div>
                         <div className="space-y-1.5">
@@ -1376,13 +1376,13 @@ const ProfilePage = () => {
 
                       <div className="space-y-1.5">
                         <Label htmlFor="s-message">{t('profile.support.message')} <span className="text-destructive">*</span></Label>
-                        <Textarea id="s-message" value={supportForm.message} onChange={e => setSupportForm(p => ({ ...p, message: e.target.value }))} placeholder="Describe your issue, feedback, or request in detail. Include what you were doing, what you expected, and what happened." className="min-h-[140px] resize-none rounded-xl" required />
+                        <Textarea id="s-message" value={supportForm.message} onChange={e => setSupportForm(p => ({ ...p, message: e.target.value }))} placeholder={t('profile.support.messagePlaceholder')} className="min-h-[140px] resize-none rounded-xl" required />
                       </div>
 
                       <div className="bg-muted/30 border border-hairline rounded-xl p-4 space-y-2">
                         <h4 className="text-sm font-medium flex items-center gap-2">
                           <Bug className="h-4 w-4 text-ojas" />
-                          Before reaching out
+                          {t('profile.support.description')}
                         </h4>
                         <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
                           <li>{t('common.tryAgain')}</li>
@@ -1393,11 +1393,11 @@ const ProfilePage = () => {
 
                       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
                         <p className="text-xs text-muted-foreground">
-                          Or email us directly at <a href="mailto:kharshaengineer@gmail.com" className="underline hover:text-foreground">kharshaengineer@gmail.com</a>
+                          {t('profile.support.email')}: <a href="mailto:kharshaengineer@gmail.com" className="underline hover:text-foreground">kharshaengineer@gmail.com</a>
                         </p>
                         <Button type="submit" disabled={supportLoading} className="w-full sm:w-auto min-h-[44px] rounded-xl bg-ojas hover:bg-ojas-light text-primary-foreground">
                           {supportLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Mail className="h-4 w-4 mr-1" />}
-                          {supportLoading ? 'Sending...' : 'Send Message'}
+                          {supportLoading ? t('common.loading') : t('common.submit')}
                         </Button>
                       </div>
                     </form>
