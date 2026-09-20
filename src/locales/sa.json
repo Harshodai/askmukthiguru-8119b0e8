@@ -527,7 +527,12 @@
     "saveAsNote": "टिप्पणीरूपेण संरक्षतु",
     "showOriginal": "मूलं दर्शयतु",
     "translateTo": "{{lang}} भाषायाम् अनूद्यताम्",
-    "homeAria": "AskMukthiGuru गृहम्"
+    "homeAria": "AskMukthiGuru गृहम्",
+    "contextLimit": {
+      "title": "संवादस्य सन्दर्भसीमा प्राप्ता",
+      "description": "अयं संवादः सुरक्षितसन्दर्भसीमां प्राप्तवान्। निरन्तरार्थं नूतनं वार्तालापं प्रारभत।",
+      "continueNewChat": "नूतने संवादे निरन्तरताम्"
+    }
   },
   "notFound": {
     "message": "अहो! पृष्ठं न लब्धम्",
