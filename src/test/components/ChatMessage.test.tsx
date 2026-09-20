@@ -177,6 +177,26 @@ describe('ChatMessage (regression)', () => {
     expect(onRegenerate).toHaveBeenCalled();
   });
 
+  it('renders persistent teaching grounding with teacher and excerpt', () => {
+    render(
+      <ChatMessage
+        message={makeGuruMessage({
+          teachingPreview: [{
+            title: 'Awareness and the Beautiful State',
+            teacher: 'Sri Preethaji',
+            url: 'https://example.com/teaching',
+            excerpt: 'A source-backed teaching excerpt.',
+          }],
+        })}
+      />,
+      { wrapper },
+    );
+    expect(screen.getByTestId('teaching-grounding')).toBeInTheDocument();
+    expect(screen.getByText('Awareness and the Beautiful State')).toBeInTheDocument();
+    expect(screen.getByText('Sri Preethaji')).toBeInTheDocument();
+    expect(screen.getByText(/A source-backed teaching excerpt/)).toBeInTheDocument();
+  });
+
   it('renders citations section with source count', () => {
     const message = makeGuruMessage({
       citations: [
