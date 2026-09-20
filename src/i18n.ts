@@ -27,11 +27,27 @@ const syncDocumentLanguage = (lng: string) => {
 };
 
 /** Fetch + register a locale bundle once. No-op for en / unknown / already-loaded. */
+const localeLoads = new Map<string, Promise<void>>();
+
 const loadLocale = async (lng: string): Promise<void> => {
-  const load = localeLoaders[`./locales/${lng}.json`];
-  if (!load || i18n.hasResourceBundle(lng, 'translation')) return;
-  const mod = await load();
-  i18n.addResourceBundle(lng, 'translation', mod.default, true, true);
+  const base = baseLanguage(lng);
+  if (base === 'en' || i18n.hasResourceBundle(base, 'translation')) return;
+  const existing = localeLoads.get(base);
+  if (existing) return existing;
+
+  const load = localeLoaders['./locales/' + base + '.json'];
+  if (!load) return;
+
+  const promise = load().then((mod) => {
+    if (!i18n.hasResourceBundle(base, 'translation')) {
+      i18n.addResourceBundle(base, 'translation', mod.default, true, true);
+    }
+  }).finally(() => {
+    localeLoads.delete(base);
+  });
+
+  localeLoads.set(base, promise);
+  return promise;
 };
 
 i18n
@@ -67,8 +83,14 @@ i18n
 
 i18n.on('languageChanged', (lng) => {
   syncDocumentLanguage(lng);
-  void loadLocale(baseLanguage(lng));
 });
+
+export const setLocale = async (lng: string): Promise<void> => {
+  const base = baseLanguage(lng);
+  if (!SUPPORTED.includes(base as (typeof SUPPORTED)[number])) return;
+  await loadLocale(base);
+  await i18n.changeLanguage(base);
+};
 
 // The detector may resolve to a non-English language before any change event.
 syncDocumentLanguage(i18n.language);
