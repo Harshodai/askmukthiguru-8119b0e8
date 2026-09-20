@@ -1139,20 +1139,6 @@ export const ChatInterface = () => {
       });
     }
 
-    // Summary helper — fire-and-forget after every ~6 user messages
-    const maybeSummarize = () => {
-      if (isIncognito) return;
-      const userMsgCount = allMsgs.filter(m => m.role === 'user').length;
-      if (userMsgCount > 0 && userMsgCount % 6 === 0 && currentConversation?.id) {
-        generateSummary(allMsgs).then(async (summary) => {
-          if (summary) {
-            await updateConversationSummary(currentConversation.id, summary);
-            setCurrentConversation(prev => prev ? { ...prev, summary } : null);
-          }
-        }).catch(() => { /* non-fatal */ });
-      }
-    };
-
     // Memory/personalization is assembled server-side in one bounded context
     // pipeline. Keeping the browser out of the memory lookup avoids a duplicate
     // embedding/retrieval pass and gives the server a single privacy boundary.
