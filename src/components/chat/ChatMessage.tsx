@@ -645,8 +645,8 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
         stopSpeaking();
         return;
       }
-      if (plainText) speak(plainText);
-    }, [isSpeaking, stopSpeaking, speak, plainText]);
+      if (plainText) speak(plainText, message.language);
+    }, [isSpeaking, stopSpeaking, speak, plainText, message.language]);
 
     const renderHighlightedText = () => {
       if (sentences.length === 0 || !currentSentence) {
