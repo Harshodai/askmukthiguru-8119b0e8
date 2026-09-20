@@ -1087,6 +1087,10 @@ export const ChatInterface = () => {
       };
       setMessages((prev) => [...prev, guruMessage]);
       setIsTyping(false);
+      // Cached completions are real completions too: continue draining the
+      // queue so a cached first queued turn cannot strand the remaining turns.
+      if (!isIncognito) maybeSummarize();
+      drainNextQueuedMessage();
       return;
     }
 
