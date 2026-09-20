@@ -104,3 +104,23 @@ def test_metrics_unauthenticated_rejected(monkeypatch):
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+
+def test_course_completion_uses_completed_lesson_count():
+    from app.api.metrics import _course_completion_percent
+
+    assert _course_completion_percent({
+        "course_slug": "end-of-suffering",
+        "completed_lessons": ["es-1", "es-2"],
+    }) == 50.0
+
+    assert _course_completion_percent({
+        "course_slug": "quieting-anxiety",
+        "completed_lessons": ["ax-1", "ax-2", "ax-3", "unknown-extra"],
+    }) == 100.0
+
+    # Unknown curriculum versions are not guessed.
+    assert _course_completion_percent({
+        "course_slug": "future-version",
+        "completed_lessons": ["lesson-1"],
+    }) == 0.0
