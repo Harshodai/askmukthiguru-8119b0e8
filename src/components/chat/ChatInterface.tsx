@@ -654,7 +654,7 @@ export const ChatInterface = () => {
       // saved profile preference.
       if ((profile.voiceAutoplay || handsFreeVoiceRef.current) && hasUserInteractedRef.current) {
         if (handsFreeVoiceRef.current) voiceAwaitingPlaybackRef.current = true;
-        speak(stripPlainText(lastMessage.content));
+        speak(stripPlainText(lastMessage.content), lastMessage.language);
       }
     }
   }, [messages, ttsEnabled, speak, isStreaming, profile.voiceAutoplay, stripPlainText]);
