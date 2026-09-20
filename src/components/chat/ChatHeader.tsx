@@ -2,15 +2,15 @@ import '@/styles/mobile-chat-ux.css';
 import '@/styles/product-ux.css';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
-import { PanelLeft, PanelLeftClose, Home, Download, Library, EyeOff } from 'lucide-react';
+import { PanelLeft, PanelLeftClose, Home, Download, Library, EyeOff, Sparkles, AudioLines } from 'lucide-react';
 import { UserMenu } from '@/components/common/UserMenu';
 import { ResponsePreferencesMenu } from './ResponsePreferencesMenu';
 import type { ResponsePreferences } from '@/lib/chat/types';
 import { Button } from '@/components/ui/button';
 
-interface ChatHeaderProps { onClearChat: () => void; onOpenMobileMenu?: () => void; sidebarCollapsed?: boolean; onToggleSidebar?: () => void; onExport?: () => void; onOpenSources?: () => void; sourcesCount?: number; hasMessages?: boolean; isIncognito?: boolean; onCloseIncognito?: () => void; responsePreferences?: ResponsePreferences; onResponsePreferencesChange?: (value: ResponsePreferences) => void; onResetResponsePreferences?: () => void; }
+interface ChatHeaderProps { onClearChat: () => void; onOpenMobileMenu?: () => void; sidebarCollapsed?: boolean; onToggleSidebar?: () => void; onExport?: () => void; onOpenSources?: () => void; sourcesCount?: number; hasMessages?: boolean; isIncognito?: boolean; onCloseIncognito?: () => void; isPersonalized?: boolean; isHandsFreeVoice?: boolean; responsePreferences?: ResponsePreferences; onResponsePreferencesChange?: (value: ResponsePreferences) => void; onResetResponsePreferences?: () => void; }
 
-export const ChatHeader = ({ onOpenMobileMenu, sidebarCollapsed, onToggleSidebar, onExport, onOpenSources, sourcesCount = 0, hasMessages = false, isIncognito = false, onCloseIncognito, responsePreferences, onResponsePreferencesChange, onResetResponsePreferences }: ChatHeaderProps) => {
+export const ChatHeader = ({ onOpenMobileMenu, sidebarCollapsed, onToggleSidebar, onExport, onOpenSources, sourcesCount = 0, hasMessages = false, isIncognito = false, onCloseIncognito, isPersonalized = false, isHandsFreeVoice = false, responsePreferences, onResponsePreferencesChange, onResetResponsePreferences }: ChatHeaderProps) => {
   const { t } = useTranslation();
   return <header className={`relative z-20 sticky top-0 backdrop-blur-md border-b border-border/30 h-[56px] sm:h-[64px] safe-top ${isIncognito ? 'bg-amber-950/15' : 'bg-background/85 bg-gradient-to-r from-ojas/5 to-transparent'}`} data-testid="chat-header-simplified">
     <div className="flex items-center justify-between px-2.5 sm:px-5 h-full">
@@ -18,7 +18,49 @@ export const ChatHeader = ({ onOpenMobileMenu, sidebarCollapsed, onToggleSidebar
         {onOpenMobileMenu && <Button size="icon" variant="ghost" onClick={onOpenMobileMenu} data-tour="mobile-menu" className="sm:hidden min-h-[44px] min-w-[44px] h-10 w-10 rounded-xl" aria-label={t('chat.openConversations')}><PanelLeft className="w-4 h-4" /></Button>}
         {onToggleSidebar && <Button size="icon" variant="ghost" onClick={onToggleSidebar} className="hidden sm:flex min-h-[44px] min-w-[44px] sm:h-8 sm:w-8" aria-label={sidebarCollapsed ? t('chat.openSidebar') : t('chat.closeSidebar')} aria-expanded={!sidebarCollapsed} aria-controls="sidebar-panel" title={sidebarCollapsed ? t('chat.openSidebar') : t('chat.closeSidebar')}>{sidebarCollapsed ? <PanelLeft className="w-4 h-4 text-muted-foreground" /> : <PanelLeftClose className="w-4 h-4 text-muted-foreground" />}</Button>}
         <Link to="/" className="hidden sm:flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg hover:bg-muted transition-colors" title={t('nav.home')} aria-label={t('chat.homeAria')}><Home className="w-4 h-4 text-muted-foreground" /></Link>
-        {isIncognito ? <div className="flex items-center gap-2 ml-1 min-w-0"><div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-amber-600/40 bg-amber-950/20 text-amber-600 text-[11px] font-medium whitespace-nowrap"><EyeOff className="w-3 h-3" />{t('chat.incognito')}</div>{onCloseIncognito && <Button variant="ghost" size="sm" onClick={onCloseIncognito} className="min-h-[44px] sm:h-7 text-[11px] text-muted-foreground hover:text-foreground px-2">{t('chat.closeIncognito')}</Button>}</div> : <span className="flex items-center gap-1.5 font-serif font-semibold text-foreground text-sm ml-1 select-none" data-testid="chat-header-wordmark"><span className="text-sm leading-none" aria-hidden="true">🙏</span><span className="truncate">{t('nav.appName')}</span></span>}
+        {isIncognito ? (
+          <div className="flex items-center gap-2 ml-1 min-w-0">
+            <div
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-amber-600/40 bg-amber-950/20 text-amber-600 text-[11px] font-medium whitespace-nowrap"
+              title="This chat is temporary and is not saved to history or personal memory."
+              data-testid="temporary-chat-badge"
+            >
+              <EyeOff className="w-3 h-3" />
+              <span>Temporary chat</span>
+            </div>
+            {onCloseIncognito && (
+              <Button variant="ghost" size="sm" onClick={onCloseIncognito} className="min-h-[44px] sm:h-7 text-[11px] text-muted-foreground hover:text-foreground px-2">
+                {t('chat.closeIncognito')}
+              </Button>
+            )}
+          </div>
+        ) : (
+          <span className="flex items-center gap-2 font-serif font-semibold text-foreground text-sm ml-1 select-none" data-testid="chat-header-wordmark">
+            <span className="flex items-center gap-1.5 truncate">
+              <span className="text-sm leading-none" aria-hidden="true">🙏</span>
+              <span className="truncate">{t('nav.appName')}</span>
+            </span>
+            {isPersonalized && (
+              <span
+                className="hidden sm:inline-flex items-center gap-1 rounded-full border border-ojas/20 bg-ojas/5 px-2 py-0.5 text-[10px] font-medium text-ojas whitespace-nowrap"
+                title="Regular chats can use your profile and eligible personal memory."
+                data-testid="personalization-badge"
+              >
+                <Sparkles className="w-3 h-3" />
+                Personalized
+              </span>
+            )}
+            {isHandsFreeVoice && (
+              <span
+                className="hidden sm:inline-flex items-center gap-1 rounded-full border border-ojas/20 bg-ojas/5 px-2 py-0.5 text-[10px] font-medium text-ojas whitespace-nowrap"
+                data-testid="voice-conversation-badge"
+              >
+                <AudioLines className="w-3 h-3" />
+                Voice
+              </span>
+            )}
+          </span>
+        )}
       </div>
       <div className="flex items-center gap-0.5 sm:gap-1.5">
         {responsePreferences && onResponsePreferencesChange && onResetResponsePreferences && <div className="hidden sm:block"><ResponsePreferencesMenu value={responsePreferences} onChange={onResponsePreferencesChange} onReset={onResetResponsePreferences} /></div>}
