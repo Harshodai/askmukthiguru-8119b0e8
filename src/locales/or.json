@@ -1278,7 +1278,27 @@
       "bio": "ଆପଣଙ୍କ ପଥ ଏବଂ ସଂକଳ୍ପ",
       "language": "ପସନ୍ଦର ଭାଷା",
       "tone": "ଗୁରୁଙ୍କ ସ୍ୱର",
-      "unsavedChanges": "ଅସଂରକ୍ଷିତ ପରିବର୍ତ୍ତନ..."
+      "unsavedChanges": "ଅସଂରକ୍ଷିତ ପରିବର୍ତ୍ତନ...",
+      "guidanceDepth": "ମାର୍ଗଦର୍ଶନର ଗଭୀରତା",
+      "seeker": "ସାଧକ",
+      "seekerHint": "ସରଳ ସଂସ୍କୃତ ବ୍ୟାଖ୍ୟା",
+      "practitioner": "ଅଭ୍ୟାସୀ",
+      "practitionerHint": "ସନ୍ତୁଳିତ ଧ୍ୟାନ ମାର୍ଗଦର୍ଶନ",
+      "advanced": "ଉନ୍ନତ",
+      "advancedHint": "ଗଭୀର ଦାର୍ଶନିକ ଶବ୍ଦ",
+      "guidancePreview": "ଆପଣଙ୍କ ମାର୍ଗଦର୍ଶନର ପୂର୍ବଦୃଶ୍ୟ",
+      "sourceAware": "ସ୍ରୋତ-ସଚେତନ ଡିଜାଇନ୍: ଯାଞ୍ଚିତ ଉଦ୍ଧୃତିକୁ ଠିକ୍ ଶ୍ରେୟ ଦିଆଯାଏ; ଆଧାରହୀନ ପ୍ରଶ୍ନ ପାଇଁ ସ୍ପଷ୍ଟ ସୀମା କିମ୍ବା ବ୍ୟାଖ୍ୟା ଦିଆଯାଏ।",
+      "toneDirectPreview": "ସ୍ପଷ୍ଟ ଓ ସଂକ୍ଷିପ୍ତ ମାର୍ଗଦର୍ଶନ ଆପଣଙ୍କୁ ଶୀଘ୍ର ପ୍ରାୟୋଗିକ ପରବର୍ତ୍ତୀ ପଦକ୍ଷେପକୁ ନିଏ।",
+      "tonePoeticPreview": "ଶିକ୍ଷାକୁ ସ୍ପଷ୍ଟ ଓ ଉପଯୋଗୀ ରଖି ଚିନ୍ତନଶୀଳ ଓ ଚିତ୍ରାତ୍ମକ ଭାଷା ବ୍ୟବହାର କରେ।",
+      "toneGentlePreview": "ଆପଣଙ୍କ ଅନୁଭବ ପାଇଁ ସ୍ଥାନ ଦେଇଥିବା ମୃଦୁ ଓ ସ୍ଥିର ମାର୍ଗଦର୍ଶନ ପରବର୍ତ୍ତୀ ପଦକ୍ଷେପ ଦେଖାଏ।",
+      "advancedPreview": "ଶିକ୍ଷା ପାଇଁ ଉପଯୁକ୍ତ ହେଲେ ଗଭୀର ଦାର୍ଶନିକ ଶବ୍ଦ ବ୍ୟବହାର କରାଯାଇପାରେ।",
+      "practitionerPreview": "ଶିକ୍ଷାକୁ ପ୍ରାୟୋଗିକ ଚିନ୍ତନ କିମ୍ବା ଧ୍ୟାନ ସୂଚନା ସହ ସନ୍ତୁଳିତ କରେ।",
+      "seekerPreview": "ଆଧ୍ୟାତ୍ମିକ ଶବ୍ଦଗୁଡ଼ିକୁ ସରଳ ଭାବେ ବୁଝାଇ ଆଗକୁ ନିଏ।",
+      "upToDate": "ଆପଣଙ୍କ ପ୍ରୋଫାଇଲ୍ ବିବରଣୀ ସବୁ ଅଦ୍ୟତନ ଅଛି",
+      "completeOnboarding": "ସେଟଅପ୍ ସମାପ୍ତ କରନ୍ତୁ",
+      "saveChanges": "ପରିବର୍ତ୍ତନ ସଞ୍ଚୟ କରନ୍ତୁ",
+      "saved": "ପ୍ରୋଫାଇଲ୍ ସଞ୍ଚୟ ହେଲା",
+      "savedDesc": "ଆପଣଙ୍କ ପସନ୍ଦ ଅଦ୍ୟତନ ହୋଇଛି।"
     },
     "activitySummary": {
       "title": "କାର୍ଯ୍ୟକଳାପ ସାରାଂଶ",
@@ -1287,18 +1307,23 @@
       "meditations": "ଧ୍ୟାନ ଅଭ୍ୟାସ ସମୂହ"
     },
     "insights": {
-      "title": "ସାମ୍ପ୍ରତିକ ଅନ୍ତର୍ଦୃଷ୍ଟି",
-      "subtitle": "ଆପଣଙ୍କ ଅଭ୍ୟାସ, ମନୋଭାବ ଏବଂ କଥାବାର୍ତ୍ତାରୁ ବୁଣା ହୋଇଥିବା ଶୈଳୀ।",
-      "empty": "ଏପର୍ଯ୍ୟନ୍ତ କୌଣସି ଅନ୍ତର୍ଦୃଷ୍ଟି ନାହିଁ। ଆପଣଙ୍କ ଆଧ୍ୟାତ୍ମିକ ଶୈଳୀ ପ୍ରକାଶ କରିବାକୁ ଆପଣଙ୍କ ଅଭ୍ୟାସ ଜାରି ରଖନ୍ତୁ।"
+      "title": "ସମ୍ପ୍ରତିର ଅନ୍ତର୍ଦୃଷ୍ଟି",
+      "subtitle": "ଆପଣଙ୍କ ଅଭ୍ୟାସ, ମନୋଭାବ ଓ କଥାବାର୍ତ୍ତାରୁ ଦେଖାଯାଉଥିବା ଢାଞ୍ଚା।",
+      "empty": "ଏପର୍ଯ୍ୟନ୍ତ କୌଣସି ଅନ୍ତର୍ଦୃଷ୍ଟି ନାହିଁ। ଆଧ୍ୟାତ୍ମିକ ଢାଞ୍ଚା ଦେଖାଯିବା ପାଇଁ ଅଭ୍ୟାସ ଜାରି ରଖନ୍ତୁ।"
     },
     "conversations": {
       "title": "କଥାବାର୍ତ୍ତା",
-      "subtitle": "ଆପଣଙ୍କ ଚାଟ୍ ଇତିହାସ ପରିଚାଳନା ଏବଂ ସଫା କରନ୍ତୁ।",
-      "keepFor": "କଥାବାର୍ତ୍ତା ରଖନ୍ତୁ",
+      "subtitle": "ଆପଣଙ୍କ ଚାଟ୍ ଇତିହାସ ପରିଚାଳନା କରନ୍ତୁ।",
+      "keepFor": "କଥାବାର୍ତ୍ତା କେତେ ଦିନ ରଖିବେ",
       "empty": "କୌଣସି କଥାବାର୍ତ୍ତା ନାହିଁ।",
       "deleteAll": "ସମସ୍ତ କଥାବାର୍ତ୍ତା ବିଲୋପ କରନ୍ତୁ",
-      "confirmDeleteTitle": "ସମସ୍ତ କଥାବାର୍ତ୍ତା ବିଲୋପ କରିବେ କି?",
-      "confirmDeleteMessage": "ନିଶ୍ଚିତ କରିବାକୁ DELETE ଟାଇପ୍ କରନ୍ତୁ। ଏହି କାର୍ଯ୍ୟ ପୂର୍ବାବସ୍ଥାକୁ ଫେରାଇ ହେବ ନାହିଁ।"
+      "confirmDeleteTitle": "ସମସ୍ତ କଥାବାର୍ତ୍ତା ବିଲୋପ କରିବେ?",
+      "confirmDeleteMessage": "ନିଶ୍ଚିତ କରିବା ପାଇଁ DELETE ଲେଖନ୍ତୁ। ଏହା ପଛକୁ ଫେରାଇହେବ ନାହିଁ।",
+      "days": "ଦିନ",
+      "oneYear": "1 ବର୍ଷ",
+      "saveRetention": "ରଖିବା ସମୟ ସଞ୍ଚୟ କରନ୍ତୁ",
+      "retentionSet": "ରଖିବା ସମୟ {{days}} ଦିନ ପାଇଁ ସେଟ୍",
+      "deleted": "ସମସ୍ତ କଥାବାର୍ତ୍ତା ବିଲୋପ ହୋଇଛି"
     },
     "appearance": {
       "title": "ରୂପରେଖ",
@@ -1311,13 +1336,18 @@
       "enableVoiceSubtitle": "ସ୍ୱୟଂଚାଳିତ ଭାବରେ ଶିକ୍ଷା ଉଚ୍ଚ ସ୍ୱରରେ ପଢ଼ନ୍ତୁ",
       "speechRate": "କହିବା ଗତି",
       "voiceName": "ଗୁରୁ ସ୍ୱର (ମୟୂର)",
-      "voiceSubtitle": "ଭାରତୀୟ ଭାଷା ଅଡିଓ ପାଇଁ ସ୍ୱର ବ୍ୟକ୍ତିତ୍ୱ ବାଛନ୍ତୁ।"
+      "voiceSubtitle": "ଭାରତୀୟ ଭାଷା ଅଡିଓ ପାଇଁ ସ୍ୱର ବ୍ୟକ୍ତିତ୍ୱ ବାଛନ୍ତୁ।",
+      "autoplay": "ଗୁରୁଙ୍କ ଉତ୍ତର ସ୍ୱୟଂଚାଳିତ ଭାବେ ଚଳାନ୍ତୁ",
+      "autoplaySubtitle": "ଶିକ୍ଷା ଆସିଲେ ସତ୍ୱର ଧ୍ୱନିରେ ଶୁଣନ୍ତୁ"
     },
     "reminders": {
       "title": "ସ୍ମାରକପତ୍ର (Reminders)",
       "subtitle": "ଆପଣଙ୍କ ଆଧ୍ୟାତ୍ମିକ ଲକ୍ଷ୍ୟ ସହିତ ସ୍ଥିର ରୁହନ୍ତୁ।",
       "dailySubtitle": "ଆପଣଙ୍କ କେନ୍ଦ୍ର ଖୋଜିବା ପାଇଁ ଦୈନନ୍ଦିନ ବିଜ୍ଞପ୍ତି",
-      "scheduledFor": "ପାଇଁ ନିର୍ଦ୍ଧାରିତ"
+      "scheduledFor": "ପାଇଁ ନିର୍ଦ୍ଧାରିତ",
+      "test": "ପରୀକ୍ଷା ରିମାଇଣ୍ଡର ପଠାନ୍ତୁ",
+      "permissionsRequired": "ଅନୁମତି ଆବଶ୍ୟକ",
+      "permissionsDescription": "ରିମାଇଣ୍ଡର ପାଇଁ ବ୍ରାଉଜର ସେଟିଂରେ ସୂଚନା ଚାଲୁ କରନ୍ତୁ।"
     },
     "danger": {
       "subtitle": "ଆପଣଙ୍କ ତଥ୍ୟ ରପ୍ତାନି କରନ୍ତୁ, କିମ୍ବା ଆପଣଙ୍କ ଆକାଉଣ୍ଟ୍ ସ୍ଥାୟୀ ଭାବରେ ବିଲୋପ କରନ୍ତୁ।",
@@ -1334,7 +1364,13 @@
       "cloudMemoriesErased": "Cloud memories erased",
       "cloudMemoriesErasedDesc": "All reflections, second brain notes, and spiritual memories have been permanently deleted.",
       "cloudMemoriesEraseFailed": "Memory erasure failed",
-      "deleteAccountBtn": "Delete Account"
+      "deleteAccountBtn": "Delete Account",
+      "accountTitle": "ଖାତା ଏବଂ ଡାଟା",
+      "accountSubtitle": "ଡାଟା ରପ୍ତାନି କରନ୍ତୁ, ସ୍ଥାନୀୟ ଇତିହାସ ସଫା କରନ୍ତୁ କିମ୍ବା ଖାତା ବିଲୋପ କରନ୍ତୁ।",
+      "exportData": "ଡାଟା ରପ୍ତାନି",
+      "exportLocalData": "ସ୍ଥାନୀୟ ଡାଟା ରପ୍ତାନି",
+      "exportCloudData": "କ୍ଲାଉଡ୍ ଡାଟା ରପ୍ତାନି",
+      "zone": "ସତର୍କତା କ୍ଷେତ୍ର"
     },
     "support": {
       "title": "ସହାୟତା ସହିତ ଯୋଗାଯୋଗ କରନ୍ତୁ",
@@ -1344,7 +1380,13 @@
       "category": "ବିଭାଗ",
       "subject": "ବିଷୟ",
       "message": "ବାର୍ତ୍ତା",
-      "attachments": "ସଂଲଗ୍ନକଗୁଡ଼ିକ"
+      "attachments": "ସଂଲଗ୍ନକଗୁଡ଼ିକ",
+      "description": "ପ୍ରଶ୍ନ, ମତାମତ କିମ୍ବା ସମସ୍ୟା ଅଛି? ଆମେ ସାହାଯ୍ୟ ପାଇଁ ଏଠାରେ ଅଛୁ।",
+      "optional": "ଇଚ୍ଛାଧୀନ",
+      "namePlaceholder": "ଆପଣଙ୍କ ନାମ",
+      "emailPlaceholder": "you@example.com",
+      "subjectPlaceholder": "ସଂକ୍ଷିପ୍ତ ସାରାଂଶ",
+      "messagePlaceholder": "ଆମେ କିପରି ସାହାଯ୍ୟ କରିପାରିବୁ କୁହନ୍ତୁ..."
     },
     "memory": {
       "mapTitle": "ଚେତନା ମାନଚିତ୍ର",
@@ -1365,7 +1407,7 @@
       "practiceSessions": "ଅଭ୍ୟାସ ସେସନ",
       "minutesPracticed": "ଅଭ୍ୟାସ କରାଯାଇଥିବା ମିନିଟ",
       "currentStreak": "ବର୍ତ୍ତମାନ ଧାରା",
-      "conversations": "କଥୋପକଥନ",
+      "conversations": "କଥାବାର୍ତ୍ତା",
       "keepMoving": "ଆପଣଙ୍କ ଯାତ୍ରା ଆଗକୁ ନେଇଯାଆନ୍ତୁ",
       "keepMovingDesc": "ସେଟିଂସ୍‌ରେ ଯିବା ବଦଳରେ ପରବର୍ତ୍ତୀ ଛୋଟ ପଦକ୍ଷେପ ବାଛନ୍ତୁ।",
       "choosePractice": "ଏକ ଅଭ୍ୟାସ ବାଛନ୍ତୁ",
@@ -1375,7 +1417,7 @@
       "recentConversations": "ସମ୍ପ୍ରତି କଥୋପକଥନ",
       "pickUp": "ଯେଉଁଠାରେ ଛାଡ଼ିଥିଲେ ସେଠାରୁ ଜାରି ରଖନ୍ତୁ।",
       "viewAll": "ସବୁ ଦେଖନ୍ତୁ",
-      "untitledConversation": "ଶୀର୍ଷକହୀନ କଥୋପକଥନ",
+      "untitledConversation": "ନାମହୀନ କଥାବାର୍ତ୍ତା",
       "conversationsWillAppear": "ଆପଣଙ୍କ କଥୋପକଥନ ଏଠାରେ ଦେଖାଯିବ।",
       "startFirstConversation": "ଆପଣଙ୍କ ପ୍ରଥମ କଥୋପକଥନ ଆରମ୍ଭ କରନ୍ତୁ",
       "reflections": "ସମ୍ପ୍ରତି ଆତ୍ମଚିନ୍ତନ",
@@ -1398,7 +1440,27 @@
       "personalizeGuidanceDesc": "ଆପଣଙ୍କ ନାମ, ଶୈଳୀ, ଭାଷା, ପରିଚୟ ସ୍ତର ଏବଂ ପସନ୍ଦ।",
       "wisdomMap": "ଆପଣଙ୍କ ଜ୍ଞାନ ମାନଚିତ୍ର",
       "wisdomMapDesc": "ଆପଣଙ୍କ ସଞ୍ଚିତ ଆତ୍ମଚିନ୍ତନ, ଟୀକା ଏବଂ ସଂଯୁକ୍ତ ଶିକ୍ଷାରୁ ତିଆରି ମାନଚିତ୍ରକୁ ଅନ୍ୱେଷଣ କରନ୍ତୁ।",
-      "wisdomOfDay": "ଆଜିର ଜ୍ଞାନ"
+      "wisdomOfDay": "ଆଜିର ଜ୍ଞାନ",
+      "title": "ଆପଣଙ୍କ ଯାତ୍ରା",
+      "subtitle": "କଥାବାର୍ତ୍ତା, ଅଭ୍ୟାସ ଓ ଚିନ୍ତନରେ ଆପଣଙ୍କ କାର୍ଯ୍ୟକଳାପ।",
+      "messages": "ବାର୍ତ୍ତା",
+      "courseProgress": "କୋର୍ସ ପ୍ରଗତି",
+      "noActiveCourse": "କୌଣସି ସକ୍ରିୟ କୋର୍ସ ନାହିଁ",
+      "distress": "ଚାପ",
+      "lastActive": "ଶେଷ ସକ୍ରିୟତା"
+    },
+    "tone": {
+      "gentle": "ମୃଦୁ",
+      "direct": "ସିଧାସଳଖ",
+      "poetic": "କାବ୍ୟମୟ",
+      "gentleHint": "ମୃଦୁ ଓ ସହାୟକ ଉତ୍ତର",
+      "directHint": "ସ୍ପଷ୍ଟ, ସଂକ୍ଷିପ୍ତ ଶିକ୍ଷା",
+      "poeticHint": "ଲୟମୟ, ରୂପକସମୃଦ୍ଧ"
+    },
+    "theme": {
+      "light": "ଆଲୋକ",
+      "dark": "ଅନ୍ଧାର",
+      "system": "ସିଷ୍ଟମ୍"
     }
   },
   "commandPalette": {
