@@ -439,7 +439,7 @@
     "selectLanguage": "ਭਾਸ਼ਾ ਚੁਣੋ",
     "searchLanguages": "{{count}} ਭਾਸ਼ਾਵਾਂ ਖੋਜੋ…",
     "autoTranslateNotice": "ਗੈਰ-ਅੰਗਰੇਜ਼ੀ ਸੁਨੇਹਿਆਂ ਨੂੰ ਗੁਰੂ ਜੀ ਨੂੰ ਭੇਜਣ ਤੋਂ ਪਹਿਲਾਂ ਸਵੈਚਲਿਤ ਤੌਰ 'ਤੇ ਅਨੁਵਾਦ ਕੀਤਾ ਜਾਂਦਾ ਹੈ।",
-    "noLangMatch": "ਕੋਈ ਵੀ ਭਾਸ਼ਾ \"{{query}}\" ਨਾਲ ਮੇਲ ਨਹੀਂ ਖਾਂਦੀ",
+    "noLangMatch": "ਤੁਹਾਡੀ ਖੋਜ ਨਾਲ ਕੋਈ ਭਾਸ਼ਾ ਮੇਲ ਨਹੀਂ ਖਾਂਦੀ।",
     "localVoiceEnabled": "ਸਥਾਨਕ ਆਵਾਜ਼ ਯੋਗ ਕੀਤੀ ਗਈ",
     "voiceNotInBrowser": "ਇਸ ਬ੍ਰਾਊਜ਼ਰ ਵਿੱਚ ਆਵਾਜ਼ ਸਮਰਥਿਤ ਨਹੀਂ ਹੈ",
     "cloudVoice": "ਕਲਾਊਡ ਆਵਾਜ਼ (Sarvam)",
@@ -532,6 +532,28 @@
       "title": "ਗੱਲਬਾਤ ਦੀ ਸੰਦਰਭ ਸੀਮਾ ਪੂਰੀ ਹੋ ਗਈ ਹੈ",
       "description": "ਇਹ ਗੱਲਬਾਤ ਆਪਣੀ ਸੁਰੱਖਿਅਤ ਸੰਦਰਭ ਸੀਮਾ ਤੱਕ ਪਹੁੰਚ ਗਈ ਹੈ। ਜਾਰੀ ਰੱਖਣ ਲਈ ਨਵੀਂ ਚੈਟ ਸ਼ੁਰੂ ਕਰੋ।",
       "continueNewChat": "ਨਵੀਂ ਚੈਟ ਵਿੱਚ ਜਾਰੀ ਰੱਖੋ"
+    },
+    "keyboardHint": "ਭੇਜਣ ਲਈ Enter · ਨਵੀਂ ਲਾਈਨ ਲਈ Shift+Enter",
+    "processingAttachment": "ਅਟੈਚਮੈਂਟ ਤਿਆਰ ਹੋ ਰਿਹਾ ਹੈ…",
+    "attachMedia": "ਮੀਡੀਆ ਜਾਂ ਦਸਤਾਵੇਜ਼ ਜੋੜੋ",
+    "voiceConversationOn": "ਵੌਇਸ ਗੱਲਬਾਤ ਚਾਲੂ ਹੈ — ਕੁਦਰਤੀ ਤਰੀਕੇ ਨਾਲ ਬੋਲੋ; ਗੁਰੂ ਆਵਾਜ਼ ਵਿੱਚ ਜਵਾਬ ਦੇਣਗੇ।",
+    "turnOffVoiceConversation": "ਵੌਇਸ ਗੱਲਬਾਤ ਬੰਦ ਕਰੋ",
+    "voiceConversation": "ਵੌਇਸ ਗੱਲਬਾਤ",
+    "queueMessage": "ਸੁਨੇਹਾ ਕਤਾਰ ਵਿੱਚ ਰੱਖੋ",
+    "queueFollowUp": "ਕਤਾਰ ਵਿੱਚ ਰੱਖੋ",
+    "stopGenerating": "ਜਵਾਬ ਬਣਾਉਣਾ ਰੋਕੋ",
+    "queue": {
+      "messageQueued": "ਸੁਨੇਹਾ ਕਤਾਰ ਵਿੱਚ ਹੈ",
+      "messagesQueued": "ਸੁਨੇਹੇ ਕਤਾਰ ਵਿੱਚ ਹਨ",
+      "autoDispatch": "ਮੌਜੂਦਾ ਜਵਾਬ ਤੋਂ ਬਾਅਦ ਆਪਣੇ ਆਪ ਭੇਜਿਆ ਜਾਵੇਗਾ",
+      "clearAll": "ਸਭ ਸਾਫ਼ ਕਰੋ",
+      "fileAttached": "ਫ਼ਾਈਲ ਜੁੜੀ",
+      "filesAttached": "ਫ਼ਾਈਲਾਂ ਜੁੜੀਆਂ",
+      "sendNowTitle": "ਹੁਣੇ ਭੇਜੋ — ਮੌਜੂਦਾ ਜਵਾਬ ਰੁਕ ਜਾਵੇਗਾ",
+      "sendNow": "ਹੁਣੇ ਭੇਜੋ",
+      "edit": "ਸੁਨੇਹਾ ਸੋਧੋ",
+      "remove": "ਕਤਾਰ ਤੋਂ ਹਟਾਓ",
+      "regionLabel": "ਕਤਾਰ ਵਿੱਚ ਸੁਨੇਹੇ"
     }
   },
   "notFound": {
