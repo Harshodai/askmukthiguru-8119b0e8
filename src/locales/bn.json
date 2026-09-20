@@ -357,7 +357,7 @@
     },
     "closeFeedbackPanel": "ফিডব্যাক প্যানেল বন্ধ করুন",
     "feedbackCommentPlaceholder": "ঐচ্ছিক: আরও বলুন…",
-    "teachingReference": "শিক্ষণ রেফারেন্স",
+    "teachingReference": "শিক্ষা রেফারেন্স",
     "teaching": "শিক্ষা",
     "clearAnswer": "উত্তর পরিষ্কার করুন",
     "relevantSources": "প্রাসঙ্গিক উৎস",
@@ -653,7 +653,10 @@
     "sereneMindOfferFooter": "আগে শিক্ষাটি দেখুন; স্বস্তি বোধ করলে তবেই শুরু করুন।",
     "videoUnavailable": "ভিডিও পাওয়া যাচ্ছে না",
     "videoEmbedUnavailable": "এই ভিডিওটি এমবেড করা যাচ্ছে না",
-    "youTubeThumbnail": "YouTube থাম্বনেইল"
+    "youTubeThumbnail": "YouTube থাম্বনেইল",
+    "videoSource": "ভিডিও উৎস {{letter}}",
+    "academyReference": "O&O একাডেমি রেফারেন্স",
+    "sourceLabel": "উৎস {{number}}"
   },
   "notFound": {
     "message": "ওহ! পৃষ্ঠাটি খুঁজে পাওয়া যায়নি",
