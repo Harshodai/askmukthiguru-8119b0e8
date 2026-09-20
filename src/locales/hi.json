@@ -436,7 +436,10 @@
       "queued": "कतार में",
       "analyzing": "आपका उत्तर तैयार कर रहा हूँ…",
       "stepLabel": "चरण {{step}}/{{total}}: {{label}}",
-      "stepProgress": "चरण {{step}}/{{total}}: {{label}} ({{percentage}}%)"
+      "stepProgress": "चरण {{step}}/{{total}}: {{label}} ({{percentage}}%)",
+      "rotatingReflecting": "गुरुजी आपके प्रश्न पर मनन कर रहे हैं…",
+      "rotatingConnecting": "पवित्र ज्ञान से जुड़ रहे हैं…",
+      "rotatingAlmostReady": "लगभग तैयार — गहन ज्ञान में समय लगता है…"
     },
     "todaysLine": "आज का पंक्ति",
     "todaysTeaching": "आज का पाठ",
