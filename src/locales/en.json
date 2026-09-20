@@ -646,7 +646,8 @@
       "retry": "Retry",
       "editingNotice": "Editing — earlier replies will be regenerated",
       "unverified": "I could not verify the quoted teaching against a linked source, so I am not presenting it as a teacher attribution. Please retry to request a grounded answer."
-    }
+    },
+    "verifiedAt": "Verified {{date}}"
   },
   "notFound": {
     "message": "Oops! Page not found",
