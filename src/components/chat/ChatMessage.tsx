@@ -84,7 +84,7 @@ const GuidancePlanCard = ({ plan }: { plan: NonNullable<Message["guidancePlan"]>
   return (
   <aside
     data-testid="guidance-plan"
-    aria-label="Optional guidance plan"
+    aria-label={t('chat.guidance.ariaLabel')}
     className="w-full rounded-xl border border-ojas/20 bg-gradient-to-br from-ojas/10 to-card px-3.5 py-3 shadow-sm"
   >
     <div className="flex items-start gap-2">
@@ -124,7 +124,7 @@ const SereneMindOfferCard = ({ offer }: { offer: NonNullable<Message["sereneMind
   return (
     <aside
       data-testid="serene-mind-offer"
-      aria-label="Optional Serene Mind practice"
+      aria-label={t('chat.sereneMindOfferAria')}
       role="status"
       aria-live="polite"
       className="mt-3 w-full rounded-xl border border-ojas/25 bg-gradient-to-br from-ojas/10 to-card px-3.5 py-3 shadow-sm"
@@ -953,17 +953,6 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                       </>
                     )}
                     <p className="text-muted-foreground/70">{t('chat.personalization.privateMemoryNotShown')}</p>
-                  </div>
-                </details>
-              )}
-
-                    {message.personalizationProvenance.personal_memory && (
-                      <p>• Eligible personal memory/context was available to ground the response.</p>
-                    )}
-                    {(message.personalizationProvenance.private_graph_links ?? 0) > 0 && (
-                      <p>• Your personal wisdom graph matched {message.personalizationProvenance.private_graph_links} concept link{message.personalizationProvenance.private_graph_links === 1 ? '' : 's'} for this question.</p>
-                    )}
-                    <p className="text-muted-foreground/70">Private memory text is not shown here.</p>
                   </div>
                 </details>
               )}
