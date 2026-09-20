@@ -157,6 +157,7 @@ jobs:
         env:
           PYTHONPATH: ${{ github.workspace }}/backend
           JWT_SECRET: dummy-jwt-secret-key-for-ci-runs
+          OPENROUTER_API_KEY: mock-openrouter-key-for-ci
 
   # --- Pre-commit validation ---
   pre-commit-check:
