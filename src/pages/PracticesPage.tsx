@@ -40,16 +40,16 @@ const PracticeCard = ({ practice: p, index: i, isFavorited, onToggle }: Practice
     >
       <button
         type="button"
-        aria-label={isFavorited ? `Remove ${p.title} from favorites` : `Add ${p.title} to favorites`}
+        aria-label={isFavorited ? t('practices.detail.removeFavorite') : t('practices.detail.addFavorite')}
         aria-pressed={isFavorited}
-        title={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
+        title={isFavorited ? t('practices.detail.removeFavorite') : t('practices.detail.addFavorite')}
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
           onToggle(p.slug);
           toast({
-            title: isFavorited ? 'Removed from favorites' : 'Added to favorites',
-            description: `${p.title} has been ${isFavorited ? 'removed from' : 'added to'} your list.`,
+            title: isFavorited ? t('practices.detail.removeFavorite') : t('practices.detail.addFavorite'),
+            description: p.title,
           });
         }}
         className="absolute top-3 right-3 z-10 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full bg-background/80 backdrop-blur-md hover:bg-background transition-colors ring-1 ring-border/20"
@@ -152,7 +152,7 @@ const PracticesPage = () => {
             className="mb-10"
           >
             <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              Today&apos;s Wisdom
+              {t('chat.todaysWisdom')}
             </h2>
             <Card className="overflow-hidden border border-ojas/20 bg-card/80 shadow-xl backdrop-blur-lg">
               <div className="flex flex-col md:flex-row">
@@ -160,7 +160,7 @@ const PracticesPage = () => {
                 <div className="relative w-full md:w-2/5 aspect-[16/9] md:aspect-auto md:min-h-[220px] overflow-hidden bg-muted/20">
                   <img
                     src={dailyTeaching.image_url}
-                    alt="Today's teaching from the Gurus"
+                    alt={t('chat.teachingAlt')}
                     className="w-full h-full object-cover"
                     loading="lazy"
                   />
