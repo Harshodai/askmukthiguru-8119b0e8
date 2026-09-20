@@ -1115,6 +1115,7 @@ export const ChatInterface = () => {
     // Try streaming first (skip when awaiting Serene Mind to avoid leaking blocked content during stream)
     const streamingGuruId = generateId();
     let streamingWorked = false;
+    let contextExhaustedThisTurn = false;
     let fullContent = '';
     let finalIntent = 'CASUAL';
     let checkpointInterval: ReturnType<typeof setInterval> | undefined;
@@ -1322,7 +1323,11 @@ export const ChatInterface = () => {
 
           if (chunk.type === 'error') {
             const msgError = buildMessageError(chunk.errorCode, chunk.text);
-            if (msgError.kind === 'context_exhausted') setConversationContextExhausted(true);
+            if (msgError.kind === 'context_exhausted') {
+              contextExhaustedThisTurn = true;
+              setConversationContextExhausted(true);
+              setInputValue(textToSend.trim());
+            }
             throw Object.assign(new Error(chunk.text), { errorCode: chunk.errorCode });
           }
 
@@ -1590,6 +1595,9 @@ openSereneMind('audio');
     }
 
     if (streamingWorked) {
+      if (contextExhaustedThisTurn) {
+        return;
+      }
       hapticAudio.playCompletionChime();
       if (!isIncognito) maybeSummarize();
 
