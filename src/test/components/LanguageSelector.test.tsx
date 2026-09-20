@@ -40,18 +40,19 @@ describe('LanguageSelector (regression)', () => {
     expect(screen.getByText('Hindi')).toBeInTheDocument();
   });
 
-  it('renders all languages as a flat list with no search input', () => {
+  it('renders all languages and supports searching by name or script', () => {
     render(<LanguageSelector value="en" />);
     fireEvent.click(screen.getByRole('button', { expanded: false }));
 
-    // Search box was removed — 7 languages is short enough for a flat list
-    // (matches Claude.ai/ChatGPT's <10-item picker pattern). Assert every
-    // supported language renders, not just two of them, so a future filter
-    // regression (e.g. dropping a language from LANGUAGES) is caught here.
-    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    expect(screen.getByRole('textbox')).toBeInTheDocument();
     LANGUAGES.forEach((lang) => {
       expect(screen.getByText(lang.name)).toBeInTheDocument();
     });
+
+    // Test search filter
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'telugu' } });
+    expect(screen.getByText('Telugu')).toBeInTheDocument();
+    expect(screen.queryByText('Hindi')).not.toBeInTheDocument();
   });
 
   it('calls onLanguageChange and setLanguage when a language is selected, without a toast', () => {

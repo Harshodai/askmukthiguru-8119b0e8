@@ -16,14 +16,22 @@ dist
 dist-ssr
 *.local
 
-# Capacitor native platforms
+# Capacitor native platforms (iOS untracked, Android tracked with explicit artifact exclusions)
 ios/
-android/
 
-# Mobile signing & push credentials (explicit — also covered by ios/ + android/ above)
+# Android build artifacts, local caches, and credentials
+android/.gradle
+android/build
+android/app/build
 android/*.keystore
 android/key.properties
+android/local.properties
 android/app/google-services.json
+*.keystore
+key.properties
+local.properties
+
+# iOS signing credentials
 ios/**/*.p8
 *.p8
 

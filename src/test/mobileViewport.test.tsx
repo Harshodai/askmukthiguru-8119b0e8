@@ -198,6 +198,8 @@ describe('mobile viewport (375px): ChatComposer', () => {
     onFocus: vi.fn(),
     onBlur: vi.fn(),
     onSlashCommand: vi.fn(),
+    isHandsFreeVoice: false,
+    onHandsFreeVoiceToggle: vi.fn(),
   };
 
   it('fits viewport with send + voice actions tappable', () => {

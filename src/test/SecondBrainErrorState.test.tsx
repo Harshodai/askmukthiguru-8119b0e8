@@ -11,7 +11,7 @@ const source = readFileSync(
 describe('Second Brain unavailable state', () => {
   it('explains the separate Profile Memory store and offers a fallback link', () => {
     expect(source).toContain('My Reflections is an encrypted vault, separate from Profile Memory.');
-    expect(source).toContain('View Profile Memory');
+    expect(source).toContain("{t('profile.tabs.memory')}");
     expect(source).toContain('to="/profile?tab=memory"');
   });
 });

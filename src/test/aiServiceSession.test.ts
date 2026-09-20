@@ -46,7 +46,7 @@ describe('aiService session continuity', () => {
     const body = JSON.parse(chatCall![1].body as string);
 
     expect(body.session_id).toBe('conversation-123');
-    expect(body.messages[1].content).toContain('Prior summary');
+    expect(body.conversation_summary).toContain('Prior summary');
   });
 
   it('echoes the signed anon-session token instead of the raw id for anonymous users', async () => {

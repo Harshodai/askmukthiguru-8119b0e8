@@ -83,7 +83,7 @@ describe('KGConceptMap', () => {
   });
 
   it('passes the focused search query to the personal endpoint', async () => {
-    const fetchMock = vi.fn(() =>
+    const fetchMock = vi.fn((..._args: any[]) =>
       Promise.resolve({
         ok: true,
         json: () =>
@@ -181,7 +181,7 @@ describe('KGConceptMap', () => {
     expect(edge.getAttribute('data-target-handle')).toMatch(/^target-/);
   });
 
-  it('keeps the curated demo graph limited to on-brand teachers', () =>
+  it('keeps the curated demo graph limited to on-brand teachers', () => {
     const names = DEMO_DATA.nodes.map((n) => n.label.toLowerCase());
     const teachers = DEMO_DATA.nodes.map((n) => (n.teacher || '').toLowerCase());
     const hasOffBrand = [...names, ...teachers].some((s) => s.includes('krishnamurti'));

@@ -10,7 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Message } from '@/lib/chatStorage';
-import type { TeachingPreview } from '@/lib/chat/types';
+import type { TeachingPreview, GroundingState, TeachingAttribution } from '@/lib/chat/types';
 import { evidenceSupport } from '@/lib/chat/evidenceSupport';
 import { FEATURE_FLAGS } from '@/lib/featureFlags';
 import { cn } from '@/lib/utils';
@@ -80,13 +80,21 @@ export const safeUrlTransform = (url: string): string =>  /^(https?:|mailto:|#)/
 const isCrisisAnswer = (content: string): boolean =>
   /🆘/.test(content) || /immediate crisis|crisis, please reach out|helpline/i.test(content);
 
+interface TeachingGroundingCardProps {
+  citations: Citation[];
+  teachingPreview?: TeachingPreview[];
+  groundingState?: GroundingState;
+  citationsVerified?: boolean | null;
+  guidanceAttribution?: TeachingAttribution | null;
+}
+
 const TeachingGroundingCard = ({
   citations,
   teachingPreview = [],
-}: {
-  citations: Citation[];
-  teachingPreview?: TeachingPreview[];
-}) => {
+  groundingState,
+  citationsVerified,
+  guidanceAttribution,
+}: TeachingGroundingCardProps) => {
   const { t } = useTranslation();
   const items = teachingPreview.length > 0
     ? teachingPreview.slice(0, 3)
@@ -100,21 +108,77 @@ const TeachingGroundingCard = ({
           excerpt: citation.quote || citation.textSnippet || null,
         }));
 
-  if (items.length === 0) return null;
+  const isAbstained = groundingState === 'abstained';
+  const isUnverifiedAttribution = guidanceAttribution?.source_backed === false || citationsVerified === false;
+  const isVerified = citationsVerified === true || (items.length > 0 && !isUnverifiedAttribution);
+
+  if (items.length === 0 && !isAbstained) return null;
+
+  if (items.length === 0 && isAbstained) {
+    return (
+      <aside
+        data-testid="teaching-grounding"
+        aria-label={t('chat.teachingContext.title')}
+        className="mb-3.5 w-full rounded-xl border border-muted-foreground/15 bg-muted/20 px-3.5 py-3 text-start backdrop-blur-sm"
+      >
+        <div className="flex items-center gap-2 text-[15px] leading-5 font-medium text-foreground">
+          <Sparkles className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <span>{t('chat.teachingContext.title')}</span>
+          <span className="ms-auto rounded-full bg-muted/60 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+            {t('chat.teachingContext.noDirectDiscourse', 'No direct discourse match')}
+          </span>
+        </div>
+        <p className="mt-1.5 text-[15px] leading-[1.75] text-muted-foreground">
+          {t('chat.teachingContext.abstainedDescription', 'This contemplation is offered from foundational spiritual principles without direct discourse citations.')}
+        </p>
+      </aside>
+    );
+  }
+
+  const badgeLabel = isUnverifiedAttribution
+    ? t('chat.teachingContext.unverifiedBadge', 'General Spiritual Context')
+    : isVerified
+    ? t('chat.teachingContext.verifiedBadge', 'Verified Sacred Teaching')
+    : t('chat.teachingContext.supportingBadge', 'Supporting Context');
 
   return (
     <aside
       data-testid="teaching-grounding"
       aria-label={t('chat.teachingContext.title')}
-      className="mb-3 w-full rounded-xl border border-ojas/15 bg-ojas/[0.035] px-3.5 py-3"
+      className="mb-3.5 w-full rounded-xl border border-ojas/15 bg-ojas/[0.035] px-3.5 py-3 text-start backdrop-blur-sm"
     >
-      <div className="flex items-center gap-2 text-[15px] leading-5 font-medium text-foreground">
-        <BookOpen className="h-4 w-4 shrink-0 text-ojas" aria-hidden="true" />
-        <span>{t('chat.teachingContext.title')}</span>
-        <span className="text-[15px] leading-5 font-normal text-muted-foreground/70">
-          {t('chat.teachingContext.sourceCount', { count: items.length })}
+      <div className="flex flex-wrap items-center justify-between gap-2 text-[15px] leading-5 font-medium text-foreground">
+        <div className="flex items-center gap-2">
+          {isVerified ? (
+            <BookOpen className="h-4 w-4 shrink-0 text-ojas" aria-hidden="true" />
+          ) : (
+            <Sparkles className="h-4 w-4 shrink-0 text-ojas/80" aria-hidden="true" />
+          )}
+          <span>{t('chat.teachingContext.title')}</span>
+          <span className="text-[15px] font-normal text-muted-foreground/70">
+            {t('chat.teachingContext.sourceCount', { count: items.length })}
+          </span>
+        </div>
+        <span
+          className={cn(
+            'inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium',
+            isUnverifiedAttribution
+              ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
+              : isVerified
+              ? 'bg-ojas/10 text-ojas border border-ojas/20'
+              : 'bg-muted text-muted-foreground'
+          )}
+        >
+          {badgeLabel}
         </span>
       </div>
+
+      {isUnverifiedAttribution && (
+        <p className="mt-1.5 text-xs text-muted-foreground/90 italic">
+          {t('chat.teachingContext.unverifiedNote', 'Discourse attribution is unverified; offered as general spiritual guidance.')}
+        </p>
+      )}
+
       <div className="mt-2.5 space-y-2.5">
         {items.map((item, index) => (
           <div key={item.url || item.title + '-' + index} className="min-w-0">
@@ -143,11 +207,11 @@ const TeachingGroundingCard = ({
               )}
             </div>
             {item.teacher && (
-              <div className="mt-0.5 text-[15px] leading-5 text-muted-foreground">{item.teacher}</div>
+              <div className="mt-0.5 text-[14px] leading-tight text-muted-foreground font-medium">{item.teacher}</div>
             )}
             {item.excerpt && (
-              <blockquote className="mt-1 border-l-2 border-ojas/25 pl-2.5 text-[15px] leading-6 text-muted-foreground line-clamp-3">
-                “{item.excerpt}”
+              <blockquote className="mt-1 border-s-2 border-ojas/30 ps-3 text-[15px] leading-[1.75] text-muted-foreground line-clamp-3">
+                {item.excerpt}
               </blockquote>
             )}
           </div>
@@ -305,6 +369,7 @@ declare global {
 }
 
 const LazyYouTube = ({ videoId, url }: { videoId: string; url: string }) => {
+  const { t } = useTranslation();
   const [loaded, setLoaded] = useState(false);
   const [embedError, setEmbedError] = useState(false);
   const playerRef = useRef<{ destroy: () => void } | null>(null);
@@ -790,6 +855,9 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                       <TeachingGroundingCard
                         citations={citations}
                         teachingPreview={message.teachingPreview}
+                        groundingState={message.groundingState}
+                        citationsVerified={message.citationsVerified}
+                        guidanceAttribution={message.guidancePlan?.attribution}
                       />
                       <div className="text-[15px] leading-[1.75] text-foreground selection:bg-ojas/20">
                       {/* While streaming with no content, render nothing — the single
@@ -1302,9 +1370,6 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
             {isGuru && !isStreaming && message.sereneMindOffer?.triggered && !isCrisisAnswer(message.content) && (
               <SereneMindOfferCard offer={message.sereneMindOffer} />
             )}
-            {isGuru && !isStreaming && citations.length > 0 && (
-              <TeachingGroundingCard citations={citations} teachingPreview={message.teachingPreview} />
-            )}
 
             {isGuru && citations.length > 0 && (
               <details className="w-full rounded-xl border border-ojas/20 bg-gradient-to-br from-card/85 to-card/50 backdrop-blur-md px-4 py-3 group/details shadow-md transition-all duration-300">
@@ -1445,7 +1510,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                           <div className="flex flex-col gap-2 mt-2">
                             {citations.slice(3).map((c, i) => {
                               const url = c.url;
-                              const displayName = getSourceDisplayName(c, i + 3);
+                              const displayName = getSourceDisplayName(c, i + 3, t);
                               const domain = getDomain(url);
                               return (
                                 <a

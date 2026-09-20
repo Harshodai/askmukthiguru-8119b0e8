@@ -189,7 +189,7 @@ export const ThinkingPills = ({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -3 }}
             transition={{ duration: 0.25 }}
-            className="truncate max-w-[240px] sm:max-w-[460px]"
+            className="text-[15px] leading-5 truncate max-w-[240px] sm:max-w-[460px]"
           >
             {subLabel}
           </motion.span>
@@ -217,7 +217,7 @@ export const ThinkingPills = ({
             transition={{ duration: 0.22, ease: 'easeOut' }}
             className="overflow-hidden w-full"
           >
-            <ul className="ml-1.5 border-l border-border/40 pl-3 py-1 space-y-2.5">
+            <ul className="ms-1.5 border-s border-border/40 ps-3 py-1 space-y-2.5">
               {displaySteps.map((step, idx) => {
                 const isDone = step.status === 'done';
                 const isActive = step.status === 'active';
@@ -253,7 +253,7 @@ export const ThinkingPills = ({
                         <Circle className="w-2 h-2 text-muted-foreground/60" />
                       )}
                     </span>
-                    <span className={isActive ? 'text-foreground font-medium' : isDone ? 'text-foreground/60' : 'text-muted-foreground'}>
+                    <span className={`text-[15px] leading-5 ${isActive ? 'text-foreground font-medium' : isDone ? 'text-foreground/60' : 'text-muted-foreground'}`}>
                       {stepLabel}
                     </span>
                   </li>
@@ -286,7 +286,7 @@ export const ThinkingPills = ({
                 </div>
                 {item.excerpt && (
                   <div className="line-clamp-2 text-[15px] leading-6 text-muted-foreground">
-                    “{item.excerpt}”
+                    {item.excerpt}
                   </div>
                 )}
               </div>

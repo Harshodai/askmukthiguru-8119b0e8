@@ -98,7 +98,7 @@ export const JourneyOverview = ({
           </div>
 
           <div className="flex flex-wrap gap-2 shrink-0">
-            <Button onClick={onContinueChat} className="min-h-[44px] rounded-xl gap-1.5 bg-ojas hover:bg-ojas-light text-primary-foreground">
+            <Button onClick={() => onContinueChat()} className="min-h-[44px] rounded-xl gap-1.5 bg-ojas hover:bg-ojas-light text-primary-foreground">
               <MessageCircle className="w-4 h-4" />
               {t('profile.journey.continueChat', 'Continue chatting')}
             </Button>
@@ -184,7 +184,7 @@ export const JourneyOverview = ({
                     onClick={() => onContinueChat(conversation.id)}
                     className="w-full rounded-2xl border border-hairline bg-background/40 px-4 py-3 text-left hover:border-ojas/30 hover:bg-ojas/5 transition-colors"
                   >
-                    <p className="font-medium text-sm text-foreground truncate">{conversation.preview || '{t('profile.journey.untitledConversation', 'Untitled conversation')}'}</p>
+                    <p className="font-medium text-sm text-foreground truncate">{conversation.preview || t('profile.journey.untitledConversation', 'Untitled conversation')}</p>
                     <p className="text-xs text-muted-foreground mt-1">{conversation.updatedAt ? conversation.updatedAt.toLocaleString() : ''}</p>
                   </button>
                 ))}
@@ -193,7 +193,7 @@ export const JourneyOverview = ({
               <div className="rounded-2xl border border-dashed border-hairline px-4 py-6 text-center">
                 <MessageCircle className="w-7 h-7 mx-auto text-muted-foreground/60" />
                 <p className="mt-2 text-sm text-muted-foreground">{t('profile.journey.conversationsWillAppear', 'Your conversations will appear here.')}</p>
-                <Button variant="outline" size="sm" className="mt-3 rounded-xl" onClick={onContinueChat}>{t('profile.journey.startFirstConversation', 'Start your first conversation')}</Button>
+                <Button variant="outline" size="sm" className="mt-3 rounded-xl" onClick={() => onContinueChat()}>{t('profile.journey.startFirstConversation', 'Start your first conversation')}</Button>
               </div>
             )}
           </CardContent>

@@ -130,16 +130,22 @@ export const ChatInterface = () => {
   useEffect(() => {
     let disposed = false;
     const syncAuth = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!disposed) setHasAuthenticatedSession(Boolean(data.session?.user));
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (!disposed) setHasAuthenticatedSession(Boolean(data?.session?.user));
+      } catch {
+        // Fallback for mocked/offline auth
+      }
     };
     void syncAuth();
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!disposed) setHasAuthenticatedSession(Boolean(session?.user));
-    });
+    const sub = typeof supabase?.auth?.onAuthStateChange === 'function'
+      ? supabase.auth.onAuthStateChange((_event, session) => {
+          if (!disposed) setHasAuthenticatedSession(Boolean(session?.user));
+        })
+      : null;
     return () => {
       disposed = true;
-      listener.subscription.unsubscribe();
+      sub?.data?.subscription?.unsubscribe();
     };
   }, []);
 
@@ -1168,6 +1174,8 @@ export const ChatInterface = () => {
     let finalIntent = 'CASUAL';
     let checkpointInterval: ReturnType<typeof setInterval> | undefined;
     let jsonCompletedSuccessfully = false;
+    let streamCompleted = false;
+    let streamedBlocked = false;
 
 
     if (!isAwaitingSereneMind) {
@@ -1233,11 +1241,11 @@ export const ChatInterface = () => {
         // ────────────────────────────────────────────────────────────────
 
         let gotFirstToken = false;
-        let streamCompleted = false;
+        streamCompleted = false;
         let streamedFinalText: string | null = null;
         let streamedCitations: Citation[] = [];
         let streamedMedStep = 0;
-        let streamedBlocked = false;
+        streamedBlocked = false;
         let streamedBlockReason: string | null = null;
         let streamedProactiveSereneMind: ProactiveSereneMindTrigger | null = null;
         let streamedFollowUpSuggestions: string[] = [];
@@ -2312,7 +2320,12 @@ return (
         let continuationSummary = currentConversation?.summary?.trim() || '';
         if (!continuationSummary && priorMessages.some((m) => m.role === 'user')) {
           try {
-            continuationSummary = await generateSummary(priorMessages);
+            continuationSummary = await generateSummary(
+              priorMessages.map((m) => ({
+                role: m.role === 'guru' ? 'assistant' : 'user',
+                content: m.content,
+              }))
+            );
           } catch {
             continuationSummary = priorMessages
               .filter((m) => m.role === 'user')
@@ -2451,7 +2464,12 @@ return (
                     let continuationSummary = currentConversation?.summary?.trim() || '';
                     if (!continuationSummary && priorMessages.some((m) => m.role === 'user')) {
                       try {
-                        continuationSummary = await generateSummary(priorMessages);
+                        continuationSummary = await generateSummary(
+                          priorMessages.map((m) => ({
+                            role: m.role === 'guru' ? 'assistant' : 'user',
+                            content: m.content,
+                          }))
+                        );
                       } catch {
                         continuationSummary = priorMessages
                           .filter((m) => m.role === 'user')

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">AskMukthiGuru</string>
+    <string name="title_activity_main">AskMukthiGuru</string>
+    <string name="package_name">com.askmukthiguru.app</string>
+    <string name="custom_url_scheme">com.askmukthiguru.app</string>
+</resources>

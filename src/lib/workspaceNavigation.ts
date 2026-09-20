@@ -10,12 +10,13 @@ export interface ChatOriginState {
 
 export function buildChatOwnedPath(
   pathname: string,
-  options: { conversationId?: string; conceptQuery?: string } = {},
+  options: { conversationId?: string; conceptQuery?: string; tab?: string } = {},
 ): string {
   const params = new URLSearchParams();
   params.set('returnTo', '/chat');
   if (options.conversationId) params.set('conversation', options.conversationId);
   if (options.conceptQuery && pathname === '/knowledge-graph') params.set('q', options.conceptQuery);
+  if (options.tab) params.set('tab', options.tab);
   return `${pathname}?${params.toString()}`;
 }
 

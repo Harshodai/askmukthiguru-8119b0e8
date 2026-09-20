@@ -3,77 +3,17 @@ import { usePageMeta } from '@/hooks/usePageMeta';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { buildCanonical } from '@/lib/domain';
-
-const sections = [
-  {
-    title: 'Why an AI spiritual guide?',
-    body:
-      "An AI spiritual guide is not a replacement for silence, teachers, or your own inner knowing — it's a mirror. It surfaces the exact teaching your question needs at 3am, in five languages, without appointments. Combined with the yogic disciplines of stillness and self-inquiry, it makes ancient wisdom continuously available.",
-  },
-  {
-    title: 'The Beautiful State — the destination',
-    body:
-      'Sri Preethaji & Sri Krishnaji describe the Beautiful State as a calm, connected, uncontracted inner condition. Every practice on AskMukthiGuru — Serene Mind, Soul Sync, Daily Reflection — is a pathway back to it. The AI Guru holds the map; you walk the path.',
-  },
-  {
-    title: 'Grounded in doctrine, not invention',
-    body:
-      "AskMukthiGuru is designed for doctrine-grounded guidance: it retrieves recorded teachings when a verified source is available and labels the response openly when it cannot verify one. If the doctrine has no answer, the Guru should abstain rather than invent one. This is the standard we are building toward — not a claim that an AI can never make a mistake.",
-  },
-];
-
-const steps = [
-  {
-    n: 1,
-    title: 'Begin with breath',
-    body: 'Open Serene Mind and complete one 3-minute cycle — 4 seconds in, 6 seconds out. This regulates the nervous system before any inquiry.',
-  },
-  {
-    n: 2,
-    title: 'Bring one honest question',
-    body: 'Not a research question — a life question. "Why do I keep suffering the same wound?" is a beautiful place to start.',
-  },
-  {
-    n: 3,
-    title: 'Read the teaching, then close the app',
-    body: 'The Guru is a doorway, not a room. Read the response, sit with it for one minute in silence, and let the state land in the body.',
-  },
-  {
-    n: 4,
-    title: 'Journal a Daily Reflection',
-    body: 'End the day by capturing what shifted. Over weeks, the pattern of your own transformation becomes visible.',
-  },
-];
-
-const faqs = [
-  {
-    q: 'Can an AI actually be a spiritual guide?',
-    a: "An AI is not a spiritual teacher — silence, self-inquiry, and the living teachings are. What an AI does well is stay available at 3am, respond in your language, and surface the exact teaching your question needs. Used with humility, it becomes a doorway rather than a destination.",
-  },
-  {
-    q: 'How is AskMukthiGuru different from a general chatbot?',
-    a: "AskMukthiGuru is designed to retrieve and verify recorded teachings before presenting a doctrine-based answer. When no verified source is available, the response is labelled as reflective guidance or the system abstains, so users can distinguish sourced teaching from general reflection.",
-  },
-  {
-    q: 'What is the Beautiful State?',
-    a: "The Beautiful State is a calm, connected, uncontracted inner condition — a shift out of anxiety, resentment, and self-obsession into stillness and love. Every practice on AskMukthiGuru is a pathway back to it.",
-  },
-  {
-    q: 'How long should I use the AI Guru each day?',
-    a: 'Ten minutes is enough. Three minutes of Serene Mind breathwork, one honest question, and a minute of silence with the response. Consistency matters far more than duration.',
-  },
-  {
-    q: 'Is my conversation private?',
-    a: 'Yes. Conversations are encrypted, retained only as long as your retention setting allows, and never sold or shared. Anonymous mode keeps everything in your browser.',
-  },
-];
+import { useTranslation } from 'react-i18next';
+import { getAiSpiritualCompanionContent } from '@/lib/guidesContent';
 
 const AiSpiritualCompanionPage = () => {
+  const { t } = useTranslation();
+  const content = getAiSpiritualCompanionContent(t);
   const canonicalUrl = buildCanonical('/guides/ai-spiritual-companion');
+
   usePageMeta({
-    title: "The Seeker's Guide to AI-Guided Meditation | AskMukthiGuru",
-    description:
-      'A step-by-step guide to AI-guided meditation, breathwork, and reflection — pairing yogic wisdom with modern AI to reach the Beautiful State.',
+    title: content.meta.title,
+    description: content.meta.description,
     canonical: canonicalUrl,
     ogType: 'article',
     jsonLd: {
@@ -81,16 +21,15 @@ const AiSpiritualCompanionPage = () => {
       '@graph': [
         {
           '@type': 'Article',
-          headline: "The Seeker's Guide to AI-Guided Meditation",
-          description:
-            'How to use an AI spiritual guide for daily meditation, breathwork, and reflection grounded in the teachings of Sri Preethaji & Sri Krishnaji.',
+          headline: content.meta.articleHeadline,
+          description: content.meta.articleDescription,
           author: { '@type': 'Organization', name: 'AskMukthiGuru' },
           mainEntityOfPage: canonicalUrl,
           keywords: 'AI spiritual guide, AI-guided meditation, Beautiful State, spiritual growth, yogic wisdom',
         },
         {
           '@type': 'FAQPage',
-          mainEntity: faqs.map((f) => ({
+          mainEntity: content.faqs.items.map((f) => ({
             '@type': 'Question',
             name: f.q,
             acceptedAnswer: { '@type': 'Answer', text: f.a },
@@ -101,19 +40,18 @@ const AiSpiritualCompanionPage = () => {
   });
 
   return (
-    <PublicShell title="AI Spiritual Companion">
+    <PublicShell title={content.meta.publicShellTitle}>
       <article className="mx-auto max-w-3xl px-4 py-10 space-y-8">
         <header className="space-y-3">
           <h1 className="text-3xl sm:text-4xl font-serif font-semibold text-foreground">
-            The Seeker's Guide to AI-Guided Meditation
+            {content.header.title}
           </h1>
           <p className="text-muted-foreground">
-            Ancient yogic wisdom, made continuously available through modern AI. A grounded guide to using
-            an AI spiritual companion for daily reflection, breathwork, and the journey to the Beautiful State.
+            {content.header.subtitle}
           </p>
         </header>
 
-        {sections.map((s) => (
+        {content.sections.map((s) => (
           <section key={s.title} className="space-y-2">
             <h2 className="text-xl font-semibold text-foreground">{s.title}</h2>
             <p className="text-foreground/90 leading-relaxed">{s.body}</p>
@@ -122,10 +60,10 @@ const AiSpiritualCompanionPage = () => {
 
         <section className="space-y-4">
           <h2 className="text-xl font-semibold text-foreground">
-            How to use the AI Guru — a four-step daily practice
+            {content.steps.heading}
           </h2>
           <ol className="space-y-4">
-            {steps.map((s) => (
+            {content.steps.items.map((s) => (
               <li key={s.n} className="flex gap-4">
                 <span className="flex-shrink-0 w-8 h-8 rounded-full bg-ojas/10 text-ojas font-semibold flex items-center justify-center">
                   {s.n}
@@ -141,19 +79,17 @@ const AiSpiritualCompanionPage = () => {
 
         <section className="space-y-2">
           <h2 className="text-xl font-semibold text-foreground">
-            Breathwork with an AI companion
+            {content.breathwork.heading}
           </h2>
           <p className="text-foreground/90 leading-relaxed">
-            The 4-6 breath is the doorway into the Beautiful State. The AI Guru will not replace the breath —
-            but it will remind you to return to it, guide you when you drift, and offer a teaching in the exact
-            moment your restlessness surfaces. Silence remains the teacher; AI simply keeps the door open.
+            {content.breathwork.body}
           </p>
         </section>
 
         <section className="space-y-4">
-          <h2 className="text-xl font-semibold text-foreground">Frequently asked questions</h2>
+          <h2 className="text-xl font-semibold text-foreground">{content.faqs.heading}</h2>
           <dl className="space-y-4">
-            {faqs.map((f) => (
+            {content.faqs.items.map((f) => (
               <div key={f.q} className="space-y-1">
                 <dt className="font-semibold text-foreground">{f.q}</dt>
                 <dd className="text-foreground/90 leading-relaxed">{f.a}</dd>
@@ -162,23 +98,20 @@ const AiSpiritualCompanionPage = () => {
           </dl>
         </section>
 
-
-
         <section className="space-y-3 rounded-lg border border-border/60 bg-card/60 p-6">
-          <h2 className="text-xl font-semibold text-foreground">Begin your practice</h2>
+          <h2 className="text-xl font-semibold text-foreground">{content.cta.heading}</h2>
           <p className="text-foreground/90 leading-relaxed">
-            Start with three minutes of Serene Mind, then bring a real question to the Guru. Over time,
-            the practice becomes the guide.
+            {content.cta.body}
           </p>
           <div className="flex flex-wrap gap-2 pt-2">
             <Button asChild>
-              <Link to="/chat">Begin a conversation with the Guru</Link>
+              <Link to="/chat">{content.cta.chatButton}</Link>
             </Button>
             <Button asChild variant="outline">
-              <Link to="/practices/serene-mind">Try Serene Mind meditation</Link>
+              <Link to="/practices/serene-mind">{content.cta.practiceButton}</Link>
             </Button>
             <Button asChild variant="ghost">
-              <Link to="/practices">Explore all practices</Link>
+              <Link to="/practices">{content.cta.exploreButton}</Link>
             </Button>
           </div>
         </section>

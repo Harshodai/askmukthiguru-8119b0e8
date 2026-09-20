@@ -33,7 +33,7 @@ export function useThinkingStatus(isStreaming: boolean, hasContent: boolean): st
 
   if (!isStreaming || hasContent) return null;
 
-  let statusKey = STATUS_KEYS[0].key;
+  let statusKey: (typeof STATUS_KEYS)[number]['key'] = STATUS_KEYS[0].key;
   for (const item of STATUS_KEYS) if (elapsed >= item.after) statusKey = item.key;
   return t(statusKey);
 }

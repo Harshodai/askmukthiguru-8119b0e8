@@ -268,6 +268,7 @@ describe('ChatInterface (regression)', () => {
           actionDepth: 'one_step',
         }),
         undefined,
+        'en',
       );
     });
   });
@@ -305,13 +306,14 @@ describe('ChatInterface (regression)', () => {
         false,
         undefined,
         undefined,
-                expect.objectContaining({
+        expect.objectContaining({
           mode: 'balanced_guidance',
           includePractice: true,
           includeReflection: true,
           actionDepth: 'one_step',
         }),
         undefined,
+        'en',
       );
     });
   });
@@ -356,6 +358,7 @@ describe('ChatInterface (regression)', () => {
         undefined,
         expect.objectContaining({ mode: 'balanced_guidance' }),
         undefined,
+        'en',
       );
     });
   });

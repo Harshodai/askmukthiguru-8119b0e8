@@ -148,7 +148,7 @@ function WisdomNode({ data, selected }: NodeProps<WisdomFlowNode>) {
           </span>
         )}
         {!isUser && data.degree > 0 && (
-          <span className="ml-auto text-[9px] text-muted-foreground/65">
+          <span className="ms-auto text-[9px] text-muted-foreground/65">
             {data.degree} {data.degree === 1 ? 'link' : 'links'}
           </span>
         )}
@@ -274,12 +274,13 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
       setLoading(true);
       setError(null);
       setIsDemo(false);
+      let personal = false;
 
       try {
         const { endpoint } = getAIConfig();
         const baseUrl = (endpoint ?? '').replace(/\/api\/chat\/?$/, '');
         const token = await getAccessToken();
-        const personal = Boolean(token);
+        personal = Boolean(token);
         setIsPersonal(personal);
 
         const effectiveQuery = q.trim();
@@ -331,7 +332,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
         setLoading(false);
       }
     },
-    [isPersonal, loading, t],
+    [t],
   );
 
   useEffect(() => {
@@ -463,7 +464,6 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
         </div>
         <button
           type="submit"
-          disabled={loading}
           className="inline-flex items-center justify-center gap-2 rounded-2xl bg-ojas px-6 py-3.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-ojas/15 transition hover:-translate-y-0.5 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
         >
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
@@ -485,7 +485,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
       </form>
 
       {error && !isDemo && (
-        <div className="rounded-2xl border border-border/50 bg-card/50 px-4 py-3 text-sm text-muted-foreground">
+        <div role="alert" className="rounded-2xl border border-border/50 bg-card/50 px-4 py-3 text-sm text-muted-foreground">
           {error}
         </div>
       )}
@@ -503,6 +503,20 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
         </div>
       )}
 
+      {/* Screen reader accessible live summary */}
+      <div className="sr-only" aria-live="polite" role="region" aria-label={t('kg.title', 'Wisdom Map')}>
+        <h3>{t('kg.title', 'Wisdom Map')}</h3>
+        {loading && <p>{t('kg.loading', 'Loading teachings…')}</p>}
+        {data && data.nodes.length > 0 && (
+          <p>
+            {t('kg.graphSummary', 'Wisdom graph containing {{nodeCount}} concepts and {{edgeCount}} connections.', {
+              nodeCount: data.nodes.length,
+              edgeCount: data.edges.length,
+            })}
+          </p>
+        )}
+      </div>
+
       <div className="grid min-h-[520px] gap-4 xl:grid-cols-[minmax(0,1fr)_310px]">
         <div className="relative overflow-hidden rounded-[28px] border border-border/50 bg-[#0f0c08] shadow-2xl shadow-black/20 min-h-[520px]">
           {loading ? (
@@ -516,7 +530,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
             </div>
           ) : data && data.nodes.length ? (
             <>
-              <div className="absolute left-4 top-4 z-10 rounded-2xl border border-white/10 bg-black/45 px-3 py-2 backdrop-blur">
+              <div className="absolute start-4 top-4 z-10 rounded-2xl border border-white/10 bg-black/45 px-3 py-2 backdrop-blur">
                 <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-white/50">{t('kg.title')}</div>
                 <div className="mt-0.5 text-xs text-white/80">
                   {data.query ? t('kg.noConceptsFor', { query: data.query }) : t('kg.help')}
@@ -548,8 +562,8 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
                 <MiniMap
                   pannable
                   zoomable
-                  nodeStrokeColor={(node) => getNodeVisual(node.data.nodeType).accent}
-                  nodeColor={(node) => getNodeVisual(node.data.nodeType).soft}
+                  nodeStrokeColor={(node) => getNodeVisual(String(node.data?.nodeType ?? '')).accent}
+                  nodeColor={(node) => getNodeVisual(String(node.data?.nodeType ?? '')).soft}
                   nodeBorderRadius={8}
                   maskColor="rgba(0,0,0,0.72)"
                   className="!m-4 !overflow-hidden !rounded-xl !border !border-white/10 !bg-black/45"
@@ -702,7 +716,7 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="mt-4 flex items-center justify-between gap-3 border-b border-border/40 pb-3 text-xs">
       <span className="text-muted-foreground">{label}</span>
-      <span className="text-right font-medium text-foreground">{value}</span>
+      <span className="text-end font-medium text-foreground">{value}</span>
     </div>
   );
 }

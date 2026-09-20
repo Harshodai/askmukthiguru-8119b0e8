@@ -28,6 +28,7 @@ async function getVerifiedFactorFromSession(): Promise<{ id: string } | null> {
 }
 
 const MFAChallengePage = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [factorId, setFactorId] = useState<string | null>(null);
   const [code, setCode] = useState('');

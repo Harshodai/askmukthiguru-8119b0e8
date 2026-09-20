@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { AnswerEvidence, BackendMetadata, Citation, GuidancePlan, GroundingState, LiveLogisticsEvent, ProactiveSereneMindTrigger, TeachingPreview } from './chat/types';
+import type { AnswerEvidence, BackendMetadata, Citation, GuidancePlan, GroundingState, LiveLogisticsEvent, PersonalizationProvenance, ProactiveSereneMindTrigger, TeachingPreview } from './chat/types';
 import { supabase } from '@/integrations/supabase/client';
 import { Capacitor } from '@capacitor/core';
 import { Preferences } from '@capacitor/preferences';
@@ -86,6 +86,7 @@ export interface Message {
   guidancePlan?: GuidancePlan | null;
   /** Evidence provenance accompanying a guru reply. */
   answerEvidence?: AnswerEvidence | null;
+  personalizationProvenance?: PersonalizationProvenance | null;
   groundingState?: GroundingState;
   faithfulnessScore?: number | null;
   relevancyScore?: number | null;

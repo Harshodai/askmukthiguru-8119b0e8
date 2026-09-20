@@ -137,6 +137,7 @@ export function HealingPathCard({
   onAskGuru,
   onOpenSereneMind,
 }: HealingPathCardProps) {
+  const { t } = useTranslation();
   const { progress, enroll, completeLesson } = useHealingCourse();
   const [dismissed, setDismissed] = useState(false);
   const [expanded, setExpanded] = useState(false);

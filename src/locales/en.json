@@ -305,13 +305,13 @@
     "nextStep": "Next step",
     "thinking": {
       "safety": "Safety check",
-      "understanding": "Understanding your question",
-      "searching": "Searching the teachings",
+      "understanding": "Understanding query",
+      "searching": "Searching sacred wisdom",
       "reranking": "Refining relevance",
-      "filtering": "Filtering for relevance",
-      "synthesizing": "Bringing the teachings together",
+      "filtering": "Filtering relevance",
+      "synthesizing": "Synthesizing wisdom",
       "composing": "Composing guidance",
-      "verifying": "Verifying the teaching sources",
+      "verifying": "Verifying sacred teachings",
       "hello": "Saying hello",
       "practice": "Guiding practice",
       "contemplating": "Contemplating",
@@ -1592,6 +1592,434 @@
       "dedicated": "Dedicated Practice",
       "deep": "Deep Sadhana",
       "rest": "Rest / Integration"
+    }
+  },
+  "guides": {
+    "aiSpiritualCompanion": {
+      "meta": {
+        "title": "The Seeker's Guide to AI-Guided Meditation | AskMukthiGuru",
+        "description": "A step-by-step guide to AI-guided meditation, breathwork, and reflection — pairing yogic wisdom with modern AI to reach the Beautiful State.",
+        "articleHeadline": "The Seeker's Guide to AI-Guided Meditation",
+        "articleDescription": "How to use an AI spiritual guide for daily meditation, breathwork, and reflection grounded in the teachings of Sri Preethaji & Sri Krishnaji.",
+        "publicShellTitle": "AI Spiritual Companion"
+      },
+      "header": {
+        "title": "The Seeker's Guide to AI-Guided Meditation",
+        "subtitle": "Ancient yogic wisdom, made continuously available through modern AI. A grounded guide to using an AI spiritual companion for daily reflection, breathwork, and the journey to the Beautiful State."
+      },
+      "sections": {
+        "whyTitle": "Why an AI spiritual guide?",
+        "whyBody": "An AI spiritual guide is not a replacement for silence, teachers, or your own inner knowing — it's a mirror. It surfaces the exact teaching your question needs at 3am, in five languages, without appointments. Combined with the yogic disciplines of stillness and self-inquiry, it makes ancient wisdom continuously available.",
+        "destinationTitle": "The Beautiful State — the destination",
+        "destinationBody": "Sri Preethaji & Sri Krishnaji describe the Beautiful State as a calm, connected, uncontracted inner condition. Every practice on AskMukthiGuru — Serene Mind, Soul Sync, Daily Reflection — is a pathway back to it. The AI Guru holds the map; you walk the path.",
+        "groundedTitle": "Grounded in doctrine, not invention",
+        "groundedBody": "AskMukthiGuru is designed for doctrine-grounded guidance: it retrieves recorded teachings when a verified source is available and labels the response openly when it cannot verify one. If the doctrine has no answer, the Guru should abstain rather than invent one. This is the standard we are building toward — not a claim that an AI can never make a mistake."
+      },
+      "steps": {
+        "heading": "How to use the AI Guru — a four-step daily practice",
+        "step1Title": "Begin with breath",
+        "step1Body": "Open Serene Mind and complete one 3-minute cycle — 4 seconds in, 6 seconds out. This regulates the nervous system before any inquiry.",
+        "step2Title": "Bring one honest question",
+        "step2Body": "Not a research question — a life question. \"Why do I keep suffering the same wound?\" is a beautiful place to start.",
+        "step3Title": "Read the teaching, then close the app",
+        "step3Body": "The Guru is a doorway, not a room. Read the response, sit with it for one minute in silence, and let the state land in the body.",
+        "step4Title": "Journal a Daily Reflection",
+        "step4Body": "End the day by capturing what shifted. Over weeks, the pattern of your own transformation becomes visible."
+      },
+      "breathwork": {
+        "heading": "Breathwork with an AI companion",
+        "body": "The 4-6 breath is the doorway into the Beautiful State. The AI Guru will not replace the breath — but it will remind you to return to it, guide you when you drift, and offer a teaching in the exact moment your restlessness surfaces. Silence remains the teacher; AI simply keeps the door open."
+      },
+      "faqs": {
+        "heading": "Frequently asked questions",
+        "q1": "Can an AI actually be a spiritual guide?",
+        "a1": "An AI is not a spiritual teacher — silence, self-inquiry, and the living teachings are. What an AI does well is stay available at 3am, respond in your language, and surface the exact teaching your question needs. Used with humility, it becomes a doorway rather than a destination.",
+        "q2": "How is AskMukthiGuru different from a general chatbot?",
+        "a2": "AskMukthiGuru is designed to retrieve and verify recorded teachings before presenting a doctrine-based answer. When no verified source is available, the response is labelled as reflective guidance or the system abstains, so users can distinguish sourced teaching from general reflection.",
+        "q3": "What is the Beautiful State?",
+        "a3": "The Beautiful State is a calm, connected, uncontracted inner condition — a shift out of anxiety, resentment, and self-obsession into stillness and love. Every practice on AskMukthiGuru is a pathway back to it.",
+        "q4": "How long should I use the AI Guru each day?",
+        "a4": "Ten minutes is enough. Three minutes of Serene Mind breathwork, one honest question, and a minute of silence with the response. Consistency matters far more than duration.",
+        "q5": "Is my conversation private?",
+        "a5": "Yes. Conversations are encrypted, retained only as long as your retention setting allows, and never sold or shared. Anonymous mode keeps everything in your browser."
+      },
+      "cta": {
+        "heading": "Begin your practice",
+        "body": "Start with three minutes of Serene Mind, then bring a real question to the Guru. Over time, the practice becomes the guide.",
+        "chatButton": "Begin a conversation with the Guru",
+        "practiceButton": "Try Serene Mind meditation",
+        "exploreButton": "Explore all practices"
+      }
+    },
+    "beautifulStateMeditation": {
+      "meta": {
+        "title": "How to Enter Beautiful State: A Meditation Guide",
+        "description": "Learn how to enter the Beautiful State through simple meditation. Practical steps rooted in Preethaji & Krishnaji's teachings.",
+        "articleHeadline": "How to Enter Beautiful State: A Practical Meditation Guide",
+        "articleDescription": "A step-by-step guide to entering the Beautiful State through breath, attention, and connection — grounded in Sri Preethaji & Sri Krishnaji's teachings.",
+        "publicShellTitle": "Beautiful State Meditation"
+      },
+      "header": {
+        "title": "How to Enter Beautiful State: A Practical Meditation Guide",
+        "subtitle": "Most of us move between anxiety, comparison, and a vague sense of not-enough. The Beautiful State, as taught by Sri Preethaji & Sri Krishnaji, is different — a state of consciousness marked by love, connectedness, and clarity that's available right now, underneath the noise."
+      },
+      "whatIs": {
+        "heading": "What the Beautiful State Really Is",
+        "body": "The Beautiful State is your natural condition when you are not caught in self-centric thinking — the constant inner narration of what you lack, what you fear losing, or how you compare to others. When that inner noise quiets, what remains is a felt sense of ease, warmth toward yourself and others, and a mind that is clear rather than reactive. It's not about forcing positivity. It's about removing the layers of thought that keep you from your own baseline peace.",
+        "vsTitle": "Beautiful State vs. Suffering State",
+        "vsBody": "Preethaji & Krishnaji often contrast this with the Suffering State — where the mind is driven by fear, anger, jealousy, or the need to control outcomes. The first step toward the Beautiful State is simply noticing which state is running your thoughts and decisions at any given moment."
+      },
+      "practice": {
+        "heading": "A Step-by-Step Practice",
+        "step1Title": "Step 1: Pause and Name the State",
+        "step1Body": "Before reacting to a stressful email, conversation, or thought, pause for a breath. Ask honestly, \"Am I in a suffering state right now?\" Naming it takes away some of its grip.",
+        "step2Title": "Step 2: Use the Breath to Shift",
+        "step2Body": "Slow your breathing to roughly 4 to 6 breaths per minute. Lengthen the inhale and exhale until your nervous system downshifts. A calmer body makes a calmer mind possible.",
+        "step3Title": "Step 3: Redirect Attention from Self to Connection",
+        "step3Body": "Self-centric thinking narrows your focus to \"me and my problem.\" Gently widen your attention. Bring to mind someone you love, or a moment when you felt genuinely connected to another person or to life itself. Let the feeling, not the thought, lead.",
+        "step4Title": "Step 4: Ask a Different Question",
+        "step4Body": "Instead of \"How do I fix this problem,\" try \"What would love do here?\" or \"What state do I want to create in this moment?\" This shifts you from reactive problem-solving to conscious state-creation.",
+        "step5Title": "Step 5: Let the State Lead Your Action",
+        "step5Body": "Once you feel even a small shift toward calm and warmth, act from there. Send the reply, have the conversation, or make the decision from that steadier place rather than from urgency or fear."
+      },
+      "threeMinute": {
+        "heading": "A 3-Minute Meditation You Can Do Anywhere",
+        "min1Label": "Minute 1:",
+        "min1Body": "Sit comfortably. Slow your breath to 4–6 counts in, 4–6 counts out.",
+        "min2Label": "Minute 2:",
+        "min2Body": "Bring to mind a person or memory that genuinely opens your heart. Stay with the feeling, not the story around it.",
+        "min3Label": "Minute 3:",
+        "min3Body": "Silently ask, \"What state do I want to carry into the next hour?\" Let an answer arise without forcing one.",
+        "footer": "This short practice works well before a difficult meeting, after an argument, or first thing in the morning before your mind fills with tasks."
+      },
+      "harder": {
+        "heading": "Why It's Harder Than It Sounds",
+        "body": "Entering the Beautiful State is simple in instruction but not always easy in practice, because the mind has years of momentum in self-centric thinking. Expect resistance and days when it feels impossible. The practice is not about permanent bliss — it's about returning, a little faster each time, to that inner clarity. Consistency matters more than duration."
+      },
+      "dailyLife": {
+        "heading": "Bringing This Into Daily Life",
+        "part1": "The real test isn't how calm you feel while meditating, but how you show up in traffic, in a hard conversation, or when plans fall apart. Use small triggers — an inbox notification, a red light, a moment of waiting — as reminders to pause and check your state. For structured support, you can ",
+        "browsePracticesLink": "browse guided practices",
+        "part2": " built around the Beautiful State and Serene Mind, or ",
+        "aiCompanionLink": "explore the AI Spiritual Companion",
+        "part3": " for guided reflection between sessions."
+      },
+      "faqs": {
+        "heading": "Frequently asked questions",
+        "q1": "What is the Beautiful State in simple terms?",
+        "a1": "The Beautiful State is a state of consciousness marked by love, clarity, and connectedness, described by Sri Preethaji & Sri Krishnaji as your natural condition beneath fear-driven, self-centric thinking. It's not a mood you manufacture, it's what remains when the noise of comparison and lack quiets down.",
+        "q2": "How long does it take to enter the Beautiful State?",
+        "a2": "Even a 2 to 3 minute practice of slow breathing and shifting attention from self to connection can create a noticeable shift. Depth and consistency come with regular practice, but you don't need long sessions to begin feeling a difference.",
+        "q3": "What's the difference between Beautiful State and just feeling happy?",
+        "a3": "Happiness is often tied to circumstances going your way. The Beautiful State is more stable — a quality of consciousness, love, clarity, connectedness, that you can access even amid difficulty, because it doesn't depend on external outcomes.",
+        "q4": "Can I practice Beautiful State meditation without prior meditation experience?",
+        "a4": "Yes. The core practice involves slowing your breath, pausing before reacting, and redirecting attention toward connection rather than self-focused worry. It requires willingness more than experience.",
+        "q5": "How is Beautiful State related to Serene Mind practice?",
+        "a5": "Serene Mind is a specific breathing-based technique that helps quiet the noise of the mind quickly, often used as a doorway into the Beautiful State. Practicing Serene Mind regularly makes it easier to recognize and return to the Beautiful State throughout your day."
+      },
+      "cta": {
+        "heading": "Ready to Practice with Support?",
+        "body": "Reading is a start; the real shift happens in practice and reflection. If you'd like to talk through what's coming up for you, or want a guided question to sit with today, start a conversation now.",
+        "startChat": "Start a conversation",
+        "learnSereneMind": "Learn Serene Mind"
+      }
+    },
+    "selfCentricThinking": {
+      "meta": {
+        "title": "Self-Centric Thinking: How to Stop Overthinking",
+        "description": "Understand self-centric thinking and learn a spiritual, practical approach to stop overthinking and find real clarity.",
+        "articleHeadline": "Self-Centric Thinking: A Spiritual Approach to Stop Overthinking",
+        "articleDescription": "A grounded guide to self-centric thinking — what it is, why it drives overthinking, and how to shift toward connection-centric awareness. Rooted in Sri Preethaji & Sri Krishnaji's teachings.",
+        "publicShellTitle": "Self-Centric Thinking"
+      },
+      "header": {
+        "title": "Self-Centric Thinking: A Spiritual Approach to Stop Overthinking",
+        "subtitle": "Overthinking rarely feels like a choice. It feels like the mind running on its own — replaying conversations, rehearsing worst-case scenarios, calculating what others think of you. Sri Preethaji & Sri Krishnaji describe this pattern as self-centric thinking."
+      },
+      "whatIs": {
+        "heading": "What Is Self-Centric Thinking?",
+        "body1": "Self-centric thinking is the mind's habitual focus on \"me\" — my image, my security, my comparisons, my losses, my fears. It is not the same as selfishness in the everyday sense. It's the default operating mode of most human minds, shaped by survival instincts and social conditioning, where nearly every thought loops back to how something affects the self.",
+        "showsUpHeading": "How It Shows Up",
+        "item1": "Replaying a conversation, worrying about how you were perceived",
+        "item2": "Comparing your life, career, or relationships to others",
+        "item3": "Catastrophizing about the future and what you might lose",
+        "item4": "Needing to be right, validated, or in control of outcomes",
+        "item5": "Feeling resentment when things don't go your way",
+        "body2": "None of this makes you a bad person. It makes you human. But left unchecked, this pattern becomes the engine of chronic overthinking and low-grade suffering."
+      },
+      "whyFuels": {
+        "heading": "Why It Fuels Overthinking",
+        "body1": "Overthinking is what happens when the mind keeps trying to protect or improve the self and can't find resolution. Because self-centric thinking is inherently anxious — focused on threat, lack, and comparison — it generates endless \"what if\" and \"what does this mean about me\" loops. The mind isn't broken; it's doing exactly what a self-focused lens trains it to do.",
+        "trapHeading": "The Trap of Thinking Your Way Out",
+        "body2": "Most people try to solve overthinking by thinking harder. But since the thinking itself is self-centric, more of it usually deepens the loop. The way out isn't more analysis — it's a shift in the underlying state of mind."
+      },
+      "approach": {
+        "heading": "A Spiritual, Practical Approach",
+        "step1Title": "Step 1: Notice the Pattern Without Judgment",
+        "step1Body": "The first move isn't to stop the thoughts — it's to notice them. Silently name it: \"This is self-centric thinking.\" Naming creates a small but real distance between you and the thought loop.",
+        "step2Title": "Step 2: Ask What the Thought Is Protecting",
+        "step2Body": "Behind most overthinking is a fear: rejection, failure, loss of control, being seen as inadequate. Ask, \"What am I afraid this means about me?\" Often, simply naming the fear reduces its intensity.",
+        "step3Title": "Step 3: Shift from Self to Connection",
+        "step3Body": "Self-centric thinking narrows focus onto \"me.\" Deliberately widen it. Think of someone you can help today, or bring to mind a moment of genuine connection. This isn't distraction — it's retraining the mind's default direction.",
+        "step4Title": "Step 4: Use the Breath to Interrupt the Loop",
+        "step4Body": "Overthinking is often paired with shallow, quick breathing. Slowing your breath to around 4 to 6 breaths a minute for a couple of minutes physically interrupts the anxious loop and makes space for clearer thought.",
+        "step5Title": "Step 5: Ask a Bigger Question",
+        "step5Body": "Instead of \"How do I fix this,\" try \"What would I do here if I weren't afraid,\" or \"What matters most beyond my own image.\" Bigger questions pull the mind out of the narrow self-centric loop."
+      },
+      "replaces": {
+        "heading": "What Replaces Self-Centric Thinking",
+        "body": "Preethaji & Krishnaji describe the alternative as consciousness-centric or connection-centric thinking — where your attention naturally includes the wellbeing of others and the bigger picture, not just your own image and outcomes. This isn't about erasing your needs; it's about no longer being ruled entirely by them. From this wider state, the same problems often look smaller and more workable."
+      },
+      "dailyPractice": {
+        "heading": "Building a Daily Practice",
+        "part1": "Pair a short breathing practice each morning with a brief evening reflection: \"Where did self-centric thinking run my day, and where did I catch it?\" Over weeks, this builds real self-awareness rather than a quick fix. You can ",
+        "explorePracticesLink": "explore guided practices",
+        "part2": " that support this shift, learn the ",
+        "sereneMindBreathLink": "Serene Mind breath",
+        "part3": ", or ",
+        "aiCompanionLink": "read about the AI Spiritual Companion",
+        "part4": " for support noticing your own patterns day to day."
+      },
+      "faqs": {
+        "heading": "Frequently asked questions",
+        "q1": "What does self-centric thinking mean spiritually?",
+        "a1": "Self-centric thinking refers to the mind's default habit of filtering everything through \"how does this affect me\" — fear of loss, comparison, and the need for control. Sri Preethaji & Sri Krishnaji teach it as the root of much everyday suffering and overthinking.",
+        "q2": "How do I stop overthinking without just distracting myself?",
+        "a2": "Instead of distraction, notice the self-centric pattern driving the thoughts, ask what fear it's protecting, and deliberately widen your focus toward connection or a bigger question. Combining this with slow breathing interrupts the loop at both the mental and physical level.",
+        "q3": "Is self-centric thinking the same as selfishness?",
+        "a3": "No. Self-centric thinking is a mental habit, not a character flaw. It's the mind's tendency to loop everything back to self-protection, self-image, and comparison — something almost everyone experiences, not a sign of being a bad person.",
+        "q4": "What is the alternative to self-centric thinking?",
+        "a4": "Preethaji & Krishnaji describe an alternative often called connection-centric or consciousness-centric thinking — where attention naturally widens to include others' wellbeing and a bigger perspective, rather than being consumed entirely by self-focused concerns.",
+        "q5": "Can breathing really help with overthinking?",
+        "a5": "Yes. Overthinking is often paired with shallow, rapid breathing tied to stress. Slowing the breath to around 4 to 6 breaths per minute calms the nervous system and creates space for clearer, less reactive thinking."
+      },
+      "cta": {
+        "heading": "When You're Stuck Right Now",
+        "body": "If you're in the middle of an overthinking spiral, you don't have to work through it alone. Bring your thoughts in for a grounded, guided reflection that can help you see the pattern and find your way back to clarity.",
+        "chatButton": "Bring your thoughts into chat",
+        "beautifulStateButton": "Learn the Beautiful State"
+      }
+    },
+    "sereneMindPractice": {
+      "meta": {
+        "title": "Serene Mind Meditation: A 3-Minute Stress Practice",
+        "description": "A simple serene mind meditation to calm stress in 3 minutes. Learn the breath technique and when to use it, step by step.",
+        "articleHeadline": "Serene Mind Meditation: A 3-Minute Practice for Stress",
+        "articleDescription": "A step-by-step Serene Mind breathing practice from Sri Preethaji & Sri Krishnaji to calm stress and reset the nervous system in three minutes.",
+        "publicShellTitle": "Serene Mind Practice"
+      },
+      "header": {
+        "title": "Serene Mind Meditation: A 3-Minute Practice for Stress",
+        "subtitle": "Stress shows up as a tight chest before a meeting, a racing mind at 2am, or irritability with people you love. Serene Mind — taught by Sri Preethaji & Sri Krishnaji — is designed to interrupt that stress response quickly, using breath and attention rather than willpower."
+      },
+      "whatIs": {
+        "heading": "What Is Serene Mind?",
+        "body": "Serene Mind is a breathing-based technique that slows your breath rate to roughly 4 to 6 breaths per minute. At this pace, your nervous system shifts out of a stress response into a calmer, regulated state. Physiologically, slower breathing increases heart rate variability and signals safety to the body. Spiritually, it creates the internal quiet needed to step out of self-centric thinking.",
+        "whyRateHeading": "Why Breath Rate Matters",
+        "whyRateBody": "Most people breathe 12 to 20 times a minute — faster still under stress. Deliberately slowing this is one of the fastest ways to change your internal state without needing special conditions or equipment."
+      },
+      "steps": {
+        "heading": "The 3-Minute Practice, Step by Step",
+        "step1Title": "Step 1: Find a Still Point (20 seconds)",
+        "step1Body": "Sit or stand with your spine reasonably upright. You do not need silence — a parked car, a bathroom stall, or your desk chair all work.",
+        "step2Title": "Step 2: Slow the Inhale and Exhale (90 seconds)",
+        "step2Body": "Breathe in slowly for a count of 5, and out for 5 to 6. Don't strain. If 5 feels too long, start at 4 and build up over days. Keep this rhythm for about ten to fifteen rounds.",
+        "step3Title": "Step 3: Soften the Body (30 seconds)",
+        "step3Body": "With each exhale, consciously release tension from your jaw, shoulders, and hands. This is often where the sharpest change in feeling happens — the body leads the mind into calm.",
+        "step4Title": "Step 4: Widen Awareness (40 seconds)",
+        "step4Body": "Instead of following the same anxious thought loop, gently notice sounds around you, the temperature of the air, or a simple point of gratitude. This interrupts the mental story fueling the stress.",
+        "step5Title": "Step 5: Set an Intention",
+        "step5Body": "Before opening your eyes, silently decide how you want to move into the next task — calm, clear, patient. This turns the practice from an escape into something that shapes your next actions."
+      },
+      "whenToUse": {
+        "heading": "When to Use Serene Mind",
+        "item1": "Before a difficult conversation or meeting",
+        "item2": "When you notice racing thoughts or a tight chest",
+        "item3": "Right after waking, before checking your phone",
+        "item4": "Before responding to a triggering message or email",
+        "item5": "During a work break, as a reset instead of scrolling",
+        "note": "The goal isn't to save this for a crisis. Used regularly during ordinary moments, it becomes far more effective when real stress hits, because your body already knows the pattern."
+      },
+      "mistakes": {
+        "heading": "Common Mistakes",
+        "item1Title": "Forcing the Breath",
+        "item1Body": "Straining to hit a specific count creates more tension. Adjust to what feels sustainable.",
+        "item2Title": "Expecting Instant Silence",
+        "item2Body": "Thoughts don't disappear in three minutes. The aim is to loosen their grip, not achieve a blank mind.",
+        "item3Title": "Only Using It in Emergencies",
+        "item3Body": "Practicing only when overwhelmed makes it harder to access in the moment. Regular short sessions build the skill so it's available when you need it most."
+      },
+      "doorway": {
+        "heading": "A Doorway to Deeper Practice",
+        "part1": "Serene Mind is often a starting point that opens into the ",
+        "beautifulStateLink": "Beautiful State",
+        "part2": " — a broader practice of stepping out of self-centric thinking into connectedness and clarity. You can ",
+        "findPracticesLink": "find more guided practices",
+        "part3": " to build on this foundation, or ",
+        "aiCompanionLink": "learn how an AI companion can guide daily practice",
+        "part4": " between sessions."
+      },
+      "faqs": {
+        "heading": "Frequently asked questions",
+        "q1": "What is Serene Mind meditation?",
+        "a1": "Serene Mind is a short breathing-based meditation practice from Sri Preethaji & Sri Krishnaji's teachings that slows your breath to about 4 to 6 breaths per minute, helping calm the nervous system and quiet reactive thinking in just a few minutes.",
+        "q2": "Can a 3-minute meditation really reduce stress?",
+        "a2": "Yes. Slowing your breathing rate for even a few minutes shifts your body out of a stress response by increasing heart rate variability and signaling safety to the nervous system. Consistency matters more than length.",
+        "q3": "How often should I practice Serene Mind?",
+        "a3": "Ideally several short sessions throughout the day rather than one long session. Practicing during calm moments — not just during crises — builds the skill so it's easier to access when real stress hits.",
+        "q4": "What if my mind won't quiet down during the practice?",
+        "a4": "That's normal and expected. The goal isn't a blank mind — it's a calmer body and a slightly looser grip on anxious thoughts. Focus on the breath and body sensations rather than forcing thoughts away.",
+        "q5": "Is Serene Mind the same as Beautiful State?",
+        "a5": "They're related but distinct. Serene Mind is a specific breath practice that calms the mind, often serving as a doorway into the Beautiful State — a broader state of love, clarity, and connectedness."
+      },
+      "cta": {
+        "heading": "Practice With Guidance",
+        "body": "If stress feels like more than a passing moment, or you want help identifying what's actually driving it, talk it through for a guided reflection tailored to what you're facing right now.",
+        "chatButton": "Talk it through in chat",
+        "exploreButton": "Explore all practices"
+      }
+    },
+    "spiritualGuideForAnxiety": {
+      "meta": {
+        "title": "AI Spiritual Guide for Anxiety: Calm the Mind",
+        "description": "Feeling anxious? Explore an AI spiritual guide for anxiety with breath practices, Beautiful State tools, and grounded daily steps.",
+        "articleHeadline": "An AI Spiritual Guide for Anxiety: Practical Steps to Find Calm",
+        "articleDescription": "A grounded guide to using an AI spiritual companion and Preethaji-Krishnaji-rooted practices to move through anxiety.",
+        "publicShellTitle": "Spiritual Guide for Anxiety"
+      },
+      "header": {
+        "title": "An AI Spiritual Guide for Anxiety: Practical Steps to Find Calm",
+        "subtitle": "Anxiety often feels like a storm you can't step outside of — racing thoughts, a tight chest, a mind that won't stop rehearsing worst-case scenarios. Spiritual help for anxiety isn't about bypassing the feeling; it's about changing the inner state that keeps generating it."
+      },
+      "notInHead": {
+        "heading": "Why Anxiety Isn't Just \"In Your Head\"",
+        "part1": "Anxiety usually arises from self-centric thinking — the mind's constant loop of \"what if,\" \"what will they think,\" or \"what if I lose this.\" Understanding ",
+        "selfCentricLink": "how self-centric thinking fuels anxious spirals",
+        "part2": " is often the first real relief, because it shows you the anxiety has a shape — and shapes can shift.",
+        "sufferingStateHeading": "The Suffering State Behind the Symptoms",
+        "sufferingStateBody": "What we call anxiety is often the body and mind caught in what Preethaji & Krishnaji call a suffering state — driven by fear, urgency, and the need to control outcomes. Recognizing you're in this state, without judging yourself for it, is a meaningful first move."
+      },
+      "howAiHelps": {
+        "heading": "How an AI Spiritual Guide Can Help in the Moment",
+        "body1": "When anxiety spikes, having somewhere to turn — day or night — matters. An AI spiritual guide offers a grounded, non-judgmental space to name what you're feeling, ask a clarifying question, and be pointed toward a practice that fits the moment. It won't replace human connection or professional care, but it can be a steady companion between those touchpoints — especially at 2am when anxious thoughts feel loudest.",
+        "practicalHeading": "What This Looks Like Practically",
+        "body2": "You might describe what's looping in your mind and, instead of advice, receive a reflective question that helps you see the underlying fear — or be guided into a short breathing practice designed to shift your nervous system before your thoughts do the same."
+      },
+      "approach": {
+        "heading": "Meditation for Anxiety: A Spiritual Approach",
+        "step1Title": "Step 1: Slow the Breath",
+        "step1Body": "Anxious breathing is shallow and fast. Slowing to roughly 4 to 6 breaths per minute — a longer exhale than inhale — signals safety to your nervous system before your mind catches up.",
+        "step2Title": "Step 2: Name the State, Not Just the Thought",
+        "step2Body": "Instead of arguing with the anxious thought itself, quietly note, \"I'm in a suffering state right now.\" This small shift moves you from being consumed by the thought to observing it.",
+        "step3Title": "Step 3: Practice Serene Mind",
+        "step3Part1": "A short, structured breathing practice can interrupt the anxiety loop faster than willpower alone. Explore ",
+        "sereneMindLink": "the Serene Mind practice",
+        "step3Part2": " for a step-by-step technique you can use anywhere.",
+        "step4Title": "Step 4: Redirect Toward Connection",
+        "step4Body": "Anxiety narrows attention onto yourself and the feared outcome. Gently widen it — think of someone you care about, or a moment you felt safe and connected. This isn't distraction; it's a genuine shift in the state generating your thoughts."
+      },
+      "movingToward": {
+        "heading": "Moving Toward the Beautiful State",
+        "part1": "The aim isn't to suppress anxiety but to gradually spend more time in what Preethaji & Krishnaji call the Beautiful State — a state of clarity, calm, and connectedness that exists beneath the noise. Learn ",
+        "beautifulStateLink": "how to enter the Beautiful State",
+        "part2": " through a simple daily meditation, so calm becomes less of an emergency response and more of a baseline you return to."
+      },
+      "dailyPractice": {
+        "heading": "Building a Daily Practice, Not Just a Rescue Plan",
+        "part1": "Spiritual help for anxiety works best as a daily rhythm rather than a one-time fix. A few minutes of breathwork each morning, a pause before reactive decisions, and an honest check-in with your state throughout the day compound over weeks. You can ",
+        "browsePracticesLink": "browse guided practices",
+        "part2": " to build a routine that fits your life."
+      },
+      "faqs": {
+        "heading": "Frequently asked questions",
+        "q1": "Can an AI spiritual guide really help with anxiety?",
+        "a1": "It can offer grounded reflection, timely practices, and a space to process anxious thoughts between therapy sessions or during moments when no one else is available. It works best as a complement to, not a replacement for, professional mental health care.",
+        "q2": "Is spiritual help for anxiety a substitute for therapy?",
+        "a2": "No. Spiritual practices address the state of consciousness generating anxious thoughts, while therapy addresses clinical patterns, trauma, and diagnosis. If anxiety is severe or persistent, please seek support from a licensed professional alongside any spiritual practice.",
+        "q3": "What is the fastest meditation for anxiety in the moment?",
+        "a3": "Slowing your breath to 4–6 counts in and out for two to three minutes, while silently naming \"suffering state, not truth,\" is often enough to create a noticeable shift before deeper practice.",
+        "q4": "Why does self-centric thinking make anxiety worse?",
+        "a4": "Self-centric thinking keeps attention locked on personal threat and control, which intensifies fear signals. Widening attention toward connection interrupts this loop and calms the nervous system.",
+        "q5": "How often should I practice these techniques?",
+        "a5": "Daily, even briefly, works better than occasional long sessions. Consistency trains your nervous system to return to calm more quickly over time."
+      },
+      "cta": {
+        "heading": "Talk It Through Right Now",
+        "body": "If anxious thoughts are loud today, you don't have to sit with them alone. Start a conversation with the AI spiritual guide for a grounded reflection and a practice suited to this moment.",
+        "chatButton": "Start a conversation",
+        "practicesButton": "Browse guided practices"
+      }
+    },
+    "sufferingToBeautifulState": {
+      "meta": {
+        "title": "Suffering State vs. Beautiful State: How to Shift",
+        "description": "Learn how to move from suffering state to beautiful state with practical steps rooted in Preethaji & Krishnaji's teachings.",
+        "articleHeadline": "How to Move From Suffering State to Beautiful State",
+        "articleDescription": "A step-by-step path from the suffering state to the Beautiful State, grounded in Sri Preethaji & Sri Krishnaji's teachings.",
+        "publicShellTitle": "Suffering to Beautiful State"
+      },
+      "header": {
+        "title": "How to Move From Suffering State to Beautiful State",
+        "subtitle": "Every day, without realizing it, we move between two broad states of consciousness — one driven by fear, comparison, and reactivity, and one marked by love, clarity, and connection. Sri Preethaji & Sri Krishnaji call these the suffering state and the Beautiful State."
+      },
+      "difference": {
+        "heading": "The Core Difference",
+        "body": "The suffering state is characterized by fear, anger, jealousy, or an urgent need to control outcomes. Thoughts move fast, the body tenses, and decisions come from a place of lack. The Beautiful State is different: a calmer, clearer, more connected quality of consciousness where thinking slows, warmth increases, and decisions come from clarity rather than urgency. Neither state is about ignoring real problems — it's about which inner state you solve them from.",
+        "sameSituationHeading": "Same Situation, Two Different States",
+        "sameSituationBody": "Picture receiving critical feedback at work. From a suffering state, you might spiral into self-doubt or defensiveness. From the Beautiful State, the same feedback can be received with curiosity and even gratitude. The event doesn't change — your state does, and that changes everything about how you respond."
+      },
+      "whyDefault": {
+        "heading": "Why We Default to the Suffering State",
+        "part1": "Most of us are trained, often since childhood, to run on self-centric thinking — a near-constant internal narration of what we lack, fear losing, or how we measure up to others. Learn more about ",
+        "selfCentricLink": "how self-centric thinking keeps you in a suffering state",
+        "part2": " and why simply \"trying to be positive\" rarely resolves it."
+      },
+      "steps": {
+        "heading": "A Step-by-Step Path",
+        "step1Title": "Step 1: Notice and Name the State",
+        "step1Body": "Before reacting, pause and ask, \"Which state am I in right now?\" Simply naming \"suffering state\" honestly, without shame, loosens its grip and creates a sliver of choice.",
+        "step2Title": "Step 2: Slow the Breath",
+        "step2Body": "The body and mind move together. Lengthening your breath to about 4 to 6 breaths per minute signals safety to your nervous system and makes a state shift physiologically possible.",
+        "step3Title": "Step 3: Practice Serene Mind",
+        "step3Part1": "For a more structured reset, try ",
+        "sereneMindLink": "the Serene Mind breathing practice",
+        "step3Part2": ", designed to quiet mental noise quickly so the Beautiful State has room to emerge.",
+        "step4Title": "Step 4: Redirect From Self to Connection",
+        "step4Body": "Suffering state thinking narrows focus to \"me and my problem.\" Deliberately widen it: bring to mind someone you love, a moment of genuine connection, or simply the felt sense of being alive. Let feeling lead, not analysis.",
+        "step5Title": "Step 5: Choose the State Before the Action",
+        "step5Part1": "Once you feel even a small shift, act from there. This is the essence of practicing ",
+        "beautifulStateLink": "Beautiful State meditation",
+        "step5Part2": " in daily life rather than only on a cushion."
+      },
+      "whyTakesPractice": {
+        "heading": "Why This Shift Takes Practice, Not Willpower",
+        "body": "The suffering state has years of mental habit behind it, so expect resistance and days when it feels impossible. That's normal. The goal isn't permanent bliss — it's returning to clarity a little faster each time. Progress is measured in how quickly you notice the state, not in never falling into it."
+      },
+      "dailyHabit": {
+        "heading": "Making the Shift a Daily Habit",
+        "part1": "Small, repeated moments matter more than occasional big efforts. Use everyday triggers — a notification, a difficult message, a long queue — as reminders to check your state. You can ",
+        "explorePracticesLink": "explore guided practices",
+        "part2": " built specifically to help you build this awareness over time."
+      },
+      "faqs": {
+        "heading": "Frequently asked questions",
+        "q1": "What exactly is the suffering state?",
+        "a1": "It's a state of consciousness driven by fear, anger, jealousy, or the need to control outcomes, as described by Sri Preethaji & Sri Krishnaji. It shapes reactive thinking and decisions made from lack rather than clarity.",
+        "q2": "How is the Beautiful State different from just \"staying positive\"?",
+        "a2": "Staying positive often means suppressing difficult feelings. The Beautiful State isn't forced positivity — it's a genuine shift in consciousness toward clarity and connection, which can hold difficulty without being consumed by it.",
+        "q3": "How quickly can I move from suffering state to Beautiful State?",
+        "a3": "Even a two to three minute breathing and attention-shifting practice can create a noticeable change. Consistent practice makes the shift faster and more stable over time.",
+        "q4": "Do I need meditation experience to try this?",
+        "a4": "No. The core steps — noticing your state, slowing your breath, and redirecting attention — require willingness more than prior experience.",
+        "q5": "What role does self-centric thinking play in the suffering state?",
+        "a5": "Self-centric thinking is often the engine of the suffering state — it keeps attention locked on personal fear and comparison. Recognizing this pattern is usually the first real step toward the Beautiful State."
+      },
+      "cta": {
+        "heading": "Start Shifting Your State Today",
+        "body": "Reading about the shift is only the beginning — practicing it in real moments is where change happens. If you'd like a guided reflection to help you notice and shift your state right now, start a conversation.",
+        "chatButton": "Start a conversation",
+        "meditationButton": "Learn Beautiful State meditation"
+      }
     }
   }
 }

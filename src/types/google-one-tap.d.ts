@@ -25,6 +25,8 @@ interface GoogleOneTapConfig {
   itp_support?: boolean;
   nonce?: string;
   data_fedcm?: boolean;
+  use_fedcm_for_button?: boolean;
+  use_fedcm_for_prompt?: boolean;
   allowed_parent_origin?: string | string[];
   native_callback?: (response: GoogleOneTapResponse) => void;
   ux_mode?: 'popup' | 'redirect';

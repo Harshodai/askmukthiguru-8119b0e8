@@ -226,6 +226,7 @@ describe('ChatInterface', () => {
           actionDepth: 'one_step',
         }),
         undefined,
+        'en',
       );
     });
 

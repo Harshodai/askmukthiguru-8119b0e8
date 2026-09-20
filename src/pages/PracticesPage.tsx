@@ -28,6 +28,7 @@ interface PracticeCardProps {
 }
 
 const PracticeCard = ({ practice: p, index: i, isFavorited, onToggle }: PracticeCardProps) => {
+  const { t } = useTranslation();
   const A = accentMap[p.accent];
   const { toast } = useToast();
   const isSereneMind = p.slug === 'serene-mind';

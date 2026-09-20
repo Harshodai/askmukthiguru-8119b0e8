@@ -223,3 +223,42 @@ def test_personal_subgraph_maps_edge_type_to_label():
         resp = client.get("/api/kg/personal-subgraph")
         body = resp.json()
         assert body["edges"][0]["label"] == "SELF"
+
+
+def test_personal_subgraph_unauthenticated_returns_401():
+    """Unauthenticated caller without valid session gets 401."""
+    from fastapi import HTTPException
+
+    app = _make_app()
+
+    def _unauthenticated():
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    app.dependency_overrides[require_aal2] = _unauthenticated
+    client = TestClient(app)
+    resp = client.get("/api/kg/personal-subgraph")
+    assert resp.status_code == 401
+
+
+def test_personal_subgraph_user_isolation_cannot_access_other_user():
+    """User A cannot access User B's graph even if attempting param tampering."""
+    app = _make_app()
+    app.dependency_overrides[require_aal2] = lambda: {"id": "user-A", "email": "a@example.com"}
+    client = TestClient(app)
+
+    mock_svc = MagicMock()
+    mock_svc.build_personal_knowledge_graph = AsyncMock(return_value={"nodes": [], "edges": []})
+
+    with patch("app.api.kg.get_container") as mock_get:
+        container = MagicMock()
+        container.memory_service = mock_svc
+        mock_get.return_value = container
+
+        # Attempt to inject user-B via query parameters
+        resp = client.get("/api/kg/personal-subgraph?user_id=user-B&userId=user-B")
+        assert resp.status_code == 200
+        # Verified that memory service is called strictly with authenticated user-A
+        mock_svc.build_personal_knowledge_graph.assert_called_once_with(
+            "user-A", view="personal", limit=50, query=""
+        )
+

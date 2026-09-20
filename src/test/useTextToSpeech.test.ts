@@ -122,7 +122,7 @@ describe('useTextToSpeech', () => {
     });
 
     const [, options] = vi.mocked(window.fetch).mock.calls[0];
-    const body = JSON.parse(String(options.body));
+    const body = JSON.parse(String(options?.body ?? '{}'));
     expect(body.target_language_code).toBe('te');
   });
 
