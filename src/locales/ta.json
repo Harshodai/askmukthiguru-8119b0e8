@@ -356,7 +356,7 @@
     },
     "closeFeedbackPanel": "கருத்து பலகையை மூடு",
     "feedbackCommentPlaceholder": "விருப்பத்தேர்வு: மேலும் எங்களுக்குக் கூறவும்…",
-    "teachingReference": "பாடப்புத்தகம்",
+    "teachingReference": "போதனை குறிப்பு",
     "teaching": "போதனை",
     "clearAnswer": "பதிலைத் தெளிவுபடுத்து",
     "relevantSources": "தொடர்புடைய ஆதாரங்கள்",
@@ -652,7 +652,10 @@
     "sereneMindOfferFooter": "முதலில் போதனையைப் பாருங்கள்; சரியாக உணர்ந்தால் மட்டும் தொடங்குங்கள்.",
     "videoUnavailable": "வீடியோ கிடைக்கவில்லை",
     "videoEmbedUnavailable": "இந்த வீடியோவை உட்பொதிக்க முடியாது",
-    "youTubeThumbnail": "YouTube சிறுபடம்"
+    "youTubeThumbnail": "YouTube சிறுபடம்",
+    "videoSource": "வீடியோ மூலம் {{letter}}",
+    "academyReference": "O&O அகாடமி குறிப்பு",
+    "sourceLabel": "மூலம் {{number}}"
   },
   "notFound": {
     "message": "அய்யோ! பக்கம் கண்டறியப்படவில்லை",
