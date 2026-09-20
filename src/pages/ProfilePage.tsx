@@ -86,6 +86,7 @@ import { ProfileStatTiles } from '@/components/profile/ProfileStatTiles';
 import { SadhanaHeatmap } from '@/components/profile/SadhanaHeatmap';
 import { StreakMilestoneCard } from '@/components/profile/StreakMilestoneCard';
 import { FamiliarityProgressWheel } from '@/components/profile/FamiliarityProgressWheel';
+import { JourneyOverview } from '@/components/profile/JourneyOverview';
 import { TwoFactorSettings } from '@/components/auth/TwoFactorSettings';
 import { useToast } from '@/hooks/use-toast';
 import { useTheme } from '@/hooks/useTheme';
@@ -142,11 +143,11 @@ const ProfilePage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const tabParam = searchParams.get('tab');
-  const PROFILE_TABS = ['profile', 'stats', 'conversations', 'memory', 'settings'] as const;
+  const PROFILE_TABS = ['journey', 'profile', 'stats', 'conversations', 'memory', 'settings'] as const;
   type ProfileTab = typeof PROFILE_TABS[number];
   const initialTab: ProfileTab = PROFILE_TABS.includes(tabParam as ProfileTab)
     ? (tabParam as ProfileTab)
-    : 'profile';
+    : 'journey';
   const [tab, setTab] = useState<ProfileTab>(initialTab);
   const { profile, update } = useProfile();
   const { toast } = useToast();
@@ -192,7 +193,7 @@ const ProfilePage = () => {
   }, [user, profile, resolveName, resolveEmail]);
 
   useEffect(() => {
-    setSearchParams(tab === 'profile' ? {} : { tab }, { replace: true });
+    setSearchParams(tab === 'journey' ? {} : { tab }, { replace: true });
   }, [tab, setSearchParams]);
 
   const [stats, setStats] = useState<MeditationStats>(() => getMeditationStats());
@@ -425,7 +426,7 @@ const ProfilePage = () => {
     <AppShell title={isOnboarding ? "Welcome, Seeker" : "My Profile"}>
       <div className="profile-focus-flow max-w-2xl mx-auto px-4 sm:px-6 py-5 sm:py-8 space-y-5 safe-x safe-bottom">
         {/* ── Profile hero: avatar, name, email, streak — calm, flat, generous ── */}
-        {!isOnboarding && (
+        {!isOnboarding && tab !== 'journey' && (
           <section className="rounded-2xl border border-hairline bg-card px-4 py-5 sm:px-6 sm:py-6 flex items-center gap-4 sm:gap-5" aria-labelledby="profile-name">
             <div className="relative shrink-0">
               <Avatar className="w-16 h-16 sm:w-20 sm:h-20 ring-1 ring-ojas/20">
@@ -511,8 +512,9 @@ const ProfilePage = () => {
             <div className="sticky top-14 z-20 -mx-4 sm:mx-0 px-4 sm:px-0 py-1 bg-background/90 backdrop-blur-xl border-b border-transparent overflow-x-auto momentum-scroll no-tap-highlight">
               <TabsList
                 aria-label="Profile sections"
-                className="inline-flex w-max sm:w-full sm:grid sm:grid-cols-5 gap-0 mb-2 bg-muted/50 p-1 rounded-xl"
+                className="inline-flex w-max sm:w-full sm:grid sm:grid-cols-6 gap-0 mb-2 bg-muted/50 p-1 rounded-xl"
               >
+                <TabsTrigger value="journey" className="rounded-lg min-h-[44px] text-xs px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors">{t('profile.tabs.journey', 'Journey')}</TabsTrigger>
                 <TabsTrigger value="profile" className="rounded-lg min-h-[44px] text-xs px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors">{t('profile.tabs.profile', 'Profile')}</TabsTrigger>
                 <TabsTrigger value="stats" className="rounded-lg min-h-[44px] text-xs px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors">{t('profile.tabs.insights', 'Insights')}</TabsTrigger>
                 <TabsTrigger value="conversations" className="rounded-lg min-h-[44px] text-xs px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors">{t('profile.tabs.conversations', 'Conversations')}</TabsTrigger>
@@ -520,6 +522,26 @@ const ProfilePage = () => {
                 <TabsTrigger value="settings" className="rounded-lg min-h-[44px] text-xs px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors">{t('profile.tabs.settings', 'Settings')}</TabsTrigger>
               </TabsList>
             </div>
+
+            <TabsContent value="journey" className="space-y-6 mt-0">
+              <JourneyOverview
+                displayName={profile.displayName || 'Seeker'}
+                email={user?.email || ''}
+                familiarityLevel={form.familiarityLevel || 'Seeker'}
+                avatarDataUrl={profile.avatarDataUrl}
+                avatarUrl={profile.avatarUrl}
+                stats={stats}
+                conversations={conversations}
+                personalInsights={personalInsights}
+                metrics={metrics}
+                dailyWisdom={dailyTeaching}
+                onNavigate={setTab}
+                onContinueChat={(conversationId) => {
+                  navigate(conversationId ? `/chat?conversation=${conversationId}` : '/chat');
+                }}
+                onPractice={() => navigate('/practices')}
+              />
+            </TabsContent>
 
             <TabsContent value="profile" className="space-y-6 mt-0">
               <Card className="rounded-xl border border-hairline bg-card shadow-none">
