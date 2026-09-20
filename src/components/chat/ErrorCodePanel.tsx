@@ -21,6 +21,11 @@ export const ErrorCodePanel = ({ error, compact = false }: ErrorCodePanelProps) 
     unknown: t('chat.errorCauseUnknown'),
   };
 
+  const isContextExhausted = error.kind === 'context_exhausted';
+  const displayTitle = isContextExhausted ? t('chat.contextLimit.title') : error.title;
+  const displayCause = isContextExhausted ? t('chat.contextLimit.description') : (CAUSE_BY_KIND[error.kind] ?? CAUSE_BY_KIND.unknown);
+  const displayNextStep = isContextExhausted ? t('chat.contextLimit.continueNewChat') : error.nextStep;
+
   const copyTrace = () => {
     const payload = [
       `Code: ${error.code}`,
@@ -58,12 +63,12 @@ export const ErrorCodePanel = ({ error, compact = false }: ErrorCodePanelProps) 
           {copied ? t('common.copied') : t('chat.copyTrace')}
         </button>
       </div>
-      <p className="mt-1.5 font-semibold text-destructive leading-tight">{error.title}</p>
+      <p className="mt-1.5 font-semibold text-destructive leading-tight">{displayTitle}</p>
       <dl className="mt-2 grid grid-cols-[72px_1fr] gap-y-1 gap-x-2 text-[12px] leading-relaxed">
         <dt className="text-muted-foreground">{t('chat.cause')}</dt>
-        <dd className="text-foreground/85">{CAUSE_BY_KIND[error.kind] ?? CAUSE_BY_KIND.unknown}</dd>
+        <dd className="text-foreground/85">{displayCause}</dd>
         <dt className="text-muted-foreground">{t('chat.nextStep')}</dt>
-        <dd className="text-foreground/85">{error.nextStep}</dd>
+        <dd className="text-foreground/85">{displayNextStep}</dd>
       </dl>
       {error.detail && (
         <details className="mt-2">
