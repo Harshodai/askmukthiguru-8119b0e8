@@ -114,6 +114,23 @@ export const ChatInterface = () => {
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
   const [isIncognito, setIsIncognito] = useState(false);
   const [isHandsFreeVoice, setIsHandsFreeVoice] = useState(false);
+  const [hasAuthenticatedSession, setHasAuthenticatedSession] = useState(false);
+  useEffect(() => {
+    let disposed = false;
+    const syncAuth = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!disposed) setHasAuthenticatedSession(Boolean(data.session?.user));
+    };
+    void syncAuth();
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!disposed) setHasAuthenticatedSession(Boolean(session?.user));
+    });
+    return () => {
+      disposed = true;
+      listener.subscription.unsubscribe();
+    };
+  }, []);
+
   const [quotaExceeded, setQuotaExceeded] = useState(false);
   const [quotaMeta, setQuotaMeta] = useState<{ remaining?: number; totalLimit?: number }>({});
   const [responsePreferences, setResponsePreferences] = useState<ResponsePreferences>(() => loadResponsePreferences());
@@ -2182,6 +2199,8 @@ return (
         hasMessages={messages.some(m => m.role === 'user')}
         isIncognito={isIncognito}
         onCloseIncognito={handleCloseIncognito}
+        isPersonalized={hasAuthenticatedSession && !isIncognito}
+        isHandsFreeVoice={isHandsFreeVoice}
         responsePreferences={responsePreferences}
         onResponsePreferencesChange={updateResponsePreferences}
         onResetResponsePreferences={resetResponsePreferences}
