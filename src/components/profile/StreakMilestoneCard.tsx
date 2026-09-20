@@ -24,50 +24,50 @@ interface StreakMilestoneCardProps {
 export const SACRED_MILESTONES: Omit<MilestoneBadge, 'unlocked'>[] = [
   {
     id: 'awakening_spark',
-    name: 'Awakening Spark',
+    name: '3-Day Practice',
     sanskritName: 'Prarambha',
     requiredDays: 3,
-    description: 'Broke the cycle of inertia; ignited three continuous days of contemplative awareness.',
+    description: 'Completed 3 consecutive days of recorded practice.',
     icon: Sparkles,
   },
   {
     id: 'serene_mind_master',
-    name: '7-Day Serene Mind Master',
+    name: '7-Day Practice',
     sanskritName: 'Shanta Manas',
     requiredDays: 7,
-    description: 'Stabilized the vagus nerve and calmed the thought-storm through 7 days of pranayama.',
+    description: 'Completed 7 consecutive days of recorded practice.',
     icon: Flame,
   },
   {
     id: 'witnessing_presence',
-    name: 'Witnessing Presence',
+    name: '14-Day Practice',
     sanskritName: 'Sakshi Bhava',
     requiredDays: 14,
-    description: 'Established the witness self capable of observing reactive emotions without identifying.',
+    description: 'Reached 14 consecutive days of recorded practice.',
     icon: Compass,
   },
   {
     id: 'deeksha_sadhak',
-    name: '21-Day Deeksha Sadhak',
+    name: '21-Day Practice',
     sanskritName: 'Deeksha Sadhana',
     requiredDays: 21,
-    description: 'Rewired neural pathways into persistent Beautiful State through three weeks of sadhana.',
+    description: 'Reached 21 consecutive days of recorded practice.',
     icon: Heart,
   },
   {
     id: 'transformation_tapasya',
-    name: 'Transformation Tapasya',
+    name: '40-Day Practice',
     sanskritName: 'Tapasya Siddhi',
     requiredDays: 40,
-    description: 'Completed a sacred mandala of 40 days of unbroken spiritual contemplation.',
+    description: 'Reached 40 consecutive days of recorded practice.',
     icon: Shield,
   },
   {
     id: 'mukthi_luminary',
-    name: 'Mukthi Luminary',
+    name: '108-Day Practice',
     sanskritName: 'Mukthi Jnani',
     requiredDays: 108,
-    description: 'Attained supreme consistency; 108 days living from unshakeable inner freedom.',
+    description: 'Reached 108 consecutive days of recorded practice.',
     icon: Award,
   },
 ];
@@ -94,7 +94,7 @@ export const StreakMilestoneCard: React.FC<StreakMilestoneCardProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           {/* Animated 3D Flame Avatar */}
-          <div className="relative flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-600 via-saffron-gold to-yellow-400 p-0.5 shadow-lg shadow-saffron-gold/20">
+          <div className="relative flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-ojas/70 via-ojas to-ojas-light p-0.5 shadow-lg shadow-saffron-gold/20">
             <motion.div
               animate={{
                 scale: [1, 1.15, 0.95, 1.08, 1],
@@ -105,7 +105,7 @@ export const StreakMilestoneCard: React.FC<StreakMilestoneCardProps> = ({
                 repeat: Infinity,
                 ease: 'easeInOut',
               }}
-              className="w-full h-full rounded-2xl bg-zinc-950 flex flex-col items-center justify-center"
+              className="w-full h-full rounded-2xl bg-card flex flex-col items-center justify-center"
             >
               <Flame className="w-8 h-8 text-saffron-gold fill-saffron-gold/30 animate-pulse" />
             </motion.div>
@@ -117,7 +117,7 @@ export const StreakMilestoneCard: React.FC<StreakMilestoneCardProps> = ({
                 {currentStreak}
               </span>
               <span className="text-xs font-semibold uppercase tracking-wider text-saffron-gold">
-                Days Unbroken Sadhana
+                Day practice streak
               </span>
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">
@@ -142,7 +142,7 @@ export const StreakMilestoneCard: React.FC<StreakMilestoneCardProps> = ({
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-            <Award className="w-3.5 h-3.5 text-saffron-gold" /> Sacred Milestone Badges
+            <Award className="w-3.5 h-3.5 text-saffron-gold" /> Practice milestones
           </h4>
           <span className="text-xs font-mono text-saffron-gold">
             {milestones.filter((m) => m.unlocked).length} / {milestones.length} Unlocked
