@@ -318,7 +318,10 @@
       "queued": "કતારમાં",
       "analyzing": "તમારો જવાબ તૈયાર કરી રહ્યો છું…",
       "stepLabel": "પગલું {{step}}/{{total}}: {{label}}",
-      "stepProgress": "પગલું {{step}}/{{total}}: {{label}} ({{percentage}}%)"
+      "stepProgress": "પગલું {{step}}/{{total}}: {{label}} ({{percentage}}%)",
+      "rotatingReflecting": "ગુરુજી તમારા પ્રશ્ન પર મનન કરી રહ્યા છે…",
+      "rotatingConnecting": "પવિત્ર જ્ઞાન સાથે જોડાઈ રહ્યા છીએ…",
+      "rotatingAlmostReady": "લગભગ તૈયાર — ઊંડા જ્ઞાનને સમય લાગે છે…"
     },
     "toggleThinking": "વિચાર પ્રક્રિયા ટૉગલ કરો",
     "reflecting": "ચિંતન કરી રહ્યા છે…",
