@@ -185,7 +185,7 @@ function ChatComposerInner({
 
   const handleFormSubmit = (_message: PromptInputMessage, e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    hapticAudio.playDispatchChime();
+    if (!(isTyping || isStreaming)) hapticAudio.playDispatchChime();
     onSubmit(e);
   };
 
@@ -300,7 +300,7 @@ function ChatComposerInner({
           <div className="mx-3 mb-1.5 flex items-center justify-between gap-3 rounded-xl border border-ojas/25 bg-ojas/5 px-3 py-2 text-xs">
             <div className="flex min-w-0 items-center gap-2 text-foreground">
               <AudioLines className="w-3.5 h-3.5 text-ojas shrink-0" />
-              <span className="truncate">Voice conversation is on — speak naturally; the Guru will answer aloud.</span>
+              <span className="truncate">{t('chat.voiceConversationOn', 'Voice conversation is on — speak naturally; the Guru will answer aloud.')}</span>
             </div>
             <button
               type="button"
@@ -356,13 +356,13 @@ function ChatComposerInner({
                   {attachmentsAvailable && (
                     <DropdownMenuItem disabled={isUploading} onClick={() => fileInputRef.current?.click()}>
                       <FileText className="w-4 h-4 mr-2 text-ojas" />
-                      {isUploading ? 'Processing attachment…' : 'Attach media or document'}
+                      {isUploading ? t('chat.processingAttachment', 'Processing attachment…') : t('chat.attachMedia', 'Attach media or document')}
                     </DropdownMenuItem>
                   )}
                   {actionCapabilities.voiceInput && (
                     <DropdownMenuItem onClick={onHandsFreeVoiceToggle}>
                       <AudioLines className="w-4 h-4 mr-2 text-ojas" />
-                      {isHandsFreeVoice ? 'Turn off voice conversation' : 'Voice conversation'}
+                      {isHandsFreeVoice ? t('chat.turnOffVoiceConversation', 'Turn off voice conversation') : t('chat.voiceConversation', 'Voice conversation')}
                     </DropdownMenuItem>
                   )}
                 </DropdownMenuContent>
@@ -407,7 +407,7 @@ function ChatComposerInner({
                   onClick={onStop}
                   className="min-h-[44px] min-w-[44px] sm:h-8 sm:w-8 rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20 flex items-center justify-center"
                   aria-label={t('chat.stop')}
-                  title="Stop generating"
+                  title={t('chat.stopGenerating', 'Stop generating')}
                 >
                   <Square className="w-3.5 h-3.5 fill-current" />
                 </PromptInputSubmit>
@@ -417,11 +417,11 @@ function ChatComposerInner({
                     type="submit"
                     size="icon-sm"
                     className="min-h-[44px] sm:h-9 px-3 rounded-xl bg-saffron-gold text-zinc-950 hover:bg-amber-400 font-semibold text-xs shadow-md transition-all flex items-center gap-1.5"
-                    aria-label="Queue message"
-                    title="Queue follow-up message"
+                    aria-label={t('chat.queueMessage', 'Queue message')}
+                    title={t('chat.queueMessage', 'Queue follow-up message')}
                   >
                     <CornerDownLeft className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Queue</span>
+                    <span className="hidden sm:inline">{t('chat.queueFollowUp', 'Queue')}</span>
                   </PromptInputSubmit>
                 )}
               </div>
@@ -441,13 +441,10 @@ function ChatComposerInner({
       </PromptInput>
 
       {isLandingMode && (
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="text-[10px] text-center text-muted-foreground mt-1.5 select-none leading-tight"
-        >
-          {t('chat.aiCompanionNotice')}
-        </motion.p>
+        <div className="mt-1.5 flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground select-none">
+          <span className="hidden sm:inline">{t('chat.keyboardHint', 'Enter to send · Shift+Enter for a new line')}</span>
+          <span className="sm:hidden">{t('chat.aiCompanionNotice')}</span>
+        </div>
       )}
     </motion.div>
   );
