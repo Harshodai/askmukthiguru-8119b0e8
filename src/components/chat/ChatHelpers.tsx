@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { Sparkles, BookOpen } from 'lucide-react';
 import type { MessageError, MessageErrorKind } from '@/lib/chatStorage';
 import { greetingPrefix } from '@/lib/greeting';
@@ -37,6 +38,7 @@ export const OptimisticPlaceholder = () => (
 );
 
 export const SlowResponseHint = ({ visible }: { visible: boolean }) => {
+  const { t } = useTranslation();
   const [phase, setPhase] = useState<'normal' | 'slow' | 'verySlow'>('normal');
   useEffect(() => {
     if (!visible) {
@@ -52,10 +54,10 @@ export const SlowResponseHint = ({ visible }: { visible: boolean }) => {
   }, [visible]);
   const text =
     phase === 'verySlow'
-      ? 'Still drawing from the teachings — long answers take a moment.'
+      ? t('chat.stillWorking')
       : phase === 'slow'
-        ? 'Drawing from the teachings…'
-        : 'Delving deep into ancient wisdom for your answer';
+        ? t('chat.drawingFromTeachings')
+        : t('chat.reflecting');
   return <p className="text-[11px] text-muted-foreground/70 pl-1">{text}</p>;
 };
 
