@@ -317,7 +317,10 @@
       "queued": "ಸರದಿಯಲ್ಲಿ",
       "analyzing": "ನಿಮ್ಮ ಉತ್ತರವನ್ನು ಸಿದ್ಧಪಡಿಸುತ್ತಿದ್ದೇನೆ…",
       "stepLabel": "ಹಂತ {{step}}/{{total}}: {{label}}",
-      "stepProgress": "ಹಂತ {{step}}/{{total}}: {{label}} ({{percentage}}%)"
+      "stepProgress": "ಹಂತ {{step}}/{{total}}: {{label}} ({{percentage}}%)",
+      "rotatingReflecting": "ಗುರುಜಿ ನಿಮ್ಮ ಪ್ರಶ್ನೆಯ ಕುರಿತು ಮನನ ಮಾಡುತ್ತಿದ್ದಾರೆ…",
+      "rotatingConnecting": "ಪವಿತ್ರ ಜ್ಞಾನಕ್ಕೆ ಸಂಪರ್ಕಿಸುತ್ತಿದ್ದೇವೆ…",
+      "rotatingAlmostReady": "ಬಹುತೇಕ ಸಿದ್ಧ — ಆಳವಾದ ಜ್ಞಾನಕ್ಕೆ ಸಮಯ ಬೇಕಾಗುತ್ತದೆ…"
     },
     "toggleThinking": "ಆಲೋಚನಾ ವಿವರಗಳನ್ನು ಬದಲಿಸಿ",
     "reflecting": "ಶಿಕ್ಷಣದ ಮೇಲೆ ಆಧಾರಿತವಾದ ಆಧ್ಯಾತ್ಮಿಕ ಸಂಭಾಷಣೆಯನ್ನು ನಡೆಸುತ್ತಿದ್ದೇನೆ…",
