@@ -35,6 +35,7 @@ from app.grounding import grounding_state_for
 from app.release_manifest import to_public_manifest_dict
 from app.sanitization import sanitize_log_input, sanitize_user_input
 from app.schemas import ChatRequest, ChatResponse, MessagePayload
+from services.chat_context_budget import CONTEXT_ERROR_CODE, assess_conversation_context
 from app.security_utils import is_benchmark_request
 from services.anon_quota_port import QuotaResult
 from services.auth_service import (
@@ -510,6 +511,33 @@ async def generate_title_endpoint(
     return {"title": fallback}
 
 
+def _conversation_context_limit_response(chat_body: ChatRequest) -> JSONResponse | None:
+    """Return a stable 409 when the durable thread exceeds the safe input budget."""
+    budget = assess_conversation_context(
+        [message.model_dump() for message in chat_body.messages],
+        chat_body.user_message,
+        chat_body.language or "en",
+    )
+    if not budget.exhausted:
+        return None
+
+    logger.warning(
+        "CHAT_CONTEXT_LIMIT_EXCEEDED estimated_tokens=%d max_input_tokens=%d session_id=%s",
+        budget.estimated_tokens,
+        budget.max_input_tokens,
+        "present" if chat_body.session_id else "absent",
+    )
+    return JSONResponse(
+        status_code=409,
+        content={
+            "error": "Conversation context exhausted",
+            "error_code": CONTEXT_ERROR_CODE,
+            "detail": "This conversation has reached its safe context limit. Start a new chat to continue.",
+            "context_budget": budget.to_dict(),
+        },
+    )
+
+
 @router.post("/chat", response_model=None)
 @limiter.limit(settings.chat_rate_limit)
 @record_token_usage(endpoint="/api/chat")
@@ -563,6 +591,11 @@ async def chat_endpoint(
         # leak the quota reservation taken at admission.
         await _release_anon_quota(user, container, quota)
         raise
+
+    context_limit_response = _conversation_context_limit_response(chat_body)
+    if context_limit_response is not None:
+        await _release_anon_quota(user, container, quota)
+        return context_limit_response
 
     if (
         container.job_queue
