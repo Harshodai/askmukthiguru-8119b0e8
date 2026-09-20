@@ -68,6 +68,7 @@ export const MessageList = React.memo(({
   streamingId,
   streamingContent,
   onRegenerate,
+  onStartNewChat,
   onEditUserMessage,
   onSubmitEdit,
   onAction,
@@ -78,6 +79,7 @@ export const MessageList = React.memo(({
   streamingId?: string;
   streamingContent?: string;
   onRegenerate?: () => void;
+  onStartNewChat?: () => void;
   onEditUserMessage?: (message: Message) => void;
   onSubmitEdit?: (messageId: string, newContent: string) => void;
   scrollContainerRef?: React.RefObject<HTMLDivElement>;
