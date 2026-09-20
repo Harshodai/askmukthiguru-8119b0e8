@@ -244,13 +244,13 @@ function ChatComposerInner({
         />
 
         {attachedFiles && attachedFiles.length > 0 && (
-          <div className="flex flex-wrap gap-2 px-5 pt-2 pb-1">
+          <div className="flex flex-wrap gap-2 px-5 pt-2 pb-1" dir="auto">
             {attachedFiles.map((file) => (
               <div
                 key={file.id}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] text-zinc-300 select-none"
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-muted/40 border border-border/60 text-[11px] text-foreground/80 select-none"
               >
-                <span className="font-medium text-emerald-400 font-mono truncate max-w-[120px]">
+                <span className="font-medium text-ojas font-mono truncate max-w-[120px]">
                   {file.name}
                 </span>
                 <span className="text-[9px] text-muted-foreground font-mono">
@@ -260,7 +260,7 @@ function ChatComposerInner({
                   type="button"
                   onClick={() => onRemoveFile(file.id)}
                   aria-label={`Remove file ${file.name}`}
-                  className="p-0.5 rounded-full hover:bg-zinc-850 text-muted-foreground hover:text-zinc-200 transition-colors"
+                  className="p-0.5 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -290,6 +290,8 @@ function ChatComposerInner({
                   : t('chat.inputPlaceholder')
           }
           rows={1}
+          dir={currentLanguage === 'ur' ? 'rtl' : 'auto'}
+          enterKeyHint="send"
           aria-label={t('chat.yourMessage') === 'chat.yourMessage' ? 'Your message' : t('chat.yourMessage')}
           className="min-h-9 max-h-[120px] w-full bg-transparent border-none outline-none resize-none px-4 pt-4 pb-1 text-foreground placeholder:text-muted-foreground/60 text-[15px] leading-relaxed scrollbar-spiritual focus:ring-1 focus:ring-ojas/30 disabled:opacity-50 disabled:cursor-not-allowed"
           style={{ minHeight: '28px' }}
@@ -307,7 +309,7 @@ function ChatComposerInner({
               onClick={onHandsFreeVoiceToggle}
               className="shrink-0 rounded-lg px-2 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
             >
-              Stop
+              {t('chat.stop', 'Stop')}
             </button>
           </div>
         )}
