@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 
-const MESSAGES = [
-  { after: 0,  text: 'Guru is reflecting on your question…' },
-  { after: 5,  text: 'Connecting to sacred wisdom…' },
-  { after: 15, text: 'Contemplating deeply — this may take a moment…' },
-  { after: 30, text: 'The answer is taking form…' },
-  { after: 55, text: 'Almost ready — deep wisdom takes time…' },
-];
+const MESSAGE_KEYS = [
+  { after: 0, key: 'chat.reflecting' },
+  { after: 5, key: 'chat.drawingFromTeachings' },
+  { after: 15, key: 'chat.contemplating' },
+  { after: 30, key: 'chat.answerTakingShape' },
+  { after: 55, key: 'chat.stillWorking' },
+] as const;
 
 /**
  * Rotating "still thinking" status while a streaming answer hasn't produced
@@ -14,6 +15,7 @@ const MESSAGES = [
  * 15–45s OpenRouter latency window.
  */
 export function useThinkingStatus(isStreaming: boolean, hasContent: boolean): string | null {
+  const { t } = useTranslation();
   const [elapsed, setElapsed] = useState(0);
   const startRef = useRef<number | null>(null);
 
@@ -32,7 +34,7 @@ export function useThinkingStatus(isStreaming: boolean, hasContent: boolean): st
 
   if (!isStreaming || hasContent) return null;
 
-  let msg = MESSAGES[0].text;
-  for (const m of MESSAGES) if (elapsed >= m.after) msg = m.text;
-  return msg;
+  let key = MESSAGE_KEYS[0].key;
+  for (const m of MESSAGE_KEYS) if (elapsed >= m.after) key = m.key;
+  return t(key);
 }
