@@ -275,7 +275,7 @@
     "references": "ਹਵਾਲੇ",
     "sourceDocuments": "ਸਰੋਤ ਦਸਤਾਵੇਜ਼",
     "videoLessons": "ਵੀਡੀਓ ਪਾਠ ({{count}})",
-    "watchOnYouTube": "YouTube 'ਤੇ ਦੇਖੋ ↗",
+    "watchOnYouTube": "YouTube 'ਤੇ ਵੇਖੋ ↗",
     "playYouTube": "YouTube ਵੀਡੀਓ ਚਲਾਓ",
     "openSources_one": "ਸਰੋਤ ਪੈਨਲ ਖੋਲ੍ਹੋ ({{count}} ਸਰੋਤ)",
     "openSources_other": "ਸਰੋਤ ਪੈਨਲ ਖੋਲ੍ਹੋ ({{count}} ਸਰੋਤ)",
@@ -647,7 +647,13 @@
       "editingNotice": "ਸੋਧ ਜਾਰੀ ਹੈ — ਪਿਛਲੇ ਜਵਾਬ ਮੁੜ ਤਿਆਰ ਕੀਤੇ ਜਾਣਗੇ",
       "unverified": "ਮੈਂ ਜੁੜੇ ਸਰੋਤ ਨਾਲ ਇਸ ਹਵਾਲਾ ਦਿੱਤੀ ਸਿੱਖਿਆ ਦੀ ਪੁਸ਼ਟੀ ਨਹੀਂ ਕਰ ਸਕਿਆ, ਇਸ ਲਈ ਇਸਨੂੰ ਗੁਰੂ ਦੀ ਸਿੱਖਿਆ ਵਜੋਂ ਪੇਸ਼ ਨਹੀਂ ਕਰ ਰਿਹਾ। ਆਧਾਰਿਤ ਜਵਾਬ ਲਈ ਮੁੜ ਕੋਸ਼ਿਸ਼ ਕਰੋ।"
     },
-    "verifiedAt": "ਪ੍ਰਮਾਣਿਤ: {{date}}"
+    "verifiedAt": "ਪ੍ਰਮਾਣਿਤ: {{date}}",
+    "unverifiedTeaching": "ਮੈਂ ਹਵਾਲਾ ਦਿੱਤੀ ਸਿੱਖਿਆ ਦੀ ਜੁੜੇ ਸਰੋਤ ਰਾਹੀਂ ਪੁਸ਼ਟੀ ਨਹੀਂ ਕਰ ਸਕਿਆ, ਇਸ ਲਈ ਇਸਨੂੰ ਗੁਰੂ ਦੀ ਸਿੱਖਿਆ ਵਜੋਂ ਪੇਸ਼ ਨਹੀਂ ਕਰ ਰਿਹਾ। ਸਰੋਤ-ਅਧਾਰਿਤ ਜਵਾਬ ਲਈ ਮੁੜ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
+    "sereneMindOfferDefaultReason": "ਇੱਕ ਛੋਟੀ ਕਿਰਿਆ ਤੁਹਾਨੂੰ ਠਹਿਰਣ ਅਤੇ ਮੁੜ ਆਪਣੇ ਨਾਲ ਜੁੜਨ ਵਿੱਚ ਮਦਦ ਕਰ ਸਕਦੀ ਹੈ।",
+    "sereneMindOfferFooter": "ਪਹਿਲਾਂ ਸਿੱਖਿਆ; ਸਹੀ ਲੱਗੇ ਤਾਂ ਹੀ ਸ਼ੁਰੂ ਕਰੋ।",
+    "videoUnavailable": "ਵੀਡੀਓ ਉਪਲਬਧ ਨਹੀਂ",
+    "videoEmbedUnavailable": "ਇਸ ਵੀਡੀਓ ਨੂੰ ਐਂਬੇਡ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਦਾ",
+    "youTubeThumbnail": "YouTube ਥੰਬਨੇਲ"
   },
   "notFound": {
     "message": "ਓਹੋ! ਪੰਨਾ ਨਹੀਂ ਮਿਲਿਆ",
