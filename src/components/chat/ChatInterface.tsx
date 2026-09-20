@@ -1859,6 +1859,12 @@ const handleSendNowQueued = useCallback((id: string) => {
 const handleEditQueued = useCallback((id: string) => {
   const target = queuedMessagesRef.current.find((m) => m.id === id);
   if (!target) return;
+  // Preserve the queued turn's language when editing. The selector visibly follows
+  // the restored language, but this does not persist a profile preference change.
+  if (target.language) {
+    setCurrentLanguage(target.language);
+    setAILanguage(target.language);
+  }
   setInputValue(target.text);
   if (target.attachedFiles) {
     setAttachedFiles(target.attachedFiles.map((f) => ({ id: crypto.randomUUID(), ...f })));
