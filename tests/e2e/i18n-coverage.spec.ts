@@ -13,7 +13,7 @@ const LOCALES = ["en", "hi", "te", "kn", "ta", "mr", "bn", "gu", "ml", "ur", "or
 
 // Public routes reachable without auth. Authenticated routes are covered by
 // e2e/session.spec.ts once a real Google OAuth session is available in CI.
-const PUBLIC_ROUTES = ["/", "/auth", "/privacy", "/terms", "/practices", "/spirit-guides"];
+const PUBLIC_ROUTES = ["/", "/auth", "/privacy", "/terms", "/practices", "/spirit-guides", "/chat"];
 
 test.describe("i18n route coverage", () => {
   for (const lang of LOCALES) {
@@ -36,6 +36,12 @@ test.describe("i18n route coverage", () => {
         // Some locales fall back to en at runtime — accept either the requested
         // lang or `en`, but never empty.
         expect(html, `html[lang] on ${route}`).toBeTruthy();
+        if (lang === 'ur') {
+          expect(html).toBe('ur');
+          await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
+        } else {
+          await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
+        }
 
         // Screenshot the top viewport for manual review of any leaks.
         await page.screenshot({
