@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { useTranslation } from 'react-i18next';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -107,7 +108,7 @@ export const MoodCheckIn = ({ isOpen, onClose, micHook = null }: MoodCheckInProp
             <div className="glass-card rounded-3xl bg-card/90 border border-border/40 shadow-2xl p-6 text-center">
               <button
                 onClick={onClose}
-                aria-label="Close"
+                aria-label={t('common.close')}
                 className="absolute top-3 right-3 p-2 rounded-full hover:bg-muted"
               >
                 <X className="w-4 h-4 text-muted-foreground" />
