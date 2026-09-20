@@ -71,6 +71,8 @@ const getNodeVisual = (type: string) =>
   TYPE_STYLES[type?.toLowerCase()] ?? { accent: '#a1a1aa', soft: 'rgba(161,161,170,.10)', icon: '•' };
 
 const KNOWN_TEACHERS = new Set(['Sri Preethaji', 'Sri Krishnaji']);
+const NODE_WIDTH = 220;
+const NODE_HEIGHT = 104;
 
 type WisdomNodeData = {
   label: string;
@@ -221,7 +223,7 @@ function layoutGraph(data: Subgraph): WisdomFlowNode[] {
         contentPreview: node.content_preview,
         degree: degree.get(node.id) ?? 0,
       },
-      style: { width: 220 } satisfies CSSProperties,
+      style: { width: NODE_WIDTH } satisfies CSSProperties,
     };
   });
 }
@@ -230,8 +232,8 @@ function directionalHandles(
   source: { x: number; y: number },
   target: { x: number; y: number },
 ) {
-  const dx = target.x - source.x;
-  const dy = target.y - source.y;
+  const dx = (target.x + NODE_WIDTH / 2) - (source.x + NODE_WIDTH / 2);
+  const dy = (target.y + NODE_HEIGHT / 2) - (source.y + NODE_HEIGHT / 2);
   const horizontal = Math.abs(dx) >= Math.abs(dy);
 
   if (horizontal) {
