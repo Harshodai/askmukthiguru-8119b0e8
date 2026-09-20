@@ -439,7 +439,7 @@
     "selectLanguage": "ভাষা বাছক",
     "searchLanguages": "{{count}} টা ভাষা অনুসন্ধান কৰক…",
     "autoTranslateNotice": "বাৰ্তাসমূহ আপোনাৰ পছন্দৰ ভাষাত স্বয়ংক্ৰিয়ভাৱে অনুবাদ কৰা হয়।",
-    "noLangMatch": "\"{{query}}\"ৰ সৈতে কোনো ভাষা মিল খোৱা নাই",
+    "noLangMatch": "আপোনাৰ সন্ধানৰ সৈতে কোনো ভাষা মিল নাখালে।",
     "localVoiceEnabled": "স্থানীয় ডিভাইচৰ কণ্ঠ সক্ষম কৰা হ'ল",
     "voiceNotInBrowser": "এই ব্ৰাউজাৰত ভইচ সমৰ্থিত নহয়",
     "cloudVoice": "ক্লাউড কণ্ঠ",
@@ -532,6 +532,28 @@
       "title": "কথোপকথনৰ প্ৰসংগ সীমা পূৰণ হৈছে",
       "description": "এই কথোপকথনে ইয়াৰ সুৰক্ষিত প্ৰসংগ সীমাত উপনীত হৈছে। আগবঢ়াই নিবলৈ এটা নতুন চেট আৰম্ভ কৰক।",
       "continueNewChat": "নতুন চেটত আগবঢ়াই নিন"
+    },
+    "keyboardHint": "পঠিয়াবলৈ Enter · নতুন শাৰীৰ বাবে Shift+Enter",
+    "processingAttachment": "এটাচমেণ্ট প্ৰস্তুত কৰা হৈছে…",
+    "attachMedia": "মিডিয়া বা নথি সংলগ্ন কৰক",
+    "voiceConversationOn": "ভইচ কথোপকথন অন আছে — স্বাভাৱিকভাৱে কওক; গুৰুৱে কণ্ঠত উত্তৰ দিব।",
+    "turnOffVoiceConversation": "ভইচ কথোপকথন বন্ধ কৰক",
+    "voiceConversation": "ভইচ কথোপকথন",
+    "queueMessage": "বাৰ্তাটো কিউত ৰাখক",
+    "queueFollowUp": "কিউত ৰাখক",
+    "stopGenerating": "উত্তৰ সৃষ্টি কৰা বন্ধ কৰক",
+    "queue": {
+      "messageQueued": "বাৰ্তা কিউত আছে",
+      "messagesQueued": "বাৰ্তাসমূহ কিউত আছে",
+      "autoDispatch": "বৰ্তমান উত্তৰৰ পিছত স্বয়ংক্ৰিয়ভাৱে পঠিয়াব",
+      "clearAll": "সকলো পৰিষ্কাৰ কৰক",
+      "fileAttached": "ফাইল সংলগ্ন",
+      "filesAttached": "ফাইলসমূহ সংলগ্ন",
+      "sendNowTitle": "এতিয়াই পঠিয়াওক — বৰ্তমান উত্তৰ বন্ধ হ'ব",
+      "sendNow": "এতিয়াই পঠিয়াওক",
+      "edit": "বাৰ্তা সম্পাদনা কৰক",
+      "remove": "কিউৰ পৰা আঁতৰাওক",
+      "regionLabel": "কিউত থকা বাৰ্তাসমূহ"
     }
   },
   "notFound": {
