@@ -303,7 +303,23 @@
     "copyTrace": "ट्रेस कॉपी करा",
     "cause": "कारण",
     "nextStep": "पुढचे पाऊल",
-    "thinking": "चिंतन",
+    "thinking": {
+      "safety": "सुरक्षा तपासणी",
+      "understanding": "तुमचा प्रश्न समजून घेत आहे",
+      "searching": "शिक्षणांमध्ये शोधत आहे",
+      "reranking": "सुसंगतता सुधारत आहे",
+      "filtering": "सुसंगतता तपासत आहे",
+      "synthesizing": "शिक्षणे एकत्र पाहत आहे",
+      "composing": "मार्गदर्शन तयार करत आहे",
+      "verifying": "शिक्षण स्रोतांची पडताळणी करत आहे",
+      "hello": "नमस्कार",
+      "practice": "सरावासाठी मार्गदर्शन",
+      "contemplating": "चिंतन करत आहे",
+      "queued": "रांगेत",
+      "analyzing": "तुमचे उत्तर तयार करत आहे…",
+      "stepLabel": "पायरी {{step}}/{{total}}: {{label}}",
+      "stepProgress": "पायरी {{step}}/{{total}}: {{label}} ({{percentage}}%)"
+    },
     "toggleThinking": "विचार तपशील टॉगल करा",
     "reflecting": "शिकवणींवर विचार करत आहे...",
     "stillWorking": "अजून काम चालू आहे...",
@@ -583,6 +599,10 @@
       "personalMemoryUsed": "पात्र वैयक्तिक स्मृती/संदर्भ उत्तर मॉडेलला दिला गेला.",
       "graphMatched": "तुमच्या वैयक्तिक संदर्भ ग्राफने {{count}} संकल्पना लिंक जुळवल्या.",
       "privateMemoryNotShown": "वैयक्तिक स्मृतीचा मजकूर येथे दाखवला जात नाही."
+    },
+    "teachingContext": {
+      "title": "या उत्तरामागील आधारभूत शिक्षणे",
+      "sourceCount": "{{count}} संबंधित शिक्षणे सापडली"
     }
   },
   "notFound": {
