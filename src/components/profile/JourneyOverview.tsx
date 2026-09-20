@@ -174,7 +174,7 @@ export const JourneyOverview = ({
                     className="w-full rounded-2xl border border-hairline bg-background/40 px-4 py-3 text-left hover:border-ojas/30 hover:bg-ojas/5 transition-colors"
                   >
                     <p className="font-medium text-sm text-foreground truncate">{conversation.preview || 'Untitled conversation'}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{conversation.updatedAt ? new Date(conversation.updatedAt).toLocaleString() : ''}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{conversation.updatedAt ? conversation.updatedAt.toLocaleString() : ''}</p>
                   </button>
                 ))}
               </div>
