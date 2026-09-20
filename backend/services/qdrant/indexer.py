@@ -81,6 +81,7 @@ class QdrantIndexer:
         vectors: list[list[float]],
         metadatas: list[dict],
         sparse_vectors: Optional[list[dict]] = None,
+        replace_source_url: Optional[str] = None,
     ) -> int:
         """
         Batch upsert text chunks with dense + optional sparse vectors.
@@ -88,6 +89,13 @@ class QdrantIndexer:
         Uses deterministic IDs based on source_url:chunk_index:raptor_level
         for automatic deduplication on re-ingestion.
         """
+        # Safe source replacement is two-phase: snapshot existing point IDs,
+        # fully upsert the new batch, then delete only stale IDs. This prevents a
+        # failed embed/upsert from erasing a previously healthy source.
+        old_source_ids: set = set()
+        if replace_source_url:
+            old_source_ids = self._source_point_ids(replace_source_url)
+
         len_texts, len_vectors, len_metadatas = len(texts), len(vectors), len(metadatas)
         if not (len_texts == len_vectors == len_metadatas):
             raise ValueError(
@@ -289,6 +297,22 @@ class QdrantIndexer:
                 points=batch,
             )
 
+        if replace_source_url and old_source_ids:
+            new_source_ids = {point.id for point in points}
+            stale_ids = list(old_source_ids - new_source_ids)
+            if stale_ids:
+                self._client.delete(
+                    collection_name=self._collection,
+                    points_selector=stale_ids,
+                )
+                logger.info(
+                    "Source replacement completed: source=%s old_points=%d new_points=%d stale_deleted=%d",
+                    replace_source_url,
+                    len(old_source_ids),
+                    len(new_source_ids),
+                    len(stale_ids),
+                )
+
         logger.info(f"Upserted {len(points)} chunks to {self._collection}")
         return len(points)
 
@@ -335,6 +359,27 @@ class QdrantIndexer:
                 break
             offset = next_offset
         return records
+
+    def _source_point_ids(self, source_url: str, page_size: int = 1000) -> set:
+        """Return every point ID belonging to a source without fetching vectors."""
+        ids: set = set()
+        offset = None
+        while True:
+            page, next_offset = self._client.scroll(
+                collection_name=self._collection,
+                scroll_filter=Filter(
+                    must=[FieldCondition(key="source_url", match=MatchValue(value=source_url))]
+                ),
+                limit=page_size,
+                with_payload=False,
+                with_vectors=False,
+                offset=offset,
+            )
+            ids.update(p.id for p in page)
+            if next_offset is None or not page:
+                break
+            offset = next_offset
+        return ids
 
     def backup_source(self, source_url: str, backup_collection: str) -> bool:
         """
