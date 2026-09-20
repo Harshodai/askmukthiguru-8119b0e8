@@ -653,6 +653,7 @@ export type Database = {
           id: string
           preview: string | null
           retention_days: number
+          summary: string | null
           title: string | null
           updated_at: string
           user_id: string
@@ -663,6 +664,7 @@ export type Database = {
           id?: string
           preview?: string | null
           retention_days?: number
+          summary?: string | null
           title?: string | null
           updated_at?: string
           user_id: string
@@ -673,6 +675,7 @@ export type Database = {
           id?: string
           preview?: string | null
           retention_days?: number
+          summary?: string | null
           title?: string | null
           updated_at?: string
           user_id?: string
