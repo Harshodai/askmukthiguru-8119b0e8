@@ -89,20 +89,30 @@ const PracticeDetailPage = () => {
     const benefitsText = lp!.benefits.map((b) => `• ${b}`).join('\n');
     const mediaText = watchUrl ? `\n\n🎥 *Guided Video:* ${watchUrl}` : '';
     const shareText = `🧘 *${lp!.title}* — ${lp!.tagline} (${lp!.durationLabel})\n\n📖 *How to Practice:*\n${stepsText}\n\n✨ *Key Benefits:*\n${benefitsText}${mediaText}\n\nShared via AskMukthiGuru`;
-    
+    const shareUrl = window.location.href;
+
+    if (typeof navigator.share === 'function') {
+      try {
+        await navigator.share({ title: lp!.title, text: shareText, url: shareUrl });
+        return;
+      } catch (err) {
+        if (err instanceof DOMException && err.name === 'AbortError') return;
+      }
+    }
+
     try {
-      await navigator.clipboard.writeText(shareText);
+      await navigator.clipboard.writeText(`${shareText}\n\n${shareUrl}`);
       setShareCopied(true);
       toast({
-        title: 'Meditation Guide Copied!',
-        description: 'The steps and benefits are copied to your clipboard to share with others.',
+        title: t('common.copied', 'Copied!'),
+        description: 'The practice guide and link were copied to your clipboard.',
       });
       setTimeout(() => setShareCopied(false), 2000);
     } catch (err) {
       console.debug('[PracticeDetail] Clipboard write unavailable:', err);
       toast({
-        title: 'Unable to copy link',
-        description: 'Please copy the steps manually from the page.',
+        title: 'Unable to share',
+        description: 'Please copy the link and practice steps manually.',
         variant: 'destructive',
       });
     }
@@ -152,7 +162,7 @@ const PracticeDetailPage = () => {
                 ) : (
                   <>
                     <Share2 className="w-4 h-4 text-muted-foreground" />
-                    <span className="hidden sm:inline">Share guide</span>
+                    <span className="hidden sm:inline">{t('practices.detail.share')}</span>
                   </>
                 )}
               </Button>
@@ -188,7 +198,7 @@ const PracticeDetailPage = () => {
             <Button asChild variant="outline" size="sm" className="gap-1.5">
               <a href={watchUrl} target="_blank" rel="noopener noreferrer">
                 <ExternalLink className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Open in YouTube</span>
+                <span className="hidden sm:inline">{t('practices.detail.openInYouTube')}</span>
                 <span className="sm:hidden">YouTube</span>
               </a>
             </Button>
@@ -247,7 +257,7 @@ const PracticeDetailPage = () => {
               <Button asChild variant="outline" size="sm" className="gap-1.5">
                 <a href={audioWatch} target="_blank" rel="noopener noreferrer">
                   <ExternalLink className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Open in YouTube</span>
+                  <span className="hidden sm:inline">{t('practices.detail.openInYouTube')}</span>
                   <span className="sm:hidden">YouTube</span>
                 </a>
               </Button>
@@ -271,7 +281,7 @@ const PracticeDetailPage = () => {
         {/* Purpose */}
         <Card>
           <CardHeader>
-            <h2 className="text-base font-semibold leading-none tracking-tight">Why this practice</h2>
+            <h2 className="text-base font-semibold leading-none tracking-tight">{t('practices.detail.whyPractice')}</h2>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-foreground/90 leading-relaxed">
@@ -283,7 +293,7 @@ const PracticeDetailPage = () => {
         {/* How it works */}
         <Card>
           <CardHeader>
-            <h2 className="text-base font-semibold leading-none tracking-tight">How to do it</h2>
+            <h2 className="text-base font-semibold leading-none tracking-tight">{t('practices.detail.howToDoIt')}</h2>
           </CardHeader>
           <CardContent>
             <ol className="space-y-4 text-sm text-foreground/90 leading-relaxed list-decimal list-inside">
@@ -305,7 +315,7 @@ const PracticeDetailPage = () => {
         {/* Key Benefits */}
         <Card>
           <CardHeader>
-            <h2 className="text-base font-semibold leading-none tracking-tight">Key Benefits</h2>
+            <h2 className="text-base font-semibold leading-none tracking-tight">{t('practices.detail.keyBenefits')}</h2>
           </CardHeader>
           <CardContent>
             <ul className="space-y-3 text-sm text-foreground/90 leading-relaxed list-disc list-inside">
