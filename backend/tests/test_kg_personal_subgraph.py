@@ -6,7 +6,7 @@ compat issue in the test environment). Instead we test the kg router
 in isolation.
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import FastAPI
@@ -78,7 +78,7 @@ def test_personal_subgraph_authed_uses_memory_service():
     }
 
     mock_svc = MagicMock()
-    mock_svc.build_personal_knowledge_graph.return_value = fake_result
+    mock_svc.build_personal_knowledge_graph = AsyncMock(return_value=fake_result)
 
     with patch("app.api.kg.get_container") as mock_get:
         container = MagicMock()
@@ -114,7 +114,7 @@ def test_personal_subgraph_propagates_query_and_safe_node_context():
         "edges": [],
     }
     mock_svc = MagicMock()
-    mock_svc.build_personal_knowledge_graph.return_value = fake_result
+    mock_svc.build_personal_knowledge_graph = AsyncMock(return_value=fake_result)
 
     with patch("app.api.kg.get_container") as mock_get:
         container = MagicMock()
@@ -139,7 +139,7 @@ def test_personal_subgraph_authed_empty_personal_returns_empty():
     client = TestClient(app)
 
     mock_svc = MagicMock()
-    mock_svc.build_personal_knowledge_graph.return_value = {"nodes": [], "edges": []}
+    mock_svc.build_personal_knowledge_graph = AsyncMock(return_value={"nodes": [], "edges": []})
 
     with patch("app.api.kg.get_container") as mock_get:
         container = MagicMock()
@@ -184,7 +184,7 @@ def test_personal_subgraph_service_error_returns_empty():
     client = TestClient(app)
 
     mock_svc = MagicMock()
-    mock_svc.build_personal_knowledge_graph.side_effect = RuntimeError("db down")
+    mock_svc.build_personal_knowledge_graph = AsyncMock(side_effect=RuntimeError("db down"))
 
     with patch("app.api.kg.get_container") as mock_get:
         container = MagicMock()
