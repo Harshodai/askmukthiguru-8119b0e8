@@ -107,6 +107,13 @@ export interface Citation {
   textSnippet?: string;
 }
 
+export interface TeachingPreview {
+  title: string;
+  teacher?: string | null;
+  url?: string | null;
+  excerpt?: string | null;
+}
+
 export interface AIResponse {
   content: string;
   error?: string;
@@ -181,6 +188,10 @@ export type StreamChunk =
       step: number;
       total_steps: number;
       strategy?: string;
+    }
+  | {
+      type: 'teaching_preview';
+      items: TeachingPreview[];
     }
   | {
       type: 'done';
