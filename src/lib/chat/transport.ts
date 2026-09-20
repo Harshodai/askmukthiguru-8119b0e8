@@ -128,6 +128,7 @@ export const sendMessage = async (
   lastMessageId?: string,
   responsePreferences?: ResponsePreferences,
   attachmentContext?: string,
+  languageOverride?: string,
 ): Promise<AIResponse> => {
   const { provider, endpoint, systemPrompt } = getCurrentConfig();
 
@@ -153,6 +154,7 @@ export const sendMessage = async (
       incognito,
       responsePreferences,
       attachmentContext,
+      languageOverride,
     );
 
     const controller = new AbortController();
