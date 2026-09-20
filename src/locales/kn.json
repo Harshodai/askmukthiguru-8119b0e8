@@ -526,7 +526,12 @@
     "translationUnavailable": "ಅನುವಾದ ಲಭ್ಯವಿಲ್ಲ",
     "saveAsNote": "ಟಿಪ್ಪಣಿಯಾಗಿ ಉಳಿಸಿ",
     "showOriginal": "ಮೂಲ ತೋರಿಸಿ",
-    "translateTo": "{{lang}} ಗೆ ಅನುವಾದಿಸಿ"
+    "translateTo": "{{lang}} ಗೆ ಅನುವಾದಿಸಿ",
+    "contextLimit": {
+      "title": "ಸಂಭಾಷಣೆಯ ಸಂದರ್ಭ ಮಿತಿಯನ್ನು ತಲುಪಲಾಗಿದೆ",
+      "description": "ಈ ಸಂಭಾಷಣೆ ಸುರಕ್ಷಿತ ಸಂದರ್ಭ ಮಿತಿಯನ್ನು ತಲುಪಿದೆ. ಮುಂದುವರಿಸಲು ಹೊಸ ಚಾಟ್ ಪ್ರಾರಂಭಿಸಿ.",
+      "continueNewChat": "ಹೊಸ ಚಾಟ್‌ನಲ್ಲಿ ಮುಂದುವರಿಸಿ"
+    }
   },
   "notFound": {
     "message": "ಹೇಳಿಕೊಳ್ಳಲು ಸಾಧ್ಯವಿಲ್ಲ!",
