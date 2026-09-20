@@ -64,7 +64,7 @@ const PracticeDetailPage = () => {
       <PublicShell title={t('common.noResults')}>
         <div className="max-w-2xl mx-auto px-4 py-16 text-center space-y-4">
           <h1 className="text-xl font-semibold text-foreground">
-            We couldn't find that practice
+            {t('common.noResults')}
           </h1>
           <Button onClick={() => navigate('/practices')}>
             <ArrowLeft className="w-4 h-4 mr-2" /> {t('practices.detail.backToPractices', 'Back to practices')}
