@@ -304,6 +304,7 @@ export async function* sendMessageStreaming(
               liveLogisticsEvents: meta.live_logistics_events ?? [],
               guidancePlan: meta.guidance_plan ?? null,
               answerEvidence: meta.answer_evidence ?? null,
+              personalizationProvenance: meta.personalization_provenance ?? null,
               groundingState: meta.grounding_state ?? 'abstained',
               faithfulnessScore: meta.faithfulness_score ?? null,
               relevancyScore: meta.relevancy_score ?? null,
