@@ -172,6 +172,11 @@ class ChatRequestOrchestrator:
             answer_evidence=(
                 None if result.answer_evidence is None else asdict(result.answer_evidence)
             ),
+            personalization_provenance=(
+                None
+                if result.personalization_provenance is None
+                else asdict(result.personalization_provenance)
+            ),
             guidance_plan=(None if result.guidance_plan is None else asdict(result.guidance_plan)),
             grounding_state=response_grounding_state,
             release_manifest=to_public_manifest_dict(result.release_manifest),
