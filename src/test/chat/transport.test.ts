@@ -93,6 +93,37 @@ describe('chat/transport helpers', () => {
     expect((options.body as FormData).get('files')).toBeInstanceOf(File);
   });
 
+  it('sendMessage preserves the queued turn language and compact continuation summary', async () => {
+    const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ response: 'respuesta' }),
+    });
+
+    await sendMessage(
+      [{ role: 'user', content: 'previous turn' }],
+      'continue',
+      0,
+      'The seeker was reflecting on stillness.',
+      'session-1',
+      undefined,
+      undefined,
+      false,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      'es',
+    );
+
+    const [, options] = fetchMock.mock.calls[0];
+    const payload = JSON.parse(options.body);
+    expect(payload.language).toBe('es');
+    expect(payload.conversation_summary).toContain('reflecting on stillness');
+    expect(payload.messages.some((m: { content?: string }) => String(m.content || '').includes('SUMMARY OF PREVIOUS CONVERSATION'))).toBe(false);
+  });
+
   it('sendMessage preserves backend verification and provenance metadata', async () => {
     const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
     fetchMock.mockResolvedValue({
