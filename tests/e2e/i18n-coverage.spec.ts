@@ -41,7 +41,6 @@ const PUBLIC_ROUTES = [
   "/practices/serene-mind",
   "/practices/beautiful-state",
   "/practices/daily-reflection",
-  "/spirit-guides",
   "/guides/spirit-guides",
   "/guides/ai-spiritual-companion",
   "/guides/beautiful-state-meditation",
