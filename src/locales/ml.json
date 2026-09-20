@@ -1213,7 +1213,10 @@
       "queued": "ക്യൂവിൽ",
       "analyzing": "നിങ്ങളുടെ മറുപടി തയ്യാറാക്കുന്നു…",
       "stepLabel": "ഘട്ടം {{step}}/{{total}}: {{label}}",
-      "stepProgress": "ഘട്ടം {{step}}/{{total}}: {{label}} ({{percentage}}%)"
+      "stepProgress": "ഘട്ടം {{step}}/{{total}}: {{label}} ({{percentage}}%)",
+      "rotatingReflecting": "ഗുരുജി നിങ്ങളുടെ ചോദ്യത്തെക്കുറിച്ച് ആലോചിക്കുന്നു…",
+      "rotatingConnecting": "പവിത്രമായ ജ്ഞാനവുമായി ബന്ധപ്പെടുന്നു…",
+      "rotatingAlmostReady": "ഏകദേശം തയ്യാറായി — ആഴത്തിലുള്ള ജ്ഞാനത്തിന് സമയം വേണം…"
     },
     "toggleThinking": "ആലോചനാ വിവരങ്ങൾ കാണിക്കുക/മറയ്ക്കുക",
     "reflecting": "ഉപദേശങ്ങളെക്കുറിച്ച് ആലോചിക്കുന്നു…",
