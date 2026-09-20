@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { Flame, Sparkles, Play, CheckCircle2 } from 'lucide-react';
 import { useSereneMind } from '@/components/common/SereneMindProvider';
@@ -17,6 +18,7 @@ export const SacredPracticeWidget: React.FC<SacredPracticeWidgetProps> = ({
   sourceTeaching = 'Settling inner turbulence into pure unshakeable stillness',
 }) => {
   const { open } = useSereneMind();
+  const { t } = useTranslation();
 
   return (
     <motion.div
@@ -57,7 +59,7 @@ export const SacredPracticeWidget: React.FC<SacredPracticeWidgetProps> = ({
           className="flex shrink-0 items-center gap-1.5 rounded-full bg-gradient-to-r from-saffron-gold to-amber-500 px-3.5 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm hover:shadow-md transition-shadow"
         >
           <Play className="h-3 w-3 fill-current" />
-          <span>Begin</span>
+          <span>{t('chat.sacredPractice.begin')}</span>
         </motion.button>
       </div>
     </motion.div>
