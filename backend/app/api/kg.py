@@ -386,6 +386,7 @@ _KG_PERSONAL_RATE_LIMITER = TTLRateLimiter(ttl=60.0, max_requests=15)
 @router.get("/kg/personal-subgraph", response_model=SubgraphResponse)
 async def kg_personal_subgraph(
     request: Request,
+    query: str = Query("", max_length=200),
     limit: int = Query(50, ge=1, le=100),
     user: dict = Depends(require_aal2),
 ) -> SubgraphResponse:
@@ -417,7 +418,7 @@ async def kg_personal_subgraph(
 
         result = await asyncio.wait_for(
             asyncio.to_thread(
-                lambda: memory_svc.build_personal_knowledge_graph(uid, view="personal", limit=limit)
+                lambda: memory_svc.build_personal_knowledge_graph(uid, view="personal", limit=limit, query=query.strip())
             ),
             timeout=15.0,
         )
@@ -460,7 +461,7 @@ async def kg_personal_subgraph(
     return SubgraphResponse(
         nodes=nodes,
         edges=edges,
-        query="",
+        query=query.strip(),
         count=len(nodes),
     )
 
