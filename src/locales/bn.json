@@ -318,7 +318,10 @@
       "queued": "সারিতে আছে",
       "analyzing": "আপনার উত্তর প্রস্তুত করছি…",
       "stepLabel": "ধাপ {{step}}/{{total}}: {{label}}",
-      "stepProgress": "ধাপ {{step}}/{{total}}: {{label}} ({{percentage}}%)"
+      "stepProgress": "ধাপ {{step}}/{{total}}: {{label}} ({{percentage}}%)",
+      "rotatingReflecting": "গুরুজি আপনার প্রশ্নটি নিয়ে মনন করছেন…",
+      "rotatingConnecting": "পবিত্র জ্ঞানের সঙ্গে সংযোগ করছি…",
+      "rotatingAlmostReady": "প্রায় প্রস্তুত — গভীর জ্ঞানের জন্য সময় লাগে…"
     },
     "toggleThinking": "চিন্তার বিবরণ পরিবর্তন করুন",
     "reflecting": "শিক্ষার উপর Reflect করছি…",
