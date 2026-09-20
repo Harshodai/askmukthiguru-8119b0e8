@@ -2710,7 +2710,7 @@ return (
     <Sheet open={pendingStarterPreview !== null} onOpenChange={(open) => { if (!open) cancelStarterPreview(); }}>
       <SheetContent side="bottom" className="rounded-t-2xl">
         <SheetHeader>
-          <SheetTitle>Preview your prompt</SheetTitle>
+          <SheetTitle>{t('common.details')}</SheetTitle>
           <SheetDescription>
             Review the full text before sending to the Guru.
           </SheetDescription>
