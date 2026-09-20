@@ -79,7 +79,9 @@ export const safeUrlTransform = (url: string): string =>
 const isCrisisAnswer = (content: string): boolean =>
   /🆘/.test(content) || /immediate crisis|crisis, please reach out|helpline/i.test(content);
 
-const GuidancePlanCard = ({ plan }: { plan: NonNullable<Message["guidancePlan"]> }) => (
+const GuidancePlanCard = ({ plan }: { plan: NonNullable<Message["guidancePlan"]> }) => {
+  const { t } = useTranslation();
+  return (
   <aside
     data-testid="guidance-plan"
     aria-label="Optional guidance plan"
@@ -90,7 +92,7 @@ const GuidancePlanCard = ({ plan }: { plan: NonNullable<Message["guidancePlan"]>
       <div className="min-w-0 flex-1">
         {plan.action_step && (
           <>
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-ojas">Try this now</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-ojas">{t('chat.guidance.tryNow')}</p>
             <p className="mt-1 text-sm font-medium leading-5 text-foreground">{plan.action_step.title}</p>
             <p className="mt-1 text-sm leading-5 text-muted-foreground">{plan.action_step.instruction}</p>
             {plan.action_step.safety_note && (
@@ -100,16 +102,18 @@ const GuidancePlanCard = ({ plan }: { plan: NonNullable<Message["guidancePlan"]>
         )}
         {plan.reflection_prompt && (
           <div className={plan.action_step ? "mt-3 border-t border-ojas/15 pt-2.5" : ""}>
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-ojas">Go deeper</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-ojas">{t('chat.guidance.goDeeper')}</p>
             <p className="mt-1 text-sm leading-5 text-foreground/85">{plan.reflection_prompt}</p>
           </div>
         )}
       </div>
     </div>
   </aside>
-);
+  );
+};
 
 const SereneMindOfferCard = ({ offer }: { offer: NonNullable<Message["sereneMindOffer"]> }) => {
+  const { t } = useTranslation();
   const { open } = useSereneMind();
   const customMeditation = offer.custom_meditation;
   const durationSeconds = offer.duration_seconds ?? 225;
@@ -128,7 +132,7 @@ const SereneMindOfferCard = ({ offer }: { offer: NonNullable<Message["sereneMind
       <div className="flex items-start gap-2">
         <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-ojas" aria-hidden="true" />
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-ojas">Optional practice</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-ojas">{t('chat.optionalPractice')}</p>
           <p className="mt-1 text-sm font-medium leading-5 text-foreground">
             {offer.offer_reason || "A brief practice may help you settle and reconnect."}
           </p>
@@ -142,7 +146,7 @@ const SereneMindOfferCard = ({ offer }: { offer: NonNullable<Message["sereneMind
               className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-ojas to-ojas-light px-3 py-2 text-xs font-semibold text-primary-foreground shadow-sm transition-transform hover:scale-[1.02]"
             >
               <Play className="h-3.5 w-3.5" aria-hidden="true" />
-              Start Serene Mind
+              {t('chat.startSereneMind')}
             </button>
             <span className="self-center text-[11px] text-muted-foreground">You can continue chatting instead.</span>
           </div>
@@ -871,7 +875,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                     />
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-[10px] text-muted-foreground/60">
-                        ⌘↵ save · Esc cancel
+                        {t('chat.keybindSave')}
                       </span>
                       <div className="flex items-center gap-1.5">
                         <button
@@ -879,7 +883,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                           onClick={() => { setEditValue(message.content); setIsEditing(false); }}
                           className="px-3 py-1.5 rounded-lg text-[12px] font-medium text-muted-foreground hover:bg-muted/70 transition-colors"
                         >
-                          Cancel
+                          {t('chat.cancelEdit')}
                         </button>
                         <button
                           type="button"
@@ -893,7 +897,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                           disabled={!editValue.trim() || editValue.trim() === message.content}
                           className="px-3 py-1.5 rounded-lg text-[12px] font-semibold bg-ojas text-primary-foreground hover:bg-ojas-light disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm"
                         >
-                          Save &amp; resend
+                          {t('chat.saveResend')}
                         </button>
                       </div>
                     </div>
@@ -927,41 +931,32 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
               {isGuru && message.personalizationProvenance?.used && !isStreaming && !message.error && !isCrisisAnswer(message.content) && (
                 <details className="mt-2 rounded-xl border border-ojas/15 bg-ojas/[0.035] px-3 py-2 text-[11px] text-muted-foreground max-w-xl">
                   <summary className="cursor-pointer select-none text-ojas/80 font-medium">
-                    ✨ Personalized for this conversation
+                    ✨ {t('chat.personalization.header')}
                   </summary>
                   <div className="mt-2 space-y-1.5 leading-relaxed">
                     {message.personalizationProvenance.profile_preferences && (
-                      <p>• Your profile personalization was enabled for this response.</p>
+                      <p>• {t('chat.personalization.profileEnabled')}</p>
                     )}
                     {message.personalizationProvenance.personal_memory && (
-                      <p>• Eligible personal memory/context was provided to the answer model.</p>
+                      <p>• {t('chat.personalization.personalMemoryUsed')}</p>
                     )}
                     {(message.personalizationProvenance.private_graph_links ?? 0) > 0 && (
                       <>
-                        <p>• Your personal context graph matched {message.personalizationProvenance.private_graph_links} concept link{message.personalizationProvenance.private_graph_links === 1 ? '' : 's'} for this question.</p>
+                        <p>• {t('chat.personalization.graphMatched', { count: message.personalizationProvenance.private_graph_links })}</p>
                         <button
                           type="button"
                           onClick={() => navigate('/knowledge-graph')}
                           className="text-[11px] font-medium text-ojas hover:underline"
                         >
-                          View your Wisdom Map →
+                          {t('chat.knowledgeGraph')} →
                         </button>
                       </>
                     )}
-                    <p className="text-muted-foreground/70">Private memory text is not shown here.</p>
+                    <p className="text-muted-foreground/70">{t('chat.personalization.privateMemoryNotShown')}</p>
                   </div>
                 </details>
               )}
 
-              {isGuru && message.personalizationProvenance?.used && !isStreaming && !message.error && !isCrisisAnswer(message.content) && (
-                <details className="mt-2 rounded-xl border border-ojas/15 bg-ojas/[0.035] px-3 py-2 text-[11px] text-muted-foreground max-w-xl">
-                  <summary className="cursor-pointer select-none text-ojas/80 font-medium">
-                    ✨ Personalized for this conversation
-                  </summary>
-                  <div className="mt-2 space-y-1.5 leading-relaxed">
-                    {message.personalizationProvenance.profile_preferences && (
-                      <p>• Your profile preferences shaped the response format or tone.</p>
-                    )}
                     {message.personalizationProvenance.personal_memory && (
                       <p>• Eligible personal memory/context was available to ground the response.</p>
                     )}
