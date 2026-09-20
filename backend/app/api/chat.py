@@ -313,16 +313,22 @@ async def populate_server_side_history(
 
         # Fetch actual messages for the session.
         # PERF-2 TODO: Same async migration applies here.
+        # Keep durable-history loading bounded. The request schema's 50-turn
+        # limit must remain true after server-side hydration as well.
         msg_resp = await asyncio.to_thread(
             sc.table("chat_messages")
             .select("role", "content")
             .eq("conversation_id", chat_body.session_id)
-            .order("created_at", desc=False)
+            .order("created_at", desc=True)
+            .limit(50)
             .execute
         )
 
+        rows = list(msg_resp.data or [])
+        rows.reverse()
+
         db_messages = []
-        for row in msg_resp.data or []:
+        for row in rows:
             db_role = row.get("role", "user")
             role = "assistant" if db_role in ("guru", "assistant") else "user"
             content = row.get("content") or ""
