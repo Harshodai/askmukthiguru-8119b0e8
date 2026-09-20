@@ -1092,14 +1092,6 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                 />
               )}
 
-              {/* Thumbs up/down for every assistant message */}
-              {isGuru && message.content && !isStreaming && !message.error && !message.content.includes('_Stopped by you._') && !isCrisisAnswer(message.content) && (
-                <FeedbackButtons
-                  messageId={message.id}
-                  queryText={queryText}
-                  messageContent={message.content}
-                />
-              )}
 
               {/* Practice nudge: offer to turn the last answer into a guided Serene
                   Mind session. Suppressed on crisis/helpline answers like the rest
