@@ -122,3 +122,24 @@ Official architecture, disaster recovery, and high availability policy across st
 
 ### Backup caveat (P6, verified 2026-09-13)
 Backups stay local-cron per policy (`infrastructure/cron/mukthiguru-backup`: 02:00 Qdrant, 02:30 Neo4j, retention 7, disk-only) — deliberately NOT Celery Beat (`celery_config.py` `beat_schedule` covers win-back/memory only). The cron needs manual sudo install (`/etc/cron.d/` + `/etc/mukthiguru/backup.env`); it was absent on this host, so RPO is unbounded until installed. Qdrant scratch-restore is proven queryable (157 pts + search hit); Neo4j `.dump` load stays an offline maintenance-window op — queryable replay unproven.
+
+## Railway Production & Cost Controls (Sep 20, 2026)
+
+- **Status**: **ALL SERVICES SCALED DOWN / OFFLINE (Compute cost = $0/hour)** via `railway down --service <name> --yes` on `askmukthiguru-8119b0e8`, `memgraph`, and `qdrant`. Managed `Redis` is `● Sleeping`.
+- **Data Volumes**: Intact and ready (`qdrant-volume`, `memgraph-volume`, `redis-volume`).
+- **Memory Footprint When Running**: Active backend memory is **~1.81 GB RAM** (loads ONNX BGE-M3 560MB, ONNX Reranker 570MB, ModernBERT LettuceDetect 350MB, MiniLM 90MB, Python/LangGraph 250MB). Combined with Qdrant (~1.33 GB) and Memgraph (~0.57 GB / 570.6 MiB / 1 GiB limit), baseline active RAM is ~3.72 GB (~$37-$42/month at Railway's $10/GB/month pricing).
+- **How to Spin Up Services (When Ready)**:
+  1. Databases:
+     ```bash
+     railway redeploy --service qdrant
+     railway redeploy --service memgraph
+     # Redis wakes up automatically upon receiving connections
+     ```
+  2. Backend:
+     ```bash
+     railway up
+     # OR: railway redeploy --service askmukthiguru-8119b0e8
+     ```
+- **Next Steps**:
+  1. Frontend request throttling: prevent `/api/capabilities` and `/api/metrics` from continuously waking Railway when testing.
+  2. Run batch benchmarks (`benchmarks/RUN_ME.sh` or `evaluation/bench.py`) locally or against temporary redeploy.

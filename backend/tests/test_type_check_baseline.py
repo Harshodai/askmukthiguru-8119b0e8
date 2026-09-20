@@ -1,11 +1,20 @@
 """mypy ratchet: fails only if the type-error count regresses past the
 measured baseline — never on the pre-existing debt itself.
 
-Baseline measured 2026-09-16:
+Baseline measured 2026-09-19 (was 1335, measured 2026-09-16):
     .venv/bin/mypy app rag domain services routers \
         --ignore-missing-imports --explicit-package-bases
-    -> 1335 errors in 128 files (383 source files checked; pyproject's
+    -> 1326 errors in 127 files (385 source files checked; pyproject's
        [tool.mypy] has strict=false, so this is a loose baseline by design).
+    Lowered after fixing 14 real errors found by a full-suite run
+    (app/chat_engine.py's ChatResult never carried 4 fields PipelineResult
+    already had -- a live AttributeError on every /api/chat/v2 call --
+    plus release_manifest/provenance_manifest/citations dict-vs-model
+    mismatches, a BaseCircuitBreaker.reset() gap, two rate-limiter/secret
+    type-narrowing gaps). Two residual errors are accepted third-party stub
+    looseness (redis-py's sync/async client stubs share a Union return type
+    that includes Awaitable even on the sync path) — see app/api/health.py:432
+    and app/main.py:402; both are demonstrably safe at runtime.
 
 mypy was declared as a dev dependency (pyproject [dependency-groups.dev]) but
 never actually invoked anywhere in CI before this test existed — a config
@@ -29,7 +38,7 @@ from pathlib import Path
 
 import pytest
 
-BASELINE_ERROR_COUNT = 1335
+BASELINE_ERROR_COUNT = 1326
 
 _BACKEND = Path(__file__).resolve().parents[1]
 _MYPY_TARGETS = ["app", "rag", "domain", "services", "routers"]

@@ -97,11 +97,31 @@ async def main():
     logger.info(f"Indexing total {len(total_exemplars)} exemplars into `guru_tone_podcast` collection...")
     indexed_count = await guru_brain.index_exemplars(total_exemplars)
 
+    stats = getattr(extractor, "extraction_stats", {})
+    truncated = stats.get("truncated_chunks", 0)
+    dropped = stats.get("dropped_chunks", 0)
+
+    if not total_exemplars or indexed_count == 0:
+        status = "failed"
+        logger.error(
+            f"FAILURE: Guru Brain Podcast Ingestion yielded 0 indexed exemplars (stats: {stats})"
+        )
+    elif truncated > 0 or dropped > 0:
+        status = "partial_warning"
+        logger.warning(
+            f"WARNING: Guru Brain Podcast Ingestion completed with truncated or dropped chunks "
+            f"({truncated} truncated, {dropped} dropped; {len(total_exemplars)} exemplars extracted; stats: {stats})"
+        )
+    else:
+        status = "success"
+        logger.info("SUCCESS: Guru Brain Podcast Ingestion Complete! All chunks extracted cleanly.")
+
     # Save summary report
     report = {
-        "status": "success",
+        "status": status,
         "total_extracted": len(total_exemplars),
         "indexed_count": indexed_count,
+        "extraction_stats": stats,
         "collection_name": "guru_tone_podcast",
         "sources": [
             {"id": "BMJrDu-folk", "guru": "preethaji", "title": "Living in the Present Moment"},
@@ -114,7 +134,8 @@ async def main():
     with open(report_path, "w") as f:
         json.dump(report, f, indent=2)
 
-    logger.info(f"SUCCESS: Guru Brain Podcast Ingestion Complete! Report saved to {report_path}")
+    logger.info(f"Guru Brain Podcast Ingestion finished with status '{status}'. Report saved to {report_path}")
+
 
 
 if __name__ == "__main__":

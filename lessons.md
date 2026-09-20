@@ -1,4 +1,112 @@
-## Sep 19, 2026 (Session 4) — Google Sign-In Root-Caused End to End, Guru Brain Data Quality
+## Sep 20, 2026 (Session 5) — Railway Pricing Architecture, Memory Utilization Breakdown & Scale-to-Zero Controls
+
+### L-RETRY-BACKOFF-1. HTTP 429 Retry-After parsing and rate-limit window resets in evaluation harnesses
+- **Who**: Antigravity agent, 2026-09-20 session 5.
+- **What**: In evaluation harnesses (`backend/evaluation/bench.py`), exponential backoff on HTTP 429 rate-limiting could trigger retries before the server's rate-limit quota reset, leading to spurious row failures and test noise.
+- **Fix**: Check `Retry-After` header in 429 response first; if absent, wait at least one complete rate-limit window (`max(60.0, _RATE_LIMIT_BACKOFF_S * (2**attempt))`) so retries occur only after the quota has reset.
+- **Rule**: Never retry a 429 using fixed small exponential backoffs without checking `Retry-After` or enforcing a minimum delay equal to the upstream provider/middleware rate-limit window.
+
+### L-MODEL-CACHE-FAILCLOSED-1. Local-only model caching and fail-closed degradation in request paths
+- **Who**: Antigravity agent, 2026-09-20 session 5.
+- **What**: In `backend/rag/nodes/on_device_intent.py`, on-demand model loading fell back to downloading `sentence-transformers/all-MiniLM-L6-v2` from Hugging Face on cold cache misses, violating the local-only execution invariant and causing request stalls.
+- **Fix**: Resolve cache directory via `settings.sentence_transformers_home or settings.hf_home`, enforce `local_files_only=True`, and disable the embedding path (`_ENCODER = False`) with a warning log on cache miss instead of network download.
+- **Rule**: Runtime inference and embedding paths must never attempt ad-hoc model downloads over the network. Always load with `local_files_only=True` and fail closed/gracefully.
+
+### L-TEST-REDIS-ISOLATION-1. Scoped keys for shared rate-limiter singleton tests
+- **Who**: Antigravity agent, 2026-09-20 session 5.
+- **What**: Singleton rate-limiter tests sharing a fixed Redis key (`openrouter:rpm`) exhibited order-dependent flakiness across full test suite runs due to sliding-window state surviving in Redis.
+- **Fix**: Monkeypatch `OpenRouterService._RATE_LIMIT_KEY` to a unique test-scoped key (`openrouter:rpm:test:<uuid>`) prior to computing the key digest and purging entries.
+- **Rule**: Integration tests exercising stateful shared singletons (e.g., Redis sliding windows) must use dynamically-scoped test keys to prevent cross-test interference.
+
+### L-FRONTEND-STORAGE-DEFENSE-1. Client-side storage resilience: SecurityError guards, schema validation, and user scoping
+- **Who**: Antigravity agent, 2026-09-20 session 5.
+- **What**: Direct access to `window.localStorage` throws fatal `SecurityError` in restricted environments (sandboxed iframes, private browsing). Additionally, stale or malformed localStorage entries could cause UI crashes or cross-user data leakage after sign-out/sign-in.
+- **Fix**:
+  1. Wrap all `window.localStorage` accesses strictly inside `try`/`catch` blocks, keeping only `typeof window === 'undefined'` outside.
+  2. Parse cached payloads into partial objects and validate that all capability keys exist with boolean values before trusting cached data.
+  3. Scope telemetry cache keys by user ID (`askmukthiguru_user_metrics_v1_<userId>`) and register `supabase.auth.onAuthStateChange` to invalidate caches upon authentication transitions.
+  4. Ensure event-driven updates (e.g., `conversation:updated`) pass `force=true` to bypass cache TTL and immediately refresh UI counters.
+- **Rule**: Treat browser `localStorage` as untrusted and potentially throwing. Always guard accesses with `try`/`catch`, validate schemas with strict boolean checks, scope persistence keys by user identity, and provide explicit cache-bypassing mechanisms for real-time events.
+
+### L-RAILWAY-COST-1. Railway pricing model, multi-model RAM footprint, and Serverless wake triggers
+- **Who**: Antigravity agent, 2026-09-20 session 5.
+- **What**: Railway billing reached $10.70 (with estimated $19.73), triggering user concern over high resource utilization and unexpected costs.
+- **Root Cause Analysis**:
+  1. *Pricing Structure*: Railway charges $10 / GB RAM / month ($0.000231/GB/min) and $20 / vCPU / month ($0.000463/vCPU/min).
+  2. *Active Memory Baseline*: The 4 deployed services maintain a baseline of ~3.72 GB RAM continuously running:
+     - Backend API: ~1.81 GB RAM ($18.10/mo) — loads ONNX BGE-M3 (560MB), ONNX Reranker (570MB), ModernBERT LettuceDetect (350MB), MiniLM (90MB), and LangGraph runtime (250MB).
+     - Qdrant: ~1.33 GB RAM ($13.30/mo) — HNSW vector indexes and segment caches for 12,904 chunks + LightRAG collections.
+     - Memgraph: ~570.6 MiB RAM ($5.70/mo) — in-memory graph index for 6,430 nodes / 4,188 rels (1 GiB limit).
+     - Redis: ~0.01 GB RAM ($0.10/mo) — hot cache.
+     Baseline compute cost when running 24/7 is ~$37–$42/month (~$1.25–$1.40/day), explaining the $10.70 accumulation over 9 days.
+  3. *Why Serverless Wasn't Sleeping*: `sleepApplication: true` was already active on backend and Qdrant, but Railway requires 10 minutes of complete inactivity. Inbound HTTP requests hitting `/api/capabilities` and `/api/metrics` every 2–4 seconds continuously reset the inactivity timer and woke the container.
+- **Fix Applied**:
+  1. Executed `railway down --service <name> --yes` across all deployed services (`askmukthiguru-8119b0e8`, `memgraph`, `qdrant`), deleting active compute deployments and dropping all compute costs to $0/hour.
+  2. Managed `Redis` automatically entered `● Sleeping` state (zero connections/compute).
+  3. Persistent data volumes (`qdrant-volume`, `memgraph-volume`, `redis-volume`) remain intact.
+  4. Documented spin-up runbooks in all three `CLAUDE.md` files and `handoff.md`.
+- **Rule**: For ML/RAG workloads on Railway with local embedding/reranker models, resident memory will hover at 1.5–2GB. To keep costs near $0 during development or idle pilot phases, scale all services down (`railway down --service <name> --yes`) or ensure clients don't poll the public domain continuously.
+
+### L-FRONTEND-POLL-1. Client hook polling traps resetting Serverless inactivity timers
+- **Who**: Antigravity agent, 2026-09-20 session 5.
+- **What**: Railway Serverless was configured with `sleepApplication: true`, expecting containers to sleep during idle periods and incur $0 compute charges. In reality, billing ran continuously 24/7 ($10.70 accumulated). Live HTTP logs revealed `GET /api/capabilities` and `GET /api/metrics` requests arriving every 2 to 4 seconds from client browser tabs (Lovable live preview, developer tabs) and automated internet crawlers. Railway requires 10 minutes of complete network inactivity; each request reset the idle timer to zero, preventing sleep.
+- **Fix**:
+  1. Frontend `useChatCapabilities.ts` must cache capabilities in `localStorage` with a 24-hour TTL (`ASKMUKTHIGURU_CAPABILITIES_CACHE`), reading from localStorage synchronously on mount and bypassing the network.
+  2. Frontend `useMetrics.ts` must cache telemetry in `localStorage` with a 1-hour TTL instead of a 60-second in-memory timer.
+  3. Reverse proxy / CDN (Cloudflare) should cache `/api/capabilities` and `/api/health` at the edge with a 1-hour TTL so automated bots and route transitions never hit the backend container.
+- **Rule**: Never expose an un-cached polling endpoint on a Serverless backend where billing is metered per-minute of awake time. Client-side state hooks must default to `localStorage` caching with multi-hour TTLs to allow Serverless infrastructure to sleep.
+
+### L-QDRANT-MEM-1. Qdrant memory architecture: always_ram, memmap_threshold, and disk storage trade-offs
+- **Who**: Antigravity agent, 2026-09-20 session 5.
+- **What**: Qdrant consumed 1,333 MB RAM on Railway for 12,904 chunks + LightRAG collections.
+- **Root Cause & Research Findings**:
+  1. *Vector Storage*: With INT8 scalar quantization and `always_ram=True`, quantized vectors are pinned into RAM for sub-millisecond search without disk I/O. For 12,904 1024d vectors, quantized raw vectors take only ~13 MB.
+  2. *HNSW Graph Overhead*: The primary memory consumer is the unquantized HNSW graph index (`m=32, ef_construct=200`) and RocksDB segment caches across multiple collections.
+  3. *The `always_ram=False` Trade-off*: Setting `always_ram=False` moves quantized vectors to disk, accessed via OS page cache / mmap. Research indicates `always_ram=False` on shared cloud disks can cause severe page thrashing and 5x–10x latency spikes during concurrent searches.
+  4. *Optimal Production Balance*:
+     - Keep INT8 scalar quantization with `always_ram=True` (saves 75% RAM vs FP32 with zero disk thrash).
+     - Set `memmap_threshold = 10000` to convert older segments to mmap storage before HNSW indexing, preventing memory spikes during batch ingestion.
+     - Prune unused legacy collections (`spiritual_wisdom`, `test_*`) from Qdrant to release RocksDB segment caches back to the OS.
+- **Rule**: Do not set `always_ram=False` on latency-sensitive RAG vector stores unless running on dedicated high-IOPS local NVMe. Instead, achieve RAM reduction through INT8 scalar quantization, tuning `memmap_threshold`, and aggressively deleting abandoned test/migration collections.
+
+### L-LATENCY-LLM-1. Multi-stage RAG latency profile: 86.6% LLM bottleneck vs local NLI
+- **Who**: Antigravity agent, 2026-09-20 session 5.
+- **What**: End-to-end chat turn latency was measured at 18–22 seconds. Profiling showed that local vector search (Qdrant) + graph traversal (Memgraph) + ONNX reranker took only 2.1 seconds (9% of total pipeline latency). The remaining 86.6% was consumed by three sequential LLM generation calls over OpenRouter:
+  1. `navigate_and_hyde`: ~5.4s (generating hypothetical passage)
+  2. `generate_answer`: ~12.5s (generating spiritual answer with persona)
+  3. `reflect_on_answer`: ~2.4s (LLM-as-a-judge reflection on faithfulness)
+- **Optimization Strategy**:
+  1. *Adaptive HyDE*: Skip HyDE for high-clarity or direct factual queries (e.g., "What are the 4 Sacred Secrets?"), directly searching Qdrant with the user prompt. For ambiguous queries, parallelize HyDE generation with raw vector search via `asyncio.gather`. Saves 5.4s on 70%+ of queries.
+  2. *Replace LLM Reflection with Local ModernBERT NLI*: The container already loads `LettuceDetect ModernBERT` (claim entailment classifier). ModernBERT checks sentence-level factual entailment against retrieved sources in ~15ms on CPU with higher precision than prompt-based LLM judges. Bypassing the external reflection LLM saves 2.4s and eliminates verification token costs.
+- **Rule**: In multi-stage RAG, never run sequential LLM calls when a local encoder or parallelization is available. Preserve the repository invariant that all inference processing remains local with zero external API calls at runtime: answer synthesis, reranking, and claim verification must execute on local CPU/ONNX models.
+
+### L-RERANKER-TRADE-1. Cross-encoder rerankers: BGE-Reranker-v2-m3 vs FlashRank vs Serverless API
+- **Who**: Antigravity agent, 2026-09-20 session 5.
+- **What**: Backend container resident memory of ~1.8 GB is dominated by two local neural models: BGE-M3 (560 MB) and BGE-Reranker-v2-m3 (570 MB).
+- **Comparison & Trade-offs**:
+  1. *BGE-Reranker-v2-m3 (Local ONNX INT8)*:
+     - Memory: 570 MB RAM.
+     - Latency: 200–400ms on 2 CPU cores.
+     - Accuracy: SOTA on multilingual / Indic languages (Hindi, Telugu, Tamil, Marathi, Sanskrit). Crucial for Mukthi Guru's domain.
+  2. *FlashRank (Local Micro-Model)*:
+     - Memory: ~4MB to 40MB RAM.
+     - Latency: 15–30ms on CPU.
+     - Accuracy: Strong on English, but lacks cross-lingual and Indic vocabulary embeddings. Degrades Sanskrit doctrine retrieval.
+  3. *Serverless Rerank API (Voyage AI / Cohere / Jina)*:
+     - Memory: 0 MB container RAM.
+     - Cost: ~$0.02 per 1,000 queries.
+     - Latency: 150–250ms (network bound).
+- **Rule**: For multilingual spiritual domains with Indic vocabulary, retain BGE-Reranker-v2-m3. If container RAM must be capped under 512MB, offload reranking to a serverless API rather than dropping to an English-only micro-model like FlashRank.
+
+### L-HOSTING-ARCH-1. Serverless metered billing vs flat-rate VPS for multi-container ML stacks
+- **Who**: Antigravity agent, 2026-09-20 session 5.
+- **What**: Running 4 containers (FastAPI + Memgraph + Qdrant + Redis) holding ~3.5 GB RAM on Railway metered billing costs ~$35–$40/month if active 24/7.
+- **Architecture Evaluation**:
+  1. *Serverless Metering (Railway)*: Best when services genuinely sleep 90%+ of the time (<$5/mo). Vulnerable to cost runaway when web crawlers, monitoring pings, or client polling prevent sleep.
+  2. *Flat-Rate VPS (Hetzner CX22/CX32, DigitalOcean)*: For $5.50–$12.00/month flat, provides 4–8 GB dedicated RAM, 2–4 vCPUs, and 40–80 GB NVMe storage. Runs all 4 Docker containers 24/7 on a local bridge network with zero cold-start delays, sub-millisecond inter-service latency, and immunity to crawler-induced billing spikes.
+- **Rule**: Multi-container RAG stacks with local ML models belong either on aggressively-throttled Serverless infrastructure that scales to 0, or on a low-cost flat-rate VPS where 24/7 memory allocation is prepaid at a fraction of cloud metered rates.
+
+
 
 ### L-AUTH-NONCE-1. Google One Tap nonce: raw goes to Supabase, hash goes to Google -- never the same value to both
 - **Who**: Claude Code, 2026-09-19 session 4.

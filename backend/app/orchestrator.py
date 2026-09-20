@@ -25,6 +25,7 @@ from app.pipeline import PipelineCoordinator
 from app.release_manifest import get_release_manifest, to_public_manifest_dict
 from app.sanitization import sanitize_log_input
 from app.schemas import ChatRequest, ChatResponse
+from app.schemas.compliance_provenance import AIProvenanceManifest
 from app.security_utils import is_benchmark_request
 from app.telemetry_sink import QueryTrace, SupabaseTelemetrySink
 from rag.memory import normalize_session_id
@@ -175,7 +176,7 @@ class ChatRequestOrchestrator:
             guidance_plan=(None if result.guidance_plan is None else asdict(result.guidance_plan)),
             grounding_state=response_grounding_state,
             release_manifest=to_public_manifest_dict(result.release_manifest),
-            provenance_manifest=_provenance_manifest_for_result(result),
+            provenance_manifest=_strict_provenance_manifest(result),
         )
 
     async def _log_telemetry(
@@ -619,6 +620,26 @@ def _provenance_manifest_for_result(result) -> dict | None:
             "entities_touched": public_context.get("entities_touched", []),
         },
     }
+
+
+def _strict_provenance_manifest(result) -> AIProvenanceManifest | None:
+    """Same projection as `_provenance_manifest_for_result`, as a real model.
+
+    `ChatResponse.provenance_manifest` is typed `AIProvenanceManifest | None`
+    (the strict EU-AI-Act-shaped model); `_provenance_manifest_for_result`'s
+    dict return is the deliberately loose `ai_provenance` twin (see
+    app/api/chat.py) and stays a dict for that field and for the raw
+    JSON-dict site in `_stream_done_metadata` below. Every key this dict
+    carries maps onto a real top-level field on AIProvenanceManifest
+    (manifest_id, model_name, model_provider, metadata); every field the
+    model declares beyond those has its own sensible default (artifact_id
+    uuid, TEXT_CHAT modality, current timestamp, etc.), so no compliance
+    field is misrepresented -- it's simply left at its documented default.
+    """
+    projected = _provenance_manifest_for_result(result)
+    if projected is None:
+        return None
+    return AIProvenanceManifest(**projected)
 
 
 def _stream_done_metadata(result) -> dict:

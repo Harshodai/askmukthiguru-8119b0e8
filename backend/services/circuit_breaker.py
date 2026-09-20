@@ -107,6 +107,18 @@ class BaseCircuitBreaker(abc.ABC):
         """Record a failed request."""
         pass
 
+    @abc.abstractmethod
+    def reset(self, reason: str = "manual_reset") -> None:
+        """Force the breaker back to CLOSED (e.g. an admin health-endpoint action).
+
+        Declared here (not just on DefaultCircuitBreaker) because
+        app/api/health.py calls .reset() on whatever the registry's
+        get_active() returns, typed as BaseCircuitBreaker -- undeclared here,
+        that call was only safe by coincidence of there being exactly one
+        concrete subclass.
+        """
+        pass
+
     def get_state(self) -> CircuitState:
         """Get current circuit state atomically."""
         with self._lock:

@@ -48,6 +48,12 @@ class ToneExtractor:
 
     def __init__(self, llm_service: Any = None) -> None:
         self.llm_service = llm_service
+        self.extraction_stats: dict[str, int] = {
+            "total_chunks": 0,
+            "successful_chunks": 0,
+            "truncated_chunks": 0,
+            "dropped_chunks": 0,
+        }
 
     def rule_based_speaker_diarization(
         self, text: str, default_guru: str = "preethaji"
@@ -249,19 +255,37 @@ class ToneExtractor:
         seen_prefixes: set[str] = set()
 
         for chunk_idx, chunk_text in enumerate(chunks):
+            self.extraction_stats["total_chunks"] += 1
             user_prompt = (
                 f"Source ID: {source_id} (chunk {chunk_idx + 1}/{len(chunks)})\n\n"
                 f"Transcript snippet:\n{chunk_text}\n\n"
                 f"{extract_instruction}"
             )
             try:
-                resp = await self.llm_service.generate(system_prompt, user_prompt, temperature=0.2)
+                resp = await self.llm_service.generate(
+                    system_prompt, user_prompt, temperature=0.2, max_tokens=4096
+                )
                 raw_json = resp.strip()
                 start = raw_json.find("[")
                 end = raw_json.rfind("]")
                 if start == -1 or end == -1:
+                    self.extraction_stats["truncated_chunks"] += 1
+                    logger.warning(
+                        f"ToneExtractor: chunk {chunk_idx + 1}/{len(chunks)} for '{source_id}' "
+                        "produced truncated or missing JSON array bounds; skipping chunk."
+                    )
                     continue
-                items = json.loads(raw_json[start : end + 1])
+                try:
+                    items = json.loads(raw_json[start : end + 1])
+                except json.JSONDecodeError as jde:
+                    self.extraction_stats["truncated_chunks"] += 1
+                    logger.warning(
+                        f"ToneExtractor: chunk {chunk_idx + 1}/{len(chunks)} for '{source_id}' "
+                        f"JSON parse failed (possibly truncated): {jde}; skipping chunk."
+                    )
+                    continue
+
+                chunk_exemplar_count = 0
                 for i, item in enumerate(items):
                     response_text = item.get("guru_response", "")
                     # Deduplicate by first 80 chars of response
@@ -288,12 +312,16 @@ class ToneExtractor:
                             raw_segment=response_text,
                         )
                     )
+                    chunk_exemplar_count += 1
+                self.extraction_stats["successful_chunks"] += 1
             except Exception as chunk_exc:
+                self.extraction_stats["dropped_chunks"] += 1
                 logger.warning(
                     f"ToneExtractor: chunk {chunk_idx + 1}/{len(chunks)} extraction failed "
                     f"({chunk_exc}), skipping chunk."
                 )
                 continue
+
 
         if all_exemplars:
             logger.info(

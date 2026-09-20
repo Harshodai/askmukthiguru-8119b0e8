@@ -13,7 +13,7 @@ create. So the whole-tree check becomes a RATCHET pinned at the measured
 present state: pre-existing debt is grandfathered, and the counts can only go
 down. Adding a new violation pushes the count above baseline and fails.
 
-Same mechanism as ``tests/test_type_check_baseline.py`` (mypy, 1335) — one
+Same mechanism as ``tests/test_type_check_baseline.py`` (mypy, 1326) — one
 pattern for all three static-analysis baselines rather than three inventions.
 
 **Lower these numbers as debt is paid; never raise them to hide a regression.**

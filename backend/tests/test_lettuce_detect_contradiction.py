@@ -119,3 +119,50 @@ def test_optatives_and_blessings_never_flagged_as_contradiction():
     # The blessing must not be scored as a contradiction
     claims = result.get("claims", [])
     assert not any(c.get("classification") == "contradiction" for c in claims)
+
+
+def test_without_paraphrase_of_no_is_not_a_false_contradiction():
+    """'without division' and 'no division' are the same polarity, not opposite.
+
+    Regression for 2026-09-19: `_NEGATION_WORDS` did not include "without", so a
+    faithful paraphrase of a "no X" context sentence via "without X" registered
+    as claim_neg=False against ctx_neg=True on high lexical overlap -- a false
+    polarity-inversion contradiction on a textbook grounded answer. This broke
+    `tests/test_rag_advanced.py::test_lettuce_detect_grounding_heuristics`
+    (found by the full suite run after W5 landed; the targeted-file test runs
+    each PR used never touched this file+test pair together).
+    """
+    svc = LettuceDetectService(embedder=None)
+    context = (
+        "Sri Preethaji teaches that the Beautiful State is a state of inner "
+        "connection, where there is no division or anxiety."
+    )
+    answer = (
+        "According to Sri Preethaji, the Beautiful State is a state of inner "
+        "connection without division."
+    )
+    result = svc.score_faithfulness("What is the Beautiful State?", context, answer)
+
+    assert result.get("has_contradiction") is False
+    assert result["is_faithful"] is True
+
+
+def test_without_vs_affirmed_presence_is_a_real_contradiction():
+    """The other direction of the same bug: a real polarity flip via 'without'
+    was previously invisible because 'without' was never counted as a negation
+    at all, so ctx_neg and claim_neg were both False and no mismatch could
+    ever be raised on this word.
+    """
+    svc = LettuceDetectService(embedder=None)
+    context = (
+        "Sri Preethaji teaches that the Beautiful State is a state of inner "
+        "connection without division or anxiety."
+    )
+    answer = (
+        "Sri Preethaji teaches that the Beautiful State is a state of inner "
+        "connection with division and anxiety."
+    )
+    result = svc.score_faithfulness("What is the Beautiful State?", context, answer)
+
+    assert result.get("has_contradiction") is True
+    assert result["score"] == 0.0

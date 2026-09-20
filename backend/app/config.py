@@ -502,6 +502,17 @@ class Settings(BaseSettings):
     # Rollback: set RERANKER_BACKEND=flagembedding in .env and restart.
     reranker_backend: str = "onnx_int8"
     reranker_onnx_model: str = "temsa/mmarco-mMiniLMv2-L12-H384-v1-onnx-cpu-qint8"
+    # Railway image-size reduction (W6, 2026-09-19): bake only the INT8 ONNX
+    # models, skip the PyTorch fallback reranker entirely.
+    quantized_only: bool = False
+    # HuggingFace hub cache root and sentence-transformers cache root. Both are
+    # read natively by their respective libraries too (HF_HOME,
+    # SENTENCE_TRANSFORMERS_HOME are the libraries' own env var names), so these
+    # fields exist to satisfy the "config only via settings" rule at OUR call
+    # sites (app/main.py lifespan check, rag/nodes/on_device_intent.py) without
+    # duplicating the env var under a different name.
+    hf_home: str = "/app/.cache/huggingface"
+    sentence_transformers_home: Optional[str] = None
     # Query-document pairs scored per ONNX session.run(). The self-attention
     # buffer scales with batch x heads x seq x seq (~12.6MB per pair at 12
     # heads / 512 tokens), so an unbounded batch asked onnxruntime's arena for

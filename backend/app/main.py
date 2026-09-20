@@ -186,6 +186,13 @@ for _hdlr in logging.getLogger().handlers:
 
 # === NodeObserver wiring (called during startup) ===
 
+# Module-level declaration so mypy can track the type of the `global` name
+# assigned inside _register_node_observers() below (new mypy error found
+# 2026-09-19: the previous undeclared `global _node_observers` worked fine at
+# runtime -- Python creates the module attribute on first assignment -- but
+# mypy has no annotation to check it against).
+_node_observers: list = []
+
 
 def _register_node_observers() -> None:
     """
@@ -371,7 +378,7 @@ async def _background_startup_body(container, fastapi_app) -> None:
         from app.index_fingerprint import IndexFingerprintError, build_index_fingerprint
 
         _collection = getattr(getattr(container, "qdrant", None), "_collection", None)
-        _collection = _collection or getattr(settings, "qdrant_collection", "unknown")
+        _collection = str(_collection or getattr(settings, "qdrant_collection", "unknown"))
         _contract = build_index_fingerprint(settings, collection=_collection)
         _fp_redis_key = f"retrieval_index_contract:{_collection}"
         _enforce_contract = bool(getattr(settings, "index_contract_enforcement_enabled", False))
@@ -467,14 +474,10 @@ async def _background_startup_body(container, fastapi_app) -> None:
     try:
         import os as _os
 
-        _reranker_backend = _os.environ.get(
-            "RERANKER_BACKEND", getattr(settings, "reranker_backend", "onnx_int8")
-        )
-        _quantized_only = _os.environ.get("QUANTIZED_ONLY", "").lower() in ("true", "1", "yes")
-        _hf_home = _os.environ.get("HF_HOME", "/app/.cache/huggingface")
-        _model_cache = _os.environ.get(
-            "SENTENCE_TRANSFORMERS_HOME", "/app/.cache/sentence_transformers"
-        )
+        _reranker_backend = settings.reranker_backend
+        _quantized_only = settings.quantized_only
+        _hf_home = settings.hf_home
+        _model_cache = settings.sentence_transformers_home or "/app/.cache/sentence_transformers"
 
         if _reranker_backend == "onnx_int8" or _quantized_only:
             # ONNX INT8 path: snapshot lives under HF_HOME/hub/models--temsa--mmarco-...
@@ -682,9 +685,9 @@ async def _background_startup_body(container, fastapi_app) -> None:
     try:
         from services.second_brain.crypto import derive_server_kek
 
-        _kek_val = getattr(settings, "brain_kek", None)
-        if hasattr(_kek_val, "get_secret_value"):
-            _kek_val = _kek_val.get_secret_value()
+        # brain_kek is declared Optional[str] (app/config.py) -- never a
+        # SecretStr -- so no .get_secret_value() unwrap is needed here.
+        _kek_val = settings.brain_kek
         if not _kek_val:
             logger.warning(
                 "STARTUP: BRAIN_KEK is not set -- Second Brain vault provisioning will fail "
@@ -703,8 +706,10 @@ async def _background_startup_body(container, fastapi_app) -> None:
     # Reclaim startup memory: garbage collect and release glibc arena pages back to OS
     try:
         import gc
+
         gc.collect()
         import ctypes
+
         _libc = ctypes.CDLL("libc.so.6")
         if hasattr(_libc, "malloc_trim"):
             _libc.malloc_trim(0)
@@ -1036,6 +1041,12 @@ try:
 except (ValueError, IndexError):
     _admin_rl_max = 60
 
+# Explicit union: no shared base class across the three limiter
+# implementations, so mypy otherwise infers the narrower type of whichever
+# branch assigns first and flags the other branch as incompatible.
+_AUTH_RATE_LIMITER: RedisBackedRateLimiter | ExponentialBackoffRateLimiter
+_ADMIN_RATE_LIMITER: RedisBackedRateLimiter | TTLRateLimiter
+
 if _redis_url_for_rl:
     _AUTH_RATE_LIMITER = RedisBackedRateLimiter(
         redis_url=_redis_url_for_rl,
@@ -1225,7 +1236,12 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_exception_handler(
+    RateLimitExceeded,
+    _rate_limit_exceeded_handler,  # type: ignore[arg-type]  # slowapi's own handler is
+    # typed for RateLimitExceeded specifically; Starlette's signature wants the
+    # generic Exception. Standard, documented slowapi usage -- not a bug.
+)
 
 
 @app.exception_handler(Exception)
@@ -1335,7 +1351,9 @@ if ui_path:
     app.mount("/static-ingest", StaticFiles(directory=str(ui_path), html=True), name="ingest")
     logger.info(f"✅ Ingestion UI mounted at /static-ingest (from {ui_path})")
 else:
-    logger.info("Ingestion UI directory not found — static UI not mounted (expected in production container)")
+    logger.info(
+        "Ingestion UI directory not found — static UI not mounted (expected in production container)"
+    )
 
 # === Mount Chat UI ===
 chat_ui_possible_paths = [
@@ -1354,7 +1372,9 @@ if chat_ui_path:
     app.mount("/static-chat", StaticFiles(directory=str(chat_ui_path), html=True), name="chat")
     logger.info(f"✅ Premium Chat UI mounted at /static-chat (from {chat_ui_path})")
 else:
-    logger.info("Chat UI directory not found — static UI not mounted (expected in production container)")
+    logger.info(
+        "Chat UI directory not found — static UI not mounted (expected in production container)"
+    )
 
 # === Mount Gradio UI (gated; disabled by default in production) ===
 if os.getenv("ENABLE_GRADIO_UI", "false").lower() in ("1", "true", "yes"):

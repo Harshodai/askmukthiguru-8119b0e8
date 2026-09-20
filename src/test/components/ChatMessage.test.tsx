@@ -288,4 +288,17 @@ describe('ChatMessage guidance plan', () => {
     render(<ChatMessage message={makeGuruMessage({ content: '🆘 Please contact a helpline now.', guidancePlan })} />, { wrapper });
     expect(screen.queryByTestId('guidance-plan')).not.toBeInTheDocument();
   });
+
+  it('never executes or renders raw HTML/script from LLM-generated content (react-markdown must stay rehype-raw-free)', () => {
+    // react-markdown v10 without rehype-raw treats embedded HTML as literal text,
+    // never as DOM -- this is the ONLY thing standing between LLM output and stored
+    // XSS, since it is implicit (absence of a plugin) rather than an explicit
+    // sanitizer. If a future change adds rehype-raw without rehype-sanitize
+    // alongside it, this test must start failing.
+    const malicious = 'Before <script>window.__xss_fired = true;</script> after, and an <img src=x onerror="window.__xss_fired = true">.';
+    const { container } = render(<ChatMessage message={makeGuruMessage({ content: malicious })} />, { wrapper });
+    expect(container.querySelector('script')).toBeNull();
+    expect(container.querySelector('img[onerror]')).toBeNull();
+    expect((window as unknown as { __xss_fired?: boolean }).__xss_fired).toBeUndefined();
+  });
 });

@@ -31,3 +31,5 @@ Vitest config: `vitest.config.ts` — jsdom, `globals: true`, setup file `src/te
 - `useProfile` re-reads localStorage after server sync; call `clearProfile()` (from `profileStorage.ts`) on sign-out.
 - Suspense fallbacks use `BrandedSpinner`, never bare "Loading..." text.
 - The sidebar listens for the `conversation:updated` window event to refresh; dispatch it after mutating stored conversations.
+- **Backend Polling & Railway Sleep Caution**: `useChatCapabilities` and `useMetrics` hit `/api/capabilities` and `/api/metrics`. In hosted/staging environments, avoid high-frequency polling intervals, as incoming HTTP traffic resets Railway's 10-minute Serverless inactivity timer and keeps backend containers continuously active.
+- **Backend Status (Sep 20, 2026)**: All services (Backend, Memgraph, Qdrant) are currently **SCALED DOWN / OFFLINE** on Railway (Redis `● Sleeping`) to eliminate idle compute costs ($0/hr). To wake up: spin up databases first (`railway redeploy --service qdrant`, `railway redeploy --service memgraph`), then backend (`railway up` or `railway redeploy --service askmukthiguru-8119b0e8`).

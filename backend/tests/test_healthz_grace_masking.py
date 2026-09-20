@@ -64,17 +64,28 @@ async def test_healthz_reports_503_when_boot_failed_even_inside_grace(monkeypatc
 
 @pytest.mark.asyncio
 async def test_grace_never_covers_the_whole_healthcheck_budget():
-    """_GRACE_SECONDS must stay under railway.json's healthcheckTimeout.
+    """_GRACE_SECONDS must stay under .railway/railway.ts's healthcheckTimeout.
 
     If grace >= the healthcheck budget, every probe Railway makes lands in the
     unconditional-200 window and no boot failure can ever fail a deploy.
+
+    Reads .railway/railway.ts (the repo's IaC declaration), not railway.json --
+    that file was removed 2026-09-19 (".railway/railway.ts is now the IaC
+    source"). This only proves the invariant against what the REPO declares;
+    it cannot detect drift between this file and whatever value is actually
+    applied on the live Railway service (Railway IaC only takes effect once
+    pushed/applied there). Re-verify the live value separately after any
+    Railway settings change.
     """
-    import json
+    import re
     from pathlib import Path
 
     mod = _load()
     repo_root = Path(mod.__file__).resolve().parents[1]
-    timeout = json.loads((repo_root / "railway.json").read_text())["deploy"]["healthcheckTimeout"]
+    railway_ts = (repo_root / ".railway" / "railway.ts").read_text()
+    match = re.search(r"healthcheckTimeout:\s*(\d+)", railway_ts)
+    assert match, "could not find healthcheckTimeout in .railway/railway.ts"
+    timeout = int(match.group(1))
 
     assert mod._GRACE_SECONDS < timeout, (
         f"_GRACE_SECONDS={mod._GRACE_SECONDS} must be < healthcheckTimeout={timeout}, "
