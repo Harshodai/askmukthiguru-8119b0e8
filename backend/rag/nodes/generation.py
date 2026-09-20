@@ -1271,6 +1271,13 @@ async def context_engineer(state: GraphState, config: Optional[RunnableConfig] =
         user_state += f"Detected Language: {detected_language}\n"
     if memory_context:
         user_state += f"\n{_fence('user_memory', memory_context)}\n"
+    # Continuation summaries are explicit user-context inputs, not durable transcript
+    # replacements. They are bounded here and suppressed for Temporary Chat upstream.
+    conversation_summary = cap_to_token_budget(
+        str(state.get("conversation_summary") or ""), 600, detected_language
+    )
+    if conversation_summary:
+        user_state += f"\nCONVERSATION SUMMARY (continuation only):\n{conversation_summary}\n"
     # Negative feedback signal: if the user recently received 3+ negative ratings,
     # append an instruction to prioritize directness and citations. Feedback is
     # tied to a real account only — never fall back to a session identifier,
