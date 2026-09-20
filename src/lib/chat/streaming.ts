@@ -77,7 +77,7 @@ export async function* sendMessageStreaming(
     meditation_step: meditationStep,
     session_id: effectiveSessionId,
     ...(summary && !incognito ? { conversation_summary: summary.slice(0, 4000) } : {}),
-    language: languageOverride ?? getCurrentConfig().language || 'en',
+    language: languageOverride ?? getCurrentConfig().language ?? 'en',
     incognito,
     ...(responsePreferences ? { response_preferences: { mode: responsePreferences.mode, include_practice: responsePreferences.includePractice, include_reflection: responsePreferences.includeReflection, action_depth: responsePreferences.actionDepth } } : {}),
     stream: true,
