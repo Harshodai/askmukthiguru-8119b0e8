@@ -109,6 +109,23 @@ describe('useTextToSpeech', () => {
     );
   });
 
+  it('uses an explicit message language override for neural TTS', async () => {
+    vi.mocked(window.fetch).mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ audio: 'ZmFrZS1hdWRpbw==' }),
+    } as Response);
+
+    const { result } = renderHook(() => useTextToSpeech({ lang: 'en' }));
+
+    await act(async () => {
+      result.current.speak('నమస్తే', 'te');
+    });
+
+    const [, options] = vi.mocked(window.fetch).mock.calls[0];
+    const body = JSON.parse(String(options.body));
+    expect(body.target_language_code).toBe('te');
+  });
+
   it('should fall back to native speech synthesis when backend returns 5xx', async () => {
     vi.mocked(window.fetch).mockRejectedValueOnce(new Error('TTS 500'));
 
