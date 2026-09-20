@@ -52,6 +52,8 @@ export interface MessageError {
   description: string;
   /** Suggested user action surfaced as a button in the error bubble. */
   actionLabel?: 'retry' | 'sign_in' | 'reload' | 'new_chat';
+  /** Whether the error can be retried automatically/by the UI. */
+  retryable?: boolean;
   /** Optional technical detail (status code, message) shown in a details disclosure. */
   detail?: string;
 }
