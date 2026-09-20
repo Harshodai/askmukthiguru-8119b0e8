@@ -195,7 +195,7 @@ const PracticeDetailPage = () => {
         <Card className="overflow-hidden">
           <CardHeader className="flex-row items-center justify-between gap-3 space-y-0">
             <h2 className="flex items-center gap-2 text-base font-semibold leading-none tracking-tight">
-              <PlayCircle className="w-5 h-5 text-ojas" /> Guided video
+              <PlayCircle className="w-5 h-5 text-ojas" /> {t('practices.detail.guidedVideo', 'Guided video')}
             </h2>
             <Button asChild variant="outline" size="sm" className="gap-1.5">
               <a href={watchUrl} target="_blank" rel="noopener noreferrer">
@@ -254,7 +254,7 @@ const PracticeDetailPage = () => {
           <Card className="overflow-hidden">
             <CardHeader className="flex-row items-center justify-between gap-3 space-y-0">
               <h2 className="flex items-center gap-2 text-base font-semibold leading-none tracking-tight">
-                <Headphones className="w-5 h-5 text-prana" /> Audio version
+                <Headphones className="w-5 h-5 text-prana" /> {t('practices.detail.audioVersion', 'Audio version')}
               </h2>
               <Button asChild variant="outline" size="sm" className="gap-1.5">
                 <a href={audioWatch} target="_blank" rel="noopener noreferrer">
