@@ -74,6 +74,40 @@ describe('ThinkingPills', () => {
     expect(screen.getByText('Step 3/8: Searching sacred wisdom (37%)')).toBeInTheDocument();
   });
 
+
+  it('renders retrieved teaching evidence without exposing hidden reasoning', () => {
+    render(
+      <ThinkingPills
+        steps={[{ id: 'step-2', label: 'Searching sacred wisdom', status: 'active' }]}
+        visible={true}
+        teachingPreview={[
+          {
+            title: 'Awareness and the Beautiful State',
+            teacher: 'Sri Preethaji',
+            url: 'https://example.com/teaching',
+            excerpt: 'A short source-backed teaching excerpt.',
+          },
+        ]}
+      />,
+    );
+    expect(screen.getByText('Teachings grounding this answer')).toBeInTheDocument();
+    expect(screen.getByText('Awareness and the Beautiful State')).toBeInTheDocument();
+    expect(screen.getByText('A short source-backed teaching excerpt.')).toBeInTheDocument();
+  });
+
+  it('keeps the thinking hierarchy at the same readable font size', () => {
+    const steps: PipelineStep[] = [
+      { id: 'step-0', label: 'Safety check', status: 'done' },
+      { id: 'step-1', label: 'Searching sacred wisdom', status: 'active' },
+    ];
+    render(<ThinkingPills steps={steps} visible={true} />);
+    const toggle = screen.getByRole('button', { name: /toggle thinking details/i });
+    fireEvent.click(toggle);
+    const rows = screen.getAllByText(/Safety check|Searching sacred wisdom/);
+    expect(rows.length).toBeGreaterThan(0);
+    rows.forEach((row) => expect(row.className).toContain('text-sm'));
+  });
+
   it('prevents false 100% completion before tokens arrive (caps at 95%)', () => {
     const steps: PipelineStep[] = [
       { id: 'step-8', label: 'Verifying sacred teachings', status: 'active', step: 8, totalSteps: 8 },
