@@ -318,7 +318,10 @@
       "queued": "ਕਤਾਰ ਵਿੱਚ",
       "analyzing": "ਤੁਹਾਡਾ ਜਵਾਬ ਤਿਆਰ ਕਰ ਰਿਹਾ ਹਾਂ…",
       "stepLabel": "ਕਦਮ {{step}}/{{total}}: {{label}}",
-      "stepProgress": "ਕਦਮ {{step}}/{{total}}: {{label}} ({{percentage}}%)"
+      "stepProgress": "ਕਦਮ {{step}}/{{total}}: {{label}} ({{percentage}}%)",
+      "rotatingReflecting": "ਗੁਰੂ ਜੀ ਤੁਹਾਡੇ ਸਵਾਲ ਬਾਰੇ ਮਨਨ ਕਰ ਰਹੇ ਹਨ…",
+      "rotatingConnecting": "ਪਵਿੱਤਰ ਗਿਆਨ ਨਾਲ ਜੁੜ ਰਹੇ ਹਾਂ…",
+      "rotatingAlmostReady": "ਲਗਭਗ ਤਿਆਰ — ਡੂੰਘੀ ਸਿਆਣਪ ਨੂੰ ਸਮਾਂ ਲੱਗਦਾ ਹੈ…"
     },
     "toggleThinking": "ਵਿਚਾਰ ਦੇ ਵੇਰਵੇ ਬਦਲੋ",
     "reflecting": "ਸਿੱਖਿਆਵਾਂ 'ਤੇ ਵਿਚਾਰ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ…",
