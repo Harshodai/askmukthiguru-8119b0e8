@@ -49,10 +49,10 @@ const buildRequestBody = (
   return JSON.stringify({
     messages: [
       { role: 'system', content: formattedSystemPrompt },
-      ...(summary ? [{ role: 'system' as const, content: `SUMMARY OF PREVIOUS CONVERSATION: ${summary}` }] : []),
       ...messages.slice(-(REFERENTIAL_WORDS.some((w) => userMessage.toLowerCase().includes(w)) ? 40 : 20)),
     ],
     user_message: userMessage,
+    ...(summary && !incognito ? { conversation_summary: summary.slice(0, 4000) } : {}),
     meditation_step: meditationStep,
     session_id: sessionId,
     language: getCurrentConfig().language || 'en',
