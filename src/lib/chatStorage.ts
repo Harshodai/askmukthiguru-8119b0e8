@@ -51,7 +51,7 @@ export interface MessageError {
   title: string;
   description: string;
   /** Suggested user action surfaced as a button in the error bubble. */
-  actionLabel?: 'retry' | 'sign_in' | 'reload';
+  actionLabel?: 'retry' | 'sign_in' | 'reload' | 'new_chat';
   /** Optional technical detail (status code, message) shown in a details disclosure. */
   detail?: string;
 }
