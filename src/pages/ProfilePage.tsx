@@ -1011,7 +1011,7 @@ const ProfilePage = () => {
                         key={theme.value}
                         onClick={() => {
                           patch('theme', theme.value);
-                          applyThemeNow(t.value);
+                          applyThemeNow(theme.value);
                         }}
                         className={cn(
                           "flex flex-col items-center gap-2 p-3 rounded-xl border border-hairline transition-all min-h-[44px]",
