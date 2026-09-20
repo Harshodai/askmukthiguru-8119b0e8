@@ -38,8 +38,8 @@ const PracticeDetailPage = () => {
   }, [practice]);
 
   usePageMeta({
-    title: practice ? `${practice.title} | AskMukthiGuru` : 'Practice not found | AskMukthiGuru',
-    description: practice ? `${practice.purpose.slice(0, 155)}` : 'The requested practice could not be found.',
+    title: practice ? `${practice.title} | AskMukthiGuru` : t('common.noResults'),
+    description: practice ? `${practice.purpose.slice(0, 155)}` : t('common.noResults'),
     canonical: practice ? buildCanonical(`/practices/${practice.slug}`) : buildCanonical('/practices'),
     ogType: practice ? 'article' : 'website',
     ogImage: PRODUCTION_OG_IMAGE,
@@ -104,7 +104,7 @@ const PracticeDetailPage = () => {
       await navigator.clipboard.writeText(`${shareText}\n\n${shareUrl}`);
       setShareCopied(true);
       toast({
-        title: t('common.copied', 'Copied!'),
+        title: t('common.copied'),
         description: t('practices.detail.shareFallbackDesc', 'The practice guide and link were copied to your clipboard.'),
       });
       setTimeout(() => setShareCopied(false), 2000);
@@ -158,7 +158,7 @@ const PracticeDetailPage = () => {
                 {shareCopied ? (
                   <>
                     <Check className="w-4 h-4 text-emerald-500" />
-                    <span className="hidden sm:inline">{t('common.copied', 'Copied!')}</span>
+                    <span className="hidden sm:inline">{t('common.copied')}</span>
                   </>
                 ) : (
                   <>
@@ -173,8 +173,8 @@ const PracticeDetailPage = () => {
                 onClick={() => {
                   toggle(practice.slug);
                   toast({
-                    title: fav ? 'Removed from favorites' : 'Added to favorites',
-                    description: `${practice.title} has been ${fav ? 'removed from' : 'added to'} your list.`,
+                    title: fav ? t('landing.practices.removedFav') : t('landing.practices.addedFav'),
+                    description: fav ? t('landing.practices.removedDesc', { title: practice.title }) : t('landing.practices.addedDesc', { title: practice.title }),
                   });
                 }}
                 aria-pressed={fav}
