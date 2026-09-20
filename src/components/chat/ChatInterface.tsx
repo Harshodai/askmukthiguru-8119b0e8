@@ -2485,11 +2485,11 @@ return (
                       type="button"
                       onClick={handleStopGeneration}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 mt-1 rounded-full text-[12px] font-medium text-foreground/80 border border-border/60 bg-background/80 hover:bg-destructive/10 hover:border-destructive/40 hover:text-destructive transition-colors flex-shrink-0"
-                      aria-label="Stop generating"
-                      title="Stop generating (Esc)"
+                      aria-label={t('chat.stopGenerating')}
+                      title={t('chat.stopGenerating') + ' (Esc)'}
                     >
                       <Square className="w-3 h-3 fill-current" />
-                      Stop
+                      {t('chat.stopGenerating')}
                     </button>
                   )}
                 </div>
