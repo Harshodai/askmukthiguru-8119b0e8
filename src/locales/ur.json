@@ -303,7 +303,23 @@
     "copyTrace": "ٹریس کاپی کریں",
     "cause": "وجہ",
     "nextStep": "اگلا قدم",
-    "thinking": "غور و فکر جاری ہے",
+    "thinking": {
+      "safety": "حفاظتی جانچ",
+      "understanding": "آپ کے سوال کو سمجھ رہا ہوں",
+      "searching": "تعلیمات میں تلاش کر رہا ہوں",
+      "reranking": "متعلقہ مواد بہتر کر رہا ہوں",
+      "filtering": "متعلقہ مواد چھانٹ رہا ہوں",
+      "synthesizing": "تعلیمات کو یکجا کر رہا ہوں",
+      "composing": "رہنمائی تیار کر رہا ہوں",
+      "verifying": "تعلیمی ذرائع کی تصدیق کر رہا ہوں",
+      "hello": "سلام",
+      "practice": "مشق میں رہنمائی",
+      "contemplating": "غور کر رہا ہوں",
+      "queued": "قطار میں",
+      "analyzing": "آپ کا جواب تیار کر رہا ہوں…",
+      "stepLabel": "مرحلہ {{step}}/{{total}}: {{label}}",
+      "stepProgress": "مرحلہ {{step}}/{{total}}: {{label}} ({{percentage}}%)"
+    },
     "toggleThinking": "فکری عمل کی تفصیلات دیکھیں/چھپائیں",
     "reflecting": "تعلیمات پر غور کیا جا رہا ہے…",
     "stillWorking": "ابھی اس پر کام جاری ہے…",
@@ -583,6 +599,10 @@
       "personalMemoryUsed": "اہل ذاتی یادداشت/سیاق و سباق جواب کے ماڈل کو فراہم کیا گیا تھا۔",
       "graphMatched": "آپ کے ذاتی سیاقی گراف نے {{count}} تصوراتی روابط ملائے۔",
       "privateMemoryNotShown": "ذاتی یادداشت کا متن یہاں نہیں دکھایا جاتا۔"
+    },
+    "teachingContext": {
+      "title": "اس جواب کی بنیاد بننے والی تعلیمات",
+      "sourceCount": "{{count}} متعلقہ تعلیمات ملیں"
     }
   },
   "notFound": {
