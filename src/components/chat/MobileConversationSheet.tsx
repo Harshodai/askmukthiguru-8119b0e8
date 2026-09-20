@@ -79,7 +79,7 @@ export const MobileConversationSheet = ({ isOpen, onClose, onNewConversation, on
                 <div className="w-9 h-9 rounded-xl overflow-hidden ring-1 ring-ojas/30 shadow-sm bg-muted shrink-0"><img src={gurusPhoto} alt="" className="w-full h-full object-cover" /></div>
                 <div className="min-w-0"><h2 className="font-semibold text-sm text-foreground truncate">{t('nav.appName')}</h2><p className="text-[11px] text-muted-foreground truncate">{t('chat.yourSpiritualCompanion')}</p></div>
               </div>
-              <button ref={closeRef} onClick={onClose} aria-label="Close menu" className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ojas/60"><X className="w-5 h-5 text-muted-foreground" /></button>
+              <button ref={closeRef} onClick={onClose} aria-label={t('chat.mobile.closeMenu')} className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ojas/60"><X className="w-5 h-5 text-muted-foreground" /></button>
             </div>
 
             <div className="p-3 border-b border-border/60">
@@ -117,7 +117,7 @@ export const MobileConversationSheet = ({ isOpen, onClose, onNewConversation, on
                                 <motion.div key={conv.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} role="button" tabIndex={0} aria-label={`Open conversation: ${conv.preview || 'New conversation'}`} className={`min-h-[52px] flex items-center gap-3 px-2.5 py-1.5 rounded-xl cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ojas ${conv.id === currentConversationId ? 'bg-ojas/12 border border-ojas/25' : 'border border-transparent hover:bg-muted/60'}`} onClick={() => handleSelectConversation(conv)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSelectConversation(conv); } }}>
                                   <MessageCircle className="w-4 h-4 text-muted-foreground shrink-0" />
                                   <div className="flex-1 min-w-0"><p className="text-sm text-foreground truncate">{conv.preview || t('chat.newConversation')}</p><p className="text-[11px] text-muted-foreground">{t('chat.messagesCount', { count: conv.messageCount })}</p></div>
-                                  <button onClick={(e) => handleDeleteConversation(conv.id, e)} aria-label="Delete conversation" className="min-w-[40px] min-h-[40px] flex items-center justify-center rounded-lg opacity-40 hover:opacity-100 active:opacity-100 hover:bg-destructive/10 transition-all"><Trash2 className="w-3.5 h-3.5 text-destructive" /></button>
+                                  <button onClick={(e) => handleDeleteConversation(conv.id, e)} aria-label={t('chat.mobile.deleteConversation')} className="min-w-[40px] min-h-[40px] flex items-center justify-center rounded-lg opacity-40 hover:opacity-100 active:opacity-100 hover:bg-destructive/10 transition-all"><Trash2 className="w-3.5 h-3.5 text-destructive" /></button>
                                 </motion.div>
                               ))}
                             </div>
