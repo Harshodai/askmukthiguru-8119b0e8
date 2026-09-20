@@ -67,6 +67,23 @@ describe('StreamChunk type discriminated union', () => {
     expect(chunk.strategy).toBe('standard');
   });
 
+  it('teaching preview chunk carries safe source evidence', () => {
+    const chunk: StreamChunk = {
+      type: 'teaching_preview',
+      items: [
+        {
+          title: 'Awareness and the Beautiful State',
+          teacher: 'Sri Preethaji',
+          url: 'https://example.com/teaching',
+          excerpt: 'A source-backed teaching excerpt.',
+        },
+      ],
+    };
+    expect(chunk.type).toBe('teaching_preview');
+    expect(chunk.items).toHaveLength(1);
+    expect(chunk.items[0].title).toBe('Awareness and the Beautiful State');
+  });
+
   it('done chunk carries intent, citations, meditationStep', () => {
     const chunk: StreamChunk = {
       type: 'done',
