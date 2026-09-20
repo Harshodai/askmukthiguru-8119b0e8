@@ -1190,6 +1190,7 @@ export const ChatInterface = () => {
         let streamedLiveLogisticsEvents: LiveLogisticsEvent[] = [];
         let streamedGuidancePlan: GuidancePlan | null = null;
         let streamedAnswerEvidence: AnswerEvidence | null = null;
+        let streamedPersonalizationProvenance: import('@/lib/chat/types').PersonalizationProvenance | null = null;
         let streamedGroundingState: GroundingState = 'abstained';
         let streamedFaithfulnessScore: number | null = null;
         let streamedRelevancyScore: number | null = null;
@@ -1295,6 +1296,7 @@ export const ChatInterface = () => {
             streamedLiveLogisticsEvents = chunk.liveLogisticsEvents ?? [];
             streamedGuidancePlan = chunk.guidancePlan ?? null;
             streamedAnswerEvidence = chunk.answerEvidence ?? null;
+            streamedPersonalizationProvenance = chunk.personalizationProvenance ?? null;
             streamedGroundingState = chunk.groundingState ?? (streamedBlocked ? 'safety_redirect' : 'abstained');
             streamedFaithfulnessScore = chunk.faithfulnessScore ?? null;
             streamedRelevancyScore = chunk.relevancyScore ?? null;
@@ -1378,6 +1380,7 @@ export const ChatInterface = () => {
                     liveLogisticsEvents: streamedLiveLogisticsEvents.length > 0 ? streamedLiveLogisticsEvents : undefined,
                     guidancePlan: streamedGuidancePlan,
                     answerEvidence: streamedAnswerEvidence,
+                    personalizationProvenance: streamedPersonalizationProvenance,
                     groundingState: streamedGroundingState,
                     faithfulnessScore: streamedFaithfulnessScore,
                     relevancyScore: streamedRelevancyScore,
@@ -1683,6 +1686,7 @@ openSereneMind('audio');
           liveLogisticsEvents: response.liveLogisticsEvents && response.liveLogisticsEvents.length > 0 ? response.liveLogisticsEvents : undefined,
           guidancePlan: response.guidancePlan ?? null,
           answerEvidence: response.answerEvidence ?? null,
+          personalizationProvenance: response.personalizationProvenance ?? null,
           groundingState: response.groundingState ?? (responseError ? 'system_error' : 'abstained'),
           faithfulnessScore: response.faithfulnessScore ?? null,
           relevancyScore: response.relevancyScore ?? null,
