@@ -372,6 +372,7 @@ async function syncConversationToDb(conversation: Conversation): Promise<void> {
         preview: title,
         created_at: conversation.startedAt.toISOString(),
         updated_at: conversation.updatedAt.toISOString(),
+        summary: conversation.summary ?? null,
       },
       { onConflict: 'id' },
     );
