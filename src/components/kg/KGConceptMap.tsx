@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { CSSProperties, MouseEvent } from 'react';
+import type { CSSProperties, FormEvent, MouseEvent } from 'react';
 import {
   Background,
   Controls,
@@ -291,16 +291,14 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
         setData(null);
         setSelectedNodeId(null);
 
-        if (!isPersonal && !loading) {
+        if (personal) {
+          setError(
+            t('kg.personalMapUnavailable', 'Your personal wisdom map is unavailable right now. Please try again.'),
+          );
+        } else {
           setData(DEMO_DATA);
           setIsDemo(true);
           setError(null);
-        } else {
-          setError(
-            isPersonal
-              ? t('kg.personalMapUnavailable', 'Your personal wisdom map is unavailable right now. Please try again.')
-              : t('kg.mapUnavailable', 'The teaching map is unavailable right now. Please try again.'),
-          );
         }
       } finally {
         setLoading(false);
@@ -363,7 +361,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
     return [...counts.entries()].sort((a, b) => b[1] - a[1]);
   }, [data]);
 
-  const submit = (event: React.FormEvent) => {
+  const submit = (event: FormEvent) => {
     event.preventDefault();
     setSubmitted(query.trim());
   };
