@@ -1252,7 +1252,7 @@
     },
     "closeFeedbackPanel": "ഫീഡ്‌ബാക്ക് പാനൽ അടയ്ക്കുക",
     "feedbackCommentPlaceholder": "ഐച്ഛികം: കൂടുതൽ പങ്കുവെക്കുക…",
-    "teachingReference": "ഉപദേശ സ്രോതസ്സ്",
+    "teachingReference": "ഉപദേശ റഫറൻസ്",
     "teaching": "ഉപദേശം",
     "clearAnswer": "വ്യക്തമായ ഉത്തരം",
     "relevantSources": "അനുയോജ്യമായ ഉറവിടങ്ങൾ",
@@ -1547,7 +1547,10 @@
     "sereneMindOfferFooter": "ആദ്യം ഉപദേശം; ശരിയായി തോന്നുമ്പോൾ മാത്രം ആരംഭിക്കുക.",
     "videoUnavailable": "വീഡിയോ ലഭ്യമല്ല",
     "videoEmbedUnavailable": "ഈ വീഡിയോ എംബെഡ് ചെയ്യാൻ കഴിയില്ല",
-    "youTubeThumbnail": "YouTube ലഘുചിത്രം"
+    "youTubeThumbnail": "YouTube ലഘുചിത്രം",
+    "videoSource": "വീഡിയോ ഉറവിടം {{letter}}",
+    "academyReference": "O&O അക്കാദമി റഫറൻസ്",
+    "sourceLabel": "ഉറവിടം {{number}}"
   },
   "commandPalette": {
     "searchPlaceholder": "AskMukthiGuru തിരയുക…",
