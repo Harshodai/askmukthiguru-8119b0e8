@@ -9,15 +9,15 @@ from services.chat_context_budget import (
 def test_context_budget_uses_existing_server_settings(monkeypatch):
     monkeypatch.setattr(settings, "context_window_total", 1000)
     monkeypatch.setattr(settings, "context_system_prompt_reserve", 0.20)
-    monkeypatch.setattr(settings, "max_tokens_per_request", 5000)
+    monkeypatch.setattr(settings, "llm_max_tokens_deep", 100)
 
-    assert max_chat_input_tokens() == 800
+    assert max_chat_input_tokens() == 700
 
 
 def test_context_budget_is_script_aware_and_exhausted(monkeypatch):
     monkeypatch.setattr(settings, "context_window_total", 1000)
     monkeypatch.setattr(settings, "context_system_prompt_reserve", 0.20)
-    monkeypatch.setattr(settings, "max_tokens_per_request", 1000)
+    monkeypatch.setattr(settings, "llm_max_tokens_deep", 100)
 
     result = assess_conversation_context(
         [{"role": "user", "content": "తెలుగు " * 320}],
