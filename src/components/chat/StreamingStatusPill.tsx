@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Compass, BookOpen, ShieldCheck, ChevronDown, Activity } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export type ThoughtStage = 
   | 'connecting'     // Connecting to sacred scriptures
@@ -32,6 +33,7 @@ export const StreamingStatusPill: React.FC<StreamingStatusPillProps> = ({
   modelUsed = 'GraphRAG Dual-Level',
   retrievedCount = 3,
 }) => {
+  const { t } = useTranslation();
   const [currentStageIdx, setCurrentStageIdx] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [showInspector, setShowInspector] = useState(false);
@@ -123,11 +125,11 @@ export const StreamingStatusPill: React.FC<StreamingStatusPillProps> = ({
               </div>
               <div className="grid grid-cols-2 gap-2 font-mono text-[10px]">
                 <div className="rounded-lg bg-background/50 p-2">
-                  <span className="text-muted-foreground">Retrieval Engine</span>
+                  <span className="text-muted-foreground">{t('chat.streaming.retrievalEngine')}</span>
                   <p className="font-semibold text-foreground">{modelUsed}</p>
                 </div>
                 <div className="rounded-lg bg-background/50 p-2">
-                  <span className="text-muted-foreground">Discourse Sources</span>
+                  <span className="text-muted-foreground">{t('chat.streaming.discourseSources')}</span>
                   <p className="font-semibold text-foreground">{retrievedCount} Verified Chunks</p>
                 </div>
               </div>
