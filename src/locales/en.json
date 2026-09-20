@@ -318,7 +318,10 @@
       "queued": "Queued",
       "analyzing": "Preparing your answer…",
       "stepLabel": "Step {{step}}/{{total}}: {{label}}",
-      "stepProgress": "Step {{step}}/{{total}}: {{label}} ({{percentage}}%)"
+      "stepProgress": "Step {{step}}/{{total}}: {{label}} ({{percentage}}%)",
+      "rotatingReflecting": "Guru is reflecting on your question…",
+      "rotatingConnecting": "Connecting to sacred wisdom…",
+      "rotatingAlmostReady": "Almost ready — deep wisdom takes time…"
     },
     "toggleThinking": "Toggle thinking details",
     "reflecting": "Reflecting on the teachings…",
