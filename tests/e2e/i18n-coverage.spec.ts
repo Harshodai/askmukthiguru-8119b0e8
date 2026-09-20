@@ -11,6 +11,23 @@ import { test, expect } from "@playwright/test";
 
 const LOCALES = ["en", "hi", "te", "kn", "ta", "mr", "bn", "gu", "ml", "ur", "or", "pa", "as", "sa"];
 
+const EXPECTED_NAV_PRACTICES: Record<string, string> = {
+  en: "Practices",
+  hi: "अभ्यास",
+  te: "అభ్యాసాలు",
+  kn: "ಅಭ್ಯಾಸಗಳು",
+  ta: "பயிற்சிகள்",
+  mr: "पद्धती",
+  bn: "অনুশীলন ও সাধনা",
+  gu: "સાધનાઓ",
+  ml: "പരിശീലനങ്ങൾ",
+  ur: "مشقیں",
+  or: "ଅଭ୍ୟାସ ସମୂହ",
+  pa: "ਅਭਿਆਸ",
+  as: "সাধনা আৰু অভ্যাস",
+  sa: "साधनाः",
+};
+
 // Public routes reachable without auth. Authenticated routes are covered by
 // e2e/session.spec.ts once a real Google OAuth session is available in CI.
 const PUBLIC_ROUTES = ["/", "/auth", "/privacy", "/terms", "/practices", "/spirit-guides", "/chat"];
@@ -23,6 +40,7 @@ test.describe("i18n route coverage", () => {
         await page.addInitScript((l) => {
           try {
             localStorage.setItem("i18nextLng", l);
+            localStorage.setItem("askmukthiguru_profile.preferredLanguage", l);
           } catch {
             /* private mode */
           }
@@ -42,6 +60,13 @@ test.describe("i18n route coverage", () => {
         } else {
           await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
         }
+
+        // Assert actual translated UI text instead of merely checking the
+        // <html lang> attribute. The public navbar is present on /, so use its
+        // localized Practices label as a stable cross-locale sentinel.
+        await page.goto("/", { waitUntil: "domcontentloaded" });
+        await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
+        await expect(page.getByText(EXPECTED_NAV_PRACTICES[lang], { exact: true }).first()).toBeVisible();
 
         // Screenshot the top viewport for manual review of any leaks.
         await page.screenshot({
