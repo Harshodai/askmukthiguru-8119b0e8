@@ -441,7 +441,7 @@ const ProfilePage = () => {
               </Avatar>
               <button
                 onClick={() => fileInputRef.current?.click()}
-                aria-label="Change profile photo"
+                aria-label={t('common.edit') + ' ' + t('profile.tabs.profile')}
                 className="absolute -bottom-1 -right-1 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full bg-card border border-hairline text-ojas shadow-sm hover:bg-ojas/10 transition-colors no-tap-highlight"
               >
                 <Camera className="w-4 h-4" />
@@ -513,7 +513,7 @@ const ProfilePage = () => {
             {/* Compact segmented navigation; scrolls safely on narrow devices. */}
             <div className="sticky top-14 z-20 -mx-4 sm:mx-0 px-4 sm:px-0 py-1 bg-background/90 backdrop-blur-xl border-b border-transparent overflow-x-auto momentum-scroll no-tap-highlight">
               <TabsList
-                aria-label="Profile sections"
+                aria-label={t('layout.navigate')}
                 className="inline-flex w-max sm:w-full sm:grid sm:grid-cols-6 gap-0 mb-2 bg-muted/50 p-1 rounded-xl"
               >
                 <TabsTrigger value="journey" className="rounded-lg min-h-[44px] text-xs px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors">{t('profile.tabs.journey', 'Journey')}</TabsTrigger>
@@ -1385,9 +1385,9 @@ const ProfilePage = () => {
                           Before reaching out
                         </h4>
                         <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
-                          <li>Make sure you are on the latest version (refresh the page).</li>
-                          <li>Check your internet connection and try again.</li>
-                          <li>If the Guru is not responding, the backend may be temporarily busy.</li>
+                          <li>{t('common.tryAgain')}</li>
+                          <li>{t('error.offlineDescription')}</li>
+                          <li>{t('chat.errorCauseServerError')}</li>
                         </ul>
                       </div>
 
