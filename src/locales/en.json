@@ -647,7 +647,13 @@
       "editingNotice": "Editing — earlier replies will be regenerated",
       "unverified": "I could not verify the quoted teaching against a linked source, so I am not presenting it as a teacher attribution. Please retry to request a grounded answer."
     },
-    "verifiedAt": "Verified {{date}}"
+    "verifiedAt": "Verified {{date}}",
+    "unverifiedTeaching": "I could not verify the quoted teaching against a linked source, so I am not presenting it as a teacher attribution. Please retry to request a grounded answer.",
+    "sereneMindOfferDefaultReason": "A brief practice may help you settle and reconnect.",
+    "sereneMindOfferFooter": "The teaching comes first; start only if it feels right.",
+    "videoUnavailable": "Video unavailable",
+    "videoEmbedUnavailable": "This video can't be embedded",
+    "youTubeThumbnail": "YouTube thumbnail"
   },
   "notFound": {
     "message": "Oops! Page not found",
