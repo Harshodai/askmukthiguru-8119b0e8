@@ -61,7 +61,7 @@ const PracticeDetailPage = () => {
 
   if (!practice) {
     return (
-      <PublicShell title="Practice not found">
+      <PublicShell title={t('common.noResults')}>
         <div className="max-w-2xl mx-auto px-4 py-16 text-center space-y-4">
           <h1 className="text-xl font-semibold text-foreground">
             We couldn't find that practice
