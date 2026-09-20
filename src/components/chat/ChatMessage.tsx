@@ -87,20 +87,44 @@ const TeachingGroundingCard = ({
   teachingPreview?: Message['teachingPreview'];
 }) => {
   const { t } = useTranslation();
-  const previewItems = (teachingPreview ?? [])
-    .filter((item) => Boolean(item.title || item.excerpt))
-    .slice(0, 2);
-  const items = previewItems.length > 0
-    ? previewItems.map((item) => ({
+  type GroundingItem = {
+    title?: string;
+    teacher?: string;
+    speaker?: string;
+    source?: string;
+    url?: string;
+    excerpt?: string;
+  };
+
+  const items: GroundingItem[] =
+    (teachingPreview ?? [])
+      .filter((item) => Boolean(item.title || item.excerpt))
+      .slice(0, 2)
+      .map((item) => ({
         title: item.title,
         teacher: item.teacher ?? undefined,
-        source: undefined as string | undefined,
         url: item.url ?? undefined,
         excerpt: item.excerpt ?? undefined,
-      }))
-    : citations
-      .filter((citation) => Boolean(citation.title || citation.quote || citation.textSnippet))
-      .slice(0, 2);
+      })).length > 0
+      ? (teachingPreview ?? [])
+          .filter((item) => Boolean(item.title || item.excerpt))
+          .slice(0, 2)
+          .map((item) => ({
+            title: item.title,
+            teacher: item.teacher ?? undefined,
+            url: item.url ?? undefined,
+            excerpt: item.excerpt ?? undefined,
+          }))
+      : citations
+          .filter((citation) => Boolean(citation.title || citation.quote || citation.textSnippet))
+          .slice(0, 2)
+          .map((citation) => ({
+            title: citation.title ?? undefined,
+            speaker: citation.speaker ?? undefined,
+            source: citation.source ?? undefined,
+            url: citation.url ?? undefined,
+            excerpt: citation.quote || citation.textSnippet || undefined,
+          }));
 
   if (items.length === 0) return null;
 
@@ -116,7 +140,7 @@ const TeachingGroundingCard = ({
       </div>
       <div className="mt-2 space-y-2.5">
         {items.map((citation, index) => {
-          const excerpt = citation.quote || citation.textSnippet;
+          const excerpt = citation.excerpt;
           return (
             <div key={citation.url || (citation.title || 'teaching') + '-' + index} className="min-w-0">
               <div className="text-sm font-medium leading-5 text-foreground">
@@ -134,9 +158,9 @@ const TeachingGroundingCard = ({
                   citation.title || t('chat.references')
                 )}
               </div>
-              {(citation.speaker || citation.source || (citation as typeof citation & { teacher?: string }).teacher) && (
+              {(citation.speaker || citation.teacher || citation.source) && (
                 <div className="mt-0.5 text-sm text-muted-foreground">
-                  {[citation.speaker, (citation as typeof citation & { teacher?: string }).teacher, citation.source].filter(Boolean).join(' · ')}
+                  {[citation.speaker, citation.teacher, citation.source].filter(Boolean).join(' · ')}
                 </div>
               )}
               {excerpt && (
