@@ -526,8 +526,20 @@ def _conversation_context_limit_response(chat_body: ChatRequest) -> JSONResponse
     SAME turn a user expresses suicidal ideation would return a generic
     "start a new chat" 409 before DistressStage ever runs — silently
     skipping crisis preemption for exactly the population this app most
-    needs to catch. Crisis preemption terminates before retrieval/
-    generation, so it stays cheap regardless of context size.
+    needs to catch.
+
+    NOTE: `has_crisis_keywords()` reuses `_DISTRESS_KEYWORD_RE`, which is
+    broader than acute crisis language (it also matches MODERATE-level words
+    like "anxiety", "alone", "overwhelm" per serene_mind_engine.py's severity
+    map). DistressStage only terminates the pipeline early (cheaply) for
+    SEVERE/CRISIS-level assessments — a MODERATE-only match here still falls
+    through to full retrieval/generation. So this bypass does NOT "stay
+    cheap" for every word it matches; it only avoids the safety failure mode
+    above. A bypassed, budget-exhausted conversation runs the full pipeline
+    cost on every turn that contains one of these common words instead of
+    getting the 409 that would otherwise force a new chat. Deliberate
+    safety-over-cost tradeoff — re-derive `has_crisis_keywords()` from the
+    SEVERE+CRISIS pattern set only if this cost becomes a measured problem.
     """
     if has_crisis_keywords(chat_body.user_message):
         return None

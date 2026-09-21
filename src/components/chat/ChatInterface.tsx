@@ -1446,10 +1446,16 @@ export const ChatInterface = () => {
                     content: fullContent,
                     intent: finalIntent,
                     citations: streamedCitations.length > 0 ? streamedCitations : undefined,
+                    // Third arg deliberately `[]`, not the `teachingPreview` component
+                    // state: that state is a stale closure capture from before this
+                    // turn started (setTeachingPreview([]) above doesn't update it
+                    // synchronously), so it can hold a PREVIOUS turn's unrelated
+                    // preview. Falling back to it would attach an old, unrelated
+                    // teaching card to a turn that genuinely has no evidence.
                     teachingPreview: resolveTeachingPreview(
                       streamedCitations,
                       streamedTeachingPreview,
-                      teachingPreview,
+                      [],
                     ),
                     followUpSuggestions: streamedFollowUpSuggestions.length > 0 ? streamedFollowUpSuggestions : undefined,
                     language: turnLanguage,

@@ -23,6 +23,13 @@ jobs:
   golden-eval:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    # Repo default workflow token permissions are read-only, and the PR-comment
+    # step below calls issues.createComment (PRs are issues in the GH API) —
+    # without this, that step 403s on every PR run and fails the job even when
+    # the eval itself passed. Matches the pattern in backup-drill-reminder.yml.
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
 
