@@ -1,10 +1,14 @@
 """Pipeline builder — ordered list of default stages.
 
 Order keeps request validation and safety ahead of provider availability:
-  cache_check → request_state → input_guardrails → circuit_breaker →
+  kill_switch → cache_check → request_state → input_guardrails → circuit_breaker →
   doctrine_cache → casual_short_circuit → distress → bounded_comparison → graph →
   meditation_gen → translation → tone_adapter → output_guardrails →
   memory_save → cache_update → result_assembly
+
+kill_switch runs first, ahead of cache, on purpose (PLAN.md Phase A5): a
+tripped switch must never be bypassable by a cache entry computed before it
+was flipped, and it must not depend on any other stage's state.
 """
 
 from __future__ import annotations
@@ -26,6 +30,7 @@ from app.pipeline.stages.guardrail_stage import (
     InputGuardrailStage,
     OutputGuardrailStage,
 )
+from app.pipeline.stages.kill_switch_stage import KillSwitchStage
 from app.pipeline.stages.meditation_gen_stage import MeditationGenStage
 from app.pipeline.stages.memory_stage import MemoryStage
 from app.pipeline.stages.tone_adapter_stage import ToneAdapterStage
@@ -34,6 +39,7 @@ from app.pipeline.stages.tone_adapter_stage import ToneAdapterStage
 def build_default_pipeline() -> list[Stage]:
     """Return the ordered default stage chain for a chat request."""
     return [
+        KillSwitchStage(),
         CacheCheckStage(),
         RequestStateStage(),
         InputGuardrailStage(),

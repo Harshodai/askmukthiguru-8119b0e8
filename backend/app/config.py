@@ -138,6 +138,13 @@ class Settings(BaseSettings):
 
     serene_mind_enabled: bool = True
     # Enable/disable Serene Mind distress detection engine
+
+    # PLAN.md Phase A5 — generation kill switch. When tripped (globally or for
+    # a specific locale), KillSwitchStage runs before every other stage
+    # (including cache) and returns a safe static response with helplines,
+    # never a generated answer. Default off; flip only for a real incident.
+    generation_kill_switch_enabled: bool = False
+    generation_kill_switch_locales: str = ""  # comma-separated locale codes, e.g. "hi,te"
     doctrine_cache_enabled: bool = (
         False  # Default OFF: built-in canned answers lack citations and hurt benchmark quality
     )

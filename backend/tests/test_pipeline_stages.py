@@ -542,6 +542,7 @@ def test_build_default_pipeline_order():
     stages = build_default_pipeline()
     names = [s.name for s in stages]
     assert names == [
+        "kill_switch",
         "cache_check",
         "request_state",
         "input_guardrails",
