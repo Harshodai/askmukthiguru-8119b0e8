@@ -55,6 +55,10 @@ class Helpline:
     name: str
     contact: str
     url: str | None = None
+    hours: str | None = None
+    languages: list[str] | None = None
+    source_url: str | None = None
+    last_verified: str | None = None
 
 
 _FALLBACK_HELPLINES: tuple[Helpline, ...] = (
@@ -79,14 +83,32 @@ _FALLBACK_DOMESTIC_VIOLENCE_HELPLINES: tuple[Helpline, ...] = (
 )
 
 
+def _parse_helpline_entry(entry: dict) -> Helpline:
+    """Parse one YAML helpline entry. Raises KeyError/TypeError on malformed input."""
+    languages = entry.get("languages")
+    return Helpline(
+        region=str(entry["region"]),
+        name=str(entry["name"]),
+        contact=str(entry["contact"]),
+        url=str(entry["url"]) if entry.get("url") else None,
+        hours=str(entry["hours"]) if entry.get("hours") else None,
+        languages=[str(lang) for lang in languages] if languages else None,
+        source_url=str(entry["source_url"]) if entry.get("source_url") else None,
+        last_verified=str(entry["last_verified"]) if entry.get("last_verified") else None,
+    )
+
+
 def _resolve_config_path() -> Path:
-    override = getattr(settings, "router_config_path", None)
+    override = getattr(settings, "helplines_config_path", None)
     if override:
         candidate = Path(override).expanduser().resolve()
         if candidate.is_file():
             return candidate
-    # Default: bundled YAML beside the package.
-    return Path(__file__).resolve().parents[1] / "config" / "router_routes.yaml"
+    # Default: repo-root config/helplines.yaml (single source of truth for
+    # crisis/DV helplines — see PLAN.md Phase A2). Moved here 2026-09-21 from
+    # backend/config/router_routes.yaml; that file no longer carries helpline
+    # data. See lessons.md for the migration note.
+    return Path(__file__).resolve().parents[2] / "config" / "helplines.yaml"
 
 
 @lru_cache(maxsize=1)
@@ -136,18 +158,17 @@ def get_helplines() -> tuple[Helpline, ...]:
     parsed: list[Helpline] = []
     for entry in entries:
         try:
-            parsed.append(
-                Helpline(
-                    region=str(entry["region"]),
-                    name=str(entry["name"]),
-                    contact=str(entry["contact"]),
-                    url=str(entry["url"]) if entry.get("url") else None,
-                )
-            )
+            parsed.append(_parse_helpline_entry(entry))
         except (KeyError, TypeError) as exc:
             logger.warning("crisis_helplines: skipping malformed entry %r: %s", entry, exc)
     if not parsed:
         return _FALLBACK_HELPLINES
+    if not any(h.last_verified for h in parsed):
+        logger.warning(
+            "crisis_helplines: no entry in %s has last_verified set — helpline "
+            "numbers are unverified. Do not treat this data as launch-ready.",
+            path,
+        )
     return tuple(parsed)
 
 
@@ -174,14 +195,7 @@ def get_domestic_violence_helplines() -> tuple[Helpline, ...]:
     parsed: list[Helpline] = []
     for entry in entries:
         try:
-            parsed.append(
-                Helpline(
-                    region=str(entry["region"]),
-                    name=str(entry["name"]),
-                    contact=str(entry["contact"]),
-                    url=str(entry["url"]) if entry.get("url") else None,
-                )
-            )
+            parsed.append(_parse_helpline_entry(entry))
         except (KeyError, TypeError):
             continue
     return tuple(parsed) or _FALLBACK_DOMESTIC_VIOLENCE_HELPLINES

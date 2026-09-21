@@ -1,0 +1,128 @@
+# Crisis and domestic-violence helpline registry — single source of truth.
+#
+# Loaded by backend/services/crisis_helplines.py. Never hardcode a helpline
+# number anywhere else (prompts, frontend copy, guardrail rules) — always
+# resolve through that module.
+#
+# ⚠️ SAFETY-CRITICAL, HUMAN VERIFICATION REQUIRED BEFORE LAUNCH ⚠️
+# Every `last_verified` field below is deliberately unset. An AI agent wrote
+# this file from public web sources and CANNOT verify that a phone number
+# still rings, is still free, or is still staffed. Per the release brief
+# (PLAN.md, decisions-needed #2 / dossier §7): a human must call or
+# independently confirm every number, set `last_verified` to the date they
+# did so, and this comment block must be updated before this file is treated
+# as launch-ready. Do not ship on agent-populated data alone.
+#
+# Schema per entry: region, name, contact (the number/text-instruction),
+# hours (optional), languages (optional list), source_url (optional, where
+# the number was sourced from), last_verified (optional, ISO date the number
+# was human-confirmed — absence means NOT YET VERIFIED).
+
+crisis_helplines:
+  - region: "India"
+    name: "National Emergency Services"
+    contact: "112"
+    hours: "24/7"
+    languages: ["hi", "en"]
+    source_url: "https://www.112.gov.in/"
+    last_verified: null
+  - region: "India"
+    name: "Tele-MANAS (National Mental Health Helpline)"
+    contact: "14416 / 1800-891-4416"
+    hours: "24/7, free"
+    languages: ["approximately 20 Indian languages"]
+    source_url: "https://telemanas.mohfw.gov.in/home"
+    last_verified: null
+  - region: "India"
+    name: "KIRAN (Mental Health Helpline)"
+    contact: "1800-599-0019"
+    hours: "24/7, free, toll-free"
+    languages: ["multiple Indian languages"]
+    source_url: null
+    last_verified: null
+  - region: "India"
+    name: "iCall"
+    contact: "9152987821"
+    hours: null
+    languages: ["hi", "en"]
+    source_url: "https://icallhelpline.org/"
+    last_verified: null
+  - region: "India"
+    name: "AASRA"
+    contact: "9820466726"
+    hours: "24/7"
+    languages: null
+    source_url: "http://www.aasra.info/"
+    last_verified: null
+  - region: "India"
+    name: "Vandrevala Foundation"
+    contact: "+91 9999 666 555"
+    hours: "24/7"
+    languages: null
+    source_url: "https://vandrevalafoundation.com/"
+    last_verified: null
+  - region: "India"
+    name: "Snehi"
+    contact: "044-24640050"
+    hours: null
+    languages: null
+    source_url: null
+    last_verified: null
+  - region: "United States"
+    name: "988 Suicide & Crisis Lifeline"
+    contact: "988"
+    hours: "24/7"
+    languages: ["en", "es"]
+    source_url: "https://988lifeline.org/"
+    last_verified: null
+  - region: "United States"
+    name: "Crisis Text Line"
+    contact: "Text HOME to 741741"
+    hours: "24/7"
+    languages: ["en"]
+    source_url: "https://www.crisistextline.org/"
+    last_verified: null
+  - region: "United Kingdom"
+    name: "Samaritans"
+    contact: "116 123"
+    hours: "24/7, free"
+    languages: ["en"]
+    source_url: "https://www.samaritans.org/"
+    last_verified: null
+  - region: "United Kingdom"
+    name: "SHOUT"
+    contact: "Text SHOUT to 85258"
+    hours: "24/7"
+    languages: ["en"]
+    source_url: "https://giveusashout.org/"
+    last_verified: null
+
+domestic_violence_helplines:
+  - region: "India"
+    name: "National Emergency Helpline"
+    contact: "112"
+    hours: "24/7"
+    languages: null
+    source_url: null
+    last_verified: null
+  - region: "India"
+    name: "Women Helpline (All India)"
+    contact: "181 / 1091"
+    hours: "24/7"
+    languages: null
+    source_url: null
+    last_verified: null
+  - region: "United States"
+    name: "National Domestic Violence Hotline"
+    contact: "1-800-799-SAFE (7233) or Text START to 88788"
+    hours: "24/7"
+    languages: ["en", "es"]
+    source_url: "https://www.thehotline.org/"
+    last_verified: null
+  - region: "United Kingdom"
+    name: "National Domestic Abuse Helpline"
+    contact: "0808 2000 247"
+    hours: "24/7, free"
+    languages: ["en"]
+    source_url: null
+    last_verified: null

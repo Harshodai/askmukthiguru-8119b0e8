@@ -366,56 +366,9 @@ doctrine_keywords:
     - "Surrender"
 
 # =============================================================================
-# Crisis helpline contacts surfaced in DISTRESS responses. Editing this YAML
-# updates the helplines without code changes.
+# Crisis and domestic-violence helpline data moved to /config/helplines.yaml
+# (repo root) on 2026-09-21 — see lessons.md and backend/services/
+# crisis_helplines.py. That file is the single source of truth; do not
+# re-add `crisis_helplines:`/`domestic_violence_helplines:` keys here.
 # =============================================================================
-crisis_helplines:
-  - region: "India"
-    name: "National Emergency Services"
-    contact: "112"
-  - region: "India"
-    name: "Tele-MANAS (National Mental Health Helpline - 24/7 Toll-Free)"
-    contact: "14416 / 1800-891-4416"
-  - region: "India"
-    name: "KIRAN (Mental Health Helpline)"
-    contact: "1800-599-0019"
-  - region: "India"
-    name: "iCall"
-    contact: "9152987821"
-  - region: "India"
-    name: "AASRA"
-    contact: "9820466726"
-    url: "aasra.info"
-  - region: "India"
-    name: "Vandrevala Foundation"
-    contact: "+91 9999 666 555"
-  - region: "India"
-    name: "Snehi"
-    contact: "044-24640050"
-  - region: "United States"
-    name: "988 Suicide & Crisis Lifeline"
-    contact: "988"
-  - region: "United States"
-    name: "Crisis Text Line"
-    contact: "Text HOME to 741741"
-  - region: "United Kingdom"
-    name: "Samaritans"
-    contact: "116 123"
-  - region: "United Kingdom"
-    name: "SHOUT"
-    contact: "Text SHOUT to 85258"
-
-domestic_violence_helplines:
-  - region: "India"
-    name: "National Emergency Helpline"
-    contact: "112"
-  - region: "India"
-    name: "Women Helpline (All India)"
-    contact: "181 / 1091"
-  - region: "United States"
-    name: "National Domestic Violence Hotline"
-    contact: "1-800-799-SAFE (7233) or Text START to 88788"
-  - region: "United Kingdom"
-    name: "National Domestic Abuse Helpline"
-    contact: "0808 2000 247"
 
