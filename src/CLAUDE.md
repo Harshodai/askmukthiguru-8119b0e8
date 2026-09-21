@@ -25,6 +25,8 @@ Vitest config: `vitest.config.ts` — jsdom, `globals: true`, setup file `src/te
 - `lib/` — non-React logic. `aiService.ts` has three modes: `placeholder` (canned, default), `custom` (FastAPI `POST /api/chat`), `openai`. Client state persists in localStorage-backed stores (`chatStorage`, `profileStorage`, `favoritesStorage`, `meditationStorage`); server data via `integrations/supabase/client`.
 - Lazy routes go through `lib/lazyWithRetry.ts` (retries chunk-load failures), not bare `React.lazy`.
 
+This build is also what ships inside the `android/` and `ios/` Capacitor wrappers (both git-tracked at repo root). For mobile-specific build/signing/store-submission concerns, see root `CLAUDE.md`'s "Mobile & Store Release" section and `docs/MOBILE_RELEASE_RUNBOOK.md` — not this file.
+
 ## Gotchas
 
 - Active streaming checkpoints to `sessionStorage` every 500ms under `askmukthiguru_stream_checkpoint`; cleared in `finally`, restored on mount if < 60s old — preserve this contract when touching chat streaming.

@@ -525,6 +525,10 @@ Backups stay local-cron per policy (`infrastructure/cron/mukthiguru-backup`: 02:
 │   ├── monitoring_dashboard.py
 │   ├── security_audit.py
 │   └── whatsapp_webhook.py
+├── android/                  # Capacitor Android project (git-tracked, explicit artifact exclusions)
+├── ios/                      # Capacitor iOS project (git-tracked since 2026-09-21 — see L-IOS-GITIGNORE-1 in lessons.md;
+│                             #   a blanket `ios/` root .gitignore rule previously shadowed it entirely, so it was
+│                             #   never committed before that fix)
 ├── k8s/
 │   ├── helm/
 │   │   └── mukthiguru/
@@ -607,6 +611,15 @@ chmod +x setup_sarvam.sh && ./setup_sarvam.sh   # Linux/Colab
 | Health Check | http://localhost:8000/api/health |
 | Jaeger Traces | http://localhost:16686 |
 | Neo4j Browser | http://localhost:7474 |
+
+## Mobile & Store Release
+
+Both `android/` and `ios/` are Capacitor 8 projects, git-tracked at repo root (see AGENTS.md's "Mobile App" section for the shared build/signing/OAuth details). **Read `docs/MOBILE_RELEASE_RUNBOOK.md` before any App Store / Play Store submission work** — it is the authoritative, step-by-step procedure (build, signing, screenshots, store listing, push credentials, Supabase OAuth redirect URLs, and a Pre-Submission Checklist). Store copy lives in `docs/STORE_LISTING.md`.
+
+- **Not submission-ready as of 2026-09-21.** Code/config side is verified correct (see `lessons.md`'s "App-store / website deploy-readiness pass" entries, same date); submission itself is blocked on account/credential/device work no agent can do: Apple Developer Program enrollment + Services ID (for Apple Sign-In) + APNs `.p8` key, Google Play Console access + a real release keystore + `google-services.json`, and end-to-end TestFlight/Play internal-testing verification on real devices.
+- `ios/` was **not tracked in git at all** until 2026-09-21 — a blanket `ios/` rule in the root `.gitignore` shadowed its own nested `.gitignore`. See `lessons.md` `L-IOS-GITIGNORE-1` for the full incident and fix; verify with `git status --short --untracked-files=all ios/` (not the collapsed `?? ios/` line) before assuming any future native-platform directory is actually tracked.
+- Website launch checklist (SEO, security, legal, analytics — separate from the mobile runbook): `PRE_LAUNCH_CHECKLIST_PLAN.md`. Release evidence/scope contract for any production release, mobile or web: `docs/operations/release-evidence-pack.md`.
+- Regenerate icon/splash assets for both platforms from the single branded source with `python3 scripts/ops/generate_mobile_assets.py` (reads `public/icon-512.png`) — do not hand-edit the generated PNGs.
 
 ## Configuration
 
