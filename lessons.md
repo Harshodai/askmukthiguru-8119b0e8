@@ -1,3 +1,11 @@
+## Sep 21, 2026 (Session 7, continued 6) — Phase A3 verification found a real gap: crisis copy never asked a direct safety question
+
+### L-CRISIS-COPY-1. SEVERE/CRISIS response text didn't ask directly about safety, didn't offer to stay present
+- **Who**: Claude Sonnet 5, 2026-09-21, verifying PLAN.md A3 against the shipped copy rather than assuming it already matched (it substantially did for A4's MILD/MODERATE tiers, checked separately).
+- **What**: The brief's A3 requirement is specific: "ask directly and caringly about safety and intent... offer to stay present." The shipped `DISTRESS_RESPONSES[SEVERE]`/`[CRISIS]` text (`services/serene_mind_engine.py`) acknowledged warmly and listed helplines, but was purely declarative — no direct question ("are you safe right now?"), no explicit "I'm staying here with you" language. Easy to miss because the response reads as caring and complete; the gap is what it doesn't ask, not what it says wrong.
+- **Fix**: Added a direct safety question and a stay-present line to both SEVERE and CRISIS copy. Verified this doesn't interact with the documented 200-character resource-lead constraint (`distress_stage.py`'s `_crisis_preemption_result` joins `resources` first, unconditionally, before `prefix`/`next_step` — resources are always at position 0 regardless of how long the prefix is). Grepped `evaluation/`/`docs/` for exact-string dependence on the old copy before editing — none found. `test_distress_fallback_safety.py` only asserts MILD/MODERATE by dict key, never SEVERE/CRISIS text, so no test needed updating.
+- **Rule**: "Already implemented" and "matches the brief" are different claims — verify against the brief's literal requirements (each named behavior), not just that a response exists and sounds appropriate. A caring-sounding crisis response can still be missing a specific, load-bearing element (a direct question) that only shows up by reading the requirement line-by-line against the actual copy, not by skimming for general tone.
+
 ## Sep 21, 2026 (Session 7, continued 5) — Phase A6: safety event logging; helpline_click deliberately deferred
 
 ### L-SAFETY-EVENTS-1. tier_escalation / crisis_referral_shown / kill_switch_triggered wired as structured log events

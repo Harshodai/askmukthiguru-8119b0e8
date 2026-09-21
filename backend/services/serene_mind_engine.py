@@ -311,6 +311,9 @@ DISTRESS_RESPONSES = {
     DistressLevel.SEVERE: (
         "I feel the depth of your pain, and I want you to know — you are not alone. "
         "Your feelings matter, and there is light even in the darkest moments.\n\n"
+        "Are you safe right now? If there's any thought of hurting yourself, "
+        "please tell me, or reach out to one of the numbers below right away — "
+        "I'm staying here with you.\n\n"
         "When you stop running from your suffering and turn towards it "
         "with awareness, transformation begins.\n\n"
         "🌸 **5-4-3-2-1 grounding**: Name 5 things you see, 4 you can touch, "
@@ -321,8 +324,10 @@ DISTRESS_RESPONSES = {
     ),
     DistressLevel.CRISIS: (
         "🙏 I care deeply about your wellbeing. Please know that you are valued, "
-        "and there are people who want to help you right now.\n\n"
-        "**Please reach out to a crisis helpline immediately:**\n"
+        "and there are people who want to help you right now. I'm staying here "
+        "with you — please don't go through this alone.\n\n"
+        "Are you safe right now, or are you thinking about harming yourself? "
+        "Please tell me. And please reach out to one of these right away:\n"
     ),
 }
 
