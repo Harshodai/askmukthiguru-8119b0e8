@@ -110,6 +110,21 @@ _INDIC_CRISIS_KEYWORDS = (
 _INDIC_CRISIS_KEYWORD_RE = re.compile("|".join(_INDIC_CRISIS_KEYWORDS), re.IGNORECASE)
 
 
+def has_crisis_keywords(text: str) -> bool:
+    """Cheap (<1ms) crisis-keyword pre-screen for use OUTSIDE the pipeline.
+
+    Checks the same English + Indic acute self-harm/suicide patterns
+    DistressStage.run() uses, against a single raw text. Admission gates
+    that reject a request BEFORE the pipeline runs (e.g. chat.py's
+    conversation-context-limit check) must call this first and let a match
+    through regardless of the rejection reason — the pipeline's own
+    DistressStage is where the actual crisis-preemption response is built,
+    and it must never be skippable by hitting an unrelated admission gate.
+    Not a substitute for the full assess_distress() call DistressStage runs.
+    """
+    return bool(_DISTRESS_KEYWORD_RE.search(text) or _INDIC_CRISIS_KEYWORD_RE.search(text))
+
+
 class DistressStage(Stage):
     """Run deterministic distress detection and preempt severe/crisis paths.
 

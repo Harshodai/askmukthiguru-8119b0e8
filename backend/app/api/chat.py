@@ -32,6 +32,7 @@ from app.core.limiter import limiter
 from app.core.user_usage_monitor import get_user_monitor
 from app.dependencies import ServiceContainer, get_container_async
 from app.grounding import grounding_state_for
+from app.pipeline.stages.distress_stage import has_crisis_keywords
 from app.release_manifest import to_public_manifest_dict
 from app.sanitization import sanitize_log_input, sanitize_user_input
 from app.schemas import ChatRequest, ChatResponse, Citation, MessagePayload
@@ -518,7 +519,19 @@ async def generate_title_endpoint(
 
 
 def _conversation_context_limit_response(chat_body: ChatRequest) -> JSONResponse | None:
-    """Return a stable 409 when the durable thread exceeds the safe input budget."""
+    """Return a stable 409 when the durable thread exceeds the safe input budget.
+
+    Never blocks a message carrying acute crisis language. Without this
+    check, a long-running conversation that trips the token budget on the
+    SAME turn a user expresses suicidal ideation would return a generic
+    "start a new chat" 409 before DistressStage ever runs — silently
+    skipping crisis preemption for exactly the population this app most
+    needs to catch. Crisis preemption terminates before retrieval/
+    generation, so it stays cheap regardless of context size.
+    """
+    if has_crisis_keywords(chat_body.user_message):
+        return None
+
     budget = assess_conversation_context(
         [message.model_dump() for message in chat_body.messages],
         chat_body.user_message,

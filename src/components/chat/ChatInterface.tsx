@@ -50,18 +50,7 @@ import { ChatHeader } from './ChatHeader';
 import { TeacherGuidancePanel } from './TeacherGuidancePanel';
 import type { Citation, ResponsePreferences } from '@/lib/chat/types';
 import { shouldGateSereneMind } from '@/lib/chat/sereneMindGating';
-
-const teachingPreviewsFromCitations = (citations?: Citation[]): TeachingPreview[] =>
-  (citations ?? [])
-    .filter((citation) => Boolean(citation.title || citation.quote || citation.textSnippet))
-    .slice(0, 3)
-    .map((citation) => ({
-      title: citation.title || citation.source || 'Teaching source',
-      teacher: citation.speaker ?? null,
-      url: citation.url || null,
-      excerpt: citation.quote || citation.textSnippet || null,
-    }));
-
+import { teachingPreviewsFromCitations, resolveTeachingPreview } from '@/lib/chat/teachingPreview';
 import { DEFAULT_RESPONSE_PREFERENCES, loadResponsePreferences, saveResponsePreferences, clearResponsePreferences } from '@/lib/chat/responsePreferences';
 import { ScrollToBottomFab } from './ScrollToBottomFab';
 import { MobileConversationSheet } from './MobileConversationSheet';
@@ -1457,12 +1446,11 @@ export const ChatInterface = () => {
                     content: fullContent,
                     intent: finalIntent,
                     citations: streamedCitations.length > 0 ? streamedCitations : undefined,
-                    teachingPreview:
-                      streamedTeachingPreview.length > 0
-                        ? streamedTeachingPreview
-                        : (teachingPreviewsFromCitations(streamedCitations).length > 0
-                            ? teachingPreviewsFromCitations(streamedCitations)
-                            : (teachingPreview.length > 0 ? teachingPreview : undefined)),
+                    teachingPreview: resolveTeachingPreview(
+                      streamedCitations,
+                      streamedTeachingPreview,
+                      teachingPreview,
+                    ),
                     followUpSuggestions: streamedFollowUpSuggestions.length > 0 ? streamedFollowUpSuggestions : undefined,
                     language: turnLanguage,
                     confidenceScore: streamedConfidenceScore ?? undefined,

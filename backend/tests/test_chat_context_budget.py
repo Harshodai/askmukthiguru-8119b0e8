@@ -76,3 +76,62 @@ def test_context_budget_counts_continuation_summary_and_attachments(monkeypatch)
 
     assert result.estimated_tokens > 1000
     assert result.exhausted is True
+
+
+def _exhausted_chat_body(user_message: str):
+    """Build a ChatRequest whose history alone exhausts a tiny mocked budget."""
+    from app.schemas import ChatRequest
+
+    return ChatRequest(
+        messages=[{"role": "user", "content": "x " * 4000}],
+        user_message=user_message,
+    )
+
+
+def test_context_limit_gate_blocks_ordinary_exhausted_conversation(monkeypatch):
+    """Regression guard for the safe/expected path: a budget-exhausted,
+    non-crisis message is still rejected with the stable 409."""
+    monkeypatch.setattr(settings, "context_window_total", 1000)
+    monkeypatch.setattr(settings, "context_system_prompt_reserve", 0.20)
+    monkeypatch.setattr(settings, "llm_max_tokens_deep", 100)
+
+    from app.api.chat import _conversation_context_limit_response
+
+    response = _conversation_context_limit_response(_exhausted_chat_body("y " * 4000))
+
+    assert response is not None
+    assert response.status_code == 409
+
+
+def test_context_limit_gate_never_blocks_crisis_language(monkeypatch):
+    """Regression guard: a message carrying acute crisis language must reach
+    DistressStage even when the conversation has exhausted its token budget.
+
+    Without this, a long-running conversation that trips the context-limit
+    gate on the same turn a user expresses suicidal ideation would return a
+    generic "start a new chat" 409 before DistressStage ever ran — silently
+    skipping crisis preemption. See lessons.md 2026-09-21 entry.
+    """
+    monkeypatch.setattr(settings, "context_window_total", 1000)
+    monkeypatch.setattr(settings, "context_system_prompt_reserve", 0.20)
+    monkeypatch.setattr(settings, "llm_max_tokens_deep", 100)
+
+    from app.api.chat import _conversation_context_limit_response
+
+    response = _conversation_context_limit_response(
+        _exhausted_chat_body("I want to end my life")
+    )
+
+    assert response is None
+
+
+def test_context_limit_gate_never_blocks_indic_crisis_language(monkeypatch):
+    monkeypatch.setattr(settings, "context_window_total", 1000)
+    monkeypatch.setattr(settings, "context_system_prompt_reserve", 0.20)
+    monkeypatch.setattr(settings, "llm_max_tokens_deep", 100)
+
+    from app.api.chat import _conversation_context_limit_response
+
+    response = _conversation_context_limit_response(_exhausted_chat_body("आत्महत्या"))
+
+    assert response is None
