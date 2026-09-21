@@ -16,6 +16,7 @@ from app.pipeline.result import PipelineResult
 from app.pipeline.stages.base import Stage
 from app.release_manifest import get_release_manifest
 from app.route_taxonomy import RoutingProvenance, record_routing_decision
+from services.safety_telemetry import log_crisis_referral_shown, log_tier_escalation
 from services.serene_mind_engine import (
     DISTRESS_RESPONSES,
     DistressAssessment,
@@ -165,6 +166,7 @@ class DistressStage(Stage):
         level_value = getattr(getattr(assessment, "level", None), "value", -1)
         if not isinstance(level_value, int):
             level_value = -1
+        self._maybe_log_tier_escalation(ctx, assessment, level_value, state)
         if assessment and level_value >= DistressLevel.SEVERE.value:
             return await self._crisis_preemption_result(ctx, assessment)
         # ponytail: proactive Serene Mind block from execute() verbatim.
@@ -183,6 +185,32 @@ class DistressStage(Stage):
             state["proactive_serene_mind"] = proactive_data
         ctx.proactive_data = proactive_data
         return None
+
+    @staticmethod
+    def _maybe_log_tier_escalation(ctx, assessment, level_value: int, state: dict) -> None:
+        """Log a safety event when this turn's level is higher than the last
+        recorded one. Defensive: distress_history's shape is owned elsewhere
+        (rag/states.py) and this must never raise on an unexpected entry —
+        an observability gap is acceptable, a crashed safety stage is not.
+        """
+        if not assessment or level_value < 0:
+            return
+        history = state.get("distress_history") or []
+        if not history:
+            return
+        try:
+            prev_name = history[-1].get("level") if isinstance(history[-1], dict) else None
+            if not prev_name:
+                return
+            prev_value = DistressLevel[prev_name].value
+        except (KeyError, AttributeError, TypeError):
+            return
+        if level_value > prev_value:
+            log_tier_escalation(
+                trace_id=getattr(ctx, "trace_id", ""),
+                from_level=prev_name,
+                to_level=assessment.level.name,
+            )
 
     @staticmethod
     async def _crisis_preemption_result(
@@ -229,6 +257,11 @@ class DistressStage(Stage):
             "serene_mind_keyword"
             if getattr(ctx, "has_distress_keywords", False)
             else "serene_mind_assessment"
+        )
+        log_crisis_referral_shown(
+            trace_id=getattr(ctx, "trace_id", ""),
+            level=level.name if hasattr(level, "name") else str(level),
+            region=None,  # get_crisis_resource("global") above — unfiltered by design
         )
         record_routing_decision(
             ctx,

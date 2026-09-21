@@ -21,6 +21,7 @@ from app.pipeline.result import PipelineResult
 from app.pipeline.stages.base import Stage
 from app.release_manifest import get_release_manifest
 from services.crisis_helplines import format_helplines_block
+from services.safety_telemetry import log_kill_switch_triggered
 
 if TYPE_CHECKING:
     from app.pipeline.stages.context import PipelineContext
@@ -59,10 +60,16 @@ class KillSwitchStage(Stage):
         if not is_generation_killed(ctx.preferred_lang):
             return None
 
+        is_global = getattr(settings, "generation_kill_switch_enabled", False)
         logger.warning(
             "GENERATION_KILL_SWITCH_ACTIVE locale=%s global=%s",
             ctx.preferred_lang,
-            getattr(settings, "generation_kill_switch_enabled", False),
+            is_global,
+        )
+        log_kill_switch_triggered(
+            trace_id=getattr(ctx, "trace_id", ""),
+            locale=ctx.preferred_lang,
+            scope="global" if is_global else "locale",
         )
 
         resources = format_helplines_block(
