@@ -16,8 +16,11 @@ dist
 dist-ssr
 *.local
 
-# Capacitor native platforms (iOS untracked, Android tracked with explicit artifact exclusions)
-ios/
+# Capacitor native platforms — both tracked with explicit artifact exclusions.
+# ios/ has its own Capacitor-generated .gitignore (App/build, App/Pods, DerivedData,
+# xcuserdata, generated capacitor.config.json/config.xml) mirroring android/'s pattern
+# below; a blanket `ios/` rule here previously shadowed it and left the entire iOS
+# Xcode project (signing config, Info.plist, storyboards, custom native code) untracked.
 
 # Android build artifacts, local caches, and credentials
 android/.gradle

@@ -58,6 +58,24 @@ class TokenBucketMiddleware(BaseHTTPMiddleware):
         self.capacity = capacity
         self.refill = refill_per_sec
         self.script = None
+        # ponytail: process-local fallback bucket for when Redis is unreachable.
+        # Previously any Redis exception here failed fully open (unlimited
+        # /api/chat traffic per replica) — every other rate limiter in this repo
+        # (RedisBackedRateLimiter, AnonQuotaRedisAdapter) degrades to a
+        # conservative in-process limiter instead. Per-replica only, not shared
+        # across replicas; upgrade to a shared cross-process store if that
+        # matters more than "some" enforcement during a Redis outage.
+        self._local_buckets: dict[str, tuple[float, float]] = {}  # key -> (tokens, ts)
+
+    def _local_allowed(self, key: str) -> tuple[bool, float]:
+        now = time.time()
+        tokens, ts = self._local_buckets.get(key, (self.capacity, now))
+        tokens = min(self.capacity, tokens + max(0.0, now - ts) * self.refill)
+        allowed = tokens >= 1
+        if allowed:
+            tokens -= 1
+        self._local_buckets[key] = (tokens, now)
+        return allowed, tokens
 
     async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]):
         if not request.url.path.startswith("/api/chat"):
@@ -96,5 +114,24 @@ class TokenBucketMiddleware(BaseHTTPMiddleware):
         except HTTPException:
             raise
         except Exception as e:
-            logger.warning(f"Rate limiting failed to connect or execute (failing open): {e}")
-            return await call_next(request)
+            logger.warning(f"Redis rate limiter unavailable, using local fallback bucket: {e}")
+            try:
+                from services.tenant_context import TenantContext
+
+                tenant_id = TenantContext.get()
+                user_id = TenantContext.get_user_id()
+            except Exception:
+                tenant_id = user_id = None
+            host = request.client.host if request.client else "unknown"
+            subject = user_id or request.headers.get("x-user-id") or host
+            key = f"rl:chat:{tenant_id}:{subject}"
+            allowed, remaining = self._local_allowed(key)
+            if not allowed:
+                from fastapi.responses import JSONResponse
+
+                return JSONResponse(
+                    status_code=429, content={"error": "rate_limited", "remaining": 0}
+                )
+            resp = await call_next(request)
+            resp.headers["X-RateLimit-Remaining"] = str(int(remaining))
+            return resp
