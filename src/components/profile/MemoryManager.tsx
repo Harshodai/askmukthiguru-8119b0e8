@@ -1463,7 +1463,6 @@ export const MemoryManager = () => {
             />
             {coreVoice.isListening && (coreVoice.transcript || coreVoice.interimTranscript) && (
               <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-md text-xs text-foreground mt-2 animate-pulse">
-                <span className="font-semibold text-emerald-500 mr-1">Voice Input:</span>
                 {coreVoice.transcript} <span className="text-muted-foreground italic">{coreVoice.interimTranscript}</span>
               </div>
             )}
@@ -1472,11 +1471,11 @@ export const MemoryManager = () => {
                 type="button"
                 onClick={() => coreVoice.isListening ? coreVoice.stopListening() : void coreVoice.startListening()}
                 disabled={!coreVoice.isSupported || coreSaving}
-                aria-label={coreVoice.isListening ? 'Stop voice input' : 'Dictate core memory'}
+                aria-label={coreVoice.isListening ? t('chat.stopRecording', 'Stop recording') : t('chat.startVoiceInput', 'Start voice input')}
                 className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-ojas disabled:opacity-40 py-1"
               >
                 {coreVoice.isListening ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
-                {coreVoice.isListening ? 'Listening…' : 'Dictate'}
+                {coreVoice.isListening ? t('chat.inputPlaceholderListening', 'Speak now…') : t('chat.startVoiceInput', 'Start voice input')}
               </button>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground">{coreText.length}/2048</span>
