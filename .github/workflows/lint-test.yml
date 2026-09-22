@@ -159,6 +159,27 @@ jobs:
           JWT_SECRET: dummy-jwt-secret-key-for-ci-runs
           OPENROUTER_API_KEY: mock-openrouter-key-for-ci
 
+      - name: Run tier-3 safety scenario harness (PLAN.md Phase B5)
+        # evals/run_safety_scenarios.py drives the real, deterministic
+        # crisis-preemption code path (SereneMindEngine.assess_distress ->
+        # DistressStage._crisis_preemption_result) against every tier-3
+        # scenario under evals/scenarios/tier3_crisis/ — no LLM call, no live
+        # backend, so it's safe and fast to run on every PR. This is the CI
+        # gate that would have caught L-CRISIS-REGEX-GAP-1
+        # ("I want to end my life" returning DistressLevel.NONE) before it
+        # ever shipped, had it existed sooner — added specifically so that
+        # class of regression can't recur silently. Exits non-zero on any
+        # scenario failing its mechanical checks (helpline missing, method
+        # info leaked, no direct safety question); see evals/README.md for
+        # exactly what this does and does NOT verify (no cultural_fit/
+        # no_false_reassurance judgment — that needs a human).
+        working-directory: .
+        run: python3 evals/run_safety_scenarios.py
+        env:
+          PYTHONPATH: ${{ github.workspace }}/backend
+          JWT_SECRET: dummy-jwt-secret-key-for-ci-runs
+          OPENROUTER_API_KEY: mock-openrouter-key-for-ci
+
   # --- Pre-commit validation ---
   pre-commit-check:
     name: Validate Pre-commit Hooks

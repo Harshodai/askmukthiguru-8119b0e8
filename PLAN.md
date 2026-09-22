@@ -1,6 +1,12 @@
 # PLAN.md — Safety-Critical Roadmap (Phases A–I) + Dossier Follow-up
 
-**Status: DRAFT — awaiting approval. No code has been written.** Per the brief's own working rules ("Do not write code yet... Stop and wait for my approval"), this document is the required gate before Phase A implementation starts.
+**Status as of 2026-09-22: Phase A complete, Phase B scaffold + B5 built, B2-B4 and Phases C-I not started.** This plan was approved and executed phase-by-phase across the 2026-09-21/22 session — see `handoff.md`'s top entry for the full session summary and `lessons.md` for every individual finding/fix. Original approval-gate framing below is preserved for history; it is no longer the live status.
+
+**Phase A (safety spine): done.** A1 conversation-aware tiers (verified already built), A2 helpline config (`config/helplines.yaml`), A3 crisis copy (direct safety question + stay-present language), A5 kill switch, A6 safety event logging. A4 (tier 1-2 flow) verified substantially implemented; its "gentle human option" step is Phase E, not built.
+
+**Phase B (evals): partial, and it already earned its keep.** `evals/` has a real harness, a rubric, 14 starter scenarios (not the 60+ target, English only), and — critically — running it once found and led to fixing a production crisis-detection gap ("I want to end my life" was returning `DistressLevel.NONE`) across all 6 pilot languages, including Marathi, which had zero coverage at all. B5 (CI gate) is wired (`.github/workflows/lint-test.yml`). B2 (grounding evals), B3 (tone/impersonation), B4 (NotebookLM bake-off, beyond a 15-question stub) are not started — each needs either a live backend (B2/B4) or output to actually scan (B3), neither of which exist in this environment (Railway is scaled to $0).
+
+**Phases C-I: not started.** Not for lack of trying — each needs a live backend, human accounts (Apple/Google), product decisions this agent shouldn't make unilaterally (paywall vs free, audio/voice approval, which faculty member to name), or a native speaker's review. See `handoff.md`'s §4 for the exact list still waiting on the user.
 
 ---
 
