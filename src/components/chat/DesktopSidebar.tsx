@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   Plus, Flame, MessageCircle, Trash2, Edit2, Search, X,
-  ChevronLeft, ChevronRight, BookOpen, Brain, Compass, HardDrive, EyeOff
+  BookOpen, Brain, Compass, HardDrive, EyeOff
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { buildChatOwnedPath } from '@/lib/workspaceNavigation';
@@ -192,14 +192,6 @@ export const DesktopSidebar = ({
 
           <div className="flex-1" />
 
-          <button
-            onClick={onToggleCollapse}
-            title={t('desktopSidebar.expandTooltip')}
-            data-testid="sidebar-toggle"
-            className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-muted text-muted-foreground hover:text-foreground transition-all mb-2"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
         </div>
       ) : (
         <div className="flex flex-col h-full min-w-0 relative">
@@ -212,14 +204,6 @@ export const DesktopSidebar = ({
               <p className="text-sm font-semibold text-foreground truncate">{t('nav.appName') === 'nav.appName' ? 'AskMukthiGuru' : t('nav.appName')}</p>
               <p className="text-[10px] text-muted-foreground">{t('desktopSidebar.tagline')}</p>
             </div>
-            <button
-              onClick={onToggleCollapse}
-              title={t('desktopSidebar.collapseTooltip')}
-              data-testid="sidebar-toggle"
-              className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-muted text-muted-foreground transition-all flex-shrink-0"
-            >
-              <ChevronLeft className="w-3.5 h-3.5" />
-            </button>
           </div>
 
           {/* New Conversation */}
