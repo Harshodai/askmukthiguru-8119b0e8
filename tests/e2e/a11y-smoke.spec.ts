@@ -9,6 +9,7 @@
  * Run:  npx playwright test --project=chromium tests/e2e/a11y-smoke.spec.ts
  */
 import AxeBuilder from '@axe-core/playwright';
+import { dismissSafetyDisclaimer } from './support';
 import { test, expect, type Page, type BrowserContext } from '@playwright/test';
 
 const CRITICAL_ROUTES = [
@@ -83,6 +84,7 @@ for (const route of CRITICAL_ROUTES) {
     }
     await page.goto(route, { waitUntil: 'networkidle' });
     await expect(page.locator('body')).toBeVisible();
+    await dismissSafetyDisclaimer(page);
 
     // Protected routes may intentionally fall back to /auth when the seeded
     // token is rejected by Supabase. In that case the auth page is still the
@@ -125,6 +127,7 @@ test('a11y: meditation flow (Serene Mind player) is accessible once opened', asy
 }, testInfo) => {
   await seedAuth(context);
   await page.goto('/practices/serene-mind', { waitUntil: 'networkidle' });
+  await dismissSafetyDisclaimer(page);
 
   // The start control (header "Serene Mind" button) must be present and
   // successfully clicked — do not swallow visibility or click failures.
