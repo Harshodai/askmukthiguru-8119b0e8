@@ -709,13 +709,13 @@ export const MemoryManager = () => {
               </>
             )}
 
-            <button onClick={() => setZoom((z) => Math.min(4, z + 0.25))} className="p-1.5 rounded border border-border hover:bg-muted" title="Zoom in"><ZoomIn className="w-3.5 h-3.5" /></button>
-            <button onClick={() => setZoom((z) => Math.max(0.2, z - 0.25))} className="p-1.5 rounded border border-border hover:bg-muted" title="Zoom out"><ZoomOut className="w-3.5 h-3.5" /></button>
-            <button onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }} className="p-1.5 rounded border border-border hover:bg-muted" title="Reset view"><RotateCcw className="w-3.5 h-3.5" /></button>
+            <button onClick={() => setZoom((z) => Math.min(4, z + 0.25))} className="p-1.5 rounded border border-border hover:bg-muted" title={t('kg.zoomIn')}><ZoomIn className="w-3.5 h-3.5" /></button>
+            <button onClick={() => setZoom((z) => Math.max(0.2, z - 0.25))} className="p-1.5 rounded border border-border hover:bg-muted" title={t('kg.zoomOut')}><ZoomOut className="w-3.5 h-3.5" /></button>
+            <button onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }} className="p-1.5 rounded border border-border hover:bg-muted" title={t('kg.reset')}><RotateCcw className="w-3.5 h-3.5" /></button>
             <button onClick={() => setIsFullscreen(!isFullscreen)} className="p-1.5 rounded border border-border hover:bg-muted" title="Toggle Fullscreen">
               {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
             </button>
-            <span className="ml-2 hidden lg:inline">Drag to pan · Scroll to zoom</span>
+            <span className="ml-2 hidden lg:inline">{t('kg.dragToPan')}</span>
           </div>
 
           {kgNodes.length > 0 && (
@@ -738,7 +738,7 @@ export const MemoryManager = () => {
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
             <input
               type="text"
-              placeholder="Search concepts or memories..."
+              placeholder={t('kg.searchPlaceholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-8 pr-7 py-1 rounded-md border border-border bg-background text-foreground text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ojas"
@@ -772,7 +772,7 @@ export const MemoryManager = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <h4 className="text-xl font-serif italic text-white tracking-tight">Your Consciousness Map</h4>
+                  <h4 className="text-xl font-serif italic text-white tracking-tight">{t('memory.consciousnessMap')}</h4>
                   <p className="text-xs font-sans text-muted-foreground leading-relaxed">
                     Every dialogue, reflection, and question you share with Mukthi Guru is processed to map your states of consciousness. Start chatting to see your feelings of connection (<span className="text-emerald-400 font-medium font-display">Beautiful State</span>) and expressions of inner conflict (<span className="text-rose-400 font-medium font-display">Shrinking, Destructive, or Inert Self</span>) visualised dynamically.
                   </p>
