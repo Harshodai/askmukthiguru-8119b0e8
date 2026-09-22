@@ -218,11 +218,15 @@ export const AppShell = ({ children, title }: AppShellProps) => {
   const location = useLocation();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const hasChatOrigin = new URLSearchParams(location.search).get('returnTo') === '/chat';
-  const isChatOwnedPage =
-    location.pathname === '/profile' ||
-    (hasChatOrigin && ['/notebooks', '/second-brain', '/knowledge-graph', '/wisdom-map', '/reflections', '/practices'].some(
-      (path) => location.pathname === path || location.pathname.startsWith(`${path}/`),
-    ));
+  const isChatOwnedPage = hasChatOrigin && [
+    '/profile',
+    '/notebooks',
+    '/second-brain',
+    '/knowledge-graph',
+    '/wisdom-map',
+    '/reflections',
+    '/practices',
+  ].some((path) => location.pathname === path || location.pathname.startsWith(`${path}/`));
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
