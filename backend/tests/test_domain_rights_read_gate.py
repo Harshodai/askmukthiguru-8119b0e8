@@ -68,3 +68,46 @@ def test_quarantined_removed_book_source_is_not_served():
     kept, dropped = filter_blocked_sources([blocked, allowed])
     assert dropped == 1
     assert kept == [allowed]
+
+
+def test_book_reingested_under_amazon_url_is_also_blocked():
+    """2026-09-22 rights audit: the scrubbed book re-entered Qdrant under an
+    Amazon source_url (content_type=book, 1,199 live chunks), which the
+    filename-identity check above never matched. Both re-entry vectors --
+    the ASIN in source_url and the chapter-qualified title prefix -- must be
+    caught, without blocking unrelated teachings that merely mention the
+    book's name in passing (e.g. a chunk of body text).
+    """
+    from services.qdrant.source_policy import is_blocked_source
+
+    reingested = {
+        "source_url": "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319",
+        "title": "The Four Sacred Secrets — The Third Life Journey: Become a Heartful Partner > What Is Connection?",
+        "text": "talk to you about my mom and Krishnaji...",
+    }
+    assert is_blocked_source(reingested)
+    assert is_blocked_source({"source_url": reingested["source_url"]})
+    assert is_blocked_source({"title": reingested["title"]})
+
+    unrelated = {
+        "source_url": "https://www.youtube.com/watch?v=example",
+        "title": "A teaching on stillness",
+        "text": "In the book The Four Sacred Secrets, the gurus describe connection.",
+    }
+    assert not is_blocked_source(unrelated)
+
+
+def test_serve_only_registered_sources_gate():
+    from services.qdrant.source_policy import filter_unregistered_sources, is_registered_source
+
+    cleared = {"source_url": "https://example.org/a", "domain_rights_status": "cleared"}
+    licensed_default = {"source_url": "https://example.org/b", "domain_rights_status": "licensed"}
+    unconfirmed = {"source_url": "https://example.org/c"}
+
+    assert is_registered_source(cleared)
+    assert not is_registered_source(licensed_default)
+    assert not is_registered_source(unconfirmed)
+
+    kept, dropped = filter_unregistered_sources([cleared, licensed_default, unconfirmed])
+    assert kept == [cleared]
+    assert dropped == 2

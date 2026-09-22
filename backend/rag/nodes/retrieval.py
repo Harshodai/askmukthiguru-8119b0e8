@@ -27,7 +27,7 @@ from services.embedding_service import EmbeddingService, _apply_query_expansion
 from services.lightrag_service import LightRAGService
 from services.provenance import ChunkProvenance
 from services.provenance_context import build_provenance_context
-from services.qdrant.source_policy import filter_blocked_sources
+from services.qdrant.source_policy import filter_blocked_sources, filter_unregistered_sources
 from services.qdrant_service import QdrantService
 from services.tenant_context import TenantContext
 
@@ -1959,6 +1959,16 @@ async def retrieve_documents(state: GraphState, config: RunnableConfig | None = 
     all_docs, blocked_count = filter_blocked_sources(all_docs)
     if blocked_count:
         logger.error("Retrieval quarantine removed %d prohibited source document(s)", blocked_count)
+
+    # Content-rights registrar gate (docs/rights/source-register.md). Off by
+    # default -- see settings.serve_only_registered_sources in app/config.py.
+    if settings.serve_only_registered_sources:
+        all_docs, unregistered_count = filter_unregistered_sources(all_docs)
+        if unregistered_count:
+            logger.error(
+                "Retrieval quarantine removed %d unregistered/unconfirmed-rights document(s)",
+                unregistered_count,
+            )
 
     if len(all_docs) > getattr(
         settings, "rag_top_k_retrieval_after_cutoff", settings.rag_top_k_retrieval
