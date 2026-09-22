@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { DesktopSidebar } from '@/components/chat/DesktopSidebar';
+import { ChatHeader } from '@/components/chat/ChatHeader';
 
 const wrapper = ({ children }: { children: React.ReactNode }) => (
   <BrowserRouter>
@@ -28,6 +29,10 @@ vi.mock('@/lib/chatStorage', () => ({
 
 vi.mock('@/assets/gurus-photo.jpg', () => ({
   default: '/test-photo.jpg',
+}));
+
+vi.mock('@/components/common/UserMenu', () => ({
+  UserMenu: () => <button data-testid="user-menu" type="button" />,
 }));
 
 describe('DesktopSidebar', () => {
@@ -62,6 +67,23 @@ describe('DesktopSidebar', () => {
     await waitFor(() => expect(screen.getByText('AskMukthiGuru')).toBeInTheDocument());
     expect(screen.queryByTestId('sidebar-toggle')).not.toBeInTheDocument();
     expect(defaultProps.onToggleCollapse).not.toHaveBeenCalled();
+  });
+
+  it('uses the chat header as the single desktop sidebar toggle', () => {
+    const onToggleSidebar = vi.fn();
+    render(
+      <ChatHeader
+        onClearChat={vi.fn()}
+        sidebarCollapsed={false}
+        onToggleSidebar={onToggleSidebar}
+      />,
+      { wrapper },
+    );
+
+    const toggles = document.querySelectorAll('button[aria-controls="sidebar-panel"]');
+    expect(toggles).toHaveLength(1);
+    fireEvent.click(toggles[0]);
+    expect(onToggleSidebar).toHaveBeenCalledTimes(1);
   });
 
   it('shows delete button on conversation hover in expanded mode', async () => {
