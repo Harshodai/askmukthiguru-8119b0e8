@@ -13,7 +13,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { returnToOrigin } from '@/lib/workspaceNavigation';
+import { isChatOwnedRoute, returnToOrigin } from '@/lib/workspaceNavigation';
 import { cn } from '@/lib/utils';
 import {
   Sidebar,
@@ -217,16 +217,7 @@ export const AppShell = ({ children, title }: AppShellProps) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const hasChatOrigin = new URLSearchParams(location.search).get('returnTo') === '/chat';
-  const isChatOwnedPage = hasChatOrigin && [
-    '/profile',
-    '/notebooks',
-    '/second-brain',
-    '/knowledge-graph',
-    '/wisdom-map',
-    '/reflections',
-    '/practices',
-  ].some((path) => location.pathname === path || location.pathname.startsWith(`${path}/`));
+  const isChatOwnedPage = isChatOwnedRoute(location.pathname, location.search);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
