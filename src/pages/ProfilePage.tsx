@@ -96,6 +96,7 @@ import { useDailyTeaching } from '@/hooks/useDailyTeaching';
 import { useMetrics } from '@/hooks/useMetrics';
 import { LANGUAGES } from '@/components/chat/LanguageSelector';
 import { useTranslation } from 'react-i18next';
+import { changeUiLanguage } from '@/i18n';
 import {
   Dialog,
   DialogContent,
@@ -502,39 +503,6 @@ const ProfilePage = () => {
 
         )}
 
-        <div className="rounded-2xl border border-hairline bg-card/70 px-4 py-3 sm:px-5 sm:py-4 flex items-center gap-3 shadow-sm">
-          <div className="min-w-0 flex-1">
-            <p className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-medium">
-              {t('profile.page.title', 'My Profile')}
-            </p>
-            <h2 className="text-base sm:text-lg font-semibold text-foreground truncate">
-              {tab === 'journey'
-                ? t('profile.tabs.journey', 'Journey')
-                : tab === 'profile'
-                  ? t('profile.tabs.profile', 'Profile')
-                  : tab === 'stats'
-                    ? t('profile.tabs.insights', 'Insights')
-                    : tab === 'conversations'
-                      ? t('profile.tabs.conversations', 'Conversations')
-                      : tab === 'memory'
-                        ? t('profile.tabs.memory', 'Memory')
-                        : t('profile.tabs.settings', 'Settings')}
-            </h2>
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="min-h-[40px] rounded-xl gap-1.5 shrink-0 border-hairline"
-            onClick={() => navigate('/chat')}
-            aria-label={t('layout.backToChat', 'Back to Chat')}
-            title={t('layout.backToChat', 'Back to Chat')}
-          >
-            <MessageCircle className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">{t('layout.backToChat', 'Back to Chat')}</span>
-          </Button>
-        </div>
-
         <div className="space-y-6">
           <Tabs
               value={tab}
@@ -662,7 +630,19 @@ const ProfilePage = () => {
                         <Globe className="w-3.5 h-3.5 text-ojas" />
                         {t('profile.personalDetails.language')}
                       </Label>
-                      <Select value={form.preferredLanguage} onValueChange={(v) => patch('preferredLanguage', v)}>
+                      <Select
+                        value={form.preferredLanguage}
+                        onValueChange={(v) => {
+                          patch('preferredLanguage', v);
+                          void changeUiLanguage(v).catch(() => {
+                            toast({
+                              title: t('common.error', 'Could not switch language'),
+                              description: t('profile.personalDetails.languageSwitchFailed', 'Your preference was saved, but some interface text could not be translated.'),
+                              variant: 'destructive',
+                            });
+                          });
+                        }}
+                      >
                         <SelectTrigger className="min-h-[44px] rounded-xl">
                           <SelectValue />
                         </SelectTrigger>
