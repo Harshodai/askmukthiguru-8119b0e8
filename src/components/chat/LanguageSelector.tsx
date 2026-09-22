@@ -151,6 +151,7 @@ export const LanguageSelector = ({
     setLanguage(code);
     onLanguageChange?.(code);
     setIsOpen(false);
+    requestAnimationFrame(() => triggerRef.current?.focus());
   }, [onLanguageChange]);
 
   useEffect(() => {
@@ -469,10 +470,10 @@ export const LanguageSelector = ({
               ? 'bg-prana/20 border-prana/40 text-prana shadow-md'
               : 'bg-card border-border text-muted-foreground hover:bg-muted hover:border-prana/30 shadow-sm'
           }`}
-          title={ttsEnabled ? 'Disable voice output' : 'Enable voice output'}
+          title={ttsEnabled ? t('chat.disableVoiceOutput', 'Disable voice output') : t('chat.enableVoiceOutput', 'Enable voice output')}
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
-          aria-label={ttsEnabled ? 'Disable voice output' : 'Enable voice output'}
+          aria-label={ttsEnabled ? t('chat.disableVoiceOutput', 'Disable voice output') : t('chat.enableVoiceOutput', 'Enable voice output')}
         >
           {isSpeaking && (
             <motion.span
@@ -497,10 +498,10 @@ export const LanguageSelector = ({
             ? 'bg-ojas/20 border-ojas/40 text-ojas shadow-md'
             : 'bg-card border-border text-muted-foreground hover:bg-muted hover:border-ojas/30 shadow-sm'
         }`}
-        title={voiceEnabled ? 'Stop recording' : 'Start voice input'}
+        title={voiceEnabled ? t('chat.stopRecording', 'Stop recording') : t('chat.startVoiceInput', 'Start voice input')}
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
-        aria-label={voiceEnabled ? 'Stop recording' : 'Start voice input'}
+        aria-label={voiceEnabled ? t('chat.stopRecording', 'Stop recording') : t('chat.startVoiceInput', 'Start voice input')}
       >
         {isListening && (
           <>
