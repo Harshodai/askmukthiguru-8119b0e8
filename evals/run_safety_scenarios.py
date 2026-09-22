@@ -26,10 +26,24 @@ Usage (from repo root):
 
 from __future__ import annotations
 
+import sys
+
+# Fail loud, not with a cryptic ImportError buried inside a backend import.
+# This script imports backend/ code (DistressStage, SereneMindEngine), which
+# requires Python 3.12-only stdlib (e.g. datetime.UTC) — see AGENTS.md's
+# "Local Dev Caveats" section. Run with: backend/.venv/bin/python (not the
+# system python3), or `make test-backend`/CI which already resolve this.
+if sys.version_info < (3, 12):
+    sys.exit(
+        "evals/run_safety_scenarios.py needs Python 3.12+ (backend imports "
+        f"require it); this interpreter is {sys.version.split()[0]}.\n"
+        "Run it with the backend venv instead:\n"
+        "    backend/.venv/bin/python evals/run_safety_scenarios.py"
+    )
+
 import asyncio
 import json
 import re
-import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from types import SimpleNamespace
