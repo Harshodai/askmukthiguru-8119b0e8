@@ -402,6 +402,132 @@ export type Database = {
         }
         Relationships: []
       }
+      canonical_memories: {
+        Row: {
+          confidence: number | null
+          created_at: string | null
+          embedding_id: string | null
+          evidence_count: number | null
+          expires_at: string | null
+          extraction_method: string
+          fact_key: string | null
+          id: string
+          importance: number | null
+          last_confirmed_at: string | null
+          last_used_at: string | null
+          memory_type: string
+          metadata: Json | null
+          normalized_statement: string | null
+          sensitivity: string | null
+          source_conversation_id: string | null
+          source_message_id: string | null
+          source_turn_index: number | null
+          statement: string
+          status: string
+          tenant_id: string
+          updated_at: string | null
+          user_id: string
+          valid_from: string | null
+          valid_to: string | null
+          version: number | null
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string | null
+          embedding_id?: string | null
+          evidence_count?: number | null
+          expires_at?: string | null
+          extraction_method?: string
+          fact_key?: string | null
+          id?: string
+          importance?: number | null
+          last_confirmed_at?: string | null
+          last_used_at?: string | null
+          memory_type: string
+          metadata?: Json | null
+          normalized_statement?: string | null
+          sensitivity?: string | null
+          source_conversation_id?: string | null
+          source_message_id?: string | null
+          source_turn_index?: number | null
+          statement: string
+          status?: string
+          tenant_id?: string
+          updated_at?: string | null
+          user_id: string
+          valid_from?: string | null
+          valid_to?: string | null
+          version?: number | null
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string | null
+          embedding_id?: string | null
+          evidence_count?: number | null
+          expires_at?: string | null
+          extraction_method?: string
+          fact_key?: string | null
+          id?: string
+          importance?: number | null
+          last_confirmed_at?: string | null
+          last_used_at?: string | null
+          memory_type?: string
+          metadata?: Json | null
+          normalized_statement?: string | null
+          sensitivity?: string | null
+          source_conversation_id?: string | null
+          source_message_id?: string | null
+          source_turn_index?: number | null
+          statement?: string
+          status?: string
+          tenant_id?: string
+          updated_at?: string | null
+          user_id?: string
+          valid_from?: string | null
+          valid_to?: string | null
+          version?: number | null
+        }
+        Relationships: []
+      }
+      canonical_memory_events: {
+        Row: {
+          actor: string
+          created_at: string
+          event_type: string
+          id: string
+          memory_id: string | null
+          metadata: Json | null
+          new_version: number | null
+          old_version: number | null
+          reason: string | null
+          user_id: string
+        }
+        Insert: {
+          actor?: string
+          created_at?: string
+          event_type: string
+          id?: string
+          memory_id?: string | null
+          metadata?: Json | null
+          new_version?: number | null
+          old_version?: number | null
+          reason?: string | null
+          user_id: string
+        }
+        Update: {
+          actor?: string
+          created_at?: string
+          event_type?: string
+          id?: string
+          memory_id?: string | null
+          metadata?: Json | null
+          new_version?: number | null
+          old_version?: number | null
+          reason?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       chat_messages: {
         Row: {
           citations: string[] | null
@@ -720,6 +846,7 @@ export type Database = {
       doctrine_faqs: {
         Row: {
           answer: string
+          citations: string | null
           created_at: string
           id: string
           is_active: boolean
@@ -729,6 +856,7 @@ export type Database = {
         }
         Insert: {
           answer: string
+          citations?: string | null
           created_at?: string
           id?: string
           is_active?: boolean
@@ -738,6 +866,7 @@ export type Database = {
         }
         Update: {
           answer?: string
+          citations?: string | null
           created_at?: string
           id?: string
           is_active?: boolean
@@ -1279,6 +1408,36 @@ export type Database = {
         }
         Relationships: []
       }
+      memory_audit_events: {
+        Row: {
+          action: string
+          created_at: string | null
+          id: string
+          memory_id: string | null
+          new_state: Json | null
+          old_state: Json | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          id?: string
+          memory_id?: string | null
+          new_state?: Json | null
+          old_state?: Json | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          id?: string
+          memory_id?: string | null
+          new_state?: Json | null
+          old_state?: Json | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       memory_compaction_snapshots: {
         Row: {
           created_at: string
@@ -1363,6 +1522,7 @@ export type Database = {
       memory_outbox: {
         Row: {
           attempts: number
+          completed_steps: string[]
           consent_receipt_id: string | null
           created_at: string
           error: string | null
@@ -1378,6 +1538,7 @@ export type Database = {
         }
         Insert: {
           attempts?: number
+          completed_steps?: string[]
           consent_receipt_id?: string | null
           created_at?: string
           error?: string | null
@@ -1393,6 +1554,7 @@ export type Database = {
         }
         Update: {
           attempts?: number
+          completed_steps?: string[]
           consent_receipt_id?: string | null
           created_at?: string
           error?: string | null
@@ -2819,6 +2981,7 @@ export type Database = {
         Args: { p_limit?: number; p_worker_id: string }
         Returns: {
           attempts: number
+          completed_steps: string[]
           consent_receipt_id: string | null
           created_at: string
           error: string | null
@@ -2947,6 +3110,24 @@ export type Database = {
         }
       }
       seed_admin_demo: { Args: never; Returns: Json }
+      upsert_canonical_memory: {
+        Args: {
+          p_confidence: number
+          p_extraction_method: string
+          p_fact_key: string
+          p_importance: number
+          p_memory_type: string
+          p_metadata?: Json
+          p_normalized_statement: string
+          p_sensitivity: string
+          p_source_conversation_id: string
+          p_source_turn_index: number
+          p_statement: string
+          p_tenant_id: string
+          p_user_id: string
+        }
+        Returns: string
+      }
       whoami_diagnostics: { Args: never; Returns: Json }
     }
     Enums: {
