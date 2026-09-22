@@ -30,11 +30,15 @@ const IGNORABLE = (e: string, pathname: string): boolean =>
   e.includes('Failed to load resource') ||
   (pathname === '/auth' && e.includes('Refused to frame') && /accounts\.google\.com(?:\/|$)/.test(e));
 
-function trackErrors(page: Page): string[] {
-  const errors: string[] = [];
-  page.on('console', (m: ConsoleMessage) => m.type() === 'error' && errors.push(m.text()));
-  page.on('pageerror', (err) => errors.push(err.message));
-  return errors;
+function trackErrors(page: Page): { console: string[]; server: string[] } {
+  const consoleErrors: string[] = [];
+  const serverErrors: string[] = [];
+  page.on('console', (m: ConsoleMessage) => m.type() === 'error' && consoleErrors.push(m.text()));
+  page.on('pageerror', (err) => consoleErrors.push(err.message));
+  page.on('response', (response) => {
+    if (response.status() >= 500) serverErrors.push(`${response.status()} ${response.url()}`);
+  });
+  return { console: consoleErrors, server: serverErrors };
 }
 
 function fatalErrors(errors: string[], page: Page): string[] {
@@ -57,7 +61,7 @@ test.describe('critical journeys', () => {
     await expect(page.locator('body')).toBeVisible();
     const cta = page.getByRole('link', { name: /start chat/i }).first();
     await expect(cta).toBeVisible();
-    expect(fatalErrors(errors, page), fatalErrors(errors, page).join('\n')).toHaveLength(0);
+    expect([...fatalErrors(errors.console, page), ...errors.server], fatalErrors(errors.console, page).join('\n')).toHaveLength(0);
   });
 
   test('newer routes mount: /second-brain and /knowledge-graph', async ({ page }) => {
@@ -69,7 +73,7 @@ test.describe('critical journeys', () => {
       // Protected routes legitimately redirect to /auth — both outcomes pass.
       const p = new URL(page.url()).pathname;
       expect(['/second-brain', '/knowledge-graph', '/auth']).toContain(p);
-      expect(fatalErrors(errors, page), `${route}: ${fatalErrors(errors, page).join('\n')}`).toHaveLength(0);
+      expect([...fatalErrors(errors.console, page), ...errors.server], `${route}: ${fatalErrors(errors.console, page).join('\n')}`).toHaveLength(0);
     }
   });
 
@@ -113,7 +117,7 @@ test.describe('critical journeys', () => {
       // Verify no Google accounts iframe exists after the interaction
       await expect(googleFrame).toHaveCount(0);
     }
-    expect(fatalErrors(errors, page), fatalErrors(errors, page).join('\n')).toHaveLength(0);
+    expect([...fatalErrors(errors.console, page), ...errors.server], fatalErrors(errors.console, page).join('\n')).toHaveLength(0);
   });
 
   test('chat: send a message and receive a non-empty reply (skips w/o backend)', async ({ page }) => {
@@ -147,7 +151,7 @@ test.describe('critical journeys', () => {
     const reply = page.locator('[data-role="assistant"], .assistant-message, [class*="assistant"]').last();
     await expect(reply).toBeVisible({ timeout: 25_000 });
     await expect(reply).not.toHaveText('');
-    expect(fatalErrors(errors, page), fatalErrors(errors, page).join('\n')).toHaveLength(0);
+    expect([...fatalErrors(errors.console, page), ...errors.server], fatalErrors(errors.console, page).join('\n')).toHaveLength(0);
   });
 });
 
