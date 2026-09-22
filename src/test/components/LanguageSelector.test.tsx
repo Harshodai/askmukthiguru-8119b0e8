@@ -76,6 +76,7 @@ describe('LanguageSelector (regression)', () => {
     // The parent (ChatInterface) owns the confirmation toast now — showing
     // one here too was a double-toast on every language switch.
     expect(toastMock).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { expanded: false })).toHaveFocus();
   });
 
   it('toggles voice mode when microphone button is clicked', () => {
