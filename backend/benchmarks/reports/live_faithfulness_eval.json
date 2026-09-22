@@ -1,73 +1,71 @@
 {
-  "timestamp": "2026-09-15 00:15:28",
-  "endpoint": "http://localhost:8000",
+  "timestamp": "2026-09-22 20:33:29",
+  "endpoint": "http://localhost:8001",
   "cache_policy": "COMPLETELY_DISABLED (Cold-path retrieval and generation enforced via incognito=True)",
   "faithfulness_floor": 0.6,
   "total_questions": 12,
   "accepted_count": 12,
   "overall_metrics": {
-    "faithfulness": 0.715,
-    "answer_relevancy": 0.259,
-    "context_precision": 0.917,
-    "hallucination_rate": 0.0,
-    "verification_ran_rate": 0.75,
-    "reject_rate_delta_under_floor": 0.333,
-    "avg_latency_s": 29.93
+    "faithfulness": 0.858,
+    "answer_relevancy": 0.857,
+    "context_precision": 0.983,
+    "hallucination_rate": 0.083,
+    "verification_ran_rate": 0.917,
+    "reject_rate_delta_under_floor": 0.167,
+    "avg_latency_s": 26.29
   },
   "category_breakdown": {
     "doctrine_four_secrets": {
       "cases_count": 2,
-      "avg_faithfulness": 0.625,
-      "avg_answer_relevancy": 0.167,
+      "avg_faithfulness": 1.0,
+      "avg_answer_relevancy": 1.0,
       "avg_context_precision": 1.0,
       "hallucination_rate": 0.0,
-      "avg_latency_s": 14.86
+      "avg_latency_s": 16.4
     },
     "doctrine_soul_sync": {
       "cases_count": 2,
-      "avg_faithfulness": 1.0,
-      "avg_answer_relevancy": 0.75,
+      "avg_faithfulness": 0.7,
+      "avg_answer_relevancy": 1.0,
       "avg_context_precision": 1.0,
       "hallucination_rate": 0.0,
-      "avg_latency_s": 15.72
+      "avg_latency_s": 16.15
     },
     "doctrine_deeksha": {
       "cases_count": 2,
       "avg_faithfulness": 1.0,
-      "avg_answer_relevancy": 0.167,
+      "avg_answer_relevancy": 0.666,
       "avg_context_precision": 1.0,
       "hallucination_rate": 0.0,
-      "avg_latency_s": 21.23
+      "avg_latency_s": 33.76
     },
     "doctrine_manifest": {
       "cases_count": 2,
-      "avg_faithfulness": 0.667,
-      "avg_answer_relevancy": 0.3,
+      "avg_faithfulness": 1.0,
+      "avg_answer_relevancy": 1.0,
       "avg_context_precision": 1.0,
       "hallucination_rate": 0.0,
-      "avg_latency_s": 23.03
+      "avg_latency_s": 25.74
     },
     "doctrine_ekam_architecture": {
       "cases_count": 2,
-      "avg_faithfulness": 0.5,
-      "avg_answer_relevancy": 0.167,
+      "avg_faithfulness": 1.0,
+      "avg_answer_relevancy": 0.75,
       "avg_context_precision": 0.9,
       "hallucination_rate": 0.0,
-      "avg_latency_s": 2.85
+      "avg_latency_s": 13.75
     },
     "complex_multi_hop": {
       "cases_count": 2,
-      "avg_faithfulness": 0.5,
-      "avg_answer_relevancy": 0.0,
-      "avg_context_precision": 0.6,
-      "hallucination_rate": 0.0,
-      "avg_latency_s": 101.9
+      "avg_faithfulness": 0.45,
+      "avg_answer_relevancy": 0.728,
+      "avg_context_precision": 1.0,
+      "hallucination_rate": 0.5,
+      "avg_latency_s": 51.97
     }
   },
   "would_flip_to_rejected": [
-    "Explain the first sacred secret.",
-    "What is the Power of Intention in Manifest 2026?",
-    "What is the architectural design of Ekam?",
+    "How do I practice Soul Sync?",
     "How does the second sacred secret of Inner Truth relate directly to the breath a"
   ],
   "results": [
@@ -77,11 +75,63 @@
       "error": null,
       "blocked": false,
       "faithfulness_score": 1.0,
-      "answer_relevancy": 0.167,
+      "answer_relevancy": 1.0,
+      "context_precision": 1.0,
+      "verification_ran": true,
+      "hallucination_flag": false,
+      "citations_count": 2,
+      "query_tier": "tier2_simple",
+      "cache_hit": false,
+      "retrieval_lane": "fast",
+      "retrieved_count": 8,
+      "lanes": {
+        "context_graph_mode": "none",
+        "context_graph_reason": "fast_lane_bypass",
+        "context_graph_fused_items": 0,
+        "okf_injected_count": 3,
+        "kg_context_chars": 1375,
+        "lightrag_context_chars": 1435
+      },
+      "latency_ms": 19312.4,
+      "response_snippet": "The Four Sacred Secrets are profound teachings that guide you toward inner transformation and prosperity. As shared in \"..."
+    },
+    {
+      "category": "doctrine_four_secrets",
+      "question": "Explain the first sacred secret.",
+      "error": null,
+      "blocked": false,
+      "faithfulness_score": 1.0,
+      "answer_relevancy": 1.0,
       "context_precision": 1.0,
       "verification_ran": true,
       "hallucination_flag": false,
       "citations_count": 1,
+      "query_tier": "tier2_simple",
+      "cache_hit": false,
+      "retrieval_lane": "fast",
+      "retrieved_count": 10,
+      "lanes": {
+        "context_graph_mode": "none",
+        "context_graph_reason": "fast_lane_bypass",
+        "context_graph_fused_items": 0,
+        "okf_injected_count": 3,
+        "kg_context_chars": 1191,
+        "lightrag_context_chars": 1469
+      },
+      "latency_ms": 13492.1,
+      "response_snippet": "The First Sacred Secret is to live with a spiritual vision. Sri Krishnaji invites you to begin by pausing and taking thr..."
+    },
+    {
+      "category": "doctrine_soul_sync",
+      "question": "What is Soul Sync?",
+      "error": null,
+      "blocked": false,
+      "faithfulness_score": 1.0,
+      "answer_relevancy": 1.0,
+      "context_precision": 1.0,
+      "verification_ran": true,
+      "hallucination_flag": false,
+      "citations_count": 2,
       "query_tier": "tier2_simple",
       "cache_hit": false,
       "retrieval_lane": "fast",
@@ -91,18 +141,19 @@
         "context_graph_reason": "fast_lane_bypass",
         "context_graph_fused_items": 0,
         "okf_injected_count": 3,
-        "lightrag_context_chars": 1458
+        "kg_context_chars": 1795,
+        "lightrag_context_chars": 1416
       },
-      "latency_ms": 10705.3,
-      "response_snippet": "I found relevant source material, but the generated draft did not pass the full verification gate. Rather than give a ba..."
+      "latency_ms": 15913.5,
+      "response_snippet": "The Soul Sync meditation is a profound practice designed to bring deep calm and alignment with your heartfelt intentions..."
     },
     {
-      "category": "doctrine_four_secrets",
-      "question": "Explain the first sacred secret.",
+      "category": "doctrine_soul_sync",
+      "question": "How do I practice Soul Sync?",
       "error": null,
       "blocked": false,
-      "faithfulness_score": 0.25,
-      "answer_relevancy": 0.167,
+      "faithfulness_score": 0.4,
+      "answer_relevancy": 1.0,
       "context_precision": 1.0,
       "verification_ran": true,
       "hallucination_flag": false,
@@ -116,60 +167,11 @@
         "context_graph_reason": "fast_lane_bypass",
         "context_graph_fused_items": 0,
         "okf_injected_count": 3,
-        "lightrag_context_chars": 1484
+        "kg_context_chars": 1795,
+        "lightrag_context_chars": 1416
       },
-      "latency_ms": 19005.7,
-      "response_snippet": "I found relevant source material, but the generated draft did not pass the full verification gate. Rather than give a ba..."
-    },
-    {
-      "category": "doctrine_soul_sync",
-      "question": "What is Soul Sync?",
-      "error": null,
-      "blocked": false,
-      "faithfulness_score": 1.0,
-      "answer_relevancy": 0.833,
-      "context_precision": 1.0,
-      "verification_ran": true,
-      "hallucination_flag": false,
-      "citations_count": 3,
-      "query_tier": "tier2_simple",
-      "cache_hit": false,
-      "retrieval_lane": "fast",
-      "retrieved_count": 9,
-      "lanes": {
-        "context_graph_mode": "none",
-        "context_graph_reason": "fast_lane_bypass",
-        "context_graph_fused_items": 0,
-        "okf_injected_count": 3,
-        "lightrag_context_chars": 1375
-      },
-      "latency_ms": 15008.5,
-      "response_snippet": "Soul Sync is a transformative meditation practice designed to cultivate deep calm, expansion, and alignment with heartfe..."
-    },
-    {
-      "category": "doctrine_soul_sync",
-      "question": "How do I practice Soul Sync?",
-      "error": null,
-      "blocked": false,
-      "faithfulness_score": 1.0,
-      "answer_relevancy": 0.667,
-      "context_precision": 1.0,
-      "verification_ran": true,
-      "hallucination_flag": false,
-      "citations_count": 3,
-      "query_tier": "tier2_simple",
-      "cache_hit": false,
-      "retrieval_lane": "fast",
-      "retrieved_count": 10,
-      "lanes": {
-        "context_graph_mode": "none",
-        "context_graph_reason": "fast_lane_bypass",
-        "context_graph_fused_items": 0,
-        "okf_injected_count": 3,
-        "lightrag_context_chars": 1494
-      },
-      "latency_ms": 16427.0,
-      "response_snippet": "Sri Preethaji & Sri Krishnaji offer a beautiful practice called Soul Sync to bring you into deep alignment with your tru..."
+      "latency_ms": 16384.4,
+      "response_snippet": "Rather than put words in their mouths, let me give you theirs directly.\n\nThe \"Soul Sync\" meditation is a powerful ten-to..."
     },
     {
       "category": "doctrine_deeksha",
@@ -177,7 +179,7 @@
       "error": null,
       "blocked": false,
       "faithfulness_score": 1.0,
-      "answer_relevancy": 0.167,
+      "answer_relevancy": 1.0,
       "context_precision": 1.0,
       "verification_ran": true,
       "hallucination_flag": false,
@@ -191,10 +193,11 @@
         "context_graph_reason": "fast_lane_bypass",
         "context_graph_fused_items": 0,
         "okf_injected_count": 3,
-        "lightrag_context_chars": 1496
+        "kg_context_chars": 1563,
+        "lightrag_context_chars": 0
       },
-      "latency_ms": 22351.6,
-      "response_snippet": "Deeksha is a sacred phenomenon that allows the transfer of divine energies, awakening the personal divine within you. Sr..."
+      "latency_ms": 52802.0,
+      "response_snippet": "Deeksha is a sacred practice that allows divine energy to flow into you and then into the world. It is a profound method..."
     },
     {
       "category": "doctrine_deeksha",
@@ -202,11 +205,11 @@
       "error": null,
       "blocked": false,
       "faithfulness_score": 1.0,
-      "answer_relevancy": 0.167,
+      "answer_relevancy": 0.333,
       "context_precision": 1.0,
       "verification_ran": true,
       "hallucination_flag": false,
-      "citations_count": 2,
+      "citations_count": 3,
       "query_tier": "tier2_simple",
       "cache_hit": false,
       "retrieval_lane": "fast",
@@ -216,10 +219,11 @@
         "context_graph_reason": "fast_lane_bypass",
         "context_graph_fused_items": 0,
         "okf_injected_count": 3,
-        "lightrag_context_chars": 1487
+        "kg_context_chars": 1563,
+        "lightrag_context_chars": 1488
       },
-      "latency_ms": 20112.8,
-      "response_snippet": "I found relevant source material, but the generated draft did not pass the full verification gate. Rather than give a ba..."
+      "latency_ms": 14719.2,
+      "response_snippet": "This activation of neurons helps cleanse your consciousness and facilitates deep inner transformation. As the divine ene..."
     },
     {
       "category": "doctrine_manifest",
@@ -227,7 +231,7 @@
       "error": null,
       "blocked": false,
       "faithfulness_score": 1.0,
-      "answer_relevancy": 0.2,
+      "answer_relevancy": 1.0,
       "context_precision": 1.0,
       "verification_ran": true,
       "hallucination_flag": false,
@@ -240,36 +244,38 @@
         "context_graph_mode": "none",
         "context_graph_reason": "fast_lane_bypass",
         "context_graph_fused_items": 0,
-        "okf_injected_count": 0,
+        "okf_injected_count": 1,
+        "kg_context_chars": null,
         "lightrag_context_chars": null
       },
-      "latency_ms": 4334.1,
-      "response_snippet": "I found relevant source material, but the generated draft did not pass the full verification gate. Rather than give a ba..."
+      "latency_ms": 32232.7,
+      "response_snippet": "Sri Krishnaji says: \"The manifest for youth is a three-hour long online mystic process that happens four times a year. I..."
     },
     {
       "category": "doctrine_manifest",
       "question": "What is the Power of Intention in Manifest 2026?",
       "error": null,
       "blocked": false,
-      "faithfulness_score": 0.3333333333333333,
-      "answer_relevancy": 0.4,
+      "faithfulness_score": 1.0,
+      "answer_relevancy": 1.0,
       "context_precision": 1.0,
       "verification_ran": true,
       "hallucination_flag": false,
-      "citations_count": 2,
+      "citations_count": 3,
       "query_tier": "tier2_simple",
       "cache_hit": false,
       "retrieval_lane": "fast",
-      "retrieved_count": 7,
+      "retrieved_count": 9,
       "lanes": {
         "context_graph_mode": "none",
         "context_graph_reason": "fast_lane_bypass",
         "context_graph_fused_items": 0,
-        "okf_injected_count": 1,
+        "okf_injected_count": 3,
+        "kg_context_chars": null,
         "lightrag_context_chars": null
       },
-      "latency_ms": 41731.9,
-      "response_snippet": "I found relevant source material, but the generated draft did not pass the full verification gate. Rather than give a ba..."
+      "latency_ms": 19238.4,
+      "response_snippet": "The Power of Intention lies in consciously aligning your deepest desires with purposeful action. Sri Preethaji & Sri Kri..."
     },
     {
       "category": "doctrine_ekam_architecture",
@@ -277,7 +283,7 @@
       "error": null,
       "blocked": false,
       "faithfulness_score": 1.0,
-      "answer_relevancy": 0.167,
+      "answer_relevancy": 0.5,
       "context_precision": 0.8,
       "verification_ran": false,
       "hallucination_flag": false,
@@ -291,9 +297,10 @@
         "context_graph_reason": null,
         "context_graph_fused_items": null,
         "okf_injected_count": null,
+        "kg_context_chars": null,
         "lightrag_context_chars": null
       },
-      "latency_ms": 37.5,
+      "latency_ms": 54.5,
       "response_snippet": "Live schedules and booking details are not available right now. Please check ekam.org for the official current informati..."
     },
     {
@@ -301,8 +308,8 @@
       "question": "What is the architectural design of Ekam?",
       "error": null,
       "blocked": false,
-      "faithfulness_score": 0.0,
-      "answer_relevancy": 0.167,
+      "faithfulness_score": 1.0,
+      "answer_relevancy": 1.0,
       "context_precision": 1.0,
       "verification_ran": true,
       "hallucination_flag": false,
@@ -310,16 +317,17 @@
       "query_tier": "tier2_simple",
       "cache_hit": false,
       "retrieval_lane": "fast",
-      "retrieved_count": 12,
+      "retrieved_count": 10,
       "lanes": {
         "context_graph_mode": "none",
         "context_graph_reason": "fast_lane_bypass",
         "context_graph_fused_items": 0,
         "okf_injected_count": 3,
-        "lightrag_context_chars": 1415
+        "kg_context_chars": 1884,
+        "lightrag_context_chars": 1453
       },
-      "latency_ms": 5654.9,
-      "response_snippet": "I found relevant source material, but the generated draft did not pass the full verification gate. Rather than give a ba..."
+      "latency_ms": 27445.7,
+      "response_snippet": "The architectural design of Ekam is a sacred fusion of ancient Vastu principles and modern architecture, meticulously cr..."
     },
     {
       "category": "complex_multi_hop",
@@ -327,11 +335,11 @@
       "error": null,
       "blocked": false,
       "faithfulness_score": 0.0,
-      "answer_relevancy": 0.0,
-      "context_precision": 0.4,
-      "verification_ran": false,
-      "hallucination_flag": false,
-      "citations_count": 0,
+      "answer_relevancy": 0.538,
+      "context_precision": 1.0,
+      "verification_ran": true,
+      "hallucination_flag": true,
+      "citations_count": 2,
       "query_tier": "standard",
       "cache_hit": false,
       "retrieval_lane": "relational",
@@ -341,35 +349,37 @@
         "context_graph_reason": "entity_specific_local_context",
         "context_graph_fused_items": 0,
         "okf_injected_count": 3,
-        "lightrag_context_chars": 0
+        "kg_context_chars": 1999,
+        "lightrag_context_chars": 1500
       },
-      "latency_ms": 118114.0,
-      "response_snippet": "I don't have that specific teaching. Please try asking another question."
+      "latency_ms": 86321.4,
+      "response_snippet": "Rather than put words in their mouths, let me give you theirs directly.\n\nShe also has begun to nurture a deep relationsh..."
     },
     {
       "category": "complex_multi_hop",
       "question": "Connect the fourth sacred secret of Spiritual Right Action with the monthly power of Karma Cleansing in Manifest 2026.",
       "error": null,
       "blocked": false,
-      "faithfulness_score": 1.0,
-      "answer_relevancy": 0.0,
-      "context_precision": 0.8,
-      "verification_ran": false,
+      "faithfulness_score": 0.9,
+      "answer_relevancy": 0.917,
+      "context_precision": 1.0,
+      "verification_ran": true,
       "hallucination_flag": false,
-      "citations_count": 0,
-      "query_tier": "standard",
+      "citations_count": 3,
+      "query_tier": "tier3_complex",
       "cache_hit": false,
-      "retrieval_lane": "relational",
-      "retrieved_count": 7,
+      "retrieval_lane": "deep",
+      "retrieved_count": 8,
       "lanes": {
         "context_graph_mode": "multi_hop",
         "context_graph_reason": "complex_or_comparative_entity_question",
         "context_graph_fused_items": 0,
         "okf_injected_count": 3,
-        "lightrag_context_chars": 0
+        "kg_context_chars": 1287,
+        "lightrag_context_chars": 1425
       },
-      "latency_ms": 85693.3,
-      "response_snippet": "I don't have that specific teaching. Please try asking another question."
+      "latency_ms": 17611.7,
+      "response_snippet": "The Fourth Sacred Secret of Spiritual Right Action teaches that right action begins with valuing your own happiness with..."
     }
   ]
 }

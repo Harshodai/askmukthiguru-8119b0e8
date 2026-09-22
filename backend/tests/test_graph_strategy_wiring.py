@@ -10,7 +10,12 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from rag.graph_strategies import DeepGraphStrategy, FastGraphStrategy, StandardGraphStrategy
+from rag.graph_strategies import (
+    DeepGraphStrategy,
+    FastGraphStrategy,
+    StandardGraphStrategy,
+    _map_docs_to_relevant,
+)
 
 
 @pytest.fixture
@@ -59,7 +64,12 @@ def test_fast_graph_compiles(mock_init_services, mock_build_kwargs):
     assert _expected_nodes().issubset(nodes)
     assert "_map_docs_to_relevant" in nodes
     assert "resolve_followup" not in nodes
-    assert "rerank_documents" not in nodes
+    # 2026-09-22: Fast lane now reranks too (see graph_strategies.py comment
+    # on the rerank_documents node) -- the candidate set is small (~5-7 docs
+    # for fast/tier2_simple) and the node has its own high-confidence bypass,
+    # so this was a real gap (simple queries reached generation unranked),
+    # not intentional lane behavior.
+    assert "rerank_documents" in nodes
     assert "reflect_on_answer" in nodes
     assert "verify_answer" in nodes
     assert "extract_citations" in nodes
@@ -106,6 +116,31 @@ def test_deep_graph_compiles(mock_init_services, mock_build_kwargs):
     assert "verify_answer" in nodes
     assert "explain_retrieval" not in nodes
     assert "check_contradiction" not in nodes
+
+
+def test_map_docs_to_relevant_caps_reranked_docs():
+    """N3-adjacent regression: reranked_docs must be capped at 5, same as the
+    documents[:5] fallback -- otherwise reranking (which can return more
+    candidates than the fallback path ever would) silently widens how many
+    docs reach generate_answer/extract_citations on the fast lane."""
+    reranked = [{"text": f"doc {i}"} for i in range(12)]
+    state = {"reranked_docs": reranked, "documents": []}
+
+    result = _map_docs_to_relevant(state)
+
+    assert len(result["relevant_docs"]) == 5
+    assert result["relevant_docs"] == reranked[:5]
+
+
+def test_map_docs_to_relevant_falls_back_when_no_reranked_docs():
+    """Fallback path (empty/missing reranked_docs) still caps at 5."""
+    documents = [{"text": f"doc {i}"} for i in range(12)]
+    state = {"reranked_docs": [], "documents": documents}
+
+    result = _map_docs_to_relevant(state)
+
+    assert len(result["relevant_docs"]) == 5
+    assert result["relevant_docs"] == documents[:5]
 
 
 def test_graph_strategy_names():
