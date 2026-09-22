@@ -85,6 +85,7 @@ for (const route of PUBLIC_ROUTES) {
         !e.includes('Failed to preconnect') &&
         // Google Identity Services/FedCM may report an empty provider list when no browser account is available.
         !e.includes("Provider's accounts list is empty.") &&
+        !e.includes('[GSI_LOGGER]: FedCM get() rejects with')
         // Firefox may surface a Cloudflare cookie-domain warning from the
         // third-party Supabase realtime websocket even when the request is
         // aborted. It is not emitted by application code and does not prevent
