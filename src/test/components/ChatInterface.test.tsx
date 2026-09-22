@@ -247,7 +247,7 @@ describe('ChatInterface (regression)', () => {
 
     await screen.findByRole('heading', { level: 2, name: /Test/i });
 
-    const languageButton = screen.getByRole('button', { name: /chat\.languageSelected/i });
+    const languageButton = screen.getByRole('button', { name: /Selected language:/i });
     fireEvent.click(languageButton);
     fireEvent.click(screen.getByText('हिन्दी'));
 
