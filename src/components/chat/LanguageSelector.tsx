@@ -299,7 +299,6 @@ export const LanguageSelector = ({
             data-tour="language-selector"
             onClick={(e) => {
               e.stopPropagation();
-              
               setIsOpen((open) => !open);
             }}
             className="flex min-h-[44px] min-w-[44px] items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
@@ -386,7 +385,7 @@ export const LanguageSelector = ({
           onClick={(e) => {
             e.stopPropagation();
             
-            setIsOpen(!isOpen);
+            setIsOpen((open) => !open);
           }}
           className="flex items-center gap-2 px-3 py-2 min-h-[44px] min-w-[44px] rounded-full bg-card hover:bg-ojas/10 border border-border hover:border-ojas/30 transition-all text-sm shadow-sm"
           whileHover={{ scale: 1.02 }}
