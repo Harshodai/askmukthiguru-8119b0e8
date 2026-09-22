@@ -83,7 +83,6 @@ const AppSidebar = ({ onOpenSearch }: { onOpenSearch: () => void }) => {
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
   const { favorites } = useFavorites();
-  const { open: openSereneMind } = useSereneMind();
   const favCount = favorites.length;
 
   return (
@@ -219,9 +218,11 @@ export const AppShell = ({ children, title }: AppShellProps) => {
   const location = useLocation();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const hasChatOrigin = new URLSearchParams(location.search).get('returnTo') === '/chat';
-  const isChatOwnedPage = hasChatOrigin && ['/notebooks', '/second-brain', '/knowledge-graph', '/wisdom-map', '/reflections', '/practices'].some(
-    (path) => location.pathname === path || location.pathname.startsWith(`${path}/`),
-  );
+  const isChatOwnedPage =
+    location.pathname === '/profile' ||
+    (hasChatOrigin && ['/notebooks', '/second-brain', '/knowledge-graph', '/wisdom-map', '/reflections', '/practices'].some(
+      (path) => location.pathname === path || location.pathname.startsWith(`${path}/`),
+    ));
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
