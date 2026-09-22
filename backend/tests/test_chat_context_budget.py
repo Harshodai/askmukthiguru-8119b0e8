@@ -118,9 +118,7 @@ def test_context_limit_gate_never_blocks_crisis_language(monkeypatch):
 
     from app.api.chat import _conversation_context_limit_response
 
-    response = _conversation_context_limit_response(
-        _exhausted_chat_body("I want to end my life")
-    )
+    response = _conversation_context_limit_response(_exhausted_chat_body("I want to end my life"))
 
     assert response is None
 
