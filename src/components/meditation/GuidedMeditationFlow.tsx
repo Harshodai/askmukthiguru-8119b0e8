@@ -281,6 +281,20 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
     setShowCloseConfirm(true);
   }, [isPlaying, elapsed, currentStepIndex, isComplete, onClose]);
 
+  // Treat Escape exactly like the visible close control so keyboard users and
+  // automated/browser navigation never get trapped behind the full-screen practice.
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      event.stopPropagation();
+      requestClose();
+    };
+    document.addEventListener('keydown', handleKeyDown, true);
+    return () => document.removeEventListener('keydown', handleKeyDown, true);
+  }, [isOpen, requestClose]);
+
   const confirmPauseAndExit = useCallback(() => {
     // Progress is already persisted to localStorage every tick — keep it
     // so the user can resume next time they open the modal.
@@ -326,7 +340,7 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
         className="fixed inset-0 z-50 bg-background flex flex-col items-center justify-center"
         role="dialog"
         aria-modal="true"
-        aria-label="Serene Mind meditation"
+        aria-labelledby="serene-mind-dialog-title"
       >
         {/* Close — always visible, even for gated sessions. */}
         <button
@@ -393,7 +407,7 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
                 >
                   {t('common.continue')}
                 </button>
-                <button onClick={requestClose} className="w-full py-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                <button type="button" onClick={requestClose} className="w-full py-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
                   {t('meditation.skipToChat')}
                 </button>
               </>
@@ -481,7 +495,11 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
           </motion.div>
         ) : (
           <div className="flex flex-col items-center gap-8 px-6 max-w-md w-full">
-            {/* Progress indicator */}
+            <h1 id="serene-mind-dialog-title" className="sr-only">
+            {t('meditation.guidedMeditation', 'Serene Mind meditation')}
+          </h1>
+
+          {/* Progress indicator */
             <MeditationProgressIndicator
               currentStep={currentStepIndex}
               totalSteps={steps.length}
