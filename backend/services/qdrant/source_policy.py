@@ -25,6 +25,16 @@ _BLOCKED_SOURCE_IDENTITIES = frozenset(
     }
 )
 
+# 2026-09-22 rights-register audit (docs/rights/source-register.md): the same
+# book re-entered the live collection under a different source_url (an Amazon
+# listing, not the scrubbed PDF filename), so the identity-only match above
+# never caught it -- 1,199 chunks of its full text are live in
+# spiritual_wisdom_contextual as of this writing. Block by ASIN (source_url
+# substring) and title prefix (any chunk's chapter-qualified title starts with
+# the book's title) until CONTENT-RIGHTS.md records a confirmed rights basis.
+_BLOCKED_SOURCE_URL_SUBSTRINGS = frozenset({"1846046319"})  # Four Sacred Secrets ASIN/ISBN-10
+_BLOCKED_TITLE_PREFIXES = ("the four sacred secrets",)
+
 _SOURCE_SEPARATORS = re.compile(r"[\\/]+")
 
 
@@ -51,7 +61,47 @@ def is_blocked_source(doc: Any) -> bool:
         identity = _normalise_identity(candidate)
         if identity in _BLOCKED_SOURCE_IDENTITIES:
             return True
+        casefolded = candidate.strip().casefold()
+        if casefolded.startswith(_BLOCKED_TITLE_PREFIXES):
+            return True
+        if any(needle in casefolded for needle in _BLOCKED_SOURCE_URL_SUBSTRINGS):
+            return True
     return False
+
+
+def is_registered_source(doc: Any) -> bool:
+    """Return True only when a document's rights basis is human-confirmed.
+
+    Distinct from `domain_rights_status == "licensed"`, which ingestion stamps
+    on every chunk by default (services/qdrant/indexer.py) and is not a
+    per-source rights determination. "cleared" is set only by a human-run
+    backfill after a source is entered in docs/rights/source-register.md /
+    CONTENT-RIGHTS.md with a confirmed basis. See settings.serve_only_registered_sources.
+    """
+    if not isinstance(doc, dict):
+        return False
+    status = doc.get("domain_rights_status")
+    if not status:
+        provenance = doc.get("provenance")
+        if isinstance(provenance, dict):
+            status = provenance.get("domain_rights_status")
+    return status == "cleared"
+
+
+def filter_unregistered_sources(documents: Iterable[dict]) -> tuple[list[dict], int]:
+    """Keep only documents with a human-confirmed rights basis; drop the rest.
+
+    Only call this when settings.serve_only_registered_sources is True -- see
+    that flag's docstring in app/config.py for why it defaults off.
+    """
+    allowed: list[dict] = []
+    dropped = 0
+    for document in documents:
+        if is_registered_source(document):
+            allowed.append(document)
+        else:
+            dropped += 1
+    return allowed, dropped
 
 
 def filter_blocked_sources(documents: Iterable[dict]) -> tuple[list[dict], int]:
@@ -70,4 +120,9 @@ def filter_blocked_sources(documents: Iterable[dict]) -> tuple[list[dict], int]:
     return allowed, dropped
 
 
-__all__ = ["filter_blocked_sources", "is_blocked_source"]
+__all__ = [
+    "filter_blocked_sources",
+    "filter_unregistered_sources",
+    "is_blocked_source",
+    "is_registered_source",
+]

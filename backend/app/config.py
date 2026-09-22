@@ -1101,6 +1101,17 @@ class Settings(BaseSettings):
     # Production retrieval requires an explicit licensed-domain payload stamp.
     # Disable only for isolated migration/test environments.
     require_licensed_domain_reads: bool = True
+    # Content-rights registrar gate (docs/rights/source-register.md, CONTENT-RIGHTS.md).
+    # `domain_rights_status="licensed"` above is an ingestion-time DEFAULT applied to
+    # every chunk (services/qdrant/indexer.py), not a per-source human rights
+    # determination -- as of 2026-09-22, zero of the 450+ ingested YouTube sources
+    # have a confirmed rights basis on file (CONTENT-RIGHTS.md). When True, retrieval
+    # additionally requires `domain_rights_status == "cleared"` -- a distinct value
+    # only a human-run backfill sets after a source is actually confirmed in the
+    # register -- dropping everything else, including today's blanket "licensed"
+    # stamp. Defaults False: flipping this on today would block ~100% of the live
+    # corpus, a production-affecting call this agent will not make unilaterally.
+    serve_only_registered_sources: bool = False
     # Governed source publication is opt-in until approval/rollback staging drills pass.
     corpus_release_registry_enabled: bool = False
     corpus_release_fallback_version: int = 1
