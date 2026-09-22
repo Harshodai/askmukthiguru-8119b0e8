@@ -12,6 +12,7 @@
  * Run:  npm run test:e2e -- prelaunch-sweep
  */
 import { test, expect, type Page } from '@playwright/test';
+import { dismissSafetyDisclaimer } from './support';
 
 const ROUTES = [
   '/',
@@ -109,6 +110,7 @@ for (const route of ROUTES) {
     });
 
     const res = await page.goto(route, { waitUntil: 'networkidle' }).catch(() => null);
+    await dismissSafetyDisclaimer(page);
     expect(res?.status() ?? 200, `HTTP status ${route}`).toBeLessThan(500);
     await expect(page.locator('body')).toBeVisible();
 
