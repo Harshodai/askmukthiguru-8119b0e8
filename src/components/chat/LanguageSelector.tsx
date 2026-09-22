@@ -127,58 +127,14 @@ export const LanguageSelector = ({
   const [voiceCapable, setVoiceCapable] = useState<Set<string>>(new Set(['en']));
   const { t } = useTranslation();
 
-  const [coords, setCoords] = useState<{ bottom: number; left: number; maxHeight: number } | null>(null);
-
-  const updatePosition = useCallback(() => {
-    if (triggerRef.current) {
-      const rect = triggerRef.current.getBoundingClientRect();
-      const viewportHeight = window.innerHeight;
-      const viewportWidth = window.innerWidth;
-      const margin = 8;
-
-      const bottom = Math.max(12, viewportHeight - rect.top + margin);
-
-      let left = rect.left;
-      const menuWidth = Math.min(320, viewportWidth - 24);
-
-      if (left + menuWidth > viewportWidth - 12) {
-        left = Math.max(12, viewportWidth - menuWidth - 12);
-      }
-
-      const availableAbove = rect.top - margin - 20;
-      const maxHeight = Math.max(0, Math.min(320, availableAbove));
-      setCoords({ bottom, left, maxHeight });
-    }
-  }, []);
-
   useEffect(() => {
-    if (isOpen) {
-      updatePosition();
-      setSearchQuery('');
-      const selectedIdx = LANGUAGES.findIndex((l) => l.code === selectedLanguage);
-      const initialIdx = selectedIdx >= 0 ? selectedIdx : 0;
-      setFocusedIndex(initialIdx);
-      // Move real DOM focus onto the selected option so roving tabindex is
-      // consistent from the moment the popover opens (not just after a
-      // keypress) — itemRefs are only populated once the list has rendered.
-      requestAnimationFrame(() => itemRefs.current[initialIdx]?.focus());
-
-      const handleScroll = (e: Event) => {
-        // Do not update/re-render if the scroll event is inside our own dropdown list
-        if (popoverRef.current && popoverRef.current.contains(e.target as Node)) {
-          return;
-        }
-        updatePosition();
-      };
-
-      window.addEventListener('resize', updatePosition);
-      window.addEventListener('scroll', handleScroll, true);
-      return () => {
-        window.removeEventListener('resize', updatePosition);
-        window.removeEventListener('scroll', handleScroll, true);
-      };
-    }
-  }, [isOpen, updatePosition, selectedLanguage]);
+    if (!isOpen) return;
+    setSearchQuery('');
+    const selectedIdx = LANGUAGES.findIndex((l) => l.code === selectedLanguage);
+    const initialIdx = selectedIdx >= 0 ? selectedIdx : 0;
+    setFocusedIndex(initialIdx);
+    requestAnimationFrame(() => itemRefs.current[initialIdx]?.focus());
+  }, [isOpen, selectedLanguage]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
@@ -342,7 +298,7 @@ export const LanguageSelector = ({
             data-tour="language-selector"
             onClick={(e) => {
               e.stopPropagation();
-              if (!isOpen) updatePosition();
+              
               setIsOpen(!isOpen);
             }}
             className="flex min-h-[44px] min-w-[44px] items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
@@ -357,7 +313,7 @@ export const LanguageSelector = ({
           </motion.button>
 
           <AnimatePresence>
-            {isOpen && coords && (
+            {isOpen &&  && (
               <>
                 <motion.div
                   initial={{ opacity: 0 }}
@@ -372,8 +328,8 @@ export const LanguageSelector = ({
                   exit={{ opacity: 0, y: 8, scale: 0.95 }}
                   transition={{ duration: 0.15, ease: 'easeOut' }}
                   ref={popoverRef}
-                  className="fixed z-[100] flex flex-col overflow-hidden rounded-xl border border-hairline bg-popover shadow-lg w-72 max-w-[calc(100vw-2rem)]"
-                  style={{ bottom: coords.bottom, left: coords.left, maxHeight: Math.min(320, coords.maxHeight) }}
+                  className="absolute bottom-full left-0 mb-2 z-[100] flex flex-col overflow-hidden rounded-xl border border-hairline bg-popover shadow-lg w-72 max-w-[calc(100vw-1rem)] max-h-[70dvh]"
+                  style={{ bottom: .bottom, left: .left, maxHeight: Math.min(320, .maxHeight) }}
                   role="dialog"
                   aria-label={t('chat.selectLanguageAria', 'Select language')}
                 >
@@ -429,7 +385,7 @@ export const LanguageSelector = ({
           ref={triggerRef}
           onClick={(e) => {
             e.stopPropagation();
-            if (!isOpen) updatePosition();
+            
             setIsOpen(!isOpen);
           }}
           className="flex items-center gap-2 px-3 py-2 min-h-[44px] min-w-[44px] rounded-full bg-card hover:bg-ojas/10 border border-border hover:border-ojas/30 transition-all text-sm shadow-sm"
@@ -449,7 +405,7 @@ export const LanguageSelector = ({
         </motion.button>
 
         <AnimatePresence>
-          {isOpen && coords && (
+          {isOpen &&  && (
             <>
               <motion.div
                 initial={{ opacity: 0 }}
@@ -465,7 +421,7 @@ export const LanguageSelector = ({
                 transition={{ duration: 0.15 }}
                 ref={popoverRef}
                 className="fixed w-72 max-w-[calc(100vw-2rem)] flex flex-col bg-popover border border-border rounded-2xl shadow-2xl z-[100] overflow-hidden"
-                style={{ bottom: coords.bottom, left: coords.left, maxHeight: Math.min(320, coords.maxHeight) }}
+                style={{ bottom: .bottom, left: .left, maxHeight: Math.min(320, .maxHeight) }}
                 role="dialog"
                 aria-label={t('chat.selectLanguageAria', 'Select language')}
               >
