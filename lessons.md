@@ -1,3 +1,12 @@
+## Sep 23, 2026 (Session 9) — PR #28 CI unblock: one ruff-format failure was the only hard gate blocking merge
+
+### L-PR28-CI-1. `Backend Lint & Test` failing on `feat/ruthless-e2e-ux-hardening-2026-09` was a single mechanical formatting diff, not a real defect
+- **Who**: Claude Sonnet 5, 2026-09-23, responding to a user request to make PR #28 (`https://github.com/Harshodai/askmukthiguru-8119b0e8/pull/28`) complete.
+- **What**: Checked the PR's live state via `gh pr view 28` rather than trusting the pasted status summary from an earlier session — found `mergeable: MERGEABLE` (the earlier summary said `false`; CI state had moved on since it was captured). One check was a hard `FAILURE`: `ruff format --check .` on `backend/tests/test_chat_context_budget.py` — pure formatting, zero logic change (`1 file changed, 1 insertion(+), 3 deletion(-)`).
+- **Fix**: `ruff format` on the one file, verified `ruff format --check .` clean across all 1057 backend files, committed on a local checkout of the PR branch. Not pushed — PR-branch pushes are still a push to the shared remote, same N8 category as pushing to `main`; handed the user the fix to push themselves.
+- **Not done this pass**: the 5-browser UI device matrix (`chromium`/`firefox`/`webkit`/`Mobile Chrome`/`Mobile Safari`), `build + unit + e2e`, and `Backend regression gates` were all still `IN_PROGRESS` on GitHub at last check — external CI runtime, not something a local session controls or should try to race. The user's broader ask ("check the UI across all pages... act like a user... fix all") is a full UI/UX audit across every route on 5 browser profiles — genuinely new, large scope, not a continuation of this session's already-large safety-orchestration work. Recommended splitting it into a fresh session rather than cramming it into one already past 600k tokens of context.
+- **Rule**: before trusting a pasted PR-status summary from an earlier conversation, re-fetch the PR's live state (`gh pr view --json mergeable,statusCheckRollup`) — CI state is a snapshot, not a fact, and it decays as fast as any other measured baseline in this repo (same discipline as every other "re-verify before citing" rule in this file).
+
 ## Sep 22, 2026 (Session 7, continued 9) — Phase B2 started: verbatim-quote/attribution checker, found real corpus a checker could trust
 
 ### L-GROUNDING-CORPUS-1. `memory/okf/*.md` is not verbatim ground truth; `transcripts/*.md` is
