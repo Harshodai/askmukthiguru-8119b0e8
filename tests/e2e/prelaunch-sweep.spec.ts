@@ -59,6 +59,8 @@ const IGNORABLE = (e: string): boolean =>
   e.includes('.mp3') ||
   e.includes('useMeditationAudio');
 
+const APP_ORIGIN = new URL(process.env.BASE_URL || 'http://localhost:4173').origin;
+
 const DESTRUCTIVE = /sign\s*out|log\s*out|delete|remove|clear|reset|cancel|leave|discard/i;
 
 async function scrollThroughPage(page: Page): Promise<void> {
@@ -97,7 +99,7 @@ for (const route of ROUTES) {
   test(`sweep: ${route} — mount, scroll, click safe controls`, async ({ page }) => {
     const errors: string[] = [];
     const serverErrors: string[] = [];
-    const origin = new URL(page.url()).origin;
+    const origin = APP_ORIGIN;
     page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
     page.on('pageerror', (err) => errors.push(err.message));
     page.on('response', (response) => {
