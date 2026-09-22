@@ -218,6 +218,9 @@ export const AppShell = ({ children, title }: AppShellProps) => {
   const location = useLocation();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const isChatOwnedPage = isChatOwnedRoute(location.pathname, location.search);
+  const showGlobalChatReturn = ['/notebooks', '/second-brain'].some(
+    (path) => location.pathname === path || location.pathname.startsWith(`${path}/`),
+  );
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -249,7 +252,7 @@ export const AppShell = ({ children, title }: AppShellProps) => {
         <div className="flex-1 flex flex-col min-w-0 relative z-10">
           <header className="h-14 flex items-center gap-2 sm:gap-3 border-b border-border/60 backdrop-blur-md bg-card/60 px-3 sm:px-4 sticky top-0 z-30">
             <SidebarTrigger />
-            {isChatOwnedPage && (
+            {(isChatOwnedPage || showGlobalChatReturn) && (
               <Button
                 type="button"
                 variant="ghost"
