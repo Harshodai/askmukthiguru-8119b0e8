@@ -228,7 +228,6 @@ export default function StudyNotebookPage() {
               </div>
               {voice.isListening && (voice.transcript || voice.interimTranscript) && (
                 <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-md text-xs text-foreground mt-2 animate-pulse">
-                  <span className="font-semibold text-emerald-500 mr-1">Voice Input:</span>
                   {voice.transcript} <span className="text-muted-foreground italic">{voice.interimTranscript}</span>
                 </div>
               )}
