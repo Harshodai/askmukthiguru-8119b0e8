@@ -692,4 +692,3 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
     </AnimatePresence>
   );
 };
-
