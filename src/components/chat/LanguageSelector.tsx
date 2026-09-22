@@ -313,7 +313,7 @@ export const LanguageSelector = ({
           </motion.button>
 
           <AnimatePresence>
-            {isOpen &&  && (
+            {isOpen && (
               <>
                 <motion.div
                   initial={{ opacity: 0 }}
@@ -329,7 +329,6 @@ export const LanguageSelector = ({
                   transition={{ duration: 0.15, ease: 'easeOut' }}
                   ref={popoverRef}
                   className="absolute bottom-full left-0 mb-2 z-[100] flex flex-col overflow-hidden rounded-xl border border-hairline bg-popover shadow-lg w-72 max-w-[calc(100vw-1rem)] max-h-[70dvh]"
-                  style={{ bottom: .bottom, left: .left, maxHeight: Math.min(320, .maxHeight) }}
                   role="dialog"
                   aria-label={t('chat.selectLanguageAria', 'Select language')}
                 >
@@ -405,7 +404,7 @@ export const LanguageSelector = ({
         </motion.button>
 
         <AnimatePresence>
-          {isOpen &&  && (
+          {isOpen && (
             <>
               <motion.div
                 initial={{ opacity: 0 }}
@@ -420,8 +419,7 @@ export const LanguageSelector = ({
                 exit={{ opacity: 0, y: -10, scale: 0.95 }}
                 transition={{ duration: 0.15 }}
                 ref={popoverRef}
-                className="fixed w-72 max-w-[calc(100vw-2rem)] flex flex-col bg-popover border border-border rounded-2xl shadow-2xl z-[100] overflow-hidden"
-                style={{ bottom: .bottom, left: .left, maxHeight: Math.min(320, .maxHeight) }}
+                className="absolute bottom-full left-0 mb-2 z-[100] w-72 max-w-[calc(100vw-1rem)] max-h-[70dvh] flex flex-col bg-popover border border-border rounded-2xl shadow-2xl overflow-hidden"
                 role="dialog"
                 aria-label={t('chat.selectLanguageAria', 'Select language')}
               >
