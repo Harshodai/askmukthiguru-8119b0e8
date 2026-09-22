@@ -275,6 +275,81 @@ def test_ordinary_phrases_sharing_keywords_are_not_crisis(text):
     assert SereneMindEngine().assess_distress(text).level != DistressLevel.CRISIS, text
 
 
+# --- 2026-09-22: same gap-class as English, found and fixed across all 6
+# pilot languages (en/hi/te/kn/ta/mr per CLAUDE.md) plus bn/ml (in the
+# codebase but not officially in the pilot set). Marathi (_MR_PATTERNS) had
+# NO pattern block at all before this fix — a pilot language with zero
+# crisis-detection coverage. See lessons.md L-INDIC-CRISIS-REGEX-1.
+#
+# ⚠️ These phrases and patterns were authored and verified by an AI agent
+# cross-referencing sources already cited elsewhere in this codebase
+# (distress_stage.py's _INDIC_CRISIS_KEYWORDS docstring names ICHI Mental
+# Health Glossary, AIIMS, NIMHANS, iCall/Vandrevala), NOT by a native
+# speaker of any of these languages. Treat a pass here as "an AI's best
+# effort was tested both directions," not as clinical/linguistic sign-off.
+@pytest.mark.parametrize(
+    "text",
+    [
+        # Hindi
+        "जीना नहीं चाहता",
+        "मुझे लगता है सब मेरे बिना बेहतर होंगे",
+        "मैं अपनी जिंदगी खत्म करना चाहता हूं",
+        # Tamil
+        "நான் வாழ விரும்பவில்லை",
+        "நான் இல்லாமல் எல்லோரும் நன்றாக இருப்பார்கள்",
+        "என் உயிரை முடித்துக்கொள்ள விரும்புகிறேன்",
+        # Telugu
+        "నేను బతకాలని అనుకోవడం లేదు",
+        "నేను లేకపోతే అందరూ బాగుంటారు",
+        "నా జీవితాన్ని అంతం చేసుకోవాలని ఉంది",
+        # Kannada
+        "ನಾನು ಬದುಕಲು ಬಯಸುವುದಿಲ್ಲ",
+        "ನಾನಿಲ್ಲದೆ ಎಲ್ಲರೂ ಚೆನ್ನಾಗಿರುತ್ತಾರೆ",
+        "ನನ್ನ ಜೀವನವನ್ನು ಕೊನೆಗೊಳಿಸಬೇಕು ಎನಿಸುತ್ತಿದೆ",
+        # Bengali
+        "আমি বাঁচতে চাই না",
+        "আমি ছাড়া সবাই ভালো থাকবে",
+        "আমি আমার জীবন শেষ করে দিতে চাই",
+        # Malayalam
+        "എനിക്ക് ജീവിക്കണ്ട",
+        "ഞാൻ ഇല്ലെങ്കിൽ എല്ലാവരും നന്നായിരിക്കും",
+        "എന്റെ ജീവിതം അവസാനിപ്പിക്കണം എന്ന് തോന്നുന്നു",
+        # Marathi (was entirely uncovered before this fix)
+        "मला जीव द्यावासा वाटतोय",
+        "मला जगायचं नाही",
+        "मला आत्महत्या करावीशी वाटते",
+    ],
+)
+def test_indic_ideation_phrasings_detected_as_crisis(text):
+    assert SereneMindEngine().assess_distress(text).level == DistressLevel.CRISIS, text
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "यह फिल्म बहुत अच्छी है",
+        "मैं अपने जीवन में खुश हूं",
+        "இந்த படம் மிகவும் நன்றாக இருந்தது",
+        "நான் என் வாழ்க்கையில் மகிழ்ச்சியாக இருக்கிறேன்",
+        "ఈ సినిమా చాలా బాగుంది",
+        "నేను నా జీవితంలో సంతోషంగా ఉన్నాను",
+        "ಈ ಚಿತ್ರ ತುಂಬಾ ಚೆನ್ನಾಗಿದೆ",
+        "ನಾನು ನನ್ನ ಜೀವನದಲ್ಲಿ ಸಂತೋಷವಾಗಿದ್ದೇನೆ",
+        "এই সিনেমাটা খুব ভালো",
+        "আমি আমার জীবনে খুশি",
+        "ഈ സിനിമ വളരെ നല്ലതാണ്",
+        "ഞാൻ എന്റെ ജീവിതത്തിൽ സന്തോഷവാനാണ്",
+        "माझं जीवन खूप छान आहे",
+        "मी आज लवकर उठलो",
+    ],
+)
+def test_indic_ordinary_phrases_are_not_crisis(text):
+    """False-positive guard for the 2026-09-22 Indic CRISIS pattern
+    widening — ordinary sentences sharing words (film review, "happy in my
+    life") with the real ideation patterns above."""
+    assert SereneMindEngine().assess_distress(text).level != DistressLevel.CRISIS, text
+
+
 def test_distress_wins_intent_tiebreak_over_factual():
     from rag.nodes.on_device_intent import classify
 

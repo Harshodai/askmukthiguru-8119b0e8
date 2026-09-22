@@ -14,15 +14,35 @@ see `lessons.md` `L-CRISIS-REGEX-GAP-1`), along with two related gaps
 "don't"; "better off without me" had no coverage at all). All three are
 now caught and regression-tested (`tests/test_serene_mind.py`).
 
-**Spot-checking found the same class of gap likely exists in Hindi too**
-(2 of 3 tested phrases), and was NOT fixed — the agent who found and fixed
-the English gap is not a native speaker of any of the other 5 pilot
-languages (hi/te/kn/ta/mr) and will not author or widen non-English
-crisis-detection regex without native-speaker review. **This is currently
-the single highest-priority open safety item in this repo.** Before any
-pilot user interacts with this product in a non-English pilot language, a
-native speaker needs to run the same kind of adversarial phrasing test
-against `_HI_PATTERNS`/`_TA_PATTERNS`/`_TE_PATTERNS`/`_KN_PATTERNS`/
+**Update 2026-09-22, same day:** the same gap-class was confirmed across
+all 6 pilot languages (en/hi/te/kn/ta/mr per `CLAUDE.md`) plus bn/ml (in
+the codebase, not in the official pilot set) — and Marathi (`_MR_PATTERNS`)
+had **no pattern block at all**, meaning zero keyword-based crisis
+detection existed for an entire official pilot language until this fix.
+The user directed the agent to fix these too, overriding the
+native-speaker caution above. Fixed: `_MR_PATTERNS` built from scratch;
+`_HI_PATTERNS`/`_TA_PATTERNS`/`_TE_PATTERNS`/`_KN_PATTERNS`/
+`_BN_PATTERNS`/`_ML_PATTERNS` widened for the same "end my life" / negation
+/ "better off without me" gap-class as English, each verified against both
+true-positive ideation phrases AND false-positive ordinary sentences
+(31 checks total across the 6 languages, all passing; 2 false-positive
+regressions were found and fixed mid-pass — a Hindi word-order variant and
+a Kannada sandhi/vowel-fusion form — before landing). 40 regression tests
+added (`tests/test_serene_mind.py`).
+
+**This is still not the same as native-speaker sign-off, and should not be
+treated as one.** The phrases and patterns were authored and verified by
+an AI agent cross-referencing sources already cited elsewhere in this
+codebase (`distress_stage.py`'s `_INDIC_CRISIS_KEYWORDS` docstring names
+ICHI Mental Health Glossary, AIIMS, NIMHANS, iCall/Vandrevala materials),
+tested rigorously in both directions, but not reviewed by anyone who
+actually speaks Hindi, Tamil, Telugu, Kannada, Bengali, Malayalam, or
+Marathi as a first language. A pass here means "an AI's best effort
+survived adversarial self-testing," not "a clinician or native speaker
+confirmed this is correct and complete." Before any pilot user interacts
+with this product in a non-English pilot language, a native speaker should
+still independently test adversarial phrasing against `_HI_PATTERNS`/
+`_TA_PATTERNS`/`_TE_PATTERNS`/`_KN_PATTERNS`/`_MR_PATTERNS`/
 `_ML_PATTERNS`/`_BN_PATTERNS` in `services/serene_mind_engine.py`.
 
 ## What's actually here

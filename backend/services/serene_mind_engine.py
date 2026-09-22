@@ -128,9 +128,19 @@ _EN_PATTERNS = {
 
 # Hindi distress patterns (Devanagari)
 _HI_PATTERNS = {
+    # 2026-09-22: widened for the same gap-class found in English
+    # (L-CRISIS-REGEX-GAP-1) — "जीना नहीं चाहता" (bare "don't want to
+    # live"), "जिंदगी"/"ज़िंदगी" (both common spellings — with and without
+    # nuqta on ज़/ज — only the nuqta form was covered), an active-verb "end
+    # my life" phrasing, and "better off without me" passive-ideation
+    # framing had zero coverage. NOT verified by a native Hindi speaker —
+    # see evals/README.md and lessons.md L-INDIC-CRISIS-REGEX-1.
     DistressLevel.CRISIS: [
-        r"(मरना\s*चाहता|मरना\s*चाहती|आत्महत्या|ज़िंदगी\s*खत्म|जीने\s*का\s*मन\s*नहीं)",
-        r"(खुद\s*को\s*मारना|सब\s*खत्म\s*करना)",
+        r"(मरना\s*चाहता|मरना\s*चाहती|आत्महत्या|ज़?िंदगी\s*खत्म|जीने\s*का\s*मन\s*नहीं)",
+        r"(खुद\s*को\s*मारना|सब\s*खत्म\s*करना|जीना\s*नहीं\s*चाहता|जीना\s*नहीं\s*चाहती)",
+        r"(ज़?िंदगी\s*खत्म\s*कर|अपनी\s*जान\s*ले)",
+        r"(मेरे\s*बिना\s*(सब|सभी)\s*(बेहतर|अच्छा)|सबको\s*मेरे\s*बिना\s*(अच्छा|बेहतर)|"
+        r"(सब|सभी)\s*मेरे\s*बिना\s*(बेहतर|अच्छा))",
     ],
     DistressLevel.SEVERE: [
         r"(बहुत\s*(दुखी|उदास|अकेला|अकेली)|जीवन\s*व्यर्थ|कोई\s*उम्मीद\s*नहीं)",
@@ -148,8 +158,13 @@ _HI_PATTERNS = {
 
 # Tamil distress patterns
 _TA_PATTERNS = {
+    # 2026-09-22: widened for the same gap-class as Hindi above (bare
+    # "don't want to live", active "end my life", "better off without me").
+    # NOT verified by a native Tamil speaker — see evals/README.md.
     DistressLevel.CRISIS: [
         r"(தற்கொலை|உயிரை\s*மாய்க்க|சாக\s*விரும்புகிறேன்)",
+        r"(வாழ\s*விரும்ப(வில்லை|முடியவில்லை)|உயிரை\s*முடித்து|உயிர்\s*விட)",
+        r"(இல்லாமல்\s*(எல்லோரும்|அனைவரும்)\s*(நன்றாக|நல்லா))",
     ],
     DistressLevel.SEVERE: [
         r"(மிகவும்\s*வேதனை|நம்பிக்கையில்லை|தாங்க\s*முடியல|வாழ\s*விருப்பமில்லை)",
@@ -161,8 +176,12 @@ _TA_PATTERNS = {
 
 # Telugu distress patterns
 _TE_PATTERNS = {
+    # 2026-09-22: widened for the same gap-class as above. NOT verified by
+    # a native Telugu speaker — see evals/README.md.
     DistressLevel.CRISIS: [
         r"(ఆత్మహత్య|చచ్చిపోవాలని|బతకడం\s*ఇష్టం\s*లేదు)",
+        r"(బతకాలని\s*(అనుకోవడం\s*లేదు|లేదు)|జీవితాన్ని\s*(అంతం|ముగించు))",
+        r"(లేకపోతే\s*(అందరూ|అందరికీ)\s*బాగు)",
     ],
     DistressLevel.SEVERE: [
         r"(చాలా\s*బాధగా|ఎందుకు\s*బతకాలి|నిరాశ|తట్టుకోలేను)",
@@ -174,8 +193,12 @@ _TE_PATTERNS = {
 
 # Kannada distress patterns
 _KN_PATTERNS = {
+    # 2026-09-22: widened for the same gap-class as above. NOT verified by
+    # a native Kannada speaker — see evals/README.md.
     DistressLevel.CRISIS: [
         r"(ಆತ್ಮಹತ್ಯೆ|ಸಾಯಬೇಕು|ಬದುಕಲು\s*ಇಷ್ಟ\s*ಇಲ್ಲ)",
+        r"(ಬದುಕಲು\s*ಬಯಸುವುದಿಲ್ಲ|ಜೀವನವನ್ನು\s*ಕೊನೆಗೊಳಿಸ)",
+        r"(ಇಲ್ಲದೆ\s*ಎಲ್ಲರೂ\s*ಚೆನ್ನಾಗಿರು|ನಾನಿಲ್ಲದೆ\s*ಎಲ್ಲರೂ)",
     ],
     DistressLevel.SEVERE: [
         r"(ತುಂಬಾ\s*ನೋವು|ನಂಬಿಕೆ\s*ಇಲ್ಲ|ಸಹಿಸಲು\s*ಆಗುತ್ತಿಲ್ಲ|ಬದುಕು\s*ಅರ್ಥಹೀನ)",
@@ -190,8 +213,12 @@ _KN_PATTERNS = {
 
 # Bengali distress patterns
 _BN_PATTERNS = {
+    # 2026-09-22: widened for the same gap-class as above. NOT verified by
+    # a native Bengali speaker — see evals/README.md.
     DistressLevel.CRISIS: [
         r"(আত্মহত্যা|মরে\s*যেতে\s*চাই|বেঁচে\s*থাকতে\s*চাই\s*না)",
+        r"(বাঁচতে\s*চাই\s*না|জীবন\s*শেষ\s*করে)",
+        r"(ছাড়া\s*(সবাই|সকলে)\s*ভালো\s*থাক)",
     ],
     DistressLevel.SEVERE: [
         r"(অসহ্য|আর\s*পারছি\s*না|কোনো\s*আশা\s*নেই|জীবন\s*অর্থহীন)",
@@ -206,8 +233,12 @@ _BN_PATTERNS = {
 
 # Malayalam distress patterns
 _ML_PATTERNS = {
+    # 2026-09-22: widened for the same gap-class as above. NOT verified by
+    # a native Malayalam speaker — see evals/README.md.
     DistressLevel.CRISIS: [
         r"(ആത്മഹത്യ|മരിക്കണം|ജീവിക്കാൻ\s*ആഗ്രഹമില്ല)",
+        r"(ജീവിക്കണ്ട|ജീവിതം\s*അവസാനിപ്പിക്ക)",
+        r"(ഇല്ലെങ്കിൽ\s*എല്ലാവരും\s*നന്നായി)",
     ],
     DistressLevel.SEVERE: [
         r"(വളരെ\s*വേദന|പ്രതീക്ഷയില്ല|സഹിക്കാൻ\s*കഴിയുന്നില്ല|ജീവിതം\s*അർത്ഥരഹിതം)",
@@ -217,6 +248,42 @@ _ML_PATTERNS = {
     ],
     DistressLevel.MILD: [
         r"(ക്ഷീണം|ആശയക്കുഴപ്പം|അസ്വസ്ഥ|ചഞ്ചല)",
+    ],
+}
+
+# Marathi distress patterns.
+# 2026-09-22: Marathi had NO pattern block at all until this fix — a pilot
+# language (CLAUDE.md's 6 real-translation locales: en/hi/te/kn/ta/mr) with
+# zero crisis-detection coverage in assess_distress(). The admission-level
+# pre-screen in distress_stage.py's _INDIC_CRISIS_KEYWORDS already had two
+# vetted Marathi idioms ("जीव देणे", "जीव संपवणे") for bypassing unrelated
+# rejection gates (e.g. the context-limit check), but that pre-screen only
+# decides whether a message is ALLOWED to reach DistressStage — the actual
+# classification that decides CRISIS vs SEVERE vs nothing, and therefore
+# whether crisis preemption fires at all, is assess_distress() via this
+# per-language pattern dict. A Marathi-speaking user could pass the
+# pre-screen and still receive zero crisis response, because nothing here
+# ever classified their message above NONE.
+# ⚠️ Built by cross-referencing Hindi's structure (closest related
+# language, also Devanagari) and the two idioms distress_stage.py already
+# vetted, NOT verified by a native Marathi speaker. Flag in lessons.md and
+# evals/README.md: needs native-speaker review before pilot launch, same as
+# the widened hi/ta/te/kn/bn/ml patterns below.
+_MR_PATTERNS = {
+    DistressLevel.CRISIS: [
+        r"(जीव\s*द्या\w*|जीव\s*देणे|जीव\s*संपवणे|आत्महत्या|मरायचे\s*आहे|मरायची\s*इच्छा)",
+        r"(जगायची\s*इच्छा\s*नाही|जगायचं\s*नाही|संपवून\s*टाकतो|संपवून\s*टाकते)",
+    ],
+    DistressLevel.SEVERE: [
+        r"(खूप\s*(दुःखी|उदास|एकटा|एकटी)|आशा\s*नाही|जगणं\s*व्यर्थ)",
+        r"(सहन\s*होत\s*नाही|तुटलो|तुटले|निराशा)",
+    ],
+    DistressLevel.MODERATE: [
+        r"(ताण|तणाव|चिंता|काळजी|झोप\s*येत\s*नाही|नैराश्य)",
+        r"(दुःखी|उदास|रडू|राग|भीती|एकटेपणा)",
+    ],
+    DistressLevel.MILD: [
+        r"(थकवा|गोंधळ|अस्वस्थ|बेचैन)",
     ],
 }
 
@@ -244,6 +311,7 @@ for _name, _patterns in [
     ("kn", _KN_PATTERNS),
     ("bn", _BN_PATTERNS),
     ("ml", _ML_PATTERNS),
+    ("mr", _MR_PATTERNS),
     ("hinglish", _HINGLISH_PATTERNS),
 ]:
     _ALL_PATTERNS[_name] = {

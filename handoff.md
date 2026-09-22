@@ -1,3 +1,59 @@
+# AskMukthiGuru — Safety Spine (PLAN.md Phase A), Evals Harness (Phase B), Critical Crisis-Detection Fix (Sep 21–22, 2026)
+
+**Date:** September 21–22, 2026
+**Status:** 8 commits on local `main` (`f5ce176f` → most recent, see `git log --oneline -8`), **NOT PUSHED** — origin/main is stale relative to local. Push permission was denied by the session's own harness every time it was attempted this session (not a user decision each time); you'll need `git push origin main` yourself, or trigger it from wherever this repo is normally pushed from.
+**Session origin:** Started from a large safety-spine/evals/NotebookLM-parity brief (see `PLAN.md`, written this session). User authorized proceeding phase-by-phase with "use your intelligence," "go ruthlessly," and eventually "complete everything, don't worry about cost."
+
+---
+
+## 0. The one thing to read if you read nothing else
+
+**A production crisis-detection classifier was silently failing to detect one of the most common ways people express suicidal ideation, in every supported language, until this session.** `SereneMindEngine.assess_distress("I want to end my life")` returned `DistressLevel.NONE`. This was found by actually building and running the Phase B eval harness (`evals/run_safety_scenarios.py`) against the real classifier — not by code review, which had already happened multiple times on this exact code earlier in the same session and missed it. Fixed in English, then (per explicit user direction, overriding this agent's own stated caution about not being a native speaker) fixed across all 6 pilot languages, including Marathi, which had **zero** crisis-detection patterns at all before this session — see §3 below. This is not pushed to `origin/main` yet. Prioritize getting it there over anything else in this handoff.
+
+---
+
+## 1. What shipped this session, in commit order
+
+1. **`f5ce176f`, `c022ab8b`** — fixed a bug where a token-budget admission gate (`chat.py`) could return a generic 409 before crisis detection ever ran, and a frontend bug where a raw, pre-verification retrieval preview could be shown under a "Verified Sacred Teaching" badge. Also 2 CI workflow fixes (missing `permissions:` blocks causing PR-comment steps to 403).
+2. **`9051e88e`, `8fd67960`** — found the entire `ios/` Capacitor project had never been committed to git (a blanket root `.gitignore` rule shadowed its own nested `.gitignore`) — fixed, plus a missing push-notification entitlement found while verifying it, plus regenerated stale placeholder icon/splash assets for both mobile platforms, plus a Redis-outage rate-limiter fail-open bug.
+3. **`b9604ad2`, `8a7dcc04`** — PLAN.md Phase A (safety spine): migrated helpline config to a dedicated `config/helplines.yaml` (repo root, richer schema, single source of truth, every entry explicitly `last_verified: null` pending human confirmation); built a generation kill switch (`KillSwitchStage`, runs before cache, global/per-locale flag, default off); wired safety event logging (`tier_escalation`/`crisis_referral_shown`/`kill_switch_triggered`, structured logs, no raw text).
+4. **`6e24ce19`** — verified the shipped crisis-response copy against the brief's actual wording and found it never asked a direct safety question or offered to stay present — fixed.
+5. **`8a22d52e`** — built the Phase B eval harness (`evals/`) and found/fixed the critical English detection gap described in §0.
+6. **Most recent, uncommitted-message-pending at time of writing** — extended the §0 fix across Hindi, Tamil, Telugu, Kannada, Bengali, Malayalam, and built Marathi's pattern set from scratch (see §3).
+
+Full detail on every one of these, including false-positive near-misses caught before landing, is in `lessons.md` (search for the 2026-09-21/22 entries, prepended at the top — there are 9 dated entries from this session alone).
+
+## 2. Phase status against PLAN.md
+
+- **Phase A (safety spine): done.** A1 (conversation-aware tiers) was already substantially built before this session and was verified, not rebuilt. A2 (helplines), A3 (crisis copy), A5 (kill switch), A6 (event logging) all built/fixed this session. A4 (tier 1-2 flow) verified as substantially already implemented (proactive Serene Mind trigger with 15-min cooldown); the "gentle option to talk to a person" piece is Phase E (human handoff), not yet built.
+- **Phase B (evals): scaffold real and running, far from complete.** `evals/scenarios/` has 14 hand-authored multi-turn scenarios (not PLAN.md's 60+), English only. `evals/rubrics/safety_rubric.yaml` defines 7 scoring dimensions. `evals/run_safety_scenarios.py` actually executes tier-3 scenarios against the real classifier (no LLM needed — crisis preemption is deterministic). Tiers 0-2 are schema-validated only; they need live generation, which needs the backend to actually be running (see §5). `evals/bakeoff/questions.yaml` has 15 of a planned 50 NotebookLM comparison questions, no comparison has been run.
+- **Phase C–I: untouched.**
+
+## 3. The multilingual crisis-detection fix, in full
+
+`backend/services/serene_mind_engine.py`'s `_ALL_PATTERNS` dict is what `assess_distress()` scans to classify a message's `DistressLevel` (CRISIS/SEVERE/MODERATE/MILD/NONE). It is **language-agnostic in how it scans** (checks every language's patterns against every message regardless of detected language) but each language's coverage is only as good as its own pattern list.
+
+- **Marathi (`_MR_PATTERNS`) did not exist.** Marathi is an official pilot language (`CLAUDE.md`'s "6 with real translations: en/hi/te/kn/ta/mr"). Built from scratch this session.
+- **Hindi, Tamil, Telugu, Kannada, Bengali, Malayalam** all shared the same gap-class English had: bare negation of wanting to live ("जीना नहीं चाहता"-style phrasing), an active "end my life" verb construction, and "everyone would be better off without me" passive-ideation framing were uncovered. Widened all six.
+- Tested 18 true-positive phrases + 13 false-positive ordinary sentences across the 6 languages (31 checks, all pass) before considering any of it done. Found and fixed 3 more issues mid-pass: a Marathi verb-conjugation gap (desiderative form), a Hindi word-order variant, and a Kannada sandhi/vowel-fusion form that a plain substring match couldn't see. 40 regression tests in `tests/test_serene_mind.py`.
+- **This is AI-authored and AI-tested (both directions), not native-speaker-reviewed.** The three mid-pass catches above are exactly the class of subtle error a fluent-but-non-native model is prone to. The user explicitly instructed this work to proceed despite that caveat — it is documented, not hidden, in `evals/README.md`'s opening section and `lessons.md`'s `L-INDIC-CRISIS-REGEX-1`. **A native speaker of each of these 6 languages should independently test adversarial phrasing before this product is used by real people in that language.** This is now a "should verify" item, not a "known broken, blocking" item — a real improvement, not a closed loop.
+
+## 4. Open decisions still waiting on you (PLAN.md §5, unchanged from earlier this session)
+
+1. Clinician/senior-faculty reviewer for Phase B crisis scenarios — you said you'll review yourself; this does not satisfy PLAN.md's original ask for clinical calibration, and that gap is real, not resolved by volume of agent work.
+2. Every helpline number in `config/helplines.yaml` needs human verification (`last_verified` is null everywhere).
+3. Audio features / any Amma Bhagavan content — no approval given, nothing started.
+4. Nominated faculty contact for Phase E (human handoff) — not named, E not started.
+5. Monthly cost cap — you said "no hard cap yet."
+6. Pilot languages — you said "all 6 with real translations" (en/hi/te/kn/ta/mr); this is what drove the urgency of §3.
+7. **Native-speaker review of the §3 fix** — new this session, see above.
+
+## 5. Environment state
+
+Railway is still scaled to $0 (per the Sep 20 handoff below this one) — nothing in this session changed that. Tiers 0-2 of the eval harness, any live faithfulness testing, and any real end-to-end verification of the crisis-response flow all need a live backend, which does not currently exist. `evals/README.md` and `PLAN.md` both say this plainly; don't let a stale assumption that "the backend is running" creep into the next session.
+
+---
+
 # AskMukthiGuru — Railway Cost Optimization, Scale-to-0 & Deployment Pause (Sep 20, 2026)
 
 **Date:** September 20, 2026 (IST)
