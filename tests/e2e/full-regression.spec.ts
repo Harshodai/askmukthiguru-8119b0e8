@@ -14,6 +14,7 @@
  * reachable, so the spec is safe to run against a static preview too.
  */
 import { test, expect, type ConsoleMessage, type Page } from '@playwright/test';
+import { dismissSafetyDisclaimer } from './support';
 
 const APP_ORIGIN = new URL(process.env.BASE_URL || 'http://localhost:4173').origin;
 
@@ -62,6 +63,7 @@ test.describe('critical journeys', () => {
   test('landing page renders hero + primary CTA and has no fatal errors', async ({ page }) => {
     const errors = trackErrors(page);
     await page.goto('/', { waitUntil: 'networkidle' });
+    await dismissSafetyDisclaimer(page);
     await expect(page.locator('body')).toBeVisible();
     const cta = page.getByRole('link', { name: /start chat/i }).first();
     await expect(cta).toBeVisible();
@@ -72,6 +74,7 @@ test.describe('critical journeys', () => {
     for (const route of ['/second-brain', '/knowledge-graph']) {
       const errors = trackErrors(page);
       const res = await page.goto(route, { waitUntil: 'networkidle' });
+      await dismissSafetyDisclaimer(page);
       expect(res?.status(), `HTTP status ${route}`).toBeLessThan(500);
       await expect(page.locator('body')).toBeVisible();
       // Protected routes legitimately redirect to /auth — both outcomes pass.
@@ -87,6 +90,7 @@ test.describe('critical journeys', () => {
     // The correct flow is signInWithOAuth redirect. Assert no google iframe.
     const errors = trackErrors(page);
     await page.goto('/auth', { waitUntil: 'networkidle' });
+    await dismissSafetyDisclaimer(page);
     await expect(page.locator('body')).toBeVisible();
 
     const gsiContainer = page.locator('[data-testid="google-gsi-container"]');
@@ -127,6 +131,7 @@ test.describe('critical journeys', () => {
   test('chat: send a message and receive a non-empty reply (skips w/o backend)', async ({ page }) => {
     const errors = trackErrors(page);
     await page.goto('/chat', { waitUntil: 'networkidle' });
+  await dismissSafetyDisclaimer(page);
     await dismissPrePracticeGate(page);
 
     // Auth-gated: if we bounced to /auth, this environment has no test session.
