@@ -384,7 +384,7 @@ export const LanguageSelector = ({
           ref={triggerRef}
           onClick={(e) => {
             e.stopPropagation();
-            
+
             setIsOpen((open) => !open);
           }}
           className="flex items-center gap-2 px-3 py-2 min-h-[44px] min-w-[44px] rounded-full bg-card hover:bg-ojas/10 border border-border hover:border-ojas/30 transition-all text-sm shadow-sm"
