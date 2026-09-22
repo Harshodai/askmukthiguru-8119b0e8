@@ -33,6 +33,7 @@ const IGNORABLE = (e: string, pathname: string): boolean =>
   e.includes('Failed to load resource') ||
   // Chromium's Google Identity Services/FedCM stack emits this when no provider account is available; it is external auth noise, not an app exception.
   e.includes("Provider's accounts list is empty.") ||
+  e.includes('[GSI_LOGGER]: FedCM get() rejects with') ||
   (pathname === '/auth' && e.includes('Refused to frame') && /accounts\.google\.com(?:\/|$)/.test(e));
 
 function trackErrors(page: Page): { console: string[]; server: string[] } {
