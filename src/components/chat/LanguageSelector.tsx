@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Globe, Mic, MicOff, Volume2, VolumeX, ChevronDown, Languages } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
@@ -115,6 +116,25 @@ export const LanguageSelector = ({
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const selectedLanguage = value ?? internalLang;
 
+  // Portal-anchored screen position for the compact popover. Rendering the
+  // popover in place (as a normal descendant) put it inside the composer's
+  // `overflow-hidden` input-group wrapper, which visually clipped it above
+  // the composer box even though its own bounding rect looked correct —
+  // getBoundingClientRect ignores ancestor clipping. Portaling to
+  // document.body and positioning with `fixed` + measured coordinates
+  // sidesteps that ancestor entirely.
+  const POPOVER_WIDTH = 288; // w-72
+  const [menuPos, setMenuPos] = useState<{ left: number; bottom: number } | null>(null);
+  const updateMenuPos = useCallback(() => {
+    const rect = triggerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const margin = 8;
+    const maxLeft = window.innerWidth - POPOVER_WIDTH - margin;
+    const left = Math.max(margin, Math.min(rect.left, maxLeft));
+    const bottom = window.innerHeight - rect.top + 8; // 8px gap, mirrors old mb-2
+    setMenuPos({ left, bottom });
+  }, []);
+
   const filteredLanguages = useMemo(() => {
     const query = searchQuery.trim().toLocaleLowerCase();
     if (!query) return LANGUAGES;
@@ -135,6 +155,21 @@ export const LanguageSelector = ({
     setFocusedIndex(initialIdx);
     requestAnimationFrame(() => itemRefs.current[initialIdx]?.focus());
   }, [isOpen, selectedLanguage]);
+
+  useLayoutEffect(() => {
+    // Deliberately not clearing menuPos on close: the exit fade needs a
+    // valid last-known position to animate out from, and AnimatePresence
+    // (kept permanently mounted below) unmounts the panel itself once the
+    // exit transition finishes.
+    if (!isOpen) return;
+    updateMenuPos();
+    window.addEventListener('resize', updateMenuPos);
+    window.addEventListener('scroll', updateMenuPos, true);
+    return () => {
+      window.removeEventListener('resize', updateMenuPos);
+      window.removeEventListener('scroll', updateMenuPos, true);
+    };
+  }, [isOpen, updateMenuPos]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
@@ -312,66 +347,72 @@ export const LanguageSelector = ({
             <ChevronDown className={`w-3 h-3 opacity-50 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
           </motion.button>
 
-          <AnimatePresence>
-            {isOpen && (
+          {menuPos && createPortal(
+            <AnimatePresence>
+              {isOpen && (
               <>
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="fixed inset-0 z-[90]"
-                  onClick={() => setIsOpen(false)}
-                />
-                <motion.div
-                  initial={{ opacity: 0, y: 8, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 8, scale: 0.95 }}
-                  transition={{ duration: 0.15, ease: 'easeOut' }}
-                  ref={popoverRef}
-                  className="absolute bottom-full left-0 mb-2 z-[100] flex flex-col overflow-hidden rounded-xl border border-hairline bg-popover shadow-lg w-72 max-w-[calc(100vw-1rem)] max-h-[70dvh]"
-                  role="dialog"
-                  aria-label={t('chat.selectLanguageAria', 'Select language')}
-                >
-                  {/* Header */}
-                  <div className="px-3 py-2.5 border-b border-border bg-card/95 space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Globe className="w-3.5 h-3.5 text-ojas" />
-                      <span className="text-xs font-semibold text-foreground">{t('chat.selectLanguage', 'Select Language')}</span>
-                    </div>
-                    <input
-                      value={searchQuery}
-                      onChange={(e) => {
-                        setSearchQuery(e.target.value);
-                        setFocusedIndex(0);
-                      }}
-                      placeholder={t('chat.searchLanguages', { count: LANGUAGES.length })}
-                      aria-label={t('chat.searchLanguages', { count: LANGUAGES.length })}
-                      className="w-full h-9 rounded-lg border border-border/60 bg-background px-2.5 text-sm outline-none focus:ring-2 focus:ring-ojas/30"
-                    />
+              <motion.div
+                key="backdrop"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-[90]"
+                onClick={() => setIsOpen(false)}
+              />
+              <motion.div
+                key="panel"
+                initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                transition={{ duration: 0.15, ease: 'easeOut' }}
+                ref={popoverRef}
+                style={{ left: menuPos.left, bottom: menuPos.bottom }}
+                className="fixed z-[100] flex flex-col overflow-hidden rounded-xl border border-hairline bg-popover shadow-lg w-72 max-w-[calc(100vw-1rem)] max-h-[70dvh]"
+                role="dialog"
+                aria-label={t('chat.selectLanguageAria', 'Select language')}
+              >
+                {/* Header */}
+                <div className="px-3 py-2.5 border-b border-border bg-card/95 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Globe className="w-3.5 h-3.5 text-ojas" />
+                    <span className="text-xs font-semibold text-foreground">{t('chat.selectLanguage', 'Select Language')}</span>
                   </div>
+                  <input
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      setFocusedIndex(0);
+                    }}
+                    placeholder={t('chat.searchLanguages', { count: LANGUAGES.length })}
+                    aria-label={t('chat.searchLanguages', { count: LANGUAGES.length })}
+                    className="w-full h-9 rounded-lg border border-border/60 bg-background px-2.5 text-sm outline-none focus:ring-2 focus:ring-ojas/30"
+                  />
+                </div>
 
-                  {/* Language list */}
-                  <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin" role="listbox" aria-label={t('chat.selectLanguageAria', 'Select language')}>
-                    {filteredLanguages.length > 0 ? (
-                      <div className="py-1">{renderLanguageRows()}</div>
-                    ) : (
-                      <p className="px-4 py-6 text-center text-xs text-muted-foreground">
-                        {t('chat.noLangMatch', 'No languages match your search.')}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Translation notice footer */}
-                  <div className="px-3 py-2 border-t border-border bg-muted/30 flex items-start gap-2">
-                    <Languages className="w-3.5 h-3.5 text-ojas flex-shrink-0 mt-0.5" />
-                    <p className="text-[10px] text-muted-foreground leading-relaxed">
-                      {t('language.translationNotice')}
+                {/* Language list */}
+                <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin" role="listbox" aria-label={t('chat.selectLanguageAria', 'Select language')}>
+                  {filteredLanguages.length > 0 ? (
+                    <div className="py-1">{renderLanguageRows()}</div>
+                  ) : (
+                    <p className="px-4 py-6 text-center text-xs text-muted-foreground">
+                      {t('chat.noLangMatch', 'No languages match your search.')}
                     </p>
-                  </div>
-                </motion.div>
+                  )}
+                </div>
+
+                {/* Translation notice footer */}
+                <div className="px-3 py-2 border-t border-border bg-muted/30 flex items-start gap-2">
+                  <Languages className="w-3.5 h-3.5 text-ojas flex-shrink-0 mt-0.5" />
+                  <p className="text-[10px] text-muted-foreground leading-relaxed">
+                    {t('language.translationNotice')}
+                  </p>
+                </div>
+              </motion.div>
               </>
-            )}
-          </AnimatePresence>
+              )}
+            </AnimatePresence>,
+            document.body,
+          )}
         </div>
       </div>
     );
