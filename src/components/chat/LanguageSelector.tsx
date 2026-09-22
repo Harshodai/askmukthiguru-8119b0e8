@@ -245,7 +245,7 @@ export const LanguageSelector = ({
         const isSelected = selectedLanguage === lang.code;
         const isFocused = focusedIndex === idx;
         return (
-          <button
+          <button type="button"
             key={lang.code}
             ref={(el) => {
               itemRefs.current[idx] = el;
@@ -294,13 +294,13 @@ export const LanguageSelector = ({
     return (
       <div className="flex items-center gap-1">
         <div className="relative">
-          <motion.button
+          <motion.button type="button"
             ref={triggerRef}
             data-tour="language-selector"
             onClick={(e) => {
               e.stopPropagation();
               
-              setIsOpen(!isOpen);
+              setIsOpen((open) => !open);
             }}
             className="flex min-h-[44px] min-w-[44px] items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             aria-haspopup="listbox"
@@ -381,7 +381,7 @@ export const LanguageSelector = ({
   return (
     <div className="flex items-center gap-2">
       <div className="relative">
-        <motion.button
+        <motion.button type="button"
           ref={triggerRef}
           onClick={(e) => {
             e.stopPropagation();
@@ -463,7 +463,7 @@ export const LanguageSelector = ({
 
       {/* TTS Toggle */}
       {onTtsToggle && (
-        <motion.button
+        <motion.button type="button"
           onClick={onTtsToggle}
           className={`relative p-2.5 min-h-[44px] min-w-[44px] rounded-full transition-all border ${
             ttsEnabled
@@ -491,7 +491,7 @@ export const LanguageSelector = ({
       )}
 
       {/* Voice Mode Toggle */}
-      <motion.button
+      <motion.button type="button"
         onClick={onVoiceToggle}
         className={`relative p-2.5 min-h-[44px] min-w-[44px] rounded-full transition-all border ${
           voiceEnabled
