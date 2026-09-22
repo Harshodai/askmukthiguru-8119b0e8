@@ -240,10 +240,19 @@ _AI_DISCLAIMER_RE = re.compile(
     r"|\bi cannot (?:feel|experience)\b",
     re.IGNORECASE,
 )
+_TEACHER_NAMES_RE_FRAGMENT = r"(?:sri\s+)?(?:preethaji|krishnaji|amma\s+bhagavan)"
+# 2026-09-22 (distress-path N2 guard, R5): red-team found "Speaking as Sri
+# Preethaji: ..." and "I am the voice of Sri Amma Bhagavan..." slip past the
+# original three patterns below because neither puts "I" immediately after the
+# teacher's name -- both are third-person framings that still claim to speak
+# with/as a named teacher's voice, which is exactly what this regex exists to
+# catch. Two alternatives added, no existing pattern changed.
 _FOUNDER_IMPERSONATION_RE = re.compile(
-    r"\bas (?:sri )?(?:preethaji|krishnaji)\s*,?\s*i\b"
-    r"|\bi,?\s*(?:sri )?(?:preethaji|krishnaji)\b"
-    r"|\bi\s+am\s+(?:sri\s+)?(?:preethaji|krishnaji)\b",
+    rf"\bas {_TEACHER_NAMES_RE_FRAGMENT}\s*,?\s*i\b"
+    rf"|\bi,?\s*{_TEACHER_NAMES_RE_FRAGMENT}\b"
+    rf"|\bi\s+am\s+{_TEACHER_NAMES_RE_FRAGMENT}\b"
+    rf"|\bspeaking\s+as\s+{_TEACHER_NAMES_RE_FRAGMENT}\b"
+    rf"|\bi\s+am\s+the\s+voice\s+of\s+{_TEACHER_NAMES_RE_FRAGMENT}\b",
     re.IGNORECASE,
 )
 
@@ -281,13 +290,30 @@ _GUARANTEED_OUTCOME_RE = re.compile(
 # first-person grants and the "you are absolved" declaration, which is the
 # distinction the brief actually draws (claiming authority vs. describing
 # an existing state).
+# 2026-09-22 (distress-path N2 guard, R5): the block above only caught 3/11
+# red-team phrasings ("I bless you", "You are absolved", "I grant you
+# diksha") -- every phrasing that used a variant spelling (deeksha/aashirvaad),
+# a third-person subject ("Sri Preethaji's blessing flows through me"), an
+# imperative ("Receive this deeksha", "Consider yourself initiated"), or a
+# non-"you"-object verb ("I bless this moment") slipped through. Added below,
+# nothing above removed. Still deliberately excludes descriptive/past-tense
+# phrasing ("you are blessed to have found this path", "blessings have
+# touched many lives") -- those describe an existing state, not a performative
+# grant happening in this sentence.
 _SPIRITUAL_AUTHORITY_CLAIM_RE = re.compile(
-    r"\bi\s+(?:hereby\s+)?bless\s+you\b"
-    r"|\bi\s+(?:hereby\s+)?(?:grant|give|bestow|confer)\s+you\s+"
-    r"(?:diksha|absolution|initiation|(?:my\s+)?blessing)"
-    r"|\byou\s+are\s+(?:now\s+)?absolved\b"
+    r"\bi\s+(?:hereby\s+)?bless\s+(?:you|this|your)\b"
+    r"|\bi\s+(?:hereby\s+|now\s+)?(?:grant|give|bestow|confer)\s+(?:upon\s+|on\s+)?you\s+"
+    r"(?:my\s+|the\s+)?(?:diksha|deeksha|absolution|initiation|blessing|aashirvaad|aashirvad)"
+    r"|\byou\s+are\s+(?:now\s+)?(?:absolved|initiated)\b"
     r"|\bi\s+(?:hereby\s+)?initiate\s+you\b"
-    r"|\breceive\s+my\s+blessing\b",
+    r"|\breceive\s+(?:my|this)\s+(?:blessing|deeksha|diksha)\b"
+    r"|\bthis\s+is\s+your\s+(?:diksha|deeksha)\b"
+    r"|\blet\s+this\s+be\s+your\s+(?:diksha|deeksha)\b"
+    r"|\bconsider\s+this\s+(?:to\s+be\s+)?your\s+(?:diksha|deeksha)\b"
+    r"|\bconsider\s+yourself\s+(?:now\s+)?initiated\b"
+    r"|\bmay\s+my\s+blessings?\s+be\s+(?:upon|with)\s+you\b"
+    r"|\bmay\s+this\s+serve\s+as\s+your\s+(?:initiation|diksha|deeksha)\b"
+    rf"|\b{_TEACHER_NAMES_RE_FRAGMENT}(?:'s)?\s+blessing\s+flows?\s+through\s+me\b",
     re.IGNORECASE,
 )
 # Recognition routes through the canonical matcher that owns the refusal copy,

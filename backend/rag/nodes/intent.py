@@ -1525,6 +1525,30 @@ Retrieved teachings from Sri Preethaji and Sri Krishnaji:
         if crisis_info not in response:
             response = crisis_info + "\n\n" + response
 
+    # R4 (N2 guard): handle_distress returns straight to END (graph_strategies.py),
+    # bypassing reflect_on_answer/verify_answer entirely -- so check_persona_adherence
+    # (impersonation + "no diksha/absolution/blessing" regex, verification.py) never ran
+    # on this path, even though the prompt above explicitly instructs the model to speak
+    # "as if the guru is speaking directly." This is the single highest-stakes path in the
+    # product to fail closed on: a cheap regex check, not a re-route through the full
+    # verification chain (too slow for a person in crisis). On a hit, discard the whole
+    # draft -- not just the offending sentence, since a caring, safe response matters more
+    # here than salvaging prose -- and fall back to the same canned, guru-voice-free
+    # template already used above when generation is empty or fails. That template always
+    # includes the helpline block, so replacing wholesale (including any crisis_info
+    # already prepended just above) cannot leave a seeker without help contacts.
+    from rag.nodes.verification import check_persona_adherence
+
+    persona_violation = check_persona_adherence(response)
+    if persona_violation:
+        logger.warning(
+            "Distress handler: constitutional/persona violation caught on the safety-"
+            "preemption path, substituting safe fallback -- %s",
+            persona_violation,
+        )
+        response = get_distress_response()
+        relevant_docs = []
+
     # handle_distress returns straight to END (graph_strategies.py), bypassing
     # format_final_answer — so it also bypasses the URL/citation cleanup that
     # normally strips a hallucinated link. STIMULUS_RAG_PROMPT tells the model
