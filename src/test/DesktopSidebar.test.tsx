@@ -96,6 +96,7 @@ describe('DesktopSidebar', () => {
     const btn = screen.getByText('New Conversation');
     fireEvent.click(btn);
     expect(defaultProps.onNewConversation).toHaveBeenCalledTimes(1);
+    expect(defaultProps.onNewConversation).toHaveBeenCalledWith();
   });
 
   it('highlights active conversation', async () => {
