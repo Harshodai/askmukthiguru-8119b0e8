@@ -10,6 +10,7 @@
  * account. Instead we assert the button reaches the right endpoint.
  */
 import { test, expect } from "@playwright/test";
+import { dismissSafetyDisclaimer } from './support';
 
 test.describe("session / auth", () => {
   test("anonymous user on /profile is redirected to /auth", async ({ page }) => {
@@ -25,6 +26,7 @@ test.describe("session / auth", () => {
 
   test("Google sign-in button is wired on /auth", async ({ page }) => {
     await page.goto("/auth");
+    await dismissSafetyDisclaimer(page);
     const googleBtn = page.locator('[data-testid="google-gsi-container"], button:has-text("Google")').first();
     const gsiIframe = page.locator('iframe[src*="accounts.google.com/gsi"]').first();
     await expect(googleBtn.or(gsiIframe)).toBeVisible({ timeout: 10_000 });
@@ -44,6 +46,7 @@ test.describe("session / auth", () => {
       );
     }, fakeKey);
     await page.goto("/");
+    await dismissSafetyDisclaimer(page);
     // Force sign-out via the exposed client.
     await page.evaluate(async () => {
       const mod = await import("/src/integrations/supabase/client.ts");
