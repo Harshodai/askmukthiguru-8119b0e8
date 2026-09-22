@@ -5,6 +5,7 @@
  * still a successful "page opens" result.
  */
 import { test, expect, type ConsoleMessage } from '@playwright/test';
+import { dismissSafetyDisclaimer } from './support';
 
 const PUBLIC_ROUTES = [
   '/',
@@ -43,6 +44,7 @@ for (const route of PUBLIC_ROUTES) {
     page.on('pageerror', (err) => errors.push(err.message));
 
     const res = await page.goto(route, { waitUntil: 'networkidle' });
+    await dismissSafetyDisclaimer(page);
     expect(res?.status(), `HTTP status for ${route}`).toBeLessThan(500);
     // Tolerate redirects to /auth for protected pages.
     await expect(page.locator('body')).toBeVisible();
