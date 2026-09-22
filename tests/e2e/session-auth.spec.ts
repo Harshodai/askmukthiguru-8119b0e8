@@ -27,11 +27,15 @@ test.describe("session / auth", () => {
   test("Google sign-in button is wired on /auth", async ({ page }) => {
     await page.goto("/auth");
     await dismissSafetyDisclaimer(page);
-    const googleBtn = page.locator('[data-testid="google-gsi-container"], button:has-text("Google")').first();
-    const gsiIframe = page.locator('iframe[src*="accounts.google.com/gsi"]').first();
-    await expect(googleBtn.or(gsiIframe)).toBeVisible({ timeout: 10_000 });
-    if (await googleBtn.count() > 0) {
-      await expect(googleBtn).toBeEnabled({ timeout: 5_000 });
+    const gsiContainer = page.getByTestId("google-gsi-container");
+    const fallbackButton = page.getByRole("button", { name: /google/i });
+    if (await gsiContainer.isVisible().catch(() => false)) {
+      const gsiIframe = gsiContainer.locator('iframe[src*="accounts.google.com/gsi"]');
+      await expect(gsiIframe).toBeVisible({ timeout: 10_000 });
+    } else {
+      await expect(fallbackButton).toBeVisible({ timeout: 10_000 });
+      await expect(fallbackButton).toBeEnabled({ timeout: 5_000 });
+      await expect(page.locator('iframe[src*="accounts.google.com/gsi"]')).toHaveCount(0);
     }
   });
 
