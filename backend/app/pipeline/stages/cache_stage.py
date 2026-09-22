@@ -17,6 +17,7 @@ from app.constants import is_graceful_degradation
 from app.metrics import CACHE_OPERATIONS, REQUEST_COUNT, SEARCH_PATH_TOTAL
 from app.pipeline.result import PipelineResult
 from app.pipeline.stages.base import Stage
+from app.pipeline.stages.distress_stage import has_crisis_keywords
 from app.release_manifest import get_release_manifest
 from app.route_taxonomy import RoutingProvenance, record_routing_decision
 from app.routing_primitives import is_deterministic_greeting
@@ -146,6 +147,16 @@ class CacheCheckStage(Stage):
             return None
         if ctx.incognito:
             logger.debug("Cache read skipped for incognito request")
+            return None
+        # Crisis-keyword bypass: DistressStage runs AFTER this stage in the
+        # pipeline (kill_switch -> cache_check -> ... -> distress), so a cache
+        # hit here would preempt crisis detection entirely. A cached benign
+        # answer that happens to sit within semantic-cache similarity of a
+        # crisis-adjacent message must never be served instead of routing to
+        # DistressStage. Same cheap (<1ms) regex pre-screen chat.py already
+        # uses for its own pre-pipeline admission gate (has_crisis_keywords).
+        if has_crisis_keywords(ctx.user_msg or ""):
+            logger.debug("Cache read skipped: crisis-keyword pre-screen matched")
             return None
         cache_key = ctx.cache_key
         query_text = ctx.query_for_embedding
