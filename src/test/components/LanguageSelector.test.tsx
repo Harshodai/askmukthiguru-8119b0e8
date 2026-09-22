@@ -86,7 +86,7 @@ describe('LanguageSelector (regression)', () => {
     expect(screen.queryByText('Hindi')).not.toBeInTheDocument();
   });
 
-  it('calls onLanguageChange and setLanguage when a language is selected, without a toast', () => {
+  it('calls onLanguageChange and setLanguage when a language is selected, without a toast', async () => {
     const onLanguageChange = vi.fn();
     render(<LanguageSelector value="en" onLanguageChange={onLanguageChange} />);
     fireEvent.click(screen.getByRole('button', { expanded: false }));
