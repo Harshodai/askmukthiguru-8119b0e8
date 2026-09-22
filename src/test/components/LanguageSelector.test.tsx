@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { LanguageSelector, LANGUAGES } from '@/components/chat/LanguageSelector';
 
 const setLanguageMock = vi.fn();
@@ -38,6 +38,27 @@ describe('LanguageSelector (regression)', () => {
     expect(screen.getByRole('listbox')).toBeInTheDocument();
     expect(screen.getByText('English (India)')).toBeInTheDocument();
     expect(screen.getByText('Hindi')).toBeInTheDocument();
+  });
+
+  it('does not submit the surrounding chat form when language or voice controls are clicked', () => {
+    const onSubmit = vi.fn((e: React.FormEvent) => e.preventDefault());
+    const onVoiceToggle = vi.fn();
+    render(
+      <form onSubmit={onSubmit}>
+        <LanguageSelector value="en" onVoiceToggle={onVoiceToggle} voiceEnabled={false} />
+        <button type="submit">Send</button>
+      </form>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { expanded: false }));
+    expect(onSubmit).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByText('हिन्दी'));
+    expect(onSubmit).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByLabelText('Start voice input'));
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(onVoiceToggle).toHaveBeenCalled();
   });
 
   it('anchors the language menu to the trigger instead of the viewport', () => {
