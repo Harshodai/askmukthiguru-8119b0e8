@@ -171,6 +171,40 @@ test.describe('responsive', () => {
   });
 });
 
+test('chat: mobile layout and language menu stay inside the viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto('/chat', { waitUntil: 'networkidle' });
+  await dismissPrePracticeGate(page);
+
+  if (new URL(page.url()).pathname === '/auth') {
+    test.skip(true, 'chat is auth-gated and no test session is configured');
+  }
+
+  const input = page.getByRole('textbox', { name: /your message/i });
+  test.skip(!(await input.isVisible().catch(() => false)), 'no chat input found');
+
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
+  expect(overflow, 'chat horizontal overflow in px').toBeLessThanOrEqual(5);
+
+  const languageTrigger = page.locator('[data-tour="language-selector"]').first();
+  test.skip(!(await languageTrigger.isVisible().catch(() => false)), 'language selector not visible');
+
+  await languageTrigger.click();
+  const menu = page.getByRole('dialog', { name: /select language/i });
+  await expect(menu).toBeVisible();
+
+  const box = await menu.boundingBox();
+  expect(box, 'language menu must have a rendered bounding box').not.toBeNull();
+  if (box) {
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.y).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(375);
+    expect(box.y + box.height).toBeLessThanOrEqual(812);
+  }
+});
+
 test.describe('network health', () => {
   test('no failed same-origin 5xx requests on landing', async ({ page, baseURL }) => {
     const failed: string[] = [];
