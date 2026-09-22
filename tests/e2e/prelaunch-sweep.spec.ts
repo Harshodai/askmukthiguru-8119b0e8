@@ -96,8 +96,15 @@ async function clickSafeButtons(page: Page): Promise<void> {
 for (const route of ROUTES) {
   test(`sweep: ${route} — mount, scroll, click safe controls`, async ({ page }) => {
     const errors: string[] = [];
+    const serverErrors: string[] = [];
+    const origin = new URL(page.url()).origin;
     page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
     page.on('pageerror', (err) => errors.push(err.message));
+    page.on('response', (response) => {
+      if (new URL(response.url()).origin === origin && response.status() >= 500) {
+        serverErrors.push(`${response.status()} ${response.url()}`);
+      }
+    });
 
     const res = await page.goto(route, { waitUntil: 'networkidle' }).catch(() => null);
     expect(res?.status() ?? 200, `HTTP status ${route}`).toBeLessThan(500);
@@ -108,6 +115,7 @@ for (const route of ROUTES) {
     await scrollThroughPage(page);
 
     const fatal = errors.filter((e) => !IGNORABLE(e));
+    expect(serverErrors, `Same-origin 5xx responses during sweep of ${route}:\n${serverErrors.join('\n')}`).toHaveLength(0);
     expect(fatal, `Fatal console errors during sweep of ${route}:\n${fatal.join('\n')}`).toHaveLength(0);
   });
 }
