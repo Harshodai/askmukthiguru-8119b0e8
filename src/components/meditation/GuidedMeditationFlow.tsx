@@ -344,6 +344,7 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
       >
         {/* Close — always visible, even for gated sessions. */}
         <button
+          type="button"
           onClick={requestClose}
           className="absolute top-4 right-4 p-2 rounded-full hover:bg-muted transition-colors z-10"
           aria-label={t('common.close')}
@@ -354,6 +355,7 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
         {/* Back Button for post-practice reflection steps */}
         {isComplete && reflectionStep > 0 && reflectionStep < 3 && (
           <button
+            type="button"
             onClick={() => setReflectionStep(prev => (prev - 1) as 0 | 1 | 2 | 3)}
             className="absolute top-4 left-4 p-2 rounded-full hover:bg-muted transition-colors z-10"
             aria-label={t('common.back')}
@@ -387,6 +389,7 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
                     { id: 'energised', Icon: Zap, label: 'meditation.energised' },
                   ].map(({ id, Icon, label }) => (
                     <button
+                      type="button"
                       key={id}
                       onClick={() => setSelectedMood(id)}
                       className={`flex flex-col items-center gap-1 py-3 rounded-xl border text-xs font-medium transition-all ${
@@ -401,6 +404,7 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
                   ))}
                 </div>
                 <button
+                  type="button"
                   onClick={() => setReflectionStep(1)}
                   disabled={!selectedMood}
                   className="w-full py-2.5 rounded-full bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground font-medium disabled:opacity-40 transition-opacity"
@@ -427,6 +431,7 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
                   className="w-full p-3 rounded-xl bg-muted/50 border border-border/40 text-sm text-foreground placeholder:text-muted-foreground/60 resize-none outline-none focus:border-ojas/40"
                 />
                 <button
+                  type="button"
                   onClick={() => setReflectionStep(2)}
                   className="w-full py-2.5 rounded-full bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground font-medium"
                 >
@@ -449,6 +454,7 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
                   className="w-full p-3 rounded-xl bg-muted/50 border border-border/40 text-sm text-foreground placeholder:text-muted-foreground/60 resize-none outline-none focus:border-ojas/40"
                 />
                 <button
+                  type="button"
                   onClick={() => {
                     // Save reflection extras to existing session. Fire-and-forget
                     // (matches the other completeMeditationSession call sites in
@@ -485,6 +491,7 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
                 </p>
                 <PostCompletionStreak />
                 <button
+                  type="button"
                   onClick={requestClose}
                   className="px-6 py-2.5 rounded-full bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground font-medium"
                 >
@@ -562,12 +569,14 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
             {/* Controls */}
             <div className="flex items-center gap-4">
               <button
+                type="button"
                 onClick={() => setIsPlaying(!isPlaying)}
                 className="w-14 h-14 rounded-full bg-gradient-to-br from-ojas to-ojas-light text-primary-foreground flex items-center justify-center shadow-lg"
               >
                 {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6 ml-0.5" />}
               </button>
               <button
+                type="button"
                 onClick={skipStep}
                 className="p-3 rounded-full border border-border hover:border-ojas/40 transition-colors"
                 title={t('meditation.skipStep')}
@@ -575,6 +584,7 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
                 <SkipForward className="w-4 h-4 text-muted-foreground" />
               </button>
               <button
+                type="button"
                 onClick={() => setMuted((m) => !m)}
                 className="p-3 rounded-full border border-border hover:border-ojas/40 transition-colors"
                 aria-label={muted ? 'Unmute narration' : 'Mute narration'}
