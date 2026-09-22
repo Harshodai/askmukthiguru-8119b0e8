@@ -1201,9 +1201,10 @@ The graph nodes have been modularized into `rag/nodes/`:
 - Routes to `handle_distress` / `handle_meditation` / `handle_casual` / `resolve_followup` (standard/deep) or `retrieve_documents` (fast)
 
 **Fast Path (`FastGraphStrategy`):**
-- Skips `resolve_followup`, `navigate_and_hyde` (which since R22 also carries `decompose_query`), `rerank_documents`, `grade_documents`, `context_engineer`, `agentic_graph_traversal`, `cross_teacher_reasoning`
+- Skips `resolve_followup`, `navigate_and_hyde` (which since R22 also carries `decompose_query`), `grade_documents`, `context_engineer`, `agentic_graph_traversal`, `cross_teacher_reasoning`
+- **Corrected 2026-09-22: `rerank_documents` is no longer skipped.** The fast/tier2_simple candidate set is small (~5-7 docs, see `rag/nodes/retrieval.py` `chunk_limit`) and `rerank_documents` self-protects latency via its own high-confidence bypass (`rerank_bypass_high_confidence_enabled`), so simple queries were reaching generation unranked for no latency benefit. `_map_docs_to_relevant` now reads `reranked_docs` (falling back to raw `documents` on an empty rerank), capped at 5 either way — reranking can reorder the candidate set but never widen how many docs reach `generate_answer`.
 - **Corrected 2026-09-05 (production-audit finding F3):** `reflect_on_answer`/`verify_answer`/`extract_citations` are NOT skipped on this path — `rag/graph_strategies.py`'s `FastGraphStrategy.build` wires `generate_answer → reflect_on_answer → verify_answer → extract_citations` unconditionally, and `verify_answer`'s own tier-based bypass (see `verify_answer` below) does not special-case fast/tier2_simple either. This doc previously claimed otherwise.
-- Runs: `intent_router` → `resolve_parallel` → `retrieve_documents` → `_map_docs_to_relevant` → `generate_answer` → `reflect_on_answer` → `verify_answer` → `extract_citations` → `format_final_answer` (plus `web_search` for temporal queries and the `handle_casual` / `handle_distress` / `handle_meditation` / `handle_fallback` branches)
+- Runs: `intent_router` → `resolve_parallel` → `retrieve_documents` → `rerank_documents` → `_map_docs_to_relevant` → `generate_answer` → `reflect_on_answer` → `verify_answer` → `extract_citations` → `format_final_answer` (plus `web_search` for temporal queries and the `handle_casual` / `handle_distress` / `handle_meditation` / `handle_fallback` branches)
 - Brings latency from ~133s down to ~25s for simple doctrine queries
 
 **QUERY path (full anti-hallucination chain - `StandardGraphStrategy`/`DeepGraphStrategy`):**

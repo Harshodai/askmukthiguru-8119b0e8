@@ -175,8 +175,17 @@ def route_after_formatting(state: GraphState) -> str:
 
 
 def _map_docs_to_relevant(state: GraphState) -> dict:
-    """Bridge node: maps retrieved documents → relevant_docs for fast path."""
-    return {"relevant_docs": state.get("documents", [])[:5]}
+    """Bridge node: maps reranked documents → relevant_docs for fast path.
+
+    Falls back to raw `documents` when reranking produced nothing (e.g. an
+    empty candidate set), so a rerank miss degrades to prior behavior instead
+    of dropping context entirely. Both branches cap at 5 -- the same
+    chunk_limit retrieve_documents already uses for fast/tier2_simple
+    (rag/nodes/retrieval.py `chunk_limit = 5`) -- so reranking can reorder
+    the candidate set but never widen how many docs reach generate_answer.
+    """
+    docs = state.get("reranked_docs") or state.get("documents", [])
+    return {"relevant_docs": docs[:5]}
 
 
 class GraphStrategy(abc.ABC):
@@ -428,6 +437,16 @@ class FastGraphStrategy(GraphStrategy):
         graph.add_node("handle_distress_check", handle_distress_check)
         graph.add_node("resolve_parallel", resolve_parallel)
         graph.add_node("retrieve_documents", retrieve_documents)
+        # Reranking on the Fast lane (2026-09-22): retrieve_documents caps the
+        # candidate set at ~5-7 docs for fast/tier2_simple (see
+        # rag/nodes/retrieval.py chunk_limit), so the cross-encoder pass here
+        # is cheap. rerank_documents also self-protects latency: its
+        # rerank_bypass_high_confidence_enabled path skips the cross-encoder
+        # entirely when the top retrieval score already clears
+        # rerank_bypass_threshold (0.85) for fast/tier2_simple tiers -- the
+        # RETRIEVAL_QUALITY.md §5.4 "pre-filter before the expensive
+        # cross-encoder" pattern is already built into the node.
+        graph.add_node("rerank_documents", rerank_documents)
         graph.add_node("_map_docs_to_relevant", _map_docs_to_relevant)
         graph.add_node("generate_answer", generate_answer)
         graph.add_node("reflect_on_answer", reflect_on_answer)
@@ -463,7 +482,8 @@ class FastGraphStrategy(GraphStrategy):
         )
 
         graph.add_edge("web_search", "retrieve_documents")
-        graph.add_edge("retrieve_documents", "_map_docs_to_relevant")
+        graph.add_edge("retrieve_documents", "rerank_documents")
+        graph.add_edge("rerank_documents", "_map_docs_to_relevant")
         graph.add_edge("_map_docs_to_relevant", "generate_answer")
         graph.add_edge("generate_answer", "reflect_on_answer")
         graph.add_edge("reflect_on_answer", "verify_answer")
