@@ -144,12 +144,6 @@ const AppSidebar = ({ onOpenSearch }: { onOpenSearch: () => void }) => {
                   )}
                 </SidebarMenuButton>
               </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton onClick={() => openSereneMind()} tooltip={t('meditation.sereneMind')}>
-                  <Flame className="w-4 h-4 text-ojas" />
-                  <span>{t('meditation.sereneMind')}</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -282,18 +276,6 @@ export const AppShell = ({ children, title }: AppShellProps) => {
             </div>
             <ConnectionPill />
             <HeaderSereneButton />
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setPaletteOpen(true)}
-              className="hidden md:inline-flex gap-2 text-muted-foreground"
-            >
-              <Search className="w-4 h-4" />
-              <span className="text-xs">{t('layout.search')}</span>
-              <kbd className="text-[10px] bg-muted px-1.5 py-0.5 rounded">
-                ⌘K
-              </kbd>
-            </Button>
             <UserMenu />
           </header>
 
