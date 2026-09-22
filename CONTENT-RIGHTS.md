@@ -33,6 +33,10 @@ Store them in:
 - **Local ingestion only**: `data/private/` (gitignored via `*.pdf` in `.gitignore`)
 - **Production**: Railway volume mount or private S3 bucket, ref `PRIVATE_ASSETS_PATH` env var
 
+## Written evidence
+
+Project owner (Harshodai) states, 2026-09-23, that they hold a message confirming approval ("the message saying Approved") for the rights covered above (Four Sacred Secrets / Ekam / O&O Academy / Times Now). The message itself has not been filed in this repo — recorded here as the owner's statement that such evidence exists, not independently verified or archived by any agent (N9/N11). File the actual correspondence under `docs/rights/` if/when convenient.
+
 ## Review Cadence
 
 Review rights basis annually or when ingestion corpus changes significantly.

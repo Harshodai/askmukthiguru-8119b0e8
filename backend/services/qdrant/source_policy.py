@@ -15,25 +15,18 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-# The source was removed from the repository history and is quarantined from
-# serving. Keep matching narrow: do not block unrelated YouTube teachings that
-# merely mention the book title in prose.
-_BLOCKED_SOURCE_IDENTITIES = frozenset(
-    {
-        "the_four_sacred_secrets.pdf",
-        "the four sacred secrets.pdf",
-    }
-)
-
-# 2026-09-22 rights-register audit (docs/rights/source-register.md): the same
-# book re-entered the live collection under a different source_url (an Amazon
-# listing, not the scrubbed PDF filename), so the identity-only match above
-# never caught it -- 1,199 chunks of its full text are live in
-# spiritual_wisdom_contextual as of this writing. Block by ASIN (source_url
-# substring) and title prefix (any chunk's chapter-qualified title starts with
-# the book's title) until CONTENT-RIGHTS.md records a confirmed rights basis.
-_BLOCKED_SOURCE_URL_SUBSTRINGS = frozenset({"1846046319"})  # Four Sacred Secrets ASIN/ISBN-10
-_BLOCKED_TITLE_PREFIXES = ("the four sacred secrets",)
+# 2026-09-23: The Four Sacred Secrets block (identity/title/ASIN match) was
+# removed here -- CONTENT-RIGHTS.md now records rights confirmed by the
+# project owner (2026-09-23). Not independently verified by any agent (N9);
+# recorded as the human decision-maker's statement per this repo's rights
+# policy. See CONTENT-RIGHTS.md and docs/rights/source-register.md for the
+# full record. This module stays in place, empty for now, for any future
+# source that needs a serve-time quarantine pending rights review -- keep
+# matching narrow (exact identity/title/URL-substring, not broad prose
+# mentions) if a new entry is ever added.
+_BLOCKED_SOURCE_IDENTITIES: frozenset[str] = frozenset()
+_BLOCKED_SOURCE_URL_SUBSTRINGS: frozenset[str] = frozenset()
+_BLOCKED_TITLE_PREFIXES: tuple[str, ...] = ()
 
 _SOURCE_SEPARATORS = re.compile(r"[\\/]+")
 
