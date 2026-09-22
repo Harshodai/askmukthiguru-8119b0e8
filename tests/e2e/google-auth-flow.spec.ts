@@ -17,12 +17,14 @@
  * (`BASE_URL=https://askmukthiguru.lovable.app ...`).
  */
 import { test, expect } from '@playwright/test';
+import { dismissSafetyDisclaimer } from './support';
 
 const FAKE_STORAGE_KEY = 'sb-fynkjimvuimakgtidvuq-auth-token';
 
 test.describe('google auth flow', () => {
   test('only one Google entry point renders — no One Tap double-prompt', async ({ page }) => {
     await page.goto('/auth', { waitUntil: 'networkidle' });
+    await dismissSafetyDisclaimer(page);
 
     const gsiButtonIframe = page.locator('iframe[src*="accounts.google.com/gsi/button"]');
     const oneTapIframe = page.locator('iframe[src*="accounts.google.com/gsi/iframe/select"]');
@@ -56,6 +58,7 @@ test.describe('google auth flow', () => {
     }, FAKE_STORAGE_KEY);
 
     await page.goto('/auth', { waitUntil: 'domcontentloaded' });
+    await dismissSafetyDisclaimer(page);
     await expect(page.locator('body')).toBeVisible();
   });
 
