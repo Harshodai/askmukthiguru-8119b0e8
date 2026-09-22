@@ -57,11 +57,11 @@ describe('DesktopSidebar', () => {
     await waitFor(() => expect(screen.queryByText('AskMukthiGuru')).not.toBeInTheDocument());
   });
 
-  it('calls onToggleCollapse when toggle button is clicked', async () => {
+  it('does not render a second collapse control inside the sidebar', async () => {
     render(<DesktopSidebar {...defaultProps} />, { wrapper });
-    const toggle = screen.getByTestId('sidebar-toggle');
-    fireEvent.click(toggle);
-    expect(defaultProps.onToggleCollapse).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(screen.getByText('AskMukthiGuru')).toBeInTheDocument());
+    expect(screen.queryByTestId('sidebar-toggle')).not.toBeInTheDocument();
+    expect(defaultProps.onToggleCollapse).not.toHaveBeenCalled();
   });
 
   it('shows delete button on conversation hover in expanded mode', async () => {
