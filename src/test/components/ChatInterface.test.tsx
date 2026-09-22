@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   setLanguage: vi.fn(),
   openSereneMind: vi.fn(),
   setSereneMindOnComplete: vi.fn(),
+  changeUiLanguage: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('@/integrations/supabase/client', () => ({
@@ -67,6 +68,10 @@ vi.mock('@/hooks/useTextToSpeech', () => ({
     isSpeaking: false,
     isSupported: true,
   }),
+}));
+
+vi.mock('@/i18n', () => ({
+  changeUiLanguage: mocks.changeUiLanguage,
 }));
 
 vi.mock('@/lib/aiService', () => ({
@@ -231,6 +236,24 @@ describe('ChatInterface (regression)', () => {
     });
     expect(heading).not.toBeNull();
     expect(heading.textContent).toMatch(/^(Good|Welcome|A |The |quiet|still|fresh).*Test/i);
+  });
+
+  it('switches the surrounding product UI language from the chat selector', async () => {
+    render(
+      <BrowserRouter>
+        <ChatInterface />
+      </BrowserRouter>
+    );
+
+    await screen.findByRole('heading', { level: 2, name: /Test/i });
+
+    const languageButton = screen.getByRole('button', { name: /chat\.languageSelected/i });
+    fireEvent.click(languageButton);
+    fireEvent.click(screen.getByText('हिन्दी'));
+
+    await waitFor(() => {
+      expect(mocks.changeUiLanguage).toHaveBeenCalledWith('hi');
+    });
   });
 
   it('allows user to type and sends a message via streaming', async () => {
