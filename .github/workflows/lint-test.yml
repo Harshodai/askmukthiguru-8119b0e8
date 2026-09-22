@@ -179,6 +179,12 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}/backend
           JWT_SECRET: dummy-jwt-secret-key-for-ci-runs
           OPENROUTER_API_KEY: mock-openrouter-key-for-ci
+          # Unlike the pytest step above (which gets this from conftest.py's
+          # os.environ["IS_PRODUCTION"] = "false" before any app.config
+          # import), this script runs standalone via `python3`, so nothing
+          # sets it -- Settings.is_production defaults secure-by-default to
+          # True, which then requires anon_session_hmac_secret and fails.
+          IS_PRODUCTION: "false"
 
       - name: Run grounding checker self-check (PLAN.md Phase B2)
         # evals/grounding/verify_quote.py checks verbatim-quote and

@@ -64,6 +64,7 @@ const IGNORABLE = (e: string): boolean =>
   e.includes('ResizeObserver loop') ||
   // Google Identity Services/FedCM can emit browser/provider errors when no Google account is available in CI.
   e.includes('[GSI_LOGGER]: FedCM get() rejects with') ||
+  e.includes("Provider's accounts list is empty") ||
   e.includes('Failed to load resource') ||
   e.includes('503') ||
   isGoogleOrYouTubeAccountUrl(e) ||
