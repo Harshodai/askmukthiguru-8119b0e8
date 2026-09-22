@@ -83,11 +83,7 @@ import { QuotaAuthPrompt } from './QuotaAuthPrompt';
 import { HealingPathCard, type HealingCourseRecommendation, type UserTurn } from './HealingPathCard';
 import { useAutoTranslate } from '@/hooks/useAutoTranslate';
 
-import {
-  OptimisticPlaceholder,
-  SlowResponseHint,
-  buildPersonalisedWelcome,
-} from './ChatHelpers';
+import { buildPersonalisedWelcome } from './ChatHelpers';
 
 // ── Suggested starter prompt-cards (ChatGPT-style, spiritually themed) ──
 import { Flower2, Heart as HeartIcon, Compass } from 'lucide-react';
@@ -2495,14 +2491,8 @@ return (
                   scrollContainerRef={scrollContainerRef}
                 />
 
-                {/* Optimistic placeholder: guru thinking skeleton before pipeline pills arrive */}
-                {showInstantPill && (
-                  <div className="mb-2">
-                    <OptimisticPlaceholder />
-                  </div>
-                )}
 
-                {/* Unified thinking indicator */}
+                {/* Single authoritative thinking indicator */}
                 <div className="flex items-start gap-2">
                   <div className="flex-1 min-w-0">
                     <ThinkingPills
@@ -2523,11 +2513,6 @@ return (
                       }
                       teachingPreview={teachingPreview}
                     />
-                    {isStreaming && streamingContent === '' && (
-                      <div className="pl-10 -mt-1">
-                        <SlowResponseHint visible />
-                      </div>
-                    )}
                   </div>
                   {(isStreaming || isTyping || showInstantPill) && (
                     <button
