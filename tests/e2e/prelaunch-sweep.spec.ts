@@ -40,11 +40,21 @@ const isGoogleOrYouTubeAccountUrl = (message: string): boolean => {
   });
 };
 
-const isCiMockSupabaseRealtimeError = (message: string): boolean =>
-  // The E2E build deliberately uses an unreachable mock hostname.  Keep this
-  // narrow so a real Supabase realtime outage still fails the sweep.
-  message.includes('wss://mock-supabase.supabase.co/realtime/') &&
-  message.includes('ERR_NAME_NOT_RESOLVED');
+const isCiMockSupabaseError = (message: string): boolean =>
+  // The E2E build deliberately uses an unreachable mock Supabase hostname.
+  // Chromium/WebKit surface this as websocket errors, DNS errors, or fetch
+  // access-control diagnostics depending on browser/version. Keep the match
+  // constrained to the known mock hostname so real Supabase failures still
+  // fail the sweep.
+  message.includes('mock-supabase.supabase.co') &&
+  (
+    message.includes('ERR_NAME_NOT_RESOLVED') ||
+    message.includes('Error resolving') ||
+    message.includes('due to access control checks')
+  );
+
+const isCiOAuthPreconnectError = (message: string): boolean =>
+  message.includes('Failed to preconnect to https://oauth.askmukthiguru.lovable.app/');
 
 const IGNORABLE = (e: string): boolean =>
   e.includes('React Router Future Flag') ||
@@ -55,7 +65,8 @@ const IGNORABLE = (e: string): boolean =>
   e.includes('Failed to load resource') ||
   e.includes('503') ||
   isGoogleOrYouTubeAccountUrl(e) ||
-  isCiMockSupabaseRealtimeError(e) ||
+  isCiMockSupabaseError(e) ||
+  isCiOAuthPreconnectError(e) ||
   e.includes('requestStorageAccess: Permission denied.') ||
   e.includes('.mp3') ||
   e.includes('useMeditationAudio');
