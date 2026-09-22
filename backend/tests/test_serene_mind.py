@@ -354,3 +354,167 @@ def test_distress_wins_intent_tiebreak_over_factual():
     from rag.nodes.on_device_intent import classify
 
     assert classify("how do i end it all") == "DISTRESS"
+
+
+# --- R1/R2 regression (2026-09-22, red-team-reviewer): analyze_with_history
+# read a `distress_score` field that nothing in the codebase ever writes onto
+# a history message (distress_count was always 0), and never forwarded
+# `history` into async_assess_distress, so async_assess_distress's
+# `has_recent_distress` early-return gate was always False and the LLM/
+# semantic fallback stages were structurally unreachable whenever regex
+# missed on the current message alone. Both are fixed by classifying each
+# recent USER turn with the existing `_quick_distress_check` helper and
+# threading `history` through to `assess_distress`'s own (already correct,
+# previously starved) escalation logic.
+@pytest.mark.asyncio
+async def test_multiturn_escalation_actually_escalates():
+    """Constructed 5-turn scenario matching red-team's example: sleep
+    trouble -> isolation -> overwhelm, then a 4th turn that is NOT flagged by
+    keyword regex on its own (giving-away-possessions framing) but must
+    still escalate to SEVERE because of the pattern across prior turns."""
+    engine = SereneMindEngine()
+    history = [
+        {"role": "user", "content": "I can't sleep at night anymore, my mind just races."},
+        {"role": "assistant", "content": "I'm here with you."},
+        {"role": "user", "content": "I feel so lonely and isolated from everyone around me lately."},
+        {"role": "assistant", "content": "I'm here with you."},
+        {"role": "user", "content": "I'm anxious all the time and everything overwhelms me."},
+    ]
+    final_message = "I've been thinking about giving away some of my things lately."
+
+    # Sanity: the final turn alone, with no history, is NOT flagged at all —
+    # this proves any escalation below comes from the conversation pattern,
+    # not from this message's own keywords.
+    isolated = engine.assess_distress(final_message)
+    assert isolated.level == DistressLevel.NONE, isolated
+
+    escalated = await engine.analyze_with_history(final_message, history)
+    assert escalated.level == DistressLevel.SEVERE, escalated
+    assert any("escalat" in s.lower() or "persistent" in s.lower() for s in escalated.detected_signals)
+
+
+@pytest.mark.asyncio
+async def test_analyze_with_history_forwards_history_to_async_assess(monkeypatch):
+    """R1 mechanism check: analyze_with_history must call
+    async_assess_distress with the real history, not an empty/omitted one."""
+    engine = SereneMindEngine()
+    captured = {}
+
+    async def _fake_async_assess(message, conversation_history=None):
+        captured["history"] = conversation_history
+        return DistressAssessment(level=DistressLevel.NONE, confidence=0.0)
+
+    monkeypatch.setattr(engine, "async_assess_distress", _fake_async_assess)
+    history = [{"role": "user", "content": "I feel so lonely and isolated."}]
+    await engine.analyze_with_history("hello", history)
+    assert captured["history"] == history
+
+
+@pytest.mark.asyncio
+async def test_r2_llm_fallback_reachable_via_single_history_signal(monkeypatch):
+    """R2 regression: async_assess_distress's has_recent_distress early
+    return previously always fired (history was always empty/None in
+    practice) even when a single recent turn showed distress and the
+    current message alone was regex-NONE. It must now reach Stage 2."""
+    engine = SereneMindEngine()
+    ollama = AsyncMock()
+    ollama.classify_distress_structured.return_value = {
+        "is_distress": True,
+        "confidence": 0.6,
+        "reason": "test",
+    }
+    container = type("Container", (), {"ollama": ollama})()
+    monkeypatch.setattr("app.dependencies.get_container", lambda: container)
+
+    # Only ONE distress-flagged history turn — below the inner
+    # (assess_distress) escalation threshold of 2, so Stage 1 leaves the
+    # message at NONE. has_recent_distress must still gate on this single
+    # signal to reach Stage 2.
+    history = [{"role": "user", "content": "I feel so lonely and isolated from everyone."}]
+    msg = "I've been thinking about giving away some of my things lately."
+
+    result = await engine.async_assess_distress(msg, conversation_history=history)
+    ollama.classify_distress_structured.assert_awaited_once()
+    assert result.level == DistressLevel.MODERATE
+
+
+# --- R3 regression (2026-09-22, red-team-reviewer): regex gaps found by
+# direct execution against _ALL_PATTERNS. Each of these previously returned
+# NONE. UNVERIFIED by a native speaker for the Indic entries — see
+# evals/README.md.
+@pytest.mark.parametrize(
+    "text",
+    [
+        "ಬದುಕಲು ಇಷ್ಟವಿಲ್ಲ",  # Kannada sandhi-joined "don't want to live"
+        "ജീവിക്കാൻ തോന്നുന്നില്ല",  # Malayalam colloquial "don't feel like living"
+        "मुझे जीने की इच्छा नहीं है",  # Hindi "no desire/will to live"
+        "मैं अब नहीं जी सकता",  # Hindi modal "can't live anymore"
+        "I keep hoping I just don't wake up tomorrow",
+        "I have decided to go to sleep and not wake up",
+    ],
+)
+def test_r3_regex_gap_phrasings_now_detected(text):
+    assert SereneMindEngine().assess_distress(text).level == DistressLevel.CRISIS, text
+
+
+# --- R3: romanized coverage for Telugu/Kannada/Malayalam/Marathi, which had
+# NO Latin-script pattern block at all before this fix (only Hindi did, via
+# _HINGLISH_PATTERNS). UNVERIFIED by a native speaker — see evals/README.md.
+@pytest.mark.parametrize(
+    "text",
+    [
+        "naaku bathakalani ledu ippudu",  # Telugu romanized
+        "atma hatya gurinchi alochistunnanu",  # Telugu romanized
+        "nanage badukalu ishta illa",  # Kannada romanized
+        "aatmahatye gurinchi yochisuttiddene",  # Kannada romanized
+        "enikku jeevikkan aagrahamilla",  # Malayalam romanized
+        "enikku marikkanam ennu thonnunnu",  # Malayalam romanized
+        "mala jagaychi ichha nahi",  # Marathi romanized
+        "mala jeev dyava vatatoy",  # Marathi romanized
+    ],
+)
+def test_r3_romanized_indic_crisis_detected(text):
+    assert SereneMindEngine().assess_distress(text).level == DistressLevel.CRISIS, text
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "bathakalani chala baagundi ee cinema",  # Telugu: ordinary movie comment
+        "nanna jeevana khushiyagide",  # Kannada: "my life is happy"
+        "enikku ee pusthakam valare ishtamanu",  # Malayalam: "I like this book a lot"
+        "mala he pustak khup avdla",  # Marathi: "I liked this book a lot"
+        "This movie was so good I want to end my shift early and watch it again",
+    ],
+)
+def test_r3_romanized_false_positive_guard(text):
+    """False-positive guard for the new romanized blocks — ordinary phrases
+    sharing a root word (bathaku/life, ishta/like) with real ideation
+    phrases must not be flagged CRISIS."""
+    assert SereneMindEngine().assess_distress(text).level != DistressLevel.CRISIS, text
+
+
+# --- R3 round 2 (2026-09-22, fresh-reviewer re-test against the actual R3
+# fix): 4 more gap phrasings, each a distinct spelling/morphological/
+# code-mixing variant, not duplicates of round 1's fixes. UNVERIFIED by a
+# native speaker — see evals/README.md.
+@pytest.mark.parametrize(
+    "text",
+    [
+        "मला जगण्याची इच्छा नाही",  # Marathi native script, distinct gerund form
+        "naaku ika bratakalani ledu",  # Telugu romanized, 3rd spelling variant
+        "mujhe ab jeena nahi hai",  # Hindi romanized "jeena nahi" construction
+        "Didi I really don't want to जीना anymore",  # code-mixed
+    ],
+)
+def test_r3_round2_gap_phrasings_now_detected(text):
+    assert SereneMindEngine().assess_distress(text).level == DistressLevel.CRISIS, text
+
+
+def test_r3_round2_hindi_romanized_idiom_not_crisis():
+    """False-positive guard for the anchored "jeena nahi" addition — the
+    bare idiom "yeh jeena nahi hai" ("this isn't real living") is a common
+    non-crisis complaint, distinct from the first-person-anchored
+    "mujhe/mera jeena nahi hai" ideation phrasing."""
+    text = "yeh jeena nahi hai, yeh toh maza hai"
+    assert SereneMindEngine().assess_distress(text).level != DistressLevel.CRISIS, text
