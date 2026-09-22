@@ -506,7 +506,7 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
             {t('meditation.guidedMeditation', 'Serene Mind meditation')}
           </h1>
 
-          {/* Progress indicator */
+          {/* Progress indicator */}
             <MeditationProgressIndicator
               currentStep={currentStepIndex}
               totalSteps={steps.length}
