@@ -31,6 +31,8 @@ const IGNORABLE = (e: string, pathname: string): boolean =>
   e.includes('useMeditationAudio') ||
   e.includes('503 (Service Offline)') ||
   e.includes('Failed to load resource') ||
+  // Chromium's Google Identity Services/FedCM stack emits this when no provider account is available; it is external auth noise, not an app exception.
+  e.includes("Provider's accounts list is empty.") ||
   (pathname === '/auth' && e.includes('Refused to frame') && /accounts\.google\.com(?:\/|$)/.test(e));
 
 function trackErrors(page: Page): { console: string[]; server: string[] } {
@@ -131,7 +133,7 @@ test.describe('critical journeys', () => {
   test('chat: send a message and receive a non-empty reply (skips w/o backend)', async ({ page }) => {
     const errors = trackErrors(page);
     await page.goto('/chat', { waitUntil: 'networkidle' });
-  await dismissSafetyDisclaimer(page);
+    await dismissSafetyDisclaimer(page);
     await dismissPrePracticeGate(page);
 
     // Auth-gated: if we bounced to /auth, this environment has no test session.
@@ -179,6 +181,7 @@ test.describe('responsive', () => {
 test('chat: mobile layout and language menu stay inside the viewport', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto('/chat', { waitUntil: 'networkidle' });
+  await dismissSafetyDisclaimer(page);
   await dismissPrePracticeGate(page);
 
   if (new URL(page.url()).pathname === '/auth') {
@@ -292,6 +295,7 @@ test('meditation: Serene Mind flow is reachable', async ({ page }) => {
 
 test('auth: forgot password button exists and /reset-password route mounts', async ({ page }) => {
   await page.goto('/auth', { waitUntil: 'networkidle' });
+  await dismissSafetyDisclaimer(page);
   await expect(page.locator('body')).toBeVisible();
 
   // Find and fill email input
