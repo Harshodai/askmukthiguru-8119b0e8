@@ -18,7 +18,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { LanguageSelector } from './LanguageSelector';
 import { AssistantSwitcher } from './AssistantSwitcher';
-import { type PipelineStep } from './ThinkingPills';
 import { SlashCommandMenu, type SlashCommandId } from './SlashCommandMenu';
 import type { PromptInputMessage } from '@/components/ai-elements/prompt-input';
 import {
