@@ -61,6 +61,7 @@ describe('AuthPage - Leaked Password Protection on Sign Up', () => {
     fireEvent.change(nameInput, { target: { value: 'Seeker John' } });
     fireEvent.change(emailInput, { target: { value: 'seeker@gmail.com' } });
     fireEvent.change(passwordInput, { target: { value: 'password123' } });
+    fireEvent.click(screen.getByRole('checkbox', { name: /18 years/i }));
 
     // Submit form
     const submitBtn = screen.getByRole('button', { name: /create account/i });
@@ -103,6 +104,7 @@ describe('AuthPage - Leaked Password Protection on Sign Up', () => {
     fireEvent.change(nameInput, { target: { value: 'Seeker Jane' } });
     fireEvent.change(emailInput, { target: { value: 'seeker2@gmail.com' } });
     fireEvent.change(passwordInput, { target: { value: 'SuperSecretUniquePass_2026!#$' } });
+    fireEvent.click(screen.getByRole('checkbox', { name: /18 years/i }));
 
     // Submit form
     const submitBtn = screen.getByRole('button', { name: /create account/i });
@@ -115,7 +117,11 @@ describe('AuthPage - Leaked Password Protection on Sign Up', () => {
         password: 'SuperSecretUniquePass_2026!#$',
         options: {
           emailRedirectTo: expect.any(String),
-          data: { full_name: 'Seeker Jane' },
+          data: {
+            full_name: 'Seeker Jane',
+            age_confirmed: true,
+            age_confirmed_at: expect.any(String),
+          },
         },
       });
     });

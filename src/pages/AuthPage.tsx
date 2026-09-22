@@ -107,6 +107,7 @@ const AuthPage = () => {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [ageConfirmed, setAgeConfirmed] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -449,6 +450,11 @@ const AuthPage = () => {
           setLoading(false);
           return;
         }
+        if (!ageConfirmed) {
+          setError(t('auth.ageConfirmRequired', { defaultValue: 'Please confirm you are 18 years of age or older to continue.' }));
+          setLoading(false);
+          return;
+        }
         const breachCheck = await checkPasswordBreached(password);
         if (breachCheck.breached) {
           setError(t('auth.passwordBreached', BREACHED_PASSWORD_MESSAGE));
@@ -462,7 +468,11 @@ const AuthPage = () => {
           password,
           options: {
             emailRedirectTo: window.location.origin,
-            data: { full_name: trimmedName },
+            data: {
+              full_name: trimmedName,
+              age_confirmed: true,
+              age_confirmed_at: new Date().toISOString(),
+            },
           },
         });
         recordStep('email_signup', signUpError ? 'error' : 'ok', Math.round(performance.now() - signUpT0), {
@@ -932,7 +942,27 @@ const AuthPage = () => {
           </Alert>
         )}
 
-        <div className="space-y-3">
+        {isSignUp && (
+          <div className="flex items-start gap-2 text-left">
+            <input
+              id="ageConfirm"
+              type="checkbox"
+              checked={ageConfirmed}
+              onChange={(e) => { setAgeConfirmed(e.target.checked); setError(null); }}
+              className="mt-0.5 h-4 w-4 shrink-0 rounded border-border/60 text-ojas focus:ring-ojas"
+              required
+              aria-required="true"
+            />
+            <Label htmlFor="ageConfirm" className="text-xs text-muted-foreground font-normal cursor-pointer">
+              {t('auth.ageConfirm', { defaultValue: 'I confirm I am 18 years of age or older.' })}
+            </Label>
+          </div>
+        )}
+
+        <div
+          className={`space-y-3 ${isSignUp && !ageConfirmed ? 'pointer-events-none opacity-50' : ''}`}
+          aria-disabled={isSignUp && !ageConfirmed}
+        >
           <p className="text-xs text-muted-foreground text-center">{t('auth.continueWith', { defaultValue: 'Continue with' })}</p>
 
           {isNativePlatform && (
@@ -1108,7 +1138,7 @@ const AuthPage = () => {
               </button>
             </div>
           </div>
-          <Button type="submit" className="w-full h-10 bg-ojas hover:bg-ojas-light text-primary-foreground" disabled={loading || googleBusy}>
+          <Button type="submit" className="w-full h-10 bg-ojas hover:bg-ojas-light text-primary-foreground" disabled={loading || googleBusy || (isSignUp && !ageConfirmed)}>
             {loading ? t('auth.pleaseWait') : isSignUp ? t('auth.createAccountBtn') : t('auth.signInBtn')}
           </Button>
         </form>
