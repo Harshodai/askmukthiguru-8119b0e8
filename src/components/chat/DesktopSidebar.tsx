@@ -209,7 +209,7 @@ export const DesktopSidebar = ({
           {/* New Conversation */}
           <div className="px-2 pt-2.5 pb-2">
             <button
-              onClick={onNewConversation}
+              onClick={() => { void onNewConversation(); }}
               className="w-full flex items-center gap-2.5 h-10 px-3 rounded-xl text-sm font-medium bg-ojas/[0.08] hover:bg-ojas/[0.14] text-foreground border border-hairline hover:border-ojas/25 transition-all"
             >
               <Plus className="w-4 h-4 flex-shrink-0" />
