@@ -78,9 +78,27 @@ _EN_PATTERNS = {
         # mundane negation; caught by direct false-positive testing before
         # landing, not shipped broken.
         r"(leave\s*this\s*world|plan\w*\s*(to\s*die|how\s*to\s*(die|leave|end\s*it))|"
-        r"(not|don'?t|doesn'?t)\s*want\w*\s*to\s*(live|be\s*here|wake\s*up)\s*(any\s*)?more|"
+        r"(not|don'?t|doesn'?t)\s*want\w*\s*to\s*(live|be\s*here|wake\s*up|जीना)\s*(any\s*)?more|"
+        # 2026-09-22 round 2: "जीना" (Devanagari "to live") added alongside
+        # "live" to catch code-mixed messages that frame the sentence in
+        # English but drop in a single Hindi verb ("I don't want to जीना
+        # anymore") — a common code-switching pattern. This reuses the exact
+        # same anchored "don't/doesn't/not want to X anymore" construction
+        # already validated against false positives above, just widening the
+        # verb alternation by one option; it is matched against message_lower
+        # (English/Latin-script bucket), which only case-folds ASCII, so the
+        # Devanagari literal is unaffected and matches as-is.
         r"(not|don'?t|doesn'?t)\s*want\w*\s*to\s*wake\s*up\b|"
-        r"not\s*wak\w*\s*up\s*(one\s*day|again|tomorrow|anymore))",
+        r"not\s*wak\w*\s*up\s*(one\s*day|again|tomorrow|anymore)|"
+        # 2026-09-22 (red-team R3): "not wake up" without a "want to" verb —
+        # hoping-framed ("I keep hoping I just don't wake up tomorrow") and
+        # decision-framed ("I have decided to go to sleep and not wake up")
+        # indirect finality phrasings. Both require a qualifier word (hop*/
+        # decid*) immediately governing the negation, same false-positive
+        # discipline as the "want to wake up" pattern above — bare "don't
+        # wake up" alone is too broad (e.g. "don't wake up the baby").
+        r"hop\w*\s*(i('m|\s*am)?\s*)?(just\s*)?(not|don'?t|doesn'?t)\s*wake\s*up|"
+        r"decid\w*\s*to\s*(go\s*to\s*sleep\s*and\s*)?(not|never)\s*wake\s*up)",
         # 2026-09-22 (evals/scenarios/tier3_crisis, PLAN.md B1): "end my life" /
         # "ending my life" is one of the most common first-person ideation
         # phrasings in English and matched NONE of the above — "end (my|it)
@@ -141,6 +159,12 @@ _HI_PATTERNS = {
         r"(ज़?िंदगी\s*खत्म\s*कर|अपनी\s*जान\s*ले)",
         r"(मेरे\s*बिना\s*(सब|सभी)\s*(बेहतर|अच्छा)|सबको\s*मेरे\s*बिना\s*(अच्छा|बेहतर)|"
         r"(सब|सभी)\s*मेरे\s*बिना\s*(बेहतर|अच्छा))",
+        # 2026-09-22 (red-team R3, UNVERIFIED — needs native speaker review):
+        # "जीने की इच्छा नहीं" (no desire/will to live — uses इच्छा "desire"
+        # instead of मन "mind/heart", a different but equally common wording)
+        # and "नहीं जी सकता" (modal "can't live [anymore]", distinct from the
+        # existing "जीना नहीं चाहता" "don't want to live" volitional phrasing).
+        r"(जीने\s*की\s*इच्छा\s*नहीं|नहीं\s*जी\s*सकत[ाी]|जी\s*नहीं\s*सकत[ाी])",
     ],
     DistressLevel.SEVERE: [
         r"(बहुत\s*(दुखी|उदास|अकेला|अकेली)|जीवन\s*व्यर्थ|कोई\s*उम्मीद\s*नहीं)",
@@ -199,6 +223,12 @@ _KN_PATTERNS = {
         r"(ಆತ್ಮಹತ್ಯೆ|ಸಾಯಬೇಕು|ಬದುಕಲು\s*ಇಷ್ಟ\s*ಇಲ್ಲ)",
         r"(ಬದುಕಲು\s*ಬಯಸುವುದಿಲ್ಲ|ಜೀವನವನ್ನು\s*ಕೊನೆಗೊಳಿಸ)",
         r"(ಇಲ್ಲದೆ\s*ಎಲ್ಲರೂ\s*ಚೆನ್ನಾಗಿರು|ನಾನಿಲ್ಲದೆ\s*ಎಲ್ಲರೂ)",
+        # 2026-09-22 (red-team R3, UNVERIFIED — needs native speaker review):
+        # the sandhi-joined "ಇಷ್ಟವಿಲ್ಲ" ("don't like/want") is the natural
+        # single-word form of "ಇಷ್ಟ ಇಲ್ಲ" — the existing `\s*` between them
+        # only makes the space optional, it does not match the glide-inserted
+        # "ವ" that Kannada sandhi actually produces joining the two words.
+        r"(ಬದುಕಲು\s*ಇಷ್ಟವಿಲ್ಲ)",
     ],
     DistressLevel.SEVERE: [
         r"(ತುಂಬಾ\s*ನೋವು|ನಂಬಿಕೆ\s*ಇಲ್ಲ|ಸಹಿಸಲು\s*ಆಗುತ್ತಿಲ್ಲ|ಬದುಕು\s*ಅರ್ಥಹೀನ)",
@@ -239,6 +269,14 @@ _ML_PATTERNS = {
         r"(ആത്മഹത്യ|മരിക്കണം|ജീവിക്കാൻ\s*ആഗ്രഹമില്ല)",
         r"(ജീവിക്കണ്ട|ജീവിതം\s*അവസാനിപ്പിക്ക)",
         r"(ഇല്ലെങ്കിൽ\s*എല്ലാവരും\s*നന്നായി)",
+        # 2026-09-22 (red-team R3, UNVERIFIED — needs native speaker review):
+        # "ജീവിക്കാൻ തോന്നുന്നില്ല" ("don't feel like living") is a more
+        # colloquial way to express the same thing as "ആഗ്രഹമില്ല" ("no
+        # desire") above. Anchored to "ജീവിക്കാൻ" (to live) — bare
+        # "തോന്നുന്നില്ല" ("don't feel like [X]") alone is a generic verb
+        # construction used for completely mundane things and would false-
+        # positive constantly if unanchored.
+        r"(ജീവിക്കാൻ\s*തോന്നുന്നില്ല)",
     ],
     DistressLevel.SEVERE: [
         r"(വളരെ\s*വേദന|പ്രതീക്ഷയില്ല|സഹിക്കാൻ\s*കഴിയുന്നില്ല|ജീവിതം\s*അർത്ഥരഹിതം)",
@@ -273,6 +311,12 @@ _MR_PATTERNS = {
     DistressLevel.CRISIS: [
         r"(जीव\s*द्या\w*|जीव\s*देणे|जीव\s*संपवणे|आत्महत्या|मरायचे\s*आहे|मरायची\s*इच्छा)",
         r"(जगायची\s*इच्छा\s*नाही|जगायचं\s*नाही|संपवून\s*टाकतो|संपवून\s*टाकते)",
+        # 2026-09-22 round 2 (fresh-reviewer re-test, UNVERIFIED — needs
+        # native speaker review): "जगण्याची इच्छा नाही" is a distinct
+        # morphological form of the same "no desire to live" phrase —
+        # जगण्याची (verbal-noun/gerund genitive of जगणे) vs the जगायची form
+        # already covered above. Both are valid, commonly-used constructions.
+        r"(जगण्याची\s*इच्छा\s*नाही)",
     ],
     DistressLevel.SEVERE: [
         r"(खूप\s*(दुःखी|उदास|एकटा|एकटी)|आशा\s*नाही|जगणं\s*व्यर्थ)",
@@ -291,6 +335,16 @@ _MR_PATTERNS = {
 _HINGLISH_PATTERNS = {
     DistressLevel.CRISIS: [
         r"\b(marna\s*chahta|suicide|zindagi\s*khatam|jeene\s*ka\s*mann\s*nahi)\b",
+        # 2026-09-22 round 2 (UNVERIFIED — needs native speaker review):
+        # "jeena nahi hai" ("I don't want to live anymore") is a distinct
+        # construction from "jeene ka mann nahi" (different verb form: jeena
+        # vs jeene, no "ka mann"). Anchored to a first-person subject
+        # ("mujhe"/"mera") immediately before it, NOT bare "jeena nahi hai" —
+        # that bare phrase is also a common non-crisis Hindi idiom ("yeh
+        # jeena nahi hai" = "this isn't [real] living", a complaint about a
+        # situation, not ideation) and would false-positive constantly if
+        # unanchored.
+        r"\b(mujhe|mera)\s*(ab\s*)?jeena\s*nahi\s*(hai\s*)?\b",
     ],
     DistressLevel.SEVERE: [
         r"\b(bahut\s*(dukhi|udaas|akela)|koi\s*ummeed\s*nahi|sab\s*khatam)\b",
@@ -298,6 +352,91 @@ _HINGLISH_PATTERNS = {
     DistressLevel.MODERATE: [
         r"\b(tension|tanav|pareshan|neend\s*nahi|ghabra|akela)\b",
         r"\b(dukhi|udaas|rona|gussa|darr)\b",
+    ],
+}
+
+# 2026-09-22 (red-team R3): romanized (Latin-script) pattern blocks for
+# Telugu, Kannada, Malayalam and Marathi — before this fix only Hindi had a
+# romanized block (_HINGLISH_PATTERNS above); the other four pilot Indic
+# languages had ZERO coverage for users typing in Latin script, which is
+# extremely common on mobile keyboards. Each phrase below is a Roman
+# transliteration of an ALREADY-PRESENT native-script pattern in this same
+# file (see the language's own _XX_PATTERNS block above), chosen to keep the
+# same false-positive discipline (multi-word/phrase-level, not single common
+# syllables) as _HINGLISH_PATTERNS.
+# ⚠️ UNVERIFIED — needs native speaker review. I am not a native or fluent
+# speaker of Telugu, Kannada, Malayalam, or Marathi; these are best-effort
+# transliterations using common informal romanization conventions, not
+# clinically or linguistically validated. Do not treat a pass in the test
+# suite as sign-off — see evals/README.md and CLAUDE.md's "Open work"
+# section, same caveat as every other Indic pattern in this file.
+
+# Romanized Telugu
+_TE_ROMANIZED_PATTERNS = {
+    DistressLevel.CRISIS: [
+        r"\b(atma\s*hatya|aatma\s*hatya)\b",  # ఆత్మహత్య — suicide
+        r"\b(bathakalani\s*ledu|brathakalani\s*ledu|bratakalani\s*ledu|batkalani\s*ledu|bathakadam\s*ishtam\s*ledu)\b",
+        # 2026-09-22 round 2: "bratakalani" (no 'h' after 'b', distinct from
+        # "brathakalani") is a third common spelling variant of this word,
+        # found by a fresh reviewer re-testing "naaku ika bratakalani ledu".
+        # బతకాలని లేదు / బతకడం ఇష్టం లేదు — "don't want to live"
+        r"\b(jeevitanni\s*antham|jeevitanni\s*muginchu)\b",  # జీవితాన్ని అంతం/ముగించు
+    ],
+    DistressLevel.SEVERE: [
+        r"\b(niraasha|tattukoleni)\b",  # నిరాశ, తట్టుకోలేను
+    ],
+    DistressLevel.MODERATE: [
+        r"\b(ottidi|aandolana|ontariga)\b",  # ఒత్తిడి, ఆందోళన, ఒంటరిగా
+    ],
+}
+
+# Romanized Kannada
+_KN_ROMANIZED_PATTERNS = {
+    DistressLevel.CRISIS: [
+        r"\b(aatmahatye|atmahatye)\b",  # ಆತ್ಮಹತ್ಯೆ — suicide
+        r"\b(saya\s*beku|sayabeku)\b",  # ಸಾಯಬೇಕು — "must/want to die"
+        r"\b(badukalu\s*ishta\s*illa|badukalu\s*bayasuvudilla)\b",
+        # ಬದುಕಲು ಇಷ್ಟ ಇಲ್ಲ / ಬಯಸುವುದಿಲ್ಲ — "don't want to live"
+    ],
+    DistressLevel.SEVERE: [
+        r"\b(sahisalu\s*aagutilla)\b",  # ಸಹಿಸಲು ಆಗುತ್ತಿಲ್ಲ — "can't bear it"
+    ],
+    DistressLevel.MODERATE: [
+        r"\b(ottada|aatanka|nidde\s*barolla)\b",  # ಒತ್ತಡ, ಆತಂಕ, ನಿದ್ದೆ ಬರಲ್ಲ
+    ],
+}
+
+# Romanized Malayalam
+_ML_ROMANIZED_PATTERNS = {
+    DistressLevel.CRISIS: [
+        r"\b(aatmahathya|atmahathya)\b",  # ആത്മഹത്യ — suicide
+        r"\b(marikkanam)\b",  # മരിക്കണം — "must die"
+        r"\b(jeevikkan\s*aagrahamilla|jeevikkan\s*thonnunnilla|jeevikkanda)\b",
+        # ജീവിക്കാൻ ആഗ്രഹമില്ല / തോന്നുന്നില്ല / ജീവിക്കണ്ട
+    ],
+    DistressLevel.SEVERE: [
+        r"\b(sahikkan\s*kazhiyunnilla|pratheekshayilla)\b",
+        # സഹിക്കാൻ കഴിയുന്നില്ല, പ്രതീക്ഷയില്ല
+    ],
+    DistressLevel.MODERATE: [
+        r"\b(sammardham|urakkam\s*varunnilla)\b",  # സമ്മർദ്ദം, ഉറക്കം വരുന്നില്ല
+    ],
+}
+
+# Romanized Marathi
+_MR_ROMANIZED_PATTERNS = {
+    DistressLevel.CRISIS: [
+        r"\b(jeev\s*dyava|jeev\s*denne|aatmahatya|atmahatya)\b",
+        # जीव द्यावा, जीव देणे, आत्महत्या
+        r"\b(marayche\s*aahe|jagaychi\s*ichha\s*nahi|jagaycha\s*nahi)\b",
+        # मरायचे आहे, जगायची इच्छा नाही, जगायचं नाही
+    ],
+    DistressLevel.SEVERE: [
+        r"\b(khup\s*dukhi|aasha\s*nahi|sahan\s*hot\s*nahi)\b",
+        # खूप दुःखी, आशा नाही, सहन होत नाही
+    ],
+    DistressLevel.MODERATE: [
+        r"\b(taan|tanav|chinta|zop\s*yet\s*nahi)\b",  # ताण, तणाव, चिंता, झोप येत नाही
     ],
 }
 
@@ -313,11 +452,24 @@ for _name, _patterns in [
     ("ml", _ML_PATTERNS),
     ("mr", _MR_PATTERNS),
     ("hinglish", _HINGLISH_PATTERNS),
+    ("te_rom", _TE_ROMANIZED_PATTERNS),
+    ("kn_rom", _KN_ROMANIZED_PATTERNS),
+    ("ml_rom", _ML_ROMANIZED_PATTERNS),
+    ("mr_rom", _MR_ROMANIZED_PATTERNS),
 ]:
     _ALL_PATTERNS[_name] = {
         level: [re.compile(p, re.IGNORECASE | re.UNICODE) for p in patterns]
         for level, patterns in _patterns.items()
     }
+
+# Latin-script language codes registered above — these must be matched
+# case-insensitively against the *lowercased* message (mirrors "en" and
+# "hinglish"); every other code is a native (non-Latin) script matched
+# against the raw message. Centralized here so assess_distress() and
+# _quick_distress_check() (which each had their own independent copy of the
+# ("en", "hinglish") tuple) can't drift out of sync when a new romanized
+# block is added.
+_LATIN_SCRIPT_LANGS = frozenset({"en", "hinglish", "te_rom", "kn_rom", "ml_rom", "mr_rom"})
 
 
 # ---------------------------------------------------------------------------
@@ -635,17 +787,38 @@ class SereneMindEngine:
         # Check window for escalating patterns
         recent = history[-self.rolling_window :]
 
-        # Extract distress score either from object attribute or dict key
-        def get_distress(msg):
-            if isinstance(msg, dict):
-                return msg.get("distress_score", 0)
-            return getattr(msg, "distress_score", 0)
+        # R1 fix (2026-09-22): this used to read `distress_score` off each
+        # history message, but nothing anywhere in the codebase ever writes
+        # that field onto a history message — `distress_count` was always 0
+        # and this escalation branch was structurally dead. Classify each
+        # recent USER turn with the same cheap regex-only `_quick_distress_check`
+        # that `assess_distress()`'s own history-escalation block (below, via
+        # async_assess_distress) already uses, instead of a full LLM/semantic
+        # pass per history message — that's the actual, reachable signal.
+        def _msg_role(msg):
+            return msg.get("role", "") if isinstance(msg, dict) else getattr(msg, "role", "")
+
+        def _msg_content(msg):
+            return (
+                msg.get("content", "") if isinstance(msg, dict) else getattr(msg, "content", "")
+            ) or ""
 
         distress_count = sum(
-            1 for msg in recent if get_distress(msg) > self._history_score_threshold
+            1
+            for msg in recent
+            if _msg_role(msg) == "user" and self._quick_distress_check(_msg_content(msg))
         )
 
-        assessment = await self.async_assess_distress(message)
+        # R1 fix: forward `history` so assess_distress()'s existing "multiple
+        # distress signals in conversation" escalation (MODERATE -> SEVERE,
+        # NONE/MILD -> MODERATE) actually receives real conversation history
+        # instead of running as if every message were the first turn. This
+        # also fixes R2 as a side effect: `async_assess_distress`'s
+        # `has_recent_distress` early-return gate was computed from this same
+        # (previously never-passed) history, so real fallback stages
+        # (LLM/semantic) were structurally unreachable whenever regex missed
+        # on the current message but history showed a pattern.
+        assessment = await self.async_assess_distress(message, conversation_history=history)
 
         # If user explicitly states they are burned out/pointless etc, trigger MODERATE
         if (
@@ -689,7 +862,7 @@ class SereneMindEngine:
             for level in sorted(levels.keys(), reverse=True):  # Check most severe first
                 for pattern in levels[level]:
                     matches = pattern.findall(
-                        message_lower if lang in ("en", "hinglish") else message
+                        message_lower if lang in _LATIN_SCRIPT_LANGS else message
                     )
                     if matches:
                         signal_text = f"[{lang}] {matches[0]}"
@@ -975,7 +1148,7 @@ class SereneMindEngine:
             for level, patterns in levels.items():
                 if level >= DistressLevel.MODERATE:
                     for pattern in patterns:
-                        if pattern.search(text_lower if lang in ("en", "hinglish") else text):
+                        if pattern.search(text_lower if lang in _LATIN_SCRIPT_LANGS else text):
                             return True
         return False
 
