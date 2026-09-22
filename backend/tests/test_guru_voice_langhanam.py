@@ -200,6 +200,59 @@ def test_guru_voice_gate_score_default():
     assert settings.guru_voice_gate_score == pytest.approx(4.0)
 
 
+# --- N2 regression: append-only contract, never a replacement -------------
+#
+# docs/agent/NON_NEGOTIABLES.md N2: "The AI never speaks as, or claims the
+# authority, blessing, initiation or voice of the gurus." This is enforced by
+# two independent, always-on layers, neither of which is the benchmark-score
+# `guru_voice_gate_score` mentioned in config.py's comment (that gate scores
+# voice-authenticity/brand-fidelity — direct address, Sanskrit terms,
+# Indian-English phrasing, fillers, rhythm — and has no impersonation check in
+# its rubric; it is not a safety gate and is not wired into any runtime check
+# or CI job). The real N2 enforcement is structural:
+#   1. GURU_SYSTEM_PROMPT (rag/prompts/system.py) unconditionally states
+#      "never as the founders themselves" / "never in impersonation".
+#   2. Both `_maybe_apply_langhanam_voice` code paths (the live
+#      `voice_register.apply_register` path and the `render_langhanam_system_prompt`
+#      fallback) APPEND to the existing system prompt; neither ever replaces it,
+#      so the base clause survives regardless of `langhanam_voice_enabled`.
+# This test locks that structural behavior so a future refactor that swaps
+# append for replace (or drops the base clause) fails loudly here rather than
+# silently reopening an N2 gap.
+
+
+def _normalize_ws(text: str) -> str:
+    """Collapse newlines/whitespace so a phrase that wraps across a line in
+    the source string can still be matched as one substring."""
+    return " ".join(text.split())
+
+
+def test_langhanam_voice_never_strips_base_anti_impersonation_clause():
+    from rag.nodes.generation import _maybe_apply_langhanam_voice
+    from rag.prompts.system import GURU_SYSTEM_PROMPT
+
+    base_normalized = _normalize_ws(GURU_SYSTEM_PROMPT)
+    assert "never as the founders themselves" in base_normalized
+    assert "never in impersonation" in base_normalized
+
+    state = {
+        "intent": "TEACHING",
+        "question": "What is the Beautiful State?",
+        "relevant_docs": [],
+    }
+    combined_prompt, _ = _maybe_apply_langhanam_voice(state, GURU_SYSTEM_PROMPT, "")
+    combined_normalized = _normalize_ws(combined_prompt).lower()
+
+    # Append-only contract: the base anti-impersonation clause must survive
+    # verbatim even though the voice register/block was appended on top.
+    assert "never as the founders themselves" in combined_normalized
+    assert "never in impersonation" in combined_normalized
+    # And the appended layer must itself forbid fabricated first-person guru
+    # speech (both the live register.py block and the legacy static block
+    # carry this rule).
+    assert "never invent a first-person sentence" in combined_normalized
+
+
 def test_voice_eligibility():
     assert is_voice_eligible("DISTRESS")
     assert is_voice_eligible("QUERY")
