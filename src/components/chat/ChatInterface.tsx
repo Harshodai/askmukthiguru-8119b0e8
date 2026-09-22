@@ -2605,10 +2605,6 @@ return (
             ttsEnabled={ttsEnabled}
             isSpeaking={isSpeaking}
             inputFocused={inputFocused}
-            showPipeline={showPipeline}
-            pipelineSteps={pipelineSteps}
-            pipelineHeartbeat={pipelineHeartbeat}
-            showInstantPill={showInstantPill}
             isLandingMode={false}
             onVoiceToggle={handleVoiceToggle}
             onHandsFreeVoiceToggle={handleHandsFreeVoiceToggle}
