@@ -1669,7 +1669,6 @@ export const MemoryManager = () => {
               />
               {reflectVoice.isListening && (reflectVoice.transcript || reflectVoice.interimTranscript) && (
                 <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-md text-xs text-foreground mt-2 animate-pulse">
-                  <span className="font-semibold text-emerald-500 mr-1">Voice Input:</span>
                   {reflectVoice.transcript} <span className="text-muted-foreground italic">{reflectVoice.interimTranscript}</span>
                 </div>
               )}
@@ -1678,11 +1677,11 @@ export const MemoryManager = () => {
                   type="button"
                   onClick={() => reflectVoice.isListening ? reflectVoice.stopListening() : void reflectVoice.startListening()}
                   disabled={!reflectVoice.isSupported || adding}
-                  aria-label={reflectVoice.isListening ? 'Stop voice input' : 'Dictate memory'}
+                  aria-label={reflectVoice.isListening ? t('chat.stopRecording', 'Stop recording') : t('chat.startVoiceInput', 'Start voice input')}
                   className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-ojas disabled:opacity-40"
                 >
                   {reflectVoice.isListening ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
-                  {reflectVoice.isListening ? 'Listening…' : 'Dictate'}
+                  t('chat.inputPlaceholderListening', 'Speak now…')
                 </button>
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-muted-foreground">
