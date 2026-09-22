@@ -59,6 +59,26 @@ jobs:
           chmod +x scripts/prelaunch.sh
           scripts/prelaunch.sh
 
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ github.run_id }}-${{ matrix.project }}-chromium-gate
+          path: playwright-report/
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Upload failure artifacts (screenshots, videos, traces)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-failures-${{ github.run_id }}-${{ matrix.project }}-chromium-gate
+          path: |
+            test-results/
+            playwright-screenshots/
+          retention-days: 14
+          if-no-files-found: ignore
+
   ui-device-matrix:
     name: UI device matrix (${{ matrix.project }})
     runs-on: ubuntu-latest
