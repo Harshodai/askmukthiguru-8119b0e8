@@ -40,6 +40,16 @@ describe('LanguageSelector (regression)', () => {
     expect(screen.getByText('Hindi')).toBeInTheDocument();
   });
 
+  it('anchors the language menu to the trigger instead of the viewport', () => {
+    render(<LanguageSelector value="en" />);
+    fireEvent.click(screen.getByRole('button', { expanded: false }));
+
+    const menu = screen.getByRole('dialog', { name: /select language/i });
+    expect(menu.className).toContain('absolute');
+    expect(menu.className).toContain('bottom-full');
+    expect(menu.className).toContain('left-0');
+  });
+
   it('renders all languages and supports searching by name or script', () => {
     render(<LanguageSelector value="en" />);
     fireEvent.click(screen.getByRole('button', { expanded: false }));
