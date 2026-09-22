@@ -47,7 +47,7 @@ export const ChatHeader = ({ onOpenMobileMenu, sidebarCollapsed, onToggleSidebar
                 data-testid="personalization-badge"
               >
                 <Sparkles className="w-3 h-3" />
-                Personalized
+                {t('chat.personalized')}
               </span>
             )}
             {isHandsFreeVoice && (
@@ -56,7 +56,7 @@ export const ChatHeader = ({ onOpenMobileMenu, sidebarCollapsed, onToggleSidebar
                 data-testid="voice-conversation-badge"
               >
                 <AudioLines className="w-3 h-3" />
-                Voice
+                {t('chat.voiceMode')}
               </span>
             )}
           </span>
