@@ -150,7 +150,7 @@ export const DesktopSidebar = ({
           </div>
 
           <button
-            onClick={onNewConversation}
+            onClick={() => { void onNewConversation(); }}
             title={t('desktopSidebar.newConvTooltip')}
             className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-all"
           >
