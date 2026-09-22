@@ -15,6 +15,8 @@
  */
 import { test, expect, type ConsoleMessage, type Page } from '@playwright/test';
 
+const APP_ORIGIN = new URL(process.env.BASE_URL || 'http://localhost:4173').origin;
+
 // Console-error noise that is NOT a regression (third-party, dev-only, or the
 // known Google-frame refusal on /auth).
 const IGNORABLE = (e: string, pathname: string): boolean =>
@@ -36,7 +38,9 @@ function trackErrors(page: Page): { console: string[]; server: string[] } {
   page.on('console', (m: ConsoleMessage) => m.type() === 'error' && consoleErrors.push(m.text()));
   page.on('pageerror', (err) => consoleErrors.push(err.message));
   page.on('response', (response) => {
-    if (response.status() >= 500) serverErrors.push(`${response.status()} ${response.url()}`);
+    if (response.status() >= 500 && new URL(response.url()).origin === APP_ORIGIN) {
+      serverErrors.push(`${response.status()} ${response.url()}`);
+    }
   });
   return { console: consoleErrors, server: serverErrors };
 }
