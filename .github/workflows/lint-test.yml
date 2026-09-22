@@ -180,6 +180,16 @@ jobs:
           JWT_SECRET: dummy-jwt-secret-key-for-ci-runs
           OPENROUTER_API_KEY: mock-openrouter-key-for-ci
 
+      - name: Run grounding checker self-check (PLAN.md Phase B2)
+        # evals/grounding/verify_quote.py checks verbatim-quote and
+        # attribution claims against the real transcripts/*.md corpus (no
+        # live backend needed). Its __main__ self-check proves the checker
+        # itself is correct (true/false positives, fail-closed on a missing
+        # source) — it does not yet check real system-generated citations,
+        # which needs a live backend this environment doesn't have.
+        working-directory: .
+        run: python3 evals/grounding/verify_quote.py
+
   # --- Pre-commit validation ---
   pre-commit-check:
     name: Validate Pre-commit Hooks

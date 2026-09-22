@@ -77,6 +77,15 @@ still independently test adversarial phrasing against `_HI_PATTERNS`/
   triggered.
 - `bakeoff/questions.yaml` — a small starter set toward B4's 50-question
   NotebookLM bake-off, not the full set.
+- `grounding/verify_quote.py` — PLAN.md B2 start. Checks a claimed quote
+  against the real `transcripts/*.md` corpus (763 files, raw transcript
+  text — not `memory/okf/*.md`, which is LLM-synthesized summary, not
+  verbatim source) and a claimed teacher attribution against the
+  transcript's own declared speaker. Plus a pure `precision_recall_f1()`
+  scorer for citation sets. Runnable and CI-wired right now (no live
+  backend needed) — see `grounding/README.md` for exactly what it proves
+  and what it still can't (real system-generated citations, relevance
+  judgment).
 
 ## What is NOT here, and why that matters
 
@@ -117,7 +126,15 @@ Report lands at `evals/reports/latest_tier3_mechanical_run.json`.
    decided (currently: en/hi/te/kn/ta/mr per your "all 6" answer) — this
    starter set is English-only.
 3. Tiers 0-2 need to actually run against a live backend once one exists.
-4. B2 (grounding evals — citation precision/recall, verbatim-quote check,
-   abstention) and B3 (tone/impersonation) are not started.
+4. B2 (grounding evals) has a real, offline-runnable start:
+   `grounding/verify_quote.py` checks verbatim-quote claims and teacher
+   attribution against `transcripts/*.md` (763 real transcript files, no
+   live backend needed) and provides a `precision_recall_f1()` scorer. What
+   it does NOT do yet: run against real system-generated citations (needs a
+   live backend), or grade citation-worthiness/relevance judgment (needs an
+   LLM or a human). See `grounding/README.md`. B3 (tone/impersonation) is
+   not started.
 5. B4 (NotebookLM bake-off) is not started beyond the questions stub.
-6. B5 (CI gate) is not wired — this runner isn't in any GitHub workflow yet.
+6. B5 (CI gate) is wired — both `evals/run_safety_scenarios.py` and
+   `evals/grounding/verify_quote.py`'s self-check run in
+   `.github/workflows/lint-test.yml`'s `backend-lint-test` job on every PR.
