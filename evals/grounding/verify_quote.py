@@ -139,47 +139,53 @@ def precision_recall_f1(cited: set[str], relevant: set[str]) -> dict[str, float]
 
 
 if __name__ == "__main__":
-    # ponytail: runnable self-check against REAL transcript files, not mocks.
-    # Picks a known-substantive transcript, extracts a real sentence as a
-    # guaranteed true positive, constructs an altered version as a
-    # guaranteed true negative, and checks a nonexistent video_id fails
-    # closed rather than silently passing.
+    # ponytail: runnable self-check against a REAL transcript file, not a
+    # mock. Uses fixtures/ (committed to git) rather than the default
+    # TRANSCRIPTS_DIR (repo-root transcripts/, which is gitignored local
+    # ingestion scratch data — 2026-09-22 correction: the first version of
+    # this self-check depended on transcripts/x-mTRlE0TC4.md directly and
+    # passed locally, but would have failed on every CI run, since a fresh
+    # `actions/checkout` never has gitignored files. Caught before it could
+    # actually break CI by checking `git ls-files transcripts/` returned 0.
+    _FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
     _TEST_VIDEO_ID = "x-mTRlE0TC4"
-    _body = extract_transcript_body(_TEST_VIDEO_ID)
-    assert _body is not None, "fixture transcript file missing — did transcripts/ move?"
+    _body = extract_transcript_body(_TEST_VIDEO_ID, _FIXTURES_DIR)
+    assert _body is not None, "fixture transcript file missing from evals/grounding/fixtures/"
 
     # A real, exact substring from the transcript (see the file directly).
     _real_quote = "Individual transformation is at the crux of our work."
-    _result = verify_verbatim_quote(_real_quote, _TEST_VIDEO_ID)
+    _result = verify_verbatim_quote(_real_quote, _TEST_VIDEO_ID, _FIXTURES_DIR)
     assert _result.matched, f"true positive failed: {_result}"
     print(f"PASS true positive (exact): {_result.method}")
 
     # Same sentence with curly quotes / extra whitespace — should still match via normalization.
     _messy_quote = "Individual  transformation   is at the crux of our work."
-    _result2 = verify_verbatim_quote(_messy_quote, _TEST_VIDEO_ID)
+    _result2 = verify_verbatim_quote(_messy_quote, _TEST_VIDEO_ID, _FIXTURES_DIR)
     assert _result2.matched, f"normalized true positive failed: {_result2}"
     print(f"PASS true positive (normalized): {_result2.method}")
 
     # A plausible-sounding but NOT actually present sentence — must not match.
     _fabricated_quote = "Individual transformation is the only path to enlightenment."
-    _result3 = verify_verbatim_quote(_fabricated_quote, _TEST_VIDEO_ID)
+    _result3 = verify_verbatim_quote(_fabricated_quote, _TEST_VIDEO_ID, _FIXTURES_DIR)
     assert not _result3.matched, f"false positive: {_result3}"
     print(f"PASS true negative: {_result3.method}")
 
     # A citation against a video_id with no transcript file — must fail closed, not raise.
-    _result4 = verify_verbatim_quote("anything", "NONEXISTENT_VIDEO_ID_123")
+    _result4 = verify_verbatim_quote("anything", "NONEXISTENT_VIDEO_ID_123", _FIXTURES_DIR)
     assert not _result4.matched and _result4.method == "no_transcript", f"bad fail-open: {_result4}"
     print(f"PASS missing-transcript fails closed: {_result4.method}")
 
     # Attribution checks: x-mTRlE0TC4.md declares Speaker: Sri Krishnaji.
-    assert verify_attribution("Sri Krishnaji", _TEST_VIDEO_ID), "true attribution failed"
-    assert verify_attribution("sri krishnaji", _TEST_VIDEO_ID), (
+    assert verify_attribution("Sri Krishnaji", _TEST_VIDEO_ID, _FIXTURES_DIR), (
+        "true attribution failed"
+    )
+    assert verify_attribution("sri krishnaji", _TEST_VIDEO_ID, _FIXTURES_DIR), (
         "case-insensitive attribution failed"
     )
-    assert not verify_attribution("Sri Preethaji", _TEST_VIDEO_ID), (
+    assert not verify_attribution("Sri Preethaji", _TEST_VIDEO_ID, _FIXTURES_DIR), (
         "hallucinated attribution not caught"
     )
-    assert not verify_attribution("Sri Krishnaji", "NONEXISTENT_VIDEO_ID_123"), (
+    assert not verify_attribution("Sri Krishnaji", "NONEXISTENT_VIDEO_ID_123", _FIXTURES_DIR), (
         "attribution check should fail closed on missing source"
     )
     print(
