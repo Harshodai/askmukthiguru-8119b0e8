@@ -106,6 +106,15 @@ const knownBadValues = {
   },
 };
 
+// Hindi corruption guard: these repeated "नारार..." artifacts were shipped in
+// chat copy and are especially dangerous because they look like valid Unicode.
+for (const [key, value] of Object.entries(flattenLeaves(read('hi')))) {
+  if (value.includes('नारार')) {
+    console.error(`[fail] hi: known corruption marker remains at ${key}`);
+    failed = true;
+  }
+}
+
 for (const [lng, entries] of Object.entries(knownBadValues)) {
   const locale = flattenLeaves(read(lng));
   for (const [key, badValue] of Object.entries(entries)) {
