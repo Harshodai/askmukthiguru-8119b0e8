@@ -42,6 +42,10 @@ the live config: `../docs/RAG_RUNTIME_DAG.md`.
 - Stages are pure functions over a `PipelineContext` (`app/pipeline/stages/context.py`), unit-testable in isolation; they reach services via `ctx.container` and coordinator helpers via `ctx.coordinator`.
 - `GraphStage` executes the LangGraph: `rag/graph.py` is a thin facade over `rag/graph_strategies.py` (Fast/Standard/Deep); nodes live in `rag/nodes/`. The node data contract is the `GraphState` TypedDict in `rag/states.py` (carries `request_id` for log correlation).
 
+## Open safety work (2026-09-22) — read before touching distress/crisis code
+
+`services/serene_mind_engine.py`, `app/pipeline/stages/distress_stage.py`, `app/pipeline/stages/kill_switch_stage.py`, `services/crisis_helplines.py`, `services/safety_telemetry.py` all got real fixes this session — see root `CLAUDE.md`'s "Open work" section and `lessons.md`'s 2026-09-21/22 entries before assuming any of this is stable/finished. In particular: `_ALL_PATTERNS` in `serene_mind_engine.py` (the per-language CRISIS/SEVERE/MODERATE/MILD keyword classifier) had a real, shipped gap where "I want to end my life" matched nothing, and Marathi (`_MR_PATTERNS`) had no coverage at all until this session. Both fixed, both AI-tested in both directions (regression tests in `tests/test_serene_mind.py`), neither native-speaker-reviewed. `evals/run_safety_scenarios.py` (repo root `evals/`, wired into CI) is the regression guard — run it after any change to these files, not just `pytest`.
+
 ## Hard rules
 
 - `app/dependencies.py` is the composition root (`ServiceContainer`). In internal synchronous code, get services via `get_container()`. In FastAPI route dependencies (`Depends(...)`), ALWAYS use `get_container_async()` — synchronous dependencies force Starlette into AnyIO threadpool workers, leading to thread exhaustion under load (L-DOCKER-18). Never instantiate services in route handlers or nodes.

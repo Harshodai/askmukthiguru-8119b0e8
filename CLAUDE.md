@@ -2,6 +2,14 @@
 
 > **Active guidance status — reviewed 2026-08-12.** This document combines current repository constraints with dated incident context. Confirm behaviour against executable configuration and the scoped `AGENTS.md`/`CLAUDE.md` files before acting; the release checklist and privileged-mutation contract live in [docs/operations/release-evidence-pack.md](docs/operations/release-evidence-pack.md).
 
+## ⚠️ Open work — read this before answering "what's pending?"
+
+`PLAN.md` (repo root) is the live source of truth for the safety-spine/evals/NotebookLM-parity roadmap (Phases A–I) and its own §5 "Decisions needed" list. As of 2026-09-22: **Phase A (safety spine) is done; Phase B (evals) has a real harness + B5 CI gate but B2-B4 aren't started; Phases C–I aren't started.** Full session write-up: `handoff.md`'s top entry. Every individual finding/fix: `lessons.md` (search "2026-09-21"/"2026-09-22", prepended at the top).
+
+**Highest-priority open item:** a critical crisis-detection gap was found and fixed this session — `SereneMindEngine.assess_distress()` (`backend/services/serene_mind_engine.py`) was returning `DistressLevel.NONE` for common ideation phrasings ("I want to end my life") in every supported language; Marathi had zero coverage at all. Fixed and tested in both directions across all 6 pilot languages, but **AI-authored and AI-tested, not native-speaker-reviewed** — see `evals/README.md`'s opening section for the full caveat. This is a "should verify" item now, not "known broken," but it's still the single most important open safety item in this repo.
+
+**Decisions still waiting on a human** (full list + context: `PLAN.md` §5, `handoff.md` §4): a clinician/senior-faculty reviewer for crisis scenarios (currently: the user reviews personally — does not satisfy the original clinical-calibration ask), verification of every helpline number in `config/helplines.yaml` (`last_verified` is null on every entry), a nominated faculty contact for Phase E (human handoff, not built), audio/Amma Bhagavan content approval (not given), a monthly cost cap (none set), and native-speaker review of the multilingual crisis-detection fix above.
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 Folder-scoped guidance also exists — `backend/CLAUDE.md` (backend workflow, request-pipeline stages) and `src/CLAUDE.md` (frontend workflow, testing, storage contracts) — and is loaded automatically when working in those trees.
