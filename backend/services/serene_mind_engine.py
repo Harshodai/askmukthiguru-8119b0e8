@@ -63,8 +63,41 @@ _EN_PATTERNS = {
         r"\b(hurt\s*myself|cut\s*myself|overdose|no\s*reason\s*to\s*live)\b",
         # Question/gerund-framed ideation ("how do i stop wanting to die",
         # "planning how to leave this world") — evades the fixed phrasings above.
+        # 2026-09-22: "not want to be here" required the literal word "not" and
+        # missed the far more common colloquial "don't"/"doesn't" negation
+        # ("I don't want to be here anymore") — found via the same eval-harness
+        # pass as the "end my life" gap below. `(not|don'?t|doesn'?t)` now
+        # covers both; "don'?t" mirrors the existing contraction-handling
+        # pattern already used in the SEVERE tier just below (don'?t know if
+        # i can go on), which was correct — this one just wasn't consistent
+        # with it. First version of this fix regressed to a false positive on
+        # ordinary preference statements ("I don't want to be here at this
+        # meeting", "I did not wake up early enough") — anchoring on a
+        # finality/duration qualifier (anymore/any more/one day/again/
+        # tomorrow) is what actually distinguishes ideation phrasing from
+        # mundane negation; caught by direct false-positive testing before
+        # landing, not shipped broken.
         r"(leave\s*this\s*world|plan\w*\s*(to\s*die|how\s*to\s*(die|leave|end\s*it))|"
-        r"not\s*want\w*\s*to\s*(live|be\s*here|wake\s*up))",
+        r"(not|don'?t|doesn'?t)\s*want\w*\s*to\s*(live|be\s*here|wake\s*up)\s*(any\s*)?more|"
+        r"(not|don'?t|doesn'?t)\s*want\w*\s*to\s*wake\s*up\b|"
+        r"not\s*wak\w*\s*up\s*(one\s*day|again|tomorrow|anymore))",
+        # 2026-09-22 (evals/scenarios/tier3_crisis, PLAN.md B1): "end my life" /
+        # "ending my life" is one of the most common first-person ideation
+        # phrasings in English and matched NONE of the above — "end (my|it)
+        # all" only covers "all", not "life", and "want to die" requires the
+        # exact word "die". Found by evals/run_safety_scenarios.py's mechanical
+        # runner testing crisis-002 ("I want to end my life."), which returned
+        # DistressLevel.NONE. Confirmed by direct interactive testing before
+        # fixing — this was not a test-harness artifact.
+        r"\bend(ing)?\s*(my|this|his|her|their)\s*(own\s*)?life\b",
+        # 2026-09-22: passive ideation via perceived burdensomeness
+        # ("everyone would be better off without me") is a well-documented,
+        # common way suicidal ideation is expressed indirectly — distinct
+        # from an active statement of intent, but CRISIS-tier per this
+        # product's own crisis-preemption design (DistressStage docstring:
+        # passive framing must not be missed). Also found via the eval
+        # harness (crisis-001 scenario), previously undetected.
+        r"(better\s*off\s*without\s*me|(everyone|they'?d|people)\s*(would\s*be\s*)?better\s*off\s*without\s*(me|us))",
     ],
     DistressLevel.SEVERE: [
         r"\b(hopeless|worthless|can'?t\s*go\s*on|give\s*up|no\s*point|nothing\s*matters?)\b",
