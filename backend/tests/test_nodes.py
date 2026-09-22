@@ -63,6 +63,42 @@ def test_check_constitutional_compliance_flags_guaranteed_outcome():
     )
 
 
+# --- 2026-09-22 (PLAN.md Phase B3): brief N2 — "never claim to give diksha,
+# absolution, blessings, or spiritual authority" — distinct from founder
+# impersonation (speaking AS a teacher); this is the AI granting a spiritual
+# boon in its own voice.
+@pytest.mark.parametrize(
+    "text",
+    [
+        "I bless you on this journey.",
+        "I hereby grant you diksha.",
+        "I give you my blessing.",
+        "You are now absolved of your past.",
+        "I hereby initiate you into this practice.",
+        "Please receive my blessing before you begin.",
+    ],
+)
+def test_check_constitutional_compliance_flags_spiritual_authority_claim(text):
+    assert nodes.check_constitutional_compliance(text) is not None, text
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "The teachings say we are all blessed with the capacity for oneness.",
+        "Sri Krishnaji's blessings have touched many lives.",
+        "You are blessed to have found this path.",
+        "The practice of Soul Sync can bless your relationships with deeper connection.",
+        "Many seekers describe feeling blessed after this meditation.",
+    ],
+)
+def test_check_constitutional_compliance_allows_descriptive_blessing_language(text):
+    """False-positive guard — descriptive/encouraging use of 'bless(ed)' must
+    not be flagged, only performative first-person grants of spiritual
+    authority."""
+    assert nodes.check_constitutional_compliance(text) is None, text
+
+
 def test_check_constitutional_compliance_allows_clean_answer():
     clean = "Sri Krishnaji teaches that suffering arises from unmet desires."
     assert nodes.check_constitutional_compliance(clean) is None

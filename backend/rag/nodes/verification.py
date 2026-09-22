@@ -271,6 +271,25 @@ _GUARANTEED_OUTCOME_RE = re.compile(
     r"\b(?:i guarantee|this will (?:cure|heal|fix)|guaranteed to (?:manifest|heal|cure))\b",
     re.IGNORECASE,
 )
+# 2026-09-22 (PLAN.md Phase B3): brief N2 is "no impersonation... never claim
+# to give diksha, absolution, blessings, or spiritual authority" — a distinct
+# rule from _FOUNDER_IMPERSONATION_RE (which catches speaking AS a teacher).
+# This catches the AI claiming to GRANT a spiritual boon in its own voice,
+# even in third person / without claiming to be a teacher. Deliberately does
+# NOT match descriptive/encouraging phrasing ("you are blessed to have found
+# this path", "the teachings bless us with wisdom") — only performative
+# first-person grants and the "you are absolved" declaration, which is the
+# distinction the brief actually draws (claiming authority vs. describing
+# an existing state).
+_SPIRITUAL_AUTHORITY_CLAIM_RE = re.compile(
+    r"\bi\s+(?:hereby\s+)?bless\s+you\b"
+    r"|\bi\s+(?:hereby\s+)?(?:grant|give|bestow|confer)\s+you\s+"
+    r"(?:diksha|absolution|initiation|(?:my\s+)?blessing)"
+    r"|\byou\s+are\s+(?:now\s+)?absolved\b"
+    r"|\bi\s+(?:hereby\s+)?initiate\s+you\b"
+    r"|\breceive\s+my\s+blessing\b",
+    re.IGNORECASE,
+)
 # Recognition routes through the canonical matcher that owns the refusal copy,
 # rather than a regex spelling it out a second time. The regex below drifted
 # the moment the copy was rewritten: format_final_answer stopped recognising
@@ -303,6 +322,8 @@ def check_constitutional_compliance(answer: str) -> str | None:
         return "Answer uses the forbidden 'Based on what I found in the teachings' disclaimer"
     if _GUARANTEED_OUTCOME_RE.search(answer):
         return "Answer promises a guaranteed outcome the teachings do not promise"
+    if _SPIRITUAL_AUTHORITY_CLAIM_RE.search(answer):
+        return "Answer claims to grant blessing/absolution/diksha/spiritual authority (brief N2)"
     return None
 
 

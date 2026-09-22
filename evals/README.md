@@ -86,6 +86,27 @@ still independently test adversarial phrasing against `_HI_PATTERNS`/
   backend needed) — see `grounding/README.md` for exactly what it proves
   and what it still can't (real system-generated citations, relevance
   judgment).
+- **B3 (tone/impersonation)** — no separate `evals/` harness. The check
+  lives directly in the production verification path:
+  `backend/rag/nodes/verification.py`'s `check_constitutional_compliance()`
+  already had `_FOUNDER_IMPERSONATION_RE` (catches "as Sri Preethaji, I...")
+  wired into the live `reflect_on_answer` LangGraph node. Added
+  `_SPIRITUAL_AUTHORITY_CLAIM_RE` (2026-09-22) to close brief N2's specific
+  gap — "never claim to give diksha, absolution, blessings, or spiritual
+  authority" — which the existing impersonation regex did not cover (it
+  catches identity claims, not authority grants). Matches first-person
+  performative grants ("I bless you", "I hereby grant you diksha", "you are
+  now absolved") while explicitly NOT flagging descriptive/encouraging use
+  of "bless(ed)" ("you are blessed to have found this path", "Sri
+  Krishnaji's blessings have touched many lives") — 6 true-positive + 5
+  false-positive regression tests in `backend/tests/test_nodes.py`
+  (`test_check_constitutional_compliance_flags_spiritual_authority_claim`,
+  `test_check_constitutional_compliance_allows_descriptive_blessing_language`).
+  Deliberately not duplicated into a parallel `evals/tone/` scanner — this
+  repo already has a documented anti-pattern of maintaining two near-
+  identical copies of the same logic (see root `CLAUDE.md`'s OKF extractor
+  section); the mechanical check belongs where it actually gates a live
+  answer, not in a second copy that could drift from it.
 
 ## What is NOT here, and why that matters
 
@@ -132,9 +153,15 @@ Report lands at `evals/reports/latest_tier3_mechanical_run.json`.
    live backend needed) and provides a `precision_recall_f1()` scorer. What
    it does NOT do yet: run against real system-generated citations (needs a
    live backend), or grade citation-worthiness/relevance judgment (needs an
-   LLM or a human). See `grounding/README.md`. B3 (tone/impersonation) is
-   not started.
-5. B4 (NotebookLM bake-off) is not started beyond the questions stub.
-6. B5 (CI gate) is wired — both `evals/run_safety_scenarios.py` and
+   LLM or a human). See `grounding/README.md`.
+5. B3 (tone/impersonation) has a real check wired into the live pipeline
+   (`_SPIRITUAL_AUTHORITY_CLAIM_RE` + existing `_FOUNDER_IMPERSONATION_RE`
+   in `backend/rag/nodes/verification.py`, tested in `test_nodes.py`).
+   What it does NOT do: the brief's blind-rating half of B3 (faculty rate
+   answers 1-5 on tone/authenticity without knowing which are AI-generated)
+   — that needs human raters and real generated answers, neither of which
+   exist in this environment.
+6. B4 (NotebookLM bake-off) is not started beyond the questions stub.
+7. B5 (CI gate) is wired — both `evals/run_safety_scenarios.py` and
    `evals/grounding/verify_quote.py`'s self-check run in
    `.github/workflows/lint-test.yml`'s `backend-lint-test` job on every PR.
