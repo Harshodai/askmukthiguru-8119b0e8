@@ -136,7 +136,11 @@
     "admin": "व्यवस्थापक",
     "notebooks": "नोंदवही",
     "knowledgeGraph": "ज्ञान नकाशा",
-    "secondBrain": "माझे विचार"
+    "secondBrain": "माझे विचार",
+    "practicesDesc": "मार्गदर्शित आध्यात्मिक सराव",
+    "notebooksDesc": "तुमच्या अभ्यासाच्या नोंदी आणि ठळक मुद्दे",
+    "knowledgeGraphDesc": "शिकवणी एका सजीव नकाशाप्रमाणे एक्सप्लोर करा",
+    "secondBrainDesc": "तुमचा वैयक्तिक आध्यात्मिक स्मृती संग्रह"
   },
   "landing": {
     "continuePractice": "तुमची साधना चालू ठेवा",

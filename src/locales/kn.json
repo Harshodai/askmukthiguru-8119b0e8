@@ -136,7 +136,11 @@
     "admin": "ನಿರ್ವಾಹಕ",
     "notebooks": "ನೋಟ್‌ಬುಕ್‌ಗಳು",
     "knowledgeGraph": "ಜ್ಞಾನ ನಕ್ಷೆ",
-    "secondBrain": "ನನ್ನ ಆಲೋಚನೆಗಳು"
+    "secondBrain": "ನನ್ನ ಆಲೋಚನೆಗಳು",
+    "practicesDesc": "ಮಾರ್ಗದರ್ಶಿತ ಆಧ್ಯಾತ್ಮಿಕ ಅಭ್ಯಾಸಗಳು",
+    "notebooksDesc": "ನಿಮ್ಮ ಅಧ್ಯಯನ ಟಿಪ್ಪಣಿಗಳು ಮತ್ತು ಮುಖ್ಯಾಂಶಗಳು",
+    "knowledgeGraphDesc": "ಬೋಧನೆಗಳನ್ನು ಜೀವಂತ ನಕ್ಷೆಯಾಗಿ ಅನ್ವೇಷಿಸಿ",
+    "secondBrainDesc": "ನಿಮ್ಮ ವೈಯಕ್ತಿಕ ಆಧ್ಯಾತ್ಮಿಕ ಸ್ಮೃತಿ ಕೋಶ"
   },
   "landing": {
     "continuePractice": "ತಮ್ಮ ಅಭ್ಯಾಸವನ್ನು ಮುಂದುವರೆಸಿ",

@@ -136,7 +136,11 @@
     "admin": "ਐਡਮਿਨ",
     "notebooks": "ਨੋਟਬੁੱਕਸ",
     "knowledgeGraph": "ਗਿਆਨ ਦਾ ਨਕਸ਼ਾ",
-    "secondBrain": "ਮੇਰੇ ਵਿਚਾਰ"
+    "secondBrain": "ਮੇਰੇ ਵਿਚਾਰ",
+    "practicesDesc": "ਮਾਰਗਦਰਸ਼ਿਤ ਅਧਿਆਤਮਿਕ ਅਭਿਆਸ",
+    "notebooksDesc": "ਤੁਹਾਡੇ ਅਧਿਐਨ ਨੋਟਸ ਅਤੇ ਹਾਈਲਾਈਟਸ",
+    "knowledgeGraphDesc": "ਸਿੱਖਿਆਵਾਂ ਨੂੰ ਇੱਕ ਜੀਵੰਤ ਨਕਸ਼ੇ ਵਜੋਂ ਖੋਜੋ",
+    "secondBrainDesc": "ਤੁਹਾਡਾ ਨਿੱਜੀ ਅਧਿਆਤਮਿਕ ਯਾਦਦਾਸ਼ਤ ਭੰਡਾਰ"
   },
   "landing": {
     "continuePractice": "ਆਪਣਾ ਅਭਿਆਸ ਜਾਰੀ ਰੱਖੋ",

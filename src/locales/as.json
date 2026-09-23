@@ -136,7 +136,11 @@
     "admin": "এডমিন",
     "notebooks": "নোটবুকসমূহ",
     "knowledgeGraph": "জ্ঞানৰ মানচিত্ৰ",
-    "secondBrain": "মোৰ আত্মচিন্তন"
+    "secondBrain": "মোৰ আত্মচিন্তন",
+    "practicesDesc": "পৰিচালিত আধ্যাত্মিক অনুশীলন",
+    "notebooksDesc": "আপোনাৰ অধ্যয়ন টোকা আৰু হাইলাইট",
+    "knowledgeGraphDesc": "শিক্ষাসমূহক এক জীৱন্ত মানচিত্ৰ হিচাপে অন্বেষণ কৰক",
+    "secondBrainDesc": "আপোনাৰ ব্যক্তিগত আধ্যাত্মিক স্মৃতি ভঁৰাল"
   },
   "landing": {
     "continuePractice": "আপোনাৰ সাধনা অব্যাহত ৰাখক",

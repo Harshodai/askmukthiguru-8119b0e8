@@ -136,7 +136,11 @@
     "admin": "ایڈمن",
     "notebooks": "نوٹ بکس",
     "knowledgeGraph": "حکمت کا نقشہ",
-    "secondBrain": "میرے تفکرات"
+    "secondBrain": "میرے تفکرات",
+    "practicesDesc": "رہنمائی شدہ روحانی مشقیں",
+    "notebooksDesc": "آپ کے مطالعاتی نوٹس اور نمایاں نکات",
+    "knowledgeGraphDesc": "تعلیمات کو ایک زندہ نقشے کے طور پر دریافت کریں",
+    "secondBrainDesc": "آپ کا ذاتی روحانی یادداشت خزانہ"
   },
   "landing": {
     "continuePractice": "اپنی مشق جاری رکھیں",

@@ -136,7 +136,11 @@
     "admin": "Admin",
     "notebooks": "Notebooks",
     "knowledgeGraph": "Wisdom Map",
-    "secondBrain": "My Reflections"
+    "secondBrain": "My Reflections",
+    "practicesDesc": "Guided spiritual practices",
+    "notebooksDesc": "Your study notes & highlights",
+    "knowledgeGraphDesc": "Explore teachings as a living map",
+    "secondBrainDesc": "Your personal spiritual memory vault"
   },
   "landing": {
     "continuePractice": "Continue your practice",

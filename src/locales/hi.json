@@ -136,6 +136,10 @@
     "notebooks": "नोटबुक्स",
     "knowledgeGraph": "ज्ञान मानचित्र",
     "secondBrain": "मेरे विचार",
+    "practicesDesc": "निर्देशित आध्यात्मिक अभ्यास",
+    "notebooksDesc": "आपके अध्ययन नोट्स और हाइलाइट्स",
+    "knowledgeGraphDesc": "शिक्षाओं को एक जीवंत मानचित्र के रूप में देखें",
+    "secondBrainDesc": "आपका व्यक्तिगत आध्यात्मिक स्मृति भंडार",
     "admin": "एडमिन"
   },
   "auth": {

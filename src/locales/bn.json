@@ -136,7 +136,11 @@
     "admin": "অ্যাডমিন",
     "notebooks": "নোটবুক",
     "knowledgeGraph": "জ্ঞান মানচিত্র",
-    "secondBrain": "আমার প্রতিফলন"
+    "secondBrain": "আমার প্রতিফলন",
+    "practicesDesc": "নির্দেশিত আধ্যাত্মিক অনুশীলন",
+    "notebooksDesc": "আপনার পড়াশোনার নোট এবং হাইলাইট",
+    "knowledgeGraphDesc": "শিক্ষাগুলি একটি জীবন্ত মানচিত্র হিসেবে অন্বেষণ করুন",
+    "secondBrainDesc": "আপনার ব্যক্তিগত আধ্যাত্মিক স্মৃতি ভাণ্ডার"
   },
   "landing": {
     "continuePractice": "আপনার সাধনা বা অনুশীলন চালিয়ে যান",

@@ -136,7 +136,11 @@
     "admin": "ପ୍ରଶାସକ",
     "notebooks": "ନୋଟବୁକ୍ସ",
     "knowledgeGraph": "ଜ୍ଞାନ ମାନଚିତ୍ର",
-    "secondBrain": "ମୋର ଚିନ୍ତନ"
+    "secondBrain": "ମୋର ଚିନ୍ତନ",
+    "practicesDesc": "ମାର୍ଗଦର୍ଶିତ ଆଧ୍ୟାତ୍ମିକ ଅଭ୍ୟାସ",
+    "notebooksDesc": "ଆପଣଙ୍କ ଅଧ୍ୟୟନ ଟିପ୍ପଣୀ ଏବଂ ମୁଖ୍ୟାଂଶ",
+    "knowledgeGraphDesc": "ଶିକ୍ଷାଗୁଡ଼ିକୁ ଏକ ଜୀବନ୍ତ ମାନଚିତ୍ର ଭାବରେ ଅନ୍ୱେଷଣ କରନ୍ତୁ",
+    "secondBrainDesc": "ଆପଣଙ୍କ ବ୍ୟକ୍ତିଗତ ଆଧ୍ୟାତ୍ମିକ ସ୍ମୃତି ଭଣ୍ଡାର"
   },
   "landing": {
     "continuePractice": "ଆପଣଙ୍କ ଅଭ୍ୟାସ ଜାରି ରଖନ୍ତୁ",

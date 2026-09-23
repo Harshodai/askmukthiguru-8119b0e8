@@ -136,7 +136,11 @@
     "admin": "प्रशासकः",
     "notebooks": "अभ्यासपुस्तिकाः",
     "knowledgeGraph": "ज्ञानमानचित्रम्",
-    "secondBrain": "मम चिन्तनानि"
+    "secondBrain": "मम चिन्तनानि",
+    "practicesDesc": "मार्गदर्शितानि आध्यात्मिकानि अभ्यासानि",
+    "notebooksDesc": "भवतः अध्ययनटिप्पण्यः प्रमुखांशाः च",
+    "knowledgeGraphDesc": "उपदेशान् सजीवमानचित्ररूपेण अन्वेषयतु",
+    "secondBrainDesc": "भवतः वैयक्तिकं आध्यात्मिकं स्मृतिकोशम्"
   },
   "landing": {
     "continuePractice": "स्वसाधनाम् अनुवर्तताम्",
