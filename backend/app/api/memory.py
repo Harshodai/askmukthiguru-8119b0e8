@@ -875,6 +875,16 @@ async def delete_all_memory_endpoint(
             "guru_session_summaries",
             "user_scene_blocks",
             "user_skills",
+            # Canonical memory and everything that holds a plaintext copy of it:
+            # the audit tables snapshot statements (old_state/new_state, reason,
+            # metadata), so erasing only canonical_memories would leave the
+            # seeker's words behind. user_profiles and conversation_memories are
+            # what we know about the seeker too.
+            "canonical_memories",
+            "canonical_memory_events",
+            "memory_audit_events",
+            "conversation_memories",
+            "user_profiles",
         ):
             await _attempt(
                 table,
@@ -943,6 +953,14 @@ async def delete_all_memory_endpoint(
             return await asyncio.to_thread(_delete)
 
         await _attempt("neo4j_global_memory", _delete_neo4j)
+
+    integration = getattr(container, "canonical_memory_integration", None)
+    canonical_index = getattr(getattr(integration, "memory_retriever", None), "_vector_index", None)
+    if canonical_index is not None:
+        await _attempt(
+            "qdrant_canonical_memory",
+            lambda: canonical_index.delete_all_user(user_id=user_id),
+        )
 
     second_brain = getattr(container, "second_brain", None)
     if second_brain is not None:

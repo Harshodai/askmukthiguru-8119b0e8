@@ -1,4 +1,20 @@
+## Sep 23, 2026 (Session 10) — Privacy Hardening: DELETE /api/memory/all must erase canonical memory and vector indices
+
+### L-PRIVACY-1. Erasing a seeker's memory must purge all canonical tables, audit history, and vector indices
+- **Who**: Antigravity Privacy Hardening.
+- **What**: `DELETE /api/memory/all` claimed to delete all user memory, but only wiped legacy memory tables (`user_reflections`, `user_intentions`, `user_state_snapshots`, `guru_session_summaries`, `user_scene_blocks`, `user_skills`). It left behind:
+  1. `canonical_memories` (the seeker's active canonical facts).
+  2. `canonical_memory_events` & `memory_audit_events` (which snapshot user statements in `old_state`/`new_state`, audit reasons, and metadata, leaving seeker words in plaintext).
+  3. `conversation_memories` & `user_profiles` (seeker profile summaries and dialogue history).
+  4. The Qdrant vector index for canonical memory (`canonical_index.delete_all_user(user_id=user_id)`).
+- **When**: 2026-09-23.
+- **Where**: `backend/app/api/memory.py` (`delete_all_memory_endpoint`), regression test in `backend/tests/test_memory_delete_all_completeness.py`.
+- **Why**: "Delete all memory" is a foundational privacy / right-to-be-forgotten contract under India DPDP Act and GDPR. When a system evolves from legacy reflection tables to an audited canonical memory architecture with relational audit trails and vector indices, wiping only the legacy tables gives a false assurance of deletion while leaving the seeker's data in the newer stores.
+- **Fix**: Expanded `delete_all_memory_endpoint` to purge `canonical_memories`, `canonical_memory_events`, `memory_audit_events`, `conversation_memories`, and `user_profiles` in Supabase, and invoke `delete_all_user` on the Qdrant canonical vector index. Added regression test `test_memory_delete_all_completeness.py` asserting that all stores are deleted and partial failures are surfaced.
+- **Rule / Invariant**: When adding a new storage layer or audit trail for personal data (relational, vector, or cache), immediately update the right-to-be-forgotten deletion path and its completeness test. A deletion endpoint that succeeds with status 200 while leaving behind audit snapshots or vector points violates the privacy contract.
+
 ## Sep 23, 2026 (Session 9, continued) — Live UI sweep of PR #28 found a real i18n bug the CI gates couldn't catch
+
 
 ### L-PR28-UI-1. Wisdom Reflection practice card silently ignored every locale — missing `i18nKey`, not a translation-string gap
 - **Who**: Claude Sonnet 5, 2026-09-23, doing a manual click-through of every route on the running PR #28 build per user request ("open the UI and see all things across all pages"). The user caught it visually on `/practices` (Hindi active): four cards translated, one (Wisdom Reflection) stayed in English.
