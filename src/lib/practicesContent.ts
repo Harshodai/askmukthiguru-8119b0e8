@@ -216,5 +216,6 @@ export const getLocalizedPractice = (
     purpose: pick(`${practice.i18nKey}.purpose`, practice.purpose),
     howItWorks: pickList(`${practice.i18nKey}.howItWorks`, practice.howItWorks),
     benefits: pickList(`${practice.i18nKey}.benefits`, practice.benefits),
+    intentions: pickList(`${practice.i18nKey}.intentions`, practice.intentions),
   };
 };

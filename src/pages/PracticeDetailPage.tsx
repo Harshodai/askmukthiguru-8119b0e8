@@ -135,9 +135,9 @@ const PracticeDetailPage = () => {
         >
           <div className="flex flex-wrap items-center gap-2 mb-2">
             <Badge variant="secondary" className="gap-1">
-              <Clock className="w-3 h-3" /> {practice.durationLabel}
+              <Clock className="w-3 h-3" /> {lp.durationLabel}
             </Badge>
-            {practice.intentions.map((tag) => (
+            {lp.intentions.map((tag) => (
               <Badge key={tag} variant="outline">
                 {tag}
               </Badge>
@@ -339,7 +339,7 @@ const PracticeDetailPage = () => {
         {practice.inApp && (
           <div className="flex justify-end">
             <Button asChild className="bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground">
-              <Link to={practice.inApp.path}>{practice.inApp.label}</Link>
+              <Link to={practice.inApp.path}>{t('practices.detail.openInChat', practice.inApp.label)}</Link>
             </Button>
           </div>
         )}

@@ -1224,6 +1224,11 @@
         "Makes space to meet an authentic teaching at your own pace.",
         "Builds a small habit of noticing your inner state.",
         "Offers a calm, screen-light practice when video is not wanted."
+      ],
+      "intentions": [
+        "Contemplation",
+        "Presence",
+        "Self-awareness"
       ]
     },
     "soulSync": {
@@ -1244,6 +1249,11 @@
         "Quiets mental chatter and invites calm, focused awareness.",
         "Aligns your inner state with your intentions — opens the door to synchronicity.",
         "Dissolves self-centred suffering states — opens the heart to love, connection, and peace."
+      ],
+      "intentions": [
+        "Inner connection",
+        "Calm",
+        "Clarity"
       ]
     },
     "sereneMind": {
@@ -1264,6 +1274,11 @@
         "Builds self-awareness — naming what you feel helps it soften naturally.",
         "Strengthens focus and presence — the flame steadies a scattered mind.",
         "A natural reset for your whole being — the body softens, the mind stills."
+      ],
+      "intentions": [
+        "Stress relief",
+        "Quick reset",
+        "Breath awareness"
       ]
     },
     "beautifulState": {
@@ -1282,6 +1297,11 @@
         "Strengthens compassion, empathy, and genuine connection.",
         "Helps you bounce back with more joy in daily life.",
         "Brings a gentle harmony to your whole being — calming mind and heart."
+      ],
+      "intentions": [
+        "Compassion",
+        "Joy",
+        "Connection"
       ]
     },
     "dailyReflection": {
@@ -1300,6 +1320,11 @@
         "Closes the day mindfully — lets go of what weighed on you.",
         "Invites restful sleep — a quiet mind welcomes deep rest.",
         "Builds self-compassion — review mistakes without judgement."
+      ],
+      "intentions": [
+        "Gratitude",
+        "Awareness",
+        "Release"
       ]
     },
     "detail": {
@@ -1318,7 +1343,8 @@
       "youtubeShort": "YouTube",
       "shareFallbackDesc": "The practice guide and link were copied to your clipboard.",
       "shareUnavailableTitle": "Unable to share",
-      "shareUnavailableDesc": "Please copy the link and practice steps manually."
+      "shareUnavailableDesc": "Please copy the link and practice steps manually.",
+      "openInChat": "Open in chat"
     },
     "dailyWisdom": {
       "title": "Today's Wisdom",
