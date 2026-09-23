@@ -63,7 +63,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report-${{ github.run_id }}
+          name: playwright-report-${{ github.run_id }}-chromium-gate
           path: playwright-report/
           retention-days: 14
           if-no-files-found: ignore
@@ -72,7 +72,74 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-failures-${{ github.run_id }}
+          name: playwright-failures-${{ github.run_id }}-chromium-gate
+          path: |
+            test-results/
+            playwright-screenshots/
+          retention-days: 14
+          if-no-files-found: ignore
+
+  ui-device-matrix:
+    name: UI device matrix (${{ matrix.project }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        project:
+          - chromium
+          - firefox
+          - webkit
+          - Mobile Chrome
+          - Mobile Safari
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium firefox webkit
+
+      - name: Run critical UI suites
+        env:
+          CI: "true"
+          BASE_URL: ${{ github.event.inputs.base_url }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://mock-supabase.supabase.co' }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || 'mock-anon-key-for-ci-build' }}
+        run: |
+          npm run build
+          npx playwright test --project="${{ matrix.project }}" \
+            tests/e2e/page-smoke.spec.ts \
+            tests/e2e/a11y-smoke.spec.ts \
+            tests/e2e/prelaunch-sweep.spec.ts \
+            tests/e2e/full-regression.spec.ts
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ github.run_id }}-${{ matrix.project }}
+          path: playwright-report/
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Upload failure artifacts (screenshots, videos, traces)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-failures-${{ github.run_id }}-${{ matrix.project }}
           path: |
             test-results/
             playwright-screenshots/

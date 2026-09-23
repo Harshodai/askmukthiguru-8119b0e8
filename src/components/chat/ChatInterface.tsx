@@ -24,6 +24,7 @@ import { chatErrorBus } from '@/lib/chatErrorBus';
 import { buildGreeting, buildGreetingSubline } from '@/lib/greeting';
 import { useVisitContext } from '@/hooks/useVisitContext';
 import { useTranslation } from 'react-i18next';
+import { changeUiLanguage } from '@/i18n';
 import {
   CHAT_MAX_ATTACHMENTS,
   CHAT_MAX_SINGLE_ATTACHMENT_BYTES,
@@ -83,11 +84,7 @@ import { QuotaAuthPrompt } from './QuotaAuthPrompt';
 import { HealingPathCard, type HealingCourseRecommendation, type UserTurn } from './HealingPathCard';
 import { useAutoTranslate } from '@/hooks/useAutoTranslate';
 
-import {
-  OptimisticPlaceholder,
-  SlowResponseHint,
-  buildPersonalisedWelcome,
-} from './ChatHelpers';
+import { buildPersonalisedWelcome } from './ChatHelpers';
 
 // ── Suggested starter prompt-cards (ChatGPT-style, spiritually themed) ──
 import { Flower2, Heart as HeartIcon, Compass } from 'lucide-react';
@@ -846,6 +843,18 @@ export const ChatInterface = () => {
     clearResponseCache();
     updateProfile({ preferredLanguage: code });
 
+    // The chat selector controls both the language sent to the Guru and the
+    // language of the surrounding product UI. Previously only the AI/STT
+    // language changed, leaving buttons, profile labels and chat chrome in the
+    // previous language — making the selector appear broken to users.
+    void changeUiLanguage(code).catch(() => {
+      toast({
+        title: t('common.error', 'Could not switch language'),
+        description: t('chat.languageSwitchFailed', 'The conversation language was updated, but some interface text could not be translated.'),
+        variant: 'destructive',
+      });
+    });
+
     const newLangObj = LANGUAGES.find((l) => l.code === code);
     toast({
       title: `🌐 ${t('chat.languageSwitched')}`,
@@ -857,7 +866,7 @@ export const ChatInterface = () => {
       stopListening();
       setTimeout(() => startListening(), 150);
     }
-  }, [isListening, stopListening, startListening, updateProfile, toast]);
+  }, [isListening, stopListening, startListening, updateProfile, toast, t]);
 
   // Save conversation whenever messages change (use ref to avoid re-render loop)
   const currentConversationRef = useRef(currentConversation);
@@ -2279,6 +2288,31 @@ useSwipeGesture({
 });
 
 const isLandingMode = messages.length <= 1 && messages[0]?.role === 'guru';
+const thinkingVisible =
+  showInstantPill ||
+  showPipeline ||
+  isTyping ||
+  (isStreaming && streamingContent === '');
+
+const previousThinkingVisibleRef = useRef(false);
+useEffect(() => {
+  if (!thinkingVisible) {
+    previousThinkingVisibleRef.current = false;
+    return;
+  }
+  if (previousThinkingVisibleRef.current) return;
+  previousThinkingVisibleRef.current = true;
+
+  // The thinking indicator is rendered below the message list. A newly sent
+  // message can therefore push it below the viewport even though the user was
+  // already at the bottom. Explicitly reveal the indicator when it first
+  // appears; this also makes the instant pill visible during slow translation,
+  // queueing, and first-token latency.
+  requestAnimationFrame(() => {
+    const container = scrollContainerRef.current;
+    if (container) container.scrollTop = container.scrollHeight;
+  });
+}, [thinkingVisible]);
 
 return (
   <div className="flex-1 min-h-0 flex bg-background relative overflow-hidden">
@@ -2407,10 +2441,6 @@ return (
                                   ttsEnabled={ttsEnabled}
                                   isSpeaking={isSpeaking}
                                   inputFocused={inputFocused}
-                                  showPipeline={showPipeline}
-                                  pipelineSteps={pipelineSteps}
-                                  pipelineHeartbeat={pipelineHeartbeat}
-                                  showInstantPill={showInstantPill}
                                   isLandingMode={true}
                                   onVoiceToggle={handleVoiceToggle}
                                   onHandsFreeVoiceToggle={handleHandsFreeVoiceToggle}
@@ -2495,24 +2525,13 @@ return (
                   scrollContainerRef={scrollContainerRef}
                 />
 
-                {/* Optimistic placeholder: guru thinking skeleton before pipeline pills arrive */}
-                {showInstantPill && (
-                  <div className="mb-2">
-                    <OptimisticPlaceholder />
-                  </div>
-                )}
 
-                {/* Unified thinking indicator */}
+                {/* Single authoritative thinking indicator */}
                 <div className="flex items-start gap-2">
                   <div className="flex-1 min-w-0">
                     <ThinkingPills
                       steps={pipelineSteps}
-                      visible={
-                        showInstantPill ||
-                        showPipeline ||
-                        isTyping ||
-                        (isStreaming && streamingContent === '')
-                      }
+                      visible={thinkingVisible}
                       heartbeat={pipelineHeartbeat}
                       tradition="Ekam — Sri Preethaji & Sri Krishnaji"
                       searchContext={showInstantPill ? pendingQuery : undefined}
@@ -2523,11 +2542,6 @@ return (
                       }
                       teachingPreview={teachingPreview}
                     />
-                    {isStreaming && streamingContent === '' && (
-                      <div className="pl-10 -mt-1">
-                        <SlowResponseHint visible />
-                      </div>
-                    )}
                   </div>
                   {(isStreaming || isTyping || showInstantPill) && (
                     <button
@@ -2591,10 +2605,6 @@ return (
             ttsEnabled={ttsEnabled}
             isSpeaking={isSpeaking}
             inputFocused={inputFocused}
-            showPipeline={showPipeline}
-            pipelineSteps={pipelineSteps}
-            pipelineHeartbeat={pipelineHeartbeat}
-            showInstantPill={showInstantPill}
             isLandingMode={false}
             onVoiceToggle={handleVoiceToggle}
             onHandsFreeVoiceToggle={handleHandsFreeVoiceToggle}

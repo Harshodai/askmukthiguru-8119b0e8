@@ -719,8 +719,9 @@ class Settings(BaseSettings):
     anon_session_hmac_secret: Optional[str] = None
     supabase_jwt_audience: str = "authenticated"
     benchmark_secret: Optional[str] = None
-    google_client_id: Optional[str] = None
-    google_client_secret: Optional[str] = None
+    # Optional override for the single-source crisis/DV helpline registry.
+    # Empty uses the bundled repo-root config/helplines.yaml.
+    helplines_config_path: Optional[str] = None
     # Benchmarks (ragas_eval.py) default their live --endpoint to this value
     # instead of reading the env directly, so the endpoint is validated the same
     # way as every other settings-sourced URL.

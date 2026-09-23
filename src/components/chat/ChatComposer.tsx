@@ -18,7 +18,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { LanguageSelector } from './LanguageSelector';
 import { AssistantSwitcher } from './AssistantSwitcher';
-import { type PipelineStep } from './ThinkingPills';
 import { SlashCommandMenu, type SlashCommandId } from './SlashCommandMenu';
 import type { PromptInputMessage } from '@/components/ai-elements/prompt-input';
 import {
@@ -53,10 +52,6 @@ interface ChatComposerProps {
   ttsEnabled: boolean;
   isSpeaking: boolean;
   inputFocused: boolean;
-  showPipeline: boolean;
-  pipelineSteps: PipelineStep[];
-  pipelineHeartbeat: boolean;
-  showInstantPill: boolean;
   isLandingMode: boolean;
   onVoiceToggle: () => void;
   onHandsFreeVoiceToggle: () => void;
@@ -102,10 +97,6 @@ function ChatComposerInner({
   ttsEnabled,
   isSpeaking,
   inputFocused,
-  showPipeline,
-  pipelineSteps,
-  pipelineHeartbeat,
-  showInstantPill,
   isLandingMode,
   onVoiceToggle,
   onHandsFreeVoiceToggle,
@@ -179,9 +170,6 @@ function ChatComposerInner({
       e.target.value = '';
     }
   };
-
-  const showThinking =
-    showInstantPill || showPipeline || isTyping || (isStreaming && inputValue === '');
 
   const handleFormSubmit = (_message: PromptInputMessage, e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();

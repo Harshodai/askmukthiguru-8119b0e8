@@ -12,6 +12,7 @@
  * Run:  npm run test:e2e -- prelaunch-sweep
  */
 import { test, expect, type Page } from '@playwright/test';
+import { dismissSafetyDisclaimer } from './support';
 
 const ROUTES = [
   '/',
@@ -39,11 +40,21 @@ const isGoogleOrYouTubeAccountUrl = (message: string): boolean => {
   });
 };
 
-const isCiMockSupabaseRealtimeError = (message: string): boolean =>
-  // The E2E build deliberately uses an unreachable mock hostname.  Keep this
-  // narrow so a real Supabase realtime outage still fails the sweep.
-  message.includes('wss://mock-supabase.supabase.co/realtime/') &&
-  message.includes('ERR_NAME_NOT_RESOLVED');
+const isCiMockSupabaseError = (message: string): boolean =>
+  // The E2E build deliberately uses an unreachable mock Supabase hostname.
+  // Chromium/WebKit surface this as websocket errors, DNS errors, or fetch
+  // access-control diagnostics depending on browser/version. Keep the match
+  // constrained to the known mock hostname so real Supabase failures still
+  // fail the sweep.
+  message.includes('mock-supabase.supabase.co') &&
+  (
+    message.includes('ERR_NAME_NOT_RESOLVED') ||
+    message.includes('Error resolving') ||
+    message.includes('due to access control checks')
+  );
+
+const isCiOAuthPreconnectError = (message: string): boolean =>
+  message.includes('Failed to preconnect to https://oauth.askmukthiguru.lovable.app/');
 
 const IGNORABLE = (e: string): boolean =>
   e.includes('React Router Future Flag') ||
@@ -51,13 +62,19 @@ const IGNORABLE = (e: string): boolean =>
   e.toLowerCase().includes('hydrat') ||
   e.includes('404 Error') ||
   e.includes('ResizeObserver loop') ||
+  // Google Identity Services/FedCM can emit browser/provider errors when no Google account is available in CI.
+  e.includes('[GSI_LOGGER]: FedCM get() rejects with') ||
+  e.includes("Provider's accounts list is empty") ||
   e.includes('Failed to load resource') ||
   e.includes('503') ||
   isGoogleOrYouTubeAccountUrl(e) ||
-  isCiMockSupabaseRealtimeError(e) ||
+  isCiMockSupabaseError(e) ||
+  isCiOAuthPreconnectError(e) ||
   e.includes('requestStorageAccess: Permission denied.') ||
   e.includes('.mp3') ||
   e.includes('useMeditationAudio');
+
+const APP_ORIGIN = new URL(process.env.BASE_URL || 'http://localhost:4173').origin;
 
 const DESTRUCTIVE = /sign\s*out|log\s*out|delete|remove|clear|reset|cancel|leave|discard/i;
 
@@ -96,10 +113,18 @@ async function clickSafeButtons(page: Page): Promise<void> {
 for (const route of ROUTES) {
   test(`sweep: ${route} — mount, scroll, click safe controls`, async ({ page }) => {
     const errors: string[] = [];
+    const serverErrors: string[] = [];
+    const origin = APP_ORIGIN;
     page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
     page.on('pageerror', (err) => errors.push(err.message));
+    page.on('response', (response) => {
+      if (new URL(response.url()).origin === origin && response.status() >= 500) {
+        serverErrors.push(`${response.status()} ${response.url()}`);
+      }
+    });
 
     const res = await page.goto(route, { waitUntil: 'networkidle' }).catch(() => null);
+    await dismissSafetyDisclaimer(page);
     expect(res?.status() ?? 200, `HTTP status ${route}`).toBeLessThan(500);
     await expect(page.locator('body')).toBeVisible();
 
@@ -108,6 +133,7 @@ for (const route of ROUTES) {
     await scrollThroughPage(page);
 
     const fatal = errors.filter((e) => !IGNORABLE(e));
+    expect(serverErrors, `Same-origin 5xx responses during sweep of ${route}:\n${serverErrors.join('\n')}`).toHaveLength(0);
     expect(fatal, `Fatal console errors during sweep of ${route}:\n${fatal.join('\n')}`).toHaveLength(0);
   });
 }

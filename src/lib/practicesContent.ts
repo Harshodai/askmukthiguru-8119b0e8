@@ -61,6 +61,7 @@ export const practices: Practice[] = [
     ],
     accent: 'ojas',
     format: 'source-reflection',
+    i18nKey: 'practices.wisdomReflection',
   },
   {
     slug: 'soul-sync',

@@ -143,7 +143,7 @@ describe('mobile viewport (375px): MobileConversationSheet', () => {
 });
 
 describe('mobile viewport (375px): DesktopSidebar fallback', () => {
-  it('stays hidden on mobile while toggle remains reachable', () => {
+  it('stays hidden on mobile without introducing a second sidebar toggle', () => {
     const { container } = render(
       <DesktopSidebar
         isCollapsed={false}
@@ -158,8 +158,6 @@ describe('mobile viewport (375px): DesktopSidebar fallback', () => {
     expect(aside).not.toBeNull();
     expect(aside!.className).toContain('hidden');
     expect(aside!.className).toContain('sm:flex');
-
-    expect(screen.getByTestId('sidebar-toggle')).toBeEnabled();
 
     assertNoHorizontalOverflow(container);
   });

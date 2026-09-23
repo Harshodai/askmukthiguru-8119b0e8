@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Globe, Mic, MicOff, Volume2, VolumeX, ChevronDown, Languages } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
@@ -115,6 +116,25 @@ export const LanguageSelector = ({
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const selectedLanguage = value ?? internalLang;
 
+  // Portal-anchored screen position for the compact popover. Rendering the
+  // popover in place (as a normal descendant) put it inside the composer's
+  // `overflow-hidden` input-group wrapper, which visually clipped it above
+  // the composer box even though its own bounding rect looked correct —
+  // getBoundingClientRect ignores ancestor clipping. Portaling to
+  // document.body and positioning with `fixed` + measured coordinates
+  // sidesteps that ancestor entirely.
+  const POPOVER_WIDTH = 288; // w-72
+  const [menuPos, setMenuPos] = useState<{ left: number; bottom: number } | null>(null);
+  const updateMenuPos = useCallback(() => {
+    const rect = triggerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const margin = 8;
+    const maxLeft = window.innerWidth - POPOVER_WIDTH - margin;
+    const left = Math.max(margin, Math.min(rect.left, maxLeft));
+    const bottom = window.innerHeight - rect.top + 8; // 8px gap, mirrors old mb-2
+    setMenuPos({ left, bottom });
+  }, []);
+
   const filteredLanguages = useMemo(() => {
     const query = searchQuery.trim().toLocaleLowerCase();
     if (!query) return LANGUAGES;
@@ -127,58 +147,29 @@ export const LanguageSelector = ({
   const [voiceCapable, setVoiceCapable] = useState<Set<string>>(new Set(['en']));
   const { t } = useTranslation();
 
-  const [coords, setCoords] = useState<{ bottom: number; left: number; maxHeight: number } | null>(null);
-
-  const updatePosition = useCallback(() => {
-    if (triggerRef.current) {
-      const rect = triggerRef.current.getBoundingClientRect();
-      const viewportHeight = window.innerHeight;
-      const viewportWidth = window.innerWidth;
-      const margin = 8;
-
-      const bottom = Math.max(12, viewportHeight - rect.top + margin);
-
-      let left = rect.left;
-      const menuWidth = Math.min(320, viewportWidth - 24);
-
-      if (left + menuWidth > viewportWidth - 12) {
-        left = Math.max(12, viewportWidth - menuWidth - 12);
-      }
-
-      const availableAbove = rect.top - margin - 20;
-      const maxHeight = Math.max(0, Math.min(320, availableAbove));
-      setCoords({ bottom, left, maxHeight });
-    }
-  }, []);
-
   useEffect(() => {
-    if (isOpen) {
-      updatePosition();
-      setSearchQuery('');
-      const selectedIdx = LANGUAGES.findIndex((l) => l.code === selectedLanguage);
-      const initialIdx = selectedIdx >= 0 ? selectedIdx : 0;
-      setFocusedIndex(initialIdx);
-      // Move real DOM focus onto the selected option so roving tabindex is
-      // consistent from the moment the popover opens (not just after a
-      // keypress) — itemRefs are only populated once the list has rendered.
-      requestAnimationFrame(() => itemRefs.current[initialIdx]?.focus());
+    if (!isOpen) return;
+    setSearchQuery('');
+    const selectedIdx = LANGUAGES.findIndex((l) => l.code === selectedLanguage);
+    const initialIdx = selectedIdx >= 0 ? selectedIdx : 0;
+    setFocusedIndex(initialIdx);
+    requestAnimationFrame(() => itemRefs.current[initialIdx]?.focus());
+  }, [isOpen, selectedLanguage]);
 
-      const handleScroll = (e: Event) => {
-        // Do not update/re-render if the scroll event is inside our own dropdown list
-        if (popoverRef.current && popoverRef.current.contains(e.target as Node)) {
-          return;
-        }
-        updatePosition();
-      };
-
-      window.addEventListener('resize', updatePosition);
-      window.addEventListener('scroll', handleScroll, true);
-      return () => {
-        window.removeEventListener('resize', updatePosition);
-        window.removeEventListener('scroll', handleScroll, true);
-      };
-    }
-  }, [isOpen, updatePosition, selectedLanguage]);
+  useLayoutEffect(() => {
+    // Deliberately not clearing menuPos on close: the exit fade needs a
+    // valid last-known position to animate out from, and AnimatePresence
+    // (kept permanently mounted below) unmounts the panel itself once the
+    // exit transition finishes.
+    if (!isOpen) return;
+    updateMenuPos();
+    window.addEventListener('resize', updateMenuPos);
+    window.addEventListener('scroll', updateMenuPos, true);
+    return () => {
+      window.removeEventListener('resize', updateMenuPos);
+      window.removeEventListener('scroll', updateMenuPos, true);
+    };
+  }, [isOpen, updateMenuPos]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
@@ -195,6 +186,7 @@ export const LanguageSelector = ({
     setLanguage(code);
     onLanguageChange?.(code);
     setIsOpen(false);
+    requestAnimationFrame(() => triggerRef.current?.focus());
   }, [onLanguageChange]);
 
   useEffect(() => {
@@ -288,7 +280,7 @@ export const LanguageSelector = ({
         const isSelected = selectedLanguage === lang.code;
         const isFocused = focusedIndex === idx;
         return (
-          <button
+          <button type="button"
             key={lang.code}
             ref={(el) => {
               itemRefs.current[idx] = el;
@@ -337,13 +329,12 @@ export const LanguageSelector = ({
     return (
       <div className="flex items-center gap-1">
         <div className="relative">
-          <motion.button
+          <motion.button type="button"
             ref={triggerRef}
             data-tour="language-selector"
             onClick={(e) => {
               e.stopPropagation();
-              if (!isOpen) updatePosition();
-              setIsOpen(!isOpen);
+              setIsOpen((open) => !open);
             }}
             className="flex min-h-[44px] min-w-[44px] items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             aria-haspopup="listbox"
@@ -356,67 +347,72 @@ export const LanguageSelector = ({
             <ChevronDown className={`w-3 h-3 opacity-50 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
           </motion.button>
 
-          <AnimatePresence>
-            {isOpen && coords && (
+          {menuPos && createPortal(
+            <AnimatePresence>
+              {isOpen && (
               <>
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="fixed inset-0 z-[90]"
-                  onClick={() => setIsOpen(false)}
-                />
-                <motion.div
-                  initial={{ opacity: 0, y: 8, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 8, scale: 0.95 }}
-                  transition={{ duration: 0.15, ease: 'easeOut' }}
-                  ref={popoverRef}
-                  className="fixed z-[100] flex flex-col overflow-hidden rounded-xl border border-hairline bg-popover shadow-lg w-72 max-w-[calc(100vw-2rem)]"
-                  style={{ bottom: coords.bottom, left: coords.left, maxHeight: Math.min(320, coords.maxHeight) }}
-                  role="dialog"
-                  aria-label={t('chat.selectLanguageAria', 'Select language')}
-                >
-                  {/* Header */}
-                  <div className="px-3 py-2.5 border-b border-border bg-card/95 space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Globe className="w-3.5 h-3.5 text-ojas" />
-                      <span className="text-xs font-semibold text-foreground">{t('chat.selectLanguage', 'Select Language')}</span>
-                    </div>
-                    <input
-                      value={searchQuery}
-                      onChange={(e) => {
-                        setSearchQuery(e.target.value);
-                        setFocusedIndex(0);
-                      }}
-                      placeholder={t('chat.searchLanguages', { count: LANGUAGES.length })}
-                      aria-label={t('chat.searchLanguages', { count: LANGUAGES.length })}
-                      className="w-full h-9 rounded-lg border border-border/60 bg-background px-2.5 text-sm outline-none focus:ring-2 focus:ring-ojas/30"
-                    />
+              <motion.div
+                key="backdrop"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-[90]"
+                onClick={() => setIsOpen(false)}
+              />
+              <motion.div
+                key="panel"
+                initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                transition={{ duration: 0.15, ease: 'easeOut' }}
+                ref={popoverRef}
+                style={{ left: menuPos.left, bottom: menuPos.bottom }}
+                className="fixed z-[100] flex flex-col overflow-hidden rounded-xl border border-hairline bg-popover shadow-lg w-72 max-w-[calc(100vw-1rem)] max-h-[70dvh]"
+                role="dialog"
+                aria-label={t('chat.selectLanguageAria', 'Select language')}
+              >
+                {/* Header */}
+                <div className="px-3 py-2.5 border-b border-border bg-card/95 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Globe className="w-3.5 h-3.5 text-ojas" />
+                    <span className="text-xs font-semibold text-foreground">{t('chat.selectLanguage', 'Select Language')}</span>
                   </div>
+                  <input
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      setFocusedIndex(0);
+                    }}
+                    placeholder={t('chat.searchLanguages', { count: LANGUAGES.length })}
+                    aria-label={t('chat.searchLanguages', { count: LANGUAGES.length })}
+                    className="w-full h-9 rounded-lg border border-border/60 bg-background px-2.5 text-sm outline-none focus:ring-2 focus:ring-ojas/30"
+                  />
+                </div>
 
-                  {/* Language list */}
-                  <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin" role="listbox" aria-label={t('chat.selectLanguageAria', 'Select language')}>
-                    {filteredLanguages.length > 0 ? (
-                      <div className="py-1">{renderLanguageRows()}</div>
-                    ) : (
-                      <p className="px-4 py-6 text-center text-xs text-muted-foreground">
-                        {t('chat.noLangMatch', 'No languages match your search.')}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Translation notice footer */}
-                  <div className="px-3 py-2 border-t border-border bg-muted/30 flex items-start gap-2">
-                    <Languages className="w-3.5 h-3.5 text-ojas flex-shrink-0 mt-0.5" />
-                    <p className="text-[10px] text-muted-foreground leading-relaxed">
-                      {t('language.translationNotice')}
+                {/* Language list */}
+                <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin" role="listbox" aria-label={t('chat.selectLanguageAria', 'Select language')}>
+                  {filteredLanguages.length > 0 ? (
+                    <div className="py-1">{renderLanguageRows()}</div>
+                  ) : (
+                    <p className="px-4 py-6 text-center text-xs text-muted-foreground">
+                      {t('chat.noLangMatch', 'No languages match your search.')}
                     </p>
-                  </div>
-                </motion.div>
+                  )}
+                </div>
+
+                {/* Translation notice footer */}
+                <div className="px-3 py-2 border-t border-border bg-muted/30 flex items-start gap-2">
+                  <Languages className="w-3.5 h-3.5 text-ojas flex-shrink-0 mt-0.5" />
+                  <p className="text-[10px] text-muted-foreground leading-relaxed">
+                    {t('language.translationNotice')}
+                  </p>
+                </div>
+              </motion.div>
               </>
-            )}
-          </AnimatePresence>
+              )}
+            </AnimatePresence>,
+            document.body,
+          )}
         </div>
       </div>
     );
@@ -425,12 +421,12 @@ export const LanguageSelector = ({
   return (
     <div className="flex items-center gap-2">
       <div className="relative">
-        <motion.button
+        <motion.button type="button"
           ref={triggerRef}
           onClick={(e) => {
             e.stopPropagation();
-            if (!isOpen) updatePosition();
-            setIsOpen(!isOpen);
+
+            setIsOpen((open) => !open);
           }}
           className="flex items-center gap-2 px-3 py-2 min-h-[44px] min-w-[44px] rounded-full bg-card hover:bg-ojas/10 border border-border hover:border-ojas/30 transition-all text-sm shadow-sm"
           whileHover={{ scale: 1.02 }}
@@ -449,7 +445,7 @@ export const LanguageSelector = ({
         </motion.button>
 
         <AnimatePresence>
-          {isOpen && coords && (
+          {isOpen && (
             <>
               <motion.div
                 initial={{ opacity: 0 }}
@@ -464,8 +460,7 @@ export const LanguageSelector = ({
                 exit={{ opacity: 0, y: -10, scale: 0.95 }}
                 transition={{ duration: 0.15 }}
                 ref={popoverRef}
-                className="fixed w-72 max-w-[calc(100vw-2rem)] flex flex-col bg-popover border border-border rounded-2xl shadow-2xl z-[100] overflow-hidden"
-                style={{ bottom: coords.bottom, left: coords.left, maxHeight: Math.min(320, coords.maxHeight) }}
+                className="absolute bottom-full left-0 mb-2 z-[100] w-72 max-w-[calc(100vw-1rem)] max-h-[70dvh] flex flex-col bg-popover border border-border rounded-2xl shadow-2xl overflow-hidden"
                 role="dialog"
                 aria-label={t('chat.selectLanguageAria', 'Select language')}
               >
@@ -508,17 +503,17 @@ export const LanguageSelector = ({
 
       {/* TTS Toggle */}
       {onTtsToggle && (
-        <motion.button
+        <motion.button type="button"
           onClick={onTtsToggle}
           className={`relative p-2.5 min-h-[44px] min-w-[44px] rounded-full transition-all border ${
             ttsEnabled
               ? 'bg-prana/20 border-prana/40 text-prana shadow-md'
               : 'bg-card border-border text-muted-foreground hover:bg-muted hover:border-prana/30 shadow-sm'
           }`}
-          title={ttsEnabled ? 'Disable voice output' : 'Enable voice output'}
+          title={ttsEnabled ? t('chat.disableVoiceOutput', 'Disable voice output') : t('chat.enableVoiceOutput', 'Enable voice output')}
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
-          aria-label={ttsEnabled ? 'Disable voice output' : 'Enable voice output'}
+          aria-label={ttsEnabled ? t('chat.disableVoiceOutput', 'Disable voice output') : t('chat.enableVoiceOutput', 'Enable voice output')}
         >
           {isSpeaking && (
             <motion.span
@@ -536,17 +531,17 @@ export const LanguageSelector = ({
       )}
 
       {/* Voice Mode Toggle */}
-      <motion.button
+      <motion.button type="button"
         onClick={onVoiceToggle}
         className={`relative p-2.5 min-h-[44px] min-w-[44px] rounded-full transition-all border ${
           voiceEnabled
             ? 'bg-ojas/20 border-ojas/40 text-ojas shadow-md'
             : 'bg-card border-border text-muted-foreground hover:bg-muted hover:border-ojas/30 shadow-sm'
         }`}
-        title={voiceEnabled ? 'Stop recording' : 'Start voice input'}
+        title={voiceEnabled ? t('chat.stopRecording', 'Stop recording') : t('chat.startVoiceInput', 'Start voice input')}
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
-        aria-label={voiceEnabled ? 'Stop recording' : 'Start voice input'}
+        aria-label={voiceEnabled ? t('chat.stopRecording', 'Stop recording') : t('chat.startVoiceInput', 'Start voice input')}
       >
         {isListening && (
           <>

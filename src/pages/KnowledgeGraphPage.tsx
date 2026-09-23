@@ -2,7 +2,7 @@ import { KGConceptMap } from '@/components/kg/KGConceptMap';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { returnToOrigin } from '@/lib/workspaceNavigation';
 import { useTranslation } from 'react-i18next';
-import { X } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 
 // Public — Wisdom Map is a discovery surface, no auth gate.
 export default function KnowledgeGraphPage() {
@@ -34,10 +34,12 @@ export default function KnowledgeGraphPage() {
           <button
             type="button"
             onClick={handleClose}
-            aria-label={t('common.close', 'Close')}
-            className="shrink-0 inline-flex items-center justify-center h-10 w-10 rounded-full border border-border/60 bg-background/80 text-muted-foreground hover:text-foreground hover:bg-background hover:border-border transition-all shadow-sm hover:shadow focus:outline-none focus:ring-2 focus:ring-primary/40"
+            aria-label={t('layout.backToChat', 'Back to Chat')}
+            title={t('layout.backToChat', 'Back to Chat')}
+            className="shrink-0 inline-flex items-center gap-2 min-h-10 rounded-xl border border-border/60 bg-background/80 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-background hover:border-border transition-all shadow-sm hover:shadow focus:outline-none focus:ring-2 focus:ring-primary/40"
           >
-            <X className="w-5 h-5" />
+            <ArrowLeft className="w-4 h-4" aria-hidden="true" />
+            <span>{t('layout.backToChat', 'Back to Chat')}</span>
           </button>
         </div>
       </header>

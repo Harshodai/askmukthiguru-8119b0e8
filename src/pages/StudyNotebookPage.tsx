@@ -220,7 +220,7 @@ export default function StudyNotebookPage() {
                   size="icon"
                   disabled={!voice.isSupported}
                   onClick={() => voice.isListening ? voice.stopListening() : void voice.startListening()}
-                  aria-label={voice.isListening ? "Stop voice input" : "Start voice input"}
+                  aria-label={voice.isListening ? t('chat.stopRecording', 'Stop recording') : t('chat.startVoiceInput', 'Start voice input')}
                   className={cn(voice.isListening && "border-emerald-500 text-emerald-500 animate-pulse")}
                 >
                   {voice.isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
@@ -228,7 +228,6 @@ export default function StudyNotebookPage() {
               </div>
               {voice.isListening && (voice.transcript || voice.interimTranscript) && (
                 <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-md text-xs text-foreground mt-2 animate-pulse">
-                  <span className="font-semibold text-emerald-500 mr-1">Voice Input:</span>
                   {voice.transcript} <span className="text-muted-foreground italic">{voice.interimTranscript}</span>
                 </div>
               )}

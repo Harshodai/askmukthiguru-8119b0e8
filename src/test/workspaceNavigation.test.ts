@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   buildChatOwnedPath,
   getChatOrigin,
+  isChatOwnedRoute,
   isSafeReturnPath,
   returnToOrigin,
 } from '@/lib/workspaceNavigation';
@@ -18,6 +19,13 @@ describe('workspace navigation contract', () => {
       '/knowledge-graph?returnTo=%2Fchat&conversation=conv-1&q=beautiful+state',
     );
     expect(buildChatOwnedPath('/second-brain', { conceptQuery: 'private' })).toBe('/second-brain?returnTo=%2Fchat');
+  });
+
+  it('treats direct profile visits as ordinary navigation but marks explicit chat-owned profile visits', () => {
+    expect(isChatOwnedRoute('/profile', '')).toBe(false);
+    expect(isChatOwnedRoute('/profile', '?tab=settings')).toBe(false);
+    expect(isChatOwnedRoute('/profile', '?returnTo=%2Fchat')).toBe(true);
+    expect(isChatOwnedRoute('/knowledge-graph', '?returnTo=%2Fchat')).toBe(true);
   });
 
   it('rejects unsafe or unknown return paths', () => {
