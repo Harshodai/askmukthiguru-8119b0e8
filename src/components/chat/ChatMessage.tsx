@@ -2,7 +2,8 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { forwardRef, useState, useCallback, memo, useRef, useEffect, Suspense, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, ExternalLink, Share2, Shield, Copy, Check, RotateCcw, Pencil, BookOpen, Youtube, Play, AlertTriangle, LogIn, RefreshCw, Bookmark, StickyNote, Languages, Volume2, VolumeX } from 'lucide-react';
+import { Sparkles, ExternalLink, Share2, Shield, Copy, Check, RotateCcw, Pencil, BookOpen, Youtube, Play, AlertTriangle, LogIn, RefreshCw, Bookmark, StickyNote, Languages, Volume2, VolumeX, MoreHorizontal } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useNotes } from '@/hooks/useNotes';
 import { useStudyNotebooks } from '@/hooks/useStudyNotebooks';
 import { useTextToSpeech } from '@/hooks/useTextToSpeech';
@@ -1181,18 +1182,12 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                 {formatTime(message.timestamp)}
               </time>
 
-              {/* Guru hover actions */}
+              {/* Guru hover actions — consolidated to Copy/Speak/⋯/Translate so the row
+                  doesn't overflow on mobile (was up to 7 always-visible icons). Less
+                  frequent actions (Regenerate/Save to memory/Save as note/Share wisdom
+                  card) move into the "..." dropdown. */}
               {isGuru && message.content && !isStreaming && !message.content.includes('_Stopped by you._') && (
                 <div className="flex items-center gap-0.5 mt-2 opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 max-md:opacity-100 transition-opacity duration-200">
-                  {isLastGuru && onRegenerate && (
-                    <button
-                      onClick={onRegenerate}
-                      className="p-1 rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
-                      title={t('chat.regenerate')}
-                    >
-                      <RotateCcw className="w-4 h-4" />
-                    </button>
-                  )}
                   <button
                     onClick={handleCopy}
                     className="p-1 rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
@@ -1213,34 +1208,37 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                       {isSpeaking ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
                     </button>
                   )}
-                  <button
-                    onClick={handleSaveToMemory}
-                    disabled={saved || savingMemory}
-                    className={`p-1 rounded-full transition-colors ${saved
-                        ? 'bg-prana/15 text-prana'
-                        : 'hover:bg-ojas/10 text-muted-foreground hover:text-ojas'
-                      } ${savingMemory ? 'opacity-60' : ''}`}
-                    title={saved ? t('chat.savedToMemory') : t('chat.saveToMemory')}
-                  >
-                    <Bookmark className={`w-4 h-4 ${saved ? 'fill-current' : ''}`} />
-                  </button>
-                  <button
-                    onClick={handleSaveAsNote}
-                    className={`p-1 rounded-full transition-colors ${noteSaved
-                        ? 'bg-prana/15 text-prana'
-                        : 'hover:bg-ojas/10 text-muted-foreground hover:text-ojas'
-                      }`}
-                    title={noteSaved ? t('chat.savedToNotes') : t('chat.saveAsNote')}
-                  >
-                    <StickyNote className={`w-4 h-4 ${noteSaved ? 'fill-current' : ''}`} />
-                  </button>
-                  <button
-                    onClick={() => setShowWisdomCard(true)}
-                    className="p-1 rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
-                    title={t('chat.shareWisdomCard')}
-                  >
-                    <Share2 className="w-4 h-4" />
-                  </button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        className="p-1 rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
+                        title={t('common.more', 'More')}
+                        aria-label={t('common.more', 'More')}
+                      >
+                        <MoreHorizontal className="w-4 h-4" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start">
+                      {isLastGuru && onRegenerate && (
+                        <DropdownMenuItem onClick={onRegenerate}>
+                          <RotateCcw className="w-4 h-4 mr-2" />
+                          {t('chat.regenerate')}
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuItem onClick={handleSaveToMemory} disabled={saved || savingMemory}>
+                        <Bookmark className={`w-4 h-4 mr-2 ${saved ? 'fill-current' : ''}`} />
+                        {saved ? t('chat.savedToMemory') : t('chat.saveToMemory')}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleSaveAsNote}>
+                        <StickyNote className={`w-4 h-4 mr-2 ${noteSaved ? 'fill-current' : ''}`} />
+                        {noteSaved ? t('chat.savedToNotes') : t('chat.saveAsNote')}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setShowWisdomCard(true)}>
+                        <Share2 className="w-4 h-4 mr-2" />
+                        {t('chat.shareWisdomCard')}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   <LanguageTranslateButton message={message} />
                 </div>
               )}
