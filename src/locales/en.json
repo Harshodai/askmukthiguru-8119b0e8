@@ -1124,6 +1124,22 @@
     "benefits": "Benefits",
     "howItWorks": "How it works",
     "perPracticeHint": "Sit comfortably with your spine upright. Eyes closed, mouth closed. Let the breath move.",
+    "wisdomReflection": {
+      "title": "Wisdom Reflection",
+      "tagline": "Read today's teaching, sit with it, and notice what shifts.",
+      "duration": "3 min",
+      "purpose": "A short, text-first practice that pairs an available Daily Teaching with quiet reflection. If no teaching is available, it offers a neutral prompt instead of inventing a quotation.",
+      "howItWorks": [
+        "Read: Receive today's teaching, or the fallback reflection prompt.",
+        "Reflect: Spend a few quiet minutes noticing what the words bring up for you.",
+        "Check in: Name how you feel now, without judging the answer."
+      ],
+      "benefits": [
+        "Makes space to meet an authentic teaching at your own pace.",
+        "Builds a small habit of noticing your inner state.",
+        "Offers a calm, screen-light practice when video is not wanted."
+      ]
+    },
     "soulSync": {
       "title": "Soul Sync",
       "tagline": "Reconnect with the deeper intelligence within.",
