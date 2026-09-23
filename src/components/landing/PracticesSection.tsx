@@ -103,7 +103,7 @@ export const PracticesSection = () => {
                       <Clock className="w-3.5 h-3.5 text-saffron-gold" /> {p.durationLabel}
                     </span>
                     <span className="inline-flex items-center gap-1 text-saffron-gold font-semibold text-xs group-hover:translate-x-1 transition-transform">
-                      Practice <ArrowRight className="w-3.5 h-3.5" />
+                      {t('landing.practices.cta', 'Practice')} <ArrowRight className="w-3.5 h-3.5" />
                     </span>
                   </div>
                 </Link>

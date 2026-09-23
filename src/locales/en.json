@@ -237,7 +237,8 @@
       "addedFav": "Added to favorites",
       "addedDesc": "{{title}} has been added to your list.",
       "removedDesc": "{{title}} has been removed from your list.",
-      "exploreAll": "Explore all practices"
+      "exploreAll": "Explore all practices",
+      "cta": "Practice"
     },
     "footer": {
       "tagline": "Your spiritual AI companion for discovering inner peace and the beautiful state.",
@@ -299,6 +300,17 @@
           "description": "Pure observing awareness detached from the egoic story."
         }
       }
+    },
+    "safety": {
+      "privacyTitle": "Privacy you can review",
+      "privacyDesc": "Read how conversations and account information are handled before you decide what to share.",
+      "viewPrivacy": "Review privacy practices",
+      "boundariesTitle": "A clear role and scope",
+      "boundariesDesc": "AskMukthiGuru supports spiritual reflection. It does not provide medical, clinical, therapeutic, or emergency care.",
+      "viewTerms": "Understand the terms",
+      "crisisTitle": "Human help when it matters",
+      "crisisDesc": "For acute distress or crisis, use qualified professional and emergency resources—not an AI companion.",
+      "viewHelplines": "Find crisis resources"
     }
   },
   "mood": {

@@ -185,8 +185,17 @@ function layoutGraph(data: Subgraph): WisdomFlowNode[] {
   const center = { x: 620, y: 380 };
   if (user) positions.set(user.id, { x: center.x - 100, y: center.y - 40 });
 
-  const placeRing = (items: KGNode[], radius: number, startAngle: number, yScale = 0.82) => {
+  // Radius must grow with node count, or a dense ring's arc-length-per-node
+  // drops below NODE_WIDTH and nodes overlap regardless of angle — this is
+  // what happened at ~45+ conceptual nodes (fixed 245px radius, ~38px of
+  // arc per node against a 220px-wide box). Ring circumference divided by
+  // count must clear NODE_WIDTH plus a visual gap.
+  const ringRadius = (count: number, minRadius: number) =>
+    count <= 1 ? minRadius : Math.max(minRadius, (count * (NODE_WIDTH + 24)) / (2 * Math.PI));
+
+  const placeRing = (items: KGNode[], minRadius: number, startAngle: number, yScale = 0.82) => {
     if (!items.length) return;
+    const radius = ringRadius(items.length, minRadius);
     items.forEach((node, index) => {
       const angle = startAngle + (index / items.length) * Math.PI * 2;
       positions.set(node.id, {
@@ -196,17 +205,24 @@ function layoutGraph(data: Subgraph): WisdomFlowNode[] {
     });
   };
 
-  placeRing(conceptual, conceptual.length <= 1 ? 0 : 245, -Math.PI / 2);
+  placeRing(conceptual, 245, -Math.PI / 2);
   placeRing(personal, personal.length <= 1 ? 250 : 410, -Math.PI / 2 + 0.25);
 
+  let fallbackIndex = 0;
   return valid.map((node) => {
     let position = positions.get(node.id);
     if (!position) {
-      const fallbackAngle = valid.indexOf(node) * 0.75;
+      // Constant-radius fallback wraps every ~8.4 nodes (2π / 0.75rad) and
+      // stacks node 9 on node 1, node 17 on node 9, etc. — an Archimedean
+      // spiral (radius growing with index) keeps every wrap-around ring at
+      // a different distance from centre so nodes never re-collide.
+      const angle = fallbackIndex * 0.75;
+      const radius = 320 + fallbackIndex * 18;
       position = {
-        x: center.x + Math.cos(fallbackAngle) * 320 - 105,
-        y: center.y + Math.sin(fallbackAngle) * 260 - 43,
+        x: center.x + Math.cos(angle) * radius - 105,
+        y: center.y + Math.sin(angle) * radius * (260 / 320) - 43,
       };
+      fallbackIndex += 1;
     }
 
     return {
