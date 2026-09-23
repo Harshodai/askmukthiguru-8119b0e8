@@ -106,6 +106,13 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { CancelFlow } from '@/components/profile/CancelFlow';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { MoreHorizontal } from 'lucide-react';
 
 const tones: { value: GuruTone; label: string; hint: string }[] = [
   { value: 'gentle', label: 'Gentle', hint: 'Soft, nurturing replies' },
@@ -214,6 +221,7 @@ const ProfilePage = () => {
   const [retention, setRetention] = useState<number>(getMaxConversations());
   const [retentionDays, setRetentionDays_] = useState<number>(getRetentionDays());
   const [deleteAllConfirm, setDeleteAllConfirm] = useState<string>('');
+  const [clearLocalOpen, setClearLocalOpen] = useState<boolean>(false);
   const [eraseMemoriesOpen, setEraseMemoriesOpen] = useState<boolean>(false);
   const [eraseMemoriesConfirm, setEraseMemoriesConfirm] = useState<string>('');
   const [eraseMemoriesLoading, setEraseMemoriesLoading] = useState<boolean>(false);
@@ -1236,69 +1244,7 @@ const ProfilePage = () => {
 
                   <div className="pt-4 border-t border-hairline space-y-3">
                     <h4 className="text-[10px] uppercase tracking-[0.14em] font-medium text-destructive/80">{t('profile.danger.zone', 'Danger zone')}</h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="outline" className="gap-2 rounded-xl min-h-[44px] border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive">
-                            <Trash2 className="w-4 h-4" /> {t('profile.danger.clearLocalDataBtn', 'Clear Local Data')}
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent className="rounded-2xl">
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>{t('profile.danger.clearLocalDataTitle', 'Clear local data on this device?')}</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              {t('profile.danger.clearLocalDataDesc', "Erases this device's cached profile, local chat history, meditation stats, and response preferences. Your account and saved cloud memories remain untouched.")}
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel className="rounded-xl">{t('common.cancel', 'Cancel')}</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleClearLocalData} className="bg-destructive hover:bg-destructive/90 rounded-xl">
-                              {t('common.clear', 'Clear')}
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-
-                      <AlertDialog open={eraseMemoriesOpen} onOpenChange={setEraseMemoriesOpen}>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="outline" className="gap-2 rounded-xl min-h-[44px] border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive">
-                            <Brain className="w-4 h-4" /> {t('profile.danger.eraseCloudMemoriesBtn', 'Erase Cloud Memories')}
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent className="rounded-2xl">
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>{t('profile.danger.eraseCloudMemoriesTitle', 'Erase all cloud wisdom & memories?')}</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              {t('profile.danger.eraseCloudMemoriesDesc', 'Permanently erases all saved reflections, core memories, second brain notes, and vector knowledge across all your devices. This cannot be undone.')}
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <div className="py-2 space-y-1.5">
-                            <label htmlFor="erase-cloud-confirm" className="text-xs text-muted-foreground">
-                              {t('profile.danger.typeDeleteToConfirm', 'Type DELETE to confirm:')}
-                            </label>
-                            <Input
-                              id="erase-cloud-confirm"
-                              value={eraseMemoriesConfirm}
-                              onChange={(e) => setEraseMemoriesConfirm(e.target.value)}
-                              placeholder="DELETE"
-                              className="rounded-xl"
-                            />
-                          </div>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel onClick={() => setEraseMemoriesConfirm('')} className="rounded-xl">
-                              {t('common.cancel', 'Cancel')}
-                            </AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={handleEraseCloudMemories}
-                              disabled={eraseMemoriesConfirm.trim().toUpperCase() !== 'DELETE' || eraseMemoriesLoading}
-                              className="bg-destructive hover:bg-destructive/90 rounded-xl"
-                            >
-                              {eraseMemoriesLoading ? t('common.erasing', 'Erasing…') : t('common.confirm', 'Confirm')}
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-
+                    <div className="flex flex-wrap items-center gap-3">
                       <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
                         <DialogTrigger asChild>
                           <Button variant="destructive" className="gap-2 rounded-xl min-h-[44px]">
@@ -1351,6 +1297,75 @@ const ProfilePage = () => {
                           )}
                         </DialogContent>
                       </Dialog>
+
+                      {/* Rare/secondary destructive actions consolidated behind a menu to match the chat-toolbar decluttering pattern */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="icon" className="rounded-xl min-h-[44px] min-w-[44px] border-hairline" aria-label={t('profile.danger.moreOptions', 'More account options')}>
+                            <MoreHorizontal className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="rounded-xl">
+                          <DropdownMenuItem onClick={() => setClearLocalOpen(true)} className="text-destructive focus:text-destructive">
+                            <Trash2 className="w-4 h-4 mr-2" /> {t('profile.danger.clearLocalDataBtn', 'Clear Local Data')}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setEraseMemoriesOpen(true)} className="text-destructive focus:text-destructive">
+                            <Brain className="w-4 h-4 mr-2" /> {t('profile.danger.eraseCloudMemoriesBtn', 'Erase Cloud Memories')}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+
+                      <AlertDialog open={clearLocalOpen} onOpenChange={setClearLocalOpen}>
+                        <AlertDialogContent className="rounded-2xl">
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>{t('profile.danger.clearLocalDataTitle', 'Clear local data on this device?')}</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              {t('profile.danger.clearLocalDataDesc', "Erases this device's cached profile, local chat history, meditation stats, and response preferences. Your account and saved cloud memories remain untouched.")}
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel className="rounded-xl">{t('common.cancel', 'Cancel')}</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleClearLocalData} className="bg-destructive hover:bg-destructive/90 rounded-xl">
+                              {t('common.clear', 'Clear')}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+
+                      <AlertDialog open={eraseMemoriesOpen} onOpenChange={setEraseMemoriesOpen}>
+                        <AlertDialogContent className="rounded-2xl">
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>{t('profile.danger.eraseCloudMemoriesTitle', 'Erase all cloud wisdom & memories?')}</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              {t('profile.danger.eraseCloudMemoriesDesc', 'Permanently erases all saved reflections, core memories, second brain notes, and vector knowledge across all your devices. This cannot be undone.')}
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <div className="py-2 space-y-1.5">
+                            <label htmlFor="erase-cloud-confirm" className="text-xs text-muted-foreground">
+                              {t('profile.danger.typeDeleteToConfirm', 'Type DELETE to confirm:')}
+                            </label>
+                            <Input
+                              id="erase-cloud-confirm"
+                              value={eraseMemoriesConfirm}
+                              onChange={(e) => setEraseMemoriesConfirm(e.target.value)}
+                              placeholder="DELETE"
+                              className="rounded-xl"
+                            />
+                          </div>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel onClick={() => setEraseMemoriesConfirm('')} className="rounded-xl">
+                              {t('common.cancel', 'Cancel')}
+                            </AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={handleEraseCloudMemories}
+                              disabled={eraseMemoriesConfirm.trim().toUpperCase() !== 'DELETE' || eraseMemoriesLoading}
+                              className="bg-destructive hover:bg-destructive/90 rounded-xl"
+                            >
+                              {eraseMemoriesLoading ? t('common.erasing', 'Erasing…') : t('common.confirm', 'Confirm')}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
 
                     <p className="text-[11px] text-muted-foreground pt-1">
