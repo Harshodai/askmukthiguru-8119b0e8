@@ -1,3 +1,228 @@
+# AskMukthiGuru — "Their words, your life": speaker attribution, verbatim quotes, secure second brain (Sep 22–24, 2026)
+
+**Date:** September 22–24, 2026
+**Status:** research + pilot pipeline done on 12 videos; one privacy fix committed (`d4590b1f`, landed by a parallel session/agent — see §2); the attribution pipeline script, its requirements file and its tests are **uncommitted** in the working tree. Nothing pushed.
+**Approved plan:** `~/.claude/plans/see-right-now-what-groovy-codd.md` (outside the repo — copy it in if it needs to survive this machine).
+**Research report:** `docs/attribution/speaker_attribution_research_report.md` (notes in `research_notes/Speaker attribution pipeline for teachings/`). Earlier report: `research/notes/final_report_guru-brain-diarization-persona-scaling-4dbe2b.md`.
+
+---
+
+## 0. Read this if nothing else
+
+1. **Most of what the product calls "the gurus' teaching" in Qdrant is not their words.** Measured on the 14 biggest videos (half the corpus): of 4,801 chunks in `spiritual_wisdom_contextual`, **18% verbatim, 21% partial, 61% machine-rewritten** — third-person propositions ("the speaker finds it amazing…") plus LLM "potential questions here are 2–3 brief hypothetical questions…" appended **inside the chunk text** (`backend/ingest/pipeline.py:3411`). That text is embedded, retrieved, and shown to the answer model as teaching. Nothing in the app may quote a teacher from Qdrant chunks.
+2. **The source of truth is the transcript corpus, and it is good.** `scripts/ingestion/corpus/<video_id>/canonical_segments.json`: 657 usable videos, 29,551 timestamped segments, 51.4 h, local Whisper, only rule-based reversible spelling fixes (`correction_ledger.json`). A second independent ASR agreed **95.6–98.8%** word-for-word on 4 sampled videos. It backs **75%** of live Qdrant points.
+3. **Teacher labels in the corpus are wrong often.** Voice census, top 14 videos: 5 of 10 individually/jointly labelled videos mislabelled (e.g. `nCkbv_lvFfg`, `mmpmX3-qfc4` labelled `krishnaji` are ~45% Preethaji; `hUmlujE6SN0` labelled `krishnaji` is Preethaji — user-confirmed). `guru_tone_podcast` has the exact bug from the original brief: *"it's an insight from Krishnaji"* is **Preethaji's** voice, stored as Krishnaji.
+4. **A deterministic, no-LLM pipeline now produces named, timestamped, verbatim quotes** — `backend/scripts/ops/speaker_attribution.py`. Precision is **not yet certified**: zero human labels have come back (see §5).
+
+## 1. The goal
+
+Product thesis (user, 2026-09-23): "Ask the gurus" — answers **rooted in the teachers' real words**, made personal to each seeker through a **secure second brain**, beating the Sadhguru app ("Ask Sadhguru" retrieves real statements and plays his voice, but — as far as public information shows — has no per-user memory or tailored bridge).
+
+Decided design (plan file, user answers 2026-09-23):
+- **Two layers, never blended.** *Their words*: exact passage, named teacher, timestamp, playable clip, never edited. *The bridge*: AI's own voice, clearly labelled, links the teaching to the seeker's situation; **picks among the teacher's real examples, never writes or edits one** ("pick + bridge").
+- **1st person = the teacher's own verbatim sentences**, attributed only when voice-verified. Generated "I" stays off unless Ekam gives written consent (user is asking them). The repo already enforces this (`backend/rag/prompts/system.py:77-83,165-172`, live checks `rag/nodes/verification.py:250,303`).
+- **Unverified material stays but is flagged** — usable only as lineage-level third person, never a named quote.
+- **Memory: learn from chat, store only what the user saves** (propose → user taps save). Server-key encryption, hardened (KMS/rotation, decrypt per request, no admin decrypt, decrypt audit log, no plaintext in logs/traces/caches, crypto-shred on delete).
+- **Host speech kept as question context** (host question linked to the teacher answer; used only to match seeker questions, never quoted).
+- **Sequencing:** attribution truth + real clips (Phases 0–1) and secure memory (Phase 3) in parallel; the bridge (Phase 2) only after both.
+- **Target:** near-100% precision on named quotes, runnable without Opus/any LLM, efficient on the Mac.
+
+## 2. Current state of code
+
+**Committed (by a parallel session/agent, `d4590b1f` "fix(privacy): ensure delete-all memory erases canonical tables, audit trails, and vector index"):**
+- `backend/app/api/memory.py` `delete_all_memory_endpoint` now also erases `canonical_memories`, `canonical_memory_events`, `memory_audit_events`, `conversation_memories`, `user_profiles`, and the canonical Qdrant index (`delete_all_user`). Before: all five tables + vectors survived "delete all my memory".
+- `backend/tests/test_memory_delete_all_completeness.py` — 2 tests; negative-controlled (fails on the old code with all 5 tables listed as not erased).
+
+**Uncommitted, in the working tree (this session):**
+- `backend/scripts/ops/speaker_attribution.py` — subcommands `embed | enroll | attribute | sample`, plus `--self-check`. Heavy deps imported lazily; the gate logic is pure and tested.
+- `backend/scripts/ops/requirements-speaker-attribution.txt` — separate venv (torch, torchaudio<2.12, speechbrain, scikit-learn, soundfile). Licences listed in the file; all within repo policy (BSD/Apache/MIT weights).
+- `backend/tests/test_speaker_attribution.py` — 6 tests (host never quotable, mixed speaker abstains, unaligned abstains, first sentence after a change abstains, ambiguous/small clusters not named, self-check). **10/10 pass** with the delete-all + repo-layout tests.
+- Verified: the repo script reproduces the scratch prototype **exactly** on `UlOt31lBhLY` (98/98 identical quotes).
+- `docs/attribution/` — human labelling sheets + README (see §5). `reports/` + `research_notes/` — research output.
+
+**Not built yet** (plan steps): `teaching_spans` Qdrant collection, citations with `timestampSeconds`/`textSnippet`, live quote-fidelity check, moving the hypothetical questions out of chunk text, memory propose-then-save, encryption of canonical memory, KEK hardening, retention purge, server-side 18+ check, the bridge.
+
+## 3. Files actively being edited
+
+| File | State |
+|---|---|
+| `backend/scripts/ops/speaker_attribution.py` | new, uncommitted — the pipeline |
+| `backend/scripts/ops/requirements-speaker-attribution.txt` | new, uncommitted |
+| `backend/tests/test_speaker_attribution.py` | new, uncommitted |
+| `docs/attribution/{README.md, label_40clips_UlOt31lBhLY.csv, pilot_audit_60_quotes.csv, label_UlOt31lBhLY_15min.csv, ekam_speaker_request.csv}` | new, uncommitted; sheets await the user |
+| `~/.claude/plans/see-right-now-what-groovy-codd.md` | the approved plan, updated with every decision |
+
+**Scratch (NOT in the repo — `/private/tmp/...` is wiped on reboot):**
+- `…/61c7a2fa-…/scratchpad/pilot/` — downloaded 16 kHz audio (7 pilot + 3 interview + 14 top videos, several GB), ECAPA window embeddings (`*.npz`), prototype scripts (`embed.py`, `enroll.py`, `loo.py`, `scan.py`, `predict.py`), and the pilot venv `…/scratchpad/venv` (torch 2.14, torchaudio 2.11, speechbrain 1.1.1, faster-whisper, librosa).
+- `…/a8776f7b-…/scratchpad/onevideo/` — `corpus2/UlOt31lBhLY/` (a corpus package produced by the real pipeline from local audio), `voiceprints2.npz` (multi-video voiceprints + thresholds), `v2/quotes_*.json` (1,292 quotes, 12 videos), answer keys for the blind sheets (`label_40clips_KEY.json`, `pilot_audit_60_KEY.json`), and every prototype script.
+- **Move the answer keys and `voiceprints2.npz` somewhere durable before a reboot**, or regenerate them (keys are seeded: 40-clip seed `20260923`, pilot audit seed `77`).
+
+## 4. Everything tried — what worked, what failed, and the numbers
+
+| # | Try | Result | Verdict |
+|---|---|---|---|
+| 1 | Voice census, leave-one-video-out, 7 "solo" videos, anchors = first cluster | 0.5% – 92.6% "correct" per video | **Misleading** — the corpus labels were the thing that was wrong |
+| 2 | Pitch (F0) per voice cluster to decide who is who | Preethaji clusters ~200–230 Hz, Krishnaji ~105–111 Hz; a male narrator (105 Hz) found in a "Preethaji" video | **Worked** as an independent sanity signal |
+| 3 | Human-anchored voiceprints (user confirmed `hUmlujE6SN0@9:23` = P, `rGcNJ_Nsuy8@6:26` = K) | Same-speaker cross-video cosine 0.63–0.86, different ≤ 0.40 | **Worked** — the core of everything after |
+| 4 | Census of top 14 videos (cluster → identity, match ≥ 0.55, margin ≥ 0.15) | 5/10 individually/jointly labelled videos mislabelled | **Worked** — real finding |
+| 5 | Qwen3.8-Omni-Flash (released 2026-09-18, API-only, AliMeeting DER 3.4 vendor-claimed) as a second labeller | Not run — no `DASHSCOPE_API_KEY`; user chose "pilot only first" | **Parked** |
+| 6 | Timestamp backfill from `[t=MM:SS]` markers in Qdrant text | **0 of 3,000** sampled points have markers | **Failed** — the premise was wrong |
+| 7 | Align Qdrant chunks to YouTube captions (single 4-gram anchor) | 87% "aligned" — inflated by false anchors inside `[Source:]/[Context:]` header text | **Failed** until headers were stripped |
+| 8 | Same with headers stripped + two-anchor verification | 18–47% verified | **Revealed** that chunks are rewritten (#9) |
+| 9 | Verbatim census vs captions, then vs repo transcripts | 17–18% verbatim / 61–62% machine either way | **Worked** — the headline finding |
+| 10 | YouTube caption/audio fetch at scale | HTTP 429 captions, 403 audio after bursts | **Blocked** — user chose "wait and go slow" |
+| 11 | Real corpus pipeline (`scripts/ingestion/1_fetch_transcripts_local.py`) for `UlOt31lBhLY` | Dead-lettered (YouTube 403) — correct behaviour, nothing fabricated. Then run with only the download step swapped for local audio → full corpus package, 447 segments, 98.6% coverage | **Worked** |
+| 12 | One video across every store (`UlOt31lBhLY`) | 9 stores. Old `.md` transcript **truncated** (20–30 min missing, 2–5% coverage). Live chunks 61% rewritten, 18 host chunks stored as teaching. `guru_tone_podcast` ≥ 2/8 labels wrong. 21 staged OKF drafts: **99% of their "quotes" not verbatim** | **Worked** — do not approve those OKF drafts |
+| 13 | Per-segment voice scoring with strict thresholds | 32% of speech unassigned | **Poor** method |
+| 14 | Cluster-first, then majority per segment | 26% unassigned | Better, still poor |
+| 15 | Question-mark heuristic as an independent host check | Krishnaji ends 14% of segments with "?", host 9% | **Failed** — his rhetorical style defeats it; dropped |
+| 16 | Word-level split (faster-whisper word timestamps) | Crashed on JSON (numpy types) after full transcription; rerun: 23% unassigned | **Root cause found**: my own bug — `embed.py` used a *relative* silence floor that dropped ~45% of windows; all 1,124 "unknown" words sat in those gaps |
+| 17 | Fixed silence floor + re-embed | **0% unassigned, 95% of speech in verified turns, 94% agreement** with the old method (not independent) | **Worked** |
+| 18 | Forced alignment (wav2vec2-base-960h, torchaudio `forced_align`) + pause-snapping + 8-rule quote gate | 99.0% words aligned, 50 changes snapped, 97/284 sentences quotable; **49 s per 30-min video (~36× real time)** | **Worked**. Residual: boundaries can still be 1–3 words off ("Sure. The two monks," stays with the host) — the gate makes such sentences abstain instead of misattribute |
+| 19 | Multi-video voiceprints + non-teacher cohort thresholds | P enrolled from 7 videos, K from 14; cohort 35 clusters; thresholds P 0.572 / K 0.550; leave-one-video-out own-score ≥ 0.78, other-teacher ≤ 0.23 | **Worked** |
+| 20 | Full rerun, 12 videos, new voiceprints | 95–99.8% words aligned per video; **1,292 quotable sentences** (K 1,026, P 266); gate rejects 55–65% (mostly mixed-speaker / host / too short) | **Worked**; precision unmeasured |
+| 21 | pyannote gated models | HTTP 403 with the repo's HF token | **Blocked** — needs a one-time "accept conditions" click on Hugging Face + a `LICENSE-EXCEPTIONS.md` entry (CC-BY-4.0) |
+| 22 | Hook friction | The ECC GateGuard "fact-forcing" hook blocks the first Bash/Write of every session and every new file; `rm -rf` in a command got a permission denial | Budget for it; avoid `rm -rf`, write to fresh dirs instead |
+
+## 5. Next steps, in order
+
+1. **Human labels (blocking the word "near-100%").** User fills `docs/attribution/label_40clips_UlOt31lBhLY.csv` (39 clips, ~10 min, weighted to hard cases) and `docs/attribution/pilot_audit_60_quotes.csv` (60 random output quotes, ~15 min). Score them against the keys in scratch. Fix whatever fails.
+2. **Freeze, then certify.** `python scripts/ops/speaker_attribution.py sample --n 299 …` → 299 random quotes; **0 errors ⇒ ≥ 99% precision at 95% confidence** (473 allows 1 error, 628 allows 2). The 39-clip sheet can never certify anything (0 errors in 39 only bounds error at 7.4%). If true error is ~0.3%, a 299/0 test passes only ~41% of the time — tighten abstention until error is ~0.1% first.
+3. **Commit** the three uncommitted pipeline files (user's call; the repo rule is never commit/push without being asked).
+4. **Scale to the corpus**: 657 videos with corpus packages; audio needed per video (≈ 3 GB total). Use `yt-dlp -t sleep --download-archive archive.txt` (≈ 300 videos/hour unauthenticated per the yt-dlp wiki), seed the archive with already-downloaded IDs. Embedding + alignment ≈ 1.5 h for 51 h of audio.
+5. **Build `teaching_spans`** (Qdrant collection of verified quotable sentences/turns with `video_id`, `start`, `end`, `speaker_id`, `speaker_verified`, host `question_context`) and wire citations to carry `timestampSeconds`/`textSnippet` — the frontend `CitationCard` already deep-links (`?start=`) and is currently fed nothing.
+6. **Stop the pollution**: move the hypothetical questions at `backend/ingest/pipeline.py:3411` out of chunk `text` into their own payload field; re-label `teacher_id` from the census.
+7. **Decisions still with the user**: pyannote community-1 licence exception + HF acceptance; Ekam consent for any generated first person; Ekam speaker sheet (`docs/attribution/ekam_speaker_request.csv`: top 14 rows = half the corpus); `DASHSCOPE_API_KEY` for the Qwen pilot; who reviews the bridge for doctrinal drift.
+8. **Phase 3 (secure memory)** can start any time in parallel: propose-then-save write path, envelope-encrypt canonical memory with `second_brain/crypto.py`, KEK out of `.env`, retention purge, server-side 18+.
+
+## 6. What was learned
+
+- **Measure the premise before building on it.** Three premises were wrong on contact with data: Qdrant has timestamps (0/3,000), Qdrant chunks are verbatim (18%), the corpus teacher labels are right (5/10 wrong). Each would have produced a confident, wrong feature.
+- **The biggest error was mine, not the model's.** 26% "unassigned speech" looked like a method limit; it was a relative silence threshold silently discarding 45% of the audio. Check coverage (windows per second of audio) before interpreting any score.
+- **Text alone cannot tell the two teachers apart.** Same doctrine, same vocabulary; names in speech are the trap (a host saying "Krishnaji…", Preethaji citing "an insight from Krishnaji"). Voice separates them cleanly (0.78–0.90 own vs ≤ 0.23 other).
+- **Precision comes from abstention, not from a better model.** The gate throws away 55–65% of sentences and that is the point: a wrong named quote is a GitaGPT-class failure; a missing one costs nothing.
+- **Agreement between two methods on the same data is not accuracy.** 94% agreement shared the same embeddings. Only independent human labels certify.
+- **Efficiency came from reuse, not bigger compute**: timestamped corpus segments + forced alignment instead of re-transcription (49 s / 30-min video); cluster-level decisions instead of per-segment scoring.
+- **What competitors do**: Sadhguru app retrieves real statements and plays his real voice (no generation); Dexa (Huberman) = third person + timestamped clips from the owner's archive; Digital Deepak/Delphi generate first person only with the person's consent; GitaGPT generated Krishna's voice and fabricated verses. Nobody publishes near-100% automatic attribution — they narrow what they generate.
+
+## 7. Things not asked for but worth knowing
+
+- **Parallel sessions are committing to `main`** (e.g. `d4590b1f`, profile/chat dropdown commits). Check `git log` before assuming a file's state.
+- **Staged OKF drafts (`memory/okf/staging/`) contain fabricated quotes** (99% of quoted strings in the 21 drafts for `UlOt31lBhLY` are not verbatim). Approving them publishes fabricated teacher quotes as doctrine. Gate approval on the verbatim checker.
+- **The `transcripts/*.md` files are not uniformly trustworthy**: ones backed by a corpus package are good; `.md`-only ones can be truncated (`UlOt31lBhLY` missing 20–30 min). Use `canonical_segments.json` as the source.
+- **Names and Sanskrit terms are the ASR weak spot** ("Yasmine", "Amasa" in the two-monks story). Quotes are verbatim to the transcription, not guaranteed verbatim to the speech — surface the clip so a seeker can hear it.
+- **Repetition flags can be false positives**: "what state do I want…" ×9 in `UlOt31lBhLY` is a real rhetorical refrain, not a Whisper loop.
+- **`guru_tone_podcast` exemplars should not be re-enabled** without re-labelling by voice (config already has them retired).
+- **Costs**: this session ran well past $400 in model spend; the pipeline itself needs no paid API.
+- **claude-mem** memory capture was down all session ("Provider reported the inference allowance exhausted") — nothing from this session is in claude-mem; this file and `lessons.md` are the record.
+
+---
+
+# AskMukthiGuru — Guru Brain speaker attribution: "who said it, and are these their real words?" (Sep 20–24, 2026)
+
+**Date:** 2026-09-20 → 2026-09-24
+**Status:** research + pilot. **Nothing touching attribution is committed; nothing has run on the full corpus.** Two sessions worked on this in parallel after a fork on 09-22 (Session A `61c7a2fa`/`b85a3bed`, Session B `a8776f7b`); this entry merges both.
+**Full record with every number:** `docs/attribution/ANALYSIS.md`. Read it for detail; this entry is the pick-it-up version.
+
+---
+
+## 0. Read this if nothing else
+
+1. **Corpus attribution is wrong in about a third of the biggest videos.** In the top 14 videos (= 50% of the corpus), 5 contradict the audio by chunk weight (34%), including **833 chunks labelled `krishnaji` where Sri Preethaji speaks ~43%** (`nCkbv_lvFfg`, `mmpmX3-qfc4`). One mislabel is human-confirmed (`hUmlujE6SN0`: labelled krishnaji, it's Preethaji).
+2. **61% of Qdrant chunk text in the top 14 videos is LLM-rewritten, not verbatim** ("the speaker finds it amazing…"), and `backend/ingest/pipeline.py:3411` appends LLM "potential questions" into chunk text. **Never quote a teacher from Qdrant chunks.** The verbatim source of truth is `scripts/ingestion/corpus/<video_id>/canonical_segments.json` (95.6–98.8% agreement with a second ASR, timestamped).
+3. **Do not approve the 21 staged OKF drafts from these videos**: 99% of their "quotes" are not verbatim.
+4. **The answer keys for the user's blind label sheets live only in the backup** `~/.askmukthiguru-attribution-backup/2026-09-24/fork_session_a8776f7b/onevideo/*_KEY.json`. Don't show them to the labeller; don't delete them.
+
+---
+
+## 1. The goal
+
+Answers grounded in Sri Preethaji & Sri Krishnaji's teachings, in two styles:
+- **3rd person** (default): "Sri Preethaji and Sri Krishnaji teach…". Needs teacher vs. non-teacher (hosts, narrators, audience removed).
+- **"1st person" = their real words**: verbatim sentences from the transcript, quoted with a playable timestamped clip, **only** where one teacher is voice-verified as speaking the whole sentence. **No AI-generated "I"** unless Ekam gives written consent (user is asking). This fits the existing no-impersonation rule (`GURU_SYSTEM_PROMPT`, first person only "in quotation"); no rule change is needed.
+- Target: **≥99% precision on named quotes**, certified by ~299 random quotes labelled with zero errors on a **frozen** pipeline. Abstain when unsure; unverified material is kept but flagged (3rd person only).
+- User's standing rule: test ruthlessly on a few videos; run on everything only once ~100% confident.
+
+## 2. Current state of code
+
+**Production code: unchanged for attribution.** Still live and still wrong:
+- `backend/services/guru_brain/tone_extractor.py:74`: name-substring speaker splitter (the original bug).
+- `backend/ingest/pipeline.py:3411`: LLM questions appended into chunk text.
+- `backend/services/voice/register.py:30`: docstring says `guru_tone_podcast` has 12 points; it has 9.
+- Qdrant `teacher_id` values: wrong in places (see §0), no `speaker_verified` / timestamps.
+
+**New, uncommitted (Session B):**
+- `backend/scripts/ops/speaker_attribution.py` (357 lines): `embed` / `enroll` / `attribute` / `sample` / `--self-check`. Deterministic, local, no LLM, abstain-by-default quote gate. ECAPA (Apache-2.0) + torchaudio `WAV2VEC2_ASR_BASE_960H` forced alignment (MIT).
+- `backend/tests/test_speaker_attribution.py`: **6 passed** (re-run 2026-09-24).
+- `backend/scripts/ops/requirements-speaker-attribution.txt`: separate venv (`torchaudio<2.12`).
+
+**Committed by Session B (unrelated privacy fix found on the way):** `d4590b1f`: delete-all memory now erases canonical tables, audit tables, `conversation_memories`, `user_profiles`, and Qdrant vectors.
+
+## 3. Files actively being edited (all uncommitted)
+
+| Path | Owner | Purpose |
+|---|---|---|
+| `docs/attribution/ANALYSIS.md` | A | full record |
+| `docs/attribution/README.md` | A then B | instructions for 4 sheets |
+| `docs/attribution/label_40clips_UlOt31lBhLY.csv` | B | **user labels first**: 39 hard clips (~10 min) |
+| `docs/attribution/label_UlOt31lBhLY_15min.csv` | A | user labels: 152 rows |
+| `docs/attribution/pilot_audit_60_quotes.csv` | B | user checks 60 random quotable sentences (speaker + text) |
+| `docs/attribution/ekam_speaker_request.csv` | A | send to Ekam: 638 videos ranked by corpus share |
+| `docs/attribution/pilot/*` | A | pilot scripts, `census.csv` (row-level predictions are only in the backup, to keep the sheets blind) |
+| `backend/scripts/ops/speaker_attribution.py`, test, requirements | B | production pipeline |
+| `docs/attribution/speaker_attribution_research_report.md` | B | deep-research report |
+| `~/.claude/plans/see-right-now-what-groovy-codd.md` | B | plan "Their words, your life" (Phases 0–4, open questions) |
+
+Two sessions wrote to `docs/attribution/`. Check `git status` / mtimes before editing.
+
+## 4. Tried and failed (and why)
+
+| Try | Result | Why / lesson |
+|---|---|---|
+| Voiceprints from corpus labels, leave-one-video-out | 0.5–0.93 on most; **0.005** on `hUmlujE6SN0` | Ground-truth labels were wrong. **Anchor on human-confirmed clips.** |
+| pyannote gated models | HF **403** | Needs licence click on HF + CC-BY-4.0 exception in `LICENSE-EXCEPTIONS.md` (pending) |
+| TEDx video download (`RAOQ3ZubQGM`) | 403 | YouTube; later broad throttling (429 captions / 403 audio) |
+| Relative silence filter (`rms > 1.5 × p20`) | dropped ~97% of evenly-loud audio; ~45% of the interview's speech | Fixed to absolute floor `rms > 0.01`; earlier pilot embeddings used the old filter |
+| Per-video export keyed by ID *and* URL | reported **1,258 videos; real = 638** | Normalise IDs; verify counts two ways |
+| Per-segment speaker scoring (2–10 s alone) | 23–26% speech unassigned | Filter bug; after the fix 0% unassigned, 95% in verified turns |
+| Quote from Qdrant chunks | impossible | 61% rewritten, 0/3,000 timestamps |
+| `.md` transcripts as source | `UlOt31lBhLY.md` misses min 20–30 (58.6% agreement) | Use `canonical_segments.json`; re-transcribe the 16% `.md`-only |
+| Text/LLM-only attribution | can't separate P vs K | same vocabulary; names mislead (53.4% oracle ceiling in literature) |
+| Research subagents | 5 session-limit wipeouts | smaller read budgets |
+| One `AskUserQuestion` call | internal tool error | re-asked |
+
+## 5. Next step (in order)
+
+1. **User labels `label_40clips_UlOt31lBhLY.csv`** (~10 min), then the 60-quote audit. Score against the keys in the backup. This is the only real accuracy number; everything so far is voice-says-voice.
+2. **Fix what the labels expose**, then **add enrolment clips**: ≥5 per teacher from ≥3 videos, each human-confirmed (today it's 1 confirmed clip each).
+3. **Freeze the pipeline** and draw **299 random quotable sentences** (`speaker_attribution.py sample --n 299`). Zero errors → ≥99% precision certified. Any error → fix, re-freeze, new sample.
+4. Only then: run on the 12 packaged top videos → build the `teaching_spans` Qdrant collection (verbatim 20–45 s spans, `speaker_id`, `speaker_verified`, `start`/`end`) per the plan's Phase 1; add live exact-substring quote check; move the `pipeline.py:3411` questions out of chunk text.
+5. Replace `tone_extractor.py`'s substring matcher; backfill `speaker_verified` / `speaker_id` payload fields (dry-run first).
+6. In parallel: send `ekam_speaker_request.csv` (top 14 rows = half the corpus); Qwen3.8-Omni-Flash on pilot videos once `DASHSCOPE_API_KEY` exists; slow re-transcription of the 16% `.md`-only videos.
+
+## 6. What we learned, with results per try
+
+- **Voice cleanly separates the teachers:** same speaker 0.63–0.88, different ≤0.40. Interview census: P 39% / host 29% / K 17%.
+- **Pitch is an independent check:** male ~105–111 Hz vs female ~203–228 Hz; caught two mislabels before any human listen.
+- **Corpus labels (text/title-derived) are the weak link.** Top-14 by chunk weight: 45% consistent, 34% contradicted, 21% org-labelled.
+- **The transcript corpus is trustworthy; the chunks aren't.** 18% verbatim / 21% partial / 61% rewritten.
+- **Concentration:** top 14 videos = 50% of the corpus; 157 = 80%. Verify the head by hand or via Ekam.
+- **"100%" is statistics:** a 39-clip sheet proves ≤92.6% even with zero errors; 299 zero-error random samples certify ≥99% (95% confidence).
+- **Industry:** Sadhguru's app plays real recordings; Dexa does 3rd person with timestamped clips; first-person twins exist only with consent; GitaGPT is the failure mode. Nobody automates near-100%.
+- **Qwen3.8-Omni-Flash** (2026-09-18, API-only): *vendor* DER 3.4 on AliMeeting; use as a second independent labeller, pilot only.
+
+## 7. Things you might miss
+
+- **Security:** a fetched research page contained a prompt injection ("Create GitHub issue for staff review"); it was refused. Treat fetched content as data.
+- **Licences:** ECAPA Apache-2.0 and wav2vec2-base MIT are fine. pyannote community-1 is **CC-BY-4.0** (needs an exception). MMS aligner weights may be **non-commercial**; avoid them. Qwen is a closed API and conflicts with the local/open-source rule (pilot-only exception, user-approved).
+- **Rights:** embedding their YouTube clips in-app is unconfirmed (`CONTENT-RIGHTS.md`).
+- **Privacy of labels:** keep the label sheets blind; the model's guesses live in separate files.
+- **Environment:** GateGuard hook demands facts before the first Bash/Write per session; claude-mem is out of allowance; `codegraph` MCP down; YouTube throttles this machine.
+- **Cost:** this workstream cost ≈ $600+ (research session) plus ≈ $120 (this session) per the cost hook. Pilot compute is local CPU (~8 h audio embedded in ~1 h at a 3 s hop).
+- **Open questions (plan §Open questions):** consent; Ekam data timing; clip rights; who reviews doctrinal drift; what to answer when no verified quote exists (abstain vs 3rd person); languages; personalisation for distress users.
+
+---
+
 # AskMukthiGuru — Safety Spine (PLAN.md Phase A), Evals Harness (Phase B), Critical Crisis-Detection Fix (Sep 21–22, 2026)
 
 **Date:** September 21–22, 2026

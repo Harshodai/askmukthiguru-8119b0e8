@@ -1,3 +1,64 @@
+## Sep 20–24, 2026 — Speaker attribution, companion lessons (Session A: research, voiceprint pilot, census, sheets)
+
+Complements the L-VERBATIM / L-SPEAKER / L-OKF-QUOTES / L-TRANSCRIPT / L-YOUTUBE entries below (Session B). Full record: `docs/attribution/ANALYSIS.md`; pick-up: top of `handoff.md`.
+
+### L-ATTRIB-GT-1. Don't validate a speaker model against the labels you are auditing
+- **Who**: Claude Opus 5.5, 2026-09-22.
+- **What**: Voiceprints built from corpus `teacher_id` labels, tested leave-one-video-out on "solo" videos, scored 0.50–0.93, and **0.005** on `hUmlujE6SN0`. It looked like a broken model. It was broken ground truth: `hUmlujE6SN0` (labelled krishnaji) is Sri Preethaji, and `Ejcq9mNGJk0` (labelled preethaji) is mostly a male promo narrator ("Gathered more than 300 members lit…"). Two cheap independent signals exposed it before any human listen: dominant-voice pitch (203 Hz vs 105 Hz) and a Whisper snippet of the dominant voice.
+- **Rule**: ground truth for speaker identity = human-confirmed clips (user confirmed 2 anchors by ear, 2026-09-22). Treat corpus labels as the thing under test, never the answer key.
+
+### L-ATTRIB-COUNT-1. Normalise IDs before counting — the corpus has 638 videos, not 1,258
+- **What**: A per-video export keyed some Qdrant points by `video_id` and others by full `source_url`, so every video appeared twice. I reported "1,258 videos" to the user before catching it while building the Ekam request sheet.
+- **Also found**: the corpus is extremely concentrated. By chunk count, the **top 14 videos = 50%**, 157 = 80%, 362 = 90%, 490 = 95%. Verifying the head by hand or with Ekam's help beats automating the long tail first.
+- **Rule**: extract the 11-char YouTube ID from every key before grouping; cross-check any count against a second query.
+
+### L-ATTRIB-BLIND-1. Keep blind label sheets blind, and keep their answer keys out of `/tmp`
+- **What**: Row-level model predictions (`pred_UlOt31lBhLY.csv`) sat in `docs/attribution/pilot/` next to the user's blind 15-minute sheet; they were removed before commit. The answer keys for both blind sheets (`label_40clips_KEY.json`, `pilot_audit_60_KEY.json`), the enrolled voiceprints and all per-video results existed only in `/private/tmp/.../scratchpad`, which a reboot wipes. Without the keys, the user's labelling work can't be scored.
+- **Rule**: never commit predictions or keys next to a sheet a human will label. Back up keys and small results to a durable, out-of-repo path the labeller won't browse (done: `~/.askmukthiguru-attribution-backup/2026-09-24/`).
+
+### L-PARALLEL-SESSIONS-1. Forked sessions edited the same folder; check before writing a handoff
+- **What**: The conversation forked on 2026-09-22 into two sessions (`61c7a2fa`/`b85a3bed` and `a8776f7b`). Both wrote to `docs/attribution/` (one rewrote `README.md` and added two sheets, a production script, tests and lessons). The first draft of this session's handoff described only its own work and would have been wrong. Caught by noticing unfamiliar files and a changed `README.md` mtime, then reading the other session's transcript (`~/.claude/projects/<repo>/<session>.jsonl`).
+- **Rule**: before a handoff or commit, run `git status`, check mtimes of shared files, and grep recent session transcripts for the same artefacts. Commit only paths the workstream owns.
+
+### L-VENDOR-OMNI-1. Omni-model diarization: use as a second, independent labeller, not the source of truth
+- **What**: Qwen3.8-Omni-Flash (released 2026-09-18) reports AliMeeting DER 3.4 / cpWER 17.2 (previous Qwen omni: 88.1) and joint audio-video speaker identity. These are vendor numbers, the blog is still marked "[draft]", it's API-only (no open weights) and it conflicts with the repo's local / open-source rule. Industry practice agrees: Sadhguru's app plays real recordings, Dexa answers in 3rd person with timestamped clips, first-person twins (Digital Deepak, Delphi) exist only with the person's consent, and GitaGPT (generated Krishna's voice) fabricated verses.
+- **Rule**: attribution of a teacher's words needs two independent signals that agree (local voiceprints + human, optionally + an omni model), plus abstention. Generated first person needs written consent; "1st person" here means quoting their verbatim transcript words with a clip. User decision 2026-09-22: Qwen on pilot videos only, pending a `DASHSCOPE_API_KEY`.
+
+## Sep 22–24, 2026 — Speaker attribution & verbatim quotes: most "teaching" chunks are not the teachers' words; a no-LLM pipeline for named, timestamped quotes
+
+### L-VERBATIM-1. 61% of Qdrant "teaching" chunks are machine-rewritten, not what the teachers said — never quote a teacher from `spiritual_wisdom_contextual`
+- **Who**: Claude Opus 5.5, 2026-09-23, while trying to backfill timestamps onto chunks for clip deep-links.
+- **What**: 3-gram overlap of every chunk against the video's own transcript, 14 largest videos (half the corpus, 4,801 chunks): 18% verbatim, 21% partial, **61% machine-rewritten**. The rewrites are third-person propositions ("the speaker finds it amazing how stressed…", "the text states that…") plus LLM "potential questions here are 2–3 brief hypothetical questions…" appended **inside the stored chunk text** by `backend/ingest/pipeline.py:3411` — so they are embedded, retrieved and handed to the answer model as if they were teaching. Checked against both YouTube captions and `transcripts/*.md`; same answer either way.
+- **Rule**: a Qdrant chunk is a retrieval key, not a quotation source. Quote only from `scripts/ingestion/corpus/<video_id>/canonical_segments.json` (timestamped local-Whisper text with rule-based, reversible corrections only; a second independent ASR agreed 95.6–98.8%). Move the hypothetical questions out of `text` into their own payload field.
+
+### L-VERBATIM-2. The live corpus has no timestamps at all — the `[t=MM:SS]` marker path in `ingest/pipeline.py` never reached the data
+- **What**: The plan assumed chunks carried `[t=MM:SS]` markers to backfill `start_s`. **0 of 3,000** sampled points had one; the frontend `CitationCard` already deep-links `?start=` but the backend never sends `timestampSeconds`. The corpus packages (`canonical_segments.json`) do have real per-segment start/end.
+- **Rule**: check that a field exists in the live store (`scroll` a few thousand points) before designing a backfill around it.
+
+### L-SPEAKER-1. Corpus teacher labels are wrong often; text cannot tell the two teachers apart, voice can
+- **What**: ECAPA voice census of the top 14 videos found 5 of 10 individually/jointly labelled videos mislabelled (`nCkbv_lvFfg`, `mmpmX3-qfc4` labelled `krishnaji` are ~45% Preethaji; `hUmlujE6SN0` labelled `krishnaji` is Preethaji — user-confirmed by listening). `guru_tone_podcast` holds the original brief's bug verbatim: *"it's an insight from Krishnaji"* is Preethaji's voice, stored as Krishnaji. Voiceprints anchored on 2 human-confirmed clips and widened across videos separate them cleanly: leave-one-video-out own-score 0.78–0.90, other-teacher ≤ 0.23.
+- **Rule**: speaker identity comes from voice, anchored on human-confirmed clips — never from names spoken in the transcript, titles, or channel metadata. Pitch (female ~200–230 Hz, male ~105–111 Hz) is a cheap independent sanity check; question marks are not (Krishnaji's rhetorical questions outnumber the host's).
+
+### L-SPEAKER-2. "26% unassigned speech" was my own silence-filter bug, not a method limit
+- **What**: `embed.py` dropped windows below `max(0.01, 20th-percentile × 1.5)` RMS — a *relative* floor that discarded ~45% of an evenly-loud interview. All 1,124 "unknown" words sat exactly in those gaps. Absolute floor (`rms > 0.01`) → 0% unassigned, 95% of speech in verified turns.
+- **Rule**: before interpreting any per-window score, check coverage (windows per second of audio ≈ 1/hop). A threshold relative to the file's own distribution will silently eat speech on uniform recordings.
+
+### L-SPEAKER-3. Precision comes from abstention; agreement between two methods is not accuracy
+- **What**: `backend/scripts/ops/speaker_attribution.py` (forced alignment with wav2vec2-base-960h via torchaudio, speaker changes snapped to the longest pause within 2 s, 8-rule quote gate) quoted 1,292 of ~3,000 sentences across 12 videos (K 1,026, P 266) at ~49 s per 30-min video, rejecting 55–65% (mixed speaker, host, too short, near turn edges). Residual 1–3-word boundary errors ("Sure. The two monks," left with the host) become abstentions, not misattributions. A 94% agreement between two variants shared the same embeddings, so it bounds nothing.
+- **Rule**: only independent human labels certify. 299 random output quotes with 0 errors ⇒ ≥ 99% precision at 95% confidence (473 allows 1, 628 allows 2); a 39-clip sheet can only find failure modes (0/39 bounds error at 7.4%). Freeze the pipeline before drawing the certification sample.
+
+### L-OKF-QUOTES-1. Staged OKF drafts contain fabricated teacher quotes
+- **What**: For `UlOt31lBhLY`, 106 of 107 quoted strings (99%) in the 21 drafts under `memory/okf/staging/` are not in the transcript. Staging is excluded from retrieval, so nothing is live — but approving a draft publishes those "quotes" as doctrine.
+- **Rule**: gate OKF approval on the verbatim checker (`evals/grounding/verify_quote.py`) against the corpus text.
+
+### L-TRANSCRIPT-1. `.md`-only transcripts can be truncated
+- **What**: `transcripts/UlOt31lBhLY.md` (no corpus package) is missing minutes 20–30 (2–5% coverage there vs ~80% elsewhere) — 3,362 words vs 5,035 from the full audio.
+- **Rule**: trust transcripts that have a `canonical_segments.json` + `quality_report.json`; re-transcribe `.md`-only videos from audio (16% of live points).
+
+### L-YOUTUBE-1. YouTube rate-limits this machine after bursts (429 captions, 403 audio)
+- **What**: The real corpus pipeline correctly dead-lettered `UlOt31lBhLY` rather than fabricate. Running it with only the download step swapped for already-downloaded local audio produced a full corpus package (447 segments, 98.6% coverage).
+- **Rule**: keep downloaded audio permanently, go slow (`yt-dlp -t sleep --download-archive`), and ask Ekam for source recordings.
+
 ## Sep 24, 2026 — Profile page decluttered: danger-zone actions consolidated into a dropdown
 
 ### L-PROFILE-DECLUTTER-1. `/profile` Account & Data card had 3 always-visible destructive buttons; consolidated to match chat's toolbar pattern
