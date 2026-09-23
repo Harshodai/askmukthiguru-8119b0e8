@@ -23,10 +23,6 @@ const PracticeDetailPage = () => {
   const { isFavorited, toggle } = useFavorites();
   const { toast } = useToast();
   const { t, i18n } = useTranslation();
-  // Localised copy for rendering; base `practice` remains canonical English for
-  // SEO meta + JSON-LD (which must be language-neutral at server-render time).
-  const lp = practice ? getLocalizedPractice(practice, t, i18n.language) : practice;
-
   const fav = practice ? isFavorited(practice.slug) : false;
   const [shareCopied, setShareCopied] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -74,6 +70,10 @@ const PracticeDetailPage = () => {
     );
   }
 
+  // Localised copy for rendering; base `practice` remains canonical English for
+  // SEO meta + JSON-LD (which must be language-neutral at server-render time).
+  const lp = getLocalizedPractice(practice, t, i18n.language);
+
   // Build sandboxed embed URL — no autoplay, modest branding, no related videos from other channels.
   const embedSrc = practice.videoId ? `https://www.youtube-nocookie.com/embed/${practice.videoId}?modestbranding=1&rel=0` : null;
   const watchUrl = practice.videoId ? `https://www.youtube.com/watch?v=${practice.videoId}` : null;
@@ -85,15 +85,15 @@ const PracticeDetailPage = () => {
     : null;
 
   const handleShare = async () => {
-    const stepsText = lp!.howItWorks.map((step, idx) => `${idx + 1}. ${step}`).join('\n');
-    const benefitsText = lp!.benefits.map((b) => `• ${b}`).join('\n');
+    const stepsText = lp.howItWorks.map((step, idx) => `${idx + 1}. ${step}`).join('\n');
+    const benefitsText = lp.benefits.map((b) => `• ${b}`).join('\n');
     const mediaText = watchUrl ? `\n\n🎥 *Guided Video:* ${watchUrl}` : '';
-    const shareText = `🧘 *${lp!.title}* — ${lp!.tagline} (${lp!.durationLabel})\n\n📖 *How to Practice:*\n${stepsText}\n\n✨ *Key Benefits:*\n${benefitsText}${mediaText}\n\nShared via AskMukthiGuru`;
+    const shareText = `🧘 *${lp.title}* — ${lp.tagline} (${lp.durationLabel})\n\n📖 *How to Practice:*\n${stepsText}\n\n✨ *Key Benefits:*\n${benefitsText}${mediaText}\n\nShared via AskMukthiGuru`;
     const shareUrl = window.location.href;
 
     if (typeof navigator.share === 'function') {
       try {
-        await navigator.share({ title: lp!.title, text: shareText, url: shareUrl });
+        await navigator.share({ title: lp.title, text: shareText, url: shareUrl });
         return;
       } catch (err) {
         if (err instanceof DOMException && err.name === 'AbortError') return;
@@ -119,7 +119,7 @@ const PracticeDetailPage = () => {
   };
 
   return (
-    <PublicShell title={lp!.title}>
+    <PublicShell title={lp.title}>
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6">
         <Link
           to="/practices"
@@ -145,7 +145,7 @@ const PracticeDetailPage = () => {
           </div>
           <div className="flex items-start justify-between gap-3">
             <h1 className="text-2xl sm:text-3xl font-semibold text-foreground">
-              {lp!.title}
+              {lp.title}
             </h1>
             <div className="flex gap-2 shrink-0">
               <Button
@@ -187,7 +187,7 @@ const PracticeDetailPage = () => {
             </div>
           </div>
           <p className="text-sm sm:text-base text-muted-foreground mt-2">
-            {lp!.tagline}
+            {lp.tagline}
           </p>
         </motion.header>
 
@@ -212,11 +212,11 @@ const PracticeDetailPage = () => {
                   type="button"
                   className="absolute inset-0 cursor-pointer group w-full text-left"
                   onClick={() => setIsPlaying(true)}
-                  aria-label={`Play ${lp!.title} guided video`}
+                  aria-label={`Play ${lp.title} guided video`}
                 >
                   <img
                     src={`https://img.youtube.com/vi/${practice.videoId}/hqdefault.jpg`}
-                    alt={`${lp!.title} Preview`}
+                    alt={`${lp.title} Preview`}
                     className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                   />
                   {/* Subtle dark overlay */}
@@ -236,7 +236,7 @@ const PracticeDetailPage = () => {
                 <iframe
                   className="absolute inset-0 w-full h-full"
                   src={embedSrc ? `${embedSrc}${embedSrc.includes('?') ? '&' : '?'}autoplay=1` : ''}
-                  title={`${lp!.title} — guided video`}
+                  title={`${lp.title} — guided video`}
                   loading="lazy"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
@@ -269,7 +269,7 @@ const PracticeDetailPage = () => {
                 <iframe
                   className="absolute inset-0 w-full h-full"
                   src={audioEmbed}
-                  title={`${lp!.title} — audio`}
+                  title={`${lp.title} — audio`}
                   loading="lazy"
                   allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
@@ -287,7 +287,7 @@ const PracticeDetailPage = () => {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-foreground/90 leading-relaxed">
-              {lp!.purpose}
+              {lp.purpose}
             </p>
           </CardContent>
         </Card>
@@ -299,7 +299,7 @@ const PracticeDetailPage = () => {
           </CardHeader>
           <CardContent>
             <ol className="space-y-4 text-sm text-foreground/90 leading-relaxed list-decimal list-inside">
-              {lp!.howItWorks.map((step) => {
+              {lp.howItWorks.map((step) => {
                 const parts = step.split(': ');
                 if (parts.length > 1) {
                   return (
@@ -321,7 +321,7 @@ const PracticeDetailPage = () => {
           </CardHeader>
           <CardContent>
             <ul className="space-y-3 text-sm text-foreground/90 leading-relaxed list-disc list-inside">
-              {lp!.benefits.map((benefit) => {
+              {lp.benefits.map((benefit) => {
                 const parts = benefit.split(': ');
                 if (parts.length > 1) {
                   return (

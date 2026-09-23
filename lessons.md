@@ -1,4 +1,13 @@
+## Sep 24, 2026 — PracticeDetailPage control flow typing & market research
+
+### L-TS-CONTROLFLOW-1. Ternary variable assigned before guard condition bypasses TypeScript control flow narrowing
+- **Who**: Claude / Antigravity Frontend Hardening.
+- **What**: `PracticeDetailPage.tsx` failed typecheck (`tsc -b`) with TS18048 (`'lp' is possibly 'undefined'`). `lp` was derived at top of component via ternary `const lp = practice ? getLocalizedPractice(...) : practice;`. Although an early exit `if (!practice) return ...` existed later, TypeScript's control flow analysis narrows `practice` to non-null, but does not transitively narrow `lp` across that branch check, leaving `lp` as `Practice | undefined`.
+- **Fix**: Move `const lp = getLocalizedPractice(practice, t, i18n.language);` to immediately after the `if (!practice) return ...` guard. Since `practice` is strictly narrowed to `Practice`, `lp` is guaranteed non-undefined, eliminating all non-null assertions (`lp!`) throughout the template.
+- **Rule / Invariant**: Derive localized or computed data strictly *after* the guard that guarantees the underlying source data exists. Assigning derived state before an early-return guard creates a disjoint type union that forces brittle non-null assertions and triggers TS18048 when new fields are read.
+
 ## Sep 20–24, 2026 — Speaker attribution, companion lessons (Session A: research, voiceprint pilot, census, sheets)
+
 
 Complements the L-VERBATIM / L-SPEAKER / L-OKF-QUOTES / L-TRANSCRIPT / L-YOUTUBE entries below (Session B). Full record: `docs/attribution/ANALYSIS.md`; pick-up: top of `handoff.md`.
 
