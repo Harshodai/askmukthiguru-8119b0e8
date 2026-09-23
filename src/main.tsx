@@ -56,6 +56,11 @@ createRoot(document.getElementById("root")!).render(
 // API, personalised, safety and live-information requests always use the network.
 const canRegisterSW = (() => {
   if (typeof window === "undefined" || !("serviceWorker" in navigator)) return false;
+  // Vite dev server serves module URLs (?v=hash) that change on every restart;
+  // an SW installed from a previous dev session intercepts and fails those
+  // fetches (net::ERR_FAILED), breaking HMR and every subsequent navigation
+  // until manually unregistered. Never register against the dev server.
+  if (import.meta.env.DEV) return false;
   try {
     if (window.self !== window.top) return false; // inside an iframe
   } catch {

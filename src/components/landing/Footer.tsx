@@ -35,13 +35,13 @@ export const Footer = forwardRef<HTMLElement>((_, ref) => {
               {t('nav.chat')}
             </Link>
             <Link to="/practices" className="text-caption hover:text-foreground transition-colors">
-              Practices
+              {t('nav.practices')}
             </Link>
             <Link to="/guides/ai-spiritual-companion" className="text-caption hover:text-foreground transition-colors">
-              AI Meditation Guide
+              {t('nav.aiMeditationGuide')}
             </Link>
             <Link to="/guides/spirit-guides" className="text-caption hover:text-foreground transition-colors">
-              Spirit Guides
+              {t('nav.spiritGuides')}
             </Link>
             <a href="#gurus" className="text-caption hover:text-foreground transition-colors">
               {t('nav.about')}

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { Network, Sparkles, ArrowUpRight, Compass, Shield, Heart } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -13,14 +14,14 @@ interface GraphNode {
   description: string;
 }
 
-const GRAPH_NODES: GraphNode[] = [
-  { id: '1', label: 'Universal Consciousness', category: 'core', x: 50, y: 35, description: 'The non-dual underlying reality of all existence.' },
-  { id: '2', label: 'Beautiful State', category: 'state', x: 28, y: 55, description: 'A neurobiological & spiritual state of peace, connection, and joy.' },
-  { id: '3', label: 'Suffering State', category: 'state', x: 72, y: 55, description: 'Self-centric anxiety, fear, and disconnection from life.' },
-  { id: '4', label: 'Serene Mind', category: 'practice', x: 18, y: 78, description: 'Pranayama & vagal nerve reset returning mind to stillness.' },
-  { id: '5', label: 'Soul Sync', category: 'practice', x: 38, y: 82, description: 'Consciousness alignment meditation to manifest destiny.' },
-  { id: '6', label: 'Four Sacred Secrets', category: 'wisdom', x: 62, y: 82, description: 'Wisdom pillars to dissolve conflict and awaken inner power.' },
-  { id: '7', label: 'Sakshi (Witness)', category: 'wisdom', x: 82, y: 78, description: 'Pure observing awareness detached from the egoic story.' },
+const NODE_LAYOUT: Array<{ id: string; key: string; category: GraphNode['category']; x: number; y: number }> = [
+  { id: '1', key: 'universalConsciousness', category: 'core', x: 50, y: 35 },
+  { id: '2', key: 'beautifulState', category: 'state', x: 28, y: 55 },
+  { id: '3', key: 'sufferingState', category: 'state', x: 72, y: 55 },
+  { id: '4', key: 'sereneMind', category: 'practice', x: 18, y: 78 },
+  { id: '5', key: 'soulSync', category: 'practice', x: 38, y: 82 },
+  { id: '6', key: 'fourSacredSecrets', category: 'wisdom', x: 62, y: 82 },
+  { id: '7', key: 'sakshi', category: 'wisdom', x: 82, y: 78 },
 ];
 
 const EDGES: [string, string][] = [
@@ -36,6 +37,15 @@ const EDGES: [string, string][] = [
 ];
 
 export const WisdomGraphPreview: React.FC = () => {
+  const { t } = useTranslation();
+  const GRAPH_NODES: GraphNode[] = NODE_LAYOUT.map((n) => ({
+    id: n.id,
+    category: n.category,
+    x: n.x,
+    y: n.y,
+    label: t(`landing.graph.nodes.${n.key}.label`),
+    description: t(`landing.graph.nodes.${n.key}.description`),
+  }));
   const [activeNode, setActiveNode] = useState<GraphNode>(GRAPH_NODES[1]);
 
   return (
@@ -43,14 +53,13 @@ export const WisdomGraphPreview: React.FC = () => {
       <div className="max-w-6xl mx-auto space-y-10">
         <div className="text-center space-y-3 max-w-2xl mx-auto">
           <Badge variant="outline" className="text-amber-800 dark:text-saffron-gold border-saffron-gold/40 px-3 py-1 text-xs">
-            <Network className="w-3.5 h-3.5 mr-1.5" /> 8,750+ Node Doctrinal Ontology
+            <Network className="w-3.5 h-3.5 mr-1.5" /> {t('landing.graph.badge', '8,750+ Node Doctrinal Ontology')}
           </Badge>
           <h2 className="text-3xl sm:text-4xl font-serif font-bold tracking-tight text-foreground">
-            Explore the Living Knowledge Graph
+            {t('landing.graph.heading', 'Explore the Living Knowledge Graph')}
           </h2>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Every teaching, discourse, and meditation is mapped in a multi-dimensional semantic graph
-            connecting ancient Vedic insights with contemporary neurobiology.
+            {t('landing.graph.subtitle', 'Every teaching, discourse, and meditation is mapped in a multi-dimensional semantic graph connecting ancient Vedic insights with contemporary neurobiology.')}
           </p>
         </div>
 
@@ -109,7 +118,7 @@ export const WisdomGraphPreview: React.FC = () => {
             {/* Active Node Detail Card */}
             <div className="relative z-30 self-start max-w-sm rounded-2xl border border-border/50 bg-zinc-900/90 p-4 shadow-xl backdrop-blur-md">
               <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-saffron-gold">
-                <Sparkles className="w-3 h-3" /> Ontological Node
+                <Sparkles className="w-3 h-3" /> {t('landing.graph.ontologicalNode', 'Ontological Node')}
               </div>
               <h4 className="font-serif text-base font-bold text-foreground mt-1">{activeNode.label}</h4>
               <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{activeNode.description}</p>
@@ -121,7 +130,7 @@ export const WisdomGraphPreview: React.FC = () => {
                 to="/knowledge-graph"
                 className="inline-flex items-center gap-2 rounded-full bg-saffron-gold/15 border border-saffron-gold/40 px-4 py-2 text-xs font-semibold text-saffron-gold hover:bg-saffron-gold/25 transition-all shadow-sm"
               >
-                <span>Explore Full 3D Graph</span>
+                <span>{t('landing.graph.exploreFull', 'Explore Full 3D Graph')}</span>
                 <ArrowUpRight className="w-3.5 h-3.5" />
               </Link>
             </div>

@@ -116,7 +116,7 @@ export const HowItWorksSection = () => {
                 <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" aria-hidden="true" />
               </span>
               <span className="max-w-md px-6 text-xs leading-relaxed text-muted-foreground">
-                Explore the conversation, short-pause, and practice paths before choosing one.
+                {t('landing.howItWorks.demoCaption', 'Explore the conversation, short-pause, and practice paths before choosing one.')}
               </span>
             </button>
           </motion.div>

@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Clock, Flame, Heart, Moon, Sparkles, Star } from 'lucide-react';
-import { practices, type Practice } from '@/lib/practicesContent';
+import { practices, getLocalizedPractice, type Practice } from '@/lib/practicesContent';
 import { useFavorites } from '@/hooks/useFavorites';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -15,11 +15,12 @@ const iconFor: Record<Practice['slug'], typeof Flame> = {
 };
 
 export const PracticesSection = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { favorites, toggle, isFavorited } = useFavorites();
   const { toast } = useToast();
-  const favoritePractices = practices.filter((p) => favorites.includes(p.slug));
-  const otherPractices = practices.filter((p) => !favorites.includes(p.slug));
+  const localizedPractices = practices.map((p) => getLocalizedPractice(p, t, i18n.language));
+  const favoritePractices = localizedPractices.filter((p) => favorites.includes(p.slug));
+  const otherPractices = localizedPractices.filter((p) => !favorites.includes(p.slug));
   const ordered = [...favoritePractices, ...otherPractices];
 
   return (

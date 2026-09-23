@@ -155,10 +155,10 @@ export const HeroSection = () => {
               </h2>
               <div className="flex justify-center gap-2 sm:gap-3 flex-wrap mb-4">
                 {[
-                  { key: 'anxious', label: 'Anxiety & Overwhelm', icon: Cloud, color: 'text-amber-400', practice: '3-Min Serene Mind Pranayama', action: '/practices/serene-mind' },
-                  { key: 'restless', label: 'Restless Thoughts', icon: Activity, color: 'text-orange-400', practice: 'Witnessing Presence (Sakshi)', action: '/practices/wisdom-reflection' },
-                  { key: 'peace', label: 'Seeking Inner Peace', icon: Compass, color: 'text-saffron-gold', practice: 'Soul Sync Meditation', action: '/practices/soul-sync' },
-                  { key: 'gratitude', label: 'Cultivating Love', icon: Heart, color: 'text-rose-400', practice: 'Beautiful State Contemplation', action: '/practices/beautiful-state' },
+                  { key: 'anxious', label: t('landing.hero.moods.anxious.label', 'Anxiety & Overwhelm'), icon: Cloud, color: 'text-amber-400', practice: '3-Min Serene Mind Pranayama', action: '/practices/serene-mind' },
+                  { key: 'restless', label: t('landing.hero.moods.restless.label', 'Restless Thoughts'), icon: Activity, color: 'text-orange-400', practice: 'Witnessing Presence (Sakshi)', action: '/practices/wisdom-reflection' },
+                  { key: 'peace', label: t('landing.hero.moods.peace.label', 'Seeking Inner Peace'), icon: Compass, color: 'text-saffron-gold', practice: 'Soul Sync Meditation', action: '/practices/soul-sync' },
+                  { key: 'gratitude', label: t('landing.hero.moods.gratitude.label', 'Cultivating Love'), icon: Heart, color: 'text-rose-400', practice: 'Beautiful State Contemplation', action: '/practices/beautiful-state' },
                 ].map((mood) => {
                   const Icon = mood.icon;
                   const isSelected = selectedMood === mood.key;
@@ -185,27 +185,27 @@ export const HeroSection = () => {
                 {(() => {
                   const moodConfigs: Record<string, { title: string; subtitle: string; practice: string; link: string }> = {
                     anxious: {
-                      title: 'Dissolving Turbulence into Stillness',
-                      subtitle: 'Settle the vagal nerve and calm inner racing thoughts through slow 4s/6s pranayama.',
-                      practice: 'Begin 3-Min Serene Mind',
+                      title: t('landing.hero.moods.anxious.title', 'Dissolving Turbulence into Stillness'),
+                      subtitle: t('landing.hero.moods.anxious.subtitle', 'Settle the vagal nerve and calm inner racing thoughts through slow 4s/6s pranayama.'),
+                      practice: t('landing.hero.moods.anxious.cta', 'Begin 3-Min Serene Mind'),
                       link: '/practices/serene-mind',
                     },
                     restless: {
-                      title: 'Resting as the Detached Witness',
-                      subtitle: 'Observe the stream of restless thoughts without identifying or reacting.',
-                      practice: 'Begin Sakshi Contemplation',
+                      title: t('landing.hero.moods.restless.title', 'Resting as the Detached Witness'),
+                      subtitle: t('landing.hero.moods.restless.subtitle', 'Observe the stream of restless thoughts without identifying or reacting.'),
+                      practice: t('landing.hero.moods.restless.cta', 'Begin Sakshi Contemplation'),
                       link: '/practices/wisdom-reflection',
                     },
                     peace: {
-                      title: 'Deepening Unshakeable Harmony',
-                      subtitle: 'Align personal intent with universal consciousness in pure coherence.',
-                      practice: 'Begin Soul Sync',
+                      title: t('landing.hero.moods.peace.title', 'Deepening Unshakeable Harmony'),
+                      subtitle: t('landing.hero.moods.peace.subtitle', 'Align personal intent with universal consciousness in pure coherence.'),
+                      practice: t('landing.hero.moods.peace.cta', 'Begin Soul Sync'),
                       link: '/practices/soul-sync',
                     },
                     gratitude: {
-                      title: 'Radiating from the Beautiful State',
-                      subtitle: 'Transmute disconnection into profound love and heartfelt presence.',
-                      practice: 'Begin Beautiful State',
+                      title: t('landing.hero.moods.gratitude.title', 'Radiating from the Beautiful State'),
+                      subtitle: t('landing.hero.moods.gratitude.subtitle', 'Transmute disconnection into profound love and heartfelt presence.'),
+                      practice: t('landing.hero.moods.gratitude.cta', 'Begin Beautiful State'),
                       link: '/practices/beautiful-state',
                     },
                   };
@@ -222,7 +222,7 @@ export const HeroSection = () => {
                     >
                       <div className="min-w-0 flex-1">
                         <span className="font-mono text-[10px] uppercase tracking-wider text-saffron-gold">
-                          Recommended Sacred Practice
+                          {t('landing.hero.recommendedPractice', 'Recommended Sacred Practice')}
                         </span>
                         <h4 className="font-serif text-sm font-semibold text-white truncate mt-0.5">
                           {current.title}
@@ -236,7 +236,7 @@ export const HeroSection = () => {
                         className="shrink-0 inline-flex items-center gap-1.5 rounded-full bg-saffron-gold px-3.5 py-1.5 text-xs font-bold text-zinc-950 hover:bg-amber-400 transition-all shadow-md"
                       >
                         <Play className="w-3 h-3 fill-current" />
-                        <span>Start</span>
+                        <span>{t('landing.hero.start', 'Start')}</span>
                       </Link>
                     </motion.div>
                   );
@@ -267,7 +267,7 @@ export const HeroSection = () => {
                 type="button"
                 onClick={startTour}
                 className="group relative flex min-h-11 items-center gap-3 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ojas focus-visible:ring-offset-2"
-                aria-label="See how AskMukthiGuru works in a three-step tour"
+                aria-label={t('landing.hero.tourAria', 'See how AskMukthiGuru works in a three-step tour')}
               >
                 {/* Animated outer pulse rings */}
                 <span className="relative flex-shrink-0">
@@ -352,7 +352,7 @@ export const HeroSection = () => {
                   }}
                   className="group-hover:text-white"
                 >
-                  See how this works
+                  {t('landing.hero.seeHowThisWorks', 'See how this works')}
                 </motion.span>
               </button>
             </motion.div>

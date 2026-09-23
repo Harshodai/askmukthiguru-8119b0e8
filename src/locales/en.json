@@ -140,7 +140,9 @@
     "practicesDesc": "Guided spiritual practices",
     "notebooksDesc": "Your study notes & highlights",
     "knowledgeGraphDesc": "Explore teachings as a living map",
-    "secondBrainDesc": "Your personal spiritual memory vault"
+    "secondBrainDesc": "Your personal spiritual memory vault",
+    "aiMeditationGuide": "AI Meditation Guide",
+    "spiritGuides": "Spirit Guides"
   },
   "landing": {
     "continuePractice": "Continue your practice",
@@ -154,7 +156,37 @@
       "pauseCtaDetail": "Try Serene Mind before you begin",
       "stateCheckIn": "What would support you right now?",
       "microcopy": "No account needed. Begin in the way that feels right for you.",
-      "disclaimer": "An AI companion for spiritual reflection—not medical, mental-health, or crisis care."
+      "disclaimer": "An AI companion for spiritual reflection—not medical, mental-health, or crisis care.",
+      "moods": {
+        "anxious": {
+          "label": "Anxiety & Overwhelm",
+          "title": "Dissolving Turbulence into Stillness",
+          "subtitle": "Settle the vagal nerve and calm inner racing thoughts through slow 4s/6s pranayama.",
+          "cta": "Begin 3-Min Serene Mind"
+        },
+        "restless": {
+          "label": "Restless Thoughts",
+          "title": "Resting as the Detached Witness",
+          "subtitle": "Observe the stream of restless thoughts without identifying or reacting.",
+          "cta": "Begin Sakshi Contemplation"
+        },
+        "peace": {
+          "label": "Seeking Inner Peace",
+          "title": "Deepening Unshakeable Harmony",
+          "subtitle": "Align personal intent with universal consciousness in pure coherence.",
+          "cta": "Begin Soul Sync"
+        },
+        "gratitude": {
+          "label": "Cultivating Love",
+          "title": "Radiating from the Beautiful State",
+          "subtitle": "Transmute disconnection into profound love and heartfelt presence.",
+          "cta": "Begin Beautiful State"
+        }
+      },
+      "recommendedPractice": "Recommended Sacred Practice",
+      "start": "Start",
+      "seeHowThisWorks": "See how this works",
+      "tourAria": "See how AskMukthiGuru works in a three-step tour"
     },
     "howItWorks": {
       "heading1": "Choose your",
@@ -169,7 +201,8 @@
       "step4Title": "Return to what helps",
       "step4Desc": "Keep a practice, a reflection, or a question close so your next step can build on the last one.",
       "videoPlaceholder": "See three honest ways to begin",
-      "videoAlt": "MukthiGuru demo video"
+      "videoAlt": "MukthiGuru demo video",
+      "demoCaption": "Explore the conversation, short-pause, and practice paths before choosing one."
     },
     "meetGurus": {
       "heading1": "Meet Your",
@@ -229,6 +262,43 @@
       "newHere": "New here?",
       "tourAria": "See how AskMukthiGuru works in a three-step tour",
       "closeTourAria": "Close tour"
+    },
+    "graph": {
+      "badge": "8,750+ Node Doctrinal Ontology",
+      "heading": "Explore the Living Knowledge Graph",
+      "subtitle": "Every teaching, discourse, and meditation is mapped in a multi-dimensional semantic graph connecting ancient Vedic insights with contemporary neurobiology.",
+      "ontologicalNode": "Ontological Node",
+      "exploreFull": "Explore Full 3D Graph",
+      "nodes": {
+        "universalConsciousness": {
+          "label": "Universal Consciousness",
+          "description": "The non-dual underlying reality of all existence."
+        },
+        "beautifulState": {
+          "label": "Beautiful State",
+          "description": "A neurobiological & spiritual state of peace, connection, and joy."
+        },
+        "sufferingState": {
+          "label": "Suffering State",
+          "description": "Self-centric anxiety, fear, and disconnection from life."
+        },
+        "sereneMind": {
+          "label": "Serene Mind",
+          "description": "Pranayama & vagal nerve reset returning mind to stillness."
+        },
+        "soulSync": {
+          "label": "Soul Sync",
+          "description": "Consciousness alignment meditation to manifest destiny."
+        },
+        "fourSacredSecrets": {
+          "label": "Four Sacred Secrets",
+          "description": "Wisdom pillars to dissolve conflict and awaken inner power."
+        },
+        "sakshi": {
+          "label": "Sakshi (Witness)",
+          "description": "Pure observing awareness detached from the egoic story."
+        }
+      }
     }
   },
   "mood": {
@@ -2046,6 +2116,41 @@
         "chatButton": "Start a conversation",
         "meditationButton": "Learn Beautiful State meditation"
       }
+    }
+  },
+  "wisdom": {
+    "curatedTeachings": "Curated Teachings",
+    "heading": "Wisdom & Insights",
+    "subheading": "Explore core concepts from the teachings of Sri Preethaji and Sri Krishnaji.",
+    "teacherLabel": "Teacher",
+    "watchYoutube": "Watch Teaching on YouTube",
+    "goToSlide": "Go to slide {{index}}",
+    "prevTeaching": "Previous teaching",
+    "nextTeaching": "Next teaching",
+    "teaching1": {
+      "title": "The Beautiful State",
+      "teacher": "Sri Preethaji",
+      "quote": "Anger, fear, hurt, loneliness, and frustration are all stressful states. A beautiful state is a state of connection, joy, love, compassion, vitality, and passion. If you are not in a beautiful state, your default state is stress."
+    },
+    "teaching2": {
+      "title": "Awakening to Compassion",
+      "teacher": "Sri Krishnaji",
+      "quote": "Compassion is not a moral choice or a religious duty, but a natural property of a consciousness that no longer experiences itself as separate. When separation ends, the suffering of another is felt as one's own — and action arises spontaneously to meet it."
+    },
+    "teaching3": {
+      "title": "The Inner Truth of Suffering",
+      "teacher": "Sri Preethaji",
+      "quote": "What keeps suffering alive for days, months, and years after a stressful event is over is obsessive, self-centric thinking — a total, incessant preoccupation with oneself. Realizing that all lingering suffering is self-centric preoccupation is the most powerful antidote."
+    },
+    "teaching4": {
+      "title": "The Voice Within",
+      "teacher": "Sri Preethaji",
+      "quote": "There is a voice within every person that speaks truth and offers guidance. The reason most people do not hear it is not that the voice is silent — it is that they are not in a state where they can listen. The beautiful state is the condition for hearing."
+    },
+    "teaching5": {
+      "title": "Three-Question Meditation",
+      "teacher": "Sri Preethaji",
+      "quote": "Meditation is not about a religion; it is about being human — about returning to a beautiful state. Simply observing your state, time, and self-preoccupation without trying to change anything loosens the grip of self-centric thinking and lets the beautiful state return."
     }
   }
 }

@@ -83,7 +83,6 @@ export async function* sendMessageStreaming(
     // Profile voice preference; backend applies it as a generation-time persona hint.
     ...(!incognito ? { guru_tone: loadProfile().guruTone } : {}),
     ...(responsePreferences ? { response_preferences: { mode: responsePreferences.mode, include_practice: responsePreferences.includePractice, include_reflection: responsePreferences.includeReflection, action_depth: responsePreferences.actionDepth } } : {}),
-    stream: true,
     ...(lastSereneMindAt != null
       ? { last_serene_mind_at: lastSereneMindAt / 1000 }
       : {}),
