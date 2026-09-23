@@ -14,6 +14,9 @@
  * reachable, so the spec is safe to run against a static preview too.
  */
 import { test, expect, type ConsoleMessage, type Page } from '@playwright/test';
+import { dismissSafetyDisclaimer } from './support';
+
+const APP_ORIGIN = new URL(process.env.BASE_URL || 'http://localhost:4173').origin;
 
 // Console-error noise that is NOT a regression (third-party, dev-only, or the
 // known Google-frame refusal on /auth).
@@ -28,13 +31,22 @@ const IGNORABLE = (e: string, pathname: string): boolean =>
   e.includes('useMeditationAudio') ||
   e.includes('503 (Service Offline)') ||
   e.includes('Failed to load resource') ||
+  // Chromium's Google Identity Services/FedCM stack emits this when no provider account is available; it is external auth noise, not an app exception.
+  e.includes("Provider's accounts list is empty.") ||
+  e.includes('[GSI_LOGGER]: FedCM get() rejects with') ||
   (pathname === '/auth' && e.includes('Refused to frame') && /accounts\.google\.com(?:\/|$)/.test(e));
 
-function trackErrors(page: Page): string[] {
-  const errors: string[] = [];
-  page.on('console', (m: ConsoleMessage) => m.type() === 'error' && errors.push(m.text()));
-  page.on('pageerror', (err) => errors.push(err.message));
-  return errors;
+function trackErrors(page: Page): { console: string[]; server: string[] } {
+  const consoleErrors: string[] = [];
+  const serverErrors: string[] = [];
+  page.on('console', (m: ConsoleMessage) => m.type() === 'error' && consoleErrors.push(m.text()));
+  page.on('pageerror', (err) => consoleErrors.push(err.message));
+  page.on('response', (response) => {
+    if (response.status() >= 500 && new URL(response.url()).origin === APP_ORIGIN) {
+      serverErrors.push(`${response.status()} ${response.url()}`);
+    }
+  });
+  return { console: consoleErrors, server: serverErrors };
 }
 
 function fatalErrors(errors: string[], page: Page): string[] {
@@ -54,22 +66,24 @@ test.describe('critical journeys', () => {
   test('landing page renders hero + primary CTA and has no fatal errors', async ({ page }) => {
     const errors = trackErrors(page);
     await page.goto('/', { waitUntil: 'networkidle' });
+    await dismissSafetyDisclaimer(page);
     await expect(page.locator('body')).toBeVisible();
     const cta = page.getByRole('link', { name: /start chat/i }).first();
     await expect(cta).toBeVisible();
-    expect(fatalErrors(errors, page), fatalErrors(errors, page).join('\n')).toHaveLength(0);
+    expect([...fatalErrors(errors.console, page), ...errors.server], fatalErrors(errors.console, page).join('\n')).toHaveLength(0);
   });
 
   test('newer routes mount: /second-brain and /knowledge-graph', async ({ page }) => {
     for (const route of ['/second-brain', '/knowledge-graph']) {
       const errors = trackErrors(page);
       const res = await page.goto(route, { waitUntil: 'networkidle' });
+      await dismissSafetyDisclaimer(page);
       expect(res?.status(), `HTTP status ${route}`).toBeLessThan(500);
       await expect(page.locator('body')).toBeVisible();
       // Protected routes legitimately redirect to /auth — both outcomes pass.
       const p = new URL(page.url()).pathname;
       expect(['/second-brain', '/knowledge-graph', '/auth']).toContain(p);
-      expect(fatalErrors(errors, page), `${route}: ${fatalErrors(errors, page).join('\n')}`).toHaveLength(0);
+      expect([...fatalErrors(errors.console, page), ...errors.server], `${route}: ${fatalErrors(errors.console, page).join('\n')}`).toHaveLength(0);
     }
   });
 
@@ -79,6 +93,7 @@ test.describe('critical journeys', () => {
     // The correct flow is signInWithOAuth redirect. Assert no google iframe.
     const errors = trackErrors(page);
     await page.goto('/auth', { waitUntil: 'networkidle' });
+    await dismissSafetyDisclaimer(page);
     await expect(page.locator('body')).toBeVisible();
 
     const gsiContainer = page.locator('[data-testid="google-gsi-container"]');
@@ -113,12 +128,13 @@ test.describe('critical journeys', () => {
       // Verify no Google accounts iframe exists after the interaction
       await expect(googleFrame).toHaveCount(0);
     }
-    expect(fatalErrors(errors, page), fatalErrors(errors, page).join('\n')).toHaveLength(0);
+    expect([...fatalErrors(errors.console, page), ...errors.server], fatalErrors(errors.console, page).join('\n')).toHaveLength(0);
   });
 
   test('chat: send a message and receive a non-empty reply (skips w/o backend)', async ({ page }) => {
     const errors = trackErrors(page);
     await page.goto('/chat', { waitUntil: 'networkidle' });
+    await dismissSafetyDisclaimer(page);
     await dismissPrePracticeGate(page);
 
     // Auth-gated: if we bounced to /auth, this environment has no test session.
@@ -147,7 +163,7 @@ test.describe('critical journeys', () => {
     const reply = page.locator('[data-role="assistant"], .assistant-message, [class*="assistant"]').last();
     await expect(reply).toBeVisible({ timeout: 25_000 });
     await expect(reply).not.toHaveText('');
-    expect(fatalErrors(errors, page), fatalErrors(errors, page).join('\n')).toHaveLength(0);
+    expect([...fatalErrors(errors.console, page), ...errors.server], fatalErrors(errors.console, page).join('\n')).toHaveLength(0);
   });
 });
 
@@ -161,6 +177,41 @@ test.describe('responsive', () => {
     // A few px of sub-pixel rounding is fine; a real overflow is >5px.
     expect(overflow, 'horizontal overflow in px').toBeLessThanOrEqual(5);
   });
+});
+
+test('chat: mobile layout and language menu stay inside the viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto('/chat', { waitUntil: 'networkidle' });
+  await dismissSafetyDisclaimer(page);
+  await dismissPrePracticeGate(page);
+
+  if (new URL(page.url()).pathname === '/auth') {
+    test.skip(true, 'chat is auth-gated and no test session is configured');
+  }
+
+  const input = page.getByRole('textbox', { name: /your message/i });
+  test.skip(!(await input.isVisible().catch(() => false)), 'no chat input found');
+
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
+  expect(overflow, 'chat horizontal overflow in px').toBeLessThanOrEqual(5);
+
+  const languageTrigger = page.locator('[data-tour="language-selector"]').first();
+  test.skip(!(await languageTrigger.isVisible().catch(() => false)), 'language selector not visible');
+
+  await languageTrigger.click();
+  const menu = page.getByRole('dialog', { name: /select language/i });
+  await expect(menu).toBeVisible();
+
+  const box = await menu.boundingBox();
+  expect(box, 'language menu must have a rendered bounding box').not.toBeNull();
+  if (box) {
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.y).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(375);
+    expect(box.y + box.height).toBeLessThanOrEqual(812);
+  }
 });
 
 test.describe('network health', () => {
@@ -245,6 +296,7 @@ test('meditation: Serene Mind flow is reachable', async ({ page }) => {
 
 test('auth: forgot password button exists and /reset-password route mounts', async ({ page }) => {
   await page.goto('/auth', { waitUntil: 'networkidle' });
+  await dismissSafetyDisclaimer(page);
   await expect(page.locator('body')).toBeVisible();
 
   // Find and fill email input

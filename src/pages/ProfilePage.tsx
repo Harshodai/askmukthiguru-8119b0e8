@@ -96,6 +96,7 @@ import { useDailyTeaching } from '@/hooks/useDailyTeaching';
 import { useMetrics } from '@/hooks/useMetrics';
 import { LANGUAGES } from '@/components/chat/LanguageSelector';
 import { useTranslation } from 'react-i18next';
+import { changeUiLanguage } from '@/i18n';
 import {
   Dialog,
   DialogContent,
@@ -428,7 +429,7 @@ const ProfilePage = () => {
     <AppShell title={isOnboarding ? t('profile.page.welcome', 'Welcome, Seeker') : t('profile.page.title', 'My Profile')}>
       <div className="profile-focus-flow max-w-2xl mx-auto px-4 sm:px-6 py-5 sm:py-8 space-y-5 safe-x safe-bottom">
         {/* ── Profile hero: avatar, name, email, streak — calm, flat, generous ── */}
-        {!isOnboarding && tab !== 'journey' && (
+        {!isOnboarding && tab === 'profile' && (
           <section className="rounded-2xl border border-hairline bg-card px-4 py-5 sm:px-6 sm:py-6 flex items-center gap-4 sm:gap-5" aria-labelledby="profile-name">
             <div className="relative shrink-0">
               <Avatar className="w-16 h-16 sm:w-20 sm:h-20 ring-1 ring-ojas/20">
@@ -511,18 +512,44 @@ const ProfilePage = () => {
               className="w-full"
             >
             {/* Compact segmented navigation; scrolls safely on narrow devices. */}
-            <div className="sticky top-14 z-20 -mx-4 sm:mx-0 px-4 sm:px-0 py-1 bg-background/90 backdrop-blur-xl border-b border-transparent overflow-x-auto momentum-scroll no-tap-highlight">
-              <TabsList
-                aria-label={t('layout.navigate')}
-                className="inline-flex w-max sm:w-full sm:grid sm:grid-cols-6 gap-0 mb-2 bg-muted/50 p-1 rounded-xl"
-              >
-                <TabsTrigger value="journey" className="rounded-lg min-h-[44px] text-xs px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors">{t('profile.tabs.journey', 'Journey')}</TabsTrigger>
-                <TabsTrigger value="profile" className="rounded-lg min-h-[44px] text-xs px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors">{t('profile.tabs.profile', 'Profile')}</TabsTrigger>
-                <TabsTrigger value="stats" className="rounded-lg min-h-[44px] text-xs px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors">{t('profile.tabs.insights', 'Insights')}</TabsTrigger>
-                <TabsTrigger value="conversations" className="rounded-lg min-h-[44px] text-xs px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors">{t('profile.tabs.conversations', 'Conversations')}</TabsTrigger>
-                <TabsTrigger value="memory" className="rounded-lg min-h-[44px] text-xs px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors">{t('profile.tabs.memory', 'Memory')}</TabsTrigger>
-                <TabsTrigger value="settings" className="rounded-lg min-h-[44px] text-xs px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors">{t('profile.tabs.settings', 'Settings')}</TabsTrigger>
-              </TabsList>
+            <div className="sticky top-14 z-20 -mx-4 sm:mx-0 px-4 sm:px-0 py-2 bg-background/90 backdrop-blur-xl border-b border-transparent safe-x">
+              <div className="sm:hidden">
+                <Select
+                  value={tab}
+                  onValueChange={(value) => {
+                    if (PROFILE_TABS.includes(value as ProfileTab)) setTab(value as ProfileTab);
+                  }}
+                >
+                  <SelectTrigger
+                    aria-label={t('layout.navigate')}
+                    className="w-full min-h-[44px] rounded-xl bg-card border-hairline text-sm font-medium"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent position="popper" className="w-[--radix-select-trigger-width]">
+                    <SelectItem value="journey">{t('profile.tabs.journey', 'Journey')}</SelectItem>
+                    <SelectItem value="profile">{t('profile.tabs.profile', 'Profile')}</SelectItem>
+                    <SelectItem value="stats">{t('profile.tabs.insights', 'Insights')}</SelectItem>
+                    <SelectItem value="conversations">{t('profile.tabs.conversations', 'Conversations')}</SelectItem>
+                    <SelectItem value="memory">{t('profile.tabs.memory', 'Memory')}</SelectItem>
+                    <SelectItem value="settings">{t('profile.tabs.settings', 'Settings')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="hidden sm:block">
+                <TabsList
+                  aria-label={t('layout.navigate')}
+                  className="w-full grid grid-cols-6 gap-0 mb-2 bg-muted/50 p-1 rounded-xl"
+                >
+                  <TabsTrigger value="journey" className="rounded-lg min-h-[44px] text-xs px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors">{t('profile.tabs.journey', 'Journey')}</TabsTrigger>
+                  <TabsTrigger value="profile" className="rounded-lg min-h-[44px] text-xs px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors">{t('profile.tabs.profile', 'Profile')}</TabsTrigger>
+                  <TabsTrigger value="stats" className="rounded-lg min-h-[44px] text-xs px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors">{t('profile.tabs.insights', 'Insights')}</TabsTrigger>
+                  <TabsTrigger value="conversations" className="rounded-lg min-h-[44px] text-xs px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors">{t('profile.tabs.conversations', 'Conversations')}</TabsTrigger>
+                  <TabsTrigger value="memory" className="rounded-lg min-h-[44px] text-xs px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors">{t('profile.tabs.memory', 'Memory')}</TabsTrigger>
+                  <TabsTrigger value="settings" className="rounded-lg min-h-[44px] text-xs px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors">{t('profile.tabs.settings', 'Settings')}</TabsTrigger>
+                </TabsList>
+              </div>
             </div>
 
             <TabsContent value="journey" className="space-y-6 mt-0">
@@ -603,7 +630,19 @@ const ProfilePage = () => {
                         <Globe className="w-3.5 h-3.5 text-ojas" />
                         {t('profile.personalDetails.language')}
                       </Label>
-                      <Select value={form.preferredLanguage} onValueChange={(v) => patch('preferredLanguage', v)}>
+                      <Select
+                        value={form.preferredLanguage}
+                        onValueChange={(v) => {
+                          patch('preferredLanguage', v);
+                          void changeUiLanguage(v).catch(() => {
+                            toast({
+                              title: t('common.error', 'Could not switch language'),
+                              description: t('profile.personalDetails.languageSwitchFailed', 'Your preference was saved, but some interface text could not be translated.'),
+                              variant: 'destructive',
+                            });
+                          });
+                        }}
+                      >
                         <SelectTrigger className="min-h-[44px] rounded-xl">
                           <SelectValue />
                         </SelectTrigger>

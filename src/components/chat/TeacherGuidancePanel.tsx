@@ -31,7 +31,7 @@ export function TeacherGuidancePanel({ assistantName }: TeacherGuidancePanelProp
     <section aria-labelledby="guidance-context-title" className="mx-auto w-full max-w-md text-center">
       <p
         id="guidance-context-title"
-        className="text-[12.5px] leading-relaxed text-muted-foreground/70"
+        className="text-[12.5px] leading-relaxed text-muted-foreground"
       >
         {t(
           'chat.guidance.attribution',
@@ -43,7 +43,7 @@ export function TeacherGuidancePanel({ assistantName }: TeacherGuidancePanelProp
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="mt-1.5 inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] text-muted-foreground/60 transition-colors hover:text-ojas focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ojas/50"
+        className="mt-1.5 inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:text-ojas focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ojas/50"
       >
         <Info className="h-3 w-3" aria-hidden="true" />
         <span>{t('chat.guidance.howThisWorks', 'How this guidance works')}</span>
@@ -75,7 +75,7 @@ export function TeacherGuidancePanel({ assistantName }: TeacherGuidancePanelProp
                   'Ask in the language that feels natural. Responses are attributed guidance, not an impersonation or a replacement for professional support.',
                 )}
               </p>
-              <p className="text-[11px] leading-relaxed text-muted-foreground/80">
+              <p className="text-[11px] leading-relaxed text-muted-foreground">
                 {t(
                   'chat.guidance.safety',
                   'For immediate danger or severe distress, please seek local emergency or professional support.',

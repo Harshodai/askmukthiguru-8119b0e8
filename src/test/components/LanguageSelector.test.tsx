@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { LanguageSelector, LANGUAGES } from '@/components/chat/LanguageSelector';
 
 const setLanguageMock = vi.fn();
@@ -40,6 +40,37 @@ describe('LanguageSelector (regression)', () => {
     expect(screen.getByText('Hindi')).toBeInTheDocument();
   });
 
+  it('does not submit the surrounding chat form when language or voice controls are clicked', () => {
+    const onSubmit = vi.fn((e: React.FormEvent) => e.preventDefault());
+    const onVoiceToggle = vi.fn();
+    render(
+      <form onSubmit={onSubmit}>
+        <LanguageSelector value="en" onVoiceToggle={onVoiceToggle} voiceEnabled={false} />
+        <button type="submit">Send</button>
+      </form>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { expanded: false }));
+    expect(onSubmit).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByText('हिन्दी'));
+    expect(onSubmit).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByLabelText('Start voice input'));
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(onVoiceToggle).toHaveBeenCalled();
+  });
+
+  it('anchors the language menu to the trigger instead of the viewport', () => {
+    render(<LanguageSelector value="en" />);
+    fireEvent.click(screen.getByRole('button', { expanded: false }));
+
+    const menu = screen.getByRole('dialog', { name: /select language/i });
+    expect(menu.className).toContain('absolute');
+    expect(menu.className).toContain('bottom-full');
+    expect(menu.className).toContain('left-0');
+  });
+
   it('renders all languages and supports searching by name or script', () => {
     render(<LanguageSelector value="en" />);
     fireEvent.click(screen.getByRole('button', { expanded: false }));
@@ -55,7 +86,7 @@ describe('LanguageSelector (regression)', () => {
     expect(screen.queryByText('Hindi')).not.toBeInTheDocument();
   });
 
-  it('calls onLanguageChange and setLanguage when a language is selected, without a toast', () => {
+  it('calls onLanguageChange and setLanguage when a language is selected, without a toast', async () => {
     const onLanguageChange = vi.fn();
     render(<LanguageSelector value="en" onLanguageChange={onLanguageChange} />);
     fireEvent.click(screen.getByRole('button', { expanded: false }));
@@ -66,6 +97,7 @@ describe('LanguageSelector (regression)', () => {
     // The parent (ChatInterface) owns the confirmation toast now — showing
     // one here too was a double-toast on every language switch.
     expect(toastMock).not.toHaveBeenCalled();
+    await waitFor(() => expect(screen.getByRole('button', { expanded: false })).toHaveFocus());
   });
 
   it('toggles voice mode when microphone button is clicked', () => {

@@ -158,7 +158,7 @@ export const MoodCheckIn = ({ isOpen, onClose, micHook = null }: MoodCheckInProp
                       type="button"
                       onClick={handleVoiceToggle}
                       disabled={!mic.supported}
-                      aria-label={mic.isListening ? 'Stop voice input' : 'Start voice input'}
+                      aria-label={mic.isListening ? t('chat.stopRecording', 'Stop recording') : t('chat.startVoiceInput', 'Start voice input')}
                       className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-ojas disabled:opacity-40"
                     >
                       {mic.isListening ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}

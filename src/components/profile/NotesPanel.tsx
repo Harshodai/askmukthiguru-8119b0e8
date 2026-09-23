@@ -315,7 +315,6 @@ export function NotesPanel() {
             />
             {voice.isListening && (voice.transcript || voice.interimTranscript) && (
               <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-md text-xs text-foreground mt-2 animate-pulse">
-                <span className="font-semibold text-emerald-500 mr-1">Voice Input:</span>
                 {voice.transcript} <span className="text-muted-foreground italic">{voice.interimTranscript}</span>
               </div>
             )}
@@ -324,11 +323,11 @@ export function NotesPanel() {
                 type="button"
                 onClick={handleVoiceToggle}
                 disabled={!voice.isSupported}
-                aria-label={voice.isListening ? 'Stop voice input' : 'Start voice input'}
+                aria-label={voice.isListening ? t('chat.stopRecording', 'Stop recording') : t('chat.startVoiceInput', 'Start voice input')}
                 className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-ojas disabled:opacity-40 py-1"
               >
                 {voice.isListening ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
-                {voice.isListening ? 'Listening…' : 'Dictate'}
+                {voice.isListening ? t('chat.inputPlaceholderListening', 'Speak now…') : t('chat.startVoiceInput', 'Start voice input')}
               </button>
               {voice.error && (
                 <span className="text-[10px] text-destructive">{voice.error}</span>

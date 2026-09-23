@@ -5,6 +5,7 @@
  * still a successful "page opens" result.
  */
 import { test, expect, type ConsoleMessage } from '@playwright/test';
+import { dismissSafetyDisclaimer } from './support';
 
 const PUBLIC_ROUTES = [
   '/',
@@ -16,6 +17,23 @@ const PUBLIC_ROUTES = [
   '/terms',
   '/practices',
   '/practices/serene-mind',
+  '/practices/wisdom-reflection',
+  '/practices/soul-sync',
+  '/practices/beautiful-state',
+  '/guides',
+  '/guides/spirit-guides',
+  '/guides/ai-spiritual-companion',
+  '/guides/beautiful-state-meditation',
+  '/guides/serene-mind-practice',
+  '/guides/self-centric-thinking',
+  '/guides/spiritual-guide-for-anxiety',
+  '/guides/suffering-to-beautiful-state',
+  '/notebooks',
+  '/knowledge-graph',
+  '/wisdom-map',
+  '/second-brain',
+  '/reflections',
+  '/auth/mfa',
   '/chat',
   '/profile',
   '/test-tts',
@@ -43,6 +61,7 @@ for (const route of PUBLIC_ROUTES) {
     page.on('pageerror', (err) => errors.push(err.message));
 
     const res = await page.goto(route, { waitUntil: 'networkidle' });
+    await dismissSafetyDisclaimer(page);
     expect(res?.status(), `HTTP status for ${route}`).toBeLessThan(500);
     // Tolerate redirects to /auth for protected pages.
     await expect(page.locator('body')).toBeVisible();
@@ -64,6 +83,9 @@ for (const route of PUBLIC_ROUTES) {
         // route to the OAuth origin fails the TLS handshake but nothing
         // functional depends on the hint succeeding.
         !e.includes('Failed to preconnect') &&
+        // Google Identity Services/FedCM may report an empty provider list when no browser account is available.
+        !e.includes("Provider's accounts list is empty.") &&
+        !e.includes('[GSI_LOGGER]: FedCM get() rejects with') &&
         // Firefox may surface a Cloudflare cookie-domain warning from the
         // third-party Supabase realtime websocket even when the request is
         // aborted. It is not emitted by application code and does not prevent

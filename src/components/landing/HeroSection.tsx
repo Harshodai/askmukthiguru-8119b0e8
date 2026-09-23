@@ -91,8 +91,8 @@ export const HeroSection = () => {
             className="w-full h-full object-cover"
           />
 
-          <div className="absolute inset-0 bg-gradient-to-b from-black/90 via-black/82 to-background" />
-          <div className="absolute inset-0 bg-gradient-to-r from-black/55 via-black/20 to-black/55" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/38 via-black/20 to-background/82" />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/14 via-transparent to-black/14" />
         </motion.div>
 
         {/* Mandala Corner Motifs */}

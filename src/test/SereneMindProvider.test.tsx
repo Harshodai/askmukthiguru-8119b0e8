@@ -62,7 +62,7 @@ describe('SereneMindProvider', () => {
       fireEvent.click(screen.getByText('OpenAudio'));
     });
     // Modal should still open successfully
-    const modal = screen.getByRole('dialog', { name: /Serene Mind/i });
+    const modal = screen.getByRole('dialog', { name: /Guided Meditation/i });
     expect(modal).toBeInTheDocument();
   });
 });

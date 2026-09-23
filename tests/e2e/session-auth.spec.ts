@@ -10,6 +10,7 @@
  * account. Instead we assert the button reaches the right endpoint.
  */
 import { test, expect } from "@playwright/test";
+import { dismissSafetyDisclaimer } from './support';
 
 test.describe("session / auth", () => {
   test("anonymous user on /profile is redirected to /auth", async ({ page }) => {
@@ -25,11 +26,16 @@ test.describe("session / auth", () => {
 
   test("Google sign-in button is wired on /auth", async ({ page }) => {
     await page.goto("/auth");
-    const googleBtn = page.locator('[data-testid="google-gsi-container"], button:has-text("Google")').first();
-    const gsiIframe = page.locator('iframe[src*="accounts.google.com/gsi"]').first();
-    await expect(googleBtn.or(gsiIframe)).toBeVisible({ timeout: 10_000 });
-    if (await googleBtn.count() > 0) {
-      await expect(googleBtn).toBeEnabled({ timeout: 5_000 });
+    await dismissSafetyDisclaimer(page);
+    const gsiContainer = page.getByTestId("google-gsi-container");
+    const fallbackButton = page.getByRole("button", { name: /google/i });
+    if (await gsiContainer.isVisible().catch(() => false)) {
+      const gsiIframe = gsiContainer.locator('iframe[src*="accounts.google.com/gsi"]');
+      await expect(gsiIframe).toBeVisible({ timeout: 10_000 });
+    } else {
+      await expect(fallbackButton).toBeVisible({ timeout: 10_000 });
+      await expect(fallbackButton).toBeEnabled({ timeout: 5_000 });
+      await expect(page.locator('iframe[src*="accounts.google.com/gsi"]')).toHaveCount(0);
     }
   });
 
@@ -44,6 +50,7 @@ test.describe("session / auth", () => {
       );
     }, fakeKey);
     await page.goto("/");
+    await dismissSafetyDisclaimer(page);
     // Force sign-out via the exposed client.
     await page.evaluate(async () => {
       const mod = await import("/src/integrations/supabase/client.ts");

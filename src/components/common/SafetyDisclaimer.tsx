@@ -38,10 +38,17 @@ export const SafetyDisclaimer = () => {
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             className="relative z-10 w-full max-w-md"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="safety-disclaimer-title"
+            aria-describedby="safety-disclaimer-description"
           >
             <div className="glass-card p-6 md:p-8 shadow-xl">
               <button
+                type="button"
                 onClick={handleAccept}
+                aria-label={t('common.close')}
+                title={t('common.close')}
                 className="absolute top-4 right-4 p-2 rounded-full hover:bg-muted transition-colors opacity-50 hover:opacity-100"
               >
                 <X className="w-4 h-4 text-muted-foreground" />
@@ -53,11 +60,11 @@ export const SafetyDisclaimer = () => {
                 </div>
               </div>
 
-              <h2 className="text-2xl font-bold text-center text-foreground mb-4">
+              <h2 id="safety-disclaimer-title" className="text-2xl font-bold text-center text-foreground mb-4">
                 {t('common.welcomeSeeker')}
               </h2>
 
-              <p className="text-muted-foreground text-center leading-relaxed mb-6">
+              <p id="safety-disclaimer-description" className="text-muted-foreground text-center leading-relaxed mb-6">
                 {t('common.disclaimerDesc')}
               </p>
 
@@ -79,6 +86,7 @@ export const SafetyDisclaimer = () => {
               </div>
 
               <button
+                type="button"
                 onClick={handleAccept}
                 className="w-full py-3 bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground font-medium rounded-full transition-all duration-300 hover:scale-[1.02] shadow-md"
               >

@@ -13,7 +13,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { returnToOrigin } from '@/lib/workspaceNavigation';
+import { isChatOwnedRoute, returnToOrigin } from '@/lib/workspaceNavigation';
 import { cn } from '@/lib/utils';
 import {
   Sidebar,
@@ -83,7 +83,6 @@ const AppSidebar = ({ onOpenSearch }: { onOpenSearch: () => void }) => {
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
   const { favorites } = useFavorites();
-  const { open: openSereneMind } = useSereneMind();
   const favCount = favorites.length;
 
   return (
@@ -142,12 +141,6 @@ const AppSidebar = ({ onOpenSearch }: { onOpenSearch: () => void }) => {
                       ⌘K
                     </kbd>
                   )}
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton onClick={() => openSereneMind()} tooltip={t('meditation.sereneMind')}>
-                  <Flame className="w-4 h-4 text-ojas" />
-                  <span>{t('meditation.sereneMind')}</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
@@ -224,8 +217,8 @@ export const AppShell = ({ children, title }: AppShellProps) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const hasChatOrigin = new URLSearchParams(location.search).get('returnTo') === '/chat';
-  const isChatOwnedPage = hasChatOrigin && ['/notebooks', '/second-brain', '/knowledge-graph', '/wisdom-map', '/reflections', '/practices'].some(
+  const isChatOwnedPage = isChatOwnedRoute(location.pathname, location.search);
+  const showGlobalChatReturn = ['/notebooks', '/second-brain'].some(
     (path) => location.pathname === path || location.pathname.startsWith(`${path}/`),
   );
 
@@ -259,7 +252,7 @@ export const AppShell = ({ children, title }: AppShellProps) => {
         <div className="flex-1 flex flex-col min-w-0 relative z-10">
           <header className="h-14 flex items-center gap-2 sm:gap-3 border-b border-border/60 backdrop-blur-md bg-card/60 px-3 sm:px-4 sticky top-0 z-30">
             <SidebarTrigger />
-            {isChatOwnedPage && (
+            {(isChatOwnedPage || showGlobalChatReturn) && (
               <Button
                 type="button"
                 variant="ghost"
@@ -282,18 +275,6 @@ export const AppShell = ({ children, title }: AppShellProps) => {
             </div>
             <ConnectionPill />
             <HeaderSereneButton />
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setPaletteOpen(true)}
-              className="hidden md:inline-flex gap-2 text-muted-foreground"
-            >
-              <Search className="w-4 h-4" />
-              <span className="text-xs">{t('layout.search')}</span>
-              <kbd className="text-[10px] bg-muted px-1.5 py-0.5 rounded">
-                ⌘K
-              </kbd>
-            </Button>
             <UserMenu />
           </header>
 
