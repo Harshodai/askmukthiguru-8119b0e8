@@ -1,3 +1,29 @@
+## Sep 20–24, 2026 — Speaker attribution, companion lessons (Session A: research, voiceprint pilot, census, sheets)
+
+Complements the L-VERBATIM / L-SPEAKER / L-OKF-QUOTES / L-TRANSCRIPT / L-YOUTUBE entries below (Session B). Full record: `docs/attribution/ANALYSIS.md`; pick-up: top of `handoff.md`.
+
+### L-ATTRIB-GT-1. Don't validate a speaker model against the labels you are auditing
+- **Who**: Claude Opus 5.5, 2026-09-22.
+- **What**: Voiceprints built from corpus `teacher_id` labels, tested leave-one-video-out on "solo" videos, scored 0.50–0.93, and **0.005** on `hUmlujE6SN0`. It looked like a broken model. It was broken ground truth: `hUmlujE6SN0` (labelled krishnaji) is Sri Preethaji, and `Ejcq9mNGJk0` (labelled preethaji) is mostly a male promo narrator ("Gathered more than 300 members lit…"). Two cheap independent signals exposed it before any human listen: dominant-voice pitch (203 Hz vs 105 Hz) and a Whisper snippet of the dominant voice.
+- **Rule**: ground truth for speaker identity = human-confirmed clips (user confirmed 2 anchors by ear, 2026-09-22). Treat corpus labels as the thing under test, never the answer key.
+
+### L-ATTRIB-COUNT-1. Normalise IDs before counting — the corpus has 638 videos, not 1,258
+- **What**: A per-video export keyed some Qdrant points by `video_id` and others by full `source_url`, so every video appeared twice. I reported "1,258 videos" to the user before catching it while building the Ekam request sheet.
+- **Also found**: the corpus is extremely concentrated. By chunk count, the **top 14 videos = 50%**, 157 = 80%, 362 = 90%, 490 = 95%. Verifying the head by hand or with Ekam's help beats automating the long tail first.
+- **Rule**: extract the 11-char YouTube ID from every key before grouping; cross-check any count against a second query.
+
+### L-ATTRIB-BLIND-1. Keep blind label sheets blind, and keep their answer keys out of `/tmp`
+- **What**: Row-level model predictions (`pred_UlOt31lBhLY.csv`) sat in `docs/attribution/pilot/` next to the user's blind 15-minute sheet; they were removed before commit. The answer keys for both blind sheets (`label_40clips_KEY.json`, `pilot_audit_60_KEY.json`), the enrolled voiceprints and all per-video results existed only in `/private/tmp/.../scratchpad`, which a reboot wipes. Without the keys, the user's labelling work can't be scored.
+- **Rule**: never commit predictions or keys next to a sheet a human will label. Back up keys and small results to a durable, out-of-repo path the labeller won't browse (done: `~/.askmukthiguru-attribution-backup/2026-09-24/`).
+
+### L-PARALLEL-SESSIONS-1. Forked sessions edited the same folder; check before writing a handoff
+- **What**: The conversation forked on 2026-09-22 into two sessions (`61c7a2fa`/`b85a3bed` and `a8776f7b`). Both wrote to `docs/attribution/` (one rewrote `README.md` and added two sheets, a production script, tests and lessons). The first draft of this session's handoff described only its own work and would have been wrong. Caught by noticing unfamiliar files and a changed `README.md` mtime, then reading the other session's transcript (`~/.claude/projects/<repo>/<session>.jsonl`).
+- **Rule**: before a handoff or commit, run `git status`, check mtimes of shared files, and grep recent session transcripts for the same artefacts. Commit only paths the workstream owns.
+
+### L-VENDOR-OMNI-1. Omni-model diarization: use as a second, independent labeller, not the source of truth
+- **What**: Qwen3.8-Omni-Flash (released 2026-09-18) reports AliMeeting DER 3.4 / cpWER 17.2 (previous Qwen omni: 88.1) and joint audio-video speaker identity. These are vendor numbers, the blog is still marked "[draft]", it's API-only (no open weights) and it conflicts with the repo's local / open-source rule. Industry practice agrees: Sadhguru's app plays real recordings, Dexa answers in 3rd person with timestamped clips, first-person twins (Digital Deepak, Delphi) exist only with the person's consent, and GitaGPT (generated Krishna's voice) fabricated verses.
+- **Rule**: attribution of a teacher's words needs two independent signals that agree (local voiceprints + human, optionally + an omni model), plus abstention. Generated first person needs written consent; "1st person" here means quoting their verbatim transcript words with a clip. User decision 2026-09-22: Qwen on pilot videos only, pending a `DASHSCOPE_API_KEY`.
+
 ## Sep 22–24, 2026 — Speaker attribution & verbatim quotes: most "teaching" chunks are not the teachers' words; a no-LLM pipeline for named, timestamped quotes
 
 ### L-VERBATIM-1. 61% of Qdrant "teaching" chunks are machine-rewritten, not what the teachers said — never quote a teacher from `spiritual_wisdom_contextual`
