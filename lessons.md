@@ -1,3 +1,11 @@
+## Sep 24, 2026 — Profile page decluttered: danger-zone actions consolidated into a dropdown
+
+### L-PROFILE-DECLUTTER-1. `/profile` Account & Data card had 3 always-visible destructive buttons; consolidated to match chat's toolbar pattern
+- **Who**: Frontend agent (worktree `agent-a785ace17a6e92c21`).
+- **What**: `src/pages/ProfilePage.tsx`'s Settings tab "Danger zone" showed Clear Local Data, Erase Cloud Memories, and Delete Account as three always-visible buttons in a grid — all destructive, two of them rare. Kept Delete Account visible as the primary destructive action; moved Clear Local Data and Erase Cloud Memories behind a "..." `DropdownMenu` (both `AlertDialog`s converted to controlled `open`/`onOpenChange` state so they can be triggered from `DropdownMenuItem`). Matched the exact convention just shipped in `src/components/chat/ChatMessage.tsx` (commit `1b782881`, same session): `@/components/ui/dropdown-menu` import, `MoreHorizontal` trigger icon, `w-4 h-4` icon sizing, `DropdownMenuItem onClick` + `mr-2` icon spacing — not a divergent pattern.
+- **Why it matters**: the user flagged this page as "overloaded" with the same complaint as chat's message toolbar. Reusing the identical dropdown convention (rather than inventing a second pattern) keeps the app's design language consistent across chat and profile, per an explicit mid-session instruction to reconcile.
+- **Not done / caveats**: the rest of ProfilePage (Export local/cloud data buttons, per-tab layout) was left alone — reasonably scoped already, not requested to change. **No browser/screenshot verification was performed** — this worktree has no browser tool available; verification was `npx tsc --noEmit -p .` (clean) only. Attempting the coordinator's requested local Docker Compose click-through failed at `docker compose ps` with missing required env vars (`NEO4J_PASSWORD`, `REDIS_PASSWORD`, `JWT_SECRET`, `CORS_ORIGINS`) — not something this worktree has secrets for. Live visual verification is left to the coordinator/user, as instructed.
+
 ## Sep 23, 2026 (Session 10) — Privacy Hardening: DELETE /api/memory/all must erase canonical memory and vector indices
 
 ### L-PRIVACY-1. Erasing a seeker's memory must purge all canonical tables, audit history, and vector indices
