@@ -2257,16 +2257,11 @@ const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
           ta.setSelectionRange(ta.value.length, ta.value.length);
         }
       });
-      return;
     }
   }
-  // Ctrl/Cmd+Enter sends; plain Enter still sends (legacy); Shift+Enter = newline.
-  // IME composition guard: ignore Enter while composing characters (e.g. CJK, Devanagari)
-  if (e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229) return;
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    handleSubmit(e);
-  }
+  // Plain Enter and Shift+Enter are handled by PromptInputTextarea (ai-elements/prompt-input.tsx).
+  // Ctrl/Cmd+Enter is handled by useChatShortcuts.
+  // Do NOT duplicate submit logic here — it causes double-submit on every Enter key.
 };
 
 // ── Keyboard shortcuts (Ctrl+Enter / Ctrl+Shift+O / Ctrl+/) ──────
