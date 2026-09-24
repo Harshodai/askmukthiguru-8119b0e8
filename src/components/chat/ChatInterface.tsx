@@ -454,7 +454,9 @@ export const ChatInterface = () => {
   useEffect(() => {
     const ta = inputRef.current;
     if (ta) {
-      ta.style.height = '36px';
+      // Reset to auto so scrollHeight reflects true content height;
+      // Tailwind min-h-9 (36px) on PromptInputTextarea keeps the visual floor.
+      ta.style.height = 'auto';
       ta.style.height = `${Math.min(ta.scrollHeight, 320)}px`;
     }
   }, [inputValue]);
