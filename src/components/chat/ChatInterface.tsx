@@ -2260,13 +2260,8 @@ const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       return;
     }
   }
-  // Ctrl/Cmd+Enter sends; plain Enter still sends (legacy); Shift+Enter = newline.
-  // IME composition guard: ignore Enter while composing characters (e.g. CJK, Devanagari)
-  if (e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229) return;
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    handleSubmit(e);
-  }
+  // PromptInputTextarea owns Enter, Shift+Enter, and IME handling. Keeping a
+  // second submit path here prevents its native form submission from running.
 };
 
 // ── Keyboard shortcuts (Ctrl+Enter / Ctrl+Shift+O / Ctrl+/) ──────
