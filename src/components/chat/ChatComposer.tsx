@@ -206,10 +206,11 @@ function ChatComposerInner({
           </div>
         )}
 
+        {inputValue.startsWith('/') && (
         <div className="px-5 pt-3">
           <SlashCommandMenu
             input={inputValue}
-            open={inputValue.startsWith('/')}
+            open
             onSelect={onSlashCommand}
             onClose={() => {
               const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
@@ -222,6 +223,7 @@ function ChatComposerInner({
             }}
           />
         </div>
+        )}
 
         <input
           type="file"
@@ -279,8 +281,7 @@ function ChatComposerInner({
           dir={currentLanguage === 'ur' ? 'rtl' : 'auto'}
           enterKeyHint="send"
           aria-label={t('chat.yourMessage') === 'chat.yourMessage' ? 'Your message' : t('chat.yourMessage')}
-          className="min-h-9 max-h-[120px] w-full bg-transparent border-none outline-none resize-none px-4 pt-4 pb-1 text-foreground placeholder:text-muted-foreground/60 text-[15px] leading-relaxed scrollbar-spiritual focus:ring-1 focus:ring-ojas/30 disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{ minHeight: '28px' }}
+          className="min-h-12 max-h-[120px] w-full cursor-text bg-transparent border-none outline-none resize-none px-4 py-3 text-foreground placeholder:text-muted-foreground/60 text-[15px] leading-relaxed scrollbar-spiritual focus:ring-1 focus:ring-ojas/30 disabled:opacity-50 disabled:cursor-not-allowed"
           disabled={isAwaitingSereneMind || isQuotaExceeded}
         />
 
