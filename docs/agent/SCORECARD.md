@@ -1,0 +1,15 @@
+# Path to 10/10: exit criteria per dimension
+
+A dimension scores 10 only when **every** criterion below is met **with evidence**. Agents can complete the "Agent" criteria; the "Human" criteria need people. Scores are judgments; keep the evidence links current.
+
+| Dimension (weight) | Baseline | Exit criteria for 10 | Agent can do | Only humans can do |
+|---|---|---|---|---|
+| Need and fit (15%) | 8 | Blind faculty bake-off shows parity or better vs the MMY NotebookLM on citation verifiability and clear superiority on distress handling; at least 70% "helped" in pilot; 15+ user interviews confirm distinct value | Bake-off harness, analytics, interview guide, report generator | Run the pilot and interviews; rate answers |
+| Technical (20%) | 7.5 | Latency targets met under load (first token and full answer, distress path); cost per conversation under cap; tests green and non-flaky; dependency and secret scans clean; independent review with high findings closed; backup and restore drill; SLOs and alerts; unused pipeline layers behind flags; **retrieval quality**: hybrid (dense+sparse) search confirmed or justified as dense-only, reranker confirmed active, LightRAG extraction model verified to meet capability requirements, ingestion completeness/chunking/metadata dated and measured, a domain ontology seeds graph extraction, and faithfulness/answer-relevancy/context-precision are tracked on a fixed question set (see `docs/agent/RETRIEVAL_QUALITY.md`) | Nearly all of it | Independent reviewer sign-off; restore drill approval |
+| Safety (20%) | 5 | G1 passed: 100% high-risk scenarios in all pilot languages; judge agreement with clinician labels reported; independent monitor live; external human red-team report closed; incident runbook and named on-call; monthly safety review scheduled | Crisis path, monitor, scenarios, judge, runbook drafts, logging | Clinician labels and sign-off; helpline verification; human red-team; on-call |
+| Rights and alignment (15%) | 3.5 | G2 passed: 100% of served sources registered with written basis; unregistered blocked at serve time; git history clean; approvals archived; annual review scheduled | Inventory, register, serve-time block, draft approval requests | Rights holders' written approvals; decisions |
+| Evidence of value (15%) | 2 | Pilot with 100+ seekers finished against pre-agreed bars; results reported; decision recorded | Instrumentation, dashboard, weekly reports | Recruit users; run the pilot; decide |
+| Sustainability (10%) | 3.5 | Named funder; 12-month budget; cost per active user known and under cap; kill switch tested | Cost model, dashboards, caps, forecasting | Funding decision |
+| Distribution (5%) | 4 | Written endorsement; official channels plan; official-app deep links live; WhatsApp channel live | Deep links, share cards, WhatsApp flows | Endorsement; channel access |
+
+**Honest ceiling.** With agents alone, a realistic estimate is about 6 to 6.5 overall. The remainder requires clinician review, rights approvals, real users and a funding decision.

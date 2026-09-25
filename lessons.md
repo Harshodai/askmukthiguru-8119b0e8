@@ -1,3 +1,54 @@
+## Sep 25, 2026 — First-person route: tests that could not fail, and jobs that looked dead
+
+### L-FIRST-PERSON-1. Mocks hid a missing method; a tuple read as a bool disabled a safety gate
+- **Who**: Claude (lead) + Sonnet workers, 2026-09-25.
+- **What**: `POST /api/first-person/query` returned 500 on every live call. It called `EmbeddingService.embed_query`, which does not exist, and its test patched the whole class, so the call "worked" there. Separately, `first_person_pipeline.py` did `if verify_document_integrity(doc):`, but that function returns `(bool, reason)`, which is always truthy, so no clip was ever quarantined. The confidence threshold compared 0.015 with a raw RRF score that every rank-1 hit clears, so every answer counted as "direct".
+- **Fix**: route uses `container.embedding.encode_single_full_async`; the serving gate recomputes `sha256(verbatim_text)` against `transcript_hash` and allows only the two teacher speakers; "direct" needs a fitted human-label calibration profile, and without one every answer is "Related, not a direct answer".
+- **Rules**:
+  - Mock services with `create_autospec(Class, instance=True)`, never a bare patch, so a call to a missing method fails the test.
+  - Mutation-check every safety gate: force it open and confirm a test fails. (Done 2026-09-25: an open gate fails 3 tests; a forced profile fails the no-profile test.)
+  - A threshold is only meaningful on a calibrated score. Rank-fusion scores are not calibrated.
+
+### L-OPS-PGREP-1. `ps | grep` reported live jobs as dead
+- **What**: The lead declared benchmark run 1 (PID 9933) and the pilot dead, and another agent's "PID 9933 active" claim false. Both jobs were alive. The rtk hook filters piped output, macOS `ps` truncates the command column, and the framework binary shows as `Python` (capital P).
+- **Rule**: Check liveness with `pgrep -fl <pattern>` and confirm with checkpoint or log growth before calling a job dead.
+
+### L-OPS-WATCHDOG-1. A supervisor's done-check must validate each item
+- **What**: `watchdog.sh` treated `ALL_DONE` in the pilot log as success. 42 of 50 videos had failed the speaker step: yt-dlp saved 48 kHz stereo and the ECAPA step correctly fails closed on anything but 16 kHz mono.
+- **Fix**: audio converted to 16 kHz mono; the download now requests it; done means every video has all 7 steps ok.
+- **Rule**: A job is done when each unit of work is verified, not when a process prints a completion marker. Keep a failure-matching monitor armed across the whole run: this failure landed while the monitor had expired.
+
+## Sep 24, 2026 — False external-teacher tags (first-person baseline session)
+
+### L-TEACHER-TAG-1. A name in the text is not the speaker
+- **Who**: Claude (lead) + Sonnet worker, 2026-09-24.
+- **What was wrong:** live Qdrant had 3,121 false tags on 3,087 points from 143 Preethaji & Krishnaji / Ekam / O&O videos, and the corpus contains none of those teachers:
+  - `teacher:amma_bhagavan` 2,991
+  - `teacher:iskcon` 111
+  - `teacher:sadhguru` 19
+- **How it happened:** commit `56c31438` (Jul 4) matched teacher words as substrings of the title, URL and first chunks:
+  - "digital" contains "gita", so ISKCON.
+  - "Krishnaji" contains "krishna", so ISKCON.
+  - "Mahishasura" contains "isha", so Sadhguru.
+  - "oneness", "deeksha" and "amma" (as in "grammar") mapped to Amma Bhagavan, though oneness and deeksha are the teachers' OWN vocabulary.
+- **Why a later rewrite didn't fix it:** the later rewrite, `services/teacher_attribution.py`, used whole-word regexes but kept the wrong design. A mention still decided the speaker, and external teachers still overrode Preethaji and Krishnaji. The tags feed Qdrant filters (`services/qdrant/filters.py`, `searcher.py:226`).
+- **Fix:**
+  - The resolver decides identity from the SOURCE only: title, speaker/channel, source_url, plus an explicit `EXTERNAL_TEACHER_SOURCE_REGISTRY`, which is empty.
+  - The default is `preethaji_krishnaji`.
+  - A mention produces only `mentions:<teacher>`. It never produces a `teacher:` tag, never sets `teacher_id` and never filters.
+  - All 4 ingestion callers are fixed through the one shared function.
+  - `tests/test_ingestion_pipeline.py::test_embed_and_index_teacher_tagging` had pinned the bug; it now asserts the reverse.
+- **Backfill:** `scripts/ops/fix_teacher_tags.py`, default scope `external-tags`.
+  - It removed the 3,121 false tags and credited both teachers on the affected points (owner decision).
+  - It left `teacher_id` untouched.
+  - It took a snapshot first: `spiritual_wisdom_contextual-1111874297854021-2026-09-24-11-36-10.snapshot`.
+  - A re-run changes 0 points.
+- **Why `teacher_id` was left alone:** against the voice census (docs/attribution/ANALYSIS.md §2.6, 14 videos, 4,801 points), recomputing `teacher_id` from titles scored 2,171 correct vs 2,149 for the current labels. It fixed two videos and broke two; for example, U23yKxWbIcI is Krishnaji-only by voice but its title names both. So `teacher_id` waits for voice attribution rather than churning 13.5k points for no gain.
+- **Rules / invariants:**
+  - Who speaks comes from source identity + voice, never from words anyone said.
+  - Before bulk-rewriting labels, score the new rule against ground truth. "Different" is not "better".
+  - A test that asserts buggy behaviour gets inverted, not skipped.
+
 ## Sep 24, 2026 — PracticeDetailPage control flow typing & market research
 
 ### L-TS-CONTROLFLOW-1. Ternary variable assigned before guard condition bypasses TypeScript control flow narrowing
