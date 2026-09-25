@@ -144,12 +144,12 @@ function InputGroupInput({
   )
 }
 
-function InputGroupTextarea({
-  className,
-  ...props
-}: React.ComponentProps<"textarea">) {
-  return (
+// forwardRef: PromptInputTextarea passes a ref for focus and native form submit;
+// a plain function component silently drops it.
+const InputGroupTextarea = React.forwardRef<HTMLTextAreaElement, React.ComponentProps<"textarea">>(
+  ({ className, ...props }, ref) => (
     <textarea
+      ref={ref}
       data-slot="input-group-control"
       className={cn(
         "flex-1 resize-none rounded-none border-0 bg-transparent py-3 shadow-none focus-visible:ring-0 focus:outline-none focus-visible:outline-none dark:bg-transparent",
@@ -158,7 +158,8 @@ function InputGroupTextarea({
       {...props}
     />
   )
-}
+)
+InputGroupTextarea.displayName = "InputGroupTextarea"
 
 export {
   InputGroup,

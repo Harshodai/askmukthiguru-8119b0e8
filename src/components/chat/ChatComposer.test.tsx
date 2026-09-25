@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ChatComposer } from './ChatComposer';
@@ -63,7 +63,7 @@ const renderComposer = (overrides: Partial<React.ComponentProps<typeof ChatCompo
 };
 
 describe('ChatComposer keyboard behavior', () => {
-  it('submits exactly once when Enter is pressed', () => {
+  it('submits exactly once when Enter is pressed', async () => {
     const { onKeyDown, onSubmit } = renderComposer();
 
     fireEvent.keyDown(screen.getByRole('textbox', { name: /your message/i }), {
@@ -72,7 +72,8 @@ describe('ChatComposer keyboard behavior', () => {
     });
 
     expect(onKeyDown).toHaveBeenCalledOnce();
-    expect(onSubmit).toHaveBeenCalledOnce();
+    // PromptInput's form handler is async (it awaits attachment conversion), so onSubmit lands on a microtask.
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce());
   });
 
   it('keeps Shift+Enter as a newline without submitting', () => {
@@ -103,7 +104,8 @@ describe('ChatComposer keyboard behavior', () => {
 
     expect(textarea).toHaveClass('min-h-12', 'cursor-text');
     expect(screen.queryByTestId('slash-command-menu')).not.toBeInTheDocument();
-    fireEvent.click(textarea);
+    // jsdom does not move focus on a synthetic click (browsers do), so focus directly.
+    textarea.focus();
     expect(textarea).toHaveFocus();
   });
 });
