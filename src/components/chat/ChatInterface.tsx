@@ -2261,9 +2261,9 @@ const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       });
     }
   }
-  // Plain Enter and Shift+Enter are handled by PromptInputTextarea (ai-elements/prompt-input.tsx).
-  // Ctrl/Cmd+Enter is handled by useChatShortcuts.
-  // Do NOT duplicate submit logic here — it causes double-submit on every Enter key.
+  // PromptInputTextarea (ai-elements/prompt-input.tsx) owns Enter, Shift+Enter and IME handling;
+  // Ctrl/Cmd+Enter is handled by useChatShortcuts. Do NOT add a second submit path here:
+  // it double-submits and blocks the textarea's native form submission.
 };
 
 // ── Keyboard shortcuts (Ctrl+Enter / Ctrl+Shift+O / Ctrl+/) ──────
