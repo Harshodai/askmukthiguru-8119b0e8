@@ -52,6 +52,7 @@ from pathlib import Path
 from typing import Any
 
 import httpx
+from tenacity import AsyncRetrying, retry_if_exception, stop_after_attempt, wait_exponential_jitter
 
 BACKEND_ROOT = Path(__file__).resolve().parent.parent
 if str(BACKEND_ROOT) not in sys.path:
@@ -102,6 +103,105 @@ SYSTEM_ERROR_GROUNDING_STATES = {"system_error"}
 # Bounded retry for rate-limit back-pressure during a long eval run.
 _RATE_LIMIT_RETRIES = 4
 _RATE_LIMIT_BACKOFF_S = 5.0
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Error classification -- the 2026-09-24 fix.
+#
+# The bug: bench_e2e_clean_20260919.json had 1,096 ReadTimeouts + 91 ReadErrors
+# and 1,187/1,226 empty answers, yet reported system_error_rate=0.0. A timeout
+# stored its failure as raw={"_err": "ReadTimeout: ..."}, which score_row read
+# into `error`, but `system_error` was computed ONLY from grounding_state /
+# intent / route_decision -- fields a transport failure never has (there is no
+# HTTP response to read them from). The row then scored coverage=1.0 (no
+# must_mention terms to miss) and refused=False (empty string matches no
+# refusal marker), i.e. a dead request looked like a clean, fully-covered
+# answer. _classify_error below buckets EVERY outcome into one honest class,
+# and score_row folds it into `system_error` so it can never again read 0
+# while the run is on fire.
+# ═══════════════════════════════════════════════════════════════════════════
+
+_TIMEOUT_ERR_RE = re.compile(r"timeout", re.IGNORECASE)
+_READ_ERROR_RE = re.compile(r"ReadError", re.IGNORECASE)
+_CONNECT_ERROR_RE = re.compile(r"(ConnectError|RemoteProtocolError)", re.IGNORECASE)
+
+
+def _classify_error(raw: dict, error: str | None, answer: str) -> str | None:
+    """One honest error class for a row, or None for a real success.
+
+    `error` is score_row's already-merged transport string (httpx exception
+    repr, or "http_<status>" for a non-2xx with no exception). Checked before
+    `answer` so a transport failure is never ALSO counted as empty_answer.
+    """
+    if error:
+        # No \b around the digits: score_row's own merged message is
+        # "http_429" / "http_503" (see the `error = f"http_{http_status}"`
+        # line above) where "_" is a word character, so \b429\b never matches
+        # its own caller's output.
+        if re.search(r"429", error):
+            return "http_429"
+        if re.search(r"5\d\d", error):
+            return "http_5xx"
+        if _TIMEOUT_ERR_RE.search(error):
+            return "timeout"
+        if _READ_ERROR_RE.search(error):
+            return "read_error"
+        if _CONNECT_ERROR_RE.search(error):
+            return "connect_error"
+        return "other_error"
+    if "response" not in raw:
+        return "missing_fields"
+    if not answer.strip():
+        return "empty_answer"
+    return None
+
+
+def _is_retryable_transport_error(exc: BaseException) -> bool:
+    """429/5xx/connect failures are worth a retry; anything else (4xx client
+    errors, auth failures) is not. A ReadTimeout is NOT retried: the server
+    already spent the full per-request budget on this question, so a retry
+    tripled a failing row to ~547s (2026-09-25) and measured nothing new. It
+    still counts as a `timeout` system error."""
+    if isinstance(exc, httpx.HTTPStatusError):
+        return exc.response.status_code == 429 or exc.response.status_code >= 500
+    if isinstance(exc, httpx.ReadTimeout):
+        return False
+    return isinstance(
+        exc, (httpx.TimeoutException, httpx.ReadError, httpx.ConnectError, httpx.RemoteProtocolError)
+    )
+
+
+def _retry_after_or_backoff(retry_state: Any) -> float:
+    """Honour a 429/503's Retry-After header; otherwise exponential backoff
+    with jitter (same shape as services/openrouter_service.py)."""
+    exc = retry_state.outcome.exception() if retry_state.outcome else None
+    if isinstance(exc, httpx.HTTPStatusError):
+        retry_after = exc.response.headers.get("retry-after")
+        if retry_after:
+            try:
+                return max(float(retry_after), 1.0)
+            except (TypeError, ValueError):
+                pass
+    return wait_exponential_jitter(initial=2, max=30, jitter=2)(retry_state)
+
+
+async def _ask_with_retry(ask_fn: Any, max_attempts: int) -> dict:
+    """Bounded retry around one question's transport call. Reuses tenacity
+    (already a dependency -- see services/openrouter_service.py) instead of
+    hand-rolling backoff. Never raises: an exhausted retry becomes the same
+    `{"_err": ...}` shape score_row already knows how to classify."""
+    try:
+        async for attempt in AsyncRetrying(
+            stop=stop_after_attempt(max(1, max_attempts)),
+            wait=_retry_after_or_backoff,
+            retry=retry_if_exception(_is_retryable_transport_error),
+            reraise=True,
+        ):
+            with attempt:
+                return await ask_fn()
+    except Exception as exc:  # noqa: BLE001 - report every row, never abort the run
+        return {"_err": f"{type(exc).__name__}: {exc}" if str(exc) else type(exc).__name__}
+    return {"_err": "unreachable: retry loop exited without result or exception"}
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -350,7 +450,9 @@ async def _get_anon_token(client: httpx.AsyncClient, endpoint: str) -> str:
     return d.get("token") or d.get("session_id") or list(d.values())[0]
 
 
-async def _ask_anonymous(client: httpx.AsyncClient, endpoint: str, question: str) -> dict:
+async def _ask_anonymous(
+    client: httpx.AsyncClient, endpoint: str, question: str, timeout: float | None = None
+) -> dict:
     # 429 is transient back-pressure from the rate limiter, not a verdict about
     # the answer. Measured live 2026-09-17: 7 of 47 golden-bank rows came back
     # 429 with an EMPTY answer, which scored as coverage 0.00 and fed the
@@ -398,7 +500,7 @@ async def _ask_anonymous(client: httpx.AsyncClient, endpoint: str, question: str
                 "incognito": True,
                 "cache_bypass": True,
             },
-            timeout=settings.benchmark_chat_timeout,
+            timeout=timeout or settings.benchmark_chat_timeout,
         )
         if r.status_code != 429:
             if r.status_code >= 400:
@@ -477,7 +579,11 @@ class AuthenticatedSession:
 
 
 async def _ask_authenticated(
-    client: httpx.AsyncClient, endpoint: str, sess: AuthenticatedSession, question: str
+    client: httpx.AsyncClient,
+    endpoint: str,
+    sess: AuthenticatedSession,
+    question: str,
+    timeout: float | None = None,
 ) -> dict:
     auth = {"Authorization": f"Bearer {sess.token}"}
     r = await client.post(
@@ -489,7 +595,7 @@ async def _ask_authenticated(
             "session_id": sess.session_id,
             "cache_bypass": True,
         },
-        timeout=300.0,
+        timeout=timeout or 300.0,
     )
     if r.status_code >= 500:
         return {"_http": r.status_code}
@@ -904,11 +1010,20 @@ def score_row(
     # marker from the guardrail path). That alone failed the system_error_rate
     # gate at 6% and pulled those rows OUT of abstention scoring, leaving
     # abstention_correctness computed over a single row.
-    system_error = grounding_state not in ABSTAIN_GROUNDING_STATES and (
+    pipeline_system_error = grounding_state not in ABSTAIN_GROUNDING_STATES and (
         grounding_state in SYSTEM_ERROR_GROUNDING_STATES
         or raw.get("intent") == "ERROR"
         or raw.get("route_decision") == "error"
     )
+    # 2026-09-24 fix: a transport failure (timeout/429/5xx/read-connect-error/
+    # empty answer) has no grounding_state at all, so the check above always
+    # read False for it -- exactly the defect that made a run with 1,187/1,226
+    # empty answers report system_error_rate=0.0. `error_class` covers what
+    # pipeline_system_error structurally cannot see.
+    error_class = _classify_error(raw, error, answer)
+    system_error = pipeline_system_error or bool(error_class)
+    if not error_class and pipeline_system_error:
+        error_class = "pipeline_error"
     trace = raw.get("evaluation_trace") or {}
     citations = raw.get("citations") or []
     citations_valid = sum(
@@ -1002,6 +1117,7 @@ def score_row(
         zero_retrieval_canary=bool(zero_retrieval_canary),
         possible_node_error=bool(possible_node_error),
         system_error=bool(system_error),
+        error_class=error_class,
         memory_used=bool(raw.get("memory_used") or trace.get("memory_context_chars"))
         if mode == "authenticated"
         else None,
@@ -1016,15 +1132,73 @@ def score_row(
 # ═══════════════════════════════════════════════════════════════════════════
 
 
+def _percentile(vals: list[float], p: float) -> float:
+    if not vals:
+        return 0.0
+    idx = min(len(vals) - 1, int(p / 100 * len(vals)))
+    return vals[idx]
+
+
+def _row_is_error(r: EvalRow) -> bool:
+    return bool(r.error) or bool(r.system_error)
+
+
+def _error_breakdown(rows: list[EvalRow]) -> dict[str, int]:
+    breakdown: dict[str, int] = {}
+    for r in rows:
+        if r.error_class:
+            breakdown[r.error_class] = breakdown.get(r.error_class, 0) + 1
+    return breakdown
+
+
+def _source_stats(rows: list[EvalRow]) -> dict[str, Any]:
+    """Per-question-set sub-report (task requirement: each of the 9 sources
+    separately). Same success/error split as aggregate(), scoped to one
+    source's rows."""
+    n = len(rows)
+    ok = [r for r in rows if not _row_is_error(r)]
+    n_ok = len(ok)
+    n_err = n - n_ok
+    lats = sorted(r.latency_s for r in ok) or [0.0]
+    total_cites = sum(r.citations_count for r in ok)
+    valid_cites = sum(r.citations_valid_count for r in ok)
+    return {
+        "n": n,
+        "n_success": n_ok,
+        "n_error": n_err,
+        "error_rate": round(n_err / n, 4) if n else 0.0,
+        "error_breakdown": _error_breakdown(rows),
+        "refusal_rate": round(sum(r.refused for r in ok) / n_ok, 4) if n_ok else 0.0,
+        "must_mention_coverage_all": round(sum(r.coverage for r in ok) / n_ok, 4) if n_ok else 0.0,
+        "contradiction_count": sum(1 for r in ok if r.contradictions),
+        "citation_validity_rate": round(valid_cites / total_cites, 4) if total_cites else 1.0,
+        "latency_p50_s": round(_percentile(lats, 50), 2),
+        "latency_p95_s": round(_percentile(lats, 95), 2),
+    }
+
+
 def aggregate(rows: list[EvalRow], mode: str, sources: list[str], started_at: str) -> EvalReport:
     n = len(rows)
-    answered = [r for r in rows if not r.refused and not r.error]
-    lats = sorted(r.latency_s for r in rows) or [0.0]
-    abst_rows = [r for r in rows if r.abstention_correct is not None]
-    ms_rows = [r for r in rows if r.machine_summary_share is not None]
-    gvd_rows = [r for r in rows if r.guru_voice_distance is not None]
-    total_cites = sum(r.citations_count for r in rows)
-    valid_cites = sum(r.citations_valid_count for r in rows)
+    # 2026-09-24 fix: every quality metric below (coverage, citations,
+    # abstention, misattribution, hallucination, latency) is computed ONLY
+    # over success_rows. Before this fix an errored row (timeout, 429, 5xx,
+    # empty answer) had coverage=1.0 whenever it had no must_mention terms
+    # (`if must else 1.0`) and refused=False (an empty string matches no
+    # refusal marker) -- a dead request scored as a clean, fully-covered,
+    # non-refused answer and silently inflated every quality number.
+    success_rows = [r for r in rows if not _row_is_error(r)]
+    n_success = len(success_rows)
+    n_error = n - n_success
+    error_rate = round(n_error / n, 4) if n else 0.0
+
+    answered = [r for r in success_rows if not r.refused]
+    lats = sorted(r.latency_s for r in success_rows) or [0.0]
+    abst_rows = [r for r in success_rows if r.abstention_correct is not None]
+    ms_rows = [r for r in success_rows if r.machine_summary_share is not None]
+    gvd_rows = [r for r in success_rows if r.guru_voice_distance is not None]
+    total_cites = sum(r.citations_count for r in success_rows)
+    valid_cites = sum(r.citations_valid_count for r in success_rows)
+    n_ok = n_success
 
     lane_fired = {
         lane: sum(1 for r in rows if (getattr(r, lane) or 0) > 0)
@@ -1032,7 +1206,7 @@ def aggregate(rows: list[EvalRow], mode: str, sources: list[str], started_at: st
     }
 
     cat_breakdown: dict[str, dict[str, Any]] = {}
-    for r in rows:
+    for r in success_rows:
         b = cat_breakdown.setdefault(
             r.category, {"count": 0, "refused": 0, "coverage_sum": 0.0, "contradictions": 0}
         )
@@ -1043,11 +1217,10 @@ def aggregate(rows: list[EvalRow], mode: str, sources: list[str], started_at: st
     for b in cat_breakdown.values():
         b["avg_coverage"] = round(b.pop("coverage_sum") / b["count"], 3)
 
-    def _pct(vals: list[float], p: float) -> float:
-        if not vals:
-            return 0.0
-        idx = min(len(vals) - 1, int(p / 100 * len(vals)))
-        return vals[idx]
+    by_source = {
+        src: _source_stats([r for r in rows if r.source == src])
+        for src in sorted({r.source for r in rows})
+    }
 
     report = EvalReport(
         mode=mode,
@@ -1056,12 +1229,14 @@ def aggregate(rows: list[EvalRow], mode: str, sources: list[str], started_at: st
         completed=n,
         started_at=started_at,
         finished_at=datetime.now(UTC).isoformat(),
-        refusal_rate=round(sum(r.refused for r in rows) / n, 4) if n else 0.0,
-        must_mention_coverage_all=round(sum(r.coverage for r in rows) / n, 4) if n else 0.0,
+        refusal_rate=round(sum(r.refused for r in success_rows) / n_ok, 4) if n_ok else 0.0,
+        must_mention_coverage_all=round(sum(r.coverage for r in success_rows) / n_ok, 4)
+        if n_ok
+        else 0.0,
         must_mention_coverage_answered=round(sum(r.coverage for r in answered) / len(answered), 4)
         if answered
         else 0.0,
-        contradiction_count=sum(1 for r in rows if r.contradictions),
+        contradiction_count=sum(1 for r in success_rows if r.contradictions),
         citation_validity_rate=round(valid_cites / total_cites, 4) if total_cites else 1.0,
         abstention_correctness=round(
             sum(r.abstention_correct for r in abst_rows) / len(abst_rows), 4
@@ -1082,29 +1257,38 @@ def aggregate(rows: list[EvalRow], mode: str, sources: list[str], started_at: st
         possible_node_error_rate=round(sum(r.possible_node_error for r in rows) / n, 4)
         if n
         else 0.0,
-        system_error_rate=round(sum(r.system_error for r in rows) / n, 4) if n else 0.0,
-        hallucination_flag_rate=round(sum(bool(r.hallucination_flag) for r in rows) / n, 4)
-        if n
+        # THE FIX: this used to be computed from the pipeline-signal-only
+        # `system_error` bool, which a transport failure can never set. It is
+        # now the same unified error_rate reported below.
+        system_error_rate=error_rate,
+        hallucination_flag_rate=round(sum(bool(r.hallucination_flag) for r in success_rows) / n_ok, 4)
+        if n_ok
         else 0.0,
         # An UNMEASURED row is neither clean nor misattributed -- counting it
         # as either is a lie. It is reported on its own axis and gated
         # separately (see eval_max_misattribution_unmeasured_rate).
         misattribution_rate=round(
-            sum(1 for r in rows if _real_misattribution(r.misattribution_flags)) / n, 4
+            sum(1 for r in success_rows if _real_misattribution(r.misattribution_flags)) / n_ok, 4
         )
-        if n
+        if n_ok
         else 0.0,
         misattribution_unmeasured_rate=round(
-            sum(1 for r in rows if _UNMEASURED_FLAGS & set(r.misattribution_flags or [])) / n,
+            sum(1 for r in success_rows if _UNMEASURED_FLAGS & set(r.misattribution_flags or []))
+            / n_ok,
             4,
         )
-        if n
+        if n_ok
         else 0.0,
         lane_fired=lane_fired,
-        latency_p50_s=round(_pct(lats, 50), 2),
-        latency_p95_s=round(_pct(lats, 95), 2),
+        latency_p50_s=round(_percentile(lats, 50), 2),
+        latency_p95_s=round(_percentile(lats, 95), 2),
         latency_max_s=round(lats[-1], 2),
         category_breakdown=cat_breakdown,
+        n_success=n_success,
+        n_error=n_error,
+        error_rate=error_rate,
+        error_breakdown=_error_breakdown(rows),
+        by_source=by_source,
         rows=rows,
     )
     report.gates = build_gates(report, settings)
@@ -1112,9 +1296,78 @@ def aggregate(rows: list[EvalRow], mode: str, sources: list[str], started_at: st
     return report
 
 
+def apply_validity_threshold(report: EvalReport, max_error_rate: float) -> EvalReport:
+    """Mark the report INVALID when system_error_rate exceeds the threshold.
+
+    Separate from `gates`/`gates_passed` (settings.eval_max_system_error_rate,
+    default 0.0 -- the strict CI gate): this is the coarser "was this run even
+    measuring anything real" check the task requires, with its own
+    (configurable) default of 1%.
+    """
+    if report.error_rate > max_error_rate:
+        report.valid = False
+        report.invalid_reason = (
+            f"system_error_rate {report.error_rate:.2%} exceeds max_error_rate "
+            f"threshold {max_error_rate:.2%} ({report.n_error}/{report.total_questions} rows failed)"
+        )
+    return report
+
+
+def rescore_report(path: Path) -> EvalReport:
+    """Offline honesty fix for a report captured BEFORE this fix existed.
+
+    Reclassifies each saved row's error/system_error from its own
+    already-recorded fields (error string + answer text -- no live HTTP calls,
+    no original raw transport payload needed) and re-runs `aggregate()`. Used
+    to rescore backend/benchmarks/reports/bench_e2e_{clean,full}_20260919.json
+    without re-running the live 1,226-question benchmark.
+    """
+    data = json.loads(path.read_text())
+    rows: list[EvalRow] = []
+    for raw_row in data["rows"]:
+        error = raw_row.get("error")
+        answer = raw_row.get("answer") or ""
+        # Old rows have no original transport payload to check "response" key
+        # presence against -- missing_fields isn't reconstructable from a
+        # flattened row, so always pass a dict with "response" present.
+        error_class = _classify_error({"response": answer}, error, answer)
+        pipeline_system_error = bool(raw_row.get("system_error"))
+        if not error_class and pipeline_system_error:
+            error_class = "pipeline_error"
+        rows.append(
+            EvalRow.model_validate(
+                {
+                    **raw_row,
+                    "error_class": error_class,
+                    "system_error": pipeline_system_error or bool(error_class),
+                }
+            )
+        )
+    return aggregate(
+        rows,
+        mode=data.get("mode", "e2e:anonymous"),
+        sources=data.get("sources", []),
+        started_at=data.get("started_at", ""),
+    )
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # Runner
 # ═══════════════════════════════════════════════════════════════════════════
+
+
+def _load_checkpoint_rows(path: Path) -> list[EvalRow]:
+    """Resumable-checkpoint reader: one EvalRow per JSONL line."""
+    rows: list[EvalRow] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            rows.append(EvalRow.model_validate_json(line))
+        except Exception as exc:  # noqa: BLE001 - a corrupt line must not kill --resume
+            print(f"[bench] WARNING: skipping unreadable checkpoint line: {exc}", file=sys.stderr)
+    return rows
 
 
 async def run_e2e(
@@ -1124,13 +1377,34 @@ async def run_e2e(
     sample: int | None,
     pace_s: float,
     out_path: Path,
+    concurrency: int = 4,
+    max_attempts: int = 3,
+    request_timeout: float | None = None,
+    resume: bool = False,
+    checkpoint_path: Path | None = None,
+    limit: int | None = None,
 ) -> EvalReport:
     items = load_questions(sources, sample)
+    if limit:
+        items = items[:limit]
     started_at = datetime.now(UTC).isoformat()
-    est_min = len(items) * (pace_s + 15) / 60
+    checkpoint_path = checkpoint_path or out_path.with_suffix(".checkpoint.jsonl")
+
+    rows: list[EvalRow] = []
+    done_ids: set[str] = set()
+    if resume and checkpoint_path.exists():
+        rows = _load_checkpoint_rows(checkpoint_path)
+        done_ids = {r.id for r in rows}
+        print(f"[bench] --resume: {len(done_ids)} questions already done, skipping", flush=True)
+    elif checkpoint_path.exists():
+        checkpoint_path.unlink()  # fresh run -- don't append onto a stale checkpoint
+
+    pending = [it for it in items if it["id"] not in done_ids]
+    est_min = len(pending) * (pace_s + 15) / max(concurrency, 1) / 60
     print(
         f"=== eval e2e mode={auth_mode} sources={sources} questions={len(items)} "
-        f"est~{est_min:.0f}min (pace={pace_s}s + ~15s/answer) ===",
+        f"pending={len(pending)} concurrency={concurrency} max_attempts={max_attempts} "
+        f"est~{est_min:.0f}min ===",
         flush=True,
     )
 
@@ -1150,54 +1424,61 @@ async def run_e2e(
     except Exception as exc:  # noqa: BLE001
         print(f"  (guru_voice_distance disabled: {exc})", flush=True)
 
-    rows: list[EvalRow] = []
     auth_session = AuthenticatedSession() if auth_mode == "authenticated" else None
     ctx = auth_session if auth_session else _nullcontext()
+    sem = asyncio.Semaphore(max(1, concurrency))
+    state_lock = asyncio.Lock()
+    total = len(items)
+    completed = len(rows)
+
+    async def _handle_one(client: httpx.AsyncClient, item: dict) -> None:
+        nonlocal completed
+        async with sem:
+            if pace_s:
+                await asyncio.sleep(pace_s)
+            t0 = time.perf_counter()
+
+            async def _call() -> dict:
+                if auth_mode == "authenticated":
+                    return await _ask_authenticated(
+                        client, endpoint, auth_session, item["question"], timeout=request_timeout
+                    )
+                return await _ask_anonymous(
+                    client, endpoint, item["question"], timeout=request_timeout
+                )
+
+            raw = await _ask_with_retry(_call, max_attempts)
+            lat = time.perf_counter() - t0
+            row = score_row(item, raw, lat, auth_mode, qdrant_client, voice_profile)
+
+        async with state_lock:
+            rows.append(row)
+            completed += 1
+            with checkpoint_path.open("a", encoding="utf-8") as f:
+                f.write(row.model_dump_json() + "\n")
+            flag = (
+                "ERR"
+                if row.error
+                else ("SYS_ERROR" if row.system_error else ("REFUSED" if row.refused else "OK"))
+            )
+            print(
+                f"[{completed:4d}/{total}] {item['source']:<15} {item['category']:<26} "
+                f"{flag:<10} cov={row.coverage:.2f} contra={len(row.contradictions)} "
+                f"faith={row.faithfulness_score} tier={row.query_tier} {row.latency_s:.1f}s"
+                + (f"  error_class={row.error_class}" if row.error_class else "")
+                + ("  possible_node_error" if row.possible_node_error else "")
+                + ("  zero_retrieval" if row.zero_retrieval_canary else "")
+                + (f"  misattribution={row.misattribution_flags}" if row.misattribution_flags else ""),
+                flush=True,
+            )
+            # Incremental save so a killed/interrupted run still yields real data.
+            if completed % 5 == 0 or completed == total:
+                partial = aggregate(rows, f"e2e:{auth_mode}", sources, started_at)
+                out_path.write_text(partial.model_dump_json(indent=2))
+
     with ctx:
         async with httpx.AsyncClient(follow_redirects=False) as client:
-            for i, item in enumerate(items, 1):
-                t0 = time.perf_counter()
-                try:
-                    if auth_mode == "authenticated":
-                        raw = await _ask_authenticated(
-                            client, endpoint, auth_session, item["question"]
-                        )
-                    else:
-                        raw = await _ask_anonymous(client, endpoint, item["question"])
-                except Exception as exc:  # noqa: BLE001 - report every row, never abort the run
-                    # type(exc).__name__ guarantees a non-empty message even for
-                    # exceptions with an empty str() (e.g. httpx.ReadTimeout) --
-                    # an empty error string is falsy and was silently scoring as OK.
-                    raw = {
-                        "_err": f"{type(exc).__name__}: {exc}" if str(exc) else type(exc).__name__
-                    }
-                lat = time.perf_counter() - t0
-                row = score_row(item, raw, lat, auth_mode, qdrant_client, voice_profile)
-                rows.append(row)
-                flag = (
-                    "ERR"
-                    if row.error
-                    else ("SYS_ERROR" if row.system_error else ("REFUSED" if row.refused else "OK"))
-                )
-                print(
-                    f"[{i:4d}/{len(items)}] {item['source']:<15} {item['category']:<26} "
-                    f"{flag:<10} cov={row.coverage:.2f} contra={len(row.contradictions)} "
-                    f"faith={row.faithfulness_score} tier={row.query_tier} {row.latency_s:.1f}s"
-                    + ("  possible_node_error" if row.possible_node_error else "")
-                    + ("  zero_retrieval" if row.zero_retrieval_canary else "")
-                    + (
-                        f"  misattribution={row.misattribution_flags}"
-                        if row.misattribution_flags
-                        else ""
-                    ),
-                    flush=True,
-                )
-                # Incremental save so a killed/interrupted run still yields real data.
-                if i % 5 == 0 or i == len(items):
-                    partial = aggregate(rows, f"e2e:{auth_mode}", sources, started_at)
-                    out_path.write_text(partial.model_dump_json(indent=2))
-                if i < len(items):
-                    await asyncio.sleep(pace_s)
+            await asyncio.gather(*(_handle_one(client, item) for item in pending))
 
     report = aggregate(rows, f"e2e:{auth_mode}", sources, started_at)
     out_path.write_text(report.model_dump_json(indent=2))
@@ -1243,15 +1524,24 @@ def write_markdown_report(report: EvalReport, path: Path) -> None:
         f"# Unified eval report — {report.mode}",
         "",
         f"- sources: {', '.join(report.sources)}",
-        f"- questions: {report.total_questions}",
+        f"- questions: {report.total_questions}  |  VALID: {report.valid}"
+        + (f" -- {report.invalid_reason}" if not report.valid else ""),
+        f"- n_success: {report.n_success}  |  n_error: {report.n_error}  |  error_rate: {report.error_rate:.2%}",
+        f"- error breakdown: {report.error_breakdown or '(none)'}",
         f"- refusal rate: {report.refusal_rate:.0%}  |  misattribution rate: {report.misattribution_rate:.0%}"
         f"  |  abstention correctness: {report.abstention_correctness}",
         f"- gates: {'PASSED' if report.gates_passed else 'FAILED'}"
         f" ({sum(g.passed for g in report.gates)}/{len(report.gates)})",
         "",
-        "---",
+        "## Per-source breakdown",
         "",
     ]
+    for src, stats in report.by_source.items():
+        lines.append(
+            f"- `{src}`: n={stats['n']} success={stats['n_success']} error={stats['n_error']} "
+            f"error_rate={stats['error_rate']:.2%} {stats['error_breakdown'] or ''}"
+        )
+    lines += ["", "---", ""]
     for r in report.rows:
         flag = (
             "MISATTRIBUTION"
@@ -1288,7 +1578,13 @@ def print_summary(report: EvalReport) -> None:
     print(f"UNIFIED EVAL SUMMARY  mode={report.mode}  sources={report.sources}")
     print("=" * 78)
     print(f"questions                    {report.total_questions}")
-    print(f"refusal_rate                 {report.refusal_rate:.0%}")
+    print(f"n_success / n_error          {report.n_success} / {report.n_error}")
+    print(f"error_rate                   {report.error_rate:.2%}")
+    if report.error_breakdown:
+        for cls, count in sorted(report.error_breakdown.items(), key=lambda kv: -kv[1]):
+            print(f"  {cls:<16} {count}")
+    print(f"VALID                        {report.valid}" + (f"  -- {report.invalid_reason}" if not report.valid else ""))
+    print(f"refusal_rate                 {report.refusal_rate:.0%}  (over successful responses only)")
     print(f"must_mention coverage (ans)  {report.must_mention_coverage_answered:.2f}")
     print(f"must_mention coverage (all)  {report.must_mention_coverage_all:.2f}")
     print(f"doctrinal contradictions     {report.contradiction_count}/{report.total_questions}")
@@ -1335,7 +1631,7 @@ def _parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    p.add_argument("--mode", choices=["retrieval", "e2e", "voice", "all"], default="e2e")
+    p.add_argument("--mode", choices=["retrieval", "e2e", "voice", "all", "rescore"], default="e2e")
     p.add_argument("--auth", choices=["anonymous", "authenticated"], default="anonymous")
     p.add_argument(
         "--sources",
@@ -1348,13 +1644,55 @@ def _parse_args() -> argparse.Namespace:
         default=None,
         help="Cap questions PER SOURCE for a fast iteration run. Off by default = full coverage.",
     )
+    p.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="Cap TOTAL questions across all sources (smoke-test convenience). --sample caps per-source instead.",
+    )
     p.add_argument("--endpoint", default=settings.benchmark_endpoint)
     p.add_argument("--pace-seconds", type=float, default=7.0)
+    p.add_argument(
+        "--concurrency", type=int, default=4, help="Bounded concurrent in-flight requests (default 4)."
+    )
+    p.add_argument(
+        "--max-attempts",
+        type=int,
+        default=3,
+        help="Bounded retry attempts per question on timeout/429/5xx (default 3).",
+    )
+    p.add_argument(
+        "--timeout",
+        type=float,
+        default=None,
+        help="Per-request timeout in seconds (default: settings.benchmark_chat_timeout).",
+    )
+    p.add_argument(
+        "--max-error-rate",
+        type=float,
+        default=0.01,
+        help="system_error_rate above which the run is marked INVALID and exits non-zero (default 0.01 = 1%%).",
+    )
+    p.add_argument(
+        "--resume",
+        action="store_true",
+        help="Skip question ids already completed in the checkpoint JSONL next to --out.",
+    )
+    p.add_argument(
+        "--checkpoint",
+        default=None,
+        help="Checkpoint JSONL path (default: <out>.checkpoint.jsonl).",
+    )
     p.add_argument(
         "--golden-retrieval",
         default=str(BACKEND_ROOT / "evaluation" / "datasets" / "golden_retrieval_v1.json"),
     )
     p.add_argument("--out", default=None)
+    p.add_argument(
+        "--report",
+        default=None,
+        help="--mode rescore only: existing report JSON to re-aggregate with honest error accounting.",
+    )
     return p.parse_args()
 
 
@@ -1362,6 +1700,19 @@ def main() -> int:
     args = _parse_args()
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
     sources = [s.strip() for s in args.sources.split(",") if s.strip()]
+
+    if args.mode == "rescore":
+        if not args.report:
+            print("--mode rescore requires --report <path to existing bench_e2e*.json>", file=sys.stderr)
+            return 2
+        report_path = Path(args.report)
+        report = rescore_report(report_path)
+        report = apply_validity_threshold(report, args.max_error_rate)
+        out = report_path.with_name(report_path.stem + "_rescored.json")
+        out.write_text(report.model_dump_json(indent=2))
+        print_summary(report)
+        print(f"saved {out} (rescored from {report_path}, original untouched)")
+        return 0 if (report.valid and report.gates_passed) else 1
 
     if args.mode in ("retrieval", "all"):
         out = (
@@ -1375,18 +1726,36 @@ def main() -> int:
 
     if args.mode in ("e2e", "all"):
         out = Path(args.out) if args.out and args.mode == "e2e" else REPORT_DIR / "bench_e2e.json"
+        checkpoint_path = Path(args.checkpoint) if args.checkpoint else None
         report = asyncio.run(
-            run_e2e(args.endpoint, args.auth, sources, args.sample, args.pace_seconds, out)
+            run_e2e(
+                args.endpoint,
+                args.auth,
+                sources,
+                args.sample,
+                args.pace_seconds,
+                out,
+                concurrency=args.concurrency,
+                max_attempts=args.max_attempts,
+                request_timeout=args.timeout,
+                resume=args.resume,
+                checkpoint_path=checkpoint_path,
+                limit=args.limit,
+            )
         )
+        report = apply_validity_threshold(report, args.max_error_rate)
+        out.write_text(report.model_dump_json(indent=2))
         print_summary(report)
         md_path = out.with_suffix(".md")
         write_markdown_report(report, md_path)
         print(f"saved {out}")
         print(f"saved {md_path} (human review artifact)")
+        if not report.valid:
+            print(f"\n!!! RUN INVALID: {report.invalid_reason} !!!\n", file=sys.stderr)
         if args.mode == "e2e":
-            return 0 if report.gates_passed else 1
+            return 0 if (report.valid and report.gates_passed) else 1
         run_voice(out)
-        return 0 if report.gates_passed else 1
+        return 0 if (report.valid and report.gates_passed) else 1
 
     if args.mode == "voice":
         report_path = Path(args.out) if args.out else REPORT_DIR / "bench_e2e.json"

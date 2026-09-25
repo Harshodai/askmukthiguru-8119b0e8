@@ -131,6 +131,37 @@ def _strip_attribution_markup(answer: str) -> str:
     return text.strip()
 
 
+# See the long comment at the call site in `_score_with_real_detector` for the
+# segfault this bounds. Real answers measure 252-461 output tokens (root
+# CLAUDE.md "Measured baselines"); this leaves 2-4x headroom.
+_ANSWER_TOKEN_BUDGET = 1024
+# Fallback when the tokenizer isn't reachable: assume a pessimistic 1
+# char/token (dense scripts can approach this) so the char cap still holds
+# the token count under budget without needing the tokenizer.
+_ANSWER_CHAR_FALLBACK_RATIO = 1
+
+
+def _bound_text_for_detector(detector, text: str, token_budget: int) -> str:
+    """Hard-truncate `text` to `token_budget` tokens using the detector's own
+    tokenizer, so a single oversized string can never reach `model.forward()`
+    at a size the library's context-only truncation doesn't cover.
+
+    Falls back to a conservative character cap if the tokenizer isn't
+    reachable (defensive only -- the installed lettucedetect version always
+    exposes `.detector.tokenizer`; this must never raise).
+    """
+    tokenizer = getattr(getattr(detector, "detector", None), "tokenizer", None)
+    if tokenizer is None:
+        return text[: token_budget * _ANSWER_CHAR_FALLBACK_RATIO]
+    try:
+        ids = tokenizer(text, add_special_tokens=False)["input_ids"]
+        if len(ids) <= token_budget:
+            return text
+        return tokenizer.decode(ids[:token_budget], skip_special_tokens=True)
+    except Exception:
+        return text[: token_budget * _ANSWER_CHAR_FALLBACK_RATIO]
+
+
 def _norm_for_span_match(text: str) -> str:
     """Normalise a span or claim for substring comparison.
 
@@ -753,6 +784,40 @@ class LettuceDetectService:
         # Strip the source citation block the formatter appends — it is
         # not a claim the detector should score against the context.
         clean_answer = _strip_attribution_markup(answer)
+        # 2026-09-24 segfault (recurrence): the library's TransformerDetector
+        # truncates the CONTEXT side only (`truncation="only_first"` in
+        # lettucedetect's HallucinationDataset.prepare_tokenized_input) -- it
+        # never bounds the ANSWER. Reproduced live in-container: once the
+        # answer alone reaches ~4090+ tokens (max_length=4096 default),
+        # only_first truncation cannot fit context+answer+specials and the
+        # tokenizer raises (observed as both "Unable to create tensor...
+        # excessive nesting" and "Truncation error: Sequence to truncate too
+        # short", depending on the fast/slow tokenizer path -- same trigger,
+        # different backend). Both are caught below and fall back to the
+        # heuristic scorer, but sequences that land just *under* that boundary
+        # still reach `model(**encoding)` at close to the model's max
+        # supported length, which is the most memory-hungry native forward()
+        # in the process (attention is O(n^2)) -- the likeliest source of the
+        # "Fatal Python error: Segmentation fault" inside torch's
+        # `Linear.forward` with only ONE native call in flight (ruled out as a
+        # torch/ONNX race by the crash dump). Bounding the answer up front
+        # removes both the exception and the near-max-length forward pass at
+        # the source, for every caller, regardless of which tokenizer backend
+        # loads. Real answers measure 252-461 output tokens
+        # (root CLAUDE.md "Measured baselines"); 1024 is ~2-4x that with
+        # comfortable headroom, still leaves ~3000 tokens of the 4096 budget
+        # for context (which the library already truncates safely on its own
+        # -- verified empirically up to 23k chars with no error).
+        bounded_answer = _bound_text_for_detector(detector, clean_answer, _ANSWER_TOKEN_BUDGET)
+        if bounded_answer != clean_answer:
+            # Scoring only the truncated head would leave every later sentence
+            # unchecked (fail-open). Score the FULL answer lexically instead --
+            # no native call, and stricter than NLI on paraphrase.
+            logger.warning(
+                "LettuceDetect: answer exceeds %d tokens; scoring full answer lexically.",
+                _ANSWER_TOKEN_BUDGET,
+            )
+            return self._score_heuristic(query, context, answer, use_semantic=False)
         if not clean_answer:
             return {
                 "is_faithful": False,
@@ -801,17 +866,38 @@ class LettuceDetectService:
             # Load shedding, not a detector failure. The heuristic scorer is a
             # real faithfulness check, so the answer is still gated — it is not
             # waved through. Never weaken the gate to save latency.
+            #
+            # use_semantic=False is deliberate here, not a latency shortcut:
+            # NativeInferenceBusy means the shared torch ModernBERT module is
+            # RIGHT NOW mid-forward() in another thread (that's the only way
+            # this lock is held long enough to time out). use_semantic=True
+            # would make the heuristic path call embedder.encode_batch(),
+            # which runs the ONNX embedding session concurrently with that
+            # live torch forward() -- confirmed by a 2026-09-24 crash dump
+            # (Fatal Python error: Segmentation fault, current thread inside
+            # onnxruntime's session.run() via _encode_batch_onnx, a second
+            # thread concurrently inside torch's Linear.forward under
+            # modeling_modernbert.py, preceded by "libgomp: Thread creation
+            # failed: Resource temporarily unavailable"). Torch and ONNX
+            # Runtime share the process's native OpenMP thread pool; under
+            # memory/thread pressure a failed spawn there is not a catchable
+            # Python exception, it takes the interpreter down. Routing straight
+            # to the lexical-overlap branch (use_semantic=False) makes zero
+            # native inference calls, so it can never race the torch forward
+            # that just caused this exact fallback to be taken.
             logger.warning(
                 "LettuceDetect shed under load (%s). Falling back to heuristic scorer.", e
             )
-            return self._score_heuristic(query, context, answer)
+            return self._score_heuristic(query, context, answer, use_semantic=False)
         except Exception as e:
             logger.warning(
                 "LettuceDetect real detector.predict failed (%s: %s). Falling back to heuristic.",
                 type(e).__name__,
                 e,
             )
-            return self._score_heuristic(query, context, answer)
+            # Lexical-only for the same reason as the shed branch above: another
+            # thread may be mid-forward() on the shared torch module.
+            return self._score_heuristic(query, context, answer, use_semantic=False)
 
         duration = (time.time() - start) * 1000
         claims_list = _split_claims(clean_answer)

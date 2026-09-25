@@ -2,6 +2,12 @@
 
 Vite + React 18 + TypeScript + Tailwind + shadcn/ui. Path alias `@` → `src/`. See the root `CLAUDE.md` for backend integration and full architecture.
 
+> **#1 priority (2026-09-24): first-person verbatim answers.** See the root `CLAUDE.md` banner and `../docs/agent/first_person_baseline_prompt.md`. Frontend rules:
+> - A citation shows the teacher's exact words, the real speaker, and a playable clip at the exact second (`timestampSeconds`; 0 is a valid start).
+> - Never hardcode a speaker label.
+> - Never present host or AI text as the teacher's.
+> - Below the confidence threshold, show the closest clip labelled "related, not a direct answer".
+
 ## Commands (run from repo root)
 
 ```bash

@@ -59,6 +59,10 @@ def validate_environment(env: Mapping[str, str] | None = None) -> PreflightResul
     else:
         warnings.append(f"LLM_PROVIDER={provider!r} has no preflight key mapping")
 
+    first_person_mode = str(values.get("FIRST_PERSON_MODE", "") or "").lower().strip()
+    if first_person_mode and first_person_mode not in {"disabled", "retrieval_only", "hybrid"}:
+        errors.append("FIRST_PERSON_MODE must be one of ('disabled', 'retrieval_only', 'hybrid')")
+
     redis_url = str(values.get("REDIS_URL", "") or "").lower()
     if "localhost" in redis_url or "127.0.0.1" in redis_url:
         warnings.append("REDIS_URL points at loopback; confirm this is intentional")

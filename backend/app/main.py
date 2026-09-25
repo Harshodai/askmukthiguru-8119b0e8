@@ -612,6 +612,31 @@ async def _background_startup_body(container, fastapi_app) -> None:
     except Exception as _warmup_err:
         logger.warning("Embedding warm-up canary failed (non-fatal): %s", _warmup_err)
 
+    # Reranker warm-up — RerankerService.warm_up() previously existed but was
+    # never called anywhere, so the FlashRank/CrossEncoder model lazy-loaded
+    # on the first real request instead, unlike embedding and LettuceDetect
+    # which both warm here already. The reranker instance lives as a
+    # module-level global in rag.nodes._services, set by init_services()
+    # during the graph build in ContainerBuilder._build_graphs() (runs
+    # synchronously before lifespan reaches this point), not on
+    # ServiceContainer itself. Non-fatal, matching the pattern above: a
+    # warm-up failure must not block startup, and the service still
+    # lazy-loads on demand if this does not run.
+    try:
+        import rag.nodes._services as _rag_node_services
+
+        _reranker_svc = _rag_node_services._reranker
+        if _reranker_svc is not None:
+            _t0 = time.time()
+            await asyncio.to_thread(_reranker_svc.warm_up)
+            logger.info(
+                "Reranker warm-up complete: latency=%dms", int((time.time() - _t0) * 1000)
+            )
+        else:
+            logger.warning("Reranker service not available for warm-up canary")
+    except Exception as _reranker_warmup_err:
+        logger.warning("Reranker warm-up canary failed (non-fatal): %s", _reranker_warmup_err)
+
     # Intent-model warm-up canary — the classifier is otherwise lazy-loaded on
     # the first non-English/keyword-miss query. Prewarm with a native Indic
     # sample so the first user request does not absorb model initialization.
@@ -1323,6 +1348,10 @@ app.include_router(trace_router)
 from app.api.search_routes import router as search_router
 
 app.include_router(search_router)
+
+from app.api.first_person import router as first_person_router
+
+app.include_router(first_person_router, prefix="/api")
 
 
 @app.get("/.well-known/jwks.json", tags=["auth"])

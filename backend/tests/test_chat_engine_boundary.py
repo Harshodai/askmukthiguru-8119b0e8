@@ -233,6 +233,8 @@ async def test_chat_engine_stream_final_chunk_coerces_dict_citations():
             "title": None,
             "chunk_provenance": None,
             "speaker": None,
+            "timestamp_seconds": None,
+            "text_snippet": None,
         }
     ]
 

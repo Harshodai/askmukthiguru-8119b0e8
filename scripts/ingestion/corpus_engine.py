@@ -38,6 +38,9 @@ try:
 except ImportError:
     apply_corrections_with_ledger = None
 
+# The per-video quality gate must never be skipped silently (fail closed).
+from services.transcript_verbatim import compute_verbatim_hash, has_hard_failure, per_video_checks
+
 CORPUS_ROOT = Path(os.environ.get("MUKTHI_CORPUS_DIR", str(Path(__file__).resolve().parent / "corpus")))
 PROJECTION_DIR = Path(os.environ.get("MUKTHI_TRANSCRIPTS_DIR", str(Path(__file__).resolve().parent / "transcripts")))
 PIPELINE_VERSION = "2.0.0"
@@ -69,13 +72,18 @@ class CanonicalSegment(BaseModel):
     segment_id: str
     start: float = Field(..., ge=0.0, description="Start timestamp in seconds")
     end: float = Field(..., ge=0.0, description="End timestamp in seconds")
-    text: str = Field(..., description="Segment text")
+    text: str = Field(..., description="Segment text (display layer: fillers/stutters cleaned)")
     source_tier: str = Field(..., description="manual_api | auto_api | ytdlp_subs | scrape_captions | local_whisper_audio | pilot_mock")
     language: str = "en"
     confidence: Optional[float] = None
     confidence_kind: Literal["asr_model", "caption_source", "human_review", "heuristic"] = "caption_source"
     speaker_evidence: SpeakerEvidence = Field(default_factory=SpeakerEvidence)
     is_non_speech: bool = False
+    verbatim_text: Optional[str] = Field(
+        default=None,
+        description="Untouched source text for this segment (pre-clean_dialogue_and_disfluencies). "
+        "normalise(text) must equal normalise(clean_dialogue_and_disfluencies(verbatim_text)).",
+    )
 
 
 class CorrectionLedgerEntry(BaseModel):
@@ -116,6 +124,9 @@ class QualityReport(BaseModel):
     flags: list[str] = Field(default_factory=list)
     metrics_details: dict[str, Any] = Field(default_factory=dict)
     evaluated_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    quarantined: bool = False
+    quarantine_reasons: list[str] = Field(default_factory=list)
+    transcript_hash: str = ""
 
 
 class ReviewRecord(BaseModel):
@@ -523,7 +534,14 @@ class CorpusEngine:
                 confidence_kind=seg.confidence_kind,
                 speaker_evidence=seg.speaker_evidence,
                 is_non_speech=seg.is_non_speech,
+                verbatim_text=seg.verbatim_text,
             ))
+
+        # Transcript hash: sha256 of the untouched verbatim layer, never the
+        # cleaned display text — so it stays stable across changes to
+        # clean_dialogue_and_disfluencies() and actually detects tampering
+        # with the recorded evidence, not just re-wording.
+        transcript_hash = compute_verbatim_hash([s.model_dump() for s in corrected_segments])
 
         # 2. Evaluate Quality
         q_report = self.evaluate_quality(
@@ -533,6 +551,7 @@ class CorpusEngine:
             asr_comparison_text=asr_comparison_text,
         )
         q_report.terminology_corrections_count = len(all_ledger)
+        q_report.transcript_hash = transcript_hash
 
         # 3. Assemble Clean Markdown Transcript (without inline timestamps to prevent Qdrant embedding distortion)
         title = video_info.get("title") or video_id
@@ -567,7 +586,6 @@ class CorpusEngine:
                 paragraphs.append(p_text)
 
         full_transcript_text = "\n\n".join(paragraphs) if paragraphs else ""
-        transcript_hash = compute_sha256(full_transcript_text)
         manifest_hash = compute_canonical_manifest_hash(video_id, transcript_hash)
 
         md_content = (
@@ -585,11 +603,45 @@ class CorpusEngine:
             f"## Transcript\n\n{full_transcript_text}\n"
         )
 
+        raw_rel_path = "none"
+        if raw_source_path:
+            try:
+                raw_rel_path = str(raw_source_path.relative_to(v_dir))
+            except Exception:
+                raw_rel_path = str(raw_source_path)
+
         # 4. Save JSON and Markdown artifacts
+        # Invalidate any pre-existing manifest while fresh artifacts are written
+        stale_manifest = v_dir / "artifact_manifest.json"
+        if stale_manifest.exists():
+            stale_manifest.unlink()
+
         seg_file = v_dir / "canonical_segments.json"
         seg_file.write_text(
-            json.dumps({"video_id": video_id, "segments": [s.model_dump() for s in corrected_segments]}, indent=2)
+            json.dumps(
+                {
+                    "video_id": video_id,
+                    "raw_source_ref": raw_rel_path,
+                    "transcript_hash": transcript_hash,
+                    "segments": [s.model_dump() for s in corrected_segments],
+                },
+                indent=2,
+            )
         )
+
+        # 4b. Per-video ingestion gate — a hard structural failure (empty,
+        # malformed timing, hallucination-shaped repetition loop) quarantines
+        # the video: it stays on disk for review but is not promoted to
+        # trusted/projected, so it can never reach Qdrant via the
+        # compatibility-projection path below.
+        gate_findings = per_video_checks(v_dir)
+        if has_hard_failure(gate_findings):
+            q_report.quarantined = True
+            q_report.quarantine_reasons = [
+                f"{f.check}: {f.detail}" for f in gate_findings if f.severity == "hard"
+            ]
+            q_report.flags.extend(q_report.quarantine_reasons)
+
         q_file = v_dir / "quality_report.json"
         q_file.write_text(q_report.model_dump_json(indent=2))
 
@@ -600,8 +652,8 @@ class CorpusEngine:
         t_file = v_dir / "transcript.md"
         t_file.write_text(md_content, encoding="utf-8")
 
-        # 5. Save ReviewRecord if not trusted
-        if q_report.quality_state not in ["trusted", "trusted_after_review"]:
+        # 5. Save ReviewRecord if not trusted (or quarantined despite passing the state machine)
+        if q_report.quality_state not in ["trusted", "trusted_after_review"] or q_report.quarantined:
             rev = ReviewRecord(
                 video_id=video_id,
                 quality_state=q_report.quality_state,
@@ -611,8 +663,8 @@ class CorpusEngine:
             )
             (v_dir / "review_record.json").write_text(rev.model_dump_json(indent=2))
 
-        # 6. Compatibility Projection (strictly for trusted / trusted_after_review)
-        if q_report.quality_state in ["trusted", "trusted_after_review"]:
+        # 6. Compatibility Projection (strictly for trusted / trusted_after_review, never quarantined)
+        if q_report.quality_state in ["trusted", "trusted_after_review"] and not q_report.quarantined:
             self.projection_dir.mkdir(parents=True, exist_ok=True)
             (self.projection_dir / f"{video_id}.md").write_text(md_content, encoding="utf-8")
 
@@ -643,13 +695,6 @@ class CorpusEngine:
                 sha256=compute_sha256(t_file.read_bytes()),
             ),
         }
-
-        raw_rel_path = "none"
-        if raw_source_path:
-            try:
-                raw_rel_path = str(raw_source_path.relative_to(v_dir))
-            except Exception:
-                raw_rel_path = str(raw_source_path)
 
         art_manifest = ArtifactManifest(
             manifest_version="2.0.0",

@@ -104,9 +104,42 @@ export interface Citation {
   channel_name?: string;
   source?: string;
   speaker?: string;
+  /** Second offset into the source video, when the backend has one. 0 is a
+   *  valid, playable start — only absence (undefined) means "no timestamp". */
   timestampSeconds?: number;
   textSnippet?: string;
 }
+
+/** Maps the backend's snake_case citation wire shape (`timestamp_seconds`,
+ *  `text_snippet`, plus the existing fields) to the camelCase `Citation`
+ *  shape the UI reads. A bare string citation (URL-only, some fallback
+ *  paths) is passed through as `{ url }`. Non-finite/absent timestamps stay
+ *  undefined rather than becoming a fabricated 0. */
+export const normalizeCitations = (raw: unknown): Citation[] => {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((entry): Citation | null => {
+      if (typeof entry === 'string') {
+        return entry ? { url: entry } : null;
+      }
+      if (!entry || typeof entry !== 'object') return null;
+      const c = entry as Record<string, unknown>;
+      const url = c.url ?? c.source_url;
+      if (typeof url !== 'string' || !url) return null;
+      const ts = c.timestamp_seconds ?? c.timestampSeconds;
+      return {
+        url,
+        title: (c.title as string | null | undefined) ?? undefined,
+        quote: (c.quote as string | undefined) ?? undefined,
+        channel_name: (c.channel_name as string | undefined) ?? undefined,
+        source: (c.source as string | undefined) ?? undefined,
+        speaker: (c.speaker as string | null | undefined) ?? undefined,
+        timestampSeconds: typeof ts === 'number' && Number.isFinite(ts) ? ts : undefined,
+        textSnippet: (c.text_snippet as string | null | undefined) ?? (c.textSnippet as string | undefined) ?? undefined,
+      };
+    })
+    .filter((c): c is Citation => c !== null);
+};
 
 export interface TeachingPreview {
   title: string;

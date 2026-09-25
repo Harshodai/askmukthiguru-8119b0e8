@@ -35,6 +35,7 @@ import random
 import re
 import sys
 import tempfile
+import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -51,6 +52,12 @@ from scripts.ingestion.corpus_engine import (
     CorpusEngine,
     SpeakerEvidence,
 )
+from services.transcript_verbatim import has_hard_failure, per_video_checks
+
+try:
+    from services.doctrine_terms import get_whisper_initial_prompt
+except ImportError:
+    get_whisper_initial_prompt = None
 
 try:
     from youtube_transcript_api import YouTubeTranscriptApi
@@ -89,6 +96,12 @@ logger = logging.getLogger("corpus_extractor")
 PROGRESS_FILE = SCRIPT_DIR / "parallel_run_progress.json"
 
 DEFAULT_LANGUAGES = ["en", "hi", "te", "kn", "ta", "mr"]
+
+# ponytail: env var, not app.config — this script runs standalone outside the
+# FastAPI app (see MUKTHI_CORPUS_DIR in corpus_engine.py for the same pattern).
+# Default is unchanged ("small") until the model bake-off picks a winner.
+DEFAULT_WHISPER_MODEL = os.environ.get("MUKTHI_WHISPER_MODEL", "small")
+_WHISPER_PROMPT_MAX_TERMS = 30
 
 
 def resolve_node_path() -> str:
@@ -180,6 +193,74 @@ def clean_dialogue_and_disfluencies(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
+def trimmed_whisper_prompt(max_terms: int = _WHISPER_PROMPT_MAX_TERMS) -> Optional[str]:
+    """Doctrine-term glossary for Whisper's initial_prompt, capped so an
+    admin-grown term list (currently 77, DB overrides can add more) can't
+    blow past what's useful in a transcription prompt."""
+    if get_whisper_initial_prompt is None:
+        return None
+    prompt = get_whisper_initial_prompt()
+    prefix, sep, terms_str = prompt.partition(": ")
+    if not sep:
+        return prompt
+    terms = [t.strip() for t in terms_str.rstrip(".").split(",") if t.strip()]
+    return f"{prefix}: {', '.join(terms[:max_terms])}."
+
+
+def whisper_word_to_dict(w: Any) -> dict:
+    return {
+        "word": w.word,
+        "start": round(w.start, 2),
+        "end": round(w.end, 2),
+        "probability": w.probability,
+    }
+
+
+def build_whisper_segment(
+    idx: int, s: Any, speaker: str, uploader: str, language: str
+) -> tuple[dict, "CanonicalSegment"]:
+    """Build the raw/verbatim record (untouched ASR text, words, avg_logprob,
+    no_speech_prob) and the canonical segment (cleaned display text pointing
+    back at the untouched text) for one faster-whisper segment.
+
+    Kept as its own function so it's testable against a stub segment object
+    (anything with .text/.start/.end/.avg_logprob/.no_speech_prob/.words) —
+    no Whisper model required.
+    """
+    verbatim_text = s.text.strip()
+    clean_text = clean_dialogue_and_disfluencies(verbatim_text)
+    words = [whisper_word_to_dict(w) for w in (getattr(s, "words", None) or [])]
+    raw_record = {
+        "segment_id": f"seg_{idx:04d}",
+        "start": round(s.start, 2),
+        "end": round(s.end, 2),
+        "text": verbatim_text,
+        "avg_logprob": s.avg_logprob,
+        "no_speech_prob": s.no_speech_prob,
+        "words": words,
+    }
+    segment = CanonicalSegment(
+        segment_id=f"seg_{idx:04d}",
+        start=round(s.start, 2),
+        end=round(s.end, 2),
+        text=clean_text,
+        verbatim_text=verbatim_text,
+        source_tier="local_whisper_audio",
+        language=language,
+        confidence=None,
+        confidence_kind="asr_model",
+        speaker_evidence=SpeakerEvidence(
+            channel_or_publisher=uploader,
+            metadata_attribution=speaker,
+            speaker_identity_source="metadata",
+            speaker_role="teacher",
+            speaker_role_source="metadata",
+        ),
+        is_non_speech=False,
+    )
+    return raw_record, segment
+
+
 def extract_speaker(title: str, description: str = "", uploader: str = "") -> str:
     combined = f"{title} {description} {uploader}".lower()
     has_preethaji = bool(re.search(r"(?:preethaji|prithaji|sri preetha|preetha ji)", combined))
@@ -263,11 +344,82 @@ def discover_playlist_videos(
         return []
 
 
+class YouTubeRateLimiter:
+    """Thread-safe Token Bucket Rate Limiter with 3-strike Circuit Breaker.
+
+    Invariants:
+    - 12 requests / minute (0.2 tokens/second) sustained rate.
+    - Capacity = 2 (allows small burst, prevents concurrent worker stampede).
+    - 3 consecutive 403 or 429 errors trip the circuit for 15 minutes.
+    """
+
+    def __init__(
+        self,
+        rate: float = 0.2,
+        capacity: float = 2.0,
+        max_strikes: int = 3,
+        cooldown_s: float = 900.0,
+    ):
+        self._rate = rate
+        self._capacity = capacity
+        self._tokens = capacity
+        self._last_update = time.time()
+        self._lock = threading.Lock()
+        self._strikes = 0
+        self._max_strikes = max_strikes
+        self._cooldown_s = cooldown_s
+        self._circuit_open_until = 0.0
+
+    def acquire(self) -> None:
+        while True:
+            with self._lock:
+                now = time.time()
+                if now < self._circuit_open_until:
+                    wait_time = self._circuit_open_until - now
+                    logger.warning(
+                        "YouTube circuit breaker OPEN. Cooling down for %.1fs",
+                        wait_time,
+                    )
+                    sleep_time = min(wait_time, 10.0)
+                else:
+                    elapsed = now - self._last_update
+                    self._tokens = min(self._capacity, self._tokens + elapsed * self._rate)
+                    self._last_update = now
+
+                    if self._tokens >= 1.0:
+                        self._tokens -= 1.0
+                        return
+                    needed = 1.0 - self._tokens
+                    sleep_time = needed / self._rate
+
+            time.sleep(sleep_time)
+
+    def record_success(self) -> None:
+        with self._lock:
+            self._strikes = 0
+
+    def record_error(self, status_code: int = 429) -> None:
+        with self._lock:
+            if status_code in (403, 429):
+                self._strikes += 1
+                logger.warning(
+                    "YouTube rate limit/403 strike %d/%d recorded",
+                    self._strikes,
+                    self._max_strikes,
+                )
+                if self._strikes >= self._max_strikes:
+                    self._circuit_open_until = time.time() + self._cooldown_s
+                    logger.error(
+                        "YouTube circuit breaker TRIPPED! %d-second cooldown activated.",
+                        int(self._cooldown_s),
+                    )
+
+
 class VideoProcessor:
     def __init__(
         self,
         corpus_engine: CorpusEngine,
-        whisper_model_size: str = "small",
+        whisper_model_size: str = DEFAULT_WHISPER_MODEL,
         cookies_from_browser: Optional[str] = None,
         cookies_file: Optional[str] = None,
         delay_min: float = 2.0,
@@ -280,6 +432,17 @@ class VideoProcessor:
         self.cookies_file = cookies_file
         self.delay_min = delay_min
         self.delay_max = delay_max
+        self.rate_limiter = YouTubeRateLimiter()
+
+    def _record_network_error(self, err_str: str) -> None:
+        """Feed a caught network exception's message into the shared rate
+        limiter/circuit breaker -- shared so every tier (yt-dlp subtitle
+        scrape, yt-dlp audio download) trips the same breaker Tier 1 does,
+        instead of hammering YouTube past a 403/429 unnoticed."""
+        if "429" in err_str or "too many requests" in err_str.lower():
+            self.rate_limiter.record_error(429)
+        elif "403" in err_str or "forbidden" in err_str.lower():
+            self.rate_limiter.record_error(403)
 
     def get_whisper_model(self):
         if self._whisper_model is None and FASTER_WHISPER_AVAILABLE:
@@ -297,20 +460,30 @@ class VideoProcessor:
         video_id = video["video_id"]
         v_dir = self.engine.get_video_dir(video_id)
         
-        # Check if already processed
+        # Check if already processed -- but don't just trust the manifest's
+        # existence. Verify the canonical transcript it points at still
+        # passes the same structural gate a fresh extraction would
+        # (transcript_hash match, artifact hashes, no repetition-loop/empty
+        # segments); a hard failure here means re-extract, not skip.
         if (v_dir / "artifact_manifest.json").exists():
-            try:
-                manifest_data = json.loads((v_dir / "artifact_manifest.json").read_text(encoding="utf-8"))
-                return True, manifest_data.get("final_quality_state", "trusted"), manifest_data.get("manifest_hash")
-            except Exception:
-                pass
+            findings = per_video_checks(v_dir)
+            if has_hard_failure(findings):
+                logger.warning(
+                    f"[{video_id}] existing artifact failed verification "
+                    f"({[f.check for f in findings if f.severity == 'hard']}) -- re-extracting"
+                )
+            else:
+                try:
+                    manifest_data = json.loads((v_dir / "artifact_manifest.json").read_text(encoding="utf-8"))
+                    return True, manifest_data.get("final_quality_state", "trusted"), manifest_data.get("manifest_hash")
+                except Exception:
+                    pass
 
         title = video.get("title") or video_id
         speaker = video.get("speaker") or extract_speaker(title, "", video.get("uploader", ""))
         uploader = video.get("uploader") or "Ekam / O&O Academy"
-        url = video.get("url") or f"https://www.youtube.com/watch?v={video_id}"
-
-        # Human-paced randomized delay before network call
+        # Token bucket rate limiting & circuit breaker before network call
+        self.rate_limiter.acquire()
         time.sleep(random.uniform(self.delay_min, self.delay_max))
 
         # ── Tier 1: youtube-transcript-api ────────────────────────────
@@ -320,13 +493,20 @@ class VideoProcessor:
                 t_list = None
                 for attempt in range(3):
                     try:
+                        self.rate_limiter.acquire()
                         t_list = api.list(video_id)
+                        self.rate_limiter.record_success()
                         break
                     except Exception as e:
-                        if "429" in str(e) or "Too Many Requests" in str(e):
+                        err_str = str(e)
+                        if "429" in err_str or "Too Many Requests" in err_str:
+                            self.rate_limiter.record_error(429)
                             if attempt == 2:
                                 raise
                             time.sleep(10 * (attempt + 1))
+                        elif "403" in err_str or "forbidden" in err_str.lower():
+                            self.rate_limiter.record_error(403)
+                            raise
                         else:
                             raise
                 
@@ -362,7 +542,8 @@ class VideoProcessor:
                         st = float(getattr(s, "start", s.get("start", 0)))
                         dur = float(getattr(s, "duration", s.get("duration", 2)))
                         raw_t = getattr(s, "text", s.get("text", ""))
-                        clean_t = clean_dialogue_and_disfluencies(html.unescape(raw_t))
+                        verbatim_t = html.unescape(raw_t).strip()
+                        clean_t = clean_dialogue_and_disfluencies(verbatim_t)
                         if not clean_t:
                             continue
                         segments.append(CanonicalSegment(
@@ -370,6 +551,7 @@ class VideoProcessor:
                             start=round(st, 2),
                             end=round(st + dur, 2),
                             text=clean_t,
+                            verbatim_text=verbatim_t,
                             source_tier=source_tier,
                             language=lang_used,
                             confidence=None,
@@ -420,8 +602,10 @@ class VideoProcessor:
                     ydl_opts["cookiefile"] = self.cookies_file
 
                 try:
+                    self.rate_limiter.acquire()
                     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                        ydl.download([url])
+                        ydl.download([video["url"]])
+                    self.rate_limiter.record_success()
                     sub_files = list(Path(tmp_dir).glob("subs*.vtt")) + list(Path(tmp_dir).glob("subs*.srt"))
                     if sub_files:
                         sub_file = sub_files[0]
@@ -450,11 +634,13 @@ class VideoProcessor:
                                         speaker_evidence=SpeakerEvidence(metadata_attribution=speaker),
                                     ))
                                     seg_idx += 1
-                        clean_lines = [clean_dialogue_and_disfluencies(l) for l in sub_content.splitlines() if l and not ("-->" in l) and not l.startswith("WEBVTT")]
+                        raw_lines = [l for l in sub_content.splitlines() if l and not ("-->" in l) and not l.startswith("WEBVTT")]
+                        clean_lines = [clean_dialogue_and_disfluencies(l) for l in raw_lines]
                         if clean_lines and segments:
                             chunk_size = max(1, len(clean_lines) // len(segments))
                             for i, seg in enumerate(segments):
                                 seg.text = " ".join(clean_lines[i * chunk_size : (i + 1) * chunk_size]).strip()
+                                seg.verbatim_text = " ".join(raw_lines[i * chunk_size : (i + 1) * chunk_size]).strip()
                             valid_segs = [s for s in segments if s.text]
                             if valid_segs:
                                 manifest = self.engine.process_and_package_video(
@@ -466,6 +652,7 @@ class VideoProcessor:
                                 )
                                 return True, manifest.quality_state, manifest.manifest_hash
                 except Exception as e:
+                    self._record_network_error(str(e))
                     logger.debug(f"[{video_id}] yt-dlp subtitle scrape failed: {e}")
 
         # ── Tier 3: Local Faster-Whisper ASR Fallback ──────────────────
@@ -489,52 +676,37 @@ class VideoProcessor:
                 elif self.cookies_file and Path(self.cookies_file).exists():
                     ydl_opts["cookiefile"] = self.cookies_file
                 try:
+                    self.rate_limiter.acquire()
                     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                        ydl.download([url])
+                        ydl.download([video["url"]])
+                    self.rate_limiter.record_success()
                     audio_files = list(Path(tmp_dir).glob("audio*"))
                     if audio_files:
                         target_audio = str(audio_files[0])
                         model = self.get_whisper_model()
-                        # VAD filtering skips silent meditation intervals & background music, eliminating hallucinations
+                        # VAD filtering skips silent meditation intervals & background music, eliminating hallucinations.
+                        # word_timestamps + the doctrine-term initial_prompt keep the untouched raw layer
+                        # (every word, per-word probability, avg_logprob/no_speech_prob) usable as evidence.
                         whisper_segs, info = model.transcribe(
                             target_audio,
                             beam_size=5,
                             vad_filter=True,
                             vad_parameters=dict(min_silence_duration_ms=500),
+                            word_timestamps=True,
+                            initial_prompt=trimmed_whisper_prompt(),
+                            # no previous-text conditioning: stops Whisper looping on silence/chant
+                            condition_on_previous_text=False,
                         )
-                        
+
+                        language = info.language or "en"
                         raw_asr_data = []
                         segments = []
                         for idx, s in enumerate(whisper_segs):
-                            clean_t = clean_dialogue_and_disfluencies(s.text)
-                            if not clean_t:
+                            raw_record, segment = build_whisper_segment(idx, s, speaker, uploader, language)
+                            if not segment.text:
                                 continue
-                            raw_asr_data.append({
-                                "segment_id": f"seg_{idx:04d}",
-                                "start": round(s.start, 2),
-                                "end": round(s.end, 2),
-                                "text": clean_t,
-                                "avg_logprob": s.avg_logprob,
-                                "no_speech_prob": s.no_speech_prob,
-                            })
-                            segments.append(CanonicalSegment(
-                                segment_id=f"seg_{idx:04d}",
-                                start=round(s.start, 2),
-                                end=round(s.end, 2),
-                                text=clean_t,
-                                source_tier="local_whisper_audio",
-                                language=info.language or "en",
-                                confidence=None,
-                                confidence_kind="asr_model",
-                                speaker_evidence=SpeakerEvidence(
-                                    channel_or_publisher=uploader,
-                                    metadata_attribution=speaker,
-                                    speaker_identity_source="metadata",
-                                    speaker_role="teacher",
-                                    speaker_role_source="metadata",
-                                ),
-                                is_non_speech=False,
-                            ))
+                            raw_asr_data.append(raw_record)
+                            segments.append(segment)
 
                         if segments:
                             raw_path, raw_hash = self.engine.save_raw_source(
@@ -553,6 +725,7 @@ class VideoProcessor:
                             )
                             return True, manifest.quality_state, manifest.manifest_hash
                 except Exception as e:
+                    self._record_network_error(str(e))
                     logger.warning(f"[{video_id}] Faster-Whisper ASR failed: {e}")
 
         return False, "dead_lettered", None
@@ -561,7 +734,7 @@ class VideoProcessor:
 def run_parallel_extraction(
     workers: int = 2,
     limit_per_playlist: Optional[int] = None,
-    whisper_model: str = "small",
+    whisper_model: str = DEFAULT_WHISPER_MODEL,
     enable_whisper: bool = True,
     cookies_from_browser: Optional[str] = None,
     cookies_file: Optional[str] = None,
@@ -691,7 +864,7 @@ def main():
     parser = argparse.ArgumentParser(description="Parallel YouTube Corpus Extractor")
     parser.add_argument("--workers", type=int, default=2, help="Number of concurrent threads (default: 2)")
     parser.add_argument("--limit-per-playlist", type=int, default=None, help="Max videos per playlist")
-    parser.add_argument("--whisper-model", default="small", help="Whisper model: tiny, base, small, medium, large-v3")
+    parser.add_argument("--whisper-model", default=DEFAULT_WHISPER_MODEL, help="Whisper model: tiny, base, small, medium, large-v3")
     parser.add_argument("--disable-whisper", action="store_true", help="Disable local ASR fallback")
     parser.add_argument("--cookies-from-browser", default=None, help="Browser to read cookies from (e.g. chrome, brave, safari)")
     parser.add_argument("--cookies", default=None, help="Path to cookies.txt file")

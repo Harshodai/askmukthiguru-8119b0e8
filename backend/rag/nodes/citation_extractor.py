@@ -15,8 +15,43 @@ from urllib.parse import urlparse
 from app.config import settings
 from rag.nodes.utils import log_metrics
 from rag.states import GraphState
+from services.teacher_attribution import _KRISHNAJI_RE, _PREETHAJI_RE
 
 logger = logging.getLogger(__name__)
+
+_TIMESTAMP_KEYS = ("start", "start_time", "timestamp")
+
+
+def _resolve_speaker(doc: dict) -> Optional[str]:
+    """Name a teacher only when the payload's speaker is voice-verified.
+
+    Title/metadata-derived speaker and teacher_id labels contradict the voice
+    census on about a third of points (L-TEACHER-TAG-1), and a wrongly named
+    speaker is worse than none, so unverified docs get no speaker.
+    """
+    if doc.get("speaker_verified") is not True:
+        return None
+    raw_speaker = str(doc.get("speaker") or "").strip()
+    if _PREETHAJI_RE.search(raw_speaker) or _KRISHNAJI_RE.search(raw_speaker):
+        return raw_speaker
+    return None
+
+
+def _resolve_timestamp(doc: dict) -> Optional[float]:
+    """Second offset into the source, only when the payload actually carries
+    one. No Qdrant payload has start/end fields as of 2026-09-24, so this
+    usually returns None -- never a fabricated 0."""
+    meta = doc.get("metadata") or {}
+    for key in _TIMESTAMP_KEYS:
+        for source in (doc, meta):
+            val = source.get(key)
+            if val is None:
+                continue
+            try:
+                return float(val)
+            except (TypeError, ValueError):
+                continue
+    return None
 
 
 # Function words carry no evidence, so they inflate every score equally.
@@ -195,7 +230,11 @@ def extract_citations(state: GraphState) -> dict:
                     # words?" from the citation alone, without re-querying
                     # Qdrant for the chunk that produced it.
                     "chunk_provenance": best_doc.get("chunk_provenance", ""),
-                    "speaker": best_doc.get("speaker", ""),
+                    "speaker": _resolve_speaker(best_doc),
+                    "timestamp_seconds": _resolve_timestamp(best_doc),
+                    # Only a true verbatim layer may be shown as the teacher's words;
+                    # chunk `text` is often machine-rewritten search text.
+                    "text_snippet": (str(best_doc.get("verbatim_text") or "").strip() or None),
                 }
             )
 

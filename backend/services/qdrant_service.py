@@ -164,7 +164,11 @@ class QdrantService:
     # === Static helpers delegated to QdrantUtils =============================
 
     @staticmethod
-    def make_point_id(source_url: str, chunk_index: int, raptor_level: int = 0) -> str:
+    def make_point_id(
+        source_url: str,
+        chunk_index: int,
+        raptor_level: int = 0,
+    ) -> str:
         """Generate a deterministic point ID for deduplication."""
         return QdrantUtils.make_point_id(source_url, chunk_index, raptor_level)
 

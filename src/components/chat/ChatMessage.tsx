@@ -972,7 +972,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                                   index: n,
                                   url: citationData?.url || '#',
                                   title: citationData?.title || citationData?.source || 'Sacred Discourse Teaching',
-                                  speaker: 'Ekams Wisdom',
+                                  speaker: citationData?.speaker || undefined,
                                   startTimestamp: citationData?.timestampSeconds,
                                   quote: citationData?.textSnippet || citationData?.quote,
                                 };

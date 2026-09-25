@@ -149,6 +149,25 @@ class Settings(BaseSettings):
         False  # Default OFF: built-in canned answers lack citations and hurt benchmark quality
     )
 
+    # --- First-Person Verbatim Mode (Phase F) ---
+    # Governs the first-person verbatim answer path (Sri Preethaji / Sri Krishnaji)
+    # Options:
+    #   "disabled"       → Standard RAG / chat generation pipeline
+    #   "retrieval_only" → Direct first-person speech clips with exact seconds (R0) [DEFAULT]
+    #   "hybrid"         → Constrained LLM reflection over verbatim clips
+    first_person_mode: str = "retrieval_only"
+    first_person_collection: str = "first_person_v1"
+    # Gate for the /api/first-person/query route itself (separate from
+    # first_person_mode, which the route also still checks).
+    first_person_route_enabled: bool = False
+    # Path to a fitted calibration profile JSON (threshold, score_kind, n,
+    # ucb_risk, target_risk, collection, fitted_at). Empty = no profile =
+    # every non-empty answer serves as "weak_match", never "success".
+    first_person_calibration_path: str = ""
+    # Serve clips whose rights_cleared flag is not yet True. Off by default —
+    # only rights-cleared clips are servable in production.
+    first_person_serve_unregistered: bool = False
+
     # --- Distress / Serene Mind safety dials ---
     semantic_distress_threshold: float = Field(default=0.72, ge=0.0, le=1.0)
     # Count of recent turns with distress_score > semantic_distress_history_score_threshold
@@ -925,6 +944,13 @@ class Settings(BaseSettings):
     # nothing — harmless, and it means the layer switches back on by itself as soon
     # as entries are re-extracted, reviewed, and recompiled.
     rag_okf_injection_enabled: bool = True  # OKF as canonical knowledge layer
+
+    # P0 (2026-09-25): OKF load-time verbatim quote gate. Default OFF — built
+    # and dry-run-reported per owner decision, not yet enabled. When True,
+    # OKFStore.list_entries() re-strips any quoted string (>= 8 words) that
+    # services.transcript_verbatim.find_verbatim can't confirm as verbatim in
+    # the entry's own video transcript. See scripts/ops/okf_quote_gate_report.py.
+    okf_verbatim_quote_gate: bool = False
 
     # Knowledge-graph evidence injection. Neo4j relationships are injected into
     # retrieval as a labelled document on relational/deep lanes, so multi-hop
