@@ -688,6 +688,7 @@ def fetch_transcript_hybrid(
             parsed_title = title
             parsed_speaker = ""
             parsed_language = ""
+            parsed_transcript_hash = ""
             for line in content.split("\n"):
                 if line.startswith("# "):
                     parsed_title = line[2:].strip()
@@ -695,6 +696,8 @@ def fetch_transcript_hybrid(
                     parsed_speaker = line.split("**Channel:**", 1)[1].strip().strip("`")
                 elif line.startswith("**Language:**"):
                     parsed_language = line.split("**Language:**", 1)[1].strip().strip("`")
+                elif line.startswith("**Transcript Hash:**"):
+                    parsed_transcript_hash = line.split("**Transcript Hash:**", 1)[1].strip().strip("`")
             # If parsed title looks like a video ID, fetch real YouTube title via oEmbed
             if _is_video_id_title(parsed_title):
                 yt_title = fetch_youtube_title(video_id)
@@ -715,6 +718,7 @@ def fetch_transcript_hybrid(
                 "duration": None,
                 "thumbnail_url": f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg",
                 "view_count": None,
+                "transcript_hash": parsed_transcript_hash or None,
             }
         except Exception as e:
             logger.warning(f"[{video_id}] Error reading {transcript_md_path}: {e}")

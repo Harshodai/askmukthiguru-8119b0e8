@@ -1,0 +1,6 @@
+{
+  "video_id": "negative_vid_003",
+  "segments": [
+    {"segment_id": "seg_0000", "start": 8.0, "end": 3.0, "text": "This segment's timing is broken."}
+  ]
+}

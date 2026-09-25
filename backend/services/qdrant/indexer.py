@@ -159,14 +159,14 @@ class QdrantIndexer:
         from services.text_quality_filter import collapse_repeats, is_repeat_alarm
 
         sources = [m.get("source_url") or "__missing_source__" for m in metadatas]
-        point_ids = [
-            self._utils.make_point_id(
+        point_ids = []
+        for i, m in enumerate(metadatas):
+            pid = self._utils.make_point_id(
                 m.get("source_url", ""),
                 m.get("chunk_index", i),
                 m.get("raptor_level", 0),
             )
-            for i, m in enumerate(metadatas)
-        ]
+            point_ids.append(pid)
         keep_unique, repeats = collapse_repeats(texts, sources, metadatas=metadatas)
         if repeats:
             worst_text, worst_count, worst_source = repeats[0]

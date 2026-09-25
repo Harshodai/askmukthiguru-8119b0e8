@@ -83,9 +83,13 @@ def test_embed_and_index_teacher_tagging(mock_pipeline):
         )
     )
 
+    # Identity comes from the source, never from names in metadata or text
+    # (L-TEACHER-TAG-1): an unregistered source that mentions Sadhguru is tagged
+    # mentions:sadhguru, never teacher:sadhguru.
     called_args = mock_pipeline._qdrant.upsert_chunks.call_args[0]
     metadata_list = called_args[2]
-    assert any("teacher:sadhguru" in m["tags"] for m in metadata_list)
+    assert not any("teacher:sadhguru" in m["tags"] for m in metadata_list)
+    assert any("mentions:sadhguru" in m["tags"] for m in metadata_list)
     assert any("meditation" in m["tags"] for m in metadata_list)
 
     # 2. Test Sri Amma Bhagavan keyword classification
@@ -100,9 +104,10 @@ def test_embed_and_index_teacher_tagging(mock_pipeline):
         )
     )
 
+    # "Oneness" and "Deeksha" are the teachers' own vocabulary; bare "Kalki" is not a name signal.
     called_args = mock_pipeline._qdrant.upsert_chunks.call_args[0]
     metadata_list = called_args[2]
-    assert any("teacher:amma_bhagavan" in m["tags"] for m in metadata_list)
+    assert not any("teacher:amma_bhagavan" in m["tags"] for m in metadata_list)
 
     # 3. Test ISKCON keyword classification
     mock_pipeline._embed_and_index(
@@ -118,7 +123,8 @@ def test_embed_and_index_teacher_tagging(mock_pipeline):
 
     called_args = mock_pipeline._qdrant.upsert_chunks.call_args[0]
     metadata_list = called_args[2]
-    assert any("teacher:iskcon" in m["tags"] for m in metadata_list)
+    assert not any("teacher:iskcon" in m["tags"] for m in metadata_list)
+    assert any("mentions:iskcon" in m["tags"] for m in metadata_list)
 
 
 def test_ingest_raw_text_metadata_propagation(mock_pipeline, monkeypatch):

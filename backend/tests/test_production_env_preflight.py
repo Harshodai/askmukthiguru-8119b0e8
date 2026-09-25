@@ -33,3 +33,16 @@ def test_wildcard_proxy_and_test_auth_are_rejected():
     result = validate_environment(env)
     assert "FORWARDED_ALLOW_IPS must not be '*'" in result.errors
     assert "ENABLE_TEST_AUTH must be false in production" in result.errors
+
+
+def test_first_person_mode_validation():
+    env = _valid_env()
+    env["FIRST_PERSON_MODE"] = "retrieval_only"
+    result = validate_environment(env)
+    assert result.ok
+
+    env["FIRST_PERSON_MODE"] = "bogus_mode"
+    result_invalid = validate_environment(env)
+    assert not result_invalid.ok
+    assert "FIRST_PERSON_MODE must be one of ('disabled', 'retrieval_only', 'hybrid')" in result_invalid.errors
+

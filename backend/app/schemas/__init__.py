@@ -249,6 +249,18 @@ class Citation(BaseModel):
         ),
     )
     speaker: Optional[str] = Field(None, description="Speaker attribution for the source chunk")
+    timestamp_seconds: Optional[float] = Field(
+        None,
+        description=(
+            "Second offset into the source video this citation points to, when the "
+            "retrieved chunk's payload carries one (start/start_time/timestamp). Most "
+            "chunks in the corpus carry none of these today, so this is usually None -- "
+            "never fabricated to give the player a fake start point."
+        ),
+    )
+    text_snippet: Optional[str] = Field(
+        None, description="Exact source text (retrieved chunk) this citation points to"
+    )
 
 
 class ChatResponse(BaseModel):

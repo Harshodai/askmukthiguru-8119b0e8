@@ -28,6 +28,9 @@ from typing import Any
 _BACKEND = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_BACKEND))
 
+from services.transcript_verbatim import find_verbatim  # noqa: E402
+from services.transcript_verbatim import strip_fabricated_quotes as _shared_strip_fabricated_quotes  # noqa: E402
+
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(name)s  %(message)s")
 logger = logging.getLogger(__name__)
 
@@ -279,6 +282,18 @@ def _slug(title: str) -> str:
     return s or "entry"
 
 
+def _strip_fabricated_quotes(body: str, video_id: str | None) -> tuple[str, int]:
+    """Remove any quoted string (>= 8 words) that find_verbatim says is not
+    verbatim in this video's transcript, before the entry reaches staging.
+
+    Thin wrapper over ``services.transcript_verbatim.strip_fabricated_quotes``
+    (the single shared implementation, also used by ``okf_store.py``'s
+    optional load-time gate). Passes this module's own ``find_verbatim`` name
+    through so existing tests can monkeypatch ``extractor.find_verbatim``.
+    """
+    return _shared_strip_fabricated_quotes(body, video_id, find_verbatim_fn=find_verbatim)
+
+
 def _write_okf_entry(
     title: str,
     type_: str,
@@ -294,6 +309,16 @@ def _write_okf_entry(
         raise ValueError(f"invalid type {type_!r}; must be one of {_VALID_TYPES}")
     if not title.strip() or not body.strip():
         raise ValueError("title and body must be non-empty")
+
+    # Drop any quoted string (>=8 words) that isn't actually in this video's
+    # transcript before it can be staged as doctrine. See root-cause context:
+    # backend/services/transcript_verbatim.py.
+    body, fabricated_count = _strip_fabricated_quotes(body, video_id)
+    if fabricated_count:
+        logger.warning(
+            "OKF: removed %d fabricated quote(s) from entry %r (video_id=%s)",
+            fabricated_count, title, video_id,
+        )
 
     # L-INGEST-1: Validate body is clean doctrine, not LLM artifacts.
     # See backend/docs/INGESTION_SAFETY.md.

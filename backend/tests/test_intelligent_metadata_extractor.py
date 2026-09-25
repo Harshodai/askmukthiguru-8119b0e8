@@ -87,7 +87,9 @@ async def test_extract_metadata_contamination_safety_fallback():
 
     # Should safely fall back to deterministic domain heuristics
     assert meta.rationale == "heuristic_fallback"
-    assert meta.primary_teacher_id == "ekam"
+    # No source signal names a teacher or the Ekam org, so the corpus-wide default
+    # applies: Sri Preethaji & Sri Krishnaji (owner decision, L-TEACHER-TAG-1).
+    assert meta.primary_teacher_id == "preethaji_krishnaji"
     assert "preethaji" in meta.attributed_teacher_ids
     assert "krishnaji" in meta.attributed_teacher_ids
 

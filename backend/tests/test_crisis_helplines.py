@@ -28,13 +28,13 @@ def test_real_config_file_loads_with_new_schema():
 
 
 def test_real_config_file_reports_unverified(caplog):
-    """Every entry currently ships with last_verified unset — the loader must
+    """Every entry currently ships with last_verified_by_call unset — the loader must
     say so loudly rather than silently treating agent-populated data as launch-ready."""
     crisis_helplines.get_helplines.cache_clear()
     with caplog.at_level("WARNING"):
         helplines = crisis_helplines.get_helplines()
 
-    assert not any(h.last_verified for h in helplines)
+    assert not any(h.last_verified_by_call for h in helplines)
     assert any("unverified" in record.message.lower() for record in caplog.records)
 
 

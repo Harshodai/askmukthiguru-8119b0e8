@@ -4,22 +4,29 @@
 # number anywhere else (prompts, frontend copy, guardrail rules) — always
 # resolve through that module.
 #
-# ⚠️ VERIFICATION PROVENANCE — READ BEFORE TRUSTING THIS FILE ⚠️
-# `last_verified: 2026-09-23` below means: an AI agent cross-checked each
-# number against public official sources via web search (org's own site,
-# government portal, or equivalent) and the project owner reviewed the
-# findings and approved writing the date. This is NOT the same rigor as a
-# human actually calling/texting each number to confirm it currently rings,
-# is free, and is staffed — that stronger bar (PLAN.md, decisions-needed #2 /
-# dossier §7) has not been done. Treat this as "checked against current
-# public listings," not "confirmed live." Re-verify before an actual launch
-# if a stronger guarantee is needed, and re-check periodically since numbers
-# change.
+# ⚠️ VERIFICATION STATUS & SCHEMA — READ BEFORE TRUSTING THIS FILE ⚠️
+# Each entry tracks two distinct verification tiers:
 #
-# Schema per entry: region, name, contact (the number/text-instruction),
-# hours (optional), languages (optional list), source_url (optional, where
-# the number was sourced from), last_verified (optional, ISO date the number
-# was human-confirmed — absence means NOT YET VERIFIED).
+#   1. `last_checked_public_listing` (ISO date or null):
+#      Date when the number, name, and hours were cross-checked against official
+#      public websites or government portals. This confirms the listing exists
+#      online but DOES NOT guarantee the line is live or staffed.
+#
+#   2. `last_verified_by_call` (ISO date or null):
+#      Date when a human operator actually placed a live test call or message to
+#      confirm the number rings, is free, and is actively staffed by trained
+#      responders. Gate G1 (Safety Gate) STRICTLY REQUIRES `last_verified_by_call`.
+#      Absence (null) means UNVERIFIED BY CALL and triggers runtime warnings.
+#
+# Schema per entry:
+#   region: Geographic scope (e.g. India, United States, United Kingdom)
+#   name: Organization / service name
+#   contact: Phone number or text instructions
+#   hours: Operating hours (optional)
+#   languages: Supported languages (optional list)
+#   source_url: Official portal URL where listed (optional)
+#   last_checked_public_listing: Date checked against online listing (ISO date or null)
+#   last_verified_by_call: Date confirmed by placing a live call (ISO date or null)
 
 crisis_helplines:
   - region: "India"
@@ -28,77 +35,88 @@ crisis_helplines:
     hours: "24/7"
     languages: ["hi", "en"]
     source_url: "https://www.112.gov.in/"
-    last_verified: "2026-09-23"
+    last_checked_public_listing: "2026-09-23"
+    last_verified_by_call: null
   - region: "India"
     name: "Tele-MANAS (National Mental Health Helpline)"
     contact: "14416 / 1800-891-4416"
     hours: "24/7, free"
     languages: ["approximately 20 Indian languages"]
     source_url: "https://telemanas.mohfw.gov.in/home"
-    last_verified: "2026-09-23"
+    last_checked_public_listing: "2026-09-23"
+    last_verified_by_call: null
   - region: "India"
     name: "KIRAN (Mental Health Helpline)"
     contact: "1800-599-0019"
     hours: "24/7, free, toll-free"
     languages: ["multiple Indian languages"]
     source_url: null
-    last_verified: "2026-09-23"
+    last_checked_public_listing: "2026-09-23"
+    last_verified_by_call: null
   - region: "India"
     name: "iCall"
     contact: "9152987821"
     hours: "Mon-Sat, 8am-9pm IST"
     languages: ["hi", "en"]
     source_url: "https://icallhelpline.org/"
-    last_verified: "2026-09-23"
+    last_checked_public_listing: "2026-09-23"
+    last_verified_by_call: null
   - region: "India"
     name: "AASRA"
     contact: "9820466726"
     hours: "24/7"
     languages: null
     source_url: "http://www.aasra.info/"
-    last_verified: "2026-09-23"
+    last_checked_public_listing: "2026-09-23"
+    last_verified_by_call: null
   - region: "India"
     name: "Vandrevala Foundation"
     contact: "+91 9999 666 555"
     hours: "24/7"
     languages: null
     source_url: "https://vandrevalafoundation.com/"
-    last_verified: "2026-09-23"
+    last_checked_public_listing: "2026-09-23"
+    last_verified_by_call: null
   - region: "India"
     name: "Sneha"
     contact: "044-24640050"
     hours: "24/7"
     languages: null
     source_url: "https://befrienders.org/find-support-now/sneha/"
-    last_verified: "2026-09-23"
+    last_checked_public_listing: "2026-09-23"
+    last_verified_by_call: null
   - region: "United States"
     name: "988 Suicide & Crisis Lifeline"
     contact: "988"
     hours: "24/7"
     languages: ["en", "es"]
     source_url: "https://988lifeline.org/"
-    last_verified: "2026-09-23"
+    last_checked_public_listing: "2026-09-23"
+    last_verified_by_call: null
   - region: "United States"
     name: "Crisis Text Line"
     contact: "Text HOME to 741741"
     hours: "24/7"
     languages: ["en"]
     source_url: "https://www.crisistextline.org/"
-    last_verified: "2026-09-23"
+    last_checked_public_listing: "2026-09-23"
+    last_verified_by_call: null
   - region: "United Kingdom"
     name: "Samaritans"
     contact: "116 123"
     hours: "24/7, free"
     languages: ["en"]
     source_url: "https://www.samaritans.org/"
-    last_verified: "2026-09-23"
+    last_checked_public_listing: "2026-09-23"
+    last_verified_by_call: null
   - region: "United Kingdom"
     name: "SHOUT"
     contact: "Text SHOUT to 85258"
     hours: "24/7"
     languages: ["en"]
     source_url: "https://giveusashout.org/"
-    last_verified: "2026-09-23"
+    last_checked_public_listing: "2026-09-23"
+    last_verified_by_call: null
 
 domestic_violence_helplines:
   - region: "India"
@@ -107,25 +125,29 @@ domestic_violence_helplines:
     hours: "24/7"
     languages: null
     source_url: null
-    last_verified: "2026-09-23"
+    last_checked_public_listing: "2026-09-23"
+    last_verified_by_call: null
   - region: "India"
     name: "Women Helpline (All India)"
     contact: "181 / 1091"
     hours: "24/7"
     languages: null
     source_url: null
-    last_verified: "2026-09-23"
+    last_checked_public_listing: "2026-09-23"
+    last_verified_by_call: null
   - region: "United States"
     name: "National Domestic Violence Hotline"
     contact: "1-800-799-SAFE (7233) or Text START to 88788"
     hours: "24/7"
     languages: ["en", "es"]
     source_url: "https://www.thehotline.org/"
-    last_verified: "2026-09-23"
+    last_checked_public_listing: "2026-09-23"
+    last_verified_by_call: null
   - region: "United Kingdom"
     name: "National Domestic Abuse Helpline"
     contact: "0808 2000 247"
     hours: "24/7, free"
     languages: ["en"]
     source_url: null
-    last_verified: "2026-09-23"
+    last_checked_public_listing: "2026-09-23"
+    last_verified_by_call: null

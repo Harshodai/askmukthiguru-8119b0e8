@@ -95,6 +95,7 @@ class EmbedIndexConfig:
     duration: Optional[int] = None
     thumbnail_url: Optional[str] = None
     chunk_speakers: Optional[list[Optional[str]]] = None
+    transcript_hash: Optional[str] = None
 
     # Optional indexing metadata
     extra_metadatas: Optional[list[dict]] = None
@@ -1560,6 +1561,7 @@ class IngestionPipeline:
                     source_version=source_version,
                     authority_tier=authority_tier,
                     assistant_slug=assistant_slug,
+                    transcript_hash=result.get("transcript_hash"),
                 )
             )
 
@@ -1906,6 +1908,7 @@ class IngestionPipeline:
                         source_version=source_version,
                         authority_tier=authority_tier,
                         assistant_slug=assistant_slug,
+                        transcript_hash=result.get("transcript_hash"),
                     )
                 )
 
@@ -2274,6 +2277,7 @@ class IngestionPipeline:
                             published_at=transcript.get("published_at"),
                             duration=transcript.get("duration"),
                             thumbnail_url=transcript.get("thumbnail_url"),
+                            transcript_hash=transcript.get("transcript_hash"),
                         )
                     )
 
@@ -2859,6 +2863,7 @@ class IngestionPipeline:
         thumbnail_url = config.thumbnail_url
         chunk_speakers = config.chunk_speakers
         extra_metadatas = config.extra_metadatas
+        transcript_hash = config.transcript_hash
 
         qdrant = config.qdrant_override or self._qdrant
 
@@ -3071,6 +3076,10 @@ class IngestionPipeline:
                 "duration": duration,
                 "thumbnail_url": thumbnail_url,
                 "view_count": None,
+                # D2: sha256 of the corpus engine's verbatim transcript layer for
+                # this video, when the source came through that pipeline — a
+                # provenance pointer, never used for retrieval or embedding.
+                "transcript_hash": transcript_hash,
             }
             # P1-10: per-chunk speaker label (whisperx diarization or LLM fallback).
             # Overrides the source-level `speaker` for this specific chunk when present.

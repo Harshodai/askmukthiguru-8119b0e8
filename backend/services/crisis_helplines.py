@@ -59,6 +59,8 @@ class Helpline:
     languages: list[str] | None = None
     source_url: str | None = None
     last_verified: str | None = None
+    last_checked_public_listing: str | None = None
+    last_verified_by_call: str | None = None
 
 
 _FALLBACK_HELPLINES: tuple[Helpline, ...] = (
@@ -86,6 +88,23 @@ _FALLBACK_DOMESTIC_VIOLENCE_HELPLINES: tuple[Helpline, ...] = (
 def _parse_helpline_entry(entry: dict) -> Helpline:
     """Parse one YAML helpline entry. Raises KeyError/TypeError on malformed input."""
     languages = entry.get("languages")
+    last_verified_by_call = (
+        str(entry["last_verified_by_call"])
+        if entry.get("last_verified_by_call") is not None
+        else None
+    )
+    last_checked_public_listing = (
+        str(entry["last_checked_public_listing"])
+        if entry.get("last_checked_public_listing") is not None
+        else None
+    )
+    legacy_last_verified = (
+        str(entry["last_verified"])
+        if entry.get("last_verified") is not None
+        else None
+    )
+    effective_last_verified = last_verified_by_call or legacy_last_verified
+
     return Helpline(
         region=str(entry["region"]),
         name=str(entry["name"]),
@@ -94,7 +113,9 @@ def _parse_helpline_entry(entry: dict) -> Helpline:
         hours=str(entry["hours"]) if entry.get("hours") else None,
         languages=[str(lang) for lang in languages] if languages else None,
         source_url=str(entry["source_url"]) if entry.get("source_url") else None,
-        last_verified=str(entry["last_verified"]) if entry.get("last_verified") else None,
+        last_verified=effective_last_verified,
+        last_checked_public_listing=last_checked_public_listing,
+        last_verified_by_call=last_verified_by_call,
     )
 
 
@@ -163,10 +184,10 @@ def get_helplines() -> tuple[Helpline, ...]:
             logger.warning("crisis_helplines: skipping malformed entry %r: %s", entry, exc)
     if not parsed:
         return _FALLBACK_HELPLINES
-    if not any(h.last_verified for h in parsed):
+    if not any(h.last_verified_by_call for h in parsed):
         logger.warning(
-            "crisis_helplines: no entry in %s has last_verified set — helpline "
-            "numbers are unverified. Do not treat this data as launch-ready.",
+            "crisis_helplines: no entry in %s has last_verified_by_call set — helpline "
+            "numbers are unverified by call. Do not treat this data as launch-ready.",
             path,
         )
     return tuple(parsed)

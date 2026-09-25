@@ -533,6 +533,8 @@ def _coerce_citations(citations) -> list[dict]:
             # and discarded them again.
             chunk_provenance = c.get("chunk_provenance") or None
             speaker = c.get("speaker") or None
+            timestamp_seconds = c.get("timestamp_seconds")
+            text_snippet = c.get("text_snippet") or None
             valid_url: str | None = None
             for cand in (source_url, url):
                 if cand and str(cand).startswith(("http://", "https://")):
@@ -543,6 +545,8 @@ def _coerce_citations(citations) -> list[dict]:
             title = None
             chunk_provenance = None
             speaker = None
+            timestamp_seconds = None
+            text_snippet = None
         if not valid_url or valid_url in seen:
             continue
         seen.add(valid_url)
@@ -552,6 +556,8 @@ def _coerce_citations(citations) -> list[dict]:
                 "title": str(title).strip() if title else None,
                 "chunk_provenance": chunk_provenance,
                 "speaker": speaker,
+                "timestamp_seconds": timestamp_seconds,
+                "text_snippet": text_snippet,
             }
         )
     return out

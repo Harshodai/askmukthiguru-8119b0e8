@@ -28,9 +28,20 @@ try:
 except ImportError:  # pragma: no cover
     frontmatter = None  # type: ignore
 
+from app.config import settings
 from services.okf_quality_filter import OKFQualityFilter
+from services.transcript_verbatim import CORPUS_ROOT as _DEFAULT_CORPUS_ROOT
+from services.transcript_verbatim import strip_fabricated_quotes
 
 logger = logging.getLogger(__name__)
+
+_VIDEO_ID_RE = re.compile(r"[?&]v=([A-Za-z0-9_-]{6,})")
+
+
+def _video_id_from_source(source: str) -> Optional[str]:
+    """Parse a YouTube ``v=<id>`` query param out of an entry's ``source`` field."""
+    match = _VIDEO_ID_RE.search(source or "")
+    return match.group(1) if match else None
 
 _base_path = Path(__file__).resolve().parent
 while _base_path.name and _base_path.name != "backend":
@@ -146,8 +157,11 @@ def _parse_frontmatter(text: str) -> tuple[dict[str, Any], str]:
 class OKFStore:
     """Read and validate OKF markdown entries from disk."""
 
-    def __init__(self, directory: Optional[Path] = None) -> None:
+    def __init__(self, directory: Optional[Path] = None, corpus_root: Optional[Path] = None) -> None:
         self.dir = directory or _OKF_DIR
+        # Only consulted when settings.okf_verbatim_quote_gate is on; tests pass
+        # a tmp corpus here instead of the real scripts/ingestion/corpus tree.
+        self.corpus_root = corpus_root or _DEFAULT_CORPUS_ROOT
 
     def list_entries(self) -> list[OKFEntry]:
         """Return all valid OKF entries in the directory."""
@@ -194,6 +208,20 @@ class OKFStore:
                 if not ok:
                     logger.warning("Skipping malformed OKF entry (%s): %s", reason, p)
                     continue
+
+                if settings.okf_verbatim_quote_gate:
+                    video_id = _video_id_from_source(str(meta.get("source", "")))
+                    if video_id:
+                        gated_body, removed = strip_fabricated_quotes(
+                            body, video_id, corpus_root=self.corpus_root
+                        )
+                        if removed:
+                            logger.warning(
+                                "OKF load-time quote gate: removed %d non-verbatim quote(s) "
+                                "from %s (video_id=%s)",
+                                removed, p, video_id,
+                            )
+                        body = gated_body
 
                 entries.append(OKFEntry(path=p, meta=meta, body=body))
             except Exception as e:

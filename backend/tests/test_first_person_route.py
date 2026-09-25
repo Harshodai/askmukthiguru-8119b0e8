@@ -1,0 +1,175 @@
+"""
+Integration tests for /api/first-person/query route.
+"""
+
+from unittest.mock import create_autospec, patch
+
+import pytest
+from fastapi.testclient import TestClient
+
+from app.config import settings
+from app.dependencies import get_container_async
+from app.main import app
+from services.embedding_service import EmbeddingService
+from services.first_person_pipeline import FirstPersonPipelineResult
+
+client = TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def _enable_route(monkeypatch):
+    monkeypatch.setattr(settings, "first_person_mode", "retrieval_only")
+    monkeypatch.setattr(settings, "first_person_route_enabled", True)
+    from app.api.first_person import _pipeline
+
+    _pipeline.cache_clear()  # a pipeline cached by one test must not leak into the next
+    yield
+    _pipeline.cache_clear()
+
+
+def test_first_person_route_disabled_by_mode(monkeypatch):
+    monkeypatch.setattr(settings, "first_person_mode", "disabled")
+    resp = client.post("/api/first-person/query", json={"query": "What is suffering?"})
+    assert resp.status_code == 404
+    assert "disabled" in resp.json()["detail"]
+
+
+def test_first_person_route_disabled_by_flag(monkeypatch):
+    """(g) flag off -> 404, even when first_person_mode is enabled."""
+    monkeypatch.setattr(settings, "first_person_route_enabled", False)
+    resp = client.post("/api/first-person/query", json={"query": "What is suffering?"})
+    assert resp.status_code == 404
+
+
+def test_route_calls_real_embedding_method_via_autospec():
+    """(b) an autospec'd EmbeddingService rejects a nonexistent method call.
+
+    This is the regression test for the original defect: the old route
+    called embedder.embed_query(), which does not exist on EmbeddingService.
+    create_autospec raises AttributeError for any method not on the real class.
+    """
+    mock_embedding = create_autospec(EmbeddingService, instance=True)
+    mock_embedding.encode_single_full_async.return_value = {"dense": [0.1] * 1024, "sparse": {}}
+
+    class _FakeContainer:
+        embedding = mock_embedding
+
+    app.dependency_overrides[get_container_async] = lambda: _FakeContainer()
+    try:
+        with patch("app.api.first_person.FirstPersonPipeline") as mock_pipeline_cls:
+            mock_pipeline = mock_pipeline_cls.return_value
+            mock_pipeline.execute.return_value = FirstPersonPipelineResult(
+                answer_text="ok",
+                citations=[],
+                status="abstained",
+                is_direct_answer=False,
+                latency_ms=1.0,
+            )
+            resp = client.post(
+                "/api/first-person/query",
+                json={"query": "What is suffering?", "teacher_id": "preethaji"},
+            )
+        assert resp.status_code == 200
+        mock_embedding.encode_single_full_async.assert_called_once_with("What is suffering?")
+    finally:
+        app.dependency_overrides.pop(get_container_async, None)
+
+
+def test_route_embedder_failure_is_503():
+    mock_embedding = create_autospec(EmbeddingService, instance=True)
+    mock_embedding.encode_single_full_async.side_effect = RuntimeError("boom")
+
+    class _FakeContainer:
+        embedding = mock_embedding
+
+    app.dependency_overrides[get_container_async] = lambda: _FakeContainer()
+    try:
+        resp = client.post("/api/first-person/query", json={"query": "What is suffering?"})
+        assert resp.status_code == 503
+        assert "boom" not in resp.text
+    finally:
+        app.dependency_overrides.pop(get_container_async, None)
+
+
+def test_route_missing_collection_is_503():
+    mock_embedding = create_autospec(EmbeddingService, instance=True)
+
+    async def _encode(_text):
+        return {"dense": [0.1] * 1024, "sparse": {}}
+
+    mock_embedding.encode_single_full_async.side_effect = _encode
+
+    class _FakeContainer:
+        embedding = mock_embedding
+
+    app.dependency_overrides[get_container_async] = lambda: _FakeContainer()
+    try:
+        with patch("app.api.first_person.FirstPersonPipeline") as mock_pipeline_cls:
+            mock_pipeline = mock_pipeline_cls.return_value
+            mock_pipeline.execute.side_effect = RuntimeError("Collection `x` doesn't exist")
+            resp = client.post("/api/first-person/query", json={"query": "What is suffering?"})
+        assert resp.status_code == 503
+        assert "doesn't exist" not in resp.text
+        assert resp.json()["detail"] == "First-person retrieval unavailable"
+    finally:
+        app.dependency_overrides.pop(get_container_async, None)
+
+
+def test_first_person_route_success():
+    mock_embedding = create_autospec(EmbeddingService, instance=True)
+
+    async def _encode(_text):
+        return {"dense": [0.1] * 1024, "sparse": {}}
+
+    mock_embedding.encode_single_full_async.side_effect = _encode
+
+    class _FakeContainer:
+        embedding = mock_embedding
+
+    app.dependency_overrides[get_container_async] = lambda: _FakeContainer()
+    try:
+        with patch("app.api.first_person.FirstPersonPipeline") as mock_pipeline_cls:
+            mock_pipeline = mock_pipeline_cls.return_value
+            mock_pipeline.execute.return_value = FirstPersonPipelineResult(
+                answer_text='"Suffering is resistance to what is."\n— Sri Preethaji (vid1, 10s)',
+                citations=[
+                    {
+                        "video_id": "vid1",
+                        "start_ms": 10000,
+                        "end_ms": 15000,
+                        "timestamp_seconds": 10,
+                        "speaker": "Sri Preethaji",
+                        "teacher_id": "preethaji",
+                        "transcript_hash": "a" * 64,
+                        "verbatim_text": "Suffering is resistance to what is.",
+                        "source_url": "https://youtube.com/watch?v=vid1",
+                        "video_url": "https://youtube.com/watch?v=vid1",
+                        "text_snippet": "Suffering is resistance to what is.",
+                        "confidence": 0.9,
+                        "is_verbatim": True,
+                        "provenance_kind": "speech_turn_clip",
+                        "caption_status": "auto_transcript",
+                    }
+                ],
+                status="success",
+                is_direct_answer=True,
+                latency_ms=25.0,
+            )
+            resp = client.post(
+                "/api/first-person/query",
+                json={"query": "What is suffering?", "teacher_id": "preethaji"},
+            )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "success"
+        assert data["is_direct_answer"] is True
+        assert len(data["citations"]) == 1
+        assert data["citations"][0]["speaker"] == "Sri Preethaji"
+        assert data["citations"][0]["timestamp_seconds"] == 10
+    finally:
+        app.dependency_overrides.pop(get_container_async, None)
+
+
+def test_first_person_route_rejects_empty_query():
+    resp = client.post("/api/first-person/query", json={"query": ""})
+    assert resp.status_code == 422  # Pydantic validation error

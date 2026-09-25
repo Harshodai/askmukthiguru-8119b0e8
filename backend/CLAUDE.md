@@ -4,6 +4,14 @@ Folder-level guidance for the FastAPI backend. The root `CLAUDE.md` documents th
 
 - Full subsystem/route inventory: ../docs/engineering-notes/subsystem-inventory.md
 
+> **#1 priority (2026-09-24): top-notch data and a stable baseline for first-person verbatim answers.** See the root `CLAUDE.md` banner and `../docs/agent/first_person_baseline_prompt.md`. Backend rules while this is in progress:
+> - Fix every data defect at the shared root in ingestion (`ingest/`, `../scripts/ingestion/corpus/`, `services/qdrant/indexer.py`, `services/teacher_attribution.py`), never with a one-off backfill the pipeline can't reproduce.
+> - Teacher identity comes from the source and voice, never from words in the text.
+> - Keep a verbatim transcript layer that nothing cleans.
+> - Quotes are pointers rendered from that layer, and are exact-substring checked before display.
+> - Every Qdrant/OKF/Memgraph write goes dry-run → snapshot → ask → apply.
+> - The data gate is `scripts/ops/data_quality_audit.py`.
+
 ## Commands (run from backend/)
 
 ```bash
