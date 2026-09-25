@@ -43,6 +43,7 @@
   - It left `teacher_id` untouched.
   - It took a snapshot first: `spiritual_wisdom_contextual-1111874297854021-2026-09-24-11-36-10.snapshot`.
   - A re-run changes 0 points.
+- **Consequence, on purpose (2026-09-26):** `/api/chat` citations carry `speaker=None` and `text_snippet=None`. `citation_extractor._resolve_speaker` names a teacher only when the payload has `speaker_verified: True`, and no chat-corpus ingestion writer sets that key or `verbatim_text` yet. Only the first-person route, whose clips are voice-verified, names a speaker. To bring the speaker back to chat, add a voice-verified writer; never relax the gate. Pinned by `tests/test_citation_contract.py::test_unverified_speaker_and_teacher_id_are_never_named`.
 - **Why `teacher_id` was left alone:** against the voice census (docs/attribution/ANALYSIS.md §2.6, 14 videos, 4,801 points), recomputing `teacher_id` from titles scored 2,171 correct vs 2,149 for the current labels. It fixed two videos and broke two; for example, U23yKxWbIcI is Krishnaji-only by voice but its title names both. So `teacher_id` waits for voice attribution rather than churning 13.5k points for no gain.
 - **Rules / invariants:**
   - Who speaks comes from source identity + voice, never from words anyone said.

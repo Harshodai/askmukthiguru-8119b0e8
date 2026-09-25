@@ -356,12 +356,11 @@ class FirstPersonPipeline:
                     f"failed the serve-time integrity gate. Quarantined from serving."
                 )
 
-        latency = (time.monotonic() - start_time) * 1000.0
-
         verified_clips = verified_clips[:max_clips]
 
         # Step 5: Abstention check if zero verified clips
         if not verified_clips:
+            latency = (time.monotonic() - start_time) * 1000.0
             logger.info("[FirstPersonPipeline] Zero verified clips found. Honest abstention.")
             self._log_and_count("abstained", latency, 0.0, n_quarantined, 0)
             return FirstPersonPipelineResult(
@@ -373,16 +372,17 @@ class FirstPersonPipeline:
             )
 
         # Step 6: Calibrated Confidence Decision
+        # One cosine per clip, reused by the confidence decision, the per-clip filter and the citation.
+        clip_scores = [_cosine_similarity(query_dense_vector, c.get("passage_dense")) for c in verified_clips]
         top_clip = verified_clips[0]
-        confidence = _cosine_similarity(query_dense_vector, top_clip.get("passage_dense"))
+        confidence = clip_scores[0]
         is_direct = self._profile is not None and confidence >= self._profile["threshold"]
 
         citations: list[dict[str, Any]] = []
         answer_parts: list[str] = []
 
-        def _build_citation(clip: dict[str, Any], provenance_kind: str) -> dict[str, Any]:
+        def _build_citation(clip: dict[str, Any], clip_confidence: float, provenance_kind: str) -> dict[str, Any]:
             sec = clip["start_ms"] // 1000
-            clip_confidence = _cosine_similarity(query_dense_vector, clip.get("passage_dense"))
             video_id = clip["video_id"]
             return {
                 "video_id": video_id,
@@ -409,15 +409,15 @@ class FirstPersonPipeline:
             # Each served clip must clear the threshold itself; the top clip's
             # confidence says nothing about clips 2 and 3.
             threshold = self._profile["threshold"]
-            confident = [c for c in verified_clips if _cosine_similarity(query_dense_vector, c.get("passage_dense")) >= threshold]
-            for clip in confident:
-                cit = _build_citation(clip, clip.get("provenance_kind", "speech_turn_clip"))
+            confident = [(c, score) for c, score in zip(verified_clips, clip_scores) if score >= threshold]
+            for clip, score in confident:
+                cit = _build_citation(clip, score, clip.get("provenance_kind", "speech_turn_clip"))
                 citations.append(cit)
                 answer_parts.append(f'"{clip["verbatim_text"]}"\n— {clip["speaker"]} ({clip["video_id"]}, {cit["timestamp_seconds"]}s)')
             final_text = "\n\n".join(answer_parts)
         else:
             status = "weak_match"
-            cit = _build_citation(top_clip, "weak_match_fallback")
+            cit = _build_citation(top_clip, confidence, "weak_match_fallback")
             citations.append(cit)
             final_text = (
                 f'Related, not a direct answer:\n\n"{top_clip["verbatim_text"]}"\n'
@@ -429,14 +429,13 @@ class FirstPersonPipeline:
             citations=citations,
             status=status,
             is_direct_answer=is_direct,
-            latency_ms=latency,
+            latency_ms=0.0,
         )
-
-        self._log_and_count(status, latency, confidence, n_quarantined, len(citations))
-
-        # Cache result
         self.set_exact_cache(query, res.to_dict(), teacher_id)
 
+        # Measured last so scoring, citation building and the cache write are all counted.
+        res.latency_ms = (time.monotonic() - start_time) * 1000.0
+        self._log_and_count(status, res.latency_ms, confidence, n_quarantined, len(citations))
         return res
 
 
