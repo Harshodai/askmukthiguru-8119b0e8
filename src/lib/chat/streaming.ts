@@ -7,6 +7,7 @@ import { fetchWithRetry } from './fetchWithRetry';
 import { recordMetric } from './telemetry';
 import { loadProfile } from '@/lib/profileStorage';
 import type { MessagePayload, ResponsePreferences, StreamChunk } from './types';
+import { normalizeCitations } from './types';
 
 /** Error augmented with HTTP/transport metadata for caller telemetry. */
 type RichError = Error & {
@@ -317,7 +318,7 @@ export async function* sendMessageStreaming(
             yield {
               type: 'done',
               intent: meta.intent ?? 'CASUAL',
-              citations: meta.citations ?? [],
+              citations: normalizeCitations(meta.citations),
               meditationStep: meta.meditation_step ?? 0,
               blocked: meta.blocked ?? false,
               blockReason: meta.block_reason ?? null,

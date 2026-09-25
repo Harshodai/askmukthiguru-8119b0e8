@@ -10,6 +10,7 @@ import { recordMetric } from './telemetry';
 import { placeholderReply } from './placeholder';
 import { checkBackendHealth, getHealthStatus } from './health';
 import type { AIErrorCode, AIResponse, MessagePayload, ResponsePreferences } from './types';
+import { normalizeCitations } from './types';
 
 // ponytail: word-list heuristic, not an LLM call — cheap enough to run on every send.
 const REFERENTIAL_WORDS = ['earlier', 'before', 'previously', 'you said', 'you mentioned',
@@ -229,7 +230,7 @@ export const sendMessage = async (
                 return {
                   content: result.response || result.content || '',
                   intent: result.intent,
-                  citations: result.citations || [],
+                  citations: normalizeCitations(result.citations),
                   meditationStep: result.meditation_step || 0,
                   blocked: result.blocked || false,
                   blockReason: result.block_reason,
@@ -332,7 +333,7 @@ export const sendMessage = async (
       return {
         content: data.response || data.choices?.[0]?.message?.content || data.content,
         intent: data.intent,
-        citations: data.citations || [],
+        citations: normalizeCitations(data.citations),
         meditationStep: data.meditation_step || 0,
         blocked: data.blocked || false,
         blockReason: data.block_reason,

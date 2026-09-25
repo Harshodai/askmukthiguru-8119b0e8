@@ -3,12 +3,17 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Youtube, Play, Clock, Quote, Sparkles, ExternalLink, X, BookOpen, Search } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 
+/** Neutral fallback shown only when the citation carries no real speaker —
+ *  never a stand-in for an actual teacher's name. */
+const FALLBACK_SPEAKER_LABEL = 'Ekam teachings';
+
 export interface DiscourseCitation {
   index: number;
   url: string;
   title?: string;
-  speaker?: 'Sri Preethaji' | 'Sri Krishnaji' | 'Ekams Wisdom';
-  startTimestamp?: number; // in seconds
+  /** The real speaker from citation data, when known. Never hardcode this. */
+  speaker?: string;
+  startTimestamp?: number; // in seconds; 0 is a valid, playable start
   endTimestamp?: number;
   quote?: string;
   channelName?: string;
@@ -28,7 +33,7 @@ export const CitationBadge: React.FC<CitationBadgeProps> = ({
   const [hovered, setHovered] = useState(false);
 
   const formatTimestamp = (sec?: number) => {
-    if (!sec) return '00:00';
+    if (sec == null) return '00:00';
     const m = Math.floor(sec / 60);
     const s = Math.floor(sec % 60);
     return `${m}:${s < 10 ? '0' : ''}${s}`;
@@ -69,8 +74,8 @@ export const CitationBadge: React.FC<CitationBadgeProps> = ({
                   {citation.title || 'Sacred Discourse Teaching'}
                 </p>
                 <div className="mt-0.5 flex items-center gap-2 text-[10px] text-muted-foreground">
-                  <span className="text-saffron-gold">{citation.speaker || 'Ekams Teaching'}</span>
-                  {citation.startTimestamp && (
+                  <span className="text-saffron-gold">{citation.speaker || FALLBACK_SPEAKER_LABEL}</span>
+                  {citation.startTimestamp != null && (
                     <span className="flex items-center gap-0.5">
                       <Clock className="h-2.5 w-2.5" /> {formatTimestamp(citation.startTimestamp)}
                     </span>
@@ -126,7 +131,7 @@ export const DiscourseVideoModal: React.FC<{
   } catch {
     videoId = citation.url;
   }
-  const start = citation.startTimestamp || 0;
+  const start = citation.startTimestamp ?? 0;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -146,7 +151,7 @@ export const DiscourseVideoModal: React.FC<{
               <h3 className="font-serif text-base font-semibold text-foreground">
                 {citation.title || 'Sacred Discourse'}
               </h3>
-              <p className="text-xs text-saffron-gold">{citation.speaker || 'Ekams Wisdom'}</p>
+              <p className="text-xs text-saffron-gold">{citation.speaker || FALLBACK_SPEAKER_LABEL}</p>
             </div>
             <a
               href={citation.url}
