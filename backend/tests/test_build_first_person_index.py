@@ -323,24 +323,35 @@ def test_low_or_unknown_asr_agreement_quarantines_video(tmp_path):
     assert "vidOk" not in reasons
 
 
-def test_apply_deletes_points_of_videos_no_longer_indexable(monkeypatch):
-    """The collection mirrors the current build: a video quarantined since an
-    earlier apply must not keep serving its old points."""
+def _fake_store_env(monkeypatch, existing_ids):
     from unittest.mock import MagicMock
 
     import services.embedding_service as es
     import services.first_person_store as fps
 
     store = MagicMock()
-    store.count.return_value = 1
+    store.client.scroll.return_value = ([MagicMock(id=i) for i in existing_ids], None)
+    store.count.return_value = 0
     monkeypatch.setattr(fps, "FirstPersonStore", lambda collection: store)
     embedder = MagicMock()
-    embedder.encode_batch.return_value = {"dense": [[0.1]], "sparse": [{1: 0.5}]}
+    embedder.encode_batch.side_effect = lambda texts: {"dense": [[0.0]] * len(texts), "sparse": [{} for _ in texts]}
     monkeypatch.setattr(es, "EmbeddingService", lambda: embedder)
-    clip = {"video_id": "vidKeep", "verbatim_text": "x", "transcript_hash": "h", "start_ms": 0, "end_ms": 1}
+    return store
 
-    bfpi.apply_indexable_clips([clip], "first_person_v1")
 
-    selector = store.client.delete.call_args.kwargs["points_selector"]
-    must_not = selector.filter.must_not[0]
-    assert must_not.key == "video_id" and list(must_not.match.any) == ["vidKeep"]
+def test_apply_deletes_only_stale_point_ids(monkeypatch):
+    from services.first_person_store import make_first_person_point_id
+
+    clip = {"verbatim_text": "x", "transcript_hash": "h1", "start_ms": 0, "end_ms": 1000}
+    keep = make_first_person_point_id("h1", 0, 1000)
+    store = _fake_store_env(monkeypatch, [keep, "stale-id"])
+    bfpi.apply_indexable_clips([clip], "first_person_test")
+    deleted = store.client.delete.call_args.kwargs["points_selector"].points
+    assert deleted == ["stale-id"]
+
+
+def test_apply_refuses_to_empty_a_collection_on_an_empty_build(monkeypatch):
+    store = _fake_store_env(monkeypatch, ["a", "b"])
+    with pytest.raises(RuntimeError, match="0 clips"):
+        bfpi.apply_indexable_clips([], "first_person_test")
+    store.client.delete.assert_not_called()

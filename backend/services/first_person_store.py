@@ -315,6 +315,24 @@ class FirstPersonStore:
         logger.info(f"[FirstPersonStore] Successfully upserted {len(points)} clips into '{self._collection}'")
         return len(points)
 
+    def points_servable(self, point_ids: list[str]) -> bool:
+        """True only if every point still exists and still passes the search filter
+        (first_person_eligible, and rights_cleared unless unregistered serving is on)."""
+        points = self.client.retrieve(
+            collection_name=self.collection,
+            ids=list(point_ids),
+            with_payload=["first_person_eligible", "rights_cleared"],
+            with_vectors=False,
+        )
+        if len(points) != len(set(point_ids)):
+            return False
+        need_rights = not getattr(settings, "first_person_serve_unregistered", False)
+        return all(
+            (p.payload or {}).get("first_person_eligible") is True
+            and (not need_rights or (p.payload or {}).get("rights_cleared") is True)
+            for p in points
+        )
+
     def search_hybrid(
         self,
         query_dense_vector: list[float],

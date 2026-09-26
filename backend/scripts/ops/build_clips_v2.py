@@ -27,7 +27,10 @@ if str(_BACKEND) not in sys.path:
 
 from services.speaker_diarization import build_clips_from_labelled_words  # noqa: E402
 
-_STATS_KEYS = ("runs", "clips", "dropped_short", "merged_unknown_gaps", "cut_at_sentence", "cut_at_pause")
+_STATS_KEYS = (
+    "runs", "clips", "dropped_short", "merged_unknown_gaps",
+    "cut_at_sentence", "cut_at_pause", "dropped_mid_sentence_at_flip",
+)
 
 
 def _percentile(sorted_values: list[int], p: float) -> Optional[int]:
@@ -85,7 +88,8 @@ def print_report(reports: list[dict[str, Any]]) -> None:
         print(
             f"{Path(r['dir']).name}: runs={r['runs']} dropped_short={r['dropped_short']} "
             f"merged_unknown_gaps={r['merged_unknown_gaps']} "
-            f"cut_at_sentence={r['cut_at_sentence']} cut_at_pause={r['cut_at_pause']}"
+            f"cut_at_sentence={r['cut_at_sentence']} cut_at_pause={r['cut_at_pause']} "
+            f"dropped_mid_sentence_at_flip={r['dropped_mid_sentence_at_flip']}"
         )
 
 

@@ -146,12 +146,54 @@ class QdrantAliasManager:
         base_clean = re.sub(r"_v\d{8}(?:_\d{6})?$", "", base_collection_or_alias)
         shadow_name = f"{base_clean}_{suffix}"
 
-        # Extract vector and hnsw configuration from existing collection
+        # Extract vector and configuration from existing collection
         params = col_info.config.params
         vectors_config = params.vectors
         sparse_config = params.sparse_vectors
         quantization_config = col_info.config.quantization_config
-        hnsw_config = col_info.config.hnsw_config
+
+        # Convert read-side config models to their create-side Diff equivalents.
+        # create_collection() expects HnswConfigDiff / OptimizersConfigDiff / WalConfigDiff;
+        # passing the raw read models raises a validation error at runtime.
+        _hnsw = col_info.config.hnsw_config
+        hnsw_config_diff: Optional[models.HnswConfigDiff] = (
+            models.HnswConfigDiff(
+                m=_hnsw.m,
+                ef_construct=_hnsw.ef_construct,
+                full_scan_threshold=_hnsw.full_scan_threshold,
+                max_indexing_threads=_hnsw.max_indexing_threads,
+                on_disk=_hnsw.on_disk,
+                payload_m=_hnsw.payload_m,
+            )
+            if _hnsw is not None
+            else None
+        )
+
+        _opt = col_info.config.optimizer_config
+        optimizer_config_diff: Optional[models.OptimizersConfigDiff] = (
+            models.OptimizersConfigDiff(
+                deleted_threshold=_opt.deleted_threshold,
+                vacuum_min_vector_number=_opt.vacuum_min_vector_number,
+                default_segment_number=_opt.default_segment_number,
+                max_segment_size=_opt.max_segment_size,
+                memmap_threshold=_opt.memmap_threshold,
+                indexing_threshold=_opt.indexing_threshold,
+                flush_interval_sec=_opt.flush_interval_sec,
+                max_optimization_threads=_opt.max_optimization_threads,
+            )
+            if _opt is not None
+            else None
+        )
+
+        _wal = col_info.config.wal_config
+        wal_config_diff: Optional[models.WalConfigDiff] = (
+            models.WalConfigDiff(
+                wal_capacity_mb=_wal.wal_capacity_mb,
+                wal_segments_ahead=_wal.wal_segments_ahead,
+            )
+            if _wal is not None
+            else None
+        )
 
         logger.info(
             f"[QdrantAliasManager] Creating shadow collection {shadow_name} matching {target_name}"
@@ -163,7 +205,9 @@ class QdrantAliasManager:
                 vectors_config=vectors_config,
                 sparse_vectors_config=sparse_config,
                 quantization_config=quantization_config,
-                hnsw_config=hnsw_config,
+                hnsw_config=hnsw_config_diff,
+                optimizers_config=optimizer_config_diff,
+                wal_config=wal_config_diff,
             )
         except Exception as e:
             logger.error(f"[QdrantAliasManager] Failed to create shadow collection {shadow_name}: {e}")

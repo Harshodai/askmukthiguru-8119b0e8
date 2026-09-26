@@ -42,7 +42,7 @@ CORPUS_ROOT = REPO_ROOT / "scripts" / "ingestion" / "corpus"
 _TOKEN_RE = re.compile(r"[a-z0-9]+")
 _APOSTROPHE_RE = re.compile(r"[‘’']")
 _PARTIAL_MATCH_THRESHOLD = 0.70
-_QUOTED_STRING_RE = re.compile(r'"([^"\n]{20,400})"')
+_QUOTED_STRING_RE = re.compile(r'["\u201c]([^"\u201c\u201d\n]{20,400})["\u201d]')
 MIN_QUOTE_WORDS = 8
 
 MatchStatus = Literal["verbatim", "partial", "not_found"]
@@ -111,11 +111,11 @@ def load_segments(video_id: str, corpus_root: Path = CORPUS_ROOT) -> Optional[li
     return data.get("segments", []) if isinstance(data, dict) else data
 
 
-@lru_cache(maxsize=4096)
-def _token_index(video_id: str, corpus_root_str: str) -> Optional[tuple]:
-    """Cached (token, seg_start, seg_end) triples across every segment's
-    display text, in transcript order. This is what find_verbatim slides a
-    window over."""
+@lru_cache(maxsize=128)
+def _token_index_keyed(video_id: str, corpus_root_str: str, _mtime_ns: int) -> Optional[tuple]:
+    """Inner cache keyed by (video_id, corpus_root, file mtime_ns) so stale
+    indexes are never served after the segment file changes. maxsize=128
+    bounds memory for corpus-wide lookups."""
     segments = load_segments(video_id, Path(corpus_root_str))
     if not segments:
         return None
@@ -127,6 +127,27 @@ def _token_index(video_id: str, corpus_root_str: str) -> Optional[tuple]:
         for tok in normalise(text).split():
             index.append((tok, start, end))
     return tuple(index) if index else None
+
+
+def _token_index(video_id: str, corpus_root_str: str) -> Optional[tuple]:
+    """Cached (token, seg_start, seg_end) triples across every segment's
+    display text, in transcript order. This is what find_verbatim slides a
+    window over.
+
+    Delegates to _token_index_keyed with the segment file's mtime_ns so
+    the cache is invalidated when the file changes, and missing transcripts
+    are never cached (they return None and are not stored)."""
+    seg_file = Path(corpus_root_str) / video_id / "canonical_segments.json"
+    try:
+        mtime_ns = seg_file.stat().st_mtime_ns
+    except OSError:
+        # File absent — do not cache. A missing corpus ROOT must still be loud:
+        # load_segments (which logs it) is never reached on this early return.
+        root = Path(corpus_root_str)
+        if not root.is_dir():
+            _log_missing_corpus_root(root)
+        return None
+    return _token_index_keyed(video_id, corpus_root_str, mtime_ns)
 
 
 def _all_video_ids(corpus_root: Path) -> list[str]:
@@ -366,11 +387,21 @@ def per_video_checks(video_dir: Path) -> list[Finding]:
     full_text = " ".join(text_parts)
     words = full_text.split()
     if len(words) >= _REPETITION_MIN_WORDS:
-        for n in range(len(words) - _REPETITION_MIN_WORDS + 1):
-            gram = " ".join(words[n : n + _REPETITION_GRAM_LEN])
-            count = len(re.findall(r"\b" + re.escape(gram) + r"\b", full_text, re.IGNORECASE))
-            if count >= _REPETITION_MIN_COUNT:
-                findings.append(Finding("repetition_loop", "hard", f"'{gram}' repeats {count}x"))
+        # Detect only CONSECUTIVE back-to-back repeats of the same n-gram.
+        # A single linear pass: compare each block to the immediately preceding one.
+        for n in range(len(words) - _REPETITION_GRAM_LEN * _REPETITION_MIN_COUNT + 1):
+            gram = tuple(w.lower() for w in words[n : n + _REPETITION_GRAM_LEN])
+            consec = 1
+            pos = n + _REPETITION_GRAM_LEN
+            while pos + _REPETITION_GRAM_LEN <= len(words):
+                if tuple(w.lower() for w in words[pos : pos + _REPETITION_GRAM_LEN]) == gram:
+                    consec += 1
+                    pos += _REPETITION_GRAM_LEN
+                else:
+                    break
+            if consec >= _REPETITION_MIN_COUNT:
+                gram_str = " ".join(gram)
+                findings.append(Finding("repetition_loop", "hard", f"'{gram_str}' repeats {consec}x consecutively"))
                 break
 
     n_segs = len(segments)

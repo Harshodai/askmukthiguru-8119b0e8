@@ -108,6 +108,13 @@ export interface Citation {
    *  valid, playable start — only absence (undefined) means "no timestamp". */
   timestampSeconds?: number;
   textSnippet?: string;
+  /** Clip start minus the 0.25 s playback pad, floored at 0.
+   *  Prefer this over timestampSeconds for playback when present. */
+  playbackStartSeconds?: number;
+  /** Clip end plus the 0.25 s pad, capped at the video duration. */
+  playbackEndSeconds?: number;
+  /** YouTube deep link built from playbackStartSeconds. */
+  playbackUrl?: string;
 }
 
 /** Maps the backend's snake_case citation wire shape (`timestamp_seconds`,
@@ -127,6 +134,8 @@ export const normalizeCitations = (raw: unknown): Citation[] => {
       const url = c.url ?? c.source_url;
       if (typeof url !== 'string' || !url) return null;
       const ts = c.timestamp_seconds ?? c.timestampSeconds;
+      const pbs = c.playback_start_seconds ?? c.playbackStartSeconds;
+      const pbe = c.playback_end_seconds ?? c.playbackEndSeconds;
       return {
         url,
         title: (c.title as string | null | undefined) ?? undefined,
@@ -136,10 +145,14 @@ export const normalizeCitations = (raw: unknown): Citation[] => {
         speaker: (c.speaker as string | null | undefined) ?? undefined,
         timestampSeconds: typeof ts === 'number' && Number.isFinite(ts) ? ts : undefined,
         textSnippet: (c.text_snippet as string | null | undefined) ?? (c.textSnippet as string | undefined) ?? undefined,
+        playbackStartSeconds: typeof pbs === 'number' && Number.isFinite(pbs) ? pbs : undefined,
+        playbackEndSeconds: typeof pbe === 'number' && Number.isFinite(pbe) ? pbe : undefined,
+        playbackUrl: (c.playback_url as string | undefined) ?? (c.playbackUrl as string | undefined) ?? undefined,
       };
     })
     .filter((c): c is Citation => c !== null);
 };
+
 
 export interface TeachingPreview {
   title: string;

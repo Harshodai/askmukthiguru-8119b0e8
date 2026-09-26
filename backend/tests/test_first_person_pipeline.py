@@ -311,6 +311,62 @@ def test_pipeline_asks_for_spare_videos_so_a_quarantined_clip_is_backfilled(mock
     assert mock_store.search_hybrid.call_args.kwargs["dedup_limit"] > 3
 
 
+def test_malformed_cache_entry_missing_keys_is_treated_as_miss(mock_store, mock_redis):
+    """A cache entry written by an older schema (or corrupted) must never raise
+    KeyError -- it is treated as a miss and retrieval runs normally."""
+    mock_redis.get.return_value = b'{"answer_text": "x"}'  # missing citations/status/is_direct_answer
+    mock_store.search_hybrid.return_value = []
+
+    pipeline = FirstPersonPipeline(store=mock_store, redis_client=mock_redis)
+    res = pipeline.execute(query="What is suffering?", query_dense_vector=[0.1, 0.2])
+
+    assert res.cached is False
+    assert res.status == "abstained"
+    mock_store.search_hybrid.assert_called_once()
+    mock_redis.delete.assert_called_once()  # best-effort cleanup of the malformed key
+
+
+def test_redis_get_raising_is_treated_as_miss(mock_store, mock_redis):
+    """Redis unreachable on lookup must degrade to no-cache, never a raised
+    exception (SPOF & Replication Policy: Redis Degradation invariant)."""
+    mock_redis.get.side_effect = ConnectionError("redis down")
+    mock_store.search_hybrid.return_value = []
+
+    pipeline = FirstPersonPipeline(store=mock_store, redis_client=mock_redis)
+    res = pipeline.execute(query="What is suffering?", query_dense_vector=[0.1, 0.2])
+
+    assert res.status == "abstained"
+    mock_store.search_hybrid.assert_called_once()
+
+
+def test_successful_answer_populates_exact_cache(mock_store, mock_redis):
+    """A confident answer is written to the exact cache with the documented TTL."""
+    from services.first_person_pipeline import EXACT_CACHE_TTL
+
+    clip = _clip(passage_dense=[1.0, 0.0])
+    mock_store.search_hybrid.return_value = [clip]
+
+    pipeline = FirstPersonPipeline(store=mock_store, redis_client=mock_redis, calibration_profile=VALID_PROFILE)
+    pipeline.execute(query="What causes suffering?", query_dense_vector=[1.0, 0.0])
+
+    mock_redis.set.assert_called_once()
+    args, kwargs = mock_redis.set.call_args
+    assert kwargs.get("ex") == EXACT_CACHE_TTL
+
+
+def test_redis_set_raising_does_not_propagate(mock_store, mock_redis):
+    """A write-side Redis failure must not fail the request that already has a
+    verified answer to serve."""
+    mock_redis.set.side_effect = ConnectionError("redis down")
+    clip = _clip(passage_dense=[1.0, 0.0])
+    mock_store.search_hybrid.return_value = [clip]
+
+    pipeline = FirstPersonPipeline(store=mock_store, redis_client=mock_redis, calibration_profile=VALID_PROFILE)
+    res = pipeline.execute(query="What causes suffering?", query_dense_vector=[1.0, 0.0])
+
+    assert res.status == "success"
+
+
 def test_source_url_always_deep_links_to_the_clip_second(mock_store, mock_redis):
     """The index stores the plain video URL as source_url; the citation link must
     still jump to the clip's start second, or playback opens at 0:00."""
@@ -321,3 +377,100 @@ def test_source_url_always_deep_links_to_the_clip_second(mock_store, mock_redis)
     cit = res.citations[0]
     assert cit["source_url"] == "https://www.youtube.com/watch?v=vidT&t=94s"
     assert cit["video_url"] == "https://www.youtube.com/watch?v=vidT"
+
+
+def _first_citation(mock_store, mock_redis, **clip_overrides):
+    clip = _clip_with("Suffering is resistance.", "vidP", [1.0, 0.0])
+    clip.update(clip_overrides)
+    mock_store.search_hybrid.return_value = [clip]
+    res = FirstPersonPipeline(store=mock_store, redis_client=mock_redis).execute(query="q", query_dense_vector=[1.0, 0.0])
+    return res.citations[0]
+
+
+def test_playback_window_pads_by_spec_pad_not_seconds(mock_store, mock_redis):
+    """Spec pad is 150-300 ms. A multi-second pre-roll would play the host's
+    question or the other teacher before the quoted words."""
+    from services.first_person_pipeline import CITATION_PLAYBACK_PAD_S
+
+    assert 0.15 <= CITATION_PLAYBACK_PAD_S <= 0.30
+    cit = _first_citation(mock_store, mock_redis, start_ms=94_500, end_ms=120_000)
+    assert cit["playback_start_seconds"] == round(94.5 - CITATION_PLAYBACK_PAD_S, 2)
+    assert cit["playback_end_seconds"] == round(120.0 + CITATION_PLAYBACK_PAD_S, 2)
+    assert cit["playback_url"] == f"https://www.youtube.com/watch?v=vidP&t={int(94.5 - CITATION_PLAYBACK_PAD_S)}s"
+    # Existing contract unchanged.
+    assert cit["timestamp_seconds"] == 94
+    assert cit["source_url"] == "https://www.youtube.com/watch?v=vidP&t=94s"
+
+
+def test_playback_start_floors_at_zero(mock_store, mock_redis):
+    cit = _first_citation(mock_store, mock_redis, start_ms=100, end_ms=9_000)
+    assert cit["playback_start_seconds"] == 0.0
+    assert cit["playback_url"].endswith("&t=0s")
+
+
+def test_playback_end_never_passes_video_duration(mock_store, mock_redis):
+    cit = _first_citation(mock_store, mock_redis, start_ms=50_000, end_ms=59_900, duration_ms=60_000)
+    assert cit["playback_end_seconds"] == 60.0
+
+
+def test_blocked_topic_gets_the_guardrail_redirect_not_a_teacher_clip(mock_store, mock_redis):
+    """A teacher's clip served in reply to a political question reads as an
+    endorsement. Same regex topic rail as chat (no LLM), before retrieval."""
+    mock_store.search_hybrid.return_value = [_clip()]
+    res = FirstPersonPipeline(store=mock_store, redis_client=mock_redis).execute(
+        query="Which party should I vote for in the election?", query_dense_vector=[1.0, 0.0]
+    )
+    assert res.status == "abstained"
+    assert res.citations == []
+    assert res.answer_text
+    mock_store.search_hybrid.assert_not_called()
+
+
+def test_domestic_abuse_topic_gets_helplines_as_a_safety_redirect(mock_store, mock_redis):
+    mock_store.search_hybrid.return_value = [_clip()]
+    res = FirstPersonPipeline(store=mock_store, redis_client=mock_redis).execute(
+        query="My husband hits me every night, what should I do?", query_dense_vector=[1.0, 0.0]
+    )
+    assert res.status == "crisis_redirect"
+    assert res.citations == []
+    mock_store.search_hybrid.assert_not_called()
+
+
+def test_ordinary_doctrine_question_is_not_blocked(mock_store, mock_redis):
+    mock_store.search_hybrid.return_value = [_clip()]
+    res = FirstPersonPipeline(store=mock_store, redis_client=mock_redis).execute(
+        query="What causes suffering?", query_dense_vector=[1.0, 0.0]
+    )
+    assert res.status in ("success", "weak_match")
+
+
+def _cache_roundtrip(mock_store, mock_redis):
+    """Serve once (fills the cache), then return the cached payload for a replay."""
+    stored = {}
+    mock_redis.set.side_effect = lambda key, value, ex=None: stored.__setitem__(key, value)
+    mock_store.search_hybrid.return_value = [_clip(point_id="p-cached")]
+    pipeline = FirstPersonPipeline(store=mock_store, redis_client=mock_redis)
+    first = pipeline.execute(query="What causes suffering?", query_dense_vector=[1.0, 0.0])
+    assert first.citations[0]["point_id"] == "p-cached"
+    mock_redis.get.side_effect = lambda key: stored.get(key)
+    mock_store.search_hybrid.reset_mock()
+    return pipeline
+
+
+def test_cache_hit_is_served_only_while_its_clips_are_still_servable(mock_store, mock_redis):
+    pipeline = _cache_roundtrip(mock_store, mock_redis)
+    mock_store.points_servable.return_value = True
+    pipeline.execute(query="What causes suffering?", query_dense_vector=[1.0, 0.0])
+    mock_store.points_servable.assert_called_once_with(["p-cached"])
+    mock_store.search_hybrid.assert_not_called()  # served from cache
+
+
+def test_cache_hit_for_a_removed_or_revoked_clip_is_a_miss(mock_store, mock_redis):
+    """A clip deleted from the index or with rights revoked must stop serving now,
+    not when the 24 h cache entry expires."""
+    pipeline = _cache_roundtrip(mock_store, mock_redis)
+    mock_store.points_servable.return_value = False
+    mock_store.search_hybrid.return_value = []
+    res = pipeline.execute(query="What causes suffering?", query_dense_vector=[1.0, 0.0])
+    mock_store.search_hybrid.assert_called_once()  # fell through to a fresh search
+    assert res.citations == []

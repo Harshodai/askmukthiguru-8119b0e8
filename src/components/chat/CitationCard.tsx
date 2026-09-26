@@ -17,6 +17,12 @@ export interface DiscourseCitation {
   endTimestamp?: number;
   quote?: string;
   channelName?: string;
+  /** Clip start minus the backend's 0.25 s playback pad (spec 150–300 ms), floored
+   *  at 0. Never seconds of pre-roll: that would play the host before the teacher.
+   *  0 is a valid start — only absence means "use startTimestamp". */
+  playbackStartSeconds?: number;
+  /** Clip end plus the same pad, capped at the video duration. */
+  playbackEndSeconds?: number;
 }
 
 interface CitationBadgeProps {
@@ -131,7 +137,8 @@ export const DiscourseVideoModal: React.FC<{
   } catch {
     videoId = citation.url;
   }
-  const start = citation.startTimestamp ?? 0;
+  // YouTube's embed `start` takes whole seconds.
+  const start = Math.max(0, Math.floor(citation.playbackStartSeconds ?? citation.startTimestamp ?? 0));
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>

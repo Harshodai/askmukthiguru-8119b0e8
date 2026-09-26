@@ -512,11 +512,10 @@ async def ingest_social_media(
                 try:
                     from faster_whisper import WhisperModel  # type: ignore
 
-                    from services.doctrine_terms import get_whisper_initial_prompt
+                    from services.speech_config import WHISPER_HARDENING_KWARGS
 
                     model = WhisperModel("large-v3", device="cpu", compute_type="int8")
-                    prompt = get_whisper_initial_prompt()
-                    segments, _ = model.transcribe(af, initial_prompt=prompt)
+                    segments, _ = model.transcribe(af, **WHISPER_HARDENING_KWARGS)
                     return " ".join(seg.text for seg in segments)
                 except Exception as e2:
                     logger.error("faster-whisper direct transcription failed: %s", e2)

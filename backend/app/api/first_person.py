@@ -12,6 +12,7 @@ import logging
 from functools import lru_cache
 from typing import Any, Optional
 
+import redis
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
@@ -42,13 +43,36 @@ class FirstPersonQueryResponse(BaseModel):
     error: Optional[str] = None
 
 
+def _build_redis_client() -> Optional[redis.Redis]:
+    """Build the exact-cache Redis client from the same settings.redis_url the
+    rest of the backend uses (see services/cache/redis_adapter.py).
+
+    redis.from_url() connects lazily -- no socket I/O happens here, so this
+    never blocks the event loop. A bad URL (the only way construction itself
+    can fail) degrades to no cache rather than a 500; a reachable-but-down
+    server surfaces on the first real .get()/.set() call inside
+    FirstPersonPipeline, which already catches and logs (Redis Degradation
+    invariant, root CLAUDE.md SPOF policy).
+    """
+    try:
+        return redis.from_url(
+            settings.redis_url,
+            socket_connect_timeout=2,
+            socket_timeout=2,
+            retry_on_timeout=False,
+        )
+    except Exception as e:
+        logger.warning(f"[FirstPersonRoute] Redis client construction failed; exact cache disabled: {e}")
+        return None
+
+
 @lru_cache(maxsize=2)
 def _pipeline(collection: str, serene_mind: Any) -> FirstPersonPipeline:
     """One pipeline per process: reuses the container's crisis engine and loads
     the calibration profile once. ponytail: a new profile file needs a restart."""
     return FirstPersonPipeline(
         store=FirstPersonStore(collection=collection),
-        redis_client=None,  # the container has no Redis client; exact cache stays off
+        redis_client=_build_redis_client(),
         serene_mind_engine=serene_mind,
     )
 

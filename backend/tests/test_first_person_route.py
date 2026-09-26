@@ -173,3 +173,35 @@ def test_first_person_route_success():
 def test_first_person_route_rejects_empty_query():
     resp = client.post("/api/first-person/query", json={"query": ""})
     assert resp.status_code == 422  # Pydantic validation error
+
+
+def test_pipeline_factory_wires_a_real_redis_client_from_settings_url():
+    """Regression: the route used to hard-code redis_client=None, so the exact
+    cache never ran. redis.from_url() connects lazily -- constructing it here
+    must not perform any socket I/O (no event-loop blocking, no live Redis
+    write), it only needs to exist so the pipeline's cache calls have somewhere
+    to go."""
+    import redis as redis_lib
+
+    from app.api.first_person import _pipeline
+
+    pipeline = _pipeline(settings.first_person_collection, None)
+    assert pipeline._redis is not None
+    assert isinstance(pipeline._redis, redis_lib.Redis)
+
+
+def test_pipeline_factory_degrades_to_no_cache_when_redis_construction_fails(monkeypatch):
+    """A bad REDIS_URL (the only way construction itself can raise) must
+    degrade to no cache, never a 500 at request time."""
+    import app.api.first_person as first_person_module
+
+    def _boom(*args, **kwargs):
+        raise ValueError("bad redis url")
+
+    monkeypatch.setattr(first_person_module.redis, "from_url", _boom)
+    first_person_module._pipeline.cache_clear()
+    try:
+        pipeline = first_person_module._pipeline(settings.first_person_collection, None)
+        assert pipeline._redis is None
+    finally:
+        first_person_module._pipeline.cache_clear()

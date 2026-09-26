@@ -51,6 +51,20 @@ REPORT_DIR = _BACKEND_DIR / "benchmarks" / "reports"
 DEFAULT_BENCHMARK_KEY = "gate1-benchmark-secret-2026"
 
 # ═══════════════════════════════════════════════════════════════════════════
+# FIRST-PERSON MODE (POST /api/first-person/query) — additive, see main_first_person()
+# ═══════════════════════════════════════════════════════════════════════════
+
+FIRST_PERSON_ENDPOINT = "/api/first-person/query"
+DEFAULT_QUESTIONS_FILE = (
+    Path.home() / "mukthiguru_attribution_data" / "bakeoff_2026-09-25" / "questions.json"
+)
+# Breach criteria (root CLAUDE.md "Native model concurrency invariant" — the
+# thing that actually broke was a burst BELOW the configured ceiling, so this
+# gate checks concurrency=8 specifically rather than only the highest level.
+FIRST_PERSON_P95_BREACH_MS = 1000.0
+FIRST_PERSON_P95_BREACH_CONCURRENCY = 8
+
+# ═══════════════════════════════════════════════════════════════════════════
 # BALANCED QUERY STRATA (Fast, Standard, Deep)
 # ═══════════════════════════════════════════════════════════════════════════
 
@@ -584,6 +598,364 @@ async def run_gate1_load_test(
     return summary
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# FIRST-PERSON LOAD TEST (POST /api/first-person/query)
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# Reuses RequestResult/compute_percentiles/ContainerWatch above rather than
+# duplicating them; only the payload shape, endpoint and success parsing
+# differ from the chat load test.
+
+
+def load_first_person_questions(
+    questions_file: Path, limit: Optional[int] = None
+) -> list[dict[str, Any]]:
+    """Load {question, id, video_id} rows from the bakeoff question set.
+
+    Raises FileNotFoundError / json.JSONDecodeError / KeyError on a bad file —
+    callers (dry-run validation, the real run) decide how to report that;
+    this function never swallows a config error.
+    """
+    data = json.loads(questions_file.read_text(encoding="utf-8"))
+    questions = data["questions"]
+    if not isinstance(questions, list) or not questions:
+        raise ValueError(f"{questions_file} has no 'questions' array")
+    rows = [{"id": q["id"], "question": q["question"], "video_id": q.get("video_id", "")} for q in questions]
+    return rows[:limit] if limit else rows
+
+
+async def first_person_worker(
+    worker_id: int,
+    client: Any,
+    endpoint_url: str,
+    headers: dict[str, str],
+    queue: asyncio.Queue[tuple[int, dict[str, Any]]],
+    results: list[RequestResult],
+    stop_event: asyncio.Event,
+) -> None:
+    """Worker for the first-person route. Mirrors load_worker's shape/metrics
+    so compute_percentiles / report writers work unchanged; the payload and
+    response fields are first-person specific (no grounding_state/faithfulness)."""
+    while not stop_event.is_set():
+        try:
+            task_id, item = queue.get_nowait()
+        except asyncio.QueueEmpty:
+            break
+
+        question = item["question"]
+        payload = {"query": question, "teacher_id": "both", "max_clips": 3}
+
+        t_start = time.perf_counter()
+        status_code = 500
+        duration_ms = 0.0
+        fp_status = "unknown"
+        citations_count = 0
+        error_msg = ""
+
+        try:
+            response = await client.post(endpoint_url, json=payload, headers=headers)
+            t_end = time.perf_counter()
+            duration_ms = round((t_end - t_start) * 1000.0, 2)
+            status_code = response.status_code
+            if status_code == 200:
+                data = response.json()
+                fp_status = data.get("status", "unknown")
+                citations_count = len(data.get("citations", []))
+            elif status_code == 429:
+                error_msg = f"HTTP 429 (Rate Limited): {response.text[:100]}"
+            else:
+                error_msg = f"HTTP {status_code}: {response.text[:120]}"
+        except Exception as exc:
+            t_end = time.perf_counter()
+            duration_ms = round((t_end - t_start) * 1000.0, 2)
+            status_code = 500
+            error_msg = f"{type(exc).__name__}: {str(exc)}"
+        finally:
+            queue.task_done()
+
+        results.append(
+            RequestResult(
+                task_id=task_id,
+                worker_id=worker_id,
+                query=question,
+                tier="first_person",
+                category=item.get("video_id", ""),
+                status_code=status_code,
+                duration_ms=duration_ms,
+                intent="",
+                grounding_state=fp_status,
+                lane="first_person",
+                passed=status_code == 200,
+                faithfulness=0.0,
+                citations_count=citations_count,
+                error_msg=error_msg,
+                start_time=t_start,
+                end_time=t_end,
+            )
+        )
+
+
+async def run_first_person_load_test(
+    concurrency: int,
+    questions: list[dict[str, Any]],
+    base_url: Optional[str] = None,
+    test_key: str = DEFAULT_BENCHMARK_KEY,
+) -> dict[str, Any]:
+    """One concurrency-level run of the first-person load test. Returns the
+    same summary shape as run_gate1_load_test (minus tier_breakdown, which
+    doesn't apply — every request here is the same route)."""
+    import httpx
+
+    logger.info(
+        "First-person load test: concurrency=%d, questions=%d", concurrency, len(questions)
+    )
+
+    queue: asyncio.Queue[tuple[int, dict[str, Any]]] = asyncio.Queue()
+    for idx, q in enumerate(questions):
+        queue.put_nowait((idx, q))
+
+    results: list[RequestResult] = []
+    stop_event = asyncio.Event()
+
+    is_inprocess = not base_url or base_url.lower() == "inprocess"
+    transport = None
+
+    if is_inprocess:
+        from app.config import settings
+
+        settings.enable_test_auth = True
+        settings.is_production = False
+        settings.benchmark_secret = test_key
+        settings.multitenancy_guard_mode = "log"
+        if "qdrant:" in getattr(settings, "qdrant_url", ""):
+            settings.qdrant_url = "http://localhost:6333"
+
+        from app import dependencies
+
+        dependencies.startup_complete = True
+        dependencies.startup_error = None
+
+        from app.main import app as fastapi_app
+
+        transport = httpx.ASGITransport(app=fastapi_app)
+        client_base_url = "http://testserver"
+        endpoint = FIRST_PERSON_ENDPOINT
+    else:
+        client_base_url = base_url.rstrip("/")
+        endpoint = f"{client_base_url}{FIRST_PERSON_ENDPOINT}"
+
+    headers = {"Content-Type": "application/json", "X-Test-Key": test_key}
+    limits = httpx.Limits(max_connections=concurrency * 2, max_keepalive_connections=concurrency)
+    timeout = httpx.Timeout(60.0, connect=10.0)
+
+    t_bench_start = time.perf_counter()
+    async with httpx.AsyncClient(
+        transport=transport,
+        base_url=client_base_url if is_inprocess else "",
+        limits=limits,
+        timeout=timeout,
+    ) as client:
+        req_endpoint = FIRST_PERSON_ENDPOINT if is_inprocess else endpoint
+        workers = [
+            asyncio.create_task(
+                first_person_worker(
+                    worker_id=w_id,
+                    client=client,
+                    endpoint_url=req_endpoint,
+                    headers=headers,
+                    queue=queue,
+                    results=results,
+                    stop_event=stop_event,
+                )
+            )
+            for w_id in range(concurrency)
+        ]
+        await queue.join()
+        stop_event.set()
+        await asyncio.gather(*workers)
+    t_bench_end = time.perf_counter()
+    total_duration_s = round(t_bench_end - t_bench_start, 3)
+
+    all_latencies = [r.duration_ms for r in results]
+    percentiles = compute_percentiles(all_latencies)
+
+    status_codes: dict[int, int] = {}
+    for r in results:
+        status_codes[r.status_code] = status_codes.get(r.status_code, 0) + 1
+
+    total_completed = len(results)
+    total_passed = sum(1 for r in results if r.passed)
+    error_count = total_completed - total_passed
+    has_5xx = any(code >= 500 for code in status_codes)
+    rate_limited = status_codes.get(429, 0)
+
+    return {
+        "concurrency": concurrency,
+        "total_requests": total_completed,
+        "total_duration_seconds": total_duration_s,
+        "throughput_rps": round(total_completed / total_duration_s if total_duration_s > 0 else 0.0, 2),
+        "pass_rate_pct": round((total_passed / total_completed * 100.0) if total_completed else 0.0, 1),
+        "error_rate_pct": round((error_count / total_completed * 100.0) if total_completed else 0.0, 1),
+        "rate_limited_429_count": rate_limited,
+        "rate_limited_429_pct": round(
+            (rate_limited / total_completed * 100.0) if total_completed else 0.0, 1
+        ),
+        "has_5xx": has_5xx,
+        "status_code_distribution": status_codes,
+        "latency_percentiles_ms": asdict(percentiles),
+    }
+
+
+def dry_run_first_person(questions_file: Path, sweep: list[int]) -> dict[str, Any]:
+    """Validate config WITHOUT sending any traffic (no network call at all).
+
+    Checks the question file exists, parses, and is non-empty; reports the
+    concurrency levels that a real run would use; and flags known
+    misconfiguration (route disabled) read straight from `app.config.settings`
+    with no I/O of its own.
+    """
+    report: dict[str, Any] = {
+        "questions_file": str(questions_file),
+        "sweep": sweep,
+        "endpoint": FIRST_PERSON_ENDPOINT,
+        "breach_criteria": {
+            "any_5xx": True,
+            "any_container_restart": True,
+            f"p95_ms_at_concurrency_{FIRST_PERSON_P95_BREACH_CONCURRENCY}_over": FIRST_PERSON_P95_BREACH_MS,
+        },
+        "ok": True,
+        "problems": [],  # hard failures: these flip ok=False / exit 1
+        "warnings": [],  # informational: printed, but don't fail the dry-run
+    }
+    try:
+        rows = load_first_person_questions(questions_file)
+        report["n_questions"] = len(rows)
+        report["sample_question"] = rows[0]["question"] if rows else None
+    except Exception as exc:
+        report["ok"] = False
+        report["problems"].append(f"questions file invalid: {type(exc).__name__}: {exc}")
+
+    try:
+        from app.config import settings
+
+        report["first_person_route_enabled"] = getattr(settings, "first_person_route_enabled", False)
+        report["first_person_mode"] = getattr(settings, "first_person_mode", "disabled")
+        if not report["first_person_route_enabled"] or report["first_person_mode"] == "disabled":
+            report["warnings"].append(
+                "settings.first_person_route_enabled is False / first_person_mode is 'disabled' — "
+                "a real run against this config would 404 every request. Set both in backend/.env "
+                "before running for real."
+            )
+    except Exception as exc:
+        report["problems"].append(f"could not read app.config.settings: {type(exc).__name__}: {exc}")
+
+    if not sweep or any(c < 1 for c in sweep):
+        report["ok"] = False
+        report["problems"].append("concurrency sweep must be a non-empty list of positive integers")
+
+    return report
+
+
+def main_first_person(args: argparse.Namespace) -> int:
+    """Entry point for --mode first-person. Dry-run by default via --dry-run;
+    otherwise runs the concurrency sweep for real and prints/writes a verdict."""
+    questions_file = Path(args.questions_file).expanduser()
+    sweep = (
+        [int(c.strip()) for c in args.sweep.split(",") if c.strip()]
+        if args.sweep
+        else [args.concurrency]
+    )
+
+    if args.dry_run:
+        report = dry_run_first_person(questions_file, sweep)
+        print(json.dumps(report, indent=2))
+        if report["problems"]:
+            print("\nDRY RUN: FAIL — config problems found (see 'problems' above).")
+        elif report["warnings"]:
+            print("\nDRY RUN: config structurally OK, but see 'warnings' above before running for real.")
+        else:
+            print("\nDRY RUN: config OK. Re-run without --dry-run to send real traffic.")
+        return 0 if report["ok"] else 1
+
+    questions = load_first_person_questions(questions_file, limit=args.limit_questions)
+
+    watch = ContainerWatch(args.container) if args.container else None
+    if watch:
+        watch.start()
+
+    level_reports: list[dict[str, Any]] = []
+    try:
+        for concurrency in sweep:
+            summary = asyncio.run(
+                run_first_person_load_test(
+                    concurrency=concurrency,
+                    questions=questions,
+                    base_url=args.base_url,
+                    test_key=args.test_key,
+                )
+            )
+            level_reports.append(summary)
+            print(
+                f"  concurrency={concurrency}: p50={summary['latency_percentiles_ms']['p50']}ms "
+                f"p95={summary['latency_percentiles_ms']['p95']}ms p99={summary['latency_percentiles_ms']['p99']}ms "
+                f"errors={summary['error_rate_pct']}% 429s={summary['rate_limited_429_pct']}%"
+            )
+    finally:
+        if watch:
+            watch.stop()
+
+    any_5xx = any(r["has_5xx"] for r in level_reports)
+    breach_level = next(
+        (r for r in level_reports if r["concurrency"] == FIRST_PERSON_P95_BREACH_CONCURRENCY),
+        None,
+    )
+    p95_breach = bool(
+        breach_level
+        and breach_level["latency_percentiles_ms"]["p95"] > FIRST_PERSON_P95_BREACH_MS
+    )
+
+    container_verdict = None
+    if watch:
+        budget = args.mem_budget_mb
+        host_mb = _host_mem_mb()
+        if budget is None and host_mb:
+            budget = host_mb * (args.mem_budget_pct / 100.0)
+        container_verdict = watch.verdict(budget)
+
+    container_ok = True
+    if container_verdict is not None and container_verdict.get("available") is not False:
+        container_ok = container_verdict["passed"]
+
+    overall = {
+        "mode": "first-person",
+        "timestamp_iso": datetime.now(UTC).isoformat(),
+        "sweep": sweep,
+        "levels": level_reports,
+        "any_5xx": any_5xx,
+        "p95_breach_at_concurrency_8": p95_breach,
+        "container_survival": container_verdict,
+        "verdict": "PASS" if (not any_5xx and not p95_breach and container_ok) else "FAIL",
+    }
+
+    REPORT_DIR.mkdir(parents=True, exist_ok=True)
+    (REPORT_DIR / "first_person_load_test_report.json").write_text(
+        json.dumps(overall, indent=2), encoding="utf-8"
+    )
+
+    print(f"\nFirst-Person Load Test Result: {overall['verdict']}")
+    if any_5xx:
+        print("  FAIL: at least one 5xx response")
+    if p95_breach:
+        print(
+            f"  FAIL: p95 {breach_level['latency_percentiles_ms']['p95']}ms > "
+            f"{FIRST_PERSON_P95_BREACH_MS}ms at concurrency={FIRST_PERSON_P95_BREACH_CONCURRENCY}"
+        )
+    if not container_ok:
+        print("  FAIL: container survival check failed (see container_survival in report)")
+
+    return 0 if overall["verdict"] == "PASS" else 1
+
+
 # ======================================================================
 # Container resource watchdog (AMK-B-002 / AMK-C-001 regression gate)
 # ======================================================================
@@ -833,7 +1205,42 @@ def main():
         default=None,
         help="Check verdict of an existing report JSON file instead of executing a new test run.",
     )
+    parser.add_argument(
+        "--mode",
+        choices=["chat", "first-person"],
+        default="chat",
+        help="'chat' (default, unchanged) drives /api/chat. 'first-person' drives "
+        "/api/first-person/query against the bakeoff question set instead.",
+    )
+    parser.add_argument(
+        "--questions-file",
+        type=str,
+        default=str(DEFAULT_QUESTIONS_FILE),
+        help="First-person mode only: path to the bakeoff questions.json.",
+    )
+    parser.add_argument(
+        "--sweep",
+        type=str,
+        default=None,
+        help="First-person mode only: comma-separated concurrency levels, e.g. '1,8,32,64'. "
+        "Overrides --concurrency when set.",
+    )
+    parser.add_argument(
+        "--limit-questions",
+        type=int,
+        default=None,
+        help="First-person mode only: cap the question set for a quick smoke run.",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="First-person mode only: validate config (question file, settings) and print the "
+        "plan without sending any traffic.",
+    )
     args = parser.parse_args()
+
+    if args.mode == "first-person":
+        return main_first_person(args)
 
     if args.check_report:
         report_path = Path(args.check_report)

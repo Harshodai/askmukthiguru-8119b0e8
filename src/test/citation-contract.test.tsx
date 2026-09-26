@@ -44,6 +44,27 @@ describe('normalizeCitations — snake_case backend payload mapping', () => {
     expect(normalizeCitations(null)).toEqual([]);
     expect(normalizeCitations(undefined)).toEqual([]);
   });
+
+  it('maps playback_start_seconds, playback_end_seconds and playback_url to camelCase', () => {
+    const [citation] = normalizeCitations([
+      {
+        url: 'https://youtu.be/abc123',
+        playback_start_seconds: 39.5,
+        playback_end_seconds: 67.3,
+        playback_url: 'https://www.youtube.com/watch?v=abc123&t=39s',
+      },
+    ]);
+    expect(citation.playbackStartSeconds).toBe(39.5);
+    expect(citation.playbackEndSeconds).toBe(67.3);
+    expect(citation.playbackUrl).toBe('https://www.youtube.com/watch?v=abc123&t=39s');
+  });
+
+  it('treats playback_start_seconds of 0 as a valid present value — not absent', () => {
+    const [citation] = normalizeCitations([
+      { url: 'https://youtu.be/abc123', playback_start_seconds: 0 },
+    ]);
+    expect(citation.playbackStartSeconds).toBe(0);
+  });
 });
 
 const baseCitation: DiscourseCitation = {
@@ -104,5 +125,68 @@ describe('CitationCard — timestamp 0 and speaker attribution', () => {
     const wrapper = screen.getByRole('button').parentElement as HTMLElement;
     fireEvent.mouseEnter(wrapper);
     expect(screen.getByText('0:00')).toBeInTheDocument();
+  });
+});
+
+describe('CitationCard — playback pre-roll fields (Dexa acoustic offsets)', () => {
+  it('DiscourseVideoModal uses playbackStartSeconds for the iframe start when present', () => {
+    render(
+      <DiscourseVideoModal
+        isOpen
+        onClose={() => {}}
+        citation={{ ...baseCitation, playbackStartSeconds: 39 }}
+      />,
+    );
+    const iframe = document.querySelector('iframe');
+    expect(iframe?.getAttribute('src')).toContain('start=39');
+  });
+
+  it('DiscourseVideoModal prefers playbackStartSeconds over startTimestamp', () => {
+    render(
+      <DiscourseVideoModal
+        isOpen
+        onClose={() => {}}
+        citation={{ ...baseCitation, playbackStartSeconds: 39, startTimestamp: 42 }}
+      />,
+    );
+    const iframe = document.querySelector('iframe');
+    // pre-roll start (39) wins over raw timestamp (42)
+    expect(iframe?.getAttribute('src')).toContain('start=39');
+    expect(iframe?.getAttribute('src')).not.toContain('start=42');
+  });
+
+  it('DiscourseVideoModal falls back to startTimestamp when playbackStartSeconds is absent', () => {
+    render(
+      <DiscourseVideoModal
+        isOpen
+        onClose={() => {}}
+        citation={{ ...baseCitation, startTimestamp: 42 }}
+      />,
+    );
+    const iframe = document.querySelector('iframe');
+    expect(iframe?.getAttribute('src')).toContain('start=42');
+  });
+
+  it('DiscourseVideoModal uses start=0 when playbackStartSeconds is 0 (floor case)', () => {
+    render(
+      <DiscourseVideoModal
+        isOpen
+        onClose={() => {}}
+        citation={{ ...baseCitation, playbackStartSeconds: 0 }}
+      />,
+    );
+    const iframe = document.querySelector('iframe');
+    expect(iframe?.getAttribute('src')).toContain('start=0');
+  });
+});
+
+describe('DiscourseVideoModal — YouTube start is whole seconds', () => {
+  it('floors a fractional playbackStartSeconds', () => {
+    render(
+      <DiscourseVideoModal isOpen onClose={() => {}} citation={{ ...baseCitation, playbackStartSeconds: 94.25 }} />,
+    );
+    const src = document.querySelector('iframe')?.getAttribute('src') ?? '';
+    expect(src).toContain('start=94&');
+    expect(src).not.toContain('94.25');
   });
 });

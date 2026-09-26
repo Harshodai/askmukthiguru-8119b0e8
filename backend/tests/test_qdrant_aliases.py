@@ -7,7 +7,15 @@ from unittest.mock import MagicMock, call
 import pytest
 from qdrant_client.http import models
 
-from services.qdrant_aliases import QdrantAliasManager, QdrantAliasError
+from services.qdrant_aliases import QdrantAliasManager, QdrantAliasError, _DEFAULT_LEDGER_PATH
+import services.qdrant_aliases as _qdrant_aliases_mod
+
+
+@pytest.fixture(autouse=True)
+def _isolate_ledger(tmp_path, monkeypatch):
+    """Redirect the default ledger path to a temp file so tests cannot write
+    to or influence the operator's real ledger at _DEFAULT_LEDGER_PATH."""
+    monkeypatch.setattr(_qdrant_aliases_mod, "_DEFAULT_LEDGER_PATH", tmp_path / "test_ledger.json")
 
 
 @pytest.fixture
@@ -159,6 +167,8 @@ def test_create_shadow_collection(mock_qdrant_client):
     col_info.config.params.sparse_vectors = None
     col_info.config.quantization_config = None
     col_info.config.hnsw_config = None
+    col_info.config.optimizer_config = None
+    col_info.config.wal_config = None
     mock_qdrant_client.get_collection.return_value = col_info
 
     shadow_name = manager.create_shadow_collection("spiritual_wisdom", suffix="test_shadow")

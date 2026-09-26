@@ -52,7 +52,10 @@ def test_a_short_unknown_gap_is_absorbed_into_one_clip():
 
 
 def test_b_host_word_splits_run_and_is_never_included():
-    k1 = _teacher_words(12, "K", "a")
+    # k1's last word carries terminal punctuation (as real ASR words do) so this
+    # test isolates host-exclusion; the mid-sentence-at-flip cases are covered
+    # separately below (test_j/test_k).
+    k1 = _teacher_words(12, "K", "a", sentence_every=12)
     host = _words([("question", "O")], start=k1[-1]["end"] + 0.05)
     k2 = _teacher_words(12, "K", "b", start=host[-1]["end"] + 0.05)
     words = k1 + host + k2
@@ -66,7 +69,7 @@ def test_b_host_word_splits_run_and_is_never_included():
 
 
 def test_c_long_unknown_gap_forces_a_split():
-    k1 = _teacher_words(12, "K", "a")
+    k1 = _teacher_words(12, "K", "a", sentence_every=12)
     gap = _teacher_words(10, "?", "u", start=k1[-1]["end"] + 0.05)
     k2 = _teacher_words(12, "K", "b", start=gap[-1]["end"] + 0.05)
     words = k1 + gap + k2
@@ -122,7 +125,7 @@ def test_g_verbatim_text_is_substring_of_joined_layer_and_hash_matches():
 
 
 def test_h_adjacent_different_teachers_are_separate_clips():
-    p = _teacher_words(12, "P", "a")
+    p = _teacher_words(12, "P", "a", sentence_every=12)
     k = _teacher_words(12, "K", "b", start=p[-1]["end"] + 0.05)
     words = p + k
 
@@ -145,3 +148,76 @@ def test_self_check_runs():
     from services.speaker_diarization import _clips_v2_self_check
 
     _clips_v2_self_check()
+
+
+def test_j_genuine_flip_mid_sentence_trims_to_last_complete_sentence():
+    """Root cause of 'answers end mid-sentence': the natural end of a run
+    (reached because a real speaker change follows, not because the transcript
+    ran out) must never be served past the last complete sentence. The
+    trailing partial sentence is dropped, not served."""
+    words = _teacher_words(8, "K", "s", sentence_every=4)  # 2 complete 4-word sentences
+    trailing = _teacher_words(3, "K", "t", start=words[-1]["end"] + 0.05)  # incomplete 3rd sentence
+    host = _words([("interrupts", "O")], start=trailing[-1]["end"] + 0.05)
+    all_words = words + trailing + host
+
+    clips, stats = build_clips_from_labelled_words(all_words, "vid10", min_words=1)
+
+    assert stats["dropped_mid_sentence_at_flip"] == 1
+    assert len(clips) == 1
+    assert clips[0]["verbatim_text"] == _joined(words)
+    for w in trailing:
+        assert w["w"] not in clips[0]["verbatim_text"]
+    assert "interrupts" not in clips[0]["verbatim_text"]
+
+
+def test_k_genuine_flip_with_no_complete_sentence_drops_the_whole_run():
+    """A run cut off by a genuine flip with zero complete sentences anywhere
+    in it has nothing valid to serve -- it must be dropped entirely rather
+    than served as a mid-sentence fragment (never trade the host-exclusion /
+    no-fragment rule for recall)."""
+    words = _teacher_words(12, "K", "a")  # no terminal punctuation anywhere
+    host = _words([("question", "O")], start=words[-1]["end"] + 0.05)
+
+    clips, stats = build_clips_from_labelled_words(words + host, "vid11", min_words=1)
+
+    assert stats["dropped_mid_sentence_at_flip"] == 1
+    assert clips == []
+
+
+def test_l_run_ending_at_transcript_end_without_flip_is_kept_whole():
+    """The counterpart to test_j/test_k: when a run ends only because the
+    transcript does (no genuine flip follows), there is no better boundary to
+    fall back to, so the tail is served whole even without terminal
+    punctuation -- this is the real, unavoidable "recording just stops"
+    case, not a flip cutting off a completable sentence."""
+    words = _teacher_words(8, "K", "s", sentence_every=4)
+    trailing = _teacher_words(3, "K", "t", start=words[-1]["end"] + 0.05)
+    all_words = words + trailing  # nothing follows -- transcript simply ends here
+
+    clips, stats = build_clips_from_labelled_words(all_words, "vid12", min_words=1)
+
+    assert stats["dropped_mid_sentence_at_flip"] == 0
+    assert len(clips) == 1
+    assert clips[0]["verbatim_text"] == _joined(all_words)
+
+
+def test_m_repro_served_mid_sentence_quote_is_now_trimmed():
+    """Regression for the measured production defect: a served quote ending
+    '...and the more suffering we' (no terminal punctuation) because a run was
+    cut off at a genuine flip mid-sentence. Reproduces the shape with a real
+    sentence, then a genuine flip partway through the next one."""
+    specs = [
+        ("The", "K"), ("more", "K"), ("disconnected", "K"), ("we", "K"), ("are,", "K"),
+        ("the", "K"), ("more", "K"), ("suffering", "K"), ("we", "K"), ("cause", "K"),
+        ("ourselves.", "K"),
+        ("And", "K"), ("the", "K"), ("more", "K"), ("suffering", "K"), ("we", "K"),
+    ]
+    words = _words(specs)
+    host = _words([("Right,", "O"), ("exactly.", "O")], start=words[-1]["end"] + 0.05)
+
+    clips, stats = build_clips_from_labelled_words(words + host, "vid13", min_words=1)
+
+    assert len(clips) == 1
+    assert clips[0]["verbatim_text"] == "The more disconnected we are, the more suffering we cause ourselves."
+    assert not clips[0]["verbatim_text"].endswith("we")
+    assert stats["dropped_mid_sentence_at_flip"] == 1

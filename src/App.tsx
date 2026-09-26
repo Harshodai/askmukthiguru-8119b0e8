@@ -44,6 +44,14 @@ const StudyNotebookPage = lazyWithRetry(() => import("./pages/StudyNotebookPage"
 const KnowledgeGraphPage = lazyWithRetry(() => import("./pages/KnowledgeGraphPage"));
 const SecondBrainPage = lazyWithRetry(() => import("./pages/SecondBrainPage"));
 
+// First-person verbatim teaching route — isolated behind its own flag so it
+// can ship independently of the rest of the app. Vite tree-shakes the import
+// (and route) out of the bundle entirely when the flag is 'false'/unset.
+const FIRST_PERSON_ENABLED = import.meta.env.VITE_FIRST_PERSON_ENABLED === 'true';
+const TeacherWordsPage = FIRST_PERSON_ENABLED
+  ? lazyWithRetry(() => import("./pages/TeacherWords"))
+  : (() => null);
+
 // Admin — gated by VITE_ADMIN_ENABLED (default true). Set to 'false' to strip
 // admin routes + page chunks from the production bundle. Vite replaces
 // import.meta.env.VITE_ADMIN_ENABLED at build time, so when it's 'false' the
@@ -342,6 +350,9 @@ const App = () => {
               <Route path="/wisdom-map" element={<Navigate to="/knowledge-graph" replace />} />
               <Route path="/second-brain" element={<Suspense fallback={<BrandedSpinner />}><SecondBrainPage /></Suspense>} />
               <Route path="/reflections" element={<Navigate to="/second-brain" replace />} />
+              {FIRST_PERSON_ENABLED && (
+                <Route path="/teachers-words" element={<Suspense fallback={<BrandedSpinner />}><TeacherWordsPage /></Suspense>} />
+              )}
               <Route path="*" element={<Suspense fallback={<BrandedSpinner />}><NotFound /></Suspense>} />
             </Route>
           </Routes>

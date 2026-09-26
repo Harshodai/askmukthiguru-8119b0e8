@@ -279,15 +279,47 @@ def get_channel_and_duration_cached(
 
 
 def apply_indexable_clips(indexable_clips: list[dict], collection: str) -> int:
-    """Embed + upsert into Qdrant. Only imported/run when --apply is passed."""
+    """Embed + upsert into Qdrant. Only imported/run when --apply is passed.
+
+    Cleanup strategy: snapshot the collection's full ID set before upserting,
+    then delete any point whose ID is NOT produced by this build. This is
+    ID-exact rather than video_id-based, so no point survives if its source
+    video is no longer indexable — even when indexable_clips is empty.
+    """
     from services.embedding_service import EmbeddingService
-    from services.first_person_store import FirstPersonStore
+    from qdrant_client.http.models import PointIdsList
+
+    from services.first_person_store import FirstPersonStore, make_first_person_point_id
     from services.qdrant.utils import QdrantUtils
+
+    if not indexable_clips:
+        # The ID diff below would delete every existing point. An empty build is
+        # almost always a wrong --passages-dir or an upstream failure, not intent.
+        raise RuntimeError(
+            f"Refusing to apply: this build produced 0 clips and would empty '{collection}'."
+        )
 
     embedder = EmbeddingService()
     store = FirstPersonStore(collection=collection)
     store.init_collection()
 
+    # Snapshot existing IDs BEFORE upsert so we can diff against the build output.
+    existing_ids: set = set()
+    scroll_offset = None
+    while True:
+        result, scroll_offset = store.client.scroll(
+            collection_name=collection,
+            offset=scroll_offset,
+            limit=1000,
+            with_payload=False,
+            with_vectors=False,
+        )
+        for pt in result:
+            existing_ids.add(pt.id)
+        if scroll_offset is None:
+            break
+
+    produced_ids: set = set()
     for i in range(0, len(indexable_clips), _BATCH_SIZE):
         batch = indexable_clips[i : i + _BATCH_SIZE]
         embeddings = embedder.encode_batch([c["verbatim_text"] for c in batch])
@@ -296,17 +328,22 @@ def apply_indexable_clips(indexable_clips: list[dict], collection: str) -> int:
             sv = QdrantUtils.sparse_dict_to_vector(sparse_dict)
             sparse_vectors.append({"indices": sv.indices, "values": sv.values})
         store.upsert_clips(batch, embeddings["dense"], None, sparse_vectors)
+        for clip in batch:
+            # Same ID the store assigns on upsert (clips carry no point_id key).
+            produced_ids.add(
+                make_first_person_point_id(clip["transcript_hash"], clip["start_ms"], clip["end_ms"])
+            )
 
-    # Mirror this build exactly: drop points of any video that is no longer indexable
-    # (e.g. quarantined since an earlier apply), so it can never be served again.
-    from qdrant_client.http.models import FieldCondition, Filter, FilterSelector, MatchAny
+    # Delete any point that was in the collection before the build but is not
+    # produced by this build. Includes stale clips from quarantined videos.
+    stale_ids = list(existing_ids - produced_ids)
+    if stale_ids:
+        store.client.delete(
+            collection_name=collection,
+            points_selector=PointIdsList(points=stale_ids),
+            wait=True,
+        )
 
-    keep = sorted({c["video_id"] for c in indexable_clips})
-    store.client.delete(
-        collection_name=collection,
-        points_selector=FilterSelector(filter=Filter(must_not=[FieldCondition(key="video_id", match=MatchAny(any=keep))])),
-        wait=True,
-    )
     return store.count()
 
 
@@ -403,7 +440,7 @@ def build_index(
 
     store_count_after: Optional[int] = None
     count_mismatch = False
-    if apply and indexable_clips:
+    if apply:
         store_count_after = apply_indexable_clips(indexable_clips, collection)
         count_mismatch = store_count_after != len(indexable_clips)
 

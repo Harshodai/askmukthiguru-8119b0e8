@@ -33,6 +33,19 @@ TEACHER_NAME_MAP = {
 _RUN_TEACHER_LABELS = {"P": "preethaji", "K": "krishnaji"}
 _SENTENCE_END_CHARS = (".", "?", "!")
 
+# --- v2 clip-builder thresholds ------------------------------------------------
+# Named constants (not magic literals) so a future retune has one place to look.
+# Values are the original offline-pilot defaults (run_clips.py's predecessor),
+# carried over unchanged -- INFERRED provenance, not re-derived this session;
+# see the build_clips_v2 dry-run report for the measurement that motivated the
+# *sentence-boundary* fix below, not these specific numbers.
+_MAX_UNKNOWN_GAP_S = 3.0  # a "?" island longer than this (wall-clock) is a real pause/turn, not noise
+_MAX_UNKNOWN_WORDS = 8  # a "?" island longer than this (word count) is a real turn, not ASR/ECAPA flicker
+_MIN_CLIP_WORDS = 12  # below this a "clip" is an unusable fragment, not a quotable teaching
+_PARENT_MAX_S = 180.0  # forced-split budget: a single run longer than this is split into multiple parents
+_CHILD_TARGET_WORDS = (100, 200)  # sub-clips of an over-long parent, sized for citation display
+_PAD_S = 0.2  # turn-boundary padding, see module docstring invariant 3
+
 
 def _grow_to_budget(words: list[dict[str, Any]], start: int, fits) -> int:
     """Largest exclusive end index such that words[start:end] satisfies `fits`.
@@ -46,16 +59,25 @@ def _grow_to_budget(words: list[dict[str, Any]], start: int, fits) -> int:
     return end
 
 
+def _find_sentence_end(words: list[dict[str, Any]], start: int, end: int) -> Optional[int]:
+    """Exclusive end index of the last word in words[start:end) ending in
+    '.', '?' or '!', or None if no word in the range does."""
+    for i in range(end - 1, start - 1, -1):
+        w = words[i]["w"]
+        if w and w[-1] in _SENTENCE_END_CHARS:
+            return i + 1
+    return None
+
+
 def _cut_point(words: list[dict[str, Any]], start: int, end: int) -> tuple[int, str]:
     """Best cut (exclusive end index, "sentence"|"pause") within words[start:end).
 
     Prefers the last word ending in '.', '?' or '!'; falls back to cutting
     after the word preceding the largest inter-word pause.
     """
-    for i in range(end - 1, start - 1, -1):
-        w = words[i]["w"]
-        if w and w[-1] in _SENTENCE_END_CHARS:
-            return i + 1, "sentence"
+    sentence_end = _find_sentence_end(words, start, end)
+    if sentence_end is not None:
+        return sentence_end, "sentence"
 
     if end - start <= 1:
         return end, "pause"
@@ -68,15 +90,36 @@ def _cut_point(words: list[dict[str, Any]], start: int, end: int) -> tuple[int, 
     return best_idx + 1, "pause"
 
 
-def _split_run(words: list[dict[str, Any]], fits, stats: dict[str, int]) -> list[list[dict[str, Any]]]:
+def _split_run(
+    words: list[dict[str, Any]], fits, stats: dict[str, int], ends_at_flip: bool
+) -> list[list[dict[str, Any]]]:
     """Split `words` into chunks that satisfy `fits`, cutting at sentence ends
-    (falling back to the largest pause) only when a forced cut is needed."""
+    (falling back to the largest pause) only when a forced cut is needed.
+
+    `ends_at_flip` says whether `words` was truncated by a genuine speaker
+    change (more, differently-labelled words follow in the full transcript)
+    rather than simply running out of transcript. Only the final chunk is
+    affected: when it was cut off by a real flip and does not itself end on a
+    sentence boundary, the trailing partial sentence is dropped rather than
+    served (rule: never end a served clip mid-sentence). When `words` instead
+    ends because the transcript does -- there is no "next" speaker to have cut
+    it off -- the tail is kept whole even without terminal punctuation; there
+    is nothing more complete to fall back to.
+    """
     chunks: list[list[dict[str, Any]]] = []
     start, n = 0, len(words)
     while start < n:
         grown_end = _grow_to_budget(words, start, fits)
         if grown_end >= n:
-            chunks.append(words[start:n])
+            last_w = words[n - 1]["w"] if n > start else ""
+            if ends_at_flip and not (last_w and last_w[-1] in _SENTENCE_END_CHARS):
+                cut_end = _find_sentence_end(words, start, n)
+                if cut_end is not None and cut_end > start:
+                    chunks.append(words[start:cut_end])
+                    stats["cut_at_sentence"] += 1
+                stats["dropped_mid_sentence_at_flip"] += 1
+            else:
+                chunks.append(words[start:n])
             break
         cut_end, kind = _cut_point(words, start, grown_end)
         chunks.append(words[start:cut_end])
@@ -98,11 +141,14 @@ def _build_teacher_runs(
     max_unknown_gap_s: float,
     max_unknown_words: int,
     stats: dict[str, int],
-) -> list[tuple[str, list[dict[str, Any]]]]:
-    """Group words into (teacher_label, run_words) runs per the module docstring's
-    rule 1: a run is consecutive words of one teacher; a "?" stretch is absorbed
-    only when the same teacher brackets it and it is short enough; any "O" word,
-    a different teacher, or a longer "?" stretch ends the run.
+) -> list[tuple[str, list[dict[str, Any]], bool]]:
+    """Group words into (teacher_label, run_words, ends_at_flip) runs per the
+    module docstring's rule 1: a run is consecutive words of one teacher; a
+    "?" stretch is absorbed only when the same teacher brackets it and it is
+    short enough; any "O" word, a different teacher, or a longer "?" stretch
+    ends the run. `ends_at_flip` is True when the run stops short of the end
+    of `words` -- i.e. a genuine speaker change follows, as opposed to the
+    run simply running out of transcript.
     """
     n = len(words)
     segments: list[tuple[str, int, int]] = []
@@ -115,7 +161,7 @@ def _build_teacher_runs(
         segments.append((spk, i, j))
         i = j
 
-    runs: list[tuple[str, list[dict[str, Any]]]] = []
+    runs: list[tuple[str, list[dict[str, Any]], bool]] = []
     m = len(segments)
     seg_i = 0
     while seg_i < m:
@@ -137,7 +183,7 @@ def _build_teacher_runs(
             stats["merged_unknown_gaps"] += 1
             k += 2
 
-        runs.append((label, words[run_start:run_end]))
+        runs.append((label, words[run_start:run_end], run_end < n))
         seg_i = k
 
     return runs
@@ -169,12 +215,12 @@ def build_clips_from_labelled_words(
     words: list[dict[str, Any]],
     video_id: str,
     *,
-    max_unknown_gap_s: float = 3.0,
-    max_unknown_words: int = 8,
-    min_words: int = 12,
-    parent_max_s: float = 180.0,
-    child_target_words: tuple[int, int] = (100, 200),
-    pad_s: float = 0.2,
+    max_unknown_gap_s: float = _MAX_UNKNOWN_GAP_S,
+    max_unknown_words: int = _MAX_UNKNOWN_WORDS,
+    min_words: int = _MIN_CLIP_WORDS,
+    parent_max_s: float = _PARENT_MAX_S,
+    child_target_words: tuple[int, int] = _CHILD_TARGET_WORDS,
+    pad_s: float = _PAD_S,
 ) -> tuple[list[dict[str, Any]], dict[str, int]]:
     """Build sentence-bounded teacher clips from per-word speaker labels.
 
@@ -199,15 +245,16 @@ def build_clips_from_labelled_words(
         "merged_unknown_gaps": 0,
         "cut_at_sentence": 0,
         "cut_at_pause": 0,
+        "dropped_mid_sentence_at_flip": 0,
     }
     runs = _build_teacher_runs(words, max_unknown_gap_s, max_unknown_words, stats)
     stats["runs"] = len(runs)
 
     clips: list[dict[str, Any]] = []
     parent_n = 0
-    for teacher_label, run_words in runs:
+    for teacher_label, run_words, ends_at_flip in runs:
         speaker = _RUN_TEACHER_LABELS[teacher_label]
-        for parent_words in _split_run(run_words, _duration_fits(parent_max_s), stats):
+        for parent_words in _split_run(run_words, _duration_fits(parent_max_s), stats, ends_at_flip):
             parent_n += 1
             if len(parent_words) < min_words:
                 stats["dropped_short"] += 1
@@ -218,7 +265,8 @@ def build_clips_from_labelled_words(
 
             if len(parent_words) > child_target_words[1]:
                 for k, child_words in enumerate(
-                    _split_run(parent_words, _word_count_fits(child_target_words[1]), stats), start=1
+                    _split_run(parent_words, _word_count_fits(child_target_words[1]), stats, ends_at_flip),
+                    start=1,
                 ):
                     if len(child_words) < min_words:
                         stats["dropped_short"] += 1

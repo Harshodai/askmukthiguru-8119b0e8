@@ -34,6 +34,7 @@ from app.metrics import (
     FIRST_PERSON_QUARANTINED_TOTAL,
     FIRST_PERSON_REQUESTS_TOTAL,
 )
+from guardrails.lightweight_handler import SAFETY_TOPICS, match_blocked_topic
 from services.crisis_helplines import format_helplines_block
 from services.first_person_store import FirstPersonStore
 from services.serene_mind_engine import DistressLevel, SereneMindEngine
@@ -58,8 +59,17 @@ _PROFILE_REQUIRED_KEYS = {
 # Product risk bound on confident answers (>=99% precision, one-sided 95%).
 MAX_TARGET_RISK = 0.01
 
+# Playback pad around a clip, per the spec's 150-300 ms. Deliberately not a
+# multi-second pre-roll: clips start at speaker-turn boundaries, so seconds of
+# lead-in would play the host's question or the other teacher.
+CITATION_PLAYBACK_PAD_S = 0.25
+
 # Only a serve-time verified single-teacher recording may be quoted.
 _ALLOWED_SPEAKERS = {"Sri Preethaji", "Sri Krishnaji"}
+
+# A cached entry missing any of these is malformed (e.g. written by an older
+# schema, or corrupted) and must be treated as a cache miss, never raised.
+_CACHE_ENTRY_REQUIRED_KEYS = {"answer_text", "citations", "status", "is_direct_answer"}
 
 
 def load_calibration_profile(path: str, collection: str) -> Optional[dict[str, Any]]:
@@ -223,6 +233,15 @@ class FirstPersonPipeline:
             val = self._redis.get(key)
             if val:
                 data = json.loads(val.decode("utf-8") if isinstance(val, bytes) else val)
+                if not isinstance(data, dict) or not _CACHE_ENTRY_REQUIRED_KEYS.issubset(data.keys()):
+                    logger.warning(
+                        "[FirstPersonPipeline] Cached entry at %s missing required keys; treating as miss.", key
+                    )
+                    try:
+                        self._redis.delete(key)
+                    except Exception:
+                        pass  # best-effort cleanup; a stuck malformed key just keeps missing
+                    return None
                 # Re-run the integrity gate on cached citations before serving.
                 for cit in data.get("citations", []):
                     if not _passes_integrity_gate(
@@ -234,6 +253,12 @@ class FirstPersonPipeline:
                     ):
                         logger.warning("[FirstPersonPipeline] Cached citation failed integrity re-check; skipping cache.")
                         return None
+                # The index can change under a 24 h entry (clip deleted, rights
+                # revoked): serve only if every cited point is still servable.
+                point_ids = [cit.get("point_id") for cit in data.get("citations", [])]
+                if point_ids and (not all(point_ids) or not self._store.points_servable(point_ids)):
+                    logger.warning("[FirstPersonPipeline] Cached clip no longer servable; skipping cache.")
+                    return None
                 logger.info(f"[FirstPersonPipeline] Exact cache HIT for key {key}")
                 return data
         except Exception as e:
@@ -299,6 +324,23 @@ class FirstPersonPipeline:
                 answer_text=format_helplines_block(),
                 citations=[],
                 status="crisis_redirect",
+                is_direct_answer=False,
+                latency_ms=latency,
+            )
+
+        # Step 1b: Topic rail (same regex list as chat, no LLM). A teacher's clip
+        # served in reply to a political or abusive question reads as endorsement.
+        blocked = match_blocked_topic(query)
+        if blocked is not None:
+            topic, response = blocked
+            status = "crisis_redirect" if topic in SAFETY_TOPICS else "abstained"
+            logger.info("[FirstPersonPipeline] Topic rail blocked input: topic=%s", topic)
+            latency = (time.monotonic() - start_time) * 1000.0
+            self._log_and_count(status, latency, 0.0, 0, 0)
+            return FirstPersonPipelineResult(
+                answer_text=response,
+                citations=[],
+                status=status,
                 is_direct_answer=False,
                 latency_ms=latency,
             )
@@ -384,7 +426,12 @@ class FirstPersonPipeline:
         def _build_citation(clip: dict[str, Any], clip_confidence: float, provenance_kind: str) -> dict[str, Any]:
             sec = clip["start_ms"] // 1000
             video_id = clip["video_id"]
+            playback_start = max(0.0, clip["start_ms"] / 1000.0 - CITATION_PLAYBACK_PAD_S)
+            playback_end = clip["end_ms"] / 1000.0 + CITATION_PLAYBACK_PAD_S
+            if clip.get("duration_ms"):
+                playback_end = min(playback_end, clip["duration_ms"] / 1000.0)
             return {
+                "point_id": clip.get("point_id"),
                 "video_id": video_id,
                 "start_ms": clip["start_ms"],
                 "end_ms": clip["end_ms"],
@@ -398,6 +445,9 @@ class FirstPersonPipeline:
                 # plain video URL, which would open playback at 0:00.
                 "source_url": f"https://www.youtube.com/watch?v={video_id}&t={sec}s",
                 "video_url": clip.get("video_url") or f"https://www.youtube.com/watch?v={video_id}",
+                "playback_start_seconds": round(playback_start, 2),
+                "playback_end_seconds": round(playback_end, 2),
+                "playback_url": f"https://www.youtube.com/watch?v={video_id}&t={int(playback_start)}s",
                 "confidence": clip_confidence,
                 "is_verbatim": True,
                 "provenance_kind": provenance_kind,

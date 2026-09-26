@@ -118,3 +118,61 @@ groups:
           summary: "5xx rate elevated"
           description: "Server error rate above 0.05% sustained. Watch for degradation."
           runbook: "docs/runbooks/ALERTING.md#fivexxrateelevated"
+
+      # LLM provider circuit breaker stuck OPEN — every chat request behind it
+      # gets the canned "unable to answer" fallback (grounding_state=
+      # system_error) instead of an answer. guru_circuit_breaker_state is
+      # emitted by services/circuit_breaker.py's _update_gauges()
+      # (0=closed, 1=half_open, 2=open) on every state transition.
+      - alert: CircuitBreakerStuckOpen
+        expr: guru_circuit_breaker_state == 2
+        for: 5m
+        labels:
+          severity: page
+          team: oncall
+        annotations:
+          summary: "LLM provider circuit breaker OPEN for over 5 minutes"
+          description: "Circuit breaker for provider {{ $labels.provider }} has been OPEN for >5m — chat requests are served the fallback answer instead of a real response."
+          runbook: "docs/runbooks/ALERTING.md#circuitbreakerstuckopen"
+
+      # First-Person Verbatim route (N6) — a quarantine means the serve-time
+      # integrity gate (hash mismatch, disallowed speaker, or extraction
+      # artifact) caught corrupt data before it reached a seeker. Any
+      # increase is worth a look, not just a rate threshold.
+      - alert: FirstPersonQuarantineDetected
+        expr: |
+          increase(first_person_quarantined_total[15m]) > 0
+        for: 0m
+        labels:
+          severity: warning
+          team: oncall
+        annotations:
+          summary: "First-person clip(s) quarantined by the integrity gate"
+          description: "{{ $value }} first-person clip(s) failed the serve-time integrity gate in the last 15m. This means corrupt or mis-attributed data reached retrieval and was caught, not that it was served."
+          runbook: "docs/runbooks/ALERTING.md#firstpersonquarantinedetected"
+
+      - alert: FirstPersonLatencySLOBreach
+        expr: |
+          histogram_quantile(0.95, sum(rate(first_person_latency_seconds_bucket[10m])) by (le)) > 1
+        for: 10m
+        labels:
+          severity: warning
+          team: oncall
+        annotations:
+          summary: "First-person verbatim route p95 latency above 1s"
+          description: "/api/first-person/query p95 latency has exceeded 1s for 10m."
+          runbook: "docs/runbooks/ALERTING.md#firstpersonlatencyslobreach"
+
+      - alert: FirstPersonErrorRateHigh
+        expr: |
+          sum(rate(first_person_requests_total{status="error"}[10m]))
+            / (sum(rate(first_person_requests_total[10m])) + 1e-9)
+          * 100 > 5
+        for: 10m
+        labels:
+          severity: critical
+          team: oncall
+        annotations:
+          summary: "First-person verbatim route error rate above 5%"
+          description: "More than 5% of /api/first-person/query requests are erroring over a 10m window."
+          runbook: "docs/runbooks/ALERTING.md#firstpersonerrateratehigh"

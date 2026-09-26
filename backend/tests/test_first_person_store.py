@@ -260,3 +260,24 @@ def test_rrf_prefetch_depth_matches_bakeoff_b_r0():
     )
     prefetch = client.query_points.call_args.kwargs["prefetch"]
     assert all(p.limit >= 60 for p in prefetch)
+
+
+def _point(pid, **payload):
+    return models.Record(id=pid, payload={"first_person_eligible": True, "rights_cleared": True, **payload})
+
+
+@pytest.mark.parametrize(
+    "records, expected",
+    [
+        ([_point("a"), _point("b")], True),
+        ([_point("a")], False),  # b was deleted from the index
+        ([_point("a"), _point("b", rights_cleared=False)], False),  # rights revoked
+        ([_point("a"), _point("b", first_person_eligible=False)], False),  # quarantined
+    ],
+)
+def test_points_servable_mirrors_the_search_filter(records, expected, monkeypatch):
+    monkeypatch.setattr(settings, "first_person_serve_unregistered", False)
+    client = MagicMock()
+    client.retrieve.return_value = records
+    store = FirstPersonStore(collection="first_person_v1", client=client)
+    assert store.points_servable(["a", "b"]) is expected
