@@ -221,7 +221,7 @@ class LLMGateway:
                 self.metrics.fallbacks += 1
                 return _downgraded
             except Exception as _downgrade_exc:
-                self._primary_breaker.record_failure(_downgrade_exc)
+                self._record_primary_failure(_downgrade_exc)
                 self.metrics.record_error(self._primary_name)
                 logger.warning(
                     "LLMGateway: soft-budget downgrade also failed: %s — "
@@ -247,7 +247,7 @@ class LLMGateway:
             self._primary_breaker.record_success()
             return result
         except Exception as primary_exc:
-            self._primary_breaker.record_failure(primary_exc)
+            self._record_primary_failure(primary_exc)
             self.metrics.record_error(self._primary_name)
             logger.warning(f"LLMGateway: primary '{self._primary_name}' failed: {primary_exc}")
 
@@ -275,7 +275,7 @@ class LLMGateway:
                     self.metrics.fallbacks += 1
                     return result
                 except Exception as fb_exc:
-                    self._primary_breaker.record_failure(fb_exc)
+                    self._record_primary_failure(fb_exc)
                     self.metrics.record_error(self._primary_name)
                     logger.warning(
                         f"LLMGateway: primary '{self._primary_name}' model-fallback "
@@ -288,6 +288,13 @@ class LLMGateway:
                     system_prompt, user_prompt, context, primary_exc, **kwargs
                 )
             raise primary_exc
+
+    def _record_primary_failure(self, exc: BaseException) -> None:
+        """Throttling means the provider is up: free the slot, don't count a failure."""
+        if getattr(exc, "rate_limited", False):
+            self._primary_breaker.release_reservation()
+        else:
+            self._primary_breaker.record_failure(exc)
 
     async def _generate_secondary(
         self,
@@ -467,7 +474,7 @@ class LLMGateway:
             self._primary_breaker.record_success()
             return result
         except Exception as primary_exc:
-            self._primary_breaker.record_failure(primary_exc)
+            self._record_primary_failure(primary_exc)
             self.metrics.record_error(self._primary_name)
             logger.warning(
                 f"LLMGateway: primary '{self._primary_name}' verify failed: {primary_exc}"
@@ -485,7 +492,7 @@ class LLMGateway:
                     self.metrics.fallbacks += 1
                     return result
                 except Exception as fb_exc:
-                    self._primary_breaker.record_failure(fb_exc)
+                    self._record_primary_failure(fb_exc)
                     self.metrics.record_error(self._primary_name)
                     logger.warning(
                         f"LLMGateway: primary '{self._primary_name}' model-fallback "
@@ -585,7 +592,7 @@ class LLMGateway:
                 yield chunk
             self._primary_breaker.record_success()
         except Exception as primary_exc:
-            self._primary_breaker.record_failure(primary_exc)
+            self._record_primary_failure(primary_exc)
             self.metrics.record_error(self._primary_name)
             logger.warning(
                 f"LLMGateway(stream): primary '{self._primary_name}' failed: {primary_exc}"
@@ -607,7 +614,7 @@ class LLMGateway:
                 self._primary_breaker.record_success()
                 self.metrics.fallbacks += 1
             except Exception as fallback_exc:
-                self._primary_breaker.record_failure(fallback_exc)
+                self._record_primary_failure(fallback_exc)
                 self.metrics.record_error(self._primary_name)
                 raise fallback_exc
 

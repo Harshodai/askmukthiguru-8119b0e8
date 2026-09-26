@@ -83,3 +83,26 @@ async def test_rewrite_query_validation(monkeypatch):
         res = await rewrite_query(state)
         assert res["rewritten_query"] == "Original question"
         assert res["rewrite_count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_rewrite_query_hang_or_error_reuses_original_query(monkeypatch):
+    """2026-09-26: a hung rewrite cost 60 s (30 s primary + 30 s model fallback;
+    the node's t_out was never applied on the gateway path) and then killed the
+    node. A rewrite is optional: bound it and fall back to the original query."""
+    import asyncio
+
+    import rag.nodes.short_circuit as sc
+
+    monkeypatch.setattr(sc, "get_node_timeout", lambda *a, **k: 0.05)
+
+    async def _hang(**_):
+        await asyncio.sleep(10)
+
+    for gateway_generate in (_hang, AsyncMock(side_effect=RuntimeError("boom"))):
+        gateway = MagicMock()
+        gateway.generate = gateway_generate
+        with patch("rag.nodes._services._llm_gateway", gateway, create=True):
+            state = {"rewrite_count": 0, "question": "Original question", "grading_reasons": []}
+            res = await asyncio.wait_for(rewrite_query(state), timeout=2)
+        assert (res["rewritten_query"], res["rewrite_count"]) == ("Original question", 1)

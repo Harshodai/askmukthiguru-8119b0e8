@@ -945,6 +945,7 @@ class SarvamCloudService:
 
         # Regex to handle various formats like "1: yes - The document discusses..."
         # or "1: yes (Reason: ...)"
+        parsed_any = False
         for line in result.strip().splitlines():
             line = line.strip()
             if not line:
@@ -963,16 +964,18 @@ class SarvamCloudService:
                             else ("Relevant teaching" if is_relevant else "Irrelevant content")
                         )
                         relevance_results[idx] = {"relevant": is_relevant, "reason": reason}
+                        parsed_any = True
                 except (ValueError, IndexError):
                     continue
 
-        # If parser didn't match or LLM graded everything False,
-        # keep the top document to guarantee context, but note the low confidence
-        if not any(r["relevant"] for r in relevance_results) and len(documents) > 0:
-            logger.warning("Relevance grading returned no docs. Using top document fallback.")
+        # An explicit "no" to every document is a verdict: return it, so CRAG can
+        # rewrite or abstain. Only an unparseable grader reply (grading failed)
+        # keeps the top document, and it says so.
+        if not parsed_any and documents:
+            logger.warning("Batch relevance grader output unparseable; keeping the top retrieval result.")
             relevance_results[0] = {
                 "relevant": True,
-                "reason": "Fallback: Used top retrieval result as a starting point despite low initial relevance score.",
+                "reason": "Grader output unparseable: kept top retrieval result.",
             }
 
         return relevance_results

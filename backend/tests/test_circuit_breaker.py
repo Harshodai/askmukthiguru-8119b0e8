@@ -212,3 +212,50 @@ async def test_operator_reset_is_post_only_admin_and_rate_limited(monkeypatch):
     with pytest.raises(HTTPException) as exc_info:
         await health.circuit_breaker_reset_endpoint({"id": "ordinary-user"})
     assert exc_info.value.status_code == 403
+
+
+def test_phi_opened_breaker_recovers_after_recovery_timeout(monkeypatch):
+    """2026-09-26: the phi-accrual path opened the breaker without setting
+    _last_failure_time, so is_open() stayed True forever and can_execute() never
+    reached half-open -- every chat returned system_error for 2+ hours."""
+    import services.circuit_breaker as cb
+    from app.config import settings
+    from services.health_monitor import HealthMonitor
+
+    monkeypatch.setattr(settings, "phi_accrual_enabled", True)
+    monkeypatch.setattr(HealthMonitor, "get_phi", lambda self, p: 99.0)
+    monkeypatch.setattr(HealthMonitor, "is_healthy", lambda self, p: False)
+
+    clock = [1000.0]
+    monkeypatch.setattr(cb.time, "monotonic", lambda: clock[0])
+    breaker = cb.DefaultCircuitBreaker(cb.CircuitBreakerConfig(provider="openrouter", recovery_timeout=60.0))
+
+    assert breaker.can_execute() is False  # phi says unhealthy -> OPEN
+    assert breaker.get_state() == cb.CircuitState.OPEN
+    clock[0] += 61.0
+    assert breaker.is_open() is False  # recovery window elapsed
+    assert breaker.can_execute() is True  # a probe is admitted
+    assert breaker.get_state() == cb.CircuitState.HALF_OPEN
+
+
+def test_successes_reset_phi_so_scattered_failures_never_wedge_the_breaker(monkeypatch):
+    """2026-09-26: only failures reached the phi detector, so its consecutive-failure
+    count never reset. 3 failures across hours of successful traffic marked the
+    provider unhealthy forever: every recovery reopened on the next call."""
+    from app.config import settings
+    from services.health_monitor import HealthMonitor
+
+    monkeypatch.setattr(settings, "phi_accrual_enabled", True)
+    HealthMonitor().reset_all()
+    breaker = cb.DefaultCircuitBreaker(cb.CircuitBreakerConfig(provider="openrouter", failure_threshold=5))
+
+    for _ in range(5):  # failure, then successful traffic, repeatedly
+        assert breaker.can_execute() is True
+        breaker.record_failure(RuntimeError("timeout"))
+        assert breaker.can_execute() is True
+        breaker.record_success()
+
+    assert HealthMonitor().is_healthy("openrouter") is True
+    assert breaker.can_execute() is True
+    assert breaker.get_state() == cb.CircuitState.CLOSED
+    HealthMonitor().reset_all()

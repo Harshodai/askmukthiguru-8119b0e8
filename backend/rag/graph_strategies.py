@@ -52,9 +52,11 @@ from rag.nodes import (
     web_search_node,
 )
 from rag.nodes.intent import route_after_grading
+from rag.nodes.utils import max_rewrites_for_state
 from rag.nodes.verification import combined_grade_and_verify
 from rag.resolve_followup import resolve_followup
 from rag.states import GraphState
+from services.lettuce_detect_service import LettuceDetectService
 
 
 def route_after_intent_fast(state: GraphState) -> str:
@@ -135,8 +137,9 @@ logger = logging.getLogger(__name__)
 def _route_after_reflection(state: GraphState) -> str:
     """Route after self-reflection."""
     if state.get("needs_correction"):
-        max_rewrites = getattr(settings, "rag_max_rewrites", 2)
-        if state.get("rewrite_count", 0) >= max_rewrites:
+        # Same per-request budget as route_after_grading (Indic requests get a
+        # tighter cap); reading the global setting here let Indic loop twice.
+        if state.get("rewrite_count", 0) >= max_rewrites_for_state(state):
             return "fallback"
         # Opt-in (default off, see app/config.py rag_regenerate_before_rewrite):
         # on the FIRST correction, try a cheap regenerate against the same
@@ -592,12 +595,14 @@ async def deep_contradiction_gate(state: GraphState) -> dict:
         return {"needs_correction": True, "reflection_feedback": "Deep verification unavailable"}
 
     try:
+        # Dedicated executor, not asyncio.to_thread()'s shared default pool --
+        # see LettuceDetectService._shared_executor's comment.
         result = await asyncio.wait_for(
-            asyncio.to_thread(
-                lettuce_detect.score_faithfulness,
-                state.get("question", ""),
-                context,
-                answer,
+            asyncio.get_running_loop().run_in_executor(
+                LettuceDetectService._shared_executor,
+                lambda: lettuce_detect.score_faithfulness(
+                    state.get("question", ""), context, answer
+                ),
             ),
             timeout=float(getattr(settings, "faithfulness_verification_timeout", 8.0)),
         )

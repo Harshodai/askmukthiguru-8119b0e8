@@ -77,6 +77,15 @@ class ProviderConnectionError(RuntimeError):
     """
 
 
+class ProviderRateLimitedError(ProviderConnectionError):
+    """Throttling (an OpenRouter 429, or our own RPM limiter's backoff) on the
+    gateway path. The provider is up, so this must never count as a
+    circuit-breaker failure; ``rate_limited`` lets the gateway tell it apart
+    without importing this module."""
+
+    rate_limited = True
+
+
 # OpenRouter normally reports the actual charged amount in ``usage.cost``.
 # These model-specific prices are an accounting fallback only: they are used
 # when that field is absent, never when a provider-reported value is present.
@@ -127,6 +136,9 @@ class OpenRouterService:
     # The limiter itself already fails open on Redis errors; this is the
     # second layer of that same guarantee.
     _MAX_RATE_LIMIT_WAIT_ROUNDS = 5
+    # On the gateway path never sleep past this: a longer backoff would outlive
+    # the gateway's task timeout and read as a provider failure.
+    _MAX_GATEWAY_THROTTLE_WAIT_S = 10.0
 
     def __init__(self) -> None:
         self._policy = OpenRouterModelPolicy.from_settings(settings)
@@ -207,7 +219,7 @@ class OpenRouterService:
                 self._http_client = None
                 logger.info("OpenRouter HTTP client closed")
 
-    async def _enforce_rate_limit(self) -> None:
+    async def _enforce_rate_limit(self, strict_gateway: bool = False) -> None:
         """Enforce RPM limits before querying OpenRouter API.
 
         Uses the CLASS-level shared RedisBackedRateLimiter (see class
@@ -220,6 +232,8 @@ class OpenRouterService:
             if allowed:
                 return
             delay = max(0.0, retry_after)
+            if strict_gateway and delay > self._MAX_GATEWAY_THROTTLE_WAIT_S:
+                raise ProviderRateLimitedError(f"OpenRouter throttled; retry after {delay:.1f}s")
             logger.warning(f"OpenRouter rate limit hit — sleeping {delay:.1f}s")
             await asyncio.sleep(delay)
         # Fail-open, matching RedisBackedRateLimiter's own Redis-error
@@ -396,7 +410,7 @@ class OpenRouterService:
         max_tokens = min(max_tokens, self._policy.output_ceiling(operation))
 
         if not _is_fallback_attempt:
-            await self._enforce_rate_limit()
+            await self._enforce_rate_limit(strict_gateway=strict_gateway)
 
         if not self._circuit.can_execute():
             if strict_gateway:
@@ -604,6 +618,15 @@ class OpenRouterService:
 
             return content
 
+        except asyncio.CancelledError:
+            # BaseException, not Exception -- skips the clause below. A caller
+            # cancelling us (our own node timeout, not the provider) must
+            # release a reserved half-open slot -- without counting a provider
+            # failure, which would trip a CLOSED breaker -- or a few caller-side
+            # timeouts during recovery wedge the breaker open forever with no
+            # natural recovery (see test_cancelled_call_releases_half_open_reservation).
+            self._circuit.release_reservation()
+            raise
         except Exception as exc:
             record_llm_error(current_llm_span(), exc)
             logger.warning(
@@ -672,6 +695,11 @@ class OpenRouterService:
                         strict_gateway=strict_gateway,
                         **kwargs,
                     )
+                if strict_gateway and is_rate_limit:
+                    # Throttled, not down: free any half-open slot without a failure,
+                    # and never hand the gateway canned text as if it were an answer.
+                    self._circuit.release_reservation()
+                    raise ProviderRateLimitedError(f"OpenRouter 429 during {operation}") from exc
                 if strict_gateway and (is_server_error or is_connection_error):
                     # Gateway path: raise so the gateway breaker trips instead
                     # of mistaking canned graceful text for a success.
@@ -963,6 +991,12 @@ class OpenRouterService:
                     )
                     return
 
+                except asyncio.CancelledError:
+                    # See _call_api's identical clause: a caller-cancelled
+                    # (our own timeout) call must still release a reserved
+                    # half-open slot.
+                    self._circuit.release_reservation()
+                    raise
                 except Exception as e:
                     logger.warning(
                         "OPENROUTER_STREAM_ERROR_TIMING operation=%s model=%s attempt=%d elapsed_ms=%.1f "
@@ -1068,6 +1102,11 @@ class OpenRouterService:
                         emitted_any = True
                         yield delta
             self._circuit.record_success()
+        except asyncio.CancelledError:
+            # See _call_api's identical clause: a caller-cancelled (our own
+            # timeout) call must still release a reserved half-open slot.
+            self._circuit.release_reservation()
+            raise
         except (TimeoutError, httpx.HTTPError) as exc:
             self._circuit.record_failure()
             if emitted_any:
@@ -1247,6 +1286,7 @@ class OpenRouterService:
             {"relevant": False, "reason": "No response from LLM"} for _ in documents
         ]
 
+        parsed_any = False
         for line in result.strip().splitlines():
             line = line.strip()
             if not line:
@@ -1264,13 +1304,18 @@ class OpenRouterService:
                             else ("Relevant teaching" if is_relevant else "Irrelevant content")
                         )
                         relevance_results[idx] = {"relevant": is_relevant, "reason": reason}
+                        parsed_any = True
                 except (ValueError, IndexError):
                     continue
 
-        if not any(r["relevant"] for r in relevance_results) and len(documents) > 0:
+        # An explicit "no" to every document is a verdict: return it, so CRAG can
+        # rewrite or abstain. Only an unparseable grader reply (grading failed)
+        # keeps the top document, and it says so.
+        if not parsed_any and documents:
+            logger.warning("Batch relevance grader output unparseable; keeping the top retrieval result.")
             relevance_results[0] = {
                 "relevant": True,
-                "reason": "Fallback: Used top retrieval result as a starting point.",
+                "reason": "Grader output unparseable: kept top retrieval result.",
             }
 
         return relevance_results

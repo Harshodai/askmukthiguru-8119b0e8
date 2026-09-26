@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import logging
 import re
 
@@ -176,7 +178,7 @@ async def rewrite_query(state: GraphState, config: RunnableConfig | None = None)
             _rewrite_user += "\n\nReasons for previous retrieval failure:\n" + "\n".join(
                 f"- {r}" for r in _reasons if r
             )
-        rewritten = await _gateway.generate(
+        rewrite_call = _gateway.generate(
             system_prompt=QUERY_REWRITE_PROMPT,
             user_prompt=_rewrite_user,
             task="rewrite",
@@ -184,9 +186,24 @@ async def rewrite_query(state: GraphState, config: RunnableConfig | None = None)
         )
     else:
         # Gateway missing (standalone/offline) — direct provider fallback only.
-        rewritten = await _services._ollama.rewrite_query(
+        rewrite_call = _services._ollama.rewrite_query(
             original=original, reasons=state.get("grading_reasons", []), timeout=t_out
         )
+    # A rewrite is a retrieval optimisation, never load-bearing. Live 2026-09-26:
+    # the gateway spent 30 s on the primary model + 30 s on the model fallback
+    # (t_out was computed but never applied on this path), then the exception
+    # killed the node. Bound the whole call and reuse the original query instead.
+    try:
+        rewritten = await asyncio.wait_for(rewrite_call, timeout=t_out)
+    except Exception as exc:
+        logger.warning(
+            "CRAG: rewrite failed after <=%.0fs (%s: %s); reusing the original query %r",
+            t_out,
+            type(exc).__name__,
+            exc,
+            original[:80],
+        )
+        rewritten = original
     try:
         rewritten = RewrittenQuery(text=rewritten).text
     except ValidationError as exc:
