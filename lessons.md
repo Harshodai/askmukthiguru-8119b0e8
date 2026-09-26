@@ -17,6 +17,22 @@ Full account: `~/mukthiguru_attribution_data/baseline_2026-09-25/RUN1_POSTMORTEM
 - **Open (owner):** Railway still sets `PYTHON_MEMORY_LIMIT_MB=5120`, so the same failure can happen there. Set it to 0 and rely on the container limit.
 - **Rule:** never use `RLIMIT_DATA` or `RLIMIT_AS` as a proxy for resident memory in a container. The cgroup limit is the memory guard.
 
+### L-DOC-DRIFT-1. Research write-ups got promoted to "binding invariants"
+- **What (2026-09-26):** a pasted architecture review became `CLAUDE.md` "invariants" and a master prompt stating designs that were never built:
+  - point IDs from `source_url:chunk_index`, where the real IDs come from `transcript_hash:start_ms:end_ms`;
+  - a +1.8 s playback tail;
+  - Silero VAD;
+  - synthetic `question_dense`;
+  - alias swaps;
+  - a calibration profile and 20–40 ms p95.
+
+  The review's "threshold 0.432" was the top-1 accuracy relabelled. I committed it unread in a "commit everything" batch.
+- **Risk:** future sessions obey `CLAUDE.md`. "Enforcing" the ID rule would re-key the index; a 1.8 s tail would add host speech.
+- **Rule:**
+  - An invariant in `CLAUDE.md` must cite the code that enforces it, checked by grep.
+  - Measured numbers carry their source file.
+  - Read every doc diff before committing it, even in a bulk commit.
+
 ### L-BREAKER-PHI-1. A breaker opened without a timestamp can never recover
 - **What:** during the verification re-run (2026-09-26 07:02Z → 09:12Z+), the LLM breaker opened after real 60 s provider hangs and then stayed OPEN for more than 2 hours. Every chat returned `system_error` in ~2 ms: 259 consecutive benchmark rows. No model call was made in that whole window, so no new failure could have kept it open.
 - **Cause (reproduced in a test):** `can_execute()`'s phi-accrual branch (`settings.phi_accrual_enabled`, default True) calls `_transition_to_open()` when the shared per-provider `HealthMonitor` says unhealthy. That path never set `_last_failure_time`. With `None`:

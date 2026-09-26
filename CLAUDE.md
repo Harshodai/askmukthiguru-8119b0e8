@@ -40,33 +40,19 @@
 - **Master Session Prompt:** `docs/agent/CLAUDE_CODE_MASTER_PROMPT.md`.
 - **Next priority:** more of the teaching per answer (up to 3 clips plus the full video).
 
-### First-Person Verbatim Architecture & Engineering Invariants (2026-09-26)
-1. **Zero-LLM Serving Invariant (Prompt Engineering & SOTA IR)**:
-   - At runtime, `FirstPersonPipeline` executes zero prompts and zero LLM generation. The answer is a verified pointer to authentic audiovisual recording.
-   - LLMs are used *strictly offline*: generating synthetic seeker question variants (`question_dense`) to transform asymmetric question-to-passage search into symmetric question-to-question search, and biasing Whisper via `SACRED_VOCABULARY_PROMPT` to protect sacred Sanskrit terms (*Deeksha*, *Moksha*, *Samskara*, *Ahamkara*).
-2. **Cryptographic Integrity & Verification Gates (DDIA 2e & Building LLMs for Production)**:
-   - Every clip in Qdrant is tied to a `transcript_hash`. `spot_check_verbatim` must enforce `SHA-256(chunk_text) == stored_hash`. Missing or mismatched hashes fail closed (`return False`), quarantining the record.
-   - Stage-to-stage hash validation (`artifact_manifest.json`) guarantees no silent data corruption from audio to vector store.
-   - Provider graceful degradation strings (`_graceful_degradation()`) and ASR repetition loops are intercepted by `find_artifact()` before hitting Qdrant.
-3. **Statistical Risk Control & Conformal Prediction (Learn-Then-Test)**:
-   - Never use arbitrary uncalibrated float thresholds (e.g. `0.75`).
-   - Serving threshold $\hat{\lambda}$ is loaded dynamically from `first_person_calibration.json`, fitted via exact Clopper-Pearson beta quantiles (`math.lgamma`) to guarantee $\text{UCB}_{\delta=0.05}(\text{Risk}(\hat{\lambda})) \le 0.01$ ($\ge 99\%$ precision on confident answers).
-   - If confidence is below threshold, return `status: "weak_match"` and label as "Related, not a direct answer" rather than hallucinating.
-4. **Idempotency, Storage & Blue-Green Lifecycle (DDIA 2e & Qdrant)**:
-   - Point IDs are strictly deterministic via UUIDv5: `uuid5(NAMESPACE, f"{source_url}:{chunk_index}:{raptor_level}")`.
-   - Ingestion uses `QdrantAliasManager` with shadow collections (`first_person_vYYYYMMDD_HHMMSS`) and atomic alias swaps. Read models must be converted to write-side Diff models (`HnswConfigDiff`, `OptimizersConfigDiff`, `WalConfigDiff`).
-   - Stale point cleanup snapshots collection IDs before build and purges `existing_ids - produced_ids` via `PointIdsList`.
-5. **Speech Segmentation & Acoustic UX Contract (RAG Made Simple & Dexa Pattern)**:
-   - Pre-ASR **Silero VAD** gates audio (<10% speech energy discarded) to suppress Whisper hallucination loops on silent meditation.
-   - Clip Builder v2 enforces sentence boundaries (12 to 200 words) and merges teacher turns across short micro-pauses.
-   - `playback_start_seconds`: Snapped strictly to the teacher's turn start ($0.25\text{s}$ pad clamped at $\ge 0$). Multi-second pre-roll is prohibited to prevent leaking host/interviewer speech.
-   - `playback_end_seconds`: Acoustic resonance tail ($+1.8\text{s}$) prevents abrupt consonant cutoffs.
-6. **Hexagonal Architecture & Bounded Contexts (Clean Architecture)**:
-   - Domain core (`FirstPersonCitation`, statistical calibrators) is isolated from FastAPI and Qdrant.
-   - Gated behind `FIRST_PERSON_MODE` / `first_person_route_enabled`. The semantic cache is strictly bypassed on the first-person route to prevent fuzzy cache poisoning; only SHA-256 exact-match Redis caching is allowed.
-7. **Self-Improving Agent Flywheel (Lifelong Learning)**:
-   - Telemetry tracks unmatched seeker questions in episodic logs.
-   - The blind Review UI (`127.0.0.1:8088`) feeds ground-truth adjudications directly into the calibration profiler and reranker dataset.
+### First-Person Verbatim Route: invariants (verified against code 2026-09-26)
+
+Plan and ship decisions: `docs/architecture/first-person-path-to-prod.md` (ADR FP-1 to FP-3 accepted). Checklist: `docs/agent/NEXT_PROD_READY.md`. Read those two, plus the code you touch. Don't bulk-read the research docs: several of them state designs that were never built.
+
+1. **No LLM at serve time.** `FirstPersonPipeline` returns a pointer into a recording plus its verbatim transcript text. An LLM is allowed only offline (`.claude/tasks/OFFLINE_LLM_ASSIST_PLAN.md`), and its output needs a review gate before any Qdrant write.
+2. **Integrity gate, fail closed** (`first_person_pipeline.py`): `sha256(verbatim_text) == transcript_hash`, `find_artifact()` is None, and the speaker is in the teacher allowlist. Otherwise the clip is quarantined, never served.
+3. **Calibration** (`evaluation/gold/calibrator.py`, `SelectiveRiskCalibrator`): fixed-sequence Learn-then-Test with `clopper_pearson_upper`. Target risk 1%, δ=0.05, which needs at least 299 confident gold items with 0 errors. **No profile exists today** (only 14 human labels), so `is_direct_answer` is always False and every answer is "Related, not a direct answer". Never introduce a hand-picked threshold, and never fit on AI-authored labels.
+4. **Point IDs** (`first_person_store.make_first_person_point_id`): `uuid5(FIRST_PERSON_NAMESPACE, f"{transcript_hash}:{start_ms}:{end_ms}")`. Do not switch to the chat corpus's `source_url:chunk_index` scheme. `build_first_person_index.py` diffs existing vs produced ids, deletes stale ones, and refuses to apply an empty build. There is no alias swap for first-person: a new version is a new collection (`FIRST_PERSON_COLLECTION`), and the old one stays for rollback.
+5. **Retrieval:** Qdrant RRF over `passage_dense` + `passage_sparse`. `question_dense` is filled only where a real host question exists, and the prefetch does not use it. Offline synthetic questions are **not built** (step 1 of the offline plan; measure on gold before enabling).
+6. **Playback window:** start = `start_ms` − 0.25 s (floored at 0), end = `end_ms` + 0.25 s, capped at `duration_ms` (`CITATION_PLAYBACK_PAD_S`). No multi-second pre-roll and no long tail: both leak host speech, and the host voice is already 6.9% of top-1 clips.
+7. **Ingestion:** Whisper hardening (`services/speech_config.py`: sacred-vocabulary prompt, `condition_on_previous_text=False`) is live. `backend/ingest/verbatim/` (vote, speaker verify, sentence clips, gates) is tested but **not wired** into `ingest/pipeline.py`. There is no Silero VAD stage.
+8. **Isolation:** the route sits behind `FIRST_PERSON_ROUTE_ENABLED` / `FIRST_PERSON_MODE`. The crisis pre-check and the topic rail run before retrieval. No semantic cache: only an exact Redis cache, and a hit re-checks `points_servable`. FastAPI dependencies are `async` (L-DOCKER-18).
+9. **Measured (local, 2026-09-25, 116 questions):** top-1 0.43, 0 direct answers, p50 63 ms / p95 210 ms, host leak 6.9% of top-1. Production has not been measured. Don't quote aspirational latency (e.g. "20–40 ms") as fact.
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
