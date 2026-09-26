@@ -27,6 +27,8 @@ FORBIDDEN_HOST_SPEAKER_LABELS = {
     "questioner",
     "host / questioner",
     "interviewer",
+    "translator",
+    "narration",
 }
 
 
@@ -82,7 +84,13 @@ def check_video_readiness(
     for i, seg in enumerate(segments):
         start = seg.get("start", 0.0)
         end = seg.get("end", 0.0)
-        speaker = str(seg.get("speaker") or seg.get("speaker_evidence") or "unknown").strip()
+        # speaker_evidence may be a dict; extract detected_speaker/metadata_attribution
+        _se = seg.get("speaker_evidence")
+        if isinstance(_se, dict):
+            _se_str = (_se.get("detected_speaker") or _se.get("metadata_attribution") or "").strip()
+        else:
+            _se_str = str(_se or "").strip()
+        speaker = (str(seg.get("speaker") or "").strip() or _se_str or "unknown")
 
         if start < 0.0:
             issues.append(f"Segment {i} has negative start timestamp: {start}")

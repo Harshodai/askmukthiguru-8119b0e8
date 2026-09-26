@@ -111,13 +111,34 @@ def clopper_pearson_upper(
     if n_errors >= n_confident:
         return 1.0
 
-    def cdf(p: float) -> float:
-        return sum(math.comb(n_confident, k) * p**k * (1 - p) ** (n_confident - k) for k in range(n_errors + 1))
+    # Bisect on the regularized incomplete beta function I_p(n_errors+1, n_confident-n_errors)
+    # using a log-space stable evaluation. This avoids the comb*p^k*(1-p)^(n-k) overflow.
+    def _log_beta_cdf(p: float) -> float:
+        """log of sum_{k=0}^{n_errors} C(n,k)*p^k*(1-p)^(n-k) via log-space accumulation."""
+        if p <= 0.0:
+            return math.log(1.0) if n_errors >= 0 else -math.inf
+        if p >= 1.0:
+            return 0.0
+        log_p, log_1mp = math.log(p), math.log(1 - p)
+        log_total = -math.inf
+        log_term = (
+            math.lgamma(n_confident + 1)
+            - math.lgamma(0 + 1)
+            - math.lgamma(n_confident - 0 + 1)
+            + 0 * log_p
+            + n_confident * log_1mp
+        )
+        for k in range(n_errors + 1):
+            if k > 0:
+                log_term += log_p - log_1mp + math.log(n_confident - k + 1) - math.log(k)
+            log_total = log_total if log_total > log_term else math.log1p(math.exp(log_total - log_term)) + log_term
+        return log_total
 
+    log_alpha = math.log(alpha)
     lo, hi = 0.0, 1.0
     for _ in range(100):
         mid = (lo + hi) / 2
-        if cdf(mid) > alpha:
+        if _log_beta_cdf(mid) > log_alpha:
             lo = mid
         else:
             hi = mid

@@ -9,12 +9,12 @@ Invariants:
 2. Token reuse: Tokens are stateless HMAC signatures with indefinite lifetime; workers
    reuse leased tokens across questions.
 
-Not yet wired up: this module has no caller in bench.py as of this writing -- nothing
-in evaluation/bench.py imports or instantiates BenchmarkSessionPool. It also does NOT
-send an `X-Benchmark-Mode` header (no such header appears anywhere in this file); an
-earlier version of this docstring claimed it did. If stateless/no-memory benchmark runs
-are needed, that header (or equivalent) would need to be added at the call site that
-actually issues chat requests with leased tokens -- not here.
+Do NOT wire this into bench.py (tried and reverted 2026-09-26): /api/chat
+enforces an anonymous quota of 5 messages per session per 24 h, so a reused
+token gets a 429 with Retry-After ~24 h after five questions and the run
+stalls for a day. The benchmark mints one session per question instead; at its
+pace that stays under the anon-session limit. Reuse would only work with an
+authenticated or quota-exempt benchmark identity.
 """
 
 from __future__ import annotations

@@ -103,6 +103,9 @@ SYSTEM_ERROR_GROUNDING_STATES = {"system_error"}
 # Bounded retry for rate-limit back-pressure during a long eval run.
 _RATE_LIMIT_RETRIES = 4
 _RATE_LIMIT_BACKOFF_S = 5.0
+# A longer Retry-After is a quota, not back-pressure: fail the row instead of
+# stalling the whole run (a quota 429 once asked for ~24 h, 2026-09-26).
+_MAX_RETRY_WAIT_S = 600.0
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -450,8 +453,27 @@ async def _get_anon_token(client: httpx.AsyncClient, endpoint: str) -> str:
     return d.get("token") or d.get("session_id") or list(d.values())[0]
 
 
+async def _post_anonymous_chat(
+    client: httpx.AsyncClient, endpoint: str, question: str, token: str, timeout: float | None
+) -> httpx.Response:
+    return await client.post(
+        f"{endpoint}/api/chat",
+        json={
+            "messages": [],
+            "user_message": question,
+            "session_id": token,
+            "incognito": True,
+            "cache_bypass": True,
+        },
+        timeout=timeout or settings.benchmark_chat_timeout,
+    )
+
+
 async def _ask_anonymous(
-    client: httpx.AsyncClient, endpoint: str, question: str, timeout: float | None = None
+    client: httpx.AsyncClient,
+    endpoint: str,
+    question: str,
+    timeout: float | None = None,
 ) -> dict:
     # 429 is transient back-pressure from the rate limiter, not a verdict about
     # the answer. Measured live 2026-09-17: 7 of 47 golden-bank rows came back
@@ -491,17 +513,7 @@ async def _ask_anonymous(
             )
             await asyncio.sleep(delay)
             continue
-        r = await client.post(
-            f"{endpoint}/api/chat",
-            json={
-                "messages": [],
-                "user_message": question,
-                "session_id": token,
-                "incognito": True,
-                "cache_bypass": True,
-            },
-            timeout=timeout or settings.benchmark_chat_timeout,
-        )
+        r = await _post_anonymous_chat(client, endpoint, question, token, timeout)
         if r.status_code != 429:
             if r.status_code >= 400:
                 return {"_http": r.status_code, "_body": r.text[:300]}
@@ -515,6 +527,8 @@ async def _ask_anonymous(
                 delay = max(60.0, _RATE_LIMIT_BACKOFF_S * (2**attempt))
         else:
             delay = max(60.0, _RATE_LIMIT_BACKOFF_S * (2**attempt))
+        if delay > _MAX_RETRY_WAIT_S:
+            break
         print(
             f"[bench] 429 rate-limited; retry {attempt + 1}/{_RATE_LIMIT_RETRIES} in {delay:.0f}s",
             file=sys.stderr,
@@ -646,11 +660,20 @@ def _real_misattribution(flags: list[str] | None) -> bool:
     return bool([f for f in (flags or []) if f not in _UNMEASURED_FLAGS])
 
 
-# How many chunks are pulled per citation URL to form the traceability
-# haystack. A long discourse has MORE chunks than this, so the window is a
-# SUBSET of the cited source, not the whole of it -- see _quote_is_traceable
-# for why a miss inside a truncated window cannot be called a fabrication.
-_EVIDENCE_WINDOW = 50
+# How many chunks are pulled (in total, across every cited URL, paginated) per
+# answer to form the traceability haystack. A long discourse can have MORE
+# chunks than this, so the window is a SUBSET of the cited source, not the
+# whole of it -- see _quote_is_traceable for why a miss inside a truncated
+# window cannot be called a fabrication. Raised from a single flat 50-point
+# page (2026-09-26 fix, see tests/test_bench_evidence_window_pagination.py):
+# a citation set is 1-5 URLs, and the old code called scroll() ONCE with no
+# `offset`, so `window_truncated` fired whenever that one page happened to
+# come back full, even when a second page would have exhausted the cited
+# sources completely -- measured live in run1 (baseline_2026-09-25): 18/18
+# `misattribution_unmeasured_rate` hits were `unmeasured_evidence_window`
+# (Qdrant WAS reachable), not `unmeasured_no_evidence`.
+_EVIDENCE_WINDOW = 300
+_EVIDENCE_PAGE_SIZE = 50
 
 
 class EvidenceUnavailable(RuntimeError):
@@ -676,16 +699,23 @@ def _citation_evidence(qdrant_client: Any, collection: str, urls: list[str]) -> 
         from qdrant_client.models import FieldCondition, Filter, MatchAny
 
         flt = Filter(must=[FieldCondition(key="source_url", match=MatchAny(any=urls))])
-        pts, _ = qdrant_client.scroll(
-            collection_name=collection,
-            scroll_filter=flt,
-            limit=_EVIDENCE_WINDOW,
-            with_payload=True,
-            with_vectors=False,
-        )
-        # Mark a truncated window so traceability can tell "not in the corpus"
-        # apart from "not in the 50 chunks we looked at".
-        window_truncated = len(pts) >= _EVIDENCE_WINDOW
+        pts: list = []
+        offset = None
+        while len(pts) < _EVIDENCE_WINDOW:
+            page, offset = qdrant_client.scroll(
+                collection_name=collection,
+                scroll_filter=flt,
+                limit=min(_EVIDENCE_PAGE_SIZE, _EVIDENCE_WINDOW - len(pts)),
+                offset=offset,
+                with_payload=True,
+                with_vectors=False,
+            )
+            pts.extend(page)
+            if not page or offset is None:
+                break
+        # Truncated only when Qdrant itself reports more beyond what we
+        # fetched (a real next_page_offset) -- not merely "we filled a page".
+        window_truncated = offset is not None
         return [
             {
                 "url": p.payload.get("source_url"),
@@ -827,8 +857,10 @@ def _quote_in_doctrine_bundle(quote: str) -> bool:
 # as doctrine. Flagging it inverts the gate: the answer is doing exactly the
 # right thing -- refusing to invent -- and gets scored as misattribution for it.
 _DENIAL_RE = re.compile(
-    r"\b(?:do(?:es)?\s+not|don't|doesn't|no|never|cannot|can't|isn't|is\s+not)\b"
-    r"[^.!?]{0,80}$",
+    r"\b(?:do(?:es)?\s+not|don't|doesn't|no|never|cannot|can't|isn't|is\s+not"
+    r"|(?:am|are|is)?\s*not\s+able\s+to|unable\s+to|won't|will\s+not)\b"
+    # The negation must govern the term: same clause (no , ; : between) and close by.
+    r"[^.!?,;:]{0,60}$",
     re.IGNORECASE,
 )
 
@@ -842,6 +874,35 @@ def _quote_is_denied(quote: str, answer: str) -> bool:
         if _DENIAL_RE.search(preceding[sentence_start + 1 :]):
             return True
     return False
+
+
+def _reject_if_is_denied(term: str, answer: str) -> bool:
+    """True when EVERY occurrence of `term` in `answer` is introduced by a
+    negation ("...I'm not able to help with cryptocurrency...").
+
+    Same denial-detection as `_quote_is_denied`, generalized from an exact
+    quoted span to a case-insensitive `reject_if` substring term (the
+    contradiction check below already matches case-insensitively). Without
+    this, a correct refusal that names the forbidden term only to deny it
+    scores as the doctrinal contradiction it is the opposite of -- live in
+    run1 (baseline_2026-09-25): `adv-065`/`adv-100` (golden_dataset
+    `adversarial_refusal` items) both answered "I'm not able to help with
+    cryptocurrency" and were flagged as CONTRADICTING their own
+    `reject_if=["cryptocurrency", ...]`, even though their `must_mention`
+    list ("no cryptocurrency" / "not crypto") requires the correct answer to
+    say the term by name. If ANY occurrence is asserted (not denied), the
+    term still counts as a real contradiction -- this only clears a term
+    every one of whose mentions is a denial.
+    """
+    matches = list(re.finditer(re.escape(term), answer, re.IGNORECASE))
+    if not matches:
+        return False
+    for match in matches:
+        preceding = answer[: match.start()]
+        sentence_start = max(preceding.rfind("."), preceding.rfind("!"), preceding.rfind("?"))
+        if not _DENIAL_RE.search(preceding[sentence_start + 1 :]):
+            return False
+    return True
 
 
 def _quoted_spans(text: str) -> list[str]:
@@ -999,7 +1060,9 @@ def score_row(
     low = answer.lower()
     must = item["must_mention"]
     hit = [m for m in must if m.lower() in low]
-    contradictions = [r for r in item["reject_if"] if r.lower() in low]
+    contradictions = [
+        r for r in item["reject_if"] if r.lower() in low and not _reject_if_is_denied(r, answer)
+    ]
     refused = any(m in low for m in REFUSAL_MARKERS)
     grounding_state = raw.get("grounding_state")
     # A deliberate safety redirect is the product working, not the pipeline
@@ -1313,6 +1376,17 @@ def apply_validity_threshold(report: EvalReport, max_error_rate: float) -> EvalR
     return report
 
 
+@lru_cache(maxsize=1)
+def _reject_if_by_id() -> dict[str, list[str]]:
+    """id -> reject_if, reloaded from the same local dataset files score_row
+    scores against originally (pure local JSON/YAML reads -- no live HTTP,
+    no LLM, no Qdrant). Lets an offline rescore re-run the contradiction
+    check against an already-saved report's answer text with a fixed
+    detector, not just reclassify error/system_error. Built once per process.
+    """
+    return {it["id"]: it["reject_if"] for it in load_questions(list(SOURCE_LOADERS), None)}
+
+
 def rescore_report(path: Path) -> EvalReport:
     """Offline honesty fix for a report captured BEFORE this fix existed.
 
@@ -1321,8 +1395,19 @@ def rescore_report(path: Path) -> EvalReport:
     no original raw transport payload needed) and re-runs `aggregate()`. Used
     to rescore backend/benchmarks/reports/bench_e2e_{clean,full}_20260919.json
     without re-running the live 1,226-question benchmark.
+
+    Also re-derives `contradictions` from the saved answer text with the
+    denial-aware `_reject_if_is_denied` check (2026-09-26 fix -- see
+    tests/test_bench_contradiction_denial.py): a report scored before that fix
+    existed has the ORIGINAL, over-flagged `contradictions` baked into every
+    row, and reclassifying only error/system_error would leave that stale.
+    `reject_if` itself isn't stored per-row (only the terms that matched), so
+    it is looked up by id against the same local dataset files. A row whose id
+    isn't found in any loaded source (e.g. from a retired/renamed dataset) is
+    left with its originally-recorded `contradictions`, unchanged.
     """
     data = json.loads(path.read_text())
+    reject_if_by_id = _reject_if_by_id()
     rows: list[EvalRow] = []
     for raw_row in data["rows"]:
         error = raw_row.get("error")
@@ -1334,15 +1419,17 @@ def rescore_report(path: Path) -> EvalReport:
         pipeline_system_error = bool(raw_row.get("system_error"))
         if not error_class and pipeline_system_error:
             error_class = "pipeline_error"
-        rows.append(
-            EvalRow.model_validate(
-                {
-                    **raw_row,
-                    "error_class": error_class,
-                    "system_error": pipeline_system_error or bool(error_class),
-                }
-            )
-        )
+        overrides: dict[str, Any] = {
+            "error_class": error_class,
+            "system_error": pipeline_system_error or bool(error_class),
+        }
+        reject_if = reject_if_by_id.get(raw_row.get("id"))
+        if reject_if is not None:
+            low = answer.lower()
+            overrides["contradictions"] = [
+                r for r in reject_if if r.lower() in low and not _reject_if_is_denied(r, answer)
+            ]
+        rows.append(EvalRow.model_validate({**raw_row, **overrides}))
     return aggregate(
         rows,
         mode=data.get("mode", "e2e:anonymous"),
@@ -1725,7 +1812,8 @@ def main() -> int:
             return rc
 
     if args.mode in ("e2e", "all"):
-        out = Path(args.out) if args.out and args.mode == "e2e" else REPORT_DIR / "bench_e2e.json"
+        # --out names the e2e report in both e2e and all modes; a supervisor waits on it.
+        out = Path(args.out) if args.out else REPORT_DIR / "bench_e2e.json"
         checkpoint_path = Path(args.checkpoint) if args.checkpoint else None
         report = asyncio.run(
             run_e2e(

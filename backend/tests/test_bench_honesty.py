@@ -223,6 +223,7 @@ async def test_non_retryable_error_is_not_retried():
 # ═══════════════════════════════════════════════════════════════════════════
 
 
+
 @pytest.mark.asyncio
 async def test_resume_skips_completed_ids(tmp_path, monkeypatch):
     items = [_item("q1", question="Q1?"), _item("q2", question="Q2?")]
@@ -443,3 +444,30 @@ def test_read_timeout_is_not_retried_but_connect_timeout_is():
     assert _is_retryable_transport_error(httpx.ReadTimeout("slow")) is False
     assert _is_retryable_transport_error(httpx.ConnectTimeout("net")) is True
     assert _is_retryable_transport_error(httpx.ConnectError("net")) is True
+
+
+def test_mode_all_writes_the_e2e_report_to_out(tmp_path, monkeypatch):
+    """--mode all used to ignore --out and write benchmarks/reports/bench_e2e.json,
+    so a supervisor waiting on --out never saw the run finish (run 1, 2026-09-26:
+    finished all 1226 rows, was declared dead three times, run 2 never started)."""
+    import sys
+
+    from evaluation.schema import EvalReport
+
+    report = EvalReport.model_validate_json(bench.aggregate([], "e2e:anonymous", ["x"], "t").model_dump_json())
+
+    async def fake_run_e2e(*args, **kwargs):
+        return report
+
+    monkeypatch.setattr(bench, "run_retrieval", lambda golden, out: 0)
+    monkeypatch.setattr(bench, "run_e2e", fake_run_e2e)
+    monkeypatch.setattr(bench, "run_voice", lambda path: 0)
+    # Never touch the real reports dir: a red run of this test once overwrote it.
+    monkeypatch.setattr(bench, "REPORT_DIR", tmp_path / "reports")
+    out = tmp_path / "run1_report.json"
+    monkeypatch.setattr(sys, "argv", ["bench", "--mode", "all", "--out", str(out)])
+
+    bench.main()
+
+    assert out.exists()
+    assert not (tmp_path / "reports" / "bench_e2e.json").exists()
