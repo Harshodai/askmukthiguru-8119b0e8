@@ -100,8 +100,9 @@ class PipelineResult:
         Whether the response came from cache.
     proactive_serene_mind: dict | None
         Proactive Serene Mind trigger data, if any.
-    faithfulness_score: float
-        LettuceDetect / Self-RAG faithfulness score.
+    faithfulness_score: float | None
+        LettuceDetect / Self-RAG faithfulness score. None means verification
+        never ran (not computed) -- distinct from a real measured 0.0 failure.
     hallucination_flag: bool
         Whether the answer was flagged as potentially hallucinated.
     retrieval_metadata: dict | None
@@ -132,7 +133,7 @@ class PipelineResult:
     block_reason: str | None = None
     cache_hit: bool = False
     proactive_serene_mind: dict | None = None
-    faithfulness_score: float = 1.0
+    faithfulness_score: float | None = 1.0
     hallucination_flag: bool = False
     verification: dict | None = None
     answer_relevancy: float = 1.0

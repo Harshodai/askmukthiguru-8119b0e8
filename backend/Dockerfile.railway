@@ -87,6 +87,13 @@ COPY --chown=appuser:appuser scripts/ops/rotate_brain_kek.py ./scripts/ops/rotat
 # OKF compiled index and memory files
 COPY --chown=appuser:appuser memory/ ./memory/
 
+# Owner-approved crisis helplines (config/helplines.yaml at the repo root).
+# services/crisis_helplines.py resolves this to /config/helplines.yaml inside
+# the image (Path(__file__).resolve().parents[2] from /app/services/, i.e.
+# filesystem root, not /app/config/) -- without it the safety path silently
+# serves the in-code fallback list instead of the reviewed one.
+COPY --chown=appuser:appuser config/helplines.yaml /config/helplines.yaml
+
 # Create runtime directories with non-root ownership
 RUN mkdir -p /app/data /app/logs && chown -R appuser:appuser /app/data /app/logs /app/.cache && \
     find /app -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true && \
@@ -97,6 +104,7 @@ ENV ENV=production \
     IS_PRODUCTION=true \
     WEB_CONCURRENCY=1 \
     PYTHONUNBUFFERED=1 \
+    MALLOC_ARENA_MAX=2 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONOPTIMIZE=1 \
     # Model cache paths

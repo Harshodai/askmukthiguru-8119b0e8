@@ -80,6 +80,12 @@ def _create_test_state(
 
 @pytest.fixture
 def mock_verification_services():
+    # init_services() and the assignments below write module globals in
+    # rag.nodes._services. Restore them on teardown: leaking these mocks made
+    # test_ruthless_phase2_optimizations' generate_answer test order-dependent.
+    from rag.nodes import _services
+
+    saved = dict(vars(_services))
     mock_ollama = AsyncMock()
     mock_ollama.generate = AsyncMock(return_value="")
     mock_embedder = MagicMock()
@@ -107,7 +113,11 @@ def mock_verification_services():
     mock_ld = MagicMock()
     nodes._lettuce_detect = mock_ld
 
-    return gateway, mock_ld, mock_ollama
+    yield gateway, mock_ld, mock_ollama
+    for name in set(vars(_services)) - set(saved):
+        delattr(_services, name)
+    for name, value in saved.items():
+        setattr(_services, name, value)
 
 
 @pytest.mark.asyncio

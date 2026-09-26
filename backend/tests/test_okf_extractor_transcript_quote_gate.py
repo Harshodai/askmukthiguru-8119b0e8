@@ -38,8 +38,8 @@ def test_strip_fabricated_quotes_removes_not_found_keeps_verbatim(monkeypatch):
     assert removed == 1
     assert "genuinely spoke these words" in cleaned
     assert "fabricated sentence was never actually said" not in cleaned
-    # The now-empty quote line is dropped, not left as a bare "> ".
-    assert not any(line.strip() in ("", ">") for line in cleaned.splitlines() if line.strip("> \t") == "")
+    # The now-empty quote line is dropped, not left as a bare ">" or "> " marker.
+    assert not any(line.strip() == ">" for line in cleaned.splitlines())
 
 
 def test_partial_match_is_dropped_not_shown_as_teacher_words(monkeypatch):

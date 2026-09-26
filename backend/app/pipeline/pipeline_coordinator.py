@@ -56,6 +56,36 @@ def _query_token(query: str) -> str:
     return hashlib.sha256(query.encode()).hexdigest()[:8]
 
 
+def _resolve_effective_preferred_lang(user_msg: str, preferred_lang: str) -> str:
+    """Fall back to the message's own script when the client declared no language.
+
+    ``preferred_lang`` is ``chat_body.language or "en"`` (``app/api/chat.py``) --
+    "en" whenever the caller omits the field, not only when it explicitly wants
+    English. Every downstream language gate keys off this same string:
+    ``is_indic``/``should_translate`` in ``prepare_request_state`` (translates
+    the query to English *before* retrieval/CRAG grading) and every
+    response-side gate (``TranslationStage``, ``CasualShortCircuitStage``,
+    ``DoctrineCacheStage``, distress/guardrail translation). A caller that
+    omits ``language`` but asks in Telugu/Kannada/etc. script therefore sent
+    the UNTRANSLATED native-script text straight into retrieval and grading,
+    and never got its answer translated back -- even though
+    ``detect_message_lang`` already recognises the script from the text alone.
+    Detect it once, here, so both directions inherit the fix. An explicit
+    non-English ``preferred_lang`` is always respected as-is.
+    """
+    normalized = (preferred_lang or "en").lower().split("-", 1)[0]
+    if normalized != "en":
+        return preferred_lang
+    from app.language_utils import detect_message_lang
+
+    detected = detect_message_lang(user_msg)
+    # "non_en" is a catch-all (CJK/Cyrillic/etc.) with no translation-service
+    # language code -- only override with a real supported code.
+    if detected in ("en", "non_en"):
+        return preferred_lang
+    return detected
+
+
 class PipelineCoordinator:
     """Core pipeline shared between sync and streaming orchestrators."""
 
@@ -89,6 +119,7 @@ class PipelineCoordinator:
         ``orchestrator.py`` and ``stream_orchestrator.py`` need no changes.
         """
         start_time = time.time()
+        preferred_lang = _resolve_effective_preferred_lang(user_msg, preferred_lang)
         inherited_queue_timing = dict(queue_timing or queue_timing_var.get() or {})
         if inherited_queue_timing:
             inherited_queue_timing["pipeline_start_at"] = start_time
@@ -787,7 +818,7 @@ class PipelineCoordinator:
             from services.confidence_scorer import calculate_confidence
 
             conf_state = {
-                "faithfulness_score": result.get("faithfulness_score", 1.0 if not is_rag else 0.0),
+                "faithfulness_score": result.get("faithfulness_score", 1.0 if not is_rag else None),
                 "verification": result.get("verification")
                 or {
                     "passed": result.get("is_faithful", True),
@@ -811,9 +842,16 @@ class PipelineCoordinator:
             and bool(result.get("citations"))
         )
         return {
+            # `.get("faithfulness_score")` (no fabricated 0.0 default): a key
+            # genuinely ABSENT from the graph result means verification never
+            # ran, which must read as "not computed" (None), never as a real
+            # measured 0.0 failure -- 39/88 run-1 rows with faithfulness=0.0
+            # were grounded and non-hallucinated (defect 3). A route that
+            # explicitly sets faithfulness_score=0.0 (a real computed failure)
+            # is unaffected: the key is present, so `.get()` returns it as-is.
             "faithfulness": None
             if no_context
-            else (result.get("faithfulness_score", 0.0) if is_rag else 1.0),
+            else (result.get("faithfulness_score") if is_rag else 1.0),
             # A partial-evidence response is deterministic text copied from
             # retrieved, citable documents. The rejected model draft may have
             # is_faithful=False, but that must not turn the excerpt envelope

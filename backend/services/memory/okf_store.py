@@ -210,7 +210,8 @@ class OKFStore:
                     continue
 
                 if settings.okf_verbatim_quote_gate:
-                    video_id = _video_id_from_source(str(meta.get("source", "")))
+                    _fm_vid = str(meta.get("video_id", "")).strip()
+                    video_id = _fm_vid if _fm_vid else _video_id_from_source(str(meta.get("source", "")))
                     if video_id:
                         gated_body, removed = strip_fabricated_quotes(
                             body, video_id, corpus_root=self.corpus_root

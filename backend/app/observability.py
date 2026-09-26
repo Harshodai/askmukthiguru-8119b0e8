@@ -18,7 +18,8 @@ logger = logging.getLogger(__name__)
 
 _INITIALIZED = False
 
-DEFAULT_FASTAPI_EXCLUDED_URLS = r"^(?!.*\/api\/chat(?:\/stream)?(?:\?.*)?$).*"
+# Trace only the serving routes (chat, chat stream, first-person); everything else is noise.
+DEFAULT_FASTAPI_EXCLUDED_URLS = r"^(?!.*\/api\/(?:chat(?:\/stream)?|first-person\/query)(?:\?.*)?$).*"
 
 
 def _is_enabled() -> bool:
@@ -60,6 +61,22 @@ def _collector_reachable(endpoint: str, timeout: float = 1.5) -> Optional[bool]:
         return False
 
 
+# LangChainInstrumentor records every LangGraph node's full input/output state
+# (retrieved documents included) as span attributes. Uncapped, one export batch
+# reached 4.4-10.8 MB (2026-09-26) against the collector's 4 MB gRPC limit, so
+# whole batches of traces were dropped. The SDK reads these natively; setdefault
+# keeps an operator's own value authoritative.
+_EXPORT_SIZE_DEFAULTS = {
+    "OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT": "4096",
+    "OTEL_BSP_MAX_EXPORT_BATCH_SIZE": "32",
+}
+
+
+def _apply_export_size_defaults() -> None:
+    for key, value in _EXPORT_SIZE_DEFAULTS.items():
+        os.environ.setdefault(key, value)
+
+
 def init_observability(app: FastAPI) -> bool:
     """
     Initialize OpenTelemetry tracing.
@@ -97,6 +114,7 @@ def init_observability(app: FastAPI) -> bool:
             DEFAULT_FASTAPI_EXCLUDED_URLS,
         )
 
+        _apply_export_size_defaults()
         resource = Resource.create({"service.name": service_name})
         provider = TracerProvider(resource=resource)
         otlp_exporter = OTLPSpanExporter(endpoint=endpoint, insecure=True)

@@ -34,6 +34,7 @@ import logging
 import re
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, ClassVar
 
 from app.config import settings
@@ -615,6 +616,26 @@ class LettuceDetectService:
     # the faithfulness gate must never be skipped, and a queued verification is
     # strictly better than a segfault that drops every in-flight request.
     _shared_predict_lock: ClassVar[threading.Lock] = threading.Lock()
+
+    # 2026-09-26: score_faithfulness() used to be dispatched via bare
+    # asyncio.to_thread() from callers (rag/nodes/verification.py,
+    # rag/graph_strategies.py, rag/nodes/generation.py), which schedules onto
+    # the process-WIDE default executor -- shared with every other
+    # asyncio.to_thread() caller in the app, including /api/health's own
+    # qdrant/OCR probes (see services/embedding_service.py's _EMBED_EXECUTOR
+    # comment for the same risk, already fixed there but not here). A native
+    # (ONNX/torch) call that never returns -- the live-incident scenario this
+    # session, likely triggered by RLIMIT_DATA MemoryErrors corrupting
+    # allocator state -- then permanently occupies one shared-pool worker.
+    # Enough of those over a long run exhaust the small, CPU-count-sized
+    # default pool and stall everything else that pool touches, health
+    # checks included. Callers now dispatch score_faithfulness onto THIS
+    # dedicated pool instead (`loop.run_in_executor(LettuceDetectService
+    # ._shared_executor, ...)`), so a stuck call only starves LettuceDetect,
+    # never the rest of the app.
+    _shared_executor: ClassVar[ThreadPoolExecutor] = ThreadPoolExecutor(
+        max_workers=2, thread_name_prefix="lettucedetect"
+    )
 
     def __init__(self, embedder=None) -> None:
         """Initialize the service.

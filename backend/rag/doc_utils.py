@@ -28,6 +28,47 @@ def _strip_ingestion_headers(text: str) -> str:
     return text.strip()
 
 
+def strip_contextual_artifacts(txt: str) -> str:
+    """Strip contextual_chunking_service's ``[Context: ...]`` header and
+    pipeline.py's ``[Potential Questions: ...]`` footer so a re-reconstructed
+    document contains the guru's actual words, not extraction machinery.
+
+    Both markers are re-added fresh by ``_contextualize``/normal ingestion
+    on every pass, so any copy already baked into stored text is stale and
+    must come out first — otherwise it survives re-chunking as literal body
+    prose and stacks another generation of header on re-ingest (the QF-1
+    finding: 68.9% of this pipeline's own live output was multiple stitched
+    ``[Context: ...]`` blocks glued together). Loop the edge strips to
+    self-heal payloads that already accumulated more than one generation,
+    and run a bounded global sweep for copies stitched mid-string from
+    already-concatenated payloads.
+    """
+    # Leading [Context: ...] / [Source: ...] header(s) — closing "]" is on
+    # the same line as the opening "[" by construction (single sentence).
+    while txt.startswith("["):
+        first_newline = txt.find("\n")
+        if first_newline != -1 and txt[:first_newline].rstrip().endswith("]"):
+            txt = txt[first_newline + 1 :].lstrip("\n")
+        else:
+            break
+    # Trailing [Potential Questions: ...] footer(s) — content can be
+    # multi-line, so strip from the LAST marker to end of string.
+    while True:
+        idx = txt.rfind("[Potential Questions:")
+        if idx == -1:
+            break
+        tail = txt[idx:]
+        if tail.count("[") == 1 and tail.rstrip().endswith("]"):
+            txt = txt[:idx].rstrip()
+        else:
+            break
+    # Bounded sweep for either marker stitched mid-string (already-corrupted
+    # payloads that went through multiple contaminated re-ingest passes).
+    txt = re.sub(r"\[Context:[^\[\]]*\]", "", txt)
+    txt = re.sub(r"\[Potential Questions:[^\[\]]*\]", "", txt)
+    return txt.strip()
+
+
 # Extraction-prompt placeholder text that survived into stored content instead
 # of being filled in or dropped — confirmed live 2026-09-05 in retrieved
 # LightRAG chunks: a blockquote literally reading `"Exact quote from
@@ -41,24 +82,33 @@ _PLACEHOLDER_QUOTE_RE = re.compile(
 
 def _strip_extraction_artifacts(text: str) -> str:
     """Strip known LLM-extraction-artifact shapes: placeholder quotes and
-    immediately-repeated Markdown headings (the same heading line emitted
+    immediately-repeated Markdown headings (the same heading TEXT emitted
     2+ times in a row — an extraction/summarization retry artifact, not
     real structure; a document legitimately repeating a heading later after
-    other content is untouched)."""
+    other content is untouched).
+
+    Compares heading TEXT with the leading ``#``s stripped, not the raw line:
+    an ingestion contextual header (``# Title``) immediately followed by the
+    chunk's own heading at a different level (``### Title``) is the same
+    duplicate, live in golden_024's fallback excerpt ("# Deeksha and Spiritual
+    Relationships ### Deeksha and Spiritual Relationships ...") — comparing
+    raw lines missed it because the ``#`` counts differed.
+    """
     text = _PLACEHOLDER_QUOTE_RE.sub("", text)
     lines = text.split("\n")
     deduped: list[str] = []
-    prev_heading: str | None = None
+    prev_heading_text: str | None = None
     for line in lines:
         stripped = line.strip()
         if not stripped:
             deduped.append(line)
             continue  # blank lines don't break "immediately repeated" adjacency
-        is_heading = bool(re.match(r"^#{1,6}\s+\S", stripped))
-        if is_heading and stripped == prev_heading:
-            continue  # drop the immediate repeat
+        heading_match = re.match(r"^#{1,6}\s+(\S.*)$", stripped)
+        heading_text = heading_match.group(1).strip() if heading_match else None
+        if heading_text is not None and heading_text == prev_heading_text:
+            continue  # drop the immediate repeat, regardless of heading level
         deduped.append(line)
-        prev_heading = stripped if is_heading else None
+        prev_heading_text = heading_text
     return "\n".join(deduped)
 
 

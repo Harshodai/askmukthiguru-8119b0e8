@@ -22,6 +22,7 @@ from services.confidence_scorer import (
     calculate_confidence_reason,
     confidence_calibration_status,
 )
+from services.lettuce_detect_service import LettuceDetectService
 
 from . import _services
 from .utils import emit_status, log_metrics, settings
@@ -176,13 +177,16 @@ async def _score_faithfulness_bounded(
         }
     timeout = float(getattr(settings, "faithfulness_verification_timeout", 8.0))
     try:
+        # Dedicated executor, not asyncio.to_thread()'s shared default pool --
+        # see LettuceDetectService._shared_executor's comment. A stuck native
+        # call here must not starve unrelated asyncio.to_thread() callers
+        # (health checks included).
         result = await asyncio.wait_for(
-            asyncio.to_thread(
-                lettuce_detect.score_faithfulness,
-                question,
-                context,
-                answer,
-                semantic=semantic,
+            asyncio.get_running_loop().run_in_executor(
+                LettuceDetectService._shared_executor,
+                lambda: lettuce_detect.score_faithfulness(
+                    question, context, answer, semantic=semantic
+                ),
             ),
             timeout=timeout,
         )

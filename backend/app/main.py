@@ -39,22 +39,25 @@ from app.core.threading_config import configure_threading
 
 configure_threading()
 
-# Set Python process memory limit early to prevent runaway OOM crashes.
-# Controlled by PYTHON_MEMORY_LIMIT_MB env var (default 6144 = 6GB).
-# Only effective on Linux (RLIMIT_AS); silently skipped on macOS/Windows.
+# Optional Python process memory ceiling. Controlled by PYTHON_MEMORY_LIMIT_MB
+# (default 6144 = 6GB); set it to 0 to disable. Only effective on Linux.
+# Caution (proven 2026-09-26): RLIMIT_DATA counts VIRTUAL private writable
+# mappings -- thread stacks and glibc per-thread malloc arenas included -- not
+# resident memory. The backend's virtual size runs ~3x its RSS, so a ceiling
+# near the container limit fails with "can't start new thread" or MemoryError
+# at ~60% real memory use (L-DOCKER-9 recurred at ~30 threads). The container
+# cgroup limit is the real memory guard.
 try:
     import resource as _resource
 
     _mb = int(os.environ.get("PYTHON_MEMORY_LIMIT_MB", "6144"))
     if _mb > 0:
         _limit_bytes = _mb * 1024 * 1024
-        if hasattr(_resource, "RLIMIT_DATA"):  # Safe heap limit (does not restrict mmap)
+        if hasattr(_resource, "RLIMIT_DATA"):  # also counts private mmaps and thread stacks
             _resource.setrlimit(_resource.RLIMIT_DATA, (_limit_bytes, _limit_bytes))
             logger_tmp = logging.getLogger(__name__)
             logger_tmp.info(
-                "Python memory limit set to %dMB via RLIMIT_DATA (PYTHON_MEMORY_LIMIT_MB=%s)",
-                _mb,
-                os.environ.get("PYTHON_MEMORY_LIMIT_MB", "<unset>"),
+                "Python memory limit set to %dMB via RLIMIT_DATA", _mb
             )
         elif hasattr(_resource, "RLIMIT_AS"):  # Fallback only
             _resource.setrlimit(_resource.RLIMIT_AS, (_limit_bytes, _limit_bytes))

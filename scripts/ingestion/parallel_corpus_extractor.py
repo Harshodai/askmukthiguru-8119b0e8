@@ -783,14 +783,13 @@ def run_parallel_extraction(
     save_progress(progress)
     logger.info(f"✨ Step 1 Complete: Total Unique Videos Discovered = {total_count}")
 
-    # 2. Filter videos needing processing (already completed in corpus dir are skipped)
+    # 2. All videos go through process_single_video, which applies per_video_checks
+    # and has_hard_failure verification internally before deciding to skip or
+    # re-extract. The naive manifest-existence pre-filter is intentionally absent
+    # here — process_single_video is the authoritative gate.
     video_list = list(all_videos.values())
-    unprocessed = [
-        v for v in video_list
-        if not (engine.get_video_dir(v["video_id"]) / "artifact_manifest.json").exists()
-    ]
-    completed_already = total_count - len(unprocessed)
-    logger.info(f"📊 Queued for processing: {len(unprocessed)} videos ({completed_already} already completed & skipped).")
+    unprocessed = video_list
+    logger.info(f"📊 Queued for processing: {len(unprocessed)} videos (verification delegated to process_single_video).")
 
     if not unprocessed:
         logger.info("🎉 All videos are already packaged and verified in the corpus!")

@@ -16,7 +16,8 @@ import logging
 import os
 import platform
 import time
-from typing import Any, Optional
+from concurrent.futures import ThreadPoolExecutor
+from typing import Any, ClassVar, Optional
 
 from app.config import settings
 
@@ -28,6 +29,20 @@ class RerankerService:
     High-performance reranking service utilizing FlashRank (ONNX)
     with sentence-transformers CrossEncoder fallback.
     """
+
+    # Mirrors LettuceDetectService._shared_executor (services/lettuce_detect_
+    # service.py): `rerank()` used to dispatch `_rerank_sync` via bare
+    # `asyncio.to_thread()`, which schedules onto the process-wide default
+    # executor shared by every other `asyncio.to_thread()` caller in the app,
+    # including /api/health's own probes. The fallback CrossEncoder path runs
+    # torch inference under `_torch_predict_lock` -- a stuck native call there
+    # would otherwise occupy a shared-pool worker and starve unrelated
+    # callers (the same class of incident LettuceDetect hit). Routing through
+    # this dedicated pool means a stuck reranker call can only starve
+    # reranking, never the rest of the app.
+    _shared_executor: ClassVar[ThreadPoolExecutor] = ThreadPoolExecutor(
+        max_workers=2, thread_name_prefix="reranker"
+    )
 
     def __init__(self) -> None:
         """Initialize the reranker service (lazy-loaded)."""
@@ -221,9 +236,14 @@ class RerankerService:
     ) -> list[dict[str, Any]]:
         """
         Rerank documents using FlashRank (ONNX) with sentence-transformers fallback.
-        Runs asynchronously in a separate thread to prevent event loop blocking.
+        Runs on RerankerService._shared_executor (a dedicated pool, not the
+        process-wide asyncio.to_thread() default) to prevent event loop
+        blocking without letting a stuck call starve unrelated callers.
         """
-        return await asyncio.to_thread(self._rerank_sync, query, documents, top_k, min_score)
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(
+            RerankerService._shared_executor, self._rerank_sync, query, documents, top_k, min_score
+        )
 
     def _run_cross_encoder(
         self,

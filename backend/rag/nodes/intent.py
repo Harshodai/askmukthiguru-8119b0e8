@@ -266,7 +266,11 @@ _LOGISTICS_EVENT_RE = re.compile(
 )
 _LOGISTICS_CUE_RE = re.compile(
     r"\b(upcoming|latest|current|right\s+now|official|schedules?|dates?|register|registration|signup|tickets?|price|pricing|cost|fees?|enrol|enroll|calendar)\b"
-    r"|sign\s*up|book(?:ing)?|when\s+(is|are|will)|how\s+much|where\s+(is|are)|book\s+a|next\s+\w",
+    # "where is/are X located" asks a factual/geographic question the corpus can
+    # answer (e.g. "where is Ekam located" -> Varadaiahpalem, Andhra Pradesh) --
+    # not a live-schedule request. Only "where is/are" NOT followed by "located"
+    # counts as a logistics cue ("where is the next retreat happening").
+    r"|sign\s*up|book(?:ing)?|when\s+(is|are|will)|how\s+much|where\s+(is|are)\b(?!.{0,30}\blocated\b)|book\s+a|next\s+\w",
     re.I,
 )
 

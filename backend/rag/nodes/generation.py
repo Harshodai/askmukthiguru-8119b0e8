@@ -17,7 +17,7 @@ from langchain_core.runnables import RunnableConfig
 
 from app.tracing import trace_rag_node
 from rag.compressor import cap_to_token_budget, estimate_tokens, get_token_ratio
-from rag.doc_utils import doc_text, sort_docs_litm_aware
+from rag.doc_utils import doc_text, sort_docs_litm_aware, strip_contextual_artifacts
 from rag.prompts import (
     CANONICAL_URLS_LOGISTICS,
     FALLBACK_RESPONSE,
@@ -32,6 +32,7 @@ from services.context_compressor import ContextBudgetManager
 from services.guru_voice_langhanam import is_voice_eligible, render_langhanam_system_prompt
 from services.humanizer import scrub
 from services.language_router import LanguageCode, LanguageRouter
+from services.lettuce_detect_service import LettuceDetectService
 from services.provenance import ChunkProvenance
 
 from . import _services
@@ -594,9 +595,26 @@ def _grounded_partial_answer(
     """
     excerpts: list[tuple[int, str, str, str]] = []
     for raw_index, doc in enumerate(relevant_docs):
-        text = doc_text(doc).strip()
+        # The preface promises the teachers' own words, so ingestion machinery
+        # (LLM-written [Context: ...] summaries, [Potential Questions: ...]
+        # footers) must never be shown as a quote. Live 2026-09-26 (mul-012): a
+        # QF-1-contaminated chunk -- several stitched generations of both blocks,
+        # quotes nested inside -- showed an LLM paraphrase as the teaching. A
+        # chunk still carrying either marker after stripping can't be separated
+        # safely, so it is skipped; the fix for the stored data is re-ingestion.
+        # A clean chunk has at most one header and one footer; more means
+        # stitched generations, whose "body" is LLM text the sweep can't see.
+        raw = doc_text(doc)
+        text = strip_contextual_artifacts(raw)
         url = str(doc.get("source_url") or "").strip()
-        if not text or not url.startswith(("http://", "https://")):
+        if (
+            not text
+            or raw.count("[Context:") > 1
+            or raw.count("[Potential Questions:") > 1
+            or "[Context:" in text
+            or "[Potential Questions:" in text
+            or not url.startswith(("http://", "https://"))
+        ):
             continue
         title = str(doc.get("title") or url).strip()
         excerpt = " ".join(text.split())
@@ -2813,13 +2831,20 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
                 try:
                     lettuce_detect = _services._lettuce_detect
                     context = "\n\n".join(doc_text(doc) for doc in relevant_docs)
-                    ld_result = await asyncio.to_thread(
-                        lettuce_detect.score_faithfulness,
-                        question,
-                        context,
-                        answer,
-                        semantic=False,
-                    )
+                    # Dedicated executor, not asyncio.to_thread()'s shared
+                    # default pool -- see LettuceDetectService._shared_executor.
+                    try:
+                        ld_result = await asyncio.wait_for(
+                            asyncio.get_running_loop().run_in_executor(
+                                LettuceDetectService._shared_executor,
+                                lambda: lettuce_detect.score_faithfulness(
+                                    question, context, answer, semantic=False
+                                ),
+                            ),
+                            timeout=30.0,  # wall-clock guard; queued/blocked inference cannot hold the request indefinitely
+                        )
+                    except asyncio.TimeoutError as _ld_timeout:
+                        raise _ld_timeout  # re-raise so the outer except clause handles it
                     faithfulness_score = ld_result.get("score", 1.0)
                     hallucination_flag = not ld_result.get("is_faithful", True)
                     confidence_score = faithfulness_score * 10.0

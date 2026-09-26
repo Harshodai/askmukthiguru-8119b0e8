@@ -143,6 +143,9 @@ services:
     restart: unless-stopped
     environment:
       - COLLECTOR_OTLP_ENABLED=true
+      # In-memory storage is unbounded by default: it sat at 99% of its limit
+      # and dropped spans (DEADLINE_EXCEEDED on export). Keep the newest traces.
+      - MEMORY_MAX_TRACES=5000
     ports:
       - "16686:16686" # Web UI
       - "4317:4317"   # OTLP gRPC
@@ -150,7 +153,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M
+          memory: 512M
           cpus: '0.25'
 
   qdrant:
@@ -208,6 +211,12 @@ services:
       # shows DOWN, which is a visible failure rather than a silent one.
       - METRICS_SCRAPE_TOKEN=${METRICS_SCRAPE_TOKEN:-}
       - OMP_NUM_THREADS=2
+      # RLIMIT_DATA counts virtual memory (thread stacks, malloc arenas), not
+      # RSS: a ceiling here broke thread creation at ~60% real use (2026-09-26).
+      # The container memory limit is the guard. Cap glibc arenas to keep the
+      # virtual footprint near RSS.
+      - PYTHON_MEMORY_LIMIT_MB=${PYTHON_MEMORY_LIMIT_MB:-0}
+      - MALLOC_ARENA_MAX=2
       - MKL_NUM_THREADS=2
       - OPENBLAS_NUM_THREADS=2
       - NUMEXPR_NUM_THREADS=2
@@ -409,6 +418,13 @@ services:
       - ../scripts:/app/scripts
       - ../results:/app/results
       - ../memory:/app/memory
+      # Owner-approved crisis helplines. services/crisis_helplines.py resolves
+      # config/helplines.yaml to /config/helplines.yaml inside the container
+      # (filesystem root, not /app/config/) -- without this mount/COPY the
+      # safety path silently serves the in-code fallback list instead of the
+      # reviewed one. Read-only: this repo is the source of truth, not the
+      # container.
+      - ../config:/config:ro
       # NOTE: the ./repos/LightRAG/lightrag override mount was removed — backend/repos/
       # was deleted (P2 cleanup) and the empty host dir shadowed the pip-installed
       # lightrag-hku, causing "cannot import name 'LightRAG'" boot crash-loops.
