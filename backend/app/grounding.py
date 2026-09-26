@@ -18,8 +18,21 @@ def grounding_state_for(result: Any) -> GroundingState:
         return "safety_redirect"
 
     intent = str(getattr(result, "intent", "") or "").upper()
+    # Non-crisis distress runs the full pipeline (it is not a bypass): a cited,
+    # verified answer it served is grounded. Only an uncited distress response
+    # (e.g. a helpline/redirect message) is a safety redirect.
+    if intent == "DISTRESS":
+        _verification = getattr(result, "verification", None)
+        _method = str((_verification or {}).get("method", "")) if isinstance(_verification, dict) else ""
+        if (
+            "preemption" not in _method
+            and getattr(result, "citations", None)
+            and getattr(result, "citations_verified", None) is not False
+            and not bool(getattr(result, "hallucination_flag", False))
+        ):
+            return "grounded"
+        return "safety_redirect"
     if intent in {
-        "DISTRESS",
         "SAFETY_VIOLATION",
         "CRISIS",
         "SAFETY",

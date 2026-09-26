@@ -28,6 +28,8 @@ from typing import Optional
 
 import numpy as np
 
+from services.text_normalize import compact_letters, deobfuscate, looks_obfuscated
+
 logger = logging.getLogger(__name__)
 
 
@@ -57,6 +59,11 @@ class DistressAssessment:
 # ---------------------------------------------------------------------------
 
 # English distress patterns
+# Letters-only crisis phrases for obfuscated input (see assess_distress).
+_OBFUSCATED_CRISIS = re.compile(
+    r"suicid|kil+myself|endmylife|takemyownlife|wanttodie|hangmyself|notworthliving"
+)
+
 _EN_PATTERNS = {
     DistressLevel.CRISIS: [
         r"\b(suicid|kill\s*my\s*self|kill\s*myself|end\s*(my|it)\s*all|want\w*\s*to\s*die|self[\s-]*harm)\b",
@@ -120,6 +127,8 @@ _EN_PATTERNS = {
     DistressLevel.SEVERE: [
         r"\b(hopeless|worthless|can'?t\s*go\s*on|give\s*up|no\s*point|nothing\s*matters?)\b",
         r"\b(don'?t\s*know\s*if\s*i\s*can\s*go\s*on)\b",
+        # Passive ideation (red team 2026-09-26): "don't see the point of going on".
+        r"\bdon'?t\s+see\s+(the\s+)?point\s+(of|in)\s+(going\s+on|continuing|living|trying)\b",
         r"\b(deeply?\s*(depressed|sad|lonely)|unbearable\s*pain)\b",
         r"\b(meaningless|empty\s*inside|broken)\b",
     ],
@@ -857,13 +866,22 @@ class SereneMindEngine:
         max_level = DistressLevel.NONE
         max_confidence = 0.0
 
+        # Also scan the de-obfuscated text (spaced letters, leetspeak, homoglyphs).
+        # It can only add matches; the original text is always scanned too.
+        variants = [message_lower]
+        deobfuscated = deobfuscate(message)
+        if deobfuscated != message_lower:
+            variants.append(deobfuscated)
+
         # Scan across all language patterns
         for lang, levels in _ALL_PATTERNS.items():
             for level in sorted(levels.keys(), reverse=True):  # Check most severe first
                 for pattern in levels[level]:
-                    matches = pattern.findall(
-                        message_lower if lang in _LATIN_SCRIPT_LANGS else message
-                    )
+                    matches = []
+                    for variant in variants if lang in _LATIN_SCRIPT_LANGS else [message]:
+                        matches = pattern.findall(variant)
+                        if matches:
+                            break
                     if matches:
                         signal_text = f"[{lang}] {matches[0]}"
                         signals.append(signal_text)
@@ -871,6 +889,14 @@ class SereneMindEngine:
                             max_level = level
                             # Higher severity = higher confidence
                             max_confidence = min(0.5 + (level.value * 0.15), 1.0)
+
+        # Words split to dodge patterns ("k1ll mysel f"): letters-only check, only
+        # for text that is visibly obfuscated (on plain text it joins innocent words).
+        if looks_obfuscated(message) and _OBFUSCATED_CRISIS.search(compact_letters(message)):
+            signals.append("[obfuscated] crisis phrase")
+            if DistressLevel.CRISIS > max_level:
+                max_level = DistressLevel.CRISIS
+                max_confidence = min(0.5 + (DistressLevel.CRISIS.value * 0.15), 1.0)
 
         # Escalation detection from conversation history
         if conversation_history and len(conversation_history) >= 2:

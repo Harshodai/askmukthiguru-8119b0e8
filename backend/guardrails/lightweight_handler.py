@@ -6,6 +6,7 @@ from typing import Any
 
 from app.config import settings
 from guardrails.base import BaseGuardrailHandler
+from services.text_normalize import deobfuscate
 
 try:
     from openai import AsyncOpenAI
@@ -66,7 +67,7 @@ _BLOCKED_TOPICS = {
         r"\brecreational\s+drugs?\b",
     ],
     "violence": [
-        r"\bhow\s+to\s+(make|build|create)\b.*\b(bomb|weapon|gun|explosive)\b",
+        r"\bhow\s+(?:to|do\s+i|can\s+i|does\s+one)\s+(make|build|create)\b.*\b(bomb|weapon|gun|explosive)\b",
         r"\bhow\s+to\s+(kill|poison|attack|hurt)\s+(someone|a\s+person|people)\b",
     ],
     "cryptocurrency": [
@@ -109,7 +110,10 @@ _BLOCKED_TOPICS = {
         r"\bmedication\b",
         r"\bdiagnos(?:e|is)\b",
         r"\btreat(?:ment)?\b.*\b(cancer|diabetes|heart|stroke|tumor)\b",
-        r"\b(stop|quit|reduce|taper)\b.*\b(medication|antidepressant|pills?|therapy|treatment)\b",
+        r"\b(stop|quit|reduce|taper)\b.*\b(medications?|antidepressants?|pills?|therapy|treatment)\b",
+        # Drug names are whack-a-mole; the action is the signal (red team 2026-09-26).
+        r"\btaper(?:ing)?\s+off\b|\bstop\s+taking\s+(?:my\s+)?\w+",
+        r"\binstead\s+of\b.*\b(therapy|medication|doctor|psychiatrist|treatment)\b",
         r"\breplace\b.*\b(doctor|therapist|psychiatrist|medicine|medication|antidepressant|therapy|drugs)\b",
         r"\b(do\s+i\s+need|can\s+i\s+skip)\b.*\b(doctor|therapist|psychiatrist|medicine)\b",
     ],
@@ -127,12 +131,43 @@ _BLOCKED_TOPICS = {
         r"\bloan\b.*\b(apply|interest|rate)\b",
         r"\bfinancial\s+(advice|planning|portfolio)\b",
         r"\bhow\s+to\s+get\s+rich\s+(fast|quick)\b",
+        # Promised sums from a practice (run 1: "manifest exactly one million dollars").
+        r"\bmanifest\w*\b[^.?!]*\b(?:million|lakhs?|crores?|dollars|rupees|\$\s?\d)",
     ],
     "manipulation": [
         r"\bhow\s+to\s+(manipulate|deceive|trick|scam)\b",
         r"\bmake\s+(someone|them|her|him)\s+(obey|submit|fear)\b",
         r"\bblackmail\b",
         r"\bextort\b",
+        r"\bfraud(?:ulent)?\b[^.?!]*\bscheme\b|\bponzi\b",
+    ],
+    # Run 1 (2026-09-25): "draft a phishing email" and "generate a keygen" were
+    # answered with a teaching instead of being declined.
+    "cyber_abuse": [
+        r"\bphish(?:ing)?\b",
+        r"\bkey\s?gen\b",
+        r"\b(?:crack|pirate)(?:ed|ing|s)?\s+(?:\w+\s+)?(?:software|apps?|licen[cs]es?|serials?)\b",
+        r"\b(?:download|get|free)\b.*\b(?:cracked|pirated|nulled)\b|\b(?:cracked|pirated|nulled)\s+\w+.*\b(?:free|download|torrent)\b",
+        r"\b(?:malware|ransomware|keylogger|spyware|trojan)\b",
+        r"\b(?:steal|harvest|dump)(?:ing|s)?\s+(?:\w+\s+)?(?:passwords?|credentials|credit\s+cards?)\b",
+        r"\bddos\b",
+        r"\b(?:credentials?|passwords?|api\s*keys?|secrets?|tokens?)\b[^.?!]*\b(?:log\s*in|login|dashboard|database|neo4j|memgraph|qdrant|supabase|server|admin)\b",
+    ],
+    # Run 1: persona-escape / developer-mode injections (Hindi, Tamil, English) were
+    # answered. Separate from prompt_injection, which also screens retrieved chunks.
+    "persona_escape": [
+        r"\bdeveloper\s*mode\b|डेवलपर\s*मोड",
+        r"प्रतिबंध\s*हटा",
+        r"\byou\s+are\s+(?:now\s+)?no\s+longer\s+(?:an?\s+)?(?:ai|guru|assistant|bot)\b",
+        r"(?:तुम|आप)\s*अब\s*(?:कोई\s*)?ai\s*नहीं",
+        r"இனி\s*ஒரு\s*குரு\s*இல்லை|சுதந்திர\s*ai",
+        r"\bpretend\s+(?:you\s+are|to\s+be)\s+(?:sri\s+)?(?:krishnaji|preethaji)\b",
+        r"\bspeak\s+as\s+(?:if\s+you\s+were\s+)?(?:sri\s+)?(?:krishnaji|preethaji)\b",
+    ],
+    # Run 1: live sports/news questions were answered from teachings.
+    "off_domain": [
+        r"\bwho\s+won\b[^.?!]*\b(?:cup|match|game|championship|final|tournament|series|oscars?)\b",
+        r"\b(?:fifa|world\s+cup|ipl|super\s+bowl|olympics)\b",
     ],
     "prompt_injection": [
         r"\b(ignore|disregard|forget)\b.*\b(previous|above|prior|all)\b.*\b(instructions?|rules?|prompts?)\b",
@@ -181,6 +216,18 @@ _BLOCK_RESPONSES = {
         "medical or psychiatric advice, diagnoses, or prescriptions. Spiritual practices are strictly "
         "complementary and are NEVER a substitute for professional healthcare, therapy, or medication. "
         "Please consult a qualified doctor or mental health professional. 🙏"
+    ),
+    "persona_escape": (
+        "I remain a guide to the teachings of Sri Preethaji and Sri Krishnaji, and I never "
+        "speak as them. How may I help your inner journey? 🙏"
+    ),
+    "off_domain": (
+        "I share the teachings of Sri Preethaji and Sri Krishnaji and don't follow news or "
+        "sports results. How may I help your inner journey? 🙏"
+    ),
+    "cyber_abuse": (
+        "I can't help with that. Mukthi Guru shares the teachings of Sri Preethaji and "
+        "Sri Krishnaji on inner transformation and right action. 🙏"
     ),
     "explicit": "Let's keep our conversation centered on spiritual growth, inner peace, and the Beautiful State. 🙏",
     "financial_advice": (
@@ -273,6 +320,20 @@ def _resolve_block_response(category: str, default_message: str) -> str:
 
 
 _SERENE_MIND_REDIRECT_TOPICS = frozenset(["self_harm", "substance_abuse"])
+
+# Blocked topics whose response carries helplines (a safety redirect, not an off-topic decline).
+SAFETY_TOPICS = frozenset(["self_harm", "substance_abuse", "violence", "domestic_abuse_safety"])
+
+
+def match_blocked_topic(text: str) -> tuple[str, str] | None:
+    """Regex-only topic rail (no LLM): ``(topic, response)`` for the first blocked
+    topic in ``text``, or None. Crisis topics come first in ``_BLOCKED_TOPICS``."""
+    # Plain and de-obfuscated ("p h i s h i n g", "k1ll") -- the latter only adds matches.
+    variants = {text.lower(), deobfuscate(text)}
+    for topic, patterns in _BLOCKED_TOPICS.items():
+        if any(re.search(pattern, v) for pattern in patterns for v in variants):
+            return topic, _resolve_block_response(topic, "I can only help with spiritual guidance. 🙏")
+    return None
 
 # Output moderation patterns (content the bot should not produce)
 _OUTPUT_BLOCK_PATTERNS = [
@@ -372,19 +433,17 @@ class LightweightGuardrailHandler(BaseGuardrailHandler):
         # must precede medical_prescription — a self-harm message that also mentions
         # medication must hit the self_harm topic (helplines), NOT a medical
         # cold-refusal (finding S1).
-        for topic, patterns in _BLOCKED_TOPICS.items():
-            for pattern in patterns:
-                if re.search(pattern, message_lower):
-                    logger.info(f"Regex guardrail blocked input: topic={topic}")
-                    redirect = "serene_mind" if topic in _SERENE_MIND_REDIRECT_TOPICS else None
-                    return {
-                        "blocked": True,
-                        "reason": f"Off-topic: {topic}",
-                        "response": _resolve_block_response(
-                            topic, "I can only help with spiritual guidance. 🙏"
-                        ),
-                        "redirect_to": redirect,
-                    }
+        blocked = match_blocked_topic(text)
+        if blocked is not None:
+            topic, response = blocked
+            logger.info(f"Regex guardrail blocked input: topic={topic}")
+            redirect = "serene_mind" if topic in _SERENE_MIND_REDIRECT_TOPICS else None
+            return {
+                "blocked": True,
+                "reason": f"Off-topic: {topic}",
+                "response": response,
+                "redirect_to": redirect,
+            }
 
         # Then check remaining harmful patterns (prompt-injection/hack/sql/insult/
         # translate). These fire AFTER topic checks so they never shadow the

@@ -40,6 +40,15 @@ def test_hallucination_flag_still_blocks_the_grounded_label():
 
 
 def test_safety_intent_still_wins():
+    for intent in ("CRISIS", "SAFETY_VIOLATION", "SELF_HARM"):
+        r = _result("redacted_unsupported_claims")
+        r.intent = intent
+        assert grounding_state_for(r) == "safety_redirect", intent
+
+
+def test_non_crisis_distress_with_a_cited_answer_is_grounded():
+    """Non-crisis distress runs the full pipeline; the UI must not claim safety
+    guidance replaced doctrine when a cited teaching was served (2026-09-26)."""
     r = _result("redacted_unsupported_claims")
     r.intent = "DISTRESS"
-    assert grounding_state_for(r) == "safety_redirect"
+    assert grounding_state_for(r) == "grounded"
