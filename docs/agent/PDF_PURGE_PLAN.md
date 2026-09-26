@@ -113,6 +113,15 @@ git log --all --full-history -- "RAG Made Simple*" "*System Design for the LLM E
 # Re-attach remote
 git remote add origin https://github.com/Harshodai/askmukthiguru-8119b0e8.git
 
+# Check if any tags reference pre-rewrite commits (tags are NOT rewritten by default).
+# If this lists any tags, they must be deleted from both local and remote before pushing.
+git log --oneline --decorate --simplify-by-decoration HEAD | grep 'tag:' || echo "No tags found"
+
+# Delete any local tags that reference pre-rewrite commits (verify manually first):
+# git tag -d <tagname>
+# Delete those tags from remote:
+# git push origin :refs/tags/<tagname>
+
 # Force-push all rewritten branches to GitHub
 git push origin --force --all
 ```

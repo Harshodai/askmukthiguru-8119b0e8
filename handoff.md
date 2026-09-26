@@ -146,7 +146,7 @@ Median clip length rose from 15–19 words to about 60.
 **Route.** `FIRST_PERSON_COLLECTION=first_person_v2` in the root `.env`; container rebuilt; health 200.
 
 **In-process comparison (same code, 116 frozen questions):**
-- top-1: v1 0.361 → v2 **0.410**;
+- top-1: v1 **0.361** (116 frozen questions, in-process evaluator, first_person_v1 index snapshot) → v2 **0.410** (same 116 questions, same evaluator, first_person_v2 index);
 - median served clip: 30 → **78** words;
 - fragments served: 28/114 → **0/114**;
 - host-leak heuristic: 21 → **9**;

@@ -167,7 +167,7 @@ Background agents from the previous session may have died. Check each output dir
 **Note:** `gold_pilot/relevance_pilot.csv` currently uses the 116 AI-authored bake-off questions. It's useful for calibrating retrieval, but it is not the non-circular gold set. The gold set is `question_authoring_pilot.csv`, whose 150 questions the owner writes.
 
 ## 7. Environment gotchas (learned the hard way)
-- **Detect a running benchmark** with `ps -axo command | grep -E "[p]ython.* -m (evaluation\.bench|benchmarks\.run)"`. **Never `pgrep -f`**: it matches its own command line and waits forever.
+- **Detect a running benchmark** with `ps -axo command | grep -E "[p]ython.* -m (evaluation\.bench|benchmarks\.run)"`. This is the **only verified method**. **Never `pgrep -f`**: it matches its own command line and waits forever. **Never `ps aux | grep bench`**: that also matches the grep process itself.
 - **macOS has no `timeout` command.**
 - **Docker:** if `docker` isn't found, run `export PATH="$HOME/.docker/bin:$PATH"`. The backend container is `mukthiguru-backend`.
 - **Qdrant from the host:** export `QDRANT_URL=http://localhost:6333`, because the `.env` hostnames are compose-internal.

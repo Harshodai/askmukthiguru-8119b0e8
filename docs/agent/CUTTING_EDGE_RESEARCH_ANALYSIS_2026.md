@@ -55,7 +55,7 @@ client.create_collection(
 ```
 - **MaxSim Formula:** For query tokens $Q = \{q_1, \dots, q_m\}$ and document passage tokens $D = \{d_1, \dots, d_n\}$:
   $$\text{Score}(Q, D) = \sum_{i=1}^m \max_{j=1}^n \left( q_i \cdot d_j \right)$$
-- **Impact:** Every seeker query token directly finds its maximal match in the teacher's exact words, guaranteeing that key terms are never washed out by background prose.
+- **Impact (unvalidated hypothesis):** Every seeker query token directly finds its maximal match in the teacher's exact words. This *may* reduce wash-out of key terms by background prose, but the guarantee has not been validated on this corpus.
 
 ---
 
@@ -83,7 +83,7 @@ results = client.query_points(
     limit=3,
 )
 ```
-- **Impact:** Reduces candidate retrieval latency by $>70\%$ while retaining $99.3\%$ of full-dimensional ranking fidelity.
+- **Impact:** *Projected* to reduce candidate retrieval latency by $>70\%$ while retaining approximately $99.3\%$ of full-dimensional ranking fidelity (unverified on this corpus — figure from BGE-M3 benchmark; treat as a hypothesis until validated).
 
 ---
 
@@ -156,5 +156,5 @@ Standard bi-encoders exhibit low cosine similarity between these two vocabularie
    - **Philosopher:** Deep ontological inquiry into consciousness and ego.
 2. **Dedicated Vector Indexing:** These questions are embedded strictly into the `question_dense` vector field of `first_person_v1` (never concatenated into the transcript).
 3. **Runtime Retrieval:**
-   $$\text{Seeker Query} \longleftrightarrow \text{Question Dense Vector} \quad (\text{Cosine Sim} \ge 0.88)$$
+   $$\text{Seeker Query} \longleftrightarrow \text{Question Dense Vector} \quad (\text{Cosine Sim} \ge 0.88 \text{ — unvalidated threshold})$$
    This bridges the lexical gap with **0ms LLM latency** at serving time.

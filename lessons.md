@@ -1,3 +1,88 @@
+## Sep 26, 2026 — Benchmark run 1 post-mortem: the harness and supervisor disagreed, and a memory limit counted the wrong thing
+
+Full account: `~/mukthiguru_attribution_data/baseline_2026-09-25/RUN1_POSTMORTEM.md`.
+
+### L-MEM-RLIMIT-1. `RLIMIT_DATA` counts virtual memory, so it broke threads at ~60% real use
+- **Symptoms:**
+  - `RuntimeError: can't start new thread` with only ~30–40 threads and no pids limit.
+  - `MemoryError` while RSS sat near 60%.
+  - Recurring since L-DOCKER-9. Two earlier "root causes" (thread pools, sync `Depends`) were real but did not explain it.
+- **Cause (reproduced 2026-09-26 in `python:3.12-slim`):** on Linux, `RLIMIT_DATA` counts private writable mappings, including thread stacks and glibc per-thread malloc arenas. With a 512 MB limit and 400 MB of untouched private mappings (RSS ~0), the 13th thread fails with exactly that error.
+  - The backend's virtual size was 10.8 GB against 3.6 GB RSS, and the limit was 6 GB.
+  - A same-day "headroom" fix lowered the limit, which made it worse, and was reverted.
+- **Fix:**
+  - Local compose sets `PYTHON_MEMORY_LIMIT_MB=0` (off) and `MALLOC_ARENA_MAX=2`. Virtual size dropped to 8.1 GB, with 0 thread errors since.
+  - Both images set `MALLOC_ARENA_MAX=2`.
+  - Guarded by `tests/test_memory_limit_config.py`.
+- **Open (owner):** Railway still sets `PYTHON_MEMORY_LIMIT_MB=5120`, so the same failure can happen there. Set it to 0 and rely on the container limit.
+- **Rule:** never use `RLIMIT_DATA` or `RLIMIT_AS` as a proxy for resident memory in a container. The cgroup limit is the memory guard.
+
+### L-BREAKER-PHI-1. A breaker opened without a timestamp can never recover
+- **What:** during the verification re-run (2026-09-26 07:02Z → 09:12Z+), the LLM breaker opened after real 60 s provider hangs and then stayed OPEN for more than 2 hours. Every chat returned `system_error` in ~2 ms: 259 consecutive benchmark rows. No model call was made in that whole window, so no new failure could have kept it open.
+- **Cause (reproduced in a test):** `can_execute()`'s phi-accrual branch (`settings.phi_accrual_enabled`, default True) calls `_transition_to_open()` when the shared per-provider `HealthMonitor` says unhealthy. That path never set `_last_failure_time`. With `None`:
+  - `is_open()` evaluates `not (None and ...)`, which is True, forever;
+  - `can_execute()` skips the half-open transition.
+
+  The pipeline's `CircuitBreakerStage` then rejects every request before any call could probe.
+- **Fix:** `_transition_to_open()` stamps `_last_failure_time = time.monotonic()`, so the recovery window runs from the moment it opens (`test_phi_opened_breaker_recovers_after_recovery_timeout`).
+- **Rules:**
+  - Every path into OPEN must start the recovery clock.
+  - The alert `CircuitBreakerStuckOpen` (>5 min) exists for this. Watch it during benchmark runs, and pause the run on the first burst of instant `system_error` rows rather than recording hundreds.
+- **Follow-up, 2026-09-26 09:51Z. The timestamp fix was necessary but not sufficient.** The breaker opened again 4 minutes after a restart, and row 524 returned `system_error` in 0.1 s.
+  - **Real root cause:** `record_failure()` sent a failure heartbeat to the phi `HealthMonitor`, but `record_success()` never sent a success heartbeat. The detector's `_consecutive_failures` is reset only by a success heartbeat, so it only ever grew.
+  - **Effect:** after 3 failures over the process's whole life, however many successes came between them, `is_healthy()` returned False forever. Every CLOSED `can_execute()` reopened the breaker, and each recovery lasted exactly one call.
+  - The 2-hour outage above was this same wedge. The timestamp fix only turned "stuck forever" into "reopens every 90 s".
+- **Fix:** both paths go through `_phi_heartbeat(success=...)` (`test_successes_reset_phi_so_scattered_failures_never_wedge_the_breaker`, red before the fix).
+- **Rule:** a health signal fed only by failures is a ratchet. Any detector that counts consecutive failures must also be told about successes.
+
+### L-BREAKER-THROTTLE-1. Our own throttling tripped the LLM circuit breaker
+- **What:** during the verification re-run (2026-09-26 ~04:10Z), a chain of events opened the breaker again, and every chat got an instant `system_error`:
+  1. Real OpenRouter 429s pushed our shared RPM limiter's backoff to ~115 s.
+  2. A gateway call sleeping in that backoff outlived the gateway's 60 s task timeout.
+  3. `LLMGateway` recorded every exception, that timeout included, as a provider failure.
+- **Also:** in gateway mode a 429 with no fallback returned the canned graceful-degradation text, and the gateway counted it as a success.
+- **Fix:**
+  - On the gateway path, `_enforce_rate_limit` raises `ProviderRateLimitedError` instead of sleeping past 10 s.
+  - A gateway-path 429 raises the same error, freeing any half-open slot.
+  - `LLMGateway._record_primary_failure` frees the slot for anything with `rate_limited=True` instead of counting a failure.
+  - Tests: `tests/test_rate_limit_not_breaker_failure.py`.
+  - Verified live: 26 throttle events in a smoke window, 0 breaker trips.
+- **Rules:**
+  - Throttling means the service is up. Never count it, or a timeout caused by our own backoff, as a breaker failure.
+  - A breaker's failure signal must come only from the provider being down.
+  - Benchmarks run at a pace the provider's real limit can sustain. The pace is now 30 s.
+
+### L-BENCH-POOL-1. Reusing anonymous sessions hits the chat quota
+- **What:** a pasted brief claimed run 1 failed on anonymous-session 429s and asked for `BenchmarkSessionPool` to be wired in. The claim was false: run 1's failures were timeouts and the breaker. The pool was wired in anyway.
+- **What happened next:** `/api/chat` allows 5 anonymous messages per session per 24 h. After a few questions a pooled token got `429` with `Retry-After: 85764`, and the benchmark slept, meaning to wait a day.
+- **Fix:**
+  - Pool wiring reverted. The benchmark mints one session per question, as in run 1.
+  - `evaluation/session_pool.py`'s docstring now says why it must not be wired in.
+  - `_MAX_RETRY_WAIT_S=600`: a longer Retry-After fails the row instead of stalling the run.
+  - Tests are in `tests/test_benchmark_session_pool.py`.
+- **Rule:** check a brief's premise against the data before implementing it. Session reuse needs a quota-exempt, authenticated benchmark identity.
+
+### L-INDIC-REWRITE-1. The post-reflection route ignored the Indic rewrite cap
+- **What:** `_route_after_reflection` (`rag/graph_strategies.py`) read `settings.rag_max_rewrites` directly, while `route_after_grading` used `max_rewrites_for_state()`.
+- **Effect:** Indic requests ran two rewrites, each with a full regeneration, and timed out at 180 s.
+- **Fix:** both routes use `max_rewrites_for_state()` (`tests/test_reflection_route_indic_cap.py`).
+- **Rule:** one budget, one helper. Never read the raw setting at a second call site.
+
+### L-BENCH-OUT-1. Harness and supervisor must agree on the output contract
+- **What went wrong:**
+  - `bench.py --mode all` ignored `--out` and wrote `benchmarks/reports/bench_e2e.json`.
+  - The watchdog's done-check looked for `run1_report.json`, so a finished run 1 (1,226/1,226) was declared dead three times. Run 2 never started.
+  - After the fix, a second mismatch appeared: `run_e2e` rewrites the report every 5 rows, so "file exists" became true after 5 rows and the watchdog quit with a false "ALL JOBS DONE".
+- **Fix:**
+  - `--out` is honoured in `all` mode (`test_mode_all_writes_the_e2e_report_to_out`).
+  - The watchdog's done-check is now the harness's final `saved <out>` log line.
+- **Also:** a red run of that test overwrote the real `bench_e2e.json`. It was rebuilt from the checkpoint, and the test now points `REPORT_DIR` at `tmp_path`.
+- **Rules:**
+  - The supervisor's done-signal must be something the harness emits only on completion.
+  - Tests never write to real report directories.
+  - A run with more than 1% infrastructure errors is not a baseline. Run 1 was 69.9% (circuit breaker stuck open), so it is INVALID.
+  - Re-run only the failed ids, after a smoke test of about 10 of them passes.
+
 ## Sep 25, 2026 — First-person route: tests that could not fail, and jobs that looked dead
 
 ### L-FIRST-PERSON-1. Mocks hid a missing method; a tuple read as a bool disabled a safety gate

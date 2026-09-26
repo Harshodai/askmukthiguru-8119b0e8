@@ -37,21 +37,17 @@ Splitting transcripts by token count or character length frequently chops speech
 Jumping a video player to the exact millisecond where the first word starts feels jarring and disjointed in recorded spiritual discourses.
 
 ### State-of-the-Art Pattern
-- **Lead-in Pre-Roll ($-2.0\text{s}$ to $-3.5\text{s}$):** Snap the playback start timestamp to the prior sentence silence boundary (minimum $-2$ seconds lead-in). This gives the seeker the natural acoustic breath and conversational context leading into the teaching.
-- **Resonance Tail ($+1.5\text{s}$ to $+2.5\text{s}$):** Allow the playback to continue through the post-utterance silence rather than cutting off abruptly at the last consonant.
+- **Resonance Tail ($+1.5\text{s}$ to $+2.5\text{s}$):** Allow the playback to continue through the post-utterance silence rather than cutting off abruptly at the last consonant. Playback starts at the verified teacher turn start — never before it.
 
 ---
 
 ## 3. Split Conformal Prediction for Calibrated Abstention
 
-### Beyond Asymptotic SGR (CONFLARE / TRAQ / AdaCP)
-Our baseline uses Clopper-Pearson binomial intervals on selective risk (SGR). Academic literature from 2024–2026 shows that **Split Conformal Prediction** provides stronger, distribution-free guarantees:
-- **Non-Conformity Scoring:** Define non-conformity function $S(q, d) = 1 - \text{Score}(q, d)$ where $\text{Score}$ combines RRF rank score and cross-encoder logits.
-- **Calibrated Cutoff $\hat{q}$:** On a holdout calibration set of size $n$, set:
-  $$\hat{q} = \text{Quantile}\left(1 - \alpha; \frac{\lceil (n + 1)(1 - \alpha) \rceil}{n}\right)$$
-- **Guaranteed Coverage:** For any future unseen query $q_{n+1}$, the probability that the retrieved clip is an error is strictly bounded:
-  $$P(\text{Error} \mid \text{Answered}) \le \alpha$$
-  This provides mathematically proven finite-sample safety without relying on large-sample approximations.
+### Verified Calibration Method (SGR + Fixed-Sequence LTT)
+Our baseline uses **Clopper–Pearson / SGR** as a finite-sample exact calibration method. The serving threshold is set using fixed-sequence Learn-then-Test (LTT). Academic literature from 2024–2026 discusses Split Conformal Prediction as a complementary technique, but it has **not been validated on this corpus**; the following is an unvalidated hypothesis, not an implementation prescription:
+- *Hypothesis:* Split Conformal Prediction may provide distribution-free coverage guarantees if a suitable non-conformity function is designed for verbatim-clip retrieval.
+- *Caution:* The claim that conditional error among answered queries is bounded by α ($P(\text{Error} \mid \text{Answered}) \le \alpha$) requires marginal coverage assumptions that do not hold conditionally without additional exchangeability conditions. This guarantee is **not verified** for this system.
+- *Action required before adopting:* Human-labeled calibration set, empirical validation on held-out queries, and owner approval.
 
 ---
 

@@ -37,7 +37,36 @@
   - The one-video proof of concept got top-1 on 6/10 questions and quoted the host twice.
 - **Order of work:** honest measurement → human gold sets → re-transcription inside the ingestion pipeline → store rebuild → retrieval → first-person path.
 - **Program prompt:** `docs/agent/first_person_baseline_prompt.md`.
+- **Master Session Prompt:** `docs/agent/CLAUDE_CODE_MASTER_PROMPT.md`.
 - **Next priority:** more of the teaching per answer (up to 3 clips plus the full video).
+
+### First-Person Verbatim Architecture & Engineering Invariants (2026-09-26)
+1. **Zero-LLM Serving Invariant (Prompt Engineering & SOTA IR)**:
+   - At runtime, `FirstPersonPipeline` executes zero prompts and zero LLM generation. The answer is a verified pointer to authentic audiovisual recording.
+   - LLMs are used *strictly offline*: generating synthetic seeker question variants (`question_dense`) to transform asymmetric question-to-passage search into symmetric question-to-question search, and biasing Whisper via `SACRED_VOCABULARY_PROMPT` to protect sacred Sanskrit terms (*Deeksha*, *Moksha*, *Samskara*, *Ahamkara*).
+2. **Cryptographic Integrity & Verification Gates (DDIA 2e & Building LLMs for Production)**:
+   - Every clip in Qdrant is tied to a `transcript_hash`. `spot_check_verbatim` must enforce `SHA-256(chunk_text) == stored_hash`. Missing or mismatched hashes fail closed (`return False`), quarantining the record.
+   - Stage-to-stage hash validation (`artifact_manifest.json`) guarantees no silent data corruption from audio to vector store.
+   - Provider graceful degradation strings (`_graceful_degradation()`) and ASR repetition loops are intercepted by `find_artifact()` before hitting Qdrant.
+3. **Statistical Risk Control & Conformal Prediction (Learn-Then-Test)**:
+   - Never use arbitrary uncalibrated float thresholds (e.g. `0.75`).
+   - Serving threshold $\hat{\lambda}$ is loaded dynamically from `first_person_calibration.json`, fitted via exact Clopper-Pearson beta quantiles (`math.lgamma`) to guarantee $\text{UCB}_{\delta=0.05}(\text{Risk}(\hat{\lambda})) \le 0.01$ ($\ge 99\%$ precision on confident answers).
+   - If confidence is below threshold, return `status: "weak_match"` and label as "Related, not a direct answer" rather than hallucinating.
+4. **Idempotency, Storage & Blue-Green Lifecycle (DDIA 2e & Qdrant)**:
+   - Point IDs are strictly deterministic via UUIDv5: `uuid5(NAMESPACE, f"{source_url}:{chunk_index}:{raptor_level}")`.
+   - Ingestion uses `QdrantAliasManager` with shadow collections (`first_person_vYYYYMMDD_HHMMSS`) and atomic alias swaps. Read models must be converted to write-side Diff models (`HnswConfigDiff`, `OptimizersConfigDiff`, `WalConfigDiff`).
+   - Stale point cleanup snapshots collection IDs before build and purges `existing_ids - produced_ids` via `PointIdsList`.
+5. **Speech Segmentation & Acoustic UX Contract (RAG Made Simple & Dexa Pattern)**:
+   - Pre-ASR **Silero VAD** gates audio (<10% speech energy discarded) to suppress Whisper hallucination loops on silent meditation.
+   - Clip Builder v2 enforces sentence boundaries (12 to 200 words) and merges teacher turns across short micro-pauses.
+   - `playback_start_seconds`: Snapped strictly to the teacher's turn start ($0.25\text{s}$ pad clamped at $\ge 0$). Multi-second pre-roll is prohibited to prevent leaking host/interviewer speech.
+   - `playback_end_seconds`: Acoustic resonance tail ($+1.8\text{s}$) prevents abrupt consonant cutoffs.
+6. **Hexagonal Architecture & Bounded Contexts (Clean Architecture)**:
+   - Domain core (`FirstPersonCitation`, statistical calibrators) is isolated from FastAPI and Qdrant.
+   - Gated behind `FIRST_PERSON_MODE` / `first_person_route_enabled`. The semantic cache is strictly bypassed on the first-person route to prevent fuzzy cache poisoning; only SHA-256 exact-match Redis caching is allowed.
+7. **Self-Improving Agent Flywheel (Lifelong Learning)**:
+   - Telemetry tracks unmatched seeker questions in episodic logs.
+   - The blind Review UI (`127.0.0.1:8088`) feeds ground-truth adjudications directly into the calibration profiler and reranker dataset.
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 

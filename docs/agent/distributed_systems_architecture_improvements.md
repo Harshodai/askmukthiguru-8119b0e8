@@ -40,11 +40,17 @@ chunk text          → chunk_sha256           (NOT stored — Gap)
 **1. Deterministic UUIDv5 point IDs in Qdrant (makes upserts idempotent)**
 ```python
 import uuid
-def generate_qdrant_point_id(transcript_hash: str, chunk_index: int) -> str:
+def generate_qdrant_point_id(source_url: str, chunk_index: int, raptor_level: int = 0) -> str:
+    """Derive a stable point ID from the canonical source key.
+
+    Key: source_url:chunk_index:raptor_level
+    Rationale: source_url is stable across transcript corrections;
+    transcript_hash changes on every re-transcription, breaking idempotency.
+    """
     namespace = uuid.UUID("6ba7b810-9dad-11d1-80b4-00c04fd430c8")
-    return str(uuid.uuid5(namespace, f"{transcript_hash}:{chunk_index}"))
+    return str(uuid.uuid5(namespace, f"{source_url}:{chunk_index}:{raptor_level}"))
 ```
-Currently points use random UUIDs → re-ingestion creates duplicates instead of upserts.
+Currently points use random UUIDs → re-ingestion creates duplicates instead of upserts. Using `source_url:chunk_index:raptor_level` as the stable key ensures transcript corrections reuse the same Qdrant point IDs.
 
 **2. `artifact_manifest.json` per video** (Git-tree equivalent)
 ```json
@@ -64,7 +70,10 @@ Every stage gate verifies its upstream SHA before processing — fail-closed on 
 # On verbatim citation return — detect Qdrant corruption
 def spot_check_verbatim(chunk_text: str, stored_hash: str) -> bool:
     if not stored_hash:
-        return True  # soft pass for old corpus without hash
+        # No hash stored — fail verification rather than silently passing.
+        # Points without a hash are rejected or quarantined by the serving
+        # integrity gate; they must not be served as verified.
+        return False
     return hashlib.sha256(chunk_text.encode()).hexdigest()[:16] == stored_hash[:16]
 ```
 
@@ -194,7 +203,7 @@ For a one-sided 95% CI lower bound ≥ 0.99:
 | **2 failures** | **628** | **99.001%** |
 | 3 failures | 773 | 99.000% |
 
-Our 1226-question baseline gives enough N — **allocate ≥ 628 questions to the verbatim subset** for the precision proof. Use Wald/Wilson only for descriptive summaries, never for precision claims (Wald variance collapses to 0 at p=1.0).
+Our 1226-question baseline gives enough N **only if questions are human-labeled**. Do not use the LLM-generated regression set as gold evidence for a precision claim — that would be circular. **Require a human-labeled held-out set before making any precision claim.** Once a human-labeled subset exists, allocate ≥ 628 questions to the verbatim subset for the precision proof. Use Wald/Wilson only for descriptive summaries, never for precision claims (Wald variance collapses to 0 at p=1.0).
 
 ### 5b. Clustered bootstrap (by video_id)
 

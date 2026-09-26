@@ -93,11 +93,13 @@ future clip-boundary tuning, not model score.
 
 - **Pilot: 150 questions first**, over held-out videos, before scaling
   further.
-- **Target: ~2,000 questions over time.** Section 8's Clopper–Pearson sizing
+- **Target: ~2,000–2,600 raw questions over time.** Section 8's Clopper–Pearson sizing
   needs ~628 *confident answers* (not raw questions) for a 1% upper bound
-  allowing 2 errors, and ~2,000-2,500 confident answers for 80% power at true
-  precision 99.5% — at an estimated 30% coverage that is roughly 2,000-2,600
-  questions, hence the ~2,000 target.
+  allowing 2 errors, and ~2,000–2,500 confident answers for 80% power at true
+  precision 99.5%. At an estimated 30% confident-answer coverage, that requires
+  approximately 6,700–8,400 raw questions for the larger target, or roughly
+  2,000–2,600 raw questions for the 628-answer minimum — hence the ~2,000 question
+  pilot target.
 - Refresh 20% of the frozen held-out set each quarter; keep a quarter-over-
   quarter diff so a refreshed set is never silently a different set.
 

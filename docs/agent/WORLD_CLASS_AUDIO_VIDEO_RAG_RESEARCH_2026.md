@@ -26,11 +26,11 @@ This document outlines:
 
 | Architectural Dimension | Dexa AI / Twelve Labs | Ansari AI (Sacred RAG) | WhisperX / AssemblyAI | AskMukthiGuru (Current) | AskMukthiGuru (With Proposed Upgrades) |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Clip Boundary Segmentation** | Semantic pause & breath snapping | Formal theological lineage & paragraph breaks | Silero VAD + CTC forced phoneme alignment | Hard turn cuts with 60s hard drop bug | **VAD-snapped recursive sub-chunking (30–60s) with 200ms overlap** |
-| **Acoustic Playback UX** | Asymmetric pre-roll ($-2.5$s lead-in) & tail ($+2$s) | Verse-level audio player with recitation | Raw word timestamps | Exact millisecond cut (abrupt syllable start) | **Dexa-style Asymmetric Pre-Roll ($-2.5$s) & Resonance Tail ($+1.8$s)** |
+| **Clip Boundary Segmentation** | Semantic pause & breath snapping | Formal theological lineage & paragraph breaks | Silero VAD + CTC forced phoneme alignment | VAD-snapped recursive sub-chunking (long-turn dropping fixed) | **VAD-snapped recursive sub-chunking (30–60s) with 200ms overlap** |
+| **Acoustic Playback UX** | Asymmetric pre-roll ($-2.5$s lead-in) & tail ($+2$s) | Verse-level audio player with recitation | Raw word timestamps | Playback starts at verified teacher turn with resonance tail | **Dexa-style Asymmetric Pre-Roll ($-2.5$s) & Resonance Tail ($+1.8$s)** |
 | **Domain Vocabulary Biasing** | Custom podcast entity glossaries | Morphological Arabic dictionary | Hotword biasing & phoneme boosting | Standard ASR without vocabulary priming | **Domain Lexicon Injection via Whisper `initial_prompt` (Ekam / Sanskrit)** |
 | **Abstention & Risk Guarantee** | Heuristic confidence scoring | Dual-agent theological consistency check | Confidence per word | Static RRF threshold (0.015) | **Conformal Risk Control (CRC / LTT): Provable $P(\text{Error} \mid \text{Answered}) \le 1\%$** |
-| **Retrieval Architecture** | Multi-vector Marengo + Late Interaction | Hybrid dense + BM25 + Ontology Graph | Transcript BM25 / vector search | Multi-vector Qdrant store (sparse un-wired at API) | **Hybrid Tri-Vector (Passage Dense + Question Dense + BM25 Sparse) fully wired** |
+| **Retrieval Architecture** | Multi-vector Marengo + Late Interaction | Hybrid dense + BM25 + Ontology Graph | Transcript BM25 / vector search | Hybrid tri-vector (dense + question + sparse) fully wired | **Hybrid Tri-Vector (Passage Dense + Question Dense + BM25 Sparse) fully wired** |
 | **Parent-Child Granularity** | Moment $\to$ Chapter $\to$ Episode hierarchy | Verse $\to$ Chapter $\to$ Surah lineage | Monolithic transcript | Isolated clip pointer | **Hierarchical Context: 45s punchline $\to$ 5m chapter $\to$ Full discourse** |
 | **ASR Hallucination Defense** | Proprietary VAD filtering | Strict scripture validation | VAD + silence suppression | Standard retry | **`condition_on_previous_text=False`, temperature=0, and ASR loop regex filter** |
 
@@ -72,10 +72,9 @@ When a seeker clicks this YouTube link or plays the clip in an embedded player, 
 - **The Sensory Flaw:** In recorded discourses, this sounds clipped, jarring, and harsh. It cuts off the teacher's intake of breath and the ambient calm of the hall.
 
 #### SOTA Industry Solution (Dexa AI):
-In professional podcast and discourse search engines, playback timestamps are calculated asymmetrically:
-- **Lead-In Pre-Roll ($-2.5\text{s}$):**
-  $$\text{playback\_start\_seconds} = \max\left(0, \frac{\text{start\_ms} - 2500}{1000}\right)$$
-  This captures the teacher's natural acoustic breath and the conversational transition leading into the teaching.
+In professional podcast and discourse search engines, playback timestamps are calculated to avoid jarring cuts at the end of speech while starting precisely at the verified teacher turn:
+- **Playback Start:** Equals the verified teacher segment start — no pre-roll that could include the host or another speaker.
+  $$\text{playback\_start\_seconds} = \frac{\text{start\_ms}}{1000}$$
 - **Resonance Tail ($+1.8\text{s}$):**
   $$\text{playback\_end\_seconds} = \frac{\text{end\_ms} + 1800}{1000}$$
   Ensures that the audio doesn't cut off abruptly during the final decaying consonant, allowing the teaching to land in contemplative stillness.

@@ -16,7 +16,7 @@ Three things block the target today, and all of them are data problems, not mode
 - **41% of searched child text embeds LLM-written questions.**
 - **Speaker labels come from substring matching** (internal audit, 2026-09-24).
 
-The existing one-video proof of concept already answers in **about 19 ms p95** with no LLM (internal audit). Latency is solved. Precision is not.
+The existing one-video proof of concept (10 questions, local run) answers in **about 19 ms p95** with no LLM (internal audit). **Production latency is unverified** — this measurement comes from a single-video POC, not from the full corpus under load, from cold start, or in deployment. Precision is not solved.
 
 ## 1. Executive recommendation: one stack, one mode, three deletions
 
