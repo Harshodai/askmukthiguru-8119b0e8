@@ -51,10 +51,15 @@ _HARMFUL_PATTERNS = [
 # test_guardrail_self_harm_priority.test_crisis_topics_precede_medical_in_blocked_topics
 _BLOCKED_TOPICS = {
     "self_harm": [
-        r"\b(kill|hurt|harm)(?:ing|s|ed)?\s+(?:my\s*)?self\b",
+        r"\bkill(?:ing|s|ed)?\s+(?:my\s*)?self\b",
+        # hurt/harm/cut share serene_mind_engine's ordinary-injury exclusion. A match
+        # here forces CRISIS in DistressStage (guardrail_self_harm_match), so without
+        # it "I hurt myself playing cricket" got crisis helplines (live probe 2026-09-27).
+        r"\b(hurt|harm|cut)(?:ting|ing|s|ed)?\s+(?:my\s*)?self\b"
+        r"(?!\s*(while\s+)?(playing|cooking|shaving|exercising|doing\s+\w+|"
+        r"at\s+(the\s+)?(gym|game|match|practice)))",
         r"\bsuicid(?:e|al)\b",
         r"\bself[- ]?harm\b",
-        r"\bcut(?:ting)?\s+(?:my)?self\b",
         r"\bwant\s+to\s+die\b",
         r"\bend\s+(?:my\s+)?life\b",
         r"\bnot\s+worth\s+living\b",

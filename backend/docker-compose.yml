@@ -314,7 +314,6 @@ services:
       # Model cache on overlay filesystem (NOT on hf_model_cache volume)
       # to avoid Docker Desktop gRPC-FUSE mmap failures on large .safetensors files.
       - HF_HOME=/app/model_cache/huggingface
-      - TRANSFORMERS_CACHE=/app/model_cache/huggingface
       - SENTENCE_TRANSFORMERS_HOME=/app/model_cache/sentence_transformers
       # Whisper / Transcription — WHISPER_MODEL / WHISPER_BACKEND /
       # WHISPER_COMPUTE_TYPE were set here but read by nothing; removed rather

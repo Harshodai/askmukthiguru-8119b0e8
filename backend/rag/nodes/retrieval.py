@@ -875,7 +875,7 @@ def _adaptive_parent_excerpt(query: str, parent_text: str, max_chars: int = 1500
 
 @trace_rag_node("navigate_and_hyde")
 @log_metrics
-async def navigate_and_hyde(state: GraphState, config: RunnableConfig | None = None) -> dict:
+async def navigate_and_hyde(state: GraphState, config: Optional[RunnableConfig] = None) -> dict:
     """Run ``decompose_query``, ``navigate_knowledge_tree`` and ``generate_hyde``
     concurrently in one node.
 
@@ -933,7 +933,7 @@ def _can_skip_llm_decomposition(question: str, query_tier: str | None) -> bool:
 
 @trace_rag_node("decompose_query")
 @log_metrics
-async def decompose_query(state: GraphState, config: RunnableConfig | None = None) -> dict:
+async def decompose_query(state: GraphState, config: Optional[RunnableConfig] = None) -> dict:
     """Decompose complex queries, with a safe single-comparison fast path."""
     question = state["question"]
     ollama = _services._ollama
@@ -956,7 +956,7 @@ async def decompose_query(state: GraphState, config: RunnableConfig | None = Non
 
 
 @log_metrics
-async def generate_hyde(state: GraphState, config: RunnableConfig | None = None) -> dict:
+async def generate_hyde(state: GraphState, config: Optional[RunnableConfig] = None) -> dict:
     """HyDE (Hypothetical Document Embeddings): Generate a fake answer."""
     ollama = _services._ollama
 
@@ -1011,7 +1011,7 @@ async def generate_hyde(state: GraphState, config: RunnableConfig | None = None)
 
 
 @log_metrics
-async def navigate_knowledge_tree(state: GraphState, config: RunnableConfig | None = None) -> dict:
+async def navigate_knowledge_tree(state: GraphState, config: Optional[RunnableConfig] = None) -> dict:
     """PageIndex-inspired reasoning-based pre-retrieval."""
     question = state["question"]
     ollama = _services._ollama
@@ -1328,7 +1328,7 @@ def _screen_prompt_injection(docs: list[dict]) -> list[dict]:
 
 @trace_rag_node("retrieve_documents")
 @log_metrics
-async def retrieve_documents(state: GraphState, config: RunnableConfig | None = None) -> dict:
+async def retrieve_documents(state: GraphState, config: Optional[RunnableConfig] = None) -> dict:
     """Two-phase hybrid retrieval from Qdrant."""
     from .utils import _require_state
 

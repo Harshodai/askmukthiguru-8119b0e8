@@ -19,6 +19,8 @@ from pydantic import BaseModel, Field
 from app.config import settings
 from app.core.limiter import limiter
 from app.dependencies import ServiceContainer, get_container_async
+from app.language_utils import guardrail_text_for
+from app.orchestrator_utils import _translate_cached
 from services.first_person_pipeline import FirstPersonPipeline
 from services.first_person_store import FirstPersonStore
 
@@ -31,6 +33,12 @@ class FirstPersonQueryRequest(BaseModel):
     query: str = Field(..., min_length=1, max_length=2000, description="The seeker question")
     teacher_id: Optional[str] = Field("both", description="'preethaji', 'krishnaji', or 'both'")
     max_clips: int = Field(3, ge=1, le=5, description="Max verified clips to return (max 1 per video)")
+    language: Optional[str] = Field(
+        None,
+        max_length=10,
+        description="Seeker's selected language (e.g. 'hi'). When not English, each citation "
+        "gets a 'translated_text' gloss; 'verbatim_text' always stays the teacher's own words.",
+    )
 
 
 class FirstPersonQueryResponse(BaseModel):
@@ -66,15 +74,80 @@ def _build_redis_client() -> Optional[redis.Redis]:
         return None
 
 
-@lru_cache(maxsize=2)
-def _pipeline(collection: str, serene_mind: Any) -> FirstPersonPipeline:
+def _make_rerank_fn(embedding: Any, loop: asyncio.AbstractEventLoop, timeout_s: float = 5.0):
+    """Sync (query, texts) -> scores adapter over the chat path's async cross-encoder.
+
+    The pipeline runs in a worker thread (asyncio.to_thread), so the coroutine is
+    scheduled back onto the request loop rather than a new one."""
+
+    def rerank(query: str, texts: list[str]) -> list[float]:
+        docs = [{"text": t} for t in texts]
+        asyncio.run_coroutine_threadsafe(
+            embedding.rerank(query, docs, top_k=len(docs), min_score=0.0), loop
+        ).result(timeout=timeout_s)
+        return [d["rerank_score"] for d in docs]  # rerank() scores the dicts in place
+
+    return rerank
+
+
+@lru_cache(maxsize=4)
+def _pipeline(collection: str, serene_mind: Any, rerank_embedding: Any = None) -> FirstPersonPipeline:
     """One pipeline per process: reuses the container's crisis engine and loads
-    the calibration profile once. ponytail: a new profile file needs a restart."""
+    the calibration profile once. ponytail: a new profile file needs a restart.
+    Must be first called from the request loop (the reranker binds to it)."""
+    rerank_fn = (
+        _make_rerank_fn(rerank_embedding, asyncio.get_running_loop()) if rerank_embedding is not None else None
+    )
     return FirstPersonPipeline(
         store=FirstPersonStore(collection=collection),
         redis_client=_build_redis_client(),
         serene_mind_engine=serene_mind,
+        rerank_fn=rerank_fn,
     )
+
+
+async def _english_query(query: str, container: ServiceContainer) -> str:
+    """The question in English, for embedding against English transcripts.
+
+    Reuses the chat path's translate-to-English helper (detection + cache). On a
+    translation timeout the raw text is used: BGE-M3 is multilingual, so this
+    degrades ranking quality, not safety (safety checks see the raw text too)."""
+    try:
+        return await asyncio.wait_for(
+            guardrail_text_for(query, getattr(container, "translation", None), "en"),
+            timeout=settings.first_person_translation_timeout_s,
+        )
+    except TimeoutError:
+        logger.warning("[FirstPersonRoute] Query translation timed out; embedding the raw question.")
+        return query
+
+
+async def _add_glosses(citations: list[dict[str, Any]], language: str, container: ServiceContainer) -> None:
+    """Attach a 'translated_text' gloss per citation. 'verbatim_text' is never touched;
+    a gloss that fails is omitted, never faked."""
+    service = getattr(container, "translation", None)
+    if service is None:
+        logger.warning("[FirstPersonRoute] No translation service; glosses omitted.")
+        return
+    results = await asyncio.gather(
+        *(
+            _translate_cached(
+                service,
+                text=c["verbatim_text"],
+                source_lang="en",
+                target_lang=language,
+                timeout=settings.first_person_translation_timeout_s,
+            )
+            for c in citations
+        ),
+        return_exceptions=True,
+    )
+    for cit, res in zip(citations, results):
+        if isinstance(res, str) and res.strip() and res.strip() != cit["verbatim_text"].strip():
+            cit["translated_text"] = res.strip()
+            cit["translated_language"] = language
+        elif isinstance(res, BaseException):
+            logger.warning(f"[FirstPersonRoute] Gloss translation failed: {res}")
 
 
 @router.post("/first-person/query", response_model=FirstPersonQueryResponse)
@@ -96,8 +169,10 @@ async def query_first_person_teaching(
             detail="First-person verbatim mode is currently disabled.",
         )
 
+    retrieval_query = await _english_query(req.query, container)
+
     try:
-        encoded = await container.embedding.encode_single_full_async(req.query)
+        encoded = await container.embedding.encode_single_full_async(retrieval_query)
     except Exception as e:
         logger.error(f"[FirstPersonRoute] Failed to embed query: {e}")
         raise HTTPException(status_code=503, detail="Embedding service unavailable") from None
@@ -110,7 +185,11 @@ async def query_first_person_teaching(
         else None
     )
 
-    pipeline = _pipeline(settings.first_person_collection, getattr(container, "serene_mind", None))
+    pipeline = _pipeline(
+        settings.first_person_collection,
+        getattr(container, "serene_mind", None),
+        container.embedding if settings.first_person_rerank_enabled else None,
+    )
 
     try:
         result = await asyncio.to_thread(
@@ -120,6 +199,7 @@ async def query_first_person_teaching(
             query_sparse_vector=sparse_vec,
             teacher_id=req.teacher_id,
             max_clips=req.max_clips,
+            retrieval_query=retrieval_query,
         )
     except Exception as e:
         # Anything that escapes the pipeline's own try/except (e.g. a
@@ -132,4 +212,11 @@ async def query_first_person_teaching(
         # not found) internally; the client only sees an honest 503.
         raise HTTPException(status_code=503, detail="First-person retrieval unavailable")
 
-    return FirstPersonQueryResponse(**result.to_dict())
+    payload = result.to_dict()
+    language = (req.language or "en").lower().split("-")[0]
+    if language != "en" and payload["citations"]:
+        # Copies: the pipeline's cached citation dicts must stay language-free.
+        payload["citations"] = [dict(c) for c in payload["citations"]]
+        await _add_glosses(payload["citations"], language, container)
+
+    return FirstPersonQueryResponse(**payload)

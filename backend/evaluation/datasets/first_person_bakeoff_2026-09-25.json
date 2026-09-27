@@ -1,0 +1,1664 @@
+{
+ "_header": "authored by an AI agent from transcripts, not real seekers. Answers keyed as (video_id, start_s, end_s) time ranges, not passage IDs.",
+ "videos": [
+  "UlOt31lBhLY",
+  "Z7w7soyXmHs",
+  "19EEFd2ueiI",
+  "cHAJiF2byzg",
+  "hUmlujE6SN0",
+  "rGcNJ_Nsuy8",
+  "TqxxCYnAxo8",
+  "NFlAszNFZdQ"
+ ],
+ "n_questions": 116,
+ "n_answerable": 89,
+ "n_unanswerable_or_near_miss": 27,
+ "pct_unanswerable_or_near_miss": 23.3,
+ "n_equivalence_groups": 6,
+ "scoring_overlap_definition": "overlap_frac = intersection_length / min(retrieved_duration, gold_range_duration); strict pass if overlap_frac >= 0.5 against ANY listed range",
+ "questions": [
+  {
+   "id": "q001",
+   "video_id": "UlOt31lBhLY",
+   "group_id": null,
+   "question": "Why hasn't getting more money and success made me any happier?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "UlOt31lBhLY",
+     "start": 94.8,
+     "end": 122.5
+    }
+   ]
+  },
+  {
+   "id": "q002",
+   "video_id": "UlOt31lBhLY",
+   "group_id": null,
+   "question": "Can someone be deeply spiritual and still be ambitious and wealthy?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "UlOt31lBhLY",
+     "start": 86.9,
+     "end": 93.9
+    },
+    {
+     "video_id": "UlOt31lBhLY",
+     "start": 172.7,
+     "end": 188.6
+    }
+   ]
+  },
+  {
+   "id": "q003",
+   "video_id": "UlOt31lBhLY",
+   "group_id": null,
+   "question": "Does feeling a bit irritated or lonely count as suffering, or is that only for big tragedies?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "UlOt31lBhLY",
+     "start": 332.3,
+     "end": 346.7
+    }
+   ]
+  },
+  {
+   "id": "q004",
+   "video_id": "UlOt31lBhLY",
+   "group_id": null,
+   "question": "Why do I keep replaying something that already happened, long after it's over?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "UlOt31lBhLY",
+     "start": 257.7,
+     "end": 268.3
+    },
+    {
+     "video_id": "UlOt31lBhLY",
+     "start": 299.5,
+     "end": 309.3
+    }
+   ]
+  },
+  {
+   "id": "q005",
+   "video_id": "UlOt31lBhLY",
+   "group_id": null,
+   "question": "Is there some in-between state, neither good nor bad, that I live in most of the time?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "UlOt31lBhLY",
+     "start": 352.5,
+     "end": 401.9
+    }
+   ]
+  },
+  {
+   "id": "q006",
+   "video_id": "UlOt31lBhLY",
+   "group_id": null,
+   "question": "Life keeps throwing problems at me \u2014 is suffering just unavoidable then?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "UlOt31lBhLY",
+     "start": 488.7,
+     "end": 555.1
+    }
+   ]
+  },
+  {
+   "id": "q007",
+   "video_id": "UlOt31lBhLY",
+   "group_id": null,
+   "question": "When something goes wrong at work and I spiral, what is really going on in my head?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "UlOt31lBhLY",
+     "start": 610.8,
+     "end": 651.8
+    }
+   ]
+  },
+  {
+   "id": "q008",
+   "video_id": "UlOt31lBhLY",
+   "group_id": null,
+   "question": "How do I get out of a bad mood without forcing myself to be positive?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "UlOt31lBhLY",
+     "start": 781.1,
+     "end": 808.1
+    }
+   ]
+  },
+  {
+   "id": "q009",
+   "video_id": "UlOt31lBhLY",
+   "group_id": null,
+   "question": "Isn't sticking firmly to my moral principles always the right way to act?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "UlOt31lBhLY",
+     "start": 917.3,
+     "end": 944.5
+    },
+    {
+     "video_id": "UlOt31lBhLY",
+     "start": 1017.4,
+     "end": 1063.0
+    }
+   ]
+  },
+  {
+   "id": "q010",
+   "video_id": "UlOt31lBhLY",
+   "group_id": null,
+   "question": "I can never figure out what I actually want from life \u2014 why is that?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "UlOt31lBhLY",
+     "start": 1537.7,
+     "end": 1563.7
+    }
+   ]
+  },
+  {
+   "id": "q011",
+   "video_id": "Z7w7soyXmHs",
+   "group_id": null,
+   "question": "What actually makes a house full of people feel like a real family instead of just people living under one roof?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "Z7w7soyXmHs",
+     "start": 20.4,
+     "end": 67.7
+    }
+   ]
+  },
+  {
+   "id": "q012",
+   "video_id": "Z7w7soyXmHs",
+   "group_id": null,
+   "question": "Is it really only the mother's job to keep the family happy?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "Z7w7soyXmHs",
+     "start": 100.4,
+     "end": 125.5
+    }
+   ]
+  },
+  {
+   "id": "q013",
+   "video_id": "Z7w7soyXmHs",
+   "group_id": null,
+   "question": "What actually creates a happy family?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "Z7w7soyXmHs",
+     "start": 116.5,
+     "end": 146.6
+    }
+   ]
+  },
+  {
+   "id": "q014",
+   "video_id": "Z7w7soyXmHs",
+   "group_id": null,
+   "question": "How does one person's inner state affect the whole family or the people around them?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "Z7w7soyXmHs",
+     "start": 164.6,
+     "end": 213.7
+    }
+   ]
+  },
+  {
+   "id": "q015",
+   "video_id": "Z7w7soyXmHs",
+   "group_id": null,
+   "question": "We're taught we're separate individuals \u2014 is that actually true?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "Z7w7soyXmHs",
+     "start": 172.7,
+     "end": 183.7
+    }
+   ]
+  },
+  {
+   "id": "q016",
+   "video_id": "Z7w7soyXmHs",
+   "group_id": null,
+   "question": "If one person in the family starts working on themselves, can that actually change the rest of the family?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "Z7w7soyXmHs",
+     "start": 203.7,
+     "end": 221.7
+    }
+   ]
+  },
+  {
+   "id": "q017",
+   "video_id": "Z7w7soyXmHs",
+   "group_id": null,
+   "question": "We have a plan for our career and finances \u2014 why don't we ever plan our inner life the same way?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "Z7w7soyXmHs",
+     "start": 224.7,
+     "end": 262.7
+    }
+   ]
+  },
+  {
+   "id": "q018",
+   "video_id": "Z7w7soyXmHs",
+   "group_id": null,
+   "question": "What's the benefit of having a shared vision for how we want to feel together as a family?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "Z7w7soyXmHs",
+     "start": 262.7,
+     "end": 293.0
+    }
+   ]
+  },
+  {
+   "id": "q019",
+   "video_id": "Z7w7soyXmHs",
+   "group_id": null,
+   "question": "Why do people living under the same roof end up feeling like strangers?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "Z7w7soyXmHs",
+     "start": 36.7,
+     "end": 51.7
+    }
+   ]
+  },
+  {
+   "id": "q020",
+   "video_id": "Z7w7soyXmHs",
+   "group_id": null,
+   "question": "Does creating a happy family look different in different cultures?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "Z7w7soyXmHs",
+     "start": 89.7,
+     "end": 100.4
+    }
+   ]
+  },
+  {
+   "id": "q021",
+   "video_id": "19EEFd2ueiI",
+   "group_id": null,
+   "question": "Why did I end up with the parents or siblings I have \u2014 is that just random?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "19EEFd2ueiI",
+     "start": 29.9,
+     "end": 57.7
+    }
+   ]
+  },
+  {
+   "id": "q022",
+   "video_id": "19EEFd2ueiI",
+   "group_id": null,
+   "question": "Are the answers to why I have the family I have hidden somewhere inside me?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "19EEFd2ueiI",
+     "start": 64.0,
+     "end": 78.3
+    }
+   ]
+  },
+  {
+   "id": "q023",
+   "video_id": "19EEFd2ueiI",
+   "group_id": null,
+   "question": "What part of me actually gets healed during a retreat like this \u2014 is it emotional, physical, what?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "19EEFd2ueiI",
+     "start": 78.3,
+     "end": 94.0
+    }
+   ]
+  },
+  {
+   "id": "q024",
+   "video_id": "19EEFd2ueiI",
+   "group_id": null,
+   "question": "Why do I feel resentment or friction with my family, like they're against me?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "19EEFd2ueiI",
+     "start": 83.1,
+     "end": 98.8
+    }
+   ]
+  },
+  {
+   "id": "q025",
+   "video_id": "19EEFd2ueiI",
+   "group_id": null,
+   "question": "What happens when that blocked, hurt part of me actually gets healed?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "19EEFd2ueiI",
+     "start": 98.8,
+     "end": 118.2
+    }
+   ]
+  },
+  {
+   "id": "q026",
+   "video_id": "19EEFd2ueiI",
+   "group_id": null,
+   "question": "If I change on the inside, will my actual relationships and circumstances change too?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "19EEFd2ueiI",
+     "start": 118.2,
+     "end": 128.8
+    }
+   ]
+  },
+  {
+   "id": "q027",
+   "video_id": "19EEFd2ueiI",
+   "group_id": null,
+   "question": "Are my family members' lives and mine actually connected beyond just living together?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "19EEFd2ueiI",
+     "start": 128.8,
+     "end": 142.5
+    }
+   ]
+  },
+  {
+   "id": "q028",
+   "video_id": "19EEFd2ueiI",
+   "group_id": null,
+   "question": "What will this specific retreat actually guide participants through?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "19EEFd2ueiI",
+     "start": 142.5,
+     "end": 156.1
+    }
+   ]
+  },
+  {
+   "id": "q029",
+   "video_id": "19EEFd2ueiI",
+   "group_id": null,
+   "question": "What is this retreat called and what is it focused on?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "19EEFd2ueiI",
+     "start": 5.2,
+     "end": 18.0
+    }
+   ]
+  },
+  {
+   "id": "q030",
+   "video_id": "19EEFd2ueiI",
+   "group_id": null,
+   "question": "Is this retreat meant for individuals, or should I bring my family members too?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "19EEFd2ueiI",
+     "start": 18.0,
+     "end": 29.9
+    }
+   ]
+  },
+  {
+   "id": "q031",
+   "video_id": "cHAJiF2byzg",
+   "group_id": null,
+   "question": "During lockdown I feel like I've lost all my freedom \u2014 is that actually true?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "cHAJiF2byzg",
+     "start": 33.5,
+     "end": 60.5
+    }
+   ]
+  },
+  {
+   "id": "q032",
+   "video_id": "cHAJiF2byzg",
+   "group_id": null,
+   "question": "With all this surveillance and health monitoring, aren't we losing our privacy?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "cHAJiF2byzg",
+     "start": 136.8,
+     "end": 168.5
+    }
+   ]
+  },
+  {
+   "id": "q033",
+   "video_id": "cHAJiF2byzg",
+   "group_id": null,
+   "question": "Is being stuck at home during a lockdown basically a loss of freedom?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "cHAJiF2byzg",
+     "start": 77.5,
+     "end": 98.5
+    }
+   ]
+  },
+  {
+   "id": "q034",
+   "video_id": "cHAJiF2byzg",
+   "group_id": null,
+   "question": "Why would some people rather risk getting sick than keep staying home with their own family?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "cHAJiF2byzg",
+     "start": 53.5,
+     "end": 71.5
+    }
+   ]
+  },
+  {
+   "id": "q035",
+   "video_id": "cHAJiF2byzg",
+   "group_id": null,
+   "question": "If real freedom isn't about your physical location, then what actually is it?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "cHAJiF2byzg",
+     "start": 89.5,
+     "end": 98.5
+    }
+   ]
+  },
+  {
+   "id": "q036",
+   "video_id": "cHAJiF2byzg",
+   "group_id": null,
+   "question": "Should I try to escape my fear by just leaving my situation, like my home or relationship?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "cHAJiF2byzg",
+     "start": 104.7,
+     "end": 128.8
+    }
+   ]
+  },
+  {
+   "id": "q037",
+   "video_id": "cHAJiF2byzg",
+   "group_id": null,
+   "question": "Do we even really know what kind of freedom we're fighting for?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "cHAJiF2byzg",
+     "start": 128.8,
+     "end": 136.8
+    }
+   ]
+  },
+  {
+   "id": "q038",
+   "video_id": "cHAJiF2byzg",
+   "group_id": null,
+   "question": "Is there any real privacy left in the world today, pandemic or not?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "cHAJiF2byzg",
+     "start": 168.5,
+     "end": 190.5
+    }
+   ]
+  },
+  {
+   "id": "q039",
+   "video_id": "cHAJiF2byzg",
+   "group_id": null,
+   "question": "Once I own a smartphone, is my privacy already gone no matter what I do?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "cHAJiF2byzg",
+     "start": 190.5,
+     "end": 204.7
+    }
+   ]
+  },
+  {
+   "id": "q040",
+   "video_id": "cHAJiF2byzg",
+   "group_id": null,
+   "question": "What's the real issue we should be focusing on instead of chasing freedom or privacy?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "cHAJiF2byzg",
+     "start": 204.7,
+     "end": 211.66
+    }
+   ]
+  },
+  {
+   "id": "q041",
+   "video_id": "hUmlujE6SN0",
+   "group_id": null,
+   "question": "Why do rich, successful business owners come to learn from spiritual teachers?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "hUmlujE6SN0",
+     "start": 57.8,
+     "end": 95.6
+    }
+   ]
+  },
+  {
+   "id": "q042",
+   "video_id": "hUmlujE6SN0",
+   "group_id": null,
+   "question": "What's the real key to creating lasting success and wealth in life?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "hUmlujE6SN0",
+     "start": 95.6,
+     "end": 115.0
+    }
+   ]
+  },
+  {
+   "id": "q043",
+   "video_id": "hUmlujE6SN0",
+   "group_id": null,
+   "question": "Even after working hard and building skills and a network, why does something still feel missing?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "hUmlujE6SN0",
+     "start": 116.2,
+     "end": 148.2
+    }
+   ]
+  },
+  {
+   "id": "q044",
+   "video_id": "hUmlujE6SN0",
+   "group_id": null,
+   "question": "What actually is this 'consciousness' you keep talking about \u2014 is it just mindset or positive thinking?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "hUmlujE6SN0",
+     "start": 163.6,
+     "end": 219.3
+    }
+   ]
+  },
+  {
+   "id": "q045",
+   "video_id": "hUmlujE6SN0",
+   "group_id": null,
+   "question": "How does being stressed versus feeling joyful actually relate to my level of consciousness?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "hUmlujE6SN0",
+     "start": 244.0,
+     "end": 276.2
+    }
+   ]
+  },
+  {
+   "id": "q046",
+   "video_id": "hUmlujE6SN0",
+   "group_id": null,
+   "question": "I keep chasing money out of fear of not having enough \u2014 is that the right way to build wealth?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "hUmlujE6SN0",
+     "start": 318.0,
+     "end": 343.0
+    },
+    {
+     "video_id": "hUmlujE6SN0",
+     "start": 364.2,
+     "end": 383.3
+    }
+   ]
+  },
+  {
+   "id": "q047",
+   "video_id": "hUmlujE6SN0",
+   "group_id": null,
+   "question": "How would I know if I've actually discovered my true purpose?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "hUmlujE6SN0",
+     "start": 383.7,
+     "end": 409.2
+    }
+   ]
+  },
+  {
+   "id": "q048",
+   "video_id": "hUmlujE6SN0",
+   "group_id": null,
+   "question": "Does building wealth have to feel like a painful struggle?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "hUmlujE6SN0",
+     "start": 409.2,
+     "end": 435.4
+    }
+   ]
+  },
+  {
+   "id": "q049",
+   "video_id": "hUmlujE6SN0",
+   "group_id": null,
+   "question": "What are these two states you and Krishnaji always talk about?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "hUmlujE6SN0",
+     "start": 456.6,
+     "end": 524.1
+    }
+   ]
+  },
+  {
+   "id": "q050",
+   "video_id": "hUmlujE6SN0",
+   "group_id": null,
+   "question": "Can chronic stress actually make me physically sick?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "hUmlujE6SN0",
+     "start": 732.1,
+     "end": 746.2
+    }
+   ]
+  },
+  {
+   "id": "q051",
+   "video_id": "hUmlujE6SN0",
+   "group_id": null,
+   "question": "How does being stressed affect my ability to actually be present with my kids or partner?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "hUmlujE6SN0",
+     "start": 543.4,
+     "end": 559.0
+    }
+   ]
+  },
+  {
+   "id": "q052",
+   "video_id": "rGcNJ_Nsuy8",
+   "group_id": null,
+   "question": "Is true love about accepting your partner completely, flaws and all, no matter what?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "rGcNJ_Nsuy8",
+     "start": 20.0,
+     "end": 63.4
+    }
+   ]
+  },
+  {
+   "id": "q053",
+   "video_id": "rGcNJ_Nsuy8",
+   "group_id": null,
+   "question": "If I truly love someone unconditionally, shouldn't I just accept their addiction or bad behavior?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "rGcNJ_Nsuy8",
+     "start": 63.4,
+     "end": 118.6
+    }
+   ]
+  },
+  {
+   "id": "q054",
+   "video_id": "rGcNJ_Nsuy8",
+   "group_id": null,
+   "question": "So is 'unconditional love, accept them exactly as they are' actually what true love means?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "rGcNJ_Nsuy8",
+     "start": 118.6,
+     "end": 146.0
+    }
+   ]
+  },
+  {
+   "id": "q055",
+   "video_id": "rGcNJ_Nsuy8",
+   "group_id": null,
+   "question": "What actually is true love, then, if it's not unconditional acceptance?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "rGcNJ_Nsuy8",
+     "start": 146.0,
+     "end": 168.5
+    }
+   ]
+  },
+  {
+   "id": "q056",
+   "video_id": "rGcNJ_Nsuy8",
+   "group_id": null,
+   "question": "When my friend succeeds and I don't, why do I feel jealous instead of happy for them?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "rGcNJ_Nsuy8",
+     "start": 187.3,
+     "end": 222.7
+    }
+   ]
+  },
+  {
+   "id": "q057",
+   "video_id": "rGcNJ_Nsuy8",
+   "group_id": null,
+   "question": "Why does love seem to fade so fast after marriage, when everything felt perfect before?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "rGcNJ_Nsuy8",
+     "start": 251.0,
+     "end": 288.8
+    }
+   ]
+  },
+  {
+   "id": "q058",
+   "video_id": "rGcNJ_Nsuy8",
+   "group_id": null,
+   "question": "I keep searching for love from my partner or parents but still feel empty \u2014 why?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "rGcNJ_Nsuy8",
+     "start": 344.9,
+     "end": 366.6
+    }
+   ]
+  },
+  {
+   "id": "q059",
+   "video_id": "rGcNJ_Nsuy8",
+   "group_id": null,
+   "question": "Why do parents love their kids conditionally, rewarding good behavior and punishing bad?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "rGcNJ_Nsuy8",
+     "start": 366.6,
+     "end": 416.9
+    }
+   ]
+  },
+  {
+   "id": "q060",
+   "video_id": "rGcNJ_Nsuy8",
+   "group_id": null,
+   "question": "My partner is an alcoholic and I've basically given up hope \u2014 can love actually change that?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "rGcNJ_Nsuy8",
+     "start": 578.3,
+     "end": 657.7
+    }
+   ]
+  },
+  {
+   "id": "q061",
+   "video_id": "rGcNJ_Nsuy8",
+   "group_id": null,
+   "question": "What is it about love and connection that actually has the power to heal people?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "rGcNJ_Nsuy8",
+     "start": 657.7,
+     "end": 735.2
+    }
+   ]
+  },
+  {
+   "id": "q062",
+   "video_id": "rGcNJ_Nsuy8",
+   "group_id": null,
+   "question": "Why do I feel so impatient, like I want everything \u2014 money, health, success \u2014 to happen right now?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "rGcNJ_Nsuy8",
+     "start": 742.9,
+     "end": 798.9
+    }
+   ]
+  },
+  {
+   "id": "q063",
+   "video_id": "TqxxCYnAxo8",
+   "group_id": null,
+   "question": "You always talk about only two states people live in \u2014 what are they exactly?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "TqxxCYnAxo8",
+     "start": 243.3,
+     "end": 268.7
+    }
+   ]
+  },
+  {
+   "id": "q064",
+   "video_id": "TqxxCYnAxo8",
+   "group_id": null,
+   "question": "Is stress just about feeling tense, or does it include things like anger and loneliness too?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "TqxxCYnAxo8",
+     "start": 268.7,
+     "end": 282.0
+    }
+   ]
+  },
+  {
+   "id": "q065",
+   "video_id": "TqxxCYnAxo8",
+   "group_id": null,
+   "question": "Does our inner state really shape huge things like war, politics, or how kids turn out?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "TqxxCYnAxo8",
+     "start": 297.9,
+     "end": 320.2
+    }
+   ]
+  },
+  {
+   "id": "q066",
+   "video_id": "TqxxCYnAxo8",
+   "group_id": null,
+   "question": "Why doesn't school or society ever teach us to pay attention to our inner state?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "TqxxCYnAxo8",
+     "start": 352.9,
+     "end": 383.8
+    }
+   ]
+  },
+  {
+   "id": "q067",
+   "video_id": "TqxxCYnAxo8",
+   "group_id": null,
+   "question": "In the story about the two monks, why couldn't one of them just let go and move on?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "TqxxCYnAxo8",
+     "start": 386.6,
+     "end": 429.3
+    }
+   ]
+  },
+  {
+   "id": "q068",
+   "video_id": "TqxxCYnAxo8",
+   "group_id": null,
+   "question": "What's actually different about how someone in a beautiful state handles a problem?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "TqxxCYnAxo8",
+     "start": 429.3,
+     "end": 481.9
+    }
+   ]
+  },
+  {
+   "id": "q069",
+   "video_id": "TqxxCYnAxo8",
+   "group_id": null,
+   "question": "Can having really noble ideals, like duty or unconditional love, actually make me act worse?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "TqxxCYnAxo8",
+     "start": 494.8,
+     "end": 526.0
+    }
+   ]
+  },
+  {
+   "id": "q070",
+   "video_id": "TqxxCYnAxo8",
+   "group_id": null,
+   "question": "I keep trying to escape stress with entertainment or positive thinking \u2014 why doesn't that actually work long-term?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "TqxxCYnAxo8",
+     "start": 616.0,
+     "end": 670.9
+    }
+   ]
+  },
+  {
+   "id": "q071",
+   "video_id": "TqxxCYnAxo8",
+   "group_id": null,
+   "question": "What did Krishnaji actually discover was the root cause of all human suffering?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "TqxxCYnAxo8",
+     "start": 682.3,
+     "end": 748.7
+    }
+   ]
+  },
+  {
+   "id": "q072",
+   "video_id": "TqxxCYnAxo8",
+   "group_id": null,
+   "question": "Why does dwelling in unhappiness make it so hard to actually solve the problem in front of me?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "TqxxCYnAxo8",
+     "start": 786.2,
+     "end": 834.4
+    }
+   ]
+  },
+  {
+   "id": "q073",
+   "video_id": "TqxxCYnAxo8",
+   "group_id": null,
+   "question": "Once I actually see that my suffering is just self-centered thinking, does that alone change anything?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "TqxxCYnAxo8",
+     "start": 872.4,
+     "end": 916.7
+    }
+   ]
+  },
+  {
+   "id": "q074",
+   "video_id": "NFlAszNFZdQ",
+   "group_id": null,
+   "question": "Why do people actually get sick, from a spiritual or Ayurvedic perspective?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "NFlAszNFZdQ",
+     "start": 111.4,
+     "end": 153.8
+    }
+   ]
+  },
+  {
+   "id": "q075",
+   "video_id": "NFlAszNFZdQ",
+   "group_id": null,
+   "question": "Are my mind and body actually separate, or does what's in my head directly affect my body?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "NFlAszNFZdQ",
+     "start": 201.7,
+     "end": 264.2
+    }
+   ]
+  },
+  {
+   "id": "q076",
+   "video_id": "NFlAszNFZdQ",
+   "group_id": null,
+   "question": "Can unresolved anger or fear from my past actually cause physical or autoimmune disease now?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "NFlAszNFZdQ",
+     "start": 296.1,
+     "end": 320.0
+    }
+   ]
+  },
+  {
+   "id": "q077",
+   "video_id": "NFlAszNFZdQ",
+   "group_id": null,
+   "question": "I have a skin allergy and keep eating the exact foods my doctor told me to avoid \u2014 why can't I just stop?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "NFlAszNFZdQ",
+     "start": 405.3,
+     "end": 453.4
+    }
+   ]
+  },
+  {
+   "id": "q078",
+   "video_id": "NFlAszNFZdQ",
+   "group_id": null,
+   "question": "Why do I keep going back to unhealthy comfort foods even though I know they're bad for me?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "NFlAszNFZdQ",
+     "start": 462.6,
+     "end": 528.1
+    }
+   ]
+  },
+  {
+   "id": "q079",
+   "video_id": "NFlAszNFZdQ",
+   "group_id": null,
+   "question": "Do I need to feel calm inside before I can actually stick to a healthy diet or discipline?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "NFlAszNFZdQ",
+     "start": 540.2,
+     "end": 588.5
+    }
+   ]
+  },
+  {
+   "id": "q080",
+   "video_id": "NFlAszNFZdQ",
+   "group_id": null,
+   "question": "What's the actual difference between just believing something new and having a real awakening?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "NFlAszNFZdQ",
+     "start": 698.6,
+     "end": 717.0
+    }
+   ]
+  },
+  {
+   "id": "q081",
+   "video_id": "NFlAszNFZdQ",
+   "group_id": null,
+   "question": "Why do I keep repeating the same negative patterns in my relationships, career, or finances?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "NFlAszNFZdQ",
+     "start": 717.0,
+     "end": 749.2
+    }
+   ]
+  },
+  {
+   "id": "q082",
+   "video_id": "NFlAszNFZdQ",
+   "group_id": null,
+   "question": "If I get to a place of real inner quiet and calm, can that actually help heal my body too?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "NFlAszNFZdQ",
+     "start": 749.2,
+     "end": 787.4
+    }
+   ]
+  },
+  {
+   "id": "q083",
+   "video_id": "NFlAszNFZdQ",
+   "group_id": null,
+   "question": "What kinds of things can become an addiction, besides drugs or alcohol?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "NFlAszNFZdQ",
+     "start": 568.7,
+     "end": 588.5
+    }
+   ]
+  },
+  {
+   "id": "q084",
+   "video_id": null,
+   "group_id": "g_two_states",
+   "question": "What are the two states \u2014 a suffering state and a beautiful state \u2014 that you always talk about, and why do they matter so much?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "UlOt31lBhLY",
+     "start": 325.2,
+     "end": 435.2
+    },
+    {
+     "video_id": "Z7w7soyXmHs",
+     "start": 183.7,
+     "end": 213.7
+    },
+    {
+     "video_id": "hUmlujE6SN0",
+     "start": 456.6,
+     "end": 524.1
+    },
+    {
+     "video_id": "TqxxCYnAxo8",
+     "start": 243.3,
+     "end": 297.9
+    },
+    {
+     "video_id": "cHAJiF2byzg",
+     "start": 89.5,
+     "end": 104.7
+    }
+   ]
+  },
+  {
+   "id": "q085",
+   "video_id": null,
+   "group_id": "g_health",
+   "question": "Can my inner emotional state actually make me physically sick, or cause disease in my body?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "hUmlujE6SN0",
+     "start": 732.1,
+     "end": 746.2
+    },
+    {
+     "video_id": "NFlAszNFZdQ",
+     "start": 296.1,
+     "end": 320.0
+    }
+   ]
+  },
+  {
+   "id": "q086",
+   "video_id": null,
+   "group_id": "g_love_heals",
+   "question": "Is love and connection actually powerful enough to heal a broken relationship?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "rGcNJ_Nsuy8",
+     "start": 657.7,
+     "end": 735.2
+    },
+    {
+     "video_id": "Z7w7soyXmHs",
+     "start": 164.6,
+     "end": 213.7
+    }
+   ]
+  },
+  {
+   "id": "q087",
+   "video_id": null,
+   "group_id": "g_family_transformation",
+   "question": "If I work on my own inner state, can that actually fix my family's problems, or do the others need to change too?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "Z7w7soyXmHs",
+     "start": 116.5,
+     "end": 146.6
+    },
+    {
+     "video_id": "19EEFd2ueiI",
+     "start": 78.3,
+     "end": 128.8
+    }
+   ]
+  },
+  {
+   "id": "q088",
+   "video_id": null,
+   "group_id": "g_self_centered_suffering",
+   "question": "Why do I stay stuck replaying the same hurt or grievance over and over instead of moving on?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "TqxxCYnAxo8",
+     "start": 682.3,
+     "end": 834.4
+    },
+    {
+     "video_id": "UlOt31lBhLY",
+     "start": 257.7,
+     "end": 309.3
+    }
+   ]
+  },
+  {
+   "id": "q089",
+   "video_id": null,
+   "group_id": "g_fable",
+   "question": "There's a story about two monks and a woman by a river that you use to teach something \u2014 what is it and what does it mean?",
+   "answerable": true,
+   "near_miss": false,
+   "answer_ranges": [
+    {
+     "video_id": "UlOt31lBhLY",
+     "start": 203.3,
+     "end": 268.3
+    },
+    {
+     "video_id": "TqxxCYnAxo8",
+     "start": 33.4,
+     "end": 137.1
+    }
+   ]
+  },
+  {
+   "id": "q090",
+   "video_id": null,
+   "group_id": null,
+   "question": "How many minutes a day should I meditate, and at what time of day?",
+   "answerable": false,
+   "near_miss": true,
+   "answer_ranges": []
+  },
+  {
+   "id": "q091",
+   "video_id": null,
+   "group_id": null,
+   "question": "What happens to us after we die \u2014 is there rebirth?",
+   "answerable": false,
+   "near_miss": true,
+   "answer_ranges": []
+  },
+  {
+   "id": "q092",
+   "video_id": null,
+   "group_id": null,
+   "question": "Is it okay to take antidepressant medication alongside these teachings?",
+   "answerable": false,
+   "near_miss": true,
+   "answer_ranges": []
+  },
+  {
+   "id": "q093",
+   "video_id": null,
+   "group_id": null,
+   "question": "What should I eat for breakfast to stay in a Beautiful State all day?",
+   "answerable": false,
+   "near_miss": true,
+   "answer_ranges": []
+  },
+  {
+   "id": "q094",
+   "video_id": null,
+   "group_id": null,
+   "question": "How much does it cost to attend the Ekam retreats or the Manifest program?",
+   "answerable": false,
+   "near_miss": true,
+   "answer_ranges": []
+  },
+  {
+   "id": "q095",
+   "video_id": null,
+   "group_id": null,
+   "question": "Can you recommend a good therapist or psychiatrist for anxiety?",
+   "answerable": false,
+   "near_miss": true,
+   "answer_ranges": []
+  },
+  {
+   "id": "q096",
+   "video_id": null,
+   "group_id": null,
+   "question": "What is Sri Preethaji's daily morning routine?",
+   "answerable": false,
+   "near_miss": true,
+   "answer_ranges": []
+  },
+  {
+   "id": "q097",
+   "video_id": null,
+   "group_id": null,
+   "question": "Is it true that women are naturally better than men at emotional connection?",
+   "answerable": false,
+   "near_miss": true,
+   "answer_ranges": []
+  },
+  {
+   "id": "q098",
+   "video_id": null,
+   "group_id": null,
+   "question": "Which specific yoga asanas balance the Ayurvedic doshas?",
+   "answerable": false,
+   "near_miss": true,
+   "answer_ranges": []
+  },
+  {
+   "id": "q099",
+   "video_id": null,
+   "group_id": null,
+   "question": "What was Krishnaji's occupation before he became a spiritual teacher?",
+   "answerable": false,
+   "near_miss": true,
+   "answer_ranges": []
+  },
+  {
+   "id": "q100",
+   "video_id": null,
+   "group_id": null,
+   "question": "How do I stop my child from being addicted to video games specifically?",
+   "answerable": false,
+   "near_miss": true,
+   "answer_ranges": []
+  },
+  {
+   "id": "q101",
+   "video_id": null,
+   "group_id": null,
+   "question": "Should I get divorced if my partner refuses to change?",
+   "answerable": false,
+   "near_miss": true,
+   "answer_ranges": []
+  },
+  {
+   "id": "q102",
+   "video_id": null,
+   "group_id": null,
+   "question": "What exact prayer or mantra should I chant every morning?",
+   "answerable": false,
+   "near_miss": true,
+   "answer_ranges": []
+  },
+  {
+   "id": "q103",
+   "video_id": null,
+   "group_id": null,
+   "question": "Does Ayurveda say I should avoid all spicy food forever?",
+   "answerable": false,
+   "near_miss": true,
+   "answer_ranges": []
+  },
+  {
+   "id": "q104",
+   "video_id": null,
+   "group_id": null,
+   "question": "What's the age difference between Sri Preethaji and Sri Krishnaji?",
+   "answerable": false,
+   "near_miss": true,
+   "answer_ranges": []
+  },
+  {
+   "id": "q105",
+   "video_id": null,
+   "group_id": null,
+   "question": "Is competitive sport bad for a child's inner development?",
+   "answerable": false,
+   "near_miss": true,
+   "answer_ranges": []
+  },
+  {
+   "id": "q106",
+   "video_id": null,
+   "group_id": null,
+   "question": "What should I do if my business partner is dishonest with me?",
+   "answerable": false,
+   "near_miss": true,
+   "answer_ranges": []
+  },
+  {
+   "id": "q107",
+   "video_id": null,
+   "group_id": null,
+   "question": "Can I do the three-question meditation lying down instead of sitting?",
+   "answerable": false,
+   "near_miss": true,
+   "answer_ranges": []
+  },
+  {
+   "id": "q108",
+   "video_id": null,
+   "group_id": null,
+   "question": "Is it normal to feel jealous of my sibling's success as an adult?",
+   "answerable": false,
+   "near_miss": true,
+   "answer_ranges": []
+  },
+  {
+   "id": "q109",
+   "video_id": null,
+   "group_id": null,
+   "question": "What's the ideal number of hours of sleep according to these teachings?",
+   "answerable": false,
+   "near_miss": true,
+   "answer_ranges": []
+  },
+  {
+   "id": "q110",
+   "video_id": null,
+   "group_id": null,
+   "question": "What breed of dog does Sri Preethaji have?",
+   "answerable": false,
+   "near_miss": true,
+   "answer_ranges": []
+  },
+  {
+   "id": "q111",
+   "video_id": null,
+   "group_id": null,
+   "question": "Is astrology compatible with these teachings?",
+   "answerable": false,
+   "near_miss": true,
+   "answer_ranges": []
+  },
+  {
+   "id": "q112",
+   "video_id": null,
+   "group_id": null,
+   "question": "Can group meditation at Manifest cure a diagnosed mental illness?",
+   "answerable": false,
+   "near_miss": true,
+   "answer_ranges": []
+  },
+  {
+   "id": "q113",
+   "video_id": null,
+   "group_id": null,
+   "question": "What time zone are the Ekam live sessions broadcast in?",
+   "answerable": false,
+   "near_miss": true,
+   "answer_ranges": []
+  },
+  {
+   "id": "q114",
+   "video_id": null,
+   "group_id": null,
+   "question": "Does forgiving my parents mean I have to reconcile and live with them again?",
+   "answerable": false,
+   "near_miss": true,
+   "answer_ranges": []
+  },
+  {
+   "id": "q115",
+   "video_id": null,
+   "group_id": null,
+   "question": "If my partner is only sometimes loving and sometimes distant, does that mean the relationship is fundamentally broken?",
+   "answerable": false,
+   "near_miss": true,
+   "answer_ranges": []
+  },
+  {
+   "id": "q116",
+   "video_id": null,
+   "group_id": null,
+   "question": "Which country has the highest number of Ekam followers?",
+   "answerable": false,
+   "near_miss": true,
+   "answer_ranges": []
+  }
+ ]
+}

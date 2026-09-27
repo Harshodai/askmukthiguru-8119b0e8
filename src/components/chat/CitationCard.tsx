@@ -13,6 +13,8 @@ export interface DiscourseCitation {
   title?: string;
   /** The real speaker from citation data, when known. Never hardcode this. */
   speaker?: string;
+  /** Whether the speaker was verified against official teacher voiceprints. */
+  speakerVerified?: boolean;
   startTimestamp?: number; // in seconds; 0 is a valid, playable start
   endTimestamp?: number;
   quote?: string;
@@ -80,7 +82,12 @@ export const CitationBadge: React.FC<CitationBadgeProps> = ({
                   {citation.title || 'Sacred Discourse Teaching'}
                 </p>
                 <div className="mt-0.5 flex items-center gap-2 text-[10px] text-muted-foreground">
-                  <span className="text-saffron-gold">{citation.speaker || FALLBACK_SPEAKER_LABEL}</span>
+                  <span className="flex items-center gap-1 text-saffron-gold">
+                    {citation.speaker || FALLBACK_SPEAKER_LABEL}
+                    {citation.speakerVerified && (
+                      <Sparkles className="h-2.5 w-2.5 text-saffron-gold" aria-label="Voice verified teacher" />
+                    )}
+                  </span>
                   {citation.startTimestamp != null && (
                     <span className="flex items-center gap-0.5">
                       <Clock className="h-2.5 w-2.5" /> {formatTimestamp(citation.startTimestamp)}
@@ -137,8 +144,17 @@ export const DiscourseVideoModal: React.FC<{
   } catch {
     videoId = citation.url;
   }
-  // YouTube's embed `start` takes whole seconds.
-  const start = Math.max(0, Math.floor(citation.playbackStartSeconds ?? citation.startTimestamp ?? 0));
+  // YouTube's embed `start` takes whole seconds. Round UP (ceil) to prevent
+  // starting up to 1.0s early into preceding host speech.
+  const start = Math.max(0, Math.ceil(citation.playbackStartSeconds ?? citation.startTimestamp ?? 0));
+  const rawEnd = citation.playbackEndSeconds ?? citation.endTimestamp;
+  // Round DOWN (floor) to prevent playing up to 1.0s past the teacher turn
+  // into subsequent host speech.
+  // A clip under ~2s can round to floor(end) <= start; dropping `end` then would play
+  // on indefinitely, so fall back to ceil(end): at most 1s of tail instead of unbounded.
+  const end =
+    rawEnd == null ? undefined : Math.floor(rawEnd) > start ? Math.floor(rawEnd) : Math.ceil(rawEnd);
+  const endParam = end != null && end > start ? `&end=${end}` : '';
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -146,7 +162,7 @@ export const DiscourseVideoModal: React.FC<{
         <div className="relative aspect-video w-full bg-black">
           <iframe
             className="h-full w-full"
-            src={`https://www.youtube.com/embed/${videoId}?autoplay=1&start=${start}&enablejsapi=1`}
+            src={`https://www.youtube.com/embed/${videoId}?autoplay=1&start=${start}${endParam}&enablejsapi=1`}
             title={citation.title || 'Discourse Video'}
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen

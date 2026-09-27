@@ -36,7 +36,6 @@ RUN pip install --no-cache-dir \
 # Pre-cache runtime models (ONNX INT8 quantized models + tokenizers only)
 ENV HF_HOME=/build/model_cache/huggingface \
     SENTENCE_TRANSFORMERS_HOME=/build/model_cache/sentence_transformers \
-    TRANSFORMERS_CACHE=/build/model_cache/huggingface \
     QUANTIZED_ONLY=true \
     EMBEDDING_BACKEND=onnx_int8 \
     RERANKER_BACKEND=onnx_int8 \
@@ -110,7 +109,6 @@ ENV ENV=production \
     # Model cache paths
     HF_HOME=/app/.cache/huggingface \
     SENTENCE_TRANSFORMERS_HOME=/app/.cache/sentence_transformers \
-    TRANSFORMERS_CACHE=/app/.cache/huggingface \
     # Inference configurations
     EMBEDDING_BACKEND=onnx_int8 \
     RERANKER_BACKEND=onnx_int8 \

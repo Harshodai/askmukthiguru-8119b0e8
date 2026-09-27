@@ -154,7 +154,38 @@ class InputGuardrailStage(Stage):
             # system failure even when the block was a correct, deliberate
             # safety refusal (medical advice, harmful pattern, self-harm, etc).
             reason = input_check.get("reason") or ""
-            if "self_harm" in reason or "Emotional wellness" in reason:
+            if "self_harm" in reason:
+                # Root cause (2026-09-27 live probe): this regex topic rail is
+                # English-only, so it fired for "I want to end my life" but not
+                # for the identical ideation in Hindi/Marathi/romanized Kannada
+                # — those never match here and fall through to DistressStage,
+                # which builds the real crisis-preempted response (full
+                # helplines.yaml bullet list incl. Tele-MANAS/KIRAN, the "are
+                # you safe right now" question, and a logged safety event).
+                # The guardrail's own block above used a stripped-down
+                # 2-line template with none of that. Defer instead of
+                # short-circuiting here.
+                #
+                # REGRESSION FIX (2026-09-27, same day): the first version of
+                # this deferral assumed DistressStage's own assess_distress()
+                # pattern set covers every phrase the guardrail's self_harm
+                # regex matches. It does not — "I am suicidal", "I keep
+                # hurting myself", "way to die without pain" etc. matched the
+                # guardrail but scored DistressLevel.NONE, so deferring alone
+                # silently downgraded them to an ordinary (helpline-less)
+                # response. The guardrail's own match is therefore recorded
+                # on state as an authoritative signal DistressStage MUST honor
+                # unconditionally (never downgraded, never sent to the LLM
+                # second opinion) — see
+                # DistressStage._maybe_llm_downgrade_severe's caller guard.
+                ctx.state["guardrail_self_harm_match"] = True
+                logger.info(
+                    "Input guardrail matched self_harm topic; deferring to "
+                    "DistressStage's crisis pre-emption (guardrail_self_harm_match "
+                    "flag forces CRISIS regardless of assess_distress's own patterns)."
+                )
+                return None
+            if "Emotional wellness" in reason:
                 intent, route_decision = "DISTRESS", "distress"
             elif "Medical advice" in reason or "Harmful pattern" in reason:
                 intent, route_decision = "SAFETY_VIOLATION", "blocked"

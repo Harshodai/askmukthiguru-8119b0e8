@@ -205,3 +205,74 @@ def test_pipeline_factory_degrades_to_no_cache_when_redis_construction_fails(mon
         assert pipeline._redis is None
     finally:
         first_person_module._pipeline.cache_clear()
+
+
+# --- 2026-09-27: query translation + per-citation gloss ---------------------------
+
+_HI_QUERY = "प्रेम क्या है?"
+_CITATION = {
+    "point_id": "p1", "video_id": "v1", "start_ms": 1000, "end_ms": 9000,
+    "speaker": "Sri Preethaji", "verbatim_text": "Love is a state within you.",
+}
+
+
+class _FakeTranslation:
+    def __init__(self, delay_s: float = 0.0):
+        self.calls = []
+        self.delay_s = delay_s
+
+    async def translate_text(self, *, text, source_lang, target_lang):
+        import asyncio
+
+        self.calls.append((text, source_lang, target_lang))
+        if self.delay_s:
+            await asyncio.sleep(self.delay_s)
+        return {"en": "What is love?", "hi": "प्रेम आपके भीतर की एक अवस्था है।"}[target_lang]
+
+
+def _route_with(translation, body):
+    mock_embedding = create_autospec(EmbeddingService, instance=True)
+    mock_embedding.encode_single_full_async.return_value = {"dense": [0.1] * 1024, "sparse": {}}
+
+    class _FakeContainer:
+        embedding = mock_embedding
+
+    _FakeContainer.translation = translation
+    app.dependency_overrides[get_container_async] = lambda: _FakeContainer()
+    try:
+        with patch("app.api.first_person.FirstPersonPipeline") as mock_pipeline_cls:
+            mock_pipeline = mock_pipeline_cls.return_value
+            mock_pipeline.execute.return_value = FirstPersonPipelineResult(
+                answer_text="ok", citations=[dict(_CITATION)], status="weak_match",
+                is_direct_answer=False, latency_ms=1.0,
+            )
+            resp = client.post("/api/first-person/query", json=body)
+        return resp, mock_embedding, mock_pipeline
+    finally:
+        app.dependency_overrides.pop(get_container_async, None)
+
+
+def test_non_english_query_is_embedded_in_english_and_both_forms_reach_pipeline():
+    translation = _FakeTranslation()
+    resp, embedding, pipeline = _route_with(translation, {"query": _HI_QUERY})
+    assert resp.status_code == 200
+    embedding.encode_single_full_async.assert_called_once_with("What is love?")
+    kwargs = pipeline.execute.call_args.kwargs
+    assert kwargs["query"] == _HI_QUERY  # cache key + safety checks see the seeker's words
+    assert kwargs["retrieval_query"] == "What is love?"
+
+
+def test_language_adds_gloss_and_never_replaces_verbatim():
+    translation = _FakeTranslation()
+    resp, _, _ = _route_with(translation, {"query": "What is love?", "language": "hi"})
+    cit = resp.json()["citations"][0]
+    assert cit["verbatim_text"] == "Love is a state within you."
+    assert cit["translated_text"] == "प्रेम आपके भीतर की एक अवस्था है।"
+    assert cit["translated_language"] == "hi"
+
+
+def test_query_translation_timeout_embeds_raw_question(monkeypatch):
+    monkeypatch.setattr(settings, "first_person_translation_timeout_s", 0.05)
+    resp, embedding, _ = _route_with(_FakeTranslation(delay_s=1.0), {"query": _HI_QUERY + " (timeout)"})
+    assert resp.status_code == 200
+    embedding.encode_single_full_async.assert_called_once_with(_HI_QUERY + " (timeout)")

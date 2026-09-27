@@ -51,6 +51,7 @@ async def test_url_less_doc_does_not_shift_citation_numbering():
             "title": "Cited Doc",
             "chunk_provenance": None,
             "speaker": None,
+            "speaker_verified": None,
         }
     ]
 
@@ -92,6 +93,7 @@ async def test_diversity_reorder_does_not_desync_citation_numbering():
         "title": "Fourth Doc",
         "chunk_provenance": None,
         "speaker": None,
+        "speaker_verified": None,
     }
     assert "[3]" in final_answer
     assert "[4]" not in final_answer

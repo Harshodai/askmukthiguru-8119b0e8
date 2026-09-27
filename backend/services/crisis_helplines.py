@@ -184,11 +184,17 @@ def get_helplines() -> tuple[Helpline, ...]:
             logger.warning("crisis_helplines: skipping malformed entry %r: %s", entry, exc)
     if not parsed:
         return _FALLBACK_HELPLINES
-    if not any(h.last_verified_by_call for h in parsed):
+    # Warn on ANY unverified entry, not only when all are: one verified call must not
+    # silence the warning for the rest.
+    unverified = [h.name for h in parsed if not h.last_verified_by_call]
+    if unverified:
         logger.warning(
-            "crisis_helplines: no entry in %s has last_verified_by_call set — helpline "
-            "numbers are unverified by call. Do not treat this data as launch-ready.",
+            "crisis_helplines: %d of %d entries in %s are unverified by call (%s). "
+            "Do not treat these numbers as launch-ready.",
+            len(unverified),
+            len(parsed),
             path,
+            ", ".join(unverified),
         )
     return tuple(parsed)
 
@@ -270,7 +276,11 @@ def format_helplines_block(
         if india:
             lines.append(f"• India: {india.name} {india.contact}")
         if intl:
-            lines.append(f"• International: {intl.name} {intl.contact}")
+            # Never mislabel a single-country number (e.g. a US-only "988")
+            # as "International" — use its real region unless the entry is
+            # actually region-agnostic.
+            intl_label = "International" if intl.region.lower() == "international" else intl.region
+            lines.append(f"• {intl_label}: {intl.name} {intl.contact}")
         return "\n".join(lines)
 
     # bullet (default)

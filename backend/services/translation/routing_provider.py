@@ -51,9 +51,12 @@ class RoutingTranslationProvider(TranslationProvider):
                     raise
                 # Fall through to Sarvam below if it is configured; else raise.
 
-        # Sarvam fallback path (existing gate preserved).
+        # Sarvam fallback path (existing gate preserved). A key alone is not enough:
+        # the openrouter wiring has no Sarvam provider, and calling None logged a
+        # spurious "Sarvam translation failed" on every request.
         if (
-            settings.sarvam_api_key
+            self._sarvam is not None
+            and settings.sarvam_api_key
             and not settings.sarvam_api_key.startswith("sk_dummy")
             and settings.sarvam_api_key.strip()
         ):

@@ -112,4 +112,9 @@ if [[ "$1" == 'celery' ]]; then
     fi
 fi
 
-
+# Fallback: execute any custom command (e.g. pytest, bash)
+if [ -n "$GOSU_PREFIX" ]; then
+    exec gosu appuser "$@"
+else
+    exec "$@"
+fi

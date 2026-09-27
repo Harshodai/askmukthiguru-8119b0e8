@@ -341,6 +341,7 @@ async def test_final_citations_contain_only_absolute_urls():
             "title": "Doc One",
             "chunk_provenance": None,
             "speaker": None,
+            "speaker_verified": None,
         }
     ]
 
@@ -393,6 +394,7 @@ async def test_evidence_bearing_refusal_uses_grounded_partial_answer():
             "title": "Serene Mind Practice",
             "chunk_provenance": None,
             "speaker": None,
+            "speaker_verified": None,
         }
     ]
     assert "Serene Mind practice begins" in result["final_answer"]
@@ -443,12 +445,14 @@ async def test_grounded_partial_answer_is_concise_and_maps_each_excerpt_to_sourc
             "title": "Serene Mind Practice",
             "chunk_provenance": None,
             "speaker": None,
+            "speaker_verified": None,
         },
         {
             "url": "https://doc.example/four-sacred-secrets",
             "title": "Four Sacred Secrets",
             "chunk_provenance": None,
             "speaker": None,
+            "speaker_verified": None,
         },
     ]
     assert "[1]" in answer and "[2]" in answer

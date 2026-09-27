@@ -6,6 +6,26 @@ Paste everything below the line into Antigravity as the task prompt.
 
 You are taking over an in-progress workstream in the AskMukthiGuru repo at `/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8`. The goal is a **production-safe first-person, verbatim-answer baseline**: an answer is the teacher's own recorded words (Sri Preethaji / Sri Krishnaji), with the right speaker and the exact second, served as a validated pointer. It is never LLM-written text. You are continuing a previous Claude Code session, and nothing is committed yet.
 
+## STATUS UPDATE 2026-09-28: First-Person v5 Ruthless Audit & Conjunction Integrity
+> **Authoritative Current Handoff:** See [`docs/agent/HANDOFF_2026-09-28_FIRST_PERSON_V5_RUTHLESS_AUDIT.md`](file:///Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/docs/agent/HANDOFF_2026-09-28_FIRST_PERSON_V5_RUTHLESS_AUDIT.md)
+> - **Ruthless Paraphrase Audit**: Probed 15 semantic variants across 5 categories against `first_person_v2` and `first_person_v5`. Proved `v5` wins over `v2` on 5 queries by eliminating sub-8s fragments (`0k5f8G9uXqY` and `NFlAszNFZdQ`).
+> - **Sentence Boundary Conjunction Guard (Invariant 10)**: Identified trailing conjunction bug on financial anxiety queries (`hUmlujE6SN0` ending in `"...fear or"`). Implemented defense-in-depth conjunction guards across Serving (`first_person_pipeline.py`), Indexing (`build_first_person_index.py`), and Segmentation (`speaker_diarization.py`).
+> - **Unit & Docker Verification**: 85/85 tests passed (`pytest`). Live container verified: corrupt trailing conjunction clips automatically quarantined, complete teachings served, and clean abstention on broken premises.
+> - **Lessons & Guidelines**: 9 lessons added to `lessons.md`; Invariants 10 and 11 added to `CLAUDE.md`.
+
+## STATUS UPDATE 2026-09-27: supersedes 2026-09-25 update below
+
+> **Corrected later on 2026-09-27** — several claims below did not survive re-measurement (doctrine-keyword rescue removed, idle-breaker trap not reproducible, `first_person_v4` is worse than live `v2` on host leak, the 46 "rights" exclusions are unavailable videos). See `docs/agent/STATE_RECONCILIATION_2026-09-27.md`.
+
+Full authoritative handoff & engineering record: `docs/agent/SESSION_HANDOFF_2026-09-27.md`. Summary:
+- **Phase 0A (`golden_028` Kannada Grader)**: FIXED & TESTED in `backend/rag/nodes/reranking.py`. Indic Unicode block `[\u0900-\u0D7F]` rescues core doctrine concepts and high rerank scores ($\ge 0.40$) from false binary rejection by English LLM graders. `tests/test_grade_documents_crosslingual.py` passed in 0.14s.
+- **Phase 0B (`speaker_verified` Citation Contract)**: FIXED & TESTED end-to-end (`citation_extractor.py`, `schemas/__init__.py`, `generation.py`, `orchestrator.py`, `chat_engine.py`, `CitationCard.tsx`). Backend tests 6/6 passed; Vitest 19/19 passed.
+- **Docker Stack Rebuild & Virtiofs Fix**: Rebuilt `backend-backend` with entrypoint fallback (`exec gosu appuser "$@"`). Fixed macOS virtiofs out-of-memory bug by pruning orphan containers (`friendly_roentgen`, `exciting_johnson`) and disabling virtual memory cap via `PYTHON_MEMORY_LIMIT_MB=0`. Backend container running healthy on port 8000 with 0 restarts in 13+ hours. In-container tests passed: 26 passed + 76 passed.
+- **Unified Benchmark (`retry1`)**: Completed at 00:01:58 AM on 2026-09-27 (1,226 items). Refusal rate 0.041 (PASS), Must-mention coverage 0.5948 (PASS), Citation validity 100% (PASS), Zero retrieval rate 0.0% (PASS), p95 latency 86.28s (PASS), Misattribution rate 0.0093 (PASS). Error rate was 38.3% due to `--resume` retaining 400 early crash rows prior to memory fix; clean Run 2 is next.
+- **Live Verification**: `first_person_live_eval.py` passed 8/8 gates (top-1 0.4337, p95 209.5ms, zero non-teacher leaks, zero hash errors). Live chat turn completed in 27s with HTTP 200, `intent=QUERY`, `grounding_state=grounded`.
+- **Corpus Ingestion Blueprint**: 526 cleared unindexed videos audited. Dual-ASR consensus (Whisper + Parakeet) with 16 kHz mono audio WAV and ROVER agreement $\ge 0.80$ prepared for shadow collection `first_person_v5`.
+- **Accrual Failure Detector Idle Trap**: Identified bug in `services/health_monitor.py` where overnight zero-traffic inflates idle gap, causing $\phi = 10.0$ and tripping circuit breaker on morning's first request.
+
 ## STATUS UPDATE 2026-09-25 (evening): supersedes §2, §3 "Live status" and every Appendix B "Already done / Next" line
 
 Full verified record: `handoff.md` (rewritten 2026-09-25). Summary per brief:

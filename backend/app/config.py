@@ -167,6 +167,14 @@ class Settings(BaseSettings):
     # Serve clips whose rights_cleared flag is not yet True. Off by default —
     # only rights-cleared clips are servable in production.
     first_person_serve_unregistered: bool = False
+    # Reorder integrity-verified clips with the chat path's cross-encoder before
+    # the top clip is chosen. OFF until an offline A/B on the pinned eval set wins;
+    # confidence stays dense cosine so the calibration contract is unchanged.
+    first_person_rerank_enabled: bool = False
+    # Non-English questions are translated to English (the transcripts' language)
+    # before embedding, and each served quote gets an optional gloss in the
+    # seeker's language. The verbatim text itself is never replaced.
+    first_person_translation_timeout_s: float = 8.0
 
     # --- Distress / Serene Mind safety dials ---
     semantic_distress_threshold: float = Field(default=0.72, ge=0.0, le=1.0)
@@ -1195,6 +1203,15 @@ class Settings(BaseSettings):
 
     # --- Feature flags (Phase 2-3) ---
     phi_accrual_enabled: bool = True
+
+    # --- Distress LLM second opinion (2026-09-27, OFF by default) ---
+    # May ONLY lower a regex SEVERE to MODERATE when the LLM confidently says the
+    # message is not personal distress (e.g. "a broken relationship"). Never touches
+    # CRISIS, never raises, and keeps SEVERE on timeout/error/low confidence or any
+    # prior distress in the conversation. Enable only after the zero-missed-crisis
+    # eval (tests/test_distress_llm_downgrade.py + evals/) and clinician sign-off.
+    distress_llm_downgrade_enabled: bool = False
+    distress_llm_downgrade_timeout_s: float = 4.0
 
     # --- Idempotency (Phase 3.3) ---
     idempotency_ttl_seconds: int = 86400

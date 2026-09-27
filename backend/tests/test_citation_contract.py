@@ -21,6 +21,7 @@ def test_citation_serialises_new_fields() -> None:
         url="https://youtu.be/abc123",
         title="A Talk",
         speaker="Sri Preethaji",
+        speaker_verified=True,
         timestamp_seconds=42.5,
         text_snippet="the exact words spoken",
     )
@@ -28,6 +29,7 @@ def test_citation_serialises_new_fields() -> None:
     assert dumped["timestamp_seconds"] == 42.5
     assert dumped["text_snippet"] == "the exact words spoken"
     assert dumped["speaker"] == "Sri Preethaji"
+    assert dumped["speaker_verified"] is True
 
 
 @pytest.mark.unit
@@ -35,6 +37,7 @@ def test_citation_new_fields_default_none() -> None:
     c = Citation(url="https://youtu.be/abc123")
     assert c.timestamp_seconds is None
     assert c.text_snippet is None
+    assert c.speaker_verified is None
 
 
 @pytest.mark.unit
@@ -59,6 +62,7 @@ def test_extract_citations_passes_through_payload_timestamp() -> None:
     assert citations[0]["timestamp_seconds"] == 90.0
     assert citations[0]["text_snippet"] == "the beautiful state is uh connection joy love"
     assert citations[0]["speaker"] == "Sri Preethaji"
+    assert citations[0]["speaker_verified"] is True
 
 
 @pytest.mark.unit

@@ -43,8 +43,8 @@ crisis_helplines:
     hours: "24/7, free"
     languages: ["approximately 20 Indian languages"]
     source_url: "https://telemanas.mohfw.gov.in/home"
-    last_checked_public_listing: "2026-09-23"
-    last_verified_by_call: null
+    last_checked_public_listing: "2026-09-26"
+    last_verified_by_call: "2026-09-26"  # Owner placed live test call 2026-09-26 (confirmed by owner in chat 2026-09-27) — rings, free, staffed
   - region: "India"
     name: "KIRAN (Mental Health Helpline)"
     contact: "1800-599-0019"
@@ -75,7 +75,7 @@ crisis_helplines:
     hours: "24/7"
     languages: null
     source_url: "https://vandrevalafoundation.com/"
-    last_checked_public_listing: "2026-09-23"
+    last_checked_public_listing: "2026-09-26"
     last_verified_by_call: null
   - region: "India"
     name: "Sneha"

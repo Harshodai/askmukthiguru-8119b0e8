@@ -33,6 +33,21 @@ TEACHER_NAME_MAP = {
 _RUN_TEACHER_LABELS = {"P": "preethaji", "K": "krishnaji"}
 _SENTENCE_END_CHARS = (".", "?", "!")
 
+# Coordinating and subordinating conjunctions: clips must never split on or end
+# with these dangling tokens without forward clause resolution (CLAUDE.md Invariant 10).
+_COORDINATING_CONJUNCTIONS = frozenset({
+    "or",
+    "and",
+    "so",
+    "but",
+    "because",
+    "nor",
+    "for",
+    "yet",
+    "although",
+    "though",
+})
+
 # --- v2 clip-builder thresholds ------------------------------------------------
 # Named constants (not magic literals) so a future retune has one place to look.
 # Values are the original offline-pilot defaults (run_clips.py's predecessor),
@@ -61,10 +76,17 @@ def _grow_to_budget(words: list[dict[str, Any]], start: int, fits) -> int:
 
 def _find_sentence_end(words: list[dict[str, Any]], start: int, end: int) -> Optional[int]:
     """Exclusive end index of the last word in words[start:end) ending in
-    '.', '?' or '!', or None if no word in the range does."""
+    '.', '?' or '!', or None if no word in the range does.
+
+    Skips words that are coordinating conjunctions even if punctuated, as
+    they do not represent complete grammatical thoughts.
+    """
     for i in range(end - 1, start - 1, -1):
         w = words[i]["w"]
         if w and w[-1] in _SENTENCE_END_CHARS:
+            clean = w.rstrip(".?!…,:;—–-").lower()
+            if clean in _COORDINATING_CONJUNCTIONS:
+                continue
             return i + 1
     return None
 
@@ -73,7 +95,9 @@ def _cut_point(words: list[dict[str, Any]], start: int, end: int) -> tuple[int, 
     """Best cut (exclusive end index, "sentence"|"pause") within words[start:end).
 
     Prefers the last word ending in '.', '?' or '!'; falls back to cutting
-    after the word preceding the largest inter-word pause.
+    after the word preceding the largest inter-word pause. If the word preceding
+    the pause is a coordinating conjunction, shifts the cut before the conjunction
+    so it does not dangle at clip end.
     """
     sentence_end = _find_sentence_end(words, start, end)
     if sentence_end is not None:
@@ -85,8 +109,15 @@ def _cut_point(words: list[dict[str, Any]], start: int, end: int) -> tuple[int, 
     best_gap, best_idx = -1.0, start
     for i in range(start, end - 1):
         gap = words[i + 1]["start"] - words[i]["end"]
-        if gap > best_gap:
+        if gap >= best_gap:
             best_gap, best_idx = gap, i
+
+    # If the word preceding the pause is a coordinating conjunction,
+    # shift cut to before the conjunction so the conjunction stays with the next clause.
+    w_chosen = words[best_idx]["w"].rstrip(".,;:!?…—–-").lower()
+    if w_chosen in _COORDINATING_CONJUNCTIONS and best_idx > start:
+        return best_idx, "pause"
+
     return best_idx + 1, "pause"
 
 
@@ -111,17 +142,24 @@ def _split_run(
     while start < n:
         grown_end = _grow_to_budget(words, start, fits)
         if grown_end >= n:
-            last_w = words[n - 1]["w"] if n > start else ""
+            tail_end = n
+            # Strip trailing conjunctions from tail
+            while tail_end > start + 1 and words[tail_end - 1]["w"].rstrip(".,;:!?…—–-").lower() in _COORDINATING_CONJUNCTIONS:
+                tail_end -= 1
+            last_w = words[tail_end - 1]["w"] if tail_end > start else ""
             if ends_at_flip and not (last_w and last_w[-1] in _SENTENCE_END_CHARS):
-                cut_end = _find_sentence_end(words, start, n)
+                cut_end = _find_sentence_end(words, start, tail_end)
                 if cut_end is not None and cut_end > start:
                     chunks.append(words[start:cut_end])
                     stats["cut_at_sentence"] += 1
                 stats["dropped_mid_sentence_at_flip"] += 1
             else:
-                chunks.append(words[start:n])
+                chunks.append(words[start:tail_end])
             break
         cut_end, kind = _cut_point(words, start, grown_end)
+        # Avoid leaving trailing conjunction at cut_end
+        while cut_end > start + 1 and words[cut_end - 1]["w"].rstrip(".,;:!?…—–-").lower() in _COORDINATING_CONJUNCTIONS:
+            cut_end -= 1
         chunks.append(words[start:cut_end])
         stats["cut_at_sentence" if kind == "sentence" else "cut_at_pause"] += 1
         start = cut_end

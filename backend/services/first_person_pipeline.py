@@ -22,8 +22,10 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import re
 import time
 import unicodedata
+from collections.abc import Callable
 from typing import Any, Optional
 
 import numpy as np
@@ -141,10 +143,20 @@ def _cosine_similarity(a: Optional[list[float]], b: Optional[list[float]]) -> fl
     return float(np.dot(va, vb) / denom)
 
 
-def _passes_integrity_gate(clip: dict[str, Any]) -> bool:
-    """Serve-time gate: hash match, allowlisted speaker, no extraction artifact.
+# Dangling coordinating conjunction regex: clips terminating on a conjunction
+# (e.g. "...fear or", "...and,", "...so.") represent incomplete grammatical clauses
+# and must never be served (CLAUDE.md Invariant 10, L-SENTENCE-SPLIT-CONJUNCTION-1).
+_DANGLING_CONJUNCTION_RE = re.compile(
+    r"\b(or|and|so|but|because)\s*[.,;:!?…—–-]*$",
+    re.IGNORECASE,
+)
 
-    All three are required. A failing clip is never served.
+
+def _passes_integrity_gate(clip: dict[str, Any]) -> bool:
+    """Serve-time gate: hash match, allowlisted speaker, no extraction artifact,
+    and no dangling trailing conjunction.
+
+    All four are required. A failing clip is never served.
     """
     verbatim_text = clip.get("verbatim_text") or ""
     transcript_hash = clip.get("transcript_hash") or ""
@@ -155,6 +167,12 @@ def _passes_integrity_gate(clip: dict[str, Any]) -> bool:
     if speaker not in _ALLOWED_SPEAKERS:
         return False
     if find_artifact(verbatim_text) is not None:
+        return False
+    if _DANGLING_CONJUNCTION_RE.search(verbatim_text):
+        logger.warning(
+            "[FirstPersonPipeline] Clip %s rejected by integrity gate: trailing conjunction",
+            clip.get("clip_id") or clip.get("id"),
+        )
         return False
     return True
 
@@ -203,10 +221,13 @@ class FirstPersonPipeline:
         redis_client: Optional[Any] = None,
         serene_mind_engine: Optional[SereneMindEngine] = None,
         calibration_profile: Optional[dict[str, Any]] = None,
+        rerank_fn: Optional[Callable[[str, list[str]], list[float]]] = None,
     ) -> None:
         self._store = store or FirstPersonStore()
         self._redis = redis_client
         self._serene_mind = serene_mind_engine or SereneMindEngine()
+        # (query, clip texts) -> one relevance score per text, higher is better.
+        self._rerank_fn = rerank_fn
         if calibration_profile is not None:
             self._profile = calibration_profile
         else:
@@ -219,8 +240,10 @@ class FirstPersonPipeline:
         norm = unicodedata.normalize("NFKC", query).strip().lower()
         t_id = (teacher_id or "both").strip().lower()
         fitted_at = (self._profile or {}).get("fitted_at", "none")
+        # Reranking changes which clip is served, so it is part of the key.
+        rerank = "rerank" if self._rerank_fn else "fusion"
         h = hashlib.sha256(
-            f"{norm}:{t_id}:{self._store.collection}:{fitted_at}".encode("utf-8")
+            f"{norm}:{t_id}:{self._store.collection}:{fitted_at}:{rerank}".encode("utf-8")
         ).hexdigest()
         return f"cache:first_person_exact:{h}"
 
@@ -301,17 +324,29 @@ class FirstPersonPipeline:
         query_sparse_vector: Optional[dict[str, Any]] = None,
         teacher_id: Optional[str] = None,
         max_clips: int = 3,
+        retrieval_query: Optional[str] = None,
     ) -> FirstPersonPipelineResult:
         """
         Execute the end-to-end first-person verbatim serving pipeline.
+
+        ``query`` is the seeker's own words (cache key, safety checks).
+        ``retrieval_query`` is its English translation when the question was not
+        in English; the dense/sparse vectors must already be computed from it.
         """
         start_time = time.monotonic()
+        # Safety checks run on every form of the question: a translation can only
+        # make them stricter (English-only regexes see an Indic question), never skip one.
+        safety_texts = [query] + ([retrieval_query] if retrieval_query and retrieval_query != query else [])
+        retrieval_query = retrieval_query or query
 
         # Step 1: Crisis Pre-Check (Fails closed to safety redirect)
         # Same pre-emption rule as the chat DistressStage: assess_distress() >= SEVERE.
         # has_crisis_keywords is only a broad pre-screen ("does NOT mean the message is
         # actually crisis-level"); OR-ing it in redirected benign questions.
-        distress_assessment = self._serene_mind.assess_distress(query)
+        assessments = [self._serene_mind.assess_distress(t) for t in safety_texts]
+        distress_assessment = max(
+            (a for a in assessments if a), key=lambda a: a.level.value, default=None
+        )
         is_crisis = bool(distress_assessment and distress_assessment.level.value >= DistressLevel.SEVERE.value)
         if is_crisis:
             # N4: never log the seeker's words, only the level.
@@ -330,7 +365,7 @@ class FirstPersonPipeline:
 
         # Step 1b: Topic rail (same regex list as chat, no LLM). A teacher's clip
         # served in reply to a political or abusive question reads as endorsement.
-        blocked = match_blocked_topic(query)
+        blocked = next((b for b in map(match_blocked_topic, safety_texts) if b is not None), None)
         if blocked is not None:
             topic, response = blocked
             status = "crisis_redirect" if topic in SAFETY_TOPICS else "abstained"
@@ -397,6 +432,18 @@ class FirstPersonPipeline:
                     f"[FirstPersonPipeline] Clip {clip.get('point_id')} for video {clip.get('video_id')} "
                     f"failed the serve-time integrity gate. Quarantined from serving."
                 )
+
+        # Step 4b: optional cross-encoder reorder of the verified candidates. Reorders
+        # only; confidence below stays dense cosine (the calibration contract).
+        if self._rerank_fn and len(verified_clips) > 1:
+            try:
+                scores = self._rerank_fn(retrieval_query, [c["verbatim_text"] for c in verified_clips])
+                order = sorted(range(len(verified_clips)), key=lambda i: scores[i], reverse=True)
+                verified_clips = [verified_clips[i] for i in order]
+            except Exception as e:
+                # ponytail: fail open to fusion order — the flag is an unproven ranking
+                # tweak, and a reranker outage must not take the whole route down.
+                logger.error(f"[FirstPersonPipeline] Rerank failed; keeping fusion order: {e}")
 
         verified_clips = verified_clips[:max_clips]
 

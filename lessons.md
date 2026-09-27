@@ -1,3 +1,114 @@
+## Sep 28, 2026 — First-Person v5 Promotion, Ingestion Acceleration & Safety Findings
+
+Full record: `docs/agent/SESSION_HANDOFF_2026-09-27_EVENING.md`, `~/mukthiguru_attribution_data/eval_v5/V5_EVAL_REPORT.md`, `~/mukthiguru_attribution_data/audio_2026-09/pilot20_run/dryrun_report/report_20260927T190329Z.json`.
+
+### L-V5-EVAL-PROMOTION-1. In-process bakeoff evaluation and live promotion of `first_person_v5`
+- **What:** Candidate collection `first_person_v5` (260 points, $\ge 8.0\text{ s}$ duration filter) was benchmarked inside `mukthiguru-backend` over the 116 sha256-pinned bakeoff queries (89 answerable, 27 unanswerable).
+- **Finding:** `v5` achieved 35.96% Top-1 strict accuracy vs 28.09% on `v2` (+7.87% absolute / +28.0% relative gain). Host quote leaks dropped from 13.8% (`v2`) to 7.8% (`v5`), a -43.5% relative reduction. Discordant pair analysis showed 12 wins for `v5` vs 5 for `v2`. Deterministic across runs ($\pm 0.0$). Promoted to live serving after explicit authorization.
+- **Rule:** Never rely on read-only simulations; execute two deterministic in-container passes with pinned questions and scoring primitives before cutover.
+
+### L-ARM-WHISPER-1. Faster-Whisper Large-v3 CPU thread contention & greedy decoding on Apple Silicon
+- **What:** Default CTranslate2 INT8 settings on Apple Silicon with `beam_size=5` and unconstrained threads took 945.2s on a 102s audio file (RTF 9.285) due to severe thread contention and memory thrashing.
+- **Fix:** Set `cpu_threads=4` and `beam_size=1` (greedy). Transcribe time dropped from 945s to 31.8s (RTF 0.312, 25x speedup) with 97.6% ROVER agreement with Parakeet and 0 word loss.
+- **Rule:** For local CTranslate2 on ARM, never use unconstrained threads or beam search > 1 for long-form audio; 4 threads with greedy decoding provides optimal throughput and matches Parakeet consensus.
+
+### L-MPS-ECAPA-1. Apple Silicon MPS hardware acceleration for ECAPA-TDNN speaker verification
+- **What:** SpeechBrain ECAPA-TDNN forward passes on CPU took ~7 minutes per video for rolling 3-second speaker verification windows.
+- **Fix:** Routed window batches to Apple Silicon GPU via `torch.device("mps")` when `torch.backends.mps.is_available()`. Embedding generation time dropped to 1.5s–15s per video (20x–50x speedup).
+- **Rule:** On Apple Silicon hosts, always route PyTorch speaker embedding extraction to `mps` to keep per-video verification latency under 15 seconds.
+
+### L-REPETITION-LOOP-1. Serve-time integrity gate quarantines ASR repetition loops
+- **What:** In `v2` and `v5`, clips from `UlOt31lBhLY` were quarantined at serve time. An investigation showed `find_artifact()` flagged an ASR repetition loop: `repetition loop: 'what state do i want'`.
+- **Finding:** Whisper large-v3 hallucinated a repetitive loop on quiet background audio. The serve-time integrity gate worked exactly as designed, preventing looping audio transcripts from reaching seekers.
+- **Rule:** When a clip is quarantined by `find_artifact()`, inspect the raw transcript before assuming a false positive; speech models frequently loop on background music/silence.
+
+### L-DOCKER-ENV-1. Docker Compose `restart` does not re-read `env_file`
+- **What:** Editing `.env` and running `docker compose restart backend` left the container serving `first_person_v2`.
+- **Finding:** Docker Compose `restart` only restarts the existing container without re-evaluating environment files. Furthermore, the active collection key is in root `.env:157` (`FIRST_PERSON_COLLECTION`), not `backend/.env`.
+- **Fix:** Recreate the container with `docker compose -f backend/docker-compose.yml up -d backend` after updating root `.env`.
+
+### L-PILOT20-ASR-CHANT-1. High-agreement chant/music filtering
+- **What:** Video `ClbKAXVvzzo` (a 44-minute meditation/chant) had 0.438 dual-ASR word agreement because neither Whisper nor Parakeet produced reliable transcripts on singing/chanting, and ECAPA identified 0 teacher segments exceeding threshold.
+- **Finding:** The pipeline cleanly quarantined the video and produced 0 teacher clips, successfully preventing chant noise from polluting the index.
+- **Rule:** Audio files consisting predominantly of music/chanting naturally fail dual-ASR consensus gating ($\ge 0.80$) and ECAPA teacher thresholds, protecting the index from singing/chanting noise.
+
+### L-SENTENCE-SPLIT-CONJUNCTION-1. Sentence boundary truncation on trailing coordinating conjunctions
+- **What:** In `first_person_v5`, queries on financial fear (3A, 3B, 3C) retrieved `hUmlujE6SN0 (328.42s–339.82s)` ending abruptly with: `"...from stress and anxiety and fear or"`. The sentence splitter broke on an acoustic pause despite a trailing coordinating conjunction, severing the thought before the explanation of roadblocks and purpose.
+- **Fix:** Ingestion segmentation must check trailing tokens; if a clip terminates on a coordinating conjunction (`"or"`, `"and"`, `"so"`, `"but"`), merge forward with the adjacent clause or reject the boundary.
+- **Rule:** Never produce or index a passage ending on a dangling conjunction.
+
+### L-CONTEXT-WINDOW-PHILOSOPHY-1. 11-second windows vs 18–25s rolling windows for philosophical completeness
+- **What:** While the $\ge 8.0\text{ s}$ gate successfully purged conversational filler, tight 8–12s windows frequently capture only the seeker's problem statement without the teacher's spiritual resolution.
+- **Fix:** Expand target passage segmentation for long-form verbatim discourses to a rolling minimum window of 18–25 seconds, ensuring complete philosophical units (premise + diagnosis + practice/resolution).
+- **Rule:** Standalone verbatim answers must contain self-contained spiritual context, not truncated premises.
+
+### L-SEMANTIC-DRIFT-DENSITY-1. Sparse corpus clusters cause dense-vector semantic drift
+- **What:** On Query 2C (*"Why are children never taught how to handle emotional states?"*), `v5` returned `hUmlujE6SN0` (*"your state of stress does not allow..."*) instead of Sri Preethaji's TEDx talk on schooling (`TqxxCYnAxo8`). The dense vector trapped on generic high-frequency words ("state", "stress") in a sparse 38-video index.
+- **Fix:** Expanding corpus density via Pilot 20 (278 passages) and Batch 2 (50 videos) thickens topic clusters so specialized sub-domains (pedagogy, childhood education) out-rank generic stress discourses.
+- **Rule:** When dense retrieval drifts on a specific sub-topic, verify whether the topic cluster has sufficient point density in the collection before tuning encoder weights.
+
+## Sep 27, 2026 — Re-measuring a handoff: most "PASS" claims were narrower than they read
+
+Full record: `docs/agent/STATE_RECONCILIATION_2026-09-27.md`.
+
+### L-TRANSLATION-NOOP-1. The live provider had no translator, and nothing said so
+- **What:** `ServiceContainer._build_llm_services` wired a real `translation` only for Sarvam and Ollama. `LLM_PROVIDER=openrouter` (live since 2026-09-12) got `_NoopTranslationProvider`, so query-to-English and answer-to-Indic translation silently returned their input. Chat still "worked" because the LLM is multilingual, which is why nobody noticed; Hindi doctrine questions failed retrieval.
+- **Fix:** OpenRouter branch → `RoutingTranslationProvider(gemini slot, OpenRouter terminal fallback)`. Two traps found live: the account policy blocks `google/gemini-*`, and the 8B fast model mistranslates doctrine ("सुंदर अवस्था" → "the situation") — so the slot runs `deepseek/deepseek-chat` via `GEMINI_MODEL`, and the prompt keeps teaching names in English. Guard: `tests/test_container_translation_wiring.py`.
+- **Rule:** a pass-through default must log loudly at startup; and probe any multilingual path live in an Indic language before believing it.
+
+### L-LANGGRAPH-CONFIG-1. A "spurious" LangGraph warning meant 17 nodes never got `config`
+- **What:** LangGraph warned "The 'config' parameter should be typed as 'RunnableConfig'…". A handoff silenced it with `warnings.filterwarnings`. It was not spurious: under `from __future__ import annotations` the annotation is the string `"RunnableConfig | None"`, which is not in LangGraph's accepted set, so LangGraph warns **and skips injection**. 17 nodes (retrieval, rerank, grade, verify, rewrite, web search) ran with `config=None`, and `emit_status` dropped every SSE progress frame from them.
+- **Fix:** annotate `Optional[RunnableConfig]` (accepted as a string); filter removed. Guard: `tests/test_node_config_injection.py` (negative control verified).
+- **Rule:** never filter a library warning before reading the line that emits it. Same session: the `TRANSFORMERS_CACHE` warning was fixed by deleting the deprecated var from compose/Dockerfile (it always equalled `HF_HOME`), not with a runtime `os.environ` shim.
+
+### L-CRISIS-LIVE-PROBE-1. Two crisis-routing gaps only a live `/api/chat` probe found
+- **What:** (1) "मैं अपनी जान देना चाहता हूँ" / "apni jaan de/le" ("give/take my life") scored NONE in every detector and got a helpline-less answer — only Devanagari "अपनी जान ले" was covered. (2) The guardrail's `hurt myself` regex had no ordinary-injury exclusion, and its match now forces CRISIS, so "I hurt myself playing cricket" got crisis helplines.
+- **Fix:** added the Hindi/Hinglish patterns (UNVERIFIED by a native speaker; devotional hyperbole will false-positive, accepted); the guardrail shares `serene_mind_engine`'s injury exclusion, `kill myself` stays unconditional. Tests in `tests/test_self_harm_crisis_unification.py`.
+- **Rule:** after any crisis-routing change, probe the rebuilt container through `/api/chat`, in at least one Indic language and one benign near-miss.
+
+### L-GRADER-RESCUE-1. A keyword rescue for Indic queries accepted off-topic docs
+- **What:** to stop the grader LLM rejecting Kannada/Indic questions against English docs, `grade_documents` also accepted any ambiguous doc containing "beautiful state", "soul sync", "ekam", etc. Those terms are in most of the corpus, so any Indic question got doctrine docs accepted.
+- **Fix:** rescue only on the multilingual reranker's own score (≥ 0.40, unmeasured); English is never rescued. False-positive tests in `tests/test_grade_documents_crosslingual.py`.
+- **Rule:** a rescue heuristic needs a false-positive test (unrelated query + keyword-bearing doc) before it ships, not just the one case it was written for.
+
+### L-CRISIS-BROKEN-1. Bare "broken" pre-empted teaching questions with crisis helplines
+- **What:** `broken` was a SEVERE pattern, so "can love heal a broken relationship?" returned helplines (2 of 116 bake-off questions).
+- **Fix:** SEVERE only as self-description ("I feel/am broken", "broken inside", "a broken person"); bare `broken` is MODERATE. Ideation + "broken" is still CRISIS. Red-team tier-3 32/32.
+- **Also:** the fix was not live until the backend container restarted — `/app` is bind-mounted but uvicorn runs without `--reload`. Verify a safety fix through the live route, not only pytest.
+- **Open:** `give up`, `no point`, `hopeless`, `nothing matters` have the same false-positive shape (e.g. "should I give up coffee during the practice?").
+
+### L-DISTRESS-FAILOPEN-1. A crash in the distress check switched crisis pre-emption off
+- **What:** `DistressStage._detect_distress` returned `None` when `analyze_with_history` raised or the engine was missing, and `None` skips pre-emption.
+- **Fix:** fall back to the pure-regex `assess_distress`, which cannot fail. Tests in `tests/test_distress_llm_downgrade.py`.
+
+### L-DISTRESS-LLM-1. An LLM may lower SEVERE only; never reuse `classify_distress_structured` for that
+- **Built, flag OFF** (`distress_llm_downgrade_enabled`): regex-SEVERE only, no prior distress, one-word prompt, lowers to MODERATE only on an exact "TOPIC"; timeout/error/anything else keeps SEVERE. CRISIS is never sent.
+- **Traps in the shared classifier:** its `confidence` means P(distress), not certainty; and on provider failure it returns `is_distress: False`. Reused as a downgrade signal, an outage would lower every SEVERE message.
+- **Live eval:** lowered all 4 benign SEVERE questions, but answered TOPIC for romanized-Kannada suicidal ideation ("nanage badukalu ishta illa", regex CRISIS so never consulted). Only 1 scenario turn is regex-SEVERE, so the SEVERE band is unproven.
+- **Rule:** enable only after a SEVERE-band set (incl. Indic/romanized) shows 0 TOPIC and a clinician signs off.
+
+### L-SHORT-CLIPS-1. Sentence-level clips doubled host-voice leakage
+- **What:** `first_person_v4` (median clip 7 s, 30% under 4 s) had 15.5% host-like top clips vs 7.8% on v2 (median 21 s). Short fragments ("elaborate on it a little bit?", 1.6 s, host speech tagged Krishnaji) carry unreliable speaker labels and out-rank answers by resembling the question.
+- **Change:** builder drops clips < 8 s (`MIN_CLIP_DURATION_S`, `--min-clip-seconds`). A read-only HasIdCondition simulation favoured it, but the real `first_person_v5` build scored top-1 0.398 vs v2 0.42–0.45 and host proxy 11.2% vs 8.6%. **v5 not promoted.**
+- **Rule:** a read-only simulation is not a result; build the shadow and measure live, twice.
+
+### L-EMBED-DRIFT-1. Stored vectors do not equal a fresh re-embed of the same text (unresolved)
+- **What:** v5's points equal v4's ≥ 8 s subset, yet stored vectors differ (cos 0.98–0.99), and neither matches a fresh `encode_batch` on host (0.99) or in the container (0.98). Ruled out: batch dependence, backend flag (both `onnx_int8`), Qdrant quantization/datatype, `upsert_clips` transforms.
+- **Consequence:** "identical" builds differ by 2–4 top-1 questions; gaps under ~0.05 on 83 questions are noise.
+- **Rule:** pin encoder model files and runtime versions and record them in every build report before comparing collections.
+
+### L-RIGHTS-PER-VIDEO-1. Third-party channels are cleared per video, never per channel
+- **What:** TEDx Talks and Marie Forleo had been added to `CLEARED_CHANNELS`, auto-clearing any upload from either channel, when the owner approved two specific videos.
+- **Fix:** `CLEARED_VIDEO_IDS = {"TqxxCYnAxo8", "UlOt31lBhLY"}`; tested both ways.
+
+### L-HANDOFF-VERIFY-1. Handoff claims that failed re-measurement
+- "Idle night drives φ to 10": φ is only recomputed on heartbeat arrival, so idle cannot raise it (`tests/test_health_monitor_idle.py`); the φ detector is effectively inert.
+- "46 rights exclusions": 45 are unavailable/private YouTube videos, 1 dead-lettered.
+- "45 videos indexed": 40 corpus + 5 bake-off videos outside the 745 corpus; only 38 produced clips.
+- "speaker_verified end to end": nothing produces `True` and the frontend never maps it.
+- "clean working tree", "p95 < 50 ms", "production-ready": false or unmeasured.
+- **Rule:** re-measure every number in a handoff before building on it; record the command next to the number.
+
 ## Sep 26, 2026 — Benchmark run 1 post-mortem: the harness and supervisor disagreed, and a memory limit counted the wrong thing
 
 Full account: `~/mukthiguru_attribution_data/baseline_2026-09-25/RUN1_POSTMORTEM.md`.

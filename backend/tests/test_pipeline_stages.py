@@ -505,7 +505,11 @@ def test_route_manifest_is_internal_and_allowlisted(coordinator):
 @pytest.mark.parametrize(
     "reason,expected_intent,expected_route",
     [
-        ("Off-topic: self_harm", "DISTRESS", "distress"),
+        # NOTE: "Off-topic: self_harm" is deliberately NOT covered here — see
+        # tests/test_self_harm_crisis_unification.py. self_harm now defers to
+        # DistressStage's crisis pre-emption (the same terminal handler every
+        # other language's ideation already used) instead of being blocked at
+        # this stage with a weaker helpline template.
         ("Emotional wellness: serene_mind redirect", "DISTRESS", "distress"),
         ("Medical advice requested", "SAFETY_VIOLATION", "blocked"),
         ("Harmful pattern detected", "SAFETY_VIOLATION", "blocked"),
@@ -531,6 +535,23 @@ async def test_input_guardrail_blocked_reports_real_category(
     assert result.blocked is True
     assert result.intent == expected_intent
     assert result.route_decision == expected_route
+
+
+@pytest.mark.asyncio
+async def test_input_guardrail_self_harm_reason_defers_not_blocks(coordinator):
+    """self_harm must NOT short-circuit here — see
+    tests/test_self_harm_crisis_unification.py for the full root-cause fix."""
+    coordinator.container = _mock_container()
+    coordinator.container.guardrails.check_input.return_value = {
+        "blocked": True,
+        "reason": "Off-topic: self_harm",
+        "response": "I can't help with that.",
+    }
+    ctx = _build_ctx(coordinator.container, coordinator)
+
+    result = await InputGuardrailStage().run(ctx)
+
+    assert result is None
 
 
 # ---------------------------------------------------------------------------

@@ -53,6 +53,8 @@ Plan and ship decisions: `docs/architecture/first-person-path-to-prod.md` (ADR F
 7. **Ingestion:** Whisper hardening (`services/speech_config.py`: sacred-vocabulary prompt, `condition_on_previous_text=False`) is live. `backend/ingest/verbatim/` (vote, speaker verify, sentence clips, gates) is tested but **not wired** into `ingest/pipeline.py`. There is no Silero VAD stage.
 8. **Isolation:** the route sits behind `FIRST_PERSON_ROUTE_ENABLED` / `FIRST_PERSON_MODE`. The crisis pre-check and the topic rail run before retrieval. No semantic cache: only an exact Redis cache, and a hit re-checks `points_servable`. FastAPI dependencies are `async` (L-DOCKER-18).
 9. **Measured (local, 2026-09-25, 116 questions):** top-1 0.43, 0 direct answers, p50 63 ms / p95 210 ms, host leak 6.9% of top-1. Production has not been measured. Don't quote aspirational latency (e.g. "20–40 ms") as fact.
+10. **Sentence Boundary & Conjunction Integrity:** Ingestion segmentation pipeline must not split passages on trailing coordinating conjunctions (`"or"`, `"and"`, `"so"`, `"but"`) without forward clause resolution. Every indexed clip must form a complete grammatical and conceptual thought.
+11. **Philosophical Context Windowing:** Standalone verbatim answers require sufficient temporal context (rolling target 18–25 seconds) to capture both the diagnostic premise and the spiritual solution, avoiding truncated mid-thought fragments.
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
@@ -980,7 +982,7 @@ Services: **backend**, **qdrant**, **redis**, **neo4j**, **jaeger**
   - Effective live setting: Deployments configure `healthcheckPath: /api/health` with `healthcheckTimeout: 300` (or `healthcheckPath: /api/healthz` with `healthcheckTimeout: 120`). Target `/api/health` for deployment gating so Railway verifies full subservice readiness rather than relying on `/api/healthz`'s 180s grace masking.
   - `/api/healthz` — liveness probe intercepted by `start_railway.py` wrapper, returns 200 during `_GRACE_SECONDS = 180` boot window, then monitors lifespan heartbeat and default executor starvation canaries.
   - `/api/health` — readiness probe inspecting real per-service health; returns `ready: false` / 503 until `startup_complete=True` (all 18 subservices verified green).
-- **Key env vars for backend**: `OPENROUTER_API_KEY`, `SUPABASE_URL`, `SUPABASE_KEY`, `QDRANT_URL=http://qdrant.railway.internal:6333`, `QDRANT_COLLECTION=spiritual_wisdom_contextual`, `REDIS_URL=redis://...:6379`, `NEO4J_URI=bolt://memgraph.railway.internal:7687`, `FORWARDED_ALLOW_IPS=10.0.0.0/8`, `QUANTIZED_ONLY=true`, `PYTHON_MEMORY_LIMIT_MB=5120`
+- **Key env vars for backend**: `OPENROUTER_API_KEY`, `SUPABASE_URL`, `SUPABASE_KEY`, `QDRANT_URL=http://qdrant.railway.internal:6333`, `QDRANT_COLLECTION=spiritual_wisdom_contextual`, `REDIS_URL=redis://...:6379`, `NEO4J_URI=bolt://memgraph.railway.internal:7687`, `FORWARDED_ALLOW_IPS=10.0.0.0/8` (mandatory startup security guard), `QUANTIZED_ONLY=true`, `PYTHON_MEMORY_LIMIT_MB=0` (mandatory on Railway: 0 disables RLIMIT_DATA virtual memory limits to prevent thread-allocation and model-loading OOM crashes)
 
 ### CI/CD (`.github/workflows/`)
 - `build-deploy.yml` — Build and deploy pipeline

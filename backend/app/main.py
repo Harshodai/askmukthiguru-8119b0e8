@@ -775,6 +775,11 @@ async def lifespan(app: FastAPI):
         "Lifespan: release manifest validated (release_id=%s)", get_release_manifest().release_id
     )
 
+    # First-person is a rights-sensitive, calibrated route. In production,
+    # refuse to accept traffic unless its release contract is complete.
+    from services.first_person_release import validate_first_person_production_contract
+
+    validate_first_person_production_contract(settings, get_release_manifest())
     # Safety assertion: semantic cache similarity floor must not drop below 0.92 in production
     cache_similarity = getattr(settings, "semantic_cache_similarity", 0.92)
     if cache_similarity < 0.92:

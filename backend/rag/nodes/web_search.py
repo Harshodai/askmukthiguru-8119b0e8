@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime, timedelta
+from typing import Optional
 
 from langchain_core.runnables import RunnableConfig
 
@@ -19,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 @trace_rag_node("web_search")
 @log_metrics
-async def web_search_node(state: GraphState, config: RunnableConfig | None = None) -> dict:
+async def web_search_node(state: GraphState, config: Optional[RunnableConfig] = None) -> dict:
     """Fetch official event, schedule, and booking results only.
 
     General temporal questions deliberately do not invoke live search. This

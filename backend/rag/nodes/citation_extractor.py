@@ -231,6 +231,7 @@ def extract_citations(state: GraphState) -> dict:
                     # Qdrant for the chunk that produced it.
                     "chunk_provenance": best_doc.get("chunk_provenance", ""),
                     "speaker": _resolve_speaker(best_doc),
+                    "speaker_verified": bool(best_doc.get("speaker_verified") is True),
                     "timestamp_seconds": _resolve_timestamp(best_doc),
                     # Only a true verbatim layer may be shown as the teacher's words;
                     # chunk `text` is often machine-rewritten search text.

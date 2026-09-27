@@ -7,11 +7,13 @@ and proactive-state glue that lived inline in ``execute()``.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 import time
 from typing import TYPE_CHECKING
 
+from app.config import settings
 from app.pipeline.result import PipelineResult
 from app.pipeline.stages.base import Stage
 from app.release_manifest import get_release_manifest
@@ -19,9 +21,12 @@ from app.route_taxonomy import RoutingProvenance, record_routing_decision
 from services.safety_telemetry import log_crisis_referral_shown, log_tier_escalation
 from services.serene_mind_engine import (
     DISTRESS_RESPONSES,
+    THIRD_PARTY_CRISIS_RESPONSE,
     DistressAssessment,
     DistressLevel,
+    SereneMindEngine,
     get_crisis_resource,
+    get_non_english_crisis_patterns,
 )
 
 if TYPE_CHECKING:
@@ -49,66 +54,41 @@ _DISTRESS_KEYWORD_RE = re.compile(
     re.IGNORECASE,
 )
 
-# Acute Indic self-harm / suicide keywords — deliberately narrow (suicide /
-# self-harm intent), NOT vague pain/grief words. See _DISTRESS_KEYWORD_RE
-# docstring for the keyword sources.
+# Acute Indic self-harm / suicide pre-screen.
 #
-# Sources for Kannada/Malayalam additions:
-#   - NIMHANS suicide prevention glossary (Kannada)
-#   - iCall/Vandrevala Foundation crisis line materials (Malayalam)
-#   - ICHI Mental Health Glossary updates 2025 (both scripts)
-_INDIC_CRISIS_KEYWORDS = (
-    # Hindi (Devanagari)
-    "आत्महत्या",  # suicide
-    "खुदकुशी",  # suicide (colloquial)
-    "खुद को मार",  # kill myself
-    # Marathi-specific (Devanagari)
-    "जीव देणे",  # "give life" — Marathi idiom for suicide
-    "जीव संपवणे",  # "end life" — Marathi
-    # Bengali (Bengali script)
-    "আত্মহত্যা",  # suicide
-    "নিজেকে মেরে",  # kill myself
-    # Tamil (Tamil script)
-    "தற்கொலை",  # suicide
-    "தற்கொலை செய்து",  # commit suicide
-    # Telugu (Telugu script)
-    "ఆత్మహత్య",  # suicide
-    "ఆత్మహత్య చేసుకో",  # commit suicide
-    # Kannada (Kannada script)
-    "ಆತ್ಮಹತ್ಯೆ",  # suicide
-    "ಆತ್ಮಹತ್ಯೆ ಮಾಡಿಕೊಳ್ಳ",  # commit suicide
-    "ನನ್ನನ್ನು ಕೊಲ್ಲ",  # kill myself
-    # Malayalam (Malayalam script)
-    "ആത്മഹത്യ",  # suicide
-    "ആത്മഹത്യ ചെയ്യ",  # commit suicide
-    "എന്നെ കൊല്ല",  # kill myself
-    # Gujarati (Gujarati script)
-    "આત્મહત્યા",
-    "જીવ આપવો",
-    "મરી જવું",
-    # Punjabi (Gurmukhi script)
-    "ਆਤਮਹੱਤਿਆ",
-    "ਖੁਦਕੁਸ਼ੀ",
-    # Odia (Odia script)
-    "ଆତ୍ମହତ୍ୟା",
-    # Urdu (Arabic script)
-    "خودکشی",
-    "جان دینا",
-    # Transliterated / Romanized Indic crisis phrases
-    "marna chahta",
-    "mar jana chahta",
-    "jaan de dunga",
-    "zindagi khatam",
-    "chavali anipistundi",
-    "chavalanukuntunna",
-    "saaganum pola",
-    "saayabeku",
-    "jeev dyava vat-to",
-    "marvu che",
-    "morite chai",
-)
+# STRUCTURAL FIX (2026-09-27): this used to be its own hand-typed keyword
+# tuple, maintained completely independently of
+# services.serene_mind_engine._ALL_PATTERNS (the actual classifier). Two
+# independently hand-maintained lists for the same phrases WILL drift — the
+# concrete bug found: this list had the romanized Kannada spelling
+# "saayabeku" (double-a), but serene_mind_engine's own `_KN_ROMANIZED_PATTERNS`
+# only had "sayabeku" (single-a), so a message matching this pre-screen never
+# actually escalated to CRISIS in assess_distress() — the pre-screen fired,
+# `has_distress_keywords` was True, but the real classification silently
+# disagreed. That class of divergence is now structurally impossible: this
+# pre-screen is DERIVED from the exact same compiled CRISIS patterns
+# assess_distress() itself uses (`get_non_english_crisis_patterns()`), so
+# every crisis phrase the classifier recognizes is automatically covered
+# here too, with no second edit and no way for the two to disagree.
+#
+# Original data-source note, preserved for provenance: the pre-screen
+# keywords originally came from ICHI Mental Health Glossary (hi/ta/te/mr),
+# AIIMS suicide-prevention resources (hi/te/mr), Bangladesh suicide-prevention
+# helplines (bn), IndicNLP suicide/self-harm corpus keywords (hi/ta/mr/bn),
+# NIMHANS suicide prevention glossary (Kannada), iCall/Vandrevala Foundation
+# crisis line materials (Malayalam), ICHI Mental Health Glossary updates 2025
+# — all of which now live directly in serene_mind_engine.py's per-language
+# CRISIS pattern lists (the single source of truth) rather than duplicated
+# here.
+_INDIC_CRISIS_PATTERNS: tuple[re.Pattern, ...] = tuple(get_non_english_crisis_patterns())
 
-_INDIC_CRISIS_KEYWORD_RE = re.compile("|".join(_INDIC_CRISIS_KEYWORDS), re.IGNORECASE)
+
+def _indic_crisis_keyword_search(text: str) -> re.Match | None:
+    for pattern in _INDIC_CRISIS_PATTERNS:
+        match = pattern.search(text)
+        if match:
+            return match
+    return None
 
 
 def has_crisis_keywords(text: str) -> bool:
@@ -116,20 +96,30 @@ def has_crisis_keywords(text: str) -> bool:
 
     Checks the same patterns DistressStage.run() uses as its pre-screen:
     `_DISTRESS_KEYWORD_RE` (English — broad, MILD-through-CRISIS distress
-    words, not acute-only) OR'd with `_INDIC_CRISIS_KEYWORD_RE` (Indic
-    scripts — narrow, acute self-harm/suicide only). A True result does NOT
-    mean the message is actually crisis-level; it means DistressStage's own
-    pre-screen would also fire, so an admission gate must not reject the
-    request without giving DistressStage a chance to run its full
-    assess_distress() and decide. Admission gates that reject a request
-    BEFORE the pipeline runs (e.g. chat.py's conversation-context-limit
+    words, not acute-only) OR'd with `_indic_crisis_keyword_search` (Indic
+    scripts and romanized forms — the exact CRISIS patterns
+    assess_distress() uses, see `get_non_english_crisis_patterns()`). A True
+    result does NOT mean the message is actually crisis-level; it means
+    DistressStage's own pre-screen would also fire, so an admission gate
+    must not reject the request without giving DistressStage a chance to
+    run its full assess_distress() and decide. Admission gates that reject a
+    request BEFORE the pipeline runs (e.g. chat.py's conversation-context-limit
     check) must call this first and let a match through regardless of the
     rejection reason — the pipeline's own DistressStage is where the actual
     crisis-preemption response is built, and it must never be skippable by
     hitting an unrelated admission gate. Not a substitute for the full
     assess_distress() call DistressStage runs.
     """
-    return bool(_DISTRESS_KEYWORD_RE.search(text) or _INDIC_CRISIS_KEYWORD_RE.search(text))
+    return bool(_DISTRESS_KEYWORD_RE.search(text) or _indic_crisis_keyword_search(text))
+
+
+_SEVERE_SECOND_OPINION_SYSTEM = (
+    "You screen messages sent to a spiritual-teachings assistant. Decide whether the writer "
+    "is describing THEIR OWN current emotional pain, hopelessness, feeling broken, or wanting "
+    "to give up on life (answer PERSONAL), or is asking about a topic, a teaching, another "
+    "person, or an object (answer TOPIC). If there is any doubt, answer PERSONAL. "
+    "Reply with exactly one word: PERSONAL or TOPIC."
+)
 
 
 class DistressStage(Stage):
@@ -153,14 +143,41 @@ class DistressStage(Stage):
         # unavailable (e.g. direct stage tests use SimpleNamespace).
         raw = getattr(ctx, "user_msg", None) or user_msg_en
         has_en_keyword = bool(_DISTRESS_KEYWORD_RE.search(user_msg_en))
-        has_indic_keyword = bool(_INDIC_CRISIS_KEYWORD_RE.search(raw))
-        ctx.has_distress_keywords = has_en_keyword or has_indic_keyword
+        has_indic_keyword = bool(_indic_crisis_keyword_search(raw))
+        # Fail-closed signal from InputGuardrailStage: its self_harm topic
+        # rail (guardrails/lightweight_handler._BLOCKED_TOPICS["self_harm"])
+        # already matched this message. That match is authoritative on its
+        # own — it must NOT depend on assess_distress's own (different,
+        # narrower) pattern set also matching, which is exactly the 2026-09-27
+        # regression ("I am suicidal" etc. matched the guardrail but scored
+        # DistressLevel.NONE here, silently downgrading to a helpline-less
+        # response).
+        guardrail_self_harm = bool(state.get("guardrail_self_harm_match"))
+        ctx.has_distress_keywords = has_en_keyword or has_indic_keyword or guardrail_self_harm
 
         # Assess unconditionally. Keyword-gating this let question-framed
         # ideation ("how do i stop wanting to die") skip detection entirely —
         # the pre-screen regex misses it exactly as the crisis phrasings did.
         # assess_distress is pure regex (<1ms), so running it every turn is cheap.
         assessment = await self._detect_distress(ctx, user_msg_en, state)
+        if guardrail_self_harm:
+            # Force CRISIS unconditionally — never downgraded, and the LLM
+            # second opinion (which may only lower SEVERE->MODERATE) must
+            # never see this assessment at all, so it can't touch it either.
+            if assessment is None:
+                assessment = DistressAssessment(
+                    level=DistressLevel.CRISIS,
+                    confidence=1.0,
+                    detected_signals=["[guardrail] self_harm topic match"],
+                    recommended_response_type="crisis",
+                )
+            elif assessment.level < DistressLevel.CRISIS:
+                assessment.level = DistressLevel.CRISIS
+                assessment.confidence = max(assessment.confidence, 1.0)
+                assessment.recommended_response_type = "crisis"
+                assessment.detected_signals.append("[guardrail] self_harm topic match")
+        else:
+            assessment = await self._maybe_llm_downgrade_severe(ctx, user_msg_en, assessment, state)
         ctx.assessment = assessment
 
         level_value = getattr(getattr(assessment, "level", None), "value", -1)
@@ -218,13 +235,26 @@ class DistressStage(Stage):
     ) -> PipelineResult:
         """Return reviewed support before any model or persistence side effect."""
         level = assessment.level
-        prefix = DISTRESS_RESPONSES.get(level, DISTRESS_RESPONSES[DistressLevel.CRISIS])
+        is_third_party = getattr(assessment, "recommended_response_type", None) == "third_party_crisis"
+        if is_third_party:
+            # AI-AUTHORED, PENDING-CLINICIAN-REVIEW (see W2 review packet):
+            # a helper-oriented response — never "are you safe right now",
+            # which is meaningless addressed to someone worried about a
+            # THIRD party, not themselves.
+            prefix = THIRD_PARTY_CRISIS_RESPONSE
+            next_step = (
+                "If you're not sure whether it's urgent, it's always okay to "
+                "err on the side of reaching out for help — you don't have to "
+                "carry this alone either."
+            )
+        else:
+            prefix = DISTRESS_RESPONSES.get(level, DISTRESS_RESPONSES[DistressLevel.CRISIS])
+            next_step = (
+                "If you are in immediate danger, please contact local emergency services "
+                "or go to a safer place now. If you can, tell a trusted person nearby "
+                "that you need support."
+            )
         resources = get_crisis_resource("global")
-        next_step = (
-            "If you are in immediate danger, please contact local emergency services "
-            "or go to a safer place now. If you can, tell a trusted person nearby "
-            "that you need support."
-        )
         # Resources (helpline numbers/shortcodes) MUST appear in the first 200
         # characters of a SEVERE/CRISIS response (see docs/INTEGRATION_GUIDE.md,
         # evaluation/datasets/mukthi_guru_v1.yaml, evaluation/rubrics/
@@ -333,8 +363,61 @@ class DistressStage(Stage):
                     )
                 return assessment
         except Exception as e:
-            logger.warning(f"Serene Mind detection failed (non-fatal): {e}")
-        return None
+            logger.warning(f"Serene Mind detection failed; falling back to regex: {e}")
+        # Fail closed: a crash (or a missing engine) in the full check must never
+        # switch crisis pre-emption off. The regex stage is pure and cannot fail.
+        return SereneMindEngine().assess_distress(user_msg_en)
+
+    @staticmethod
+    def _has_prior_distress(state: dict) -> bool:
+        if state.get("distress_history"):
+            return True
+        engine = SereneMindEngine()
+        for msg in (state.get("chat_history_en") or [])[-6:]:
+            role = msg.get("role") if isinstance(msg, dict) else getattr(msg, "role", "")
+            text = msg.get("content") if isinstance(msg, dict) else getattr(msg, "content", "")
+            if role == "user" and engine._quick_distress_check(text or ""):
+                return True
+        return False
+
+    async def _maybe_llm_downgrade_severe(
+        self, ctx, user_msg_en: str, assessment: DistressAssessment | None, state: dict
+    ) -> DistressAssessment | None:
+        """Optional LLM second opinion that may ONLY lower SEVERE to MODERATE.
+
+        Asymmetric by design: CRISIS is never consulted, nothing is raised here, and
+        every uncertain outcome (flag off, prior distress, timeout, error, missing
+        provider, or any reply other than exactly "TOPIC") keeps SEVERE.
+        """
+        if (
+            not settings.distress_llm_downgrade_enabled
+            or assessment is None
+            or assessment.level != DistressLevel.SEVERE
+            or self._has_prior_distress(state)
+        ):
+            return assessment
+        llm = getattr(getattr(ctx, "container", None), "ollama", None)
+        if llm is None:
+            return assessment
+        try:
+            raw = await asyncio.wait_for(
+                llm._generate_fast(_SEVERE_SECOND_OPINION_SYSTEM, user_msg_en[:512]),
+                timeout=settings.distress_llm_downgrade_timeout_s,
+            )
+        except Exception as e:  # includes asyncio.TimeoutError
+            logger.warning("Distress LLM second opinion unavailable; keeping SEVERE: %s", e)
+            return assessment
+        # Only an exact one-word "TOPIC" lowers the level. Empty, None, extra words,
+        # "PERSONAL" or anything unparseable keeps SEVERE. The shared
+        # classify_distress_structured is NOT used: its failure fallback returns a
+        # "not distress" verdict, which would turn an outage into a downgrade.
+        verdict = (raw or "").strip().strip(".").upper()
+        if verdict == "TOPIC":
+            assessment.level = DistressLevel.MODERATE
+            assessment.recommended_response_type = "meditation"
+            assessment.detected_signals.append("[LLM second opinion] SEVERE->MODERATE: topic, not personal distress")
+            logger.info("Distress LLM second opinion lowered SEVERE to MODERATE")
+        return assessment
 
     async def _maybe_trigger_proactive_serene_mind(
         self,

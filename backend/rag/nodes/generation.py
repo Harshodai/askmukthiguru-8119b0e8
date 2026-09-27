@@ -390,6 +390,7 @@ def _sanitize_citations(citations: list, docs: list[dict] | None = None) -> list
 
     provenance_by_url: dict[str, str] = {}
     speaker_by_url: dict[str, str] = {}
+    speaker_verified_by_url: dict[str, bool] = {}
     for doc in docs or []:
         if not isinstance(doc, dict):
             continue
@@ -400,6 +401,8 @@ def _sanitize_citations(citations: list, docs: list[dict] | None = None) -> list
             provenance_by_url.setdefault(doc_url, doc.get("chunk_provenance"))
         if doc.get("speaker"):
             speaker_by_url.setdefault(doc_url, doc.get("speaker"))
+        if doc.get("speaker_verified") is not None:
+            speaker_verified_by_url.setdefault(doc_url, bool(doc.get("speaker_verified")))
 
     clean: list[dict] = []
     seen: set[str] = set()
@@ -413,11 +416,17 @@ def _sanitize_citations(citations: list, docs: list[dict] | None = None) -> list
             # started emitting them — carry them through explicitly.
             provenance = citation.get("chunk_provenance") or None
             speaker = citation.get("speaker") or None
+            speaker_verified = (
+                citation.get("speaker_verified")
+                if isinstance(citation.get("speaker_verified"), bool)
+                else None
+            )
         else:
             value = citation
             title = None
             provenance = None
             speaker = None
+            speaker_verified = None
         value = str(value or "").strip()
         if not value.startswith(("http://", "https://")):
             continue
@@ -430,6 +439,11 @@ def _sanitize_citations(citations: list, docs: list[dict] | None = None) -> list
                 "title": title or title_by_url.get(value),
                 "chunk_provenance": provenance or provenance_by_url.get(value),
                 "speaker": speaker or speaker_by_url.get(value),
+                "speaker_verified": (
+                    speaker_verified
+                    if speaker_verified is not None
+                    else speaker_verified_by_url.get(value)
+                ),
             }
         )
     return clean

@@ -155,3 +155,4 @@ Backups stay local-cron per policy (`infrastructure/cron/mukthiguru-backup`: 02:
 - **Next Steps**:
   1. Frontend request throttling: prevent `/api/capabilities` and `/api/metrics` from continuously waking Railway when testing.
   2. Run batch benchmarks (`benchmarks/RUN_ME.sh` or `evaluation/bench.py`) locally or against temporary redeploy.
+- **Mandatory Railway Env Vars**: `FORWARDED_ALLOW_IPS=10.0.0.0/8` (startup fail-closed guard) and `PYTHON_MEMORY_LIMIT_MB=0` (disables virtual RLIMIT_DATA cap to prevent thread allocation failure and OOM during ONNX model cold load).

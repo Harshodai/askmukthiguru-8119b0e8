@@ -180,13 +180,39 @@ describe('CitationCard — playback pre-roll fields (Dexa acoustic offsets)', ()
   });
 });
 
-describe('DiscourseVideoModal — YouTube start is whole seconds', () => {
-  it('floors a fractional playbackStartSeconds', () => {
+describe('DiscourseVideoModal — YouTube start and end whole seconds', () => {
+  it('ceils a fractional playbackStartSeconds to prevent preceding host bleed', () => {
     render(
       <DiscourseVideoModal isOpen onClose={() => {}} citation={{ ...baseCitation, playbackStartSeconds: 94.25 }} />,
     );
     const src = document.querySelector('iframe')?.getAttribute('src') ?? '';
-    expect(src).toContain('start=94&');
+    expect(src).toContain('start=95');
     expect(src).not.toContain('94.25');
+  });
+
+  it('floors a fractional playbackEndSeconds to prevent trailing host bleed', () => {
+    render(
+      <DiscourseVideoModal
+        isOpen
+        onClose={() => {}}
+        citation={{ ...baseCitation, playbackStartSeconds: 94.25, playbackEndSeconds: 120.75 }}
+      />,
+    );
+    const src = document.querySelector('iframe')?.getAttribute('src') ?? '';
+    expect(src).toContain('start=95');
+    expect(src).toContain('&end=120');
+  });
+
+  it('keeps an end bound on a clip too short for ceil/floor (never plays on unbounded)', () => {
+    render(
+      <DiscourseVideoModal
+        isOpen
+        onClose={() => {}}
+        citation={{ ...baseCitation, playbackStartSeconds: 94.25, playbackEndSeconds: 95.6 }}
+      />,
+    );
+    const src = document.querySelector('iframe')?.getAttribute('src') ?? '';
+    expect(src).toContain('start=95');
+    expect(src).toContain('&end=96');
   });
 });

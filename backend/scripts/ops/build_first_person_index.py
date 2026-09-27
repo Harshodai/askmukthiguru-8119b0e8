@@ -28,6 +28,7 @@ import argparse
 import hashlib
 import json
 import logging
+import re
 import subprocess
 import sys
 from collections import Counter
@@ -54,6 +55,14 @@ CLEARED_CHANNELS = {
     "times now",
 }
 
+# Third-party channels are cleared per VIDEO, never per channel: the owner approved
+# these specific recordings (CONTENT-RIGHTS.md, 2026-09-26), not every upload on
+# TEDx Talks or MarieTV. A new video from either channel stays uncleared until added.
+CLEARED_VIDEO_IDS = {
+    "TqxxCYnAxo8",  # Sri Preethaji at TEDxKC
+    "UlOt31lBhLY",  # Sri Preethaji & Sri Krishnaji on MarieTV
+}
+
 # clip["speaker"] -> (teacher_id, display speaker label)
 _TEACHER_LABELS = {
     "preethaji": "Sri Preethaji",
@@ -66,6 +75,14 @@ _BATCH_SIZE = 64
 # never spoken (pilot: AK435vKMtlo 0.064). Bake-off videos span 0.855-0.941, so 0.80
 # only cuts outliers. Provisional -- the owner can move it.
 MIN_ASR_AGREEMENT = 0.80
+
+# Clips shorter than this are dropped (per clip, not per video). Short fragments
+# carry unreliable speaker labels and out-rank real answers by looking like the
+# question ("elaborate on it a little bit?", 1.6s, host speech tagged Krishnaji).
+# Read-only simulation on the 116 bake-off questions (2026-09-27): >=8s lowered
+# top-1 host-like leak in both v2 (7.8%->6.0%) and v4 (15.5%->10.3%) with no top-1
+# loss. ponytail: chosen on the bake-off set, not held out; re-check on B1 gold.
+MIN_CLIP_DURATION_S = 8.0
 
 
 def asr_agreement(passages_path: Path, video_id: str) -> Optional[float]:
@@ -119,6 +136,15 @@ def discover_videos(passages_dirs: list[Path]) -> dict[str, Path]:
     return found
 
 
+# Dangling coordinating conjunction regex: clips terminating on a conjunction
+# (e.g. "...fear or", "...and,", "...so.") represent incomplete grammatical clauses
+# and must never be indexed (CLAUDE.md Invariant 10, L-SENTENCE-SPLIT-CONJUNCTION-1).
+_DANGLING_CONJUNCTION_RE = re.compile(
+    r"\b(or|and|so|but|because)\s*[.,;:!?…—–-]*$",
+    re.IGNORECASE,
+)
+
+
 def _gate_clip(clip: dict, full_text: str, duration_s: float) -> Optional[str]:
     """Return a failure reason, or None if the clip clears every hard gate."""
     vt = clip.get("verbatim_text") or ""
@@ -129,6 +155,8 @@ def _gate_clip(clip: dict, full_text: str, duration_s: float) -> Optional[str]:
     start, end = clip.get("start"), clip.get("end")
     if start is None or end is None or not (0 <= start < end <= duration_s + 1.0):
         return "bad_bounds"
+    if _DANGLING_CONJUNCTION_RE.search(vt):
+        return "dangling_conjunction"
     return None
 
 
@@ -353,6 +381,8 @@ def build_index(
     report_dir: Path,
     collection: str,
     apply: bool = False,
+    dump_ids: Optional[Path] = None,
+    min_clip_duration_s: float = MIN_CLIP_DURATION_S,
 ) -> dict[str, Any]:
     report_dir = Path(report_dir)
     report_dir.mkdir(parents=True, exist_ok=True)
@@ -365,6 +395,7 @@ def build_index(
 
     quarantined: list[dict[str, str]] = []
     host_skipped_total = 0
+    clips_too_short = 0
     indexable_clips: list[dict] = []
     clips_per_teacher: Counter = Counter()
     channel_video_counts: Counter = Counter()
@@ -418,7 +449,7 @@ def build_index(
 
         if channel is None:
             channel, _ = get_channel_and_duration_cached(video_id, channels_cache, channels_cache_path)
-        rights_cleared = channel.strip().casefold() in CLEARED_CHANNELS
+        rights_cleared = channel.strip().casefold() in CLEARED_CHANNELS or video_id in CLEARED_VIDEO_IDS
         channel_video_counts[channel] += 1
         channel_rights[channel] = rights_cleared
 
@@ -427,9 +458,11 @@ def build_index(
         duration_ms = round(duration_s * 1000)
 
         for clip in result.clips:
+            if clip["end"] - clip["start"] < min_clip_duration_s:
+                clips_too_short += 1
+                continue
             store_clip = build_store_clip(clip, video_id, channel, rights_cleared, layer_sha256, duration_ms)
             indexable_clips.append(store_clip)
-            clips_per_teacher[store_clip["teacher_id"]] += 1
 
     # A <=150-word parent and its single child are the same recorded span, so they
     # map to the same UUIDv5 point. Keep the first (the parent) and count only unique
@@ -437,6 +470,21 @@ def build_index(
     unique_clips = {(c["transcript_hash"], c["start_ms"], c["end_ms"]): c for c in reversed(indexable_clips)}
     duplicates_collapsed = len(indexable_clips) - len(unique_clips)
     indexable_clips = [c for c in indexable_clips if unique_clips.get((c["transcript_hash"], c["start_ms"], c["end_ms"])) is c]
+
+    # Count clips per teacher after duplicate collapse so breakdown matches clips_indexed_total
+    for c in indexable_clips:
+        clips_per_teacher[c["teacher_id"]] += 1
+
+    if dump_ids is not None:
+        from services.first_person_store import make_first_person_point_id
+
+        sorted_ids = sorted(
+            make_first_person_point_id(c["transcript_hash"], c["start_ms"], c["end_ms"])
+            for c in indexable_clips
+        )
+        dump_ids_path = Path(dump_ids)
+        dump_ids_path.parent.mkdir(parents=True, exist_ok=True)
+        dump_ids_path.write_text("\n".join(sorted_ids) + ("\n" if sorted_ids else ""), encoding="utf-8")
 
     store_count_after: Optional[int] = None
     count_mismatch = False
@@ -452,6 +500,8 @@ def build_index(
         "videos_indexed": len(discovered) - len(quarantined),
         "videos_quarantined": quarantined,
         "host_skipped_total": host_skipped_total,
+        "min_clip_duration_s": min_clip_duration_s,
+        "clips_too_short": clips_too_short,
         "clips_indexed_total": len(indexable_clips),
         "duplicates_collapsed": duplicates_collapsed,
         "clips_per_teacher": dict(clips_per_teacher),
@@ -486,6 +536,7 @@ def print_summary(report: dict[str, Any]) -> None:
     if source_counts:
         print("duration sources:    " + ", ".join(f"{src}={n}" for src, n in source_counts.items()))
     print(f"host clips skipped:  {report['host_skipped_total']}")
+    print(f"short clips dropped: {report['clips_too_short']} (< {report['min_clip_duration_s']}s)")
     print(f"clips indexed:       {report['clips_indexed_total']} (identical parent/child spans collapsed: {report['duplicates_collapsed']})")
     for teacher, n in report["clips_per_teacher"].items():
         print(f"    - {teacher}: {n}")
@@ -528,6 +579,8 @@ def main(argv: Optional[list[str]] = None) -> int:
         default=Path.home() / "mukthiguru_attribution_data" / "first_person_index",
     )
     parser.add_argument("--collection", default=None)
+    parser.add_argument("--min-clip-seconds", type=float, default=MIN_CLIP_DURATION_S, help="Drop clips shorter than this (default %(default)s).")
+    parser.add_argument("--dump-ids", type=Path, default=None, help="Optional path to write sorted list of generated point IDs (for exact determinism diffing).")
     parser.add_argument("--apply", action="store_true", help="Actually embed + write to Qdrant (default: dry-run).")
     parser.add_argument("--self-check", action="store_true")
     args = parser.parse_args(argv)
@@ -547,6 +600,8 @@ def main(argv: Optional[list[str]] = None) -> int:
         report_dir=args.report_dir,
         collection=collection,
         apply=args.apply,
+        dump_ids=args.dump_ids,
+        min_clip_duration_s=args.min_clip_seconds,
     )
     print_summary(report)
 

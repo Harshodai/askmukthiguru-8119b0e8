@@ -474,3 +474,121 @@ def test_cache_hit_for_a_removed_or_revoked_clip_is_a_miss(mock_store, mock_redi
     res = pipeline.execute(query="What causes suffering?", query_dense_vector=[1.0, 0.0])
     mock_store.search_hybrid.assert_called_once()  # fell through to a fresh search
     assert res.citations == []
+
+
+# --- 2026-09-27: query translation + optional cross-encoder reorder -------------
+
+
+def test_rerank_fn_reorders_verified_clips_but_confidence_stays_cosine(mock_store, mock_redis):
+    mock_store.search_hybrid.return_value = [
+        _clip_with("Suffering is resistance.", "v1", [1.0, 0.0]),
+        _clip_with("Love is a state within.", "v2", [0.0, 1.0]),
+    ]
+    seen = {}
+
+    def rerank(query, texts):
+        seen["query"] = query
+        return [0.1 if "Suffering" in t else 0.9 for t in texts]
+
+    pipeline = FirstPersonPipeline(store=mock_store, redis_client=mock_redis, rerank_fn=rerank)
+    res = pipeline.execute(
+        query="प्रेम क्या है", query_dense_vector=[1.0, 0.0], retrieval_query="what is love", max_clips=1
+    )
+    assert seen["query"] == "what is love"  # reranker scores the English question
+    assert res.citations[0]["video_id"] == "v2"
+    assert res.citations[0]["confidence"] == 0.0  # still dense cosine, not the rerank score
+
+
+def test_rerank_failure_keeps_fusion_order(mock_store, mock_redis):
+    mock_store.search_hybrid.return_value = [
+        _clip_with("Suffering is resistance.", "v1", [1.0, 0.0]),
+        _clip_with("Love is a state within.", "v2", [0.0, 1.0]),
+    ]
+
+    def broken(query, texts):
+        raise RuntimeError("reranker down")
+
+    pipeline = FirstPersonPipeline(store=mock_store, redis_client=mock_redis, rerank_fn=broken)
+    res = pipeline.execute(query="what is suffering", query_dense_vector=[1.0, 0.0])
+    assert res.status == "weak_match"
+    assert res.citations[0]["video_id"] == "v1"
+
+
+def test_crisis_in_translated_query_is_redirected(mock_store, mock_redis):
+    """A phrasing the native-script patterns miss must still be caught via its English form."""
+    pipeline = FirstPersonPipeline(store=mock_store, redis_client=mock_redis)
+    res = pipeline.execute(
+        query="zzq unrecognised phrasing",
+        query_dense_vector=[0.1] * 4,
+        retrieval_query="I want to kill myself",
+    )
+    assert res.status == "crisis_redirect"
+    mock_store.search_hybrid.assert_not_called()
+
+
+def test_topic_rail_sees_translated_query(mock_store, mock_redis):
+    pipeline = FirstPersonPipeline(store=mock_store, redis_client=mock_redis)
+    res = pipeline.execute(
+        query="zzq unrecognised phrasing",
+        query_dense_vector=[0.1] * 4,
+        retrieval_query="I am suicidal",
+    )
+    assert res.status == "crisis_redirect"
+    mock_store.search_hybrid.assert_not_called()
+
+
+def test_cache_key_differs_when_reranking(mock_store, mock_redis):
+    plain = FirstPersonPipeline(store=mock_store, redis_client=mock_redis)
+    reranked = FirstPersonPipeline(store=mock_store, redis_client=mock_redis, rerank_fn=lambda q, t: [0.0] * len(t))
+    assert plain._get_exact_cache_key("what is love") != reranked._get_exact_cache_key("what is love")
+
+
+def test_no_rerank_fn_by_default(mock_store, mock_redis):
+    assert FirstPersonPipeline(store=mock_store, redis_client=mock_redis)._rerank_fn is None
+
+
+# --- 2026-09-28: Invariant 10: Sentence Boundary & Conjunction Integrity -------
+
+
+@pytest.mark.parametrize(
+    "trailing_conjunction",
+    ["or", "and", "so", "but", "because", "or.", "and,", "so!", "but..."],
+)
+def test_integrity_gate_rejects_trailing_coordinating_conjunction(trailing_conjunction):
+    """L-SENTENCE-SPLIT-CONJUNCTION-1: Clips ending on dangling conjunctions must never be served."""
+    from services.first_person_pipeline import _passes_integrity_gate
+
+    text = f"We suffer from stress and anxiety and fear {trailing_conjunction}"
+    clip = {
+        "verbatim_text": text,
+        "transcript_hash": hashlib.sha256(text.encode("utf-8")).hexdigest(),
+        "speaker": "Sri Krishnaji",
+    }
+    assert _passes_integrity_gate(clip) is False
+
+
+def test_integrity_gate_accepts_clean_sentence():
+    from services.first_person_pipeline import _passes_integrity_gate
+
+    text = "We suffer from stress and anxiety and fear."
+    clip = {
+        "verbatim_text": text,
+        "transcript_hash": hashlib.sha256(text.encode("utf-8")).hexdigest(),
+        "speaker": "Sri Krishnaji",
+    }
+    assert _passes_integrity_gate(clip) is True
+
+
+def test_pipeline_skips_clips_with_trailing_conjunctions(mock_store, mock_redis):
+    bad_text = "We suffer from fear or"
+    bad_clip = _clip_with(bad_text, "v_bad", [1.0, 0.0])
+    good_text = "Suffering is not a fact."
+    good_clip = _clip_with(good_text, "v_good", [0.9, 0.1])
+
+    mock_store.search_hybrid.return_value = [bad_clip, good_clip]
+    pipeline = FirstPersonPipeline(store=mock_store, redis_client=mock_redis)
+    res = pipeline.execute(query="what is suffering", query_dense_vector=[1.0, 0.0])
+
+    assert len(res.citations) == 1
+    assert res.citations[0]["video_id"] == "v_good"
+    assert res.citations[0]["verbatim_text"] == good_text

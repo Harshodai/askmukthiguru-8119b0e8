@@ -72,6 +72,8 @@ def _build(tmp_path, passages_dirs, videos_json, apply=False):
         report_dir=tmp_path / "report",
         collection="first_person_v1",
         apply=apply,
+        # Fixtures use 1s clips; the length gate has its own tests below.
+        min_clip_duration_s=0.0,
     )
 
 
@@ -124,6 +126,19 @@ def test_end_after_duration_quarantines(tmp_path):
 
     reasons = {q["video_id"]: q["reason"] for q in report["videos_quarantined"]}
     assert reasons["vidD"] == "bad_bounds"
+
+
+def test_dangling_conjunction_quarantined(tmp_path):
+    text = "We suffer from stress and anxiety and fear or"
+    clip = _clip("vidDC", "from stress and anxiety and fear or")
+    pdir = _make_video_dirs(tmp_path, "src1", "vidDC", [clip], text)
+    vjson = _videos_json(tmp_path, [{"video_id": "vidDC", "duration_s": 100.0}])
+
+    report = _build(tmp_path, [pdir], vjson)
+
+    assert report["clips_indexed_total"] == 0
+    reasons = {q["video_id"]: q["reason"] for q in report["videos_quarantined"]}
+    assert reasons["vidDC"] == "dangling_conjunction"
 
 
 def test_host_clip_is_skipped_not_indexed(tmp_path):
@@ -181,6 +196,23 @@ def test_cleared_channel_gives_rights_cleared_true(tmp_path, monkeypatch):
     report = _build(tmp_path, [pdir], vjson)
 
     assert report["channels"]["Ekam"]["rights_cleared"] is True
+
+
+def test_only_approved_videos_on_third_party_channels_are_cleared(tmp_path, monkeypatch):
+    """TEDx / MarieTV are cleared per video id, never channel-wide."""
+    text = "Shift into a beautiful state of connection."
+    for vid, ch, expected in [
+        ("TqxxCYnAxo8", "TEDx Talks", True),
+        ("UlOt31lBhLY", "Marie Forleo", True),
+        ("otherTEDxTk", "TEDx Talks", False),
+        ("otherMarieT", "Marie Forleo", False),
+    ]:
+        clip = _clip(vid, "Shift into a beautiful state")
+        pdir = _make_video_dirs(tmp_path / vid, "src1", vid, [clip], text)
+        vjson = _videos_json(tmp_path / vid, [{"video_id": vid, "duration_s": 100.0}])
+        monkeypatch.setattr(bfpi, "lookup_channel_metadata", lambda video_id, _ch=ch: (_ch, None))
+        report = _build(tmp_path / vid, [pdir], vjson)
+        assert report["channels"][ch]["rights_cleared"] is expected, vid
 
 
 def test_dry_run_makes_no_store_calls(tmp_path, monkeypatch):
@@ -355,3 +387,59 @@ def test_apply_refuses_to_empty_a_collection_on_an_empty_build(monkeypatch):
     with pytest.raises(RuntimeError, match="0 clips"):
         bfpi.apply_indexable_clips([], "first_person_test")
     store.client.delete.assert_not_called()
+
+
+def test_build_index_dump_ids_flag(tmp_path):
+    from services.first_person_store import make_first_person_point_id
+
+    text = "Suffering is not a fact it is only a perception."
+    clip = _clip("vidA", "Suffering is not a fact", start=1.0, end=2.0)
+    pdir = _make_video_dirs(tmp_path, "src1", "vidA", [clip], text)
+    vjson = _videos_json(tmp_path, [{"video_id": "vidA", "duration_s": 100.0}])
+
+    dump_path = tmp_path / "point_ids.txt"
+    report = bfpi.build_index(
+        passages_dirs=[pdir],
+        videos_json=vjson,
+        report_dir=tmp_path / "report",
+        collection="first_person_v1",
+        apply=False,
+        dump_ids=dump_path,
+        min_clip_duration_s=0.0,
+    )
+    assert dump_path.exists()
+    expected_id = make_first_person_point_id(clip["transcript_hash"], int(1.0 * 1000), int(2.0 * 1000))
+    lines = dump_path.read_text(encoding="utf-8").strip().splitlines()
+    assert lines == [expected_id]
+
+    # Two-pass determinism assertion
+    dump_path2 = tmp_path / "point_ids2.txt"
+    bfpi.build_index(
+        passages_dirs=[pdir],
+        videos_json=vjson,
+        report_dir=tmp_path / "report2",
+        collection="first_person_v1",
+        apply=False,
+        dump_ids=dump_path2,
+        min_clip_duration_s=0.0,
+    )
+    assert dump_path.read_text(encoding="utf-8") == dump_path2.read_text(encoding="utf-8")
+
+
+
+def test_clips_below_min_duration_are_dropped_not_the_video(tmp_path):
+    """A 1.6s fragment is dropped; a 10s clip from the same video is kept."""
+    text = "Suffering is not a fact it is only a perception. elaborate on it a little bit?"
+    long_clip = _clip("vidA", "Suffering is not a fact it is only a perception.", start=0.0, end=10.0)
+    short_clip = _clip("vidA", "elaborate on it a little bit?", start=20.0, end=21.6)
+    pdir = _make_video_dirs(tmp_path, "src1", "vidA", [long_clip, short_clip], text)
+    vjson = _videos_json(tmp_path, [{"video_id": "vidA", "duration_s": 100.0}])
+
+    report = bfpi.build_index(
+        passages_dirs=[pdir], videos_json=vjson, report_dir=tmp_path / "report", collection="first_person_v1"
+    )
+
+    assert report["videos_quarantined"] == []
+    assert report["clips_indexed_total"] == 1
+    assert report["clips_too_short"] == 1
+    assert report["min_clip_duration_s"] == bfpi.MIN_CLIP_DURATION_S
