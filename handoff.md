@@ -1,5 +1,154 @@
 # AskMukthiGuru — Session Handoff (first-person verbatim route)
 
+## 2026-09-28 — consolidated handoff, all lanes (read this first)
+
+Written by the "First-person production hardening plan" session with the other two live sessions ("Session handoff and warning remediation" = committer, "AskMukthiGuru engineering W0–W6" = crisis lane). Each lane owner corrects **only its own subsection in §10**, in place. Labels: **VERIFIED** = re-run by the writing session with the command/file shown; **REPORTED** = measured by another session, not re-run here; **PENDING** = not yet measured.
+
+### 0. Resume in 5 minutes
+1. Read `docs/agent/SESSION_COORDINATION.md`: lanes, single committer, restart and Qdrant rules.
+2. Read `.claude/tasks/first-person-prod-hardening-2026-09-28.md` (plan rev 2, task cards B1–B5, C1, C2, S1).
+3. Read `docs/agent/EXPERIMENT_LEDGER_2026-09-27.md` for measured numbers and the commands that produced them.
+4. `git log --oneline -8` on branch `fix/first-person-harness-translation-crisis-2026-09-28`. The owner pushes; agent pushes are denied by permission settings.
+5. Check `~/mukthiguru_attribution_data/eval_v6/` for the independent v6 vs v2 vs v5 eval (running at the time of writing).
+
+### 1. Goal
+A first-person answer IS Sri Preethaji's / Sri Krishnaji's own recorded words: right speaker, exact second, **a complete thought** (FP invariants 10/11). It is served as a pointer to a verified clip, with no LLM at serve time. Target: ≥99% precision on confident answers, proven on human gold (≥299 confident items with 0 errors). Until then, every answer is "Related, not a direct answer." Near-term goal: a v6+ index that beats the live v2 on the pinned harness, with clean clip boundaries and no more host leak.
+
+### 2. Current state
+- **Commits (branch above):** `d1e9d019` harness + real translation + crisis-routing gaps → `fc100964` B2 sentence snapping, per-clip ASR disputed rate, B4 guard, PCS → `c1ccd2b8` dangling conjunction drops the clip, not the video → `011fc135` boundary module, boundary audit, question generator → `0147a240` coordination doc. Owner pushed up to `d1e9d019` (REPORTED).
+- **Serving:** local backend `FIRST_PERSON_COLLECTION=first_person_v2` (pinned-harness winner). The route is off by default (`FIRST_PERSON_ROUTE_ENABLED`). No calibration profile, so there are 0 direct answers.
+- **Qdrant first-person collections:**
+
+| Collection | Points | Built from | Status |
+|---|---|---|---|
+| v1, v3, v4 | — | older builders | historical; not deleted. v3 (boundary-fixed, 202 pts, REPORTED) was never A/B'd |
+| v2 | REPORTED 280 | earlier builder | **live**; top-1 0.438/0.427 (two runs); host leak 8.6%; 72 `rights_cleared=false` clips served only because `FIRST_PERSON_SERVE_UNREGISTERED=true` locally (REPORTED) |
+| v5 | 260 | passages_B (old fragment-prone builder) | 9.23% boundary-clean (VERIFIED); top-1 0.382–0.398, host leak 11.2% (REPORTED) |
+| **v6** | **147 (VERIFIED, status green)** | passages_C + B2 shrink snap, 45 videos (pilot50 + bakeoff) | written 2026-09-28 under the owner's delegated decision; applied IDs == dry-run IDs; **not served**; eval PENDING |
+
+- **Tests (VERIFIED 2026-09-28):**
+  - Full backend suite: 8,133 passed / 4 failed / 12 skipped, with `test_build_first_person_index.py` deselected while it was being edited.
+  - All 4 failures were in `test_crisis_w2_expansion.py`, during the crisis lane's mid-edit. After that lane's 03:00 test update, 1 remains: `test_kill_myself_laughing_is_a_known_accepted_false_positive`. It is stale versus the intentional `IDIOM_EXCLUSIONS_RE` and is with the crisis agent.
+  - First-person focused set: 149 passed.
+  - `evals/run_safety_scenarios.py` ran. A mechanical pass is not a safety sign-off.
+- **Flags added:** `first_person_boundary_guard_enabled` (B4, default **off**: it would quarantine 166/280 v2 and 177/260 v5 clips, REPORTED), `first_person_rerank_enabled` (default off), and the `--snap-boundaries` / `--max-disputed-rate` builder flags.
+
+### 3. Files actively being edited (never commit another lane's mid-edit files)
+- **Crisis lane (W0–W6), MID-EDIT, unverified:** `services/serene_mind_engine.py`, `app/pipeline/stages/distress_stage.py`, `guardrails/lightweight_handler.py`, `tests/test_crisis_w2_expansion.py`, `scripts/ops/measure_distress_llm_escalation.py` (untracked).
+- **Committer lane:** `scripts/ops/build_first_person_index.py`, `services/first_person_pipeline.py`, `app/api/first_person.py`, `evaluation/first_person_harness.py` + tests. Stable as of `c1ccd2b8`.
+- **First-person boundaries lane (writer of this entry):** nothing mid-edit. Committed in `011fc135`: `backend/ingest/verbatim/boundaries.py`, `backend/scripts/ops/{audit_first_person_boundaries,generate_first_person_questions,measure_first_person_boundary_repair}.py` + tests, and the plan file.
+
+### 4. What was tried and failed or was rejected
+| Try | Result | Why |
+|---|---|---|
+| Plan rev 1 §6.4 RAG-Fusion (LLM rewrites per query) | rejected before building | LLM at serve time breaks FP invariant 1; the offline form is C1 |
+| `linto-ai/whisper-timestamped` | rejected | AGPL-3.0 |
+| `deepmultilingualpunctuation` | rejected | no Indic languages; repo already ships `punctuators` `pcs_en` |
+| Late chunking (jina) on BGE-M3 | deferred | jina-v2 models only; re-embeds 14k general-RAG points; outside FP scope |
+| Hard-coded "situational trap" gate (Yasme/Nomi, "addiction") | rejected | overfit: passages_C introduces "Two monks, Yasmi and Nomi" properly, so the trap was a passages_B fragmentation artifact |
+| Old audit `scripts/ops/audit_first_person_v5.py` | retired (moved out of tree) | its regexes were copied from the clips it scored (circular). The generic re-audit still gave v5 = 24/260 clean, so the headline number held |
+| Grow-back (B3): extend a clip's start to its sentence start within the same teacher label | no gain: 226 vs 227 clean, +214 words | 139/153 mid-sentence heads are preceded by `O`/`?` labels, so growing is blocked. Root cause is S1 |
+| First B2 run, clips mapped to words by time window (REPORTED) | lost 31 clips as `span_not_found` | clip edges aren't on word timings; fixed by anchoring on the exact word sequence (0 lost) |
+| Reranker A/B on v2 (REPORTED) | 0.427 fusion vs 0.416 rerank, p=1.0, p50 10 → 197 ms | no gain at 20× latency; stays off |
+| Sentence-level builders v4/v5 (REPORTED) | host leak 15.5% / 11.2% vs v2 8.6%; v5 top-1 0.398 vs v2 0.42–0.45 (p=0.48) | finer clips cut into host turns |
+| C1 smoke before setting Redis | "OpenRouter budget ledger unavailable" | the budget ledger needs the authenticated Redis; set `REDIS_URL` to the `.env` URL with host → `localhost` |
+
+### 5. Results per try
+| Measurement | Result | Source |
+|---|---|---|
+| Generic boundary audit, v5 (VERIFIED) | 260 clips, 24 clean (9.23%), head defects 197, tail 177 | `docs/evidence/first_person_boundaries_first_person_v5_2026-09-28.json` |
+| Generic audit, passages_C ≥ 8 s (VERIFIED) | 295 clips, 112 clean (37.97%), head 182, tail 10 (before the And/So/Or decision) | `docs/evidence/first_person_boundaries_pilot50_2026-09-25_passages_C__bakeoff_2026-09-25_passages_C_2026-09-28.json` |
+| Repair strategies on 295 passages_C clips (VERIFIED) | none 92 clean (31.2%); shrink 269 survive / 227 clean (76.9%) / 153 clean and ≥ 18 s; grow 226 clean | `docs/evidence/first_person_boundary_repair_2026-09-28.json` |
+| B2 builder dry run (REPORTED) | baseline 174 / 73 clean (42%); snapped 147 / 127 clean (86%); 90 snapped, 26 `boundary_unrecoverable`, 27 < 8 s; ASR disputed-word rate median 3.5%, p90 25%; 78% of clips have ≥1 disputed word | `~/mukthiguru_attribution_data/v6_dryrun_2026-09-28/` |
+| v6 apply (VERIFIED) | 147 points, 45 videos (79 Preethaji / 68 Krishnaji), IDs == dry-run IDs | `~/mukthiguru_attribution_data/v6_apply_2026-09-28/report_20260928T062402Z.json` |
+| C1 generator smoke, 3 v5 clips, OpenRouter 8B (VERIFIED) | 15 generated, 8 kept by self-retrieval on the real hybrid retriever (53%) | scratch run |
+| v6 vs v2 vs v5, pinned harness, twice each | **PENDING** | `~/mukthiguru_attribution_data/eval_v6/` |
+
+### 6. What we learned
+1. **Fix the builder, not the gate.** 90% of v5's defects came from building on passages_B. The v2 builder plus a sentence snap moves boundary-clean clips from about 9% to 77–86% with no new engine.
+2. **Clip heads are a speaker-diarization problem, not a text problem.** The teacher's first 1–6 words land under host/unknown labels (example: `It[O] is[O] | beyond attitudes.`), so text trimming can only drop them. The listening sheet decides whether to relabel.
+3. **Audits must use generic rules.** An audit built from the failures it scores can't be trusted, even when its headline happens to hold.
+4. **Measure the retriever the product uses.** C1's doc2query filter calls `FirstPersonStore.search_hybrid` (dense + sparse), not a copy of it.
+5. **Top-1 gaps under ~0.05 on ~83 questions are noise** (L-EMBED-DRIFT-1: identical builds differ by 2–4 questions). Record encoder hashes with every eval.
+6. **Check upstream licenses and languages before a plan names a tool.** Rev 1 named an AGPL dependency and a model with no Indic support.
+7. **Coordination works when it is explicit:** one committer, per-file lanes, announce before editing outside your lane, and dry-run → report → owner approval before any Qdrant write. (v6 was applied on a delegated decision before rule 4 existed; future writes ask first.)
+
+### 7. Next steps (in order; owner in brackets)
+1. **[W0–W6 grader + committer harness] v6 vs v2 vs v5**, twice each, sign test, host-leak %, encoder hashes. Promote v6 only if it beats **v2** on top-1 with host leak ≤ v2 and 0 integrity failures. Changing `FIRST_PERSON_COLLECTION` needs explicit owner approval.
+2. **[Owner, ~10 min] Listening sheet** `docs/evidence/first_person_speaker_edge_listening_sheet_2026-09-28.csv`: 20 rows, YouTube timestamps, verdict column.
+3. **[First-person lane] S1:** if ≥ 18/20 are "teacher", relabel a ≤ 6-word `O`/`?` prefix of a sentence whose remainder is one teacher (`ingest/verbatim/speaker_verify.label_words_by_speaker`). Rebuild as v7 (dry run → owner approval → apply) and re-measure boundaries and host leak.
+4. **[First-person lane] C1 on the winning collection:** `generate_first_person_questions --collection <winner> --out ~/mukthiguru_attribution_data/genq/<winner>.json` → human review → approved build with `question_dense` → add `Prefetch(using="question_dense")` → measure. Emit `paraphrase_group` so PCS stops reporting None.
+5. **[Crisis lane] Finish the re-tier:** update the stale idiom test, run the full suite + `evals/run_safety_scenarios.py`, then give the committer the file list.
+6. **[First-person lane] Anaphora false positive:** `text_quality_filter.find_artifact` → `has_repetition_loop` quarantines Sri Krishnaji's rhetorical anaphora (UlOt31lBhLY, REPORTED). Regression-test both directions.
+7. **[First-person lane] Indic/low-signal collapse:** Hindi, Telugu, Marathi, "Why?" and gibberish all return the same 1–2 clips (REPORTED). Confirm translation before retrieval on the live build, and add a low-signal abstain.
+8. **[Human] C2 gold set:** video-disjoint human questions toward ≥ 299 confident items, blind second annotation. No "direct answer" ships before this.
+
+### 8. Decisions and open gates
+- **Made on the owner's delegation ("use your intelligence", 2026-09-28):**
+  - No hard duration window: 8 s floor and no 25 s cap, because a cap cuts thoughts mid-sentence, which breaks invariant 10.
+  - Capitalised sentence-initial And/So/Or allowed (`boundaries.py`).
+  - **No** first-person alias; invariant 4 stands.
+  - v6 written as a new, non-serving collection.
+- **Open, human-only:**
+  - **Rights:** v5 and v6 each contain 1 TEDx Talks + 1 Marie Forleo video marked `rights_cleared=True` by the builder's channel map. Third-party channels need the rights register before serving.
+  - **v2:** 72 `rights_cleared=false` clips.
+  - **Clinician and native-speaker review** of crisis changes.
+  - **Human gold.**
+  - **Promotion approval.**
+- **Not available to agents here:** Similarweb (connector needs OAuth; it measures web traffic, not clip quality) and the `/internet-skill-finder` and `/github-gem-seeker` skills (not installed).
+
+### 9. Open-source worth adopting (licenses checked 2026-09-28)
+- `segment-any-text/wtpsplit` (MIT code): punctuation-agnostic sentence segmentation, 85 languages incl. hi/te/ta/mr/kn, ONNX-CPU. Better sentence source for Indic/code-mixed talks; verify the HF weights license first.
+- `jianfch/stable-ts` (MIT): word-timestamp refinement with silence suppression. Candidate for sharper word edges feeding S1.
+- Already in the repo: `punctuators` (Apache-2.0) and WhisperX (BSD-2).
+
+### 10. Lane notes (each owner edits only its own subsection)
+
+#### First-person boundaries lane
+- Tools: `boundary_defects`, `snap_to_sentences`, `grow_to_sentence_start` (tested, not wired); `audit_first_person_boundaries` (read-only); `measure_first_person_boundary_repair` (read-only); `generate_first_person_questions` (JSON staging only, never Qdrant).
+- Sentence source: `raw/<vid>_punct.json` `display_words` only when `zero_change_assert_passed` and the length matches (169/295 clips). bakeoff `raw/` has 8 punct files, so the rest fall back to verbatim punctuation.
+
+#### Committer lane ("Session handoff and warning remediation")
+- _Owner: fill in B2/B4/PCS details, harness results, push status._
+
+#### Crisis / safety lane ("AskMukthiGuru engineering W0–W6")
+**Committed in `d1e9d019` (VERIFIED live, local Docker, 2026-09-27/28):**
+- **Defect 1: English crisis took the weak path.** `InputGuardrailStage` runs before `DistressStage`, and its English-only `self_harm` regex answered "I want to end my life" with a 2-line template: `112` plus the US-only `988` mislabelled "International", with no Tele-MANAS. Hindi, Marathi and Kannada ideation reached real crisis pre-emption.
+  - Fix: the guardrail sets `ctx.state["guardrail_self_harm_match"]` and defers. `DistressStage` then forces `CRISIS` unconditionally and never consults the LLM downgrade.
+- **Defect 2: the first fix regressed.** Its unchecked claim that `assess_distress` covers every guardrail phrase was wrong. "I am suicidal", "hurting/harming/cutting myself", "how/way to die" and "not worth living" scored `NONE`, and live they got no helplines at all. That is what forced the flag design above.
+  - Guard: a parametrized test runs every regex in `_BLOCKED_TOPICS["self_harm"]` through the stage chain.
+- **Other fixes:**
+  - `compact_two_line` now labels regions by their real name.
+  - Dangling empty "please reach out:" list in the SEVERE copy.
+  - `\bsuicid\b` never matched "suicide" or "suicidal".
+- **W2 fixes:**
+  - Passive ideation, spiritual framing ("leave my body tonight") and third-party concern are covered; third-party concern has a new helper response.
+  - The divergence between the pre-screen and the engine was the romanized-Kannada root cause. Fixed structurally: `distress_stage` pre-screen = `get_non_english_crisis_patterns()`.
+  - `async_assess_distress` was overwriting `recommended_response_type`.
+  - Review packet: `docs/agent/W2_CRISIS_REVIEW_PACKET_2026-09-27.md`.
+- **Live evidence:** `crisis_preempted` + Tele-MANAS on English, Hindi, Marathi, romanized Kannada, "I am suicidal" and "way to die without pain". Doctrinal controls stay `NONE`: moksha, "soul leaves the body at death", "merge with the divine in meditation".
+
+**Mid-edit, uncommitted, owner-approved design ("escalate-only + re-tier", 2026-09-28). Do not commit until the lane says done:**
+0. Translation safety check. Real translation on openrouter (`d1e9d019` plus the root `.env` change by the committer session) may LLM-translate crisis copy for Indic seekers. Required outcome: safety copy is only fixed reviewed text, and helpline numbers are verbatim.
+1. Re-tier:
+   - passive ideation (C-SSRS screener item 1 style) and ambiguous "leave this body" → SEVERE check-in with helplines, never `NONE`;
+   - intent, plan, method or timeframe → CRISIS;
+   - third-party → helper copy.
+2. `IDIOM_EXCLUSIONS_RE` (e.g. "kill myself laughing"), with a guard that no real ideation phrase is ever excluded. The stale test `test_kill_myself_laughing_is_a_known_accepted_false_positive` is being updated to the owner's decision.
+3. Escalate-only LLM classifier behind a new flag, **default OFF**: it may only raise the level, and a failure keeps the regex level. Separate from `distress_llm_downgrade_enabled`, which also stays **OFF**.
+4. Measurement with the flag ON, 3 runs per language: misses must be 0, plus false alarms and latency.
+5. AI-SUGGESTED pre-labels in the review packet. Never gold.
+
+**Still open / human:**
+- Clinician sign-off on all crisis copy, tiers and patterns.
+- Native-speaker review for every language: hi, te, ta, kn, mr, hinglish.
+- Two unexplained clean `mukthiguru-backend` restarts (ExitCode 0, not OOM). The cause is unknown; logs don't survive the restart.
+- The red-team eval's 42 live-backend scenarios are skipped in the offline run, which is how Defect 1 went unseen. A live safety run belongs in the gate.
+
+---
+
+## 2026-09-25 handoff (historical, preserved)
+
 **Date:** 2026-09-25 · **Repo:** `/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8` · **Data (outside git):** `~/mukthiguru_attribution_data/`
 **Governing spec:** `docs/agent/first_person_baseline_prompt.md` · **Research:** `docs/agent/first_person_research_2026-09-24.md` · **Gold protocol:** `docs/agent/B1_gold_set_protocol.md` · **Non-negotiables:** `docs/agent/NON_NEGOTIABLES.md`
 **Nothing committed or pushed.** `origin/main` is ahead of local `main` (commit `ed46747a`, from another session); not pulled.

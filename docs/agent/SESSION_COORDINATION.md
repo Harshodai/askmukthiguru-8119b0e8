@@ -9,7 +9,7 @@ sessions when you do.
 | Lane | Owner session | Files |
 |---|---|---|
 | Crisis / safety | **AskMukthiGuru engineering W0–W6** | `services/serene_mind_engine.py`, `app/pipeline/stages/{distress,guardrail}_stage.py`, `guardrails/lightweight_handler.py`, `services/crisis_helplines.py`, `config/helplines.yaml` (read-only: owner-approved), `evals/`, `tests/test_{crisis*,serene_mind,self_harm*,distress*,pipeline_stages}.py` |
-| First-person build + serve | **First-person production hardening plan** | `ingest/verbatim/`, `scripts/ops/*first_person*`, `services/first_person_*.py`, `services/text_quality_filter.py`, `app/api/first_person.py`, `evaluation/first_person_harness.py`, `evaluation/gold/`, `tests/test_*first_person*`, `tests/test_verbatim_*` |
+| First-person data (boundaries, speakers, questions, Qdrant shadow builds) | **First-person production hardening plan** | `ingest/verbatim/`, `scripts/ops/{audit_first_person_boundaries,measure_first_person_boundary_repair,generate_first_person_questions}.py`, `services/text_quality_filter.py`, `evaluation/gold/`, `tests/test_verbatim_*`, `tests/test_{audit,generate}_first_person_*`; the only lane that runs `build_first_person_index --apply` (after owner approval) |
 | Commits + handoff docs | **Session handoff and warning remediation** | git writes, `lessons.md`, `docs/agent/SESSION_HANDOFF_*` |
 
 Anything not listed: announce the edit to the other sessions first.
