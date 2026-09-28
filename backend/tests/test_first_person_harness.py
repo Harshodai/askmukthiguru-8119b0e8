@@ -66,3 +66,16 @@ def test_mcnemar_exact_matches_hand_computed_binomial():
 def test_mcnemar_refuses_different_question_sets():
     with pytest.raises(HarnessError):
         mcnemar_exact([{"id": "q1", "answerable": True, "hit": True}], [{"id": "q2", "answerable": True, "hit": True}])
+
+
+def test_paraphrase_consistency_is_none_without_groups_and_scores_with_them():
+    from evaluation.first_person_harness import paraphrase_consistency
+
+    assert paraphrase_consistency([score_row(Q, _cit())]) is None
+    same = [score_row(Q | {"id": f"a{i}", "paraphrase_group": "g1"}, _cit()) for i in range(3)]
+    split = [
+        score_row(Q | {"id": "b1", "paraphrase_group": "g2"}, _cit()),
+        score_row(Q | {"id": "b2", "paraphrase_group": "g2"}, _cit(video="v9") | {"point_id": "p9"}),
+    ]
+    out = paraphrase_consistency(same + split)
+    assert out == {"n_groups": 2, "same_video_rate": 0.5, "same_clip_rate": 0.5}

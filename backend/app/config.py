@@ -171,6 +171,11 @@ class Settings(BaseSettings):
     # the top clip is chosen. OFF until an offline A/B on the pinned eval set wins;
     # confidence stays dense cosine so the calibration contract is unchanged.
     first_person_rerank_enabled: bool = False
+    # Quarantine clips whose verbatim text has no sentence end or opens on orphan
+    # punctuation (ingest.verbatim.boundaries). OFF: on 2026-09-28 it would have
+    # removed 59% of first_person_v2 and 68% of v5. Enable only with a
+    # boundary-snapped collection (B2, first_person_v6+).
+    first_person_boundary_guard_enabled: bool = False
     # Non-English questions are translated to English (the transcripts' language)
     # before embedding, and each served quote gets an optional gloss in the
     # seeker's language. The verbatim text itself is never replaced.
@@ -1212,6 +1217,19 @@ class Settings(BaseSettings):
     # eval (tests/test_distress_llm_downgrade.py + evals/) and clinician sign-off.
     distress_llm_downgrade_enabled: bool = False
     distress_llm_downgrade_timeout_s: float = 4.0
+
+    # --- Distress LLM escalation (2026-09-28, owner-approved "escalate-only",
+    # OFF by default) --- Regex is the floor and is never lowered by this. Runs
+    # ONLY when the regex level is already below CRISIS (a regex-CRISIS message
+    # never waits on this call, so the instant crisis response is never
+    # delayed). May raise NONE/MILD/MODERATE to SEVERE/CRISIS, or SEVERE to
+    # CRISIS; can never lower a level. Timeout, error, malformed, or missing
+    # output leaves the regex level unchanged. Fully independent of
+    # distress_llm_downgrade_enabled above (which stays OFF and is unaffected).
+    # Enable only after the eval in tests/test_distress_llm_escalation.py +
+    # clinician sign-off on the review packet.
+    distress_llm_escalation_enabled: bool = False
+    distress_llm_escalation_timeout_s: float = 4.0
 
     # --- Idempotency (Phase 3.3) ---
     idempotency_ttl_seconds: int = 86400

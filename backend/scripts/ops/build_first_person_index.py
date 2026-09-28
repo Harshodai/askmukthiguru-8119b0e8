@@ -187,6 +187,93 @@ def gate_video(
     return VideoGateResult(video_id, ok=True, clips=teacher_clips, host_skipped=host_skipped)
 
 
+def load_display_words(passages_path: Path, video_id: str, n_words: int) -> Optional[list[str]]:
+    """Punctuated display tokens, only when they map 1:1 onto the verbatim words."""
+    punct = load_transcript(passages_path.parent.parent / "raw" / f"{video_id}_punct.json")
+    if not isinstance(punct, dict) or not punct.get("zero_change_assert_passed"):
+        return None
+    words = punct.get("display_words") or []
+    return words if len(words) == n_words else None
+
+
+def clip_word_span(clip: dict, words: list[dict]) -> Optional[tuple[int, int]]:
+    """[a, b) word indices whose joined text is exactly the clip's verbatim_text.
+    None when the words carry no timings (the span can't be located, so it isn't guessed)."""
+    if not words or "start" not in words[0]:
+        return None
+    # Anchored on the words themselves, not a time window: clip edges don't sit
+    # exactly on word timings, and a window test lost 31 of 174 real clips.
+    tokens = clip["verbatim_text"].split()
+    n = len(tokens)
+    starts = [
+        i for i in range(len(words) - n + 1)
+        if words[i]["w"] == tokens[0] and [w["w"] for w in words[i : i + n]] == tokens
+    ]
+    if not starts:
+        return None
+    a = min(starts, key=lambda i: abs(words[i]["start"] - clip["start"]))
+    return a, a + n
+
+
+def disputed_rate(words: list[dict], a: int, b: int) -> Optional[float]:
+    """Share of words in [a, b) the two ASR engines disagreed on; None if not recorded."""
+    if b <= a or "disputed" not in words[a]:
+        return None
+    return round(sum(bool(w.get("disputed")) for w in words[a:b]) / (b - a), 4)
+
+
+def _rate_summary(rates: list[Optional[float]]) -> dict[str, Any]:
+    known = sorted(r for r in rates if r is not None)
+    if not known:
+        return {"n_known": 0}
+    return {
+        "n_known": len(known),
+        "n_unknown": len(rates) - len(known),
+        "median": known[len(known) // 2],
+        "p90": known[min(len(known) - 1, int(0.9 * len(known)))],
+        "share_any_disputed": round(sum(r > 0 for r in known) / len(known), 4),
+    }
+
+
+def _boundary_defects_of(verbatim_text: str, display_text: Optional[str]) -> list[str]:
+    """Defects judged on the punctuated display layer when present (verbatim is unpunctuated)."""
+    from ingest.verbatim.boundaries import boundary_defects
+
+    return boundary_defects((display_text or verbatim_text).split())
+
+
+def snap_clip(
+    clip: dict, words: list[dict], display_words: Optional[list[str]]
+) -> tuple[Optional[dict], Optional[str]]:
+    """B2: shrink a clip to whole sentences (ingest.verbatim.boundaries), recomputing
+    start/end and transcript_hash from the snapped verbatim words. Returns
+    (clip, None) or (None, quarantine_reason). Sentence ends come from the
+    punctuated display layer when it maps 1:1, else from the verbatim words' own
+    ASR punctuation (display layer aligns for only 169/295 passages_C clips); a
+    span with no sentence boundary is quarantined, never guessed."""
+    from ingest.verbatim.boundaries import snap_to_sentences
+
+    span = clip_word_span(clip, words)
+    if span is None:
+        return None, "span_not_found"
+    if display_words is None:
+        display_words = [w["w"] for w in words]
+    snapped = snap_to_sentences(display_words, *span)
+    if snapped is None:
+        return None, "boundary_unrecoverable"
+    s, e = snapped
+    verbatim = " ".join(w["w"] for w in words[s:e])
+    return {
+        **clip,
+        "start": words[s]["start"],
+        "end": words[e - 1]["end"],
+        "verbatim_text": verbatim,
+        "display_text": " ".join(display_words[s:e]),
+        "transcript_hash": hashlib.sha256(verbatim.encode()).hexdigest(),
+        "boundary_snapped": (s, e) != span,
+    }, None
+
+
 def build_store_clip(
     clip: dict,
     video_id: str,
@@ -383,6 +470,8 @@ def build_index(
     apply: bool = False,
     dump_ids: Optional[Path] = None,
     min_clip_duration_s: float = MIN_CLIP_DURATION_S,
+    snap_boundaries: bool = False,
+    max_disputed_rate: Optional[float] = None,
 ) -> dict[str, Any]:
     report_dir = Path(report_dir)
     report_dir.mkdir(parents=True, exist_ok=True)
@@ -396,6 +485,8 @@ def build_index(
     quarantined: list[dict[str, str]] = []
     host_skipped_total = 0
     clips_too_short = 0
+    clip_quarantine: Counter = Counter()  # per-clip reasons (B2 snap, ASR disagreement)
+    clips_snapped = 0
     indexable_clips: list[dict] = []
     clips_per_teacher: Counter = Counter()
     channel_video_counts: Counter = Counter()
@@ -457,11 +548,27 @@ def build_index(
         layer_sha256 = hashlib.sha256(full_text.encode()).hexdigest()
         duration_ms = round(duration_s * 1000)
 
+        display_words = (
+            load_display_words(passages_path, video_id, len(transcript_words)) if snap_boundaries else None
+        )
         for clip in result.clips:
+            if snap_boundaries:
+                clip, reason = snap_clip(clip, transcript_words, display_words)
+                if reason:
+                    clip_quarantine[reason] += 1
+                    continue
+                clips_snapped += bool(clip.get("boundary_snapped"))
             if clip["end"] - clip["start"] < min_clip_duration_s:
                 clips_too_short += 1
                 continue
+            span = clip_word_span(clip, transcript_words)
+            rate = disputed_rate(transcript_words, *span) if span else None
+            if max_disputed_rate is not None and (rate is None or rate > max_disputed_rate):
+                clip_quarantine["asr_disputed_rate_high" if rate is not None else "asr_disputed_rate_unknown"] += 1
+                continue
             store_clip = build_store_clip(clip, video_id, channel, rights_cleared, layer_sha256, duration_ms)
+            store_clip["asr_disputed_rate"] = rate
+            store_clip["has_disputed_words"] = bool(rate) if rate is not None else None
             indexable_clips.append(store_clip)
 
     # A <=150-word parent and its single child are the same recorded span, so they
@@ -502,6 +609,14 @@ def build_index(
         "host_skipped_total": host_skipped_total,
         "min_clip_duration_s": min_clip_duration_s,
         "clips_too_short": clips_too_short,
+        "snap_boundaries": snap_boundaries,
+        "clips_snapped": clips_snapped,
+        "max_disputed_rate": max_disputed_rate,
+        "clips_quarantined": dict(clip_quarantine),
+        "asr_disputed_rate": _rate_summary([c.get("asr_disputed_rate") for c in indexable_clips]),
+        "boundary_clean": sum(
+            not _boundary_defects_of(c["verbatim_text"], c.get("display_text")) for c in indexable_clips
+        ),
         "clips_indexed_total": len(indexable_clips),
         "duplicates_collapsed": duplicates_collapsed,
         "clips_per_teacher": dict(clips_per_teacher),
@@ -537,6 +652,8 @@ def print_summary(report: dict[str, Any]) -> None:
         print("duration sources:    " + ", ".join(f"{src}={n}" for src, n in source_counts.items()))
     print(f"host clips skipped:  {report['host_skipped_total']}")
     print(f"short clips dropped: {report['clips_too_short']} (< {report['min_clip_duration_s']}s)")
+    print(f"snap boundaries:     {report['snap_boundaries']} (snapped {report['clips_snapped']}); clip quarantine: {report['clips_quarantined']}")
+    print(f"boundary-clean:      {report['boundary_clean']} of {report['clips_indexed_total']}; ASR disputed rate: {report['asr_disputed_rate']}")
     print(f"clips indexed:       {report['clips_indexed_total']} (identical parent/child spans collapsed: {report['duplicates_collapsed']})")
     for teacher, n in report["clips_per_teacher"].items():
         print(f"    - {teacher}: {n}")
@@ -581,6 +698,8 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser.add_argument("--collection", default=None)
     parser.add_argument("--min-clip-seconds", type=float, default=MIN_CLIP_DURATION_S, help="Drop clips shorter than this (default %(default)s).")
     parser.add_argument("--dump-ids", type=Path, default=None, help="Optional path to write sorted list of generated point IDs (for exact determinism diffing).")
+    parser.add_argument("--snap-boundaries", action="store_true", help="B2: shrink clips to whole sentences via the punct display layer; unrecoverable clips are quarantined.")
+    parser.add_argument("--max-disputed-rate", type=float, default=None, help="Quarantine clips whose share of ASR-disputed words exceeds this (unset = record only; pick the value on gold, not by hand).")
     parser.add_argument("--apply", action="store_true", help="Actually embed + write to Qdrant (default: dry-run).")
     parser.add_argument("--self-check", action="store_true")
     args = parser.parse_args(argv)
@@ -602,6 +721,8 @@ def main(argv: Optional[list[str]] = None) -> int:
         apply=args.apply,
         dump_ids=args.dump_ids,
         min_clip_duration_s=args.min_clip_seconds,
+        snap_boundaries=args.snap_boundaries,
+        max_disputed_rate=args.max_disputed_rate,
     )
     print_summary(report)
 

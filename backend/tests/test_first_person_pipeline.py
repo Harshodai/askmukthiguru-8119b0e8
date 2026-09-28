@@ -592,3 +592,28 @@ def test_pipeline_skips_clips_with_trailing_conjunctions(mock_store, mock_redis)
     assert len(res.citations) == 1
     assert res.citations[0]["video_id"] == "v_good"
     assert res.citations[0]["verbatim_text"] == good_text
+
+
+# --- 2026-09-28: B4 serve-time boundary guard (flag, default off) -----------------
+
+
+def test_boundary_guard_off_by_default_serves_unterminated_clip(mock_store, mock_redis):
+    mock_store.search_hybrid.return_value = [_clip_with("you move from suffering to calm", "v1", [1.0, 0.0])]
+    res = FirstPersonPipeline(store=mock_store, redis_client=mock_redis).execute(
+        query="what is suffering", query_dense_vector=[1.0, 0.0]
+    )
+    assert res.status == "weak_match"
+
+
+def test_boundary_guard_on_quarantines_unterminated_clip(mock_store, mock_redis, monkeypatch):
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "first_person_boundary_guard_enabled", True)
+    mock_store.search_hybrid.return_value = [
+        _clip_with("you move from suffering to calm", "v1", [1.0, 0.0]),
+        _clip_with("Suffering is resistance to what is.", "v2", [1.0, 0.0]),
+    ]
+    res = FirstPersonPipeline(store=mock_store, redis_client=mock_redis).execute(
+        query="what is suffering", query_dense_vector=[1.0, 0.0]
+    )
+    assert [c["video_id"] for c in res.citations] == ["v2"]

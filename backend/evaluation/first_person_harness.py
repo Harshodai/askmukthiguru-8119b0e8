@@ -75,6 +75,7 @@ def score_row(question: dict, citation: dict | None) -> dict:
         "video_id": question["video_id"],
         "answerable": bool(question["answerable"]),
         "near_miss": bool(question.get("near_miss")),
+        "paraphrase_group": question.get("paraphrase_group"),
         "top1": None,
         "hit": False,
         "host_like": False,
@@ -102,11 +103,36 @@ def summarize(rows: list[dict], latencies_ms: list[float]) -> dict:
         "top1_hit": bootstrap_ci_by_video(answerable, "hit"),
         "host_like_top1": bootstrap_ci_by_video(served, "host_like") if served else None,
         "n_errors": sum(1 for r in rows if r.get("status") == "error"),
+        "paraphrase_consistency": paraphrase_consistency(rows),
         "status_counts": _count(r.get("status") for r in rows),
         "latency_ms": {
             "p50": round(statistics.median(lat), 1) if lat else None,
             "p95": round(lat[min(len(lat) - 1, math.ceil(0.95 * len(lat)) - 1)], 1) if lat else None,
         },
+    }
+
+
+def paraphrase_consistency(rows: list[dict]) -> dict | None:
+    """PCS: share of paraphrase groups (>=2 rewordings of one question) whose members
+    all get the same top-1 video; same_clip_rate is the stricter same-point share.
+    None when the question set has no paraphrase groups — never a made-up 1.0."""
+    groups: dict[str, list[dict]] = {}
+    for r in rows:
+        if r.get("paraphrase_group"):
+            groups.setdefault(r["paraphrase_group"], []).append(r)
+    groups = {g: m for g, m in groups.items() if len(m) >= 2}
+    if not groups:
+        return None
+
+    def _same(members: list[dict], key: str) -> bool:
+        values = {(m["top1"] or {}).get(key) for m in members}
+        return len(values) == 1 and None not in values
+
+    n = len(groups)
+    return {
+        "n_groups": n,
+        "same_video_rate": round(sum(_same(m, "video_id") for m in groups.values()) / n, 4),
+        "same_clip_rate": round(sum(_same(m, "point_id") for m in groups.values()) / n, 4),
     }
 
 

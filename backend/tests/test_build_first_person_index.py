@@ -443,3 +443,51 @@ def test_clips_below_min_duration_are_dropped_not_the_video(tmp_path):
     assert report["clips_indexed_total"] == 1
     assert report["clips_too_short"] == 1
     assert report["min_clip_duration_s"] == bfpi.MIN_CLIP_DURATION_S
+
+
+# --- 2026-09-28: B2 sentence snapping + per-clip ASR disagreement ------------------
+
+import hashlib as _hashlib
+
+from scripts.ops.build_first_person_index import clip_word_span, disputed_rate, snap_clip
+
+_WORDS_TXT = "and so it goes Suffering is resistance to what is happening in your life right now She said love is the only way"
+_DISPLAY = "and so it goes. Suffering is resistance to what is happening in your life right now. She said love is the only way".split()
+
+
+def _b2_words():
+    return [
+        {"w": w, "start": float(i), "end": float(i) + 0.9, "disputed": i in (5, 6)}
+        for i, w in enumerate(_WORDS_TXT.split())
+    ]
+
+
+def _b2_clip(a, b):
+    text = " ".join(_WORDS_TXT.split()[a:b])
+    return {"start": float(a), "end": float(b - 1) + 0.9, "verbatim_text": text,
+            "transcript_hash": _hashlib.sha256(text.encode()).hexdigest(), "speaker": "preethaji"}
+
+
+def test_clip_word_span_requires_exact_text():
+    assert clip_word_span(_b2_clip(2, 10), _b2_words()) == (2, 10)
+    assert clip_word_span(_b2_clip(2, 10) | {"verbatim_text": "tampered"}, _b2_words()) is None
+
+
+def test_snap_clip_shrinks_to_whole_sentence_and_rehashes():
+    clip, reason = snap_clip(_b2_clip(2, 18), _b2_words(), _DISPLAY)
+    assert reason is None
+    assert clip["verbatim_text"] == "Suffering is resistance to what is happening in your life right now"
+    assert clip["display_text"].endswith("now.")
+    assert clip["start"] == 4.0 and clip["boundary_snapped"] is True
+    assert clip["transcript_hash"] == _hashlib.sha256(clip["verbatim_text"].encode()).hexdigest()
+
+
+def test_snap_clip_fails_closed():
+    # no display layer: falls back to the verbatim words, which carry no punctuation here
+    assert snap_clip(_b2_clip(2, 17), _b2_words(), None) == (None, "boundary_unrecoverable")
+    assert snap_clip(_b2_clip(4, 9), _b2_words(), _DISPLAY) == (None, "boundary_unrecoverable")
+
+
+def test_disputed_rate_counts_only_the_span():
+    assert disputed_rate(_b2_words(), 4, 14) == 0.2
+    assert disputed_rate([{"w": "x", "start": 0, "end": 1}], 0, 1) is None

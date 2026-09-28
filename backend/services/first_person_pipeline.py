@@ -37,6 +37,7 @@ from app.metrics import (
     FIRST_PERSON_REQUESTS_TOTAL,
 )
 from guardrails.lightweight_handler import SAFETY_TOPICS, match_blocked_topic
+from ingest.verbatim.boundaries import boundary_defects
 from services.crisis_helplines import format_helplines_block
 from services.first_person_store import FirstPersonStore
 from services.serene_mind_engine import DistressLevel, SereneMindEngine
@@ -152,6 +153,11 @@ _DANGLING_CONJUNCTION_RE = re.compile(
 )
 
 
+# B4 (plan rev 2): a clip that stops mid-sentence or opens on stray punctuation is
+# a severed thought, not a teaching. Gated by first_person_boundary_guard_enabled.
+_SERVE_BLOCKING_BOUNDARY_DEFECTS = frozenset({"tail_no_terminal", "head_orphan_punctuation"})
+
+
 def _passes_integrity_gate(clip: dict[str, Any]) -> bool:
     """Serve-time gate: hash match, allowlisted speaker, no extraction artifact,
     and no dangling trailing conjunction.
@@ -174,6 +180,15 @@ def _passes_integrity_gate(clip: dict[str, Any]) -> bool:
             clip.get("clip_id") or clip.get("id"),
         )
         return False
+    if settings.first_person_boundary_guard_enabled:
+        defects = set(boundary_defects(verbatim_text.split())) & _SERVE_BLOCKING_BOUNDARY_DEFECTS
+        if defects:
+            logger.warning(
+                "[FirstPersonPipeline] Clip %s rejected by integrity gate: %s",
+                clip.get("point_id") or clip.get("id"),
+                ",".join(sorted(defects)),
+            )
+            return False
     return True
 
 
