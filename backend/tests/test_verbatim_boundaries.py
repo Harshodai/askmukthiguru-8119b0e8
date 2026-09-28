@@ -13,7 +13,7 @@ from ingest.verbatim.boundaries import boundary_defects, snap_to_sentences
         ("and then you let go of", ["head_lowercase", "head_conjunction", "tail_no_terminal", "tail_dangling_word"]),
         ("is agitated before the event,", ["head_lowercase", "tail_no_terminal"]),
         ("...and it ends.", ["head_orphan_punctuation", "head_conjunction"]),
-        ("So approach your yoga gently.", ["head_conjunction"]),
+        ("So approach your yoga gently.", []),
     ],
 )
 def test_boundary_defects(text, expected):
@@ -57,3 +57,35 @@ def test_snap_uses_a_parallel_display_layer_for_unpunctuated_asr():
 def test_snap_rejects_bad_span():
     with pytest.raises(ValueError):
         snap_to_sentences(["A."], 1, 1)
+
+
+# --- B3: grow-back ---------------------------------------------------------
+
+from ingest.verbatim.boundaries import grow_to_sentence_start  # noqa: E402
+
+
+def test_grow_reaches_the_sentence_start_inside_one_teacher_run():
+    toks = "It hurts. You see the truth".split()
+    assert grow_to_sentence_start(toks, ["K"] * 6, 4, "K") == 2
+
+
+def test_grow_keeps_a_start_that_is_already_a_sentence_start():
+    toks = "It hurts. You see".split()
+    assert grow_to_sentence_start(toks, ["P"] * 4, 2, "P") == 2
+
+
+def test_grow_never_crosses_host_or_unknown_speech():
+    toks = "It hurts. You see the truth".split()
+    assert grow_to_sentence_start(toks, ["K", "K", "O", "K", "K", "K"], 4, "K") is None
+    assert grow_to_sentence_start(toks, ["K", "K", "?", "K", "K", "K"], 4, "K") is None
+
+
+def test_grow_gives_up_past_max_back():
+    toks = ["It."] + ["word"] * 10
+    assert grow_to_sentence_start(toks, ["P"] * 11, 10, "P", max_back=5) is None
+    assert grow_to_sentence_start(toks, ["P"] * 11, 10, "P", max_back=10) == 1
+
+
+def test_grow_rejects_misaligned_labels():
+    with pytest.raises(ValueError):
+        grow_to_sentence_start(["A."], [], 0, "P")

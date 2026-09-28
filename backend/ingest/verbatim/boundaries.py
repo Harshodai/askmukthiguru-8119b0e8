@@ -61,7 +61,9 @@ def boundary_defects(tokens: list[str]) -> list[str]:
         defects.append("head_orphan_punctuation")
     elif first[:1].islower():
         defects.append("head_lowercase")
-    if _bare(tokens[0]) in CONJUNCTIONS:
+    # Capitalised "And/So/Or ..." opens a real spoken sentence (owner decision
+    # delegated 2026-09-28: allow); lowercase means the clip joined mid-clause.
+    if _bare(tokens[0]) in CONJUNCTIONS and not first[:1].isupper():
         defects.append("head_conjunction")
     if not _ends_sentence(tokens[-1]):
         defects.append("tail_no_terminal")
@@ -95,6 +97,28 @@ def snap_to_sentences(
     return s, e
 
 
+def grow_to_sentence_start(
+    tokens: list[str], labels: list[str], start: int, speaker: str, max_back: int = 60
+) -> Optional[int]:
+    """Move ``start`` BACK to the nearest sentence start, keeping content that
+    shrink would drop (plan card B3).
+
+    Every word crossed must carry ``speaker``'s label -- a host ("O") or
+    unknown ("?") word stops the walk, so growing can never attribute another
+    voice to the teacher (FP invariant: abstain by default). Returns None when
+    no sentence start is reachable within ``max_back`` words; callers then
+    fall back to ``snap_to_sentences``.
+    """
+    if len(tokens) != len(labels):
+        raise ValueError(f"{len(tokens)} tokens vs {len(labels)} labels")
+    s = start
+    while s >= 0 and start - s <= max_back and labels[s] == speaker:
+        if _starts_sentence(tokens, s):
+            return s
+        s -= 1
+    return None
+
+
 def _self_check() -> None:
     assert boundary_defects("Suffering is not a fact.".split()) == []
     assert boundary_defects("This is who you are.".split()) == []
@@ -106,6 +130,9 @@ def _self_check() -> None:
     assert snap_to_sentences(toks, 0, len(toks), min_words=3) == (2, 6)
     assert snap_to_sentences(toks, 0, len(toks), min_words=5) is None
     assert snap_to_sentences(["A", "b."], 0, 2, min_words=1) == (0, 2)
+    toks = "It hurts. You see the truth".split()
+    assert grow_to_sentence_start(toks, ["K"] * 6, 4, "K") == 2
+    assert grow_to_sentence_start(toks, ["K", "K", "O", "K", "K", "K"], 4, "K") is None
     print("boundaries.py self-check OK")
 
 

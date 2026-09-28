@@ -1,0 +1,280 @@
+{
+  "generated_at": "2026-09-27T21:20:09.563099+00:00",
+  "source": "pilot50_2026-09-25_passages_C__bakeoff_2026-09-25_passages_C",
+  "detector": "ingest.verbatim.boundaries.boundary_defects",
+  "summary": {
+    "clips": 295,
+    "clean": 112,
+    "clean_pct": 37.97,
+    "head_defect_clips": 182,
+    "tail_defect_clips": 10,
+    "defect_counts": {
+      "head_lowercase": 159,
+      "tail_no_terminal": 10,
+      "head_conjunction": 27
+    },
+    "duration_buckets": {
+      "25-45s": 66,
+      "<18s": 94,
+      "18-25s": 35,
+      ">45s": 100
+    },
+    "speakers": {
+      "krishnaji": 119,
+      "preethaji": 176
+    },
+    "defective_examples": [
+      {
+        "video_id": "-i-QFyNg8Io",
+        "speaker": "preethaji",
+        "duration_s": 9.04,
+        "defects": [
+          "head_lowercase"
+        ],
+        "head": "out of your states of suffering as you're",
+        "tail": "in those awakened states of consciousness."
+      },
+      {
+        "video_id": "-i-QFyNg8Io",
+        "speaker": "preethaji",
+        "duration_s": 23.84,
+        "defects": [
+          "head_lowercase"
+        ],
+        "head": "heal your own hearts of your disappointments and",
+        "tail": "in powerful states beyond the mind."
+      },
+      {
+        "video_id": "-i-QFyNg8Io",
+        "speaker": "preethaji",
+        "duration_s": 16.56,
+        "defects": [
+          "head_lowercase"
+        ],
+        "head": "soak your entire being in a state of",
+        "tail": "to the people in your life."
+      },
+      {
+        "video_id": "-pBQ6Sy444o",
+        "speaker": "preethaji",
+        "duration_s": 26.8,
+        "defects": [
+          "head_lowercase"
+        ],
+        "head": "one of the youngest nations in the world,",
+        "tail": "environment movement for the world itself."
+      },
+      {
+        "video_id": "05wF2qqUVnI",
+        "speaker": "krishnaji",
+        "duration_s": 35.16,
+        "defects": [
+          "head_lowercase"
+        ],
+        "head": "between desperation and playfulness one will make life",
+        "tail": "aid and support you with synchronicities."
+      },
+      {
+        "video_id": "0Fa4Wyv0GOk",
+        "speaker": "krishnaji",
+        "duration_s": 8.0,
+        "defects": [
+          "head_lowercase"
+        ],
+        "head": "at your heart center. The namaste posture is",
+        "tail": "and right hemispheres of your brain."
+      },
+      {
+        "video_id": "0Fa4Wyv0GOk",
+        "speaker": "krishnaji",
+        "duration_s": 55.91,
+        "defects": [
+          "head_lowercase"
+        ],
+        "head": "you have desired for so many things throughout",
+        "tail": "and ask the universe for it."
+      },
+      {
+        "video_id": "0Fa4Wyv0GOk",
+        "speaker": "krishnaji",
+        "duration_s": 14.48,
+        "defects": [
+          "head_lowercase"
+        ],
+        "head": "you may gently open your eyes. You could",
+        "tail": "days of nurturing peace in you."
+      },
+      {
+        "video_id": "0k5f8G9uXqY",
+        "speaker": "preethaji",
+        "duration_s": 8.16,
+        "defects": [
+          "head_lowercase"
+        ],
+        "head": "this time of global crisis, the oneness of",
+        "tail": "experience is more transparent than ever?"
+      },
+      {
+        "video_id": "0k5f8G9uXqY",
+        "speaker": "preethaji",
+        "duration_s": 10.16,
+        "defects": [
+          "head_lowercase"
+        ],
+        "head": "everyone is experiencing the same anxiety, either over",
+        "tail": "that of their their loved ones."
+      },
+      {
+        "video_id": "0m64VFmniGI",
+        "speaker": "preethaji",
+        "duration_s": 14.8,
+        "defects": [
+          "head_lowercase"
+        ],
+        "head": "live with a consciousness that is awakened to",
+        "tail": "that heals you and the world."
+      },
+      {
+        "video_id": "0va0izWG0Hc",
+        "speaker": "krishnaji",
+        "duration_s": 8.4,
+        "defects": [
+          "head_lowercase"
+        ],
+        "head": "your workplace, everybody that you come in touch",
+        "tail": "give them a gift of connection."
+      },
+      {
+        "video_id": "19EEFd2ueiI",
+        "speaker": "preethaji",
+        "duration_s": 8.56,
+        "defects": [
+          "head_lowercase"
+        ],
+        "head": "head of hearts is manifest family harmony. This",
+        "tail": "journeying into birthing love in families."
+      },
+      {
+        "video_id": "19EEFd2ueiI",
+        "speaker": "preethaji",
+        "duration_s": 12.0,
+        "defects": [
+          "head_lowercase"
+        ],
+        "head": "this person become my sibling? Or why was",
+        "tail": "these grand accidents caused by me?"
+      },
+      {
+        "video_id": "19EEFd2ueiI",
+        "speaker": "preethaji",
+        "duration_s": 12.8,
+        "defects": [
+          "head_lowercase"
+        ],
+        "head": "tried to pierce through this mystery to make",
+        "tail": "they are buried in your consciousness."
+      },
+      {
+        "video_id": "19EEFd2ueiI",
+        "speaker": "preethaji",
+        "duration_s": 12.05,
+        "defects": [
+          "head_lowercase"
+        ],
+        "head": "compulsive need to project the other as its",
+        "tail": "parents, siblings, life partner and children."
+      },
+      {
+        "video_id": "1imcyoNUO-A",
+        "speaker": "krishnaji",
+        "duration_s": 60.42,
+        "defects": [
+          "head_lowercase"
+        ],
+        "head": "as tomorrow's leader you will also have to",
+        "tail": "participate in these life transforming events."
+      },
+      {
+        "video_id": "5Tdb7hBwX88",
+        "speaker": "preethaji",
+        "duration_s": 10.72,
+        "defects": [
+          "head_lowercase"
+        ],
+        "head": "second stage of the Soul Sync pushes your",
+        "tail": "a very deep state of relaxation."
+      },
+      {
+        "video_id": "5YJ6vynFWFc",
+        "speaker": "krishnaji",
+        "duration_s": 29.78,
+        "defects": [
+          "head_lowercase"
+        ],
+        "head": "you'll become a director you will not become",
+        "tail": "identify your role, purpose and mission."
+      },
+      {
+        "video_id": "6yHWS32aNOs",
+        "speaker": "preethaji",
+        "duration_s": 20.56,
+        "defects": [
+          "head_lowercase"
+        ],
+        "head": "blossoms into a state of unperturbed peace as",
+        "tail": "no matter what storm may come."
+      },
+      {
+        "video_id": "8fKvjHOD_kQ",
+        "speaker": "preethaji",
+        "duration_s": 64.08,
+        "defects": [
+          "tail_no_terminal"
+        ],
+        "head": "We suggest you meditate at least once a",
+        "tail": "flow from you to the world"
+      },
+      {
+        "video_id": "9-NMv5E-18s",
+        "speaker": "preethaji",
+        "duration_s": 167.15,
+        "defects": [
+          "head_lowercase"
+        ],
+        "head": "last week we went into the first three",
+        "tail": "surfacing in different forms, tormenting you."
+      },
+      {
+        "video_id": "9-NMv5E-18s",
+        "speaker": "preethaji",
+        "duration_s": 113.23,
+        "defects": [
+          "head_lowercase"
+        ],
+        "head": "last week we went into the first three",
+        "tail": "reveal themselves only to the seeker."
+      },
+      {
+        "video_id": "9-NMv5E-18s",
+        "speaker": "preethaji",
+        "duration_s": 52.4,
+        "defects": [
+          "head_lowercase",
+          "head_conjunction"
+        ],
+        "head": "so let us go a little deeper now",
+        "tail": "surfacing in different forms, tormenting you."
+      },
+      {
+        "video_id": "9-NMv5E-18s",
+        "speaker": "preethaji",
+        "duration_s": 37.43,
+        "defects": [
+          "head_lowercase"
+        ],
+        "head": "once it is craving for position another time",
+        "tail": "more are born like Rakta Bija."
+      }
+    ]
+  }
+}
