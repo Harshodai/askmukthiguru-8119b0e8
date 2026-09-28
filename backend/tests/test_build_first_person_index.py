@@ -136,9 +136,10 @@ def test_dangling_conjunction_quarantined(tmp_path):
 
     report = _build(tmp_path, [pdir], vjson)
 
+    # Clip-level, not video-level: the video's other clips stay indexable.
     assert report["clips_indexed_total"] == 0
-    reasons = {q["video_id"]: q["reason"] for q in report["videos_quarantined"]}
-    assert reasons["vidDC"] == "dangling_conjunction"
+    assert report["clips_quarantined"] == {"dangling_conjunction": 1}
+    assert "vidDC" not in {q["video_id"] for q in report["videos_quarantined"]}
 
 
 def test_host_clip_is_skipped_not_indexed(tmp_path):

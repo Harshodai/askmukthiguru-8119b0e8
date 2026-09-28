@@ -155,8 +155,8 @@ def _gate_clip(clip: dict, full_text: str, duration_s: float) -> Optional[str]:
     start, end = clip.get("start"), clip.get("end")
     if start is None or end is None or not (0 <= start < end <= duration_s + 1.0):
         return "bad_bounds"
-    if _DANGLING_CONJUNCTION_RE.search(vt):
-        return "dangling_conjunction"
+    # A dangling conjunction is a clip-boundary defect, not corrupt data: it drops
+    # that clip (after optional snapping) in build_index, never the whole video.
     return None
 
 
@@ -558,6 +558,9 @@ def build_index(
                     clip_quarantine[reason] += 1
                     continue
                 clips_snapped += bool(clip.get("boundary_snapped"))
+            if _DANGLING_CONJUNCTION_RE.search(clip["verbatim_text"]):
+                clip_quarantine["dangling_conjunction"] += 1
+                continue
             if clip["end"] - clip["start"] < min_clip_duration_s:
                 clips_too_short += 1
                 continue
