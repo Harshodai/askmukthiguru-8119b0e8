@@ -14,6 +14,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Loader2, Search, Sparkles, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { getAIConfig } from '@/lib/chat/config';
 import { getAccessToken } from '@/lib/chat/auth';
 
@@ -586,6 +587,40 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
                 />
               </ReactFlow>
 
+              {selectedNode && (
+                <div
+                  className="absolute inset-x-3 bottom-3 z-20 rounded-2xl border border-white/15 bg-black/85 p-4 text-white shadow-xl backdrop-blur-md xl:hidden"
+                  role="region"
+                  aria-live="polite"
+                  aria-label={`${selectedNode.data.label} details`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/55">
+                        {selectedNode.data.nodeType}
+                      </div>
+                      <h3 className="mt-1 truncate text-base font-semibold text-white">{selectedNode.data.label}</h3>
+                      <p className="mt-1 text-xs text-white/65">
+                        {selectedConnections.length} {selectedConnections.length === 1 ? 'connection' : 'connections'}
+                        {selectedNode.data.teacher && KNOWN_TEACHERS.has(selectedNode.data.teacher)
+                          ? ` · ${selectedNode.data.teacher}`
+                          : ''}
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setSelectedNodeId(null)}
+                      className="min-h-11 min-w-11 shrink-0 text-white/70 hover:bg-white/10 hover:text-white"
+                      aria-label="Close node details"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               <div className="absolute bottom-4 inset-x-4 z-10 flex flex-wrap items-center gap-2">
                 {typeCounts.map(([type, count]) => {
                   const visual = getNodeVisual(type);
@@ -615,7 +650,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
           )}
         </div>
 
-        <aside className="rounded-[28px] border border-border/50 bg-card/50 p-4 shadow-sm backdrop-blur">
+        <aside className="hidden rounded-[28px] border border-border/50 bg-card/50 p-4 shadow-sm backdrop-blur xl:block">
           {selectedNode ? (
             <div className="flex h-full flex-col">
               <div className="flex items-start justify-between gap-3">
