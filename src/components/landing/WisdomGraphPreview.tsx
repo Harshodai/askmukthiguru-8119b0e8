@@ -16,13 +16,13 @@ interface GraphNode {
 }
 
 const NODE_LAYOUT: Array<{ id: string; key: string; category: GraphNode['category']; x: number; y: number }> = [
-  { id: '1', key: 'universalConsciousness', category: 'core', x: 50, y: 35 },
-  { id: '2', key: 'beautifulState', category: 'state', x: 28, y: 55 },
-  { id: '3', key: 'sufferingState', category: 'state', x: 72, y: 55 },
-  { id: '4', key: 'sereneMind', category: 'practice', x: 18, y: 78 },
-  { id: '5', key: 'soulSync', category: 'practice', x: 38, y: 82 },
-  { id: '6', key: 'fourSacredSecrets', category: 'wisdom', x: 62, y: 82 },
-  { id: '7', key: 'sakshi', category: 'wisdom', x: 82, y: 78 },
+  { id: '1', key: 'universalConsciousness', category: 'core', x: 50, y: 43 },
+  { id: '2', key: 'beautifulState', category: 'state', x: 27, y: 58 },
+  { id: '3', key: 'sufferingState', category: 'state', x: 73, y: 58 },
+  { id: '4', key: 'sereneMind', category: 'practice', x: 18, y: 74 },
+  { id: '5', key: 'soulSync', category: 'practice', x: 39, y: 78 },
+  { id: '6', key: 'fourSacredSecrets', category: 'wisdom', x: 61, y: 78 },
+  { id: '7', key: 'sakshi', category: 'wisdom', x: 82, y: 74 },
 ];
 
 const EDGES: [string, string][] = [
@@ -116,7 +116,7 @@ export const WisdomGraphPreview: React.FC = () => {
                         className={`min-h-11 rounded-xl px-2.5 sm:px-3 transition-[background-color,border-color,box-shadow,color] flex items-center gap-2 ${
                           isSelected
                             ? 'bg-saffron-gold text-zinc-950 font-bold shadow-[0_0_18px_rgba(234,179,8,0.38)] z-20 hover:bg-saffron-gold'
-                            : 'bg-zinc-900/95 border border-border/60 text-foreground/80 hover:border-saffron-gold/60 hover:bg-zinc-800 z-10'
+                            : 'bg-zinc-900/95 border border-saffron-gold/25 text-saffron-gold/80 hover:border-saffron-gold/60 hover:bg-zinc-800 z-10'
                         }`}
                       >
                         <motion.span
@@ -137,14 +137,14 @@ export const WisdomGraphPreview: React.FC = () => {
               key={activeNode.id}
               initial={reduceMotion ? false : { opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
-              className="relative z-30 self-start max-w-[min(22rem,calc(100%-1rem))] rounded-xl border border-border/50 bg-zinc-900/95 p-3 sm:p-4 shadow-xl backdrop-blur-md"
+              className="relative z-30 self-start w-[min(18rem,calc(100%-0.5rem))] rounded-xl border border-saffron-gold/30 bg-zinc-900/95 p-3 sm:p-4 shadow-xl backdrop-blur-md"
               aria-live="polite"
             >
               <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-saffron-gold">
                 <Sparkles className="w-3 h-3" /> {t('landing.graph.ontologicalNode', 'Ontological Node')}
               </div>
-              <h4 className="font-serif text-base font-bold text-foreground mt-1">{activeNode.label}</h4>
-              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{activeNode.description}</p>
+              <h4 className="font-serif text-base font-bold text-saffron-gold mt-1">{activeNode.label}</h4>
+              <p className="line-clamp-2 text-xs text-saffron-gold/70 mt-1 leading-relaxed">{activeNode.description}</p>
             </motion.div>
 
             {/* Bottom Explorer Action Link */}
