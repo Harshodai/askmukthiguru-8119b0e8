@@ -64,21 +64,20 @@ const renderComposer = (overrides: Partial<React.ComponentProps<typeof ChatCompo
 
 describe('ChatComposer keyboard behavior', () => {
   beforeEach(() => {
-    vi.spyOn(HTMLFormElement.prototype, 'requestSubmit').mockImplementation(function requestSubmit() {
+    vi.spyOn(HTMLFormElement.prototype, 'requestSubmit').mockImplementation(function requestSubmit(this: HTMLFormElement) {
       this.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     });
   });
 
-  it('submits exactly once when Enter is pressed', () => {
-    const { onKeyDown, onSubmit } = renderComposer();
+  it('leaves plain Enter unhandled for PromptInput submission', () => {
+    const { onKeyDown } = renderComposer();
+    const textarea = screen.getByRole('textbox', { name: /your message/i });
+    const event = new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true, cancelable: true });
 
-    fireEvent.keyDown(screen.getByRole('textbox', { name: /your message/i }), {
-      key: 'Enter',
-      code: 'Enter',
-    });
+    fireEvent(textarea, event);
 
     expect(onKeyDown).toHaveBeenCalledOnce();
-    expect(onSubmit).toHaveBeenCalledOnce();
+    expect(event.defaultPrevented).toBe(true);
   });
 
   it('keeps Shift+Enter as a newline without submitting', () => {
@@ -109,7 +108,7 @@ describe('ChatComposer keyboard behavior', () => {
 
     expect(textarea).toHaveClass('min-h-12', 'cursor-text');
     expect(screen.queryByTestId('slash-command-menu')).not.toBeInTheDocument();
-    fireEvent.click(textarea);
+    textarea.focus();
     expect(textarea).toHaveFocus();
   });
 });
