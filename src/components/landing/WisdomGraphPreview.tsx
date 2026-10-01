@@ -19,10 +19,10 @@ const NODE_LAYOUT: Array<{ id: string; key: string; category: GraphNode['categor
   { id: '1', key: 'universalConsciousness', category: 'core', x: 50, y: 43 },
   { id: '2', key: 'beautifulState', category: 'state', x: 27, y: 58 },
   { id: '3', key: 'sufferingState', category: 'state', x: 73, y: 58 },
-  { id: '4', key: 'sereneMind', category: 'practice', x: 18, y: 74 },
-  { id: '5', key: 'soulSync', category: 'practice', x: 39, y: 78 },
-  { id: '6', key: 'fourSacredSecrets', category: 'wisdom', x: 61, y: 78 },
-  { id: '7', key: 'sakshi', category: 'wisdom', x: 82, y: 74 },
+  { id: '4', key: 'sereneMind', category: 'practice', x: 17, y: 72 },
+  { id: '5', key: 'soulSync', category: 'practice', x: 38, y: 80 },
+  { id: '6', key: 'fourSacredSecrets', category: 'wisdom', x: 62, y: 80 },
+  { id: '7', key: 'sakshi', category: 'wisdom', x: 83, y: 72 },
 ];
 
 const EDGES: [string, string][] = [
@@ -124,7 +124,7 @@ export const WisdomGraphPreview: React.FC = () => {
                           animate={isSelected && !reduceMotion ? { opacity: [0.55, 1, 0.55] } : { opacity: 0.7 }}
                           transition={{ duration: 1.8, repeat: isSelected && !reduceMotion ? Infinity : 0, ease: 'easeInOut' }}
                         />
-                        <span className="font-serif text-[10px] sm:text-sm whitespace-nowrap">{node.label}</span>
+                        <span className="max-w-16 truncate font-serif text-[10px] sm:max-w-none sm:text-sm">{node.label}</span>
                       </Button>
                     </motion.div>
                   </div>

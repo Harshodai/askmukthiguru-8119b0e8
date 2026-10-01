@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ChatComposer } from './ChatComposer';
@@ -69,12 +69,14 @@ describe('ChatComposer keyboard behavior', () => {
     });
   });
 
-  it('leaves plain Enter unhandled for PromptInput submission', () => {
+  it('leaves plain Enter unhandled for PromptInput submission', async () => {
     const { onKeyDown } = renderComposer();
     const textarea = screen.getByRole('textbox', { name: /your message/i });
     const event = new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true, cancelable: true });
 
-    fireEvent(textarea, event);
+    await act(async () => {
+      fireEvent(textarea, event);
+    });
 
     expect(onKeyDown).toHaveBeenCalledOnce();
     expect(event.defaultPrevented).toBe(true);
