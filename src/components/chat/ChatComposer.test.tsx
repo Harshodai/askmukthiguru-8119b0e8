@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ChatComposer } from './ChatComposer';
 
@@ -63,6 +63,12 @@ const renderComposer = (overrides: Partial<React.ComponentProps<typeof ChatCompo
 };
 
 describe('ChatComposer keyboard behavior', () => {
+  beforeEach(() => {
+    vi.spyOn(HTMLFormElement.prototype, 'requestSubmit').mockImplementation(function requestSubmit() {
+      this.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    });
+  });
+
   it('submits exactly once when Enter is pressed', () => {
     const { onKeyDown, onSubmit } = renderComposer();
 
