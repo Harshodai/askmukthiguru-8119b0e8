@@ -9,7 +9,7 @@ on error is <= target_risk (e.g. 1% risk -> >= 99% precision).
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Optional
 
 from evaluation.gold.metrics import clopper_pearson_upper
@@ -46,9 +46,6 @@ class SelectiveRiskCalibrator:
         """
         curve: list[dict[str, Any]] = []
 
-        total_correct = 0
-        total_selected = 0
-
         # Evaluate at unique score thresholds
         unique_scores = sorted(set(s for s, _ in self.data), reverse=True)
 
@@ -63,22 +60,24 @@ class SelectiveRiskCalibrator:
             precision = (k - errors) / k
             ucb_risk = clopper_pearson_upper(k_errors=errors, n_total=k, delta=delta)
 
-            curve.append({
-                "threshold": round(s_thresh, 4),
-                "n_selected": k,
-                "coverage": round(coverage, 4),
-                "precision": round(precision, 4),
-                "empirical_risk": round(errors / k, 4),
-                "ucb_risk": round(ucb_risk, 4),
-                "guaranteed_precision_lower": round(1.0 - ucb_risk, 4),
-            })
+            curve.append(
+                {
+                    "threshold": round(s_thresh, 4),
+                    "n_selected": k,
+                    "coverage": round(coverage, 4),
+                    "precision": round(precision, 4),
+                    "empirical_risk": round(errors / k, 4),
+                    "ucb_risk": round(ucb_risk, 4),
+                    "guaranteed_precision_lower": round(1.0 - ucb_risk, 4),
+                }
+            )
 
         return curve
 
     def find_operating_threshold(
         self,
         target_risk: float = 0.01,  # 1% error rate -> 99% precision
-        delta: float = 0.05,        # 95% one-sided confidence
+        delta: float = 0.05,  # 95% one-sided confidence
     ) -> Optional[dict[str, Any]]:
         """
         Fixed-sequence testing (Learn-then-Test; Geifman & El-Yaniv 2017,
@@ -127,7 +126,9 @@ class SelectiveRiskCalibrator:
         """Smallest n whose zero-error Clopper-Pearson upper bound is <= target_risk
         (299 at 1% / 95%), capped at the calibration set size."""
         n = 1
-        while n <= self.n and clopper_pearson_upper(k_errors=0, n_total=n, delta=delta) > target_risk:
+        while (
+            n <= self.n and clopper_pearson_upper(k_errors=0, n_total=n, delta=delta) > target_risk
+        ):
             n += 1
         return n
 
@@ -167,5 +168,5 @@ class SelectiveRiskCalibrator:
             "ucb_risk": point["ucb_risk"],
             "target_risk": target_risk,
             "collection": collection,
-            "fitted_at": datetime.now(timezone.utc).isoformat(),
+            "fitted_at": datetime.now(UTC).isoformat(),
         }

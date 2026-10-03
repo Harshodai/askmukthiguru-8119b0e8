@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Collective Peace Consciousness"
-source: "YouTube https://www.youtube.com/watch?v=pmSPHJfg3AU"
+source: "https://www.youtube.com/watch?v=pmSPHJfg3AU"
 video_id: pmSPHJfg3AU
 tags: [consciousness, peace, collective human consciousness, peace energies, spiritual process]
 teacher: "both"

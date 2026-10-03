@@ -40,6 +40,8 @@ def test_leak_detector_still_ignores_ordinary_transcript_text():
         "In this teaching, Sri Preethaji speaks about the Beautiful State and inner peace."
     )
 
+
 if __name__ == "__main__":
     import pytest
+
     raise SystemExit(pytest.main([__file__, "-v"]))

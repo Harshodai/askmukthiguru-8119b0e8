@@ -9,6 +9,7 @@ import numpy as np
 from ingest.verbatim.speaker_verify import (
     cluster_and_name_windows,
     label_words_by_speaker,
+    relabel_turn_start_prefixes,
     verify_speakers,
 )
 
@@ -64,3 +65,198 @@ def test_label_words_by_speaker_beyond_snap_radius_is_unknown():
 def test_label_words_by_speaker_no_windows_is_all_unknown():
     words = [{"w": "hi", "start": 0.5, "end": 1.0}]
     assert label_words_by_speaker(words, [], [])[0]["spk"] == "?"
+
+
+# --- Task S1: Turn-Start Speaker Prefix Recovery Tests ---
+
+
+def test_relabel_turn_start_prefixes_positive_case():
+    """Positive case: 'It[O] is[O] beyond[P] attitudes[P] and[P] beliefs[P].' -> 'It[P] is[P] beyond[P] attitudes[P] and[P] beliefs[P].'"""
+    words = [
+        {"w": "It", "start": 0.0, "end": 0.2, "spk": "O"},
+        {"w": "is", "start": 0.2, "end": 0.4, "spk": "O"},
+        {"w": "beyond", "start": 0.4, "end": 0.7, "spk": "P"},
+        {"w": "attitudes", "start": 0.7, "end": 1.1, "spk": "P"},
+        {"w": "and", "start": 1.1, "end": 1.3, "spk": "P"},
+        {"w": "beliefs.", "start": 1.3, "end": 1.8, "spk": "P"},
+    ]
+    relabelled = relabel_turn_start_prefixes(words)
+    assert [w["spk"] for w in relabelled] == ["P", "P", "P", "P", "P", "P"]
+
+
+def test_relabel_turn_start_prefixes_negative_host_sentence():
+    """Negative case: genuine host sentence 'What[O] is[O] meditation[O]?' followed by teacher sentence -> remains 'O'."""
+    words = [
+        {"w": "What", "start": 0.0, "end": 0.3, "spk": "O"},
+        {"w": "is", "start": 0.3, "end": 0.5, "spk": "O"},
+        {"w": "meditation?", "start": 0.5, "end": 1.0, "spk": "O"},
+        {"w": "Meditation", "start": 1.2, "end": 1.6, "spk": "K"},
+        {"w": "is", "start": 1.6, "end": 1.8, "spk": "K"},
+        {"w": "an", "start": 1.8, "end": 2.0, "spk": "K"},
+        {"w": "awakened", "start": 2.0, "end": 2.4, "spk": "K"},
+        {"w": "state.", "start": 2.4, "end": 2.8, "spk": "K"},
+    ]
+    relabelled = relabel_turn_start_prefixes(words)
+    assert [w["spk"] for w in relabelled[:3]] == ["O", "O", "O"]
+    assert [w["spk"] for w in relabelled[3:]] == ["K", "K", "K", "K", "K"]
+
+
+def test_relabel_turn_start_prefixes_mixed_ambiguous_untouched():
+    """Mixed/ambiguous sentence -> remains untouched."""
+    # Subcase A: host word in remainder
+    words_a = [
+        {"w": "It", "start": 0.0, "end": 0.2, "spk": "O"},
+        {"w": "is", "start": 0.2, "end": 0.4, "spk": "O"},
+        {"w": "beyond", "start": 0.4, "end": 0.7, "spk": "P"},
+        {"w": "attitudes", "start": 0.7, "end": 1.1, "spk": "O"},
+        {"w": "and", "start": 1.1, "end": 1.3, "spk": "P"},
+        {"w": "beliefs.", "start": 1.3, "end": 1.8, "spk": "P"},
+    ]
+    assert [w["spk"] for w in relabel_turn_start_prefixes(words_a)] == [
+        "O",
+        "O",
+        "P",
+        "O",
+        "P",
+        "P",
+    ]
+
+    # Subcase B: mixed teachers (P and K) in remainder
+    words_b = [
+        {"w": "It", "start": 0.0, "end": 0.2, "spk": "O"},
+        {"w": "is", "start": 0.2, "end": 0.4, "spk": "O"},
+        {"w": "beyond", "start": 0.4, "end": 0.7, "spk": "P"},
+        {"w": "attitudes", "start": 0.7, "end": 1.1, "spk": "K"},
+        {"w": "and", "start": 1.1, "end": 1.3, "spk": "P"},
+        {"w": "beliefs.", "start": 1.3, "end": 1.8, "spk": "P"},
+    ]
+    assert [w["spk"] for w in relabel_turn_start_prefixes(words_b)] == [
+        "O",
+        "O",
+        "P",
+        "K",
+        "P",
+        "P",
+    ]
+
+    # Subcase C: unknown word (?) in remainder
+    words_c = [
+        {"w": "It", "start": 0.0, "end": 0.2, "spk": "O"},
+        {"w": "is", "start": 0.2, "end": 0.4, "spk": "O"},
+        {"w": "beyond", "start": 0.4, "end": 0.7, "spk": "P"},
+        {"w": "attitudes", "start": 0.7, "end": 1.1, "spk": "?"},
+        {"w": "and", "start": 1.1, "end": 1.3, "spk": "P"},
+        {"w": "beliefs.", "start": 1.3, "end": 1.8, "spk": "P"},
+    ]
+    assert [w["spk"] for w in relabel_turn_start_prefixes(words_c)] == [
+        "O",
+        "O",
+        "P",
+        "?",
+        "P",
+        "P",
+    ]
+
+
+def test_relabel_turn_start_prefixes_bounded_prefix_length():
+    """Bounded prefix length (> 6 words does not relabel; <= 6 words relabels)."""
+    # 7 words of 'O' followed by 3 teacher words -> must NOT relabel (> 6 boundary)
+    words_7 = [
+        {"w": "one", "start": 0.0, "end": 0.2, "spk": "O"},
+        {"w": "two", "start": 0.2, "end": 0.4, "spk": "O"},
+        {"w": "three", "start": 0.4, "end": 0.6, "spk": "O"},
+        {"w": "four", "start": 0.6, "end": 0.8, "spk": "O"},
+        {"w": "five", "start": 0.8, "end": 1.0, "spk": "O"},
+        {"w": "six", "start": 1.0, "end": 1.2, "spk": "O"},
+        {"w": "seven", "start": 1.2, "end": 1.4, "spk": "O"},
+        {"w": "eight", "start": 1.4, "end": 1.6, "spk": "P"},
+        {"w": "nine", "start": 1.6, "end": 1.8, "spk": "P"},
+        {"w": "ten.", "start": 1.8, "end": 2.0, "spk": "P"},
+    ]
+    relabelled_7 = relabel_turn_start_prefixes(words_7)
+    assert [w["spk"] for w in relabelled_7[:7]] == ["O"] * 7
+    assert [w["spk"] for w in relabelled_7[7:]] == ["P", "P", "P"]
+
+    # Exactly 6 words of 'O' followed by 3 teacher words -> DOES relabel (<= 6)
+    words_6 = words_7[1:]
+    relabelled_6 = relabel_turn_start_prefixes(words_6)
+    assert [w["spk"] for w in relabelled_6] == ["P"] * 9
+
+
+def test_relabel_turn_start_prefixes_unknown_prefix_recovered():
+    """Unknown (?) prefix is recovered when followed by uniform teacher remainder."""
+    words = [
+        {"w": "The", "start": 0.0, "end": 0.2, "spk": "?"},
+        {"w": "sacred", "start": 0.2, "end": 0.5, "spk": "K"},
+        {"w": "heart", "start": 0.5, "end": 0.8, "spk": "K"},
+        {"w": "glows.", "start": 0.8, "end": 1.2, "spk": "K"},
+    ]
+    relabelled = relabel_turn_start_prefixes(words)
+    assert [w["spk"] for w in relabelled] == ["K", "K", "K", "K"]
+
+
+def test_relabel_turn_start_prefixes_explicit_sentence_boundaries():
+    """Explicit sentence boundaries guide prefix recovery even without terminal punctuation."""
+    words = [
+        {"w": "It", "start": 1.0, "end": 1.2, "spk": "O"},
+        {"w": "is", "start": 1.2, "end": 1.4, "spk": "O"},
+        {"w": "beyond", "start": 1.4, "end": 1.7, "spk": "K"},
+        {"w": "attitudes", "start": 1.7, "end": 2.0, "spk": "K"},
+        {"w": "here", "start": 2.0, "end": 2.3, "spk": "K"},
+    ]
+    boundaries = [(0.5, 3.0)]
+    relabelled = relabel_turn_start_prefixes(words, sentence_boundaries=boundaries)
+    assert [w["spk"] for w in relabelled] == ["K", "K", "K", "K", "K"]
+
+
+def test_relabel_turn_start_prefixes_not_absorbed_after_teacher_terminal():
+    """Ask-5 host-exclusion gate: a single host interjection right after a
+    terminal-punctuated teacher sentence must NEVER be absorbed (the
+    test_clips_v2::test_b host-never-in-a-clip invariant). The previous turn
+    was complete, so the O-label there is genuine host speech, not a
+    mislabelled teacher head."""
+    words = [
+        {"w": "beliefs.", "start": 0.0, "end": 0.4, "spk": "K"},
+        {"w": "question", "start": 0.5, "end": 0.8, "spk": "O"},
+        {"w": "exactly", "start": 0.9, "end": 1.2, "spk": "K"},
+        {"w": "here", "start": 1.2, "end": 1.5, "spk": "K"},
+        {"w": "now.", "start": 1.5, "end": 1.9, "spk": "K"},
+    ]
+    relabelled = relabel_turn_start_prefixes(words)
+    assert relabelled[1]["spk"] == "O", "host interjection after teacher terminal was absorbed"
+    # ...but recovery after HOST terminal speech stays open (prime mislabel case).
+    host_then_teacher = [
+        {"w": "meditation?", "start": 0.0, "end": 0.5, "spk": "O"},
+        {"w": "It", "start": 0.7, "end": 0.9, "spk": "O"},
+        {"w": "is", "start": 0.9, "end": 1.1, "spk": "O"},
+        {"w": "beyond", "start": 1.1, "end": 1.4, "spk": "K"},
+        {"w": "all", "start": 1.4, "end": 1.6, "spk": "K"},
+        {"w": "belief.", "start": 1.6, "end": 2.0, "spk": "K"},
+    ]
+    recovered = relabel_turn_start_prefixes(host_then_teacher)
+    assert [w["spk"] for w in recovered[1:3]] == ["K", "K"], "recovery after host terminal blocked"
+
+
+def test_label_words_by_speaker_end_to_end_prefix_recovery():
+    """Verify label_words_by_speaker automatically applies turn-start recovery."""
+    words = [
+        {"w": "It", "start": 0.0, "end": 0.3},
+        {"w": "is", "start": 0.3, "end": 0.6},
+        {"w": "beyond", "start": 0.9, "end": 1.2},
+        {"w": "attitudes", "start": 1.2, "end": 1.5},
+        {"w": "and", "start": 1.5, "end": 1.8},
+        {"w": "beliefs.", "start": 1.8, "end": 2.1},
+    ]
+    t_centres = [0.2, 1.5]
+    win_lab = ["O", "P"]
+    labelled = label_words_by_speaker(words, t_centres, win_lab)
+    assert [w["spk"] for w in labelled] == ["P", "P", "P", "P", "P", "P"]
+
+
+if __name__ == "__main__":
+    # ponytail: one runnable self-check — run pytest on this module.
+    import sys
+
+    import pytest
+
+    sys.exit(pytest.main([__file__, "-v"]))

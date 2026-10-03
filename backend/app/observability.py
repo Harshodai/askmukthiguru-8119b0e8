@@ -19,7 +19,9 @@ logger = logging.getLogger(__name__)
 _INITIALIZED = False
 
 # Trace only the serving routes (chat, chat stream, first-person); everything else is noise.
-DEFAULT_FASTAPI_EXCLUDED_URLS = r"^(?!.*\/api\/(?:chat(?:\/stream)?|first-person\/query)(?:\?.*)?$).*"
+DEFAULT_FASTAPI_EXCLUDED_URLS = (
+    r"^(?!.*\/api\/(?:chat(?:\/stream)?|first-person\/query)(?:\?.*)?$).*"
+)
 
 
 def _is_enabled() -> bool:

@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "The Nature of Suffering in Relationships"
-source: "YouTube https://www.youtube.com/watch?v=aDQhPZUnDqA"
+source: "https://www.youtube.com/watch?v=aDQhPZUnDqA"
 video_id: aDQhPZUnDqA
 tags: [truth of suffering, relationships, marriage]
 teacher: "both"

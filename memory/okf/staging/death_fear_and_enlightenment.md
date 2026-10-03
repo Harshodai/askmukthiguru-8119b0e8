@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Death, Fear, and Enlightenment"
-source: "YouTube https://www.youtube.com/watch?v=W2ZzApmqJmo"
+source: "https://www.youtube.com/watch?v=W2ZzApmqJmo"
 video_id: W2ZzApmqJmo
 tags: [death, fear, enlightenment, spiritual traditions]
 teacher: "both"

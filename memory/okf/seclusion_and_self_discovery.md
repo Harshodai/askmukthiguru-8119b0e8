@@ -1,30 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=cI7D2aO34yw
-tags:
-- seclusion
-- self-discovery
-- spiritual growth
-- introspection
-teacher: both
-title: Seclusion and Self-Discovery
-type: reflection
+title: Seclusion And Self Discovery
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=cI7D2aO34yw
 video_id: cI7D2aO34yw
+tags:
+- oneness
+- teaching
 ---
-# Seclusion and Self-Discovery
+# Seclusion And Self Discovery
 
+## Verbatim Discourse Excerpts
+Only from not knowing can something totally new emerge, not from old ground of knowing. Jesus and the Buddha, like bamboo, teach us that we are going crazy. Statement: one dollar world traveler. Friends, talk about the self. We are actually mentally feeling: "This is maddening, this is boring, this is painful, this is like a punishment." How can this period of seclusion, how can this period of solitude be a punishment?
 
-## Summary
-Seclusion and solitude offer a profound opportunity for self-discovery and creative breakthrough, especially in the context of modern life's predictable routines. Choosing seclusion deliberately, as encouraged by the teachings of Jesus, Buddha, the sages of India, and the ancient sage Langan, provides a space for introspection and spiritual growth, leading to a more authentic and meaningful life.
+Neurologically, your brain has gone through the same repeated experiences. It is the same experience of waking up at the same time, hurrying the same way, rushing through breakfast the same way, running to work the same way. It has been a very predictable life, other than some repeated predictable breaks during the weekend. It will be the same friend, same party, and probably the same movie time. In this seclusion, your brain has hit a point of not knowing. It has hit a point of unpredictability. This is not ordinary. This is an immense opportunity. Only from not knowing can something totally new emerge, not from old ground of knowing. This is a time for you to know yourself, to reinvent yourself. This time of seclusion and solitude can be an immeasurable blessing to rise to true greatness. Please utilize it.
 
 ## Key Teachings
-- Seclusion and solitude provide an opportunity for self-discovery and creative breakthrough. (Unknown speaker)
-- Deliberately choosing seclusion during crucial periods of life fosters introspection and spiritual growth. (Unknown speaker)
-- This deliberate choice can lead to a more authentic and meaningful life. (Unknown speaker)
+- This is maddening, this is boring, this is painful, this is like a punishment." How can this period of seclusion, how can this period of solitude be a punishment? — Sri Preethaji & Sri Krishnaji
+- Look at every religion, whether it is the Buddha, the Christ, or the sages of India - all chose seclusion. — Sri Preethaji & Sri Krishnaji
+- They chose seclusion deliberately during the most crucial periods of their life. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-- No direct quotes available from the provided transcript.
-
-## Related Concepts
-- Consciousness: a multifaceted and complex entity encompassing various aspects of human experience, including awareness of one's thoughts, emotions, and surroundings.
-- Spiritual Source of Pain: the spiritual origin of pain.
-- Pain: a feeling of suffering or distress caused by physical or emotional harm.
+## Source Context
+- Video: cI7D2aO34yw
+- URL: https://www.youtube.com/watch?v=cI7D2aO34yw
+- Speaker: Sri Preethaji & Sri Krishnaji

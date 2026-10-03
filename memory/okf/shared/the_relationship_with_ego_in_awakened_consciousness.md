@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Relationship with Ego in Awakened Consciousness"
-source: "YouTube https://www.youtube.com/watch?v=hqre34QIMZg"
+source: "https://www.youtube.com/watch?v=hqre34QIMZg"
 video_id: hqre34QIMZg
 tags: [ego, awakened consciousness, awareness, observation]
 teacher: "both"

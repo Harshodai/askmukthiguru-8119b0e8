@@ -32,7 +32,9 @@ router = APIRouter(tags=["First-Person Verbatim Teachings"])
 class FirstPersonQueryRequest(BaseModel):
     query: str = Field(..., min_length=1, max_length=2000, description="The seeker question")
     teacher_id: Optional[str] = Field("both", description="'preethaji', 'krishnaji', or 'both'")
-    max_clips: int = Field(3, ge=1, le=5, description="Max verified clips to return (max 1 per video)")
+    max_clips: int = Field(
+        3, ge=1, le=5, description="Max verified clips to return (max 1 per video)"
+    )
     language: Optional[str] = Field(
         None,
         max_length=10,
@@ -49,6 +51,9 @@ class FirstPersonQueryResponse(BaseModel):
     latency_ms: float
     cached: bool = False
     error: Optional[str] = None
+    # Phase 2 answerability gate verdict: 'yes' | 'no' | 'indeterminate';
+    # None when the gate did not run (flag off, weak match, zero-clip abstention).
+    answerability: Optional[str] = None
 
 
 def _build_redis_client() -> Optional[redis.Redis]:
@@ -70,7 +75,9 @@ def _build_redis_client() -> Optional[redis.Redis]:
             retry_on_timeout=False,
         )
     except Exception as e:
-        logger.warning(f"[FirstPersonRoute] Redis client construction failed; exact cache disabled: {e}")
+        logger.warning(
+            f"[FirstPersonRoute] Redis client construction failed; exact cache disabled: {e}"
+        )
         return None
 
 
@@ -91,18 +98,41 @@ def _make_rerank_fn(embedding: Any, loop: asyncio.AbstractEventLoop, timeout_s: 
 
 
 @lru_cache(maxsize=4)
-def _pipeline(collection: str, serene_mind: Any, rerank_embedding: Any = None) -> FirstPersonPipeline:
+def _pipeline(
+    collection: str,
+    serene_mind: Any,
+    rerank_embedding: Any = None,
+    llm_service: Any = None,
+) -> FirstPersonPipeline:
     """One pipeline per process: reuses the container's crisis engine and loads
     the calibration profile once. ponytail: a new profile file needs a restart.
-    Must be first called from the request loop (the reranker binds to it)."""
+    First call must come from the request loop when a reranker is passed (it
+    binds to that loop). The gate's loop capture below degrades to its
+    persistent fallback when constructed outside any loop (tests, sync tooling)
+    — D1 §6.2: `asyncio.get_running_loop()` at construction time made the
+    factory uncallable without a running loop, breaking 2 first-person-route
+    tests, while `_answerability_check` already accepts `request_loop=None`
+    (persistent gate loop)."""
     rerank_fn = (
-        _make_rerank_fn(rerank_embedding, asyncio.get_running_loop()) if rerank_embedding is not None else None
+        _make_rerank_fn(rerank_embedding, asyncio.get_running_loop())
+        if rerank_embedding is not None
+        else None
     )
+    # Prod path (async route): loop captured — the answerability gate schedules
+    # its LLM call here from the worker thread, keeping the shared Redis
+    # limiter/budget-ledger clients on their birth loop. No running loop →
+    # None → _answerability_check's documented persistent-loop fallback.
+    try:
+        gate_loop: asyncio.AbstractEventLoop | None = asyncio.get_running_loop()
+    except RuntimeError:
+        gate_loop = None
     return FirstPersonPipeline(
         store=FirstPersonStore(collection=collection),
         redis_client=_build_redis_client(),
         serene_mind_engine=serene_mind,
         rerank_fn=rerank_fn,
+        llm_service=llm_service,
+        llm_loop=gate_loop,
     )
 
 
@@ -118,11 +148,15 @@ async def _english_query(query: str, container: ServiceContainer) -> str:
             timeout=settings.first_person_translation_timeout_s,
         )
     except TimeoutError:
-        logger.warning("[FirstPersonRoute] Query translation timed out; embedding the raw question.")
+        logger.warning(
+            "[FirstPersonRoute] Query translation timed out; embedding the raw question."
+        )
         return query
 
 
-async def _add_glosses(citations: list[dict[str, Any]], language: str, container: ServiceContainer) -> None:
+async def _add_glosses(
+    citations: list[dict[str, Any]], language: str, container: ServiceContainer
+) -> None:
     """Attach a 'translated_text' gloss per citation. 'verbatim_text' is never touched;
     a gloss that fails is omitted, never faked."""
     service = getattr(container, "translation", None)
@@ -161,9 +195,10 @@ async def query_first_person_teaching(
     Query first-person verbatim recordings of Sri Preethaji and Sri Krishnaji.
     Returns exact timestamped pointers to authentic teacher discourse.
     """
-    if not getattr(settings, "first_person_route_enabled", False) or getattr(
-        settings, "first_person_mode", "disabled"
-    ) == "disabled":
+    if (
+        not getattr(settings, "first_person_route_enabled", False)
+        or getattr(settings, "first_person_mode", "disabled") == "disabled"
+    ):
         raise HTTPException(
             status_code=404,
             detail="First-person verbatim mode is currently disabled.",
@@ -180,15 +215,25 @@ async def query_first_person_teaching(
     dense_vec = encoded["dense"]
     raw_sparse = encoded.get("sparse") or {}
     sparse_vec = (
-        {"indices": list(raw_sparse.keys()), "values": list(raw_sparse.values())}
+        {
+            "indices": [int(k) for k in raw_sparse.keys()],
+            "values": [float(v) for v in raw_sparse.values()],
+        }
         if raw_sparse
         else None
+    )
+
+    llm_service = (
+        getattr(container, "openrouter", None)
+        or getattr(container, "nim", None)
+        or getattr(container, "ollama", None)
     )
 
     pipeline = _pipeline(
         settings.first_person_collection,
         getattr(container, "serene_mind", None),
         container.embedding if settings.first_person_rerank_enabled else None,
+        llm_service,
     )
 
     try:
@@ -200,6 +245,7 @@ async def query_first_person_teaching(
             teacher_id=req.teacher_id,
             max_clips=req.max_clips,
             retrieval_query=retrieval_query,
+            language=req.language or "en",
         )
     except Exception as e:
         # Anything that escapes the pipeline's own try/except (e.g. a

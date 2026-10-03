@@ -1,7 +1,7 @@
 ---
 type: practice
 title: "Ekam Health Practice Preparatory Steps"
-source: "YouTube https://www.youtube.com/watch?v=FSxiSEV1iPY"
+source: "https://www.youtube.com/watch?v=FSxiSEV1iPY"
 video_id: FSxiSEV1iPY
 tags: [ekam, health, practice, observation]
 teacher: "both"

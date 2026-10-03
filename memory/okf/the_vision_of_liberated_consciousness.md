@@ -1,26 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=DBUJH5f6rjU
-tags:
-- consciousness
-- vision
-- liberation
-teacher: sri-preethaji
-title: The Vision of Liberated Consciousness
-type: reflection
+title: The Vision Of Liberated Consciousness
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=DBUJH5f6rjU
 video_id: DBUJH5f6rjU
+tags:
+- oneness
+- teaching
 ---
-# The Vision of Liberated Consciousness
+# The Vision Of Liberated Consciousness
 
+## Verbatim Discourse Excerpts
+And Shri Sri Preethaji and I have now taken up the fulfillment of this vision. The vision to create 74,000 Sampurna Jeevan Mukthas beings who live with a liberated consciousness. This is the single most important vision of my life. This is why I am on earth. This has been the singular vision of Shri Sri Preethaji and this is why all of you have taken birth at this point of time.
 
-## Summary
-The author's life's work is dedicated to a significant vision, inspired by Sri Sri Preethaji, to create 74,000 individuals with a liberated consciousness. This vision is part of a larger movement aiming for a phase transition in human collective consciousness, a phenomenon not seen for approximately 2,500 years.
+To create oneness in humanity by creating a phase transition in the human collective consciousness has been Sri Amma Bhagavan's vision for decades. Sri Amma Bhagavan with their tireless efforts have elevated millions of ordinary men and women all over the world into seekers of enlightenment or Mukthi. This is a phenomenon that had not happened since about 2,500 years ago in the world.
 
 ## Key Teachings
-- Sri Sri Preethaji envisions the creation of 74,000 individuals with a liberated consciousness.
-- This vision is part of a broader movement towards a phase transition in the human collective consciousness.
-- Such a phase transition in collective consciousness has not occurred for about 2,500 years.
+- The vision to create 74,000 Sampurna Jeevan Mukthas beings who live with a liberated consciousness. — Sri Preethaji & Sri Krishnaji
+- To create oneness in humanity by creating a phase transition in the human collective consciousness has been Sri Amma Bhagavan's vision for decades. — Sri Preethaji & Sri Krishnaji
+- And Shri Sri Preethaji and I have now taken up the fulfillment of this vision. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Enlightenment: a state of profound understanding characterized by a state of consciousness free from suffering, with intense awareness and no compulsive attachment to the past or future.
-- Spiritual Process: a journey of awakening and transformation that leads to higher states of consciousness.
-- Enlightenment State: the highest state of consciousness, characterized by complete understanding and unity.
+## Source Context
+- Video: EKAM TAPAS
+- URL: https://www.youtube.com/watch?v=DBUJH5f6rjU
+- Speaker: Sri Preethaji & Sri Krishnaji

@@ -1,32 +1,22 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=-YQLpNmH0MQ
-tags:
-- self-love
-- acceptance
-- observation
-- self-awareness
-- presence
-teacher: both
-title: The Power of Self-Love and Observation
+title: The Power Of Self Love And Observation
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=-YQLpNmH0MQ
 video_id: -YQLpNmH0MQ
+tags:
+- oneness
+- teaching
 ---
-# The Power of Self-Love and Observation
+# The Power Of Self Love And Observation
 
-
-## Summary
-The teaching emphasizes the significance of self-love and the power of observing oneself without judgment. It suggests that recognizing one's own worth and practicing self-awareness can lead to greater peace and understanding.
+## Verbatim Discourse Excerpts
+if you want to truly know me here is a little secret to my nature I'm either now or never I am either for all of you or for none of you I am in the essence of your being and in the expanse of every being
 
 ## Key Teachings
-- The speaker emphasizes the power of observation and the importance of self-love.
-- The practice of observing oneself without judgment can lead to greater peace and understanding.
-- Recognizing one's own worth is highlighted as a need for self-awareness.
+- I'm either now or never I am either for all of you or for none of you I am in the essence of your being and in the expanse of every being — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "The speaker emphasizes the power of observation and the importance of self-love." — Unknown
-> "The speaker encourages self-love and the ability to observe oneself without judgment, suggesting that this practice can lead to greater peace and understanding." — Unknown
-
-## Related Concepts
-- Self: The individual's identity, beliefs, and experiences, encompassing consciousness and inner state.
-- Self-Compassion: Treating oneself with kindness and understanding.
-- Self-Understanding: A concept related to comprehending one's own nature.
+## Source Context
+- Video: I am Peace
+- URL: https://www.youtube.com/watch?v=-YQLpNmH0MQ
+- Speaker: Sri Preethaji & Sri Krishnaji

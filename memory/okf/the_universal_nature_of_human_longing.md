@@ -1,25 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=0k5f8G9uXqY
-tags:
-- observation
-- emotions
-- human experience
-- acceptance
-teacher: sri-preethaji
-title: The Universal Nature of Human Longing
+title: The Universal Nature Of Human Longing
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=0k5f8G9uXqY
 video_id: 0k5f8G9uXqY
+tags:
+- oneness
+- teaching
 ---
-# The Universal Nature of Human Longing
+# The Universal Nature Of Human Longing
 
+## Verbatim Discourse Excerpts
+If you want to heal your family, stop focusing on how different you are from them or how superior you are to them. Namaste. For the first time in human history, perhaps we are experiencing one global crisis. No nation, no section of society, no geography is an exception to this global crisis. Hitherto when we thought of globalization, we thought of a flat world, a borderless world.
 
-## Summary
-Sri Preethaji highlights that fundamental human emotions and longings, such as the desire for acceptance, are universal experiences shared by all, regardless of individual differences.
+We only thought of internet, air travel, communication and commerce. Little did we imagine that a flat earth would also mean a global epidemic, a pandemic. Do you know in this time of global crisis, the oneness of human experience is more transparent than ever? People in every nation, whether they are Chinese, American, Latino, European and Indian, everyone is experiencing the same anxiety either over their own sickness and death or that of their loved ones.
 
 ## Key Teachings
-- The longing for acceptance is a universal human experience, shared by both adults and children (Sri Preethaji says: "It's not your child's longing for acceptance the same as yours even though you may expre").
+- For the first time in human history, perhaps we are experiencing one global crisis. — Sri Preethaji & Sri Krishnaji
+- Do you know in this time of global crisis, the oneness of human experience is more transparent than ever? — Sri Preethaji & Sri Krishnaji
+- It's not your child's longing for acceptance the same as yours even though you may express it differently. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-
-## Related Concepts
-- Consciousness: a multifaceted and complex entity that encompasses various aspects of human experience, including awareness of thoughts, emotions, and surroundings.
+## Source Context
+- Video: Healing Family's Hearts During the Lockdown | Evolution During Crisis -2 With Preethaji & Krishnaji
+- URL: https://www.youtube.com/watch?v=0k5f8G9uXqY
+- Speaker: Sri Preethaji & Sri Krishnaji

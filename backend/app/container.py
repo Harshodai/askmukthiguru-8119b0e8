@@ -208,13 +208,17 @@ class ServiceContainer:
                 # default True); last resort is OpenRouterService.translate_text, which logs
                 # and returns the source text on failure — so this chain never raises into
                 # the callers that don't guard it (cache/glue/guardrail stages).
-                from services.translation import OllamaTranslationProvider  # adapts any .translate_text(text, src, tgt)
+                from services.translation import (
+                    OllamaTranslationProvider,  # adapts any .translate_text(text, src, tgt)
+                )
                 from services.translation.gemini_provider import GeminiTranslationProvider
                 from services.translation.routing_provider import RoutingTranslationProvider
 
                 openrouter = self.ollama._service
                 self.translation = RoutingTranslationProvider(
-                    gemini_provider=GeminiTranslationProvider(openrouter) if settings.gemini_translation_enabled else None,
+                    gemini_provider=GeminiTranslationProvider(openrouter)
+                    if settings.gemini_translation_enabled
+                    else None,
                     ollama_provider=OllamaTranslationProvider(openrouter),
                 )
             else:

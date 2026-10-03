@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Peace as a Celebratory Experience"
-source: "YouTube https://www.youtube.com/watch?v=ELiB_UwCVTY"
+source: "https://www.youtube.com/watch?v=ELiB_UwCVTY"
 video_id: ELiB_UwCVTY
 tags: [peace, celebration, experience]
 teacher: "both"

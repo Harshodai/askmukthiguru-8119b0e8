@@ -1,28 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=idoWVpnJz-Y
-tags:
-- fatherhood
-- parenthood
-- wisdom
-- care
-- love
-teacher: both
-title: The Universal Role of a Father
+title: The Universal Role Of A Father
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=idoWVpnJz-Y
 video_id: idoWVpnJz-Y
+tags:
+- oneness
+- teaching
 ---
-# The Universal Role of a Father
+# The Universal Role Of A Father
 
+## Verbatim Discourse Excerpts
+Today is Father's Day. It is a day to remember your father, reflect on your relationship with him, and express your gratitude for everything that he has contributed to you in your life. You should not only celebrate your biological father, who has given you life, but also celebrate and honor every person who has played the role of a father in your life.
 
-## Summary
-The universal role of a father extends beyond biological parenthood, encompassing the love, care, and wisdom one can share with all young people. This includes individuals who may not have biological children but can still embody fatherly qualities in their interactions, positively impacting others.
+If you have not fathered a child, you still can embody the role of a father towards all those young people who are around you. Every moment you spend being present to them, present to their feelings, filling them with courage, strength, and wisdom. You are fulfilling the role of a father. You are nurturing and impacting them.
 
 ## Key Teachings
-- The universal role of a father extends beyond biological parenthood.
-- Fatherhood encompasses the love, care, and wisdom one can share with all young people around them.
-- Even those without biological children can embody fatherly qualities of love, care, and wisdom in their interactions.
-- Father's Day encourages appreciation for all forms of fatherhood and the positive impact one can have on others.
-- Individuals can impact young people by being present and nurturing.
+- You should not only celebrate your biological father, who has given you life, but also celebrate and honor every person who has played the role of a father in your life. — Sri Preethaji & Sri Krishnaji
+- If you have not fathered a child, you still can embody the role of a father towards all those young people who are around you. — Sri Preethaji & Sri Krishnaji
+- You are fulfilling the role of a father. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Parenting: The act of caring for and raising children.
+## Source Context
+- Video: idoWVpnJz-Y
+- URL: https://www.youtube.com/watch?v=idoWVpnJz-Y
+- Speaker: Sri Preethaji & Sri Krishnaji

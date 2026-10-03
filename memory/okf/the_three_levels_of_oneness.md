@@ -1,25 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=OWMBvMlGWTA
+title: The Three Levels Of Oneness
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=OWMBvMlGWTA
+video_id: OWMBvMlGWTA
 tags:
 - oneness
-- consciousness
-- peace
-teacher: both
-title: The Three Levels of Oneness
-type: teaching
-video_id: OWMBvMlGWTA
+- teaching
 ---
-# The Three Levels of Oneness
+# The Three Levels Of Oneness
 
+## Verbatim Discourse Excerpts
+If you are in an awakened state, a state of oneness, you rise beyond pain and pleasure, fear or gratification and blessings flow to those around you. Now what is oneness? At its first level, oneness is a state where there is no conflict. At its second level, oneness is a state of no disconnection. At the third and ultimate level, there is no separation or division.
 
-## Summary
-The teaching introduces the concept of oneness through three progressive levels: the first level is characterized by the absence of conflict, the second by the absence of disconnection, and the third by the absence of separation or division. This progression leads to an experience of inner peace and interconnectedness.
+At the first level, when you are conflicting emotions and desires subside and the painful war in your mind stops, you experience the first level of oneness as calm, as a deep inner tranquility and serenity. At the second level of oneness, your heart opens to feeling what others around you are feeling. You feel one with their joys and sorrows as if they were your own joys and sorrows.
 
 ## Key Teachings
-- The first level of oneness is where there is no conflict. (Sri Preethaji)
-- The second level of oneness is where there is no disconnection. (Sri Preethaji)
-- The third level of oneness is where there is no separation or division. (Sri Preethaji)
+- If you are in an awakened state, a state of oneness, you rise beyond pain and pleasure, fear or gratification and blessings flow to those around you. — Sri Preethaji & Sri Krishnaji
+- At its first level, oneness is a state where there is no conflict. — Sri Preethaji & Sri Krishnaji
+- At its second level, oneness is a state of no disconnection. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Peace: The concept of Peace encompasses a multifaceted state of being characterized by harmony, love, and unity. It can be achieved through various means, including cultivating inner calmness and collective.
-- Consciousness: Consciousness is a multifaceted and complex entity that encompasses various aspects of human experience. It is the interconnected state that binds individuals together, influencing each other's destinies, and is characterized by the state of being aware of one's thoughts, emotions, and surroundings.
+## Source Context
+- Video: Three Levels of Oneness | Evolution Series 107 with Sri Preethaji & Sri Krishnaji
+- URL: https://www.youtube.com/watch?v=OWMBvMlGWTA
+- Speaker: Sri Preethaji & Sri Krishnaji

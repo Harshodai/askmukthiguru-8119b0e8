@@ -56,9 +56,7 @@ try:
         if hasattr(_resource, "RLIMIT_DATA"):  # also counts private mmaps and thread stacks
             _resource.setrlimit(_resource.RLIMIT_DATA, (_limit_bytes, _limit_bytes))
             logger_tmp = logging.getLogger(__name__)
-            logger_tmp.info(
-                "Python memory limit set to %dMB via RLIMIT_DATA", _mb
-            )
+            logger_tmp.info("Python memory limit set to %dMB via RLIMIT_DATA", _mb)
         elif hasattr(_resource, "RLIMIT_AS"):  # Fallback only
             _resource.setrlimit(_resource.RLIMIT_AS, (_limit_bytes, _limit_bytes))
 except Exception:
@@ -632,9 +630,7 @@ async def _background_startup_body(container, fastapi_app) -> None:
         if _reranker_svc is not None:
             _t0 = time.time()
             await asyncio.to_thread(_reranker_svc.warm_up)
-            logger.info(
-                "Reranker warm-up complete: latency=%dms", int((time.time() - _t0) * 1000)
-            )
+            logger.info("Reranker warm-up complete: latency=%dms", int((time.time() - _t0) * 1000))
         else:
             logger.warning("Reranker service not available for warm-up canary")
     except Exception as _reranker_warmup_err:

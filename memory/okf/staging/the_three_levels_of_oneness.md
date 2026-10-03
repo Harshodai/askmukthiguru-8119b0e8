@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Three Levels of Oneness"
-source: "YouTube https://www.youtube.com/watch?v=OWMBvMlGWTA"
+source: "https://www.youtube.com/watch?v=OWMBvMlGWTA"
 video_id: OWMBvMlGWTA
 tags: [oneness, consciousness, peace]
 teacher: "both"

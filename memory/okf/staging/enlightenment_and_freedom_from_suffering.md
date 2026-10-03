@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Enlightenment and Freedom from Suffering"
-source: "YouTube https://www.youtube.com/watch?v=aJIunwxxnI"
+source: "https://www.youtube.com/watch?v=aJIunwxxnI"
 video_id: aJIunwxx3NI
 tags: [suffering, enlightenment, consciousness]
 teacher: "both"

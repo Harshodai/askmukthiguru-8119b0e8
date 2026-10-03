@@ -1,28 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=7NVPsHdyw_Y
-tags:
-- gratitude
-- interconnectedness
-- awareness
-- ego
-teacher: both
-title: The Interconnectedness of Existence
+title: The Interconnectedness Of Existence
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=7NVPsHdyw_Y
 video_id: 7NVPsHdyw_Y
+tags:
+- oneness
+- teaching
 ---
-# The Interconnectedness of Existence
+# The Interconnectedness Of Existence
 
+## Verbatim Discourse Excerpts
+Years ago, a gentleman came to me and asked to be mentored. In course of her conversation, he said, I practice gratitude towards my mother, every day. After some time, I asked him, why do you practice gratitude every day? You must really be angry with her. Are you? The man felt completely silent. He did not have an immediate answer for that question. He requested me if he could take some time and reflect upon this question.
 
-## Summary
-This teaching emphasizes the profound interconnectedness of all beings, highlighting that one's existence is not independent but is deeply intertwined with the contributions of others. Recognizing this interconnectedness is presented as a foundational step towards cultivating gratitude and moving beyond an ego-centric view.
+Today, I am a successful businessman. I know I have to be grateful to her for who I am today. If not for a push, I will not be this successful. And this is the precise reason why I practice gratitude. Now let us look at the story of this man. On the one hand, his conscious mind is fed with all the values that says he should be grateful. While on the other hand, his actual experience is the emotions of anger, hate and ingratitude that he is experiencing from the unconscious.
 
 ## Key Teachings
-- Our existence is not isolated; it is dependent on and shaped by the presence and contributions of others (Sri Preethaji says: "Without them, you are not.").
-- Growing in awareness of these contributions is crucial for the spontaneous arising of gratitude.
-- Nurturing this awareness helps to cultivate a sustained state of gratitude.
+- Years ago, a gentleman came to me and asked to be mentored. — Sri Preethaji & Sri Krishnaji
+- In course of her conversation, he said, I practice gratitude towards my mother, every day. — Sri Preethaji & Sri Krishnaji
+- After some time, I asked him, why do you practice gratitude every day? — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "Without them, you are not." — Sri Preethaji
-
-## Related Concepts
-- Consciousness: The state of being aware of one's thoughts, emotions, and surroundings, which can be cultivated to perceive the unitary fabric of life.
+## Source Context
+- Video: Are you Grateful or Hurtful? | Evolution Series 95 with Sri Preethaji & Sri Krishnaji
+- URL: https://www.youtube.com/watch?v=7NVPsHdyw_Y
+- Speaker: Sri Preethaji & Sri Krishnaji

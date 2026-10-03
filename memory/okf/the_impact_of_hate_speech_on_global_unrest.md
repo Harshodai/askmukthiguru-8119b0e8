@@ -1,33 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=cxgHFX04RtQ
-tags:
-- truth of suffering
-- oo academy
-- sri preethaji
-- sri krishnaji
-- ekam
-- hate speech
-- global unrest
-- war
-- communal rights
-teacher: both
-title: The Impact of Hate Speech on Global Unrest
+title: The Impact Of Hate Speech On Global Unrest
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=cxgHFX04RtQ
 video_id: cxgHFX04RtQ
+tags:
+- oneness
+- teaching
 ---
-# The Impact of Hate Speech on Global Unrest
+# The Impact Of Hate Speech On Global Unrest
 
+## Verbatim Discourse Excerpts
+If you look at the hate crimes, if you look at wars, if you look at communal rights, many, many countries are in total unrest because of hate speech. See, you have to be very careful about what you speak. What you speak can happen. So hatred and hate actions just do not happen. It happens because of hate speech, you must understand that. So leaders, people like us, all of us must make sure that we bring awareness and attention to what we speak and then also bring attention to what others are speaking.
 
-## Summary
-Hate speech is a significant contributor to global unrest, wars, and communal rights issues in many countries. Awareness and attention to one's speech are crucial to prevent such conflicts.
+What you speak has to be, you have to be very careful. Child is looking at you, your friends are looking at you, everybody is looking at you, you know. So most of the war crimes or hate crimes if you take around the world, it would all have started from hate speech. Somebody would have triggered it through hate speech. We should be careful.
 
 ## Key Teachings
-- Hate speech is a major cause of hate crimes, wars, and communal rights issues, leading to widespread unrest in many countries. (Ekam / O&O Academy says)
+- If you look at the hate crimes, if you look at wars, if you look at communal rights, many, many countries are in total unrest because of hate speech. — Sri Preethaji & Sri Krishnaji
+- It happens because of hate speech, you must understand that. — Sri Preethaji & Sri Krishnaji
+- So most of the war crimes or hate crimes if you take around the world, it would all have started from hate speech. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "If you look at the hate crimes, if you look at wars, if you look at communal rights, many, many countries are in total unrest because of hate speech." — Ekam / O&O Academy
-
-## Related Concepts
-- Pain: Pain is a feeling of suffering or distress caused by physical or emotional harm.
-- Suffering States: Suffering States refer to emotional states such as regret, sadness, and loneliness that disconnect individuals from life.
-- Cycle of Pain: Hurt human beings perpetuate a cycle of pain and suffering.
+## Source Context
+- Video: What You Say, Matters! | Insight Series | Sri Preethaji & Sri Krishnaji
+- URL: https://www.youtube.com/watch?v=cxgHFX04RtQ
+- Speaker: Sri Preethaji & Sri Krishnaji

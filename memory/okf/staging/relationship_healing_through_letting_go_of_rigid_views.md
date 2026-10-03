@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Relationship Healing Through Letting Go of Rigid Views"
-source: "YouTube https://www.youtube.com/watch?v=M8XASiz30oE"
+source: "https://www.youtube.com/watch?v=M8XASiz30oE"
 video_id: M8XASiz30oE
 tags: [relationship, ego, love, views]
 teacher: "both"

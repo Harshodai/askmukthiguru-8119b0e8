@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Beautiful State and Compassion"
-source: "YouTube https://www.youtube.com/watch?v=b-MkLkpTeVY"
+source: "https://www.youtube.com/watch?v=b-MkLkpTeVY"
 video_id: b-MkLkpTeVY
 tags: [sri krishnaji, beautiful state, sri preethaji, compassion]
 teacher: "sri-preethaji"

@@ -1,28 +1,25 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=7UuDjBiHrMA
-tags:
-- awareness
-- spiritual growth
-- enlightenment
-- consciousness
-teacher: both
-title: What is the distinction between awareness as a practice and awareness as a
-  happening?
-type: qa
+title: What Is The Distinction Between Awareness As A Practice And Awareness As A
+  Happening
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=7UuDjBiHrMA
 video_id: 7UuDjBiHrMA
+tags:
+- oneness
+- teaching
 ---
-# What is the distinction between awareness as a practice and awareness as a happening?
+# What Is The Distinction Between Awareness As A Practice And Awareness As A Happening
 
+## Verbatim Discourse Excerpts
+one is awareness awareness as a practice and then awareness as a happening when you have awareness as a practice thatís where everyone of you are going to start your journey when you have awareness as a practice it is different when awareness is a happening
 
-## Summary
-The distinction between awareness as a practice and awareness as a happening is crucial for spiritual growth. Practicing awareness is a starting point, preparing an individual for the more profound experience of awareness as a happening, where there is no difference between Consciousness and awareness.
+can consciousness and awareness be judgmental? and can that lead to suffering? awareness and consciousness cannot be judgmental judgements arise from your mind and your awareness when it begins
 
 ## Key Teachings
-- Awareness as a practice is a starting point for an individual's spiritual journey.
-- Awareness as a happening is a more profound experience where Consciousness and awareness are indistinguishable.
-- The practice of awareness prepares an individual for the experience of awareness as a happening.
+- one is awareness awareness as a practice and then awareness as a happening — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Consciousness: The state where there is no difference between Consciousness and awareness in the experience of awareness as a happening.
-- Spiritual Process: A journey of awakening and transformation that leads to higher states of consciousness.
-- Enlightenment: A state of profound understanding characterized by a state of consciousness free from suffering, with intense awareness and no compulsive attachment to the past or future.
+## Source Context
+- Video: How to stop being judgemental?
+- URL: https://www.youtube.com/watch?v=7UuDjBiHrMA
+- Speaker: Sri Preethaji & Sri Krishnaji

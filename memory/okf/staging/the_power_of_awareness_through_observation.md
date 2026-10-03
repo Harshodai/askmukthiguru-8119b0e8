@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Power of Awareness Through Observation"
-source: "YouTube https://www.youtube.com/watch?v=hqre34QIMZg"
+source: "https://www.youtube.com/watch?v=hqre34QIMZg"
 video_id: hqre34QIMZg
 tags: [awareness, observation, consciousness, self-awareness]
 teacher: "both"

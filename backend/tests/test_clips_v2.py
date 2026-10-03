@@ -207,10 +207,22 @@ def test_m_repro_served_mid_sentence_quote_is_now_trimmed():
     cut off at a genuine flip mid-sentence. Reproduces the shape with a real
     sentence, then a genuine flip partway through the next one."""
     specs = [
-        ("The", "K"), ("more", "K"), ("disconnected", "K"), ("we", "K"), ("are,", "K"),
-        ("the", "K"), ("more", "K"), ("suffering", "K"), ("we", "K"), ("cause", "K"),
+        ("The", "K"),
+        ("more", "K"),
+        ("disconnected", "K"),
+        ("we", "K"),
+        ("are,", "K"),
+        ("the", "K"),
+        ("more", "K"),
+        ("suffering", "K"),
+        ("we", "K"),
+        ("cause", "K"),
         ("ourselves.", "K"),
-        ("And", "K"), ("the", "K"), ("more", "K"), ("suffering", "K"), ("we", "K"),
+        ("And", "K"),
+        ("the", "K"),
+        ("more", "K"),
+        ("suffering", "K"),
+        ("we", "K"),
     ]
     words = _words(specs)
     host = _words([("Right,", "O"), ("exactly.", "O")], start=words[-1]["end"] + 0.05)
@@ -218,7 +230,10 @@ def test_m_repro_served_mid_sentence_quote_is_now_trimmed():
     clips, stats = build_clips_from_labelled_words(words + host, "vid13", min_words=1)
 
     assert len(clips) == 1
-    assert clips[0]["verbatim_text"] == "The more disconnected we are, the more suffering we cause ourselves."
+    assert (
+        clips[0]["verbatim_text"]
+        == "The more disconnected we are, the more suffering we cause ourselves."
+    )
     assert not clips[0]["verbatim_text"].endswith("we")
     assert stats["dropped_mid_sentence_at_flip"] == 1
 
@@ -227,9 +242,28 @@ def test_n_pause_at_conjunction_does_not_split_after_conjunction():
     """L-SENTENCE-SPLIT-CONJUNCTION-1: When a speaker pauses after 'or',
     naively splitting on the pause leaves '...fear or' as a dangling clip.
     The splitter must shift the cut before the conjunction or avoid dangling conjunctions."""
-    clause1 = [("We", "K"), ("suffer", "K"), ("from", "K"), ("stress", "K"), ("and", "K"), ("anxiety", "K"), ("and", "K"), ("fear", "K")]
+    clause1 = [
+        ("We", "K"),
+        ("suffer", "K"),
+        ("from", "K"),
+        ("stress", "K"),
+        ("and", "K"),
+        ("anxiety", "K"),
+        ("and", "K"),
+        ("fear", "K"),
+    ]
     conj = [("or", "K")]
-    clause2 = [("if", "K"), ("you", "K"), ("are", "K"), ("living", "K"), ("in", "K"), ("a", "K"), ("state", "K"), ("of", "K"), ("suffering.", "K")]
+    clause2 = [
+        ("if", "K"),
+        ("you", "K"),
+        ("are", "K"),
+        ("living", "K"),
+        ("in", "K"),
+        ("a", "K"),
+        ("state", "K"),
+        ("of", "K"),
+        ("suffering.", "K"),
+    ]
 
     w1 = _words(clause1, start=0.0, gap=0.05, dur=0.3)
     w_conj = _words(conj, start=w1[-1]["end"] + 0.05, gap=0.05, dur=0.3)
@@ -238,12 +272,20 @@ def test_n_pause_at_conjunction_does_not_split_after_conjunction():
     all_words = w1 + w_conj + w2
 
     # Force a split between clauses by setting parent_max_s to 4.5s
-    clips, stats = build_clips_from_labelled_words(all_words, "vid_conj", parent_max_s=4.5, min_words=1)
+    clips, stats = build_clips_from_labelled_words(
+        all_words, "vid_conj", parent_max_s=4.5, min_words=1
+    )
 
     assert len(clips) >= 2
     # Verify NO clip ends with dangling conjunction 'or'
     for c in clips:
-        assert not c["verbatim_text"].rstrip(".,;:!?…—–-").split()[-1].lower() in ("or", "and", "so", "but", "because")
+        assert c["verbatim_text"].rstrip(".,;:!?…—–-").split()[-1].lower() not in (
+            "or",
+            "and",
+            "so",
+            "but",
+            "because",
+        )
     # First clip ends with 'fear' (cut shifted before 'or')
     assert clips[0]["verbatim_text"].endswith("fear")
     # Second clip begins with 'or if' (conjunction stays with the subsequent clause)

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Nurturing Positive Qualities Through Awareness"
-source: "YouTube https://www.youtube.com/watch?v=hcNDrMy6gCE"
+source: "https://www.youtube.com/watch?v=hcNDrMy6gCE"
 video_id: hcNDrMy6gCE
 tags: [parenting, observation, awareness, positive qualities]
 teacher: "both"

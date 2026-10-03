@@ -28,8 +28,13 @@ if str(_BACKEND) not in sys.path:
 from services.speaker_diarization import build_clips_from_labelled_words  # noqa: E402
 
 _STATS_KEYS = (
-    "runs", "clips", "dropped_short", "merged_unknown_gaps",
-    "cut_at_sentence", "cut_at_pause", "dropped_mid_sentence_at_flip",
+    "runs",
+    "clips",
+    "dropped_short",
+    "merged_unknown_gaps",
+    "cut_at_sentence",
+    "cut_at_pause",
+    "dropped_mid_sentence_at_flip",
 )
 
 
@@ -40,12 +45,12 @@ def _percentile(sorted_values: list[int], p: float) -> Optional[int]:
     return sorted_values[idx]
 
 
-def build_dir(data_dir: Path) -> dict[str, Any]:
-    """Build passages_C/<video_id>.json for every transcripts_B/<video_id>.json
-    under `data_dir`. Only ever writes to passages_C -- passages_B is read-only
+def build_dir(data_dir: Path, out_subdir: str = "passages_C") -> dict[str, Any]:
+    """Build passages under <data_dir>/<out_subdir>/ for every transcripts_B/<video_id>.json
+    under `data_dir`. Only ever writes to out_subdir -- passages_B is read-only
     input territory for this script."""
     transcripts_dir = data_dir / "transcripts_B"
-    passages_c_dir = data_dir / "passages_C"
+    passages_c_dir = data_dir / out_subdir
     passages_c_dir.mkdir(parents=True, exist_ok=True)
 
     word_counts: list[int] = []
@@ -111,10 +116,20 @@ def _self_check() -> None:
 
 
 def main(argv: Optional[list[str]] = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument(
-        "--dir", action="append", dest="dirs", default=[],
-        help="Repeatable: a data dir containing transcripts_B/. Writes only to <dir>/passages_C/.",
+        "--dir",
+        action="append",
+        dest="dirs",
+        default=[],
+        help="Repeatable: a data dir containing transcripts_B/. Writes only to <dir>/<out-subdir>/.",
+    )
+    parser.add_argument(
+        "--out-subdir",
+        default="passages_C",
+        help="Subdirectory name to write passages to (default: passages_C).",
     )
     parser.add_argument("--self-check", action="store_true")
     args = parser.parse_args(argv)
@@ -126,7 +141,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     if not args.dirs:
         parser.error("--dir (repeatable) is required")
 
-    reports = [build_dir(Path(d).expanduser()) for d in args.dirs]
+    reports = [build_dir(Path(d).expanduser(), out_subdir=args.out_subdir) for d in args.dirs]
     print_report(reports)
     return 0
 

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Transformative Power of Consciousness"
-source: "YouTube https://www.youtube.com/watch?v=JYqlxlBZHc4"
+source: "https://www.youtube.com/watch?v=JYqlxlBZHc4"
 video_id: JYqlxlBZHc4
 tags: [consciousness, transformation, awakening, synchronicity]
 teacher: "both"

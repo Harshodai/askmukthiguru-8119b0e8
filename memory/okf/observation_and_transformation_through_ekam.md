@@ -1,30 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=NJQ573JDmAg
-tags:
-- awakening
-- ekam
-- transformation
-- vasanas
-- relationships
-teacher: both
-title: Observation and Transformation through Ekam
+title: Observation And Transformation Through Ekam
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=NJQ573JDmAg
 video_id: NJQ573JDmAg
+tags:
+- oneness
+- teaching
 ---
-# Observation and Transformation through Ekam
+# Observation And Transformation Through Ekam
 
+## Verbatim Discourse Excerpts
+Returning back to this couple today, after three years of the journey through various processes at Akam, they both have dissolved their vasanas, and enduring love has taken root in the relationship. They are today an awakened couple evolving in love as a couple. You can only make sense of your partner relationship if you realize that you two are beings on a shared journey of evolution. Until your heart opens to love that is costless, these karmic cycles of birth and death will go on and on in differing combinations.
 
-## Summary
-Through the Ekam process, a couple experienced past lives and observed the powerful influence of their *vasanas*, which included tendencies towards addiction to pleasure and possessiveness. This observation led to the dissolution of these *vasanas* and the emergence of enduring love in their relationship, highlighting a shared spiritual journey of evolution and understanding.
+The relationship between couples is much more complex than what meets the eye. When I see a couple, I see huge karmic forces at work. Oftentimes, you and your partner have come together in this life because of the pull of unresolved experiences from an earlier lifetime. That is why the instant attraction, and that is why also the unexplained emotional fallout in the later years. Only when couples become free of the emotional baggage of the earlier lifetimes can they find a space to heal and also love one another.
 
 ## Key Teachings
-- The Ekam process can facilitate the experience of past lives and the observation of *vasanas*. (Unknown speaker)
-- Observing the force of *vasanas* can lead to their dissolution. (Unknown speaker)
-- The dissolution of negative tendencies (*vasanas*) can result in the emergence of enduring love in relationships. (Unknown speaker)
-- A shared spiritual journey of evolution involves seeing beyond past lives and understanding a shared path of love. (Unknown speaker)
+- Returning back to this couple today, after three years of the journey through various processes at Akam, they both have dissolved their vasanas, and enduring love has taken root in the relationship. — Sri Preethaji & Sri Krishnaji
+- The relationship between couples is much more complex than what meets the eye. — Sri Preethaji & Sri Krishnaji
+- When I see a couple, I see huge karmic forces at work. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Ekam: A process or journey that can lead to spiritual evolution and transformation.
-- Spiritual Process: A journey of awakening and transformation that leads to higher states of consciousness.
-- Observation: The act of paying attention to and examining something, in this context, one's own *vasanas* and past lives.
-- Consciousness: The state of being aware of one's thoughts, emotions, and surroundings, which can be transformed through spiritual processes.
+## Source Context
+- Video: NJQ573JDmAg
+- URL: https://www.youtube.com/watch?v=NJQ573JDmAg
+- Speaker: Sri Preethaji & Sri Krishnaji

@@ -1,26 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=-yGLiryVQoQ
-tags:
-- divine
-- unmanifest
-- manifest
-- universal intelligence
-teacher: both
-title: 'Experiencing the Divine: Unmanifest and Manifest'
+title: Experiencing The Divine Unmanifest And Manifest
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=-yGLiryVQoQ
 video_id: -yGLiryVQoQ
+tags:
+- oneness
+- teaching
 ---
-# Experiencing the Divine: Unmanifest and Manifest
+# Experiencing The Divine Unmanifest And Manifest
 
+## Verbatim Discourse Excerpts
+You can experience the divine in two ways. All of you, I want you to get this very clearly. You can experience the divine either as the manifest or the unmanifest. Now, when you experience the divine as the unmanifest, then you see it as a field of universal intelligence. This intelligence is everywhere, is everything. When you connect with this aspect of the divine, you can experience miracles and synchronicities in your life.
 
-## Summary
-The divine can be experienced in two distinct ways: as the unmanifest, which is a field of universal intelligence, or as the manifest, appearing in various forms such as gods, sages, or a voice. Both perspectives offer unique benefits and drawbacks in the personal experience of the divine.
+Now, when you experience the divine as the manifest, then this limitless, this limitless field, all-encompassing field of intelligence, embodies a form, an attribute that is close to your heart. You can see the universal intelligence as the various gods and the sages of your mystic tradition or as a being of light or as a voice that speaks to you and guides you. Anything, any form is fine.
 
 ## Key Teachings
-- The divine can be experienced as the unmanifest, which is described as a field of universal intelligence. (Unknown speaker)
-- The divine can also be experienced as the manifest, taking forms like gods, sages, or a voice. (Unknown speaker)
-- Both the unmanifest and manifest ways of experiencing the divine offer unique benefits and drawbacks. (Unknown speaker)
+- You can experience the divine either as the manifest or the unmanifest. — Sri Preethaji & Sri Krishnaji
+- Now, when you experience the divine as the unmanifest, then you see it as a field of universal intelligence. — Sri Preethaji & Sri Krishnaji
+- Now, when you experience the divine as the manifest, then this limitless, this limitless field, all-encompassing field of intelligence, embodies a form, an attribute that is close to your heart. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Limitless Field: The Limitless Field is an impersonal energy associated with the experience of universal intelligence.
-- Consciousness: Consciousness is a multifaceted and complex entity that encompasses various aspects of human experience, including the interconnected state that binds individuals together and the state of being aware of one's thoughts, emotions, and surroundings.
+## Source Context
+- Video: Learn How to Experience The Divine  | Evolution Series 113 with Sri Preethaji & Sri Krishnaji
+- URL: https://www.youtube.com/watch?v=-yGLiryVQoQ
+- Speaker: Sri Preethaji & Sri Krishnaji

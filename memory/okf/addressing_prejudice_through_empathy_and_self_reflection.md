@@ -1,32 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=vIUY446FVPw
-tags:
-- compassion
-- oneness
-- prejudice
-- empathy
-- self-reflection
-teacher: both
-title: Addressing Prejudice Through Empathy and Self-Reflection
+title: Addressing Prejudice Through Empathy And Self Reflection
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=vIUY446FVPw
 video_id: vIUY446FVPw
+tags:
+- oneness
+- teaching
 ---
-# Addressing Prejudice Through Empathy and Self-Reflection
+# Addressing Prejudice Through Empathy And Self Reflection
 
+## Verbatim Discourse Excerpts
+We heard them because they speak a different language, worshipped a different God, or bear the tag of a different caste. Look back at the riots that broke out in USA this year, against racial prejudice, millions world over, voiced their pain at the humiliation they had to endure, all because they belonged to a different race. It was centuries of pent-up anger and sorrow pouring out.
 
-## Summary
-This teaching emphasizes the critical role of empathy and self-reflection in recognizing and addressing harmful behaviors, particularly those rooted in prejudice and discrimination. It highlights that historical and cultural biases are passed down through generations, often subtly, and require individuals to acknowledge and change their own biases to truly understand and resolve these issues.
+So putting myself in other people's shoes is very important. I'll give you a prime example about men generally and maybe it's across the world. Men, when they get sick, they do not acknowledge that they are sick. They feel the pain, but they won't go to the doctor. They think this is going to be self-healing. And when we put it into a racism context or discrimination context, people know that it is wrong, but they don't want to admit that they are wrong.
 
 ## Key Teachings
-- To recognize and address harmful behaviors, especially racism and discrimination, one must put themselves in the shoes of others.
-- Individuals should acknowledge and change their own biases to genuinely understand and address harmful behaviors.
-- Prejudice and discrimination have historical and cultural roots, passed down through generations often via subtle behaviors and stories.
-- Empathy and self-reflection are crucial for addressing issues of prejudice.
-- Centuries of racial prejudice have been transmitted through generations, often through subtle behaviors and stories.
+- They think this is going to be self-healing. — Sri Preethaji & Sri Krishnaji
+- The primary issue is that we don't self-acknowledge that there is a problem here and I need to change. — Sri Preethaji & Sri Krishnaji
+- Look back at the riots that broke out in USA this year, against racial prejudice, millions world over, voiced their pain at the humiliation they had to endure, all because they belonged to a different race. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Oneness: a multifaceted concept encompassing unity, interconnectedness, and the shared human experience, where all life and humanity are connected and inseparable.
-- Vasudhaiva Kutumakam: a theme emphasizing unity and oneness among nations.
-- Web of Life: an interconnected network of all living beings, where conscious actions can have a ripple effect.
-- Interconnected Web: a network of all living beings where conscious actions can have a ripple effect.
-- The Beautiful State: a state of inner peace and harmony, characterized by forgiveness, love, and compassion.
+## Source Context
+- Video: Krishnaji & Meng Foon on Oneness of our Humanity  | Evolution Series 68 with Preethaji & Krishnaji
+- URL: https://www.youtube.com/watch?v=vIUY446FVPw
+- Speaker: Sri Preethaji & Sri Krishnaji

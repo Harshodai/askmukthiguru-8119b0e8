@@ -1,30 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=_X5jRvqxEEo
-tags:
-- truth of suffering
-- oo academy
-- sri preethaji
-- ekam
-- psychological pressure
-- youth
-teacher: sri-preethaji
-title: Psychological Pressure in Youth
+title: Psychological Pressure In Youth
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=_X5jRvqxEEo
 video_id: _X5jRvqxEEo
+tags:
+- oneness
+- teaching
 ---
-# Psychological Pressure in Youth
+# Psychological Pressure In Youth
 
+## Verbatim Discourse Excerpts
+The biggest problem the youth of the world face today that I and Sri Preethaji believe strongly is the problem of pressure. Is the problem of psychological pressure. You, the current generation, are enduring the greatest pressure than anybody else in history. Why is this psychological pressure? Or where is this psychological pressure coming from? Each and every one of us, each and every one of you out there are pressured, are feeling pressure.
 
-## Summary
-Sri Preethaji highlights psychological pressure as a significant and pervasive problem faced by the youth of the world. This pressure stems from various sources including peer, parental, and educational expectations, as well as societal demands related to appearance, intelligence, success, and fashion.
+The youth today, majority of you out there are heading towards a massive problem. And what is the solution? We have a solution. All of you have a solution. You can't stop the world from putting pressure on you. Pressure will be there, but you must learn not to internalize the pressure and succumb to stress. You have to diffuse pressure. Even in the most toughest of situations, you must learn to diffuse pressure and you must learn to live a stress-free life.
 
 ## Key Teachings
-- Psychological pressure is a significant problem for the youth of the world (Sri Preethaji says).
-- This pressure is pervasive and originates from various sources (Sri Preethaji says).
-- Sources of pressure include peer, parental, and educational pressures (Sri Preethaji says).
-- Societal expectations regarding appearance, intelligence, success, and fashion also contribute to this pressure (Sri Preethaji says).
+- The biggest problem the youth of the world face today that I and Sri Preethaji believe strongly is the problem of pressure. — Sri Preethaji & Sri Krishnaji
+- Is the problem of psychological pressure. — Sri Preethaji & Sri Krishnaji
+- Or where is this psychological pressure coming from? — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Pain: a feeling of suffering or distress caused by physical or emotional harm.
-- Suffering States: emotional states such as regret, sadness, and loneliness that disconnect individuals from life, or emotionally painful states of being that disconnect individuals from the universal intelligence and its power.
-- Cycle of Pain: Hurt human beings perpetuate a cycle of pain and suffering.
+## Source Context
+- Video: Stress Free Life | Evolution Series 100 with Sri Preethaji & Sri Krishnaji
+- URL: https://www.youtube.com/watch?v=_X5jRvqxEEo
+- Speaker: Sri Preethaji & Sri Krishnaji

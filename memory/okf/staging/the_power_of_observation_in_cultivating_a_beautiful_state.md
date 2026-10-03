@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Power of Observation in Cultivating a Beautiful State"
-source: "YouTube https://www.youtube.com/watch?v=UlOt31lBhLY"
+source: "https://www.youtube.com/watch?v=UlOt31lBhLY"
 video_id: UlOt31lBhLY
 tags: [observation, beautiful state, mindfulness, inner mastery]
 teacher: "both"

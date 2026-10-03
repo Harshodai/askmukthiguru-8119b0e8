@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Dispelling Suffering and Ignorance"
-source: "YouTube https://www.youtube.com/watch?v=uvhEf3ToMHI"
+source: "https://www.youtube.com/watch?v=uvhEf3ToMHI"
 video_id: uvhEf3ToMHI
 tags: [suffering, ignorance, enlightenment]
 teacher: "both"

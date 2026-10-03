@@ -1,0 +1,512 @@
+{
+  "metadata": {
+    "name": "first_person_golden_paraphrase_25",
+    "description": "Golden 25-query paraphrase benchmark evaluating retrieval consistency (PCS) across 5 spiritual themes × 5 semantic variants.",
+    "n_questions": 25,
+    "n_themes": 5,
+    "variants_per_theme": 5,
+    "created_at": "2026-09-28"
+  },
+  "questions": [
+    {
+      "id": "gold_p_1a",
+      "query": "What is the true definition of a suffering state according to the teachings?",
+      "question": "What is the true definition of a suffering state according to the teachings?",
+      "video_id": "UlOt31lBhLY",
+      "answerable": true,
+      "paraphrase_group": "theme_1_suffering",
+      "answer_ranges": [
+        {
+          "video_id": "UlOt31lBhLY",
+          "start": 332.3,
+          "end": 346.7
+        },
+        {
+          "video_id": "UlOt31lBhLY",
+          "start": 488.7,
+          "end": 555.1
+        }
+      ]
+    },
+    {
+      "id": "gold_p_1b",
+      "query": "Does feeling slight irritation or loneliness count as suffering, or only severe grief?",
+      "question": "Does feeling slight irritation or loneliness count as suffering, or only severe grief?",
+      "video_id": "UlOt31lBhLY",
+      "answerable": true,
+      "paraphrase_group": "theme_1_suffering",
+      "answer_ranges": [
+        {
+          "video_id": "UlOt31lBhLY",
+          "start": 332.3,
+          "end": 346.7
+        },
+        {
+          "video_id": "UlOt31lBhLY",
+          "start": 488.7,
+          "end": 555.1
+        }
+      ]
+    },
+    {
+      "id": "gold_p_1c",
+      "query": "Why do we experience inner division and pain even when our external circumstances are fine?",
+      "question": "Why do we experience inner division and pain even when our external circumstances are fine?",
+      "video_id": "UlOt31lBhLY",
+      "answerable": true,
+      "paraphrase_group": "theme_1_suffering",
+      "answer_ranges": [
+        {
+          "video_id": "UlOt31lBhLY",
+          "start": 332.3,
+          "end": 346.7
+        },
+        {
+          "video_id": "UlOt31lBhLY",
+          "start": 488.7,
+          "end": 555.1
+        }
+      ]
+    },
+    {
+      "id": "gold_p_1d",
+      "query": "How does self-obsession and being caught in my own thoughts cause inner suffering?",
+      "question": "How does self-obsession and being caught in my own thoughts cause inner suffering?",
+      "video_id": "UlOt31lBhLY",
+      "answerable": true,
+      "paraphrase_group": "theme_1_suffering",
+      "answer_ranges": [
+        {
+          "video_id": "UlOt31lBhLY",
+          "start": 332.3,
+          "end": 346.7
+        },
+        {
+          "video_id": "UlOt31lBhLY",
+          "start": 488.7,
+          "end": 555.1
+        }
+      ]
+    },
+    {
+      "id": "gold_p_1e",
+      "query": "Is daily emotional distress like anxiety and disconnection considered suffering?",
+      "question": "Is daily emotional distress like anxiety and disconnection considered suffering?",
+      "video_id": "UlOt31lBhLY",
+      "answerable": true,
+      "paraphrase_group": "theme_1_suffering",
+      "answer_ranges": [
+        {
+          "video_id": "UlOt31lBhLY",
+          "start": 332.3,
+          "end": 346.7
+        },
+        {
+          "video_id": "UlOt31lBhLY",
+          "start": 488.7,
+          "end": 555.1
+        }
+      ]
+    },
+    {
+      "id": "gold_p_2a",
+      "query": "Why does modern schooling push children to compete rather than collaborate?",
+      "question": "Why does modern schooling push children to compete rather than collaborate?",
+      "video_id": "TqxxCYnAxo8",
+      "answerable": true,
+      "paraphrase_group": "theme_2_competition_schooling",
+      "answer_ranges": [
+        {
+          "video_id": "TqxxCYnAxo8",
+          "start": 352.9,
+          "end": 383.8
+        }
+      ]
+    },
+    {
+      "id": "gold_p_2b",
+      "query": "How does the education system make kids feel jealous and ashamed of being less?",
+      "question": "How does the education system make kids feel jealous and ashamed of being less?",
+      "video_id": "TqxxCYnAxo8",
+      "answerable": true,
+      "paraphrase_group": "theme_2_competition_schooling",
+      "answer_ranges": [
+        {
+          "video_id": "TqxxCYnAxo8",
+          "start": 352.9,
+          "end": 383.8
+        }
+      ]
+    },
+    {
+      "id": "gold_p_2c",
+      "query": "Why are children never taught in school how to handle their inner emotional states?",
+      "question": "Why are children never taught in school how to handle their inner emotional states?",
+      "video_id": "TqxxCYnAxo8",
+      "answerable": true,
+      "paraphrase_group": "theme_2_competition_schooling",
+      "answer_ranges": [
+        {
+          "video_id": "TqxxCYnAxo8",
+          "start": 352.9,
+          "end": 383.8
+        }
+      ]
+    },
+    {
+      "id": "gold_p_2d",
+      "query": "Does the pressure to be number one in academics damage a child's inner peace?",
+      "question": "Does the pressure to be number one in academics damage a child's inner peace?",
+      "video_id": "TqxxCYnAxo8",
+      "answerable": true,
+      "paraphrase_group": "theme_2_competition_schooling",
+      "answer_ranges": [
+        {
+          "video_id": "TqxxCYnAxo8",
+          "start": 352.9,
+          "end": 383.8
+        }
+      ]
+    },
+    {
+      "id": "gold_p_2e",
+      "query": "How does competitive schooling compromise the emotional well-being of young people?",
+      "question": "How does competitive schooling compromise the emotional well-being of young people?",
+      "video_id": "TqxxCYnAxo8",
+      "answerable": true,
+      "paraphrase_group": "theme_2_competition_schooling",
+      "answer_ranges": [
+        {
+          "video_id": "TqxxCYnAxo8",
+          "start": 352.9,
+          "end": 383.8
+        }
+      ]
+    },
+    {
+      "id": "gold_p_3a",
+      "query": "How can I create wealth from a calm inner state rather than panic and stress?",
+      "question": "How can I create wealth from a calm inner state rather than panic and stress?",
+      "video_id": "hUmlujE6SN0",
+      "answerable": true,
+      "paraphrase_group": "theme_3_financial_fear",
+      "answer_ranges": [
+        {
+          "video_id": "hUmlujE6SN0",
+          "start": 318.0,
+          "end": 343.0
+        },
+        {
+          "video_id": "hUmlujE6SN0",
+          "start": 364.2,
+          "end": 383.3
+        },
+        {
+          "video_id": "hUmlujE6SN0",
+          "start": 409.2,
+          "end": 435.4
+        }
+      ]
+    },
+    {
+      "id": "gold_p_3b",
+      "query": "I constantly worry about money and financial insecurity — how do I overcome this fear?",
+      "question": "I constantly worry about money and financial insecurity — how do I overcome this fear?",
+      "video_id": "hUmlujE6SN0",
+      "answerable": true,
+      "paraphrase_group": "theme_3_financial_fear",
+      "answer_ranges": [
+        {
+          "video_id": "hUmlujE6SN0",
+          "start": 318.0,
+          "end": 343.0
+        },
+        {
+          "video_id": "hUmlujE6SN0",
+          "start": 364.2,
+          "end": 383.3
+        },
+        {
+          "video_id": "hUmlujE6SN0",
+          "start": 409.2,
+          "end": 435.4
+        }
+      ]
+    },
+    {
+      "id": "gold_p_3c",
+      "query": "Does building financial success have to be an exhausting, painful struggle?",
+      "question": "Does building financial success have to be an exhausting, painful struggle?",
+      "video_id": "hUmlujE6SN0",
+      "answerable": true,
+      "paraphrase_group": "theme_3_financial_fear",
+      "answer_ranges": [
+        {
+          "video_id": "hUmlujE6SN0",
+          "start": 318.0,
+          "end": 343.0
+        },
+        {
+          "video_id": "hUmlujE6SN0",
+          "start": 364.2,
+          "end": 383.3
+        },
+        {
+          "video_id": "hUmlujE6SN0",
+          "start": 409.2,
+          "end": 435.4
+        }
+      ]
+    },
+    {
+      "id": "gold_p_3d",
+      "query": "Why does chasing money out of scarcity and anxiety never lead to lasting fulfillment?",
+      "question": "Why does chasing money out of scarcity and anxiety never lead to lasting fulfillment?",
+      "video_id": "hUmlujE6SN0",
+      "answerable": true,
+      "paraphrase_group": "theme_3_financial_fear",
+      "answer_ranges": [
+        {
+          "video_id": "hUmlujE6SN0",
+          "start": 318.0,
+          "end": 343.0
+        },
+        {
+          "video_id": "hUmlujE6SN0",
+          "start": 364.2,
+          "end": 383.3
+        },
+        {
+          "video_id": "hUmlujE6SN0",
+          "start": 409.2,
+          "end": 435.4
+        }
+      ]
+    },
+    {
+      "id": "gold_p_3e",
+      "query": "How does operating from financial fear prevent me from discovering my true purpose?",
+      "question": "How does operating from financial fear prevent me from discovering my true purpose?",
+      "video_id": "hUmlujE6SN0",
+      "answerable": true,
+      "paraphrase_group": "theme_3_financial_fear",
+      "answer_ranges": [
+        {
+          "video_id": "hUmlujE6SN0",
+          "start": 318.0,
+          "end": 343.0
+        },
+        {
+          "video_id": "hUmlujE6SN0",
+          "start": 364.2,
+          "end": 383.3
+        },
+        {
+          "video_id": "hUmlujE6SN0",
+          "start": 409.2,
+          "end": 435.4
+        }
+      ]
+    },
+    {
+      "id": "gold_p_4a",
+      "query": "What is the difference between possessive love and unconditional love in a relationship?",
+      "question": "What is the difference between possessive love and unconditional love in a relationship?",
+      "video_id": "HCs6I_BNtxo",
+      "answerable": true,
+      "paraphrase_group": "theme_4_love_attachment",
+      "answer_ranges": [
+        {
+          "video_id": "HCs6I_BNtxo",
+          "start": 5.68,
+          "end": 74.94
+        },
+        {
+          "video_id": "HCs6I_BNtxo",
+          "start": 238.08,
+          "end": 271.98
+        }
+      ]
+    },
+    {
+      "id": "gold_p_4b",
+      "query": "Why do we try to control the person we love when we feel insecure?",
+      "question": "Why do we try to control the person we love when we feel insecure?",
+      "video_id": "HCs6I_BNtxo",
+      "answerable": true,
+      "paraphrase_group": "theme_4_love_attachment",
+      "answer_ranges": [
+        {
+          "video_id": "HCs6I_BNtxo",
+          "start": 5.68,
+          "end": 74.94
+        },
+        {
+          "video_id": "HCs6I_BNtxo",
+          "start": 238.08,
+          "end": 271.98
+        }
+      ]
+    },
+    {
+      "id": "gold_p_4c",
+      "query": "How can I stop suffocating my partner with possessiveness and neediness?",
+      "question": "How can I stop suffocating my partner with possessiveness and neediness?",
+      "video_id": "HCs6I_BNtxo",
+      "answerable": true,
+      "paraphrase_group": "theme_4_love_attachment",
+      "answer_ranges": [
+        {
+          "video_id": "HCs6I_BNtxo",
+          "start": 5.68,
+          "end": 74.94
+        },
+        {
+          "video_id": "HCs6I_BNtxo",
+          "start": 238.08,
+          "end": 271.98
+        }
+      ]
+    },
+    {
+      "id": "gold_p_4d",
+      "query": "Why does romantic attachment turn into jealousy and constant suspicion?",
+      "question": "Why does romantic attachment turn into jealousy and constant suspicion?",
+      "video_id": "HCs6I_BNtxo",
+      "answerable": true,
+      "paraphrase_group": "theme_4_love_attachment",
+      "answer_ranges": [
+        {
+          "video_id": "HCs6I_BNtxo",
+          "start": 5.68,
+          "end": 74.94
+        },
+        {
+          "video_id": "HCs6I_BNtxo",
+          "start": 238.08,
+          "end": 271.98
+        }
+      ]
+    },
+    {
+      "id": "gold_p_4e",
+      "query": "Can true love exist when one partner is desperately trying to control the other?",
+      "question": "Can true love exist when one partner is desperately trying to control the other?",
+      "video_id": "HCs6I_BNtxo",
+      "answerable": true,
+      "paraphrase_group": "theme_4_love_attachment",
+      "answer_ranges": [
+        {
+          "video_id": "HCs6I_BNtxo",
+          "start": 5.68,
+          "end": 74.94
+        },
+        {
+          "video_id": "HCs6I_BNtxo",
+          "start": 238.08,
+          "end": 271.98
+        }
+      ]
+    },
+    {
+      "id": "gold_p_5a",
+      "query": "Why do I continue to carry anger and resentment long after an argument is over?",
+      "question": "Why do I continue to carry anger and resentment long after an argument is over?",
+      "video_id": "TqxxCYnAxo8",
+      "answerable": true,
+      "paraphrase_group": "theme_5_anger_resentment",
+      "answer_ranges": [
+        {
+          "video_id": "TqxxCYnAxo8",
+          "start": 386.6,
+          "end": 429.3
+        },
+        {
+          "video_id": "TqxxCYnAxo8",
+          "start": 494.8,
+          "end": 526.0
+        }
+      ]
+    },
+    {
+      "id": "gold_p_5b",
+      "query": "In the story of the two monks, what prevents us from dropping past grievances?",
+      "question": "In the story of the two monks, what prevents us from dropping past grievances?",
+      "video_id": "TqxxCYnAxo8",
+      "answerable": true,
+      "paraphrase_group": "theme_5_anger_resentment",
+      "answer_ranges": [
+        {
+          "video_id": "TqxxCYnAxo8",
+          "start": 386.6,
+          "end": 429.3
+        },
+        {
+          "video_id": "TqxxCYnAxo8",
+          "start": 494.8,
+          "end": 526.0
+        }
+      ]
+    },
+    {
+      "id": "gold_p_5c",
+      "query": "How does holding onto relationship hurt end up damaging the people we care about?",
+      "question": "How does holding onto relationship hurt end up damaging the people we care about?",
+      "video_id": "TqxxCYnAxo8",
+      "answerable": true,
+      "paraphrase_group": "theme_5_anger_resentment",
+      "answer_ranges": [
+        {
+          "video_id": "TqxxCYnAxo8",
+          "start": 386.6,
+          "end": 429.3
+        },
+        {
+          "video_id": "TqxxCYnAxo8",
+          "start": 494.8,
+          "end": 526.0
+        }
+      ]
+    },
+    {
+      "id": "gold_p_5d",
+      "query": "How can I dissolve persistent irritation before it hardens into bitterness?",
+      "question": "How can I dissolve persistent irritation before it hardens into bitterness?",
+      "video_id": "TqxxCYnAxo8",
+      "answerable": true,
+      "paraphrase_group": "theme_5_anger_resentment",
+      "answer_ranges": [
+        {
+          "video_id": "TqxxCYnAxo8",
+          "start": 386.6,
+          "end": 429.3
+        },
+        {
+          "video_id": "TqxxCYnAxo8",
+          "start": 494.8,
+          "end": 526.0
+        }
+      ]
+    },
+    {
+      "id": "gold_p_5e",
+      "query": "Why does harboring hurt make us insensitive and blind to the present moment?",
+      "question": "Why does harboring hurt make us insensitive and blind to the present moment?",
+      "video_id": "TqxxCYnAxo8",
+      "answerable": true,
+      "paraphrase_group": "theme_5_anger_resentment",
+      "answer_ranges": [
+        {
+          "video_id": "TqxxCYnAxo8",
+          "start": 386.6,
+          "end": 429.3
+        },
+        {
+          "video_id": "TqxxCYnAxo8",
+          "start": 494.8,
+          "end": 526.0
+        }
+      ]
+    }
+  ]
+}

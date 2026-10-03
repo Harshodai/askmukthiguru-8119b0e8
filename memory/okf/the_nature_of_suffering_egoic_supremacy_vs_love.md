@@ -1,27 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=M8XASiz30oE
-tags:
-- truth of suffering
-- sri preethaji
-- sri krishnaji
-- dissolving into the beautiful state
-teacher: both
-title: 'The Nature of Suffering: Egoic Supremacy vs. Love'
+title: The Nature Of Suffering Egoic Supremacy Vs Love
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=M8XASiz30oE
 video_id: M8XASiz30oE
+tags:
+- oneness
+- teaching
 ---
-# The Nature of Suffering: Egoic Supremacy vs. Love
+# The Nature Of Suffering Egoic Supremacy Vs Love
 
+## Verbatim Discourse Excerpts
+Is there love in all this? It seems to be a battle for egoic supremacy. I feel my partner prioritizes her desires more than our family. This is leading to a big rift in our relationships. I am not able to accept it. Can you please guide us? Thank you, Krishnaji. Every idea or opinion you have about your partner is only your view. And the view that keeps changing, it is not the absolute truth.
 
-## Summary
-Suffering, particularly in relationships, often manifests as a battle for egoic supremacy rather than an expression of love. This struggle arises from rigid views and a reluctance to let go of one's own perspective.
+All you want to do is reinforce your view that you were right in the opinion you had about the other. And you want them to accept it. And you want the world to accept that you were right. Is there love in all this? It seems to be a battle for egoic supremacy. To believe that your ideas and your opinions are the only truth is like being a Koopastha Manduka.
 
 ## Key Teachings
-- Suffering in relationships can be characterized as a "battle for egoic supremacy" rather than an act of love (Sri Preethaji says).
+- It seems to be a battle for egoic supremacy. — Sri Preethaji & Sri Krishnaji
+- If you realize this, there can be room for love to take birth between you. — Sri Preethaji & Sri Krishnaji
+- Are not your rigid ideas and opinions of your partner a result of absence of love? — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "Is there love in all this? It seems to be a battle for egoic supremacy." — Sri Preethaji
-
-## Related Concepts
-- Suffering States: emotional states such as regret, sadness, and loneliness that disconnect individuals from life, leading to a downward spiral of chaos and problems caused by accumulated poisons and limiting beliefs.
-- Overcoming Suffering: a concept related to spiritual teachings, focusing on the alleviation of suffering and emotional turmoil.
+## Source Context
+- Video: Dissolving differences between couples | Evolution During Crisis -32 With Preethaji & Krishnaji
+- URL: https://www.youtube.com/watch?v=M8XASiz30oE
+- Speaker: Sri Preethaji & Sri Krishnaji

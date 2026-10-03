@@ -46,7 +46,7 @@ def verify_document_integrity(doc: dict[str, Any]) -> tuple[bool, Optional[str]]
     """
     text = doc.get("text") or ""
     metadata = doc.get("metadata") or {}
-    
+
     # 1. Content validity check
     if not text or not text.strip():
         return False, "empty_document_text"
@@ -74,7 +74,7 @@ def verify_document_integrity(doc: dict[str, Any]) -> tuple[bool, Optional[str]]
 
 
 def filter_documents_by_integrity(
-    docs: list[dict[str, Any]]
+    docs: list[dict[str, Any]],
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """
     Filter a list of retrieved documents, isolating compromised documents.

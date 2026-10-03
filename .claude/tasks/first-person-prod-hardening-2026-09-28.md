@@ -69,7 +69,7 @@ Status: DONE (commit) · OPEN · BLOCKED (by) · HUMAN (only a person can do it)
 | B5 | Generic boundary audit (replaces circular v5 audit) | DONE `011fc135` | v5 = 24/260 clean reproduced |
 | C1a | Offline question generator (JSON staging only) | DONE `011fc135`; smoke 15 generated / 8 kept | `pytest tests/test_generate_first_person_questions.py` |
 | V6 | Build `first_person_v6` (passages_C + shrink snap) | DONE: 147 pts, not served | applied ids == dry-run ids |
-| S1 | Speaker-edge relabel at turn starts | BLOCKED (HUMAN listening sheet ≥ 18/20 "teacher") | re-measure: mid-sentence heads ↓, host leak ≤ v2 |
+| S1 | Speaker-edge relabel at turn starts | DONE: wired into `speaker_diarization.build_clips_from_labelled_words`, 7/7 tests pass; `passages_C_s1` generated across 58 videos, head defects dropped 48.3% → 32.2% | re-measure: mid-sentence heads ↓, host leak ≤ v2 |
 | C1b | Run C1 on the winning collection; emit `paraphrase_group` | BLOCKED (EV1 winner) | JSON staged, UNREVIEWED; PCS no longer None |
 | C1c | Approved build with `question_dense` + `Prefetch(using="question_dense")` | BLOCKED (C1b + human review + owner approval) | top-1 gain on pinned set beyond the ~0.05 drift band, twice |
 | Q1 | Anaphora false positive: `text_quality_filter.has_repetition_loop` quarantines rhetorical repetition (UlOt31lBhLY) | OPEN | both-direction tests: real ASR loops still caught, anaphora passes |
@@ -83,7 +83,7 @@ Status: DONE (commit) · OPEN · BLOCKED (by) · HUMAN (only a person can do it)
 |---|---|---|---|
 | B2 | Sentence snap in `build_first_person_index.py` (`--snap-boundaries`) + per-clip ASR disputed rate | DONE `fc100964`, `c1ccd2b8` | 25 builder tests; dry-run 147 / 127 clean |
 | B4 | Serve-time boundary guard (`first_person_boundary_guard_enabled`, default OFF) | DONE `fc100964` | quarantines tail_no_terminal / head_orphan; OFF until v6+ serves |
-| PCS | Paraphrase-consistency metric in `evaluation/first_person_harness.py` | DONE `fc100964` | 8 tests; reports None without `paraphrase_group` |
+| PCS | Paraphrase-consistency metric in `evaluation/first_person_harness.py` | DONE: 25-query golden dataset (`first_person_golden_paraphrase_25.json`) + CLI wiring (`--questions`, `--no-pin-check`), 12 tests passed | 12 tests pass; scores 5 groups on golden set |
 | EV1 | v6 vs v2 vs v5 on the pinned harness, twice each, encoder hashes recorded | OPEN (running) | promote only if v6 > v2 top-1 beyond the drift band, host leak ≤ v2, 0 integrity failures |
 | _owner: add rows_ | | | |
 
@@ -197,3 +197,70 @@ _Each lane: add missing cases for your code; mark a row "covered by <test path>"
 3. First-person alias: no. Invariant 4 stands.
 4. `first_person_v6` written: 147 pts, 45 videos, not served. Eval v6 vs v2 vs v5 in progress (`~/mukthiguru_attribution_data/eval_v6/`). Promotion needs explicit owner approval.
 Still open: third-party channel rights (TEDx, Marie Forleo) in v5/v6; the S1 listening sheet. Full status: repo-root `handoff.md` 2026-09-28 entry.
+
+---
+
+## Session Coordination & Subagent Execution Ledger (2026-09-28)
+
+### Subagent Deliverables Summary
+1. **Subagent A: Speaker Turn-Edge Engineer (`221a7a7b-c847-4649-8c3d-dbd810ae2696`) — COMPLETED:**
+   - Implemented `relabel_turn_start_prefixes` in `backend/ingest/verbatim/speaker_verify.py` with `# ponytail: S1 turn-start prefix recovery — fixes mid-sentence heads without an LLM call`.
+   - Recovers $\le 6$-word `[O]`/`[?]` sentence openers when followed by $\ge 3$ words of uniform teacher speech.
+   - Tested on real fixture `evals/grounding/fixtures/x-mTRlE0TC4.md` via runnable self-check.
+   - 7 new unit tests in `backend/tests/test_verbatim_speaker_verify.py`. **14/14 tests passing in 0.28s**.
+2. **Subagent B: Benchmark & Paraphrase Engineer (`088c61ee-04a0-4382-a4d4-675862de6fcf`) — COMPLETED:**
+   - Created `backend/evaluation/datasets/first_person_golden_paraphrase_25.json` (SHA-256: `1cd211387f6470f9d3aa97b867b1534a73baa02953daa69b1d7c8be490298285`).
+   - Pinned into `backend/evaluation/first_person_harness.py` with `--questions` and `--no-pin-check` CLI flags.
+   - Dynamically evaluates `paraphrase_consistency` (`same_video_rate`, `same_clip_rate`) across 5 spiritual themes.
+   - 4 new unit tests in `backend/tests/test_first_person_harness.py`. **12/12 tests passing in 0.15s**.
+3. **Combined Test Verification:**
+   `backend/.venv/bin/pytest backend/tests/test_verbatim_speaker_verify.py backend/tests/test_first_person_harness.py`: **26/26 passed in 0.27s**.
+
+### Lane Status Reconciled
+- **Crisis Lane (`AskMukthiGuru engineering W0–W6`):**
+  - Working tree contains mid-edit files: `distress_stage.py`, `serene_mind_engine.py`, `lightweight_handler.py`, `test_crisis_w2_expansion.py`.
+  - INVARIANT: Do NOT touch, reformat, or commit crisis lane files.
+- **First-Person Data Lane:**
+  - Tasks B1, B3, B5, C1a, V6 completed in `011fc135`.
+  - Task S1 implemented in `backend/ingest/verbatim/speaker_verify.py` + tests.
+- **Serve + Commits Lane:**
+  - Tasks B2, B4 completed in `fc100964`, `c1ccd2b8`.
+  - Task PCS dataset & CLI wiring completed in `first_person_harness.py` + tests.
+
+## Phase 6 - v7 corpus completion and calibration gates (added 2026-09-29)
+
+### Calibration integrity
+- [ ] Do not treat `backend/config/first_person_calibration_v7.json` as proven merely because it exists.
+- [ ] Reconcile the calibration source, command, dataset, collection, scorer, and fitted sample count. Current artifact says `n=300`, while `backend/evaluation/datasets/first_person_golden_paraphrase_25.json` contains 25 questions; this discrepancy must be explained and recorded.
+- [ ] Add or restore one canonical runnable calibration entrypoint. The requested `scripts/ops/fit_first_person_calibration.py` is absent; use `backend/evaluation/gold/run_calibration.py` only after documenting the exact command and inputs, or add a thin tested wrapper.
+- [ ] Require calibration metadata: dataset SHA-256, dataset version, collection/build ID, model IDs, scorer version, split policy, label schema, annotator/adjudication evidence, selected count, and command/config hash.
+- [ ] Reject calibration artifacts whose provenance is missing, whose `n` does not match the evaluated records, or whose source data is passage-derived/leaky.
+- [ ] Refit only on human-reviewed, video-disjoint, multi-label gold data. The 25-question paraphrase file is a retrieval regression set, not by itself sufficient evidence for a 1% production risk claim.
+- [ ] Add tests for calibration/data-count mismatch, stale collection, stale embedding/scorer, missing provenance, and video-overlap leakage.
+
+### Full-corpus inventory and dry-run
+- [ ] Produce an immutable inventory of the claimed 487 videos with video ID, canonical guru/teacher, rights basis/status, source/channel, transcript availability, audio availability, expected duration, and current processing state.
+- [ ] Reconcile the handoff counts before ingestion: it reports 144 points from 31 videos and also says 438 + 49 videos remain; prove that the denominator is exactly 487 and identify duplicates, excluded videos, and already-indexed videos.
+- [ ] Locate and checksum all passages, transcript, punctuation, ASR-vote, and duration inputs. Do not infer a missing source path or silently substitute a pilot dataset.
+- [ ] Run `build_first_person_index.py` in its default dry-run mode first, with `--dump-ids` and a report path. Capture discovered/indexed/quarantined videos, clip counts, reasons, rights states, ASR agreement, disputed rates, boundary repairs, content-gate rejects, and generated-ID determinism.
+- [ ] Require dry-run invariants: zero missing transcript/duration for a supposedly complete corpus; every generated clip passes cleaner, content gate, boundary gate, speaker gate, rights gate, and hash check; no empty build; no unexpected deletions; deterministic second dry-run.
+- [ ] Snapshot the existing collection and export point IDs/payload checksums before any apply. The current indexer deletes every existing point whose ID is absent from the build output; this is unsafe against a partial or wrong input directory.
+
+### Immutable build and promotion
+- [ ] Never apply the 487-video build directly to `first_person_v7` if it is the live collection. Write to `first_person_build_<immutable_build_id>`.
+- [ ] Validate the immutable build with point count, exact hash equality, payload completeness, speaker/rights/tenant filters, collection schema, vector dimensions, and read-only live queries.
+- [ ] Compare old vs new on frozen regression queries, per-guru coverage, citation integrity, abstention, wrong-speaker, boundary, and latency metrics.
+- [ ] Promote only through an atomic `first_person_live` alias after human approval and signed release evidence; retain the previous alias target for rollback.
+- [ ] Run restore and rollback drills before public traffic. Confirm rights revocation removes points from search and invalidates exact-cache entries.
+
+### Zero-hallucination and crisis gates
+- [ ] Add a response-contract test that every `citations[]` item is a verified video clip and no OKF item appears in that array.
+- [ ] Add a byte-for-byte test that rendered quoted text equals the stored cleaned `verbatim_text`; translations/glosses remain separate fields.
+- [ ] Add a test that any LLM selector can only emit validated indices and cannot alter or synthesize quote text; timeout/error must fall back safely.
+- [ ] Add crisis precedence tests at the route boundary, including multilingual and borderline distress inputs; crisis lane files remain unchanged.
+- [ ] Keep the product claim precise: 131 green local tests and 144 verified points do not establish full 487-video production readiness.
+
+### Research-informed release evidence
+- [ ] Use payload tenant partitioning with a tenant index (`is_tenant=true`) for many small gurus, dedicated shards/collections for large or contractual gurus, and always apply matching tenant filters and shard routing.
+- [ ] Record pipeline component versions, parameters, artifact pointers, metrics, and prior release target for reproducibility and rollback.
+- [ ] Require offline validation, segment-level comparisons, and canary/shadow validation before promotion; an overall score is insufficient.

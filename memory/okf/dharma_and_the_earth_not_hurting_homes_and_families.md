@@ -1,29 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=Xk1KsO3efP4
-tags:
-- dharma
-- compassion
-- earth
-- ego
-teacher: both
-title: 'Dharma and the Earth: Not Hurting Homes and Families'
+title: Dharma And The Earth Not Hurting Homes And Families
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=Xk1KsO3efP4
 video_id: Xk1KsO3efP4
+tags:
+- oneness
+- teaching
 ---
-# Dharma and the Earth: Not Hurting Homes and Families
+# Dharma And The Earth Not Hurting Homes And Families
 
+## Verbatim Discourse Excerpts
+What all these millions of lifeforms ask of humanity is to simply let them be. To respect their boundaries and their living spaces is our dharma. Not to hurt their homes and families is our dharma. Not to take so much from the Earth that we leave nothing for other lifeforms is our dharma. To live consciously and compassionately is our dharma to the Earth.
 
-## Summary
-This teaching suggests that our dharma includes not harming the homes and families of other life forms and not taking excessively from the Earth. It implies a compassionate and conscious approach to our relationship with the planet, extending beyond human interactions to encompass all life.
+Many moons ago, animals and people could talk to each other. They worked and played with peace and harmony. What was possible in one land is possible in every land. If we awaken our planet, our Earth, it's not just a home for us. We share it with millions of other species. So many of them have arrived much before us. We cannot have our homes saved when the rest of the Earth is burning.
 
 ## Key Teachings
-- Our dharma involves not hurting the homes and families of other beings. (Unknown Channel says)
-- Our dharma involves not taking too much from the Earth. (Unknown Channel says)
+- Not to hurt their homes and families is our dharma. — Sri Preethaji & Sri Krishnaji
+- Not to take so much from the Earth that we leave nothing for other lifeforms is our dharma. — Sri Preethaji & Sri Krishnaji
+- If we awaken our planet, our Earth, it's not just a home for us. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "Is our Dharma not to hurt their homes and families?" — Unknown Channel
-
-## Related Concepts
-- dharma: a concept related to one's duty or righteous conduct.
-- Web of Life: an interconnected network of all living beings, where conscious actions can have a ripple effect.
-- Interconnected Web: a network of all living beings where conscious actions can have a ripple effect.
+## Source Context
+- Video: Your Dharma To Mother Earth | Evolution Series  62 with Preethaji & Krishnaji
+- URL: https://www.youtube.com/watch?v=Xk1KsO3efP4
+- Speaker: Sri Preethaji & Sri Krishnaji

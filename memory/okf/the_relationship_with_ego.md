@@ -1,35 +1,26 @@
 ---
-source: https://www.youtube.com/watch?v=mgfhxq9bn8Q
-tags:
-- doctrines
-- teachings
-- abundance
-- ego
-- relationship
-teacher: both
-title: The Relationship with EGO
+title: The Relationship With Ego
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=mgfhxq9bn8Q
 video_id: mgfhxq9bn8Q
+tags:
+- oneness
+- teaching
 ---
-# The Relationship with EGO
+# The Relationship With Ego
 
+## Verbatim Discourse Excerpts
+There are two kinds of consciousness with which people live. These are Lakshmi consciousness and Alakshmi consciousness. See, there is no equivalent, exact equivalent for Lakshmi in English. Lakshmi means sacred, positive, noble, abundant, joyful. All these put together, that's Lakshmi. And this abundance consciousness, the ancients in India, said has eight facets to it.
 
-## Summary
-The relationship with the ego is a crucial concept in spiritual and philosophical teachings, often discussed as a path to enlightenment and self-realization. This teaching emphasizes the importance of aligning one's actions and thoughts with the higher self, rather than the ego, to achieve true prosperity and abundance.
+And financial abundance is just one of it. So what are these eight facets to wealth? Financial abundance, courage abundance, knowledge abundance, health abundance, victory abundance, love abundance, and wonderful children. Abundance is all this. We've only seen seven of them so far. So what is the eighth? Apart from these seven forms, there is the first of the abundance dimensions, which is called the Adi Lakshmi or the first abundance.
 
 ## Key Teachings
-- The ego is the identification with the mind and the body, leading to a sense of separateness and self-centeredness. To break free from this, one must cultivate a relationship with the higher self, which is the enlightened state of consciousness.
-- The concept of Adi Lakshmi, the first of the eight facets of wealth and abundance consciousness, represents the enlightened state of consciousness. It is a state of interconnectedness, interconnectedness with others, and the creation of wealth and prosperity through the power of consciousness.
-- The journey towards enlightenment involves a path of being without doing, which is a path of strength analysis. This path is a journey of self-discovery and self-actualization, leading to a life of true prosperity and abundance.
+- There are two kinds of consciousness with which people live. — Sri Preethaji & Sri Krishnaji
+- These are Lakshmi consciousness and Alakshmi consciousness. — Sri Preethaji & Sri Krishnaji
+- See, there is no equivalent, exact equivalent for Lakshmi in English. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "The relationship with the ego is a path to enlightenment and self-realization."
-> — Unknown Channel
-
-## Related Concepts
-- **Abundance**: A state of being that encompasses a harmonious existence, interconnectedness with others, and the creation of wealth and prosperity through the power of consciousness.
-- **Addiction**: A state or behavior characterized by a strong, often compulsive, craving for substances or behaviors that can lead to physical, emotional, or psychological harm.
-- **ego**: The identification with the mind and the body, leading to a sense of separateness and self-centeredness. To break free from this, one must cultivate a relationship with the higher self, which is the enlightened state of consciousness.
-- **ego and suffering**: The relationship between the ego and suffering, which is often discussed in the context of the path of enlightenment and self-actualization.
-
-This teaching provides a foundational understanding of the relationship with the ego, emphasizing the importance of aligning one's actions and thoughts with the higher self to achieve true prosperity and abundance.
+## Source Context
+- Video: The no 1 secret behind manifesting abundance
+- URL: https://www.youtube.com/watch?v=mgfhxq9bn8Q
+- Speaker: Sri Preethaji & Sri Krishnaji

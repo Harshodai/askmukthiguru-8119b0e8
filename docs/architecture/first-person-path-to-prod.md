@@ -2,6 +2,8 @@
 
 Status: FP-1, FP-2 and FP-3 ACCEPTED by the owner on 2026-09-26. FP-4 and FP-5 are PROPOSED.
 
+> **Truth-anchor note (2026-10-03, audit G.4 #8):** this file and the FP-invariants section of `CLAUDE.md` are the **only two first-person truth anchors**. Latency truth stays as stated in §1 — **p95 210 ms local / production unmeasured** (2026-09-25 live eval, 116 questions; corroborating audit detail `p50 21.7 ms pipeline / 75 ms wall / 517 ms cold, p95 ≈210 ms local` in `.claude/tasks/first_person_e2e_audit_2026-09-29.md` §G.1 + `audit_2026-09-29/B.md`). Do not cite latency or counts from `handoff.md`, `docs/agent/*`, or exhibits claiming "<30 ms".
+
 ## 1. Where it actually stands (measured, local, 2026-09-25 live eval)
 
 Source: `~/mukthiguru_attribution_data/first_person_live_eval/summary_20260925T171641Z.json`

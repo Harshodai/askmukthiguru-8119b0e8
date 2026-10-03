@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "Human Cruelty and the Suffering of Animals"
-source: "YouTube https://www.youtube.com/watch?v=VTx4G0KEuUE"
+source: "https://www.youtube.com/watch?v=VTx4G0KEuUE"
 video_id: VTx4G0KEuUE
 tags: [sri preethaji, sri krishnaji, truth of suffering, animal welfare, compassion]
 teacher: "both"

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Dignity and Spiritual Power of Women"
-source: "YouTube https://www.youtube.com/watch?v=c2oUDKf6ndo"
+source: "https://www.youtube.com/watch?v=c2oUDKf6ndo"
 video_id: c2oUDKf6ndo
 tags: [consciousness, gender equality, women's rights, spiritual power, dignity, world peace]
 teacher: "both"

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Living in Harmony with the Planet"
-source: "YouTube https://www.youtube.com/watch?v=Xk1KsO3efP4"
+source: "https://www.youtube.com/watch?v=Xk1KsO3efP4"
 video_id: Xk1KsO3efP4
 tags: [harmony, environment, compassion, sustainability]
 teacher: "both"

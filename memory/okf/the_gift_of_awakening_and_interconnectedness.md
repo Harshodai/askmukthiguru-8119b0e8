@@ -1,28 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=PFNP4c1cOSI
-tags:
-- awakening
-- interconnectedness
-- consciousness
-teacher: both
-title: The Gift of Awakening and Interconnectedness
+title: The Gift Of Awakening And Interconnectedness
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=PFNP4c1cOSI
 video_id: PFNP4c1cOSI
+tags:
+- oneness
+- teaching
 ---
-# The Gift of Awakening and Interconnectedness
+# The Gift Of Awakening And Interconnectedness
 
+## Verbatim Discourse Excerpts
+All forms of life and their existence have created the necessary condition that is needed for the sustenance on this planet. Living a purposeful life begins with your awakening in your consciousness, where you feel connected, where you feel one with everyone and everything. You wake up to this reality that you are inseparably connected to the world. You become expanded to feel everyone. Their happiness and their unhappiness becomes yours.
 
-## Summary
-Awakening is described as an experience of realizing the profound interconnectedness and interdependence of all life forms. This realization leads to an expanded consciousness and a sense of being part of a unified field of consciousness, emphasizing the importance of feeling connected to oneself, others, nature, and all forms of life.
+When you are awake and you realize that you are not separate, you're not isolated, you're not independent. You are interconnected and you are interdependent. You realize that you are because of so many people who contributed to your life. Nature and Earth have contributed to your life, to your existence. Humanity and its millions of years of history have contributed to developing your mind and consciousness.
 
 ## Key Teachings
-- Awakening involves realizing the profound interconnectedness of all life forms. (Unknown Channel)
-- This realization leads to an expanded consciousness. (Unknown Channel)
-- It fosters a sense of being part of a unified field of consciousness. (Unknown Channel)
-- Feeling connected to oneself, others, nature, and all forms of life is an important aspect of this awakening. (Unknown Channel)
+- Living a purposeful life begins with your awakening in your consciousness, where you feel connected, where you feel one with everyone and everything. — Sri Preethaji & Sri Krishnaji
+- When you are awake and you realize that you are not separate, you're not isolated, you're not independent. — Sri Preethaji & Sri Krishnaji
+- You are interconnected and you are interdependent. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-
-## Related Concepts
-- Enlightenment: the state of living in an unperturbed state of calm, leading to states of bliss, stillness, love, and peace.
-- Spiritual Process: a journey of awakening and transformation that leads to higher states of consciousness.
+## Source Context
+- Video: PFNP4c1cOSI
+- URL: https://www.youtube.com/watch?v=PFNP4c1cOSI
+- Speaker: Sri Preethaji & Sri Krishnaji

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Recurring Nature of Inner Crises"
-source: "YouTube https://www.youtube.com/watch?v=TXAKaPwrBy0"
+source: "https://www.youtube.com/watch?v=TXAKaPwrBy0"
 video_id: TXAKaPwrBy0
 tags: [sri krishnaji, truth of suffering, inner crisis, suffering states]
 teacher: "sri-krishnaji"

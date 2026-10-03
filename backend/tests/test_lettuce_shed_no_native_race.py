@@ -44,9 +44,7 @@ class _ExplodingEmbedder:
 @pytest.fixture(autouse=True)
 def _enable_real_detector_path(monkeypatch):
     monkeypatch.setattr(settings, "lettucedetect_enabled", True)
-    monkeypatch.setattr(
-        "services.lettuce_detect_service._predict_lock_timeout", lambda: 0.05
-    )
+    monkeypatch.setattr("services.lettuce_detect_service._predict_lock_timeout", lambda: 0.05)
     yield
 
 
@@ -59,9 +57,7 @@ def test_shed_under_load_never_calls_embedder():
 
     LettuceDetectService._shared_predict_lock.acquire()
     try:
-        result = service.score_faithfulness(
-            "query", "The sky is blue.", "The sky is blue."
-        )
+        result = service.score_faithfulness("query", "The sky is blue.", "The sky is blue.")
     finally:
         LettuceDetectService._shared_predict_lock.release()
 

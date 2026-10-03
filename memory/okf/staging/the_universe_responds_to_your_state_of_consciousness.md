@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Universe Responds to Your State of Consciousness"
-source: "YouTube https://www.youtube.com/watch?v=gQiIwfA3mlk"
+source: "https://www.youtube.com/watch?v=gQiIwfA3mlk"
 video_id: gQiIwfA3mlk
 tags: [beautiful state, consciousness, universe, communication]
 teacher: "both"

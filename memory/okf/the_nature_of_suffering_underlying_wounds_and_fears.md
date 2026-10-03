@@ -1,28 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=JwMlR98BgrI
-tags:
-- suffering
-- wounds
-- fear
-- connection
-teacher: both
-title: 'The Nature of Suffering: Underlying Wounds and Fears'
+title: The Nature Of Suffering Underlying Wounds And Fears
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=JwMlR98BgrI
 video_id: JwMlR98BgrI
+tags:
+- oneness
+- teaching
 ---
-# The Nature of Suffering: Underlying Wounds and Fears
+# The Nature Of Suffering Underlying Wounds And Fears
 
+## Verbatim Discourse Excerpts
+You are terrified you may ruin your own life with disappointments and loneliness. This time of seclusion and compulsive living alone or with your families can actually help you come face to face with all this. Some wounds are unexplainable. They even flow from previous lives. You may for no reason develop a deep dislike towards someone. You will have to become free of such a dislike too.
 
-## Summary
-The nature of suffering often stems from underlying wounds and fears that prevent genuine connection and understanding between individuals, even those who know each other well. These deep-seated issues can make it difficult for people to live together peacefully.
+No one is an exception to these wounds. If this seed of initial compassion can take root within you, you will engage in loving conversation. You will listen to the other with an intention of feeling their pain, not to prove your goodness, not to prove your rightness to them. If you simply opened your heart and listen to what is hurting someone, that very loving listening can heal them.
 
 ## Key Teachings
-- Hurt human beings perpetuate a cycle of pain and suffering. (Ekam / O&O Academy)
-- Suffering States refer to emotional states such as regret, sadness, and loneliness that disconnect individuals from life. (Ekam / O&O Academy)
-- Suffering States refer to the downward spiral of chaos and problems caused by accumulated poisons and limiting beliefs. (Ekam / O&O Academy)
-- Suffering States refer to emotionally painful states of being that disconnect individuals from the universal intelligence and its power. (Ekam / O&O Academy)
+- No one is an exception to these wounds. — Sri Preethaji & Sri Krishnaji
+- It is like a constant game of you be in my life but maintain a distance, you be with me but don't get too close. — Sri Preethaji & Sri Krishnaji
+- Why is it so hard for two people who know each other very well to live together peacefully? — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Cycle of Pain: Hurt human beings perpetuate a cycle of pain and suffering.
-- Suffering States: Emotional states such as regret, sadness, and loneliness that disconnect individuals from life, leading to a downward spiral of chaos and problems caused by accumulated poisons and limiting beliefs.
-- Overcoming Suffering: A concept related to spiritual teachings, focusing on the alleviation of suffering.
+## Source Context
+- Video: Why cant you trust someone's Love? | Evolution During Crisis -17 with Preethaji & Krishnaji
+- URL: https://www.youtube.com/watch?v=JwMlR98BgrI
+- Speaker: Sri Preethaji & Sri Krishnaji

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Dharma and the Earth: Not to Hurt Homes and Families"
-source: "YouTube https://www.youtube.com/watch?v=Xk1KsO3efP4"
+source: "https://www.youtube.com/watch?v=Xk1KsO3efP4"
 video_id: Xk1KsO3efP4
 tags: [dharma, compassion, earth, ego]
 teacher: "both"

@@ -1,26 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=Ejcq9mNGJk0
-tags:
-- stress
-- suffering
-- consciousness
-teacher: both
-title: The Detrimental Effects of Stress
+title: The Detrimental Effects Of Stress
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=Ejcq9mNGJk0
 video_id: Ejcq9mNGJk0
+tags:
+- oneness
+- teaching
 ---
-# The Detrimental Effects of Stress
+# The Detrimental Effects Of Stress
 
+## Verbatim Discourse Excerpts
+At Sri Preethaji's talk show on stress in Chinese society and worldwide, for CGTV, part of the official government channel for the voice of China, every panelist agreed with Sri Preethaji on how the experience of stress is similar or identical, though the manifestation of the consequent problems in different cultures are different. Stress as a state is alienating you from the rest of the world.
 
-## Summary
-Stress has detrimental effects on the human body and mind. An inclusive consciousness can help mitigate these effects, encouraging individuals to look deeper within themselves to discover their heart's passion.
+You begin alienating you, you feel separate, you feel lonely, you feel depressed. It does not give you the connection that the human body, human mind, human spirit is really longing. And you're getting lost living in the state of stress. Not only that you're getting lost, it's physically hurting you. Physically hurting your brain, your dendrites, your telomeres.
 
 ## Key Teachings
-- Stress has detrimental effects on the human body and mind. (Unknown Channel)
-- An inclusive consciousness can help address the negative impacts of stress. (Unknown Channel)
-- Discovering one's heart's passion involves looking deeper within oneself. (Unknown Channel)
+- Stress as a state is alienating you from the rest of the world. — Sri Preethaji & Sri Krishnaji
+- And you're getting lost living in the state of stress. — Sri Preethaji & Sri Krishnaji
+- At Sri Preethaji's talk show on stress in Chinese society and worldwide, for CGTV, part of the official government channel for the voice of China, every panelist agreed with Sri Preethaji on how the experience of stress is similar or identical, though the manifestation of the consequent problems in different cultures are different. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- The Beautiful State: A state of inner peace and harmony, characterized by forgiveness, love, and compassion.
-- Suffering: A multifaceted concept that encompasses various aspects of human experience, described as a state of conflict and ideals, characterized by intense awareness and a lack of compulsive attachment.
-- Suffering States: Emotional states such as regret, sadness, and loneliness that disconnect individuals from life, or a downward spiral of chaos and problems caused by accumulated poisons and limiting beliefs.
+## Source Context
+- Video: Preethaji | Beautiful State | pkconsciousness
+- URL: https://www.youtube.com/watch?v=Ejcq9mNGJk0
+- Speaker: Sri Preethaji & Sri Krishnaji

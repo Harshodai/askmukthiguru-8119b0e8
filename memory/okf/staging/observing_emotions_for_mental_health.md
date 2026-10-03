@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Observing Emotions for Mental Health"
-source: "YouTube https://www.youtube.com/watch?v=B8wapoLAu84"
+source: "https://www.youtube.com/watch?v=B8wapoLAu84"
 video_id: B8wapoLAu84
 tags: [emotions, mental health, observation, transformation]
 teacher: "both"

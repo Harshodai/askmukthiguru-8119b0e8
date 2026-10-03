@@ -1,31 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=Ejcq9mNGJk0
-tags:
-- intuition
-- beautiful state
-- consciousness
-- sri preethaji
-- compassion
-teacher: sri-preethaji
-title: The Power of Intuition and a Beautiful State
+title: The Power Of Intuition And A Beautiful State
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=Ejcq9mNGJk0
 video_id: Ejcq9mNGJk0
+tags:
+- oneness
+- teaching
 ---
-# The Power of Intuition and a Beautiful State
+# The Power Of Intuition And A Beautiful State
 
+## Verbatim Discourse Excerpts
+Sri Preethaji clearly summarized the essential elements of her message and rounded off the interview by guiding him through a powerful meditation. Separation is the problem of the world. The solution is a Beautiful State. Why do we choose to suffer? How do we slow down in a world that is moving so fast? The worldwide meeting on human values is an organization created as a podium for dialogue in the transition phase to the awakening of consciousness with the goal of creating partnerships, sharing ideas, and presenting new models that will facilitate unity and peace in the world.
 
-## Summary
-This teaching highlights the power of intuition and the importance of cultivating a "Beautiful State" for happiness and abundance. It suggests that embracing a more inclusive and connected approach to leadership and personal growth, inspired by consciousness and compassion, can resonate deeply across various sectors of society.
+Kerwin Ray, a businessman, investor, strategic advisor, author and international speaker, talked with Sri Preethaji on his new podcast, Unstoppable. He interviewed Sri Preethaji on The Power of Intuition. It becomes a reality. It's not like about trying to do something that they're not knowing what they're doing. But they actually know that this part of the brain, actually the limbic system gets shut down.
 
 ## Key Teachings
-- Freida G's interview with Kerwin Rey on the power of intuition demonstrates how intuition "becomes a reality" and is not merely an attempt to do something. (Unknown Channel)
-- Tapping into "beautiful parts of the brain" through meditation can lead to happiness and abundance. (Unknown Channel)
-- The message on the importance of a "Beautiful State" and compassion for unity and peace has inspired leaders and students globally to embrace inclusive and connected approaches. (Unknown Channel)
+- He interviewed Sri Preethaji on The Power of Intuition. — Sri Preethaji & Sri Krishnaji
+- Graduate students who are doing their financial MBA learned from Sri Preethaji the massive impact they can have on others by living in a Beautiful State of consciousness. — Sri Preethaji & Sri Krishnaji
+- According to Sri Preethaji, while a mediocre life can be lived with a purpose that is contrived, a great life, a great career, or a great relationship can only happen with a purpose that unveils itself when one is in a Beautiful State of consciousness. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "He interviewed Freida G on the power of intuition. It becomes a reality." — Unknown Channel
-
-## Related Concepts
-- Beautiful State: A state of being that promotes happiness and abundance, achieved through practices like meditation and fostering compassion.
-- intuition: The power to understand something immediately, without the need for conscious reasoning.
-- compassion: Sympathetic pity and concern for the sufferings or misfortunes of others.
+## Source Context
+- Video: Preethaji | Beautiful State | pkconsciousness
+- URL: https://www.youtube.com/watch?v=Ejcq9mNGJk0
+- Speaker: Sri Preethaji & Sri Krishnaji

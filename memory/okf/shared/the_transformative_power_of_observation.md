@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Transformative Power of Observation"
-source: "YouTube https://www.youtube.com/watch?v=jW3JDLY0cDA"
+source: "https://www.youtube.com/watch?v=jW3JDLY0cDA"
 video_id: jW3JDLY0cDA
 tags: [observation, spiritual growth, thoughts, habit]
 teacher: "both"
@@ -21,7 +21,7 @@ The text highlights the importance of observing one's thoughts and the force of 
 - Rising from difficult mental states and living a life of purpose and love is encouraged. (Unknown speaker)
 
 ## Quotes
-> "The speaker suggests observing the force of habit and listening to their own thoughts, urging them not to believe in their own thoughts as they are merely a liar." — Unknown speaker
+> "Observe the force of habit. Listen to me, pushing you to destruction. But don't believe your thoughts. For your mind is but a liar." — Unknown speaker
 
 ## Related Concepts
 - Observation: a practice that involves simply noticing and acknowledging one's thoughts and emotions without judgment. It is the act of paying attention to and examining something, and it is also the practice of Observation and Spiritual Insight, which allows one to perceive beyond the senses, leading to direct, intuitive experiences like mystic visions.

@@ -1,27 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=GTLqZPVojgI
-tags:
-- self-improvement
-- personal growth
-- reflection
-- goals
-teacher: sri-preethaji
-title: Envisioning a New Self Across Life's Spheres
-type: reflection
+title: Envisioning A New Self Across Life S Spheres
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=GTLqZPVojgI
 video_id: GTLqZPVojgI
+tags:
+- oneness
+- teaching
 ---
-# Envisioning a New Self Across Life's Spheres
+# Envisioning A New Self Across Life S Spheres
 
+## Verbatim Discourse Excerpts
+What is the new state of being you want to nurture? What is the new life you want to create? Write to me and I will bless you to become the new you and carve a new year. This coming sky is about a new you entering a new year. So who or what is the new you envision in the six key spheres of your life? Physically, who is the new you? Emotionally, who is the new you?
 
-## Summary
-The speaker invites listeners to reflect on and envision a new self across six key spheres of life: physically, emotionally, intellectually, professionally, socially, and spiritually. This process is presented as a foundational step for personal growth and self-improvement, encouraging individuals to consider their aspirations in each area before seeking further guidance.
+Two, a magnificent state of consciousness. Three, and most crucially, a community of friends who will continually help you live in a great state and rise towards manifesting your vision. The old you is written on stone. The future you is born of several decisions and innumerable responses you give to life. A new you means a new body and health full of vigor and vitality.
 
 ## Key Teachings
-- The importance of personal growth and self-improvement is emphasized.
-- Listeners are encouraged to consider their goals and aspirations in various life spheres.
-- Reflection on a "new self" is a prerequisite for receiving specific advice on manifestation.
+- So who or what is the new you envision in the six key spheres of your life? — Sri Preethaji & Sri Krishnaji
+- A new you means new life poised with joy at work. — Sri Preethaji & Sri Krishnaji
+- What is the new life you want to create? — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Community: A group of people living in a particular area or sharing common interests.
-- family: A generic term used in the text.
-- Friends: A group that can be impacted by one's state.
+## Source Context
+- Video: Sri Krishnaji & Youth
+- URL: https://www.youtube.com/watch?v=GTLqZPVojgI
+- Speaker: Sri Preethaji & Sri Krishnaji

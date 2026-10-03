@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Transient Nature of Individual Awareness and the Eternal Consciousness"
-source: "YouTube https://www.youtube.com/watch?v=w1gF90_cBl4"
+source: "https://www.youtube.com/watch?v=w1gF90_cBl4"
 video_id: w1gF90_cBl4
 tags: [consciousness, suffering, ego, existence]
 teacher: "both"

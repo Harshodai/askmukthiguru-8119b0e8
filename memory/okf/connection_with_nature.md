@@ -1,36 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=uAPvGyjkrB8
-tags:
-- nature
-- healing
-- depression
-- consciousness
-- observation
-teacher: both
-title: Connection with Nature
+title: Connection With Nature
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=uAPvGyjkrB8
 video_id: uAPvGyjkrB8
+tags:
+- oneness
+- teaching
 ---
-# Connection with Nature
+# Connection With Nature
 
+## Verbatim Discourse Excerpts
+You would slowly begin to move away from that huge wall of separation that you've constructed between you and nature and life itself allowing you to have this experience of connection with nature and it's incredibly healing. So it'll be good if anybody who is showing signs of depression or anybody who is depressed already to kind of equip the mind to give this support to the mind in order to fight depression.
 
-## Summary
-Connection with Nature is a practice that involves appreciating the importance of forests and birds, and observing the natural environment to awaken sensitivity and achieve peace. It is presented as a vital spiritual practice for healing the mind, body, and consciousness from conditions like depression. The power of observation in nature can lead to a deeper connection and awareness, and the natural environment is described as having healing properties that are essential for connection with life.
+Then the other thing that I would definitely want people to do is to be in touch with nature. It allows the body to get into a place of harmony and right now we have seen so much of science that nature heals and unfortunately we have so much of nature but we live so disconnected from nature. We don't really feel or take in being part of it. We feel ourselves being separate from it.
 
 ## Key Teachings
-- Connection with Nature is a practice taught to villagers to appreciate the importance of forests and birds.
-- The natural environment, including trees, leaves, flowers, and clouds, can be observed and connected with during practices like the Peace Walk to foster a sense of peace.
-- Nature is described as having healing properties and is essential for connection with life.
-- Sensitivity is awakened during peace meditation through connection with nature, alongside kindness to animals and living beings.
-- The power of observation is discussed in relation to nature, suggesting that understanding and appreciating the natural world can lead to a deeper connection and awareness.
+- You would slowly begin to move away from that huge wall of separation that you've constructed between you and nature and life itself allowing you to have this experience of connection with nature and it's incredibly healing. — Sri Preethaji & Sri Krishnaji
+- If you're alone walking in nature, there is very little chance of you surviving in the wild. — Sri Preethaji & Sri Krishnaji
+- Then the other thing that I would definitely want people to do is to be in touch with nature. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "Nature is described as something the speaker felt one with, where the self dissolved during the experience."
-> "Nature is described as having healing properties and is essential for connection with life."
-
-## Related Concepts
-- Deeksha (practice): A spiritual practice involving the reception of energy and guidance from a spiritual teacher, which facilitates an enlightened state, divine intervention, and the cleansing of consciousness.
-- Stressful State (concept): A condition characterized by feelings of anxiety, tension, or overwhelm, which can be addressed through practices like Connection with Nature.
-- Nature (concept): Encompasses the natural world, including plants, animals, and the environment, and is also associated with the existence and consciousness development of individuals.
-- Peace Walk (practice): A practice involving observation of the natural environment.
-- Mukthi Gurus (other): Spiritual guides who provide enlightenment and guidance.
+## Source Context
+- Video: How to conquer depression?
+- URL: https://www.youtube.com/watch?v=uAPvGyjkrB8
+- Speaker: Sri Preethaji & Sri Krishnaji

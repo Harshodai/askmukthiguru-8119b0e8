@@ -28,7 +28,9 @@ def _fake_find_verbatim(verbatim_substring: str):
 
 
 def test_strip_fabricated_quotes_removes_not_found_keeps_verbatim(monkeypatch):
-    monkeypatch.setattr(extractor, "find_verbatim", _fake_find_verbatim("genuinely spoke these words"))
+    monkeypatch.setattr(
+        extractor, "find_verbatim", _fake_find_verbatim("genuinely spoke these words")
+    )
     body = (
         "## Quotes\n"
         '> "The teacher genuinely spoke these words during the discourse today."\n\n'
@@ -45,7 +47,9 @@ def test_strip_fabricated_quotes_removes_not_found_keeps_verbatim(monkeypatch):
 def test_partial_match_is_dropped_not_shown_as_teacher_words(monkeypatch):
     """A ~70%-overlap paraphrase is not the teacher's exact words."""
     monkeypatch.setattr(
-        extractor, "find_verbatim", lambda quote, video_id=None, **kw: {"status": "partial", "score": 0.8}
+        extractor,
+        "find_verbatim",
+        lambda quote, video_id=None, **kw: {"status": "partial", "score": 0.8},
     )
     body = '> "The teacher almost said these exact words during the long discourse."\n'
     cleaned, removed = extractor._strip_fabricated_quotes(body, video_id="abc123")
@@ -66,7 +70,13 @@ def test_short_quotes_are_never_checked(monkeypatch):
 
     def _fail_if_called(quote, video_id=None, **kwargs):
         calls.append(quote)
-        return {"status": "not_found", "video_id": video_id, "start": None, "end": None, "score": 0.0}
+        return {
+            "status": "not_found",
+            "video_id": video_id,
+            "start": None,
+            "end": None,
+            "score": 0.0,
+        }
 
     monkeypatch.setattr(extractor, "find_verbatim", _fail_if_called)
     body = '## Quotes\n> "the Beautiful State"\n'
@@ -77,7 +87,9 @@ def test_short_quotes_are_never_checked(monkeypatch):
 
 
 def test_write_okf_entry_end_to_end_strips_fabricated_quote(tmp_path, monkeypatch):
-    monkeypatch.setattr(extractor, "find_verbatim", _fake_find_verbatim("genuinely spoke these words"))
+    monkeypatch.setattr(
+        extractor, "find_verbatim", _fake_find_verbatim("genuinely spoke these words")
+    )
     body = (
         "## Quotes\n"
         '> "The teacher genuinely spoke these words during the discourse today."\n\n'

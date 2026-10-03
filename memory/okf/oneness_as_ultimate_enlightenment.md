@@ -1,31 +1,26 @@
 ---
-source: https://www.youtube.com/watch?v=NWrTrDIQ9XE
-tags:
-- onenessenlightenmentunityinterconnectedness
-teacher: sri-krishnaji
-title: Oneness as Ultimate Enlightenment
+title: Oneness As Ultimate Enlightenment
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=NWrTrDIQ9XE
 video_id: NWrTrDIQ9XE
+tags:
+- oneness
+- teaching
 ---
-# Oneness as Ultimate Enlightenment
+# Oneness As Ultimate Enlightenment
 
+## Verbatim Discourse Excerpts
+Oneness is the ultimate enlightened state that any human being on this planet can experience. There is no greater state than Oneness. When you are in that state of Oneness, the illusory eye, that is you, is gone. And what is there is everything, this entire universe. This entire universe today's science tells us is Oneness. We are all interconnected, we are all connected, not just to ourselves but to our whole circle.
 
-## Summary
-Oneness is the ultimate enlightened state that any human being can experience. It is the highest state and the interconnectedness of all beings and the universe. When in Oneness, the illusory "I" is transcended, leading to profound understanding, peace, and a state of consciousness free from suffering.
+We are connected to the physical planet, we are connected to the stars, the galaxies, everything. We are connected to this whole universe. In fact, so many metals and chemicals in our body that are present are present in many planets, are present in the moon. So we are physically connected and we are mystically connected, we are consciously connected.
 
 ## Key Teachings
-- **Oneness as Ultimate Enlightenment**: Oneness is the ultimate enlightened state that any human being can experience. It is the highest state and the interconnectedness of all beings and the universe. When in Oneness, the illusory "I" is transcended, leading to profound understanding, peace, and a state of consciousness free from suffering.
+- Oneness is the ultimate enlightened state that any human being on this planet can experience. — Sri Preethaji & Sri Krishnaji
+- When you are in that state of Oneness, the illusory eye, that is you, is gone. — Sri Preethaji & Sri Krishnaji
+- This entire universe today's science tells us is Oneness. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "Oneness is the ultimate enlightened state that any human being can experience. There is no greater state than Oneness." — Sri Krishnaji
-
-## Related Concepts
-- **Oneness**: The concept of Oneness emphasizes interconnectedness and unity, suggesting a state where all beings and the universe are seen as part of a single, interconnected whole.
-- **Enlightenment**: Enlightenment is a state of profound understanding characterized by a state of consciousness free from suffering, with intense awareness and no compulsive attachment to the past or future.
-- **Vasudhaiva Kutumakam**: Vasudhaiva Kutumakam is the theme for India's G20 presidency, emphasizing unity and oneness among nations.
-- **Ekam Mti**: Ekam Mti is an organization co-created by Guru Sri Priya G, promoting unity and oneness.
-- **Awakened Child**: An awakened child is one whose brain and nervous system is attuned to peace, whose heart naturally feels connection and love, and whose consciousness experiences a deep sense of Oneness.
-
----
-
-This teaching emphasizes the significance of Oneness as the ultimate enlightened state, highlighting its interconnectedness with other concepts like enlightenment and unity.
+## Source Context
+- Video: Unveil the Ultimate Enlightened State
+- URL: https://www.youtube.com/watch?v=NWrTrDIQ9XE
+- Speaker: Sri Preethaji & Sri Krishnaji

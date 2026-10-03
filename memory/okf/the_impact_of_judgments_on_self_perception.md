@@ -1,25 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=dqUq_a0DyLs
-tags:
-- observation
-- self-perception
-- judgment
-- parenting
-teacher: both
-title: The Impact of Judgments on Self-Perception
+title: The Impact Of Judgments On Self Perception
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=dqUq_a0DyLs
 video_id: dqUq_a0DyLs
+tags:
+- oneness
+- teaching
 ---
-# The Impact of Judgments on Self-Perception
+# The Impact Of Judgments On Self Perception
 
+## Verbatim Discourse Excerpts
+Shame around the body is one of the biggest reasons for depression today, in people of all age groups throughout the world. What do you say to your children about their appearance? What have you been telling them over the years? Both in moments of anger, in moments of fun and moments of love. To reflect on this is very important because your words and comments become your child's way of looking at herself or himself.
 
-## Summary
-This teaching highlights how judgments, particularly from parents, significantly impact a child's self-perception and body image. It emphasizes the prevalence of shame around the body and the need for a more respectful and loving family environment to foster positive self-esteem.
+We have to understand that we cannot find our happiness through perfecting our body appearance. We have to realize that physical beauty is not permanent and that human body is not static. This is the truth. We must teach our children to respect their bodies and learn to care for them. To help your child, you have to begin your journey with yourself. So I am leaving you with a question. What is your judgment of your body?
 
 ## Key Teachings
-- The impact of judgments on children's self-perception is significant. (Ekam / O&O Academy says)
-- Shame around the body is prevalent. (Ekam / O&O Academy says)
-- A shift towards a more respectful and loving family culture is needed to positively influence body image and overall self-esteem. (Ekam / O&O Academy says)
+- Shame around the body is one of the biggest reasons for depression today, in people of all age groups throughout the world. — Sri Preethaji & Sri Krishnaji
+- What do you say to your children about their appearance? — Sri Preethaji & Sri Krishnaji
+- What have you been telling them over the years? — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- The Power of Observation: a concept that emphasizes the importance of observing and analyzing situations.
+## Source Context
+- Video: Parents,help your child dissolve body issues |Evolution During Crisis -14 with Preethaji & Krishnaji
+- URL: https://www.youtube.com/watch?v=dqUq_a0DyLs
+- Speaker: Sri Preethaji & Sri Krishnaji

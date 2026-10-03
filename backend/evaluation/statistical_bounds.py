@@ -17,9 +17,10 @@ Mathematical Foundation:
 
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 import scipy.stats as stats
-from typing import Any
 
 
 def clopper_pearson_lower_bound(

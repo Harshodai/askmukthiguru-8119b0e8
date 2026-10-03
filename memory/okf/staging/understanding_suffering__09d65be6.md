@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Understanding Suffering"
-source: "YouTube https://www.youtube.com/watch?v=HELtP96Dd4w"
+source: "https://www.youtube.com/watch?v=HELtP96Dd4w"
 video_id: HELtP96Dd4w
 tags: [spiritual guidance, life philosophy, suffering]
 teacher: "both"

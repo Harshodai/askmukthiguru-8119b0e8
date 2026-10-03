@@ -1,26 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=1kS_mQaBLdg
-tags:
-- consciousness
-- selflessness
-- transformation
-teacher: both
-title: Expanding Consciousness to Impact Others
+title: Expanding Consciousness To Impact Others
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=1kS_mQaBLdg
 video_id: 1kS_mQaBLdg
+tags:
+- oneness
+- teaching
 ---
-# Expanding Consciousness to Impact Others
+# Expanding Consciousness To Impact Others
 
+## Verbatim Discourse Excerpts
+It's your consciousness impacting the people around you consciousness impacting your loved ones As you experience this transformation in your consciousness as your sense of self begins to expand to include others You no longer feel the other being separate from you And you are in a position to impact the other you are in a position to support the other When we grew up there are so many times so many instances in our childhood when we feel Can this person speak a little more kind?
 
-## Summary
-This teaching explains how expanding one's consciousness beyond a self-centered perspective allows for a transformative shift, enabling individuals to support and impact others rather than judging or analyzing them. This expansion leads to a feeling of unity, where others are no longer perceived as separate.
+Can a speech be a little more kind? Can he be a little more warm? Can she be a little more loving? But it did not happen then you couldn't change that person But now with your consciousness being transformed you would be able to create the change in the person Because you are not no longer in a position where you are sitting and judging the other Where you're sitting and analyzing the other But you're actually supporting the other with your arms because you have expanded Your sense is not limited to this body But your sense of self expands to include others and you're caring for the others You're supporting the others you impacting the others and you're transforming them
 
 ## Key Teachings
-- Expanding one's consciousness leads to a shift from a self-centered to a selfless perspective. (Unknown speaker)
-- This expansion allows one to impact and support others, rather than judging or analyzing them. (Unknown speaker)
-- As consciousness expands, one no longer feels the other as separate. (Unknown speaker)
-- This shift in perspective is crucial for creating positive changes in the lives of others. (Unknown speaker)
+- It's your consciousness impacting the people around you consciousness impacting your loved ones As you experience this transformation in your consciousness as your sense of self begins to expand to include others You no longer feel the other being separate from you And you are in a position to impact the other you are in a position to support the other When we grew up there are so many times so many instances in our childhood when we feel Can this person speak a little more kind? — Sri Preethaji & Sri Krishnaji
+- But it did not happen then you couldn't change that person But now with your consciousness being transformed you would be able to create the change in the person Because you are not no longer in a position where you are sitting and judging the other Where you're sitting and analyzing the other But you're actually supporting the other with your arms because you have expanded Your sense is not limited to this body But your sense of self expands to include others and you're caring for the others You're supporting the others you impacting the others and you're transforming them — Sri Preethaji & Sri Krishnaji
+- Can a speech be a little more kind? — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Consciousness: The interconnected state that binds individuals together, influencing each other's destinies, and characterized by the state of being aware of one's thoughts, emotions, and surroundings.
-- I-Consciousness: The sense of self, which can be experienced as separate and disconnected or expanded to include others.
+## Source Context
+- Video: How Can You Bring Positive Changes In Others?
+- URL: https://www.youtube.com/watch?v=1kS_mQaBLdg
+- Speaker: Sri Preethaji & Sri Krishnaji

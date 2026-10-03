@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Enlightenment and Freedom"
-source: "YouTube https://www.youtube.com/watch?v=aJIunwxx3NI"
+source: "https://www.youtube.com/watch?v=aJIunwxx3NI"
 video_id: aJIunwxx3NI
 tags: [enlightenment, freedom, suffering, awareness, consciousness, presence]
 teacher: "both"

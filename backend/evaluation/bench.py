@@ -170,7 +170,8 @@ def _is_retryable_transport_error(exc: BaseException) -> bool:
     if isinstance(exc, httpx.ReadTimeout):
         return False
     return isinstance(
-        exc, (httpx.TimeoutException, httpx.ReadError, httpx.ConnectError, httpx.RemoteProtocolError)
+        exc,
+        (httpx.TimeoutException, httpx.ReadError, httpx.ConnectError, httpx.RemoteProtocolError),
     )
 
 
@@ -1324,7 +1325,9 @@ def aggregate(rows: list[EvalRow], mode: str, sources: list[str], started_at: st
         # `system_error` bool, which a transport failure can never set. It is
         # now the same unified error_rate reported below.
         system_error_rate=error_rate,
-        hallucination_flag_rate=round(sum(bool(r.hallucination_flag) for r in success_rows) / n_ok, 4)
+        hallucination_flag_rate=round(
+            sum(bool(r.hallucination_flag) for r in success_rows) / n_ok, 4
+        )
         if n_ok
         else 0.0,
         # An UNMEASURED row is neither clean nor misattributed -- counting it
@@ -1555,7 +1558,11 @@ async def run_e2e(
                 + (f"  error_class={row.error_class}" if row.error_class else "")
                 + ("  possible_node_error" if row.possible_node_error else "")
                 + ("  zero_retrieval" if row.zero_retrieval_canary else "")
-                + (f"  misattribution={row.misattribution_flags}" if row.misattribution_flags else ""),
+                + (
+                    f"  misattribution={row.misattribution_flags}"
+                    if row.misattribution_flags
+                    else ""
+                ),
                 flush=True,
             )
             # Incremental save so a killed/interrupted run still yields real data.
@@ -1670,8 +1677,13 @@ def print_summary(report: EvalReport) -> None:
     if report.error_breakdown:
         for cls, count in sorted(report.error_breakdown.items(), key=lambda kv: -kv[1]):
             print(f"  {cls:<16} {count}")
-    print(f"VALID                        {report.valid}" + (f"  -- {report.invalid_reason}" if not report.valid else ""))
-    print(f"refusal_rate                 {report.refusal_rate:.0%}  (over successful responses only)")
+    print(
+        f"VALID                        {report.valid}"
+        + (f"  -- {report.invalid_reason}" if not report.valid else "")
+    )
+    print(
+        f"refusal_rate                 {report.refusal_rate:.0%}  (over successful responses only)"
+    )
     print(f"must_mention coverage (ans)  {report.must_mention_coverage_answered:.2f}")
     print(f"must_mention coverage (all)  {report.must_mention_coverage_all:.2f}")
     print(f"doctrinal contradictions     {report.contradiction_count}/{report.total_questions}")
@@ -1740,7 +1752,10 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument("--endpoint", default=settings.benchmark_endpoint)
     p.add_argument("--pace-seconds", type=float, default=7.0)
     p.add_argument(
-        "--concurrency", type=int, default=4, help="Bounded concurrent in-flight requests (default 4)."
+        "--concurrency",
+        type=int,
+        default=4,
+        help="Bounded concurrent in-flight requests (default 4).",
     )
     p.add_argument(
         "--max-attempts",
@@ -1790,7 +1805,10 @@ def main() -> int:
 
     if args.mode == "rescore":
         if not args.report:
-            print("--mode rescore requires --report <path to existing bench_e2e*.json>", file=sys.stderr)
+            print(
+                "--mode rescore requires --report <path to existing bench_e2e*.json>",
+                file=sys.stderr,
+            )
             return 2
         report_path = Path(args.report)
         report = rescore_report(report_path)

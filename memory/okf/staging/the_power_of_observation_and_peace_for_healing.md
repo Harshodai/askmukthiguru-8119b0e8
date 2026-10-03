@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Power of Observation and Peace for Healing"
-source: "YouTube https://www.youtube.com/watch?v=F_yRNKupugs"
+source: "https://www.youtube.com/watch?v=F_yRNKupugs"
 video_id: F_yRNKupugs
 tags: [healing, peace, observation, body]
 teacher: "both"

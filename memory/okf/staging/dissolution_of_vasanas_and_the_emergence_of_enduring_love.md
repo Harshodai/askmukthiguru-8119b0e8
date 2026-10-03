@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Dissolution of Vasanas and the Emergence of Enduring Love"
-source: "YouTube https://www.youtube.com/watch?v=NJQ573JDmAg"
+source: "https://www.youtube.com/watch?v=NJQ573JDmAg"
 video_id: NJQ573JDmAg
 tags: [vasanas, ego, relationship, love, Ekam process]
 teacher: "both"

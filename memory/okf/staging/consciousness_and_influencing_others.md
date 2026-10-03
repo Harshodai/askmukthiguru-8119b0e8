@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Consciousness and Influencing Others"
-source: "YouTube https://www.youtube.com/watch?v=1kS_mQaBLdg"
+source: "https://www.youtube.com/watch?v=1kS_mQaBLdg"
 video_id: 1kS_mQaBLdg
 tags: [consciousness, influence, transformation]
 teacher: "sri-preethaji"

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Maintaining Peace and Love During Suffering"
-source: "YouTube https://www.youtube.com/watch?v=E5FJYDruwjs"
+source: "https://www.youtube.com/watch?v=E5FJYDruwjs"
 video_id: E5FJYDruwjs
 tags: [suffering, peace, love, crisis, connection]
 teacher: "both"

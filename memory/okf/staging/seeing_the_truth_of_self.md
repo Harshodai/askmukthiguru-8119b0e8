@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "Seeing the Truth of Self"
-source: "YouTube https://www.youtube.com/watch?v=PnvNqgTyIFI"
+source: "https://www.youtube.com/watch?v=PnvNqgTyIFI"
 video_id: PnvNqgTyIFI
 tags: [truth, self-discovery, transformation]
 teacher: "both"

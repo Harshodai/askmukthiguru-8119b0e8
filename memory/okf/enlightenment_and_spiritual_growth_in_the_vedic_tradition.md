@@ -1,32 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=qtG8c2zhn7A
-tags:
-- enlightenment
-- spiritual growth
-- Vedic tradition
-- Brahma Sutras
-teacher: both
-title: Enlightenment and Spiritual Growth in the Vedic Tradition
+title: Enlightenment And Spiritual Growth In The Vedic Tradition
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=qtG8c2zhn7A
 video_id: qtG8c2zhn7A
+tags:
+- oneness
+- teaching
 ---
-# Enlightenment and Spiritual Growth in the Vedic Tradition
+# Enlightenment And Spiritual Growth In The Vedic Tradition
 
+## Verbatim Discourse Excerpts
+Of course, it does not mean that there are only 134 enlightened states of consciousness. There are innumerable states, and the Vedic tradition is open to acknowledging every enlightened state of consciousness that may arise in anyone at any time. As it is said, "Ananta Veda", which means Veda is endless. They did not say that only experiences that happen until this period of time are accepted and the rest are fake. The Vedic tradition never ended at home, so long as human beings continue to experience enlightened states of consciousness. The Vedic tradition lives on.
 
-## Summary
-The Vedic tradition, as evidenced by the compilation of the Brahma Sutras by Sage Vyasa, recognizes and celebrates the potential for spiritual growth and enlightened states of consciousness in individuals.
+Guru Purnima is an ancient tradition. It is celebrated in the honor of Sage Vyasa, who's supposed to have completed the compilation of Brahma Sutras on that specific full moon day in the lunar calendar, more than three thousand years ago.
 
 ## Key Teachings
-- The compilation of the Brahma Sutras by Sage Vyasa is significant for understanding the potential for spiritual growth and the celebration of enlightenment. (Unknown speaker)
-- Sage Vyasa is honored for his contributions to the Vedic tradition. (Unknown speaker)
-- The Vedic tradition is open to acknowledging and celebrating every enlightened state of consciousness that arises in individuals. (Unknown speaker)
-- The potential for enlightenment exists in all individuals. (Unknown speaker)
+- There are innumerable states, and the Vedic tradition is open to acknowledging every enlightened state of consciousness that may arise in anyone at any time. — Sri Preethaji & Sri Krishnaji
+- The Vedic tradition never ended at home, so long as human beings continue to experience enlightened states of consciousness. — Sri Preethaji & Sri Krishnaji
+- As I supposed to have gathered the enlightenment experiences of numerous sages and compiled them into 134 grammar sutras. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-No direct quotes related to EGO and Spiritual Growth are available in the provided transcript.
-
-## Related Concepts
-- Deeksha: a spiritual practice that involves receiving energy and guidance from a spiritual teacher, facilitating an enlightened state, receiving divine intervention and cleansing consciousness.
-- Divine: a concept representing the ultimate reality or the source of all existence, central to Hindu thought.
-- Mukthi Gurus: spiritual guides who provide enlightenment and guidance.
-- Self: the individual's identity, beliefs, and experiences, encompassing consciousness or ego, and connected to identity, consciousness, and present-moment awareness.
+## Source Context
+- Video: qtG8c2zhn7A
+- URL: https://www.youtube.com/watch?v=qtG8c2zhn7A
+- Speaker: Sri Preethaji & Sri Krishnaji

@@ -1,9 +1,10 @@
 """Unit tests for BenchmarkSessionPool (Invariant B1)."""
 
-import asyncio
-import pytest
-import httpx
 from unittest.mock import AsyncMock, MagicMock
+
+import httpx
+import pytest
+
 from evaluation.session_pool import BenchmarkSessionPool
 
 
@@ -13,7 +14,10 @@ async def test_session_pool_warmup_and_lease():
     mock_client = AsyncMock()
     mock_resp = MagicMock()
     mock_resp.status_code = 200
-    mock_resp.json.return_value = {"token": "test_hmac_token_12345", "session_id": "test_hmac_token_12345"}
+    mock_resp.json.return_value = {
+        "token": "test_hmac_token_12345",
+        "session_id": "test_hmac_token_12345",
+    }
     mock_resp.raise_for_status = MagicMock()
     mock_client.post.return_value = mock_resp
 
@@ -69,7 +73,9 @@ def _resp(status: int, json_body: dict | None = None) -> MagicMock:
 async def test_warm_up_429_raises_instead_of_filling_a_short_pool():
     mock_client = AsyncMock()
     mock_client.post.return_value = _resp(429)
-    pool = BenchmarkSessionPool("http://localhost:8000", pool_size=2, client=mock_client, warmup_delay_s=0)
+    pool = BenchmarkSessionPool(
+        "http://localhost:8000", pool_size=2, client=mock_client, warmup_delay_s=0
+    )
 
     with pytest.raises(httpx.HTTPStatusError):
         await pool.warm_up()
@@ -97,7 +103,9 @@ async def test_bench_mints_a_fresh_session_per_question():
         await _ask_anonymous(mock_client, "http://localhost:8000", "q?")
 
     chat_sessions = [
-        c.kwargs["json"]["session_id"] for c in mock_client.post.call_args_list if c.args[0].endswith("/api/chat")
+        c.kwargs["json"]["session_id"]
+        for c in mock_client.post.call_args_list
+        if c.args[0].endswith("/api/chat")
     ]
     assert chat_sessions == ["t1", "t2", "t3"]
 
@@ -125,6 +133,8 @@ async def test_bench_never_sleeps_for_a_day_on_a_quota_429(monkeypatch):
     assert out["_http"] == 429
     assert all(s <= 600 for s in slept), slept
 
+
 if __name__ == "__main__":
     import pytest
+
     raise SystemExit(pytest.main([__file__, "-v"]))

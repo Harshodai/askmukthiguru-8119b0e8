@@ -1,34 +1,25 @@
 ---
+title: Internal Mantra Chanting
 type: practice
-title: "Internal Mantra Chanting"
-source: "YouTube https://www.youtube.com/watch?v=zO8tQkjCpyc"
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=zO8tQkjCpyc
 video_id: zO8tQkjCpyc
-tags: [soul sync, mantra, meditation, breathing]
-teacher: "both"
+tags:
+- None
 ---
-
 # Internal Mantra Chanting
 
-## Summary
-Internal mantra chanting is the fourth phase of the Soul Sync meditation, following
-the observation of the natural pause between breaths. In this phase the practitioner
-moves into internally chanting a mantra while exhaling, as part of a structured
-eight-breath sequence.
+## Verbatim Discourse Excerpts
+It is a very minute pause. Bring attention to that point where inhalation ends and exhalation begins. Again, you will keep count of your breaths by touching your fingertips. You will observe eight breath pauses in this manner. Move into the fourth phase of the soul sync. In this stage, you will internally chant the mantra. Do it very slowly for eight times.
+
+Sit erect with your hands resting on your thighs and your palms facing upwards. The tip of your thumb touches the tip of your index finger. We will begin with observation. Breathe slowly, totally present to every inhalation and exhalation. For every breath you take, touch your thumb to the tip of one finger. So for the first breath, touch the thumb and the index finger of both your hands.
 
 ## Key Teachings
-- The practice is the fourth phase of the Soul Sync meditation, following the
-  observation of the natural pause between breaths.
-- It involves internally chanting a mantra while exhaling.
-- It is part of a structured eight-breath sequence that guides the practitioner
-  through progressive stages of meditation.
+- In this stage, you will internally chant the mantra. — Sri Preethaji & Sri Krishnaji
+- Sit erect with your hands resting on your thighs and your palms facing upwards. — Sri Preethaji & Sri Krishnaji
+- The tip of your thumb touches the tip of your index finger. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Soul Sync: a structured meditation practice built on an eight-breath sequence.
-
-## Provenance note
-Every procedural claim above was checked against the source discourse
-(`zO8tQkjCpyc`) in the corpus on 2026-09-18: "eight breath", "fourth phase",
-"mantra while exhaling" and "natural pause between breaths" are all present in
-the transcript. No quotation is included because no verbatim sentence was
-extracted cleanly — a practice description is safer with no quote than with an
-approximate one.
+## Source Context
+- Video: Sri Preethaji & Sri  Krishnaji's - The Great Soul Sync Meditation | pkconsciousness
+- URL: https://www.youtube.com/watch?v=zO8tQkjCpyc
+- Speaker: Sri Preethaji & Sri Krishnaji

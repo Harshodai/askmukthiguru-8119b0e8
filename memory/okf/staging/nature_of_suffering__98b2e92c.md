@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Nature of Suffering"
-source: "YouTube https://www.youtube.com/watch?v=HELtP96Dd4w"
+source: "https://www.youtube.com/watch?v=HELtP96Dd4w"
 video_id: HELtP96Dd4w
 tags: [sri preethaji, truth of suffering, sri krishnaji]
 teacher: "sri-preethaji"

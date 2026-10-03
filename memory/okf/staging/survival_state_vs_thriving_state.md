@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Survival State vs. Thriving State"
-source: "YouTube https://www.youtube.com/watch?v=F_yRNKupugs"
+source: "https://www.youtube.com/watch?v=F_yRNKupugs"
 video_id: F_yRNKupugs
 tags: [survival, thriving, health, peace, balance]
 teacher: "both"

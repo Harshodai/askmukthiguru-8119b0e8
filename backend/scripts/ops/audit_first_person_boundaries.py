@@ -72,19 +72,25 @@ def _from_collection(name: str) -> list[dict[str, Any]]:
 
     from app.config import settings
 
-    client = QdrantClient(url=settings.qdrant_url, api_key=os.getenv("QDRANT_API_KEY") or None, timeout=30)
+    client = QdrantClient(
+        url=settings.qdrant_url, api_key=os.getenv("QDRANT_API_KEY") or None, timeout=30
+    )
     out: list[dict[str, Any]] = []
     offset = None
     while True:
-        points, offset = client.scroll(name, limit=256, offset=offset, with_payload=True, with_vectors=False)
+        points, offset = client.scroll(
+            name, limit=256, offset=offset, with_payload=True, with_vectors=False
+        )
         for p in points:
             pl = p.payload or {}
-            out.append({
-                "video_id": pl.get("video_id", ""),
-                "speaker": pl.get("speaker", ""),
-                "verbatim_text": pl.get("verbatim_text", ""),
-                "duration_s": (pl.get("end_ms", 0) - pl.get("start_ms", 0)) / 1000.0,
-            })
+            out.append(
+                {
+                    "video_id": pl.get("video_id", ""),
+                    "speaker": pl.get("speaker", ""),
+                    "verbatim_text": pl.get("verbatim_text", ""),
+                    "duration_s": (pl.get("end_ms", 0) - pl.get("start_ms", 0)) / 1000.0,
+                }
+            )
         if offset is None:
             return out
 
@@ -97,21 +103,27 @@ def _from_passages(dirs: list[Path], min_duration_s: float) -> list[dict[str, An
             for c in data["clips"] if isinstance(data, dict) else data:
                 dur = c["end"] - c["start"]
                 if dur >= min_duration_s:
-                    out.append({
-                        "video_id": c.get("video_id", f.stem),
-                        "speaker": c.get("speaker", ""),
-                        "verbatim_text": c.get("verbatim_text", ""),
-                        "duration_s": dur,
-                    })
+                    out.append(
+                        {
+                            "video_id": c.get("video_id", f.stem),
+                            "speaker": c.get("speaker", ""),
+                            "verbatim_text": c.get("verbatim_text", ""),
+                            "duration_s": dur,
+                        }
+                    )
     return out
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     src = ap.add_mutually_exclusive_group(required=True)
     src.add_argument("--collection")
     src.add_argument("--passages-dir", type=Path, action="append", dest="passages_dirs")
-    ap.add_argument("--min-duration-s", type=float, default=8.0, help="passages only; v5 build floor was 8.0")
+    ap.add_argument(
+        "--min-duration-s", type=float, default=8.0, help="passages only; v5 build floor was 8.0"
+    )
     ap.add_argument("--out", type=Path, default=None)
     args = ap.parse_args(argv)
 
@@ -126,7 +138,13 @@ def main(argv: list[str] | None = None) -> int:
         "detector": "ingest.verbatim.boundaries.boundary_defects",
         "summary": summarize(clips),
     }
-    out = args.out or _REPO / "docs" / "evidence" / f"first_person_boundaries_{source}_{dt.date.today().isoformat()}.json"
+    out = (
+        args.out
+        or _REPO
+        / "docs"
+        / "evidence"
+        / f"first_person_boundaries_{source}_{dt.date.today().isoformat()}.json"
+    )
     out.write_text(json.dumps(report, indent=2, ensure_ascii=False))
     s = report["summary"]
     print(

@@ -1,24 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=Gt3o8lcbcII
-tags:
-- suffering
-- happiness
-- external goals
-- culture
-teacher: both
-title: The Cultural Belief in External Happiness
+title: The Cultural Belief In External Happiness
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=Gt3o8lcbcII
 video_id: Gt3o8lcbcII
+tags:
+- oneness
+- teaching
 ---
-# The Cultural Belief in External Happiness
+# The Cultural Belief In External Happiness
 
+## Verbatim Discourse Excerpts
+We're a culture which believes. We are a civilization which believes that we need to bring about a change in the external environment in order to become happy. There is this great tendency to believe that once you achieve one fine day, once you achieve whatever your level of achievement or goal is, then you would find happiness. That's all we have been taught to think: that you strive very hard so that you will be able to achieve one fine day and that fine day you will become happy.
 
-## Summary
-The provided text highlights a cultural and civilizational belief that happiness is achieved by bringing about change in external circumstances. This contrasts with the idea of nurturing an internal "Beautiful State" and living in harmony.
+The sad part of it is you have ingrained your being into sadness, into suffering. As in this entire process of achievement - and even if you achieve by chance - you do achieve to some level - you become an individual incapable of experiencing happiness or joy. What we need to do is nurture a beautiful state, be an individual who's capable of happiness and joy in life. The entire process of climb that you're having in life would be more peaceful, more harmonious, more joyful, and much more easier because you're not struggling inward, there is no conflict in words, there is so much of energy, there is so much of clear thinking that you can bring to life, to whatever you're doing. Achievement is easy, the climb is beautiful, and you also enjoy and experience life in the entire process.
 
 ## Key Teachings
-- "We're a culture which believes. We are a civilization which believes that we need to bring about a change in the external" — Unknown Channel
+- We are a civilization which believes that we need to bring about a change in the external environment in order to become happy. — Sri Preethaji & Sri Krishnaji
+- There is this great tendency to believe that once you achieve one fine day, once you achieve whatever your level of achievement or goal is, then you would find happiness. — Sri Preethaji & Sri Krishnaji
+- As in this entire process of achievement - and even if you achieve by chance - you do achieve to some level - you become an individual incapable of experiencing happiness or joy. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Suffering: Suffering is a multifaceted concept that encompasses various aspects of human experience. It occurs when individuals are stuck in conflict and ideals, and can also be a state of consciousness characterized by intense awareness and a lack of compulsive attachment, which can be weeded out through enlightenment. Suffering is also described as a state of unhappiness and pain that can be inflicted on oneself or others, and can be experienced as emotional or physical pain. This pain can be overcome by connecting with the universal intelligence, allowing individuals to move beyond it and create a positive impact on others. Furthermore, suffering is a problem that individuals can live free of with a spiritual vision, and it refers to the experience of pain, distress, or discomfort in one's life. Interestingly, some perspectives suggest that suffering is something that consciousness is untouched by, allowing for bliss.
-- Suffering States: Suffering States refer to emotional states such as regret, sadness, and loneliness that disconnect individuals from life. Suffering States refer to the downward spiral of chaos and problems caused by accumulated poisons and limiting beliefs.
+## Source Context
+- Video: Gt3o8lcbcII
+- URL: https://www.youtube.com/watch?v=Gt3o8lcbcII
+- Speaker: Sri Preethaji & Sri Krishnaji

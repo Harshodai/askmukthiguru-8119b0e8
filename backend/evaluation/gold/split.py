@@ -16,7 +16,7 @@ DEFAULT_SALT = "askmukthiguru-gold-v1"
 
 def _bucket(video_id: str, salt: str) -> float:
     """Deterministic float in [0, 1) for a video id."""
-    digest = hashlib.sha256(f"{salt}:{video_id}".encode("utf-8")).hexdigest()
+    digest = hashlib.sha256(f"{salt}:{video_id}".encode()).hexdigest()
     return int(digest[:8], 16) / 0x100000000
 
 

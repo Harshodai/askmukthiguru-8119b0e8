@@ -1,36 +1,24 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=vZGe4g66rw4
-tags:
-- self-love
-- wholeness
-- youth
-- depression
-- anxiety
-teacher: sri-krishnaji
-title: Self-Love and Wholeness
+title: Self Love And Wholeness
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=vZGe4g66rw4
 video_id: vZGe4g66rw4
+tags:
+- oneness
+- teaching
 ---
-# Self-Love and Wholeness
+# Self Love And Wholeness
 
-
-## Summary
-Sri Krishnaji addresses the primary global mental health pandemic threatening youth—depression and anxiety—through an ongoing monthly program aimed at helping young people overcome these destructive states and achieve self-love and wholeness.
+## Verbatim Discourse Excerpts
+With all that is happening in the world the biggest concern in your mind is the life and the future of your children. One of the major challenges that parents as well as teachers all over the world are facing is to ensure a mental health of the children. Children, adolescents and young adults. It is becoming much clearer now more than ever that we have a bigger pandemic at our doorstep that threatens our children and our younger generations. That pandemic is depression and anxiety. Sri Krishnaji and I have held this vision for the young people of the world to lead them out of destructive states of being lead them into beautiful states so that they are able to overcome the challenges they are facing without succumbing to those challenges towards that. Every month Sri Krishnaji addresses the young people answering questions regarding the current life challenges. Kai event Sri Krishnaji and youth happens every month. Every third month the young people are led into a powerful manifest process by us both Sri Krishnaji and me to awaken them to wisdom and beautiful states so that they do not fall a victim to depression anxiety or self-destructive states. So this month we will be leading them on a journey to discover self-love where they begin to experience peace and ease with every part of themselves. Peace and ease with their body, their past, their present, their intelligence and their capabilities. This process would be like the ancient Japanese art of putting the broken pottery pieces together with a gold bonding. Every human being has aspects to themselves and their lives that are broken or imperfect. Every young person would have faced failures, rejections, heartbreaks, criticisms, ridicule and disappointment in life but these need not break you. When you awaken to self-love in your consciousness you are embracing those imperfect aspects of you and you are arriving at a state of wholeness rather than seeing oneself as broken pieces. Awakening self-love would awaken a great intelligence within these young people. An intelligence that is born from deep love and peace with oneself. Sri Krishnaji, the prime mover of the Deeksha phenomenon, would be there to give Deeksha and to heal the deep-rooted wounds in their hearts that pave the way for self-hate and self-destruction and the Deeksha would revire their dream to experience great love for themselves.
 
 ## Key Teachings
-- Sri Krishnaji says: The global mental health pandemic threatening youth is primarily depression and anxiety, and his ongoing monthly program addresses these destructive states.
-- Sri Krishnaji says: The monthly program is designed to help young people overcome the challenges in their lives that lead to depression and anxiety.
+- When you awaken to self-love in your consciousness you are embracing those imperfect aspects of you and you are arriving at a state of wholeness rather than seeing oneself as broken pieces. — Sri Preethaji & Sri Krishnaji
+- So this month we will be leading them on a journey to discover self-love where they begin to experience peace and ease with every part of themselves. — Sri Preethaji & Sri Krishnaji
+- Awakening self-love would awaken a great intelligence within these young people. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-
-## Related Concepts
-- Depression (concept): A mental health condition characterized by persistent feelings of sadness, hopelessness, and loss of interest.
-- Anxiety (concept): A mental health condition characterized by excessive worry, fear, and nervousness.
-- Inner Child (concept): A concept representing a part of the self that the healing journey traverses through, which heals when one awakens to calm consciousness, leading to self-love and a celebration of life.
-- Self (concept): The self is a concept that refers to the individual's identity, beliefs, and experiences, encompassing the consciousness or ego.
-- Courage (concept): Courage refers to the ability to face challenges and overcome fears with confidence, as well as the quality of being brave or having the strength to do something despite fear. It is important for manifesting dreams and taking control of life, and is characterized as a magnificent state of consciousness arising from deep connection and love, distinct from boldness born of the mind.
-- Stressful State (concept): The Stressful State is a condition characterized by feelings of anxiety, tension, or overwhelm.
-- Chaos (concept): Chaos refers to a state of disorder, confusion, or randomness.
-
-## Source
-YouTube https://www.youtube.com/watch?v=vZGe4g66rw4
+## Source Context
+- Video: The 'Self-Love Manifest' is Coming
+- URL: https://www.youtube.com/watch?v=vZGe4g66rw4
+- Speaker: Sri Preethaji & Sri Krishnaji

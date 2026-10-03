@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Spirituality and the Power of Observation"
-source: "YouTube https://www.youtube.com/watch?v=ZGvKY4mPfIc"
+source: "https://www.youtube.com/watch?v=ZGvKY4mPfIc"
 video_id: ZGvKY4mPfIc
 tags: [spirituality, observation, life satisfaction]
 teacher: "both"

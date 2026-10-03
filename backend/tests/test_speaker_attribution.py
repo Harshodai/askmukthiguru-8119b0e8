@@ -6,7 +6,9 @@ from pathlib import Path
 import numpy as np
 
 _spec = importlib.util.spec_from_file_location(
-    "speaker_attribution", Path(__file__).resolve().parents[1] / "scripts/ops/speaker_attribution.py")
+    "speaker_attribution",
+    Path(__file__).resolve().parents[1] / "scripts/ops/speaker_attribution.py",
+)
 sa = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(sa)
 
@@ -53,8 +55,8 @@ def test_first_sentence_after_speaker_change_abstains_second_passes():
 def test_ambiguous_or_small_cluster_is_not_named():
     vp = {"preethaji": np.array([1.0, 0.0]), "krishnaji": np.array([0.0, 1.0])}
     thr = {"P": 0.55, "K": 0.55}
-    between = np.array([1.0, 1.0]) / np.sqrt(2)          # 0.71 to both teachers: no margin
+    between = np.array([1.0, 1.0]) / np.sqrt(2)  # 0.71 to both teachers: no margin
     assert sa.name_cluster(between, 50, vp, thr) == "?"
     assert sa.name_cluster(np.array([1.0, 0.0]), 3, vp, thr) == "?"
-    far = np.array([0.3, 0.3])                            # < 0.40 to both: a non-teacher voice
+    far = np.array([0.3, 0.3])  # < 0.40 to both: a non-teacher voice
     assert sa.name_cluster(far, 50, vp, thr) == "O"

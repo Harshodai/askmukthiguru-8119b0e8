@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Interconnectedness of Being"
-source: "YouTube https://www.youtube.com/watch?v=7NVPsHdyw_Y"
+source: "https://www.youtube.com/watch?v=7NVPsHdyw_Y"
 video_id: 7NVPsHdyw_Y
 tags: [gratitude, interconnectedness, ego, awareness]
 teacher: "sri-preethaji"

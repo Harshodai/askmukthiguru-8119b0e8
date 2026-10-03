@@ -1,26 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=oSqD_BvF7vA
-tags:
-- suffering
-- division
-- humanity
-teacher: both
-title: The Pervasive Nature of Division and Suffering
-type: reflection
+title: The Pervasive Nature Of Division And Suffering
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=oSqD_BvF7vA
 video_id: oSqD_BvF7vA
+tags:
+- oneness
+- teaching
 ---
-# The Pervasive Nature of Division and Suffering
+# The Pervasive Nature Of Division And Suffering
 
+## Verbatim Discourse Excerpts
+Can they not exist like different flowers in the same garden? Is it worth alienating ourselves over an idea or an ideology? Division and separation of every kind will take away our humanity from us. For over two and a half centuries, United States has been divided between the ideal of universality on one hand and actual painful divisiveness in society on the other.
 
-## Summary
-The pervasive nature of division, fueled by differences in facts, lifestyles, beliefs, and skin colors, can lead to societal fragmentation and erode humanity. This division contributes to a cycle of pain.
+Each time divisiveness has surfaced, American society has either brushed it under the carpet or it has clung to its ideals tighter. Have ideals ever transformed an individual or a society? If transformation has ever occurred, it has only been because seeing the truth in its entirety, even if it's painful. The fact is that millions in this advanced nation are still giving into feelings of separation and division on the basis of race, on the basis of class.
 
 ## Key Teachings
-- Divisions based on facts, lifestyles, beliefs, and skin colors can lead to societal fragmentation ("Unknown Channel says...").
-- These divisions can erode humanity ("Unknown Channel says...").
-- Hurt human beings perpetuate a cycle of pain and suffering (Knowledge Graph).
+- Division and separation of every kind will take away our humanity from us. — Sri Preethaji & Sri Krishnaji
+- The fact is that millions in this advanced nation are still giving into feelings of separation and division on the basis of race, on the basis of class. — Sri Preethaji & Sri Krishnaji
+- It is this division from the highest to the lowest level in society is seeping through as violence, death on the streets and as conflicts within families. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Pain: a complex emotional and physical sensation that can be experienced by oneself or others, often a result of harm or distress, and a source of suffering.
-- Suffering States: emotional states such as regret, sadness, and loneliness that disconnect individuals from life, or the downward spiral of chaos and problems caused by accumulated poisons and limiting beliefs.
-- Cycle of Pain: the perpetuation of pain and suffering by hurt human beings.
+## Source Context
+- Video: Dear America, Be not Hateful over Hate  | Evolution Series 89 with Preethaji & Krishnaji
+- URL: https://www.youtube.com/watch?v=oSqD_BvF7vA
+- Speaker: Sri Preethaji & Sri Krishnaji

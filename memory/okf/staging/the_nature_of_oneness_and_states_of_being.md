@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Nature of Oneness and States of Being"
-source: "YouTube https://www.youtube.com/watch?v=OWMBvMlGWTA"
+source: "https://www.youtube.com/watch?v=OWMBvMlGWTA"
 video_id: OWMBvMlGWTA
 tags: [oneness, states, consciousness, peace, harmony]
 teacher: "both"

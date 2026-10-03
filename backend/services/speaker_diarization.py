@@ -19,6 +19,14 @@ import hashlib
 import logging
 from typing import Any, Optional
 
+try:
+    from ingest.verbatim.speaker_verify import relabel_turn_start_prefixes
+except ImportError:
+    try:
+        from backend.ingest.verbatim.speaker_verify import relabel_turn_start_prefixes
+    except ImportError:
+        relabel_turn_start_prefixes = None
+
 logger = logging.getLogger(__name__)
 
 TEACHER_NAME_MAP = {
@@ -35,18 +43,20 @@ _SENTENCE_END_CHARS = (".", "?", "!")
 
 # Coordinating and subordinating conjunctions: clips must never split on or end
 # with these dangling tokens without forward clause resolution (CLAUDE.md Invariant 10).
-_COORDINATING_CONJUNCTIONS = frozenset({
-    "or",
-    "and",
-    "so",
-    "but",
-    "because",
-    "nor",
-    "for",
-    "yet",
-    "although",
-    "though",
-})
+_COORDINATING_CONJUNCTIONS = frozenset(
+    {
+        "or",
+        "and",
+        "so",
+        "but",
+        "because",
+        "nor",
+        "for",
+        "yet",
+        "although",
+        "though",
+    }
+)
 
 # --- v2 clip-builder thresholds ------------------------------------------------
 # Named constants (not magic literals) so a future retune has one place to look.
@@ -54,10 +64,16 @@ _COORDINATING_CONJUNCTIONS = frozenset({
 # carried over unchanged -- INFERRED provenance, not re-derived this session;
 # see the build_clips_v2 dry-run report for the measurement that motivated the
 # *sentence-boundary* fix below, not these specific numbers.
-_MAX_UNKNOWN_GAP_S = 3.0  # a "?" island longer than this (wall-clock) is a real pause/turn, not noise
-_MAX_UNKNOWN_WORDS = 8  # a "?" island longer than this (word count) is a real turn, not ASR/ECAPA flicker
+_MAX_UNKNOWN_GAP_S = (
+    3.0  # a "?" island longer than this (wall-clock) is a real pause/turn, not noise
+)
+_MAX_UNKNOWN_WORDS = (
+    8  # a "?" island longer than this (word count) is a real turn, not ASR/ECAPA flicker
+)
 _MIN_CLIP_WORDS = 12  # below this a "clip" is an unusable fragment, not a quotable teaching
-_PARENT_MAX_S = 180.0  # forced-split budget: a single run longer than this is split into multiple parents
+_PARENT_MAX_S = (
+    180.0  # forced-split budget: a single run longer than this is split into multiple parents
+)
 _CHILD_TARGET_WORDS = (100, 200)  # sub-clips of an over-long parent, sized for citation display
 _PAD_S = 0.2  # turn-boundary padding, see module docstring invariant 3
 
@@ -144,7 +160,11 @@ def _split_run(
         if grown_end >= n:
             tail_end = n
             # Strip trailing conjunctions from tail
-            while tail_end > start + 1 and words[tail_end - 1]["w"].rstrip(".,;:!?…—–-").lower() in _COORDINATING_CONJUNCTIONS:
+            while (
+                tail_end > start + 1
+                and words[tail_end - 1]["w"].rstrip(".,;:!?…—–-").lower()
+                in _COORDINATING_CONJUNCTIONS
+            ):
                 tail_end -= 1
             last_w = words[tail_end - 1]["w"] if tail_end > start else ""
             if ends_at_flip and not (last_w and last_w[-1] in _SENTENCE_END_CHARS):
@@ -158,7 +178,10 @@ def _split_run(
             break
         cut_end, kind = _cut_point(words, start, grown_end)
         # Avoid leaving trailing conjunction at cut_end
-        while cut_end > start + 1 and words[cut_end - 1]["w"].rstrip(".,;:!?…—–-").lower() in _COORDINATING_CONJUNCTIONS:
+        while (
+            cut_end > start + 1
+            and words[cut_end - 1]["w"].rstrip(".,;:!?…—–-").lower() in _COORDINATING_CONJUNCTIONS
+        ):
             cut_end -= 1
         chunks.append(words[start:cut_end])
         stats["cut_at_sentence" if kind == "sentence" else "cut_at_pause"] += 1
@@ -167,7 +190,9 @@ def _split_run(
 
 
 def _duration_fits(max_duration_s: float):
-    return lambda words, start, end: (words[end - 1]["end"] - words[start]["start"]) <= max_duration_s
+    return lambda words, start, end: (
+        (words[end - 1]["end"] - words[start]["start"]) <= max_duration_s
+    )
 
 
 def _word_count_fits(max_words: int):
@@ -285,6 +310,10 @@ def build_clips_from_labelled_words(
         "cut_at_pause": 0,
         "dropped_mid_sentence_at_flip": 0,
     }
+    # ponytail: S1 turn-start prefix recovery — fixes mid-sentence heads without an LLM call
+    if relabel_turn_start_prefixes is not None and words:
+        words = relabel_turn_start_prefixes(words)
+
     runs = _build_teacher_runs(words, max_unknown_gap_s, max_unknown_words, stats)
     stats["runs"] = len(runs)
 
@@ -292,7 +321,9 @@ def build_clips_from_labelled_words(
     parent_n = 0
     for teacher_label, run_words, ends_at_flip in runs:
         speaker = _RUN_TEACHER_LABELS[teacher_label]
-        for parent_words in _split_run(run_words, _duration_fits(parent_max_s), stats, ends_at_flip):
+        for parent_words in _split_run(
+            run_words, _duration_fits(parent_max_s), stats, ends_at_flip
+        ):
             parent_n += 1
             if len(parent_words) < min_words:
                 stats["dropped_short"] += 1
@@ -303,7 +334,9 @@ def build_clips_from_labelled_words(
 
             if len(parent_words) > child_target_words[1]:
                 for k, child_words in enumerate(
-                    _split_run(parent_words, _word_count_fits(child_target_words[1]), stats, ends_at_flip),
+                    _split_run(
+                        parent_words, _word_count_fits(child_target_words[1]), stats, ends_at_flip
+                    ),
                     start=1,
                 ):
                     if len(child_words) < min_words:
@@ -428,7 +461,15 @@ def extract_quotable_clips(
         # Exclude host, questioners, or unknown intervals
         if role != "teacher" or not teacher:
             if current_run:
-                _finalize_clip(current_run, current_speaker, video_id, min_duration_s, max_duration_s, padding_s, clips)
+                _finalize_clip(
+                    current_run,
+                    current_speaker,
+                    video_id,
+                    min_duration_s,
+                    max_duration_s,
+                    padding_s,
+                    clips,
+                )
                 current_run = []
                 current_speaker = None
             continue
@@ -437,12 +478,22 @@ def extract_quotable_clips(
             current_speaker = teacher
             current_run.append(seg)
         else:
-            _finalize_clip(current_run, current_speaker, video_id, min_duration_s, max_duration_s, padding_s, clips)
+            _finalize_clip(
+                current_run,
+                current_speaker,
+                video_id,
+                min_duration_s,
+                max_duration_s,
+                padding_s,
+                clips,
+            )
             current_speaker = teacher
             current_run = [seg]
 
     if current_run:
-        _finalize_clip(current_run, current_speaker, video_id, min_duration_s, max_duration_s, padding_s, clips)
+        _finalize_clip(
+            current_run, current_speaker, video_id, min_duration_s, max_duration_s, padding_s, clips
+        )
 
     return clips
 
@@ -476,9 +527,8 @@ def _split_run_by_largest_gap(
         key=lambda i: float(run[i].get("start", 0.0)) - float(run[i - 1].get("end", 0.0)),
     )
     left, right = run[:split_idx], run[split_idx:]
-    return (
-        _split_run_by_largest_gap(left, max_dur, padding_s)
-        + _split_run_by_largest_gap(right, max_dur, padding_s)
+    return _split_run_by_largest_gap(left, max_dur, padding_s) + _split_run_by_largest_gap(
+        right, max_dur, padding_s
     )
 
 
@@ -533,16 +583,18 @@ def _emit_clip(
     clip_hash = compute_clip_hash(verbatim_text)
     clip_id = f"{video_id}_{int(start)}_{int(end)}"
 
-    out_clips.append({
-        "clip_id": clip_id,
-        "video_id": video_id,
-        "speaker": speaker,
-        "start": round(start, 2),
-        "end": round(end, 2),
-        "duration_seconds": round(duration, 2),
-        "verbatim_text": verbatim_text,
-        "transcript_hash": clip_hash,
-    })
+    out_clips.append(
+        {
+            "clip_id": clip_id,
+            "video_id": video_id,
+            "speaker": speaker,
+            "start": round(start, 2),
+            "end": round(end, 2),
+            "duration_seconds": round(duration, 2),
+            "verbatim_text": verbatim_text,
+            "transcript_hash": clip_hash,
+        }
+    )
 
 
 def _finalize_clip(

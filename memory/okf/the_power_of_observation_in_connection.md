@@ -1,29 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=PslFhdZaBFA
-tags:
-- observation
-- connection
-- heart consciousness
-- suffering
-- fear
-teacher: both
-title: The Power of Observation in Connection
+title: The Power Of Observation In Connection
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=PslFhdZaBFA
 video_id: PslFhdZaBFA
+tags:
+- oneness
+- teaching
 ---
-# The Power of Observation in Connection
+# The Power Of Observation In Connection
 
+## Verbatim Discourse Excerpts
+See, to understand what a member of your soul circle is going through, to connect and to feel, your heart needs to be awake. When your heart is awake, you are not desperate, you know. You are not desperate to get them to a space of pleasantness so that it is comfortable for you. But when your heart is awake, you will feel them. There is no fear in you of their suffering.
 
-## Summary
-The power of observation, particularly in the context of a relationship, involves being present and attentive to a loved one without fear of their suffering. This state of loving patience and undistracted attention is crucial for deep connection and healing through heart consciousness.
+It connects to their heart field and the process of healing begins. Oftentimes, what a loved one needs may not be a solution. All they need may only be your loving attention.
 
 ## Key Teachings
-- When observing a loved one, there should be "no fear in you of their suffering." (Ekam / O&O Academy)
-- The cultivation of "loving patience and undistracted attention" is vital for connecting and healing. (Ekam / O&O Academy)
-- This state of observation is linked to "heart consciousness." (Ekam / O&O Academy)
+- See, to understand what a member of your soul circle is going through, to connect and to feel, your heart needs to be awake. — Sri Preethaji & Sri Krishnaji
+- When your heart is awake, you are not desperate, you know. — Sri Preethaji & Sri Krishnaji
+- You are not desperate to get them to a space of pleasantness so that it is comfortable for you. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "There is no fear in you of their suffering." — Ekam / O&O Academy
-
-## Related Concepts
-- Observation: a practice that involves simply noticing and acknowledging one's thoughts and emotions without judgment. It is the act of paying attention to and examining something.
+## Source Context
+- Video: The one thing your partner needs from you | Evolution Series 110 with Sri Preethaji & Sri Krishnaji
+- URL: https://www.youtube.com/watch?v=PslFhdZaBFA
+- Speaker: Sri Preethaji & Sri Krishnaji

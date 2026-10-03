@@ -1,10 +1,9 @@
 """Unit tests for Clopper-Pearson bounds and clustered bootstrap (Invariant B3)."""
 
-import pytest
 from evaluation.statistical_bounds import (
     clopper_pearson_lower_bound,
-    min_sample_size_for_precision,
     clustered_bootstrap_ci,
+    min_sample_size_for_precision,
 )
 
 

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Habit of Incessant Commentary"
-source: "YouTube https://www.youtube.com/watch?v=oalnb5-fHjY"
+source: "https://www.youtube.com/watch?v=oalnb5-fHjY"
 video_id: oalnb5-fHjY
 tags: [depression, self-criticism, inner conflict, observation]
 teacher: "sri-preethaji"

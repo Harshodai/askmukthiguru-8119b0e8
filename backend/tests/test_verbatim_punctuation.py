@@ -52,7 +52,9 @@ def test_the_actual_bug_pre_punctuated_input_would_have_failed():
     verbatim_norm = [norm_word(w) for w in verbatim_words]
     display_norm = [norm_word(w) for w in display_words]
     diffs = diff_norm_word_sequences(verbatim_norm, display_norm)
-    assert diffs, "pre-punctuated input must reproduce a spurious insert diff (guards the regression)"
+    assert diffs, (
+        "pre-punctuated input must reproduce a spurious insert diff (guards the regression)"
+    )
 
 
 class _FakePunctuator:

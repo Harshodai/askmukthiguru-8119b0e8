@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Cyclical Nature of the Universe and Suffering"
-source: "YouTube https://www.youtube.com/watch?v=UbCEX5KBbPw"
+source: "https://www.youtube.com/watch?v=UbCEX5KBbPw"
 video_id: UbCEX5KBbPw
 tags: [sri preethaji, sri krishnaji, suffering, cycles, universe]
 teacher: "both"

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Limitless Field as a Divine Matrix"
-source: "YouTube https://www.youtube.com/watch?v=w1U9nHF3H5o"
+source: "https://www.youtube.com/watch?v=w1U9nHF3H5o"
 video_id: w1U9nHF3H5o
 tags: [limitless field, divine matrix, consciousness, suffering]
 teacher: "both"

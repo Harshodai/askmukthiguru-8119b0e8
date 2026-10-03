@@ -77,6 +77,9 @@ async def test_gateway_path_429_raises_rate_limited_not_canned_text(monkeypatch)
     svc = OpenRouterService()
     with pytest.raises(ProviderRateLimitedError):
         await svc._call_api(
-            [{"role": "user", "content": "q"}], svc._gen_model, operation="standard", strict_gateway=True
+            [{"role": "user", "content": "q"}],
+            svc._gen_model,
+            operation="standard",
+            strict_gateway=True,
         )
     assert svc._circuit.get_stats()["failures"] == 0

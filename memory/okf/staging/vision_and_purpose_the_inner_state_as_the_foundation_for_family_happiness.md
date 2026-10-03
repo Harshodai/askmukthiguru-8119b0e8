@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Vision and Purpose: The Inner State as the Foundation for Family Happiness"
-source: "YouTube https://www.youtube.com/watch?v=Z7w7soyXmHs"
+source: "https://www.youtube.com/watch?v=Z7w7soyXmHs"
 video_id: Z7w7soyXmHs
 tags: [vision and purpose, family, inner state, consciousness, evolution]
 teacher: "both"

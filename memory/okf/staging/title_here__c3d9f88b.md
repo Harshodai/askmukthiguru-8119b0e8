@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Title Here"
-source: "YouTube https://www.youtube.com/watch?v=VIDEO_ID"
+source: "https://www.youtube.com/watch?v=VIDEO_ID"
 video_id: GBlHpCkYYgc
 tags: [tag1, tag2]
 teacher: "sri-preethaji"

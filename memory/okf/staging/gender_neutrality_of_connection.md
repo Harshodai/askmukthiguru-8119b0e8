@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Gender Neutrality of Connection"
-source: "YouTube https://www.youtube.com/watch?v=bCzjP2UaKRI"
+source: "https://www.youtube.com/watch?v=bCzjP2UaKRI"
 video_id: bCzjP2UaKRI
 tags: [gender neutrality, connection, loneliness, empathy, human quality, Sri Preethaji, Sri Krishnaji]
 teacher: "both"

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Flowing with Life vs. Control"
-source: "YouTube https://www.youtube.com/watch?v=bh_kjn-1CAY"
+source: "https://www.youtube.com/watch?v=bh_kjn-1CAY"
 video_id: bh_kjn-1CAY
 tags: [sri preethaji, sri krishnaji, flowing with life, control, ambition, suffering]
 teacher: "both"

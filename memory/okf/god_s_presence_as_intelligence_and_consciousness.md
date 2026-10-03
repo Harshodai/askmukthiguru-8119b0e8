@@ -1,36 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=DqUafRyXy_0
-tags:
-- God
-- presence
-- intelligence
-- consciousness
-- divine
-- universe
-teacher: both
-title: God's Presence as Intelligence and Consciousness
+title: God S Presence As Intelligence And Consciousness
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=DqUafRyXy_0
 video_id: DqUafRyXy_0
+tags:
+- oneness
+- teaching
 ---
-# God's Presence as Intelligence and Consciousness
+# God S Presence As Intelligence And Consciousness
 
+## Verbatim Discourse Excerpts
+So God is very personal, it's very selective. So for me personally, I'm okay with both the descriptions and both the experiences as I've had both the experiences and I'm sure many of you here also have had both the experiences. So God is intelligence that's present everywhere. God is consciousness that's present everywhere throughout this universe. Today's science is very, very clear that everything in this universe is communicating.
 
-## Summary
-God is universally present as both intelligence and consciousness. This divine presence is evident in the communication observed throughout the universe, confirming its intelligent nature. Individuals can experience God as a personal deity or as a universal consciousness field, and both experiences are considered beautiful and valid. Reconciling these perspectives involves embracing both the intelligent and conscious aspects of this divine presence.
+So this universe is full of intelligence and this universe is divine. And it has taken many forms. God can be both personal and God can be this universal one consciousness field that exists throughout this universe and it's just appearing in various forms. So it is completely your choice and the way your consciousness, your brain, your mind is going to experience it.
 
 ## Key Teachings
-- God is present everywhere, manifesting as both intelligence and consciousness. (Unknown speaker)
-- This presence is universal and divine. (Unknown speaker)
-- Science supports the idea that everything communicates, indicating an intelligent universe. (Unknown speaker)
-- God can be experienced as a personal deity or as a universal consciousness field. (Unknown speaker)
-- The experience of God is a personal choice and can be beautiful in either form. (Unknown speaker)
-- Reconciling these ideas requires embracing both the intelligence and consciousness aspects of God. (Unknown speaker)
+- So God is intelligence that's present everywhere. — Sri Preethaji & Sri Krishnaji
+- God is consciousness that's present everywhere throughout this universe. — Sri Preethaji & Sri Krishnaji
+- God can be both personal and God can be this universal one consciousness field that exists throughout this universe and it's just appearing in various forms. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "God is present everywhere, both as intelligence and consciousness, and this presence is universal and divine." — Unknown
-> "Science confirms that everything communicates, making the universe intelligent." — Unknown
-> "God can manifest as a personal deity or as a universal consciousness field. Your experience of God is your choice, and it can be both beautiful." — Unknown
-
-## Related Concepts
-- Divine: The Divine is a concept representing the ultimate reality or the source of all existence, encompassing multiple deities and the idea of a cosmic being.
-- Consciousness: Consciousness is a multifaceted and complex entity that encompasses various aspects of human experience.
+## Source Context
+- Video: GOD
+- URL: https://www.youtube.com/watch?v=DqUafRyXy_0
+- Speaker: Sri Preethaji & Sri Krishnaji

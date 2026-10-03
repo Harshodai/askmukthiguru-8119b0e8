@@ -10,10 +10,15 @@ from ingest.verbatim.boundaries import boundary_defects, snap_to_sentences
     [
         ("Suffering is not a fact.", []),
         ("This is who you are.", []),
-        ("and then you let go of", ["head_lowercase", "head_conjunction", "tail_no_terminal", "tail_dangling_word"]),
+        (
+            "and then you let go of",
+            ["head_lowercase", "head_conjunction", "tail_no_terminal", "tail_dangling_word"],
+        ),
         ("is agitated before the event,", ["head_lowercase", "tail_no_terminal"]),
         ("...and it ends.", ["head_orphan_punctuation", "head_conjunction"]),
         ("So approach your yoga gently.", []),
+        ("Have desired success in life.", ["head_headless_predicate"]),
+        ("Have you ever desired peace?", []),
     ],
 )
 def test_boundary_defects(text, expected):

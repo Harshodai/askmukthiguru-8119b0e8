@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Our Responsibility to Earth and Nature"
-source: "YouTube https://www.youtube.com/watch?v=p2HecXyM3tE"
+source: "https://www.youtube.com/watch?v=p2HecXyM3tE"
 video_id: p2HecXyM3tE
 tags: [nature, environment, responsibility, consciousness, compassion]
 teacher: "both"

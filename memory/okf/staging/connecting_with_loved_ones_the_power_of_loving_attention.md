@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Connecting with Loved Ones: The Power of Loving Attention"
-source: "YouTube https://www.youtube.com/watch?v=PslFhdZaBFA"
+source: "https://www.youtube.com/watch?v=PslFhdZaBFA"
 video_id: PslFhdZaBFA
 tags: [connection, relationships, presence, attention]
 teacher: "both"

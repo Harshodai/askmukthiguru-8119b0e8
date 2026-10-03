@@ -5,11 +5,10 @@ Unit tests for gold evaluation tools: readiness_check, silver, and calibrator.
 import csv
 import json
 from pathlib import Path
-import pytest
 
 from evaluation.gold.calibrator import SelectiveRiskCalibrator
 from evaluation.gold.readiness_check import check_video_readiness, validate_gold_sheet
-from evaluation.gold.silver import generate_silver_file, generate_silver_label_for_row
+from evaluation.gold.silver import generate_silver_label_for_row
 from services.transcript_verbatim import compute_verbatim_hash
 
 
@@ -18,7 +17,9 @@ def test_video_readiness_clean(tmp_path: Path):
     vid_dir.mkdir()
 
     text = "The mind creates suffering through identification with thought."
-    segs = [{"start": 0.0, "end": 10.0, "speaker": "Sri Preethaji", "text": text, "verbatim_text": text}]
+    segs = [
+        {"start": 0.0, "end": 10.0, "speaker": "Sri Preethaji", "text": text, "verbatim_text": text}
+    ]
     h = compute_verbatim_hash(segs)
 
     canonical = {
@@ -43,7 +44,12 @@ def test_video_readiness_detects_hash_mismatch_and_host_leak(tmp_path: Path):
         "transcript_hash": "wrong_hash_" * 4,
         "verbatim_text": text,
         "segments": [
-            {"start": 5.0, "end": 3.0, "speaker": "Sri Preethaji", "text": text}  # end <= start + host leak
+            {
+                "start": 5.0,
+                "end": 3.0,
+                "speaker": "Sri Preethaji",
+                "text": text,
+            }  # end <= start + host leak
         ],
     }
     with open(vid_dir / "canonical_segments.json", "w", encoding="utf-8") as f:
@@ -86,7 +92,14 @@ def test_validate_gold_sheet_relevance(tmp_path: Path):
 def test_validate_gold_sheet_detects_max_questions_exceeded(tmp_path: Path):
     csv_path = tmp_path / "questions.csv"
     rows = [
-        {"question_id": f"Q{i}", "author": "User", "question_text": f"Q text {i}", "type": "answerable", "intended_video_ids": "vid_overloaded", "notes": ""}
+        {
+            "question_id": f"Q{i}",
+            "author": "User",
+            "question_text": f"Q text {i}",
+            "type": "answerable",
+            "intended_video_ids": "vid_overloaded",
+            "notes": "",
+        }
         for i in range(4)  # 4 questions on same video exceeds limit of 3
     ]
     with open(csv_path, "w", newline="", encoding="utf-8") as f:

@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "Relationship with Ego and Guru Purnima"
-source: "YouTube https://www.youtube.com/watch?v=oaKWpxmu0YI"
+source: "https://www.youtube.com/watch?v=oaKWpxmu0YI"
 video_id: oaKWpxmu0YI
 tags: [consciousness, guru, enlightenment]
 teacher: "both"

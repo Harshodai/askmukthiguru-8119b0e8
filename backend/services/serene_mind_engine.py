@@ -64,6 +64,22 @@ _OBFUSCATED_CRISIS = re.compile(
     r"suicid|kil+myself|endmylife|takemyownlife|wanttodie|hangmyself|notworthliving"
 )
 
+# 2026-09-28 (owner-approved "escalate-only + re-tier"): passive ideation and
+# ambiguous spiritual framing WITHOUT stated intent/plan/method/timeframe.
+# Defined once here (not duplicated inline in _EN_PATTERNS[SEVERE] below) so
+# assess_distress() can tag a match against this exact list and route it to
+# the gentle SEVERE check-in response instead of the pre-existing generic
+# SEVERE template (which itself contains "are you safe right now?" wording
+# too close to the full CRISIS copy for an ambiguous, no-plan message).
+# AI-AUTHORED, PENDING-CLINICIAN-REVIEW — see the W2 review packet.
+_SEVERE_IDEATION_CHECKIN_MARKERS = [
+    r"wish\w*\s*(i\s*)?(could\s*)?(just\s*)?(sleep\s*and\s*)?(never|not)\s*wake\s*up",
+    r"\bwish\w*\s*(i\s*)?(was|were)\s*dead\b",
+    r"\bdon'?t\s*want\s*to\s*exist\b",
+    r"\b(i\s*want\s*to|let\s*me|i\s*wish\s*to)\s*leave\s*(this|my)\s*body\b",
+]
+_SEVERE_IDEATION_CHECKIN_RE = re.compile("|".join(_SEVERE_IDEATION_CHECKIN_MARKERS), re.IGNORECASE)
+
 _EN_PATTERNS = {
     DistressLevel.CRISIS: [
         # 2026-09-27 (URGENT regression fix): "suicid" alone can never match —
@@ -134,15 +150,7 @@ _EN_PATTERNS = {
         # discipline as the "want to wake up" pattern above — bare "don't
         # wake up" alone is too broad (e.g. "don't wake up the baby").
         r"hop\w*\s*(i('m|\s*am)?\s*)?(just\s*)?(not|don'?t|doesn'?t)\s*wake\s*up|"
-        r"decid\w*\s*to\s*(go\s*to\s*sleep\s*and\s*)?(not|never)\s*wake\s*up|"
-        # 2026-09-27 (W2 crisis-test expansion, coordinator-confirmed gap):
-        # "I wish I could sleep and never wake up" — a very common
-        # wish-framed passive-ideation phrasing, missed by the hop*/decid*
-        # forms above (neither "hope" nor "decide" is the governing verb
-        # here). Same discipline: the qualifier ("wish") must directly
-        # govern the negated "wake up", so "I wish my neighbor would stop
-        # snoring so I could sleep" does not match (no "never/not wake up").
-        r"wish\w*\s*(i\s*)?(could\s*)?(just\s*)?(sleep\s*and\s*)?(never|not)\s*wake\s*up)",
+        r"decid\w*\s*to\s*(go\s*to\s*sleep\s*and\s*)?(not|never)\s*wake\s*up)",
         # 2026-09-22 (evals/scenarios/tier3_crisis, PLAN.md B1): "end my life" /
         # "ending my life" is one of the most common first-person ideation
         # phrasings in English and matched NONE of the above — "end (my|it)
@@ -160,27 +168,48 @@ _EN_PATTERNS = {
         # passive framing must not be missed). Also found via the eval
         # harness (crisis-001 scenario), previously undetected.
         r"(better\s*off\s*without\s*me|(everyone|they'?d|people)\s*(would\s*be\s*)?better\s*off\s*without\s*(me|us))",
-        # 2026-09-27 (W2 crisis-test expansion, coordinator-confirmed gap):
-        # spiritual/doctrinal framing of ending one's life — "I'm going to
-        # leave my body tonight", "I want to leave this body", "merge with
-        # the divine and end it" — a documented indirect phrasing pattern in
-        # a platform whose own teachings discuss "the body" and "moksha"
-        # (union/liberation). The boundary that keeps this from flagging
-        # ordinary doctrine: it requires a first-person VOLITIONAL verb
-        # ("I'm going to" / "I want to" / "I will" / "let me" / "I'm ready
-        # to") IMMEDIATELY governing "leave (this/my) body" — a genuine
-        # doctrinal question ("what does it mean to leave the body at
-        # death?", "can I leave my body during meditation?") is phrased as a
-        # question or with "can/what/how", never with a committing
+        # 2026-09-28 (owner-approved "escalate-only + re-tier" design):
+        # spiritual/doctrinal framing of ending one's life is now split by
+        # whether it carries INTENT, A PLAN, A METHOD, or A TIMEFRAME.
+        # Decisive plan verbs ("I'm going to" / "I will" / "I'm ready to") are
+        # a plan/intent statement on their own — CRISIS regardless of an
+        # explicit time word, per the owner's rule. An explicit time marker
+        # ("tonight"/"tomorrow"/"today"/"now") after ANY of these phrasings is
+        # also CRISIS even under a weaker modal ("I want to leave this body
+        # tonight"). "merge with the divine and end it" carries its own
+        # explicit finality ("end it") and stays CRISIS unconditionally.
+        # Ambiguous desire/permission-seeking with NO plan/time/method
+        # ("I want to leave this body", "let me leave my body") is demoted to
+        # SEVERE below — a check-in, not the full crisis copy. The doctrinal
+        # boundary is unchanged either way: a genuine question ("what does it
+        # mean to leave the body at death?", "can I leave my body during
+        # meditation?") is phrased with can/what/how, never with a
         # first-person verb directly in front of "leave the body", so it
-        # cannot match this pattern. Verified both directions with unit
-        # tests (test_serene_mind.py). NOT verified by a clinician — see the
-        # W2 review packet.
-        r"\b(i'?m\s*going\s*to|i\s*want\s*to|i\s*will|let\s*me|i'?m\s*ready\s*to)\s*leave\s*(this|my)\s*body\b",
+        # cannot match either tier. Verified both directions with unit tests
+        # (test_serene_mind.py, test_crisis_w2_expansion.py). AI-AUTHORED,
+        # NOT verified by a clinician — see the W2 review packet.
+        r"\b(i'?m\s*going\s*to|i\s*will|i'?m\s*ready\s*to)\s*leave\s*(this|my)\s*body\b",
+        r"\b(i\s*want\s*to|let\s*me|i\s*wish\s*to)\s*leave\s*(this|my)\s*body\s*"
+        r"(tonight|today|tomorrow|now)\b",
         r"\bmerge\s*with\s*the\s*divine\s*and\s*end\s*it\b",
     ],
     DistressLevel.SEVERE: [
         r"\b(hopeless|worthless|can'?t\s*go\s*on|give\s*up|no\s*point|nothing\s*matters?)\b",
+        # 2026-09-28 (owner-approved re-tier, C-SSRS screener-item-1 style
+        # passive ideation): "I wish I could sleep and never wake up", "I
+        # wish I were dead", "I don't want to exist", and ambiguous spiritual
+        # framing with NO plan/time/method — genuine distress signals, but
+        # WITHOUT stated intent, plan, method, or timeframe (see the CRISIS
+        # tier's own comment above for the full boundary reasoning against
+        # the intent-bearing versions). Moved down from CRISIS (2026-09-27)
+        # to SEVERE per the owner's explicit re-tier decision: these get a
+        # gentle check-in + helplines, not the full "are you safe right now"
+        # CRISIS copy. NEVER NONE. Defined once in
+        # `_SEVERE_IDEATION_CHECKIN_MARKERS` above (not duplicated here) so
+        # assess_distress() can also tag a match against that exact list and
+        # route to the distinct check-in response. AI-AUTHORED, NOT verified
+        # by a clinician — see the W2 review packet.
+        *_SEVERE_IDEATION_CHECKIN_MARKERS,
         r"\b(don'?t\s*know\s*if\s*i\s*can\s*go\s*on)\b",
         # Passive ideation (red team 2026-09-26): "don't see the point of going on".
         r"\bdon'?t\s+see\s+(the\s+)?point\s+(of|in)\s+(going\s+on|continuing|living|trying)\b",
@@ -902,6 +931,44 @@ THIRD_PARTY_CRISIS_RESPONSE = (
     "themselves, or reach out on their behalf if you're worried they won't:"
 )
 
+# ---------------------------------------------------------------------------
+# Idiom exclusions (2026-09-28, owner-approved Task 2): a small, EXACT list of
+# common hyperbole idioms that use lethal-sounding words without any real
+# distress meaning. Matched and masked out BEFORE any crisis/severe pattern
+# runs — see the masking call at the top of assess_distress(). Kept
+# deliberately short and literal (not a broad "sounds like a joke" heuristic)
+# so it can only ever suppress these exact phrasings, never a real one; a
+# parametrized test (test_crisis_w2_expansion.py /
+# test_idiom_exclusions_never_swallow_real_ideation.py) guards that no
+# genuine ideation phrase from the W2 set or test_serene_mind.py is ever
+# excluded by this list.
+# ---------------------------------------------------------------------------
+IDIOM_EXCLUSIONS_RE = re.compile(
+    r"\b(kill(?:ing)?\s*myself\s*laughing|dying\s*of\s*laughter|"
+    r"laugh(?:ed|ing)?\s*myself\s*to\s*death|died?\s*laughing|"
+    r"could\s*die\s*laughing)\b",
+    re.IGNORECASE,
+)
+
+# ---------------------------------------------------------------------------
+# SEVERE ideation check-in response (2026-09-28, owner-approved Task 1
+# re-tier). Distinct from DISTRESS_RESPONSES[SEVERE] (the pre-existing
+# generic SEVERE template, which itself asks "Are you safe right now?" — too
+# close to full CRISIS copy for a message with NO stated intent/plan/method/
+# timeframe). This is a gentler check-in: acknowledges the pain, asks one
+# open question, and still surfaces helplines (Tele-MANAS etc., via the same
+# `resources` block DistressStage always prepends) rather than assuming
+# either way. AI-AUTHORED, PENDING-CLINICIAN-REVIEW — see the W2 review
+# packet.
+SEVERE_IDEATION_CHECKIN_RESPONSE = (
+    "I hear real pain in what you're describing, and I don't want to brush past it. "
+    "You don't have to carry this alone.\n\n"
+    "Can you tell me a little more about what's going on for you right now? "
+    "I'm listening, and I care about how you're doing.\n\n"
+    "If things ever feel like more than you can handle, these are here for you "
+    "any time, no need to wait:"
+)
+
 
 class SereneMindEngine:
     """
@@ -1002,6 +1069,15 @@ class SereneMindEngine:
         Returns:
             DistressAssessment with level, confidence, and recommended response type
         """
+        # 2026-09-28 (owner-approved, Task 2 "idiom exclusions"): mask a
+        # small, exact list of hyperbole idioms ("kill myself laughing",
+        # "dying of laughter", ...) BEFORE any pattern matching runs, so they
+        # can never trip the crisis/severe patterns below. Masking (not just
+        # skipping the whole message) means a message that ALSO contains real
+        # ideation elsewhere ("kill myself laughing at that, but honestly I
+        # want to end my life") still gets caught by the real phrase.
+        message = IDIOM_EXCLUSIONS_RE.sub(" ", message)
+
         # Third-party concern takes priority over the ordinary first-person
         # scan below — see _THIRD_PARTY_CONCERN_RE's module-level docstring.
         if _THIRD_PARTY_CONCERN_RE.search(message):
@@ -1076,6 +1152,15 @@ class SereneMindEngine:
             DistressLevel.SEVERE: "meditation",
             DistressLevel.CRISIS: "crisis",
         }
+        recommended_response_type = response_type_map.get(max_level, "normal")
+        # 2026-09-28 (owner-approved re-tier): a SEVERE result whose winning
+        # signal is passive ideation / ambiguous spiritual framing (no plan,
+        # method, or timeframe) gets the gentler check-in response instead of
+        # the generic SEVERE template — checked against the exact same
+        # pattern list used to build that tier (_SEVERE_IDEATION_CHECKIN_RE),
+        # so this can never silently drift from the patterns themselves.
+        if max_level == DistressLevel.SEVERE and _SEVERE_IDEATION_CHECKIN_RE.search(message):
+            recommended_response_type = "severe_ideation_checkin"
 
         # Detect language for response localization
         detected_lang = self._detect_language(message)
@@ -1085,7 +1170,7 @@ class SereneMindEngine:
             confidence=max_confidence,
             detected_signals=signals,
             language_detected=detected_lang,
-            recommended_response_type=response_type_map.get(max_level, "normal"),
+            recommended_response_type=recommended_response_type,
         )
 
         if max_level > DistressLevel.NONE:
@@ -1168,9 +1253,12 @@ class SereneMindEngine:
         # async_assess_distress, never the bare sync assess_distress(). The
         # live symptom: the third-party detector worked in isolation but the
         # real /api/chat response still used the first-person "are you safe
-        # right now" template. The third-party marker is a deliberate,
-        # more-specific signal from an earlier stage and must survive this
-        # generic level-based update, so it is explicitly exempted.
+        # right now" template. Both that marker and the 2026-09-28
+        # "severe_ideation_checkin" marker (owner-approved re-tier, Task 1)
+        # are deliberate, more-specific signals from an earlier stage and
+        # must survive this generic level-based update, so both are
+        # explicitly exempted.
+        _SPECIFIC_RESPONSE_TYPES = {"third_party_crisis", "severe_ideation_checkin"}
         response_type_map = {
             DistressLevel.NONE: "normal",
             DistressLevel.MILD: "gentle",
@@ -1178,7 +1266,7 @@ class SereneMindEngine:
             DistressLevel.SEVERE: "meditation",
             DistressLevel.CRISIS: "crisis",
         }
-        if assessment.recommended_response_type != "third_party_crisis":
+        if assessment.recommended_response_type not in _SPECIFIC_RESPONSE_TYPES:
             assessment.recommended_response_type = response_type_map.get(assessment.level, "normal")
 
         return assessment

@@ -1,29 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=EpReLy7g6WM
-tags:
-- addiction
-- spiritual support
-- Deeksha
-- universal intelligence
-- bad habits
-teacher: both
 title: Overcoming Addiction Through Spiritual Connection
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=EpReLy7g6WM
 video_id: EpReLy7g6WM
+tags:
+- oneness
+- teaching
 ---
 # Overcoming Addiction Through Spiritual Connection
 
+## Verbatim Discourse Excerpts
+To living a life of greater purpose, for one who cares to make a difference to the world, succumbing to addiction will be very difficult. If any of you is stuck in a bad habit, or the verge of the habit becoming an addiction, or are addicted, there are three things you must do. Firstly, hold a spiritual vision for your inner being. Value your inner state.
 
-## Summary
-To overcome addiction and bad habits, individuals can connect with universal intelligence and seek spiritual support through practices like Deeksha and the guidance of Mitras. This process involves holding a prayer and intention and regularly receiving Deeksha.
+Do not make it okay to live in suffering, and passionately seek enlightenment. Bring attention to the Suffering State that is propelling you into the addiction. Secondly, go beyond living with a selfish consciousness. The whole world is living in selfish consciousness. To living a life of greater purpose, for one who cares to make a difference to the world, succumbing to addiction will be very difficult.
 
 ## Key Teachings
-- The world is often filled with selfish consciousness, making it difficult to lead a purposeful life.
-- Connecting with universal intelligence and seeking spiritual support is crucial for transcending selfish consciousness.
-- Deeksha involves receiving spiritual guidance and support.
-- Mitras are individuals who provide spiritual support and encouragement.
-- Overcoming addiction or bad habits can be achieved by holding a prayer and intention and taking Deeksha regularly.
+- To living a life of greater purpose, for one who cares to make a difference to the world, succumbing to addiction will be very difficult. — Sri Preethaji & Sri Krishnaji
+- If any of you is stuck in a bad habit, or the verge of the habit becoming an addiction, or are addicted, there are three things you must do. — Sri Preethaji & Sri Krishnaji
+- Firstly, hold a spiritual vision for your inner being. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Deeksha: a spiritual practice involving receiving energy and guidance from a spiritual teacher, facilitating an enlightened state, receiving divine intervention and cleansing consciousness.
-- universal intelligence: a concept representing a higher form of intelligence that individuals can connect with for spiritual support.
+## Source Context
+- Video: Stop living in pain. Start breaking free of addiction with this 2.40-min lesson from Sri Krishnaji.
+- URL: https://www.youtube.com/watch?v=EpReLy7g6WM
+- Speaker: Sri Preethaji & Sri Krishnaji

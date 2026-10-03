@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Evolution During Crisis 7: Nature of Suffering and Power of Observation"
-source: "YouTube https://www.youtube.com/watch?v=2DLb6hDIhmg"
+source: "https://www.youtube.com/watch?v=2DLb6hDIhmg"
 video_id: 2DLb6hDIhmg
 tags: [truth of suffering, consciousness, sri krishnaji, sri preethaji]
 teacher: "both"

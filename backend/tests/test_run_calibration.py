@@ -7,19 +7,21 @@ from __future__ import annotations
 
 import csv
 import json
-from pathlib import Path
 from unittest.mock import MagicMock
+
 import pytest
 
 from evaluation.gold.run_calibration import (
     evaluate_predictions_against_gold,
-    load_and_validate_gold_csv,
     load_pipeline_scores_file,
     resolve_human_label,
     run_calibration,
     score_questions_with_pipeline,
 )
-from services.first_person_pipeline import FirstPersonPipeline, FirstPersonPipelineResult, load_calibration_profile
+from services.first_person_pipeline import (
+    FirstPersonPipelineResult,
+    load_calibration_profile,
+)
 
 
 def test_resolve_human_label_precedence_and_guards():
@@ -56,8 +58,18 @@ def test_resolve_human_label_precedence_and_guards():
 def test_single_judge_pilot_mode_never_writes_loadable_profile(tmp_path):
     csv_file = tmp_path / "pilot.csv"
     fieldnames = [
-        "question_id", "question_text", "clip_id", "video_id", "start", "end", "text",
-        "judge_a", "judge_b", "adjudicated", "equivalent_group", "clip_quality",
+        "question_id",
+        "question_text",
+        "clip_id",
+        "video_id",
+        "start",
+        "end",
+        "text",
+        "judge_a",
+        "judge_b",
+        "adjudicated",
+        "equivalent_group",
+        "clip_quality",
     ]
     rows = [
         {
@@ -93,14 +105,16 @@ def test_single_judge_pilot_mode_never_writes_loadable_profile(tmp_path):
     mock_pipeline = MagicMock()
     mock_pipeline.execute.return_value = FirstPersonPipelineResult(
         answer_text="Teaching clip text",
-        citations=[{
-            "confidence": 0.94,
-            "point_id": "clip_0",
-            "video_id": "vidA",
-            "start_ms": 1000,
-            "end_ms": 10000,
-            "verbatim_text": "Teaching clip text",
-        }],
+        citations=[
+            {
+                "confidence": 0.94,
+                "point_id": "clip_0",
+                "video_id": "vidA",
+                "start_ms": 1000,
+                "end_ms": 10000,
+                "verbatim_text": "Teaching clip text",
+            }
+        ],
         status="weak_match",
         is_direct_answer=False,
         latency_ms=10.0,
@@ -147,13 +161,15 @@ def test_score_questions_with_pipeline_passes_sparse_and_dense_to_execute():
     mock_pipeline = MagicMock()
     mock_pipeline.execute.return_value = FirstPersonPipelineResult(
         answer_text="Discourse text",
-        citations=[{
-            "confidence": 0.91,
-            "point_id": "clip_xyz",
-            "video_id": "vidX",
-            "start_ms": 2000,
-            "end_ms": 8000,
-        }],
+        citations=[
+            {
+                "confidence": 0.91,
+                "point_id": "clip_xyz",
+                "video_id": "vidX",
+                "start_ms": 2000,
+                "end_ms": 8000,
+            }
+        ],
         status="weak_match",
         is_direct_answer=False,
         latency_ms=12.0,
@@ -216,14 +232,16 @@ def test_evaluate_predictions_against_gold_equivalent_group():
     }
 
     # Prediction returning the equivalent clip
-    preds = [{
-        "question_id": "Q1",
-        "score": 0.88,
-        "top1_clip_id": "clip_equiv",
-        "top1_video_id": "vid2",
-        "top1_start": 50.0,
-        "top1_end": 60.0,
-    }]
+    preds = [
+        {
+            "question_id": "Q1",
+            "score": 0.88,
+            "top1_clip_id": "clip_equiv",
+            "top1_video_id": "vid2",
+            "top1_start": 50.0,
+            "top1_end": 60.0,
+        }
+    ]
 
     scores, labels = evaluate_predictions_against_gold(preds, candidates_by_q)
     assert scores == [0.88]
@@ -302,11 +320,13 @@ def test_run_calibration_insufficient_samples_fails_closed(tmp_path):
 def test_pipeline_scores_validation_fails_on_collection_or_score_kind_mismatch(tmp_path):
     bad_col_file = tmp_path / "bad_col.json"
     bad_col_file.write_text(
-        json.dumps({
-            "collection": "other_collection",
-            "score_kind": "dense_cosine",
-            "scores": [{"score": 0.9, "label": 1}],
-        }),
+        json.dumps(
+            {
+                "collection": "other_collection",
+                "score_kind": "dense_cosine",
+                "scores": [{"score": 0.9, "label": 1}],
+            }
+        ),
         encoding="utf-8",
     )
     with pytest.raises(ValueError, match="Collection mismatch"):
@@ -314,11 +334,13 @@ def test_pipeline_scores_validation_fails_on_collection_or_score_kind_mismatch(t
 
     bad_kind_file = tmp_path / "bad_kind.json"
     bad_kind_file.write_text(
-        json.dumps({
-            "collection": "first_person_v1",
-            "score_kind": "sparse_lexical",
-            "scores": [{"score": 0.9, "label": 1}],
-        }),
+        json.dumps(
+            {
+                "collection": "first_person_v1",
+                "score_kind": "sparse_lexical",
+                "scores": [{"score": 0.9, "label": 1}],
+            }
+        ),
         encoding="utf-8",
     )
     with pytest.raises(ValueError, match="score_kind mismatch"):
@@ -342,4 +364,5 @@ def test_target_risk_exceeding_product_bound_refused(tmp_path):
 
 if __name__ == "__main__":
     import pytest
+
     raise SystemExit(pytest.main([__file__, "-v"]))

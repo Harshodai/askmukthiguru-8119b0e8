@@ -15,9 +15,9 @@ import json
 import logging
 import re
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
-from evaluation.verbatim_metrics import evaluate_verbatim_quote, normalize_speech
+from evaluation.verbatim_metrics import normalize_speech
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +36,22 @@ def generate_silver_label_for_row(
 
     q_words = set(q_norm.split())
     # Exclude common stop words
-    stop_words = {"what", "is", "the", "how", "to", "in", "of", "and", "a", "an", "do", "does", "can", "why"}
+    stop_words = {
+        "what",
+        "is",
+        "the",
+        "how",
+        "to",
+        "in",
+        "of",
+        "and",
+        "a",
+        "an",
+        "do",
+        "does",
+        "can",
+        "why",
+    }
     content_words = q_words - stop_words
     if not content_words:
         content_words = q_words
@@ -82,18 +97,20 @@ def generate_silver_file(
             threshold=threshold,
         )
 
-        silver_results.append({
-            "question_id": qid,
-            "question_text": q_text,
-            "clip_id": cid,
-            "video_id": vid,
-            "start": r.get("start"),
-            "end": r.get("end"),
-            "silver_label": silver_info["silver_label"],
-            "confidence": silver_info["confidence"],
-            "status": silver_info["status"],
-            "evidence": silver_info["evidence"],
-        })
+        silver_results.append(
+            {
+                "question_id": qid,
+                "question_text": q_text,
+                "clip_id": cid,
+                "video_id": vid,
+                "start": r.get("start"),
+                "end": r.get("end"),
+                "silver_label": silver_info["silver_label"],
+                "confidence": silver_info["confidence"],
+                "status": silver_info["status"],
+                "evidence": silver_info["evidence"],
+            }
+        )
 
     # Save to JSON
     output_json_path.parent.mkdir(parents=True, exist_ok=True)

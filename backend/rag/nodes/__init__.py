@@ -16,6 +16,7 @@ from ._services import init_services
 from .agentic_graph_traversal import agentic_graph_traversal  # noqa: F401
 from .citation_extractor import extract_citations
 from .cross_teacher_reasoning import cross_teacher_reasoning
+from .first_person import first_person_node  # noqa: F401
 from .generation import (
     context_engineer,
     format_final_answer,
@@ -151,4 +152,5 @@ __all__ = [
     "settings",
     "web_search_node",
     "cross_teacher_reasoning",
+    "first_person_node",
 ]

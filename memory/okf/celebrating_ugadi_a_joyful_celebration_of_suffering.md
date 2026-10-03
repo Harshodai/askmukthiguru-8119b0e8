@@ -1,30 +1,26 @@
 ---
-source: https://www.youtube.com/watch?v=46g5U6v3SGc
-tags:
-- ooacademyekamsrikrishnajitruthofsufferingsripreethaji
-teacher: sri-preethaji
-title: 'Celebrating Ugadi: A Joyful Celebration of Suffering'
+title: Celebrating Ugadi A Joyful Celebration Of Suffering
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=46g5U6v3SGc
 video_id: 46g5U6v3SGc
+tags:
+- oneness
+- teaching
 ---
-# Celebrating Ugadi: A Joyful Celebration of Suffering
+# Celebrating Ugadi A Joyful Celebration Of Suffering
 
-# Title
+## Verbatim Discourse Excerpts
+The bitter, the sweet, the sour, the spicy, the bland and the astringent. All tastes of life experiences to be accepted. It is a celebration of life and think of it. This would be your first Ugaadi or Gudipadwa at home with your loved ones alone. You have run too much in life and nature is now saying, be still. This would be a time for a movement inward. Life has now put all of us in the stillness mode.
 
-## Summary
-The video discusses the celebration of Ugadi, a significant Hindu festival, focusing on the joy and positivity it brings despite the suffering associated with it. The speaker emphasizes the importance of understanding and embracing the suffering as a part of the journey towards enlightenment.
+Look at the universe around you. Everything is cyclical. Everything moves in cycles. If you look at the world around you, everything is going to a cyclic movement. The electrons around the nucleus, the planets around the sun, the galaxy around the center of the universe and the universe itself is collapsing and expanding. Even human life goes through cycles of order and disorder.
 
 ## Key Teachings
-- **Celebrating Ugadi Positively**: The speaker encourages viewers to approach Ugadi with a positive mindset, emphasizing that the festival is not about avoiding suffering but about transforming it into a joyful experience.
-- **Understanding Suffering**: The video delves into the concept of suffering and how it is a natural part of life, but it can be transformed into a positive experience through understanding and acceptance.
+- It is a celebration of life and think of it. — Sri Preethaji & Sri Krishnaji
+- If you look at the world around you, everything is going to a cyclic movement. — Sri Preethaji & Sri Krishnaji
+- The electrons around the nucleus, the planets around the sun, the galaxy around the center of the universe and the universe itself is collapsing and expanding. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "The celebration of Ugadi is not about avoiding suffering but about transforming it into a joyful experience."
-> — Sri Preethaji
-
-## Related Concepts
-- **Ugadi**: A Hindu festival celebrated on the first day of the month of Magha, marking the beginning of the new year.
-- **Suffering**: The concept of suffering is discussed as a natural part of life that can be transformed into a positive experience through understanding and acceptance.
-- **Joyful Ugadi**: The celebration of Ugadi is emphasized as a joyful event despite the suffering associated with it, highlighting the importance of positivity and transformation.
-
-Do Not Include Preamble like "Here is the entry"
+## Source Context
+- Video: How To Celebrate A Joyful Ugadi Or Gudi Padwa | Evolution During Crisis-1 With Preethaji & Krishnaji
+- URL: https://www.youtube.com/watch?v=46g5U6v3SGc
+- Speaker: Sri Preethaji & Sri Krishnaji

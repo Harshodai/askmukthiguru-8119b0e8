@@ -10,11 +10,12 @@ the owner's decision: book sources are NOT blocked, the block sets are
 empty, and both book and YouTube content pass through retrieval unblocked.
 """
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
+
 import pytest
 
-from app.config import settings
 import rag.nodes as nodes
+from app.config import settings
 from rag.nodes import _services
 from services.qdrant.source_policy import (
     _BLOCKED_SOURCE_IDENTITIES,
@@ -115,4 +116,7 @@ async def test_book_and_youtube_sources_both_pass_through_unblocked(monkeypatch)
     retrieval_res_yt = await nodes.retrieve_documents(yt_query_state)
     assert "error" not in retrieval_res_yt
     assert len(retrieval_res_yt["documents"]) == 1
-    assert retrieval_res_yt["documents"][0]["source_url"] == "https://www.youtube.com/watch?v=3ITFXvYIPqg"
+    assert (
+        retrieval_res_yt["documents"][0]["source_url"]
+        == "https://www.youtube.com/watch?v=3ITFXvYIPqg"
+    )

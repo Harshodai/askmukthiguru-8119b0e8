@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Magnificent State of Consciousness"
-source: "YouTube https://www.youtube.com/watch?v=GTLqZPVojgI"
+source: "https://www.youtube.com/watch?v=GTLqZPVojgI"
 video_id: GTLqZPVojgI
 tags: [awakening, consciousness, sri krishnaji]
 teacher: "both"

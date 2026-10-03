@@ -1,5 +1,7 @@
 # AskMukthiGuru Adversarial Productionization Report
 
+> **DEPRECATED 2026-10-03 (audit G.4 #5).** Dated 2026-08-25 "final" verdict — retained as provenance, **not current**. Twin report of the same date: `docs/FEATURE-MATURITY-AUDIT-FINAL-2026-08-25.md` (also deprecated; both are frozen snapshots, neither supersedes the other). Current readiness authority: `docs/PROD_READY_CHECKLIST.md` + the 2026-09-29/30 first-person E2E audit `.claude/tasks/first_person_e2e_audit_2026-09-29.md` (**NOT locally prod-ready**). Do not cite either Aug-25 report's counts or verdict without re-measuring.
+
 **Date:** 2026-08-25
 **Executive verdict:** **NOT PRODUCTION READY**
 **Release color:** **RED**

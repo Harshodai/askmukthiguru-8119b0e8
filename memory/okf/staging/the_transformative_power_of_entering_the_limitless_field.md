@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Transformative Power of Entering the Limitless Field"
-source: "YouTube https://www.youtube.com/watch?v=w1U9nHF3H5o"
+source: "https://www.youtube.com/watch?v=w1U9nHF3H5o"
 video_id: w1U9nHF3H5o
 tags: [limitless field, consciousness, transformation, spiritual growth]
 teacher: "both"

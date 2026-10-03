@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Nature of True Love"
-source: "YouTube https://www.youtube.com/watch?v=X-m1fDzX5Rc"
+source: "https://www.youtube.com/watch?v=X-m1fDzX5Rc"
 video_id: X-m1fDzX5Rc
 tags: [true love, love, acceptance, alcohol, empathy, relationship]
 teacher: "sri-krishnaji"

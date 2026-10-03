@@ -1,25 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=hqre34QIMZg
-tags:
-- consciousness
-- awareness
-- ego
-teacher: both
-title: The Power of Awakened Consciousness
+title: The Power Of Awakened Consciousness
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=hqre34QIMZg
 video_id: hqre34QIMZg
+tags:
+- oneness
+- teaching
 ---
-# The Power of Awakened Consciousness
+# The Power Of Awakened Consciousness
 
+## Verbatim Discourse Excerpts
+An ordinary mind is a repetitive mind. Creativity, of course, happens when there is a birth of a new perception, a new worldview, a new life view. And such a creativity is possible when you are awakened. An awakened state of consciousness impacts the neural connections of your brain. It alters your state of being. This would transform the way you achieve, the way you create, the way you succeed in the world.
 
-## Summary
-Awakened consciousness involves bringing conscious attention to one's thoughts, responses to life, and emotions. This process emphasizes observation without judgment or indulgence.
+In awareness, you get in touch with yourself. You know yourself. In this very act of awareness, there is peace, there is clarity, there is intelligence and stillness.
 
 ## Key Teachings
-- To be awakened means to bring conscious attention to one's thoughts, responses to life, and emotions (Sri Preethaji & Sri Krishnaji).
-- The practice involves observing these aspects without judgment or indulgence (Sri Preethaji & Sri Krishnaji).
+- An awakened state of consciousness impacts the neural connections of your brain. — Sri Preethaji & Sri Krishnaji
+- And such a creativity is possible when you are awakened. — Sri Preethaji & Sri Krishnaji
+- Creativity, of course, happens when there is a birth of a new perception, a new worldview, a new life view. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Enlightenment: a state of profound understanding, characterized by a state of consciousness where one is free of suffering, with intense awareness and no compulsive attachment to the past or future.
-- Spiritual Process: a journey of awakening and transformation that leads to higher states of consciousness.
-- Awakened Child: one whose brain and nervous system is attuned to peace, whose heart naturally feels connection and love, and whose consciousness experiences a deep sense of Oneness.
+## Source Context
+- Video: The Power Of An Awakened Consciousness
+- URL: https://www.youtube.com/watch?v=hqre34QIMZg
+- Speaker: Sri Preethaji & Sri Krishnaji

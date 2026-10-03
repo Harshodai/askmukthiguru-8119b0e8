@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 # the fourth parent is `/`), so POST /admin/okf/compile wrote where retrieval never
 # reads. okf_store owns the one resolver that handles both layouts.
 from services.memory.okf_store import OKF_DIR as _OKF_DIR
+from services.memory.okf_store import _extract_key_teachings
 
 _COMPILED_PATH = _OKF_DIR / "compiled.json"
 
@@ -96,6 +97,7 @@ def compile_okf() -> Path:
                 "resource": e.get("resource", e["source"]),
                 "teacher": e.get("teacher", "both"),
                 "body": e["body"][:2000],
+                "key_teachings": _extract_key_teachings(e),
                 "embedding": emb if embed_ok else [],
                 "status": e.get("status", "stable"),
                 "generated": e.get("generated"),

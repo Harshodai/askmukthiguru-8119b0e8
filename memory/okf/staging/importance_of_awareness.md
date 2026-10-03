@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Importance of Awareness"
-source: "YouTube https://www.youtube.com/watch?v=zGOKGrTNlk4"
+source: "https://www.youtube.com/watch?v=zGOKGrTNlk4"
 video_id: zGOKGrTNlk4
 tags: [consciousness, awareness, suffering, serenity]
 teacher: "both"

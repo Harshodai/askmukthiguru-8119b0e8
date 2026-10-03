@@ -1,26 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=DqUafRyXy_0
-tags:
-- sri preethaji
-- truth of suffering
-- sri krishnaji
-- god
-- human consciousness
-teacher: both
-title: The Human Experience of God and Suffering
+title: The Human Experience Of God And Suffering
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=DqUafRyXy_0
 video_id: DqUafRyXy_0
+tags:
+- oneness
+- teaching
 ---
-# The Human Experience of God and Suffering
+# The Human Experience Of God And Suffering
 
+## Verbatim Discourse Excerpts
+If you take the experience of God from human perspective, the experience of God is purely spoken from our perspective. And we are only 2 million years old on this planet. The universe is 13.5 billion years old. So we are like a tiny ant. In this last 2 million years, and probably in the last 10,000, 11,000 years, or even not that much, is when probably the discussion on God itself has come up.
 
-## Summary
-The experience of God is deeply shaped by human consciousness and cultural upbringing. This is evident in how different regions, such as America, Africa, and China, perceive God, often as a oneness with nature and the flow of life.
+We have people who have had the experience of God as oneness of life, as field of consciousness, as Brahman, as an existence of everything. We also have people in India who have had the experience of actual gods in human forms where the God has become very divine, God has taken a human form and you worship. So India has had a mix of both because India is one of the oldest countries.
 
 ## Key Teachings
-- The experience of God is shaped by human consciousness and cultural upbringing. (Sri Preethaji & Sri Krishnaji)
-- In regions like America, Africa, and China, the experience of God is often perceived as a oneness with nature and the flow of life. (Sri Preethaji & Sri Krishnaji)
+- If you take the experience of God from human perspective, the experience of God is purely spoken from our perspective. — Sri Preethaji & Sri Krishnaji
+- We also have people in India who have had the experience of actual gods in human forms where the God has become very divine, God has taken a human form and you worship. — Sri Preethaji & Sri Krishnaji
+- Their experience of God has been very different. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Suffering States: emotional states such as regret, sadness, and loneliness that disconnect individuals from life, leading to a downward spiral of chaos and problems caused by accumulated poisons and limiting beliefs.
-- Spiritual Source of Pain: the spiritual origin of pain.
+## Source Context
+- Video: GOD
+- URL: https://www.youtube.com/watch?v=DqUafRyXy_0
+- Speaker: Sri Preethaji & Sri Krishnaji

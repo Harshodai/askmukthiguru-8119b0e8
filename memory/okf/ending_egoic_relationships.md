@@ -1,32 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=FSxiSEV1iPY
-tags:
-- ego
-- relationships
-- practice
-teacher: both
 title: Ending Egoic Relationships
-type: qa
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=FSxiSEV1iPY
 video_id: FSxiSEV1iPY
+tags:
+- oneness
+- teaching
 ---
 # Ending Egoic Relationships
 
+## Verbatim Discourse Excerpts
+This is Ekam health practice. It is best done in the morning, so as to keep your immunity high throughout the day. You may even do it three times a day. As part of Ekam health practice, you are going to do Parikrama Pranayama, which means cyclic breathing. So in the 42 cycles of Parikrama Pranayama or cyclical breathing, you will do regular inhalation and Ujjayi exhalation or ocean exhalation.
 
-## Summary
-The provided transcript discusses the final steps of the Ekam health practice, including holding breath, Shavasana, gratitude, and daily practice reminders, to enhance the body's energy channels and promote a positive mindset. It does not contain information about "Ending Egoic Relationships."
+After the 42 times breath cycle is over, you will exhale and hold your breath and listen to 21 japa's of Hamsa. This is important. Then you will inhale, hold your breath and listen to 11 japa's of Hamsa. Hamsa is a mantra, which means I am you. Hamsa is the actual sound of inhalation and exhalation. So let us begin. Please sit on the floor on a cushion or a mat, either in Sukhasana or Vajrasana.
 
 ## Key Teachings
-- The final steps of the Ekam health practice involve holding the breath, lying in Shavasana, and concluding with gratitude and daily practice reminders. (Unknown speaker)
-- This practice aims to enhance the effectiveness of the practice by focusing on the body's energy channels and the flow of prana and ojas. (Unknown speaker)
-- The practice of gratitude is crucial as it acknowledges the blessings of health received, promoting a positive mindset and a sense of well-being. (Unknown speaker)
-- Shavasana, or the corpse pose, is beneficial for overall health. (Unknown speaker)
+- It is best done in the morning, so as to keep your immunity high throughout the day. — Sri Preethaji & Sri Krishnaji
+- As part of Ekam health practice, you are going to do Parikrama Pranayama, which means cyclic breathing. — Sri Preethaji & Sri Krishnaji
+- So in the 42 cycles of Parikrama Pranayama or cyclical breathing, you will do regular inhalation and Ujjayi exhalation or ocean exhalation. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-There are no direct quotes in the provided transcript that specifically address "Ending Egoic Relationships."
-
-## Related Concepts
-- Deeksha: A spiritual practice that involves receiving energy and guidance from a spiritual teacher, facilitating an enlightened state, receiving divine intervention and cleansing consciousness.
-- Ekam Mti: An organization co-created by Guru Sri Priya G, promoting unity and oneness.
-- Enlightenment: A state of profound understanding characterized by a state of consciousness free from suffering, with intense awareness and no compulsive attachment to the past or future.
-- Limitless Field: A concept in spiritual teachings, representing the idea of 'boundlessness,' associated with the teachings of Sri Krishnaji and Sri Preethaji.
-- Soul Mate: A person who brings joy, unconditional love, and security into one's life.
+## Source Context
+- Video: Ekam Health Practice
+- URL: https://www.youtube.com/watch?v=FSxiSEV1iPY
+- Speaker: Sri Preethaji & Sri Krishnaji

@@ -1,29 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=F9Vo4fezmcE
-tags:
-- Divine
-- intelligence
-- being
-- soul
-teacher: both
-title: The Divine as a Living Intelligence
+title: The Divine As A Living Intelligence
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=F9Vo4fezmcE
 video_id: F9Vo4fezmcE
+tags:
+- oneness
+- teaching
 ---
-# The Divine as a Living Intelligence
+# The Divine As A Living Intelligence
 
+## Verbatim Discourse Excerpts
+An experience of God-consciousness transcends the mind. Here you enter the realm of consciousness or you enter the realm of pure experience. God-consciousness is an awakening to your connection to your source, awakening to the one field of intelligence that pervades and permeates the entire universe. That all-pervasive field of intelligence is what we call as the divine, the sacred or the universal intelligence.
 
-## Summary
-The Divine is described as a living intelligence that actively responds to its desires. This characteristic makes it a "being" and the very soul of the universe, manifesting its presence and divinity in various forms, from a subtle inner voice to an overwhelming experience of bliss or sacred love.
+The sacred is embedded within every aspect of the universe, the living, the non-living, that which has biological processes and that which does not have biological processes. It is imminent in every atom, molecule, matter, energy, in every life form. It is a living intelligence that responds, that evolves. That's why it's a being. That is why it is the soul of the universe.
 
 ## Key Teachings
-- The Divine is a living intelligence that responds to what it wants. (Unknown Channel)
-- This responsiveness makes the Divine a "being." (Unknown Channel)
-- The Divine is the soul of the universe. (Unknown Channel)
-- The Divine's presence and divinity can be experienced in various forms, such as a small voice or a flow of rapturous Bliss or Sacred Love. (Unknown Channel)
+- That all-pervasive field of intelligence is what we call as the divine, the sacred or the universal intelligence. — Sri Preethaji & Sri Krishnaji
+- It is a living intelligence that responds, that evolves. — Sri Preethaji & Sri Krishnaji
+- God-consciousness is an awakening to your connection to your source, awakening to the one field of intelligence that pervades and permeates the entire universe. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "It is a living intelligence that responds to what it wants." — Unknown Channel
-
-## Related Concepts
-- Divine: The Divine is a concept representing the ultimate reality or the source of all existence. It is a central idea in Hindu thought, encompassing multiple deities and the idea of a cosmic being.
+## Source Context
+- Video: MANIFEST CHAKRA POTENTIALMANIFEST DIVINE EXPERIENCES
+- URL: https://www.youtube.com/watch?v=F9Vo4fezmcE
+- Speaker: Sri Preethaji & Sri Krishnaji

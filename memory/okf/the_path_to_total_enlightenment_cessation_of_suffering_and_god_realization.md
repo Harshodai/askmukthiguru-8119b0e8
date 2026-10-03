@@ -1,30 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=DBUJH5f6rjU
-tags:
-- suffering
-- liberation
-- self-realization
-- god-realization
-- enlightenment
-- moksha
-teacher: both
-title: 'The Path to Total Enlightenment: Cessation of Suffering and God-Realization'
+title: The Path To Total Enlightenment Cessation Of Suffering And God Realization
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=DBUJH5f6rjU
 video_id: DBUJH5f6rjU
+tags:
+- oneness
+- teaching
 ---
-# The Path to Total Enlightenment: Cessation of Suffering and God-Realization
+# The Path To Total Enlightenment Cessation Of Suffering And God Realization
 
+## Verbatim Discourse Excerpts
+Sampurna Jeevan Mukthi or Total Enlightenment is both Self-realization and God-realization. What is the path of Self-realization? It is the total cessation of suffering. The edifice of suffering stands on seven pillars. As each of these pillars is removed, the edifice that has stood for several lifetimes comes to dust, which is Sampurna Jeevan Mukthi. Jeevan Mukthi is liberation from ego.
 
-## Summary
-The path of Sampurna Jeevan Mukthi, or Total Enlightenment, involves two interconnected journeys: Self-realization and God-realization. Self-realization is characterized by the complete cessation of suffering and liberation from various aspects of the self, while God-realization is a journey from separation to oneness with the Divine.
+The seventh layer of this flowering is ekatva or being one with God. This God realization, this is ekamphata or the path of ekam. Close your eyes for a few minutes and listen to this teaching in Sanskrit as a shloka. Aadarshah, ityukte bhagavate Aadarshavadinah bhavitavyam Triti yasthara utgathanah pradah Ishvare nasahasneha bhavah Turi yasthara vikasanam Sreshta bhakti hi Bhagavad mahimanaam shodhanam Panchasthara utgathanam parabhakti hi Atmana parabhakti hi Shatasthara utgathanam prapatti hi Ityukte bhagavate Sharanagatim bhavah Shatasthara utgathanam Ekatvam Ityukte Paramatmane aikyatvam Itadeva bhagavad saksadkaram Ayam eva ekam patah Please open your eyes.
 
 ## Key Teachings
-- The path of Sampurna Jeevan Mukthi, or Total Enlightenment, encompasses both Self-realization and God-realization. (Unknown speaker)
-- Self-realization involves the total cessation of suffering. (Unknown speaker)
-- The edifice of suffering collapses to achieve liberation. (Unknown speaker)
-- Liberation includes freedom from ego, craving, vasanas, body, mind, ignorance, illusory cells, and consciousness. (Unknown speaker)
-- The journey of Bhagavad-Sakshat Kara, or God-realization, is from aparchya (separation) to ekatva (oneness), leading to oneness with God. (Unknown speaker)
+- Sampurna Jeevan Mukthi or Total Enlightenment is both Self-realization and God-realization. — Sri Preethaji & Sri Krishnaji
+- What then is the path to God-realization? — Sri Preethaji & Sri Krishnaji
+- This God realization, this is ekamphata or the path of ekam. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Consciousness: The state of being aware of one's thoughts, emotions, and surroundings, from which liberation is sought.
-- Divine: The ultimate reality or the source of all existence, with which God-realization seeks oneness.
+## Source Context
+- Video: EKAM TAPAS
+- URL: https://www.youtube.com/watch?v=DBUJH5f6rjU
+- Speaker: Sri Preethaji & Sri Krishnaji

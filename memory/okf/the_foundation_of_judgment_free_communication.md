@@ -1,28 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=l6svaRx35TI
-tags:
-- communication
-- judgment
-- connection
-- spaciousness
-teacher: both
-title: The Foundation of Judgment-Free Communication
+title: The Foundation Of Judgment Free Communication
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=l6svaRx35TI
 video_id: l6svaRx35TI
+tags:
+- oneness
+- teaching
 ---
-# The Foundation of Judgment-Free Communication
+# The Foundation Of Judgment Free Communication
 
+## Verbatim Discourse Excerpts
+In the same way, an organization should nurture individuals in various rungs who live in a state free of inner rush, free of judgments, and hold conversations in the space of connection. You then build each other into forces of energy that are aligned towards the common vision, like forests that nurture the giant trees as well as the mushrooms. Organizations should nurture the small as well as the big.
 
-## Summary
-Judgment-free communication and connection begin with an inner state of spaciousness where judgment is absent. When prejudice leads to judgment, it creates stress and tension, prompting a need for correction or self-righteousness. To foster true connection, one must entirely avoid judgment and instead cultivate a calm space where others feel respected and valued.
+To me, holding a space for another actually begins as a state of inner spaciousness. Have you ever noticed that in the middle of a meeting or a discussion, you suddenly become tensed? Do you know why? When you are engaged in a conversation and you feel an inner rush of tension, it is because you are unconsciously engaging in judgment.
 
 ## Key Teachings
-- Holding space for another starts with an inner state of spaciousness, free from judgment.
-- Judgment arising from prejudice causes stress and tension, leading to a desire for correction or self-righteousness.
-- To practice judgment-free communication, one must avoid judgment completely.
-- The focus should be on creating a space of connection and calm where the other person feels respected and valued.
+- When you are engaged in a conversation and you feel an inner rush of tension, it is because you are unconsciously engaging in judgment. — Sri Preethaji & Sri Krishnaji
+- Judgment is necessary, but when judgment arises because of prejudice, it hurts the other. — Sri Preethaji & Sri Krishnaji
+- In the same way, an organization should nurture individuals in various rungs who live in a state free of inner rush, free of judgments, and hold conversations in the space of connection. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Enlightenment: a state of profound understanding characterized by a consciousness free from suffering, with intense awareness and no compulsive attachment to the past or future.
-- Spiritual Process: a journey of awakening and transformation that leads to higher states of consciousness.
-- Consciousness: the state of awareness and the ability to perceive and understand the world around oneself.
+## Source Context
+- Video: l6svaRx35TI
+- URL: https://www.youtube.com/watch?v=l6svaRx35TI
+- Speaker: Sri Preethaji & Sri Krishnaji

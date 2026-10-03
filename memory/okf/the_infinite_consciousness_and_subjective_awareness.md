@@ -1,34 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=w1gF90_cBl4
-tags:
-- consciousness
-- subjective awareness
-- infinite consciousness
-teacher: both
-title: The Infinite Consciousness and Subjective Awareness
+title: The Infinite Consciousness And Subjective Awareness
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=w1gF90_cBl4
 video_id: w1gF90_cBl4
+tags:
+- oneness
+- teaching
 ---
-# The Infinite Consciousness and Subjective Awareness
+# The Infinite Consciousness And Subjective Awareness
 
+## Verbatim Discourse Excerpts
+The infinite consciousness is like the ocean, in which every life form is but a wave of subjective awareness that rises and subsides. You are a form that has arisen in this vast consciousness and will subside someday and arise again in yet another form. Well, consciousness itself is eternal. It manifests as the universe this way now, and then another way in another time. Consciousness is space, time, and energy.
 
-## Summary
-The infinite consciousness is described as an ocean, where every life form is a wave of subjective awareness that rises and subsides. Each individual form is seen as having arisen within this vast consciousness.
+If you observe the nature of every one of the creations of the earth, you will see one tune, one tune flowing through all. You will hear the theme song. It is a song of inclusivity. Everywhere, every beetle and bee, tree and shrub, vine, and below, spider and bad, contribute actively and support the thriving of the rest. Every being is a part of the narrative of the flourishing of life.
 
 ## Key Teachings
-- The infinite consciousness is likened to an ocean.
-- Every life form is a wave of subjective awareness within this ocean, which rises and subsides.
-- Each individual form arises within the vastness of this consciousness.
+- The infinite consciousness is like the ocean, in which every life form is but a wave of subjective awareness that rises and subsides. — Sri Preethaji & Sri Krishnaji
+- You are a form that has arisen in this vast consciousness and will subside someday and arise again in yet another form. — Sri Preethaji & Sri Krishnaji
+- Consciousness is space, time, and energy. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "The infinite consciousness is the ocean, in which every life form is but a wave of subjective awareness that rises and subsides." — Unknown Channel
-
-## Related Concepts
-- Zero and Infinity: The discovery of zero and infinity is attributed to the enlightened consciousness of Indian sages.
-- Shunyata and Brahman: These are states of consciousness experienced by Indian sages.
-- Enlightenment: A state of profound understanding characterized by a state of consciousness free from suffering, with intense awareness and no compulsive attachment to the past or future.
-- Spiritual Process: A journey of awakening and transformation that leads to higher states of consciousness.
-- Enlightenment State: The highest state of consciousness, characterized by complete understanding and unity.
-- I-Consciousness: A state of awareness and connection to one's own being.
-- Awakened Child: One whose brain and nervous system is attuned to peace, whose heart naturally feels connection and love, and whose consciousness experiences a deep sense of Oneness.
-- Divine Drama: The unfolding of the mystical planes of consciousness before a child is born into the world.
+## Source Context
+- Video: w1gF90_cBl4
+- URL: https://www.youtube.com/watch?v=w1gF90_cBl4
+- Speaker: Sri Preethaji & Sri Krishnaji

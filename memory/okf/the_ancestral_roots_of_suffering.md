@@ -1,25 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=LapJqYf9hzI
-tags:
-- suffering
-- ancestors
-- collective consciousness
-- ego
-teacher: both
-title: The Ancestral Roots of Suffering
+title: The Ancestral Roots Of Suffering
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=LapJqYf9hzI
 video_id: LapJqYf9hzI
+tags:
+- oneness
+- teaching
 ---
-# The Ancestral Roots of Suffering
+# The Ancestral Roots Of Suffering
 
+## Verbatim Discourse Excerpts
+Why is there so much mental illness around the globe today? Why is there so much depression around the globe today? Why is there so much sense of loneliness, especially among the youngsters? Why? It's because your grandparents, your great-grandparents, your ancestors - what are all of them leaving behind in the human collective consciousness? Most of the time, the suffering state, and it is flowing back into the humanities, into the next generations.
 
-## Summary
-The suffering experienced by humanity is attributed to the collective consciousness inherited from ancestors, which flows back into the human collective consciousness and impacts future generations.
+That is why it is so important that you learn to live a life free of suffering, that you learn to live a life awakened, that you learn to live a life - an enlightened state - so that you can contribute magnificent states to the humanities' collective consciousness. That is why you are going through this festival. If 78,000 people can learn to do that, I believe that we can have a tremendous impact on human collective consciousness. So that is the vision you.
 
 ## Key Teachings
-- The suffering in humanity is linked to what "your grandparents, your great-grandparents, your ancestors" leave behind in the human collective consciousness. (Unknown Channel)
-- This ancestral legacy impacts future generations. (Unknown Channel)
+- Why is there so much suffering in humanity? — Sri Preethaji & Sri Krishnaji
+- Most of the time, the suffering state, and it is flowing back into the humanities, into the next generations. — Sri Preethaji & Sri Krishnaji
+- That is why it is so important that you learn to live a life free of suffering, that you learn to live a life awakened, that you learn to live a life - an enlightened state - so that you can contribute magnificent states to the humanities' collective consciousness. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Suffering: a multifaceted concept that encompasses various aspects of human experience, including unhappiness and pain.
-- Ego: a concept referring to the sense of self, identity, and the tendency to identify with thoughts and emotions.
+## Source Context
+- Video: LapJqYf9hzI
+- URL: https://www.youtube.com/watch?v=LapJqYf9hzI
+- Speaker: Sri Preethaji & Sri Krishnaji

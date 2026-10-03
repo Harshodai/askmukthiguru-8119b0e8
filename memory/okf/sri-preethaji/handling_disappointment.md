@@ -11,15 +11,15 @@ teacher: "sri-preethaji"
 
 # Handling Disappointment
 
-When you perceive that your expectations have not been met, it's normal to feel hurt and disappointed. However, the key is how you address these feelings. The Serene Mind practice is a powerful tool to dissolve negative emotions like anger and disappointment, preventing them from building and potentially leading to suffering. By using the Serene Mind practice, you can stop the suffering from continuing to grow and help prevent it from escalating into more significant issues.
+When you perceive that your expectations have not been met, it's normal to feel hurt and disappointed. However, the key is how you address your hurt and your disappointment — that becomes the biggest question. To start with, the teaching recommends the serene mind practice so that the suffering, anger, disappointment, or hurt does not continue to build.
 
 ---
 
 ### Key Teachings
-- **Sri Preethaji says:** "The Serene Mind practice is a powerful tool to dissolve negative emotions like anger and disappointment, preventing them from building and potentially leading to suffering. By using the Serene Mind practice, you can stop the suffering from continuing to grow and help prevent it from escalating into more significant issues."
+- To start with I would say do the serene mind practice. Don't allow the suffering or that anger or the disappointment or the hurt to continue to build.
 
 ### Quotes
-> "The Serene Mind practice is a powerful tool to dissolve negative emotions like anger and disappointment, preventing them from building and potentially leading to suffering. By using the Serene Mind practice, you can stop the suffering from continuing to grow and help prevent it from escalating into more significant issues."
+> "To start with I would say do the serene mind practice. Don't allow the suffering or that anger or the disappointment or the hurt to continue to build."
 
 ---
 

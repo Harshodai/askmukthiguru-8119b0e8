@@ -1,30 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=VO3fi1c9ids
-tags:
-- suffering
-- spiritual-vision
-- body-mind
-- consequences
-teacher: both
-title: Consequences for the Body and Mind
+title: Consequences For The Body And Mind
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=VO3fi1c9ids
 video_id: VO3fi1c9ids
+tags:
+- oneness
+- teaching
 ---
-# Consequences for the Body and Mind
+# Consequences For The Body And Mind
 
+## Verbatim Discourse Excerpts
+There is nothing new about today. In your Suffering State, you experience discomfort. In your Suffering State, there is unpleasantness that you experience within yourself. Your Suffering State destroys your body. It fills your body with stress hormones. Destroys your heart, makes you totally disconnected from your loved ones, totally disconnected from the people around you.
 
-## Summary
-Remaining in a chronic state of suffering leads to severe physical, relational, and spiritual consequences. This condition is described as spiritually dead and disconnected, which is why seeking a spiritual vision is necessary to escape it.
+Your Suffering State destroys your consciousness as you are stuck in the me and the mind and you're not experiencing reality as it is. It is a very painful experience of life even though if you have lived probably all your life in it, it is not the place in which you should live an experienced life from because internally, I can say you are dead.
 
 ## Key Teachings
-- Remaining in a chronic state of suffering is a dangerous condition that results in severe physical, relational, and spiritual consequences.
-- This chronic state of suffering is identified as a spiritually dead and disconnected condition.
-- One must seek a spiritual vision to escape the destructive cycle of chronic suffering.
+- Your Suffering State destroys your body. — Sri Preethaji & Sri Krishnaji
+- It fills your body with stress hormones. — Sri Preethaji & Sri Krishnaji
+- Your Suffering State destroys your consciousness as you are stuck in the me and the mind and you're not experiencing reality as it is. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "It is possible to find happiness even in difficult times." — Unknown Channel
-
-## Related Concepts
-- Suffering: A multifaceted concept encompassing pain, distress, and negative experiences that can manifest as emotional or physical states. It is characterized as a condition of conflict, unhappiness, and intense awareness, often arising from attachment, ignorance, judgments, and labels that lead to separation and further pain.
-- Stressful State: A condition characterized by feelings of anxiety, tension, or overwhelm.
-- Chaos: Refers to a state of disorder, confusion, or randomness.
+## Source Context
+- Video: It is possible to find happiness even in difficult times.
+- URL: https://www.youtube.com/watch?v=VO3fi1c9ids
+- Speaker: Sri Preethaji & Sri Krishnaji

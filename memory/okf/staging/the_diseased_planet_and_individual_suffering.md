@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Diseased Planet and Individual Suffering"
-source: "YouTube https://www.youtube.com/watch?v=pTnZt0SqDFM"
+source: "https://www.youtube.com/watch?v=pTnZt0SqDFM"
 video_id: pTnZt0SqDFM
 tags: [suffering, global health, consciousness]
 teacher: "both"

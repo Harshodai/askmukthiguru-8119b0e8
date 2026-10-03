@@ -90,10 +90,20 @@ def test_hallucination_flags_short_disputed_run_is_not_flagged():
 
 
 def test_vote_stage_end_to_end_shape():
-    a = [_w("Suffering", 0.0, 0.3), _w("is", 0.3, 0.5), _w("not", 0.5, 0.7),
-         _w("a", 0.7, 0.8), _w("fact", 0.8, 1.1)]
-    b = [_w("Suffering", 0.0, 0.3), _w("is", 0.3, 0.5), _w("not", 0.5, 0.7),
-         _w("a", 0.7, 0.8), _w("fat", 0.8, 1.1)]
+    a = [
+        _w("Suffering", 0.0, 0.3),
+        _w("is", 0.3, 0.5),
+        _w("not", 0.5, 0.7),
+        _w("a", 0.7, 0.8),
+        _w("fact", 0.8, 1.1),
+    ]
+    b = [
+        _w("Suffering", 0.0, 0.3),
+        _w("is", 0.3, 0.5),
+        _w("not", 0.5, 0.7),
+        _w("a", 0.7, 0.8),
+        _w("fat", 0.8, 1.1),
+    ]
     r = vote_stage(a, b)
     assert r["ok"] is True
     assert r["n_voted"] == 5

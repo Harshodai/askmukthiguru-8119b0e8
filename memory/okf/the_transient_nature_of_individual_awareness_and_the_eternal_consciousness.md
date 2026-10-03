@@ -1,29 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=w1gF90_cBl4
-tags:
-- consciousness
-- suffering
-- ego
-- existence
-teacher: both
-title: The Transient Nature of Individual Awareness and the Eternal Consciousness
+title: The Transient Nature Of Individual Awareness And The Eternal Consciousness
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=w1gF90_cBl4
 video_id: w1gF90_cBl4
+tags:
+- oneness
+- teaching
 ---
-# The Transient Nature of Individual Awareness and the Eternal Consciousness
+# The Transient Nature Of Individual Awareness And The Eternal Consciousness
 
+## Verbatim Discourse Excerpts
+The infinite consciousness is like the ocean, in which every life form is but a wave of subjective awareness that rises and subsides. You are a form that has arisen in this vast consciousness and will subside someday and arise again in yet another form. Well, consciousness itself is eternal. It manifests as the universe this way now, and then another way in another time. Consciousness is space, time, and energy.
 
-## Summary
-This teaching explains that individual life forms are like waves in an ocean of infinite consciousness. While individual awareness rises and subsides, the underlying consciousness itself is eternal and manifests as the universe, encompassing space, time, and energy.
+If you observe the nature of every one of the creations of the earth, you will see one tune, one tune flowing through all. You will hear the theme song. It is a song of inclusivity. Everywhere, every beetle and bee, tree and shrub, vine, and below, spider and bad, contribute actively and support the thriving of the rest. Every being is a part of the narrative of the flourishing of life.
 
 ## Key Teachings
-- The infinite consciousness is likened to an ocean, and every life form is a "wave of subjective awareness that rises and subsides."
-- Consciousness itself is "eternal, manifesting as the universe in various ways."
-- The relationship between infinite consciousness and the universe is that "consciousness is space, time, and energy."
-- Consciousness "manifests as the universe this way now, and then" emphasizing its continuous and ever-changing nature.
+- The infinite consciousness is like the ocean, in which every life form is but a wave of subjective awareness that rises and subsides. — Sri Preethaji & Sri Krishnaji
+- Well, consciousness itself is eternal. — Sri Preethaji & Sri Krishnaji
+- You are a form that has arisen in this vast consciousness and will subside someday and arise again in yet another form. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Consciousness: The eternal and infinite reality from which all life forms and the universe manifest.
-- Ego: A false, separate self that is the root of suffering and illusion, often associated with the identification with the physical self and personal desires.
-- Suffering: A multifaceted concept often linked to the ego and the illusion of separation from the divine.
-- Enlightenment: A state of profound understanding characterized by a state of consciousness free from suffering, with intense awareness and no compulsive attachment to the past or future.
+## Source Context
+- Video: w1gF90_cBl4
+- URL: https://www.youtube.com/watch?v=w1gF90_cBl4
+- Speaker: Sri Preethaji & Sri Krishnaji

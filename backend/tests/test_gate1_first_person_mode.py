@@ -139,7 +139,9 @@ async def _run_worker(client, items):
 
 @pytest.mark.asyncio
 async def test_first_person_worker_parses_success_response():
-    client = _FakeClient([_FakeResponse(200, {"status": "success", "citations": [{"a": 1}, {"b": 2}]})])
+    client = _FakeClient(
+        [_FakeResponse(200, {"status": "success", "citations": [{"a": 1}, {"b": 2}]})]
+    )
     results = await _run_worker(client, [{"id": "q1", "question": "Why suffer?", "video_id": "v1"}])
     assert len(results) == 1
     r = results[0]

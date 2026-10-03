@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Addressing Violence in Relationships"
-source: "YouTube https://www.youtube.com/watch?v=bSyewSnu2Ak"
+source: "https://www.youtube.com/watch?v=bSyewSnu2Ak"
 video_id: bSyewSnu2Ak
 tags: [violence, relationships, love, self-reflection]
 teacher: "both"

@@ -1,33 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=glXpHbwhQA4
-tags:
-- consciousness
-- fear
-- abhaya chakra
-- transformation
-teacher: sri-preethaji
-title: Fear-Driven Consciousness
+title: Fear Driven Consciousness
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=glXpHbwhQA4
 video_id: glXpHbwhQA4
+tags:
+- oneness
+- teaching
 ---
-# Fear-Driven Consciousness
+# Fear Driven Consciousness
 
+## Verbatim Discourse Excerpts
+Fear is deeply etched in human mind. It is etched in human consciousness. That is why you bring fear to every aspect of life. You achieve from fear. Your success is driven by fear of failure. You create wealth in fear. Your prosperity is driven by fear of lack. You fall in love, marry or create a family driven by fear because the pursuit of love is driven by fear of loneliness.
 
-## Summary
-The transcript explores the transformative experience of living free of fear within the Abhaya Chakra activation, using the metaphor of a poisonous snake guarding its treasures to illustrate the limitations of a fear-driven consciousness.
+Imagine a life lived free of fear. How will such an experience be? What would such a life feel like? It would actually feel limitless. Certain ancient traditions of the world compare a fear driven consciousness to that of a poisonous snake that guards its treasures, that guards its gemstones. The snake symbolizes an earth bound consciousness that painfully crawls on the ground.
 
 ## Key Teachings
-- Fear-driven consciousness is characterized by the limitation of guarding one's treasures out of fear, much like a poisonous snake guarding its treasures.
-- The Abhaya Chakra activation offers a path to transform this fear-driven state into one of fearlessness and limitlessness.
+- Certain ancient traditions of the world compare a fear driven consciousness to that of a poisonous snake that guards its treasures, that guards its gemstones. — Sri Preethaji & Sri Krishnaji
+- And you are living this snake-like existence in a fear driven consciousness. — Sri Preethaji & Sri Krishnaji
+- As your consciousness awakens from this fear driven state which is painful and limited, it transcends this earth bound consciousness. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "The metaphor of a poisonous snake guarding its treasures illustrates the limitations of a fear-driven consciousness."
-
-## Related Concepts
-- Abhaya Chakra (concept): The chakra associated with fearlessness, which when activated, opens the heart to a state beyond fear.
-- Consciousness (concept): The state of being aware and awake, which can be transformed from a fear-driven state to one of fearlessness and limitlessness.
-- Enlightenment (concept): A profound state of spiritual awakening characterized by a consciousness free from suffering.
-- Spiritual Process (practice): A journey of awakening and transformation that leads to higher states of consciousness.
-- I-Consciousness (concept): The sense of self, which can be experienced as separate and disconnected or expanded to include others.
-- Shunyata and Brahman (concept): States of consciousness experienced by Indian sages, leading to significant contributions to mathematics and philosophy.
-- Zero and Infinity (concept): The discovery of these concepts is attributed to the enlightened consciousness of Indian sages.
+## Source Context
+- Video: Activate Your Abhaya Chakra: Open Your Heart to fearlessness
+- URL: https://www.youtube.com/watch?v=glXpHbwhQA4
+- Speaker: Sri Preethaji & Sri Krishnaji

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Nature of Suffering and Bliss"
-source: "YouTube https://www.youtube.com/watch?v=E-LCT0YEpWQ"
+source: "https://www.youtube.com/watch?v=E-LCT0YEpWQ"
 video_id: E-LCT0YEpWQ
 tags: [consciousness, enlightenment, ananda, suffering]
 teacher: "both"

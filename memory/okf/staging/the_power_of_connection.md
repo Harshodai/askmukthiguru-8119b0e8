@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Power of Connection"
-source: "YouTube https://www.youtube.com/watch?v=Js7ongWaW64"
+source: "https://www.youtube.com/watch?v=Js7ongWaW64"
 video_id: Js7ongWaW64
 tags: [connection, relationships, healing, observation]
 teacher: "both"

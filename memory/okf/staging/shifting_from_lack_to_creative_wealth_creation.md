@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Shifting from Lack to Creative Wealth Creation"
-source: "YouTube https://www.youtube.com/watch?v=qJxGtSDiayM"
+source: "https://www.youtube.com/watch?v=qJxGtSDiayM"
 video_id: qJxGtSDiayM
 tags: [prosperity, wealth creation, consciousness]
 teacher: "both"

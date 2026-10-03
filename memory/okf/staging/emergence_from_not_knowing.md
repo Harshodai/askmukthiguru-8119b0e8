@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Emergence from Not Knowing"
-source: "YouTube https://www.youtube.com/watch?v=cI7D2aO34yw"
+source: "https://www.youtube.com/watch?v=cI7D2aO34yw"
 video_id: cI7D2aO34yw
 tags: [suffering, self-discovery, transformation]
 teacher: "both"

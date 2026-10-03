@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Cherishing Moments Through Observation"
-source: "YouTube https://www.youtube.com/watch?v=jW3JDLY0cDA"
+source: "https://www.youtube.com/watch?v=jW3JDLY0cDA"
 video_id: jW3JDLY0cDA
 tags: [observation, gratitude, love]
 teacher: "both"

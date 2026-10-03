@@ -1,29 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=B8wapoLAu84
-tags:
-- brain
-- emotions
-- amygdala
-- prefrontal cortex
-- mental health
-teacher: both
-title: The Brain's Attraction to Negative Emotions and Shifting to Logical Thinking
+title: The Brain S Attraction To Negative Emotions And Shifting To Logical Thinking
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=B8wapoLAu84
 video_id: B8wapoLAu84
+tags:
+- oneness
+- teaching
 ---
-# The Brain's Attraction to Negative Emotions and Shifting to Logical Thinking
+# The Brain S Attraction To Negative Emotions And Shifting To Logical Thinking
 
+## Verbatim Discourse Excerpts
+We are not in fear today because a dinosaur is chasing us. Our negative emotions are because we are caught in many movies about the past and the future now hits. And the part of the brain that actually triggers and feeds our negativity is amygdala. And the more you engage in negative mental movies, amygdala becomes extremely neurologically active and it actually swells in science.
 
-## Summary
-The human brain has a natural attraction to negative emotions, a survival mechanism rooted in the amygdala. While this has been beneficial for survival over millions of years, it can negatively impact mental health and practical thinking. To counteract this, one must learn to shift brain activity from the amygdala to the prefrontal cortex, which enables logical thinking and balance.
+This simple practice you will cut through negativity and wire your brain to positivity. Most people I meet are addicted. They are habituated to some negative emotions or the other. Some know that they are habituated, while some don't know. Three common states people make it into habits are anger-related states like irritation, frustration, or road rage. Some give into fear-related states such as tension, stress, anxiety, or even panic.
 
 ## Key Teachings
-- The human brain is attracted to negative emotions, which is scientifically linked to the amygdala's role in emotional responses.
-- This attraction to negative emotions is a survival mechanism developed over millions of years.
-- This habit can negatively affect mental health and practical thinking.
-- To overcome these negative habits, it is necessary to shift brain activity from the amygdala to the prefrontal cortex.
-- The prefrontal cortex is responsible for logical thinking and balance.
+- To come out of negative emotions, you need to have some scientific understanding of the human brain. — Sri Preethaji & Sri Krishnaji
+- The human brain has a tremendous attraction for the negative. — Sri Preethaji & Sri Krishnaji
+- We have to shift that activity from the amygdala to the prefrontal cortex, to the front of the brain, which is where logical thinking happens. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Brain: The organ responsible for processing information and controlling the body's functions.
-- Stressful State: A condition characterized by feelings of anxiety, tension, or overwhelm.
+## Source Context
+- Video: Is your brain attracted to the negative? | Evolution During Crisis -11 with Preethaji and Krishnaji
+- URL: https://www.youtube.com/watch?v=B8wapoLAu84
+- Speaker: Sri Preethaji & Sri Krishnaji

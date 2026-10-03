@@ -1,36 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=77dJnbTCwsA
-tags:
-- leadership
-- vision
-- purpose
-- responsibility
-- empathy
-teacher: both
-title: Qualities of a True Leader
+title: Qualities Of A True Leader
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=77dJnbTCwsA
 video_id: 77dJnbTCwsA
+tags:
+- oneness
+- teaching
 ---
-# Qualities of a True Leader
+# Qualities Of A True Leader
 
+## Verbatim Discourse Excerpts
+How do you choose a leader? Do you choose a leader based on color? A leader may be black or white. A leader may be brown or yellow. Do you choose a leader based on gender? A leader may be a man, a woman or a transgender. Do you choose a leader based on age? A leader may be young, middle aged or old. If your choice of a leader is based on any or all of these factors, please know that these traits are mere superficialities that end with the body.
 
-## Summary
-A true leader is defined by qualities such as vision, purpose, responsibility, and empathy, and inspires others without being driven by ego or self-interest. This contrasts with a bad leader who is aggressively ambitious, self-serving, and exploitative.
+But how to choose a right leader? What is right leadership? Choose a leader who is inspired by a vision for their nation, who is driven by a sense of purpose. Don't choose a leader who is driven by aggressive ambition. And his only claim to power is the mistakes of the opponents. Choose a leader who is responsibility driven. One who is aware of the consequences of their decisions and actions upon the nation and its people.
 
 ## Key Teachings
-- A crucial decision like choosing a leader should be based on qualities that go beyond superficial traits. (Unknown speaker)
-- The qualities of a good leader include vision, purpose, responsibility, and empathy. (Unknown speaker)
-- A leader should inspire, have a sense of purpose, be responsible, and avoid ego-driven or self-serving leadership. (Unknown speaker)
-- A bad leader is driven by aggressive ambition, serves themselves, and exploits others. (Unknown speaker)
-- A true leader should be responsible and aware of the consequences of their decisions. (Unknown speaker)
+- A leader may be a man, a woman or a transgender. — Sri Preethaji & Sri Krishnaji
+- A leader may be young, middle aged or old. — Sri Preethaji & Sri Krishnaji
+- If your choice of a leader is based on any or all of these factors, please know that these traits are mere superficialities that end with the body. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "Choosing a leader is a crucial decision that should be based on qualities that transcend superficial traits." — Unknown
-> "The qualities of a good leader include vision, purpose, responsibility, and empathy." — Unknown
-> "A leader should inspire, have a sense of purpose, be responsible, and avoid ego-driven or self-serving leadership." — Unknown
-> "This contrasts with a bad leader who is driven by aggressive ambition, serves themselves, and exploits others." — Unknown
-
-## Related Concepts
-- Consciousness: a multifaceted and complex entity that encompasses various aspects of human experience, including awareness of one's thoughts, emotions, and surroundings.
-- Enlightenment: the state of living in an unperturbed state of calm, leading to states of bliss, stillness, love, and peace.
-- Spiritual Process: a journey of awakening and transformation that leads to higher states of consciousness.
+## Source Context
+- Video: Triumph and Defeat | Evolution Series 81 with Preethaji & Krishnaji
+- URL: https://www.youtube.com/watch?v=77dJnbTCwsA
+- Speaker: Sri Preethaji & Sri Krishnaji

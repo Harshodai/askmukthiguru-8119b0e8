@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Spiritual Loneliness and Evolution"
-source: "YouTube https://www.youtube.com/watch?v=bCzjP2UaKRI"
+source: "https://www.youtube.com/watch?v=bCzjP2UaKRI"
 video_id: bCzjP2UaKRI
 tags: [spiritual loneliness, evolution, human connection, authentic presence]
 teacher: "both"

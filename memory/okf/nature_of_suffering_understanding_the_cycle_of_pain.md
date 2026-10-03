@@ -1,29 +1,26 @@
 ---
-source: https://www.youtube.com/watch?v=h5Cvb_ZXnJc
-tags:
-- truth of suffering
-- nature of suffering
-- cycle of pain
-- spiritual teachings
-teacher: both
-title: 'Nature of Suffering: Understanding the Cycle of Pain'
+title: Nature Of Suffering Understanding The Cycle Of Pain
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=h5Cvb_ZXnJc
 video_id: h5Cvb_ZXnJc
+tags:
+- oneness
+- teaching
 ---
-# Nature of Suffering: Understanding the Cycle of Pain
+# Nature Of Suffering Understanding The Cycle Of Pain
 
+## Verbatim Discourse Excerpts
+You know, we as people, be it entrepreneurs or be it professionals, be it business leaders, we are constantly working from our mind and we are constantly working from strategies, from planning and basically coming from our educational background and coming from trying to find a role model, read books. If this person has done, if this person has made it great in life then he must have done something right.
 
-## Summary
-The speaker discusses the common practice of relying on external sources for inspiration and guidance, which is insufficient for achieving true success and transformation. The speaker emphasizes the importance of personal growth and self-discovery as the key to overcoming suffering and achieving true success.
+So let me just copy that or copy from my parents, my grandparents, someone or something which is all good. It's not bad but it's not great for you to really be impactful and for you to really be successful not just wealth wise, health wise, relationships wise but also to really make a contribution back to the world and for you to have a tremendous amount of magic happening in your life, you need to awaken in your consciousness.
 
 ## Key Teachings
-- **The Importance of Personal Growth**: The speaker suggests that relying on external sources is insufficient for achieving true success and transformation. Personal growth and self-discovery are essential for overcoming suffering and achieving true success.
+- If this person has done, if this person has made it great in life then he must have done something right. — Sri Preethaji & Sri Krishnaji
+- So let me just copy that or copy from my parents, my grandparents, someone or something which is all good. — Sri Preethaji & Sri Krishnaji
+- You are not getting better at something, you are not getting good at something, you are actually becoming different, you are becoming a transformed human being. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "The speaker emphasizes that relying on external sources is insufficient for achieving true success and transformation."
-> — Unknown Channel
-
-## Related Concepts
-- **Cycle of Pain**: The speaker discusses the cycle of pain and suffering perpetuated by hurt human beings, emphasizing the need for personal growth and self-discovery to break free from this cycle.
-
-Do NOT include preamble like "Here is the entry" — output ONLY the YAML frontmatter and markdown body.
+## Source Context
+- Video: How To Get Success In All Fields Of Life?
+- URL: https://www.youtube.com/watch?v=h5Cvb_ZXnJc
+- Speaker: Sri Preethaji & Sri Krishnaji

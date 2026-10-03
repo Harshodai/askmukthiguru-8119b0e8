@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Ugadi and the New Inner Universe"
-source: "YouTube https://www.youtube.com/watch?v=nQpRoOOu5Yc"
+source: "https://www.youtube.com/watch?v=nQpRoOOu5Yc"
 video_id: nQpRoOOu5Yc
 tags: [Ugadi, Gudi Padwa, spiritual celebration, inner universe, cycle of life, equanimity, gratitude]
 teacher: "both"

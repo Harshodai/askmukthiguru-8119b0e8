@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Illusion of a Permanent Self and Interconnectedness"
-source: "YouTube https://www.youtube.com/watch?v=UNdwPjyLGn0"
+source: "https://www.youtube.com/watch?v=UNdwPjyLGn0"
 video_id: UNdwPjyLGn0
 tags: [awakening, self, interconnectedness, illusion, transformation]
 teacher: "both"

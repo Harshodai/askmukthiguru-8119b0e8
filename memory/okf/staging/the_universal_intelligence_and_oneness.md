@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Universal Intelligence and Oneness"
-source: "YouTube https://www.youtube.com/watch?v=MJYpyUlwxg0"
+source: "https://www.youtube.com/watch?v=MJYpyUlwxg0"
 video_id: MJYpyUlwxg0
 tags: [oneness, universal intelligence, existence]
 teacher: "both"

@@ -5,6 +5,7 @@ checks. It does not query Qdrant or mutate a collection; those operations belong
 to the release controller. The application uses it at startup so an unsafe
 first-person configuration cannot silently serve public traffic.
 """
+
 from __future__ import annotations
 
 import json
@@ -38,6 +39,25 @@ def _profile_errors(path: str, collection: str) -> list[str]:
         return [f"calibration profile is unreadable: {exc}"]
     if not isinstance(data, dict):
         return ["calibration profile must be a JSON object"]
+
+    # ponytail: accept demoted operational profile (claims="none", no conformal guarantees)
+    if data.get("claims") == "none":
+        threshold = data.get("threshold")
+        if (
+            threshold is None
+            or isinstance(threshold, bool)
+            or not isinstance(threshold, (int, float))
+        ):
+            errors.append("calibration profile threshold must be numeric")
+        if data.get("score_kind") not in ("cosine", "dense_cosine"):
+            errors.append("calibration profile score_kind must be cosine or dense_cosine")
+        if data.get("collection") and data.get("collection") != collection:
+            errors.append(
+                "calibration profile collection does not match "
+                f"configured collection {collection!r}"
+            )
+        return errors
+
     missing = sorted(_REQUIRED_PROFILE_KEYS - data.keys())
     if missing:
         errors.append(f"calibration profile missing keys: {', '.join(missing)}")
@@ -45,13 +65,10 @@ def _profile_errors(path: str, collection: str) -> list[str]:
         errors.append("calibration profile score_kind must be dense_cosine")
     if data.get("collection") != collection:
         errors.append(
-            "calibration profile collection does not match "
-            f"configured collection {collection!r}"
+            f"calibration profile collection does not match configured collection {collection!r}"
         )
     for key in ("threshold", "ucb_risk", "target_risk"):
-        if key in data and (
-            isinstance(data[key], bool) or not isinstance(data[key], (int, float))
-        ):
+        if key in data and (isinstance(data[key], bool) or not isinstance(data[key], (int, float))):
             errors.append(f"calibration profile {key} must be numeric")
     if isinstance(data.get("target_risk"), (int, float)) and data["target_risk"] > 0.01:
         errors.append("calibration profile target_risk exceeds 0.01")
@@ -83,21 +100,20 @@ def validate_first_person_production_contract(
     mode = str(getattr(config, "first_person_mode", "")).strip().lower()
     collection = str(getattr(config, "first_person_collection", "")).strip()
     if mode != "retrieval_only":
-        errors.append(
-            "production first-person route must use retrieval_only mode; "
-            f"got {mode!r}"
-        )
+        errors.append(f"production first-person route must use retrieval_only mode; got {mode!r}")
     if not collection:
         errors.append("first_person_collection must be non-empty")
     if getattr(config, "first_person_serve_unregistered", False):
         errors.append("first_person_serve_unregistered must be false in production")
 
-    calibration_path = str(
-        getattr(config, "first_person_calibration_path", "") or ""
-    ).strip()
-    if not calibration_path:
-        errors.append("calibration profile path is required in production")
-    elif collection:
+    # ponytail: (§C audit fix) Production gate requires honest abstention via
+    # first_person_answerability_check_enabled, not an unproven calibration profile.
+    # Calibration claims demoted to claims: none.
+    if not getattr(config, "first_person_answerability_check_enabled", False):
+        errors.append("first_person_answerability_check_enabled must be true in production")
+
+    calibration_path = str(getattr(config, "first_person_calibration_path", "") or "").strip()
+    if calibration_path and collection:
         errors.extend(_profile_errors(calibration_path, collection))
 
     release_id = str(getattr(release_manifest, "release_id", "")).strip()

@@ -1,27 +1,26 @@
 ---
-source: https://www.youtube.com/watch?v=OnAAtrwsfOc
-tags:
-- sadhna
-- moksha
-teacher: sri-preethaji
-title: Yoga and Spiritual Growth
+title: Yoga And Spiritual Growth
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=OnAAtrwsfOc
 video_id: OnAAtrwsfOc
+tags:
+- oneness
+- teaching
 ---
-# Yoga and Spiritual Growth
+# Yoga And Spiritual Growth
 
+## Verbatim Discourse Excerpts
+Yoga emerged not amidst the health practitioners of India. Yoga emerged amongst the sages of India, sages who were enlightened. And the disciples of the sages were pursuing Enlightenment passionately.
 
-## Summary
-Yoga, as a spiritual practice, has a rich history that transcends its modern health-focused interpretation. It emerged not as a health practice but as a spiritual journey towards enlightenment. The sages and their disciples were the pioneers of yoga, dedicated to achieving spiritual enlightenment. Their disciples, in pursuit of this goal, developed the practices that we now know as yoga. This historical context underscores the importance of spiritual enlightenment in yoga, emphasizing the journey towards enlightenment.
+Pessimistic. When I look around me, I see that the greater purpose of yoga is largely lost. It is intended for health. It is intended for youthfulness today, which is fine. This is good. But is that the end of yoga?
 
 ## Key Teachings
-- **Spiritual Enlightenment**: Yoga is a spiritual practice aimed at achieving enlightenment, not just physical health. The sages and their disciples were dedicated to spiritual enlightenment, leading to the development of yoga practices.
+- When I look around me, I see that the greater purpose of yoga is largely lost. — Sri Preethaji & Sri Krishnaji
+- Yoga emerged not amidst the health practitioners of India. — Sri Preethaji & Sri Krishnaji
+- Yoga emerged amongst the sages of India, sages who were enlightened. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "The journey of yoga is a spiritual one, dedicated to achieving enlightenment."
-
-## Related Concepts
-- **Spiritual Journey**: Yoga is a spiritual path leading to enlightenment, emphasizing the journey towards spiritual growth and understanding.
-- **Enlightenment**: Yoga is a practice aimed at achieving spiritual enlightenment, focusing on the journey towards a deeper understanding and connection with the divine.
-
-This entry provides a concise overview of the historical and spiritual aspects of yoga, emphasizing its journey towards enlightenment.
+## Source Context
+- Video: OnAAtrwsfOc
+- URL: https://www.youtube.com/watch?v=OnAAtrwsfOc
+- Speaker: Sri Preethaji & Sri Krishnaji

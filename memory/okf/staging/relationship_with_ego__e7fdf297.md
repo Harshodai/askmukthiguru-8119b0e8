@@ -1,7 +1,7 @@
 ---
 type: practice
 title: "Relationship with EGO"
-source: "YouTube https://www.youtube.com/watch?v=69IrsSXeBTg"
+source: "https://www.youtube.com/watch?v=69IrsSXeBTg"
 video_id: 69IrsSXeBTg
 tags: [meditation, oneness, ego, soul sync, O&O Academy]
 teacher: "both"

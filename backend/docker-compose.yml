@@ -414,6 +414,8 @@ services:
       - ./tests:/app/tests
       - ./benchmarks:/app/benchmarks
       - ./tasks:/app/tasks
+      - ./ingest:/app/ingest
+      - ./evaluation:/app/evaluation
       - ../scripts:/app/scripts
       - ../results:/app/results
       - ../memory:/app/memory

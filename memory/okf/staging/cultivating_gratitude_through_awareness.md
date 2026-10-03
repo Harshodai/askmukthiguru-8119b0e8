@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Cultivating Gratitude Through Awareness"
-source: "YouTube https://www.youtube.com/watch?v=bMGaQ2nUE5Y"
+source: "https://www.youtube.com/watch?v=bMGaQ2nUE5Y"
 video_id: bMGaQ2nUE5Y
 tags: [gratitude, awareness, relationships]
 teacher: "both"

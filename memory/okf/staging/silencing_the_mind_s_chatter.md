@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Silencing the Mind's Chatter"
-source: "YouTube https://www.youtube.com/watch?v=vrXmfCUvigs"
+source: "https://www.youtube.com/watch?v=vrXmfCUvigs"
 video_id: vrXmfCUvigs
 tags: [consciousness, meditation]
 teacher: "sri-preethaji"

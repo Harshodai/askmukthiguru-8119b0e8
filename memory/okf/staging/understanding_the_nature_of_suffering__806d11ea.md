@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Understanding the Nature of Suffering"
-source: "YouTube https://www.youtube.com/watch?v=UlOt31lBhLY"
+source: "https://www.youtube.com/watch?v=UlOt31lBhLY"
 video_id: UlOt31lBhLY
 tags: [truth of suffering, beautiful state, suffering state, consciousness]
 teacher: "both"

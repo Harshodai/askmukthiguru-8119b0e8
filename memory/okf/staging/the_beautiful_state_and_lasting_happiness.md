@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Beautiful State and Lasting Happiness"
-source: "YouTube https://www.youtube.com/watch?v=Gt3o8lcbcII"
+source: "https://www.youtube.com/watch?v=Gt3o8lcbcII"
 video_id: Gt3o8lcbcII
 tags: [beautiful state, happiness, joy, inner transformation, suffering]
 teacher: "both"

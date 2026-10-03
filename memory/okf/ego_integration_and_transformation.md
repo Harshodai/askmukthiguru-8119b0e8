@@ -1,14 +1,26 @@
 ---
-source: https://www.youtube.com/watch?v=tAFtaCF5a30
-tags:
-- ego integration
-- transformation
-- consciousness
-teacher: sri-preethaji
-title: EGO Integration and Transformation
+title: Ego Integration And Transformation
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=tAFtaCF5a30
 video_id: tAFtaCF5a30
+tags:
+- oneness
+- teaching
 ---
-# EGO Integration and Transformation
+# Ego Integration And Transformation
 
-In this mystical path, science and spirituality converge, integrating ancient Indian yogic traditions and personal transcendental experiences to explore the nature of consciousness. This approach emphasizes the importance of integrating modern scientific understanding with traditional spiritual practices. It underscores the significance of personal transcendental experiences and profound realizations into the nature of consciousness. By merging these elements, one can deepen their spiritual journey and achieve a higher state of consciousness.
+## Verbatim Discourse Excerpts
+This mystic secret of Soul Sync is a gift from Krishnaji and me to awaken the mystic within you so that you're able to glimpse the magical even as you walk through the humdrum and the challenges of your real world. It is our heartfelt passion for every one of you to experience both worlds together, the mystical as well as the material, the transcendental as well as the mundane.
+
+In this path, science and the sacred come together. It also embodies the ancient science and timeless yogic traditions of India. But more importantly, it is sourced in our own transcendental experiences and our profound realizations into the nature of consciousness.
+
+## Key Teachings
+- It is our heartfelt passion for every one of you to experience both worlds together, the mystical as well as the material, the transcendental as well as the mundane. — Sri Preethaji & Sri Krishnaji
+- In this path, science and the sacred come together. — Sri Preethaji & Sri Krishnaji
+- It also embodies the ancient science and timeless yogic traditions of India. — Sri Preethaji & Sri Krishnaji
+
+## Source Context
+- Video: Endless possibilities
+- URL: https://www.youtube.com/watch?v=tAFtaCF5a30
+- Speaker: Sri Preethaji & Sri Krishnaji

@@ -49,12 +49,13 @@ async def test_score_faithfulness_bounded_uses_dedicated_executor(monkeypatch):
         seen_executor["executor"] = executor
         return await real_run_in_executor(executor, func, *args)
 
-    monkeypatch.setattr(
-        asyncio.get_running_loop(), "run_in_executor", spying_run_in_executor
-    )
+    monkeypatch.setattr(asyncio.get_running_loop(), "run_in_executor", spying_run_in_executor)
 
     result = await verification._score_faithfulness_bounded(
-        mock_ld, "q", "some context long enough to pass the length check " * 5, "answer",
+        mock_ld,
+        "q",
+        "some context long enough to pass the length check " * 5,
+        "answer",
         semantic=True,
     )
 
@@ -62,6 +63,8 @@ async def test_score_faithfulness_bounded_uses_dedicated_executor(monkeypatch):
     assert result["score"] == 1.0
     mock_ld.score_faithfulness.assert_called_once()
 
+
 if __name__ == "__main__":
     import pytest
+
     raise SystemExit(pytest.main([__file__, "-v"]))

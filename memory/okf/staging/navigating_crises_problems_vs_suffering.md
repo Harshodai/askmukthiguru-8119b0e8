@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Navigating Crises: Problems vs. Suffering"
-source: "YouTube https://www.youtube.com/watch?v=M7ItOHTrvz8"
+source: "https://www.youtube.com/watch?v=M7ItOHTrvz8"
 video_id: M7ItOHTrvz8
 tags: [crises, hope, youth, problems, suffering, divine connection, spiritual growth]
 teacher: "both"

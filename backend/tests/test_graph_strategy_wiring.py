@@ -118,6 +118,20 @@ def test_deep_graph_compiles(mock_init_services, mock_build_kwargs):
     assert "check_contradiction" not in nodes
 
 
+def test_first_person_module_wired_into_all_strategies(mock_init_services, mock_build_kwargs):
+    """Plug-and-play entry: every strategy exposes the first_person node.
+
+    Static topology, dynamic routing (LangGraph guidance): the node exists at
+    compile time in all three lanes (Deep inherits Standard's entry wiring) but
+    is only ever ENTERED when the registry router's live kill-switch is on —
+    see rag/pipeline_registry.py and tests/test_pipeline_registry.py.
+    """
+    for strategy_cls in (FastGraphStrategy, StandardGraphStrategy, DeepGraphStrategy):
+        compiled = strategy_cls().build(**mock_build_kwargs)
+        nodes = set(compiled.nodes.keys())
+        assert "first_person" in nodes, strategy_cls.__name__
+
+
 def test_map_docs_to_relevant_caps_reranked_docs():
     """N3-adjacent regression: reranked_docs must be capped at 5, same as the
     documents[:5] fallback -- otherwise reranking (which can return more

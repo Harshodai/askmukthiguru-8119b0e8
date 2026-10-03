@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Healing Hearts and Family Transformation"
-source: "YouTube https://www.youtube.com/watch?v=bSyewSnu2Ak"
+source: "https://www.youtube.com/watch?v=bSyewSnu2Ak"
 video_id: bSyewSnu2Ak
 tags: [healing, family, forgiveness, transformation]
 teacher: "both"

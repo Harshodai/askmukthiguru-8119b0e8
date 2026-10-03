@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Angry Mind as a Monkey's Mind"
-source: "YouTube https://www.youtube.com/watch?v=O1VkNuEChD4"
+source: "https://www.youtube.com/watch?v=O1VkNuEChD4"
 video_id: O1VkNuEChD4
 tags: [sri preethaji, sri krishnaji, truth of suffering, anger]
 teacher: "both"

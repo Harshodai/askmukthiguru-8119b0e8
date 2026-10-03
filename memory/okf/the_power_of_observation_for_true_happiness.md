@@ -1,27 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=Gt3o8lcbcII
-tags:
-- beautiful state
-- happiness
-- joy
-- inner transformation
-teacher: both
-title: The Power of Observation for True Happiness
+title: The Power Of Observation For True Happiness
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=Gt3o8lcbcII
 video_id: Gt3o8lcbcII
+tags:
+- oneness
+- teaching
 ---
-# The Power of Observation for True Happiness
+# The Power Of Observation For True Happiness
 
+## Verbatim Discourse Excerpts
+We're a culture which believes. We are a civilization which believes that we need to bring about a change in the external environment in order to become happy. There is this great tendency to believe that once you achieve one fine day, once you achieve whatever your level of achievement or goal is, then you would find happiness. That's all we have been taught to think: that you strive very hard so that you will be able to achieve one fine day and that fine day you will become happy.
 
-## Summary
-Achieving true happiness and joy in life requires cultivating a "Beautiful State" and inner transformation, rather than solely pursuing external goals like love or success. The ability to experience happiness is an inner capacity that needs to be developed.
+The sad part of it is you have ingrained your being into sadness, into suffering. As in this entire process of achievement - and even if you achieve by chance - you do achieve to some level - you become an individual incapable of experiencing happiness or joy. What we need to do is nurture a beautiful state, be an individual who's capable of happiness and joy in life. The entire process of climb that you're having in life would be more peaceful, more harmonious, more joyful, and much more easier because you're not struggling inward, there is no conflict in words, there is so much of energy, there is so much of clear thinking that you can bring to life, to whatever you're doing. Achievement is easy, the climb is beautiful, and you also enjoy and experience life in the entire process.
 
 ## Key Teachings
-- True happiness is not solely found in achieving external goals like finding love or success. (Unknown Channel)
-- Lasting happiness stems from inner transformation and cultivating a "Beautiful State." (Unknown Channel)
-- The capacity to experience happiness and joy is an internal one that needs to be developed. (Unknown Channel)
+- There is this great tendency to believe that once you achieve one fine day, once you achieve whatever your level of achievement or goal is, then you would find happiness. — Sri Preethaji & Sri Krishnaji
+- As in this entire process of achievement - and even if you achieve by chance - you do achieve to some level - you become an individual incapable of experiencing happiness or joy. — Sri Preethaji & Sri Krishnaji
+- What we need to do is nurture a beautiful state, be an individual who's capable of happiness and joy in life. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Joy: Cultivating Beautiful States can lead to feelings of joy and happiness.
-- Calm: Cultivating Beautiful States can lead to feelings of calm and serenity.
-- The Beautiful State: The Beautiful State is a state of inner peace and harmony, characterized by forgiveness, love, and compassion.
+## Source Context
+- Video: Gt3o8lcbcII
+- URL: https://www.youtube.com/watch?v=Gt3o8lcbcII
+- Speaker: Sri Preethaji & Sri Krishnaji

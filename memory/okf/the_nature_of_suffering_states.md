@@ -1,27 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=jW3JDLY0cDA
-tags:
-- suffering
-- emotional states
-- pain
-- disconnection
-teacher: both
-title: The Nature of Suffering States
+title: The Nature Of Suffering States
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=jW3JDLY0cDA
 video_id: jW3JDLY0cDA
+tags:
+- oneness
+- teaching
 ---
-# The Nature of Suffering States
+# The Nature Of Suffering States
 
+## Verbatim Discourse Excerpts
+All I want to say you is, please do not die, live, whatever is hurting you today, I promise you will pass. If every door in the world feels closed, let me tell you that there is one door waiting only for you to walk through it, please live. If you are thinking of dying because you see no way to rise out of your financial abyss, let me tell you, there is a way out.
 
-## Summary
-Suffering States are described as emotional states, such as regret, sadness, and loneliness, which lead to a disconnection from life. These states can also be understood as a downward spiral of chaos and problems, often caused by accumulated "poisons" and limiting beliefs.
+Break. Break out of your inner desperation. Break out of the space of self-pity and anger at injustice. Open. Open your heart to the pain of others. Then and then alone will magic unfold. You will wake up to your own unique gift. You are born with a gift within you that is yet unopened. You have the gift to give the world and in that gift is your salvation.
 
 ## Key Teachings
-- Suffering States are emotional states like regret, sadness, and loneliness that disconnect individuals from life. (Ekam / O&O Academy)
-- Suffering States can be seen as a downward spiral of chaos and problems. (Ekam / O&O Academy)
-- These states are often caused by accumulated "poisons" and limiting beliefs. (Ekam / O&O Academy)
-- Suffering States are emotionally painful states of being that disconnect individuals from universal intelligence and its power. (Ekam / O&O Academy)
+- All I want to say you is, please do not die, live, whatever is hurting you today, I promise you will pass. — Sri Preethaji & Sri Krishnaji
+- If every door in the world feels closed, let me tell you that there is one door waiting only for you to walk through it, please live. — Sri Preethaji & Sri Krishnaji
+- If you are thinking of dying because you see no way to rise out of your financial abyss, let me tell you, there is a way out. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Pain: A complex emotional and physical sensation that can be experienced by oneself or others, often a result of harm or distress.
-- Cycle of Pain: The perpetuation of pain and suffering by hurt individuals.
+## Source Context
+- Video: Please Live  | Evolution Series 70 with Preethaji & Krishnaji
+- URL: https://www.youtube.com/watch?v=jW3JDLY0cDA
+- Speaker: Sri Preethaji & Sri Krishnaji

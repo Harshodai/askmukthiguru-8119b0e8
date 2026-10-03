@@ -1,34 +1,26 @@
 ---
-source: https://www.youtube.com/watch?v=mgfhxq9bn8Q
-tags:
-- prosperityconsciousnessjnana
-teacher: sri-preethaji
-title: Abundance and Ego Relationship
+title: Abundance And Ego Relationship
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=mgfhxq9bn8Q
 video_id: mgfhxq9bn8Q
+tags:
+- oneness
+- teaching
 ---
-# Abundance and Ego Relationship
+# Abundance And Ego Relationship
 
-### Abundance and Ego Relationship
+## Verbatim Discourse Excerpts
+There are two kinds of consciousness with which people live. These are Lakshmi consciousness and Alakshmi consciousness. See, there is no equivalent, exact equivalent for Lakshmi in English. Lakshmi means sacred, positive, noble, abundant, joyful. All these put together, that's Lakshmi. And this abundance consciousness, the ancients in India, said has eight facets to it.
 
-In the teachings of Sri Preethaji, the relationship between abundance and the ego is explored. The Ancients, in their wisdom, recognized the importance of cultivating a state of consciousness that transcends the ego, leading to a state of enlightenment known as Adi Lakshmi. This enlightenment is not just about financial abundance but encompasses a broader concept of abundance consciousness.
+And financial abundance is just one of it. So what are these eight facets to wealth? Financial abundance, courage abundance, knowledge abundance, health abundance, victory abundance, love abundance, and wonderful children. Abundance is all this. We've only seen seven of them so far. So what is the eighth? Apart from these seven forms, there is the first of the abundance dimensions, which is called the Adi Lakshmi or the first abundance.
 
-The teachings emphasize that the ego is a manifestation of the mind and the body, and it is the source of our identification with the self. Cultivating a state of consciousness that is free from the ego's influence leads to a profound transformation. This transformation is not just about wealth and prosperity but about achieving a state of oneness with the universe.
+## Key Teachings
+- And this abundance consciousness, the ancients in India, said has eight facets to it. — Sri Preethaji & Sri Krishnaji
+- And financial abundance is just one of it. — Sri Preethaji & Sri Krishnaji
+- Financial abundance, courage abundance, knowledge abundance, health abundance, victory abundance, love abundance, and wonderful children. — Sri Preethaji & Sri Krishnaji
 
-The concept of abundance is closely tied to the idea of the Golden Ratio, which is a mathematical concept that can manifest in various forms of abundance, including the creation of wealth and prosperity. The teachings suggest that aligning with the Golden Ratio can lead to a harmonious existence and interconnectedness with others, which is a key aspect of abundance.
-
-By understanding the relationship between abundance and the ego, one can embark on a journey towards enlightenment and a state of consciousness that is free from the limitations of the ego. This journey is not just about achieving wealth and prosperity but about achieving a state of oneness with the universe and a profound understanding of the interconnectedness of all things.
-
----
-
-**Key Teachings:**
-- Cultivating a state of consciousness free from the ego's influence leads to a profound transformation.
-- Aligning with the Golden Ratio can lead to a harmonious existence and interconnectedness with others.
-- The concept of abundance is closely tied to the idea of enlightenment and oneness with the universe.
-
-**Quotes:**
-> "The ego is a manifestation of the mind and the body, and it is the source of our identification with the self."
-- Sri Krishnaji
-
-> "Abundance is not just about financial wealth, but about achieving a state of oneness with the universe."
-- Sri Preethaji
+## Source Context
+- Video: The no 1 secret behind manifesting abundance
+- URL: https://www.youtube.com/watch?v=mgfhxq9bn8Q
+- Speaker: Sri Preethaji & Sri Krishnaji

@@ -1,30 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=AB-t5CoxMHM
-tags:
-- ekam
-- oneness
-- unity
-- interconnectedness
-teacher: both
 title: Ekam Means Oneness
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=AB-t5CoxMHM
 video_id: AB-t5CoxMHM
+tags:
+- oneness
+- teaching
 ---
 # Ekam Means Oneness
 
+## Verbatim Discourse Excerpts
+To us, every human experience is sacred. We see that there is one human experience, one humanity. That is what ACUM means. It means oneness. ACUM is an enlightened state of consciousness where you are awake to the oneness of our existence. We are one with all forms of life. We are one with the universe. When you are not established in this great spiritual realization that we are one, your actions and behavior cause division and conflict.
 
-## Summary
-The teaching of "Ekam Means Oneness" emphasizes the interconnectedness of all human experiences and the inherent oneness of humanity. This concept highlights that there is only one reality, and all individuals are part of this single reality, transcending individual differences.
+You inflict pain upon yourself and another. Your actions lead to disharmony in nature and destruction to art. You move away from oneness when you begin to see the other as being different from you. Very often in your conversations, you tell people, I am not like you. I don't behave like you. I am different from you. You may not behave like someone else or express emotions the way someone else does.
 
 ## Key Teachings
-- The importance of recognizing and appreciating the interconnectedness of all human experiences.
-- The inherent oneness of humanity, which transcends individual differences.
-- The shared human experiences of sorrow, happiness, fear, and peace.
-- The idea that there is only one reality, and all individuals are part of this reality.
+- ACUM is an enlightened state of consciousness where you are awake to the oneness of our existence. — Sri Preethaji & Sri Krishnaji
+- You move away from oneness when you begin to see the other as being different from you. — Sri Preethaji & Sri Krishnaji
+- This disease and sickness of the human mind has to be healed for you to move into a space of oneness. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Ekam: A multifaceted entity that embodies various aspects, including being an organization connected to spiritual journeys, a location for events, and a peace organization focused on human awakening through principles like the Golden Ratio. It represents the vision of Oneness and aims to impact individuals' consciousness globally.
-- Vasudhaiva Kutumakam: A concept emphasizing unity and oneness among nations.
-- Awakened Child: A child whose brain and nervous system are attuned to peace, whose heart feels connection and love, and whose consciousness experiences a deep sense of Oneness.
-- Peace: A multifaceted state of being characterized by harmony, love, and unity, achievable through cultivating inner calmness and collective efforts.
-- Yoga: A practice that promotes physical and mental well-being, and a path to spiritual enlightenment or attaining oneness in one's consciousness.
+## Source Context
+- Video: Ekam Means Oneness | Evolution Series 97 with Sri Preethaji & Sri Krishnaji
+- URL: https://www.youtube.com/watch?v=AB-t5CoxMHM
+- Speaker: Sri Preethaji & Sri Krishnaji

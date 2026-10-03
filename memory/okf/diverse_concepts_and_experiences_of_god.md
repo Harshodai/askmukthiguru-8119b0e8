@@ -1,27 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=DqUafRyXy_0
-tags:
-- consciousness
-- oneness
-- God
-- culture
-teacher: both
-title: Diverse Concepts and Experiences of God
+title: Diverse Concepts And Experiences Of God
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=DqUafRyXy_0
 video_id: DqUafRyXy_0
+tags:
+- oneness
+- teaching
 ---
-# Diverse Concepts and Experiences of God
+# Diverse Concepts And Experiences Of God
 
+## Verbatim Discourse Excerpts
+And it has come up because of the experiences that people have. If you take continents like America's, Africa, and China, there the experience of God that people have had is more of oneness with nature, oneness with everything else, which is basically tall and flow. That is the experience of God that people have had in those regions due to their consciousness, particular part of their brain getting activated because of their understanding, their culture, their upbringing.
 
-## Summary
-The concept of God is profoundly influenced by human consciousness and cultural background. Experiences of God vary globally, ranging from oneness with nature in some regions to personal divine forms or universal oneness in others, reflecting a complex diversity in spiritual understanding.
+So God is very personal, it's very selective. So for me personally, I'm okay with both the descriptions and both the experiences as I've had both the experiences and I'm sure many of you here also have had both the experiences. So God is intelligence that's present everywhere. God is consciousness that's present everywhere throughout this universe. Today's science is very, very clear that everything in this universe is communicating.
 
 ## Key Teachings
-- The concept of God is shaped by human consciousness and cultural upbringing.
-- In regions like America, Africa, and China, the experience of God is often characterized by oneness with nature and the flow of life, stemming from a deep connection with the natural world.
-- In contrast, areas such as the Middle East, Russia, Europe, and India exhibit diverse experiences of God, which can include personal and divine forms, as well as oneness with the universe.
-- This variety in the experience and conception of God highlights the complexity of human spiritual understanding.
+- If you take the experience of God from human perspective, the experience of God is purely spoken from our perspective. — Sri Preethaji & Sri Krishnaji
+- In this last 2 million years, and probably in the last 10,000, 11,000 years, or even not that much, is when probably the discussion on God itself has come up. — Sri Preethaji & Sri Krishnaji
+- And it has come up because of the experiences that people have. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Consciousness: The state of being aware of one's thoughts, emotions, and surroundings, which influences the concept of God.
-- Oneness: A state of unity or interconnectedness, often experienced with nature or the universe in relation to God.
+## Source Context
+- Video: GOD
+- URL: https://www.youtube.com/watch?v=DqUafRyXy_0
+- Speaker: Sri Preethaji & Sri Krishnaji

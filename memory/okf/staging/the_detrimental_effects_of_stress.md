@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Detrimental Effects of Stress"
-source: "YouTube https://www.youtube.com/watch?v=Ejcq9mNGJk0"
+source: "https://www.youtube.com/watch?v=Ejcq9mNGJk0"
 video_id: Ejcq9mNGJk0
 tags: [stress, suffering, consciousness]
 teacher: "both"

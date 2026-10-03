@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Inner Stillness Through Observation"
-source: "YouTube https://www.youtube.com/watch?v=PnvNqgTyIFI"
+source: "https://www.youtube.com/watch?v=PnvNqgTyIFI"
 video_id: PnvNqgTyIFI
 tags: [inner stillness, observation, mind, spiritual journey]
 teacher: "both"

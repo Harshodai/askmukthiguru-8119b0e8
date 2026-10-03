@@ -12,11 +12,11 @@ Follows Delta Lake / Apache Iceberg snapshot isolation principles:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import json
 import logging
-from pathlib import Path
 import re
+from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any, Optional
 
 from qdrant_client import QdrantClient
@@ -55,14 +55,16 @@ class QdrantAliasManager:
     def client(self) -> QdrantClient:
         return self._client
 
-    def _append_ledger_entry(self, alias: str, from_collection: Optional[str], to_collection: str) -> None:
+    def _append_ledger_entry(
+        self, alias: str, from_collection: Optional[str], to_collection: str
+    ) -> None:
         """Record a completed alias swap so rollback_alias can find the
         previous target without the caller having to remember it."""
         entry = {
             "alias": alias,
             "from": from_collection,
             "to": to_collection,
-            "at": datetime.now(timezone.utc).isoformat(),
+            "at": datetime.now(UTC).isoformat(),
         }
         entries: list[dict[str, Any]] = []
         if self._ledger_path.exists():
@@ -139,7 +141,7 @@ class QdrantAliasManager:
 
         # Determine shadow collection name
         if not suffix:
-            now_str = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+            now_str = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
             suffix = f"v{now_str}"
 
         # Clean base name (strip existing _v<timestamp> if present to prevent stacking)
@@ -210,7 +212,9 @@ class QdrantAliasManager:
                 wal_config=wal_config_diff,
             )
         except Exception as e:
-            logger.error(f"[QdrantAliasManager] Failed to create shadow collection {shadow_name}: {e}")
+            logger.error(
+                f"[QdrantAliasManager] Failed to create shadow collection {shadow_name}: {e}"
+            )
             raise QdrantAliasError(f"Failed to create collection {shadow_name}: {e}") from e
 
         # Replicate standard payload indexes
@@ -262,9 +266,7 @@ class QdrantAliasManager:
         operations: list[models.ChangeAliasesOperation] = []
         if current_target:
             operations.append(
-                models.DeleteAliasOperation(
-                    delete_alias=models.DeleteAlias(alias_name=alias_name)
-                )
+                models.DeleteAliasOperation(delete_alias=models.DeleteAlias(alias_name=alias_name))
             )
 
         operations.append(
@@ -302,7 +304,7 @@ class QdrantAliasManager:
             "alias_name": alias_name,
             "collection_name": new_target_collection,
             "previous_collection": current_target,
-            "swapped_at": datetime.now(timezone.utc).isoformat(),
+            "swapped_at": datetime.now(UTC).isoformat(),
         }
 
     def rollback_alias(
@@ -370,7 +372,9 @@ class QdrantAliasManager:
         deleted: list[str] = []
         for col_name in candidates:
             if dry_run:
-                logger.info(f"[QdrantAliasManager] [DRY RUN] Would delete stale collection: {col_name}")
+                logger.info(
+                    f"[QdrantAliasManager] [DRY RUN] Would delete stale collection: {col_name}"
+                )
                 deleted.append(col_name)
             else:
                 logger.warning(f"[QdrantAliasManager] Deleting stale shadow collection: {col_name}")

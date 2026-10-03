@@ -1,36 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=bCzjP2UaKRI
-tags:
-- gender neutrality
-- connection
-- loneliness
-- empathy
-- human quality
-- Sri Preethaji
-- Sri Krishnaji
-teacher: both
-title: Gender Neutrality of Connection
+title: Gender Neutrality Of Connection
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=bCzjP2UaKRI
 video_id: bCzjP2UaKRI
+tags:
+- oneness
+- teaching
 ---
-# Gender Neutrality of Connection
+# Gender Neutrality Of Connection
 
+## Verbatim Discourse Excerpts
+In times when you're going through a health crisis, an emotional crisis or a financial crisis, connection becomes that balm that will soothe your hearts. Namaste. Did you know that self-harm is the leading cause of death for people aged between 15 and 44? Also, statistics show that approximately three times more number of men than women die from self-harm every year.
 
-## Summary
-Based on the provided transcripts, the true essence of connection is defined as a deep, empathetic presence and a shared emotional experience. This quality is presented as a fundamental human capacity rather than something inherently tied to or defined by gender, highlighting the need to move beyond superficial interactions to address modern loneliness.
+You do not connect with anyone. You do not connect with nature. You do not connect with a cause. And some of you don't even connect with yourself. Why do you feel unfulfilled in your relationship with people? I would say that we need to fundamentally transform who we are and learn to connect with the world around us. In times when you're going through a health crisis, an emotional crisis or a financial crisis, connection becomes that balm that will soothe your hearts.
 
 ## Key Teachings
-- The true essence of connection is deep empathetic presence and shared emotional experience.
-- Connection is a fundamental human quality, not a gendered one.
-- Superficial interactions fail to alleviate the deep, unsettling loneliness experienced in modern times.
+- In times when you're going through a health crisis, an emotional crisis or a financial crisis, connection becomes that balm that will soothe your hearts. — Sri Preethaji & Sri Krishnaji
+- Connection does not merely mean an interaction with one another. — Sri Preethaji & Sri Krishnaji
+- Do you think connection is about partying together, golfing or smoking together? — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "Why this deep unsettling loneliness?" — Sri Preethaji
-
-## Related Concepts
-- Gender: A biological characteristic that can be used to describe a leader.
-- Inclusion: A quality of thinking and action that is necessary to end exploitation.
-- The Limitless Field: A concept representing the idea of 'boundlessness.'
-- Peace For Women: The state of well-being, safety, and equality for women, which requires moving beyond conflict with men to achieve true empowerment.
-
----
+## Source Context
+- Video: Why this deep unsettling loneliness? | Evolution During Crisis -28 With Preethaji & Krishnaji
+- URL: https://www.youtube.com/watch?v=bCzjP2UaKRI
+- Speaker: Sri Preethaji & Sri Krishnaji

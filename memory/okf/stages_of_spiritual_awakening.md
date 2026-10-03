@@ -1,32 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=fiABnex9O6Y
-tags:
-- awakening
-- consciousness
-- stages
-- spiritual journey
-- Sri Krishnaji
-teacher: sri-krishnaji
-title: Stages of Spiritual Awakening
+title: Stages Of Spiritual Awakening
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=fiABnex9O6Y
 video_id: fiABnex9O6Y
+tags:
+- oneness
+- teaching
 ---
-# Stages of Spiritual Awakening
+# Stages Of Spiritual Awakening
 
+## Verbatim Discourse Excerpts
+In the first stage, you awaken to wealth consciousness and become a conscious creator, manifesting synchronicities, creating wealth and enjoying every aspect of abundance. Your consciousness opens to beautiful states. In the second stage, you become a change maker, transforming your relationships and manifesting great leadership. Your presence acquires the power to heal and transform the lives of others and you impact the web of life.
 
-## Summary
-This teaching describes the various stages of a spiritual journey to awakening, focusing on the third stage where an individual transcends suffering by awakening to transcendental states and becoming a mystic. This stage involves realizing the non-dual nature of existence, dissolving the illusion of separation, and becoming free from the fear and pain associated with the physical cycle of birth and death.
+You awaken to transcendental states. In the third stage, you become a mystic, transcending suffering you see through the illusion of separation. You realize the true nature of birth and death. You awaken to enlightened states. In the final stage, you become a philosopher teacher established in a state of oneness with all life. Awakened and wise and living in one consciousness, you become a guiding light for the world.
 
 ## Key Teachings
-- In the third stage of spiritual awakening, one transcends suffering by awakening to transcendental states and becoming a mystic — Sri Krishnaji
-- This profound shift in consciousness involves seeing through the illusion of separation and realizing the true, non-dual nature of existence — Sri Krishnaji
-- By awakening to this higher state, the mystic is no longer bound by the fear and pain associated with the physical cycle of birth and death — Sri Krishnaji
-- The realization of universal oneness dissolves the perceived boundaries between self and — Sri Krishnaji
+- In the first stage, you awaken to wealth consciousness and become a conscious creator, manifesting synchronicities, creating wealth and enjoying every aspect of abundance. — Sri Preethaji & Sri Krishnaji
+- Your consciousness opens to beautiful states. — Sri Preethaji & Sri Krishnaji
+- In the second stage, you become a change maker, transforming your relationships and manifesting great leadership. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "In the third stage of spiritual awakening, one transcends suffering by awakening to transcendental states and becoming a mystic. This profound shift in consciousness involves seeing through the illusion of separation and realizing the true, non-dual nature of existence. By awakening to this higher state, the mystic is no longer bound by the fear and pain associated with the physical cycle of birth and death." — Sri Krishnaji
-
-## Related Concepts
-- Enlightenment: A profound state of spiritual awakening and the ultimate goal of the human spiritual journey, characterized by a consciousness free from suffering, intense awareness, and liberation
-- Awakening: A multifaceted concept encompassing various interpretations and applications, often referring to the realization of one's true nature and disidentification from the illusion of separation, a state of increased awareness and understanding leading to enlightenment
-- I-Consciousness: A state of awareness and connection to one's own being, which can be experienced as separate and disconnected or expanded to include others
+## Source Context
+- Video: Krishnaji on what will be the various stages of my journey to awakening | pkconsciousness
+- URL: https://www.youtube.com/watch?v=fiABnex9O6Y
+- Speaker: Sri Preethaji & Sri Krishnaji

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Understanding the Relationship with EGO"
-source: "YouTube https://www.youtube.com/watch?v=HKjzpPlfvc8"
+source: "https://www.youtube.com/watch?v=HKjzpPlfvc8"
 video_id: HKjzpPlfvc8
 tags: [ego, relationship, spiritual growth]
 teacher: "both"

@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "Envisioning a New Vision"
-source: "YouTube https://www.youtube.com/watch?v=GTLqZPVojgI"
+source: "https://www.youtube.com/watch?v=GTLqZPVojgI"
 video_id: GTLqZPVojgI
 tags: [new year, vision, goals]
 teacher: "both"

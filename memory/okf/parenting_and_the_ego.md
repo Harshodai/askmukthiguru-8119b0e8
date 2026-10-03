@@ -1,28 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=hcNDrMy6gCE
-tags:
-- parenting
-- ego
-- child development
-- confusion
-- conflict
-teacher: both
-title: Parenting and the Ego
+title: Parenting And The Ego
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=hcNDrMy6gCE
 video_id: hcNDrMy6gCE
+tags:
+- oneness
+- teaching
 ---
-# Parenting and the Ego
+# Parenting And The Ego
 
+## Verbatim Discourse Excerpts
+While the spiritual art of parenting in itself is an ocean of learning, let me give you a general guideline that you can follow. The ancient vedic sages say, lalayit pancha varshani, which means, until a child is five years old, shower as much love as you can on the child. There is no such thing as too much love at this stage. Don't allow children to be emotionally hurt or don't allow your children to feel abandoned until they are five because these experiences can become lasting impressions on the child and last their entire lifetime.
 
-## Summary
-The phase of parenting and child development can be difficult and confusing for both parents and children, often leading to conflict.
+They will also grow into leaders and contribute to the betterment of the world around them, each in their own way. The spiritual art of parenting is a journey, a learning we lead parents on all over the world. Lastly, let me tell you there is no need to feel bad or guilty. Every child can be healed and can create a great destiny if both the parent and the child can go through inner journeys of transformation. Transformation is the key.
 
 ## Key Teachings
-- This phase of parenting can be difficult and confusing for most parents (Sri Preethaji says).
-- This phase is also a time of confusion and conflict for children (Sri Preethaji says).
+- Parenting is both a man's responsibility as well as a woman's responsibility. — Sri Preethaji & Sri Krishnaji
+- While the spiritual art of parenting in itself is an ocean of learning, let me give you a general guideline that you can follow. — Sri Preethaji & Sri Krishnaji
+- The spiritual art of parenting is a journey, a learning we lead parents on all over the world. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-No direct quotes related to "Ego" in the provided transcript.
-
-## Related Concepts
-- Young People: Young people are confused, tired, and worried about their future due to the current world scenario.
+## Source Context
+- Video: Spiritual art of parenting | Evolution During Crisis -16 with Preethaji & Krishnaji
+- URL: https://www.youtube.com/watch?v=hcNDrMy6gCE
+- Speaker: Sri Preethaji & Sri Krishnaji

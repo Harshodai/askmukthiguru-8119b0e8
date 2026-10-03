@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Swadharma and its Relationship with Ego"
-source: "YouTube https://www.youtube.com/watch?v=Q4QyNologtw"
+source: "https://www.youtube.com/watch?v=Q4QyNologtw"
 video_id: Q4QyNologtw
 tags: [swadharma, ego, purpose, self-discovery]
 teacher: "both"

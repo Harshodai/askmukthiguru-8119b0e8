@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Effective Communication"
-source: "YouTube https://www.youtube.com/watch?v=Y7bp-LlC3CM"
+source: "https://www.youtube.com/watch?v=Y7bp-LlC3CM"
 video_id: Y7bp-LlC3CM
 teacher: "both"
 ---

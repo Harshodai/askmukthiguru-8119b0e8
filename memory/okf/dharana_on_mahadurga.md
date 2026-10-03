@@ -1,29 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=207izZBbqVg
-tags:
-- Dharana
-- Mahadurga
-- Navratri
-- Dasheera
-- negative emotions
-- peace
-- generosity
-teacher: both
-title: Dharana on Mahadurga
-type: practice
+title: Dharana On Mahadurga
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=207izZBbqVg
 video_id: 207izZBbqVg
+tags:
+- oneness
+- teaching
 ---
-# Dharana on Mahadurga
+# Dharana On Mahadurga
 
+## Verbatim Discourse Excerpts
+The upasana we will do now is what you can do for the first three days of Navratri or Dasheera. Sit cross-legged. Look at the form of the Mother Goddess as Mahadurka. Navratri or Dasheera or Dasheera. Do a Dharana upon her form in your Chidakasha or the dark space in front of your closed eyes. Navratri or Dasheera. Ask her to dissolve the traces of anger and greed from your consciousness and fill you with peace and generosity.
 
-## Summary
-Dharana on Mahadurga is a practice, central to Navratri and Dasheera rituals, that involves sitting cross-legged and focusing on the form of the Mother Goddess. The aim of this practice is to dissolve negative emotions and fill one's consciousness with peace and generosity. Maintaining a peaceful and focused state of mind throughout the practice is important.
+With this sacred intention, chant the mantra in Namaskara Mudra at your heart and feel the blessings of Mahadurka. 3 3 3
 
 ## Key Teachings
-- The practice of Dharana on Mahadurga is a crucial aspect of Navratri or Dasheera rituals. (Unknown speaker)
-- This practice involves sitting cross-legged and focusing on the form of the Mother Goddess. (Unknown speaker)
-- The practice is aimed at dissolving negative emotions and filling the consciousness with peace and generosity. (Unknown speaker)
-- It is important to maintain a peaceful and focused state of mind throughout the practice. (Unknown speaker)
+- Do a Dharana upon her form in your Chidakasha or the dark space in front of your closed eyes. — Sri Preethaji & Sri Krishnaji
+- The upasana we will do now is what you can do for the first three days of Navratri or Dasheera. — Sri Preethaji & Sri Krishnaji
+- Look at the form of the Mother Goddess as Mahadurka. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Spiritual Process: a journey of awakening and transformation that leads to higher states of consciousness.
+## Source Context
+- Video: Dharana on Maha Durga | Evolution Series 80 with Preethaji & Krishnaji
+- URL: https://www.youtube.com/watch?v=207izZBbqVg
+- Speaker: Sri Preethaji & Sri Krishnaji

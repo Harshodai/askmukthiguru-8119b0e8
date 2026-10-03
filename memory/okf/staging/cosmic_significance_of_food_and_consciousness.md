@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Cosmic Significance of Food and Consciousness"
-source: "YouTube https://www.youtube.com/watch?v=TQ0TGyaByhs"
+source: "https://www.youtube.com/watch?v=TQ0TGyaByhs"
 video_id: TQ0TGyaByhs
 tags: [cosmic, food, consciousness, yagna, black hole]
 teacher: "both"

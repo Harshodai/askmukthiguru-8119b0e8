@@ -1,27 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=zDOS3wCWea8
-tags:
-- karma
-- consciousness
-teacher: both
 title: Karmic Interplay
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=zDOS3wCWea8
 video_id: zDOS3wCWea8
+tags:
+- oneness
+- teaching
 ---
 # Karmic Interplay
 
+## Verbatim Discourse Excerpts
+In an enlightened reality, you are a witness to the arising and seizing of perceptions. You see reality, you see life to be a vast flow. This flow may appear as a divine play one moment. It may appear as an interplay of karmic forces another moment. Or reality may appear to be what it is. Nothing beyond what is obvious. Earth is a fact, so also is death.
 
-## Summary
-The enlightened perspective on karmic interplay emphasizes that birth and death are simple facts of existence that do not require metaphysical explanation. From this standpoint, reality is witnessed without clinging to absolute versions or needing to explain the obvious, revealing a continuous flow of life where karmic dynamics are understood through direct observation rather than complex philosophical constructs.
+Every moment is a movement of life and is lived totally without a need to give any metaphysical explanation. A situation is simply so. In an enlightened consciousness, there is no one absolute version or absolute reality. You move beyond all versions.
 
 ## Key Teachings
-- Birth is a fact, so also death, and every moment is part of a continuous flow of life.
-- The enlightened consciousness witnesses reality without clinging to absolute versions or needing to explain the obvious.
-- Karmic interplay is understood through the direct observation of existence as a simple, continuous flow rather than through complex metaphysical explanations.
+- It may appear as an interplay of karmic forces another moment. — Sri Preethaji & Sri Krishnaji
+- In an enlightened reality, you are a witness to the arising and seizing of perceptions. — Sri Preethaji & Sri Krishnaji
+- You see reality, you see life to be a vast flow. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-
-## Related Concepts
-- Enlightenment: A profound state of spiritual awakening and the ultimate goal of the human spiritual journey, characterized by a consciousness free from suffering, intense awareness, and liberation.
-- I-Consciousness: A state of awareness and connection to one's own being, which can be experienced as separate and disconnected or expanded to include others.
-- Spiritual Process: A journey of awakening and transformation that leads to higher states of consciousness, indicating a method or journey for achieving spiritual growth.
+## Source Context
+- Video: Birth, Death, and Beyond: The Enlightened Consciousness Perspective
+- URL: https://www.youtube.com/watch?v=zDOS3wCWea8
+- Speaker: Sri Preethaji & Sri Krishnaji

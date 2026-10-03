@@ -1,24 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=JwMlR98BgrI
-tags:
-- compassion
-- healing
-- ego
-teacher: both
-title: Compassion and the Wounded Self
+title: Compassion And The Wounded Self
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=JwMlR98BgrI
 video_id: JwMlR98BgrI
+tags:
+- oneness
+- teaching
 ---
-# Compassion and the Wounded Self
+# Compassion And The Wounded Self
 
+## Verbatim Discourse Excerpts
+Otherwise, this Samskara will continue to flow into your next life and will continue to haunt you. How do we begin our journey towards healing ourselves and healing others? The only way is compassion to be able to feel yourself and to be able to feel the other. You will have compassion for each other only when you realize that just the way that you are wounded, the other two is wounded in life.
 
-## Summary
-The teaching emphasizes that compassion is essential for healing oneself and others. It suggests that true compassion for others arises from the realization that everyone experiences wounds in life.
+Why do couples misunderstand each other so easily? Why can't we tolerate the elderly? Let us understand. Every human being is a wounded person. We are wounded and hurt by our parents, by school and by society. We each may have many bitter experiences in the past. When you loved someone in the past, be it a friend you trusted, a boyfriend, a girlfriend, a sibling or a parent, and when disappointed by that person, you become wounded.
 
 ## Key Teachings
-- Initial compassion is necessary to begin the journey towards healing. (Ekam / O&O Academy says)
-- Realizing that everyone is wounded in life is key to feeling true compassion for others. (Ekam / O&O Academy says)
+- You will have compassion for each other only when you realize that just the way that you are wounded, the other two is wounded in life. — Sri Preethaji & Sri Krishnaji
+- We are wounded and hurt by our parents, by school and by society. — Sri Preethaji & Sri Krishnaji
+- When you loved someone in the past, be it a friend you trusted, a boyfriend, a girlfriend, a sibling or a parent, and when disappointed by that person, you become wounded. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Ego: Ego is a concept referring to the sense of self, identity, and the tendency to identify with thoughts and emotions.
-- Suffering: Suffering is a multifaceted concept that encompasses various aspects of human experience. It can be described as a state of conflict and ideals, characterized by intense awareness and a lack of compulsive attachment, which can be weeded out through enlightenment.
+## Source Context
+- Video: Why cant you trust someone's Love? | Evolution During Crisis -17 with Preethaji & Krishnaji
+- URL: https://www.youtube.com/watch?v=JwMlR98BgrI
+- Speaker: Sri Preethaji & Sri Krishnaji

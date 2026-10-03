@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Non-Verbal Communication and Consciousness"
-source: "YouTube https://www.youtube.com/watch?v=gQiIwfA3mlk"
+source: "https://www.youtube.com/watch?v=gQiIwfA3mlk"
 video_id: gQiIwfA3mlk
 tags: [consciousness, communication, interconnectedness]
 teacher: "both"

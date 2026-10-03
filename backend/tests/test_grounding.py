@@ -64,8 +64,15 @@ def test_pipeline_response_data_does_not_mark_partial_evidence_as_hallucination(
 def _result(**kw):
     from types import SimpleNamespace
 
-    base = {"blocked": False, "intent": "DISTRESS", "verification": {}, "citations": [], "citations_verified": None,
-            "hallucination_flag": False, "answer_evidence": None}
+    base = {
+        "blocked": False,
+        "intent": "DISTRESS",
+        "verification": {},
+        "citations": [],
+        "citations_verified": None,
+        "hallucination_flag": False,
+        "answer_evidence": None,
+    }
     base.update(kw)
     return SimpleNamespace(**base)
 
@@ -76,7 +83,10 @@ def test_distress_intent_with_a_cited_verified_answer_is_grounded():
     body out of stress?" was served a real teaching but labelled safety_redirect."""
     from app.grounding import grounding_state_for
 
-    assert grounding_state_for(_result(citations=[{"url": "u"}], citations_verified=True)) == "grounded"
+    assert (
+        grounding_state_for(_result(citations=[{"url": "u"}], citations_verified=True))
+        == "grounded"
+    )
 
 
 def test_distress_intent_without_a_cited_answer_stays_a_safety_redirect():
@@ -88,7 +98,12 @@ def test_distress_intent_without_a_cited_answer_stays_a_safety_redirect():
 def test_crisis_intent_is_always_a_safety_redirect():
     from app.grounding import grounding_state_for
 
-    assert grounding_state_for(_result(intent="CRISIS", citations=[{"url": "u"}], citations_verified=True)) == "safety_redirect"
+    assert (
+        grounding_state_for(
+            _result(intent="CRISIS", citations=[{"url": "u"}], citations_verified=True)
+        )
+        == "safety_redirect"
+    )
 
 
 def test_distress_safety_preemption_is_a_safety_redirect_even_with_internal_citations():
@@ -99,7 +114,11 @@ def test_distress_safety_preemption_is_a_safety_redirect_even_with_internal_cita
     r = _result(
         citations=[{"url": "u"}],
         citations_verified=True,
-        verification={"passed": True, "method": "distress_safety_preemption", "citations_verified": True},
+        verification={
+            "passed": True,
+            "method": "distress_safety_preemption",
+            "citations_verified": True,
+        },
     )
     assert grounding_state_for(r) == "safety_redirect"
 

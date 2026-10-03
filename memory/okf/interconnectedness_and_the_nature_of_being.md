@@ -1,27 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=PFNP4c1cOSI
-tags:
-- awakening
-- interconnectedness
-- interdependence
-- suffering
-teacher: both
-title: Interconnectedness and the Nature of Being
+title: Interconnectedness And The Nature Of Being
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=PFNP4c1cOSI
 video_id: PFNP4c1cOSI
+tags:
+- oneness
+- teaching
 ---
-# Interconnectedness and the Nature of Being
+# Interconnectedness And The Nature Of Being
 
+## Verbatim Discourse Excerpts
+You see yourself, the people around you, nature, every form of life. You see it as being an extension of yourself, as one undivided field of consciousness.
 
-## Summary
-When one awakens, there is a realization that one is not separate, isolated, or independent, but rather interconnected and interdependent. This understanding reveals that one's existence is due to the contributions of many others and the interconnectedness of all life forms.
+When you are awake and you realize that you are not separate, you're not isolated, you're not independent. You are interconnected and you are interdependent. You realize that you are because of so many people who contributed to your life. Nature and Earth have contributed to your life, to your existence. Humanity and its millions of years of history have contributed to developing your mind and consciousness.
 
 ## Key Teachings
-- When you are awake, you realize you are not separate, isolated, or independent. (Unknown Channel)
-- You are interconnected and interdependent. (Unknown Channel)
-- You realize that you are because of so many others and the interconnectedness of all life forms. (Unknown Channel)
+- Nature and Earth have contributed to your life, to your existence. — Sri Preethaji & Sri Krishnaji
+- You see yourself, the people around you, nature, every form of life. — Sri Preethaji & Sri Krishnaji
+- You see it as being an extension of yourself, as one undivided field of consciousness. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Suffering: a multifaceted concept that encompasses various aspects of human experience, described as a state of conflict and ideals, characterized by intense awareness and a lack of co
-- Suffering States: emotional states such as regret, sadness, and loneliness that disconnect individuals from life, or a downward spiral of chaos and problems caused by accumulated poisons and limiting beliefs.
-- Overcoming Suffering: a concept related to spiritual teachings, focusing on the alleviation of suffering.
+## Source Context
+- Video: PFNP4c1cOSI
+- URL: https://www.youtube.com/watch?v=PFNP4c1cOSI
+- Speaker: Sri Preethaji & Sri Krishnaji

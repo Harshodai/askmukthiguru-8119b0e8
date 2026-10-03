@@ -1,27 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=jW3JDLY0cDA
-tags:
-- suffering
-- love
-- connection
-- ego
-teacher: both
-title: Living and Loving Through Suffering
-type: reflection
+title: Living And Loving Through Suffering
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=jW3JDLY0cDA
 video_id: jW3JDLY0cDA
+tags:
+- oneness
+- teaching
 ---
-# Living and Loving Through Suffering
+# Living And Loving Through Suffering
 
+## Verbatim Discourse Excerpts
+All I want to say you is, please do not die, live, whatever is hurting you today, I promise you will pass. If every door in the world feels closed, let me tell you that there is one door waiting only for you to walk through it, please live. If you are thinking of dying because you see no way to rise out of your financial abyss, let me tell you, there is a way out.
 
-## Summary
-This passage emphasizes the importance of continuing to live and love, even when facing difficult circumstances. It encourages opening one's heart to the pain of others and trusting in the power of love and connection to overcome challenges. The speaker is reminded to embrace their gifts and live abundantly in the present moment.
+Break. Break out of your inner desperation. Break out of the space of self-pity and anger at injustice. Open. Open your heart to the pain of others. Then and then alone will magic unfold. You will wake up to your own unique gift. You are born with a gift within you that is yet unopened. You have the gift to give the world and in that gift is your salvation.
 
 ## Key Teachings
-- The importance of living and loving, even in difficult circumstances (Unknown speaker).
-- Opening one's heart to others' pain (Unknown speaker).
-- Trusting in the power of love and connection to overcome challenges (Unknown speaker).
-- Embracing one's gifts and living abundantly in the present moment (Unknown speaker).
+- If every door in the world feels closed, let me tell you that there is one door waiting only for you to walk through it, please live. — Sri Preethaji & Sri Krishnaji
+- All I want to say you is, please do not die, live, whatever is hurting you today, I promise you will pass. — Sri Preethaji & Sri Krishnaji
+- If you are thinking of dying because you see no way to rise out of your financial abyss, let me tell you, there is a way out. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Suffering: a multifaceted concept that encompasses various aspects of human experience.
-- Ego: a state of self-centeredness and separation that can lead to conflict and violence; the sense of self that separates one from others and the world; a false, separate self that is the root of suffering and illusion.
+## Source Context
+- Video: Please Live  | Evolution Series 70 with Preethaji & Krishnaji
+- URL: https://www.youtube.com/watch?v=jW3JDLY0cDA
+- Speaker: Sri Preethaji & Sri Krishnaji

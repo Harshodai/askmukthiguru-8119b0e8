@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Pervasiveness of Depression"
-source: "YouTube https://www.youtube.com/watch?v=FSwSt1omSD8"
+source: "https://www.youtube.com/watch?v=FSwSt1omSD8"
 video_id: FSwSt1omSD8
 tags: [depression, mental health, statistics]
 teacher: "both"

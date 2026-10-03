@@ -1,10 +1,9 @@
 """Unit tests for Retrieval Integrity Guard (Invariant A2)."""
 
-import pytest
 from services.retrieval_integrity import (
     compute_sha256,
-    verify_document_integrity,
     filter_documents_by_integrity,
+    verify_document_integrity,
 )
 
 

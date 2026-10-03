@@ -1,26 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=GICjcQQ0aM0
-tags:
-- observation
-- generational healing
-- awakened parenting
-teacher: both
-title: The Power of Observation in Generational Healing
+title: The Power Of Observation In Generational Healing
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=GICjcQQ0aM0
 video_id: GICjcQQ0aM0
+tags:
+- oneness
+- teaching
 ---
-# The Power of Observation in Generational Healing
+# The Power Of Observation In Generational Healing
 
+## Verbatim Discourse Excerpts
+I will lead you into the sacred wisdom of nurturing and parenting a child, child who may be yours or another's for a generational healing. Join this manifest if you seek to awaken this healing power in your consciousness and parent a new generation.
 
-## Summary
-The provided text introduces the concept of inherited traits and experiences across generations, suggesting that patterns can manifest in children and grandchildren. It hints at the importance of awakening a "divine dimension of Amba" for healing and parenting. The text also poses a question about being "shocked" by a son or daughter's behavior, implying a connection to these inherited patterns.
+In the coming months manifest, this manifest is going to be about manifest generational healing and manifest awakened parenting. Why do you think you are repeating the same mistakes your mother did or your father did? Why are you shocked when you realize your son or your daughter or your grandson or your granddaughter are exhibiting the traits of your parents whom they probably have never met?
 
 ## Key Teachings
-- Inherited traits and experiences can manifest across generations, affecting children and grandchildren. (Unknown Channel says)
-- There is a need to awaken the "divine dimension of Amba" to heal and parent a new generation. (Unknown Channel says)
+- In the coming months manifest, this manifest is going to be about manifest generational healing and manifest awakened parenting. — Sri Preethaji & Sri Krishnaji
+- I will lead you into the sacred wisdom of nurturing and parenting a child, child who may be yours or another's for a generational healing. — Sri Preethaji & Sri Krishnaji
+- Join this manifest if you seek to awaken this healing power in your consciousness and parent a new generation. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-
-## Related Concepts
-- The Power of Observation: a concept related to the ability to observe and understand the world around us, emphasizing the power of observation and analyzing situations.
-- Divine: a concept representing the ultimate reality or the source of all existence.
+## Source Context
+- Video: MANIFEST GENERATIONAL HEALING MANIFEST AWAKENED PARENTING
+- URL: https://www.youtube.com/watch?v=GICjcQQ0aM0
+- Speaker: Sri Preethaji & Sri Krishnaji

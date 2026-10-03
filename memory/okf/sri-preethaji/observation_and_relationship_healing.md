@@ -15,10 +15,10 @@ teacher: "sri-preethaji"
 The speaker's life before attending the field of abundance course was marked by chaos, travel, and suffering. After the course, they moved from a chaotic and suffering state to a peaceful and beautiful state of consciousness. This transition was marked by a profound change in their perspective and the ability to practice the tools learned in the course whenever they were in a suffering state. The speaker's experience underscores the transformative power of the course in bringing about a shift from chaos and suffering to peace and prosperity.
 
 ## Key Teachings
-- **Observation and Relationship Healing**: The speaker emphasizes the importance of observing the world around them and analyzing their environment to perceive beyond the senses, leading to direct, intuitive experiences like mystic visions. This practice is distinct from mere noticing or witnessing, as it involves a deliberate and critical examination of one's environment and surroundings.
+- Observation and Relationship Healing: The speaker emphasizes the importance of observing the world around them and analyzing their environment to perceive beyond the senses, leading to direct, intuitive experiences like mystic visions. This practice is distinct from mere noticing or witnessing, as it involves a deliberate and critical examination of one's environment and surroundings.
 
 ## Quotes
-> "The course taught me to observe and analyze my environment, which led to profound changes in my perspective and ability to practice the tools learned whenever I was in a suffering state."
+> "I choose to live in a Beautiful State and I have the tool to be able to practice whenever I'm in a suffering state."
 
 ## Related Concepts
 - **Abundance**: A state of being that encompasses a harmonious existence, interconnectedness with others, and the creation of wealth and prosperity through the power of consciousness.

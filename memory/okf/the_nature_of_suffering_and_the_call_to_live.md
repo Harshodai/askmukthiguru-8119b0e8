@@ -1,31 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=jW3JDLY0cDA
-tags:
-- truth of suffering
-- sri preethaji
-- sri krishnaji
-- ekam
-- oo academy
-teacher: both
-title: The Nature of Suffering and the Call to Live
-type: reflection
+title: The Nature Of Suffering And The Call To Live
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=jW3JDLY0cDA
 video_id: jW3JDLY0cDA
+tags:
+- oneness
+- teaching
 ---
-# The Nature of Suffering and the Call to Live
+# The Nature Of Suffering And The Call To Live
 
+## Verbatim Discourse Excerpts
+In giving that gift will be your abundance. All I want to tell you is live. Live long and live abundantly. If you are thinking of dying because you have lost a loved one, let me remind you, you may have lost a loved one. But the love you share together remains within you forever. Neither separation nor death can take away the love you have felt. Do not shut your eyes and heart to those beautiful moments of love.
 
-## Summary
-This passage encourages individuals to embrace life and love, emphasizing the importance of acknowledging and empathizing with the pain of others. It suggests that by opening one's heart to shared suffering and offering one's unique gifts, a transformative "magic" can unfold. The core message is a call to continue living and loving, even amidst difficulties, and to trust in the power of connection and contribution.
+Feel them and honour them. Cherish them and be grateful for them. Ingratefully immersing in the moments of love from yesterday will a new road open up today. Love will once again come upon your path. You will become love. You have hit the rock bottom. You can only rise from here. Find the courage to rise and love again. All I ask of you is to live and love again.
 
 ## Key Teachings
-- The importance of opening one's heart to the pain of others is highlighted as a path to deeper living and loving. (Ekam / O&O Academy)
-- Giving one's unique gift is presented as a way to experience "magic" and contribute to the world. (Ekam / O&O Academy)
-- The message encourages perseverance in living and loving, even in challenging circumstances. (Ekam / O&O Academy)
+- All I want to say you is, please do not die, live, whatever is hurting you today, I promise you will pass. — Sri Preethaji & Sri Krishnaji
+- If every door in the world feels closed, let me tell you that there is one door waiting only for you to walk through it, please live. — Sri Preethaji & Sri Krishnaji
+- All I ask of you is to live and love again. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "Please live. Please love. Please open your heart to others' pain. Please give your unique gift. And then magic will unfold." — Ekam / O&O Academy
-
-## Related Concepts
-- Pain: a complex emotional and physical sensation that can be experienced by oneself or others, often a result of harm or distress, and a source of suffering.
-- Suffering States: emotionally painful states of being that disconnect individuals from life and universal intelligence.
-- Cycle of Pain: the perpetuation of pain and suffering by hurt human beings.
+## Source Context
+- Video: Please Live  | Evolution Series 70 with Preethaji & Krishnaji
+- URL: https://www.youtube.com/watch?v=jW3JDLY0cDA
+- Speaker: Sri Preethaji & Sri Krishnaji

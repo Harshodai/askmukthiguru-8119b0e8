@@ -33,7 +33,7 @@ import subprocess
 import sys
 from collections import Counter
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Optional
 
@@ -206,7 +206,8 @@ def clip_word_span(clip: dict, words: list[dict]) -> Optional[tuple[int, int]]:
     tokens = clip["verbatim_text"].split()
     n = len(tokens)
     starts = [
-        i for i in range(len(words) - n + 1)
+        i
+        for i in range(len(words) - n + 1)
         if words[i]["w"] == tokens[0] and [w["w"] for w in words[i : i + n]] == tokens
     ]
     if not starts:
@@ -295,7 +296,11 @@ def build_store_clip(
     teacher_id = clip["speaker"]
     start_ms = round(clip["start"] * 1000)
     end_ms = round(clip["end"] * 1000)
-    verbatim_text = clip["verbatim_text"]
+    from ingest.verbatim.asr_cleaner import clean_verbatim_text
+
+    verbatim_text = clean_verbatim_text(str(clip["verbatim_text"]))
+    if not verbatim_text.strip():
+        raise ValueError(f"ASR cleaner removed all text for video {video_id}")
     video_url = f"https://www.youtube.com/watch?v={video_id}"
     return {
         "video_id": video_id,
@@ -304,7 +309,7 @@ def build_store_clip(
         "speaker": _TEACHER_LABELS[teacher_id],
         "teacher_id": teacher_id,
         "teacher_ids": [teacher_id],
-        "transcript_hash": clip["transcript_hash"],
+        "transcript_hash": hashlib.sha256(verbatim_text.encode("utf-8")).hexdigest(),
         "verbatim_text": verbatim_text,
         "display_text": clip.get("display_text") or verbatim_text,
         "parent_id": clip.get("parent_id"),
@@ -401,9 +406,9 @@ def apply_indexable_clips(indexable_clips: list[dict], collection: str) -> int:
     ID-exact rather than video_id-based, so no point survives if its source
     video is no longer indexable — even when indexable_clips is empty.
     """
-    from services.embedding_service import EmbeddingService
     from qdrant_client.http.models import PointIdsList
 
+    from services.embedding_service import EmbeddingService
     from services.first_person_store import FirstPersonStore, make_first_person_point_id
     from services.qdrant.utils import QdrantUtils
 
@@ -446,7 +451,9 @@ def apply_indexable_clips(indexable_clips: list[dict], collection: str) -> int:
         for clip in batch:
             # Same ID the store assigns on upsert (clips carry no point_id key).
             produced_ids.add(
-                make_first_person_point_id(clip["transcript_hash"], clip["start_ms"], clip["end_ms"])
+                make_first_person_point_id(
+                    clip["transcript_hash"], clip["start_ms"], clip["end_ms"]
+                )
             )
 
     # Delete any point that was in the collection before the build but is not
@@ -507,7 +514,9 @@ def build_index(
             quarantined.append({"video_id": video_id, "reason": "asr_agreement_unknown"})
             continue
         if agreement < MIN_ASR_AGREEMENT:
-            quarantined.append({"video_id": video_id, "reason": f"asr_agreement_low:{agreement:.3f}"})
+            quarantined.append(
+                {"video_id": video_id, "reason": f"asr_agreement_low:{agreement:.3f}"}
+            )
             continue
 
         # Duration precedence: videos_final.json first (cheap, no network); if
@@ -517,7 +526,9 @@ def build_index(
         duration_source = "videos_final"
         channel: Optional[str] = None
         if duration_s is None:
-            channel, yt_duration_s = get_channel_and_duration_cached(video_id, channels_cache, channels_cache_path)
+            channel, yt_duration_s = get_channel_and_duration_cached(
+                video_id, channels_cache, channels_cache_path
+            )
             if yt_duration_s is not None:
                 duration_s = yt_duration_s
                 duration_source = "yt_dlp"
@@ -539,8 +550,12 @@ def build_index(
             continue
 
         if channel is None:
-            channel, _ = get_channel_and_duration_cached(video_id, channels_cache, channels_cache_path)
-        rights_cleared = channel.strip().casefold() in CLEARED_CHANNELS or video_id in CLEARED_VIDEO_IDS
+            channel, _ = get_channel_and_duration_cached(
+                video_id, channels_cache, channels_cache_path
+            )
+        rights_cleared = (
+            channel.strip().casefold() in CLEARED_CHANNELS or video_id in CLEARED_VIDEO_IDS
+        )
         channel_video_counts[channel] += 1
         channel_rights[channel] = rights_cleared
 
@@ -549,7 +564,9 @@ def build_index(
         duration_ms = round(duration_s * 1000)
 
         display_words = (
-            load_display_words(passages_path, video_id, len(transcript_words)) if snap_boundaries else None
+            load_display_words(passages_path, video_id, len(transcript_words))
+            if snap_boundaries
+            else None
         )
         for clip in result.clips:
             if snap_boundaries:
@@ -567,9 +584,13 @@ def build_index(
             span = clip_word_span(clip, transcript_words)
             rate = disputed_rate(transcript_words, *span) if span else None
             if max_disputed_rate is not None and (rate is None or rate > max_disputed_rate):
-                clip_quarantine["asr_disputed_rate_high" if rate is not None else "asr_disputed_rate_unknown"] += 1
+                clip_quarantine[
+                    "asr_disputed_rate_high" if rate is not None else "asr_disputed_rate_unknown"
+                ] += 1
                 continue
-            store_clip = build_store_clip(clip, video_id, channel, rights_cleared, layer_sha256, duration_ms)
+            store_clip = build_store_clip(
+                clip, video_id, channel, rights_cleared, layer_sha256, duration_ms
+            )
             store_clip["asr_disputed_rate"] = rate
             store_clip["has_disputed_words"] = bool(rate) if rate is not None else None
             indexable_clips.append(store_clip)
@@ -577,9 +598,15 @@ def build_index(
     # A <=150-word parent and its single child are the same recorded span, so they
     # map to the same UUIDv5 point. Keep the first (the parent) and count only unique
     # points, so the post-apply count check compares like with like.
-    unique_clips = {(c["transcript_hash"], c["start_ms"], c["end_ms"]): c for c in reversed(indexable_clips)}
+    unique_clips = {
+        (c["transcript_hash"], c["start_ms"], c["end_ms"]): c for c in reversed(indexable_clips)
+    }
     duplicates_collapsed = len(indexable_clips) - len(unique_clips)
-    indexable_clips = [c for c in indexable_clips if unique_clips.get((c["transcript_hash"], c["start_ms"], c["end_ms"])) is c]
+    indexable_clips = [
+        c
+        for c in indexable_clips
+        if unique_clips.get((c["transcript_hash"], c["start_ms"], c["end_ms"])) is c
+    ]
 
     # Count clips per teacher after duplicate collapse so breakdown matches clips_indexed_total
     for c in indexable_clips:
@@ -594,7 +621,9 @@ def build_index(
         )
         dump_ids_path = Path(dump_ids)
         dump_ids_path.parent.mkdir(parents=True, exist_ok=True)
-        dump_ids_path.write_text("\n".join(sorted_ids) + ("\n" if sorted_ids else ""), encoding="utf-8")
+        dump_ids_path.write_text(
+            "\n".join(sorted_ids) + ("\n" if sorted_ids else ""), encoding="utf-8"
+        )
 
     store_count_after: Optional[int] = None
     count_mismatch = False
@@ -603,7 +632,7 @@ def build_index(
         count_mismatch = store_count_after != len(indexable_clips)
 
     report = {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "collection": collection,
         "passages_dirs": [str(d) for d in passages_dirs],
         "videos_discovered": len(discovered),
@@ -618,7 +647,8 @@ def build_index(
         "clips_quarantined": dict(clip_quarantine),
         "asr_disputed_rate": _rate_summary([c.get("asr_disputed_rate") for c in indexable_clips]),
         "boundary_clean": sum(
-            not _boundary_defects_of(c["verbatim_text"], c.get("display_text")) for c in indexable_clips
+            not _boundary_defects_of(c["verbatim_text"], c.get("display_text"))
+            for c in indexable_clips
         ),
         "clips_indexed_total": len(indexable_clips),
         "duplicates_collapsed": duplicates_collapsed,
@@ -633,7 +663,7 @@ def build_index(
         "count_mismatch": count_mismatch,
     }
 
-    report_path = report_dir / f"report_{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}.json"
+    report_path = report_dir / f"report_{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}.json"
     report_path.write_text(json.dumps(report, indent=2))
     report["report_path"] = str(report_path)
 
@@ -655,14 +685,22 @@ def print_summary(report: dict[str, Any]) -> None:
         print("duration sources:    " + ", ".join(f"{src}={n}" for src, n in source_counts.items()))
     print(f"host clips skipped:  {report['host_skipped_total']}")
     print(f"short clips dropped: {report['clips_too_short']} (< {report['min_clip_duration_s']}s)")
-    print(f"snap boundaries:     {report['snap_boundaries']} (snapped {report['clips_snapped']}); clip quarantine: {report['clips_quarantined']}")
-    print(f"boundary-clean:      {report['boundary_clean']} of {report['clips_indexed_total']}; ASR disputed rate: {report['asr_disputed_rate']}")
-    print(f"clips indexed:       {report['clips_indexed_total']} (identical parent/child spans collapsed: {report['duplicates_collapsed']})")
+    print(
+        f"snap boundaries:     {report['snap_boundaries']} (snapped {report['clips_snapped']}); clip quarantine: {report['clips_quarantined']}"
+    )
+    print(
+        f"boundary-clean:      {report['boundary_clean']} of {report['clips_indexed_total']}; ASR disputed rate: {report['asr_disputed_rate']}"
+    )
+    print(
+        f"clips indexed:       {report['clips_indexed_total']} (identical parent/child spans collapsed: {report['duplicates_collapsed']})"
+    )
     for teacher, n in report["clips_per_teacher"].items():
         print(f"    - {teacher}: {n}")
     print("channels:")
     for ch, info in report["channels"].items():
-        print(f"    - {ch}: {info['video_count']} video(s), rights_cleared={info['rights_cleared']}")
+        print(
+            f"    - {ch}: {info['video_count']} video(s), rights_cleared={info['rights_cleared']}"
+        )
     print(f"applied: {report['applied']}")
     if report["applied"]:
         print(f"store count after apply: {report['store_count_after_apply']}")
@@ -677,14 +715,22 @@ def _self_check() -> None:
     vt = "Suffering is not a fact."
     clip = {"verbatim_text": vt, "transcript_hash": hashlib.sha256(vt.encode()).hexdigest()}
     assert _gate_clip({**clip, "start": 1.0, "end": 2.0}, full_text, 10.0) is None
-    assert _gate_clip({**clip, "transcript_hash": "0" * 64, "start": 1.0, "end": 2.0}, full_text, 10.0) == "hash_mismatch"
-    assert _gate_clip({**clip, "start": 1.0, "end": 2.0}, "unrelated text", 10.0) == "substring_mismatch"
+    assert (
+        _gate_clip({**clip, "transcript_hash": "0" * 64, "start": 1.0, "end": 2.0}, full_text, 10.0)
+        == "hash_mismatch"
+    )
+    assert (
+        _gate_clip({**clip, "start": 1.0, "end": 2.0}, "unrelated text", 10.0)
+        == "substring_mismatch"
+    )
     assert _gate_clip({**clip, "start": 1.0, "end": 20.0}, full_text, 10.0) == "bad_bounds"
     print("self-check OK")
 
 
 def main(argv: Optional[list[str]] = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument(
         "--passages-dir",
         action="append",
@@ -699,11 +745,32 @@ def main(argv: Optional[list[str]] = None) -> int:
         default=Path.home() / "mukthiguru_attribution_data" / "first_person_index",
     )
     parser.add_argument("--collection", default=None)
-    parser.add_argument("--min-clip-seconds", type=float, default=MIN_CLIP_DURATION_S, help="Drop clips shorter than this (default %(default)s).")
-    parser.add_argument("--dump-ids", type=Path, default=None, help="Optional path to write sorted list of generated point IDs (for exact determinism diffing).")
-    parser.add_argument("--snap-boundaries", action="store_true", help="B2: shrink clips to whole sentences via the punct display layer; unrecoverable clips are quarantined.")
-    parser.add_argument("--max-disputed-rate", type=float, default=None, help="Quarantine clips whose share of ASR-disputed words exceeds this (unset = record only; pick the value on gold, not by hand).")
-    parser.add_argument("--apply", action="store_true", help="Actually embed + write to Qdrant (default: dry-run).")
+    parser.add_argument(
+        "--min-clip-seconds",
+        type=float,
+        default=MIN_CLIP_DURATION_S,
+        help="Drop clips shorter than this (default %(default)s).",
+    )
+    parser.add_argument(
+        "--dump-ids",
+        type=Path,
+        default=None,
+        help="Optional path to write sorted list of generated point IDs (for exact determinism diffing).",
+    )
+    parser.add_argument(
+        "--snap-boundaries",
+        action="store_true",
+        help="B2: shrink clips to whole sentences via the punct display layer; unrecoverable clips are quarantined.",
+    )
+    parser.add_argument(
+        "--max-disputed-rate",
+        type=float,
+        default=None,
+        help="Quarantine clips whose share of ASR-disputed words exceeds this (unset = record only; pick the value on gold, not by hand).",
+    )
+    parser.add_argument(
+        "--apply", action="store_true", help="Actually embed + write to Qdrant (default: dry-run)."
+    )
     parser.add_argument("--self-check", action="store_true")
     args = parser.parse_args(argv)
 

@@ -1,29 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=IGryscyFmV8
-tags:
-- enlightenment
-- interconnectedness
-- spiritual support
-- community
-- nurturing
-teacher: both
-title: Interconnectedness and Spiritual Support for Enlightenment
+title: Interconnectedness And Spiritual Support For Enlightenment
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=IGryscyFmV8
 video_id: IGryscyFmV8
+tags:
+- oneness
+- teaching
 ---
-# Interconnectedness and Spiritual Support for Enlightenment
+# Interconnectedness And Spiritual Support For Enlightenment
 
+## Verbatim Discourse Excerpts
+There is both light and darkness in the human consciousness. There are both beautiful states and destructive suffering states. Which force are you going to tune into is your choice. When you live an isolated life, you are like an individual tree that can be uprooted by a storm. But if you are together with a community of spiritual aspirants who seek enlightenment, then together you hold a strong spiritual vision to live in beautiful states of love, joy, connection, peace and grow into enlightened beings.
 
-## Summary
-The passage emphasizes that achieving enlightenment and a harmonious life is deeply rooted in interconnectedness, nurturing others, and receiving spiritual support. It draws a parallel between the bond of a baby in the womb with its mother and the role of a community in providing spiritual nourishment. Individuals are encouraged to live connected lives, nurture others spiritually, and enter a beautiful state, sourced in this interconnectedness.
+Then you are like a cluster of trees that strongly stand as one and fight the storm and wind. In these times, you must live connected lives, nurture others and be nurtured spiritually. It is like the bond between the baby in the womb and the mother. Through the umbilical cord, the baby receives complete and total support from the mother, be it nutrition, protection, education, everything through its connection.
 
 ## Key Teachings
-- The importance of interconnectedness in achieving enlightenment and a harmonious life. (Unknown speaker)
-- Nurturing others spiritually is crucial for moving towards enlightenment. (Unknown speaker)
-- Spiritual support from a community is likened to the bond between a baby and its mother, providing nourishment. (Unknown speaker)
-- Individuals should strive to enter a beautiful state, sourced in interconnectedness. (Unknown speaker)
+- But if you are together with a community of spiritual aspirants who seek enlightenment, then together you hold a strong spiritual vision to live in beautiful states of love, joy, connection, peace and grow into enlightened beings. — Sri Preethaji & Sri Krishnaji
+- The third element is to be strongly rooted in a community of people who share a spiritual vision together. — Sri Preethaji & Sri Krishnaji
+- Through the umbilical cord, the baby receives complete and total support from the mother, be it nutrition, protection, education, everything through its connection. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Deeksha: a spiritual practice that involves receiving energy and guidance from a spiritual teacher.
-- Mukthi Gurus: spiritual guides who provide enlightenment and guidance.
-- Divine: a higher power that provides protection and guidance.
+## Source Context
+- Video: Humanity is entering a new phase |  Evolution Series 99 with Sri Preethaji & Sri Krishnaji
+- URL: https://www.youtube.com/watch?v=IGryscyFmV8
+- Speaker: Sri Preethaji & Sri Krishnaji

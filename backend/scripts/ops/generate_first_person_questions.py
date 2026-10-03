@@ -88,7 +88,9 @@ async def self_retrieves(
     return owner_point_id in (await search(question))[:SELF_RETRIEVAL_TOP_K]
 
 
-async def run(clips, llm_call, search, find_artifact, out_path: Path, concurrency: int = 4) -> dict[str, Any]:
+async def run(
+    clips, llm_call, search, find_artifact, out_path: Path, concurrency: int = 4
+) -> dict[str, Any]:
     state = json.loads(out_path.read_text()) if out_path.exists() else {"raw": {}, "kept": {}}
     todo = [c for c in clips if c["point_id"] not in state["raw"]]
     sem = asyncio.Semaphore(concurrency)
@@ -103,10 +105,12 @@ async def run(clips, llm_call, search, find_artifact, out_path: Path, concurrenc
         for c in batch:
             qs = clean_questions(parsed.get(c["point_id"]), find_artifact)
             state["raw"][c["point_id"]] = qs
-            state["kept"][c["point_id"]] = [q for q in qs if await self_retrieves(q, c["point_id"], search)]
+            state["kept"][c["point_id"]] = [
+                q for q in qs if await self_retrieves(q, c["point_id"], search)
+            ]
         out_path.write_text(json.dumps(state, indent=1, ensure_ascii=False))  # checkpoint
 
-    await asyncio.gather(*(one_batch(todo[i:i + BATCH]) for i in range(0, len(todo), BATCH)))
+    await asyncio.gather(*(one_batch(todo[i : i + BATCH]) for i in range(0, len(todo), BATCH)))
     n_raw = sum(len(v) for v in state["raw"].values())
     n_kept = sum(len(v) for v in state["kept"].values())
     state["summary"] = {
@@ -124,8 +128,13 @@ async def run(clips, llm_call, search, find_artifact, out_path: Path, concurrenc
 def _load_clips(store, limit: int | None) -> list[dict[str, Any]]:
     clips, offset = [], None
     while True:
-        points, offset = store.client.scroll(store.collection, limit=256, offset=offset, with_payload=True, with_vectors=False)
-        clips += [{"point_id": str(p.id), "verbatim_text": (p.payload or {}).get("verbatim_text", "")} for p in points]
+        points, offset = store.client.scroll(
+            store.collection, limit=256, offset=offset, with_payload=True, with_vectors=False
+        )
+        clips += [
+            {"point_id": str(p.id), "verbatim_text": (p.payload or {}).get("verbatim_text", "")}
+            for p in points
+        ]
         if offset is None or (limit and len(clips) >= limit):
             return clips[:limit] if limit else clips
 
@@ -165,7 +174,9 @@ async def _amain(args) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     ap.add_argument("--collection", required=True)
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--limit", type=int, default=None)

@@ -107,7 +107,9 @@ class _FakeQdrantClient:
         return _Snapshot()
 
     def recover_snapshot(self, collection_name: str, location: str, wait: bool = True):
-        self.calls.append(("recover_snapshot", {"collection_name": collection_name, "location": location}))
+        self.calls.append(
+            ("recover_snapshot", {"collection_name": collection_name, "location": location})
+        )
         rd._assert_scratch(collection_name)  # the real client would happily accept anything; the
         # script's OWN guard is what must fire before this is ever called with a bad name.
         self._collections[collection_name] = self.scratch_points
@@ -131,7 +133,9 @@ class _FakeQdrantClient:
 
 def test_restore_one_collection_happy_path_passes():
     client = _FakeQdrantClient(source_points=100, scratch_points=100, top_hit_matches=True)
-    result = rd.restore_one_collection(client, "http://localhost:6333", "spiritual_wisdom_contextual")
+    result = rd.restore_one_collection(
+        client, "http://localhost:6333", "spiritual_wisdom_contextual"
+    )
 
     assert result["passed"] is True
     assert result["failures"] == []

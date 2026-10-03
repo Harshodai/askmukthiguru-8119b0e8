@@ -1,28 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=IGryscyFmV8
-tags:
-- enlightenment
-- interconnectedness
-- spiritual support
-- community
-teacher: both
-title: Interconnectedness and Spiritual Nurturing for Enlightenment
+title: Interconnectedness And Spiritual Nurturing For Enlightenment
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=IGryscyFmV8
 video_id: IGryscyFmV8
+tags:
+- oneness
+- teaching
 ---
-# Interconnectedness and Spiritual Nurturing for Enlightenment
+# Interconnectedness And Spiritual Nurturing For Enlightenment
 
+## Verbatim Discourse Excerpts
+There is both light and darkness in the human consciousness. There are both beautiful states and destructive suffering states. Which force are you going to tune into is your choice. When you live an isolated life, you are like an individual tree that can be uprooted by a storm. But if you are together with a community of spiritual aspirants who seek enlightenment, then together you hold a strong spiritual vision to live in beautiful states of love, joy, connection, peace and grow into enlightened beings.
 
-## Summary
-This teaching emphasizes the critical role of interconnectedness, nurturing others, and spiritual support in achieving enlightenment and a harmonious life. It draws a parallel between the bond of a baby in the womb with its mother and the community's role in providing spiritual nourishment. The teaching advocates for living connected lives and spiritually nurturing others to move towards enlightenment, encouraging individuals to enter a new year in a beautiful state, sourced in this interconnectedness.
+That is what your community is to you, like a mother. So enter the new year in a Beautiful State, be sourced in the divine. Live connected lives, nurture others and let yourselves be nurtured by others spiritually and together move towards enlightenment. If you move towards an enlightened way of living, every other aspect of your life will come into greater alignment and harmony.
 
 ## Key Teachings
-- The importance of interconnectedness, nurturing others, and spiritual support in achieving enlightenment and a harmonious life. (Unknown speaker)
-- A parallel is drawn between the bond of a baby in the womb and its mother, and the role of a community in providing spiritual nourishment and support. (Unknown speaker)
-- Individuals are encouraged to live connected lives and nurture others spiritually to move towards enlightenment. (Unknown speaker)
-- Entering a new year in a beautiful state, being sourced in this interconnectedness, is advocated. (Unknown speaker)
+- But if you are together with a community of spiritual aspirants who seek enlightenment, then together you hold a strong spiritual vision to live in beautiful states of love, joy, connection, peace and grow into enlightened beings. — Sri Preethaji & Sri Krishnaji
+- The third element is to be strongly rooted in a community of people who share a spiritual vision together. — Sri Preethaji & Sri Krishnaji
+- Live connected lives, nurture others and let yourselves be nurtured by others spiritually and together move towards enlightenment. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Deeksha: a spiritual practice that involves receiving energy and guidance from a spiritual teacher, and can facilitate an enlightened state.
-- Mukthi Gurus: spiritual guides who provide enlightenment and guidance.
-- Divine: a higher power that provides protection and guidance, and can provide protection and nurturing.
+## Source Context
+- Video: Humanity is entering a new phase |  Evolution Series 99 with Sri Preethaji & Sri Krishnaji
+- URL: https://www.youtube.com/watch?v=IGryscyFmV8
+- Speaker: Sri Preethaji & Sri Krishnaji

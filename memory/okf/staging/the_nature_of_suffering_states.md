@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Nature of Suffering States"
-source: "YouTube https://www.youtube.com/watch?v=jW3JDLY0cDA"
+source: "https://www.youtube.com/watch?v=jW3JDLY0cDA"
 video_id: jW3JDLY0cDA
 tags: [suffering, emotional states, pain, disconnection]
 teacher: "both"

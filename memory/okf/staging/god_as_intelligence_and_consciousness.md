@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "God as Intelligence and Consciousness"
-source: "YouTube https://www.youtube.com/watch?v=DqUafRyXy_0"
+source: "https://www.youtube.com/watch?v=DqUafRyXy_0"
 video_id: DqUafRyXy_0
 tags: [God, intelligence, consciousness, universe, science]
 teacher: "both"

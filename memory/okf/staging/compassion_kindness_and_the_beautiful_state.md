@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Compassion, Kindness, and the Beautiful State"
-source: "YouTube https://www.youtube.com/watch?v=b-MkLkpTeVY"
+source: "https://www.youtube.com/watch?v=b-MkLkpTeVY"
 video_id: b-MkLkpTeVY
 tags: [beautiful state, compassion, kindness]
 teacher: "both"

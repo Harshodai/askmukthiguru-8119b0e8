@@ -1,26 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=IGryscyFmV8
-tags:
-- universal intelligence
-- community
-- spiritual growth
-- human consciousness
-teacher: both
-title: Connecting with Universal Intelligence and Community
+title: Connecting With Universal Intelligence And Community
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=IGryscyFmV8
 video_id: IGryscyFmV8
+tags:
+- oneness
+- teaching
 ---
-# Connecting with Universal Intelligence and Community
+# Connecting With Universal Intelligence And Community
 
+## Verbatim Discourse Excerpts
+The way I see it, every person needs to have three elements strongly in their life. It must become a part of you. Then you will be able to navigate through problems, challenges and uncertainties with ease. The first is to make diligent efforts to evolve in consciousness such that you learn to live free of suffering. The second element is connecting with the universal intelligence.
 
-## Summary
-Spiritual growth involves connecting with universal intelligence, where divine will is received through heartfelt connection. It also emphasizes being rooted in a spiritual community to avoid being drawn into the negativity of collective human consciousness. Individuals have a choice in tuning into either the light or darkness within human consciousness.
+Every one of you must understand that the divine will come to you if you called, not as if it were a transaction between the two of you, but from a space of true heartfelt connection. The third element is to be strongly rooted in a community of people who share a spiritual vision together. If you live with an isolated mind, you will become easily sucked into the vortex of negativity in the human collective consciousness.
 
 ## Key Teachings
-- Connecting with universal intelligence allows divine will to come to you from a space of true heartfelt connection. (Unknown speaker)
-- Being strongly rooted in a community of people who share a spiritual vision together is crucial. (Unknown speaker)
-- An isolated mind can easily be sucked into the negativity of the human collective consciousness. (Unknown speaker)
-- Human consciousness contains both light and darkness, and individuals choose which force to tune into. (Unknown speaker)
+- The second element is connecting with the universal intelligence. — Sri Preethaji & Sri Krishnaji
+- The third element is to be strongly rooted in a community of people who share a spiritual vision together. — Sri Preethaji & Sri Krishnaji
+- That is what your community is to you, like a mother. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Consciousness: A multifaceted and complex entity encompassing various aspects of human experience, including awareness of thoughts, emotions, and surroundings, and the interconnected state that binds individuals.
+## Source Context
+- Video: Humanity is entering a new phase |  Evolution Series 99 with Sri Preethaji & Sri Krishnaji
+- URL: https://www.youtube.com/watch?v=IGryscyFmV8
+- Speaker: Sri Preethaji & Sri Krishnaji

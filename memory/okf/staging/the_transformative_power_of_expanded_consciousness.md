@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Transformative Power of Expanded Consciousness"
-source: "YouTube https://www.youtube.com/watch?v=1kS_mQaBLdg"
+source: "https://www.youtube.com/watch?v=1kS_mQaBLdg"
 video_id: 1kS_mQaBLdg
 tags: [consciousness, transformation, influence]
 teacher: "sri-preethaji"

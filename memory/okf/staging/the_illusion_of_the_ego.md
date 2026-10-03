@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Illusion of the Ego"
-source: "YouTube https://www.youtube.com/watch?v=aJIunwxx3NI"
+source: "https://www.youtube.com/watch?v=aJIunwxx3NI"
 video_id: aJIunwxx3NI
 tags: [ego, illusion]
 teacher: "both"

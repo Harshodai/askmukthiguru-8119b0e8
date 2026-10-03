@@ -1,28 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=ELiB_UwCVTY
-tags:
-- peace
-- conflict
-- well-being
-- heart
-teacher: both
-title: Peace and the Absence of Conflict
+title: Peace And The Absence Of Conflict
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=ELiB_UwCVTY
 video_id: ELiB_UwCVTY
+tags:
+- oneness
+- teaching
 ---
-# Peace and the Absence of Conflict
+# Peace And The Absence Of Conflict
 
+## Verbatim Discourse Excerpts
+What is the experience of peace like? Is it something you find at the end of a storm? Is it something you find when two people or two nations momentarily stop fighting? Or is it something you find in a cemetery where people are laid to rest after a lifetime of struggle? Definitely not. Peace is a celebratory experience. Peace is something you find when your heart is devoid of any conflict.
 
-## Summary
-Peace is described as a state where the heart is free from conflict and strife, characterized by a deep cherishing of mutual well-being. It is found when internal disharmony disappears.
+Peace is something you find when strife disappears and there is a deep cherishing of mutual well-being between two people or two nations. Peace is something you find in the still gaze of an infant. Peace is something you feel when you hear the songs of the birds and the laughter of children. Peace is something you feel when you are touched by experiences that make you feel like this is what life is worth living for.
 
 ## Key Teachings
-- Peace is found when your heart is devoid of any conflict. (Unknown Channel)
-- Peace is found when strife disappears. (Unknown Channel)
-- Peace involves a deep cherishing of mutual well-being. (Unknown Channel)
+- Peace is something you find when your heart is devoid of any conflict. — Sri Preethaji & Sri Krishnaji
+- Peace is something you find when strife disappears and there is a deep cherishing of mutual well-being between two people or two nations. — Sri Preethaji & Sri Krishnaji
+- Peace is something you find in the still gaze of an infant. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "Peace is something you find when your heart is devoid of any conflict." — Unknown Channel
-
-## Related Concepts
-- Stressful State: A condition characterized by feelings of anxiety, tension, or overwhelm, which is the opposite of peace.
+## Source Context
+- Video: What exactly is Peace?
+- URL: https://www.youtube.com/watch?v=ELiB_UwCVTY
+- Speaker: Sri Preethaji & Sri Krishnaji

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Patriotism: Pride vs. Superiority"
-source: "YouTube https://www.youtube.com/watch?v=vNj7OSHos1I"
+source: "https://www.youtube.com/watch?v=vNj7OSHos1I"
 video_id: vNj7OSHos1I
 tags: [patriotism, peace, conflict, culture, heritage]
 teacher: "both"

@@ -1,27 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=OWMBvMlGWTA
+title: The Disappearance Of Separation And Ego
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=OWMBvMlGWTA
+video_id: OWMBvMlGWTA
 tags:
 - oneness
-- ego
-- separation
-- enlightenment
-teacher: both
-title: The Disappearance of Separation and Ego
-type: teaching
-video_id: OWMBvMlGWTA
+- teaching
 ---
-# The Disappearance of Separation and Ego
+# The Disappearance Of Separation And Ego
 
+## Verbatim Discourse Excerpts
+If you are in an awakened state, a state of oneness, you rise beyond pain and pleasure, fear or gratification and blessings flow to those around you. Now what is oneness? At its first level, oneness is a state where there is no conflict. At its second level, oneness is a state of no disconnection. At the third and ultimate level, there is no separation or division.
 
-## Summary
-The third level of oneness is characterized by the disappearance of separation and division, leading to a profound sense of interconnectedness with all aspects of life. This highest form of oneness is associated with the experience of enlightenment, where the ego, as a sense of separation, dissolves.
+You experience people's inner rage or rapture. You don't judge them by their outward behaviors, appearances and attitudes. The walls around your heart come crashing. Great love and compassion arises in you. Class, gender, caste, race or ideology, nothing can disconnect you. You feel a kinship with the whole world. At the third level, when separation disappears, division disappears, you manifest the highest form of oneness.
 
 ## Key Teachings
-- The third level of oneness involves the disappearance of separation and division. (Sri Preethaji & Sri Krishnaji)
-- This level leads to a profound sense of interconnectedness and unity with oneself, others, and the universe. (Sri Preethaji & Sri Krishnaji)
-- This highest form of oneness is associated with the experience of enlightenment. (Sri Preethaji & Sri Krishnaji)
+- At the third and ultimate level, there is no separation or division. — Sri Preethaji & Sri Krishnaji
+- At the third level, when separation disappears, division disappears, you manifest the highest form of oneness. — Sri Preethaji & Sri Krishnaji
+- You could compare a state to an atmosphere within you. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Ego: Ego is a state of self-centeredness and separation that can lead to conflict and violence. It is also a self-centered attitude that can influence a leader to make decisions that benefit themselves alone. Ego is a concept referring to the sense of self, identity, and the tendency to identify with thoughts and emotions. In Hindu philosophy, it represents the egoistic nature of the self. The input text includes the concept of "ego," which is a significant theme in spiritual teachings related to personal development and self-awareness. Ego is the sense of self that separates one from others and the world. The input text includes the concept of "ego," which is a significant theme in spiritual teachings related to personal development and self-awareness. Ego is a concept in spiritual teachings that refers to the identification with the physical self and the desire for personal gain.
-- Peace: The concept of Peace encompasses a multifaceted state of being characterized by harmony, love, and unity. It can be achieved through various means, including cultivating inner calmness and collective
-- Limitless Field: The Limitless Field is a state of meditation and consciousness associated with Sri Krishnaji and Sri Preethaji. The Limitless Field is an impersonal energy associated with the experience of univer
+## Source Context
+- Video: Three Levels of Oneness | Evolution Series 107 with Sri Preethaji & Sri Krishnaji
+- URL: https://www.youtube.com/watch?v=OWMBvMlGWTA
+- Speaker: Sri Preethaji & Sri Krishnaji

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Interconnectedness of Suffering"
-source: "YouTube https://www.youtube.com/watch?v=PFNP4c1cOSI"
+source: "https://www.youtube.com/watch?v=PFNP4c1cOSI"
 video_id: PFNP4c1cOSI
 tags: [awakening, consciousness, suffering, interconnectedness]
 teacher: "both"

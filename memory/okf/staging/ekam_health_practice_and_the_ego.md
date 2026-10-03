@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Ekam Health Practice and the Ego"
-source: "YouTube https://www.youtube.com/watch?v=FSxiSEV1iPY"
+source: "https://www.youtube.com/watch?v=FSxiSEV1iPY"
 video_id: FSxiSEV1iPY
 tags: [ekam, health, practice, ego]
 teacher: "both"

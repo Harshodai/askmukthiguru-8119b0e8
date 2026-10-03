@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Observation and Inner Calm"
-source: "YouTube https://www.youtube.com/watch?v=UlOt31lBhLY"
+source: "https://www.youtube.com/watch?v=UlOt31lBhLY"
 video_id: UlOt31lBhLY
 tags: [inner stillness, beautiful state, suffering state]
 teacher: "both"

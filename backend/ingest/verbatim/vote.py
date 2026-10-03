@@ -22,8 +22,18 @@ from typing import Any
 
 from services.doctrine_terms import load_doctrine_terms
 
-_NUM = {"one": "1", "two": "2", "three": "3", "four": "4", "five": "5",
-        "six": "6", "seven": "7", "eight": "8", "nine": "9", "ten": "10"}
+_NUM = {
+    "one": "1",
+    "two": "2",
+    "three": "3",
+    "four": "4",
+    "five": "5",
+    "six": "6",
+    "seven": "7",
+    "eight": "8",
+    "nine": "9",
+    "ten": "10",
+}
 
 
 def norm_word(w: str) -> str:
@@ -59,16 +69,18 @@ def rover_vote(words_a: list[dict], words_b: list[dict]) -> list[dict[str, Any]]
     return out
 
 
-def repeated_ngram_flags(words: list[str], nmin: int = 3, nmax: int = 6, min_repeats: int = 3) -> list[dict]:
+def repeated_ngram_flags(
+    words: list[str], nmin: int = 3, nmax: int = 6, min_repeats: int = 3
+) -> list[dict]:
     """Flag runs of a repeated n-gram (a common ASR hallucination pattern)."""
     flags = []
     for n in range(nmin, nmax + 1):
         i = 0
         while i + n * min_repeats <= len(words):
-            gram = tuple(words[i:i + n])
+            gram = tuple(words[i : i + n])
             reps = 1
             j = i + n
-            while tuple(words[j:j + n]) == gram and j + n <= len(words):
+            while tuple(words[j : j + n]) == gram and j + n <= len(words):
                 reps += 1
                 j += n
             if reps >= min_repeats:
@@ -110,8 +122,14 @@ def hallucination_flags(voted: list[dict], b_words: list[dict]) -> list[dict]:
         if len(run) > 4:
             s, e = run[0]["start"], run[-1]["end"]
             if not [bw for bw in b_words if bw["start"] < e and bw["end"] > s]:
-                flags.append({"start": s, "end": e, "text": " ".join(x["w"] for x in run),
-                              "reason": "no_B_support_in_span"})
+                flags.append(
+                    {
+                        "start": s,
+                        "end": e,
+                        "text": " ".join(x["w"] for x in run),
+                        "reason": "no_B_support_in_span",
+                    }
+                )
 
     for w in voted:
         if w["disputed"]:
@@ -133,12 +151,16 @@ def vote_stage(a_words: list[dict], b_words: list[dict]) -> dict[str, Any]:
     n_total = len(voted)
     n_disputed = sum(w["disputed"] for w in voted)
     numeral_disputes = sum(
-        1 for w in voted if w["disputed"] and w["alt"]
+        1
+        for w in voted
+        if w["disputed"]
+        and w["alt"]
         and any(is_numeral_pair(norm_word(w["w"]), t) for t in norm_word(w["alt"]).split())
     )
     disputed_examples = [
         {"word": w["w"], "start": w["start"], "end": w["end"], "alt": w["alt"]}
-        for w in voted if w["disputed"]
+        for w in voted
+        if w["disputed"]
     ][:15]
 
     return {
@@ -153,19 +175,29 @@ def vote_stage(a_words: list[dict], b_words: list[dict]) -> dict[str, Any]:
         "disputed_examples": disputed_examples,
         "hallucination_spans": hallucination_flags(voted, b_words),
         "repeated_ngram_flags": repeated_ngram_flags([norm_word(w["w"]) for w in a_words]),
-        "wer_A_vs_B": wer([norm_word(w["w"]) for w in a_words], [norm_word(w["w"]) for w in b_words]),
+        "wer_A_vs_B": wer(
+            [norm_word(w["w"]) for w in a_words], [norm_word(w["w"]) for w in b_words]
+        ),
         "glossary_hits_A": glossary_hits([norm_word(w["w"]) for w in a_words]),
         "glossary_hits_B": glossary_hits([norm_word(w["w"]) for w in b_words]),
     }
 
 
 def _self_check() -> None:
-    a = [{"w": "Suffering", "start": 0.0, "end": 0.3}, {"w": "is", "start": 0.3, "end": 0.5},
-         {"w": "not", "start": 0.5, "end": 0.7}, {"w": "a", "start": 0.7, "end": 0.8},
-         {"w": "fact", "start": 0.8, "end": 1.1}]
-    b = [{"w": "Suffering", "start": 0.0, "end": 0.3}, {"w": "is", "start": 0.3, "end": 0.5},
-         {"w": "not", "start": 0.5, "end": 0.7}, {"w": "a", "start": 0.7, "end": 0.8},
-         {"w": "fat", "start": 0.8, "end": 1.1}]
+    a = [
+        {"w": "Suffering", "start": 0.0, "end": 0.3},
+        {"w": "is", "start": 0.3, "end": 0.5},
+        {"w": "not", "start": 0.5, "end": 0.7},
+        {"w": "a", "start": 0.7, "end": 0.8},
+        {"w": "fact", "start": 0.8, "end": 1.1},
+    ]
+    b = [
+        {"w": "Suffering", "start": 0.0, "end": 0.3},
+        {"w": "is", "start": 0.3, "end": 0.5},
+        {"w": "not", "start": 0.5, "end": 0.7},
+        {"w": "a", "start": 0.7, "end": 0.8},
+        {"w": "fat", "start": 0.8, "end": 1.1},
+    ]
     r = vote_stage(a, b)
     assert r["n_voted"] == 5
     assert r["disputed_rate"] == 1 / 5

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Four Layers of the Mind Matrix"
-source: "YouTube https://www.youtube.com/watch?v=ehkqJ54DIC0"
+source: "https://www.youtube.com/watch?v=ehkqJ54DIC0"
 video_id: ehkqJ54DIC0
 tags: [mind, consciousness, ego, intellect, awareness, wisdom, self-observation]
 teacher: "both"

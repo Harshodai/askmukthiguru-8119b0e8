@@ -534,9 +534,7 @@ def _coerce_citations(citations) -> list[dict]:
             chunk_provenance = c.get("chunk_provenance") or None
             speaker = c.get("speaker") or None
             speaker_verified = (
-                c.get("speaker_verified")
-                if isinstance(c.get("speaker_verified"), bool)
-                else None
+                c.get("speaker_verified") if isinstance(c.get("speaker_verified"), bool) else None
             )
             timestamp_seconds = c.get("timestamp_seconds")
             text_snippet = c.get("text_snippet") or None

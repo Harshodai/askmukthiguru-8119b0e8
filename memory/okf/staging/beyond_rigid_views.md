@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "Beyond Rigid Views"
-source: "YouTube https://www.youtube.com/watch?v=M8XASiz30oE"
+source: "https://www.youtube.com/watch?v=M8XASiz30oE"
 video_id: M8XASiz30oE
 tags: [ego, relationships, evolution, understanding]
 teacher: "both"

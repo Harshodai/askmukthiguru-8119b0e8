@@ -1,37 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=E9BYLwkGel8
-tags:
-- beautiful state
-- universal intelligence
-- consciousness
-- oneness
-- prayer
-- intention
-teacher: both
-title: The Beautiful State and Universal Intelligence
+title: The Beautiful State And Universal Intelligence
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=E9BYLwkGel8
 video_id: E9BYLwkGel8
+tags:
+- oneness
+- teaching
 ---
-# The Beautiful State and Universal Intelligence
+# The Beautiful State And Universal Intelligence
 
+## Verbatim Discourse Excerpts
+The only thing is that in that Beautiful State, if you take an intent and if you pray to the universal intelligence, then the scope of magic happening, the scope of miracle happening is very, very high. So if you want that, then you need to do that. So your intention becomes very powerful, your prayer becomes very powerful when you are in that Beautiful State connecting to the universal intelligence.
 
-## Summary
-The Beautiful State is a state of consciousness where one is connected to universal intelligence. In this state, intentions and prayers are magnified, increasing the possibility of achieving a powerful connection with the divine.
+So first understand, in a Beautiful State, you are already connected to the universal intelligence. The only difference is the intention. If you take an intention and you ask, the possibility of that happening is very, very high.
 
 ## Key Teachings
-- In the realm of oneness, consciousness is linked with universal intelligence. (Unknown speaker)
-- The scope of magic and miracles is heightened when intentions are aligned and prayers are made in a Beautiful State. (Unknown speaker)
-- The Beautiful State is where one is already connected to universal intelligence. (Unknown speaker)
-- The power of intention and prayer is magnified in the Beautiful State. (Unknown speaker)
-- Taking an intention and praying to the universal intelligence in this state significantly increases the possibility of achieving a powerful connection with the divine. (Unknown speaker)
+- You are moving into the realm of oneness, which means your consciousness is getting linked with the universal intelligence that's out there in a Beautiful State. — Sri Preethaji & Sri Krishnaji
+- So your intention becomes very powerful, your prayer becomes very powerful when you are in that Beautiful State connecting to the universal intelligence. — Sri Preethaji & Sri Krishnaji
+- So first understand, in a Beautiful State, you are already connected to the universal intelligence. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "In the realm of oneness, your consciousness is linked with the universal intelligence, and the scope of magic and miracles is heightened when you align your intentions and pray in a Beautiful State." — Unknown speaker
-
-> "This Beautiful State is where you are already connected to the universal intelligence, but the power of your intention and prayer is magnified." — Unknown speaker
-
-## Related Concepts
-- universal intelligence: The intelligence that consciousness is linked with in the realm of oneness.
-- oneness: A state or realm where consciousness is linked with universal intelligence.
-- beautiful state: A state of consciousness where one is connected to universal intelligence, magnifying the power of intention and prayer.
-- Divine: A concept representing the ultimate reality or the source of all existence, with which a powerful connection can be achieved through prayer in the Beautiful State.
+## Source Context
+- Video: Divine Miracles | Sri Preethaji & Sri Krishnaji | Evolution Series
+- URL: https://www.youtube.com/watch?v=E9BYLwkGel8
+- Speaker: Sri Preethaji & Sri Krishnaji

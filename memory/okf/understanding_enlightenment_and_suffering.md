@@ -1,32 +1,26 @@
 ---
-source: https://www.youtube.com/watch?v=Nq8BntIZb40
-tags:
-- enlightenment
-- suffering
-- spiritual
-- guidance
-teacher: sri-preethaji
-title: Understanding Enlightenment and Suffering
+title: Understanding Enlightenment And Suffering
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=Nq8BntIZb40
 video_id: Nq8BntIZb40
+tags:
+- oneness
+- teaching
 ---
-# Understanding Enlightenment and Suffering
+# Understanding Enlightenment And Suffering
 
-# Title
+## Verbatim Discourse Excerpts
+Enlightenment is the ultimate attainment of every human being. It is not a mere intellectual understanding, but an awakening of your innermost being to the universal intelligence. It is a liberated state where you realize your oneness with universal intelligence. When you are enlightened, you see things as they truly are, without filters or distortions.
 
-## Summary
-This video discusses the concept of enlightenment and the nature of suffering, emphasizing the ultimate goal of achieving peace and bliss.
+You become one with the universe and its wonders. In that state, all dualities disappear. It is Satchitananda, a state of utter bliss.
 
 ## Key Teachings
-- Enlightenment is the state of realizing one's true nature and the ultimate goal of achieving peace and bliss.
-- The concept of suffering is a fundamental aspect of existence, but it can be overcome through understanding and enlightenment.
+- Enlightenment is the ultimate attainment of every human being. — Sri Preethaji & Sri Krishnaji
+- It is not a mere intellectual understanding, but an awakening of your innermost being to the universal intelligence. — Sri Preethaji & Sri Krishnaji
+- It is a liberated state where you realize your oneness with universal intelligence. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "Enlightenment is the ultimate goal for all beings, where one realizes their true nature and achieves peace and bliss."
-
-## Related Concepts
-- **Enlightenment**: The state of realizing one's true nature and the ultimate goal of achieving peace and bliss.
-- **Suffering**: The concept of suffering is a fundamental aspect of existence, but it can be overcome through understanding and enlightenment.
-- **Divine**: The Divine is a concept representing the ultimate reality or the source of all existence, encompassing multiple deities and the idea of a cosmic being.
-
-This entry provides a concise summary of the teachings on enlightenment and the nature of suffering, emphasizing the importance of understanding and achieving peace and bliss.
+## Source Context
+- Video: Enlightenment, a state of utter bliss and peace
+- URL: https://www.youtube.com/watch?v=Nq8BntIZb40
+- Speaker: Sri Preethaji & Sri Krishnaji

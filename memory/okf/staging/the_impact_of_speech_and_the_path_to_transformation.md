@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Impact of Speech and the Path to Transformation"
-source: "YouTube https://www.youtube.com/watch?v=cxgHFX04RtQ"
+source: "https://www.youtube.com/watch?v=cxgHFX04RtQ"
 video_id: cxgHFX04RtQ
 tags: [awakening, consciousness, speech, transformation]
 teacher: "both"

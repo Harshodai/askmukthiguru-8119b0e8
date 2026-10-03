@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Frontal Lobe Chakra Activation"
-source: "YouTube https://www.youtube.com/watch?v=KB_rdqB-sVw"
+source: "https://www.youtube.com/watch?v=KB_rdqB-sVw"
 video_id: KB_rdqB-sVw
 tags: [sri krishnaji, dissolving into the beautiful state, sri preethaji, oneness, frontal lobe chakra, lalata]
 teacher: "both"

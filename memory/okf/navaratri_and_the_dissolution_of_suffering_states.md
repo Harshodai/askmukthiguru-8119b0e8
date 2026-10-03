@@ -1,33 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=WfkCDNu4SuE
-tags:
-- Navaratri
-- Durga
-- suffering states
-- anger
-- greed
-- spiritual process
-teacher: sri-preethaji
-title: Navaratri and the Dissolution of Suffering States
+title: Navaratri And The Dissolution Of Suffering States
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=WfkCDNu4SuE
 video_id: WfkCDNu4SuE
+tags:
+- oneness
+- teaching
 ---
-# Navaratri and the Dissolution of Suffering States
+# Navaratri And The Dissolution Of Suffering States
 
+## Verbatim Discourse Excerpts
+It is an unfoldment in consciousness. The first three days of Navratri is the play of Durga. Goddess Durga, according to the myth, wakes up the Yogamaya of Mahavishnu and kills the demons Madhu and Kaitabha. On the seeker's path, the death of these Asuras means the dissolution of the two core suffering states of anger and greed in a state of meditative awareness.
 
-## Summary
-Navaratri is a spiritual period where the Goddess Durga plays a crucial role in dispelling darkness and dissolving suffering states like anger and greed. The first three days are dedicated to Durga, who awakens the Yoga Maya of Maha Vishnu to eliminate the demons Madhu and Kaitabha, symbolizing the dissolution of these core suffering states for the seeker.
+The seeker summons the power of the Mother Goddess and goes through a deep, powerful spiritual process of dissolving all anger-related states of frustration, hate, and vengefulness. The seeker through a process dissolves all greed-related states of jealousy, anxiety, and covetousness. The Mother Goddess as Durga dispels darkness, dispels thammas from our consciousness.
 
 ## Key Teachings
-- During Navaratri, the Goddess Durga is central to dispelling darkness and dissolving suffering states, including anger and greed, through a deep spiritual process.
-- The initial three days of Navaratri focus on the play of Durga, where she awakens the Yoga Maya of Maha Vishnu.
-- Durga kills the demons Madhu and Kaitabha on the seeker's path, which signifies the dissolution of the two core suffering states of anger and greed.
+- On the seeker's path, the death of these Asuras means the dissolution of the two core suffering states of anger and greed in a state of meditative awareness. — Sri Preethaji & Sri Krishnaji
+- The seeker summons the power of the Mother Goddess and goes through a deep, powerful spiritual process of dissolving all anger-related states of frustration, hate, and vengefulness. — Sri Preethaji & Sri Krishnaji
+- The seeker through a process dissolves all greed-related states of jealousy, anxiety, and covetousness. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "During Navratri, the Goddess Durga plays a pivotal role in dispelling the darkness and dissolving suffering states, including anger and greed, through a deep spiritual process." — Unknown
-> "The first three days of Navratri are dedicated to the play of Durga, where the Goddess wakes up the Yoga Maya of Maha Vishnu and kills the demons Madhu and Kaitabha on the seeker's path." — Unknown
-> "This death signifies the dissolution of the two core suffering states of anger and greed." — Unknown
-
-## Related Concepts
-- Navaratri: A Hindu festival celebrating the worship of the goddess Durga.
-- Stressful State: A condition characterized by feelings of anxiety, tension, or overwhelm.
+## Source Context
+- Video: Dussehra or Navaratri  | Evolution Series 79 with Sri Preethaji & Sri Krishnaji
+- URL: https://www.youtube.com/watch?v=WfkCDNu4SuE
+- Speaker: Sri Preethaji & Sri Krishnaji

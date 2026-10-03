@@ -1,34 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=DBUJH5f6rjU
-tags:
-- Sampurna Jeevan Mukthi
-- Self-realization
-- God-realization
-- suffering
-- liberation
-- ego
-- craving
-- vasanas
-- ignorance
-- consciousness
-teacher: both
-title: The Path of Sampurna Jeevan Mukthi
+title: The Path Of Sampurna Jeevan Mukthi
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=DBUJH5f6rjU
 video_id: DBUJH5f6rjU
+tags:
+- oneness
+- teaching
 ---
-# The Path of Sampurna Jeevan Mukthi
+# The Path Of Sampurna Jeevan Mukthi
 
+## Verbatim Discourse Excerpts
+Sampurna Jeevan Mukthi or Total Enlightenment is both Self-realization and God-realization. What is the path of Self-realization? It is the total cessation of suffering. The edifice of suffering stands on seven pillars. As each of these pillars is removed, the edifice that has stood for several lifetimes comes to dust, which is Sampurna Jeevan Mukthi. Jeevan Mukthi is liberation from ego.
 
-## Summary
-The path of Sampurna Jeevan Mukthi, or Total Enlightenment, involves both Self-realization and God-realization. Self-realization is achieved through the complete cessation of suffering and liberation from various internal constraints, while God-realization is a journey towards oneness with God.
+Jeevan Mukthi is liberation from craving. Jeevan Mukthi is liberation from vasanas. Jeevan Mukthi is liberation of the body. Jeevan Mukthi is liberation from mind. Jeevan Mukthi is liberation from ignorance. Jeevan Mukthi is liberation from illusory cells. As the edifice of suffering collapses, there is Self-realization. This is Ekampatta or the path of Ekam.
 
 ## Key Teachings
-- The path of Sampurna Jeevan Mukthi, or Total Enlightenment, encompasses both Self-realization and God-realization. (Unknown speaker)
-- Self-realization involves the total cessation of suffering. (Unknown speaker)
-- Liberation is achieved when the edifice of suffering collapses. (Unknown speaker)
-- Liberation includes freedom from ego, craving, vasanas, body, mind, ignorance, illusory cells, and consciousness. (Unknown speaker)
-- The journey of Bhagavad-Sakshat Kara, or God-realization, is from "aparchya to ekatva," leading to oneness with God. (Unknown speaker)
+- Sampurna Jeevan Mukthi or Total Enlightenment is both Self-realization and God-realization. — Sri Preethaji & Sri Krishnaji
+- As each of these pillars is removed, the edifice that has stood for several lifetimes comes to dust, which is Sampurna Jeevan Mukthi. — Sri Preethaji & Sri Krishnaji
+- Jeevan Mukthi is liberation from craving. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Consciousness: The awareness and understanding of one's true self in spiritual practices.
-- Response to Internal Suffering: The search for meaning is a response to internal suffering, aiming to find a deeper understanding and purpose.
+## Source Context
+- Video: EKAM TAPAS
+- URL: https://www.youtube.com/watch?v=DBUJH5f6rjU
+- Speaker: Sri Preethaji & Sri Krishnaji

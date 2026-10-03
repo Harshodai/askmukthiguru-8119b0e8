@@ -1,31 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=nQpRoOOu5Yc
-tags:
-- Ugadi
-- spiritual awakening
-- ego
-- liberation
-- Maya
-- divine
-teacher: both
-title: 'Ugadi: Awakening the Ego'
+title: Ugadi Awakening The Ego
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=nQpRoOOu5Yc
 video_id: nQpRoOOu5Yc
+tags:
+- oneness
+- teaching
 ---
-# Ugadi: Awakening the Ego
+# Ugadi Awakening The Ego
 
+## Verbatim Discourse Excerpts
+Our universe is cyclical. It contracts and expands endlessly. Our bodies go through cyclical breaths and cyclical metabolic functions as a part of our evolutionary process. Our minds go through cycles of thoughts, emotions and actions. Our consciousness also goes through cycles of ignorance, purification, awakening and new beginnings. Ancient Indians call these new beginnings as Ugaadi or Ugaadi or Gudipadwa.
 
-## Summary
-In the context of Ugadi, which is described as a day of spiritual awakening, the teaching emphasizes the importance of living in a state of beauty and joy, experiencing all the tastes of life. It highlights the divine's power to liberate individuals from bondage and Maya, rooted in the belief that the divine is the source of all cycles and transformations. By embracing life's cyclical nature and celebrating new beginnings, individuals can find solace and liberation from the chains of Maya.
+Ugaadi is celebrated on the first day of the lunar calendar of Chaitramasa. Ugaadi is the day you create your new inner universe. You create it with a sacred sankalpa to flow gracefully and gratefully through every season of the year, be it the spring, spring of abundance or the summer of hardships or the rainfall of relief with the fullest knowing that life will indeed go through many of these cycles and nothing lasts forever.
 
 ## Key Teachings
-- Ugadi is a day of spiritual awakening. (Unknown speaker)
-- It is important to live in a state of beauty and joy, experiencing all the tastes of life. (Unknown speaker)
-- The divine has the power to liberate from bondage and Maya. (Unknown speaker)
-- The divine is the source of all cycles and transformations, including the cycle of life. (Unknown speaker)
-- Embracing the cyclical nature of life and celebrating new beginnings can lead to solace and liberation from Maya. (Unknown speaker)
+- Our consciousness also goes through cycles of ignorance, purification, awakening and new beginnings. — Sri Preethaji & Sri Krishnaji
+- Our bodies go through cyclical breaths and cyclical metabolic functions as a part of our evolutionary process. — Sri Preethaji & Sri Krishnaji
+- Our minds go through cycles of thoughts, emotions and actions. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Enlightenment: a state of profound understanding characterized by a state of consciousness free from suffering, with intense awareness and no compulsive attachment to the past or future.
-- Joy: an emotion that is celebrated as part of the love experience and can be experienced in the present.
-- Spiritual Process: a journey of awakening and transformation that leads to higher states of consciousness.
+## Source Context
+- Video: Ugadi- The Day Of Spiritual Awakening
+- URL: https://www.youtube.com/watch?v=nQpRoOOu5Yc
+- Speaker: Sri Preethaji & Sri Krishnaji

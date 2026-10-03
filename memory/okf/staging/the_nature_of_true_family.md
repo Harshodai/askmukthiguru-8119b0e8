@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Nature of True Family"
-source: "YouTube https://www.youtube.com/watch?v=mz8Mb0MvBz4"
+source: "https://www.youtube.com/watch?v=mz8Mb0MvBz4"
 video_id: mz8Mb0MvBz4
 tags: [sri preethaji, family, oneness, consciousness, spiritual]
 teacher: "sri-preethaji"

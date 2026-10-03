@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Interconnectedness and Universal Peace"
-source: "YouTube https://www.youtube.com/watch?v=ELiB_UwCVTY"
+source: "https://www.youtube.com/watch?v=ELiB_UwCVTY"
 video_id: ELiB_UwCVTY
 tags: [peace, interconnectedness, humanity]
 teacher: "both"

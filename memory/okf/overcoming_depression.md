@@ -1,26 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=FSwSt1omSD8
-tags:
-- depression
-- mental health
-- healing
-teacher: both
 title: Overcoming Depression
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=FSwSt1omSD8
 video_id: FSwSt1omSD8
+tags:
+- oneness
+- teaching
 ---
 # Overcoming Depression
 
+## Verbatim Discourse Excerpts
+Does time cure depression? Like sometimes people say, oh, I'm just going to sit in my room and in the darkness and in a month I'll talk to you. You probably get more depressed at the end of the day. Time does not cure depression. See, what is happening in depression is your body, your mind, your consciousness. Everything is leading you into that space where you are separating yourself from the rest of the world.
 
-## Summary
-Depression is a state of separation from the rest of the world, and it is a misconception that time alone can cure it. Recognizing and seeking help early is crucial for a more effective and quicker recovery, as scientific evidence indicates that depression is a part of what happens.
+Any suffering does that and depression just doesn't give you an opportunity to go beyond yourself. It is totally being stuck with oneself and on top of it you're going to alienate yourself physically also from people. It's not going to help you. If you are depressed, if you are in that space of not able to step out of depression, it is time that you ask for help.
 
 ## Key Teachings
-- Time does not cure depression. (Unknown speaker)
-- Depression is a state of separation from the rest of the world. (Unknown speaker)
-- Recognizing and seeking help early is crucial for overcoming depression, leading to a more effective and quicker recovery. (Unknown speaker)
-- Scientific evidence suggests that depression is a part of what happens. (Unknown speaker)
+- See, what is happening in depression is your body, your mind, your consciousness. — Sri Preethaji & Sri Krishnaji
+- Any suffering does that and depression just doesn't give you an opportunity to go beyond yourself. — Sri Preethaji & Sri Krishnaji
+- If you are depressed, if you are in that space of not able to step out of depression, it is time that you ask for help. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Depression: a mental health condition characterized by persistent feelings of sadness, hopelessness, and disconnection from oneself and others.
-- Help: the support and guidance that individuals with depression need to overcome their condition and improve their mental health.
+## Source Context
+- Video: Does staying aloof help overcome depression?
+- URL: https://www.youtube.com/watch?v=FSwSt1omSD8
+- Speaker: Sri Preethaji & Sri Krishnaji

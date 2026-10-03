@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Overcoming the Suffering State for Spiritual Growth"
-source: "YouTube https://www.youtube.com/watch?v=UlOt31lBhLY"
+source: "https://www.youtube.com/watch?v=UlOt31lBhLY"
 video_id: UlOt31lBhLY
 tags: [suffering state, kriya]
 teacher: "sri-preethaji"

@@ -1,28 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=nQpRoOOu5Yc
-tags:
-- awakening
-- Ugadi
-- inner universe
-- spiritual celebration
-teacher: both
-title: Ugadi and the Creation of Your Inner Universe
+title: Ugadi And The Creation Of Your Inner Universe
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=nQpRoOOu5Yc
 video_id: nQpRoOOu5Yc
+tags:
+- oneness
+- teaching
 ---
-# Ugadi and the Creation of Your Inner Universe
+# Ugadi And The Creation Of Your Inner Universe
 
+## Verbatim Discourse Excerpts
+Ugaadi is celebrated on the first day of the lunar calendar of Chaitramasa. Ugaadi is the day you create your new inner universe. You create it with a sacred sankalpa to flow gracefully and gratefully through every season of the year, be it the spring, spring of abundance or the summer of hardships or the rainfall of relief with the fullest knowing that life will indeed go through many of these cycles and nothing lasts forever.
 
-## Summary
-Ugadi is presented as a significant spiritual celebration in Hindu tradition, marking the beginning of a new cycle of life and the creation of one's inner universe. It is celebrated on the first day of the lunar Chaitra month, symbolizing the cycle of life and the importance of embracing all aspects of existence with equanimity and gratitude.
+The divine is the power behind all that is cyclical. The divine is also the power that liberates you from any bondage and your divine can free you from the jaws of animism. May this Ugaadi be a new beginning of great abundance in the external world and stita pragnatva in the inner world.
 
 ## Key Teachings
-- Ugadi is the day to create your new inner universe. (Unknown Channel)
-- Ugadi marks the beginning of a new cycle of life. (Unknown Channel)
-- The celebration of Ugadi symbolizes the importance of embracing all aspects of existence with equanimity and gratitude. (Unknown Channel)
+- Ugaadi is the day you create your new inner universe. — Sri Preethaji & Sri Krishnaji
+- The divine is also the power that liberates you from any bondage and your divine can free you from the jaws of animism. — Sri Preethaji & Sri Krishnaji
+- May this Ugaadi be a new beginning of great abundance in the external world and stita pragnatva in the inner world. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-
-## Related Concepts
-- awakening: A state of profound understanding characterized by a state of consciousness free from suffering, with intense awareness and no compulsive attachment to the past or future.
-- Spiritual Process: A journey of awakening and transformation that leads to higher states of consciousness.
+## Source Context
+- Video: Ugadi- The Day Of Spiritual Awakening
+- URL: https://www.youtube.com/watch?v=nQpRoOOu5Yc
+- Speaker: Sri Preethaji & Sri Krishnaji

@@ -1,27 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=7NVPsHdyw_Y
-tags:
-- gratitude
-- interconnectedness
-- ego
-- awareness
-teacher: sri-preethaji
-title: The Interconnectedness of Being
+title: The Interconnectedness Of Being
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=7NVPsHdyw_Y
 video_id: 7NVPsHdyw_Y
+tags:
+- oneness
+- teaching
 ---
-# The Interconnectedness of Being
+# The Interconnectedness Of Being
 
+## Verbatim Discourse Excerpts
+I have to be grateful. You do not have to feel anything. There is no compulsion in this universe that you have to feel something. That is a new prison you are creating for yourself in the name of spirituality grow in your awareness of how life as a movement is flowing into you. So many people are contributing to your well-being. In this awareness, gratefulness will make you into a responsible human being.
 
-## Summary
-This teaching emphasizes the fundamental interconnectedness of individuals, highlighting that one's existence and identity are intrinsically linked to the contributions and presence of others. Recognizing this interconnectedness is presented as a pathway to spontaneous gratitude.
+Years ago, a gentleman came to me and asked to be mentored. In course of her conversation, he said, I practice gratitude towards my mother, every day. After some time, I asked him, why do you practice gratitude every day? You must really be angry with her. Are you? The man felt completely silent. He did not have an immediate answer for that question. He requested me if he could take some time and reflect upon this question.
 
 ## Key Teachings
-- Our existence is not isolated; it is deeply intertwined with the presence and contributions of others (Sri Preethaji says: "Without them, you are not.").
-- Growing in awareness of how others contribute to our lives is crucial for cultivating a state of gratitude (Sri Preethaji says: "Without them, you are not.").
+- If he feels them, he is not a good human being. — Sri Preethaji & Sri Krishnaji
+- He is only supposed to feel grateful and hence he is a divided human being with him. — Sri Preethaji & Sri Krishnaji
+- So many people are contributing to your well-being. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "Without them, you are not." — Sri Preethaji
-
-## Related Concepts
-- Consciousness: The state of being aware of one's thoughts, emotions, and surroundings, which can be cultivated to perceive the unitary fabric of life.
+## Source Context
+- Video: Are you Grateful or Hurtful? | Evolution Series 95 with Sri Preethaji & Sri Krishnaji
+- URL: https://www.youtube.com/watch?v=7NVPsHdyw_Y
+- Speaker: Sri Preethaji & Sri Krishnaji

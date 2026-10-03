@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Parenting and the Ego"
-source: "YouTube https://www.youtube.com/watch?v=hcNDrMy6gCE"
+source: "https://www.youtube.com/watch?v=hcNDrMy6gCE"
 video_id: hcNDrMy6gCE
 tags: [parenting, ego, child development, confusion, conflict]
 teacher: "both"

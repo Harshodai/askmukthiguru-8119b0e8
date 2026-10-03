@@ -15,6 +15,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from scripts.ingestion.corpus_engine import CanonicalSegment, CorpusEngine
+
 from services.transcript_verbatim import compute_verbatim_hash, has_hard_failure, per_video_checks
 
 
@@ -32,7 +33,9 @@ def test_compute_verbatim_hash_uses_verbatim_not_display_text():
 def test_compute_verbatim_hash_falls_back_to_text_when_no_verbatim_layer():
     segs = [{"text": "Older corpus without a verbatim layer."}]
     # Must not raise, and must equal hashing that same string as verbatim_text.
-    assert compute_verbatim_hash(segs) == compute_verbatim_hash([{"verbatim_text": segs[0]["text"]}])
+    assert compute_verbatim_hash(segs) == compute_verbatim_hash(
+        [{"verbatim_text": segs[0]["text"]}]
+    )
 
 
 def test_per_video_checks_flags_missing_hash_as_soft():
@@ -40,7 +43,9 @@ def test_per_video_checks_flags_missing_hash_as_soft():
         video_dir = Path(tmp) / "vid1"
         video_dir.mkdir()
         (video_dir / "canonical_segments.json").write_text(
-            json.dumps({"segments": [{"segment_id": "s0", "start": 0.0, "end": 1.0, "text": "Hi."}]})
+            json.dumps(
+                {"segments": [{"segment_id": "s0", "start": 0.0, "end": 1.0, "text": "Hi."}]}
+            )
         )
         findings = per_video_checks(video_dir)
         assert not has_hard_failure(findings)
@@ -51,7 +56,9 @@ def test_per_video_checks_hard_fails_on_hash_mismatch():
     with tempfile.TemporaryDirectory() as tmp:
         video_dir = Path(tmp) / "vid2"
         video_dir.mkdir()
-        segs = [{"segment_id": "s0", "start": 0.0, "end": 1.0, "text": "Hi.", "verbatim_text": "Hi."}]
+        segs = [
+            {"segment_id": "s0", "start": 0.0, "end": 1.0, "text": "Hi.", "verbatim_text": "Hi."}
+        ]
         (video_dir / "canonical_segments.json").write_text(
             json.dumps({"transcript_hash": "not-the-real-hash", "segments": segs})
         )
@@ -64,7 +71,9 @@ def test_per_video_checks_passes_on_matching_hash():
     with tempfile.TemporaryDirectory() as tmp:
         video_dir = Path(tmp) / "vid3"
         video_dir.mkdir()
-        segs = [{"segment_id": "s0", "start": 0.0, "end": 1.0, "text": "Hi.", "verbatim_text": "Hi."}]
+        segs = [
+            {"segment_id": "s0", "start": 0.0, "end": 1.0, "text": "Hi.", "verbatim_text": "Hi."}
+        ]
         (video_dir / "canonical_segments.json").write_text(
             json.dumps({"transcript_hash": compute_verbatim_hash(segs), "segments": segs})
         )
@@ -73,7 +82,9 @@ def test_per_video_checks_passes_on_matching_hash():
 
 def test_corpus_engine_writes_matching_hash_to_segments_and_quality_report():
     with tempfile.TemporaryDirectory() as tmp:
-        engine = CorpusEngine(corpus_root=Path(tmp) / "corpus", projection_dir=Path(tmp) / "transcripts")
+        engine = CorpusEngine(
+            corpus_root=Path(tmp) / "corpus", projection_dir=Path(tmp) / "transcripts"
+        )
         seg = CanonicalSegment(
             segment_id="seg_0000",
             start=0.0,
@@ -83,7 +94,11 @@ def test_corpus_engine_writes_matching_hash_to_segments_and_quality_report():
             verbatim_text="Welcome to Ekam.",
         )
         engine.process_and_package_video(
-            {"video_id": "vidHASHUNIT", "title": "Test", "url": "https://youtube.com/watch?v=vidHASHUNIT"},
+            {
+                "video_id": "vidHASHUNIT",
+                "title": "Test",
+                "url": "https://youtube.com/watch?v=vidHASHUNIT",
+            },
             [seg],
             duration_seconds=3.0,
         )
@@ -100,7 +115,9 @@ def test_corpus_engine_writes_matching_hash_to_segments_and_quality_report():
 
 def test_corpus_engine_quarantines_tampered_transcript_hash():
     with tempfile.TemporaryDirectory() as tmp:
-        engine = CorpusEngine(corpus_root=Path(tmp) / "corpus", projection_dir=Path(tmp) / "transcripts")
+        engine = CorpusEngine(
+            corpus_root=Path(tmp) / "corpus", projection_dir=Path(tmp) / "transcripts"
+        )
         seg = CanonicalSegment(
             segment_id="seg_0000",
             start=0.0,
@@ -110,7 +127,11 @@ def test_corpus_engine_quarantines_tampered_transcript_hash():
             verbatim_text="Welcome to Ekam.",
         )
         engine.process_and_package_video(
-            {"video_id": "vidTAMPERUNIT", "title": "Test", "url": "https://youtube.com/watch?v=vidTAMPERUNIT"},
+            {
+                "video_id": "vidTAMPERUNIT",
+                "title": "Test",
+                "url": "https://youtube.com/watch?v=vidTAMPERUNIT",
+            },
             [seg],
             duration_seconds=3.0,
         )
@@ -185,7 +206,10 @@ def test_make_point_id_is_url_keyed_and_stable_across_retranscription():
     assert id_before_retranscribe == id_after_retranscribe
 
     # Different source_url must produce a different ID.
-    assert QdrantUtils.make_point_id("different_url", chunk_index=0, raptor_level=0) != id_before_retranscribe
+    assert (
+        QdrantUtils.make_point_id("different_url", chunk_index=0, raptor_level=0)
+        != id_before_retranscribe
+    )
 
     # make_point_id must not accept a transcript_hash parameter at all -- content
     # addressing by transcript_hash was the regression this test guards against.
@@ -198,34 +222,54 @@ def test_make_point_id_is_url_keyed_and_stable_across_retranscription():
 def test_per_video_checks_hard_fails_on_manifest_artifact_tamper(tmp_path):
     """Merkle integrity check: tampering with an artifact listed in manifest trips hard failure."""
     import hashlib
-    from services.transcript_verbatim import per_video_checks, has_hard_failure
+
+    from services.transcript_verbatim import has_hard_failure, per_video_checks
 
     seg_file = tmp_path / "canonical_segments.json"
-    seg_file.write_text(json.dumps({"transcript_hash": "a" * 64, "segments": [{"segment_id": "s0", "start": 0.0, "end": 1.0, "text": "hello", "verbatim_text": "hello"}]}))
-    
+    seg_file.write_text(
+        json.dumps(
+            {
+                "transcript_hash": "a" * 64,
+                "segments": [
+                    {
+                        "segment_id": "s0",
+                        "start": 0.0,
+                        "end": 1.0,
+                        "text": "hello",
+                        "verbatim_text": "hello",
+                    }
+                ],
+            }
+        )
+    )
+
     # Write artifact_manifest with SHA matching original
     orig_sha = hashlib.sha256(seg_file.read_bytes()).hexdigest()
     manifest_file = tmp_path / "artifact_manifest.json"
-    manifest_file.write_text(json.dumps({
-        "video_id": "test_vid",
-        "artifacts": {
-            "canonical_segments.json": {"sha256": orig_sha, "byte_size": 100}
-        }
-    }))
+    manifest_file.write_text(
+        json.dumps(
+            {
+                "video_id": "test_vid",
+                "artifacts": {"canonical_segments.json": {"sha256": orig_sha, "byte_size": 100}},
+            }
+        )
+    )
 
     # 1. Unaltered: passes manifest check
     findings = per_video_checks(tmp_path)
     assert not any(f.check == "artifact_manifest_hash_mismatch" for f in findings)
 
     # 2. Tampered: manifest sha mismatch triggers hard failure
-    manifest_file.write_text(json.dumps({
-        "video_id": "test_vid",
-        "artifacts": {
-            "canonical_segments.json": {"sha256": "deadbeef" * 8, "byte_size": 100}
-        }
-    }))
+    manifest_file.write_text(
+        json.dumps(
+            {
+                "video_id": "test_vid",
+                "artifacts": {
+                    "canonical_segments.json": {"sha256": "deadbeef" * 8, "byte_size": 100}
+                },
+            }
+        )
+    )
     tampered_findings = per_video_checks(tmp_path)
     assert has_hard_failure(tampered_findings)
     assert any(f.check == "artifact_manifest_hash_mismatch" for f in tampered_findings)
-
-

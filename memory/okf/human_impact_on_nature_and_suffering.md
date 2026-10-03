@@ -1,29 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=p2HecXyM3tE
-tags:
-- suffering
-- environment
-- deforestation
-- extinction
-teacher: both
-title: Human Impact on Nature and Suffering
+title: Human Impact On Nature And Suffering
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=p2HecXyM3tE
 video_id: p2HecXyM3tE
+tags:
+- oneness
+- teaching
 ---
-# Human Impact on Nature and Suffering
+# Human Impact On Nature And Suffering
 
+## Verbatim Discourse Excerpts
+What all these millions of lifeforms ask of humanity is to simply let them be. To respect their boundaries and their living spaces is our dharma, not to hurt their homes and families is our dharma. Not to take so much from the Earth that we leave nothing for other lifeforms is our dharma. To live consciously and compassionately is our dharma to the Earth.
 
-## Summary
-Human activities have caused significant environmental damage, including the deforestation of rainforests and the extinction of a large percentage of vertebrates. This highlights a form of suffering inflicted upon nature by humanity.
+We have caused deforestation of 50% of the rainforests. We have made almost 59% of the vertebrates on Earth go extinct just in the last three decades. We are only 0.01% of the Earth's biomass, but we kill a monstrous 72 billion land animals and 1.2 trillion aquatic animals every year. How much we consume and take from the Earth? We cannot have our homes safe when the rest of the Earth is burning.
 
 ## Key Teachings
-- "We have caused deforestation of 50% of the rainforests." — Unknown Channel
-- "We have made almost 59% of the vertebrates on Earth go extinct, just in the last three decades." — Unknown Channel
+- We have caused deforestation of 50% of the rainforests. — Sri Preethaji & Sri Krishnaji
+- We have made almost 59% of the vertebrates on Earth go extinct just in the last three decades. — Sri Preethaji & Sri Krishnaji
+- We are only 0.01% of the Earth's biomass, but we kill a monstrous 72 billion land animals and 1.2 trillion aquatic animals every year. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "We have caused deforestation of 50% of the rainforests. We have made almost 59% of the vertebrates on Earth go extinct, just in the last three decades." — Unknown Channel
-
-## Related Concepts
-- Pain: A complex emotional and physical sensation that can be experienced by oneself or others, often a result of harm or distress.
-- Suffering States: Emotional states such as regret, sadness, and loneliness that disconnect individuals from life, or a downward spiral of chaos and problems caused by accumulated poisons and limiting beliefs.
-- Cycle of Pain: Hurt human beings perpetuate a cycle of pain and suffering.
+## Source Context
+- Video: Our Responsibilities Towards Nature
+- URL: https://www.youtube.com/watch?v=p2HecXyM3tE
+- Speaker: Sri Preethaji & Sri Krishnaji

@@ -1,27 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=oSqD_BvF7vA
-tags:
-- division
-- unity
-- humanity
-- society
-teacher: both
-title: The Detrimental Effects of Division
+title: The Detrimental Effects Of Division
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=oSqD_BvF7vA
 video_id: oSqD_BvF7vA
+tags:
+- oneness
+- teaching
 ---
-# The Detrimental Effects of Division
+# The Detrimental Effects Of Division
 
+## Verbatim Discourse Excerpts
+Can they not exist like different flowers in the same garden? Is it worth alienating ourselves over an idea or an ideology? Division and separation of every kind will take away our humanity from us. For over two and a half centuries, United States has been divided between the ideal of universality on one hand and actual painful divisiveness in society on the other.
 
-## Summary
-This teaching highlights the harmful impact of division and divisiveness on humanity, particularly within the context of the United States. It emphasizes that divisions based on facts, lifestyles, beliefs, and skin colors erode shared humanity and that unity and oneness are crucial for societal well-being. The text advocates for a shift towards peace and away from separation.
+Each time divisiveness has surfaced, American society has either brushed it under the carpet or it has clung to its ideals tighter. Have ideals ever transformed an individual or a society? If transformation has ever occurred, it has only been because seeing the truth in its entirety, even if it's painful. The fact is that millions in this advanced nation are still giving into feelings of separation and division on the basis of race, on the basis of class.
 
 ## Key Teachings
-- Division and divisiveness are detrimental to humanity.
-- Divisions can be based on facts, lifestyles, beliefs, and skin colors.
-- These divisions lead to the erosion of our shared humanity.
-- Division and separation are not worth it for any reason.
-- Unity and oneness are essential for the well-being of society.
-- There is a need for a shift towards peace.
+- Division and separation of every kind will take away our humanity from us. — Sri Preethaji & Sri Krishnaji
+- The fact is that millions in this advanced nation are still giving into feelings of separation and division on the basis of race, on the basis of class. — Sri Preethaji & Sri Krishnaji
+- It is this division from the highest to the lowest level in society is seeping through as violence, death on the streets and as conflicts within families. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
+## Source Context
+- Video: Dear America, Be not Hateful over Hate  | Evolution Series 89 with Preethaji & Krishnaji
+- URL: https://www.youtube.com/watch?v=oSqD_BvF7vA
+- Speaker: Sri Preethaji & Sri Krishnaji

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Detrimental Effects of Division"
-source: "YouTube https://www.youtube.com/watch?v=oSqD_BvF7vA"
+source: "https://www.youtube.com/watch?v=oSqD_BvF7vA"
 video_id: oSqD_BvF7vA
 tags: [division, unity, humanity, society]
 teacher: "both"

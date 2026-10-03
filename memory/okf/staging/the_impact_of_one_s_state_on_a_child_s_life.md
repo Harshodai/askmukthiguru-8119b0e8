@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Impact of One's State on a Child's Life"
-source: "YouTube https://www.youtube.com/watch?v=V2WQ20Ocw_o"
+source: "https://www.youtube.com/watch?v=V2WQ20Ocw_o"
 video_id: V2WQ20Ocw_o
 tags: [karma, consciousness, suffering]
 teacher: "both"

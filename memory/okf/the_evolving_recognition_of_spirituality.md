@@ -1,30 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=ZGvKY4mPfIc
-tags:
-- spirituality
-- stress
-- suffering
-teacher: both
-title: The Evolving Recognition of Spirituality
-type: reflection
+title: The Evolving Recognition Of Spirituality
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=ZGvKY4mPfIc
 video_id: ZGvKY4mPfIc
+tags:
+- oneness
+- teaching
 ---
-# The Evolving Recognition of Spirituality
+# The Evolving Recognition Of Spirituality
 
+## Verbatim Discourse Excerpts
+Spirituality was limited to seekers, say, 10 years ago, or even I would say 15 years ago. But I have been traveling across different continents, except Antarctica and Africa, and in every nook and corner of the world where I have been, there is an immense need for spirituality. There is this immense need to grow spiritually. People have always looked at self-help, but right now it is not about motivation, it is not about inspiration, it is not about, you know, pulling yourself up, but actually it is about having the spiritual experience - the truth of it, if you want to say.
 
-## Summary
-The speaker notes a significant shift in the perception of spirituality. While it was once primarily limited to "seekers" 10 to 15 years ago, it is now gaining widespread recognition across cultures and continents. This growing interest is attributed to increasing stress levels in people's lives, highlighting spirituality's importance even in areas like business and wealth creation.
+A spiritual experience means where you're moving beyond yourself, where you're pushing the barriers of yourself. But what people have realized is this is what they need in order to cope with all the stress that they're experiencing in their life. They're not able to actually handle the stress levels right now. They're feeling so suffocated within themselves, and individuals across continents are looking for spirituality to create a better life for themselves.
 
 ## Key Teachings
-- Spirituality was previously a niche interest, "limited to seekers, say, 10 years ago, or even I would say 15 years ago." (Unknown Channel)
-- There is a growing, universal recognition of spirituality across different cultures and continents. (Unknown Channel)
-- This increased recognition is linked to "increasing stress levels in people's lives." (Unknown Channel)
-- Spirituality is now seen as important in contexts like business and wealth creation. (Unknown Channel)
+- Spirituality was limited to seekers, say, 10 years ago, or even I would say 15 years ago. — Sri Preethaji & Sri Krishnaji
+- But I have been traveling across different continents, except Antarctica and Africa, and in every nook and corner of the world where I have been, there is an immense need for spirituality. — Sri Preethaji & Sri Krishnaji
+- They're feeling so suffocated within themselves, and individuals across continents are looking for spirituality to create a better life for themselves. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "Spirituality was limited to seekers, say, 10 years ago, or even I would say 15 years ago." — Unknown Channel
-
-## Related Concepts
-- Stressful State: A condition characterized by feelings of anxiety, tension, or overwhelm.
-- Suffering States: Emotional states such as regret, sadness, and loneliness that disconnect individuals from life, or a downward spiral of chaos and problems caused by accumulated poisons and limiting beliefs.
-- Overcoming Suffering: A concept related to spiritual teachings, focusing on the alleviation of suffering.
+## Source Context
+- Video: ZGvKY4mPfIc
+- URL: https://www.youtube.com/watch?v=ZGvKY4mPfIc
+- Speaker: Sri Preethaji & Sri Krishnaji

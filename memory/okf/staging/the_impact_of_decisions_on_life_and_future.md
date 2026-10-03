@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Impact of Decisions on Life and Future"
-source: "YouTube https://www.youtube.com/watch?v=RFx74Q6Oq2c"
+source: "https://www.youtube.com/watch?v=RFx74Q6Oq2c"
 video_id: RFx74Q6Oq2c
 tags: [decisions, future, destiny, brain, prefrontal cortex]
 teacher: "both"

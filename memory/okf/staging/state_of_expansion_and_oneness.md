@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "State of Expansion and Oneness"
-source: "YouTube https://www.youtube.com/watch?v=X3LKG0Ycl3A"
+source: "https://www.youtube.com/watch?v=X3LKG0Ycl3A"
 video_id: X3LKG0Ycl3A
 tags: [oneness, soul sync, atma, meditation, ekam, oo academy, sri preethaji, expansion]
 teacher: "sri-preethaji"

@@ -14,16 +14,39 @@ import unicodedata
 # Cyrillic/Greek letters that render like Latin ones. NFKC does not fold these.
 _HOMOGLYPHS = str.maketrans(
     {
-        "а": "a", "е": "e", "о": "o", "р": "p", "с": "c", "у": "y", "х": "x",
-        "і": "i", "ѕ": "s", "ј": "j", "ԁ": "d", "һ": "h", "ӏ": "l", "к": "k",
-        "α": "a", "ε": "e", "ι": "i", "κ": "k", "ν": "v", "ο": "o", "ρ": "p", "τ": "t",
+        "а": "a",
+        "е": "e",
+        "о": "o",
+        "р": "p",
+        "с": "c",
+        "у": "y",
+        "х": "x",
+        "і": "i",
+        "ѕ": "s",
+        "ј": "j",
+        "ԁ": "d",
+        "һ": "h",
+        "ӏ": "l",
+        "к": "k",
+        "α": "a",
+        "ε": "e",
+        "ι": "i",
+        "κ": "k",
+        "ν": "v",
+        "ο": "o",
+        "ρ": "p",
+        "τ": "t",
     }
 )
 
-_LEET = str.maketrans({"0": "o", "1": "i", "3": "e", "4": "a", "5": "s", "7": "t", "@": "a", "$": "s"})
+_LEET = str.maketrans(
+    {"0": "o", "1": "i", "3": "e", "4": "a", "5": "s", "7": "t", "@": "a", "$": "s"}
+)
 
 # A digit or symbol inside a word ("k1ll", "k*ll"), or 3+ single letters spaced out.
-_IN_WORD_SUBSTITUTE = re.compile(r"(?<=[a-z])[0-9@$*!|](?=[a-z])|(?<=[a-z])[0-9@$](?=\b)|\b[0-9@$](?=[a-z])")
+_IN_WORD_SUBSTITUTE = re.compile(
+    r"(?<=[a-z])[0-9@$*!|](?=[a-z])|(?<=[a-z])[0-9@$](?=\b)|\b[0-9@$](?=[a-z])"
+)
 _SPACED_LETTERS = re.compile(r"\b(?:[a-z] ){2,}[a-z]\b")
 
 

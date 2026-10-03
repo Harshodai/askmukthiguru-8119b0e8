@@ -376,7 +376,10 @@ async def test_multiturn_escalation_actually_escalates():
     history = [
         {"role": "user", "content": "I can't sleep at night anymore, my mind just races."},
         {"role": "assistant", "content": "I'm here with you."},
-        {"role": "user", "content": "I feel so lonely and isolated from everyone around me lately."},
+        {
+            "role": "user",
+            "content": "I feel so lonely and isolated from everyone around me lately.",
+        },
         {"role": "assistant", "content": "I'm here with you."},
         {"role": "user", "content": "I'm anxious all the time and everything overwhelms me."},
     ]
@@ -390,7 +393,9 @@ async def test_multiturn_escalation_actually_escalates():
 
     escalated = await engine.analyze_with_history(final_message, history)
     assert escalated.level == DistressLevel.SEVERE, escalated
-    assert any("escalat" in s.lower() or "persistent" in s.lower() for s in escalated.detected_signals)
+    assert any(
+        "escalat" in s.lower() or "persistent" in s.lower() for s in escalated.detected_signals
+    )
 
 
 @pytest.mark.asyncio

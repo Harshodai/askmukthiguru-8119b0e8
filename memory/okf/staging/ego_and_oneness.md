@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Ego and Oneness"
-source: "YouTube https://www.youtube.com/watch?v=OWMBvMlGWTA"
+source: "https://www.youtube.com/watch?v=OWMBvMlGWTA"
 video_id: OWMBvMlGWTA
 tags: [ego, oneness, separation]
 teacher: "both"

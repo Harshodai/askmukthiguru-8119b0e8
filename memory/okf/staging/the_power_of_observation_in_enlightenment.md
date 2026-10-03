@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Power of Observation in Enlightenment"
-source: "YouTube https://www.youtube.com/watch?v=aJIunwxx3NI"
+source: "https://www.youtube.com/watch?v=aJIunwxx3NI"
 video_id: aJIunwxx3NI
 tags: [enlightenment, observation, present moment]
 teacher: "both"

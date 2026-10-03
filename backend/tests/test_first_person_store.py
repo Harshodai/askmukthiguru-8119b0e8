@@ -2,16 +2,19 @@
 Unit tests for FirstPersonStore (D3 Versioned Store).
 """
 
+import hashlib
+from types import SimpleNamespace
 from unittest.mock import MagicMock
+
 import pytest
 from qdrant_client.http import models
 
 from app.config import settings
 from services.first_person_store import (
     FirstPersonStore,
+    deduplicate_clips_by_video,
     make_first_person_point_id,
     validate_clip_entry,
-    deduplicate_clips_by_video,
 )
 
 
@@ -27,13 +30,14 @@ def test_make_first_person_point_id_deterministic():
 
 
 def test_validate_clip_entry_success():
+    text = "Suffering is not a fact; it is only a perception."
     valid_clip = {
         "video_id": "vid123",
         "start_ms": 12000,
         "end_ms": 18000,
         "speaker": "Sri Preethaji",
-        "transcript_hash": "f" * 64,
-        "verbatim_text": "Suffering is not a fact; it is only a perception.",
+        "transcript_hash": hashlib.sha256(text.encode("utf-8")).hexdigest(),
+        "verbatim_text": text,
     }
     # Should not raise
     validate_clip_entry(valid_clip)
@@ -106,18 +110,51 @@ def test_deduplicate_clips_by_video():
     assert [d["text"] for d in deduped] == ["A1", "B1", "C1"]
 
 
+def test_deduplicate_clips_by_video_distinct_spans():
+    clips = [
+        {"video_id": "vid_A", "score": 0.95, "text": "A_doctrine", "start_ms": 10000},
+        {
+            "video_id": "vid_A",
+            "score": 0.90,
+            "text": "A_close",
+            "start_ms": 25000,
+        },  # gap 15s < 30s -> rejected
+        {
+            "video_id": "vid_A",
+            "score": 0.88,
+            "text": "A_practice",
+            "start_ms": 90000,
+        },  # gap 80s >= 30s -> accepted
+        {
+            "video_id": "vid_A",
+            "score": 0.85,
+            "text": "A_third",
+            "start_ms": 180000,
+        },  # already have 2 -> rejected
+        {"video_id": "vid_B", "score": 0.80, "text": "B1", "start_ms": 5000},
+    ]
+
+    deduped = deduplicate_clips_by_video(
+        clips, max_clips=4, allow_same_video_distinct_spans=True, min_span_gap_ms=30000
+    )
+    assert len(deduped) == 3
+    assert [d["text"] for d in deduped] == ["A_doctrine", "A_practice", "B1"]
+    assert [d["video_id"] for d in deduped] == ["vid_A", "vid_A", "vid_B"]
+
+
 def test_upsert_clips(monkeypatch):
     client = MagicMock()
     store = FirstPersonStore(collection="first_person_v1", client=client)
 
+    text = "Life is a flow of relationships."
     clips = [
         {
             "video_id": "v1",
             "start_ms": 1000,
             "end_ms": 5000,
             "speaker": "Sri Krishnaji",
-            "transcript_hash": "0" * 64,
-            "verbatim_text": "Life is a flow of relationships.",
+            "transcript_hash": hashlib.sha256(text.encode("utf-8")).hexdigest(),
+            "verbatim_text": text,
             "teacher_id": "krishnaji",
             "teacher_ids": ["krishnaji"],
             "rights_cleared": True,
@@ -126,6 +163,7 @@ def test_upsert_clips(monkeypatch):
     ]
     passage_dense = [[0.1] * 1024]
 
+    _stub_r2_readback(client)
     count = store.upsert_clips(clips, passage_dense_vectors=passage_dense)
     assert count == 1
     client.upsert.assert_called_once()
@@ -142,25 +180,161 @@ def test_upsert_clips(monkeypatch):
     assert points[0].payload["caption_status"] == "auto_transcript"
 
 
+def test_upsert_clips_recomputes_hash_when_cleaner_changes_text():
+    """Binding rule (lessons.md L-INTEGRITY-HASH-MISMATCH-1): if the ASR cleaner
+    modifies verbatim_text during indexing, transcript_hash and the point ID must
+    both derive from the CLEANED text — a stale hash fails the serve-time gate."""
+    client = MagicMock()
+    store = FirstPersonStore(collection="first_person_v1", client=client)
+
+    raw = "So, So the truth is simply this: you are not your thoughts."
+    # Stale hash of the RAW text, as an upstream producer might hand us.
+    clip = {
+        "video_id": "v1",
+        "start_ms": 1000,
+        "end_ms": 5000,
+        "speaker": "Sri Krishnaji",
+        "transcript_hash": hashlib.sha256(raw.encode("utf-8")).hexdigest(),
+        "verbatim_text": raw,
+        "teacher_id": "krishnaji",
+        "teacher_ids": ["krishnaji"],
+        "rights_cleared": True,
+    }
+    from ingest.verbatim.asr_cleaner import clean_verbatim_text
+
+    cleaned = clean_verbatim_text(raw)
+    assert cleaned != raw  # fixture must actually exercise the recompute path
+
+    _stub_r2_readback(client)
+    count = store.upsert_clips([clip], passage_dense_vectors=[[0.1] * 1024])
+    assert count == 1
+    point = client.upsert.call_args.kwargs["points"][0]
+    assert point.payload["verbatim_text"] == cleaned
+    assert point.payload["transcript_hash"] == hashlib.sha256(cleaned.encode("utf-8")).hexdigest()
+    assert point.id == make_first_person_point_id(
+        point.payload["transcript_hash"], point.payload["start_ms"], point.payload["end_ms"]
+    )
+
+
 def test_upsert_clips_teacher_id_has_no_default():
     """teacher_id/teacher_ids come from the clip itself — no 'both' default."""
     client = MagicMock()
     store = FirstPersonStore(collection="first_person_v1", client=client)
 
+    text = "Life is a flow of relationships."
     clips = [
         {
             "video_id": "v1",
             "start_ms": 1000,
             "end_ms": 5000,
             "speaker": "Sri Krishnaji",
-            "transcript_hash": "0" * 64,
-            "verbatim_text": "Life is a flow of relationships.",
+            "transcript_hash": hashlib.sha256(text.encode("utf-8")).hexdigest(),
+            "verbatim_text": text,
         }
     ]
+    _stub_r2_readback(client)
     store.upsert_clips(clips, passage_dense_vectors=[[0.1] * 1024])
     points = client.upsert.call_args.kwargs["points"]
     assert points[0].payload["teacher_id"] is None
     assert points[0].payload["teacher_ids"] is None
+
+
+def _stub_r2_readback(client):
+    """R2 post-write read-back for mocked clients: echo the points from the last
+    upsert call, exactly as a real Qdrant would return them."""
+
+    def _retrieve(**kwargs):
+        pts = client.upsert.call_args.kwargs["points"]
+        wanted = set(kwargs["ids"])
+        return [
+            SimpleNamespace(id=str(p.id), payload=p.payload, vector=p.vector)
+            for p in pts
+            if str(p.id) in wanted
+        ]
+
+    client.retrieve.side_effect = _retrieve
+
+
+def _r2_clip(text="Life is a flow of relationships."):
+    return {
+        "video_id": "v1",
+        "start_ms": 1000,
+        "end_ms": 5000,
+        "speaker": "Sri Krishnaji",
+        "transcript_hash": hashlib.sha256(text.encode("utf-8")).hexdigest(),
+        "verbatim_text": text,
+        "teacher_id": "krishnaji",
+        "teacher_ids": ["krishnaji"],
+        "rights_cleared": True,
+    }
+
+
+def test_upsert_clips_r2_rejects_wrong_dense_dim():
+    """R2 pre-write guard: a dense vector that does not match the declared
+    collection dimension fails closed before any write (audit A-5)."""
+    client = MagicMock()
+    store = FirstPersonStore(collection="first_person_v1", client=client)
+
+    with pytest.raises(ValueError, match=r"\[R2\] passage_dense dim"):
+        store.upsert_clips([_r2_clip()], passage_dense_vectors=[[0.1] * 512])
+    client.upsert.assert_not_called()
+
+
+def test_upsert_clips_r2_catches_payload_id_drift(monkeypatch):
+    """R2 pre-write guard: point ID must equal uuid5 recomputation from the
+    payload actually being written (audit A-10 class drift fails closed)."""
+    import services.first_person_store as fps
+
+    real = fps.make_first_person_point_id
+    calls = {"n": 0}
+
+    def drifted(transcript_hash, start_ms, end_ms):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return real(transcript_hash, start_ms, end_ms)
+        return "00000000-0000-5000-8000-000000000000"
+
+    monkeypatch.setattr(fps, "make_first_person_point_id", drifted)
+    client = MagicMock()
+    store = FirstPersonStore(collection="first_person_v1", client=client)
+
+    with pytest.raises(ValueError, match=r"\[R2\] point id"):
+        store.upsert_clips([_r2_clip()], passage_dense_vectors=[[0.1] * 1024])
+    client.upsert.assert_not_called()
+
+
+def test_upsert_clips_r2_readback_missing_point_fails_closed():
+    """R2 read-back guard: if the written point does not come back after the
+    upsert, raise — never return a success for a silently dropped point."""
+    client = MagicMock()
+    client.retrieve.return_value = []  # simulates silent drop post-write
+    store = FirstPersonStore(collection="first_person_v1", client=client)
+
+    with pytest.raises(ValueError, match=r"\[R2\] read-back missing"):
+        store.upsert_clips([_r2_clip()], passage_dense_vectors=[[0.1] * 1024])
+    client.upsert.assert_called_once()
+
+
+def test_upsert_clips_r2_readback_wrong_dim_fails_closed():
+    """R2 read-back guard: dense dim must still match after the write."""
+    client = MagicMock()
+
+    def _retrieve_with_short_vectors(**kwargs):
+        pts = client.upsert.call_args.kwargs["points"]
+        return [
+            SimpleNamespace(
+                id=str(p.id),
+                payload=p.payload,
+                vector={"passage_dense": [0.1] * 512},
+            )
+            for p in pts
+        ]
+
+    client.retrieve.side_effect = _retrieve_with_short_vectors
+    store = FirstPersonStore(collection="first_person_v1", client=client)
+
+    with pytest.raises(ValueError, match=r"\[R2\] read-back passage_dense dim"):
+        store.upsert_clips([_r2_clip()], passage_dense_vectors=[[0.1] * 1024])
 
 
 def _mock_point(point_id, score, video_id, vector=None):
@@ -256,14 +430,19 @@ def test_rrf_prefetch_depth_matches_bakeoff_b_r0():
     client = MagicMock()
     client.query_points.return_value.points = []
     FirstPersonStore(collection="first_person_v1", client=client).search_hybrid(
-        query_dense_vector=[0.1] * 4, query_sparse_vector={"indices": [1], "values": [0.5]}, limit=6, dedup_limit=3
+        query_dense_vector=[0.1] * 4,
+        query_sparse_vector={"indices": [1], "values": [0.5]},
+        limit=6,
+        dedup_limit=3,
     )
     prefetch = client.query_points.call_args.kwargs["prefetch"]
     assert all(p.limit >= 60 for p in prefetch)
 
 
 def _point(pid, **payload):
-    return models.Record(id=pid, payload={"first_person_eligible": True, "rights_cleared": True, **payload})
+    return models.Record(
+        id=pid, payload={"first_person_eligible": True, "rights_cleared": True, **payload}
+    )
 
 
 @pytest.mark.parametrize(

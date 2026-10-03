@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Preventing Depression Through Connection"
-source: "YouTube https://www.youtube.com/watch?v=odXq5g-Y7gM"
+source: "https://www.youtube.com/watch?v=odXq5g-Y7gM"
 video_id: odXq5g-Y7gM
 tags: [suffering, depression, connection, storytelling, loneliness]
 teacher: "both"

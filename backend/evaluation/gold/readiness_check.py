@@ -10,10 +10,10 @@ Implements end-to-end readiness auditing for videos and gold annotation sheets:
 
 from __future__ import annotations
 
-from collections import Counter
 import csv
 import json
 import logging
+from collections import Counter
 from pathlib import Path
 from typing import Any, Optional
 
@@ -55,19 +55,30 @@ def check_video_readiness(
 
     # 2. Check canonical segments or transcript
     canonical_file = video_dir / "canonical_segments.json"
-    quality_file = video_dir / "quality_report.json"
     manifest_file = video_dir / "artifact_manifest.json"
 
     if not canonical_file.exists():
         issues.append(f"Missing canonical_segments.json in {video_dir}")
-        return {"ready": False, "video_id": video_id, "issues": issues, "warnings": warnings, "stats": stats}
+        return {
+            "ready": False,
+            "video_id": video_id,
+            "issues": issues,
+            "warnings": warnings,
+            "stats": stats,
+        }
 
     try:
-        with open(canonical_file, "r", encoding="utf-8") as f:
+        with open(canonical_file, encoding="utf-8") as f:
             canonical_data = json.load(f)
     except Exception as e:
         issues.append(f"Unreadable canonical_segments.json: {e}")
-        return {"ready": False, "video_id": video_id, "issues": issues, "warnings": warnings, "stats": stats}
+        return {
+            "ready": False,
+            "video_id": video_id,
+            "issues": issues,
+            "warnings": warnings,
+            "stats": stats,
+        }
 
     segments = canonical_data.get("segments", [])
     stats["segment_count"] = len(segments)
@@ -90,14 +101,16 @@ def check_video_readiness(
             _se_str = (_se.get("detected_speaker") or _se.get("metadata_attribution") or "").strip()
         else:
             _se_str = str(_se or "").strip()
-        speaker = (str(seg.get("speaker") or "").strip() or _se_str or "unknown")
+        speaker = str(seg.get("speaker") or "").strip() or _se_str or "unknown"
 
         if start < 0.0:
             issues.append(f"Segment {i} has negative start timestamp: {start}")
         if end <= start:
             issues.append(f"Segment {i} has end ({end}) <= start ({start})")
         if max_duration_seconds and end > max_duration_seconds + 5.0:
-            warnings.append(f"Segment {i} end ({end}s) exceeds known video duration ({max_duration_seconds}s)")
+            warnings.append(
+                f"Segment {i} end ({end}s) exceeds known video duration ({max_duration_seconds}s)"
+            )
 
         # Host leak check
         if speaker.lower() in ("sri preethaji", "sri krishnaji", "teacher"):
@@ -116,7 +129,7 @@ def check_video_readiness(
     # 5. Check artifact manifest if present
     if manifest_file.exists():
         try:
-            with open(manifest_file, "r", encoding="utf-8") as f:
+            with open(manifest_file, encoding="utf-8") as f:
                 manifest = json.load(f)
             stats["manifest_artifacts"] = list(manifest.get("artifacts", {}).keys())
         except Exception as e:
@@ -148,7 +161,7 @@ def validate_gold_sheet(
     if not csv_path.exists():
         raise FileNotFoundError(f"Gold sheet CSV does not exist: {csv_path}")
 
-    with open(csv_path, mode="r", encoding="utf-8") as f:
+    with open(csv_path, encoding="utf-8") as f:
         reader = csv.DictReader(f)
         rows = list(reader)
         fieldnames = reader.fieldnames or []
@@ -171,7 +184,9 @@ def validate_gold_sheet(
 
     # Count questions per video
     if sheet_type == "question":
-        video_counts = Counter(r.get("intended_video_ids", "").strip() for r in rows if r.get("intended_video_ids"))
+        video_counts = Counter(
+            r.get("intended_video_ids", "").strip() for r in rows if r.get("intended_video_ids")
+        )
         for vid, count in video_counts.items():
             if count > max_questions_per_video:
                 violations.append(

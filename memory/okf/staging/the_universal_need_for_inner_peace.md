@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "The Universal Need for Inner Peace"
-source: "YouTube https://www.youtube.com/watch?v=G1fWNIazj5U"
+source: "https://www.youtube.com/watch?v=G1fWNIazj5U"
 video_id: G1fWNIazj5U
 tags: [peace, inner peace, conflict, suffering]
 teacher: "both"

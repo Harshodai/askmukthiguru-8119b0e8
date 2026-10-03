@@ -1,23 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=PnvNqgTyIFI
-tags:
-- mind
-- inner stillness
-- witness consciousness
-teacher: both
-title: Moving Beyond the Mind
+title: Moving Beyond The Mind
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=PnvNqgTyIFI
 video_id: PnvNqgTyIFI
+tags:
+- oneness
+- teaching
 ---
-# Moving Beyond the Mind
+# Moving Beyond The Mind
 
+## Verbatim Discourse Excerpts
+What do we mean by moving beyond the mind? What it is to be declutched from your mind. If you have observed at any point, there is an incessant thought noise, an inner chatter all the time. Imagine being free of that incessant thought noise, that incessant inner chatter that is there all the time. When you're walking, when you're working, when you're swimming, when you're with people or without people, there is an incessant noise.
 
-## Summary
-The concept of moving beyond the mind involves de-clutching from it to experience inner stillness and silence, which is a means to awaken to the witness consciousness.
+Imagine being free of that inner chatter, experiencing inner stillness, experiencing silence, that is to go beyond, or that is to declutch from the mind. Then the awakening would happen where you awaken to the witness consciousness. I have no words to describe then other than beautiful, how beautiful that this course is. It's to look inside yourself. There's nothing more magical than having a journey inward because it's all about being.
 
 ## Key Teachings
-- Moving beyond the mind means to be de-clutched from your mind. — Unknown Channel
-- Experiencing inner stillness and silence is important for awakening to the witness consciousness. — Unknown Channel
+- What do we mean by moving beyond the mind? — Sri Preethaji & Sri Krishnaji
+- Imagine being free of that inner chatter, experiencing inner stillness, experiencing silence, that is to go beyond, or that is to declutch from the mind. — Sri Preethaji & Sri Krishnaji
+- What it is to be declutched from your mind. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Suffering States: emotionally painful states of being that disconnect individuals from the universal intelligence and its power.
+## Source Context
+- Video: Become free of the incessant chatter of the mind and awaken to inner stillness
+- URL: https://www.youtube.com/watch?v=PnvNqgTyIFI
+- Speaker: Sri Preethaji & Sri Krishnaji

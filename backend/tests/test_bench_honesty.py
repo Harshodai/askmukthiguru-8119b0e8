@@ -46,7 +46,9 @@ def _http_error(status: int, retry_after: str | None = None) -> httpx.HTTPStatus
 def test_timeout_is_classified_and_counted_as_system_error():
     item = _item()
     raw = {"_err": "ReadTimeout: "}  # exactly what run_e2e records for httpx.ReadTimeout
-    row = score_row(item, raw, latency_s=180.0, mode="anonymous", qdrant_client=None, voice_profile=None)
+    row = score_row(
+        item, raw, latency_s=180.0, mode="anonymous", qdrant_client=None, voice_profile=None
+    )
 
     assert row.error_class == "timeout"
     assert row.system_error is True
@@ -62,7 +64,9 @@ def test_timeout_is_classified_and_counted_as_system_error():
 def test_http_429_is_classified_and_counted_as_system_error():
     item = _item()
     raw = {"_http": 429, "_body": "rate limited"}
-    row = score_row(item, raw, latency_s=0.5, mode="anonymous", qdrant_client=None, voice_profile=None)
+    row = score_row(
+        item, raw, latency_s=0.5, mode="anonymous", qdrant_client=None, voice_profile=None
+    )
 
     assert row.error_class == "http_429"
     assert row.system_error is True
@@ -75,7 +79,9 @@ def test_http_429_is_classified_and_counted_as_system_error():
 def test_http_5xx_is_classified_as_system_error():
     item = _item()
     raw = {"_http": 503, "_body": "bad gateway"}
-    row = score_row(item, raw, latency_s=0.5, mode="anonymous", qdrant_client=None, voice_profile=None)
+    row = score_row(
+        item, raw, latency_s=0.5, mode="anonymous", qdrant_client=None, voice_profile=None
+    )
     assert row.error_class == "http_5xx"
     assert row.system_error is True
 
@@ -83,7 +89,9 @@ def test_http_5xx_is_classified_as_system_error():
 def test_read_error_is_classified_as_system_error():
     item = _item()
     raw = {"_err": "ReadError: "}
-    row = score_row(item, raw, latency_s=1.0, mode="anonymous", qdrant_client=None, voice_profile=None)
+    row = score_row(
+        item, raw, latency_s=1.0, mode="anonymous", qdrant_client=None, voice_profile=None
+    )
     assert row.error_class == "read_error"
     assert row.system_error is True
 
@@ -93,7 +101,9 @@ def test_empty_answer_is_classified_and_counted_as_system_error():
     is NOT an exception and NOT a non-2xx status, so it needs its own check."""
     item = _item()
     raw = {"response": "   ", "grounding_state": "grounded", "citations": []}
-    row = score_row(item, raw, latency_s=2.0, mode="anonymous", qdrant_client=None, voice_profile=None)
+    row = score_row(
+        item, raw, latency_s=2.0, mode="anonymous", qdrant_client=None, voice_profile=None
+    )
 
     assert row.error_class == "empty_answer"
     assert row.system_error is True
@@ -105,7 +115,9 @@ def test_empty_answer_is_classified_and_counted_as_system_error():
 def test_missing_response_field_is_classified_as_missing_fields():
     item = _item()
     raw = {"grounding_state": "grounded"}  # malformed 200: no "response" key at all
-    row = score_row(item, raw, latency_s=1.0, mode="anonymous", qdrant_client=None, voice_profile=None)
+    row = score_row(
+        item, raw, latency_s=1.0, mode="anonymous", qdrant_client=None, voice_profile=None
+    )
     assert row.error_class == "missing_fields"
     assert row.system_error is True
 
@@ -119,7 +131,9 @@ def test_pipeline_wedge_still_classified_as_system_error_not_transport():
         "grounding_state": "system_error",
         "citations": [],
     }
-    row = score_row(item, raw, latency_s=0.011, mode="anonymous", qdrant_client=None, voice_profile=None)
+    row = score_row(
+        item, raw, latency_s=0.011, mode="anonymous", qdrant_client=None, voice_profile=None
+    )
     assert row.system_error is True
     assert row.error_class == "pipeline_error"
 
@@ -131,7 +145,9 @@ def test_real_success_has_no_error_class():
         "grounding_state": "grounded",
         "citations": [],
     }
-    row = score_row(item, raw, latency_s=1.0, mode="anonymous", qdrant_client=None, voice_profile=None)
+    row = score_row(
+        item, raw, latency_s=1.0, mode="anonymous", qdrant_client=None, voice_profile=None
+    )
     assert row.error_class is None
     assert row.system_error is False
 
@@ -143,7 +159,10 @@ def test_real_success_has_no_error_class():
 
 def test_run_above_threshold_is_marked_invalid():
     item = _item()
-    good = {"response": "The Beautiful State is calm and connection.", "grounding_state": "grounded"}
+    good = {
+        "response": "The Beautiful State is calm and connection.",
+        "grounding_state": "grounded",
+    }
     timeout_raw = {"_err": "ReadTimeout: "}
     rows = [
         score_row(item, good, 1.0, "anonymous", None, None),
@@ -162,7 +181,10 @@ def test_run_above_threshold_is_marked_invalid():
 
 def test_run_below_threshold_stays_valid():
     item = _item()
-    good = {"response": "The Beautiful State is calm and connection.", "grounding_state": "grounded"}
+    good = {
+        "response": "The Beautiful State is calm and connection.",
+        "grounding_state": "grounded",
+    }
     rows = [score_row(item, good, 1.0, "anonymous", None, None) for _ in range(99)]
     rows.append(score_row(item, {"_err": "ReadTimeout: "}, 180.0, "anonymous", None, None))
     report = aggregate(rows, mode="e2e:anonymous", sources=["golden_qa_bank"], started_at="t0")
@@ -223,7 +245,6 @@ async def test_non_retryable_error_is_not_retried():
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-
 @pytest.mark.asyncio
 async def test_resume_skips_completed_ids(tmp_path, monkeypatch):
     items = [_item("q1", question="Q1?"), _item("q2", question="Q2?")]
@@ -232,7 +253,12 @@ async def test_resume_skips_completed_ids(tmp_path, monkeypatch):
     out_path = tmp_path / "bench_e2e.json"
     checkpoint_path = tmp_path / "bench_e2e.checkpoint.jsonl"
     already_done = score_row(
-        items[0], {"response": "already done", "grounding_state": "grounded"}, 1.0, "anonymous", None, None
+        items[0],
+        {"response": "already done", "grounding_state": "grounded"},
+        1.0,
+        "anonymous",
+        None,
+        None,
     )
     checkpoint_path.write_text(already_done.model_dump_json() + "\n")
 
@@ -355,7 +381,10 @@ def test_quality_metrics_denominator_is_success_only_not_all_rows():
         score_row(item, {"_err": "ReadTimeout: "}, 180.0, "anonymous", None, None) for _ in range(9)
     ]
     report = aggregate(
-        [wrong_answer, *error_rows], mode="e2e:anonymous", sources=["golden_qa_bank"], started_at="t0"
+        [wrong_answer, *error_rows],
+        mode="e2e:anonymous",
+        sources=["golden_qa_bank"],
+        started_at="t0",
     )
     assert report.n_success == 1
     assert report.n_error == 9
@@ -454,7 +483,9 @@ def test_mode_all_writes_the_e2e_report_to_out(tmp_path, monkeypatch):
 
     from evaluation.schema import EvalReport
 
-    report = EvalReport.model_validate_json(bench.aggregate([], "e2e:anonymous", ["x"], "t").model_dump_json())
+    report = EvalReport.model_validate_json(
+        bench.aggregate([], "e2e:anonymous", ["x"], "t").model_dump_json()
+    )
 
     async def fake_run_e2e(*args, **kwargs):
         return report

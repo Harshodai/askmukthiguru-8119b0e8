@@ -1,26 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=hqre34QIMZg
-tags:
-- ego
-- awakened consciousness
-- awareness
-- observation
-teacher: both
-title: The Relationship with Ego in Awakened Consciousness
+title: The Relationship With Ego In Awakened Consciousness
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=hqre34QIMZg
 video_id: hqre34QIMZg
+tags:
+- oneness
+- teaching
 ---
-# The Relationship with Ego in Awakened Consciousness
+# The Relationship With Ego In Awakened Consciousness
 
+## Verbatim Discourse Excerpts
+An ordinary mind is a repetitive mind. Creativity, of course, happens when there is a birth of a new perception, a new worldview, a new life view. And such a creativity is possible when you are awakened. An awakened state of consciousness impacts the neural connections of your brain. It alters your state of being. This would transform the way you achieve, the way you create, the way you succeed in the world.
 
-## Summary
-The concept of awakened consciousness involves bringing conscious attention to one's thoughts, responses to life, and emotions. This process emphasizes observation without judgment or indulgence, which is central to understanding and transforming one's relationship with the ego.
+And life itself would become immensely fulfilling for you. What is awareness? To be aware is to bring conscious attention to our thinking, to bring conscious attention to your responses to life, to bring attention to your thoughts, to your emotions, neither judging or justifying, nor indulging or escaping, but simply observing. Simply see and simply witness whatever is going on within yourself.
 
 ## Key Teachings
-- Awakened consciousness involves bringing conscious attention to thoughts, responses to life, and emotions (Sri Preethaji & Sri Krishnaji).
-- The practice is to observe these aspects without judgment or indulgence (Sri Preethaji & Sri Krishnaji).
+- An awakened state of consciousness impacts the neural connections of your brain. — Sri Preethaji & Sri Krishnaji
+- And such a creativity is possible when you are awakened. — Sri Preethaji & Sri Krishnaji
+- Creativity, of course, happens when there is a birth of a new perception, a new worldview, a new life view. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Awakened Child: An awakened child is one whose brain and nervous system is attuned to peace, whose heart naturally feels connection and love, and whose consciousness experiences a deep sense of Oneness.
-- Enlightenment: Enlightenment is a state of profound understanding, characterized by a state of consciousness where one is free of suffering, with intense awareness and no compulsive attachment to the past or future.
-- Spiritual Process: A spiritual process is a journey of awakening and transformation that leads to higher states of consciousness.
+## Source Context
+- Video: The Power Of An Awakened Consciousness
+- URL: https://www.youtube.com/watch?v=hqre34QIMZg
+- Speaker: Sri Preethaji & Sri Krishnaji

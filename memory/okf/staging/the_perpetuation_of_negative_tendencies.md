@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Perpetuation of Negative Tendencies"
-source: "YouTube https://www.youtube.com/watch?v=Gdd-5uWUW5w"
+source: "https://www.youtube.com/watch?v=Gdd-5uWUW5w"
 video_id: Gdd-5uWUW5w
 tags: [fear, conflict, hate, transformation, leadership, consciousness]
 teacher: "both"

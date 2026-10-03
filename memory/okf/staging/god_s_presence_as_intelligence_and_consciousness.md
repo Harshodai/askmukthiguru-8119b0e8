@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "God's Presence as Intelligence and Consciousness"
-source: "YouTube https://www.youtube.com/watch?v=DqUafRyXy_0"
+source: "https://www.youtube.com/watch?v=DqUafRyXy_0"
 video_id: DqUafRyXy_0
 tags: [God, presence, intelligence, consciousness, divine, universe]
 teacher: "both"

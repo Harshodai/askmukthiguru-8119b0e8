@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "The Transformative Power of Seeing One's Truth"
-source: "YouTube https://www.youtube.com/watch?v=PnvNqgTyIFI"
+source: "https://www.youtube.com/watch?v=PnvNqgTyIFI"
 video_id: PnvNqgTyIFI
 tags: [truth, transformation, gratitude, divine, self-discovery]
 teacher: "both"

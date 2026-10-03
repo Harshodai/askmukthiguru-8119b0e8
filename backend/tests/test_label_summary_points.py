@@ -37,7 +37,12 @@ def test_point_with_video_id_is_untouched_even_if_summary():
 
 
 def test_diff_point_changed_is_false_when_labels_already_set():
-    payload = {"content_type": "summary", "video_id": None, "first_person_eligible": False, "provenance_kind": "machine_summary"}
+    payload = {
+        "content_type": "summary",
+        "video_id": None,
+        "first_person_eligible": False,
+        "provenance_kind": "machine_summary",
+    }
     diff = _diff_point("p1", payload)
     assert diff["changed"] is False
     assert diff["is_summary_group"] is True

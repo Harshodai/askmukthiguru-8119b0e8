@@ -1,25 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=F-hNATzOz2I
-tags:
-- love
-- awareness
-- consciousness
-teacher: both
-title: The Sacred Preciousness of Love
+title: The Sacred Preciousness Of Love
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=F-hNATzOz2I
 video_id: F-hNATzOz2I
+tags:
+- oneness
+- teaching
 ---
-# The Sacred Preciousness of Love
+# The Sacred Preciousness Of Love
 
+## Verbatim Discourse Excerpts
+In a fundamental sense, love is a failing of preciousness. Love is where you feel the other to be a sacred gift from the universe. You live in the knowing that what they bring to your life is irreplaceable. You feel the sense of preciousness towards a newborn. When you look into the eyes of an infant, you know you're looking at a miracle from the universe.
 
-## Summary
-The profound awareness of the sacred preciousness in love, particularly observed in newborns and during the passing of loved ones, is often lost in the routine of daily life. This awareness is a moment of recognizing the beauty and impact of one's loved ones, highlighting the importance of cherishing and appreciating the sacredness of love in everyday moments. It involves bringing one's attention and presence to the beauty of the other, recognizing their kindness, patience, strength, courage, forgiveness, or joy.
+You feel a deep sense of sacredness being around the child, and spontaneously you bring total presence to them. You feel this preciousness when you know a loved one is passing. It strikes you that this person once gone is irreplaceable in your life. But this awareness of the sacred preciousness of love that happens in the beginning of life and at the end of life is completely lost in between.
 
 ## Key Teachings
-- The profound awareness of love's sacred preciousness is often lost in mundane life experiences. (Unknown speaker)
-- This awareness is a moment of recognizing the beauty and impact of loved ones. (Unknown speaker)
-- Cherishing and appreciating the sacredness of love in everyday moments is important. (Unknown speaker)
-- Bringing attention and presence to the beauty of another involves recognizing their kindness, patience, strength, courage, forgiveness, or joy. (Unknown speaker)
+- But this awareness of the sacred preciousness of love that happens in the beginning of life and at the end of life is completely lost in between. — Sri Preethaji & Sri Krishnaji
+- In a fundamental sense, love is a failing of preciousness. — Sri Preethaji & Sri Krishnaji
+- Love is where you feel the other to be a sacred gift from the universe. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Consciousness: Consciousness is the state of being aware of one's thoughts, emotions, and surroundings, playing a crucial role in the experience of love and the recognition of its sacredness.
+## Source Context
+- Video: What is Love ?  | Evolution Series 114 with Sri Preethaji & Sri Krishnaji
+- URL: https://www.youtube.com/watch?v=F-hNATzOz2I
+- Speaker: Sri Preethaji & Sri Krishnaji

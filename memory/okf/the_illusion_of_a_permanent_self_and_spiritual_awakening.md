@@ -1,29 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=UNdwPjyLGn0
-tags:
-- awakening
-- self
-- interconnectedness
-- impermanence
-- consciousness
-teacher: both
-title: The Illusion of a Permanent Self and Spiritual Awakening
+title: The Illusion Of A Permanent Self And Spiritual Awakening
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=UNdwPjyLGn0
 video_id: UNdwPjyLGn0
+tags:
+- oneness
+- teaching
 ---
-# The Illusion of a Permanent Self and Spiritual Awakening
+# The Illusion Of A Permanent Self And Spiritual Awakening
 
+## Verbatim Discourse Excerpts
+The Buddha maintained that this awakening was not exclusive to him and that every one of us can be awakened. Every one of us can be Buddha too. So, what does it mean to be awake? What does it mean to be Buddha-like? To be Buddha-like is to realize the illusion of a permanent, isolated self. It is to realize that you are eternal. You are one.
 
-## Summary
-Spiritual awakening involves realizing the illusion of a permanent, isolated self and understanding the interconnectedness of all beings. This realization shifts focus from the individual self to the broader interconnectedness of life, emphasizing the importance of consciousness and the impact of one's actions on future generations, as highlighted by the Buddha's teachings on impermanence and interconnectedness.
+Our lives are not special because of the way we are born or because of how we die. Their beauty comes from the awakened state of consciousness with which we live every day of our lives. Our life's beauty arises because of the impact we leave behind with our consciousness and our actions for our future generations.
 
 ## Key Teachings
-- Spiritual awakening emphasizes the realization of the illusion of a permanent, isolated self.
-- A crucial aspect of spiritual awakening is understanding the interconnectedness of all beings.
-- This realization shifts focus from the self to the interconnectedness of all life.
-- The Buddha's teachings underscore the importance of consciousness and the impact of one's actions on future generations, particularly through the concepts of impermanence and interconnectedness.
+- To be Buddha-like is to realize the illusion of a permanent, isolated self. — Sri Preethaji & Sri Krishnaji
+- The Buddha maintained that this awakening was not exclusive to him and that every one of us can be awakened. — Sri Preethaji & Sri Krishnaji
+- Today is Buddha Purnima or Vaishaka Purnima, the full moon day in the lunar month of Vaishakha. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Enlightenment: a state of profound understanding, characterized by a state of consciousness where one is free of suffering, with intense awareness and no compulsive attachment to the past or future.
-- Spiritual Process: a journey of awakening and transformation that leads to higher states of consciousness.
-- Consciousness: a multifaceted and complex entity that encompasses various aspects of human experience, including awareness of one's thoughts, emotions, and surroundings, and the interconnected state that binds individuals together.
+## Source Context
+- Video: UNdwPjyLGn0
+- URL: https://www.youtube.com/watch?v=UNdwPjyLGn0
+- Speaker: Sri Preethaji & Sri Krishnaji

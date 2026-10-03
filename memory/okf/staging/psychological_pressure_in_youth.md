@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Psychological Pressure in Youth"
-source: "YouTube https://www.youtube.com/watch?v=_X5jRvqxEEo"
+source: "https://www.youtube.com/watch?v=_X5jRvqxEEo"
 video_id: _X5jRvqxEEo
 tags: [truth of suffering, oo academy, sri preethaji, ekam, psychological pressure, youth]
 teacher: "sri-preethaji"

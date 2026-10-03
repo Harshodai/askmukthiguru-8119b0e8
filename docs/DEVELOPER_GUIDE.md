@@ -277,6 +277,33 @@ Memory notes:
 - The generated prompt treats memory as personalization and reference-resolution
   context only; spiritual facts must still come from retrieved teachings.
 
+### Adding a serving pipeline module (plug-and-play, 2026-10-03)
+
+Serving pipelines run as registry-dispatched modules **inside** the LangGraph
+(`backend/rag/pipeline_registry.py`); the old builder-stage splice is gone. To add
+a new serving pipeline:
+
+1. Write an async node in `backend/rag/nodes/<name>.py` that returns a state
+   update on claim (e.g. `{"<name>_result": PipelineResult}`) or `{}` to fall
+   through — and fail open on any exception (bridge infra never fails chat).
+2. Append one `PipelineModule(name, enabled, claims, route, priority)` entry to
+   `PIPELINE_MODULES` (`general` stays last with `route=None`). `enabled()` is
+   read **live per request**, so a kill-switch flip applies to the next request
+   without recompiling any graph.
+3. Wire the static topology once per strategy in `rag/graph_strategies.py`:
+   `graph.add_node("<name>", node)`, add `"<name>"` to the START conditional
+   path_map, and `graph.add_conditional_edges("<name>", after_edge)` where the
+   after-edge returns `END` on claim or `parallel_start(state)` on fall-through.
+4. If the module short-circuits the stage chain, unwrap its result to a
+   top-level `PipelineResult` in `GraphStage` (the coalescer already round-trips
+   that type via its serializer's type marker).
+5. Prove it in `tests/test_pipeline_registry.py` — add, remove, disable, and
+   claim/fall-through proofs are the acceptance bar.
+
+Topology stays static and compiled once; only routing is dynamic (LangGraph
+guidance: never build/compile a subgraph per request). Reference
+implementation: `rag/nodes/first_person.py` + `tests/test_first_person_bridge.py`.
+
 ---
 
 ### Chat attachments and evidence boundary

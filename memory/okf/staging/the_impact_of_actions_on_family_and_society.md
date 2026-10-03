@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Impact of Actions on Family and Society"
-source: "YouTube https://www.youtube.com/watch?v=pTnZt0SqDFM"
+source: "https://www.youtube.com/watch?v=pTnZt0SqDFM"
 video_id: pTnZt0SqDFM
 tags: [actions, family, society, consciousness]
 teacher: "both"

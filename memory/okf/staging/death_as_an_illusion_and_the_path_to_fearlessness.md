@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Death as an Illusion and the Path to Fearlessness"
-source: "YouTube https://www.youtube.com/watch?v=W2ZzApmqJmo"
+source: "https://www.youtube.com/watch?v=W2ZzApmqJmo"
 video_id: W2ZzApmqJmo
 tags: [death, fear, enlightenment, liberation]
 teacher: "both"

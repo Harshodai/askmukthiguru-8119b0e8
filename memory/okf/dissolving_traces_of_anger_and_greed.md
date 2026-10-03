@@ -1,26 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=207izZBbqVg
-tags:
-- anger
-- greed
-- purification
-- consciousness
-teacher: sri-preethaji
-title: Dissolving Traces of Anger and Greed
+title: Dissolving Traces Of Anger And Greed
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=207izZBbqVg
 video_id: 207izZBbqVg
+tags:
+- oneness
+- teaching
 ---
-# Dissolving Traces of Anger and Greed
+# Dissolving Traces Of Anger And Greed
 
+## Verbatim Discourse Excerpts
+The upasana we will do now is what you can do for the first three days of Navratri or Dasheera. Sit cross-legged. Look at the form of the Mother Goddess as Mahadurka. Navratri or Dasheera or Dasheera. Do a Dharana upon her form in your Chidakasha or the dark space in front of your closed eyes. Navratri or Dasheera. Ask her to dissolve the traces of anger and greed from your consciousness and fill you with peace and generosity.
 
-## Summary
-This teaching describes a spiritual practice involving asking a divine feminine energy to dissolve the traces of anger and greed from one's consciousness and to fill it with positive qualities.
+With this sacred intention, chant the mantra in Namaskara Mudra at your heart and feel the blessings of Mahadurka. 3 3 3
 
 ## Key Teachings
-- Sri Preethaji says to ask a divine feminine energy to "dissolve the traces of anger and greed from your consciousness and fill you w[ith positive qualities]."
+- Ask her to dissolve the traces of anger and greed from your consciousness and fill you with peace and generosity. — Sri Preethaji & Sri Krishnaji
+- The upasana we will do now is what you can do for the first three days of Navratri or Dasheera. — Sri Preethaji & Sri Krishnaji
+- Look at the form of the Mother Goddess as Mahadurka. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-No direct quotes available for this specific teaching point in the provided transcript.
-
-## Related Concepts
-- Consciousness: the state of being aware of one's thoughts, emotions, and surroundings.
+## Source Context
+- Video: Dharana on Maha Durga | Evolution Series 80 with Preethaji & Krishnaji
+- URL: https://www.youtube.com/watch?v=207izZBbqVg
+- Speaker: Sri Preethaji & Sri Krishnaji

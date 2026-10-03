@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Self-Love and Wholeness"
-source: "YouTube https://www.youtube.com/watch?v=vZGe4g66rw4"
+source: "https://www.youtube.com/watch?v=vZGe4g66rw4"
 video_id: vZGe4g66rw4
 tags: [self-love, wholeness, youth, depression, anxiety]
 teacher: "sri-krishnaji"
@@ -31,4 +31,4 @@ Sri Krishnaji addresses the primary global mental health pandemic threatening yo
 - Chaos (concept): Chaos refers to a state of disorder, confusion, or randomness.
 
 ## Source
-YouTube https://www.youtube.com/watch?v=vZGe4g66rw4
+https://www.youtube.com/watch?v=vZGe4g66rw4

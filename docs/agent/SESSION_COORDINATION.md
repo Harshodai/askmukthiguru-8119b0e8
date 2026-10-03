@@ -25,7 +25,13 @@ Anything not listed: announce the edit to the other sessions first.
 
 ## Current state (update when it changes)
 
-- Branch `fix/first-person-harness-translation-crisis-2026-09-28`: `d1e9d019` → `fc100964` (B2/B4/PCS) → `c1ccd2b8` (dangling conjunction per clip) → `011fc135` (boundaries module, audit, question generator). The owner has pushed up to `d1e9d019`; the committer session's `git push` is denied by permission settings, so the owner pushes.
-- Live backend: `FIRST_PERSON_COLLECTION=first_person_v2` (pinned-harness winner), running code from before the crisis lane's current edits.
-- Crisis lane: escalate-only LLM + re-tier task **in progress**. Its files are uncommitted and must not be committed yet.
-- First-person lane: B2 sentence snapping / B4 guard committed in `fc100964`. Next steps are that lane's call.
+**Re-dated 2026-10-03 (Q6 / audit G.4 #3).** This block had gone stale (it still said `first_person_v2`), and `docs/agent/*` "current state" blocks are what other sessions read first. It is now pointer-only — deep truth lives in `.claude/tasks/abstention_gate_and_index_hygiene_plan.md` and `HANDOFF_2026_10_03.md`; do not treat counts here as measured unless the command is shown.
+
+- **Branch:** `fix/first-person-harness-translation-crisis-2026-09-28` (working tree dirty, 1400+ pre-existing uncommitted files; owner does the pushes — committer `git push` is permission-denied).
+- **First-person pipeline (mechanism only; no final numbers yet):**
+  - Phase 1 index hygiene **done** — stale-embedding re-key/re-embed + `is_verbatim`/`rights_cleared` indexes + post-write vector validation (plan execution log, 2026-09-30).
+  - Phase 2 answerability gate **landed** — `first_person_answerability_check_enabled` (code default `True`), single wire point in `FirstPersonPipeline.execute()` immediately before `is_direct=True`; the LLM classifies the *question only* as exact `YES`/`NO`, and `NO`/indeterminate/timeout all fall through to honest abstention with zero citations (fail toward honesty). Validation runs are **in flight** — leak/false-refusal numbers are not final; do not quote them.
+  - Phase 3 quote gate **32/32 verbatim, 0 not_found** after the transcript-projection fallback fix (`HANDOFF_2026_10_03.md` §F).
+  - Chat bridge kill-switch **OFF**: `FIRST_PERSON_CHAT_BRIDGE_ENABLED=false` in root `.env`; re-enable only after owner sees final Phase 2 validation numbers.
+- **Live collection:** `FIRST_PERSON_COLLECTION=first_person_v7` (root `.env`), **144 points** measured `curl -s localhost:6333/collections/first_person_v7` on 2026-10-03 — pending mass ingest (target ~2,500 clips / 634 rights-cleared videos per `HANDOFF_2026_10_03.md`, owner fork pending).
+- **Pre-2026-10-03 bullets (v2 "pinned-harness winner", crisis-lane uncommitted state, commit chain) are superseded** — recoverable from git history and `handoff.md`.

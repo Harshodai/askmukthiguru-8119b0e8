@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Ekam Health Practice Conclusion"
-source: "YouTube https://www.youtube.com/watch?v=FSxiSEV1iPY"
+source: "https://www.youtube.com/watch?v=FSxiSEV1iPY"
 video_id: FSxiSEV1iPY
 tags: [Ekam, health, practice, gratitude, Shavasana]
 teacher: "both"

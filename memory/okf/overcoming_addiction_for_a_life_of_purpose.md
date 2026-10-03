@@ -1,32 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=EpReLy7g6WM
-tags:
-- addiction
-- freedom
-- spiritual vision
-- consciousness
-- suffering
-- enlightenment
-teacher: both
-title: Overcoming Addiction for a Life of Purpose
+title: Overcoming Addiction For A Life Of Purpose
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=EpReLy7g6WM
 video_id: EpReLy7g6WM
+tags:
+- oneness
+- teaching
 ---
-# Overcoming Addiction for a Life of Purpose
+# Overcoming Addiction For A Life Of Purpose
 
+## Verbatim Discourse Excerpts
+To living a life of greater purpose, for one who cares to make a difference to the world, succumbing to addiction will be very difficult. If any of you is stuck in a bad habit, or the verge of the habit becoming an addiction, or are addicted, there are three things you must do. Firstly, hold a spiritual vision for your inner being. Value your inner state.
 
-## Summary
-To live a life of greater purpose, one must overcome addiction and avoid suffering. This requires cultivating a spiritual vision, valuing one's inner state, and shifting from a selfish consciousness to a more enlightened perspective. Recognizing and addressing the suffering that fuels addiction is a crucial step in this process.
+Do not make it okay to live in suffering, and passionately seek enlightenment. Bring attention to the Suffering State that is propelling you into the addiction. Secondly, go beyond living with a selfish consciousness. The whole world is living in selfish consciousness. To living a life of greater purpose, for one who cares to make a difference to the world, succumbing to addiction will be very difficult.
 
 ## Key Teachings
-- To live a life of greater purpose, one must overcome addiction and avoid suffering. (Unknown speaker)
-- Overcoming addiction requires a spiritual vision, valuing one's inner state, and a shift from selfish consciousness. (Unknown speaker)
-- Maintaining a spiritual vision and valuing one's inner state is essential for seeking enlightenment. (Unknown speaker)
-- Recognizing and addressing the suffering state that propels one into addiction is necessary. (Unknown speaker)
-- One must go beyond living with a selfish consciousness and find a more enlightened perspective. (Unknown speaker)
+- To living a life of greater purpose, for one who cares to make a difference to the world, succumbing to addiction will be very difficult. — Sri Preethaji & Sri Krishnaji
+- If any of you is stuck in a bad habit, or the verge of the habit becoming an addiction, or are addicted, there are three things you must do. — Sri Preethaji & Sri Krishnaji
+- Bring attention to the Suffering State that is propelling you into the addiction. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Addiction: A state or behavior characterized by a strong, often compulsive, craving for substances or behaviors that can lead to physical, emotional, or psychological harm. It is a negative state of being that can result from unresolved childhood trauma and negative emotions.
-- Enlightenment: A state of profound understanding characterized by a state of consciousness free from suffering, with intense awareness and no compulsive attachment to the past or future.
-- Consciousness: A multifaceted and complex entity that encompasses various aspects of human experience, characterized by the state of being aware of one's thoughts, emotions, and surroundings.
-- Suffering: A state that can propel one into addiction.
+## Source Context
+- Video: Stop living in pain. Start breaking free of addiction with this 2.40-min lesson from Sri Krishnaji.
+- URL: https://www.youtube.com/watch?v=EpReLy7g6WM
+- Speaker: Sri Preethaji & Sri Krishnaji

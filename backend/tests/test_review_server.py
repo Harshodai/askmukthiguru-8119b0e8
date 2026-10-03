@@ -30,11 +30,18 @@ def _write_transcript(base_dir: Path, video_id: str, words: list[dict]) -> None:
 
 def _row(**overrides) -> dict:
     row = {
-        "question_id": "Q001", "question_text": "What is fear?", "clip_id": "c1",
-        "video_id": "abcdefghijk", "start": "10.0", "end": "12.0",
+        "question_id": "Q001",
+        "question_text": "What is fear?",
+        "clip_id": "c1",
+        "video_id": "abcdefghijk",
+        "start": "10.0",
+        "end": "12.0",
         "text": "Fear is the movement of thought.",
-        "judge_a": "", "judge_b": "", "adjudicated": "",
-        "equivalent_group": "", "clip_quality": "",
+        "judge_a": "",
+        "judge_b": "",
+        "adjudicated": "",
+        "equivalent_group": "",
+        "clip_quality": "",
     }
     row.update(overrides)
     return row
@@ -94,7 +101,7 @@ def test_review_server_endpoints(tmp_path: Path):
     assert judge_resp.status_code == 200
 
     # Verify CSV was written
-    with open(test_csv, "r", encoding="utf-8") as f:
+    with open(test_csv, encoding="utf-8") as f:
         reader = list(csv.DictReader(f))
         assert reader[0]["judge_a"] == "yes"
         assert reader[0]["clip_quality"] == "clean"
@@ -105,13 +112,22 @@ def test_arbitrary_column_overwrite_rejected(tmp_path: Path):
     judge_a/judge_b/adjudicated — a request naming 'text' or 'question_text'
     must not be able to overwrite sheet content."""
     test_csv = tmp_path / "relevance.csv"
-    rows = [{
-        "question_id": "Q001", "question_text": "What is fear?", "clip_id": "c1",
-        "video_id": "vid123", "start": "10.0", "end": "25.0",
-        "text": "Fear is the movement of thought.",
-        "judge_a": "", "judge_b": "", "adjudicated": "",
-        "equivalent_group": "", "clip_quality": "",
-    }]
+    rows = [
+        {
+            "question_id": "Q001",
+            "question_text": "What is fear?",
+            "clip_id": "c1",
+            "video_id": "vid123",
+            "start": "10.0",
+            "end": "25.0",
+            "text": "Fear is the movement of thought.",
+            "judge_a": "",
+            "judge_b": "",
+            "adjudicated": "",
+            "equivalent_group": "",
+            "clip_quality": "",
+        }
+    ]
     _write_csv(test_csv, rows)
     review_server._CSV_PATH = test_csv
     review_server._JUDGE_ROLE = "a"
@@ -122,7 +138,7 @@ def test_arbitrary_column_overwrite_rejected(tmp_path: Path):
     )
     assert resp.status_code == 422
 
-    with open(test_csv, "r", encoding="utf-8") as f:
+    with open(test_csv, encoding="utf-8") as f:
         reader = list(csv.DictReader(f))
         assert reader[0]["text"] == "Fear is the movement of thought."
 
@@ -130,13 +146,22 @@ def test_arbitrary_column_overwrite_rejected(tmp_path: Path):
 def test_judge_b_rows_have_no_judge_a_column(tmp_path: Path):
     """Blindness: judge b's /api/rows response must not leak judge_a."""
     test_csv = tmp_path / "relevance.csv"
-    rows = [{
-        "question_id": "Q001", "question_text": "What is fear?", "clip_id": "c1",
-        "video_id": "vid123", "start": "10.0", "end": "25.0",
-        "text": "Fear is the movement of thought.",
-        "judge_a": "yes", "judge_b": "", "adjudicated": "",
-        "equivalent_group": "", "clip_quality": "",
-    }]
+    rows = [
+        {
+            "question_id": "Q001",
+            "question_text": "What is fear?",
+            "clip_id": "c1",
+            "video_id": "vid123",
+            "start": "10.0",
+            "end": "25.0",
+            "text": "Fear is the movement of thought.",
+            "judge_a": "yes",
+            "judge_b": "",
+            "adjudicated": "",
+            "equivalent_group": "",
+            "clip_quality": "",
+        }
+    ]
     _write_csv(test_csv, rows)
     review_server._CSV_PATH = test_csv
     review_server._JUDGE_ROLE = "b"
@@ -151,13 +176,22 @@ def test_judge_b_rows_have_no_judge_a_column(tmp_path: Path):
 
 def test_judge_b_cannot_write_judge_a(tmp_path: Path):
     test_csv = tmp_path / "relevance.csv"
-    rows = [{
-        "question_id": "Q001", "question_text": "What is fear?", "clip_id": "c1",
-        "video_id": "vid123", "start": "10.0", "end": "25.0",
-        "text": "Fear is the movement of thought.",
-        "judge_a": "", "judge_b": "", "adjudicated": "",
-        "equivalent_group": "", "clip_quality": "",
-    }]
+    rows = [
+        {
+            "question_id": "Q001",
+            "question_text": "What is fear?",
+            "clip_id": "c1",
+            "video_id": "vid123",
+            "start": "10.0",
+            "end": "25.0",
+            "text": "Fear is the movement of thought.",
+            "judge_a": "",
+            "judge_b": "",
+            "adjudicated": "",
+            "equivalent_group": "",
+            "clip_quality": "",
+        }
+    ]
     _write_csv(test_csv, rows)
     review_server._CSV_PATH = test_csv
     review_server._JUDGE_ROLE = "b"
@@ -168,20 +202,29 @@ def test_judge_b_cannot_write_judge_a(tmp_path: Path):
     )
     assert resp.status_code == 403
 
-    with open(test_csv, "r", encoding="utf-8") as f:
+    with open(test_csv, encoding="utf-8") as f:
         reader = list(csv.DictReader(f))
         assert reader[0]["judge_a"] == ""
 
 
 def test_crash_mid_write_leaves_original_csv_intact(tmp_path: Path, monkeypatch):
     test_csv = tmp_path / "relevance.csv"
-    rows = [{
-        "question_id": "Q001", "question_text": "What is fear?", "clip_id": "c1",
-        "video_id": "vid123", "start": "10.0", "end": "25.0",
-        "text": "Fear is the movement of thought.",
-        "judge_a": "", "judge_b": "", "adjudicated": "",
-        "equivalent_group": "", "clip_quality": "",
-    }]
+    rows = [
+        {
+            "question_id": "Q001",
+            "question_text": "What is fear?",
+            "clip_id": "c1",
+            "video_id": "vid123",
+            "start": "10.0",
+            "end": "25.0",
+            "text": "Fear is the movement of thought.",
+            "judge_a": "",
+            "judge_b": "",
+            "adjudicated": "",
+            "equivalent_group": "",
+            "clip_quality": "",
+        }
+    ]
     _write_csv(test_csv, rows)
     original_bytes = test_csv.read_bytes()
 
@@ -232,7 +275,9 @@ def test_context_endpoint_returns_before_clip_after(tmp_path: Path):
     test_csv = tmp_path / "relevance.csv"
     _write_csv(test_csv, [_row(video_id="abcdefghijk", start="10.0", end="12.0")])
 
-    words = [{"w": f"w{i}", "start": float(i), "end": float(i) + 0.9, "spk": "P"} for i in range(60)]
+    words = [
+        {"w": f"w{i}", "start": float(i), "end": float(i) + 0.9, "spk": "P"} for i in range(60)
+    ]
     _write_transcript(tmp_path, "abcdefghijk", words)
 
     review_server._CSV_PATH = test_csv
@@ -304,7 +349,7 @@ def test_judge_b_cannot_write_clip_quality(tmp_path: Path):
     )
     assert resp.status_code == 403
 
-    with open(test_csv, "r", encoding="utf-8") as f:
+    with open(test_csv, encoding="utf-8") as f:
         reader = list(csv.DictReader(f))
         assert reader[0]["clip_quality"] == ""
 
@@ -321,7 +366,7 @@ def test_judge_a_can_write_valid_clip_quality(tmp_path: Path):
     )
     assert resp.status_code == 200
 
-    with open(test_csv, "r", encoding="utf-8") as f:
+    with open(test_csv, encoding="utf-8") as f:
         reader = list(csv.DictReader(f))
         assert reader[0]["clip_quality"] == "fragment"
 
@@ -334,6 +379,11 @@ def test_invalid_clip_quality_value_rejected(tmp_path: Path):
 
     resp = client.post(
         "/api/judge",
-        json={"row_index": 0, "judge": "judge_a", "value": "yes", "clip_quality": "not_a_real_value"},
+        json={
+            "row_index": 0,
+            "judge": "judge_a",
+            "value": "yes",
+            "clip_quality": "not_a_real_value",
+        },
     )
     assert resp.status_code == 422

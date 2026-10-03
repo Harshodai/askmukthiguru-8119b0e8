@@ -1,26 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=GICjcQQ0aM0
-tags:
-- generational healing
-- awakened parenting
-- suffering
-teacher: both
-title: Generational Healing and Awakened Parenting
+title: Generational Healing And Awakened Parenting
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=GICjcQQ0aM0
 video_id: GICjcQQ0aM0
+tags:
+- oneness
+- teaching
 ---
-# Generational Healing and Awakened Parenting
+# Generational Healing And Awakened Parenting
 
+## Verbatim Discourse Excerpts
+In the coming months manifest, this manifest is going to be about manifest generational healing and manifest awakened parenting. Why do you think you are repeating the same mistakes your mother did or your father did? Why are you shocked when you realize your son or your daughter or your grandson or your granddaughter are exhibiting the traits of your parents whom they probably have never met?
 
-## Summary
-A new manifest is being released focusing on generational healing and awakened parenting. This manifest aims to address the repetition of past mistakes in children's behavior and seeks to awaken the divine dimension of Amba for generational healing.
+I will lead you into the sacred wisdom of nurturing and parenting a child, child who may be yours or another's for a generational healing. Join this manifest if you seek to awaken this healing power in your consciousness and parent a new generation.
 
 ## Key Teachings
-- A new manifest will focus on "manifesting gener" (generational healing) and awakened parenting. (Unknown Channel)
-- The manifest addresses the issue of children repeating past mistakes. (Unknown Channel)
-- The goal is to awaken the divine dimension of Amba for generational healing. (Unknown Channel)
+- In the coming months manifest, this manifest is going to be about manifest generational healing and manifest awakened parenting. — Sri Preethaji & Sri Krishnaji
+- I will lead you into the sacred wisdom of nurturing and parenting a child, child who may be yours or another's for a generational healing. — Sri Preethaji & Sri Krishnaji
+- Join this manifest if you seek to awaken this healing power in your consciousness and parent a new generation. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Cycle of Pain: Hurt human beings perpetuate a cycle of pain and suffering.
-- Suffering States: Emotional states such as regret, sadness, and loneliness that disconnect individuals from life, or a downward spiral of chaos and problems caused by accumulated poisons and limiting beliefs.
-- Spiritual Source of Pain: The spiritual origin of pain.
+## Source Context
+- Video: MANIFEST GENERATIONAL HEALING MANIFEST AWAKENED PARENTING
+- URL: https://www.youtube.com/watch?v=GICjcQQ0aM0
+- Speaker: Sri Preethaji & Sri Krishnaji

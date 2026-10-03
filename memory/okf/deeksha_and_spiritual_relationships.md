@@ -1,19 +1,26 @@
 ---
-source: https://www.youtube.com/watch?v=susUKIwVD34
-tags:
-- deeksha
-- spiritual relationships
-teacher: sri-preethaji
-title: Deeksha and Spiritual Relationships
+title: Deeksha And Spiritual Relationships
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=susUKIwVD34
 video_id: susUKIwVD34
+tags:
+- oneness
+- teaching
 ---
-# Deeksha and Spiritual Relationships
+# Deeksha And Spiritual Relationships
 
-### Deeksha and Spiritual Relationships
+## Verbatim Discourse Excerpts
+The 7th of March World Oneness Day is not a meditation event. It is a global Deeksha event. World over, all the Deeksha givers will be coming together to give Deeksha to the world. What is Deeksha? Dixha is a process where you are allowing the divine to flow into you and from you the divine to flow into the world to bless the world. This is a very ancient method and a very sacred and a powerful method.
 
-Deeksha, a significant and sacred method, involves allowing divine energy to flow into individuals and subsequently into the world. This ancient and powerful method is unique as it is the first time it will be globally participated in by all individuals. The event is expected to be a powerful and ancient method of divine blessing, potentially leading to spiritual growth and unity.
+There has not been any global massive Deeksha event that has ever happened. This is going to be the first time each and every one of you are going to be part of this event.
 
-Deeksha process involves allowing the divine to flow into the individual, and from the individual, into the world. This practice is a potent way to connect with the divine and receive divine intervention, cleansing consciousness, and activating neurons, promoting neurochemical changes, achieving inner transformation, and being mentioned in the teachings. It is also associated with the concept of "Ekam," a spiritual ritual involving the passing of knowledge and blessings, and a spiritual practice aimed at achieving inner peace.
+## Key Teachings
+- World over, all the Deeksha givers will be coming together to give Deeksha to the world. — Sri Preethaji & Sri Krishnaji
+- There has not been any global massive Deeksha event that has ever happened. — Sri Preethaji & Sri Krishnaji
+- The 7th of March World Oneness Day is not a meditation event. — Sri Preethaji & Sri Krishnaji
 
-In the context of spiritual relationships, Deeksha is a method of blessing the world by allowing divine energy to flow into the individual and subsequently into the world. It is a powerful tool for spiritual growth and unity, and is a significant practice in the realm of spiritual teachings.
+## Source Context
+- Video: Global Deeksha Event
+- URL: https://www.youtube.com/watch?v=susUKIwVD34
+- Speaker: Sri Preethaji & Sri Krishnaji

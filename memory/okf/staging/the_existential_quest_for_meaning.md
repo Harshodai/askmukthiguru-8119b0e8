@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Existential Quest for Meaning"
-source: "YouTube https://www.youtube.com/watch?v=vjEsXpEtpH4"
+source: "https://www.youtube.com/watch?v=vjEsXpEtpH4"
 video_id: vjEsXpEtpH4
 tags: [meaning, existence, suffering]
 teacher: "both"

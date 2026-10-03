@@ -1,29 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=ECFRWVY8SGY
-tags:
-- enlightenment
-- unity
-- self
-- reality
-teacher: both
-title: The Enlightenment State and Unity
+title: The Enlightenment State And Unity
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=ECFRWVY8SGY
 video_id: ECFRWVY8SGY
+tags:
+- oneness
+- teaching
 ---
-# The Enlightenment State and Unity
+# The Enlightenment State And Unity
 
+## Verbatim Discourse Excerpts
+And so now I'm very grateful and I realize I could never have gotten there by myself and so I'm very grateful to Sri Krishnaji. If not self-realization for what else are we here for, just in a state of oneness, we are all one here, you and me. Let us just sink into this. I pray that every one of you get this opportunity of knowing who you really are Thank you. Tapas is a 42-day journey to far beyond this human body. This is enlightenment.
 
-## Summary
-The enlightenment state is a transformative condition marked by the absence of birth, death, beginning, and end, and the unity of the self with all. In this state, there is no division between individuals, challenging conventional understandings of self and reality.
+Spirituality is about your inner journey, it's about your inner world, spirituality is about transformation, spirituality is about a massive change that can happen, spirituality and the mundane have to go together, mundane world is what you do externally, spirituality is how you live internally. Enlightenment means absence of suffering, enlightenment means an experience that arises as you become free of your suffering. Enlightenment state, Aham Drammasman, where there is no birth, there is no death, there is no beginning, there is no ending, there is no separation between you, matter, consciousness, energy is where you understand that there is absolutely no division and no separation and that you and the other are one and the same.
 
 ## Key Teachings
-- The enlightenment state is characterized by the absence of birth, death, beginning, and end.
-- It involves the unity of the self with all, where there is no division between individuals.
-- This state challenges conventional understanding of self and reality.
-- Tapas can gift individuals with various states that can be accessed without fear.
-- The state of enlightenment is a journey towards this unity.
+- Enlightenment state, Aham Drammasman, where there is no birth, there is no death, there is no beginning, there is no ending, there is no separation between you, matter, consciousness, energy is where you understand that there is absolutely no division and no separation and that you and the other are one and the same. — Sri Preethaji & Sri Krishnaji
+- Enlightenment means absence of suffering, enlightenment means an experience that arises as you become free of your suffering. — Sri Preethaji & Sri Krishnaji
+- To state another state that I'm flowing in is the state of just flowing in life. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Enlightenment: a state of profound understanding characterized by a state of consciousness free from suffering, with intense awareness and no compulsive attachment to the past or future.
-- Enlightenment State: The highest state of consciousness, characterized by complete understanding and unity.
-- Consciousness: a multifaceted and complex entity that encompasses various aspects of human experience, including awareness of one's thoughts, emotions, and surroundings, and a sense of unity and connection with all living beings.
+## Source Context
+- Video: Tapas HD
+- URL: https://www.youtube.com/watch?v=ECFRWVY8SGY
+- Speaker: Sri Preethaji & Sri Krishnaji

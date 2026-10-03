@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "The Cycle of Unjust Power"
-source: "YouTube https://www.youtube.com/watch?v=cu-Tx7ehQvM"
+source: "https://www.youtube.com/watch?v=cu-Tx7ehQvM"
 video_id: cu-Tx7ehQvM
 tags: [power, injustice, discrimination, conflict]
 teacher: "both"

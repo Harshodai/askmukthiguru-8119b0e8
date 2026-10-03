@@ -1,28 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=XFFgRTgP8Rs
-tags:
-- truth of suffering
-- suffering
-- self-image
-teacher: both
-title: The Root Cause of Suffering
+title: The Root Cause Of Suffering
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=XFFgRTgP8Rs
 video_id: XFFgRTgP8Rs
+tags:
+- oneness
+- teaching
 ---
-# The Root Cause of Suffering
+# The Root Cause Of Suffering
 
+## Verbatim Discourse Excerpts
+See, you are suffering, right? When you are suffering, save your heart. The heart is caused because of the self-image, okay? That is the truth you need to see, the truth that self-image is getting hurt. As you see the truth, you will know that the problem is different, whereas your suffering is arising from your self-image. So for example, you went and you wrote your exam, you expected you will score A for A plus and you scored B.
 
-## Summary
-Suffering is often caused by one's self-image. Recognizing this truth is the first step towards resolving suffering.
+So you will not see that you are suffering because of your self-image, but you will start seeing my parents fought at home. I did not have enough time to study, so I scored less marks. Or I felt ill, my health was not good, so I scored less marks. Or the guy who corrected the paper did not correct properly, it needs to be resubmitted for revision. He was probably not intelligent enough to correct my paper.
 
 ## Key Teachings
-- When experiencing suffering, acknowledge in your heart that "The hurt is caused because of the self-image." (Unknown Channel)
-- Seeing this truth is essential for resolving suffering. (Unknown Channel)
+- When you are suffering, save your heart. — Sri Preethaji & Sri Krishnaji
+- As you see the truth, you will know that the problem is different, whereas your suffering is arising from your self-image. — Sri Preethaji & Sri Krishnaji
+- When you see that truth, that suffering will resolve, that hurt, that fear will resolve. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "See, you are suffering., when you are suffering, say in your heart, 'The hurt is caused because of the self-image.' Okay, that is the truth." — Unknown Channel
-
-## Related Concepts
-- Pain: A feeling of suffering or distress caused by physical or emotional harm.
-- Suffering States: Emotional states such as regret, sadness, and loneliness that disconnect individuals from life, or the downward spiral of chaos and problems caused by accumulated poisons and limiting beliefs.
-- Overcoming Suffering: A concept related to spiritual teachings, focusing on the alleviation of suffering.
+## Source Context
+- Video: How Do I Overcome Feelings Of Being Unworthy?
+- URL: https://www.youtube.com/watch?v=XFFgRTgP8Rs
+- Speaker: Sri Preethaji & Sri Krishnaji

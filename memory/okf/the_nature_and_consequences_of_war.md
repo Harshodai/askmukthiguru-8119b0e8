@@ -1,35 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=Gdd-5uWUW5w
-tags:
-- war
-- hate
-- conflict
-- leadership
-- citizens
-teacher: both
-title: The Nature and Consequences of War
+title: The Nature And Consequences Of War
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=Gdd-5uWUW5w
 video_id: Gdd-5uWUW5w
+tags:
+- oneness
+- teaching
 ---
-# The Nature and Consequences of War
+# The Nature And Consequences Of War
 
+## Verbatim Discourse Excerpts
+War means leaders fill lies in the heads of their citizens, so they too can become part of the hate machinery and support them in the acts of destruction. Think of it. Any benefit that may come from war is far, far insignificant when compared to the laws, death, destruction that the war brings. Dreams, widows, orphaned children, broken homes, unemployment, poverty, the toxins left behind by the war, disease. What good can come from war?
 
-## Summary
-War and conflict are easy to start but difficult to end. They breed hate between soldiers and citizens of opposing sides, often fueled by leaders who fill their citizens' minds with lies.
+The hate you build in you today, you pass it on to your children and their children. The victims on both sides want to have their vengeance and Samskaras of this vengeance. Samskaras, or the tendencies of fear, of conflict, of hate. It gets passed on from one generation to the other. When one generation goes to war, it does not mean it ends with them. War continues into the future generations. What good can war bring?
 
 ## Key Teachings
-- War and conflict are "the easiest to begin, but...the hardest to end." (Unknown speaker)
-- War "breeds hate" between soldiers and citizens of warring nations. (Unknown speaker)
-- Individuals involved in war often have "nothing" against each other personally, but are "led to hate." (Unknown speaker)
-- "War means leaders fill lies in the heads of their citizens, so they too can become part of" the conflict. (Unknown speaker)
+- War and conflict, I would say, are the easiest to begin, but I would say they are the hardest to end. — Sri Preethaji & Sri Krishnaji
+- War breeds hate: the Russian soldiers hating the Ukrainian soldiers, the Ukrainian soldiers hating the Russian soldiers. — Sri Preethaji & Sri Krishnaji
+- War means leaders fill lies in the heads of their citizens, so they too can become part of the hate machinery and support them in the acts of destruction. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "War and conflict, I would say, are the easiest to begin, but I would say they are the hardest to end." — Unknown
-> "War breeds hate: the Russian soldiers hating the Ukrainian soldiers, the Ukrainian soldiers hating the Russian soldiers. Russian citizens hating the Ukrainian citizens, and the Ukrainian citizens hating the Russians." — Unknown
-> "What have these individuals got against each other? Nothing, but yet they are led to hate." — Unknown
-
-## Related Concepts
-- Hate: a negative emotion that can lead to suffering and hinder personal growth, driving individuals to engage in wars, violence, and destructive behavior.
-- War: a destructive conflict that arises from hate and anger, causing harm to individuals and society; a state of conflict and violence often caused by the mental infection of violence within individuals and societies.
-- Leadership: the ability to inspire, guide, and influence others towards a common goal or vision.
-- Nation: a geographical and political entity with a shared culture, history, and identity.
+## Source Context
+- Video: Gdd-5uWUW5w
+- URL: https://www.youtube.com/watch?v=Gdd-5uWUW5w
+- Speaker: Sri Preethaji & Sri Krishnaji

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Power of Observation and Universal Intelligence"
-source: "YouTube https://www.youtube.com/watch?v=MJYpyUlwxg0"
+source: "https://www.youtube.com/watch?v=MJYpyUlwxg0"
 video_id: MJYpyUlwxg0
 tags: [oneness, universal intelligence, observation]
 teacher: "both"

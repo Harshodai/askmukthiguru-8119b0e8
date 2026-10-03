@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Love as a Universal Principle"
-source: "YouTube https://www.youtube.com/watch?v=WwgBOejW_pI"
+source: "https://www.youtube.com/watch?v=WwgBOejW_pI"
 video_id: WwgBOejW_pI
 tags: [love, universal principle, observation]
 teacher: "both"

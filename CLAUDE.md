@@ -24,7 +24,7 @@
 - **LLM and serving mode:** the LLM runs offline, not at serve time. The serving mode is chosen by benchmark (`FIRST_PERSON_MODE`).
 - **Scope and caveats (owner review):**
   - The semantic cache is bypassed **only on the first-person route**; ordinary chat keeps it.
-  - The 19 ms p95 figure is local POC latency only; production latency is unverified.
+  - The 19 ms p95 figure is ~~local POC latency only; production latency is unverified~~ **stale (2026-10-03): superseded by the measured local profile in invariant 9 below — `p50 63 ms / p95 210 ms` local, production unmeasured. Never quote the 19 ms POC figure as latency truth (audit G.4 #8).**
   - Verify whether the live graph is Neo4j or Memgraph before any graph write.
   - A first-person data-path pass is a separate verdict from the overall platform go/no-go.
   - Governing spec: `docs/agent/first_person_baseline_prompt.md`.
@@ -42,7 +42,7 @@
 
 ### First-Person Verbatim Route: invariants (verified against code 2026-09-26)
 
-Plan and ship decisions: `docs/architecture/first-person-path-to-prod.md` (ADR FP-1 to FP-3 accepted). Checklist: `docs/agent/NEXT_PROD_READY.md`. Read those two, plus the code you touch. Don't bulk-read the research docs: several of them state designs that were never built.
+**Truth anchors (2026-10-03, audit G.4 #8): exactly two documents are first-person truth anchors — this file's invariants below and `docs/architecture/first-person-path-to-prod.md`.** Everything else FP-related (`handoff.md` §3/§7/§8, `docs/agent/NEXT_PROD_READY.md`, `docs/agent/SESSION_COORDINATION.md`, `EXPERIMENT_LEDGER`, research notes) is dated history — never cite counts, gates, or latency from them. Plan and ship decisions: `docs/architecture/first-person-path-to-prod.md` (ADR FP-1 to FP-3 accepted), whose latency line reads `p50 63 ms / p95 210 ms (local; production unmeasured)`; this file's invariant 9 carries the same figures (2026-09-25, 116 questions) plus the audit §G.1 / `audit_2026-09-29/B.md` detail `p50 21.7 ms pipeline / 75 ms wall / 517 ms cold, p95 ≈210 ms local, production unmeasured`. Master readiness checklist: `docs/PROD_READY_CHECKLIST.md`. Read the anchors, plus the code you touch. Don't bulk-read the research docs: several of them state designs that were never built.
 
 1. **No LLM at serve time.** `FirstPersonPipeline` returns a pointer into a recording plus its verbatim transcript text. An LLM is allowed only offline (`.claude/tasks/OFFLINE_LLM_ASSIST_PLAN.md`), and its output needs a review gate before any Qdrant write.
 2. **Integrity gate, fail closed** (`first_person_pipeline.py`): `sha256(verbatim_text) == transcript_hash`, `find_artifact()` is None, and the speaker is in the teacher allowlist. Otherwise the clip is quarantined, never served.
@@ -55,6 +55,15 @@ Plan and ship decisions: `docs/architecture/first-person-path-to-prod.md` (ADR F
 9. **Measured (local, 2026-09-25, 116 questions):** top-1 0.43, 0 direct answers, p50 63 ms / p95 210 ms, host leak 6.9% of top-1. Production has not been measured. Don't quote aspirational latency (e.g. "20–40 ms") as fact.
 10. **Sentence Boundary & Conjunction Integrity:** Ingestion segmentation pipeline must not split passages on trailing coordinating conjunctions (`"or"`, `"and"`, `"so"`, `"but"`) without forward clause resolution. Every indexed clip must form a complete grammatical and conceptual thought.
 11. **Philosophical Context Windowing:** Standalone verbatim answers require sufficient temporal context (rolling target 18–25 seconds) to capture both the diagnostic premise and the spiritual solution, avoiding truncated mid-thought fragments.
+12. **OKF Separation Invariant (2026-09-29):** The Ontological Knowledge Framework (`memory/okf/compiled.json`) is 97% LLM-extracted summary text, NOT verbatim speech. OKF entries must NEVER be rendered as guru voice or appended to `citations[]`. OKF is strictly for vector similarity topic routing and reflection questions.
+13. **Deterministic ASR Cleaning & Hash Integrity (2026-09-29):** All verbatim text entering Qdrant must pass `ingest/verbatim/asr_cleaner.py` (de-duplicating stutters like 'So, So' and trailing conversational fillers). Any modification to text MUST update `transcript_hash = sha256(cleaned_text)` in the same transaction to prevent serve-time quarantine.
+14. **Two-Tier Quality Gating (2026-09-29):** Serve-time filtering applies both Tier 1 Grammatical Integrity Gate (hash match, allowlisted speaker, clean boundaries) and Tier 2 Content Quality Gate (min 15 words, rejects live-event crowd instructions, discourse cross-references, and orphaned parable characters like Yasme/Nomi).
+15. **Zero Text Generation at Serve Time (2026-09-29):** The first-person route adheres to the Ask-Sadhguru principle: the response IS the teachers' verbatim words. When an LLM is used at serve time, it functions strictly as a ranking selector (returning clip indices like '2,1'), never generating response prose.
+16. **Chat Bridge & Kill-Switch (2026-09-30):** `FirstPersonBridgeStage` (`app/pipeline/stages/first_person_bridge.py`) may serve first-person verbatim answers inside `/api/chat` only from `first_person_v7` (integrity + content-quality + sha256 gates inherited; chat-corpus/OKF text never renders as teacher voice, `speaker=None` gate untouched). **The bridge stays OFF in local prod (`FIRST_PERSON_CHAT_BRIDGE_ENABLED=false` in root `.env`) until an empirically-fitted abstention gate exists** — the shipped threshold (0.45) had zero abstention power and served an out-of-corpus "capital of France" query as teacher discourse (Audit D P0; re-enable criteria = backlog #1 in `.claude/tasks/first_person_e2e_audit_2026-09-29.md`). **Since 2026-10-03 the bridge runs inside the LangGraph as the registry-dispatched `first_person` module (`backend/rag/pipeline_registry.py` → `rag/nodes/first_person.py`), not as a chain stage — the kill-switch, safety-order, and serving invariants here are unchanged, and the flag is read live per request.** Placement is after `InputGuardrail`/`Distress` (safety first, invariant: crisis never reaches the bridge), quotes are **never translated** (glue-only via 5s fail-open `_translate_cached`), and voice stays v7-only. Guard: `tests/test_first_person_bridge.py`, `tests/test_citation_contract.py` (bridged citations).
+17. **Audio Archive and Ingestion Decoupling (2026-09-30):** Audio files are immutable raw source truth stored permanently in `~/mukthiguru_attribution_data/audio_archive/` (`wavs/<video_id>.wav`, 16kHz mono WAV) governed by `manifest.json`. Downloader workers (`scripts/ops/audio_archive.py`) use consistent hash partitioning (`sha256(vid) % num_workers`) with 5-layer deduplication and `--extractor-args "youtube:player_client=android,ios,mweb,web"` to eliminate YouTube 429 bot challenges. Ingestion never downloads directly; it consumes locally archived audio via `AudioArchive.get_path()`.
+18. **Host-Side Embedding Invariant (2026-09-30):** Dense/sparse embeddings for Qdrant index generation or reconciliation must run host-side via `backend/.venv/bin/python3` (or dedicated host worker), NEVER inside the Docker backend container. Container memory limits (6 GiB) trigger fatal `OOMKilled` (exit code 137) during heavy BGE-M3 / ONNX batch runs.
+19. **Two-Tier Pre-Routing Abstention Gate (2026-09-30):** To prevent out-of-corpus queries (e.g. general geography or secular trivia) from leaking into teacher persona voice, `FirstPersonPipeline` employs a two-tier abstention gate: (Tier 1) Cross-encoder semantic reranking separation, and (Tier 2) LLM binary answerability verification (`FirstPersonPipeline.verify_answerability`) that outputs strictly `ANSWERABLE` or `UNANSWERABLE` (1 token), failing back safely to abstention (`grounding_state = "abstained"`).
+20. **Atomic Manifest Checkpointing & Self-Healing (2026-09-30):** Any distributed state (such as the audio archive manifest) must use atomic temporary-file replacement (`os.replace` on `.tmp.{pid}_{timestamp}`) with POSIX file locking (`fcntl.flock`). Pipelines must self-heal on startup by reconciling disk assets with manifest state.
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
@@ -787,10 +796,39 @@ Every chat request flows through an ordered chain of pure-function stages that w
 
 ```
 CacheCheck → RequestState → InputGuardrail → CircuitBreaker → DoctrineCache
-→ CasualShortCircuit → Distress → BoundedComparisonShortCircuit → Graph
+→ CasualShortCircuit → Distress → BoundedComparisonShortCircuit
+→ Graph (the first_person registry module runs INSIDE, before general nodes)
 → MeditationGen → Translation → ToneAdapter → OutputGuardrail → Memory
 → CacheUpdate → ResultAssembly
 ```
+
+**Updated 2026-10-03 (plug-and-play cutover — supersedes the placement in the
+2026-09-30 note below).** `FirstPersonBridgeStage` is no longer a chain stage:
+first-person runs INSIDE `GraphStage`'s LangGraph as the registry-dispatched
+`first_person` module (`backend/rag/pipeline_registry.py` →
+`backend/rag/nodes/first_person.py`), reached after this whole safety lane and
+before every general graph node. When the node claims, `GraphStage` returns the
+bridge `PipelineResult` and the downstream stages are skipped exactly as before;
+when it declines, an after-edge re-runs the normal general entry
+(`parallel_start`). The flag no longer changes which stages exist — only which
+graph node runs first, read live per request (flip ⇒ next request, no graph
+recompile). The class in `app/pipeline/stages/first_person_bridge.py` remains
+the single implementation (seams: `first_person_bridge_enabled()`,
+`run_first_person_bridge()`); recipe in `docs/DEVELOPER_GUIDE.md` §6; proofs in
+`tests/test_pipeline_registry.py`.
+
+**Updated 2026-09-30 (first-person elevation — placement since superseded).**
+`FirstPersonBridgeStage`
+(`app/pipeline/stages/first_person_bridge.py`) was registered between
+`BoundedComparisonShortCircuit` and `GraphStage`, gated by
+`first_person_chat_bridge_enabled` (env `FIRST_PERSON_CHAT_BRIDGE_ENABLED`,
+code default `true`, **set `false` in root `.env`** — see invariant 16). When
+the flag is off, the stage list is byte-identical to the pre-bridge pipeline.
+When on and the calibrated gate passes, it short-circuits with verbatim
+`first_person_v7` clips only (speaker/quote/link byte-protected; glue text
+translated via 5s fail-open `_translate_cached`, quotes never translated), and
+its own `container.guardrails.check_output()` runs before returning — the
+graph output rail remains the final authority on the fall-through path.
 
 **Corrected 2026-09-11 (ruthless audit).** The order above is read from
 `pipeline_builder.py:36-53`. This document previously listed `CircuitBreaker`
@@ -824,6 +862,16 @@ The chat endpoint (`POST /api/chat`) runs every message through a LangGraph Stat
 | **Fast** | `FastGraphStrategy` | 5-node pipeline for simple factual queries (~25s) |
 | **Standard** | `StandardGraphStrategy` | Full anti-hallucination chain (~133s) |
 | **Deep** | `DeepGraphStrategy` | Extended chain for complex multi-part questions |
+
+**Plug-and-play entry routing (2026-10-03).** All strategies share a
+registry-driven START router: `backend/rag/pipeline_registry.py` picks the
+first enabled+claiming `PipelineModule` per request (`first_person`, then
+terminal `general`) and otherwise falls back to `parallel_start`'s Send
+fan-out. Topology stays static and compiled once — only routing is dynamic
+(LangGraph guidance; never build a subgraph per request). Adding or removing a
+serving pipeline = one tuple entry + node/edge wiring; the kill-switch lives in
+the module's live `enabled()` predicate, so a flag flip needs no recompile.
+Recipe: `docs/DEVELOPER_GUIDE.md` §6; proofs: `backend/tests/test_pipeline_registry.py`.
 
 ### Node Architecture (under `rag/nodes/`)
 
@@ -913,6 +961,30 @@ Located in `backend/guardrails/`. The guardrails system is chain-based and suppo
 
 Playlist ingestion uses concurrent workers (`TRANSCRIPT_CONCURRENT_WORKERS=4`) and checkpoints progress via `ingest/handlers/checkpoint.py:IngestionCheckpoint` (Redis primary, Supabase fallback, local JSON as last resort) — reuse this for any new bulk-ingestion script rather than hand-rolling a local-file checkpoint, which won't survive an ephemeral-filesystem restart (e.g. Railway).
 
+### First-Person Media Ingestion & Audio Archive Architecture (2026-09-30)
+
+To support production-grade verbatim teacher attribution at scale (634 rights-cleared videos, ~2,500 clips):
+1. **Audio Archive (`scripts/ops/audio_archive.py`)**:
+   - Master storage root: `~/mukthiguru_attribution_data/audio_archive/` (WAV files in `wavs/<video_id>.wav`, manifest at `manifest.json`).
+   - Format: 16 kHz mono PCM WAV, verified with SHA-256 and RIFF header inspection.
+   - Operations:
+     ```bash
+     # Check archive statistics (target count, completed, missing, total duration, bytes)
+     backend/.venv/bin/python3 -m scripts.ops.audio_archive stats
+
+     # Launch concurrent worker (e.g. worker 0 of 2)
+     backend/.venv/bin/python3 -m scripts.ops.audio_archive run --worker-id 0 --num-workers 2
+
+     # Verify disk integrity and manifest self-healing
+     backend/.venv/bin/python3 -m scripts.ops.audio_archive verify
+     ```
+   - Deduplication & Concurrency: Consistent hash partitioning `int(sha256(vid)[:8], 16) % N == worker_id` guarantees workers process disjoint partitions. Atomic temporary file renames (`os.replace`) and process file locks (`fcntl.flock`) prevent manifest corruption.
+   - Bot Evasion: `--extractor-args "youtube:player_client=android,ios,mweb,web"` avoids YouTube web bot 429 blocks.
+2. **First-Person Store Ingestion**:
+   - Ingestion consumes archived audio directly, runs dual-ASR consensus (Whisper + Parakeet MLX), punctuation restoration, and ECAPA-TDNN speaker verification.
+   - Clips are upserted via `FirstPersonStore.upsert_clips()` enforcing clean-at-write text normalization, SHA-256 integrity, and R2 fail-closed validation.
+   - All batch embeddings must run host-side (`backend/.venv/bin/python3`) to prevent container OOM.
+
 ## Dependency Injection Pattern
 
 `backend/app/dependencies.py` is the **composition root**. `ServiceContainer` creates all singleton service instances in dependency order and holds them for the lifetime of the application. Import via `get_container()`. Never instantiate services directly in route handlers.
@@ -989,6 +1061,7 @@ Services: **backend**, **qdrant**, **redis**, **neo4j**, **jaeger**
 - `dependency-check.yml` — Dependency vulnerability scanning
 - `lint-test.yml` — Lint and test automation
 - `security-audit.yml` — Automated security auditing
+- `golden25-gate.yml` — First-person golden-25 quality gate (2026-10-03): PR paths-filter + nightly + dispatch; real `evaluation.first_person_harness run` on SHA-pinned dataset; honest-skip summary when `QDRANT_URL`/`OPENROUTER_API_KEY` secrets absent; threshold envs hold MEASURED baseline values (0.12 / 0.0 / 0.0 as of 2026-10-03 — pre-ingest floors; re-measure all three after the mass-ingest index settles and update values + provenance in the same change, see header comment)
 
 ## Terminology (from SPEC_DEV.md)
 

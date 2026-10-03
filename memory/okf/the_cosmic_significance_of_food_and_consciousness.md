@@ -1,25 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=TQ0TGyaByhs
-tags:
-- consciousness
-- spiritual practices
-- cosmic significance
-teacher: both
-title: The Cosmic Significance of Food and Consciousness
+title: The Cosmic Significance Of Food And Consciousness
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=TQ0TGyaByhs
 video_id: TQ0TGyaByhs
+tags:
+- oneness
+- teaching
 ---
-# The Cosmic Significance of Food and Consciousness
+# The Cosmic Significance Of Food And Consciousness
 
+## Verbatim Discourse Excerpts
+Brahmārpanam brahmāhavir brahmāgnau brahmānahutam Which means everything is one indivisible consciousness of Brahman. It is consciousness that is the digestive fire. Consciousness is the food. Consciousness is the one who is offering it and the one who is eating it. Consciousness is the energy that emerges as the end result. Food is a sacred mystery.
 
-## Summary
-The universe is compared to a Yagna sacrifice, highlighting the profound spiritual importance of food and consciousness in spiritual practices. This ancient belief emphasizes their cosmic significance as a sacred mystery, especially in the context of the black hole consuming the Milky Way. The Yagna sacrifice symbolizes the universe as a fire that transmutes offerings into energy and life force.
+Food is a universal pleasure. Every creature in the universe eats. From the single-celled organism to us, to the stars. Do you know giant stars eat smaller ones? The black hole in the center of our galaxy is going to someday eat, in the distant future, our Milky Way. That is why the ancients compared the entire universe to a yajna of fire sacrifice. Where the great fire consumes everything that is offered in it and transmutes the offerings received into energy, into life force.
 
 ## Key Teachings
-- The universe is likened to a Yagna sacrifice, emphasizing the spiritual significance of food and consciousness.
-- The ancient belief about the black hole in the Milky Way consuming the galaxy underscores the cosmic importance of food and consciousness as a sacred mystery.
-- The Yagna sacrifice represents the universe as a fire that transforms offerings into energy and life force.
+- Brahmārpanam brahmāhavir brahmāgnau brahmānahutam Which means everything is one indivisible consciousness of Brahman. — Sri Preethaji & Sri Krishnaji
+- It is consciousness that is the digestive fire. — Sri Preethaji & Sri Krishnaji
+- Consciousness is the one who is offering it and the one who is eating it. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Consciousness: the state of being aware of one's thoughts, emotions, and surroundings; a multifaceted and complex entity that encompasses various aspects of human experience.
-- Spiritual Process: a journey of awakening and transformation that leads to higher states of consciousness.
+## Source Context
+- Video: World Food Day | Evolution Series with Sri  Preethaji & Sri Krishnaji
+- URL: https://www.youtube.com/watch?v=TQ0TGyaByhs
+- Speaker: Sri Preethaji & Sri Krishnaji

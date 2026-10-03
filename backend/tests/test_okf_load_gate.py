@@ -21,7 +21,9 @@ from services.memory.okf_store import OKFStore
 
 _VIDEO_ID = "vidLOADGATE1"
 _VERBATIM_QUOTE = "Individual transformation is at the crux of our work together always."
-_PARTIAL_QUOTE = "Individual transformation is truly at the very crux of everyones work together always."
+_PARTIAL_QUOTE = (
+    "Individual transformation is truly at the very crux of everyones work together always."
+)
 _FABRICATED_QUOTE = "The secret to eternal happiness is found only in silence and gold today."
 
 _ENTRY_BODY = f"""## Quotes

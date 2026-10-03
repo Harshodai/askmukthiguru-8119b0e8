@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Detrimental Effects of Body Judgment"
-source: "YouTube https://www.youtube.com/watch?v=dqUq_a0DyLs"
+source: "https://www.youtube.com/watch?v=dqUq_a0DyLs"
 video_id: dqUq_a0DyLs
 tags: [body image, judgment, self-esteem]
 teacher: "both"

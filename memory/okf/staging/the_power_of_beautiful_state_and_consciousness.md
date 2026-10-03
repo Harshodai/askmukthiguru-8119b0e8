@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Power of Beautiful State and Consciousness"
-source: "YouTube https://www.youtube.com/watch?v=mAG-Q4DZ5Zs"
+source: "https://www.youtube.com/watch?v=mAG-Q4DZ5Zs"
 video_id: mAG-Q4DZ5Zs
 tags: [beautiful state, consciousness, prosperity, spiritual]
 teacher: "both"

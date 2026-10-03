@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Spiritual Celebration of Life and Inseparability from Nature"
-source: "YouTube https://www.youtube.com/watch?v=Mr1cjAz2y9I"
+source: "https://www.youtube.com/watch?v=Mr1cjAz2y9I"
 video_id: Mr1cjAz2y9I
 tags: [suffering, interconnectedness, gratitude, nature, spiritual celebration]
 teacher: "both"

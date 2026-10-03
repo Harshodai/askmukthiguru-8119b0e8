@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Overcoming Anxiety Through Spiritual Solutions"
-source: "YouTube https://www.youtube.com/watch?v=hwNlLB1sze0"
+source: "https://www.youtube.com/watch?v=hwNlLB1sze0"
 video_id: hwNlLB1sze0
 tags: [anxiety, spiritual solutions, serene mind, beautiful state]
 teacher: "both"

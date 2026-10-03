@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Futility of Changing Personality and the Power of Connection"
-source: "YouTube https://www.youtube.com/watch?v=Js7ongWaW64"
+source: "https://www.youtube.com/watch?v=Js7ongWaW64"
 video_id: Js7ongWaW64
 tags: [compassion, relationships, healing, empathy, suffering]
 teacher: "both"

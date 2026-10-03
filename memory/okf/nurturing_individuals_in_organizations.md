@@ -1,26 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=l6svaRx35TI
-tags:
-- organization
-- nurturing
-- judgment-free
-- connectedness
-teacher: both
-title: Nurturing Individuals in Organizations
-type: reflection
+title: Nurturing Individuals In Organizations
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=l6svaRx35TI
 video_id: l6svaRx35TI
+tags:
+- oneness
+- teaching
 ---
-# Nurturing Individuals in Organizations
+# Nurturing Individuals In Organizations
 
+## Verbatim Discourse Excerpts
+In the same way, an organization should nurture individuals in various rungs who live in a state free of inner rush, free of judgments, and hold conversations in the space of connection. You then build each other into forces of energy that are aligned towards the common vision, like forests that nurture the giant trees as well as the mushrooms. Organizations should nurture the small as well as the big.
 
-## Summary
-This reflection highlights the importance of creating a judgment-free and connected environment within an organization to foster growth and contribution among individuals. It uses the metaphor of mushrooms and trees to illustrate a symbiotic relationship where individuals and the organization mutually support each other.
+To me, holding a space for another actually begins as a state of inner spaciousness. Have you ever noticed that in the middle of a meeting or a discussion, you suddenly become tensed? Do you know why? When you are engaged in a conversation and you feel an inner rush of tension, it is because you are unconsciously engaging in judgment.
 
 ## Key Teachings
-- Nurturing individuals in a space free of judgment and connectedness is crucial for fostering a harmonious environment where everyone can contribute and grow together. (Unknown speaker)
-- The metaphor of mushrooms and trees highlights the symbiotic relationship between individuals and the organization, where mushrooms help trees extract minerals and water, and trees supply mushrooms with sugars. (Unknown speaker)
-- An organization should nurture individuals in various rungs who live in a state free of judgment and connected. (Unknown speaker)
+- In the same way, an organization should nurture individuals in various rungs who live in a state free of inner rush, free of judgments, and hold conversations in the space of connection. — Sri Preethaji & Sri Krishnaji
+- Organizations should nurture the small as well as the big. — Sri Preethaji & Sri Krishnaji
+- To me, holding a space for another actually begins as a state of inner spaciousness. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Leadership: The ability to inspire, guide, and influence others towards a common goal or vision.
-- Stressful State: A condition characterized by feelings of anxiety, tension, or overwhelm.
+## Source Context
+- Video: l6svaRx35TI
+- URL: https://www.youtube.com/watch?v=l6svaRx35TI
+- Speaker: Sri Preethaji & Sri Krishnaji

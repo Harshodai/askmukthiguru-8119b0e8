@@ -1,32 +1,26 @@
 ---
-source: https://www.youtube.com/watch?v=HKjzpPlfvc8
-tags:
-- addiction
-- suffering
-- mental states
-- addiction recovery
-teacher: sri-preethaji
-title: 'Understanding Addictions: From Pleasure to Suffering'
+title: Understanding Addictions From Pleasure To Suffering
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=HKjzpPlfvc8
 video_id: HKjzpPlfvc8
+tags:
+- oneness
+- teaching
 ---
-# Understanding Addictions: From Pleasure to Suffering
+# Understanding Addictions From Pleasure To Suffering
 
+## Verbatim Discourse Excerpts
+You will disconnect from people and engage in this addiction. You don't mind people suffering around you. You will become selfish and engage in addiction. You will be failing at life in so many areas but still you will engage in this addiction. Well, addictions are two kinds. There are physical addictions, addictions that are external to you and there are mental addictions or inner addictions, addictions to suffering states of mind. Physical addictions means you are dependent on an external resource to feel good. You are dependent on alcohol. You are dependent on smoking.
 
-## Summary
-Addictions are a cycle of pleasure leading to suffering, with underlying mental states of suffering as the root cause. Physical addictions involve dependence on external resources to feel good, while mental addictions are to negative emotions like anger, inferiority, or depression. To break free from these addictions, one must address the underlying suffering states. For external addictions, the key is to identify and confront the underlying mental state that drives the addiction. For mental addictions, the focus is on recognizing and transforming the negative emotions.
+You are dependent on drugs. You are dependent on gaming. Dependent on something outside you. These are visible but the vast majority of human beings are psychologically addicted, emotionally addicted. Now this is where I want you to bring attention and listen. The human mind is strange. It can get addicted to painful states. You do get addicted to anger, right? Most of the heroes in your movies are people who are addicted to anger, rage and violence. You get addicted to loneliness, depression and anxiety. These are actually nowadays easy addictions where many youth are getting addicted and in order to escape these painful states, you move into pleasure such as daydreaming, fantasizing that you are having the most romantic of lives, fantasizing that you are around with some supermodel. This is key.
 
 ## Key Teachings
-- **Physical Addictions**: Physical addictions involve dependence on external resources to feel good, such as drugs, alcohol, or excessive use of technology. The underlying mental state that drives these addictions is often a lack of self-esteem or a desire for external validation.
-- **Mental Addictions**: Mental addictions are to negative emotions like anger, inferiority, or depression. These addictions are rooted in the suffering states of the individual, and addressing these suffering states is crucial for recovery.
+- There are physical addictions, addictions that are external to you and there are mental addictions or inner addictions, addictions to suffering states of mind. — Sri Preethaji & Sri Krishnaji
+- These are actually nowadays easy addictions where many youth are getting addicted and in order to escape these painful states, you move into pleasure such as daydreaming, fantasizing that you are having the most romantic of lives, fantasizing that you are around with some supermodel. — Sri Preethaji & Sri Krishnaji
+- To escape a Suffering State you get addicted to pleasurable fantasizing but sadly all pleasurable fantasizing leads you into suffering states again. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "To break free from addiction, one must confront the underlying suffering states that drive the addiction."
-
-## Related Concepts
-- **Stressful State**: The state of being "stressful" is highlighted as a valid subject for consideration, emphasizing the importance of addressing mental states that contribute to suffering.
-- **Deeksha**: Deeksha is a spiritual practice that involves receiving energy and guidance from a spiritual teacher, facilitating an enlightened state, receiving divine intervention, and cleansing consciousness. This practice is essential for breaking free from addictions and suffering.
-
----
-
-This teaching provides a comprehensive understanding of addictions, focusing on the cycle of pleasure leading to suffering and the underlying mental states that drive these addictions.
+## Source Context
+- Video: What is Your Addiction Type ?
+- URL: https://www.youtube.com/watch?v=HKjzpPlfvc8
+- Speaker: Sri Preethaji & Sri Krishnaji

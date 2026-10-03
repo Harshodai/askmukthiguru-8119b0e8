@@ -1,26 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=M7ItOHTrvz8
-tags:
-- suffering
-- ego
-- problems
-- divine intelligence
-teacher: both
-title: Recognizing Suffering Apart from Problems
+title: Recognizing Suffering Apart From Problems
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=M7ItOHTrvz8
 video_id: M7ItOHTrvz8
+tags:
+- oneness
+- teaching
 ---
-# Recognizing Suffering Apart from Problems
+# Recognizing Suffering Apart From Problems
 
+## Verbatim Discourse Excerpts
+Let us now get on to the spiritual plane. Who will answer your questions? If, as a young person, you want to use the currents of this crisis to rise higher in life, you must hold on to one central insight: You must realize that a problem is different from suffering, and that problems need not keep you in suffering. Let us get into it. Problems are external challenges and hardships. What you are speaking about is an economic problem. When this economic problem hit you, it is most likely you went into panic or anxiety. This is natural. This anxiety, panic, or sadness is internal. It is a mind state. This unpleasant and painful inner experience is what we call suffering.
 
-## Summary
-This teaching highlights the distinction between suffering and problems, suggesting that suffering is an internal state that can be separated from external challenges. It implies that by recognizing this distinction, one can maintain a serene mind and connect with divine intelligence to find solutions and opportunities, even during difficult times.
+If you can dissolve the suffering state of anxiety and come to a state of inner stillness, you will find intelligent solutions to your problems. It is only from the state of stillness that you will be able to connect to the universe and intelligence, or the divine. When you are connected to the universal intelligence, intuition will flow through you on what your future direction should be. As a mistake, I can also assure you that if you dissolve your anxiety, move into a beautiful state of connection, and truly yearn to make a difference to others through your career, the universe will come together to support you. So, as the first step, go ahead and do the Serene Mind practice. It is all your suffering, and you can cut through your problem.
 
 ## Key Teachings
-- Suffering is distinct from problems ("It is all your suffering, and you can cut t").
+- If, as a young person, you want to use the currents of this crisis to rise higher in life, you must hold on to one central insight: You must realize that a problem is different from suffering, and that problems need not keep you in suffering. — Sri Preethaji & Sri Krishnaji
+- Also, no idea how to recover from this breakdown, which is leading to an increase of stress and suffering. — Sri Preethaji & Sri Krishnaji
+- If you can dissolve the suffering state of anxiety and come to a state of inner stillness, you will find intelligent solutions to your problems. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-
-## Related Concepts
-- Suffering: a state of unhappiness and pain that can be inflicted on oneself or others, and can be experienced as emotional or physical pain. It arises from holding onto judgments and labels, leading to separation and pain.
-- Ego: a state of self-centeredness and separation that can lead to conflict and violence.
+## Source Context
+- Video: M7ItOHTrvz8
+- URL: https://www.youtube.com/watch?v=M7ItOHTrvz8
+- Speaker: Sri Preethaji & Sri Krishnaji

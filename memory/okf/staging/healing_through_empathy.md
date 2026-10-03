@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Healing Through Empathy"
-source: "YouTube https://www.youtube.com/watch?v=tl31QISheOc"
+source: "https://www.youtube.com/watch?v=tl31QISheOc"
 video_id: tl31QISheOc
 tags: [compassion, empathy, healing, parents, children, emotional attunement]
 teacher: "both"

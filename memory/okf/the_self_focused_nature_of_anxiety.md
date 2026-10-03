@@ -1,29 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=k8iO5daXllM
-tags:
-- anxiety
-- ego
-- self-focus
-- internal state
-teacher: both
-title: The Self-Focused Nature of Anxiety
+title: The Self Focused Nature Of Anxiety
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=k8iO5daXllM
 video_id: k8iO5daXllM
+tags:
+- oneness
+- teaching
 ---
-# The Self-Focused Nature of Anxiety
+# The Self Focused Nature Of Anxiety
 
+## Verbatim Discourse Excerpts
+Yes, it is possible to become free of anxiety and stress. But for us to become free of anxiety and stress, let's first understand the difference between problem and suffering. We all strongly believe that the second we have a problem, we need to get stressed about it. We need to understand that a problem is an external situation, while stress is an internal experience.
 
-## Summary
-Anxiety and stress are often mistakenly attributed to external problems. However, the true source of these feelings often lies in internal, self-focused thoughts and concerns. Recognizing this truth and meditating on it can be a path to understanding and alleviating anxiety.
+So, if you look at life, we all have problems. We have financial problems, relationship problems, health problems. Every one of us has problems, and we all suffer too. But to become free of the suffering, to become free of anxiety and stress, we need to understand that when we are in that state of anxiety and stress, we are obsessively thinking about ourselves. We have moved away from the problem.
 
 ## Key Teachings
-- Anxiety and stress are commonly misunderstood as stemming from external problems. (Unknown Channel says)
-- Focusing on oneself can intensify feelings of anxiety and stress. (Unknown Channel says)
-- The origin of anxiety is frequently found in internal, self-focused thoughts and concerns. (Unknown Channel says)
-- Meditating on the truth that anxiety arises from internal self-focus can lead to its dissolution. (Unknown Channel says)
+- Yes, it is possible to become free of anxiety and stress. — Sri Preethaji & Sri Krishnaji
+- But for us to become free of anxiety and stress, let's first understand the difference between problem and suffering. — Sri Preethaji & Sri Krishnaji
+- But to become free of the suffering, to become free of anxiety and stress, we need to understand that when we are in that state of anxiety and stress, we are obsessively thinking about ourselves. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-No direct quotes were available in the provided transcript for this topic.
-
-## Related Concepts
-- Purpose: A profound and meaningful goal or intention.
+## Source Context
+- Video: k8iO5daXllM
+- URL: https://www.youtube.com/watch?v=k8iO5daXllM
+- Speaker: Sri Preethaji & Sri Krishnaji

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Nurturing Positive Qualities in Children"
-source: "YouTube https://www.youtube.com/watch?v=hcNDrMy6gCE"
+source: "https://www.youtube.com/watch?v=hcNDrMy6gCE"
 video_id: hcNDrMy6gCE
 tags: [parenting, spiritual education, awareness, acceptance, respect]
 teacher: "both"

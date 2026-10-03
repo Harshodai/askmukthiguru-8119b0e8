@@ -1312,7 +1312,9 @@ class OpenRouterService:
         # rewrite or abstain. Only an unparseable grader reply (grading failed)
         # keeps the top document, and it says so.
         if not parsed_any and documents:
-            logger.warning("Batch relevance grader output unparseable; keeping the top retrieval result.")
+            logger.warning(
+                "Batch relevance grader output unparseable; keeping the top retrieval result."
+            )
             relevance_results[0] = {
                 "relevant": True,
                 "reason": "Grader output unparseable: kept top retrieval result.",

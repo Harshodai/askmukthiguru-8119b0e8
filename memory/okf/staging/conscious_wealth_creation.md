@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Conscious Wealth Creation"
-source: "YouTube https://www.youtube.com/watch?v=qJxGtSDiayM"
+source: "https://www.youtube.com/watch?v=qJxGtSDiayM"
 video_id: qJxGtSDiayM
 tags: [prosperity, wealth, consciousness, leadership]
 teacher: "both"

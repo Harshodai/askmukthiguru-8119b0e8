@@ -3,12 +3,13 @@ Unit tests for QdrantAliasManager.
 """
 
 import json
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock
+
 import pytest
 from qdrant_client.http import models
 
-from services.qdrant_aliases import QdrantAliasManager, QdrantAliasError, _DEFAULT_LEDGER_PATH
 import services.qdrant_aliases as _qdrant_aliases_mod
+from services.qdrant_aliases import QdrantAliasError, QdrantAliasManager
 
 
 @pytest.fixture(autouse=True)
@@ -22,7 +23,9 @@ def _isolate_ledger(tmp_path, monkeypatch):
 def mock_qdrant_client():
     client = MagicMock()
     # Mock get_aliases()
-    alias1 = models.AliasDescription(alias_name="spiritual_wisdom", collection_name="spiritual_wisdom_v1")
+    alias1 = models.AliasDescription(
+        alias_name="spiritual_wisdom", collection_name="spiritual_wisdom_v1"
+    )
     alias2 = models.AliasDescription(alias_name="first_person", collection_name="first_person_v1")
     client.get_aliases.return_value = models.CollectionsAliasesResponse(aliases=[alias1, alias2])
 
@@ -226,8 +229,18 @@ def test_rollback_alias_reads_previous_collection_from_ledger(mock_qdrant_client
     ledger_path.write_text(
         json.dumps(
             [
-                {"alias": "spiritual_wisdom", "from": "spiritual_wisdom_v0", "to": "spiritual_wisdom_v1", "at": "t1"},
-                {"alias": "spiritual_wisdom", "from": "spiritual_wisdom_v1", "to": "spiritual_wisdom_v2", "at": "t2"},
+                {
+                    "alias": "spiritual_wisdom",
+                    "from": "spiritual_wisdom_v0",
+                    "to": "spiritual_wisdom_v1",
+                    "at": "t1",
+                },
+                {
+                    "alias": "spiritual_wisdom",
+                    "from": "spiritual_wisdom_v1",
+                    "to": "spiritual_wisdom_v2",
+                    "at": "t2",
+                },
             ]
         )
     )
@@ -242,7 +255,9 @@ def test_rollback_alias_reads_previous_collection_from_ledger(mock_qdrant_client
     )
 
 
-def test_rollback_alias_raises_when_no_ledger_entry_and_no_explicit_target(mock_qdrant_client, tmp_path):
+def test_rollback_alias_raises_when_no_ledger_entry_and_no_explicit_target(
+    mock_qdrant_client, tmp_path
+):
     ledger_path = tmp_path / "ledger.json"
     manager = QdrantAliasManager(client=mock_qdrant_client, ledger_path=str(ledger_path))
 
@@ -265,12 +280,18 @@ def test_cleanup_old_collections_protects_all_alias_targets(mock_qdrant_client):
     # keep_last_n=2 would otherwise mark as a deletion candidate.
     mock_qdrant_client.get_aliases.return_value = models.CollectionsAliasesResponse(
         aliases=[
-            models.AliasDescription(alias_name="spiritual_wisdom", collection_name="spiritual_wisdom_v20260905"),
-            models.AliasDescription(alias_name="spiritual_wisdom_stable", collection_name="spiritual_wisdom_v20260903"),
+            models.AliasDescription(
+                alias_name="spiritual_wisdom", collection_name="spiritual_wisdom_v20260905"
+            ),
+            models.AliasDescription(
+                alias_name="spiritual_wisdom_stable", collection_name="spiritual_wisdom_v20260903"
+            ),
         ]
     )
 
-    deleted = manager.cleanup_old_collections(alias_name="spiritual_wisdom", keep_last_n=2, dry_run=True)
+    deleted = manager.cleanup_old_collections(
+        alias_name="spiritual_wisdom", keep_last_n=2, dry_run=True
+    )
 
     # v903 must be protected because another alias still points to it, even
     # though it is outside the keep_last_n=2 window for "spiritual_wisdom".
@@ -293,9 +314,7 @@ def test_cleanup_old_collections_protects_active_target(mock_qdrant_client):
     c5 = MagicMock(name="spiritual_wisdom_v20260905")
     c5.name = "spiritual_wisdom_v20260905"
 
-    mock_qdrant_client.get_collections.return_value = MagicMock(
-        collections=[c1, c2, c3, c4, c5]
-    )
+    mock_qdrant_client.get_collections.return_value = MagicMock(collections=[c1, c2, c3, c4, c5])
     # spiritual_wisdom alias points to c5
     mock_qdrant_client.get_aliases.return_value = models.CollectionsAliasesResponse(
         aliases=[

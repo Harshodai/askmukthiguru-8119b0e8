@@ -73,9 +73,15 @@ def _take_snapshot(qdrant_url: str, collection: str) -> str:
 
 
 def main(argv: Optional[list[str]] = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--apply", action="store_true", help="Apply the labels (default: dry-run only)")
-    parser.add_argument("--qdrant-url", default=os.environ.get("QDRANT_URL", "http://localhost:6333"))
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument(
+        "--apply", action="store_true", help="Apply the labels (default: dry-run only)"
+    )
+    parser.add_argument(
+        "--qdrant-url", default=os.environ.get("QDRANT_URL", "http://localhost:6333")
+    )
     parser.add_argument("--collection", default=None, help="Defaults to settings.qdrant_collection")
     parser.add_argument("--batch-size", type=int, default=500)
     args = parser.parse_args(argv)
@@ -96,7 +102,9 @@ def main(argv: Optional[list[str]] = None) -> int:
     total = 0
     video_less: list[dict[str, Any]] = []
     summary_group: list[dict[str, Any]] = []
-    preexisting_conflict = 0  # a target key already set to something ELSE (would not be purely additive)
+    preexisting_conflict = (
+        0  # a target key already set to something ELSE (would not be purely additive)
+    )
 
     offset = None
     while True:
@@ -135,8 +143,10 @@ def main(argv: Optional[list[str]] = None) -> int:
     print("\n=== GROUP: ALL points with no video_id (superset, includes the above) ===")
     print(f"  target count:   {len(video_less)}")
     print(f"  would change:   {len(video_less_changed)}")
-    print(f"\nPre-existing conflicting values on target keys: {preexisting_conflict} "
-          f"(0 means purely additive — no existing key would be overwritten with a different value)")
+    print(
+        f"\nPre-existing conflicting values on target keys: {preexisting_conflict} "
+        f"(0 means purely additive — no existing key would be overwritten with a different value)"
+    )
 
     if not args.apply:
         print("\n" + "=" * 60)
@@ -147,7 +157,9 @@ def main(argv: Optional[list[str]] = None) -> int:
 
     print("\n" + "=" * 60)
     snapshot_name = _take_snapshot(args.qdrant_url, collection)
-    print(f"APPLYING labels to {len(video_less_changed)} changed points (of {len(video_less)} in scope)...")
+    print(
+        f"APPLYING labels to {len(video_less_changed)} changed points (of {len(video_less)} in scope)..."
+    )
     print("=" * 60)
 
     updated = 0

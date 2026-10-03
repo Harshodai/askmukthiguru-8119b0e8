@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Interconnectedness of Individual Suffering and Global Health"
-source: "YouTube https://www.youtube.com/watch?v=pTnZt0SqDFM"
+source: "https://www.youtube.com/watch?v=pTnZt0SqDFM"
 video_id: pTnZt0SqDFM
 tags: [suffering, interconnectedness, separation, consciousness, global health]
 teacher: "both"

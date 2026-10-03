@@ -1,25 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=XFFgRTgP8Rs
-tags:
-- suffering
-- self-image
-- ego
-- beautiful state
-teacher: both
-title: Recognizing the Root Cause of Suffering
+title: Recognizing The Root Cause Of Suffering
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=XFFgRTgP8Rs
 video_id: XFFgRTgP8Rs
+tags:
+- oneness
+- teaching
 ---
-# Recognizing the Root Cause of Suffering
+# Recognizing The Root Cause Of Suffering
 
+## Verbatim Discourse Excerpts
+See, you are suffering, right? When you are suffering, save your heart. The heart is caused because of the self-image, okay? That is the truth you need to see, the truth that self-image is getting hurt. As you see the truth, you will know that the problem is different, whereas your suffering is arising from your self-image. So for example, you went and you wrote your exam, you expected you will score A for A plus and you scored B.
 
-## Summary
-The core of suffering often stems from one's self-image, rather than external factors. Understanding this connection is presented as a "Beautiful State" that can alleviate suffering and fear.
+So you will not see that you are suffering because of your self-image, but you will start seeing my parents fought at home. I did not have enough time to study, so I scored less marks. Or I felt ill, my health was not good, so I scored less marks. Or the guy who corrected the paper did not correct properly, it needs to be resubmitted for revision. He was probably not intelligent enough to correct my paper.
 
 ## Key Teachings
-- The root cause of suffering is frequently tied to one's self-image. (Unknown Channel says)
-- Focusing on external factors or superficial reasons for problems can obscure the true source of suffering. (Unknown Channel says)
-- Recognizing the connection between self-image and suffering is a "Beautiful State" that can dissolve suffering and fear. (Unknown Channel says)
+- When you are suffering, save your heart. — Sri Preethaji & Sri Krishnaji
+- As you see the truth, you will know that the problem is different, whereas your suffering is arising from your self-image. — Sri Preethaji & Sri Krishnaji
+- When you see that truth, that suffering will resolve, that hurt, that fear will resolve. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Stressful State: A condition characterized by feelings of anxiety, tension, or overwhelm, which can be a manifestation of suffering.
+## Source Context
+- Video: How Do I Overcome Feelings Of Being Unworthy?
+- URL: https://www.youtube.com/watch?v=XFFgRTgP8Rs
+- Speaker: Sri Preethaji & Sri Krishnaji

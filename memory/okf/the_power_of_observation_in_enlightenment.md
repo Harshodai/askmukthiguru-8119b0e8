@@ -1,27 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=aJIunwxx3NI
-tags:
-- enlightenment
-- observation
-- present moment
-teacher: both
-title: The Power of Observation in Enlightenment
+title: The Power Of Observation In Enlightenment
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=aJIunwxx3NI
 video_id: aJIunwxx3NI
+tags:
+- oneness
+- teaching
 ---
-# The Power of Observation in Enlightenment
+# The Power Of Observation In Enlightenment
 
+## Verbatim Discourse Excerpts
+Enlightenment is free of suffering. It is a state where you're free of suffering, or every tendency or any root that causes suffering is weeded out of your consciousness. Where such intense awareness is built in your consciousness, you become capable of bringing such intense awareness that suffering does not grow; the suffering does not build.
 
-## Summary
-Enlightenment is described as a state of freedom from suffering where thoughts exist as information without emotional charge. In this state, individuals are not compulsively drawn to the past or future, but rather live in the present moment, free from self-preoccupation. This state of expansiveness is implicitly linked to a heightened power of observation, allowing one to perceive thoughts without being consumed by them.
+Why do we need enlightenment? Is it a new invention? No, it is probably the oldest human pursuit. Human beings have, through several civilizations, seen the ups and downs of many civilizations. They have seen the coming of new languages, the dying of languages, new lifestyles emerging, the old one going. So many changes have happened in human history, but there is one desire that has continued in all situations: this ultimate pursuit, which is enlightenment, which is an experience of being one.
 
 ## Key Teachings
-- Enlightenment is a state of freedom from suffering. (Unknown Channel says)
-- In enlightenment, thoughts exist as information without charge. (Unknown Channel says)
-- An enlightened individual is not compulsively pushed to their past or future. (Unknown Channel says)
-- Enlightenment involves living in the present moment and being alive. (Unknown Channel says)
-- In enlightenment, one is not preoccupied with oneself. (Unknown Channel says)
+- So many changes have happened in human history, but there is one desire that has continued in all situations: this ultimate pursuit, which is enlightenment, which is an experience of being one. — Sri Preethaji & Sri Krishnaji
+- Enlightenment is free of suffering. — Sri Preethaji & Sri Krishnaji
+- It is a state where you're free of suffering, or every tendency or any root that causes suffering is weeded out of your consciousness. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- The Power of Observation: The ability to observe and understand the world around us, and in the context of enlightenment, to notice thoughts without being consumed by them.
-- Stressful State: A condition characterized by feelings of anxiety, tension, or overwhelm, which enlightenment aims to free one from.
+## Source Context
+- Video: aJIunwxx3NI
+- URL: https://www.youtube.com/watch?v=aJIunwxx3NI
+- Speaker: Sri Preethaji & Sri Krishnaji

@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Depression as a State of Separation"
-source: "YouTube https://www.youtube.com/watch?v=FSwSt1omSD8"
+source: "https://www.youtube.com/watch?v=FSwSt1omSD8"
 video_id: FSwSt1omSD8
 tags: [suffering, depression, mental health]
 teacher: "both"

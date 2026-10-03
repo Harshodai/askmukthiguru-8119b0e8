@@ -33,6 +33,7 @@ RNG_SEED = 42
 
 # --- ported from bakeoff scoring_lib.py -------------------------------------
 
+
 def overlap_frac(a_start: float, a_end: float, b_start: float, b_end: float) -> float:
     inter = min(a_end, b_end) - max(a_start, b_start)
     if inter <= 0:
@@ -51,6 +52,7 @@ def passage_hits_ranges(clip: dict, ranges: list[dict], threshold: float = 0.5) 
 
 
 # --- ported from bakeoff scoring.py -----------------------------------------
+
 
 def bootstrap_ci_by_video(
     rows: list[dict], key: str, video_key: str = "video_id", n_boot: int = N_BOOT
@@ -83,6 +85,7 @@ def bootstrap_ci_by_video(
 
 
 # --- new: exact one-sided Clopper-Pearson upper bound, stdlib-only ----------
+
 
 def clopper_pearson_upper(
     n_errors: int | None = None,
@@ -131,7 +134,11 @@ def clopper_pearson_upper(
         for k in range(n_errors + 1):
             if k > 0:
                 log_term += log_p - log_1mp + math.log(n_confident - k + 1) - math.log(k)
-            log_total = log_total if log_total > log_term else math.log1p(math.exp(log_total - log_term)) + log_term
+            log_total = (
+                log_total
+                if log_total > log_term
+                else math.log1p(math.exp(log_total - log_term)) + log_term
+            )
         return log_total
 
     log_alpha = math.log(alpha)
@@ -147,11 +154,15 @@ def clopper_pearson_upper(
 
 # --- headline metrics --------------------------------------------------------
 
+
 def precision_confident(rows: list[dict]) -> dict:
     confident = [r for r in rows if r["confident"]]
     correct = [r for r in confident if _is_correct(r, group=True)]
     return bootstrap_ci_by_video(
-        [{"video_id": r["video_id"], "correct": 1.0 if _is_correct(r, group=True) else 0.0} for r in confident],
+        [
+            {"video_id": r["video_id"], "correct": 1.0 if _is_correct(r, group=True) else 0.0}
+            for r in confident
+        ],
         "correct",
     ) | {"n_correct": len(correct), "n_confident": len(confident)}
 
@@ -179,9 +190,7 @@ def topk_hit_rate(rows: list[dict], k: int, group: bool = False) -> dict:
     scored = []
     for r in pool:
         hit = any(
-            passage_hits_ranges(
-                {"video_id": vid, "start": s, "end": e}, r["gold_ranges"]
-            )
+            passage_hits_ranges({"video_id": vid, "start": s, "end": e}, r["gold_ranges"])
             for vid, s, e in _topk_clips(r, k)
         )
         scored.append({"video_id": r["video_id"], "hit": 1.0 if hit else 0.0})
@@ -203,12 +212,18 @@ def wrong_speaker_rate(rows: list[dict]) -> float:
     confident = [r for r in rows if r["confident"] and r.get("top1_clip_id")]
     if not confident:
         return 0.0
-    wrong = sum(1 for r in confident if r.get("gold_speaker") and r.get("top1_speaker") != r["gold_speaker"])
+    wrong = sum(
+        1 for r in confident if r.get("gold_speaker") and r.get("top1_speaker") != r["gold_speaker"]
+    )
     return round(wrong / len(confident), 4)
 
 
 def verbatim_mismatch_rate(rows: list[dict]) -> float:
-    labeled = [r for r in rows if r.get("displayed_text") is not None and r.get("gold_verbatim_text") is not None]
+    labeled = [
+        r
+        for r in rows
+        if r.get("displayed_text") is not None and r.get("gold_verbatim_text") is not None
+    ]
     if not labeled:
         return 0.0
     mismatched = sum(1 for r in labeled if r["displayed_text"] not in r["gold_verbatim_text"])
@@ -239,18 +254,42 @@ if __name__ == "__main__":
     assert clopper_pearson_upper(0, 10) > clopper_pearson_upper(0, 1000)
 
     rows = [
-        {"id": "q1", "video_id": "v1", "group_id": None, "answerable": True, "confident": True,
-         "top1_clip_id": "c1", "top1_video_id": "v1", "top1_start": 10.0, "top1_end": 20.0,
-         "gold_ranges": [{"video_id": "v1", "start": 10.0, "end": 20.0}],
-         "top1_speaker": "krishnaji", "gold_speaker": "krishnaji",
-         "displayed_text": "love is stillness", "gold_verbatim_text": "true love is stillness within",
-         "pred_start_ms": 10000, "gold_start_ms": 10050},
-        {"id": "q2", "video_id": "v2", "group_id": None, "answerable": True, "confident": False,
-         "top1_clip_id": None, "top1_video_id": None, "top1_start": None, "top1_end": None,
-         "gold_ranges": [{"video_id": "v2", "start": 0.0, "end": 5.0}],
-         "top1_speaker": None, "gold_speaker": "preethaji",
-         "displayed_text": None, "gold_verbatim_text": None,
-         "pred_start_ms": None, "gold_start_ms": None},
+        {
+            "id": "q1",
+            "video_id": "v1",
+            "group_id": None,
+            "answerable": True,
+            "confident": True,
+            "top1_clip_id": "c1",
+            "top1_video_id": "v1",
+            "top1_start": 10.0,
+            "top1_end": 20.0,
+            "gold_ranges": [{"video_id": "v1", "start": 10.0, "end": 20.0}],
+            "top1_speaker": "krishnaji",
+            "gold_speaker": "krishnaji",
+            "displayed_text": "love is stillness",
+            "gold_verbatim_text": "true love is stillness within",
+            "pred_start_ms": 10000,
+            "gold_start_ms": 10050,
+        },
+        {
+            "id": "q2",
+            "video_id": "v2",
+            "group_id": None,
+            "answerable": True,
+            "confident": False,
+            "top1_clip_id": None,
+            "top1_video_id": None,
+            "top1_start": None,
+            "top1_end": None,
+            "gold_ranges": [{"video_id": "v2", "start": 0.0, "end": 5.0}],
+            "top1_speaker": None,
+            "gold_speaker": "preethaji",
+            "displayed_text": None,
+            "gold_verbatim_text": None,
+            "pred_start_ms": None,
+            "gold_start_ms": None,
+        },
     ]
     assert coverage(rows) == 0.5
     assert abstention_rate(rows) == 0.5

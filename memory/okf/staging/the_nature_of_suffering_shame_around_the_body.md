@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Nature of Suffering: Shame Around the Body"
-source: "YouTube https://www.youtube.com/watch?v=dqUq_a0DyLs"
+source: "https://www.youtube.com/watch?v=dqUq_a0DyLs"
 video_id: dqUq_a0DyLs
 tags: [truth of suffering, sri preethaji, sri krishnaji, ekam]
 teacher: "both"

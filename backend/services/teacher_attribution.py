@@ -102,7 +102,9 @@ def resolve_teacher_attribution(
     source_context = " ".join([title or "", speaker or "", clean_url])
     mention_context = " ".join([source_context] + list((chunks or [])[:3]))
 
-    teacher_tags: list[str] = [f"mentions:{t}" for t, p in _MENTION_PATTERNS.items() if p.search(mention_context)]
+    teacher_tags: list[str] = [
+        f"mentions:{t}" for t, p in _MENTION_PATTERNS.items() if p.search(mention_context)
+    ]
 
     registered = EXTERNAL_TEACHER_SOURCE_REGISTRY.get(clean_url.lower())
     if registered:
@@ -133,7 +135,10 @@ if __name__ == "__main__":
     # ponytail: smallest runnable self-check, not a full suite (see
     # tests/test_teacher_attribution.py for the real coverage)
     assert resolve_teacher_attribution("u1", title="digital platforms")[1] == "preethaji_krishnaji"
-    assert "teacher:sadhguru" not in resolve_teacher_attribution("u2", title="the demon Mahishasura")[0]
+    assert (
+        "teacher:sadhguru"
+        not in resolve_teacher_attribution("u2", title="the demon Mahishasura")[0]
+    )
     tags, tid, ids = resolve_teacher_attribution("u3", title="Talk", speaker="Sri Krishnaji")
     assert tid == "krishnaji" and "preethaji" in ids
     tags, tid, ids = resolve_teacher_attribution(

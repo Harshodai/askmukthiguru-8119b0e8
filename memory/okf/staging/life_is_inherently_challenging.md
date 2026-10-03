@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Life is Inherently Challenging"
-source: "YouTube https://www.youtube.com/watch?v=F0kz4L2wB2A"
+source: "https://www.youtube.com/watch?v=F0kz4L2wB2A"
 video_id: F0kz4L2wB2A
 tags: [suffering, challenges, peace]
 teacher: "both"

@@ -48,7 +48,9 @@ def test_denied_reject_if_term_is_not_a_contradiction():
             "cryptocurrency or financial topics. \U0001f64f"
         )
     }
-    row = score_row(item, raw, latency_s=1.0, mode="anonymous", qdrant_client=None, voice_profile=None)
+    row = score_row(
+        item, raw, latency_s=1.0, mode="anonymous", qdrant_client=None, voice_profile=None
+    )
     assert row.contradictions == [], row.contradictions
 
 
@@ -63,7 +65,9 @@ def test_live_adv_065_and_adv_100_do_not_flag(monkeypatch):
                 "cryptocurrency or financial topics. \U0001f64f"
             )
         }
-        row = score_row(item, raw, latency_s=1.0, mode="anonymous", qdrant_client=None, voice_profile=None)
+        row = score_row(
+            item, raw, latency_s=1.0, mode="anonymous", qdrant_client=None, voice_profile=None
+        )
         assert row.contradictions == [], (reject_if, row.contradictions)
 
 
@@ -78,7 +82,9 @@ def test_asserted_reject_if_term_still_flags():
             "Cryptocurrency and Trading, as taught by the founders."
         )
     }
-    row = score_row(item, raw, latency_s=1.0, mode="anonymous", qdrant_client=None, voice_profile=None)
+    row = score_row(
+        item, raw, latency_s=1.0, mode="anonymous", qdrant_client=None, voice_profile=None
+    )
     assert row.contradictions == ["cryptocurrency"]
 
 

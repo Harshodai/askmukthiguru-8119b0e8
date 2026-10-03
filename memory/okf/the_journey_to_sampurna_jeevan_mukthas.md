@@ -1,30 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=DBUJH5f6rjU
-tags:
-- ekam
-- tapas
-- sampurna jeevan mukthas
-teacher: both
-title: The Journey to Sampurna Jeevan Mukthas
+title: The Journey To Sampurna Jeevan Mukthas
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=DBUJH5f6rjU
 video_id: DBUJH5f6rjU
+tags:
+- oneness
+- teaching
 ---
-# The Journey to Sampurna Jeevan Mukthas
+# The Journey To Sampurna Jeevan Mukthas
 
+## Verbatim Discourse Excerpts
+And Shri Sri Preethaji and I have now taken up the fulfillment of this vision. The vision to create 74,000 Sampurna Jeevan Mukthas beings who live with a liberated consciousness. This is the single most important vision of my life. This is why I am on earth. This has been the singular vision of Shri Sri Preethaji and this is why all of you have taken birth at this point of time.
 
-## Summary
-The journey to becoming Sampurna Jeevan Mukthas is a 42-day process, described as a circular mandala, which emphasizes active participation in ACAM tapas during the last two weeks. This journey is offered on a selection basis.
+The purpose to create these Jeevan Mukthas that Shri Sri Preethaji and I are beginning ACAM purpose a 42 day journey divided into 6 weeks on specially designated campuses around ACAM. It is only focused on delivering enlightenment to the seekers and nothing else. This is an intense journey into Self Realization and Court Realization. I want you to understand these 6 weeks are not progressive levels.
 
 ## Key Teachings
-- The journey to create 74,000 Sampurna Jeevan Mukthas is a 42-day process (Sri Preethaji says).
-- This journey is designed as a circular mandala (Sri Preethaji says).
-- Active participation in ACAM tapas is required for the last two weeks of the journey (Sri Preethaji says).
-- Participation in this journey is on a selection basis (Sri Krishnaji says).
-- If one is not yet a Deeksha giver, a mitra, or a meditator, their journey begins with participating in an online global De (Sri Krishnaji says).
+- The vision to create 74,000 Sampurna Jeevan Mukthas beings who live with a liberated consciousness. — Sri Preethaji & Sri Krishnaji
+- The purpose to create these Jeevan Mukthas that Shri Sri Preethaji and I are beginning ACAM purpose a 42 day journey divided into 6 weeks on specially designated campuses around ACAM. — Sri Preethaji & Sri Krishnaji
+- Sampurna Jeevan Mukthi or Total Enlightenment is both Self-realization and God-realization. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-No direct quotes related to the relationship with EGO were found in the provided transcript.
-
-## Related Concepts
-- Deeksha: a spiritual practice involving receiving energy and guidance from a spiritual teacher, facilitating an enlightened state.
-- Enlightenment: a state of profound understanding characterized by a state of consciousness free from suffering, with intense awareness and no compulsive attachment to the past or future.
+## Source Context
+- Video: EKAM TAPAS
+- URL: https://www.youtube.com/watch?v=DBUJH5f6rjU
+- Speaker: Sri Preethaji & Sri Krishnaji

@@ -127,6 +127,14 @@ ignore = [
     "UP045", # Prefer X | None over Optional[X] (Optional is required for Python 3.9 compatibility without future imports)
 ]
 
+# D4 lint allowlist (2026-10-03): scripts/ingestion/** belongs to the active
+# Wave-4a ingest lane, and its sole remaining violation is one I001 import
+# sort in an untracked repair artifact under lane ownership. The fix is
+# sequenced after that lane completes rather than editing its file mid-flight
+# (docs/PROD_READY_CHECKLIST row 4). Remove this entry once Wave 4a lands.
+[tool.ruff.lint.per-file-ignores]
+"scripts/ingestion/repair_v7_clips.py" = ["I001"]
+
 [tool.pytest.ini_options]
 addopts = "-m 'not slow'"
 testpaths = ["tests"]

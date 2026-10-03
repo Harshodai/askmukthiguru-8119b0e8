@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "World Peace Meditation"
-source: "YouTube https://www.youtube.com/watch?v=JRlaAip4kmk"
+source: "https://www.youtube.com/watch?v=JRlaAip4kmk"
 video_id: JRlaAip4kmk
 tags: [meditation, compassion, peace]
 teacher: "both"

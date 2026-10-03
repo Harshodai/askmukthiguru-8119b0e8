@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Journey to Sampurna Jeevan Mukthas"
-source: "YouTube https://www.youtube.com/watch?v=DBUJH5f6rjU"
+source: "https://www.youtube.com/watch?v=DBUJH5f6rjU"
 video_id: DBUJH5f6rjU
 tags: [ekam, tapas, sampurna jeevan mukthas]
 teacher: "both"

@@ -1,29 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=PslFhdZaBFA
-tags:
-- truth of suffering
-- oo academy
-- sri preethaji
-- sri krishnaji
-- ekam
-teacher: both
-title: Understanding Suffering in Your Soul Circle
+title: Understanding Suffering In Your Soul Circle
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=PslFhdZaBFA
 video_id: PslFhdZaBFA
+tags:
+- oneness
+- teaching
 ---
-# Understanding Suffering in Your Soul Circle
+# Understanding Suffering In Your Soul Circle
 
+## Verbatim Discourse Excerpts
+See, to understand what a member of your soul circle is going through, to connect and to feel, your heart needs to be awake. When your heart is awake, you are not desperate, you know. You are not desperate to get them to a space of pleasantness so that it is comfortable for you. But when your heart is awake, you will feel them. There is no fear in you of their suffering.
 
-## Summary
-The provided text introduces the idea of understanding what a member of one's "soul circle" is experiencing, implying a deeper connection and awareness of their suffering.
+But when your heart is awake, there is a loving patience and an intense attention. Attention to their expressions, attention to their voice, attention to what they are saying. There is an undistracted attention from your side. For those few minutes, you have set aside everything else in the whole world and only that person becomes important for you. And when you are present this way, your heart's consciousness field expands and impacts your loved one.
 
 ## Key Teachings
-- To understand what a member of your soul circle is going through. (Ekam / O&O Academy says)
+- See, to understand what a member of your soul circle is going through, to connect and to feel, your heart needs to be awake. — Sri Preethaji & Sri Krishnaji
+- When your heart is awake, you are not desperate, you know. — Sri Preethaji & Sri Krishnaji
+- But when your heart is awake, you will feel them. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-
-## Related Concepts
-- Overcoming Suffering: a concept related to spiritual teachings, focusing on the alleviation of suffering.
-- Suffering States: emotional states such as regret, sadness, and loneliness that disconnect individuals from life.
-- Cycle of Pain: Hurt human beings perpetuate a cycle of pain and suffering.
-- Pain and Agony: a primary negative experience and a form of suffering.
+## Source Context
+- Video: The one thing your partner needs from you | Evolution Series 110 with Sri Preethaji & Sri Krishnaji
+- URL: https://www.youtube.com/watch?v=PslFhdZaBFA
+- Speaker: Sri Preethaji & Sri Krishnaji

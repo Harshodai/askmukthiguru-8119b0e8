@@ -1,27 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=vch9C_hNjGs
-tags:
-- inner stillness
-- powerful actions
-- universal well-being
-- cosmic consciousness
-teacher: both
-title: Inner Stillness and Impact
+title: Inner Stillness And Impact
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=vch9C_hNjGs
 video_id: vch9C_hNjGs
+tags:
+- oneness
+- teaching
 ---
-# Inner Stillness and Impact
+# Inner Stillness And Impact
 
+## Verbatim Discourse Excerpts
+From that inner stillness, you would perform powerful actions that can impact the entire web of life. That would cause both individual well-being and universal well-being. It is a state where you become a witness to the flow of life. When I'm saying being a witness, it means that you are not compulsively running towards something or running away from something, like the eagle that soars above the wind currents and that glides effortlessly in the skies.
 
-## Summary
-From a state of inner stillness, individuals can perform powerful actions that positively impact the entire web of life, contributing to both individual and universal well-being. This process signifies a shift from self-centered consciousness to a cosmic consciousness.
+Your consciousness transcends the undercurrent of those emotional obsessions, and your consciousness would be established in the pure bliss of the being. And from that blissful being, you would create achievements that can nurture not only you individually, but also all. You could create achievements that can support this planet.
 
 ## Key Teachings
-- From inner stillness, powerful actions can be performed that impact the entire web of life. (Unknown Channel)
-- These actions contribute to both individual and universal well-being. (Unknown Channel)
-- This process involves a shift from self-centered consciousness to cosmic consciousness. (Unknown Channel)
+- From that inner stillness, you would perform powerful actions that can impact the entire web of life. — Sri Preethaji & Sri Krishnaji
+- That would cause both individual well-being and universal well-being. — Sri Preethaji & Sri Krishnaji
+- It is a state where you become a witness to the flow of life. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Pain: a complex emotional and physical sensation that can be experienced by oneself or others, often a result of harm or distress.
-- Suffering States: emotional states such as regret, sadness, and loneliness that disconnect individuals from life and the universal intelligence.
-- Cycle of Pain: the perpetuation of pain and suffering by hurt human beings.
+## Source Context
+- Video: vch9C_hNjGs
+- URL: https://www.youtube.com/watch?v=vch9C_hNjGs
+- Speaker: Sri Preethaji & Sri Krishnaji

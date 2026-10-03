@@ -1,0 +1,7 @@
+{
+  "threshold": 0.45,
+  "score_kind": "cosine",
+  "claims": "none",
+  "provenance": "n=14 pilot, no conformal guarantees",
+  "calibrated_at": "2026-09-25"
+}

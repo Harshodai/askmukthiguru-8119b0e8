@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Gratitude as an Awareness from Contribution"
-source: "YouTube https://www.youtube.com/watch?v=bMGaQ2nUE5Y"
+source: "https://www.youtube.com/watch?v=bMGaQ2nUE5Y"
 video_id: bMGaQ2nUE5Y
 tags: [gratitude, awareness, contribution, observation]
 teacher: "both"

@@ -1,26 +1,24 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=E-LCT0YEpWQ
-tags:
-- observation
-- bliss
-- enlightenment
-teacher: both
-title: Bliss in Observation
+title: Bliss In Observation
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=E-LCT0YEpWQ
 video_id: E-LCT0YEpWQ
+tags:
+- oneness
+- teaching
 ---
-# Bliss in Observation
+# Bliss In Observation
 
-
-## Summary
-The teaching highlights that the acts of seeing, hearing, touching, tasting, and smelling are inherently blissful, suggesting this understanding is a fundamental aspect of enlightenment.
+## Verbatim Discourse Excerpts
+Every experience in your consciousness, mental experiences and sensory experiences is bliss in this state. Seeing, hearing, touching, tasting, smelling is bliss. In this experience of wholeness, you get intoxicated with bliss. This is the enlightened state of Ananda.
 
 ## Key Teachings
-- Seeing, hearing, touching, tasting, and smelling are bliss. (Unknown Channel)
+- Every experience in your consciousness, mental experiences and sensory experiences is bliss in this state. — Sri Preethaji & Sri Krishnaji
+- Seeing, hearing, touching, tasting, smelling is bliss. — Sri Preethaji & Sri Krishnaji
+- In this experience of wholeness, you get intoxicated with bliss. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "Seeing, hearing, touching, tasting, smelling is bliss." — Unknown Channel
-
-## Related Concepts
-- The Power of Observation: The ability to observe and understand the world around us, emphasizing the importance of appreciating and being grateful for experiences.
-- Enlightenment: The ultimate pursuit of life, characterized by a deep understanding and experience of bliss in all sensory perceptions.
+## Source Context
+- Video: Enlightenment The Ultimate Pursuit of Life
+- URL: https://www.youtube.com/watch?v=E-LCT0YEpWQ
+- Speaker: Sri Preethaji & Sri Krishnaji

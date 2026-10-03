@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Addressing Depression Early"
-source: "YouTube https://www.youtube.com/watch?v=FSwSt1omSD8"
+source: "https://www.youtube.com/watch?v=FSwSt1omSD8"
 video_id: FSwSt1omSD8
 tags: [depression, emotional healing, seeking help]
 teacher: "both"

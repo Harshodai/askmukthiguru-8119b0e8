@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Healing Power of Focused Attention in Relationships"
-source: "YouTube https://www.youtube.com/watch?v=PslFhdZaBFA"
+source: "https://www.youtube.com/watch?v=PslFhdZaBFA"
 video_id: PslFhdZaBFA
 tags: [relationships, connection, healing, consciousness, attention]
 teacher: "both"

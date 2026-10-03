@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Spiritual Art of Parenting"
-source: "YouTube https://www.youtube.com/watch?v=hcNDrMy6gCE"
+source: "https://www.youtube.com/watch?v=hcNDrMy6gCE"
 video_id: hcNDrMy6gCE
 tags: [parenting, spiritual growth, children, compassion, gratitude, kindness, joyfulness, courage]
 teacher: "both"

@@ -1,6 +1,7 @@
 """Test cross-lingual and Indic document grading protection in grade_documents (CRAG)."""
 
 from unittest.mock import AsyncMock, MagicMock
+
 import pytest
 
 import rag.nodes as nodes
@@ -66,7 +67,9 @@ def _state(question: str, lang: str, docs: list[dict]) -> dict:
 
 
 @pytest.mark.asyncio
-async def test_doctrine_keyword_alone_does_not_rescue_unrelated_indic_query(mock_services, monkeypatch):
+async def test_doctrine_keyword_alone_does_not_rescue_unrelated_indic_query(
+    mock_services, monkeypatch
+):
     """False-positive guard: a low-scoring doc that merely mentions a doctrine term
 
     must stay rejected. "Beautiful state" appears across most of the corpus, so a
@@ -97,13 +100,19 @@ async def test_doctrine_keyword_alone_does_not_rescue_unrelated_indic_query(mock
         ("Four sacred secrets kya hain?", "hi"),  # Hinglish, Latin script
     ],
 )
-async def test_high_rerank_score_rescues_indic_and_hinglish(mock_services, monkeypatch, question, lang):
+async def test_high_rerank_score_rescues_indic_and_hinglish(
+    mock_services, monkeypatch, question, lang
+):
     from app.config import settings
 
     monkeypatch.setattr(settings, "crag_skip_confidence", 0.75)
-    mock_services.grade_relevance.return_value = [{"relevant": False, "reason": "language mismatch"}]
+    mock_services.grade_relevance.return_value = [
+        {"relevant": False, "reason": "language mismatch"}
+    ]
 
-    result = await grade_documents(_state(question, lang, [_doc(0.55, "The Four Sacred Secrets are...")]))
+    result = await grade_documents(
+        _state(question, lang, [_doc(0.55, "The Four Sacred Secrets are...")])
+    )
 
     assert any("Cross-lingual" in r for r in result.get("grading_reasons", []))
 
@@ -116,6 +125,8 @@ async def test_english_query_is_never_rescued(mock_services, monkeypatch):
     monkeypatch.setattr(settings, "crag_skip_confidence", 0.75)
     mock_services.grade_relevance.return_value = [{"relevant": False, "reason": "off topic"}]
 
-    result = await grade_documents(_state("How do I change a car tyre?", "en", [_doc(0.55, "Beautiful state...")]))
+    result = await grade_documents(
+        _state("How do I change a car tyre?", "en", [_doc(0.55, "Beautiful state...")])
+    )
 
     assert not any("Cross-lingual" in r for r in result.get("grading_reasons", []))

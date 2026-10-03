@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Interconnectedness and the Nature of Being"
-source: "YouTube https://www.youtube.com/watch?v=PFNP4c1cOSI"
+source: "https://www.youtube.com/watch?v=PFNP4c1cOSI"
 video_id: PFNP4c1cOSI
 tags: [awakening, interconnectedness, interdependence, suffering]
 teacher: "both"

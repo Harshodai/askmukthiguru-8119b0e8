@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Karma as a Universal Law"
-source: "YouTube https://www.youtube.com/watch?v=Ji-hdW1t30g"
+source: "https://www.youtube.com/watch?v=Ji-hdW1t30g"
 video_id: Ji-hdW1t30g
 tags: [karma, universal law, observation]
 teacher: "both"

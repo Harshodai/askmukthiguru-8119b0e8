@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Internal Source of Anxiety"
-source: "YouTube https://www.youtube.com/watch?v=k8iO5daXllM"
+source: "https://www.youtube.com/watch?v=k8iO5daXllM"
 video_id: k8iO5daXllM
 tags: [anxiety, stress, self-focused thoughts, internal state]
 teacher: "both"

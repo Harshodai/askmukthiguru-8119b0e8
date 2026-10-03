@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Generational Healing Through Awakened Consciousness in Parenting"
-source: "YouTube https://www.youtube.com/watch?v=GICjcQQ0aM0"
+source: "https://www.youtube.com/watch?v=GICjcQQ0aM0"
 video_id: GICjcQQ0aM0
 tags: [parenting, generational healing, consciousness, divine]
 teacher: "both"

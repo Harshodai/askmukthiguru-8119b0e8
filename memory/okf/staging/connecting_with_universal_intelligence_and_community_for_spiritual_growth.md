@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Connecting with Universal Intelligence and Community for Spiritual Growth"
-source: "YouTube https://www.youtube.com/watch?v=IGryscyFmV8"
+source: "https://www.youtube.com/watch?v=IGryscyFmV8"
 video_id: IGryscyFmV8
 tags: [universal intelligence, community, spiritual growth, human consciousness]
 teacher: "both"

@@ -171,15 +171,55 @@ class Settings(BaseSettings):
     # the top clip is chosen. OFF until an offline A/B on the pinned eval set wins;
     # confidence stays dense cosine so the calibration contract is unchanged.
     first_person_rerank_enabled: bool = False
+    # Step-4d LLM clip reranker — selection-only (zero text generation), 2.5 s
+    # budget, falls back to cosine on any failure. Distinct from
+    # first_person_rerank_enabled (cross-encoder). OFF by default. Declared
+    # 2026-10-03 (D1 §6.3): previously read via getattr(settings, ..., False)
+    # with no Settings field — a dead feature switch failing
+    # test_settings_guards::test_getattr_names_are_declared.
+    first_person_llm_rerank_enabled: bool = False
     # Quarantine clips whose verbatim text has no sentence end or opens on orphan
     # punctuation (ingest.verbatim.boundaries). OFF: on 2026-09-28 it would have
     # removed 59% of first_person_v2 and 68% of v5. Enable only with a
     # boundary-snapped collection (B2, first_person_v6+).
     first_person_boundary_guard_enabled: bool = False
+    # Content quality gate for served clips — zero LLM calls (regex + word-count
+    # heuristics; same pattern as boundary_guard, see services/
+    # first_person_pipeline.py). OFF by default. Declared 2026-10-03 (D1 §6.3):
+    # previously read via getattr(settings, ..., False) with no Settings field —
+    # a dead feature switch failing test_settings_guards::test_getattr_names_are_declared.
+    first_person_content_quality_gate_enabled: bool = False
     # Non-English questions are translated to English (the transcripts' language)
     # before embedding, and each served quote gets an optional gloss in the
     # seeker's language. The verbatim text itself is never replaced.
     first_person_translation_timeout_s: float = 8.0
+    # Kill-switch for the chat-side verbatim bridge
+    # (app/pipeline/stages/first_person_bridge.py). When true,
+    # build_default_pipeline() registers FirstPersonBridgeStage between
+    # BoundedComparisonShortCircuitStage and GraphStage so a calibrated
+    # first-person direct answer can short-circuit main chat. FIRST_PERSON_CHAT_BRIDGE_ENABLED=false
+    # removes the stage from the chain entirely — byte-identical pre-bridge
+    # chat behavior, no rebuild (rollback runbook in Task 5 of the plan).
+    first_person_chat_bridge_enabled: bool = True
+    # Kill-switch for the answerability gate (plan REVISION 2026-09-30,
+    # .claude/tasks/abstention_gate_and_index_hygiene_plan.md). When true, the
+    # pipeline asks an LLM to classify the QUESTION only ("can the recorded
+    # teachings answer it? YES/NO") before committing is_direct=true; NO /
+    # indeterminate / no llm_service all serve the honest abstention (zero
+    # citations). false = exact pre-change behavior (byte-compatible cache keys,
+    # no LLM call) — this flag IS the P0 abstention fix and its rollback switch.
+    first_person_answerability_check_enabled: bool = True
+    # Ask-1 FP-primary switch (owner decision 2026-10-03: "I need the teachings
+    # to come straight from the gurus, not LLM-generated … make sure we can
+    # switch off the LLM-generated things"). When false, a bridge DECLINE (no
+    # verbatim teaching matched / clip store error) returns an honest static
+    # abstain instead of falling through to the generating general graph —
+    # this flag IS the "LLM-generated answers off" knob. true (default) =
+    # today's fall-through behavior, byte-identical. Only meaningful while
+    # first_person_chat_bridge_enabled + first_person_route_enabled are on;
+    # crisis_redirect (safety) and imperative-meditation requests always fall
+    # through regardless of this flag.
+    first_person_llm_fallback_enabled: bool = True
 
     # --- Distress / Serene Mind safety dials ---
     semantic_distress_threshold: float = Field(default=0.72, ge=0.0, le=1.0)

@@ -1,25 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=LapJqYf9hzI
-tags:
-- ego
-- suffering
-- consciousness
-- ancestors
-teacher: both
-title: The Ancestral Roots of Suffering and the Ego
+title: The Ancestral Roots Of Suffering And The Ego
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=LapJqYf9hzI
 video_id: LapJqYf9hzI
+tags:
+- oneness
+- teaching
 ---
-# The Ancestral Roots of Suffering and the Ego
+# The Ancestral Roots Of Suffering And The Ego
 
+## Verbatim Discourse Excerpts
+Why is there so much mental illness around the globe today? Why is there so much depression around the globe today? Why is there so much sense of loneliness, especially among the youngsters? Why? It's because your grandparents, your great-grandparents, your ancestors - what are all of them leaving behind in the human collective consciousness? Most of the time, the suffering state, and it is flowing back into the humanities, into the next generations.
 
-## Summary
-The suffering experienced by humanity, including teenagers, is attributed to the collective consciousness left behind by ancestors. This ancestral consciousness flows back into the human collective consciousness, impacting future generations.
+Why is there so much suffering in humanity? Because predominantly, human beings live in a state. Why should a three-year-old feel anger? Small children today are feeling anger, right, irritation, frustration. Five-year-old, six-year-old - why is that happening more and more? Why are adolescent kids feeling more and more depressed? 40 years ago, this was not happening.
 
 ## Key Teachings
-- The suffering in humanity is linked to the collective consciousness of ancestors ("Unknown Channel says: Why? It's because your grandparents, your great-grandparents, your ancestors - what are all of them leaving behind in the human collecti").
-- This ancestral consciousness influences the human collective consciousness and affects subsequent generations ("Unknown Channel says: what are all of them leaving behind in the human collecti").
+- Why is there so much suffering in humanity? — Sri Preethaji & Sri Krishnaji
+- Most of the time, the suffering state, and it is flowing back into the humanities, into the next generations. — Sri Preethaji & Sri Krishnaji
+- That is why it is so important that you learn to live a life free of suffering, that you learn to live a life awakened, that you learn to live a life - an enlightened state - so that you can contribute magnificent states to the humanities' collective consciousness. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Ego: Ego is a state of self-centeredness and separation that can lead to conflict and violence. It is the sense of self that separates one from others and the world.
-- Suffering: Suffering is a multifaceted concept that encompasses various aspects of human experience, including pain, distress, and unhappiness. It can arise from holding onto judgments and labels, leading to separation.
+## Source Context
+- Video: LapJqYf9hzI
+- URL: https://www.youtube.com/watch?v=LapJqYf9hzI
+- Speaker: Sri Preethaji & Sri Krishnaji

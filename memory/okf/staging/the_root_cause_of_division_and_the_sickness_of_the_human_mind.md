@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Root Cause of Division and the Sickness of the Human Mind"
-source: "YouTube https://www.youtube.com/watch?v=AB-t5CoxMHM"
+source: "https://www.youtube.com/watch?v=AB-t5CoxMHM"
 video_id: AB-t5CoxMHM
 tags: [division, society, education, individuality, ego, human mind]
 teacher: "sri-preethaji"

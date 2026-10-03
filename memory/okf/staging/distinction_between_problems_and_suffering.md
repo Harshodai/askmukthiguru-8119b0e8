@@ -1,7 +1,7 @@
 ---
 type: reflection
 title: "Distinction Between Problems and Suffering"
-source: "YouTube https://www.youtube.com/watch?v=M7ItOHTrvz8"
+source: "https://www.youtube.com/watch?v=M7ItOHTrvz8"
 video_id: M7ItOHTrvz8
 tags: [suffering, problems, inner stillness, solutions]
 teacher: "both"

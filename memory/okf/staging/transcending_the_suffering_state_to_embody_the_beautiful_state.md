@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Transcending the Suffering State to Embody the Beautiful State"
-source: "YouTube https://www.youtube.com/watch?v=UlOt31lBhLY"
+source: "https://www.youtube.com/watch?v=UlOt31lBhLY"
 video_id: UlOt31lBhLY
 tags: [suffering state, beautiful state, prosperity, ego, connection]
 teacher: "both"

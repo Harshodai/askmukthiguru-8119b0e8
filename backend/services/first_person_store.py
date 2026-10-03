@@ -19,9 +19,10 @@ Schema & Features:
 
 from __future__ import annotations
 
+import hashlib
 import logging
-from typing import Any, Optional
 import uuid
+from typing import Any, Optional
 
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import (
@@ -94,7 +95,11 @@ def validate_clip_entry(clip: dict[str, Any]) -> None:
         )
 
     t_hash = clip["transcript_hash"]
-    if not isinstance(t_hash, str) or len(t_hash) != 64 or not all(c in "0123456789abcdefABCDEF" for c in t_hash):
+    if (
+        not isinstance(t_hash, str)
+        or len(t_hash) != 64
+        or not all(c in "0123456789abcdefABCDEF" for c in t_hash)
+    ):
         raise ValueError(f"transcript_hash must be a 64-char hex SHA-256 string, got '{t_hash}'")
 
     if clip["speaker"] not in ALLOWED_SPEAKERS:
@@ -104,22 +109,55 @@ def validate_clip_entry(clip: dict[str, Any]) -> None:
 
     if not str(clip["verbatim_text"]).strip():
         raise ValueError("verbatim_text cannot be empty")
+    expected_hash = hashlib.sha256(str(clip["verbatim_text"]).encode("utf-8")).hexdigest()
+    if t_hash.casefold() != expected_hash:
+        raise ValueError(
+            "transcript_hash must equal sha256(verbatim_text.encode('utf-8')).hexdigest()"
+        )
+    if clip.get("first_person_eligible", True) is not True:
+        raise ValueError("first_person_eligible must be true for indexed clips")
+    if clip.get("provenance_kind") == "curated_okf":
+        raise ValueError("curated OKF entries cannot be indexed as first-person clips")
 
 
-def deduplicate_clips_by_video(results: list[dict[str, Any]], max_clips: int = 3) -> list[dict[str, Any]]:
+def deduplicate_clips_by_video(
+    results: list[dict[str, Any]],
+    max_clips: int = 3,
+    allow_same_video_distinct_spans: bool = False,
+    min_span_gap_ms: int = 30_000,
+) -> list[dict[str, Any]]:
     """
-    Ensure no more than one clip per video is returned in the final result list.
+    Ensure no more than one clip per video is returned in the final result list,
+    unless allow_same_video_distinct_spans is True. When True, allows up to 2
+    clips from the same video IF they are disjoint by at least min_span_gap_ms (30s).
+    # ponytail: allows pairing of a doctrine clip with a practical meditation clip from the same discourse.
     """
-    seen_videos: set[str] = set()
+    video_clips: dict[str, list[dict[str, Any]]] = {}
     deduped: list[dict[str, Any]] = []
 
     for r in results:
         vid = r.get("video_id")
-        if vid and vid not in seen_videos:
-            seen_videos.add(vid)
+        if not vid:
+            continue
+        existing = video_clips.get(vid, [])
+        if not existing:
+            video_clips[vid] = [r]
             deduped.append(r)
             if len(deduped) >= max_clips:
                 break
+        elif allow_same_video_distinct_spans and len(existing) < 2:
+            r_start = r.get("start_ms", 0)
+            can_add = True
+            for prev in existing:
+                prev_start = prev.get("start_ms", 0)
+                if abs(r_start - prev_start) < min_span_gap_ms:
+                    can_add = False
+                    break
+            if can_add:
+                video_clips[vid].append(r)
+                deduped.append(r)
+                if len(deduped) >= max_clips:
+                    break
 
     return deduped
 
@@ -144,6 +182,7 @@ class FirstPersonStore:
         ("provenance_kind", "keyword"),
         ("quality_status", "keyword"),
         ("first_person_eligible", "keyword"),
+        ("is_verbatim", "keyword"),
         ("verbatim_text", "text"),
         ("question_text", "text"),
     ]
@@ -154,7 +193,9 @@ class FirstPersonStore:
         client: Optional[QdrantClient] = None,
         dimension: int = 1024,
     ) -> None:
-        self._collection = collection or getattr(settings, "first_person_collection", self.DEFAULT_COLLECTION)
+        self._collection = collection or getattr(
+            settings, "first_person_collection", self.DEFAULT_COLLECTION
+        )
         self._dimension = dimension or getattr(settings, "embedding_dimension", 1024)
         if client is not None:
             self._client = client
@@ -195,9 +236,7 @@ class FirstPersonStore:
                 ),
             },
             sparse_vectors_config={
-                "passage_sparse": SparseVectorParams(
-                    index=SparseIndexParams(on_disk=True)
-                )
+                "passage_sparse": SparseVectorParams(index=SparseIndexParams(on_disk=True))
             },
         )
 
@@ -236,6 +275,18 @@ class FirstPersonStore:
 
         points: list[PointStruct] = []
         for i, clip in enumerate(clips):
+            # ponytail: clean ASR noise at ingestion time before storing into Qdrant
+            from ingest.verbatim.asr_cleaner import clean_verbatim_text
+
+            original_text = str(clip.get("verbatim_text", ""))
+            cleaned_text = clean_verbatim_text(original_text)
+            if original_text.strip() and not cleaned_text.strip():
+                raise ValueError("ASR cleaner removed all text from a non-empty clip")
+            if cleaned_text != original_text:
+                clip = dict(clip)
+                clip["verbatim_text"] = cleaned_text
+                clip["transcript_hash"] = hashlib.sha256(cleaned_text.encode("utf-8")).hexdigest()
+
             # Enforce validation invariants
             validate_clip_entry(clip)
 
@@ -252,10 +303,18 @@ class FirstPersonStore:
             # Only set question_dense when a real question embedding exists —
             # a passage-dense fallback copy would double-count the passage in
             # RRF fusion against itself.
-            if question_dense_vectors and i < len(question_dense_vectors) and question_dense_vectors[i]:
+            if (
+                question_dense_vectors
+                and i < len(question_dense_vectors)
+                and question_dense_vectors[i]
+            ):
                 named_vectors["question_dense"] = question_dense_vectors[i]
 
-            if passage_sparse_vectors and i < len(passage_sparse_vectors) and passage_sparse_vectors[i]:
+            if (
+                passage_sparse_vectors
+                and i < len(passage_sparse_vectors)
+                and passage_sparse_vectors[i]
+            ):
                 sp = passage_sparse_vectors[i]
                 indices = sp.get("indices", [])
                 values = sp.get("values", [])
@@ -275,12 +334,15 @@ class FirstPersonStore:
                 "speaker": clip["speaker"],
                 "transcript_hash": clip["transcript_hash"],
                 "group_id": clip.get("group_id", clip["video_id"]),
-                "source_url": clip.get("source_url", f"https://www.youtube.com/watch?v={clip['video_id']}"),
+                "source_url": clip.get(
+                    "source_url", f"https://www.youtube.com/watch?v={clip['video_id']}"
+                ),
                 "teacher_id": clip.get("teacher_id"),
                 "teacher_ids": clip.get("teacher_ids"),
                 "provenance_kind": clip.get("provenance_kind", "speech_turn_clip"),
                 "quality_status": clip.get("quality_status", "verified_verbatim"),
                 "first_person_eligible": clip.get("first_person_eligible", True),
+                "is_verbatim": True,
                 "verbatim_text": clip["verbatim_text"],
                 "question_text": clip.get("question_text", ""),
             }
@@ -307,12 +369,56 @@ class FirstPersonStore:
                 )
             )
 
+        # R2 / A-5 fail-closed write verification (audit 2026-09-29, plan Phase 1):
+        # (1) every point ID must equal recomputation from the payload actually
+        #     being written (uuid5(hash,start,end)); (2) the dense leg must match
+        #     the declared dimension — never a silent drop or schema drift.
+        for point in points:
+            pl = point.payload
+            recomputed = hashlib.sha256(str(pl["verbatim_text"]).encode("utf-8")).hexdigest()
+            if str(pl["transcript_hash"]).casefold() != recomputed:
+                raise ValueError(f"[R2] payload transcript_hash drift for point {point.id}")
+            expected = make_first_person_point_id(
+                pl["transcript_hash"], pl["start_ms"], pl["end_ms"]
+            )
+            if str(point.id) != expected:
+                raise ValueError(f"[R2] point id {point.id} != recomputed {expected} from payload")
+            dense = point.vector.get("passage_dense") if isinstance(point.vector, dict) else None
+            if not dense or len(dense) != self._dimension:
+                raise ValueError(
+                    f"[R2] passage_dense dim {len(dense) if dense else 0} != "
+                    f"{self._dimension} for point {point.id}"
+                )
+
         self._client.upsert(
             collection_name=self._collection,
             points=points,
             wait=True,
         )
-        logger.info(f"[FirstPersonStore] Successfully upserted {len(points)} clips into '{self._collection}'")
+
+        # Read-back: sample first/last written points — dense vector + payload
+        # must survive the write (catches silent named-vector drops, audit A-5).
+        sample = points if len(points) <= 4 else points[:2] + points[-2:]
+        readback = self._client.retrieve(
+            collection_name=self._collection,
+            ids=[str(p.id) for p in sample],
+            with_payload=["transcript_hash"],
+            with_vectors=["passage_dense"],
+        )
+        by_id = {str(r.id): r for r in readback}
+        for p in sample:
+            got = by_id.get(str(p.id))
+            if got is None:
+                raise ValueError(f"[R2] read-back missing point {p.id} after upsert")
+            got_dense = (getattr(got, "vector", None) or {}).get("passage_dense")
+            if not got_dense or len(got_dense) != self._dimension:
+                raise ValueError(f"[R2] read-back passage_dense dim wrong for point {p.id}")
+            if (got.payload or {}).get("transcript_hash") != p.payload["transcript_hash"]:
+                raise ValueError(f"[R2] read-back payload drift for point {p.id}")
+
+        logger.info(
+            f"[FirstPersonStore] Successfully upserted {len(points)} clips into '{self._collection}'"
+        )
         return len(points)
 
     def points_servable(self, point_ids: list[str]) -> bool:
@@ -340,10 +446,11 @@ class FirstPersonStore:
         teacher_id: Optional[str] = None,
         limit: int = 10,
         dedup_limit: int = 3,
+        allow_same_video_distinct_spans: bool = False,
     ) -> list[dict[str, Any]]:
         """
         RRF hybrid search over passage_dense + passage_sparse (bake-off B.R0).
-        Returns up to dedup_limit clips, max 1 per video_id.
+        Returns up to dedup_limit clips, max 1 per video_id (or up to 2 if distinct spans allowed).
         """
         # Build filter: only first_person_eligible (and, by default,
         # rights_cleared) points, optionally scoped to one teacher.
@@ -403,11 +510,17 @@ class FirstPersonStore:
             item["point_id"] = str(p.id)
             item["score"] = float(p.score) if p.score is not None else 0.0
             raw_vector = getattr(p, "vector", None)
-            item["passage_dense"] = raw_vector.get("passage_dense") if isinstance(raw_vector, dict) else None
+            item["passage_dense"] = (
+                raw_vector.get("passage_dense") if isinstance(raw_vector, dict) else None
+            )
             formatted.append(item)
 
-        # Enforce max 1 clip per video invariant
-        return deduplicate_clips_by_video(formatted, max_clips=dedup_limit)
+        # Enforce max 1 clip per video invariant (or up to 2 distinct spans if requested)
+        return deduplicate_clips_by_video(
+            formatted,
+            max_clips=dedup_limit,
+            allow_same_video_distinct_spans=allow_same_video_distinct_spans,
+        )
 
     def count(self) -> int:
         """Return total points in collection."""

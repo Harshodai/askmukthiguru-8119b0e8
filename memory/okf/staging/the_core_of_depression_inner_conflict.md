@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Core of Depression: Inner Conflict"
-source: "YouTube https://www.youtube.com/watch?v=oalnb5-fHjY"
+source: "https://www.youtube.com/watch?v=oalnb5-fHjY"
 video_id: oalnb5-fHjY
 tags: [warring self, depression, self-criticism, inner conflict]
 teacher: "both"

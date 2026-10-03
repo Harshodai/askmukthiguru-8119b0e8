@@ -43,7 +43,9 @@ MIN_WORDS = 12
 TARGET_MIN_S = 18.0  # FP invariant 11 lower bound
 
 
-def sentence_tokens(words: list[dict[str, Any]], punct: dict[str, Any] | None) -> tuple[list[str], bool]:
+def sentence_tokens(
+    words: list[dict[str, Any]], punct: dict[str, Any] | None
+) -> tuple[list[str], bool]:
     display = (punct or {}).get("display_words") or []
     if (punct or {}).get("zero_change_assert_passed") and len(display) == len(words):
         return display, True
@@ -51,11 +53,15 @@ def sentence_tokens(words: list[dict[str, Any]], punct: dict[str, Any] | None) -
 
 
 def clip_span(words: list[dict[str, Any]], start: float, end: float) -> tuple[int, int] | None:
-    idx = [i for i, w in enumerate(words) if w["start"] >= start - _PAD_S and w["end"] <= end + _PAD_S]
+    idx = [
+        i for i, w in enumerate(words) if w["start"] >= start - _PAD_S and w["end"] <= end + _PAD_S
+    ]
     return (idx[0], idx[-1] + 1) if idx else None
 
 
-def repair(sent: list[str], labels: list[str], s: int, e: int, spk: str) -> dict[str, tuple[int, int] | None]:
+def repair(
+    sent: list[str], labels: list[str], s: int, e: int, spk: str
+) -> dict[str, tuple[int, int] | None]:
     grown = grow_to_sentence_start(sent, labels, s, spk)
     return {
         "none": (s, e),
@@ -65,15 +71,23 @@ def repair(sent: list[str], labels: list[str], s: int, e: int, spk: str) -> dict
 
 
 def measure(roots: list[Path], min_duration_s: float) -> dict[str, Any]:
-    acc = {m: {"survive": 0, "clean": 0, "clean_18s": 0, "words": 0, "durations": []} for m in ("none", "shrink", "grow")}
+    acc = {
+        m: {"survive": 0, "clean": 0, "clean_18s": 0, "words": 0, "durations": []}
+        for m in ("none", "shrink", "grow")
+    }
     n_clips = n_display = n_unmapped = 0
     for root in roots:
         for f in sorted((root / "passages_C").glob("*.json")):
-            tpath, ppath = root / "transcripts_B" / f"{f.stem}.json", root / "raw" / f"{f.stem}_punct.json"
+            tpath, ppath = (
+                root / "transcripts_B" / f"{f.stem}.json",
+                root / "raw" / f"{f.stem}_punct.json",
+            )
             if not tpath.exists():
                 continue
             words = json.loads(tpath.read_text())
-            sent, used_display = sentence_tokens(words, json.loads(ppath.read_text()) if ppath.exists() else None)
+            sent, used_display = sentence_tokens(
+                words, json.loads(ppath.read_text()) if ppath.exists() else None
+            )
             labels = [w.get("spk", "?") for w in words]
             for clip in json.loads(f.read_text()):
                 spk = _SPK.get(clip.get("speaker", ""))
@@ -108,7 +122,9 @@ def measure(roots: list[Path], min_duration_s: float) -> dict[str, Any]:
                 "clean_pct_of_input": round(100 * a["clean"] / n_clips, 1) if n_clips else 0.0,
                 "clean_and_18s_plus": a["clean_18s"],
                 "words_kept": a["words"],
-                "median_duration_s": round(statistics.median(a["durations"]), 1) if a["durations"] else None,
+                "median_duration_s": round(statistics.median(a["durations"]), 1)
+                if a["durations"]
+                else None,
             }
             for m, a in acc.items()
         },
@@ -116,7 +132,9 @@ def measure(roots: list[Path], min_duration_s: float) -> dict[str, Any]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     ap.add_argument("--root", type=Path, action="append", required=True)
     ap.add_argument("--min-duration-s", type=float, default=8.0)
     ap.add_argument("--out", type=Path, default=None)
@@ -127,7 +145,13 @@ def main(argv: list[str] | None = None) -> int:
         "min_words": MIN_WORDS,
         **measure(args.root, args.min_duration_s),
     }
-    out = args.out or _REPO / "docs" / "evidence" / f"first_person_boundary_repair_{dt.date.today().isoformat()}.json"
+    out = (
+        args.out
+        or _REPO
+        / "docs"
+        / "evidence"
+        / f"first_person_boundary_repair_{dt.date.today().isoformat()}.json"
+    )
     out.write_text(json.dumps(report, indent=2))
     print(json.dumps({k: v for k, v in report.items() if k != "roots"}, indent=1), f"\n-> {out}")
     return 0

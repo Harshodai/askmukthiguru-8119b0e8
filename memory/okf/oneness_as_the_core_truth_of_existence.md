@@ -1,28 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=MJYpyUlwxg0
+title: Oneness As The Core Truth Of Existence
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=MJYpyUlwxg0
+video_id: MJYpyUlwxg0
 tags:
 - oneness
-- existence
-- truth of suffering
-teacher: both
-title: Oneness as the Core Truth of Existence
-type: teaching
-video_id: MJYpyUlwxg0
+- teaching
 ---
-# Oneness as the Core Truth of Existence
+# Oneness As The Core Truth Of Existence
 
+## Verbatim Discourse Excerpts
+The deepest truth and the fundamental essence of life is oneness. The core of you, me and of everything that is, is oneness. All existence is one at its source. All existence is one in its continuity. All existence is one in its passing. At the basis of all existence is one universal intelligence. And this unified field appears as the diversity we call universe.
 
-## Summary
-The fundamental essence of life and all existence is oneness. This oneness is the core of every individual, everything that exists, and is the source from which all diversity arises.
+Mahadeva Shiva represents the oneness of birth, continuity and death. Mahadeva Shiva is the unified source of the diversified universe. His dance is a dynamic symphony of different waves of oneness. On the Mahashivaratri, the mystic night of oneness, you meditate with your senses drawn inward and quiet in your mind to enter the realm of consciousness and become one with Mahadeva Shiva.
 
 ## Key Teachings
-- The deepest truth and fundamental essence of life is oneness (Unknown Channel).
-- The core of "you, me, and of everything that is, is oneness" (Unknown Channel).
-- All existence is one at its source (Unknown Channel).
+- The deepest truth and the fundamental essence of life is oneness. — Sri Preethaji & Sri Krishnaji
+- The core of you, me and of everything that is, is oneness. — Sri Preethaji & Sri Krishnaji
+- At the basis of all existence is one universal intelligence. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "The deepest truth and the fundamental essence of life is oneness. The core of you, me, and of everything that is, is oneness." — Unknown Channel
-
-## Related Concepts
-- Suffering States: emotionally painful states of being that disconnect individuals from the universal intelligence and its power.
-- Overcoming Suffering: a concept related to spiritual teachings, focusing on the alleviation of suffering.
+## Source Context
+- Video: How to find Lord Shiva on Mahashivratri?
+- URL: https://www.youtube.com/watch?v=MJYpyUlwxg0
+- Speaker: Sri Preethaji & Sri Krishnaji

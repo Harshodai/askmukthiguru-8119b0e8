@@ -1,40 +1,26 @@
 ---
-source: https://www.youtube.com/watch?v=co3N4y-RQKQ
-tags:
-- awakening
-- consciousness
-teacher: sri-preethaji
-title: Observation and Self-Awareness
+title: Observation And Self Awareness
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=co3N4y-RQKQ
 video_id: co3N4y-RQKQ
+tags:
+- oneness
+- teaching
 ---
-# Observation and Self-Awareness
+# Observation And Self Awareness
 
-# Title
+## Verbatim Discourse Excerpts
+Let me speak to you about the coming manifest. Manifest, generational healing. Manifest, awakened parenting. Why do you think you're repeating the same mistakes that your mother did or your father did? Why do you think you're shocked when you realize that your son or your daughter or your grandson or your granddaughter is exhibiting traits of your parents whom they have never met?
 
-## Summary
-Observation and self-awareness are crucial practices in spiritual awakening. Recognizing the inherited traits and patterns from parents, especially those never met, helps in creating a new generation of compassionate parenting. The Divine Mother's compassion plays a significant role in healing and nurturing future generations, ensuring continuity and positivity.
+And this transcendental dimension of the Divine Mother would birth compassion within you to heal your children, your grandchildren, your nephews, your nieces and even your students. I will lead you into the sacred wisdom of nurturing and parenting a child who may be your own or another's. And you will learn to parent a new generation of young people.
 
 ## Key Teachings
-- Recognizing and healing inherited patterns is essential for creating a new generation of compassionate parenting.
-- The Divine Mother's compassion is vital in healing and nurturing future generations, ensuring continuity and positivity.
+- Let me speak to you about the coming manifest. — Sri Preethaji & Sri Krishnaji
+- Why do you think you're repeating the same mistakes that your mother did or your father did? — Sri Preethaji & Sri Krishnaji
+- Why do you think you're shocked when you realize that your son or your daughter or your grandson or your granddaughter is exhibiting traits of your parents whom they have never met? — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-
-## Related Concepts
-- Deeksha: A spiritual practice that involves receiving energy and guidance from a spiritual teacher, facilitating an enlightened state.
-- Divine: The concept representing the ultimate reality or the source of all existence, encompassing multiple deities and the idea of a cosmic being.
-- Sri Krishnaji: A spiritual teacher recognized for his teachings on various aspects of spirituality, including karma, dharma, meditation, yoga, and the practice of "deeksha."
-- Sri Sri Preethaji: A spiritual teacher who guides seekers in dissolving negative childhood impressions and awakening to a higher state of consciousness.
-- Zero and Infinity: The discovery of zero and infinity is attributed to the enlightened consciousness of Indian sages.
-- Shunyata and Brahman: States of consciousness experienced by Indian sages, leading to significant contributions to mathematics and philosophy.
-- Enlightenment: A state of profound understanding characterized by a state of consciousness free from suffering, with intense awareness and no compulsive attachment to the past or future.
-- Soul Mate: A person who brings joy, unconditional love, and security into one's life.
-- Spiritual Process: A journey of awakening and transformation that leads to higher states of consciousness.
-- Enlightenment State: The highest state of consciousness, characterized by complete understanding and unity.
-- Ananda: A state of bliss and happiness that is often experienced in spiritual practices.
-- I-Consciousness: A state of awareness and connection to one's own being.
-- Samskara: Complex and multifaceted concept in various contexts, referring to tendencies or characteristics that flow from one's father and can be wholesome or unwholesome.
-- Abundance: A state of being that encompasses a harmonious existence, interconnectedness with others, and the creation of wealth and prosperity through the power of consciousness.
-- COVID Crisis: A massive awakening call for a new direction into the future.
-- You: A person who can create change, a singular subject in the text, the recipient of pain caused by others, and a distinct individual with thoughts.
+## Source Context
+- Video: Manifest Generational Healing Manifest Awakened Parenting
+- URL: https://www.youtube.com/watch?v=co3N4y-RQKQ
+- Speaker: Sri Preethaji & Sri Krishnaji

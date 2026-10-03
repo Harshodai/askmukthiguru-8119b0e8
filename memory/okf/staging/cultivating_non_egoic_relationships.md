@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Cultivating Non-Egoic Relationships"
-source: "YouTube https://www.youtube.com/watch?v=M8XASiz30oE"
+source: "https://www.youtube.com/watch?v=M8XASiz30oE"
 video_id: M8XASiz30oE
 tags: [relationships, ego, love, harmony]
 teacher: "both"

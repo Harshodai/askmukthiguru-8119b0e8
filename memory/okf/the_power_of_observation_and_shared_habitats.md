@@ -1,29 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=Xk1KsO3efP4
-tags:
-- dharma
-- observation
-- interconnectedness
-- species
-- environment
-teacher: both
-title: The Power of Observation and Shared Habitats
+title: The Power Of Observation And Shared Habitats
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=Xk1KsO3efP4
 video_id: Xk1KsO3efP4
+tags:
+- oneness
+- teaching
 ---
-# The Power of Observation and Shared Habitats
+# The Power Of Observation And Shared Habitats
 
+## Verbatim Discourse Excerpts
+Many moons ago, animals and people could talk to each other. They worked and played with peace and harmony. What was possible in one land is possible in every land. If we awaken our planet, our Earth, it's not just a home for us. We share it with millions of other species. So many of them have arrived much before us. We cannot have our homes saved when the rest of the Earth is burning.
 
-## Summary
-The teaching highlights the interconnectedness of all life on Earth, emphasizing that humans share the planet with millions of other species, many of whom existed long before us. It implicitly suggests that observing this shared existence leads to a deeper understanding of our place in the world.
+What all these millions of lifeforms ask of humanity is to simply let them be. To respect their boundaries and their living spaces is our dharma. Not to hurt their homes and families is our dharma. Not to take so much from the Earth that we leave nothing for other lifeforms is our dharma. To live consciously and compassionately is our dharma to the Earth.
 
 ## Key Teachings
-- We share the Earth with millions of other species. (Unknown Channel)
-- Many species arrived on Earth much before humans. (Unknown Channel)
+- Many moons ago, animals and people could talk to each other. — Sri Preethaji & Sri Krishnaji
+- They worked and played with peace and harmony. — Sri Preethaji & Sri Krishnaji
+- What was possible in one land is possible in every land. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-There are no direct quotes from Sri Preethaji or Sri Krishnaji in the provided transcript for this specific topic.
-
-## Related Concepts
-- The Power of Observation: The ability to observe and understand the world around us, and to simply notice and acknowledge one's thoughts and emotions without judgment.
-- Observation: The act of paying attention to and examining something, and a practice that allows one to perceive beyond the senses, leading to spiritual insight.
+## Source Context
+- Video: Your Dharma To Mother Earth | Evolution Series  62 with Preethaji & Krishnaji
+- URL: https://www.youtube.com/watch?v=Xk1KsO3efP4
+- Speaker: Sri Preethaji & Sri Krishnaji

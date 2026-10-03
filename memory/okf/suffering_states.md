@@ -1,22 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=Gw4Ng9FKJyY
-tags:
-- suffering
-- emotions
-teacher: both
 title: Suffering States
-type: glossary
+type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=Gw4Ng9FKJyY
 video_id: Gw4Ng9FKJyY
+tags:
+- oneness
+- teaching
 ---
 # Suffering States
 
+## Verbatim Discourse Excerpts
+Enlightenment that we lead seekers to is one that encompasses both self-realization and God realization. God realization is an experience of God consciousness, not as a belief in God. I'm not asking you to cultivate a belief. If you are a believer in God, I'm not asking you to change your belief system.
 
-## Summary
-Suffering States are emotional conditions such as regret, sadness, and loneliness that create a disconnection from life. They can also be described as a downward spiral of chaos and problems.
+The journey will lead seekers to transcend any form of belief or ideology about God, because every ideology, every belief falls in the realm of the mind. An experience of God consciousness - please note - translates the mind. Here, you enter the realm of consciousness; you enter the realm of pure experience. God consciousness is an awakening to your connection to your soul, to the field of intelligence that pervades and permeates the entire universe.
 
 ## Key Teachings
-- Suffering States include emotional states like regret, sadness, and loneliness, which cause individuals to disconnect from life.
-- Suffering States can manifest as a downward spiral of chaos and problems.
+- Enlightenment that we lead seekers to is one that encompasses both self-realization and God realization. — Sri Preethaji & Sri Krishnaji
+- God realization is an experience of God consciousness, not as a belief in God. — Sri Preethaji & Sri Krishnaji
+- I'm not asking you to cultivate a belief. — Sri Preethaji & Sri Krishnaji
 
-## Related Concepts
-- Suffering: a multifaceted concept encompassing various aspects of human experience, described as a state of conflict and ideals, characterized by intense awareness and a lack of compulsive attachment, which can be addressed through enlightenment.
+## Source Context
+- Video: Gw4Ng9FKJyY
+- URL: https://www.youtube.com/watch?v=Gw4Ng9FKJyY
+- Speaker: Sri Preethaji & Sri Krishnaji

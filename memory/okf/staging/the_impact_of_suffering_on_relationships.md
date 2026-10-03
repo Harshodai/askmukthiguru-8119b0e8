@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "The Impact of Suffering on Relationships"
-source: "YouTube https://www.youtube.com/watch?v=MKOAMUmZ-RA"
+source: "https://www.youtube.com/watch?v=MKOAMUmZ-RA"
 video_id: MKOAMUmZ-RA
 tags: [suffering, relationships, connection, problem-solving]
 teacher: "both"

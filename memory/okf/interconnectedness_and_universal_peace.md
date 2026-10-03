@@ -1,26 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=ELiB_UwCVTY
-tags:
-- peace
-- interconnectedness
-- humanity
-teacher: both
-title: Interconnectedness and Universal Peace
+title: Interconnectedness And Universal Peace
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=ELiB_UwCVTY
 video_id: ELiB_UwCVTY
+tags:
+- oneness
+- teaching
 ---
-# Interconnectedness and Universal Peace
+# Interconnectedness And Universal Peace
 
+## Verbatim Discourse Excerpts
+Peace is something you find when strife disappears and there is a deep cherishing of mutual well-being between two people or two nations. Peace is something you find in the still gaze of an infant. Peace is something you feel when you hear the songs of the birds and the laughter of children. Peace is something you feel when you are touched by experiences that make you feel like this is what life is worth living for.
 
-## Summary
-This teaching emphasizes that humanity cannot isolate itself from the well-being or ill-being of others. True peace, whether it is for an individual or a collective, must extend to all.
+We live in a world where what happens to one happens to all. We cannot shut ourselves from each other's predicament be it ill-being or well-being. It is either peace for all of us or peace for none of us. Let us lead humanity towards care and compassion, towards dignity and respect for all life. Let us join our hearts for peace in the world today for a beautiful tomorrow and for peace at all times.
 
 ## Key Teachings
-- Humanity cannot separate itself from the predicament of others, whether it is their suffering or their well-being. (Unknown Channel)
-- Peace must be universal, applying to all beings. (Unknown Channel)
+- Peace is something you find when your heart is devoid of any conflict. — Sri Preethaji & Sri Krishnaji
+- Peace is something you find when strife disappears and there is a deep cherishing of mutual well-being between two people or two nations. — Sri Preethaji & Sri Krishnaji
+- Peace is something you find in the still gaze of an infant. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-> "We cannot shut ourselves from each other's predicament, be it ill-being or well-being." — Unknown Channel
-
-## Related Concepts
-- Peace: a multifaceted concept that encompasses a state of harmony, love, and unity. It can be achieved through various means, including inner calmness, collective awareness, and adherence to the principles of the Golden Ratio.
+## Source Context
+- Video: What exactly is Peace?
+- URL: https://www.youtube.com/watch?v=ELiB_UwCVTY
+- Speaker: Sri Preethaji & Sri Krishnaji

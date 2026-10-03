@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Recognizing the Root Cause of Suffering"
-source: "YouTube https://www.youtube.com/watch?v=XFFgRTgP8Rs"
+source: "https://www.youtube.com/watch?v=XFFgRTgP8Rs"
 video_id: XFFgRTgP8Rs
 tags: [suffering, self-image, ego, beautiful state]
 teacher: "both"

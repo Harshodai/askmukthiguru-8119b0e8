@@ -1,7 +1,7 @@
 ---
 type: glossary
 title: "Suffering States"
-source: "YouTube https://www.youtube.com/watch?v=Gw4Ng9FKJyY"
+source: "https://www.youtube.com/watch?v=Gw4Ng9FKJyY"
 video_id: Gw4Ng9FKJyY
 tags: [suffering, emotions]
 teacher: "both"

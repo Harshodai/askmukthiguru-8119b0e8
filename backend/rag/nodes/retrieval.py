@@ -1011,7 +1011,9 @@ async def generate_hyde(state: GraphState, config: Optional[RunnableConfig] = No
 
 
 @log_metrics
-async def navigate_knowledge_tree(state: GraphState, config: Optional[RunnableConfig] = None) -> dict:
+async def navigate_knowledge_tree(
+    state: GraphState, config: Optional[RunnableConfig] = None
+) -> dict:
     """PageIndex-inspired reasoning-based pre-retrieval."""
     question = state["question"]
     ollama = _services._ollama

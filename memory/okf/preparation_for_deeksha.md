@@ -1,34 +1,26 @@
 ---
-source: YouTube https://www.youtube.com/watch?v=avCLyAi9DeY
-tags:
-- deeksha
-teacher: both
-title: Preparation for Deeksha
+title: Preparation For Deeksha
 type: teaching
+teacher: sri-preethaji-and-sri-krishnaji
+source: https://www.youtube.com/watch?v=avCLyAi9DeY
 video_id: avCLyAi9DeY
+tags:
+- oneness
+- teaching
 ---
-# Preparation for Deeksha
+# Preparation For Deeksha
 
+## Verbatim Discourse Excerpts
+Now coming to preparation, the best way to prepare yourself for giving Deeksha would be to do an acham prayer or practice the compassion meditation for yourself. Regarding the receivers, please ask the receivers to sit still, lead them into slowing their breath. You can ask them to hold a clear intention for what they are seeking from their divine. When you are giving Deeksha, they may either chant the ekam mantra, hamsa soham ekam or stay in a state of openness to receive the Deeksha.
 
-## Summary
-This teaching outlines the general preparation and prerequisites for giving Deeksha, explains the two types of Deeksha, and begins the step-by-step instructions for the Tactile (Sparsha) Deeksha method.
+Namaste. Taiman again initiates of Deeksha. Herbine chosen to be Deeksha givers have asked me on guidance on how to exactly give a Deeksha and that is why you have this video. This video is meant to be seen and circulated only to people who have been initiated into Deeksha and not others. I want you to remember Deeksha is not a meditation. For the power of Deeksha to actually flow through you, you must have experienced Shaktipata. We must have activated your Chakra, opened up certain nadis, the spiritual energy channels through which the divine grace flows through your body, flows from you to the receiver.
 
 ## Key Teachings
-- The preparation for giving Deeksha involves understanding the general guidelines and prerequisites before initiating the process.
-- There are two types of Deeksha, with the Tactile (Sparsha) Deeksha method being the specific procedural focus for the initiation process.
-- The practice involves transitioning from general guidelines to the specific procedural guidance for Deeksha initiates.
+- Now coming to preparation, the best way to prepare yourself for giving Deeksha would be to do an acham prayer or practice the compassion meditation for yourself. — Sri Preethaji & Sri Krishnaji
+- Herbine chosen to be Deeksha givers have asked me on guidance on how to exactly give a Deeksha and that is why you have this video. — Sri Preethaji & Sri Krishnaji
+- This video is meant to be seen and circulated only to people who have been initiated into Deeksha and not others. — Sri Preethaji & Sri Krishnaji
 
-## Quotes
-
-## Related Concepts
-- Deeksha (practice): Deeksha is a spiritual practice involving the reception of energy and guidance from a spiritual teacher, which facilitates an enlightened state, divine intervention, and the cleansing of consciousness.
-- Ekam: A spiritual ritual involving the transmission of knowledge and blessings, associated with Deeksha.
-- Tactile (Sparsha) Deeksha: A method of Deeksha involving physical touch or tactile transmission.
-- Abundance Festival: A context where Deeksha is a spiritual process through which participants receive awakening to powerful positive Samskara.
-- ACUM: The source from which a powerful energy or flow emanates to help individuals shift their consciousness from disconnection to connection.
-- Transcendental Mystical States: A state that can result from the transfer of divine sacred energies during Deeksha.
-
-## Source
-[Source: Pkconsciousness - How to give Deeksha after initiation | Speaker: Unknown Channel | Topic: Preparation for Deeksha]
-[Context: This chunk outlines the general preparation and prerequisites for giving Deeksha, explains the two types of Deeksha, and begins the step-by-step instructions for the Tactile (Sparsha) Deeksha method. It serves as a foundational transition from general guidelines to the specific procedural guidance for Deeksha initiates.]
-They may either chant or stay in a state o
+## Source Context
+- Video: Pkconsciousness - How to give Deeksha after initiation
+- URL: https://www.youtube.com/watch?v=avCLyAi9DeY
+- Speaker: Sri Preethaji & Sri Krishnaji
