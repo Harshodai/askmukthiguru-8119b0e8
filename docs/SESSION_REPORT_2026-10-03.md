@@ -665,3 +665,14 @@ ANSWERS table). This section carries the commands and evidence.
   pre-commit): **`8478 passed, 12 skipped, 2 deselected, 1 xfailed in
   568.79s` — 0 failed** (was `1 failed, 8468 passed`; +10 net from the new
   Ask-1/Ask-5 tests, the S1 failure gone).
+- **Commit (owner Ask 3): `21a3df03`** — "prod-readiness: execute all 9 owner
+  decisions (FP-primary switch, S1 root-cause fix, gates green)"; 1,576 files,
+  +39,825/−15,297; forbidden-pattern scan on `git show --name-only` = empty
+  (no `.env`/transcripts/audio/`cookies.txt`/corpus/`state.json`/logs);
+  `memory/okf/` = 1,373 files; pre-commit CI gates pre-validated locally:
+  `security_audit.py --report` = 28 PASS / 2 WARN / 0 FAIL (exit 0, "SHIP
+  READY" — the 2 WARNs are the standing PII-in-logs / password-in-responses
+  heuristics, non-blocking) and the production-contract `test -f` files all
+  exist. CI note: `main-hard-gates.yml`'s `git diff --check` runs on a clean
+  checkout (empty diff = no-op), so the intentional MD hard-break spaces in
+  4 new markdown docs cannot fail it.
