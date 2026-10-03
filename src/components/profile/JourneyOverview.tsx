@@ -28,7 +28,7 @@ interface JourneyOverviewProps {
     caption?: string | null;
     image_url?: string | null;
   } | null;
-  onNavigate: (tab: 'profile' | 'stats' | 'conversations' | 'memory' | 'settings') => void;
+  onNavigate: (tab: 'profile' | 'memory' | 'settings') => void;
   onContinueChat: (conversationId?: string) => void;
   onPractice: () => void;
   onKnowledgeGraph: () => void;
@@ -144,7 +144,7 @@ export const JourneyOverview = ({
 
             <button
               type="button"
-              onClick={() => onNavigate('stats')}
+              onClick={onPractice}
               className="group rounded-2xl border border-hairline bg-background/50 p-4 text-left transition-colors hover:border-ojas/30 hover:bg-ojas/5"
             >
               <div className="flex items-center justify-between gap-3">
@@ -153,8 +153,8 @@ export const JourneyOverview = ({
                 </div>
                 <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-ojas transition-colors" />
               </div>
-              <p className="mt-3 font-medium text-foreground">{t('profile.journey.seePractice', 'See your practice')}</p>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{t('profile.journey.seePracticeDesc', 'Open detailed activity, streaks, and practice history.')}</p>
+              <p className="mt-3 font-medium text-foreground">{t('profile.journey.continuePractice', 'Continue your practice')}</p>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{t('profile.journey.seePracticeDesc', 'Return to your meditation and practice history.')}</p>
             </button>
           </CardContent>
         </Card>
@@ -169,8 +169,8 @@ export const JourneyOverview = ({
                 </CardTitle>
                 <CardDescription>{t('profile.journey.pickUp', 'Pick up where you left off.')}</CardDescription>
               </div>
-              <Button variant="ghost" size="sm" onClick={() => onNavigate('conversations')} className="text-xs gap-1">
-                {t('profile.journey.viewAll', 'View all')} <ArrowRight className="w-3 h-3" />
+              <Button variant="ghost" size="sm" onClick={() => onContinueChat()} className="text-xs gap-1">
+                {t('profile.journey.openChat', 'Open chat')} <ArrowRight className="w-3 h-3" />
               </Button>
             </div>
           </CardHeader>
@@ -211,9 +211,6 @@ export const JourneyOverview = ({
                 </CardTitle>
                 <CardDescription>{t('profile.journey.signalsRecorded', 'Signals derived from what you have actually recorded.')}</CardDescription>
               </div>
-              <Button variant="ghost" size="sm" onClick={() => onNavigate('stats')} className="text-xs gap-1">
-                {t('profile.journey.insights', 'Insights')} <ArrowRight className="w-3 h-3" />
-              </Button>
             </div>
           </CardHeader>
           <CardContent className="space-y-2.5">

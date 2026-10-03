@@ -152,12 +152,13 @@ const ProfilePage = () => {
   const navigate = useNavigate();
   const tabParam = searchParams.get('tab');
   const isOnboarding = searchParams.get('onboarding') === 'true';
-  const PROFILE_TABS = ['journey', 'profile', 'stats', 'conversations', 'memory', 'settings'] as const;
+  const PROFILE_TABS = ['journey', 'profile', 'memory', 'settings'] as const;
   type ProfileTab = typeof PROFILE_TABS[number];
+  const normalizedTab = tabParam === 'stats' || tabParam === 'conversations' ? 'journey' : tabParam;
   const initialTab: ProfileTab = isOnboarding
     ? 'profile'
-    : PROFILE_TABS.includes(tabParam as ProfileTab)
-      ? (tabParam as ProfileTab)
+    : PROFILE_TABS.includes(normalizedTab as ProfileTab)
+      ? (normalizedTab as ProfileTab)
       : 'journey';
   const [tab, setTab] = useState<ProfileTab>(initialTab);
   const { profile, update } = useProfile();
@@ -536,9 +537,7 @@ const ProfilePage = () => {
                   </SelectTrigger>
                   <SelectContent position="popper" className="w-[--radix-select-trigger-width]">
                     <SelectItem value="journey">{t('profile.tabs.journey', 'Journey')}</SelectItem>
-                    <SelectItem value="profile">{t('profile.tabs.profile', 'Profile')}</SelectItem>
-                    <SelectItem value="stats">{t('profile.tabs.insights', 'Insights')}</SelectItem>
-                    <SelectItem value="conversations">{t('profile.tabs.conversations', 'Conversations')}</SelectItem>
+                    <SelectItem value="profile">{t('profile.tabs.personalise', 'Personalise')}</SelectItem>
                     <SelectItem value="memory">{t('profile.tabs.memory', 'Memory')}</SelectItem>
                     <SelectItem value="settings">{t('profile.tabs.settings', 'Settings')}</SelectItem>
                   </SelectContent>
@@ -548,12 +547,10 @@ const ProfilePage = () => {
               <div className="hidden sm:block">
                 <TabsList
                   aria-label={t('layout.navigate')}
-                  className="w-full grid grid-cols-6 gap-0 mb-2 bg-muted/50 p-1 rounded-xl"
+                  className="w-full grid grid-cols-4 gap-0 mb-2 bg-muted/50 p-1 rounded-xl"
                 >
                   <TabsTrigger value="journey" className="rounded-lg min-h-[44px] text-xs px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors">{t('profile.tabs.journey', 'Journey')}</TabsTrigger>
-                  <TabsTrigger value="profile" className="rounded-lg min-h-[44px] text-xs px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors">{t('profile.tabs.profile', 'Profile')}</TabsTrigger>
-                  <TabsTrigger value="stats" className="rounded-lg min-h-[44px] text-xs px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors">{t('profile.tabs.insights', 'Insights')}</TabsTrigger>
-                  <TabsTrigger value="conversations" className="rounded-lg min-h-[44px] text-xs px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors">{t('profile.tabs.conversations', 'Conversations')}</TabsTrigger>
+                  <TabsTrigger value="profile" className="rounded-lg min-h-[44px] text-xs px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors">{t('profile.tabs.personalise', 'Personalise')}</TabsTrigger>
                   <TabsTrigger value="memory" className="rounded-lg min-h-[44px] text-xs px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors">{t('profile.tabs.memory', 'Memory')}</TabsTrigger>
                   <TabsTrigger value="settings" className="rounded-lg min-h-[44px] text-xs px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors">{t('profile.tabs.settings', 'Settings')}</TabsTrigger>
                 </TabsList>
