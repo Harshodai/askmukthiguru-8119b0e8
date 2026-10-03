@@ -275,7 +275,7 @@ function edgeStyle(label?: string | null, active = false) {
   };
 }
 
-export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) => {
+export const KGConceptMap = ({ initialQuery = '', embedded = false }: { initialQuery?: string; embedded?: boolean }) => {
   const { t } = useTranslation();
   const [query, setQuery] = useState(initialQuery);
   const [submitted, setSubmitted] = useState(initialQuery);
@@ -423,8 +423,8 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 p-4 md:p-6">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+    <div className={embedded ? 'flex w-full flex-col gap-3' : 'mx-auto flex w-full max-w-6xl flex-col gap-4 p-4 md:p-6'}>
+      <div className={embedded ? 'sr-only' : 'flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between'}>
         <div>
           <div className="mb-2 flex items-center gap-2">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-ojas/20 bg-ojas/5 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-ojas">
@@ -464,7 +464,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
         )}
       </div>
 
-      <form onSubmit={submit} className="flex flex-col gap-2 sm:flex-row">
+      <form onSubmit={submit} className={embedded ? 'flex gap-2 px-3 pt-3' : 'flex flex-col gap-2 sm:flex-row'}>
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute start-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
@@ -481,7 +481,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
         </div>
         <button
           type="submit"
-          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-ojas px-6 py-3.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-ojas/15 transition hover:-translate-y-0.5 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-ojas px-4 sm:px-6 py-3 text-sm font-semibold text-primary-foreground shadow-lg shadow-ojas/15 transition hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
         >
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
           Explore
@@ -534,8 +534,8 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
         )}
       </div>
 
-      <div className="grid min-h-[520px] gap-4 xl:grid-cols-[minmax(0,1fr)_310px]">
-        <div className="relative overflow-hidden rounded-[28px] border border-border/50 bg-[#0f0c08] shadow-2xl shadow-black/20 min-h-[520px]">
+      <div className={embedded ? 'grid min-h-[480px]' : 'grid min-h-[520px] gap-4 xl:grid-cols-[minmax(0,1fr)_310px]'}>
+        <div className={embedded ? 'relative min-h-[480px] overflow-hidden bg-graph' : 'relative min-h-[520px] overflow-hidden rounded-[28px] border border-border/50 bg-graph shadow-2xl'}>
           {loading ? (
             <div className="flex h-[650px] items-center justify-center">
               <div className="flex flex-col items-center gap-3 text-sm text-muted-foreground">
@@ -569,7 +569,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
                 zoomOnScroll
                 onNodeClick={(_event: MouseEvent, node) => setSelectedNodeId(node.id)}
                 onPaneClick={() => setSelectedNodeId(null)}
-                className="bg-[#0f0c08]"
+                className="bg-graph"
               >
                 <Background gap={28} size={1} color="#342c22" />
                 <Controls
@@ -621,7 +621,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
                 </div>
               )}
 
-              <div className="absolute bottom-4 inset-x-4 z-10 flex flex-wrap items-center gap-2">
+              <div className={`absolute inset-x-4 z-10 flex flex-wrap items-center gap-2 ${selectedNode ? 'bottom-28 xl:bottom-4' : 'bottom-4'}`}>
                 {typeCounts.map(([type, count]) => {
                   const visual = getNodeVisual(type);
                   return (
@@ -650,7 +650,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
           )}
         </div>
 
-        <aside className="hidden rounded-[28px] border border-border/50 bg-card/50 p-4 shadow-sm backdrop-blur xl:block">
+        <aside className={embedded ? 'hidden' : 'hidden rounded-[28px] border border-border/50 bg-card/50 p-4 shadow-sm backdrop-blur xl:block'}>
           {selectedNode ? (
             <div className="flex h-full flex-col">
               <div className="flex items-start justify-between gap-3">

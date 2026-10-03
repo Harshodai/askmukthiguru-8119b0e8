@@ -82,10 +82,6 @@ import { memoryApi, type GuruMemory } from '@/lib/memoryApi';
 import { clearResponsePreferences } from '@/lib/chat/responsePreferences';
 import { MemoryManager } from '@/components/profile/MemoryManager';
 import { NotesPanel } from '@/components/profile/NotesPanel';
-import { ProfileStatTiles } from '@/components/profile/ProfileStatTiles';
-import { SadhanaHeatmap } from '@/components/profile/SadhanaHeatmap';
-import { StreakMilestoneCard } from '@/components/profile/StreakMilestoneCard';
-import { FamiliarityProgressWheel } from '@/components/profile/FamiliarityProgressWheel';
 import { JourneyOverview } from '@/components/profile/JourneyOverview';
 import { TwoFactorSettings } from '@/components/auth/TwoFactorSettings';
 import { useToast } from '@/hooks/use-toast';
@@ -152,12 +148,13 @@ const ProfilePage = () => {
   const navigate = useNavigate();
   const tabParam = searchParams.get('tab');
   const isOnboarding = searchParams.get('onboarding') === 'true';
-  const PROFILE_TABS = ['journey', 'profile', 'stats', 'conversations', 'memory', 'settings'] as const;
+  const PROFILE_TABS = ['journey', 'profile', 'memory', 'settings'] as const;
   type ProfileTab = typeof PROFILE_TABS[number];
+  const normalizedTab = tabParam === 'stats' || tabParam === 'conversations' ? 'journey' : tabParam;
   const initialTab: ProfileTab = isOnboarding
     ? 'profile'
-    : PROFILE_TABS.includes(tabParam as ProfileTab)
-      ? (tabParam as ProfileTab)
+    : PROFILE_TABS.includes(normalizedTab as ProfileTab)
+      ? (normalizedTab as ProfileTab)
       : 'journey';
   const [tab, setTab] = useState<ProfileTab>(initialTab);
   const { profile, update } = useProfile();
@@ -536,9 +533,7 @@ const ProfilePage = () => {
                   </SelectTrigger>
                   <SelectContent position="popper" className="w-[--radix-select-trigger-width]">
                     <SelectItem value="journey">{t('profile.tabs.journey', 'Journey')}</SelectItem>
-                    <SelectItem value="profile">{t('profile.tabs.profile', 'Profile')}</SelectItem>
-                    <SelectItem value="stats">{t('profile.tabs.insights', 'Insights')}</SelectItem>
-                    <SelectItem value="conversations">{t('profile.tabs.conversations', 'Conversations')}</SelectItem>
+                    <SelectItem value="profile">{t('profile.tabs.personalise', 'Personalise')}</SelectItem>
                     <SelectItem value="memory">{t('profile.tabs.memory', 'Memory')}</SelectItem>
                     <SelectItem value="settings">{t('profile.tabs.settings', 'Settings')}</SelectItem>
                   </SelectContent>
@@ -548,12 +543,10 @@ const ProfilePage = () => {
               <div className="hidden sm:block">
                 <TabsList
                   aria-label={t('layout.navigate')}
-                  className="w-full grid grid-cols-6 gap-0 mb-2 bg-muted/50 p-1 rounded-xl"
+                  className="w-full grid grid-cols-4 gap-0 mb-2 bg-muted/50 p-1 rounded-xl"
                 >
                   <TabsTrigger value="journey" className="rounded-lg min-h-[44px] text-xs px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors">{t('profile.tabs.journey', 'Journey')}</TabsTrigger>
-                  <TabsTrigger value="profile" className="rounded-lg min-h-[44px] text-xs px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors">{t('profile.tabs.profile', 'Profile')}</TabsTrigger>
-                  <TabsTrigger value="stats" className="rounded-lg min-h-[44px] text-xs px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors">{t('profile.tabs.insights', 'Insights')}</TabsTrigger>
-                  <TabsTrigger value="conversations" className="rounded-lg min-h-[44px] text-xs px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors">{t('profile.tabs.conversations', 'Conversations')}</TabsTrigger>
+                  <TabsTrigger value="profile" className="rounded-lg min-h-[44px] text-xs px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors">{t('profile.tabs.personalise', 'Personalise')}</TabsTrigger>
                   <TabsTrigger value="memory" className="rounded-lg min-h-[44px] text-xs px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors">{t('profile.tabs.memory', 'Memory')}</TabsTrigger>
                   <TabsTrigger value="settings" className="rounded-lg min-h-[44px] text-xs px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors">{t('profile.tabs.settings', 'Settings')}</TabsTrigger>
                 </TabsList>
@@ -753,276 +746,6 @@ const ProfilePage = () => {
                   {isOnboarding ? t("profile.personalDetails.completeOnboarding", "Complete Onboarding") : t("profile.personalDetails.saveChanges", "Save Changes")}
                 </Button>
               </div>
-            </TabsContent>
-
-            <TabsContent value="stats" className="space-y-6 mt-0">
-              <StreakMilestoneCard
-                currentStreak={stats?.streakDays || 0}
-                longestStreak={stats?.longestStreakDays || stats?.streakDays || 0}
-              />
-
-              <SadhanaHeatmap sessions={sessions} weeksToShow={24} />
-
-              <FamiliarityProgressWheel
-                level={
-                  form.familiarityLevel === 'advanced'
-                    ? 'advanced_meditator'
-                    : form.familiarityLevel === 'practitioner'
-                    ? 'practitioner'
-                    : 'seeker'
-                }
-              />
-
-              <ProfileStatTiles stats={stats} sessions={sessions} />
-
-              <Card className="rounded-2xl border border-hairline bg-card shadow-sm">
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-lg font-serif font-semibold text-foreground">{t("profile.journey.title", "Journey Overview")}</CardTitle>
-                  <CardDescription>{t("profile.journey.subtitle", "Your activity across conversations, practice, and reflection.")}</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {metricsLoading && !metrics && (
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      {[0, 1, 2, 3].map((i) => (
-                        <div key={i} className="rounded-2xl border border-hairline bg-card px-4 py-3.5 animate-pulse">
-                          <div className="h-2.5 w-16 rounded-full bg-muted mb-3" />
-                          <div className="h-5 w-12 rounded-full bg-muted" />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {!metricsLoading && metricsError && !metrics && (
-                    <p className="text-xs text-muted-foreground">
-                      Couldn't load journey metrics right now. They'll reappear once the Guru's memory is awake.
-                    </p>
-                  )}
-                  {metrics && (
-                    <>
-                      <div className="grid grid-cols-3 gap-3">
-                        <div className="rounded-2xl border border-hairline bg-card px-4 py-3.5 flex flex-col gap-1">
-                          <div className="flex items-center gap-1.5 text-muted-foreground">
-                            <Flame className="w-3.5 h-3.5" />
-                            <span className="text-[10px] uppercase tracking-[0.14em] font-medium text-muted-foreground">{t("profile.journey.conversations")}</span>
-                          </div>
-                          <p className="text-2xl font-serif font-semibold text-foreground tabular-nums leading-none mt-1">
-                            {metrics.totalConversations}
-                          </p>
-                        </div>
-                        <div className="rounded-2xl border border-hairline bg-card px-4 py-3.5 flex flex-col gap-1">
-                          <div className="flex items-center gap-1.5 text-muted-foreground">
-                            <MessageCircle className="w-3.5 h-3.5" />
-                            <span className="text-[10px] uppercase tracking-[0.14em] font-medium text-muted-foreground">{t("profile.journey.messages", "Messages")}</span>
-                          </div>
-                          <p className="text-2xl font-serif font-semibold text-foreground tabular-nums leading-none mt-1">
-                            {metrics.totalMessages}
-                          </p>
-                        </div>
-                        <div className="rounded-2xl border border-hairline bg-card px-4 py-3.5 flex flex-col gap-1">
-                          <div className="flex items-center gap-1.5 text-muted-foreground">
-                            <Target className="w-3.5 h-3.5" />
-                            <span className="text-[10px] uppercase tracking-[0.14em] font-medium text-muted-foreground">{t("profile.journey.courseProgress", "Course progress")}</span>
-                          </div>
-                          <p className="text-2xl font-serif font-semibold text-foreground tabular-nums leading-none mt-1">
-                            {metrics.courseCompletionPercent}%
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1.5">
-                          <Heart className="w-3.5 h-3.5 text-ojas" />
-                          {metrics.activeHealingCourse ?? t("profile.journey.noActiveCourse", "No active healing course")}
-                        </span>
-                        <span className="flex items-center gap-1.5">
-                          <TrendingUp className="w-3.5 h-3.5" />
-                          {t("profile.journey.distress", "Distress")} {metrics.averageDistressLevel ?? "—"} · {metrics.distressTrend}
-                        </span>
-                        {metrics.lastActiveAt && (
-                          <span className="flex items-center gap-1.5">
-                            <Sparkles className="w-3.5 h-3.5" />
-                            {t("profile.journey.lastActive", "Last active")} {formatRelativeTime(new Date(metrics.lastActiveAt))}
-                          </span>
-                        )}
-                      </div>
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Wisdom of the Day */}
-              {dailyTeaching && (
-                <Card className="overflow-hidden rounded-2xl border border-hairline bg-card shadow-sm">
-                  <div className="flex flex-col sm:flex-row">
-                    <div className="relative w-full sm:w-1/3 aspect-[16/10] sm:aspect-auto sm:min-h-[160px] overflow-hidden bg-muted/20">
-                      <img
-                        src={dailyTeaching.image_url}
-                        alt={t('practices.dailyWisdom.title')}
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t sm:bg-gradient-to-r from-card/70 via-transparent to-transparent pointer-events-none" />
-                    </div>
-                    <div className="flex-1 p-5 flex flex-col justify-center">
-                      <div className="flex items-center gap-1.5 mb-2">
-                        <Sparkles className="w-3.5 h-3.5 text-ojas" />
-                        <span className="text-[10px] font-semibold text-ojas uppercase tracking-[0.14em]">
-                          {t('profile.journey.wisdomOfDay', 'Wisdom of the Day')}
-                        </span>
-                      </div>
-                      {dailyTeaching.caption && (
-                        <p className="text-base text-foreground/90 font-serif leading-relaxed italic">
-                          &ldquo;{dailyTeaching.caption}&rdquo;
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </Card>
-              )}
-
-              <Card className="rounded-2xl border border-hairline bg-card shadow-sm">
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-lg font-serif font-semibold text-foreground">{t('profile.insights.title')}</CardTitle>
-                  <CardDescription>{t('profile.insights.subtitle')}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {personalInsights.length > 0 ? (
-                    <div className="space-y-3">
-                      {personalInsights.map((insight, idx) => (
-                        <div
-                          key={`${insight.kind}-${idx}`}
-                          className="p-4 rounded-xl bg-muted/30 border border-hairline flex gap-3"
-                        >
-                          <Sparkles className="w-4 h-4 text-ojas shrink-0 mt-0.5" />
-                          <p className="text-sm text-foreground/90 italic leading-relaxed">
-                            {insight.text}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 space-y-2">
-                      <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mx-auto text-muted-foreground">
-                        <Target className="w-6 h-6" />
-                      </div>
-                      <p className="text-sm text-muted-foreground">{t('profile.insights.empty')}</p>
-                      <Button variant="outline" size="sm" onClick={() => navigate('/practices')} className="mt-2 rounded-xl border-hairline">
-                        {t('profile.journey.choosePractice', 'Choose a practice')} <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
-                      </Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-
-            <TabsContent value="conversations" className="space-y-6 mt-0">
-              <Card className="rounded-2xl border border-hairline bg-card shadow-sm">
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-lg font-serif font-semibold text-foreground">{t('profile.conversations.title')}</CardTitle>
-                  <CardDescription>{t('profile.conversations.subtitle')}</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* ── Days-based retention control ─────────────────────── */}
-                  <div className="space-y-3">
-                    <Label className="text-sm font-medium">{t('profile.conversations.keepFor')}</Label>
-                    <div className="flex items-center gap-3">
-                      <Input
-                        type="number"
-                        min={1}
-                        max={365}
-                        value={retentionDays}
-                        onChange={e => setRetentionDays_(Math.max(1, Math.min(365, parseInt(e.target.value) || 90)))}
-                        className="w-20 rounded-xl"
-                      />
-                      <span className="text-sm text-muted-foreground">{t('profile.conversations.days', 'days')}</span>
-                    </div>
-                    {/* Quick-select day presets */}
-                    <div className="flex flex-wrap gap-2">
-                      {[7, 30, 90, 180, 365].map(d => (
-                        <button
-                          key={d}
-                          type="button"
-                          onClick={() => setRetentionDays_(d)}
-                          className={`px-3 py-1 rounded-full text-xs font-medium border border-hairline transition-colors ${
-                            retentionDays === d
-                              ? 'bg-ojas/20 border-ojas text-ojas'
-                              : 'text-muted-foreground hover:border-ojas/50'
-                          }`}
-                        >
-                          {d === 365 ? t('profile.conversations.oneYear', '1 yr') : `${d}d`}
-                        </button>
-                      ))}
-                    </div>
-                    <Slider
-                      value={[retentionDays]}
-                      min={1}
-                      max={365}
-                      step={1}
-                      onValueChange={([v]) => setRetentionDays_(Math.max(1, Math.min(365, v)))}
-                    />
-                    <Button
-                      className="rounded-xl"
-                      onClick={async () => {
-                        saveRetentionDays(retentionDays);
-                        setConversations(await loadConversations());
-                        toast({ title: t('profile.conversations.retentionSet', { days: retentionDays }) });
-                      }}
-                    >
-                      {t('profile.conversations.saveRetention', 'Save retention')}
-                    </Button>
-                  </div>
-
-                  {conversations.length === 0 ? (
-                    <p className="text-muted-foreground">{t('profile.conversations.empty')}</p>
-                  ) : (
-                    <ul className="space-y-2">
-                      {conversations.map(conv => (
-                        <li key={conv.id} className="flex items-center justify-between p-3 border border-hairline rounded-xl bg-card hover:bg-muted/20 transition-colors">
-                          <div className="flex-1 min-w-0 pr-3">
-                            <p className="font-medium truncate">{conv.preview || t('profile.journey.untitledConversation')}</p>
-                            <p className="text-xs text-muted-foreground">{formatRelativeTime(conv.updatedAt)}</p>
-                          </div>
-                          <Button variant="ghost" size="sm" onClick={async () => { await deleteConversation(conv.id); setConversations(prev => prev.filter(c => c.id !== conv.id)); setConversationCount(prev => Math.max(0, prev - 1)); }} aria-label={`Delete conversation: ${conv.preview || 'Untitled'}`} className="rounded-lg">
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="destructive" className="mt-4 rounded-xl">{t('profile.conversations.deleteAll')}</Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent className="rounded-2xl">
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>{t('profile.conversations.confirmDeleteTitle')}</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          {t('profile.conversations.confirmDeleteMessage')}
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <div className="py-2">
-                        <Input value={deleteAllConfirm} onChange={e => setDeleteAllConfirm(e.target.value)} placeholder={t('profile.danger.typeDeleteToConfirm').replace(/[:：]\s*$/, '')} className="rounded-xl" />
-                      </div>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel onClick={() => setDeleteAllConfirm('')} className="rounded-xl">{t('common.cancel', 'Cancel')}</AlertDialogCancel>
-                        <AlertDialogAction onClick={async () => {
-                          if (deleteAllConfirm.trim().toUpperCase() === 'DELETE') {
-                            const currentId = await getCurrentConversationId();
-                            const toDelete = conversations.filter(c => c.id !== currentId);
-                            for (const c of toDelete) {
-                              await deleteConversation(c.id);
-                            }
-                            setConversations(prev => prev.filter(c => c.id === currentId));
-                            setConversationCount(prev => Math.max(0, prev - toDelete.length));
-                            setDeleteAllConfirm('');
-                            toast({ title: t('profile.conversations.deleted', 'All conversations deleted') });
-                          }
-                        }} disabled={deleteAllConfirm.trim().toUpperCase() !== 'DELETE'} className="rounded-xl"	>{t('common.confirm')}</AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </CardContent>
-              </Card>
             </TabsContent>
 
             <TabsContent value="memory" className="space-y-6 mt-0">
