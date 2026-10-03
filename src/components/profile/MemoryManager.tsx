@@ -163,19 +163,6 @@ export const MemoryManager = () => {
 
   }, []);
 
-  // Native wheel listener with passive:false so preventDefault() actually works
-  // and suppresses page scroll while zooming the graph.
-  useEffect(() => {
-    const svg = svgRef.current;
-    if (!svg || viewMode !== 'graph' || kgNodes.length === 0) return;
-    const handleWheel = (e: WheelEvent) => {
-      e.preventDefault();
-      setZoom((z) => Math.min(4, Math.max(0.2, z - e.deltaY * 0.001)));
-    };
-    svg.addEventListener('wheel', handleWheel, { passive: false });
-    return () => svg.removeEventListener('wheel', handleWheel);
-  }, [viewMode, kgNodes.length]);
-
   const handleSaveCore = async () => {
     if (coreSaving) return;
     setCoreSaving(true);
@@ -323,7 +310,7 @@ export const MemoryManager = () => {
   return (
     <div className="space-y-6">
       {/* ── Statistics Bento Dashboard ─────────────────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-3 gap-3">
           <Card className="bg-zinc-900/40 border-zinc-800/80 backdrop-blur-sm">
             <CardContent className="p-4 flex items-center gap-3">
               <div className="p-2 bg-ojas/10 rounded-lg text-ojas"><Brain className="w-4 h-4" /></div>
@@ -339,15 +326,6 @@ export const MemoryManager = () => {
               <div>
                 <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">{t('memory.statCoreStatus')}</p>
                 <p className="text-xs font-bold text-white mt-1">{coreText.trim() ? t('memory.active') : t('memory.unset')}</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="bg-zinc-900/40 border-zinc-800/80 backdrop-blur-sm">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2 bg-blue-500/10 rounded-lg text-blue-400"><Network className="w-4 h-4" /></div>
-              <div>
-                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">{t('memory.statKgNodes')}</p>
-                <p className="text-lg font-bold text-white mt-0.5">{kgNodes.length}</p>
               </div>
             </CardContent>
           </Card>
@@ -595,7 +573,7 @@ export const MemoryManager = () => {
                   className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-ojas disabled:opacity-40"
                 >
                   {reflectVoice.isListening ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
-                  t('chat.inputPlaceholderListening', 'Speak now…')
+                  {t('chat.inputPlaceholderListening', 'Speak now…')}
                 </button>
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-muted-foreground">
