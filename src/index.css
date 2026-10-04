@@ -73,6 +73,8 @@
     /* Core Design Tokens - Light Sanctuary Theme */
     --background: 40 30% 96%;
     --foreground: 25 25% 20%;
+    --graph: 28 22% 8%;
+    --graph-foreground: 40 30% 92%;
 
     --card: 40 40% 98%;
     --card-foreground: 25 25% 20%;
@@ -152,6 +154,8 @@
 
     --background: 25 18% 8%;
     --foreground: 40 30% 92%;
+    --graph: 28 22% 8%;
+    --graph-foreground: 40 30% 92%;
 
     --card: 25 20% 11%;
     --card-foreground: 40 30% 92%;

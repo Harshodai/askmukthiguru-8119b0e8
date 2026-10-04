@@ -547,9 +547,9 @@ export const KGConceptMap = ({ initialQuery = '', embedded = false }: { initialQ
             </div>
           ) : data && data.nodes.length ? (
             <>
-              <div className="absolute start-4 top-4 z-10 rounded-2xl border border-white/10 bg-black/45 px-3 py-2 backdrop-blur">
-                <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-white/50">{t('kg.title')}</div>
-                <div className="mt-0.5 text-xs text-white/80">
+              <div className="absolute start-4 top-4 z-10 rounded-2xl border border-graph-foreground/10 bg-graph/70 px-3 py-2 backdrop-blur">
+                <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-graph-foreground/50">{t('kg.title')}</div>
+                <div className="mt-0.5 text-xs text-graph-foreground/80">
                   {data.query ? t('kg.noConceptsFor', { query: data.query }) : t('kg.help')}
                 </div>
               </div>
@@ -571,10 +571,10 @@ export const KGConceptMap = ({ initialQuery = '', embedded = false }: { initialQ
                 onPaneClick={() => setSelectedNodeId(null)}
                 className="bg-graph"
               >
-                <Background gap={28} size={1} color="#342c22" />
+                <Background gap={28} size={1} color="hsl(var(--border))" />
                 <Controls
                   showInteractive={false}
-                  className="!m-4 !rounded-xl !border !border-white/10 !bg-black/45 !shadow-lg"
+                  className="!m-4 !rounded-xl !border !border-graph-foreground/10 !bg-graph/70 !shadow-lg"
                 />
                 <MiniMap
                   pannable
@@ -582,8 +582,8 @@ export const KGConceptMap = ({ initialQuery = '', embedded = false }: { initialQ
                   nodeStrokeColor={(node) => getNodeVisual(String(node.data?.nodeType ?? '')).accent}
                   nodeColor={(node) => getNodeVisual(String(node.data?.nodeType ?? '')).soft}
                   nodeBorderRadius={8}
-                  maskColor="rgba(0,0,0,0.72)"
-                  className="!m-4 !overflow-hidden !rounded-xl !border !border-white/10 !bg-black/45"
+                  maskColor="hsl(var(--graph) / 0.72)"
+                  className="!m-4 !overflow-hidden !rounded-xl !border !border-graph-foreground/10 !bg-graph/70"
                 />
               </ReactFlow>
 
