@@ -69,12 +69,20 @@ def _has_video_id(entry: dict[str, Any]) -> bool:
 
 
 def _provenance_rank(entry: dict[str, Any]) -> tuple:
-    """Higher wins: graduated copy, video provenance, longer body, more teachings."""
+    """Higher wins: graduated copy, video provenance, longer body, more teachings.
+
+    Trailing (path, title) keys make the order TOTAL: without them, ties fall
+    back to input (filesystem glob) order, so two compiles of the same bundle
+    can pick different twin survivors (2026-10-04: 431 vs 427 with title-set
+    drift). Deterministic builds are required for the bundle cross-check test.
+    """
     return (
         _is_graduated(entry),
         _has_video_id(entry),
         len(str(entry.get("body") or "")),
         len(entry.get("key_teachings") or []),
+        str(entry.get("path", "")),
+        str(entry.get("title", "")),
     )
 
 
@@ -168,6 +176,7 @@ def _load_okf_entries() -> list[dict[str, Any]]:
             "source": e.source,
             "resource": e.resource,
             "teacher": e.teacher,
+            "updated": e.updated,
             "body": e.body,
             "status": e.status,
             "generated": e.generated,
@@ -185,6 +194,29 @@ def _embed_texts(texts: list[str]) -> list[list[float]]:
     svc = get_embedding_service()
     # Blocking call — run in thread so caller can await if desired
     return svc.encode(texts)
+
+
+def apply_updated_defaults(
+    entries: list[dict[str, Any]], build_date: str
+) -> tuple[list[dict[str, Any]], int]:
+    """Backfill the ``updated`` freshness flag (R4 curation loop).
+
+    Entries carrying an explicit frontmatter ``updated:`` keep it
+    (``updated_source=frontmatter``); entries without one default to the
+    compile build date (``updated_source=build_default``) so every compiled
+    entry carries a freshness value the SLA staleness report can consume.
+    Returns (entries, n_defaulted). Pure function — unit-testable.
+    """
+    n_defaulted = 0
+    for e in entries:
+        if str(e.get("updated") or "").strip():
+            e["updated"] = str(e["updated"]).strip()
+            e["updated_source"] = "frontmatter"
+        else:
+            e["updated"] = build_date
+            e["updated_source"] = "build_default"
+            n_defaulted += 1
+    return entries, n_defaulted
 
 
 def compile_okf() -> Path:
@@ -226,6 +258,16 @@ def compile_okf() -> Path:
         )
 
     compiled: list[dict[str, Any]] = []
+    from datetime import UTC, datetime
+
+    build_date = datetime.now(UTC).date().isoformat()
+    entries, n_updated_defaulted = apply_updated_defaults(entries, build_date)
+    logger.info(
+        "OKF freshness: %d/%d entries defaulted `updated` to build date %s",
+        n_updated_defaulted,
+        len(entries),
+        build_date,
+    )
     for idx, emb in enumerate(embeddings):
         e = entries[idx]
         compiled.append(
@@ -245,6 +287,8 @@ def compile_okf() -> Path:
                 "generated": e.get("generated"),
                 "verified": e.get("verified"),
                 "sources": e.get("sources", []),
+                "updated": e.get("updated", ""),
+                "updated_source": e.get("updated_source", "build_default"),
             }
         )
 

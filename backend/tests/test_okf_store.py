@@ -178,8 +178,16 @@ def test_compiled_json_key_teachings_integrity():
         data = json.load(f)
 
     entries = data.get("entries", [])
-    # Truncation guard (not an exact-count invariant): bundle was 717 on 2026-09-29.
-    assert len(entries) >= 715, f"compiled.json looks truncated: found {len(entries)} entries"
+    # Truncation guard (not an exact-count invariant): post-dedup bundle is
+    # 431 entries (2026-10-04 single-tree compile; was 717 pre-dedup). The
+    # floor guards partial writes only; the authoritative bundle cross-check
+    # (compiled == deduped on-disk entries) lives in
+    # ``test_compiled_index_matches_the_clean_bundle``.
+    assert len(entries) >= 400, f"compiled.json looks truncated: found {len(entries)} entries"
+    # Dedup invariant: the compiler collapses exact-title doubles, so a
+    # repeated title in the artifact means the dedup step was skipped.
+    titles = [str(e.get("title", "")).strip().lower() for e in entries]
+    assert len(set(titles)) == len(titles), "duplicate titles in compiled.json — rerun compile_okf()"
 
     # Schema-derived invariants — independent of how many entries exist.
     paths = [e.get("path") for e in entries]
