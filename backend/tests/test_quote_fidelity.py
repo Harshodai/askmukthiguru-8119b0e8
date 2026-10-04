@@ -192,3 +192,115 @@ def test_cli_exits_nonzero_for_the_reported_case(tmp_path):
     )
     report = json.loads(out.read_text())
     assert report["quotes"][0]["verdict"] == "FAIL"
+
+
+# ─── Edge cases (2026-10-05): verify_quote ────────────────────
+
+
+import pytest  # noqa: E402
+
+from services.quote_fidelity import (  # noqa: E402
+    UNTITLED_LINK_LABEL,
+    canonical_speaker,
+    normalise,
+)
+
+VID = "M_BYTcsLQuY"
+
+
+def _q(text, speaker="Sri Preethaji", title="", vid=VID, start=None):
+    return AttributedQuote(
+        text=text, speaker=speaker, title=title, video_id=vid, start_seconds=start
+    )
+
+
+def _rec(*chunks, title="", teacher_id="preethaji", vid=VID):
+    return SourceRecord(video_id=vid, title=title, teacher_id=teacher_id, chunks=list(chunks))
+
+
+def test_devanagari_matras_survive_normalisation():
+    assert normalise("सुंदर स्थिति।") == "सुंदर स्थिति"
+    assert normalise("आंतरिक") != normalise("अतरक")  # matras are not stripped
+
+
+def test_devanagari_quote_verifies_against_devanagari_source_only():
+    hi = "जब आप सुंदर स्थिति में होते हैं, तो आप जुड़े होते हैं।"
+    assert verify_quote(_q(hi), _rec(ChunkRecord(text=hi))).ok
+    en = _rec(ChunkRecord(text="When you are in a beautiful state, you are connected."))
+    assert "text_not_verbatim" in verify_quote(_q(hi), en).failures
+
+
+def test_repunctuated_and_curly_quote_text_still_verifies():
+    stored = "Don't you see? Life is meant to be lived in a beautiful state - not in suffering."
+    shown = "“Don’t you see… life is meant to be lived in a beautiful state, not in suffering.”"
+    assert verify_quote(_q(shown), _rec(ChunkRecord(text=stored))).ok
+
+
+def test_quote_spanning_two_overlapping_chunks_verifies():
+    a = ChunkRecord(text="The mind keeps running. When you observe it without judgment")
+    b = ChunkRecord(text="observe it without judgment, it settles into stillness.")
+    shown = "When you observe it without judgment, it settles into stillness."
+    assert verify_quote(_q(shown), _rec(a, b)).ok
+
+
+def test_quote_stitched_from_non_adjacent_chunks_fails():
+    a, mid, b = (
+        ChunkRecord(text=t)
+        for t in ("Suffering is a choice.", "Unrelated words here.", "Joy is your nature.")
+    )
+    v = verify_quote(_q("Suffering is a choice. Joy is your nature."), _rec(a, mid, b))
+    assert "text_not_verbatim" in v.failures
+
+
+def test_stored_title_equal_to_video_id_is_never_shown_as_title():
+    rec = _rec(ChunkRecord(text="Consciousness is your superpower."), title=VID)
+    assert verify_quote(_q("Consciousness is your superpower.", title=VID), rec).ok
+    assert verify_quote(_q("Consciousness is your superpower.", title=UNTITLED_LINK_LABEL), rec).ok
+    v = verify_quote(_q("Consciousness is your superpower.", title="Invented Title"), rec)
+    assert "title_unverifiable" in v.failures
+
+
+def test_both_teachers_video_needs_the_joint_label():
+    rec = _rec(
+        ChunkRecord(text="Consciousness is your superpower."), teacher_id="preethaji_krishnaji"
+    )
+    assert canonical_speaker("preethaji_krishnaji") == "both"
+    assert (
+        "speaker_mismatch"
+        in verify_quote(
+            _q("Consciousness is your superpower.", speaker="Sri Krishnaji"), rec
+        ).failures
+    )
+    assert verify_quote(
+        _q("Consciousness is your superpower.", speaker="Sri Preethaji & Sri Krishnaji"), rec
+    ).ok
+
+
+def test_per_chunk_speaker_overrides_video_teacher_id():
+    rec = _rec(
+        ChunkRecord(text="Consciousness is your superpower.", speaker="Sri Krishnaji"),
+        teacher_id="preethaji",
+    )
+    assert verify_quote(_q("Consciousness is your superpower.", speaker="Sri Krishnaji"), rec).ok
+    assert "speaker_mismatch" in verify_quote(_q("Consciousness is your superpower."), rec).failures
+
+
+@pytest.mark.parametrize("label", ["Host", "Interviewer", "SPEAKER_01", "?", "O", "Guest"])
+def test_host_or_other_speaker_words_are_never_a_teacher_quote(label):
+    rec = _rec(
+        ChunkRecord(text="So what is the purpose of Ekam?", speaker=label), teacher_id="preethaji"
+    )
+    assert "speaker_mismatch" in verify_quote(_q("So what is the purpose of Ekam?"), rec).failures
+
+
+def test_quote_spanning_teacher_and_host_turns_is_unverifiable_or_rejected():
+    a = ChunkRecord(text="Life is a celebration.", speaker="Sri Preethaji")
+    b = ChunkRecord(text="And how do we get there?", speaker="Sri Krishnaji")
+    v = verify_quote(_q("Life is a celebration. And how do we get there?"), _rec(a, b))
+    assert "speaker_unverifiable" in v.failures
+
+
+def test_channel_name_in_speaker_field_is_ignored_not_trusted():
+    # spiritual_wisdom_contextual stores channel names ("Unknown Channel") in `speaker`.
+    rec = _rec(ChunkRecord(text="Consciousness is your superpower.", speaker="Unknown Channel"))
+    assert verify_quote(_q("Consciousness is your superpower."), rec).ok

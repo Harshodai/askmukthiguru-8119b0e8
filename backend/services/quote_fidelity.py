@@ -16,9 +16,10 @@ can call ``verify_quote`` as a gate and a benchmark can call it as a check.
 from __future__ import annotations
 
 import re
+import unicodedata
 from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Any, Optional
 
 # ---------------------------------------------------------------------------
 # Data shapes
@@ -72,20 +73,45 @@ class QuoteVerdict:
 # ---------------------------------------------------------------------------
 
 _TS_MARKER_RE = re.compile(r"\[t=([0-9hms:.]+)\]")
-_NOISE_RE = re.compile(r"[^\w\s]+")
-_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?।])\s+")
+_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?।॥])\s+")
 _MIN_SENTENCE_CHARS = 20
+_APOSTROPHES = str.maketrans("", "", "'’‘ʼ`")
+# Labels a diariser or ingest stamps on a non-teacher turn. Words under such a
+# label are someone else's, whatever the video's teacher_id says.
+_OTHER_SPEAKER_RE = re.compile(
+    r"\b(?:host|interviewer|anchor|guest|audience|moderator|questioner|seeker|"
+    r"participant|narrator|other|speaker[\s_]?\d+)\b|^\s*[?o]\s*$",
+    re.IGNORECASE,
+)
+# Display labels, keyed by canonical speaker. Nothing else may be shown.
+TEACHER_LABELS = {
+    "preethaji": "Sri Preethaji",
+    "krishnaji": "Sri Krishnaji",
+    "both": "Sri Preethaji & Sri Krishnaji",
+}
+# Link text shown when the store has no real title. It makes no title claim.
+UNTITLED_LINK_LABEL = "Watch on YouTube"
 
 
 def normalise(text: str) -> str:
+    """Lower-case, drop punctuation and [t=] markers, keep every script's letters.
+
+    Keeps Unicode letters, digits and combining marks (category L*, N*, M*) so
+    Devanagari matras and anusvara survive; ``\\w`` would strip them.
+    """
     text = _TS_MARKER_RE.sub(" ", text or "")
-    text = text.replace("’", "'").replace("‘", "'").replace("'", "")
-    return " ".join(_NOISE_RE.sub(" ", text.lower()).split())
+    text = unicodedata.normalize("NFKC", text).translate(_APOSTROPHES).lower()
+    kept = "".join(ch if unicodedata.category(ch)[0] in "LNM" else " " for ch in text)
+    return " ".join(kept.split())
 
 
 def canonical_speaker(label: str) -> str:
-    """Map a display label or a stored teacher_id onto a small closed set."""
-    s = (label or "").lower()
+    """Map a display label or a stored teacher_id onto a small closed set.
+
+    ``other`` = a labelled non-teacher turn (host, interviewer, ...);
+    ``unknown`` = no usable label (empty, a channel name, ``ekam``).
+    """
+    s = (label or "").replace("_", " ").lower()
     has_p = bool(re.search(r"preetha|prithaji", s))
     has_k = bool(re.search(r"krishnaji|sri\s*krishna\b|krishna\s*ji", s))
     if has_p and has_k:
@@ -94,6 +120,8 @@ def canonical_speaker(label: str) -> str:
         return "preethaji"
     if has_k:
         return "krishnaji"
+    if _OTHER_SPEAKER_RE.search(s):
+        return "other"
     return "unknown"
 
 
@@ -140,6 +168,13 @@ _URL_T_RE = re.compile(r"[?&#]t=([0-9hms]+)")
 # Lines that end the quoted teaching block.
 _STOP_RE = re.compile(
     r"^\s*>?\s*(?:───|---|\[▶|If you want to bring this alive|\*\*Deepen|\*[^*]+\?\*\s*$)"
+    # a short scaffold pointer between clips ("Sri Krishnaji observes:")
+    r"|^(?!\s*>)[^\n]{1,120}:\s*$"
+)
+# Weak-match shape: "<quote>"\n— Sri Preethaji (VIDEOID, 280s)
+_WEAK_RE = re.compile(
+    r'"(?P<text>[^"]+)"\s*\n\s*[—-]\s*(?P<speaker>[^(\n]+?)\s*'
+    r"\((?P<vid>[A-Za-z0-9_-]{11}),\s*(?P<t>\d+)s\)"
 )
 
 
@@ -176,6 +211,16 @@ def parse_attributed_quotes(markdown: str, case: str = "") -> list[AttributedQuo
                 case=case,
             )
         )
+    for m in _WEAK_RE.finditer(markdown or ""):
+        quotes.append(
+            AttributedQuote(
+                text=m.group("text").strip(),
+                speaker=m.group("speaker").strip(),
+                video_id=m.group("vid"),
+                start_seconds=float(m.group("t")),
+                case=case,
+            )
+        )
     return quotes
 
 
@@ -196,8 +241,59 @@ def _chunk_timing(chunk: ChunkRecord) -> tuple[Optional[float], Optional[float]]
     return min(markers), max(markers)
 
 
+def _merge_overlapping(a: str, b: str, max_overlap: int = 600) -> str:
+    """Join two normalised adjacent chunks, dropping a shared overlap once."""
+    for k in range(min(len(a), len(b), max_overlap), 0, -1):
+        if a.endswith(b[:k]):
+            return a + b[k:]
+    return f"{a} {b}"
+
+
+def _locate(needle: str, chunks: list[ChunkRecord]) -> list[ChunkRecord]:
+    """Chunks whose text (alone, or merged with the next one) holds ``needle``.
+
+    ponytail: spans at most two adjacent chunks; a quote crossing three would
+    fail closed. Chunks are 400+ chars, so a hero quote rarely does.
+    """
+    norm = [normalise(c.text) for c in chunks]
+    hits = [c for c, n in zip(chunks, norm) if needle in n]
+    if hits:
+        return hits
+    for i in range(len(chunks) - 1):
+        if needle in _merge_overlapping(norm[i], norm[i + 1]):
+            return [chunks[i], chunks[i + 1]]
+    return []
+
+
+def _stored_speaker(source: SourceRecord, matched: list[ChunkRecord]) -> str:
+    """Per-chunk speaker labels win over the video's teacher_id.
+
+    Any matched chunk labelled as a non-teacher turn makes the whole quote
+    ``other``: those words are not the teacher's, whatever the video is filed as.
+    """
+    per_chunk = {canonical_speaker(c.speaker) for c in matched if c.speaker}
+    if "other" in per_chunk:
+        return "other"
+    per_chunk.discard("unknown")
+    if len(per_chunk) == 1:
+        return per_chunk.pop()
+    if len(per_chunk) > 1:
+        return "mixed"
+    return canonical_speaker(source.teacher_id)
+
+
+def shows_title(quote: AttributedQuote) -> bool:
+    """False when the link text makes no title claim (neutral label or bare id)."""
+    t = normalise(quote.title)
+    return bool(t) and t not in {normalise(UNTITLED_LINK_LABEL), normalise(quote.video_id)}
+
+
 def verify_quote(quote: AttributedQuote, source: Optional[SourceRecord]) -> QuoteVerdict:
-    """Check text, speaker, title and timestamp. Unverifiable means failed."""
+    """Check text, speaker, title and timestamp. Unverifiable means failed.
+
+    Title and timestamp are checked only when shown: a renderer that has no
+    stored title or timing must omit them, and omitting is not a claim.
+    """
     v = QuoteVerdict(quote=quote)
 
     if not quote.video_id:
@@ -205,43 +301,37 @@ def verify_quote(quote: AttributedQuote, source: Optional[SourceRecord]) -> Quot
     if source is None or not source.chunks:
         v.failures.append("video_not_in_corpus")
         return v
+    if source.video_id and quote.video_id and source.video_id != quote.video_id:
+        v.failures.append("video_id_mismatch")
 
-    # 1. Verbatim text: every sentence must appear in this video's stored text.
-    sentences = split_sentences(quote.text)
-    if not sentences:
+    # 1. Verbatim text: the whole quote must be contiguous in the stored text of
+    # this video. Per-sentence misses are reported to say what was invented.
+    whole = normalise(quote.text)
+    matched = _locate(whole, source.chunks) if whole else []
+    if not whole:
         v.failures.append("empty_quote")
-    matched_chunks: list[ChunkRecord] = []
-    for s in sentences:
-        ns = normalise(s)
-        hits = [c for c in source.chunks if ns in normalise(c.text)]
-        if hits:
-            matched_chunks.extend(hits)
-        else:
-            v.missing_sentences.append(s)
-    if v.missing_sentences:
+    elif not matched:
         v.failures.append("text_not_verbatim")
+        for s in split_sentences(quote.text) or [quote.text]:
+            ns = normalise(s)
+            if ns and not _locate(ns, source.chunks):
+                v.missing_sentences.append(s)
 
-    # 2. Speaker: the label must agree with what the store knows. A video whose
-    # speaker the store does not know cannot carry a named-teacher label.
+    # 2. Speaker: the label must equal what the store says about these words.
     shown = canonical_speaker(quote.speaker)
-    chunk_speakers = {canonical_speaker(c.speaker) for c in matched_chunks if c.speaker}
-    chunk_speakers.discard("unknown")
-    stored = (
-        chunk_speakers.pop()
-        if len(chunk_speakers) == 1
-        else canonical_speaker(source.teacher_id.replace("_", " "))
-    )
-    if stored == "unknown":
+    stored = _stored_speaker(source, matched)
+    if stored in ("unknown", "mixed"):
         v.failures.append("speaker_unverifiable")
-    elif stored != "both" and shown != stored:
+    elif stored == "other" or shown != stored:
         v.failures.append("speaker_mismatch")
 
-    # 3. Title: the displayed title must be the stored one, not an invented one.
-    stored_title = normalise(source.title)
-    if not stored_title or stored_title == normalise(source.video_id):
-        v.failures.append("title_unverifiable")
-    elif normalise(quote.title) != stored_title:
-        v.failures.append("title_mismatch")
+    # 3. Title: shown only if it is the stored one, and never an id posing as one.
+    if shows_title(quote):
+        stored_title = normalise(source.title)
+        if not stored_title or stored_title == normalise(source.video_id):
+            v.failures.append("title_unverifiable")
+        elif normalise(quote.title) != stored_title:
+            v.failures.append("title_mismatch")
 
     # 4. Timestamp: inside the video, and inside the chunk the words came from.
     if quote.start_seconds is not None:
@@ -250,18 +340,78 @@ def verify_quote(quote: AttributedQuote, source: Optional[SourceRecord]) -> Quot
             and quote.start_seconds > source.duration_seconds + TIMESTAMP_TOLERANCE_S
         ):
             v.failures.append("timestamp_past_end_of_video")
-        timed = [t for t in (_chunk_timing(c) for c in matched_chunks) if t[0] is not None]
+        timed = [t for t in (_chunk_timing(c) for c in matched) if t[0] is not None]
         if not timed:
             v.failures.append("timestamp_unverifiable")
         elif not any(
             start - TIMESTAMP_TOLERANCE_S
             <= quote.start_seconds
-            <= (end if end is not None else start) + TIMESTAMP_TOLERANCE_S
+            <= max(start, end if end is not None else start) + TIMESTAMP_TOLERANCE_S
             for start, end in timed
         ):
             v.failures.append("timestamp_mismatch")
 
     return v
+
+
+def _seconds(value: Any) -> Optional[float]:
+    if value in (None, ""):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    return parse_timestamp(str(value))
+
+
+def source_from_payloads(video_id: str, payloads: list[dict[str, Any]]) -> SourceRecord:
+    """Build a SourceRecord from stored Qdrant payloads of one video.
+
+    Reads both shapes: first-person clips (``verbatim_text``, ``start_ms``,
+    ``end_ms``, ``duration_ms``, diarised ``speaker``) and chat-corpus chunks
+    (``text``, ``timestamp_start``/``_end``, ``title``, ``duration``).
+    Chat-corpus ``speaker`` often holds a channel name; ``canonical_speaker``
+    maps that to ``unknown`` so it is ignored, not trusted.
+    """
+
+    def first(key: str) -> Any:
+        return next((p.get(key) for p in payloads if p.get(key) not in (None, "")), None)
+
+    dur_ms = first("duration_ms")
+    chunks = []
+    for p in payloads:
+        start = p.get("start_ms")
+        end = p.get("end_ms")
+        chunks.append(
+            ChunkRecord(
+                text=str(p.get("verbatim_text") or p.get("text") or ""),
+                start_seconds=start / 1000.0
+                if isinstance(start, (int, float))
+                else _seconds(p.get("timestamp_start")),
+                end_seconds=end / 1000.0
+                if isinstance(end, (int, float))
+                else _seconds(p.get("timestamp_end")),
+                speaker=str(p.get("speaker") or ""),
+            )
+        )
+    return SourceRecord(
+        video_id=video_id,
+        # Only the stored ``title`` field. ``video_title`` is not a stored
+        # payload field; on a clip dict it was set by a caller, not the store.
+        title=str(first("title") or ""),
+        teacher_id=str(first("teacher_id") or ""),
+        duration_seconds=dur_ms / 1000.0
+        if isinstance(dur_ms, (int, float))
+        else _seconds(first("duration")),
+        chunks=chunks,
+    )
+
+
+def sources_from_payloads(payloads: Iterable[dict[str, Any]]) -> dict[str, SourceRecord]:
+    """Group retrieved payloads by video_id into SourceRecords."""
+    by_vid: dict[str, list[dict[str, Any]]] = {}
+    for p in payloads:
+        if p.get("video_id"):
+            by_vid.setdefault(str(p["video_id"]), []).append(p)
+    return {vid: source_from_payloads(vid, ps) for vid, ps in by_vid.items()}
 
 
 def cross_case_conflicts(quotes: Iterable[AttributedQuote]) -> list[str]:

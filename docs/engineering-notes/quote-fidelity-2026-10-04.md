@@ -56,3 +56,69 @@ only.
   Qdrant (or a JSON dump) and exits 1 on any failure.
 - The renderer (`quote_weaver.py`) should call `verify_quote()` before showing a hero quote,
   and drop the quote when it fails. That wiring waits until the file is committed.
+
+## Follow-up 2026-10-05: root cause, renderer gate, re-run against local Qdrant
+
+### Root cause (read from the local, uncommitted files)
+
+1. **The benchmark invented every quote.** `scratch/run_ruthless_benchmark_expanded.py`
+   never retrieves. Each case hand-writes `t1`..`t8` and a clip dict with a made-up
+   `speaker`, `teacher_id`, `video_title`, `start_ms` and `source_url` (case 3:
+   `speaker="Sri Krishnaji"`, `video_title="The Living Reality of Oneness Beyond
+   Philosophy"` on `0z-IZ2ar4eA`). It sets `transcript_hash = sha256(<its own text>)`,
+   so the hash gate passes trivially, and appends a literal `True` to `results`.
+   `QuoteWeaverAssertionGate.validate` then compares the output with the same invented
+   clip, so it can only pass. `scratch/display_expanded_responses.py` adds hard-coded
+   concept pills per case index.
+2. **The renderer trusted caller metadata.** `quote_weaver._format_clip_block` printed
+   `c["speaker"]`, `c["video_title"]` (falling back to the video id as a "title") and
+   `c["source_url"]`, adding `&t=0s` when no start was known. The deterministic
+   opening template added a topic claim ("her discourse on the nature of
+   consciousness"). `first_person_pipeline`'s audio strip invented a title
+   ("Living Wisdom Discourse") and an end time (`start + 90`) when none was stored.
+3. **The store cannot back what was shown.** `first_person_v7` stores no titles at all;
+   `spiritual_wisdom_contextual` stores channel names in `speaker` ("Unknown Channel")
+   and keeps no per-chunk timing (only inline `[t=..]` markers).
+
+### What changed
+
+- `quote_fidelity.verify_quote`: whole-quote contiguous match (one chunk, or two
+  adjacent chunks with their overlap merged); Unicode-aware normalisation, so Devanagari
+  matras survive and curly quotes and repunctuation do not matter; per-chunk speaker wins
+  over `teacher_id`; host or interviewer turns, `ekam` and mixed speakers fail; a
+  both-teachers video needs the joint label; title and `t=` are checked only when shown,
+  and a neutral link label (`Watch on YouTube`) or a bare id is not a title claim.
+  `source_from_payloads` reads both store shapes and never trusts a `video_title` key.
+- Renderer (local working tree, `quote_weaver.py` and `first_person_pipeline.py`, which do
+  not exist on `main`): every clip goes through `verify_hero_clip` against the retrieved
+  payloads before it is rendered. Speaker labels come only from payload `speaker` or
+  `teacher_id`, titles only from a stored `title`, and `t=` only from `start_ms` or a
+  `[t=..]` marker. A failed clip is dropped. If none survive, or the query is crisis,
+  medical or another blocked topic, the pipeline abstains: no quote, no citations, no
+  audio strip. The audio strip is built only from stored `start_ms` and `end_ms`.
+
+### Re-run (local Qdrant, exact cache off, 2026-10-05)
+
+Original 8/8 renderings, checked against the stored payloads: **0 of 7 quotes verified,
+3 cross-case conflicts.** Case 7 has no quote. `y2ZgKdt4Cj0` is in no local collection.
+Case 1's `t=280s` lies past the end of `4eV8OvVEm6A` (205.7 s).
+
+Through `FirstPersonPipeline.execute` with production settings, all 8 cases abstain
+(7 abstained, case 7 crisis_redirect). Every retrieved clip fails the existing
+boundary guard, mostly with `tail_no_terminal`. Without a running Redis the
+answerability gate also fails closed (budget ledger unavailable). No quote was
+rendered, so nothing was there to verify.
+
+A diagnostic run turned the boundary guard off and forced answerability to YES.
+It is **not** a production result. Cases 1–6 served 19 clips. `quote_fidelity_check`
+verified 19 of 19, and a raw byte-equality check confirmed every rendered body,
+speaker and start second against its `first_person_v7` point. That proves fidelity
+only, not relevance: case 3's clips do not answer the question.
+
+### Not fixed
+
+- Fidelity is checked against the store. The store's own diarised `speaker` and
+  `teacher_id` are unaudited (see `docs/attribution/README.md`).
+- `first_person_v7` has no titles, so every hero link reads "Watch on YouTube".
+- The boundary guard currently quarantines most top clips for these queries. That
+  is a data and segmentation issue upstream of this gate.

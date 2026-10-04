@@ -8,7 +8,10 @@ checks all four against the stored Qdrant payloads and exits 1 on any failure.
 
 Usage (from backend/):
 
-    # answers.md: rendered answers, one "## Case <n>" heading per answer
+    # answers.md: rendered answers, one "## Case <n>" heading per answer.
+    # First-person hero quotes live in first_person_v7; chat quotes in
+    # spiritual_wisdom_contextual. --collection may be repeated: a video's
+    # payloads are read from every collection given.
     python3 benchmarks/quote_fidelity_check.py --answers answers.md \
         --qdrant-url http://localhost:6333 --collection spiritual_wisdom_contextual
 
@@ -38,11 +41,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from services.quote_fidelity import (  # noqa: E402
     AttributedQuote,
-    ChunkRecord,
     SourceRecord,
     cross_case_conflicts,
     parse_attributed_quotes,
-    parse_timestamp,
+    source_from_payloads,
     verify_quote,
 )
 
@@ -65,33 +67,6 @@ def load_answers(path: Path) -> list[tuple[str, str]]:
         )
         for i, m in enumerate(marks)
     ]
-
-
-def _duration(value) -> float | None:
-    if value in (None, ""):
-        return None
-    if isinstance(value, (int, float)):
-        return float(value)
-    return parse_timestamp(str(value))
-
-
-def source_from_payloads(video_id: str, payloads: list[dict]) -> SourceRecord:
-    first = payloads[0] if payloads else {}
-    return SourceRecord(
-        video_id=video_id,
-        title=str(first.get("title") or ""),
-        teacher_id=str(first.get("teacher_id") or ""),
-        duration_seconds=_duration(first.get("duration")),
-        chunks=[
-            ChunkRecord(
-                text=str(p.get("text") or ""),
-                start_seconds=_duration(p.get("timestamp_start")),
-                end_seconds=_duration(p.get("timestamp_end")),
-                speaker=str(p.get("speaker") or ""),
-            )
-            for p in payloads
-        ],
-    )
 
 
 def fetch_from_qdrant(url: str, collection: str, video_id: str) -> list[dict]:
@@ -122,7 +97,7 @@ def fetch_from_qdrant(url: str, collection: str, video_id: str) -> list[dict]:
         payloads.extend(p.payload or {} for p in points)
         if offset is None:
             break
-    payloads.sort(key=lambda p: p.get("chunk_index") or 0)
+    payloads.sort(key=lambda p: (p.get("chunk_index") or 0, p.get("start_ms") or 0))
     return payloads
 
 
@@ -136,7 +111,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--answers", type=Path, required=True)
     ap.add_argument("--qdrant-url", default=os.environ.get("QDRANT_URL"))
     ap.add_argument(
-        "--collection", default=os.environ.get("QDRANT_COLLECTION", "spiritual_wisdom_contextual")
+        "--collection",
+        action="append",
+        help="repeatable; default first_person_v7 + spiritual_wisdom_contextual",
     )
     ap.add_argument(
         "--sources-json", type=Path, help="{video_id: [payload, ...]} instead of Qdrant"
@@ -157,6 +134,7 @@ def main(argv: list[str] | None = None) -> int:
         print("Need --qdrant-url or --sources-json: a quote cannot be verified without its source.")
         return 2
     titles = load_titles_csv(args.titles_csv) if args.titles_csv else {}
+    collections = args.collection or ["first_person_v7", "spiritual_wisdom_contextual"]
 
     cache: dict[str, SourceRecord | None] = {}
     rows, failed = [], 0
@@ -165,7 +143,11 @@ def main(argv: list[str] | None = None) -> int:
             payloads = (
                 offline.get(q.video_id, [])
                 if offline is not None
-                else fetch_from_qdrant(args.qdrant_url, args.collection, q.video_id)
+                else [
+                    p
+                    for coll in collections
+                    for p in fetch_from_qdrant(args.qdrant_url, coll, q.video_id)
+                ]
             )
             src = source_from_payloads(q.video_id, payloads) if payloads else None
             if src and titles.get(q.video_id) and (not src.title or src.title == q.video_id):
