@@ -35,6 +35,43 @@ class QdrantAliasError(Exception):
     pass
 
 
+# Payload index types Qdrant accepts in create_payload_index(field_schema=...).
+# Anything outside this set is skipped (with a warning) rather than sent to
+# the server, so a future index kind can never break shadow creation.
+_SHADOW_INDEX_TYPES = frozenset(
+    {"keyword", "integer", "float", "bool", "text", "datetime", "uuid"}
+)
+
+
+def _shadow_payload_indexes(col_info: Any) -> list[tuple[str, str]]:
+    """Index list for a shadow collection, derived from the SOURCE
+    collection's live payload_schema (not a hardcoded list).
+
+    Returns [(field_name, schema_type), ...]. Falls back to
+    QdrantClientManager._PAYLOAD_INDEXES when the source exposes no usable
+    schema. Keeps shadow == source by construction — the parity invariant
+    asserted in backend/tests/test_fp_shadow_index_parity.py.
+    """
+    schema = getattr(col_info, "payload_schema", None) or {}
+    derived: list[tuple[str, str]] = []
+    for field_name, index_info in schema.items():
+        data_type = str(getattr(index_info, "data_type", "") or "").lower()
+        if data_type in _SHADOW_INDEX_TYPES:
+            derived.append((field_name, data_type))
+        else:
+            logger.warning(
+                f"[QdrantAliasManager] Skipping shadow index on {field_name!r}: "
+                f"unsupported data_type {data_type!r}"
+            )
+    if derived:
+        return derived
+    logger.warning(
+        "[QdrantAliasManager] Source collection exposes no payload_schema; "
+        "falling back to QdrantClientManager._PAYLOAD_INDEXES"
+    )
+    return list(QdrantClientManager._PAYLOAD_INDEXES)
+
+
 class QdrantAliasManager:
     """
     Manages Qdrant collection aliases and blue-green shadow deployments.
@@ -217,8 +254,19 @@ class QdrantAliasManager:
             )
             raise QdrantAliasError(f"Failed to create collection {shadow_name}: {e}") from e
 
-        # Replicate standard payload indexes
-        for field_name, schema_type in QdrantClientManager._PAYLOAD_INDEXES:
+        # Replicate payload indexes from the SOURCE collection's live schema
+        # (Q-rec#1 parity fix 2026-10-04: the old code replicated
+        # QdrantClientManager._PAYLOAD_INDEXES — the main-corpus list — which
+        # silently dropped every FP-only index on shadow rebuilds
+        # (start_ms/end_ms/transcript_hash/group_id/provenance_kind/
+        # quality_status/first_person_eligible/is_verbatim/rights_cleared/
+        # verbatim_text/question_text) and added main-corpus-only ones
+        # (raptor_level/source_type/language/tags/text/topic/content_type/
+        # title/tenant_id/corpus_id/parent_id/domain_rights_status).
+        # Source-schema replication keeps shadow == source for ANY collection.
+        # Falls back to the main-corpus list only when the source exposes no
+        # schema (old servers / mocked info) to preserve prior behavior.
+        for field_name, schema_type in _shadow_payload_indexes(col_info):
             try:
                 self._client.create_payload_index(
                     collection_name=shadow_name,

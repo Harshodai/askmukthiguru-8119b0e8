@@ -995,3 +995,9 @@ shared words, fail-open), 3/6 sites wired + 3 documented-absent, vote
 already contained (35/35), aligner proposed (model/budget owner call),
 payload index built-unwired. Verified: 10 passed + neighbors 9 passed
 (re-ran), ruff clean, scratch deleted. Committed `803ffd84` (5 files).
+
+### §9ab — R-A Qdrant ops DONE + verified (2026-10-04)
+Index already existed live (creator unknown — code declaration was the
+gap); ensure-script + parity fix + backup line + 1274/1274 restore
+drill. Re-ran 44 passed, ruff clean. Open note: settings default
+`first_person_v1` vs live `first_person_v7` label mismatch for drills.

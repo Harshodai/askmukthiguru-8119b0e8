@@ -183,6 +183,10 @@ class FirstPersonStore:
         ("quality_status", "keyword"),
         ("first_person_eligible", "keyword"),
         ("is_verbatim", "keyword"),
+        # Q-rec#1 (2026-10-04): search_hybrid filters rights_cleared==True on
+        # EVERY query (:460-463) and points_servable reads it — it must be
+        # indexed like every other filtered field. Additive, zero recall risk.
+        ("rights_cleared", "keyword"),
         ("verbatim_text", "text"),
         ("question_text", "text"),
     ]
