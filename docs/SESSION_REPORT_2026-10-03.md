@@ -1033,3 +1033,9 @@ below-floor), atriabooks purged (29→28 + denylist), recompile 427→429
 deterministic, 2888 green. R-D (verified earlier, uncommitted until
 now): claim ledger + freshness + curation SLA + contradiction scan,
 7 passed. Joint commit below.
+
+### §9ag — R6 entity linking DONE + verified (2026-10-04)
+Pre-pass `link_entities` (lexicon + transliteration variants, 1.0
+precision on 25 fixtures, 0.18ms, 0 LLM) + gated hook (default OFF,
+live ranking byte-identical, no-op proven). Re-ran 14 passed.
+Committed below.
