@@ -1,3 +1,48 @@
+## Oct 4, 2026 (overnight) — Shell-GC Kills Background Jobs; Zero-Expose gh secret set; CI Secrets G
+
+### L-QDRANT-SCROLL-1. Qdrant scroll paginates on the REQUEST field `offset`, not the response echo `next_page_offset` — sending the wrong key is silently ignored → same first page forever (infinite loop, ~35% CPU, zero output, zero error).
+- **What:** `indexed_video_ids` sent `next_page_offset` as the request offset. Slept until the collection crossed 1000 points (limit=1000 → single page → `next_page_offset: null` → terminates), then hung every launch forever.
+- **Evidence:** lsof (live Qdrant TCP) + `sample` (100% module-exec) + direct scroll test (<1s) → read `indexed_video_ids` → one-line fix → skip set 136 videos in 0.0s.
+- **Rule:** any hand-rolled paginated Qdrant scroll must be tested with >1 page of data; prefer `qdrant-client` (handles offsets) over raw urllib scroll loops. A "silent 30 min, low RSS, steady CPU, live DB connection" signature = suspect pagination/loop-key bugs first.
+
+### L-WORKDIR-EXCLUSIVITY-1. A driver that discovers inputs by scanning its workdir WILL ingest foreign files dropped there by other processes.
+- **What:** parallel-session QA files (`transcripts_B/`, `passages_B/`) in `mass_ingest_2026-10/` were vacuumed by `build_clips_layer`'s directory scan → 144 ungated points served as teacher words.
+- **Evidence:** foreign sweep (exactly 1 foreign video of 178), deletion verified 0, guard v2 (`allowed = plan ∪ state ∪ skip`) proven live (49 clips/1 video dropped, APPLY OK).
+- **Rule:** directory-scan discovery MUST be intersected with an explicit membership set (plan/state/skip); the ingest workdir belongs to exactly one writer — coordinate or separate.
+
+### L-STARTUP-INVARIANT-1. `start_railway.py`-style fail-closed gates must never gain silent defaults — a default converts "refuse to start" into "run with assumed trust".
+- **What:** an undisclosed `FORWARDED_ALLOW_IPS` fallback (default `10.0.0.0/8,127.0.0.1`) was caught pre-commit via `git diff` review of a subagent's work.
+- **Evidence:** blame showed uncommitted hunk; removed → byte-identical restore; committed clean.
+- **Rule:** review every subagent diff hunk-by-hunk before commit, especially security invariants; trust-but-verify applies to agents too.
+
+### L-PYTEST-CWD-1. Backend tests that read relative paths (`app/...`) MUST run from `backend/` — repo-root runs produce FileNotFoundError failures that look like regressions.
+- **What:** full suite from repo root: 9 failed; same 5 files from `backend/`: 23 passed. `make test-backend` resolves this correctly.
+- **Rule:** never diagnose suite failures before confirming CWD; record invocation path with every suite result.
+
+### L-MONITOR-MARKER-1. Background progress monitors must compute decision predicates (pending==0), not just log raw lines — and must write a completion MARKER file after N consecutive true checks.
+- **What:** v1 monitor logged driver/qdrant/last-line only; L1 loop stage had no observable trigger. v2 computes pending + writes `INGEST_DONE` after 2 consecutive zeros.
+- **Rule:** every background loop gets a machine-checkable completion marker, not just a human-readable log.ate Reality; Dependency Pruning & CPU PyTorch Invariant
+
+### L-DEPS-PRUNE-1. Unaudited ghost/optional dependencies and Linux PyTorch PyPI defaults cause massive build stalls (>3.5 GB CUDA bloat, 25+ min builds) and wide attack surface.
+- **What:** Auditing `requirements.lock` (320 pinned packages) and `requirements.txt` revealed two major sources of bloat:
+  1. *Ghost dependencies*: Packages declared in `requirements.txt`/`pyproject.toml` with **0 imports** anywhere in the codebase (`litellm` which pulled `boto3`+`botocore`, `sarvamai`+`langchain-sarvam` where direct `httpx` is used, `pypinyin`, `peft`, `xlsxwriter`, `passlib`, `langchain-nvidia-ai-endpoints`).
+  2. *Deprecated/Heavy optional cascades*: `ragatouille` (deprecated in favor of ONNX ColBERT MaxSim) pulled in the entire `llama-index` family (`llama-index-core`, `llama-index-workflows`, `llama-index-embeddings-openai`, `llama-index-llms-openai`, etc.); `numba` pulled in `llvmlite` (124 MB native LLVM bindings); `playwright` (132 MB) had no browser binaries in Docker; `gradio` (76 MB + 40+ UI dependencies) is disabled by default (`ENABLE_GRADIO_UI=false`) with Vite/React serving production traffic; `nemoguardrails` was unused in serving.
+  3. *Linux PyTorch CUDA trap*: Standard PyPI `torch==2.13.0` wheels on Linux default to bundling 13 NVIDIA CUDA packages (`nvidia-nvshmem`, `nvidia-curand`, `nvidia-cusparse`, `nvidia-nccl`, `nvidia-cufft`, `nvidia-cusparselt`, `nvidia-cusolver`, `triton`), adding **3.5+ GB** of useless downloads into a CPU-only Docker container (`MKL_NUM_THREADS=2`, `OPENBLAS=2`).
+- **Evidence:** AST import audit across all backend modules proved zero code references. Docker build stalled for >25 minutes downloading CUDA wheels. Killing the bloated build, pruning ghost/deprecated dependencies, and pointing PyTorch to `--extra-index-url https://download.pytorch.org/whl/cpu` eliminated >4.5 GB of download bloat, reduced build time to <2 minutes, and shrunk the dependency lockfile from 320 to ~80 packages.
+- **Rule:**
+  1. CPU-bound production images MUST install PyTorch via `--extra-index-url https://download.pytorch.org/whl/cpu`.
+  2. Never add dependencies to `requirements.txt` or `pyproject.toml` without active imports in serving code.
+  3. Recompile `requirements.lock` with `uv pip compile` to ensure no orphaned transitive packages survive.
+
+### L-BGJOB-DETACH-1. Any background job outliving its shell MUST be detached with `start_new_session=True`, and its log MUST live outside `~/.local/share/opencode/shell/`.
+The Wave-4a mass ingest (PID 82134) died at **00:42:43 IST exactly when opencode pruned its shell output file** (`sh_101e414060015VACz4WKwKGECv.out`): shell GC removes the log and the process group together, destroying both the job AND its only log (death output lost — no traceback, no final summary ever recoverable). Fix pattern (proven on resume): launch via `subprocess.Popen(cmd, cwd=repo, stdout=durable_log, stderr=STDOUT, start_new_session=True)` → child gets its own session, PPID 1 (reparented to launchd), immune to shell exit/GC. Verify detachment with `ps -o pid,ppid,sess` (PPID must be 1, SESS ≠ shell's). Durable logs go in the workdir (`driver_resume_*.log`, append-only), PID in `/tmp/mass_ingest_full.pid`. Liveness truth = `kill -0 <pid>` + log tail + `state.json` — NEVER a shell output path. Also: `handoff.md` Standing state must record the PID/log of the *current* incarnation, not the dead one.
+
+### L-SECRETS-STDIN-1. GitHub secret values travel `.env`/`railway variables --json` → in-process parse → `gh secret set` stdin pipe; print only classifications.
+Owner constraint ("cannot store these in your sessions and also to models"): read all sources inside ONE Python process, pipe bytes straight to `gh secret set NAME` via `subprocess.run(input=value)` (text mode crashes on bytes; `-`/stdin form is required — first attempt failed on text-mode + over-strict 301 refusal). Emit only classification booleans: scheme (`https://`?), key prefix (`sk-`/`sb_secret_`/`sb_publishable_`), length, probe status codes, `gh secret list` name rows. Never argv (visible in `ps`), never stdout (→ session → model), never temp file. Probe every candidate endpoint BEFORE setting: an unreachable-but-live endpoint (Railway edge 404 "Application not found" = paused/no deployment) must NOT be set, because a present-but-dead secret converts the workflow's honest-skip gate into a permanent red run. Set it only after the endpoint answers correctly (Qdrant: `GET /collections` → 200).
+
+### L-CI-SECRETS-1. Repo-level `gh secret list` ≠ the whole truth; environment secrets live in a separate namespace, and a workflow's target-allowlist is the safety gate — not the secret itself.
+`nightly-rls.yml` needs `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY`/`SUPABASE_ANON_KEY` in the **`staging` environment** (checked via `gh secret list --env staging`), while `golden25-gate.yml` needs `QDRANT_URL`+`OPENROUTER_API_KEY` at **repo** level; `gh secret set --env staging` for repo-scope or vice versa silently wires the wrong namespace and the workflow "works" while reading empty. Second invariant: `verify_rls_policies.py` refuses non-local targets unless `STAGING_ENVIRONMENT=staging` AND `ALLOW_STAGING_SYNTHETIC_USERS=1` are both set by the workflow — so pointing it at the production Supabase project is *by design* ("approved staging project" = env-name approval gate), and `_healthcheck()` accepts `<500` (401 from `/auth/v1/health` is FINE — do not "fix" it to 200). Third: with secrets absent the nightly run fails red *at the env/refusal step* (every night since Sep 27) — the first run with secrets present is therefore the first real verification, and it WILL surface latent schema drift (found: `20260825000001_fix_chat_message_profile_trigger.sql` on origin/main since Aug 25, never applied to prod DB → `record "new" has no field "user_id"` 42703). Reading migration files ≠ database state; only a live probe proves which migration head prod is on. N8: propose the exact `supabase db push`/SQL-editor command, human runs it.
+
 ## Oct 3, 2026 (late) — Owner-Answer Execution: S1 Root-Cause Fix, FP-Primary LLM Switch, Secrets Truth
 
 Full record: `docs/PROD_READY_OWNER_PACKAGE.md` (✅ OWNER ANSWERS table), `docs/SESSION_REPORT_2026-10-03.md` §9.
