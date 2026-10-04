@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Youtube, Play, Clock, Quote, Sparkles, ExternalLink, X, BookOpen, Search } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { resolveAttributionLabel } from '@/lib/chat/types';
 
 /** Neutral fallback shown only when the citation carries no real speaker —
  *  never a stand-in for an actual teacher's name. */
@@ -83,7 +84,7 @@ export const CitationBadge: React.FC<CitationBadgeProps> = ({
                 </p>
                 <div className="mt-0.5 flex items-center gap-2 text-[10px] text-muted-foreground">
                   <span className="flex items-center gap-1 text-saffron-gold">
-                    {citation.speaker || FALLBACK_SPEAKER_LABEL}
+                    {resolveAttributionLabel(citation) || FALLBACK_SPEAKER_LABEL}
                     {citation.speakerVerified && (
                       <Sparkles className="h-2.5 w-2.5 text-saffron-gold" aria-label="Voice verified teacher" />
                     )}
@@ -174,7 +175,7 @@ export const DiscourseVideoModal: React.FC<{
               <h3 className="font-serif text-base font-semibold text-foreground">
                 {citation.title || 'Sacred Discourse'}
               </h3>
-              <p className="text-xs text-saffron-gold">{citation.speaker || FALLBACK_SPEAKER_LABEL}</p>
+              <p className="text-xs text-saffron-gold">{resolveAttributionLabel(citation) || FALLBACK_SPEAKER_LABEL}</p>
             </div>
             <a
               href={citation.url}

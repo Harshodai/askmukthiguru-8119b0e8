@@ -46,6 +46,74 @@ MAX_QUOTE_CHARS = 400
 _SENTENCE_END = ".!?…\"'”"
 
 
+# Curation denylist (2026-10-04 audit): verbatim quotes excluded from the
+# Today's Teaching pool. Each entry is (normalized quote text, reason).
+# Matching is exact on the loader-normalized text (collapsed whitespace,
+# lowercased), so future artifact regenerations can only re-admit one of these
+# by changing its wording — index shifts alone cannot sneak them back in.
+_CURATED_DENYLIST: tuple[tuple[str, str], ...] = (
+    # --- Lockdown-era confinement framing (video cHAJiF2byzg) ---
+    # Covid-lockdown discourse: dated "inside the house" framing, off-topic
+    # as an everyday teaching.
+    (
+        "whether you are inside the house or outside the house, we as human "
+        "beings have always felt that we do not have freedom.",
+        "lockdown confinement framing",
+    ),
+    # Lockdown "pleasures of life has stopped" framing — same dated context.
+    (
+        "so, this is just a big excuse that we are coming up with that, you "
+        "know, this is basically physical movement and all the pleasures of "
+        "life has basically stopped.",
+        "lockdown confinement framing",
+    ),
+    # Lockdown-era "escape from suffering has stopped" — same dated context.
+    (
+        "and you know, to put it in spiritual terms, escape from suffering has basically stopped.",
+        "lockdown confinement framing",
+    ),
+    # Explicit coronavirus reference — dated, not an everyday teaching.
+    (
+        "so, you are facing your worst problem, which is more than coronavirus itself.",
+        "covid-lockdown reference",
+    ),
+    # Covid joke ("let me have corona...") — served LIVE as Today's Teaching
+    # before this gate; never suitable as a daily teaching.
+    (
+        "i think many people in the world will be saying to themselves, you "
+        "know what, let me have corona rather than staying with my wife and "
+        "my children and all these people around.",
+        "covid joke served live as teaching",
+    ),
+    # --- Event promo (video 1imcyoNUO-A, Love cluster) ---
+    # Youth-festival promo copy — marketing, not a teaching.
+    (
+        "it is to create this new generation leaders that preethaji and i "
+        "host the annual youth leadership festival at acom and the happy "
+        "hearts fest for youth to build entire villages.",
+        "event promo, not a teaching",
+    ),
+    # Same promo context — event marketing.
+    (
+        "these are events that will open your heart to deeper connection and "
+        "your mind to a greater intelligence.",
+        "event promo, not a teaching",
+    ),
+    # Same promo context — participation pitch.
+    (
+        "i would say that every young person who is aspiring to be a leader "
+        "must participate in these life transforming events.",
+        "event promo, not a teaching",
+    ),
+)
+_DENYLIST_TEXTS: frozenset[str] = frozenset(text for text, _ in _CURATED_DENYLIST)
+
+
+def _is_denylisted(fingerprint: str) -> bool:
+    """True when the loader-normalized lowercase quote text is curated out."""
+    return fingerprint in _DENYLIST_TEXTS
+
+
 # Product-approved practice copy (src/lib/practicesContent.ts) — used only when
 # the OKF verbatim artifact is missing. Deliberately NOT attributed to the
 # teachers: it is guide copy, not a quotation.
@@ -125,6 +193,8 @@ def _load_verbatim_quotes() -> list[dict]:
             fingerprint = text.lower()
             if not text or fingerprint in seen or not _quote_is_safe(text):
                 continue
+            if _is_denylisted(fingerprint):
+                continue  # curated out: lockdown/promo/off-topic, see _CURATED_DENYLIST
             seen.add(fingerprint)
             url = str(quote.get("source_url") or "").strip()
             start = quote.get("start_seconds")
@@ -148,7 +218,12 @@ def _load_verbatim_quotes() -> list[dict]:
 
 @lru_cache(maxsize=1)
 def _teaching_pool() -> tuple[dict, ...]:
-    """Immutable per-process pool; empty artifact → product-approved fallback."""
+    """Immutable per-process pool; empty artifact → product-approved fallback.
+
+    The fallback also covers curation emptying the pool: if the denylist ever
+    filters every quote (e.g. a trimmed future artifact), serving degrades to
+    honestly-labelled practice prompts rather than an empty teaching.
+    """
     quotes = _load_verbatim_quotes()
     if quotes:
         return tuple(quotes)

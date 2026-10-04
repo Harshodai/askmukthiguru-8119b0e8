@@ -959,3 +959,32 @@ own "not positive thinking" positioning verbatim). Contamination
 text: content-consistent, attribution-unproven. Fixes queued:
 excerpt swaps (retrieval tuning, post-ingest), cit2 downgrade,
 orphan-point deletion (in flight).
+
+### §9x — G1 ritual curation + attribution downgrade DONE + verified (2026-10-04)
+G1: `_CURATED_DENYLIST` (8 quotes: 5 lockdown + 3 promo) in ritual.py,
+pool 23→15, 60-day sweep clean, determinism kept, fallback honest;
+citation render downgrades unverified speakers (`shared in <channel>` /
+`unverified clip`; FP route byte-identical via mapper flag).
+Orchestrator verified scope (6 M + 3 new): backend **21 passed**
+re-ran, ruff clean; vitest 36/36 + tsc accepted from report (build
+covers at deploy). Uncommitted (rides next scoped commit).
+
+### §9y — Off-topic handler built flag-off + verified (2026-10-04)
+New `off_topic_stage.py` (predicate + refusal copy + short-circuit stage,
+flag default OFF via getattr fallback — config.py untouched due to
+others' hunks) + 29 tests. On-topic anchors always win; unrecognized →
+legacy path (fail-open). NOT imported into live chain (proven by test).
+Orchestrator verified: 29 passed (from backend/), ruff clean, exact scope
+(2 new files). Enable procedure + gold-gate documented in module.
+Uncommitted.
+
+### §9z — G2 OKF repair DONE + verified (2026-10-04)
+G2 (backup-first, /tmp checksums): compiled.json 717→431 (40 filename
+doubles + 246 near-twins dropped; 0 exact-title groups; 208/208 videos
+retained; uniform 15-key schema verified); lexicon proper_nouns
+640→29 (junk purged via existing gates; Ojas-correction calibration
+green); staging triaged (ready 5 / quarantine 813 / junk 1, nothing
+compiled). Orchestrator verified backups, counts, schema, 18 tests +
+ruff clean (broader 2901 accepted from report). Residual risks recorded
+(paraphrase loss on title-collapse, heuristic tie-breaks, 15 fragments
++ `atriabooks` kept, ready-5 need verbatim check at graduation).

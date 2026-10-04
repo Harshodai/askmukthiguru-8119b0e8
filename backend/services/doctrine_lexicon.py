@@ -428,6 +428,29 @@ def _words(text: str) -> Iterable[str]:
         yield match.group(0).lower().strip("'’-")
 
 
+def _purge_junk_proper_nouns(
+    proper_nouns: dict[str, int],
+    general_english: set[str],
+    clean_curated: set[str],
+) -> dict[str, int]:
+    """Drop proper-noun candidates that are ordinary English or thin OCR fragments.
+
+    Mirrors the correction-target rule: a word in ``general_english`` is never
+    a proper-noun target, and a word seen only in OCR'd sources must recur
+    (>= ``_MIN_TARGET_SUPPORT``) before it can attract anything. Words from
+    clean (non-OCR) sources need no repetition — ``ojas`` appears once on
+    ekam.org and is exactly the case this lexicon exists for. Without this,
+    89% of the built ``proper_nouns`` set was ordinary English (``the``,
+    ``going``, ``telegram``), letting capitalised prose mimic ASR errors
+    (OKF quality audit 2026-10-04).
+    """
+    return {
+        word: count
+        for word, count in proper_nouns.items()
+        if word not in general_english and (word in clean_curated or count >= _MIN_TARGET_SUPPORT)
+    }
+
+
 def build_lexicon(
     authority_texts: dict[str, Iterable[str]],
     corpus_texts: Optional[Iterable[tuple[str, str]]] = None,
@@ -528,6 +551,14 @@ def build_lexicon(
             ", ".join(sorted(shadowed)[:12]),
         )
 
+    purged = _purge_junk_proper_nouns(dict(proper_nouns), general_english, clean_curated)
+    if len(purged) != len(proper_nouns):
+        logger.info(
+            "proper-noun purge: %d -> %d (ordinary English / thin OCR fragments removed)",
+            len(proper_nouns),
+            len(purged),
+        )
+    proper_nouns = purged
     stats.counts["proper_nouns"] = len(proper_nouns)
     stats.counts["correction_targets"] = len(targets)
     return DoctrineLexicon(

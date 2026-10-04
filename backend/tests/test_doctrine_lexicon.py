@@ -96,3 +96,31 @@ def test_proper_nouns_only_map_to_proper_nouns():
     lex = build_lexicon({"english": ["room more pretty remain"]})
     for name in ("Rome", "Maori", "Preeta"):
         assert lex.explain(name).replacement is None
+
+
+def test_proper_nouns_purge_ordinary_english_and_thin_fragments():
+    """89% of the built proper_nouns set was ordinary English (`the`,
+    `going`) plus count-1 OCR fragments (OKF quality audit 2026-10-04).
+    The build must purge both, while keeping recurring book terms and
+    clean-site doctrine terms that need no repetition (`ojas`)."""
+    lex = build_lexicon(
+        {
+            # OCR'd source: "The"/"Going" capitalised mid-sentence, one-off fragment.
+            "books": [
+                "The Guru met Preethaji and The Teacher was Going Home. "
+                "The Guru met Preethaji and The Teacher was Going Home. "
+                "The Guru met Preethaji and The Teacher was Going Home. "
+                "The Guru met Preethaji and The Teacher was Going Home. "
+                "The Guru met Preethaji and The Teacher was Going Home. Zxqfragment"
+            ],
+            # Clean site: genuine doctrine term, seen once.
+            "site": ["The Ojas Shakti practice builds immunity."],
+            "english": ["the teacher going home"],
+        },
+        corpus_texts=[("v1", "Ojas is strength.")],
+        min_consensus_sources=20,
+    )
+    assert "preethaji" in lex.proper_nouns
+    assert "ojas" in lex.proper_nouns
+    for junk in ("the", "teacher", "going", "home", "zxqfragment"):
+        assert junk not in lex.proper_nouns, junk

@@ -17,6 +17,11 @@ export function mapFirstPersonCitationToDiscourseCitation(
     index,
     url: citation.playback_url || citation.source_url || citation.video_url,
     speaker: citation.speaker,
+    // First-person clips come from the voice-verified clip index — the only
+    // route allowed to name a speaker without an explicit flag — so mark them
+    // verified to keep the attribution-downgrade rule (resolveAttributionLabel)
+    // byte-identical here. Unverified chat citations carry no such guarantee.
+    speakerVerified: true,
     startTimestamp: citation.timestamp_seconds,
     playbackStartSeconds: citation.playback_start_seconds,
     playbackEndSeconds: citation.playback_end_seconds,

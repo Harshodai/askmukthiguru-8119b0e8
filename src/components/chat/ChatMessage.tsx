@@ -12,6 +12,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Message } from '@/lib/chatStorage';
 import type { TeachingPreview, GroundingState, TeachingAttribution } from '@/lib/chat/types';
+import { resolveAttributionLabel } from '@/lib/chat/types';
 import { evidenceSupport } from '@/lib/chat/evidenceSupport';
 import { FEATURE_FLAGS } from '@/lib/featureFlags';
 import { cn } from '@/lib/utils';
@@ -138,7 +139,7 @@ const TeachingGroundingCard = ({
         .slice(0, 3)
         .map((citation) => ({
           title: citation.title || citation.source || t('chat.references'),
-          teacher: citation.speaker ?? null,
+          teacher: resolveAttributionLabel(citation) ?? null,
           url: citation.url || null,
           excerpt: citation.quote || citation.textSnippet || null,
         }));
@@ -972,7 +973,8 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                                   index: n,
                                   url: citationData?.url || '#',
                                   title: citationData?.title || citationData?.source || 'Sacred Discourse Teaching',
-                                  speaker: citationData?.speaker || undefined,
+                                  speaker: resolveAttributionLabel(citationData ?? {}) || undefined,
+                                  speakerVerified: citationData?.speakerVerified,
                                   startTimestamp: citationData?.timestampSeconds,
                                   quote: citationData?.textSnippet || citationData?.quote,
                                 };
