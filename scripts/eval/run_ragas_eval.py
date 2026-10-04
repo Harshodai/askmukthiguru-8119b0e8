@@ -53,6 +53,7 @@ import json
 import logging
 import math
 import os
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -135,6 +136,219 @@ GOLDEN_SET = [
         ),
     },
 ]
+
+
+# ── R3: claim→source ledger + CitationFaithfulness-style audit (eval-only) ──
+# Pure-stdlib sentence→context-span linking. Runs offline on collected answers;
+# never touches retrieval or generation. The FP never-cites invariant is hard:
+# first-person spans are context-only (citable=False) and ANY citation marker
+# found in an FP answer is reported as an fp_citation violation.
+
+_CLAIM_SPLIT_RE = re.compile(r"(?<=[.!?])\s+(?=[A-Z0-9\"“(\[])")
+_CITATION_RES = (
+    re.compile(r"\[(\d{1,3})\]"),  # [1], [12]
+    re.compile(r"\(sources?:[^)]*\)", re.IGNORECASE),  # (Source: ...), (sources: ...)
+    re.compile(r"【[^】]*】"),  # CJK bracket citations
+)
+_FP_MARKER_RE = re.compile(
+    r"\bI\s+(am|guide|teach|tell|bless|invite|ask|urge)\b"
+    r"|as\s+(?:Sri\s+)?(?:Preethaji|Krishnaji)\s*,?\s+I\b",
+    re.IGNORECASE,
+)
+_LEDGER_STOPWORDS = frozenset(
+    "a an the and or but of to in on for with is are was were be been it its "
+    "this that these those you your we our they their he she his her as at by "
+    "from I me my".split()
+)
+_MIN_OVERLAP = 0.25  # claim-token fraction that must appear in a context to count as grounded
+
+
+def split_claims(answer: str) -> list[str]:
+    """Split an answer into factual-claim sentences (eval ledger granularity)."""
+    parts = _CLAIM_SPLIT_RE.split((answer or "").strip())
+    return [p.strip() for p in parts if len(p.split()) >= 3]
+
+
+def _claim_tokens(text: str) -> set[str]:
+    return {w for w in re.findall(r"[a-z0-9]+", (text or "").lower()) if w not in _LEDGER_STOPWORDS}
+
+
+def link_claims_to_spans(
+    answer: str,
+    contexts: list[str],
+    min_overlap: float = _MIN_OVERLAP,
+) -> list[dict]:
+    """Link every claim sentence to its best-supporting context span.
+
+    Returns ledger rows: {claim, best_context_idx|None, overlap, grounded}.
+    `citable` is filled in by the audit (False for all FP spans — hard invariant).
+    """
+    claims = split_claims(answer)
+    ctx_token_sets = [_claim_tokens(c) for c in contexts]
+    ctx_norm = [re.sub(r"\s+", " ", (c or "").lower()).strip() for c in contexts]
+    ledger: list[dict] = []
+    for claim in claims:
+        toks = _claim_tokens(claim)
+        best_idx: int | None = None
+        best_overlap = 0.0
+        norm_claim = re.sub(r"\s+", " ", claim.lower()).strip()
+        for i, (ctoks, cnorm) in enumerate(zip(ctx_token_sets, ctx_norm)):
+            if not toks:
+                continue
+            overlap = len(toks & ctoks) / len(toks)
+            if norm_claim and norm_claim in cnorm:
+                overlap = max(overlap, 1.0)
+            if overlap > best_overlap:
+                best_overlap, best_idx = overlap, i
+        ledger.append(
+            {
+                "claim": claim,
+                "best_context_idx": best_idx if best_overlap >= min_overlap else None,
+                "overlap": round(best_overlap, 3),
+                "grounded": best_overlap >= min_overlap,
+            }
+        )
+    return ledger
+
+
+def detect_first_person(answer: str, voice: str | None = None) -> bool:
+    """True when the answer speaks as the guru (FP route) vs about the guru."""
+    if voice and str(voice).strip().lower() in {"first_person", "first-person", "fp"}:
+        return True
+    return bool(_FP_MARKER_RE.search(answer or ""))
+
+
+def citation_faithfulness_audit(
+    answer: str,
+    contexts: list[str],
+    is_first_person: bool = False,
+    min_overlap: float = _MIN_OVERLAP,
+) -> dict:
+    """CitationFaithfulness-style audit: flag 'cited but ungrounded' spans.
+
+    - General path: each ``[n]`` marker must resolve to contexts[n-1] AND the
+      citing claim must overlap that context; otherwise it is a
+      cited_but_ungrounded violation.
+    - FP path: spans stay context-only (citable=False); any citation marker at
+      all is an fp_citation violation. Assert zero in tests / fixture output.
+    """
+    ledger = link_claims_to_spans(answer, contexts, min_overlap=min_overlap)
+    for row in ledger:
+        row["citable"] = not is_first_person
+
+    markers: list[dict] = []
+    for rx in _CITATION_RES:
+        for m in rx.finditer(answer or ""):
+            markers.append({"marker": m.group(0), "pos": m.start()})
+
+    cited_but_ungrounded: list[dict] = []
+    fp_citations: list[dict] = []
+    if is_first_person:
+        fp_citations = [{"marker": m["marker"], "reason": "fp_never_cites"} for m in markers]
+    else:
+        num_re = _CITATION_RES[0]
+        for m in num_re.finditer(answer or ""):
+            n = int(m.group(1))
+            target = n - 1
+            if target < 0 or target >= len(contexts):
+                cited_but_ungrounded.append({"marker": m.group(0), "reason": "target_out_of_range"})
+                continue
+            # The claim carrying the marker must be grounded IN THE CITED span.
+            carrying = [r for r in ledger if m.group(0) in r["claim"]]
+            ctoks = _claim_tokens(contexts[target])
+            ok = False
+            for row in carrying or [{"claim": "", "grounded": False}]:
+                toks = _claim_tokens(row["claim"].replace(m.group(0), ""))
+                if toks and ctoks and len(toks & ctoks) / len(toks) >= min_overlap:
+                    ok = True
+                    break
+            if not ok:
+                cited_but_ungrounded.append(
+                    {
+                        "marker": m.group(0),
+                        "reason": "cited_span_does_not_support_claim",
+                        "cited_context_idx": target,
+                    }
+                )
+
+    return {
+        "n_claims": len(ledger),
+        "n_grounded": sum(1 for r in ledger if r["grounded"]),
+        "n_citation_markers": len(markers),
+        "cited_but_ungrounded": cited_but_ungrounded,
+        "fp_citations": fp_citations,
+        "is_first_person": is_first_person,
+        "ledger": ledger,
+    }
+
+
+# Tiny offline fixture for `--fixture` runs (no backend, no LLM, stdlib only).
+_FIXTURE_CONTEXTS = [
+    "Sri Preethaji teaches that a Beautiful State is a state of consciousness "
+    "free from suffering, marked by stillness, joy, and connectedness.",
+    "Sri Krishnaji teaches the Serene Mind practice: three minutes of breath, "
+    "emotion, and thought direction with attention at the eyebrow center.",
+]
+FIXTURE_SAMPLES = [
+    {
+        "id": "fx-grounded",
+        "answer": ("A Beautiful State is free from suffering and marked by stillness and joy [1]."),
+        "contexts": _FIXTURE_CONTEXTS,
+        "is_first_person": False,
+    },
+    {
+        "id": "fx-ungrounded-cite",
+        "answer": ("A Beautiful State requires strict fasting every new moon [5]."),
+        "contexts": _FIXTURE_CONTEXTS,
+        "is_first_person": False,
+    },
+    {
+        "id": "fx-fp-clean",
+        "answer": (
+            "I am with you. Rest your attention in stillness and let the "
+            "noise of the mind settle on its own."
+        ),
+        "contexts": _FIXTURE_CONTEXTS,
+        "is_first_person": True,
+    },
+]
+
+
+def run_fixture(output_path: str) -> int:
+    """Run the R3 ledger+audit on the tiny offline fixture. Always stdlib-only."""
+    audits = []
+    for sample in FIXTURE_SAMPLES:
+        audit = citation_faithfulness_audit(
+            sample["answer"],
+            sample["contexts"],
+            is_first_person=sample["is_first_person"],
+        )
+        audits.append({"id": sample["id"], **audit})
+        logger.info(
+            "[%s] claims=%d grounded=%d markers=%d ungrounded=%d fp_cites=%d",
+            sample["id"],
+            audit["n_claims"],
+            audit["n_grounded"],
+            audit["n_citation_markers"],
+            len(audit["cited_but_ungrounded"]),
+            len(audit["fp_citations"]),
+        )
+    fp_total = sum(len(a["fp_citations"]) for a in audits if a["is_first_person"])
+    logger.info("FP citation invariant: %d fp_citations in FP audit output", fp_total)
+
+    report = {
+        "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+        "mode": "fixture",
+        "n_samples": len(audits),
+        "fp_citation_total": fp_total,
+        "audits": audits,
+    }
+    out = Path(output_path)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with open(out, "w") as f:
+        json.dump(report, f, indent=2)
+    logger.info("Fixture report written to %s", out)
+    return 0
 
 
 async def _get_anon_session_token(client: httpx.AsyncClient) -> str:
@@ -249,6 +463,7 @@ async def main(args: argparse.Namespace) -> int:
 
     samples = []
     failures = []
+    claim_audits = []  # R3 eval-only: parallel to samples, never fed to RAGAS
 
     for item in GOLDEN_SET:
         qid = item["id"]
@@ -284,6 +499,15 @@ async def main(args: argparse.Namespace) -> int:
                 "reference": ground_truth,
             }
         )
+        # R3 ledger+audit: eval-only, stdlib, no retrieval/generation impact.
+        fp = detect_first_person(answer, voice=resp.get("voice"))
+        audit = citation_faithfulness_audit(answer, context_strs, is_first_person=fp)
+        claim_audits.append({"id": qid, **audit})
+        logger.info(
+            "[%s] ledger: %d/%d claims grounded, %d cited-but-ungrounded, %d fp_citations",
+            qid, audit["n_grounded"], audit["n_claims"],
+            len(audit["cited_but_ungrounded"]), len(audit["fp_citations"]),
+        )
         logger.info("[%s] Got answer (%d chars, %d contexts)", qid, len(answer), len(context_strs))
 
     if not samples:
@@ -302,6 +526,10 @@ async def main(args: argparse.Namespace) -> int:
         "n_samples": len(samples),
         "n_failures": len(failures),
         "metrics": metrics,
+        "claim_audits": claim_audits,
+        "fp_citation_total": sum(
+            len(a["fp_citations"]) for a in claim_audits if a["is_first_person"]
+        ),
     }
 
     output_path = Path(args.output)
@@ -340,6 +568,14 @@ if __name__ == "__main__":
     )
     parser.add_argument("--ci", action="store_true", help="Exit 1 if metrics below threshold")
     parser.add_argument("--threshold", type=float, default=0.6, help="CI faithfulness threshold")
+    parser.add_argument(
+        "--fixture",
+        action="store_true",
+        help="Offline R3 check: run claim ledger + citation audit on the tiny "
+        "built-in fixture (no backend, no LLM) and exit 0.",
+    )
     args = parser.parse_args()
 
+    if args.fixture:
+        sys.exit(run_fixture(args.output))
     sys.exit(asyncio.run(main(args)))

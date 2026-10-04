@@ -153,3 +153,43 @@ ls memory/okf/staging/ | wc -l   # 820 at audit time
 ```
 
 *No code, data, state, log, or config files were modified. No commits made. 0 LLM calls used.*
+
+## 6. Implementation status — 2026-10-04 (follow-up session, 0 LLM calls)
+
+Backups with checksums taken before any write (`/tmp/okf_backup/`:
+`89bfefb4…` compiled.json, `4407ceef…` doctrine_lexicon.json). No commits made.
+
+### 6.1 "Ready 5" graduation → 2 graduated, 3 held
+
+Per-file quote-verbatim gate (`services.transcript_verbatim.find_verbatim` +
+exact-substring vs `transcripts/<video_id>.md`):
+
+| File | Result | Evidence |
+|---|---|---|
+| `observation_…_addictive_states.md` → `sri-preethaji/` | GRADUATED | 0 gate-checkable quotes; re-validated OK |
+| `spiritual_loneliness_and_evolution.md` → `shared/` | GRADUATED | 0 quoted strings; re-validated OK |
+| `silencing_the_mind_s_chatter.md` | HELD | 30-word quote `not_found` (0.30), 0/7 6-gram hits — summary in quote marks |
+| `transcending_the_ego.md` | HELD | 29-word quote `not_found` (0.40), 0/4 6-gram hits — same defect class |
+| `universal_life_force_….md` | HELD | 7-word `(Unknown Channel)` quote not an exact substring; below gate word floor |
+
+Reasons recorded in `memory/okf/STAGING_TRIAGE_2026-10-04.md` (§ Graduation
+outcome). Graduation used the pipeline's own `graduate_entry` + `compile_okf()`.
+
+### 6.2 `atriabooks` purge
+
+Publisher-imprint OCR fragment (`atriabooks`, books source, count 3 — passed
+the support bar via boilerplate repetition) removed from `proper_nouns`
+(29 → 28) and `targets` (5849 → 5848) in `backend/data/doctrine_lexicon.json`;
+kept in `vocabulary`/`curated` (protective membership) and
+`corpus_freq`/`corpus_sources` (observed data). Rebuild guard added in
+`backend/services/doctrine_lexicon.py`: `_OCR_JUNK_DENYLIST` wired into the
+existing `_purge_junk_proper_nouns` path + `build_lexicon` targets.
+`test_doctrine_lexicon.py` 9/9 green; calibration still corrects
+Ujash/Ujasi/Ojasi → Ojas. Ruff check + format clean on touched code.
+
+### 6.3 Recompile numbers
+
+`compiled.json` v2: **427 → 429 entries** (both graduates present), **0
+exact-title groups**, 429/429 embeddings 1024d. Gate tests:
+`test_okf_doctrine_only.py` + `test_okf_store.py` **2888 passed** (includes
+`test_compiled_index_matches_the_clean_bundle` and the integrity contract).

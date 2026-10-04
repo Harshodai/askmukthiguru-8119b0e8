@@ -1026,3 +1026,10 @@ Dedupe-at-upsert guard + canonical re-upload map + bool declarations
 cache) — running ingest unaffected. Re-ran 35 passed, ruff clean,
 scope exact (4 files). Open: live bool-index migration post-driver;
 apply-record overcount note; 32-reconcile + polish post-run.
+
+### §9af — T2 OKF leftovers + R-D commit (2026-10-04)
+T2: 2/5 graduated (verbatim-checked; 3 held: fake-quotes-in-marks,
+below-floor), atriabooks purged (29→28 + denylist), recompile 427→429
+deterministic, 2888 green. R-D (verified earlier, uncommitted until
+now): claim ledger + freshness + curation SLA + contradiction scan,
+7 passed. Joint commit below.

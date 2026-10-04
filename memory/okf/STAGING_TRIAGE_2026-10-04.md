@@ -58,6 +58,49 @@ Each has: valid doctrine type, non-empty title/body ≥500 chars, YouTube source
 with video_id, sequential 5-node arc keywords, no title/hash match against
 production (431) or any other staging file.
 
+## Graduation outcome — 2026-10-04 (quote-verbatim gate)
+
+Gate: `services.transcript_verbatim.find_verbatim` (the same gate behind the
+32/32 Phase-3 after-report) for quoted strings ≥8 words, plus exact-substring
+check of every quoted string against `transcripts/<video_id>.md`. Candidates
+were re-validated with `scripts/okf/compile_okf.py::validate_staged_entry`
+immediately before graduation; graduation used the pipeline's own
+`graduate_entry` (teacher routing, byte-identical copy), then `compile_okf()`.
+
+### Graduated (2)
+
+- `observation_and_transformation_recognizing_and_transforming_addictive_states.md`
+  → `memory/okf/sri-preethaji/` (teacher `sri-preethaji`). 0 gate-checkable
+  quotes; only quoted string is the title echo `"Observation and
+  Transformation,"` (heading duplication, not a doctrine quote). Recompile:
+  427 → 429 entries, title present.
+- `spiritual_loneliness_and_evolution.md` → `memory/okf/shared/` (teacher
+  `both`). 0 quoted strings at all — nothing for the gate to strip.
+
+### Held in staging (3, with reasons)
+
+- `silencing_the_mind_s_chatter.md` — 30-word `Quotes` block
+  (`"The restless mind naturally pulls awareness toward future anxieties …"`)
+  reports `not_found` (score 0.30) against `vrXmfCUvigs`
+  (canonical_segments.json present); 0/7 sliding 6-gram windows hit the
+  transcript even under normalization. LLM-composed summary wearing quote
+  marks, not the teacher's recorded words. HOLD for re-extraction.
+- `transcending_the_ego.md` — 29-word `Quotes` block (`"True spiritual
+  action is not driven by rigid ideals …"`) reports `not_found` (score 0.40)
+  against `UlOt31lBhLY`; 0/4 6-gram windows hit. Same defect class. HOLD
+  for re-extraction.
+- `universal_life_force_embodied_peace_and_the_autonomic_nervous_system.md` —
+  7-word quote `"The people would get permission to relax."` attributed to
+  `(Unknown Channel)` is NOT an exact substring of `vARTudIEq30.md`. It sits
+  below the gate's 8-word floor so the mechanical gate is blind to it, but
+  it fails the exact-substring discipline and carries no usable attribution.
+  HOLD for re-extraction (or graduate only after the quote is removed at the
+  source by the owning extractor — not by hand-edit).
+
+Staging originals of the 2 graduates were left in place (graduation copies,
+never moves); no transcript, Qdrant, ingest, config, or parallel-session
+file was touched.
+
 ## Residual risks
 
 1. "Loads correctly" ≠ "doctrinally accurate" (same caveat as the 09-17

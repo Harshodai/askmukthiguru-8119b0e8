@@ -61,6 +61,17 @@ STAGING_DIR = _OKF_DIR / "staging"
 # OKF v0.1 reserved filenames — no frontmatter, not concept documents.
 RESERVED_FILENAMES = frozenset({"index.md", "log.md"})
 
+# Process docs that live inside the bundle dir but are NOT doctrine and must
+# never be embedded or injected into answers: curation SLAs, triage notes.
+# Skipped by OKFStore.list_entries AND by the doctrine-conformance tests
+# (test_okf_doctrine_only imports this set — single source of truth).
+NON_CONCEPT_FILENAMES = frozenset(
+    {
+        "CURATION_SLA_2026-10-04.md",
+        "STAGING_TRIAGE_2026-10-04.md",
+    }
+)
+
 # The producer-defined type vocabulary for this bundle. OKF says consumers must
 # tolerate unknown types "gracefully"; for a zero-hallucination doctrine layer,
 # graceful means *excluded from the answer path*, not silently injected.
@@ -115,6 +126,16 @@ class OKFEntry:
     @property
     def teacher(self) -> str:
         return self.meta.get("teacher", "both")
+
+    @property
+    def updated(self) -> str:
+        """Optional freshness marker (``updated: YYYY-MM-DD`` frontmatter).
+
+        Empty string when the producer never stamped the entry — the compiler
+        backfills the build date (``updated_source=build_default``) so every
+        compiled entry carries a freshness value for the curation SLA.
+        """
+        return str(self.meta.get("updated") or "").strip()
 
     @property
     def description(self) -> str:
@@ -181,7 +202,7 @@ class OKFStore:
         for p in sorted(self.dir.rglob("*.md")):
             if any(part in p.parts for part in _excluded_parts):
                 continue
-            if p.name in RESERVED_FILENAMES:
+            if p.name in RESERVED_FILENAMES or p.name in NON_CONCEPT_FILENAMES:
                 continue  # OKF v0.1: index.md / log.md are not concept documents
             try:
                 text = p.read_text(encoding="utf-8")

@@ -428,6 +428,15 @@ def _words(text: str) -> Iterable[str]:
         yield match.group(0).lower().strip("'’-")
 
 
+# Publisher-boilerplate OCR junk (G2 report 2026-10-04): real strings from the
+# OCR'd book PDFs that are not doctrine — e.g. `atriabooks` (the books'
+# publisher imprint footer, 3 hits in 1 source). They pass the support bar by
+# repetition of boilerplate, so they need an explicit denylist. Denylisted
+# words STAY in `vocabulary` (protective: the token itself is never rewritten)
+# but never enter `targets` or `proper_nouns` (nothing corrects toward them).
+_OCR_JUNK_DENYLIST = frozenset({"atriabooks"})
+
+
 def _purge_junk_proper_nouns(
     proper_nouns: dict[str, int],
     general_english: set[str],
@@ -442,12 +451,15 @@ def _purge_junk_proper_nouns(
     ekam.org and is exactly the case this lexicon exists for. Without this,
     89% of the built ``proper_nouns`` set was ordinary English (``the``,
     ``going``, ``telegram``), letting capitalised prose mimic ASR errors
-    (OKF quality audit 2026-10-04).
+    (OKF quality audit 2026-10-04). Denylisted publisher boilerplate
+    (``_OCR_JUNK_DENYLIST``) is dropped regardless of support.
     """
     return {
         word: count
         for word, count in proper_nouns.items()
-        if word not in general_english and (word in clean_curated or count >= _MIN_TARGET_SUPPORT)
+        if word not in general_english
+        and word not in _OCR_JUNK_DENYLIST
+        and (word in clean_curated or count >= _MIN_TARGET_SUPPORT)
     }
 
 
@@ -559,6 +571,12 @@ def build_lexicon(
             len(purged),
         )
     proper_nouns = purged
+    if _OCR_JUNK_DENYLIST & set(targets):
+        logger.info(
+            "target denylist: %s removed (publisher boilerplate, never a correction target)",
+            sorted(_OCR_JUNK_DENYLIST & set(targets)),
+        )
+        targets = {w: c for w, c in targets.items() if w not in _OCR_JUNK_DENYLIST}
     stats.counts["proper_nouns"] = len(proper_nouns)
     stats.counts["correction_targets"] = len(targets)
     return DoctrineLexicon(
