@@ -84,10 +84,7 @@ These are **binding repository invariants** for all LLM-to-Qdrant persistence pa
 - E2E test verifies button exists + route mounts + form renders
 
 ### Knowledge Graph — Obsidian Style
-- Public `/knowledge-graph` page: force-directed graph with glow, drag, hover, zoom
-- Auth gate removed — loads for all visitors
-- Falls back to demo data if backend cold (never shows blank)
-- Profile `MemoryManager` graph synced with same visual style
+- Public and Profile Memory use one React Flow map; public outage data is labelled, personal data is never fabricated.
 
 ### LightRAG & Knowledge Base Status (Jul 24, 2026) ✅
 - **Qdrant `spiritual_wisdom`**: 89,053 points (full corpus: books, 450+ YouTube discourses, meditations, lectures)
