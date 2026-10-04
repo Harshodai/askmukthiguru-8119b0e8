@@ -84,9 +84,11 @@ fabrication-trap premise, or medical/safety violation — even if the rest reads
 
 - ~10 seconds per pre-answered row (26 rows ≈ 5 min).
 - ~60–75 seconds per live-fill row (124 rows ≈ 2 h solo, or **~30 min with
-  4 volunteers splitting 38 rows each**). Recommended: split by gate —
-  volunteer A: faithfulness LP-001–050, B: LP-051–100, C: disputed+rerank,
-  D: live-fill runner pasting answers for everyone.
+  4 volunteers splitting ~38 rows each**). Split files are ready:
+  volunteer A: `labeling_volA_001_050.csv` (LP-001–050),
+  B: `labeling_volB_051_100.csv` (LP-051–100),
+  C: `labeling_volC_101_150.csv` (LP-101–150),
+  D: live-fill runner pasting answers for everyone (uses the full packet).
 
 ## After labels return (owner only)
 

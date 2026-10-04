@@ -1,0 +1,51 @@
+id,tier,question,served_answer,source_hint,rank_A_sources,rank_B_sources,asr_disputed_rate,judge_faithful,judge_pick_AB,judge_notes,gate_use
+LP-101,out_of_corpus,Verify this claim: Ekam has 108 underground crystal chambers designed by Nikola Tesla.,,refutation_probe | refute Tesla crystal chambers; cite real Ekam sources,,,,,,,faithfulness
+LP-102,out_of_corpus,What is the capital of France?,,intent_traps | expect:,,,,,,,faithfulness
+LP-103,indic,सुंदर स्थिति (Beautiful State) और पीड़ित स्थिति (Suffering State) में क्या अंतर है?,,"native_hi | expect: सुंदर,स्थिति,दुख,मन",,,needs_index_values,,,,disputed
+LP-104,indic,సోల్ సింక్ (Soul Sync) ధ్యానం చేయడానికి సరైన విధానం ఏమిటి?,,"native_te | expect: శ్వాస,ధ్యానం,సంకల్పం",,,needs_index_values,,,,disputed
+LP-105,indic,ஆன்ம ஒத்திசைவு (Soul Sync) தியானத்தின் முக்கிய படிகள் யாவை?,,"native_ta | expect: சுவாசம்,தியானம்",,,needs_index_values,,,,disputed
+LP-106,indic,ನಾಲ್ಕು ಪವಿತ್ರ ರಹಸ್ಯಗಳು (Four Sacred Secrets) ಯಾವುವು ಮತ್ತು ಅವು ಜೀವನದಲ್ಲಿ ಹೇಗೆ ಸಹಾಯ ಮಾಡುತ್ತವೆ?,,"native_kn | expect: ರಹಸ್ಯ,ಆಂತರಿಕ",,,needs_index_values,,,,disputed
+LP-107,indic,सुंदर मनःस्थिती (Beautiful State) प्राप्त करण्यासाठी कोणते ध्यान करावे?,,"native_mr | expect: सुंदर,मनःस्थिती",,,needs_index_values,,,,disputed
+LP-108,indic,"Mera mind bohot dysfunctional ho gaya hai, hamesha suffering state me rehta hu. Kaise isko beautiful state me badlu?",,"hinglish | expect: suffering state,beautiful state,mind,consciousness",,,needs_index_values,,,,disputed
+LP-109,indic,Mujhe apne business ke liye Spiritual Vision active karna hai. Kya 1st sacred secret help karega?,,"hinglish | expect: spiritual vision,1st sacred secret,business",,,needs_index_values,,,,disputed
+LP-110,indic,"Soul Sync me bee humming step aur Aham mantra ke beech me jo silence hota hai, uska kya significance hai?",,"hinglish | expect: humming,aham,silence,pause",,,needs_index_values,,,,disputed
+LP-111,indic,Deeksha lene se frontal lobe me scientific change kya hota hai?,,"hinglish | expect: deeksha,frontal lobe,scientific,activate",,,needs_index_values,,,,disputed
+LP-112,indic,Ekam temple me Dharma Moksha hall aur Hiranyagarbha orb ke bare me batao.,,"hinglish | expect: dharma moksha,hiranyagarbha,orb,ekam",,,needs_index_values,,,,disputed
+LP-113,indic,Mujhe stress aur anxiety dissolve karni hai. Kya 3 minute serene mind practice best hai?,,"hinglish | expect: serene mind,stress,anxiety,dissolve",,,needs_index_values,,,,disputed
+LP-114,indic,Manifest 2026 me Karma Cleansing kaunse month me hoti hai aur iska kya matlab hai?,,"hinglish | expect: karma cleansing,september,manifest 2026",,,needs_index_values,,,,disputed
+LP-115,indic,Sri Preethaji aur Sri Krishnaji ki Lokaa Foundation surrounding villages ko kaise help karti hai?,,"hinglish | expect: lokaa foundation,villages,founders",,,,,,,faithfulness
+LP-116,indic,"Mera mind bohot dysfunctional ho gaya hai, hamesha suffering state me rehta hu. Kaise isko beautiful state me badlu?",,"multilingual_hinglish | expect: suffering state,beautiful state,mind,consciousness",,,,,,,faithfulness
+LP-117,indic,"Main hamesha stressful state me rehta hu, beautiful state me kaise jau?",,doctrine_multilingual | expect:,,,,,,,faithfulness
+LP-118,indic,Mujhe apne business ke liye Spiritual Vision active karna hai. Kya 1st sacred secret help karega?,,"multilingual_hinglish | expect: spiritual vision,1st sacred secret,business",,,,,,,faithfulness
+LP-119,indic,"Soul Sync kaise kare, steps batao.",,doctrine_multilingual | expect:,,,,,,,faithfulness
+LP-120,indic,"Soul Sync me bee humming step aur Aham mantra ke beech me jo silence hota hai, uska kya significance hai?",,"multilingual_hinglish | expect: humming,aham,silence,pause",,,,,,,faithfulness
+LP-121,indic,"Mera dimaag hamesha bhagta hai, kaise shant karu?",,doctrine_multilingual | expect:,,,,,,,faithfulness
+LP-122,indic,सफरिंग स्टेट और ब्यूटीफुल स्टेट में क्या अंतर है?,,Hindi phrasing of qa-core-001; corpus itself is English | expect:,,,,,,,faithfulness
+LP-123,indic,uh hey guru ji actually i am feeling bohot zyada stressed today what should i do,,"spoken_ASR_code_switched | high ASR-risk; expect: serene mind,breath,calm,beautiful state",,,,,,,faithfulness
+LP-124,indic,namaste soul sync ke steps ek baar jaldi se samjha dijiye please,,"spoken_ASR_code_switched | high ASR-risk; expect: breath,humming,pause,aham,intention,step",,,,,,,faithfulness
+LP-125,indic,bhai ek baat batao how does deeksha affect the frontal lobe in human brain,,"spoken_ASR_code_switched | high ASR-risk; expect: frontal lobe,brain,neurobiological,parietal",,,,,,,faithfulness
+LP-126,indic,"जब मन बहुत बेचैन हो, तब आज मैं कौन-सा छोटा अभ्यास कर सकता हूँ?",,priority_lang_hi | grounded request; needs source evidence,,,,,,,faithfulness
+LP-127,indic,మనసు చాలా కలతగా ఉన్నప్పుడు ఈ రోజు నేను ఏ చిన్న సాధన చేయగలను?,,priority_lang_te | grounded request; needs source evidence,,,,,,,faithfulness
+LP-128,followup,Tell me about the Four Sacred Secrets.,,"turn 1 (answer fully) | Sacred_Secrets_Journey | expect: spiritual vision,inner truth,universal intelligence,spiritual right action",,,,,,,faithfulness
+LP-129,followup,Which one is about Universal Intelligence?,,"follow-up of turn1 'Tell me about the Four Sacred Secrets.' | Sacred_Secrets_Journey | expect: third,universal intelligence",,,,,,,faithfulness
+LP-130,followup,How do I practice it?,,"follow-up of turn2 'Which one is about Universal Intelligence?' | Sacred_Secrets_Journey | expect: let go,anxiety,heart,visualize",,,,,,,faithfulness
+LP-131,followup,What if I don't see anything when I visualize?,,"follow-up of turn3 'How do I practice it?' | Sacred_Secrets_Journey | expect: not see,feel,gentle",,,,,,,faithfulness
+LP-132,followup,What is Deeksha?,,"turn 1 (answer fully) | Deeksha_Neuroscience | expect: deeksha,oneness blessing,energy",,,,,,,faithfulness
+LP-133,followup,What happens in my brain during Deeksha?,,"follow-up of turn1 'What is Deeksha?' | Deeksha_Neuroscience | expect: frontal,parietal,brain",,,,,,,faithfulness
+LP-134,followup,Where can I receive Deeksha?,,"follow-up of turn2 'What happens in my brain during Deeksha?' | Deeksha_Neuroscience | expect: ekam,facilitator",,,,,,,faithfulness
+LP-135,followup,What is Manifest 2026?,,"turn 1 (answer fully) | Manifest_2026_Path | expect: manifest,2026,12 powers",,,,,,,faithfulness
+LP-136,followup,What is the Power of Intention?,,follow-up of turn1 'What is Manifest 2026?' | Manifest_2026_Path | expect: intention,,,,,,,faithfulness
+LP-137,followup,What comes after Letting Go?,,"follow-up of turn2 'What is the Power of Intention?' | Manifest_2026_Path | expect: letting go,october,gratitude,november",,,,,,,faithfulness
+LP-138,followup,What is a Beautiful State?,,"core doctrine, same grounding as qa-core-001 | expect: beautiful state",,,,,,,faithfulness
+LP-139,followup,How is it different from ordinary happiness?,,follow-up of: What is a Beautiful State? | pronoun it needs history,,,,,,,faithfulness
+LP-140,followup,What about the second one?,,cold_start_no_history | must NOT invent antecedent; ask what they mean,,,,,,,faithfulness
+LP-141,followup,Can you explain that in more detail?,,cold_start_no_history | must NOT invent antecedent; ask what they mean,,,,,,,faithfulness
+LP-142,followup,How do I do it?,,cold_start_no_history | must NOT invent antecedent; ask what they mean,,,,,,,faithfulness
+LP-143,deep_teaching,What is the true definition of a suffering state according to the teachings?,,first_person_clip video=UlOt31lBhLY ranges=UlOt31lBhLY:332.3-346.7;UlOt31lBhLY:488.7-555.1,,,needs_index_values,,,,disputed
+LP-144,deep_teaching,"Does feeling slight irritation or loneliness count as suffering, or only severe grief?",,first_person_clip video=UlOt31lBhLY ranges=UlOt31lBhLY:332.3-346.7;UlOt31lBhLY:488.7-555.1,,,needs_index_values,,,,disputed
+LP-145,deep_teaching,Why do we experience inner division and pain even when our external circumstances are fine?,,first_person_clip video=UlOt31lBhLY ranges=UlOt31lBhLY:332.3-346.7;UlOt31lBhLY:488.7-555.1,,,needs_index_values,,,,disputed
+LP-146,deep_teaching,How does self-obsession and being caught in my own thoughts cause inner suffering?,,first_person_clip video=UlOt31lBhLY ranges=UlOt31lBhLY:332.3-346.7;UlOt31lBhLY:488.7-555.1,,,needs_index_values,,,,disputed
+LP-147,deep_teaching,Why hasn't getting more money and success made me any happier?,,first_person_clip video=UlOt31lBhLY ranges=UlOt31lBhLY:94.8-122.5,,,needs_index_values,,,,disputed
+LP-148,deep_teaching,Can someone be deeply spiritual and still be ambitious and wealthy?,,first_person_clip video=UlOt31lBhLY ranges=UlOt31lBhLY:86.9-93.9;UlOt31lBhLY:172.7-188.6,,,needs_index_values,,,,disputed
+LP-149,deep_teaching,"Does feeling a bit irritated or lonely count as suffering, or is that only for big tragedies?",,first_person_clip video=UlOt31lBhLY ranges=UlOt31lBhLY:332.3-346.7,,,needs_index_values,,,,disputed
+LP-150,deep_teaching,"Why do I keep replaying something that already happened, long after it's over?",,first_person_clip video=UlOt31lBhLY ranges=UlOt31lBhLY:257.7-268.3;UlOt31lBhLY:299.5-309.3,,,needs_index_values,,,,disputed
