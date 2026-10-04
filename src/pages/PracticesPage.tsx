@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { practices, getLocalizedPractice, type Practice } from '@/lib/practicesContent';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useDailyTeaching } from '@/hooks/useDailyTeaching';
+import { DailyTeachingCard } from '@/components/ritual/DailyTeachingCard';
 import { cn } from '@/lib/utils';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { useToast } from '@/hooks/use-toast';
@@ -189,6 +190,9 @@ const PracticesPage = () => {
             </Card>
           </motion.section>
         )}
+
+        {/* Today's Teaching — ritual card (deterministic teaching + streak + reminder) */}
+        <DailyTeachingCard />
 
         {favoritePractices.length > 0 && (
           <section className="mb-10">

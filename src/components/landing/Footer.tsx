@@ -52,6 +52,9 @@ export const Footer = forwardRef<HTMLElement>((_, ref) => {
             <Link to="/privacy" className="text-caption hover:text-foreground transition-colors">
               {t('privacy.title')}
             </Link>
+            <Link to="/trust" className="text-caption hover:text-foreground transition-colors">
+              {t('trust.title')}
+            </Link>
           </div>
 
           {/* Disclaimer */}

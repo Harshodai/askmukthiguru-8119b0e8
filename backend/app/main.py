@@ -106,6 +106,7 @@ from app.api.metrics import router as metrics_router
 from app.api.profile import router as profile_router
 from app.api.push import router as push_router
 from app.api.retention import router as retention_router
+from app.api.ritual import router as ritual_router
 from app.api.speech import router as speech_router
 from app.api.srs import router as srs_router
 from app.api.support import router as support_router
@@ -1326,6 +1327,7 @@ app.include_router(push_router, prefix="/api")
 app.include_router(cancel_flow_router, prefix="/api")
 app.include_router(compliance_router)
 app.include_router(retention_router)
+app.include_router(ritual_router)
 app.include_router(metrics_router)
 app.include_router(healing_course_router)
 from app.api.kg import router as kg_router

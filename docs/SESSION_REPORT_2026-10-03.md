@@ -676,3 +676,203 @@ ANSWERS table). This section carries the commands and evidence.
   exist. CI note: `main-hard-gates.yml`'s `git diff --check` runs on a clean
   checkout (empty diff = no-op), so the intentional MD hard-break spaces in
   4 new markdown docs cannot fail it.
+
+## §9h — Ask 4 executed (2026-10-04 overnight, zero-exposure) + first nightly-RLS real run
+
+**Hygiene contract (owner):** "take these values from .env … cannot store these
+in your sessions and also to models" → every secret value was read inside a
+single Python process (`.env` files + `railway variables --json`) and piped
+**directly into `gh secret set` on stdin** (no argv, no echo, no temp file).
+Tool output contained only source classifications, probe status codes, and gh
+confirmations. No value ever entered the conversation, session store, or any
+model context.
+
+**Inventory classification (values never printed):**
+- `.env` / `backend/.env`: `OPENROUTER_API_KEY` = `sk-…` 73 chars (portable);
+  `QDRANT_URL` = 18 chars **docker-internal** (`qdrant:6333`); `QDRANT_API_KEY`
+  **absent**; `SUPABASE_URL` = **`http://host.docker.internal…` local stack**;
+  `SUPABASE_KEY`/`SUPABASE_ANON_KEY` = local `sb_secret_`/`sb_publishable_`
+  CLI keys → all three wrong project for CI.
+- Railway (94 vars): `QDRANT_URL` = `*.railway.internal` (private, unusable
+  from GitHub runners); `RAILWAY_SERVICE_QDRANT_URL` = schemeless
+  `qdrant-production-14ee.up.railway.app` (only runner-reachable candidate);
+  `SUPABASE_URL` = `https://…supabase.co` prod project; `SUPABASE_KEY` =
+  `sb_secret_` (service role); `SUPABASE_ANON_KEY` = `sb_publishable_`;
+  `QDRANT_API_KEY` **absent** (keyless instance).
+
+**Probe results (status codes only):** Supabase `/auth/v1/health` → **401**
+(reachable; script's `_healthcheck` accepts `<500`). Qdrant public
+`/collections` → **404 `{"message":"Application not found"}`** = Railway edge
+live but **no active deployment (project paused)**.
+
+**Set (4) — verified by `gh secret list`:**
+| Secret | Scope | Source |
+|---|---|---|
+| `OPENROUTER_API_KEY` | repo | root `.env` (owner instruction) |
+| `SUPABASE_URL` | env `staging` | Railway prod var |
+| `SUPABASE_SERVICE_ROLE_KEY` | env `staging` | Railway `SUPABASE_KEY` (`sb_secret_`) |
+| `SUPABASE_ANON_KEY` | env `staging` | Railway `SUPABASE_ANON_KEY` (`sb_publishable_`) |
+
+**Held (2) with reasons:** `QDRANT_URL` — every known value is unreachable
+from CI *right now* (docker-internal / railway.internal / paused-404);
+setting a dead URL converts the gate's honest-skip into red. **Set after
+Railway unpause:** `printf '%s' "https://qdrant-production-14ee.up.railway.app" | gh secret set QDRANT_URL`
+after `GET /collections` → 200 (value itself must never be echoed). The
+`staging` environment has **no protection rules** (API `protection_rules=[]`).
+`QDRANT_API_KEY` — nonexistent anywhere; keyless = empty is correct; the
+gate's skip condition only requires `QDRANT_URL` + `OPENROUTER_API_KEY`.
+
+**nightly-RLS run `37150173173` (first ever with secrets):**
+`{ok:false, tests:36, failures:1, cleanup_failures:0}` — secrets plumbing ✓,
+ephemeral-user cleanup ✓ (`finally` + `delete_user`, reverse-FK order). Real
+red: `chat_messages` insert → `{'message': 'record "new" has no field
+"user_id"', 'code': '42703'}`. Root cause: prod DB still runs the Jun-15
+`touch_user_last_message()` (`…WHERE id = NEW.user_id`); the fix migration
+`supabase/migrations/20260825000001_fix_chat_message_profile_trigger.sql`
+(resolve owner via parent conversation) **is on origin/main since Aug 25 but
+was never applied to production** (apply path is manual per
+`docs/RELEASE_READINESS_2026_07_30.md`: "dashboard SQL editor or supabase
+db push"; no CI applies migrations). History: every nightly since 2026-09-27
+failed *pre-secrets* (refusal/env), so this bug was latent until now.
+**Per `docs/agent/NON_NEGOTIABLES.md` N8 the agent proposes, the human runs:**
+```bash
+# Option A (narrow, recommended): Supabase Dashboard → SQL editor → run the
+# contents of supabase/migrations/20260825000001_fix_chat_message_profile_trigger.sql
+# Option B (all pending migrations):
+npx supabase db push --db-url "$SUPABASE_DB_URL"   # needs SUPABASE_DB_URL
+```
+Then `gh workflow run nightly-rls.yml` to confirm green.
+
+**golden-25 dispatch blocked (N8):** `.github/workflows/golden25-gate.yml`
+exists only on local branch `fix/first-person-harness-translation-crisis-2026-09-28`
+(`21a3df03`; branch ahead 7, **never pushed**; origin/main = `886f623f`).
+Owner decision: push + merge → then `gh workflow run golden25-gate.yml`
+(honest-skip until `QDRANT_URL` is set post-unpause).
+
+**Mass-ingest death + detached resume (same turn):** PID 82134 died
+2026-10-04 **00:42:43** IST together with its opencode shell log
+(`sh_101e414060015VACz4WKwKGECv.out` pruned → process group killed; content
+lost). `state.json` survived intact (created 14:09 IST; 89 videos:
+82 stages_done / 4 indexed / 1 failed / 1 quarantined + `__last_apply__`).
+`--dry-run` (zero writes) validated resume: **515 eligible ✓ (guard), 441
+selected (41.67 h), 441/441 archived, skip set 75, `deletions: 0` apply
+plan**. Relaunched **detached** (`subprocess.Popen(..., start_new_session=True)`
+→ PPID 1, own session, immune to shell GC): **PID 18500**, `--workers 2`,
+durable append log `~/mukthiguru_attribution_data/mass_ingest_2026-10/driver_resume_20261004.log`,
+PID file `/tmp/mass_ingest_full.pid`. Verified alive + fast-forwarding
+completed stages (`skip … already ok`, `[14/441]` in <60 s), gates unchanged
+(0 LLM calls ⇒ no contention with the parallel Curly-Tales session).
+
+### §9i — P0 cost/memory audit S3 DONE + verified (2026-10-04 ~04:10 IST)
+Read-only subagent; only file created: **`docs/COST_MEMORY_AUDIT_2026-10-04.md`**
+([M]/[D]/[E] legend; no env/config/deploy/git changes; PID 18500 untouched).
+Orchestrator verified: backend **2.519 GiB** (vs 2.517 — noise), PID alive,
+doc on disk. Railway paused/offline → ~$0 now; pricing fetched
+(**$10/GB-mo RAM**). Status quo **$53.84/mo** → P0 reductions ≈ **$33/mo**
+(inside $35 ceiling); ≤$30 borderline (needs P1 trims ≈$29.7 or invoice
+fee-basis check). Top-3: backend cap `PYTHON_MEMORY_LIMIT_MB=2048` +
+`WEB_CONCURRENCY=1` (−$10–13); memgraph-vs-Neo4j confirm (−$7.50);
+volume billing-basis check (up to −$14). S1 (ingest incremental apply +
+restart) + S4 (retention MVP + /trust) still backgrounded; S2 latency
+queued behind S1 restart verification.
+
+### §9k — P0 ingest deferred-apply fix S1 DONE + verified (2026-10-04 ~05:00 IST)
+Driver diff 137+/28− (`--apply-every 25`, `as_completed`, `_EMBEDDER`
+reuse, `apply_cycle`, pre-chain backlog apply, `run_one` indexed-guard);
+ruff check + format clean (re-ran); `--dry-run` plan identical
+(441 selected, zero writes); `--self-check` OK; nearest pytest
+`test_build_first_person_index` + `test_audio_archive` 41 passed
+(no driver-specific test file exists). Restart: 18500 → **30758**
+(PPID 1, single process; 2 orphaned stage children killed by S1 —
+idempotent outputs, re-run by new driver, no data loss). **Qdrant
+`first_person_v7` 624 → 991 (backlog 367 upserted) → 1038 (tick #1 +47),
+`deletions=0`, 0 errors**, `__last_apply__` 04:45:35. State now
+71 stages_done / 19 indexed / 11 quarantined (ASR-agreement quarantines
+firing as designed). The 41h-write-free defect is dead. No commits.
+
+### §9l — P0 latency canary S2 DONE + verified against artifact (2026-10-04 ~05:10 IST)
+Artifact `backend/benchmarks/reports/ruthless_report.json` confirmed on
+disk (S2's path was backend-relative): 8/8 HTTP 200 (0% timeouts, PASS),
+latencies ms 186/192/667/908/1228/2528/**43422/50163** → **p50 1.07s
+(PASS ≤1.66)** but bimodal tail: tier2_simple verify path 43–50s cold
+(12–19s warm per S2 repro) dominated by 2× sequential ~8s
+`verify_answer` LLM calls (`combined_grade_and_verify` 16s of 50s).
+Harness verdict FAIL (thin n=8 quality gate — release signal, not a
+commit blocker). **No safe isolated fix exists** — all levers are
+evidence-gated graph/loop changes (already deferred in
+GRAPH_LATENCY_PLAN.md Phase 4); re-run post-ingest (load avg 10.5
+inflates local retrieve/rerank). RPM note adjudicated by orchestrator:
+120/min = `first_person_rate_limit` (route limiter), 20 = LLM provider
+RPM — different layers, no contradiction. S2 made zero code changes.
+**Flag:** `railway.json` + `backend/railway.json` (identical, 04:12,
+Railway deploy config) are unattributed — claimed by none of
+S1/S3/S4; excluded from all commit scopes until owner attributes.
+
+### §9m — Commit verdict: SET, grant pending (2026-10-04 ~05:30 IST)
+End gates: full backend suite **8490 passed** from repo root + the 9
+failures proven to be orchestrator CWD error (relative-path tests;
+**23 passed** re-run from `backend/` — effective FULL GREEN); ruff
+clean (S1 driver + S4 files, re-ran); S4 pytest 17 passed (re-ran);
+tsc + `npm run build` green (29 routes incl. `/trust`); ingest driver
+30758 alive, Qdrant 1038 pts, `deletions=0`. Lesson: backend suite
+must run from `backend/` (`make test-backend` does this).
+
+### §9n — V2 memory-LLM audit DONE + verified (2026-10-04 ~09:40 IST)
+Doc `docs/MEMORY_INTELLIGENCE_AUDIT_2026-10-04.md` (21.5 KB). Orchestrator
+verified: `extract_and_write` defined `second_brain_service.py:385` with
+zero production callers (only a docstring ref at :42); familiarity
+classifier deterministic keywords (`rag/nodes/generation.py:880`,
+docstring says "deterministically"); `feature_memory_write` default
+False is a *documented consent posture* (`config.py:260-262`), not an
+accident — but the path is dormant regardless. Canonical memory =
+real LLM-driven, encrypted, isolated, consent-gated, fail-open.
+Flagship "Second Brain learns from chat" loop does NOT run (manual
+POST fills the vault). Gaps ranked: dead vault miner P0, paraphrase-blind
+judge P1, retention overclaim P1 (purge skips vault, `expires_at`
+unenforced), no consolidation loop, mislabeled familiarity, dormant bit-rot.
+
+### §9o — V1 scale audit DONE + verified (2026-10-04 ~09:40 IST)
+Doc `docs/SCALE_READINESS_2026-10-04.md` (12 KB, 0 LLM calls used).
+Orchestrator verified all structural claims: semaphore
+`chat.py:200` ← default 8 (`config.py:712`); `workers=1`
+(`start_railway.py:506`); `openrouter_rpm_limit` default 20
+(`config.py:315`); health probes unconditionally exempt
+(`core/limiter.py:25-47`). Verdict NO: breaks on cost before load
+(~$53–63/mo at zero users) and technically ≈7 concurrent chats
+(503 bursts); 1k MAU ≈ $63–73/mo ≈ 2× ceiling. Redis/Qdrant/graph
+have headroom. Fix proposals staged in doc (semaphore→12–16,
+workers→2, RPM→60, health exemption tightening) — owner decision,
+not applied.
+
+### §9p — V3 OKF+Qdrant audit DONE + verified (2026-10-04 ~10:00 IST)
+Doc `docs/OKF_QDRANT_AUDIT_2026-10-04.md` (14 KB). Orchestrator verified:
+`compiled.json` PRESENT — 18,099,092 bytes, `{version: 2,
+entries: [717]}` (built Sep 30); live lexicon
+`backend/data/doctrine_lexicon.json` (7.7 MB). **This retires the
+Aug-28 "compiled.json absent, fallback mode" invariant** — chat now
+injects 717 OKF entries (`rag/nodes/retrieval.py`, fail-empty when
+absent). FP hard invariant confirmed
+(`first_person_pipeline.py:1267-1268` raises on `curated_okf`
+citations). `okf_verbatim_quote_gate` default False confirmed
+(`config.py:1012`) → paraphrase "Key Teachings" bodies flow unverified
+(P1 gap). first_person_v7 **1038 → 1169** (curl), driver 30758 alive.
+Quote mechanism (verbatim-substring vs passages_B) confirmed present;
+8/8 audit result accepted with the 32-literal-quotes caveat. Holes:
+serve proof ritual-only (host chat/FP blocked under ingest load);
+Qdrant REST wobbled mid-audit under write load (observed, untouched).
+
+### §9j — P0 retention MVP + trust page S4 DONE + verified (2026-10-04 ~04:15 IST)
+Subagent report accepted only after orchestrator verification: all 4 files
+exist (`backend/app/api/ritual.py` 11 KB, `test_ritual_api.py` 9.4 KB,
+`DailyTeachingCard.tsx` 10 KB, `TrustPage.tsx` 3.6 KB); `ruff` clean;
+**`pytest test_ritual_api.py` 17 passed in 1.30s** (re-ran, matches claim);
+`memory/okf/verbatim_clusters.json` = 5 clusters (date-seeded pick,
+zero LLM); `/trust` contains no fabricated metrics (grep); router
+registered (`main.py:1330`); Redis key `mukthiguru:ritual:streak:<uid>`
+TTL 400d with degrade-to-null (never 500). Deferred per subagent:
+pool widening post-OKF-review, real translations, SW push, checkin
+rate-limit, trust metrics. No commits.
+**S1 restart observed (read-only, final S1 report pending):** 18500 gone →
+**PID 30758** (PID-file match, exactly one driver process), log shows
+embedder load for upfront backlog apply, Qdrant `first_person_v7` still
+624 pts (pre-upsert). No orchestrator interference — S1 owns the restart.

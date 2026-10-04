@@ -69,7 +69,7 @@ import tempfile
 import threading
 import time
 import urllib.request
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -89,6 +89,10 @@ DEFAULT_COLLECTION = "first_person_v7"
 DEFAULT_QDRANT_URL = "http://localhost:6333"
 PASSAGES_SUBDIR = "passages_C_s1"  # input dir name used by the proven v7 build
 APPLY_BATCH = 64  # == build_first_person_index._BATCH_SIZE
+
+# Cached across periodic applies: a fresh EmbeddingService() would reload the
+# ~570 MB ONNX INT8 encoder on every apply tick (it is lazy-loaded per instance).
+_EMBEDDER: Any = None
 
 STAGE_SCRIPTS = (
     "run_asr.py",
@@ -602,6 +606,10 @@ def run_one(
     stages = dict(state.entry(video_id).get("stages") or {})
     stages.update(result["stages"])
     status = "stages_done" if result.get("ok") else "failed"
+    # Never downgrade a row a (backlog/periodic) apply already marked `indexed`:
+    # it is in Qdrant, and the fast-forward re-run only re-verified its stages.
+    if state.entry(video_id).get("status") == "indexed" and status != "failed":
+        status = "indexed"
     state.update(video_id, status=status, stages=stages, stats=stats, error=result.get("error"))
     log(
         f"=== {video_id} done: status={status} stages={result['stages']} clips={stats.get('clips')} ==="
@@ -765,7 +773,10 @@ def apply_index(
 
     upserted = 0
     if pending:
-        embedder = EmbeddingService()
+        global _EMBEDDER
+        if _EMBEDDER is None:
+            _EMBEDDER = EmbeddingService()
+        embedder = _EMBEDDER
         for i in range(0, len(pending), APPLY_BATCH):
             batch = pending[i : i + APPLY_BATCH]
             embeddings = embedder.encode_batch([c["verbatim_text"] for c in batch])
@@ -819,6 +830,64 @@ def apply_index(
     path = wd.report_dir / f"apply_{time.strftime('%Y%m%dT%H%M%SZ')}.json"
     path.write_text(json.dumps(record, indent=2), encoding="utf-8")
     record["record_path"] = str(path)
+    return record
+
+
+# ---------------------------------------------------------------------------
+# Apply cycle (shared by backlog, periodic ticks, and the final apply)
+# ---------------------------------------------------------------------------
+
+
+def stages_done_rows(plan: list[dict[str, Any]], state: State) -> list[dict[str, Any]]:
+    """Rows in `plan` whose state status is `stages_done` (the legacy `done`
+    list the end-of-run block used — computed fresh at each apply tick)."""
+    return [
+        r
+        for r in plan
+        if state.data["videos"].get(r["video_id"], {}).get("status") == "stages_done"
+    ]
+
+
+def apply_cycle(
+    wd: WorkDir,
+    state: State,
+    plan: list[dict[str, Any]],
+    collection: str,
+    qdrant_url: str,
+    hf_home: Path,
+) -> dict[str, Any]:
+    """Clip layer + incremental apply + status marking (legacy end-of-run logic).
+
+    Marks every plan row still at `stages_done` as `indexed`, or `quarantined`
+    if this build quarantined it — identical to the original post-chain block.
+    `apply_index()` is idempotent (diffs against Qdrant, upserts only pending),
+    so running this repeatedly is a safe incremental apply. Raises on failure;
+    mid-chain callers must wrap it in try/except.
+    """
+    done = stages_done_rows(plan, state)
+    clips_report = build_clips_layer(wd)
+    log(f"clips layer: {clips_report}")
+    record = apply_index(
+        wd,
+        collection=collection,
+        qdrant_url=qdrant_url,
+        hf_home=hf_home,
+    )
+    quarantined = {e["video_id"] for e in record["videos_quarantined"]}
+    for row in done:
+        vid = row["video_id"]
+        if vid in quarantined:
+            state.update(vid, status="quarantined")
+        else:
+            state.update(vid, status="indexed")
+    state.data["updated_at"] = _now()
+    state.update("__last_apply__", status="done", stats=record)
+    log(
+        "APPLY OK: "
+        f"upserted={record['clips_upserted']} already_present={record['clips_already_present']} "
+        f"points {record['point_total_before']} -> {record['point_total_after']} "
+        f"deletions={record['deletions']}"
+    )
     return record
 
 
@@ -940,6 +1009,14 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--dry-run", action="store_true", help="print the plan; ZERO writes")
     parser.add_argument("--self-check", action="store_true", help="unit self-check on 2 fake ids")
+    parser.add_argument(
+        "--apply-every",
+        type=int,
+        default=25,
+        metavar="N",
+        help="run clip-layer build + incremental Qdrant apply every N stage-chain "
+        "completions (0 = legacy end-of-run apply only); default %(default)s",
+    )
     parser.add_argument("--qdrant-url", default=DEFAULT_QDRANT_URL)
     parser.add_argument("--collection", default=DEFAULT_COLLECTION)
     parser.add_argument("--work-dir", default="", help="work dir (default: %(default)s)")
@@ -978,47 +1055,79 @@ def main(argv: list[str] | None = None) -> int:
     wd.ensure()
     seed_index_inputs(plan, wd)
     total = len(plan)
+    hf_home = BACKEND_DIR / ".model_cache" / "huggingface"
     log(f"stage chain start: {total} video(s), workers={args.workers}")
+
+    # Backlog apply: rows already at `stages_done` from a previous run have
+    # clips on disk but no Qdrant points — index them before the chain so the
+    # first hour of the run is not write-free. Runs while no worker is live.
+    if args.apply_every > 0:
+        backlog = stages_done_rows(plan, state)
+        if backlog:
+            log(f"backlog apply: {len(backlog)} video(s) stages_done but not yet indexed")
+            try:
+                apply_cycle(
+                    wd,
+                    state,
+                    plan,
+                    collection=args.collection,
+                    qdrant_url=args.qdrant_url,
+                    hf_home=hf_home,
+                )
+            except (Exception, SystemExit) as exc:  # noqa: BLE001 - chain must survive
+                log(f"backlog APPLY FAILED: {type(exc).__name__}: {exc} — continuing with stages")
+
+    completed = 0
+    applies = 0
     with ThreadPoolExecutor(max_workers=max(1, args.workers)) as pool:
         futures = [
             pool.submit(run_one, wd, state, archive, i, total, row) for i, row in enumerate(plan, 1)
         ]
-        for fut in futures:
+        # Completion-order iteration so indexing can happen DURING the chain
+        # (the legacy submission-order wait deferred every Qdrant write until
+        # all ~441 videos finished — ~41 h of write-free staging).
+        for fut in as_completed(futures):
             fut.result()
+            completed += 1
+            if args.apply_every > 0 and completed % args.apply_every == 0:
+                applies += 1
+                log(f"periodic apply #{applies}: {completed}/{total} stage-chain completion(s)")
+                try:
+                    apply_cycle(
+                        wd,
+                        state,
+                        plan,
+                        collection=args.collection,
+                        qdrant_url=args.qdrant_url,
+                        hf_home=hf_home,
+                    )
+                except (Exception, SystemExit) as exc:  # noqa: BLE001 - chain must survive
+                    # A failed tick must NOT kill the stage chain: the final
+                    # apply below still runs and must succeed.
+                    log(
+                        f"periodic APPLY FAILED at {completed}/{total}: "
+                        f"{type(exc).__name__}: {exc} — continuing; final apply will retry"
+                    )
 
-    done = [
+    terminal = [
         r
         for r in plan
-        if state.data["videos"].get(r["video_id"], {}).get("status") == "stages_done"
+        if state.data["videos"].get(r["video_id"], {}).get("status")
+        in ("stages_done", "indexed", "quarantined")
     ]
-    log(f"stage chain complete: {len(done)}/{total} video(s) reached stages_done")
-    if not done:
+    log(f"stage chain complete: {len(terminal)}/{total} video(s) passed the stage chain")
+    if not terminal:
         log("no video passed the stage chain — stopping before build/apply")
         return 1
 
-    # ---- clip layer + incremental apply (host-side embed only) ---------
-    clips_report = build_clips_layer(wd)
-    log(f"clips layer: {clips_report}")
-    record = apply_index(
+    # ---- final clip layer + incremental apply (catches stragglers) -----
+    apply_cycle(
         wd,
+        state,
+        plan,
         collection=args.collection,
         qdrant_url=args.qdrant_url,
-        hf_home=BACKEND_DIR / ".model_cache" / "huggingface",
-    )
-    quarantined = {e["video_id"] for e in record["videos_quarantined"]}
-    for row in done:
-        vid = row["video_id"]
-        if vid in quarantined:
-            state.update(vid, status="quarantined")
-        else:
-            state.update(vid, status="indexed")
-    state.data["updated_at"] = _now()
-    state.update("__last_apply__", status="done", stats=record)
-    log(
-        "APPLY OK: "
-        f"upserted={record['clips_upserted']} already_present={record['clips_already_present']} "
-        f"points {record['point_total_before']} -> {record['point_total_after']} "
-        f"deletions={record['deletions']}"
+        hf_home=hf_home,
     )
     log(f"state: {state.path}")
     return 0

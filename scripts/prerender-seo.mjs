@@ -128,6 +128,13 @@ const ROUTES = [
     jsonLdType: 'WebPage',
   },
   {
+    path: '/trust',
+    title: 'Trust & Transparency — How AskMukthiGuru Answers',
+    description:
+      'Verbatim-first answers, source citations, honest abstention, crisis safety, and where AskMukthiGuru material comes from.',
+    jsonLdType: 'WebPage',
+  },
+  {
     path: '/practices/wisdom-reflection',
     title: 'Wisdom Reflection — Guided Spiritual Practice',
     description: 'A guided spiritual practice for slowing down, listening inward, and returning to a beautiful state.',
