@@ -115,3 +115,59 @@ URLs/deep-links sound, served text verified verbatim against local transcripts 5
    confirm they upsert or record why skipped.
 5. **Polish (optional):** re-window or ellipse-mark the ~10% of clips ending on function words; consider splitting the 50 clips
    >1,500 chars for steadier first-person serving.
+
+## Implementation status — 2026-10-04 (code-only, no commits, driver untouched)
+
+Implemented against `backend/services/first_person_store.py` (+ tests in
+`backend/tests/test_first_person_store.py`). The mass-ingest driver was RUNNING
+throughout: no restarts, no driver/log/state/workdir writes, zero Qdrant
+point writes. Changes take effect on the driver's next natural launch /
+per-tick import. Verified: `test_first_person_store.py` 35 passed; neighbor
+suites (`test_build_first_person_index`, `test_reconcile_first_person_v7`,
+`test_first_person_pipeline`) 102 passed; `ruff check` + `ruff format` green.
+Live collection verified read-only during work (`first_person_v7`: green,
+1,343 pts and growing).
+
+1. **Dedupe-at-upsert — DONE** (`first_person_store.py`, `upsert_clips`):
+   within-batch guard keyed on `(canonical video_id, cleaned verbatim_text)` —
+   keep first, drop rest, `logger.info` the count. Cross-video identical text
+   preserved (legitimate repetition); cross-batch twins explicitly out of scope
+   (index-level dedup owns them). Positional vector lists stay aligned via the
+   original batch index; return value = kept count. 5 new tests (drop-keeps-
+   first + vector alignment, cross-video keep, cross-batch no-memory, empty
+   batch, declaration/init-collection bool coverage).
+   *Known cosmetic gap:* `mass_first_person_ingest.py:843` tallies
+   `upserted += len(batch)` (not the return value), so its apply record may
+   overcount clips when the guard fires. Driver file deliberately untouched —
+   reconcile counts from Qdrant truth post-run (audit fix #4 covers this).
+2. **Canonical re-upload mapping — DONE (identity level)**
+   (`CANONICAL_VIDEO_IDS = {"AQUZcU5L9xE": "9id3ygnEhh8"}`, `canonical_video_id()`,
+   applied at the top of `upsert_clips` before dedupe keying): remaps
+   `video_id` + defaulted `group_id` + embedded `source_url`/`video_url`,
+   copy-on-write (caller dicts unmutated). Rationale for code placement:
+   point IDs are `uuid5(transcript_hash, start_ms, end_ms)` with NO video_id
+   (`first_person_store.py:make_first_person_point_id`), so identity remap is
+   zero-churn and instantly unifies serve-time per-video dedup. Direction =
+   incumbent-majority (2/3 live points already under `9id3ygnEhh8`); both URLs
+   play identical audio so direction is display-only. 3 new tests (map table,
+   payload remap + ID invariance, re-upload-first twin collapse).
+   *Deferred to D2 span work:* point-level collapse of the jittered spans
+   (distinct IDs from ±200 ms offsets) needs span re-windowing, not identity
+   mapping — blockers: `backend/ingest/pipeline.py` timing resolvers (≈:1174,
+   :1430, :1721, :2088, :2476, :3565) and `backend/tests/test_d2_span_provenance.py`.
+3. **Bool index types — DONE (declarations)** : `PAYLOAD_INDEXES` now declares
+   `is_verbatim` / `first_person_eligible` / `rights_cleared` as `bool`
+   (was `keyword`); `scripts/ops/reconcile_first_person_v7.py:ensure_indexes`
+   updated to create `bool` (and now includes `first_person_eligible`).
+   Live-config read-only check confirmed the defect pre-fix (all three
+   `keyword` with 0 points; string/integer/text fields all fully populated).
+   2 new tests pin the declarations + `init_collection` bool creation.
+   *Deferred write:* the LIVE collection still carries the dead `keyword`
+   indexes — migrating (delete keyword index, create bool) is a Qdrant config
+   write, so it waits for post-driver completion; run
+   `reconcile_first_person_v7.py --ensure-indexes` then (note: it skips
+   already-present fields, so the stale keyword indexes must be dropped first).
+4. **32 `indexed`-with-clips-but-no-points reconciliation — NOT STARTED**
+   (explicitly gated on driver completion per the audit).
+5. **Polish (function-word endings, >1,500-char splits) — NOT STARTED**
+   (optional, retrieval-safe as audited).

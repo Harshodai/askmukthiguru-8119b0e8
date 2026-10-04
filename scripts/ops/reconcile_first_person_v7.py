@@ -134,7 +134,9 @@ def find_mismatches(points: Iterable[Any]) -> list[dict[str, Any]]:
 
 
 def ensure_indexes(client: QdrantClient, collection: str) -> list[dict[str, Any]]:
-    """Idempotently create keyword payload indexes (R1 + A-5 is_verbatim gap)."""
+    """Idempotently create bool payload indexes (R1 + A-5 is_verbatim gap;
+    2026-10-04 audit §1: stored values are JSON booleans, so keyword indexes
+    never fire — bool is the correct type)."""
     info = client.get_collection(collection)
     # payload_schema is a dict-like {field: PayloadSchemaInfo}
     try:
@@ -142,17 +144,17 @@ def ensure_indexes(client: QdrantClient, collection: str) -> list[dict[str, Any]
     except Exception:  # noqa: BLE001 — None schema means no indexes yet
         present = {}
     created = []
-    for field in ("is_verbatim", "rights_cleared"):
+    for field in ("is_verbatim", "rights_cleared", "first_person_eligible"):
         if field in present:
             print(f"  index {field}: already present ({present[field]})")
             continue
         res = client.create_payload_index(
             collection_name=collection,
             field_name=field,
-            field_schema="keyword",
+            field_schema="bool",
             wait=True,
         )
-        created.append({"field": field, "schema": "keyword", "result": str(res.operation_id)})
+        created.append({"field": field, "schema": "bool", "result": str(res.operation_id)})
         print(f"  index {field}: CREATED (operation_id={res.operation_id}, status={res.status})")
     return created
 
@@ -324,7 +326,9 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--apply", action="store_true", help="write (default: dry-run)")
     ap.add_argument(
-        "--ensure-indexes", action="store_true", help="create is_verbatim/rights_cleared indexes"
+        "--ensure-indexes",
+        action="store_true",
+        help="create bool is_verbatim/rights_cleared/first_person_eligible indexes",
     )
     ap.add_argument("--collection", default=COLLECTION)
     ap.add_argument("--qdrant-url", default=QDRANT_URL)

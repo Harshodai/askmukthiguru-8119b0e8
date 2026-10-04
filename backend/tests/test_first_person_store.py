@@ -11,7 +11,9 @@ from qdrant_client.http import models
 
 from app.config import settings
 from services.first_person_store import (
+    CANONICAL_VIDEO_IDS,
     FirstPersonStore,
+    canonical_video_id,
     deduplicate_clips_by_video,
     make_first_person_point_id,
     validate_clip_entry,
@@ -460,3 +462,163 @@ def test_points_servable_mirrors_the_search_filter(records, expected, monkeypatc
     client.retrieve.return_value = records
     store = FirstPersonStore(collection="first_person_v1", client=client)
     assert store.points_servable(["a", "b"]) is expected
+
+
+def _jitter_clip(video_id, text, start_ms, end_ms):
+    return {
+        "video_id": video_id,
+        "start_ms": start_ms,
+        "end_ms": end_ms,
+        "speaker": "Sri Krishnaji",
+        "transcript_hash": hashlib.sha256(text.encode("utf-8")).hexdigest(),
+        "verbatim_text": text,
+        "teacher_id": "krishnaji",
+        "teacher_ids": ["krishnaji"],
+        "rights_cleared": True,
+    }
+
+
+def test_upsert_clips_drops_same_video_exact_duplicate_within_batch():
+    """Audit 2026-10-04 §4 fix #1: same-video jitter twins (identical text,
+    ±200 ms spans, hence distinct point IDs) collapse to the first in-batch."""
+    client = MagicMock()
+    store = FirstPersonStore(collection="first_person_v1", client=client)
+
+    text = "Suffering is not a fact; it is only a perception."
+    clips = [
+        _jitter_clip("v1", text, 3040, 15200),
+        _jitter_clip("v1", text, 3240, 15000),  # jitter twin of clips[0]
+        _jitter_clip("v1", "Desire is the root of movement in thought.", 20000, 26000),
+    ]
+    vectors = [[0.1] * 1024, [0.2] * 1024, [0.3] * 1024]
+
+    _stub_r2_readback(client)
+    assert store.upsert_clips(clips, passage_dense_vectors=vectors) == 2
+    points = client.upsert.call_args.kwargs["points"]
+    assert len(points) == 2
+    # Kept twin is the FIRST, with its own positional vector (no misalignment).
+    assert points[0].payload["start_ms"] == 3040
+    assert points[0].vector["passage_dense"] == [0.1] * 1024
+    assert points[1].payload["start_ms"] == 20000
+    assert points[1].vector["passage_dense"] == [0.3] * 1024
+
+
+def test_upsert_clips_keeps_cross_video_identical_text():
+    """Same teaching reused across discourses is legitimate repetition — the
+    batch guard keys on (video_id, text), never bare text."""
+    client = MagicMock()
+    store = FirstPersonStore(collection="first_person_v1", client=client)
+
+    text = "Suffering is not a fact; it is only a perception."
+    clips = [
+        _jitter_clip("v1", text, 3000, 15000),
+        _jitter_clip("v2", text, 3000, 15000),
+    ]
+
+    _stub_r2_readback(client)
+    assert store.upsert_clips(clips, passage_dense_vectors=[[0.1] * 1024] * 2) == 2
+
+
+def test_upsert_clips_does_not_dedupe_across_batches():
+    """Cross-batch twins are index-level dedup's job — a second upsert_clips
+    call must still write (idempotent same-ID overwrite at worst)."""
+    client = MagicMock()
+    store = FirstPersonStore(collection="first_person_v1", client=client)
+
+    text = "Suffering is not a fact; it is only a perception."
+    _stub_r2_readback(client)
+    assert (
+        store.upsert_clips(
+            [_jitter_clip("v1", text, 3000, 15000)],
+            passage_dense_vectors=[[0.1] * 1024],
+        )
+        == 1
+    )
+    assert (
+        store.upsert_clips(
+            [_jitter_clip("v1", text, 3200, 15200)],
+            passage_dense_vectors=[[0.1] * 1024],
+        )
+        == 1
+    )
+    assert client.upsert.call_count == 2
+
+
+def test_upsert_clips_empty_batch_returns_zero_without_write():
+    client = MagicMock()
+    store = FirstPersonStore(collection="first_person_v1", client=client)
+    assert store.upsert_clips([], passage_dense_vectors=[]) == 0
+    client.upsert.assert_not_called()
+
+
+def test_canonical_video_id_map_covers_reupload_pair():
+    assert canonical_video_id("AQUZcU5L9xE") == "9id3ygnEhh8"
+    assert canonical_video_id("9id3ygnEhh8") == "9id3ygnEhh8"  # canonical is fixed point
+    assert canonical_video_id("unrelated123") == "unrelated123"
+    assert CANONICAL_VIDEO_IDS  # map must not be empty
+
+
+def test_upsert_clips_remaps_reupload_to_canonical_id():
+    """Audit 2026-10-04 §4 fix #2: re-upload clip lands with canonical
+    video_id/group_id/source_url; point ID is unchanged (video_id not in ID)."""
+    client = MagicMock()
+    store = FirstPersonStore(collection="first_person_v1", client=client)
+
+    text = "When you actually get back from work, observe yourself."
+    clip = _jitter_clip("AQUZcU5L9xE", text, 3900, 25500)
+    clip["source_url"] = "https://www.youtube.com/watch?v=AQUZcU5L9xE"
+
+    _stub_r2_readback(client)
+    assert store.upsert_clips([clip], passage_dense_vectors=[[0.1] * 1024]) == 1
+    point = client.upsert.call_args.kwargs["points"][0]
+    assert point.payload["video_id"] == "9id3ygnEhh8"
+    assert point.payload["group_id"] == "9id3ygnEhh8"
+    assert point.payload["source_url"] == "https://www.youtube.com/watch?v=9id3ygnEhh8"
+    # Identity remap never touches text/hash/ID derivation.
+    assert point.payload["transcript_hash"] == hashlib.sha256(text.encode("utf-8")).hexdigest()
+    assert point.id == make_first_person_point_id(point.payload["transcript_hash"], 3900, 25500)
+    # Caller-owned dict is not mutated (copy-on-remap).
+    assert clip["video_id"] == "AQUZcU5L9xE"
+
+
+def test_upsert_clips_reupload_twin_collapses_with_canonical():
+    """Re-upload twin listed FIRST still collapses: remap runs before the
+    (video_id, text) dedupe key, so both twins share one key."""
+    client = MagicMock()
+    store = FirstPersonStore(collection="first_person_v1", client=client)
+
+    text = "When you actually get back from work, observe yourself."
+    clips = [
+        _jitter_clip("AQUZcU5L9xE", text, 3900, 25500),
+        _jitter_clip("9id3ygnEhh8", text, 4100, 25300),
+    ]
+
+    _stub_r2_readback(client)
+    assert store.upsert_clips(clips, passage_dense_vectors=[[0.1] * 1024] * 2) == 1
+    point = client.upsert.call_args.kwargs["points"][0]
+    assert point.payload["video_id"] == "9id3ygnEhh8"
+
+
+def test_payload_indexes_declare_bool_for_boolean_fields():
+    """Audit 2026-10-04 §1: keyword indexes on JSON booleans never fire
+    (live: 0 indexed points) — declarations must be bool."""
+    declared = dict(FirstPersonStore.PAYLOAD_INDEXES)
+    for field in ("is_verbatim", "first_person_eligible", "rights_cleared"):
+        assert declared[field] == "bool", f"{field} must be bool-indexed"
+
+
+def test_init_collection_creates_bool_indexes_for_boolean_fields():
+    client = MagicMock()
+    client.get_collections.return_value = MagicMock(collections=[])
+    FirstPersonStore(collection="first_person_v1", client=client).init_collection()
+
+    created = {
+        call.kwargs["field_name"]: call.kwargs["field_schema"]
+        for call in client.create_payload_index.call_args_list
+    }
+    for field in ("is_verbatim", "first_person_eligible", "rights_cleared"):
+        assert created[field] == "bool"
+    # Non-boolean declarations are untouched.
+    assert created["video_id"] == "keyword"
+    assert created["start_ms"] == "integer"
+    assert created["verbatim_text"] == "text"

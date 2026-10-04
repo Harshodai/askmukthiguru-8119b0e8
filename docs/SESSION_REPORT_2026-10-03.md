@@ -1019,3 +1019,10 @@ run JSONs, 0.08 still FAILs). Re-ran 29 passed. Committed below.
 Guard-fix follow-up: `>=715` integrity guard now green; bundle
 cross-check (`test_compiled_index_matches_the_clean_bundle`) still
 red — under diagnosis (dedup-aware rewrite applied, verifying).
+
+### §9ae — T3 store hygiene DONE + verified (2026-10-04)
+Dedupe-at-upsert guard + canonical re-upload map + bool declarations
+(+reconcile ensure-indexes); dormant till next driver launch (module
+cache) — running ingest unaffected. Re-ran 35 passed, ruff clean,
+scope exact (4 files). Open: live bool-index migration post-driver;
+apply-record overcount note; 32-reconcile + polish post-run.

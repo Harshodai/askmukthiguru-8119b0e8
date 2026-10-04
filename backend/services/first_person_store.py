@@ -59,6 +59,27 @@ ALLOWED_SPEAKERS = {
     "Sri Krishnaji",
 }
 
+# Canonical re-upload map: two YouTube IDs hosting the SAME audio discourse
+# collapse to one identity at write time (audit LIVE_INDEX_QUALITY_2026-10-04
+# §4: `9id3ygnEhh8` 2 pts vs `AQUZcU5L9xE` 1 pt, same transcript_hash).
+# Point IDs are uuid5(transcript_hash, start_ms, end_ms) — video_id is NOT in
+# the ID — so remapping video_id/group_id/source_url unifies serve-time
+# identity (per-video dedup keys on video_id) at zero index churn.
+# Direction: incumbent-majority (9id3ygnEhh8 already holds 2/3 live points);
+# both URLs play identical audio, so direction is display-only.
+# Residual: jittered spans (e.g. ±200 ms) still yield distinct point IDs —
+# true point-level collapse needs span re-windowing (D2 span-provenance work:
+# backend/ingest/pipeline.py timing resolvers, test_d2_span_provenance.py),
+# which is out of scope for this write-path guard.
+CANONICAL_VIDEO_IDS: dict[str, str] = {
+    "AQUZcU5L9xE": "9id3ygnEhh8",
+}
+
+
+def canonical_video_id(video_id: str) -> str:
+    """Map a re-uploaded YouTube ID to its canonical identity (no-op otherwise)."""
+    return CANONICAL_VIDEO_IDS.get(video_id, video_id)
+
 
 def make_first_person_point_id(transcript_hash: str, start_ms: int, end_ms: int) -> str:
     """
@@ -181,12 +202,14 @@ class FirstPersonStore:
         ("teacher_ids", "keyword"),
         ("provenance_kind", "keyword"),
         ("quality_status", "keyword"),
-        ("first_person_eligible", "keyword"),
-        ("is_verbatim", "keyword"),
+        ("first_person_eligible", "bool"),
+        ("is_verbatim", "bool"),
         # Q-rec#1 (2026-10-04): search_hybrid filters rights_cleared==True on
         # EVERY query (:460-463) and points_servable reads it — it must be
         # indexed like every other filtered field. Additive, zero recall risk.
-        ("rights_cleared", "keyword"),
+        # Stored values are JSON booleans, so the type must be bool: a keyword
+        # index on a bool payload never fires (live: 0 indexed points).
+        ("rights_cleared", "bool"),
         ("verbatim_text", "text"),
         ("question_text", "text"),
     ]
@@ -278,7 +301,28 @@ class FirstPersonStore:
             )
 
         points: list[PointStruct] = []
+        # Within-batch exact-duplicate guard (audit 2026-10-04 §4 fix #1):
+        # same-video re-ingest jitter pairs share byte-identical text under
+        # different spans. Key is (canonical video_id, cleaned verbatim_text)
+        # so legitimate cross-video teaching repetition is preserved.
+        # Cross-batch twins are OUT of scope here — index-level dedup owns them.
+        seen_clip_keys: set[tuple[str, str]] = set()
+        dupes_dropped = 0
         for i, clip in enumerate(clips):
+            # Canonical re-upload identity (§4 fix #2): normalize before any
+            # keying so twins share one video_id/group_id/source_url.
+            canonical_vid = canonical_video_id(str(clip.get("video_id", "")))
+            if canonical_vid != clip.get("video_id"):
+                clip = dict(clip)
+                old_vid = clip["video_id"]
+                clip["video_id"] = canonical_vid
+                if clip.get("group_id", old_vid) == old_vid:
+                    clip["group_id"] = canonical_vid
+                for url_key in ("source_url", "video_url"):
+                    if old_vid in str(clip.get(url_key, "")):
+                        clip[url_key] = str(clip[url_key]).replace(old_vid, canonical_vid)
+                logger.info(f"[FirstPersonStore] remapped re-upload {old_vid} -> {canonical_vid}")
+
             # ponytail: clean ASR noise at ingestion time before storing into Qdrant
             from ingest.verbatim.asr_cleaner import clean_verbatim_text
 
@@ -293,6 +337,12 @@ class FirstPersonStore:
 
             # Enforce validation invariants
             validate_clip_entry(clip)
+
+            dedupe_key = (str(clip["video_id"]), str(clip["verbatim_text"]))
+            if dedupe_key in seen_clip_keys:
+                dupes_dropped += 1
+                continue
+            seen_clip_keys.add(dedupe_key)
 
             point_id = make_first_person_point_id(
                 transcript_hash=clip["transcript_hash"],
@@ -372,6 +422,14 @@ class FirstPersonStore:
                     payload=payload,
                 )
             )
+
+        if dupes_dropped:
+            logger.info(
+                f"[FirstPersonStore] dropped {dupes_dropped} exact-duplicate "
+                f"clip(s) within batch of {n} (kept first of each twin set)"
+            )
+        if not points:
+            return 0
 
         # R2 / A-5 fail-closed write verification (audit 2026-09-29, plan Phase 1):
         # (1) every point ID must equal recomputation from the payload actually
