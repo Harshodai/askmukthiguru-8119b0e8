@@ -935,3 +935,27 @@ restored. `config.py` C1 lines (2 defaults + comment) left
 UNCOMMITTED: file carries parallel-session hunks, sweeping it would
 absorb foreign work; they ride a later commit. C4 (vault wiring)
 backgrounded. Driver 53896 alive, Qdrant 1230 pts.
+
+### §9u — C4 single-plane vault wiring DONE + verified (2026-10-04)
+C4 wired the vault miner into `MemoryStage._canonical_write` behind
+existing `feature_memory_write` (default False; owner flips after
+consent review): single write leg, no double-fetch (read path
+untouched), fail-open, UUID-only users. Orchestrator re-ran **20
+passed**. Same round caught F2's regression
+(`test_getattr_names_are_declared` vs undeclared
+`memory_skip_intents`/`memory_token_budget`) — fixed by declaring
+both on Settings; guard + memory suites **62 passed**, ruff clean.
+Uncommitted (rides next scoped commit with C1 config lines).
+
+### §9v — FP live Q&A assessment, independent + websearch (2026-10-04)
+Two complex questions asked live (`first_person_bridge`, grounded,
+clip-gate passed, 8s/2s). Independent assessor + public-source
+cross-check (ekam.org, Commune interview, Manifest pages):
+Q1 restless-mind relevance **2/5** (no Serene Mind/Soul-Sync
+instruction; bed-wetting anecdote off-topic), integrity 4/5,
+consistency 4/5. Q2 Beautiful-State relevance **4/5**, integrity
+3/5 (vlog-sourced cit2), consistency **5/5** (matches foundation's
+own "not positive thinking" positioning verbatim). Contamination
+text: content-consistent, attribution-unproven. Fixes queued:
+excerpt swaps (retrieval tuning, post-ingest), cit2 downgrade,
+orphan-point deletion (in flight).
