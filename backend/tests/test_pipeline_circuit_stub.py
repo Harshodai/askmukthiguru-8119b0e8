@@ -86,3 +86,11 @@ def test_circuit_open_result_is_system_error_result():
 if __name__ == "__main__":
     # ponytail: one runnable self-check — run pytest on this module.
     raise SystemExit(pytest.main([__file__, "-v"]))
+
+
+def test_circuit_open_result_reports_no_model():
+    """A refused request ran no model; it must not name one (it reported
+    sarvam_cloud_model even with LLM_PROVIDER=openrouter)."""
+    coord = PipelineCoordinator.__new__(PipelineCoordinator)
+    result = coord._circuit_open_result(is_benchmark=False, start_time=0.0)
+    assert result.model_used is None

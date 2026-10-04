@@ -619,9 +619,10 @@ class PipelineCoordinator:
         self, is_benchmark: bool, start_time: float, trace_id: str | None = None
     ) -> PipelineResult:
         """Return an error PipelineResult when the circuit is open."""
-        model = getattr(settings, "sarvam_cloud_model", None) or getattr(
-            settings, "ollama_model", None
-        )
+        # No model ran: the request was refused before the graph. Reporting a
+        # configured model name here (it used to be sarvam_cloud_model even on
+        # openrouter) made traces claim an LLM answered.
+        model = None
         msg = "The Guru is unable to answer this question. Please try again."
         latency_ms = int((time.time() - start_time) * 1000)
         return PipelineResult(
