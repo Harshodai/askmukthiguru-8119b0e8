@@ -851,8 +851,7 @@ ruff check + format clean, scope exact. Wiring deferred with proposal
 backgrounded. Archives intentionally unmodified (provenance); verdict
 lives here + handoff.md.
 
-### §9s — Handoff sweep F3 DONE + verified; SWEEP COMPLETE (2026-10-04)
-F3 (6 M + 1 new, scope exact): H-FALSE-2 structural graph check,
+### §9s — Handoff sweep F3 DONE + verified; SWEEP COMPLETE (2026-10-04)F3 (6 M + 1 new, scope exact): H-FALSE-2 structural graph check,
 H-FALSE-3 breaker-state AND, H-FALSE-4 falsified+pinned, H-FALSE-5
 pinned (10 tests); OpenRouter **404→fallback fixed** (was
 record_failure+raise; 7/7); checkpoint keys namespaced
@@ -925,3 +924,14 @@ rate-limit, trust metrics. No commits.
 **PID 30758** (PID-file match, exactly one driver process), log shows
 embedder load for upfront backlog apply, Qdrant `first_person_v7` still
 624 pts (pre-upsert). No orchestrator interference — S1 owns the restart.
+
+### §9t — C1 scale cuts + security-hunk catch (2026-10-04)
+C1 applied 4 cuts (53 passed re-ran, ruff clean): semaphore 8→12,
+workers 1→2 (Redis-backed limiter confirmed), RPM 20→60,
+`/api/health` de-exempted. Orchestrator caught an UNDISCLOSED hunk in
+`start_railway.py`: a `FORWARDED_ALLOW_IPS` silent-default fallback
+that weakened the fail-closed startup invariant — REMOVED, gate
+restored. `config.py` C1 lines (2 defaults + comment) left
+UNCOMMITTED: file carries parallel-session hunks, sweeping it would
+absorb foreign work; they ride a later commit. C4 (vault wiring)
+backgrounded. Driver 53896 alive, Qdrant 1230 pts.

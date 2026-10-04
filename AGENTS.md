@@ -505,7 +505,7 @@ Historical session handoffs (Jul–Aug 2026) live in docs/archive/agents-handoff
 - **Deploy method**: Use `railway up` (tarball upload) — **NOT** `railway redeploy --from-source`
   - `railway up` uploads a tarball and deploys reliably
   - `railway redeploy --from-source` gets stuck at INITIALIZING on this repo
-- **Replicas**: Set to **1 replica** in `railway.json` — 2 replicas caused second replica to fail init timeout
+- **Replicas**: **1 replica** (dashboard setting — 2 replicas caused second replica to fail init timeout; `railway.json` was removed Sep 19 in favor of `.railway/railway.ts` IaC + dashboard)
 - **Health checks**: 
   - `/api/healthz` — intercepted by `start_railway.py` wrapper, returns 200 for 90s grace period
   - `/api/health` — real per-service health, returns `ready: false` until `startup_complete=True`

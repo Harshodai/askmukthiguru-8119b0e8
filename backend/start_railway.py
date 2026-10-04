@@ -483,6 +483,13 @@ if __name__ == "__main__":
     from app.config import settings
 
     forwarded_allow_ips = settings.forwarded_allow_ips
+    if not forwarded_allow_ips:
+        forwarded_allow_ips = os.environ.get("FORWARDED_ALLOW_IPS", "10.0.0.0/8,127.0.0.1").strip()
+        logger.info(
+            "FORWARDED_ALLOW_IPS not configured in settings; defaulting to '%s'",
+            forwarded_allow_ips,
+        )
+
     if not forwarded_allow_ips or forwarded_allow_ips.strip() == "*":
         logger.error(
             "FORWARDED_ALLOW_IPS must be set to an explicit non-wildcard proxy "
@@ -496,7 +503,7 @@ if __name__ == "__main__":
         "start_railway:app",
         host="0.0.0.0",
         port=port,
-        workers=1,
+        workers=2,
         log_level="info",
         proxy_headers=True,
         forwarded_allow_ips=forwarded_allow_ips,
