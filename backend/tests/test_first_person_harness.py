@@ -215,11 +215,15 @@ def test_cli_argument_parsing(monkeypatch, tmp_path):
 
     captured = {}
 
-    async def fake_run(collection, rerank, questions_path=None, pin_check=True):
+    async def fake_run(
+        collection, rerank, questions_path=None, pin_check=True, rank_depth=0, probe_legs=False
+    ):
         captured["collection"] = collection
         captured["rerank"] = rerank
         captured["questions_path"] = questions_path
         captured["pin_check"] = pin_check
+        captured["rank_depth"] = rank_depth
+        captured["probe_legs"] = probe_legs
         return {
             "collection": collection,
             "rerank": rerank,
@@ -247,4 +251,6 @@ def test_cli_argument_parsing(monkeypatch, tmp_path):
     assert captured["rerank"] is True
     assert captured["questions_path"] == GOLDEN_PARAPHRASE_PATH
     assert captured["pin_check"] is False
+    assert captured["rank_depth"] == 0
+    assert captured["probe_legs"] is False
     assert out_file.exists()

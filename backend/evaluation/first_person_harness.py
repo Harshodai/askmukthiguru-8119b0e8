@@ -34,6 +34,13 @@ import sys
 import time
 from pathlib import Path
 
+from evaluation.fp_rank_metrics import (
+    abstention_summary,
+    legs_agreement_summary,
+    per_class_summary,
+    score_ranking,
+    summarize_rank_metrics,
+)
 from evaluation.gold.metrics import bootstrap_ci_by_video, passage_hits_ranges
 
 QUESTIONS_PATH = Path(__file__).parent / "datasets" / "first_person_bakeoff_2026-09-25.json"
@@ -51,9 +58,27 @@ GOLDEN_PARAPHRASE_PATH = (
 )
 GOLDEN_PARAPHRASE_SHA256 = "1cd211387f6470f9d3aa97b867b1534a73baa02953daa69b1d7c8be490298285"
 
+# Wave R-B slices (OKF R5 + Q-rec#2/#10): pinned the same way as the golden-25.
+# Baselines recorded pre-ingest; informational only (never CI-fail).
+GOLDEN_OOC_PATH = Path(__file__).parent / "datasets" / "first_person_golden_ooc_8.json"
+GOLDEN_OOC_SHA256 = "d4bb5f6798491812cd2dc0ca3ace2963c8bdac554b71c44d3f44760dc47ce429"
+
+GOLDEN_COMPARATIVE_PATH = (
+    Path(__file__).parent / "datasets" / "first_person_golden_comparative_6.json"
+)
+GOLDEN_COMPARATIVE_SHA256 = "c59206d4521728fc99811648561e041ff4e54a345cf54903d28ea3ce7a913c4f"
+
+GOLDEN_MULTILINGUAL_PATH = (
+    Path(__file__).parent / "datasets" / "first_person_golden_multilingual_3.json"
+)
+GOLDEN_MULTILINGUAL_SHA256 = "71ee70d15b36133c8243c9eaab208ea338a3c09e40d913da41696b3d84346113"
+
 PINNED_DATASETS: dict[str, str] = {
     QUESTIONS_PATH.name: QUESTIONS_SHA256,
     GOLDEN_PARAPHRASE_PATH.name: GOLDEN_PARAPHRASE_SHA256,
+    GOLDEN_OOC_PATH.name: GOLDEN_OOC_SHA256,
+    GOLDEN_COMPARATIVE_PATH.name: GOLDEN_COMPARATIVE_SHA256,
+    GOLDEN_MULTILINGUAL_PATH.name: GOLDEN_MULTILINGUAL_SHA256,
 }
 
 _HOST_STEMS = re.compile(
@@ -114,6 +139,9 @@ def score_row(question: dict, citation: dict | None) -> dict:
         "answerable": bool(question["answerable"]),
         "near_miss": bool(question.get("near_miss")),
         "paraphrase_group": question.get("paraphrase_group"),
+        # Wave R-B: per-class floors need the class on every row. Defaults to
+        # "standard" so pre-R-B callers and rows are unaffected.
+        "question_class": question.get("question_class") or "standard",
         "top1": None,
         "hit": False,
         "host_like": False,
@@ -133,6 +161,37 @@ def score_row(question: dict, citation: dict | None) -> dict:
         if row["answerable"]:
             row["hit"] = passage_hits_ranges(clip, question["answer_ranges"])
     return row
+
+
+def score_ranked(question: dict, candidates: list[dict]) -> dict:
+    """Rank metrics for one question from a fused-probe ranked list.
+
+    ``candidates`` are rank-ordered ``{video_id, start, end}`` (seconds);
+    relevance is span overlap vs ``answer_ranges`` (same rule as top-1 hit).
+    Unanswerable questions carry no ranges → all miss by construction.
+    """
+    ranges = question.get("answer_ranges", []) or []
+    hits = [
+        passage_hits_ranges(
+            {"video_id": c.get("video_id"), "start": c.get("start"), "end": c.get("end")},
+            ranges,
+        )
+        for c in candidates
+    ]
+    return score_ranking(hits, n_candidates=len(candidates))
+
+
+def dual_video_cover(question: dict, candidates: list[dict], k: int = 10) -> dict:
+    """Comparative-slice signal: how many distinct GOLD videos appear (as a
+    span hit) in the top-k. dual_present = >= 2 → the slice's retrieval goal."""
+    gold_videos = set(question.get("gold_videos", []))
+    ranges = question.get("answer_ranges", []) or []
+    covered: set[str] = set()
+    for c in candidates[:k]:
+        clip = {"video_id": c.get("video_id"), "start": c.get("start"), "end": c.get("end")}
+        if clip["video_id"] in gold_videos and passage_hits_ranges(clip, ranges):
+            covered.add(clip["video_id"])
+    return {"n_gold_videos_covered": len(covered), "dual_present": len(covered) >= 2}
 
 
 def summarize(rows: list[dict], latencies_ms: list[float]) -> dict:
@@ -155,6 +214,16 @@ def summarize(rows: list[dict], latencies_ms: list[float]) -> dict:
             "out_of_scope": _count(r.get("status") for r in out_of_scope),
         },
         "answerability_verdicts": _count(r.get("answerability") or "not_run" for r in rows),
+        # Wave R-B (additive only — the four keys above this comment are the
+        # CI-gated surface and are byte-identical to before):
+        # - rank_metrics: recall@{5,10} + MRR + NDCG@10 (Q-rec#2)
+        # - per_class: per-question-class floors replacing single averages (R5)
+        # - abstention: OOC abstain rate + answerable false-refusal proxy (R5)
+        # - legs: fused-vs-dense top-1 agreement + sparse-leg-active rate (Q-rec#2)
+        "rank_metrics": summarize_rank_metrics(rows),
+        "per_class": per_class_summary(rows),
+        "abstention": abstention_summary(rows),
+        "legs": legs_agreement_summary(rows),
         "latency_ms": {
             "p50": round(statistics.median(lat), 1) if lat else None,
             "p95": round(lat[min(len(lat) - 1, math.ceil(0.95 * len(lat)) - 1)], 1)
@@ -277,12 +346,75 @@ def _make_llm_service():
     return None, None
 
 
+async def _probe_rank_and_legs(
+    row: dict, question: dict, store, enc: dict, rank_depth: int, probe_legs: bool
+) -> None:
+    """Wave R-B read-only retrieval probe (Q-rec#2): re-issues the SAME query
+    vectors against ``store.search_hybrid`` (public API, no production change)
+    at rank depth for recall@{5,10}/MRR/NDCG@10, plus a dense-only leg for
+    fused-vs-dense agreement. Failures attach ``probe_error`` and leave the
+    served row untouched — the probe never fails the run."""
+    try:
+        sparse = enc.get("sparse") or {}
+        sparse_vec = {"indices": list(sparse), "values": list(sparse.values())} if sparse else None
+        fused = await asyncio.to_thread(
+            store.search_hybrid,
+            query_dense_vector=enc["dense"],
+            query_sparse_vector=sparse_vec,
+            limit=rank_depth,
+            dedup_limit=rank_depth,
+        )
+        candidates = [
+            {
+                "video_id": c.get("video_id"),
+                "start": (c.get("start_ms") or 0) / 1000.0,
+                "end": (c.get("end_ms") or 0) / 1000.0,
+            }
+            for c in fused
+        ]
+        row["rank_metrics"] = score_ranked(question, candidates)
+        if (question.get("question_class") or "standard") == "comparative":
+            row["dual_cover"] = dual_video_cover(question, candidates)
+        legs: dict = {
+            "fused_scores": [round(float(c.get("score") or 0.0), 4) for c in fused],
+            "fused_top1_video": (fused[0].get("video_id") if fused else None),
+            "fused_top1_point": (fused[0].get("point_id") if fused else None),
+            "sparse_leg_active": sparse_vec is not None,
+            "dense_top1_video": None,
+            "dense_top1_point": None,
+            "fused_dense_agree": None,
+        }
+        if probe_legs:
+            dense_only = await asyncio.to_thread(
+                store.search_hybrid,
+                query_dense_vector=enc["dense"],
+                query_sparse_vector=None,
+                limit=rank_depth,
+                dedup_limit=rank_depth,
+            )
+            legs["dense_top1_video"] = dense_only[0].get("video_id") if dense_only else None
+            legs["dense_top1_point"] = dense_only[0].get("point_id") if dense_only else None
+            legs["fused_dense_agree"] = (
+                legs["dense_top1_video"] is not None
+                and legs["dense_top1_video"] == legs["fused_top1_video"]
+            )
+        row["legs"] = legs
+    except Exception as e:  # probe is informational; served metrics stand alone
+        row["probe_error"] = f"{type(e).__name__}: {e}"
+
+
 async def run(
     collection: str,
     rerank: bool,
     questions_path: Path = QUESTIONS_PATH,
     pin_check: bool = True,
+    rank_depth: int = 0,
+    probe_legs: bool = False,
 ) -> dict:
+    """Eval runner. ``rank_depth``/``probe_legs`` are Wave R-B additive probes:
+    0 (default) = pre-R-B behavior exactly (no extra Qdrant reads). >0 issues
+    read-only retrieval probes per question for rank metrics + per-leg logging.
+    """
     from app.api.first_person import _make_rerank_fn
     from app.config import settings
     from services.embedding_service import get_embedding_service
@@ -322,9 +454,16 @@ async def run(
     rows, latencies = [], []
     for q in questions:
         status, citation, answerability = "error", None, None
+        enc = None
         try:
             enc = await embedding.encode_single_full_async(q["question"])
             sparse = enc.get("sparse") or {}
+            # Multilingual slice (Q-rec#10): the Indic query is served, its
+            # English golden question is what gets embedded (translate-then-
+            # embed path). Rows without retrieval_query behave exactly as before.
+            retrieval_query = q.get("retrieval_query")
+            if not retrieval_query or retrieval_query == q["question"]:
+                retrieval_query = None
             res = await asyncio.to_thread(
                 pipeline.execute,
                 query=q["question"],
@@ -333,6 +472,7 @@ async def run(
                 if sparse
                 else None,
                 max_clips=3,
+                retrieval_query=retrieval_query,
             )
             status = res.status
             latencies.append(res.latency_ms)
@@ -343,6 +483,8 @@ async def run(
         row = score_row(q, citation)
         row["status"] = status
         row["answerability"] = answerability
+        if rank_depth > 0 and enc is not None:
+            await _probe_rank_and_legs(row, q, store, enc, rank_depth, probe_legs)
         rows.append(row)
         # Pace only the questions that actually spent shared RPM budget on a gate
         # call (answerability set = the gate ran); see GATE_PACE_S.
@@ -386,6 +528,20 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Bypass SHA-256 pin check for non-bakeoff datasets",
     )
+    # Wave R-B additive probes (Q-rec#2): rank metrics + per-leg logging.
+    # Defaults (0/False) = pre-R-B behavior exactly; the CI gate passes
+    # --rank-depth 10 --probe-legs for informational metrics only.
+    r.add_argument(
+        "--rank-depth",
+        type=int,
+        default=0,
+        help="Read-only retrieval probe depth per question for recall@{5,10}+MRR+NDCG@10 (0 = off)",
+    )
+    r.add_argument(
+        "--probe-legs",
+        action="store_true",
+        help="Also run a dense-only leg per question for fused-vs-dense agreement logging",
+    )
     c = sub.add_parser("compare")
     c.add_argument("a", type=Path)
     c.add_argument("b", type=Path)
@@ -398,6 +554,8 @@ def main(argv: list[str] | None = None) -> int:
                 args.rerank,
                 questions_path=args.questions,
                 pin_check=not args.no_pin_check,
+                rank_depth=args.rank_depth,
+                probe_legs=args.probe_legs,
             )
         )
         args.out.write_text(json.dumps(result, indent=2, ensure_ascii=False))

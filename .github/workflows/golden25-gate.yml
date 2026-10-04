@@ -75,7 +75,7 @@ jobs:
         working-directory: backend
         run: |
           pip install --upgrade pip
-          pip install -r requirements.lock
+          pip install --extra-index-url https://download.pytorch.org/whl/cpu -r requirements.lock
 
       - name: Cache pinned HuggingFace model weights
         uses: actions/cache@v4
@@ -117,9 +117,14 @@ jobs:
           QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
+          # Wave R-B probes (additive, informational): rank-depth retrieval probe
+          # for recall@{5,10}+MRR+NDCG@10 + dense-only leg logging. Threshold
+          # envs below are UNTOUCHED — new metrics never fail this gate.
           python -m evaluation.first_person_harness run \
             --collection first_person_v7 \
             --questions evaluation/datasets/first_person_golden_paraphrase_25.json \
+            --rank-depth 10 \
+            --probe-legs \
             --out golden25_report.json
 
       - name: Enforce measured thresholds
@@ -145,6 +150,23 @@ jobs:
               if not ok:
                   failed.append(name)
               lines.append(f"| {name} | {got} | {op} {want} | {'PASS' if ok else 'FAIL'} |")
+          # Wave R-B informational (additive only — never appended to `failed`):
+          # rank metrics, per-class floors, abstention contract, per-leg agreement.
+          rm = s.get("rank_metrics") or {}
+          if rm.get("n"):
+              lines += ["", "| rank metric (info) | value |", "|---|---|",
+                        f"| recall@5 | {rm.get('recall_at_5')} |",
+                        f"| recall@10 | {rm.get('recall_at_10')} |",
+                        f"| MRR | {rm.get('mrr')} |",
+                        f"| NDCG@10 | {rm.get('ndcg_at_10')} |"]
+          for cls, c in (s.get("per_class") or {}).items():
+              lines.append(f"| class:{cls} top1 (info) | {c.get('top1_hit_rate')} (n={c.get('n')}) |")
+          ab = s.get("abstention") or {}
+          if ab.get("n_unanswerable"):
+              lines.append(f"| OOC abstain_rate (info) | {ab.get('unanswerable_abstain_rate')} (n={ab.get('n_unanswerable')}) |")
+          lg = s.get("legs") or {}
+          if lg.get("n_probed"):
+              lines.append(f"| fused/dense top1 agree (info) | {lg.get('fused_dense_top1_agree_rate')} (n={lg.get('n_probed')}) |")
           lines += ["", f"Gate mode: `{r.get('answerability_gate', {}).get('mode')}`, "
                         f"llm: `{r.get('answerability_gate', {}).get('llm_service')}`, "
                         f"n: {s.get('n_questions')}, status: {s.get('status_counts')}"]

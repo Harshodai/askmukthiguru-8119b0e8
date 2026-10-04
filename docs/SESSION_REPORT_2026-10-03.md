@@ -1010,3 +1010,12 @@ IMPLEMENTED (+29 lines, pre-fusion, short chunks byte-identical).
 Compute-then-constrain COMPLIANT (all deterministic layers pre-generate;
 OKF filters at load). A/B prep read-only. Re-ran 5 + 39 green, ruff
 clean. Committed below.
+
+### §9ad — R-B eval hardening DONE + verified (2026-10-04)
+Harness gains recall@{5,10}/MRR/NDCG@10, per-leg logging, OOC (8) +
+comparative (6) + multilingual (3, fixture-reused, 0 LLM) slices;
+thresholds byte-untouched (gate script replicated → PASS/PASS on both
+run JSONs, 0.08 still FAILs). Re-ran 29 passed. Committed below.
+Guard-fix follow-up: `>=715` integrity guard now green; bundle
+cross-check (`test_compiled_index_matches_the_clean_bundle`) still
+red — under diagnosis (dedup-aware rewrite applied, verifying).
