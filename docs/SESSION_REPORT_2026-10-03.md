@@ -988,3 +988,10 @@ compiled). Orchestrator verified backups, counts, schema, 18 tests +
 ruff clean (broader 2901 accepted from report). Residual risks recorded
 (paraphrase loss on title-collapse, heuristic tie-breaks, 15 fragments
 + `atriabooks` kept, ready-5 need verbatim check at graduation).
+
+### §9aa — D2 span provenance DONE + verified (2026-10-04)
+Chunker span mapping (additive, 22-chunk parity), timing resolver (≥2
+shared words, fail-open), 3/6 sites wired + 3 documented-absent, vote
+already contained (35/35), aligner proposed (model/budget owner call),
+payload index built-unwired. Verified: 10 passed + neighbors 9 passed
+(re-ran), ruff clean, scratch deleted. Committed `803ffd84` (5 files).

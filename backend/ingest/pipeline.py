@@ -218,6 +218,79 @@ def _resolve_chunk_speakers_from_cache(
 _ALLOWED_SPEAKER_ROLES = frozenset({"teacher", "questioner", "translator", "narration", "unknown"})
 
 
+def _resolve_chunk_timing_from_cache(
+    video_id: Optional[str], chunks: list[str]
+) -> tuple[list[Optional[float]], list[Optional[float]], Optional[str], Optional[str]]:
+    """Map each chunk to (start, end) seconds from the cached whisperx segments.
+
+    Ponytail: mirrors `_resolve_chunk_speakers_from_cache` — for each chunk,
+    the segments whose normalized text shares the most words with the chunk
+    win; the chunk spans from the first to the last overlapping segment's
+    ``start``/``end``. Returns ``(starts, ends, asr_method, align_method)``
+    aligned to ``chunks`` with ``None`` where no timing is known. The cache
+    is only populated by local audio transcription (mlx-whisper/whisperx);
+    caption-sourced transcripts leave it empty, so all-``None`` is the
+    normal case there — unknown timing is persisted as ``None``, never
+    interpolated or shifted. Purely best-effort; never raises.
+    """
+    empty = ([None] * len(chunks), [None] * len(chunks), None, None)
+    if not video_id or not chunks:
+        return empty
+    try:
+        wx = get_cached_whisperx_result(video_id)
+    except Exception as e:
+        logger.debug(f"whisperx cache lookup failed for {video_id} (non-fatal): {e}")
+        return empty
+    if not wx or not wx.get("segments"):
+        return empty
+
+    segments = wx["segments"]
+    seg_word_sets: list[set[str]] = []
+    seg_bounds: list[Optional[tuple[float, float]]] = []
+    for seg in segments:
+        if isinstance(seg, dict):
+            seg_text = seg.get("text") or ""
+            start, end = seg.get("start"), seg.get("end")
+        else:  # object-style segment (faster-whisper / whisperx)
+            seg_text = getattr(seg, "text", "") or ""
+            start, end = getattr(seg, "start", None), getattr(seg, "end", None)
+        seg_word_sets.append(set(str(seg_text).lower().split()))
+        try:
+            seg_bounds.append(
+                (float(start), float(end)) if start is not None and end is not None else None
+            )
+        except (TypeError, ValueError):
+            seg_bounds.append(None)
+
+    starts: list[Optional[float]] = []
+    ends: list[Optional[float]] = []
+    for chunk_text in chunks:
+        chunk_words = set(chunk_text.lower().split())
+        if not chunk_words:
+            starts.append(None)
+            ends.append(None)
+            continue
+        first_idx = -1
+        last_idx = -1
+        for i, sws in enumerate(seg_word_sets):
+            # >= 2 shared words: a single stopword ("of", "the") must not
+            # stretch a chunk's claimed span onto a neighboring segment —
+            # same misattribution discipline as the length-mismatch drop.
+            if sws and seg_bounds[i] is not None and len(chunk_words & sws) >= 2:
+                if first_idx < 0:
+                    first_idx = i
+                last_idx = i
+        if first_idx >= 0:
+            starts.append(seg_bounds[first_idx][0])  # type: ignore[index]
+            ends.append(seg_bounds[last_idx][1])  # type: ignore[index]
+        else:
+            starts.append(None)
+            ends.append(None)
+    asr_method = wx.get("method") or wx.get("asr_method")
+    align_method = wx.get("align_method")
+    return starts, ends, asr_method, align_method
+
+
 def _filter_parallel_timing(
     values: Optional[list],
     keep_indices: list[int],
@@ -1098,6 +1171,10 @@ class IngestionPipeline:
                 tags=tags,
                 source_version=1,
                 authority_tier="primary",
+                # D2 span-provenance: no per-chunk timing on this path — the
+                # social transcription is not whisperx-cache-keyed (empty key),
+                # so there are no segments to resolve against. Unknown stays
+                # None via the wire-through defaults.
             )
         )
 
@@ -1350,6 +1427,9 @@ class IngestionPipeline:
                     authority_tier=authority_tier,
                     assistant_slug=assistant_slug,
                     qdrant_override=qdrant_override,
+                    # D2 span-provenance: plain-text document path — no audio,
+                    # no whisperx segments, so no per-chunk timing exists.
+                    # Unknown stays None via the wire-through defaults.
                 )
             )
 
@@ -1638,6 +1718,14 @@ class IngestionPipeline:
                 logger.warning(f"LLM speaker-role fallback failed for {url} (non-fatal): {e}")
                 chunk_speakers = [None] * len(final_chunks)
 
+        # D2 span-provenance: real per-chunk timing from the cached whisperx
+        # segments when this video came through local audio transcription.
+        # Caption-sourced transcripts leave the cache empty → all-None (the
+        # wire-through persists None, never guessed).
+        chunk_starts, chunk_ends, asr_method, align_method = _resolve_chunk_timing_from_cache(
+            video_id, final_chunks
+        )
+
         # Step 5: Embed and index
         from datetime import datetime
 
@@ -1669,6 +1757,10 @@ class IngestionPipeline:
                     authority_tier=authority_tier,
                     assistant_slug=assistant_slug,
                     transcript_hash=result.get("transcript_hash"),
+                    chunk_starts=chunk_starts,
+                    chunk_ends=chunk_ends,
+                    asr_method=asr_method,
+                    align_method=align_method,
                 )
             )
 
@@ -1993,6 +2085,11 @@ class IngestionPipeline:
         # Embed and index all leaf chunks at once to prevent catastrophic deletion/overwrite
         self._notify(on_progress, "Indexing all extracted topic chunks...", 0.85)
         total_chunks = 0
+        # D2 span-provenance (same resolver as _ingest_video; all-None when
+        # this video did not come through local audio transcription).
+        enh_starts, enh_ends, enh_asr, enh_align = _resolve_chunk_timing_from_cache(
+            video_id, all_chunks
+        )
         try:
             if all_chunks:
                 total_chunks = self._embed_and_index(
@@ -2016,6 +2113,10 @@ class IngestionPipeline:
                         authority_tier=authority_tier,
                         assistant_slug=assistant_slug,
                         transcript_hash=result.get("transcript_hash"),
+                        chunk_starts=enh_starts,
+                        chunk_ends=enh_ends,
+                        asr_method=enh_asr,
+                        align_method=enh_align,
                     )
                 )
 
@@ -2372,6 +2473,10 @@ class IngestionPipeline:
                 # can roll back this one video without aborting the whole playlist.
                 backup_collection = self._backup_before_reindex(video["url"])
 
+                # D2 span-provenance per playlist video (all-None unless
+                # this video hit local audio transcription).
+                pl_vid = extract_video_id(video["url"])
+                pl_starts, pl_ends, _, _ = _resolve_chunk_timing_from_cache(pl_vid, final_chunks)
                 try:
                     chunks_count = self._embed_and_index(
                         EmbedIndexConfig(
@@ -2384,12 +2489,14 @@ class IngestionPipeline:
                             content_type="video",
                             source_type="video",
                             tags=tags,
-                            video_id=extract_video_id(video["url"]),
+                            video_id=pl_vid,
                             channel_name=transcript.get("channel_name"),
                             published_at=transcript.get("published_at"),
                             duration=transcript.get("duration"),
                             thumbnail_url=transcript.get("thumbnail_url"),
                             transcript_hash=transcript.get("transcript_hash"),
+                            chunk_starts=pl_starts,
+                            chunk_ends=pl_ends,
                         )
                     )
 
@@ -3455,6 +3562,9 @@ class IngestionPipeline:
                 source_version=source_version,
                 authority_tier=authority_tier,
                 assistant_slug=assistant_slug,
+                # D2 span-provenance: generic text helper (image/file callers)
+                # — no audio timing source. Video callers resolve timing at
+                # their own EmbedIndexConfig site instead.
             )
         )
 
