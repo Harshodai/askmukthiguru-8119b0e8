@@ -873,6 +873,28 @@ def _adaptive_parent_excerpt(query: str, parent_text: str, max_chars: int = 1500
     return excerpt
 
 
+def _trim_chunk_spans(query: str, docs: list[dict]) -> int:
+    """Trim over-long chunks to the query-relevant span BEFORE fusion/rerank.
+
+    Vespa/Perplexity teardown steal (Wave R-C): the cross-encoder and RRF
+    fusion score signal, not padding, so a chunk longer than
+    ``_ADAPTIVE_PARENT_THRESHOLD`` is cut to its query-relevant sentence
+    window via the same keyword-overlap excerpting as parent texts.
+    Retrieval-side only: short chunks pass through byte-identical (served
+    answer text untouched for the common case), and no embedding or LLM
+    call is made here — pure heuristics. Returns the number trimmed.
+    """
+    trimmed = 0
+    for doc in docs:
+        text = doc.get("text", "")
+        if isinstance(text, str) and text and len(text) > _ADAPTIVE_PARENT_THRESHOLD:
+            doc["text"] = _adaptive_parent_excerpt(query, text)
+            trimmed += 1
+    if trimmed:
+        logger.debug("Chunk-span trim: %d/%d chunks cut to query span", trimmed, len(docs))
+    return trimmed
+
+
 @trace_rag_node("navigate_and_hyde")
 @log_metrics
 async def navigate_and_hyde(state: GraphState, config: Optional[RunnableConfig] = None) -> dict:
@@ -1200,6 +1222,13 @@ async def retrieve_for_single_query(
             resolved_chunks.append(doc)
 
     chunk_results = resolved_chunks
+
+    # Wave R-C chunk-span trimming (Vespa/Perplexity steal): cut over-long
+    # chunks to the query-relevant span BEFORE fusion/rerank. Uses the
+    # contextualized question (last user turn + sub-query) as the relevance
+    # anchor so follow-up pronouns resolve to doctrine terms. Short chunks
+    # are untouched — byte-identical served text for the common case.
+    _trim_chunk_spans(augmented_query, chunk_results)
 
     # F4 §3B.3 item 3: verbatim leaf chunks listed first so a tied RRF/DBSF
     # score (stable-sorted) favors the teachers' own words over a machine

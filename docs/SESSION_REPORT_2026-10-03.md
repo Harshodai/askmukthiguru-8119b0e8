@@ -1001,3 +1001,12 @@ Index already existed live (creator unknown — code declaration was the
 gap); ensure-script + parity fix + backup line + 1274/1274 restore
 drill. Re-ran 44 passed, ruff clean. Open note: settings default
 `first_person_v1` vs live `first_person_v7` label mismatch for drills.
+
+### §9ac — R-C follow-up/trim/constrain DONE + verified (2026-10-04)
+Follow-up rewriting VERIFIED present (heuristic CQR in bridge, 0 LLM;
+direct query endpoint stateless by contract; fast-path drop by design
+with last-turn prepend intact) — nothing changed. Chunk-span trim
+IMPLEMENTED (+29 lines, pre-fusion, short chunks byte-identical).
+Compute-then-constrain COMPLIANT (all deterministic layers pre-generate;
+OKF filters at load). A/B prep read-only. Re-ran 5 + 39 green, ruff
+clean. Committed below.
