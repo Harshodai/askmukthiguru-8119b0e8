@@ -142,7 +142,7 @@ _EN_PATTERNS = {
         # here). Same discipline: the qualifier ("wish") must directly
         # govern the negated "wake up", so "I wish my neighbor would stop
         # snoring so I could sleep" does not match (no "never/not wake up").
-        r"wish\w*\s*(i\s*)?(could\s*)?(just\s*)?(sleep\s*and\s*)?(never|not)\s*wake\s*up)",
+        r"wish\w*\s*(i\s*)?(could\s*)?(just\s*)?(go\s*to\s*)?(sleep\s*and\s*)?(never|not)\s*wake\s*up)",
         # 2026-09-22 (evals/scenarios/tier3_crisis, PLAN.md B1): "end my life" /
         # "ending my life" is one of the most common first-person ideation
         # phrasings in English and matched NONE of the above — "end (my|it)
@@ -178,10 +178,28 @@ _EN_PATTERNS = {
         # W2 review packet.
         r"\b(i'?m\s*going\s*to|i\s*want\s*to|i\s*will|let\s*me|i'?m\s*ready\s*to)\s*leave\s*(this|my)\s*body\b",
         r"\bmerge\s*with\s*the\s*divine\s*and\s*end\s*it\b",
+        # 2026-10-04 (product audit): first-turn phrasings that scored NONE and
+        # matched no guardrail rail, so no helplines were shown. Pinned both
+        # ways by tests/test_crisis_phrasing_gaps_2026_10_04.py.
+        # "killing myself" -- the alternation above only takes bare "kill".
+        r"\bkill(?:ing|ed)\s*my\s*self\b",
+        r"\b(don'?t|do\s*not|doesn'?t|no\s*longer)\s*want\w*\s*to\s*be\s*alive\b",
+        r"\b(going\s*to|gonna|want\w*\s*to|will|plan\w*\s*to|about\s*to)\s*jump\s*(off|from|in\s*front\s*of)\b",
+        r"\blethal\s*dose\b",
+        r"\b(sav(ed|ing)|stockpil\w*|hoard\w*)\s*(up\s*)?(my\s*|all\s*my\s*|enough\s*)?(sleeping\s*)?(pills?|tablets?|meds|medications?)\b",
+        r"\b(pills?|tablets?|meds|medications?)\s*(saved|stashed|stockpiled|hoarded)\b",
+        # "kms" (kill myself); "5 kms" (kilometres) is excluded.
+        r"(?<!\d)(?<!\d\s)\bkms\b",
+        r"\bwant\w*\s*(the\s*pain\s*to\s*(stop|end)\s*(forever|for\s*good|permanently)|(it\s*all|everything)\s*to\s*(end|stop))\b",
     ],
     DistressLevel.SEVERE: [
         r"\b(hopeless|worthless|can'?t\s*go\s*on|give\s*up|no\s*point|nothing\s*matters?)\b",
         r"\b(don'?t\s*know\s*if\s*i\s*can\s*go\s*on)\b",
+        # 2026-10-04 (product audit). "What is the point of life?" stays a
+        # doctrine question; only living / being alive / life anymore counts.
+        r"\bwhat('?s|\s*is)\s*the\s*point\s*(of|in)\s*(living|being\s*alive|going\s*on|life\s*any\s*more)\b",
+        r"\b(i'?m|i\s*am|i\s*feel\s*like)\s*(just\s*|such\s*)?a\s*burden\b",
+        r"\bhow\s*many\s*(\w+\s*){0,2}(pills?|tablets?|paracetamol|sleeping\s*pills)\s*(would|will|does|do)\s*(it\s*)?(take|kill)\b",
         # Passive ideation (red team 2026-09-26): "don't see the point of going on".
         r"\bdon'?t\s+see\s+(the\s+)?point\s+(of|in)\s+(going\s+on|continuing|living|trying)\b",
         r"\b(deeply?\s*(depressed|sad|lonely)|unbearable\s*pain)\b",
@@ -278,6 +296,9 @@ _TE_PATTERNS = {
     # a native Telugu speaker — see evals/README.md.
     DistressLevel.CRISIS: [
         r"(ఆత్మహత్య|చచ్చిపోవాలని|బతకడం\s*ఇష్టం\s*లేదు)",
+        # 2026-10-04: standard "chanipo" ("I want to die"); only the colloquial
+        # "chachipo" was covered. UNVERIFIED by a native speaker.
+        r"(చనిపోవాల|చనిపోతాను|చావాలని)",
         r"(బతకాలని\s*(అనుకోవడం\s*లేదు|లేదు)|జీవితాన్ని\s*(అంతం|ముగించు))",
         r"(లేకపోతే\s*(అందరూ|అందరికీ)\s*బాగు)",
     ],
@@ -295,6 +316,8 @@ _KN_PATTERNS = {
     # a native Kannada speaker — see evals/README.md.
     DistressLevel.CRISIS: [
         r"(ಆತ್ಮಹತ್ಯೆ|ಸಾಯಬೇಕು|ಬದುಕಲು\s*ಇಷ್ಟ\s*ಇಲ್ಲ)",
+        # 2026-10-04: formal "I wish to die". UNVERIFIED by a native speaker.
+        r"(ಸಾಯಲು\s*ಬಯಸ)",
         r"(ಬದುಕಲು\s*ಬಯಸುವುದಿಲ್ಲ|ಜೀವನವನ್ನು\s*ಕೊನೆಗೊಳಿಸ)",
         r"(ಇಲ್ಲದೆ\s*ಎಲ್ಲರೂ\s*ಚೆನ್ನಾಗಿರು|ನಾನಿಲ್ಲದೆ\s*ಎಲ್ಲರೂ)",
         # 2026-09-22 (red-team R3, UNVERIFIED — needs native speaker review):
@@ -459,6 +482,10 @@ _TE_ROMANIZED_PATTERNS = {
         # found by a fresh reviewer re-testing "naaku ika bratakalani ledu".
         # బతకాలని లేదు / బతకడం ఇష్టం లేదు — "don't want to live"
         r"\b(jeevitanni\s*antham|jeevitanni\s*muginchu)\b",  # జీవితాన్ని అంతం/ముగించు
+        # 2026-10-04: "want to die" verb forms (chachipovalani / chanipovalani /
+        # chanipothanu / chaavaalani). Past forms ("chanipoyaru", someone died)
+        # are deliberately excluded: grief is not ideation. UNVERIFIED.
+        r"\b(chachipov[aā]+l\w*|chanipov[aā]+l\w*|chachipotha\w*|chanipotha\w*|chaav[aā]*li\w*|chavali\w*)\b",
     ],
     DistressLevel.SEVERE: [
         r"\b(niraasha|tattukoleni)\b",  # నిరాశ, తట్టుకోలేను
@@ -1002,6 +1029,9 @@ class SereneMindEngine:
         Returns:
             DistressAssessment with level, confidence, and recommended response type
         """
+        # Phones type U+2019 for "'" (smart punctuation); every "don'?t"-style
+        # pattern is written with ASCII, so fold it before scanning.
+        message = message.replace("\u2019", "'").replace("\u2018", "'")
         # Third-party concern takes priority over the ordinary first-person
         # scan below — see _THIRD_PARTY_CONCERN_RE's module-level docstring.
         if _THIRD_PARTY_CONCERN_RE.search(message):
