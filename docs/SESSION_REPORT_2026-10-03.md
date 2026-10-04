@@ -1039,3 +1039,12 @@ Pre-pass `link_entities` (lexicon + transliteration variants, 1.0
 precision on 25 fixtures, 0.18ms, 0 LLM) + gated hook (default OFF,
 live ranking byte-identical, no-op proven). Re-ran 14 passed.
 Committed below.
+
+### §9ah — FP wiring sweep DONE + verified (2026-10-04)
+Read path SOUND, OKF never-cite SOUND (4 layers), guards SOUND
+(1402/1402 rights-cleared, host exclusion ×4, quarantine proven),
+follow-up WIRED+TESTED. Punchlist triaged: P1 rights/eligible index
+HALF-STALE (code declares bool post-T3; live keyword migration still
+deferred post-driver — tracked); quality_status unused index NEW
+minor (drop-or-wire post-run); quote_weaver latent hole unreachable
+today (queue with verification); alias + revocation notes tracked.
