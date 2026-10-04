@@ -808,14 +808,63 @@ RPM — different layers, no contradiction. S2 made zero code changes.
 Railway deploy config) are unattributed — claimed by none of
 S1/S3/S4; excluded from all commit scopes until owner attributes.
 
-### §9m — Commit verdict: SET, grant pending (2026-10-04 ~05:30 IST)
-End gates: full backend suite **8490 passed** from repo root + the 9
+### §9m — Commit verdict: SET, grant pending (2026-10-04 ~05:30 IST)End gates: full backend suite **8490 passed** from repo root + the 9
 failures proven to be orchestrator CWD error (relative-path tests;
 **23 passed** re-run from `backend/` — effective FULL GREEN); ruff
 clean (S1 driver + S4 files, re-ran); S4 pytest 17 passed (re-ran);
 tsc + `npm run build` green (29 routes incl. `/trust`); ingest driver
 30758 alive, Qdrant 1038 pts, `deletions=0`. Lesson: backend suite
 must run from `backend/` (`make test-backend` does this).
+
+### §9q — V4 teaching-accuracy eval DONE + COMMIT EXECUTED (2026-10-04 ~10:10 IST)
+Doc `docs/TEACHING_ACCURACY_EVAL_2026-10-04.md` (12.9 KB, uncommitted —
+eval evidence, held out of the commit). Orchestrator verified: no
+`OFF_TOPIC` handler exists in `backend/app` + `backend/services`
+(both greps empty) → abstention-FAIL mechanism confirmed; orphan video
+absent from `memory/` (V4's 0-Qdrant-points re-verification accepted;
+own scroll timed out under load — noted honestly). Scorecard:
+citations 19/20 (1 orphan), verbatim 7/11 exact (9/11 w/ polish),
+fabrications 0 proven + 1 untraceable, abstention FAIL, completeness
+0/4 FAIL, safety PASS. Verdict CONDITIONAL FAIL — gates certify clip
+integrity, not answer correctness.
+**Commit executed** under owner's "complete what you are doing"
+authorization: `be4bc670` on branch
+`fix/first-person-harness-translation-crisis-2026-09-28` — 28 files,
+2415+/31−, scoped exactly (S1 driver, S4 ritual+trust+locales,
+S3/research docs, handoff/report). Excluded: parallel-session files,
+unattributed `railway.json`×2, gitignored `.claude/` plans, eval doc.
+NOT pushed (N8 — owner pushes). Remaining uncommitted: 34 paths
+(parallel session + held items).
+
+### §9r — Handoff-completion sweep: F1 + F2 DONE + verified (2026-10-04)
+14 handoff files audited (~4,458 lines, 3 readers): net = most items
+completed/stale/owner-gated; agent-actionable remainder dispatched as
+F1/F2/F3. **F1:** cookies.txt re-deleted, settings allows tightened,
+diff-check clean, dream 0.95 + test (3 passed re-ran), ack/DLQ + backup
++ kb_sources reported. **F2:** `rag/memory.py` gains
+`extract_memory_insights` + `memory_relevance_gate` +
+`inject_memory_context` (getattr-defaults, no config dependency);
+2 new test files (37 tests); `personalized_recall.py` PASS
+(20/20 recall, p95Δ 136ms ≤ 200). Orchestrator re-ran: **37 passed**,
+ruff check + format clean, scope exact. Wiring deferred with proposal
+(double-fetch avoidance). F3 (H-FALSE/failover/idempotency/D2)
+backgrounded. Archives intentionally unmodified (provenance); verdict
+lives here + handoff.md.
+
+### §9s — Handoff sweep F3 DONE + verified; SWEEP COMPLETE (2026-10-04)
+F3 (6 M + 1 new, scope exact): H-FALSE-2 structural graph check,
+H-FALSE-3 breaker-state AND, H-FALSE-4 falsified+pinned, H-FALSE-5
+pinned (10 tests); OpenRouter **404→fallback fixed** (was
+record_failure+raise; 7/7); checkpoint keys namespaced
+`corpus:v:collection:identity` with legacy fallback (25/25);
+D2 chunk-timing wire-through with drop-on-mismatch + scratch e2e
+11/11 (span-provenance remainder proposed, not smuggled).
+Orchestrator re-ran **34 passed**, ruff check + format clean.
+**Sweep verdict: all 14 handoff files done** — every agent-actionable
+item fixed+verified or proposal-queued; rest is owner-gated (pushes,
+prod migration, Railway, gold labels, video) or evidence-gated
+(graph/loop changes, disputed-rate threshold, rerank). F1/F2/F3 work
+uncommitted (next scoped commit with owner grant).
 
 ### §9n — V2 memory-LLM audit DONE + verified (2026-10-04 ~09:40 IST)
 Doc `docs/MEMORY_INTELLIGENCE_AUDIT_2026-10-04.md` (21.5 KB). Orchestrator

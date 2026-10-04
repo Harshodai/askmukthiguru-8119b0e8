@@ -26,8 +26,13 @@ def _is_retryable_openrouter_error(exc: BaseException) -> bool:
     quota that's exhausted doesn't refill that fast. Retrying just adds
     latency before the inevitable graceful-degradation fallback. Other
     transient httpx/timeout errors are still worth a retry.
+    401/403/404 are never fixed by retrying the identical request: bad
+    credentials stay bad, and a 404 means the model id is gone from
+    OpenRouter (de-listed) or the route is wrong — the same payload will
+    404 again. 404s are handled one level up by failing over to
+    fallback_model, not by retrying in place.
     """
-    if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code in (401, 403, 429):
+    if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code in (401, 403, 404, 429):
         return False
     return isinstance(exc, (httpx.HTTPError, asyncio.TimeoutError))
 
@@ -397,7 +402,9 @@ class OpenRouterService:
 
         On a 429/connection-error, retries once against `fallback_model` (a
         different model — a different rate-limit bucket entirely — before
-        falling back to graceful degradation). Falls back to graceful
+        falling back to graceful degradation). A 404 (model de-listed from
+        OpenRouter) also fails over to `fallback_model`: retrying the same
+        model id in place can never succeed. Falls back to graceful
         degradation when OpenRouter is unavailable for both.
 
         The local `_enforce_rate_limit`/`_record_rate_limit_response` counters
@@ -662,6 +669,13 @@ class OpenRouterService:
             is_server_error = (
                 isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code >= 500
             )
+            # 404 from OpenRouter means the model id is gone (de-listed) —
+            # retrying it in place (excluded from tenacity above) can never
+            # succeed, but the fallback model id is a different model and is
+            # worth one attempt before degrading.
+            is_model_not_found = (
+                isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code == 404
+            )
             is_connection_error = isinstance(
                 exc,
                 (
@@ -673,13 +687,24 @@ class OpenRouterService:
                 ),
             )
             is_malformed_payload = isinstance(exc, (ValueError, json.JSONDecodeError))
-            if is_rate_limit or is_server_error or is_connection_error or is_malformed_payload:
+            if (
+                is_rate_limit
+                or is_server_error
+                or is_model_not_found
+                or is_connection_error
+                or is_malformed_payload
+            ):
                 has_fallback = bool(fallback_model and not _is_fallback_attempt)
                 if is_rate_limit:
                     await self._record_rate_limit_response()
                 elif not has_fallback:
                     self._circuit.record_failure()
-                reason = "rate limited (429)" if is_rate_limit else type(exc).__name__
+                if is_rate_limit:
+                    reason = "rate limited (429)"
+                elif is_model_not_found:
+                    reason = "model not found (404)"
+                else:
+                    reason = type(exc).__name__
                 if has_fallback:
                     logger.warning(
                         f"OpenRouter {reason} during {operation} — retrying against "
@@ -705,6 +730,14 @@ class OpenRouterService:
                     # of mistaking canned graceful text for a success.
                     raise ProviderConnectionError(
                         f"OpenRouter {reason} during {operation}"
+                    ) from exc
+                if strict_gateway and is_model_not_found:
+                    # Gateway path, model de-listed: fail loud, not canned.
+                    # A 404 is a config error (wrong model id), not an outage
+                    # — serving graceful-degradation text as the answer would
+                    # hide it until someone reads the logs.
+                    raise ProviderConnectionError(
+                        f"OpenRouter {reason} during {operation} (model={model})"
                     ) from exc
                 logger.warning(f"OpenRouter {reason} during {operation} — graceful degradation")
                 return await self._graceful_degradation(messages, operation=operation)

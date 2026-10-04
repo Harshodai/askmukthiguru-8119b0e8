@@ -51,6 +51,20 @@ class Fake503Response:
         return {"error": {"message": "Service unavailable"}}
 
 
+class Fake404Response:
+    """Primary model de-listed from OpenRouter. Must fail over, not raise."""
+
+    status_code = 404
+
+    def raise_for_status(self):
+        req = httpx.Request("POST", "https://openrouter.ai/api/v1/chat/completions")
+        resp = httpx.Response(404, request=req)
+        raise httpx.HTTPStatusError("404 Not Found", request=req, response=resp)
+
+    def json(self):
+        return {"error": {"message": "No endpoints found for deepseek/deepseek-chat"}}
+
+
 class FakeSuccessResponse:
     status_code = 200
 
@@ -83,6 +97,64 @@ async def test_openrouter_malformed_json_degrades_gracefully(monkeypatch):
     assert isinstance(res, str)
     assert len(res) > 0
     # Must return a graceful fallback string, not crash with uncaught json/value error
+    assert "connectivity issue" in res.lower() or "connection issue" in res.lower()
+
+
+@pytest.mark.asyncio
+async def test_openrouter_404_recovers_via_fallback_model(monkeypatch):
+    """A 404 means the primary model id is de-listed: retrying it in place
+    can never succeed, so the request must fail over to the fallback model
+    (one attempt) instead of raising."""
+    monkeypatch.setattr(settings, "openrouter_generation_model", "deepseek/deepseek-chat")
+    monkeypatch.setattr(
+        settings, "openrouter_generation_model_fallback", "meta-llama/llama-3.3-70b-instruct"
+    )
+    monkeypatch.setattr(settings, "llm_max_retries", 1)
+
+    models_called = []
+
+    class FakeFailoverClient:
+        async def post(self, url, json=None, **kwargs):
+            model = json.get("model") if json else None
+            models_called.append(model)
+            if model == "deepseek/deepseek-chat":
+                return Fake404Response()
+            return FakeSuccessResponse()
+
+    async def fake_get_client(self):
+        return FakeFailoverClient()
+
+    monkeypatch.setattr(OpenRouterService, "_get_http_client", fake_get_client)
+
+    svc = OpenRouterService()
+    res = await svc.generate(system_prompt="Be a monk", user_prompt="What is peace?")
+
+    assert models_called == ["deepseek/deepseek-chat", "meta-llama/llama-3.3-70b-instruct"]
+    assert res == "Wisdom from the fallback model."
+
+
+@pytest.mark.asyncio
+async def test_openrouter_404_without_fallback_degrades_gracefully(monkeypatch):
+    """A 404 with no fallback model configured must not raise on the chat
+    path: it degrades gracefully (same as a 5xx with no fallback)."""
+
+    class Fake404Client:
+        async def post(self, url, json=None, **kwargs):
+            return Fake404Response()
+
+    async def fake_get_client(self):
+        return Fake404Client()
+
+    monkeypatch.setattr(OpenRouterService, "_get_http_client", fake_get_client)
+    monkeypatch.setattr(settings, "openrouter_generation_model", "gone/removed-model")
+    monkeypatch.setattr(settings, "openrouter_generation_model_fallback", "")
+
+    svc = OpenRouterService()
+    res = await svc.generate(
+        system_prompt="Be a monk", user_prompt="What is freedom?", model="gone/removed-model"
+    )
+
+    assert isinstance(res, str)
     assert "connectivity issue" in res.lower() or "connection issue" in res.lower()
 
 

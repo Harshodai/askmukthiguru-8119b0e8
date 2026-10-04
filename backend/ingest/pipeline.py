@@ -97,6 +97,22 @@ class EmbedIndexConfig:
     chunk_speakers: Optional[list[Optional[str]]] = None
     transcript_hash: Optional[str] = None
 
+    # Optional per-chunk timing/alignment (D2 wire-through). Each is parallel
+    # to `chunks` with None entries where unknown: seconds for starts/ends,
+    # per-chunk clip dicts (start/end/snapped bounds) for clips. Persisted to
+    # the Qdrant payload as chunk_start/chunk_end/clip when present. A
+    # length-mismatched array is dropped, never guessed — a misaligned
+    # timestamp on the wrong chunk is a misattribution-class defect.
+    chunk_starts: Optional[list[Optional[float]]] = None
+    chunk_ends: Optional[list[Optional[float]]] = None
+    chunk_clips: Optional[list[Optional[dict]]] = None
+
+    # Source-level ASR/alignment provenance: which transcriber produced the
+    # timing (e.g. "parakeet", "whisper-large-v3", "two-asr-vote") and which
+    # forced aligner produced word times (e.g. "qwen3-forced-aligner").
+    asr_method: Optional[str] = None
+    align_method: Optional[str] = None
+
     # Optional indexing metadata
     extra_metadatas: Optional[list[dict]] = None
     source_type: Optional[str] = None
@@ -200,6 +216,31 @@ def _resolve_chunk_speakers_from_cache(
 
 # Allowed speaker roles — closed set to prevent LLM from inventing names/junk.
 _ALLOWED_SPEAKER_ROLES = frozenset({"teacher", "questioner", "translator", "narration", "unknown"})
+
+
+def _filter_parallel_timing(
+    values: Optional[list],
+    keep_indices: list[int],
+    expected_len: int,
+    source_url: str = "",
+) -> Optional[list]:
+    """Filter a chunk-parallel timing array through the survivor indices.
+
+    Drops (returns None) a length-mismatched array instead of guessing
+    alignment: a timestamp shifted onto the wrong chunk is worse than no
+    timestamp. Never raises.
+    """
+    if values is None:
+        return None
+    if len(values) != expected_len:
+        logger.warning(
+            "Dropping misaligned timing array for %s: got %d entries for %d chunks",
+            source_url,
+            len(values),
+            expected_len,
+        )
+        return None
+    return [values[i] if i < len(values) else None for i in keep_indices]
 
 
 async def _resolve_chunk_speakers_with_llm(
@@ -467,10 +508,69 @@ class IngestionPipeline:
                 )
             return _INGESTION_NEO4J_DRIVER
 
-    def _checkpoint_key(self, source_identity: str, source_version: int = 1) -> str:
-        """Namespace idempotency by corpus and the active immutable release."""
+    def _active_checkpoint_collection(self, override: Optional[str] = None) -> Optional[str]:
+        """Resolve the Qdrant collection an ingest is actually writing to.
+
+        Explicit override (e.g. ingest_raw_text's scratch-collection path)
+        wins; otherwise the pipeline's own QdrantService, otherwise the
+        process default. None when nothing is resolvable — callers then use
+        the legacy collection-blind key.
+        """
+        if isinstance(override, str) and override.strip():
+            return override.strip()
+        qdrant = getattr(self, "_qdrant", None)
+        name = getattr(qdrant, "_collection", None)
+        if isinstance(name, str) and name.strip():
+            return name.strip()
+        try:
+            name = getattr(settings, "qdrant_collection", None)
+        except Exception:
+            name = None
+        return name.strip() if isinstance(name, str) and name.strip() else None
+
+    def _checkpoint_key(
+        self, source_identity: str, source_version: int = 1, collection: Optional[str] = None
+    ) -> str:
+        """Namespace idempotency by corpus and the active immutable release.
+
+        collection adds the target Qdrant collection to the key
+        (``corpus:v3:scratch:identity``). The SAME source indexed into two
+        collections (scratch verification vs production) must not satisfy
+        each other's idempotency check — a collection-blind key turns the
+        second ingest into a phantom ``{"status": "success",
+        "chunks_indexed": 0}``. collection=None keeps the legacy
+        collection-blind format, so pre-existing checkpoints and all
+        default-collection paths behave exactly as before.
+        """
         active_version = self._resolve_active_source_version(source_identity, source_version)
-        return f"{self._corpus_id}:v{active_version}:{source_identity}"
+        base = f"{self._corpus_id}:v{active_version}:{source_identity}"
+        if isinstance(collection, str) and collection:
+            return f"{self._corpus_id}:v{active_version}:{collection}:{source_identity}"
+        return base
+
+    def _checkpoint_is_processed(
+        self,
+        checkpoint: IngestionCheckpoint,
+        source_identity: str,
+        source_version: int = 1,
+        collection: Optional[str] = None,
+    ) -> bool:
+        """Idempotency read with legacy fallback.
+
+        Checks the collection-namespaced key first, then the legacy
+        collection-blind key — entries written before namespacing (or by
+        paths that never knew their collection) must still short-circuit,
+        or every existing source would re-ingest once after this change.
+        Writes always use the namespaced key when a collection resolves.
+        """
+        if collection is None:
+            collection = self._active_checkpoint_collection()
+        if collection:
+            if checkpoint.is_processed(
+                self._checkpoint_key(source_identity, source_version, collection)
+            ):
+                return True
+        return checkpoint.is_processed(self._checkpoint_key(source_identity, source_version))
 
     def _persist_raw_corpus(
         self, content_hash: str, source_url: str, raw_text: str, source_type: str
@@ -1108,8 +1208,15 @@ class IngestionPipeline:
             tags = list(set(tags + doc_tags))
         content_hash = hashlib.sha256(text.strip().encode("utf-8")).hexdigest()
         checkpoint = IngestionCheckpoint()
-        _ckpt_key = self._checkpoint_key(content_hash, source_version)
-        if checkpoint.is_processed(_ckpt_key):
+        # Namespace by the collection actually being written: a scratch run
+        # (qdrant_collection override) must neither skip on production's
+        # checkpoint nor mark production content processed.
+        _ckpt_key = self._checkpoint_key(
+            content_hash, source_version, self._active_checkpoint_collection(qdrant_collection)
+        )
+        if self._checkpoint_is_processed(
+            checkpoint, content_hash, source_version, qdrant_collection
+        ):
             self._notify(on_progress, "Content already processed. Skipping.", 1.0)
             return {
                 "status": "success",
@@ -1323,7 +1430,7 @@ class IngestionPipeline:
                     }
                 logger.warning(f"optional ontology write unavailable for {source_url}: {e}")
 
-        checkpoint.save(self._checkpoint_key(content_hash, source_version))
+        checkpoint.save(_ckpt_key)
 
         # OKF auto-extraction: fire-and-forget for newly ingested content.
         # ponytail: gated by rag_okf_auto_extract_enabled (default on — hardened
@@ -2142,11 +2249,16 @@ class IngestionPipeline:
         if not videos:
             return {"status": "error", "message": "No videos found in playlist/channel"}
 
-        # Phase 1: Filter out already processed videos
+        # Phase 1: Filter out already processed videos.
+        # Namespaced by target collection: the same URL indexed into a
+        # scratch collection must not satisfy production's check (and vice
+        # versa) — otherwise the second ingest is a phantom success with
+        # chunks_indexed=0. Legacy collection-blind entries still count via
+        # _checkpoint_is_processed's fallback.
         checkpoint = IngestionCheckpoint()
         unprocessed_videos = []
         for i, video in enumerate(videos):
-            if checkpoint.is_processed(self._checkpoint_key(video["url"])):
+            if self._checkpoint_is_processed(checkpoint, video["url"]):
                 self._notify(
                     on_progress,
                     f"Skipping {i + 1}/{len(videos)}: {video.get('title', 'Unknown')[:50]}... (already processed)",
@@ -2197,7 +2309,7 @@ class IngestionPipeline:
             try:
                 raw_text = transcript["text"]
                 content_hash_pl = hashlib.sha256(raw_text.strip().encode("utf-8")).hexdigest()
-                if checkpoint.is_processed(self._checkpoint_key(content_hash_pl)):
+                if self._checkpoint_is_processed(checkpoint, content_hash_pl):
                     continue
 
                 # Correct + audit
@@ -2353,12 +2465,20 @@ class IngestionPipeline:
                             f"optional ontology write unavailable for {video['url']}: {e}"
                         )
 
-                checkpoint.save(self._checkpoint_key(content_hash_pl), {"url": video["url"]})
+                checkpoint.save(
+                    self._checkpoint_key(
+                        content_hash_pl, collection=self._active_checkpoint_collection()
+                    ),
+                    {"url": video["url"]},
+                )
                 # ponytail: also save under the URL key so the pre-fetch Phase 1
                 # filter above (which can't know content_hash before fetching)
                 # still skips re-fetching this video on the next playlist run.
                 checkpoint.save(
-                    self._checkpoint_key(video["url"]), {"content_hash": content_hash_pl}
+                    self._checkpoint_key(
+                        video["url"], collection=self._active_checkpoint_collection()
+                    ),
+                    {"content_hash": content_hash_pl},
                 )
                 processed += 1
 
@@ -2864,6 +2984,11 @@ class IngestionPipeline:
         chunk_speakers = config.chunk_speakers
         extra_metadatas = config.extra_metadatas
         transcript_hash = config.transcript_hash
+        chunk_starts = config.chunk_starts
+        chunk_ends = config.chunk_ends
+        chunk_clips = config.chunk_clips
+        asr_method = config.asr_method
+        align_method = config.align_method
 
         qdrant = config.qdrant_override or self._qdrant
 
@@ -3002,6 +3127,12 @@ class IngestionPipeline:
             chunk_speakers = [
                 chunk_speakers[i] if i < len(chunk_speakers) else None for i in keep_indices
             ]
+        # D2 timing wire-through: keep every parallel timing array aligned
+        # with the surviving chunks. Length-mismatched arrays are dropped,
+        # never positionally guessed (see EmbedIndexConfig).
+        chunk_starts = _filter_parallel_timing(chunk_starts, keep_indices, len(chunks), source_url)
+        chunk_ends = _filter_parallel_timing(chunk_ends, keep_indices, len(chunks), source_url)
+        chunk_clips = _filter_parallel_timing(chunk_clips, keep_indices, len(chunks), source_url)
 
         # P1-10: resolve per-chunk speaker labels. Prefer pre-resolved (LLM fallback or
         # whisperx cache); otherwise fall back to the whisperx cache lookup.
@@ -3080,6 +3211,13 @@ class IngestionPipeline:
                 # this video, when the source came through that pipeline — a
                 # provenance pointer, never used for retrieval or embedding.
                 "transcript_hash": transcript_hash,
+                # D2 timing wire-through (per-chunk when the caller knew it).
+                "chunk_start": chunk_starts[i] if chunk_starts is not None else None,
+                "chunk_end": chunk_ends[i] if chunk_ends is not None else None,
+                "clip": chunk_clips[i] if chunk_clips is not None else None,
+                # D2 ASR/alignment provenance (source-level when known).
+                "asr_method": asr_method,
+                "align_method": align_method,
             }
             # P1-10: per-chunk speaker label (whisperx diarization or LLM fallback).
             # Overrides the source-level `speaker` for this specific chunk when present.
