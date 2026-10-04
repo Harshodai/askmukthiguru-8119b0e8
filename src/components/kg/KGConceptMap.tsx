@@ -343,7 +343,9 @@ export const KGConceptMap = ({ initialQuery = '', embedded = false }: { initialQ
             t('kg.personalMapUnavailable', 'Your personal wisdom map is unavailable right now. Please try again.'),
           );
         } else {
-          setError(t('kg.errorLoading', "Couldn't load graph: {{error}}", { error: 'live data unavailable' }));
+          setData(DEMO_DATA);
+          setIsDemo(true);
+          setError(null);
         }
       } finally {
         setLoading(false);
