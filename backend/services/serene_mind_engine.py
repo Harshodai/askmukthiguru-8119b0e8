@@ -58,6 +58,32 @@ class DistressAssessment:
 # Multi-language distress patterns
 # ---------------------------------------------------------------------------
 
+# Contraction / negation folding (2026-10-05, live release run rt5b: "I cannot
+# go on" scored NONE while "can't go on" matched). Every English pattern is
+# written with the contracted form ("can'?t", "don'?t"), so the scan also runs
+# on a copy where the spelled-out and apostrophe-less forms are folded to it.
+# The original text is always scanned too: folding can only add matches.
+_CONTRACTION_FOLDS: tuple[tuple[re.Pattern, str], ...] = (
+    (re.compile(r"\bcan\s*not\b|\bcant\b", re.IGNORECASE), "can't"),
+    (re.compile(r"\bdo\s+not\b|\bdont\b", re.IGNORECASE), "don't"),
+    (re.compile(r"\bdoes\s+not\b|\bdoesnt\b", re.IGNORECASE), "doesn't"),
+    (re.compile(r"\bdid\s+not\b|\bdidnt\b", re.IGNORECASE), "didn't"),
+    (re.compile(r"\bwill\s+not\b|\bwont\b", re.IGNORECASE), "won't"),
+    (re.compile(r"\bcould\s+not\b|\bcouldnt\b", re.IGNORECASE), "couldn't"),
+)
+
+
+def normalize_contractions(text: str) -> str:
+    """Fold curly apostrophes and spelled-out / apostrophe-less negations
+    ("cannot", "can not", "cant", "do not", "dont" ...) to the contracted
+    form the patterns use. Lower-cases nothing; callers scan it as an extra
+    variant next to the original text."""
+    out = (text or "").replace("\u2019", "'").replace("\u2018", "'").replace("\u02bc", "'")
+    for rx, repl in _CONTRACTION_FOLDS:
+        out = rx.sub(repl, out)
+    return out
+
+
 # English distress patterns
 # Letters-only crisis phrases for obfuscated input (see assess_distress).
 _OBFUSCATED_CRISIS = re.compile(
@@ -76,6 +102,18 @@ _SEVERE_IDEATION_CHECKIN_MARKERS = [
     r"wish\w*\s*(i\s*)?(could\s*)?(just\s*)?(go\s*to\s*)?(sleep\s*and\s*)?(never|not)\s*wake\s*up",
     r"\bwish\w*\s*(i\s*)?(was|were)\s*dead\b",
     r"\bdon'?t\s*want\s*to\s*exist\b",
+    # 2026-10-05 (live release run rt5a): "I want to disappear" scored NONE and
+    # got a generated teacher-voice answer with no helpline. Passive ideation:
+    # disappear / vanish / not exist / not be here, as a wish or want of the
+    # speaker. "make the stress disappear" does not match ("want to" must
+    # govern the verb directly). AI-AUTHORED, PENDING-CLINICIAN-REVIEW.
+    r"\b(want\w*|wanna|wish\w*|need\w*)\s*(to\s*)?(just\s*|simply\s*)?"
+    r"(disappear|vanish|stop\s*existing|cease\s*to\s*exist|not\s*exist|not\s*be\s*here)\b"
+    r"(?!\s+into\s+(meditation|the\s+practice|silence|stillness|the\s+teaching))",
+    r"\bwish\w*\s*(that\s*)?i\s*(could\s*)?(just\s*)?(disappear|vanish)\b",
+    r"\bwish\w*\s*(that\s*)?i\s*(was|were)\s*(not\s*here|gone|never\s*born)\b",
+    r"\bwish\w*\s*(that\s*)?i\s*(didn'?t|did\s*not|don'?t)\s*exist\b",
+    r"\bno\s*(reason|point)\s*(to|in|of)\s*(go\s*on\s*|keep\s*on\s*)?(living|live|being\s*alive|going\s*on|carrying\s*on|keep\w*\s*going)\b",
     r"\b(i\s*want\s*to|let\s*me|i\s*wish\s*to)\s*leave\s*(this|my)\s*body\b",
 ]
 _SEVERE_IDEATION_CHECKIN_RE = re.compile("|".join(_SEVERE_IDEATION_CHECKIN_MARKERS), re.IGNORECASE)
@@ -207,7 +245,13 @@ _EN_PATTERNS = {
         r"\bwant\w*\s*(the\s*pain\s*to\s*(stop|end)\s*(forever|for\s*good|permanently)|(it\s*all|everything)\s*to\s*(end|stop))\b",
     ],
     DistressLevel.SEVERE: [
-        r"\b(hopeless|worthless|can'?t\s*go\s*on|give\s*up|no\s*point|nothing\s*matters?)\b",
+        r"\b(hopeless|worthless|give\s*up|no\s*point|nothing\s*matters?)\b",
+        # "can't go on" as a statement about going on, not "can't go on a trip"
+        # (2026-10-05). Matched on the contraction-folded text too, so
+        # "cannot / can not / cant go on" score the same (live rt5b scored NONE).
+        r"\bcan'?t\s*(go|carry|keep)\s*on(?=\s*$|\s*[.!?,;:]|\s+(any\s*more|like\s*this|living|"
+        r"with\s*(my\s*)?life|without|in\s*this\s*life|for\s*much\s*longer|no\s*more)\b)",
+        r"\bcan'?t\s*(take|handle|bear|stand|do)\s*(it|this|life)\s*any\s*more\b",
         # 2026-09-28 (owner-approved re-tier, C-SSRS screener-item-1 style
         # passive ideation): "I wish I could sleep and never wake up", "I
         # wish I were dead", "I don't want to exist", and ambiguous spiritual
@@ -1127,6 +1171,9 @@ class SereneMindEngine:
         # Also scan the de-obfuscated text (spaced letters, leetspeak, homoglyphs).
         # It can only add matches; the original text is always scanned too.
         variants = [message_lower]
+        folded = normalize_contractions(message_lower)
+        if folded != message_lower:
+            variants.append(folded)
         deobfuscated = deobfuscate(message)
         if deobfuscated != message_lower:
             variants.append(deobfuscated)
@@ -1189,7 +1236,10 @@ class SereneMindEngine:
         # the generic SEVERE template — checked against the exact same
         # pattern list used to build that tier (_SEVERE_IDEATION_CHECKIN_RE),
         # so this can never silently drift from the patterns themselves.
-        if max_level == DistressLevel.SEVERE and _SEVERE_IDEATION_CHECKIN_RE.search(message):
+        if max_level == DistressLevel.SEVERE and (
+            _SEVERE_IDEATION_CHECKIN_RE.search(message)
+            or _SEVERE_IDEATION_CHECKIN_RE.search(normalize_contractions(message))
+        ):
             recommended_response_type = "severe_ideation_checkin"
 
         # Detect language for response localization
@@ -1453,12 +1503,14 @@ class SereneMindEngine:
     def _quick_distress_check(self, text: str) -> bool:
         """Quick check if a message contains any distress signals (for history analysis)."""
         text_lower = text.lower()
+        latin = [text_lower, normalize_contractions(text_lower)]
         for lang, levels in _ALL_PATTERNS.items():
             for level, patterns in levels.items():
                 if level >= DistressLevel.MODERATE:
                     for pattern in patterns:
-                        if pattern.search(text_lower if lang in _LATIN_SCRIPT_LANGS else text):
-                            return True
+                        for variant in latin if lang in _LATIN_SCRIPT_LANGS else [text]:
+                            if pattern.search(variant):
+                                return True
         return False
 
     def _detect_language(self, text: str) -> str:

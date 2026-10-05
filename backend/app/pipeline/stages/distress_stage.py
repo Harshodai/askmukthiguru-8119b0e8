@@ -50,6 +50,9 @@ _DISTRESS_KEYWORD_RE = re.compile(
     r"\b(suicid|kill\s*my|want\s*to\s*die|end\s*my\s*life|hurt\s*my|self[-\s]*harm|"
     r"hopeless|crying|panic|anxiety|depress|grief|alone|miserable|worthless|"
     r"helpless|nobody\s*cares|no\s*point|give\s*up|can'?t\s*go\s*on|overwhelm|"
+    # 2026-10-05: spelled-out negation and passive ideation (live rt5a/rt5b).
+    r"can\s*not\s*go\s*on|cant\s*go\s*on|can\u2019t\s*go\s*on|disappear|vanish|"
+    r"not\s*exist|take\s*it\s*any\s*more|"
     r"afraid|scared|terrif|agony|desper|broken|tut\s*chuk|"
     r"akela|kashtam|dukh|takleef|udas)\b",
     re.IGNORECASE,

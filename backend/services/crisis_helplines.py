@@ -291,6 +291,58 @@ def format_helplines_block(
     return "\n".join(lines)
 
 
+def format_support_line() -> str:
+    """One short, deterministic support line, India first (2026-10-05).
+
+    Appended to every answer that ends in the DISTRESS intent, so a seeker who
+    is struggling but below the crisis pre-emption tier still sees a human
+    number. Numbers come from helplines.yaml (Tele-MANAS, then 988 and
+    Samaritans when configured); nothing is hard-coded here.
+    """
+    helplines = get_helplines()
+
+    def _pick(region: str, name_part: str) -> Helpline | None:
+        return next(
+            (
+                h
+                for h in helplines
+                if h.region.lower() == region and name_part.lower() in h.name.lower()
+            ),
+            None,
+        )
+
+    picks = [
+        _pick("india", "tele-manas") or _pick("india", "kiran"),
+        _pick("united states", "988"),
+        _pick("united kingdom", "samaritans"),
+    ]
+    parts = [f"{h.region} {h.name.split(' (')[0]} {h.contact}" for h in picks if h]
+    emergency = _pick("india", "emergency")
+    tail = (
+        f" In an emergency, call {emergency.contact} (India) or your local number."
+        if emergency
+        else ""
+    )
+    if not parts:
+        return ""
+    return (
+        "If this feels heavy, you don't have to carry it alone. You can talk to someone now: "
+        + " · ".join(parts)
+        + "."
+        + tail
+    )
+
+
+def ensure_support_line(answer: str) -> str:
+    """``answer`` with the support line appended unless a helpline block is
+    already there (the crisis pre-emption copy carries the full list)."""
+    text = answer or ""
+    line = format_support_line()
+    if not line or line in text or "Tele-MANAS" in text or "14416" in text:
+        return text
+    return f"{text.rstrip()}\n\n{line}" if text.strip() else line
+
+
 def format_domestic_violence_helplines_block(
     *,
     region: str | None = None,

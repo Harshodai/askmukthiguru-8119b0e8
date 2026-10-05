@@ -72,6 +72,8 @@ _SYNTHESIS_SHAPE_RE = re.compile(
     r"\bdifference\s+between\b|\bdiffer(?:s|ent)?\s+from\b|\bvs\b\.?|\bversus\b"
     r"|\bcompar\w*|\bcontrast\w*"
     r"|\broot\s+causes?\b|\bwhat\s+causes?\b|\bwhy\s+(?:do|does|am)\b(?!\s+you\b)"
+    # "is X the only cause", "the cause of" (2026-10-05, live rt3)
+    r"|\b(?:only|real|main|true)\s+causes?\b|\bthe\s+causes?\s+of\b"
     r"|\bhow\s+(?:(?:can|do|should|could)\s+(?:i|we)|to)\b.{0,40}?"
     r"\b(?:heal|overcome|stop|deal|let\s+go|repair|fix|forgive|cope|handle|get\s+over"
     r"|break\s+free|release|reconcile|move\s+on)\b"
@@ -441,9 +443,16 @@ class FirstPersonBridgeStage(Stage):
         # A clip cannot carry the relationship safety boundary
         # (OutputGuardrailStage appends it on the graph path), so a
         # relationship-repair question never takes the bridge.
-        from guardrails.lightweight_handler import needs_relationship_safety_boundary
+        from guardrails.lightweight_handler import (
+            needs_addiction_support_boundary,
+            needs_relationship_safety_boundary,
+        )
 
-        if _SYNTHESIS_SHAPE_RE.search(query) or needs_relationship_safety_boundary(query):
+        if (
+            _SYNTHESIS_SHAPE_RE.search(query)
+            or needs_relationship_safety_boundary(query)
+            or needs_addiction_support_boundary(query)
+        ):
             logger.info(
                 "[FirstPersonBridge] Question needs synthesis, not one clip; GraphStage runs."
             )

@@ -1365,6 +1365,31 @@ async def handle_casual(state: GraphState, config: Optional[RunnableConfig] = No
 _PLACEHOLDER_SALUTATION_RE = re.compile(r"^Dear\s*[\[{]\s*\w+\s*[\]}]\s*,", re.IGNORECASE)
 
 
+_HAZARDOUS_DISTRESS_SENTENCE_RE = re.compile(
+    r"\blife\s+itself\b|\bend(?:ing)?\s+(?:it|it\s+all|your\s+life|their\s+life|one'?s\s+life)\b"
+    r"|\b(?:die|dying|death|suicid\w*|kill\w*)\b|\brock\s+bottom\b"
+    r"|\bquit(?:ting)?\s+(?:life|everything|living)\b|\bgive\s+up\s+on\s+life\b",
+    re.IGNORECASE,
+)
+
+
+def _drop_hazardous_distress_sentences(text: str) -> str:
+    """Remove sentences that talk about quitting life, dying or rock bottom.
+
+    Deterministic: applied to the generated distress-lane prose only. The
+    helpline copy is appended after this, so it is never filtered.
+    """
+    if not text:
+        return text
+    kept_paragraphs = []
+    for para in text.split("\n\n"):
+        sentences = re.split(r"(?<=[.!?])\s+", para)
+        kept = [s for s in sentences if not _HAZARDOUS_DISTRESS_SENTENCE_RE.search(s)]
+        if kept and any(k.strip() for k in kept):
+            kept_paragraphs.append(" ".join(kept))
+    return "\n\n".join(kept_paragraphs).strip()
+
+
 @trace_rag_node("handle_distress")
 @log_metrics
 async def handle_distress(state: GraphState, config: Optional[RunnableConfig] = None) -> dict:
@@ -1403,6 +1428,7 @@ async def handle_distress(state: GraphState, config: Optional[RunnableConfig] = 
             logger.error(f"Inline retrieval for distress failed: {e}", exc_info=True)
 
     response = ""
+    generated = False  # True only for model prose; templates are never filtered
     if relevant_docs and ollama is not None:
         from rag.nodes.generation import build_knowledge_block
 
@@ -1476,10 +1502,11 @@ Retrieved teachings from Sri Preethaji and Sri Krishnaji:
             prompt = f"""Based on the provided teachings, compose a deeply compassionate response for a user in emotional distress that:
 1. Acknowledges their pain with genuine empathy
 2. Shares the MOST relevant teaching that speaks directly to their situation
-3. Uses {voice_teacher}'s words naturally, as if the guru is speaking directly — commit to this one voice, do not blend both teachers in the same response
-4. Offers to guide them through a Serene Mind meditation
-5. Keeps the tone warm, personal, and non-clinical
-6. {_no_scripted_opener}
+3. Quotes {voice_teacher} only with words that appear in the retrieved teachings, in quotation marks; never speak as the teacher yourself
+4. Never quotes or paraphrases a passage about giving up, quitting life, death, dying or "rock bottom"; the person may be at risk
+5. Offers, without pressure, a short Serene Mind meditation they can stop at any time
+6. Keeps the tone warm, personal, and non-clinical
+7. {_no_scripted_opener}
 
 User message: {question}
 
@@ -1492,6 +1519,7 @@ Retrieved teachings from Sri Preethaji and Sri Krishnaji:
                 user_prompt=prompt,
                 temperature=0.3,
             )
+            generated = bool(response and response.strip())
             if not response or not response.strip():
                 logger.warning(
                     "Distress generation returned empty response. Falling back to template."
@@ -1521,6 +1549,14 @@ Retrieved teachings from Sri Preethaji and Sri Krishnaji:
     # generation artifact, not a prompt bug; strip it defensively regardless
     # of which model produced it.
     response = _PLACEHOLDER_SALUTATION_RE.sub("Dear one,", response.strip())
+    # 2026-10-05 (live rt5a): "I want to disappear" was answered with teacher
+    # text about "an urge to quit ... at times, life itself". Sentences about
+    # quitting life, dying or "rock bottom" are dropped from the prose before
+    # any helpline copy is added (so the helpline block is never filtered).
+    if generated:
+        response = _drop_hazardous_distress_sentences(response) or (
+            serene_mind.get_response(assessment) if serene_mind else get_distress_response()
+        )
 
     if assessment.level >= DistressLevel.SEVERE:
         from services.crisis_helplines import format_helplines_block
@@ -1596,6 +1632,12 @@ Retrieved teachings from Sri Preethaji and Sri Krishnaji:
     citations = extract_citations({"final_answer": response, "relevant_docs": relevant_docs}).get(
         "citations", []
     )
+
+    # Every distress answer ends with a human support line (2026-10-05, live
+    # rt5a/rt5b: route=distress answers carried no helpline).
+    from services.crisis_helplines import ensure_support_line
+
+    response = ensure_support_line(response)
 
     logger.info(
         f"Distress handler: level={assessment.level.name}, has_teachings={bool(relevant_docs)}"

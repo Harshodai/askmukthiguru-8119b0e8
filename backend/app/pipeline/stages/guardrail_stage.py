@@ -271,7 +271,69 @@ class OutputGuardrailStage(Stage):
         ctx.is_blocked = is_blocked
         if not is_blocked:
             await _append_relationship_boundary(ctx)
+            await _append_addiction_boundary(ctx)
+        await _append_distress_support_line(ctx)
         return None
+
+
+async def _append_addiction_boundary(ctx: PipelineContext) -> None:
+    """Addiction / substance-use question -> the answer carries professional support."""
+    from guardrails.lightweight_handler import (
+        addiction_support_boundary,
+        needs_addiction_support_boundary,
+    )
+
+    question = (ctx.state or {}).get("user_msg_en") or ctx.user_msg or ""
+    answer = ctx.final_answer or ""
+    if not answer.strip() or not needs_addiction_support_boundary(question):
+        return
+    english = addiction_support_boundary()
+    boundary = english
+    if ctx.is_indic:
+        try:
+            boundary = (
+                await ctx.container.translation.translate_text(
+                    text=english, source_lang="en", target_lang=ctx.preferred_lang
+                )
+                or english
+            )
+        except Exception:  # noqa: BLE001 -- the English boundary beats none
+            logger.warning("Addiction boundary translation failed; appending English.")
+            boundary = english
+    if boundary not in answer:
+        ctx.final_answer = f"{answer.rstrip()}\n\n{boundary}"
+
+
+async def _append_distress_support_line(ctx: PipelineContext) -> None:
+    """Every answer that ends in the DISTRESS intent carries a human support line.
+
+    handle_distress already appends it; this is the chokepoint for any other
+    graph path that lands on DISTRESS, and it survives translation (the
+    numbers are checked, not the wording).
+    """
+    intent = str(getattr(ctx, "intent", "") or "").upper()
+    graph_intent = str(
+        ((ctx.graph_result or {}) if isinstance(ctx.graph_result, dict) else {}).get("intent") or ""
+    ).upper()
+    if "DISTRESS" not in (intent, graph_intent):
+        return
+    from services.crisis_helplines import ensure_support_line, format_support_line
+
+    answer = ctx.final_answer or ""
+    if ensure_support_line(answer) == answer:
+        return
+    line = format_support_line()
+    if ctx.is_indic:
+        try:
+            line = (
+                await ctx.container.translation.translate_text(
+                    text=line, source_lang="en", target_lang=ctx.preferred_lang
+                )
+                or line
+            )
+        except Exception:  # noqa: BLE001 -- the English line beats none
+            logger.warning("Distress support line translation failed; appending English.")
+    ctx.final_answer = f"{answer.rstrip()}\n\n{line}" if answer.strip() else line
 
 
 async def _append_relationship_boundary(ctx: PipelineContext) -> None:

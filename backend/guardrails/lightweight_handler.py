@@ -224,6 +224,14 @@ _BLOCKED_TOPICS = {
         # Substance addiction + a spiritual cure / Vasana framing.
         r"\b(?:addict\w*|alcoholi\w+|relaps\w+|withdrawal)\b[^.?!]*\b(?:alcohol|drink\w*|drugs?|nicotine|smok\w+|opioids?|cocaine|heroin|weed|cannabis)\b"
         r"|\b(?:alcohol|drink\w*|drugs?|nicotine|smok\w+|opioids?|cocaine|heroin|weed|cannabis)\b[^.?!]*\b(?:addict\w*|alcoholi\w+|relaps\w+|withdrawal)\b",
+        # 2026-10-05 (live rt3): "I am addicted; are my Vasanas the only cause?"
+        # named no substance, so the conjunctive pattern above missed it and a
+        # teacher clip ("addictions spontaneously fall away") was served.
+        # Addiction + a spiritual cause/cure framing routes to professional care
+        # whatever the object of the addiction.
+        r"\b(?:addict\w*|relaps\w*|de-?addiction)\b[^?!]{0,120}?\b(?:vasanas?|karma\w*|samskaras?|past\s+lives?"
+        r"|only\s+cause|the\s+cause|cause\s+of|cure\w*|treat\w*)\b"
+        r"|\b(?:vasanas?|karma\w*|samskaras?|past\s+lives?|cure\w*|treat\w*)\b[^?!]{0,120}?\b(?:addict\w*|relaps\w*)\b",
     ],
 }
 
@@ -385,6 +393,36 @@ RELATIONSHIP_SAFETY_BOUNDARY = (
 )
 
 
+# Any addiction / substance-use question (2026-10-05, live rt3): the answer
+# carries a professional-support line, and the first-person bridge declines it
+# (one clip cannot carry the line). Questions with a cure/cause framing are
+# blocked outright by medical_advice_broad above.
+_ADDICTION_RE = re.compile(
+    r"\b(?:addict\w*|de-?addiction|relaps\w*|alcoholi\w*|substance\s+(?:use|abuse|misuse)"
+    r"|(?:drinking|drug|gambling|porn\w*|smoking|gaming)\s+(?:problem|habit|addiction)"
+    r"|withdrawal\s+symptoms?|(?:quit|stop)\s+(?:drinking|smoking|drugs|using))\b",
+    re.IGNORECASE,
+)
+
+
+def needs_addiction_support_boundary(text: str) -> bool:
+    """True when ``text`` is about addiction or substance use."""
+    return bool(text) and bool(_ADDICTION_RE.search(text))
+
+
+def addiction_support_boundary() -> str:
+    """Professional-support line for addiction answers; numbers from helplines.yaml."""
+    from services.crisis_helplines import get_helplines
+
+    tele = next((h for h in get_helplines() if "tele-manas" in h.name.lower()), None)
+    india = f" In India, Tele-MANAS ({tele.contact}) can connect you to support." if tele else ""
+    return (
+        "Addiction is a health condition, not a spiritual failing. Spiritual practice can "
+        "support recovery but is not a treatment: please also talk to a doctor or a "
+        "de-addiction service." + india
+    )
+
+
 def needs_relationship_safety_boundary(text: str) -> bool:
     """True when ``text`` asks about repairing or healing a relationship."""
     return bool(text) and bool(_RELATIONSHIP_REPAIR_RE.search(text))
@@ -413,7 +451,11 @@ def match_blocked_topic(text: str) -> tuple[str, str] | None:
 
     text = IDIOM_EXCLUSIONS_RE.sub(" ", text)
     # Plain and de-obfuscated ("p h i s h i n g", "k1ll") -- the latter only adds matches.
-    variants = {text.lower(), deobfuscate(text)}
+    # Spelled-out negations ("do not want to live") are folded to the
+    # contracted form the patterns use, the same fold assess_distress applies.
+    from services.serene_mind_engine import normalize_contractions
+
+    variants = {text.lower(), deobfuscate(text), normalize_contractions(text.lower())}
     for topic, patterns in _BLOCKED_TOPICS.items():
         if any(re.search(pattern, v) for pattern in patterns for v in variants):
             return topic, _resolve_block_response(
