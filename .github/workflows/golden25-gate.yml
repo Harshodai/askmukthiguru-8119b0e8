@@ -86,7 +86,11 @@ jobs:
       - name: Download pinned models (encoder for the harness fingerprint)
         working-directory: backend
         env:
+          # download_models.py defaults all three to the image's /app path,
+          # which the runner cannot create (PermissionError at /app).
           HF_HOME: ${{ github.workspace }}/backend/.model_cache/huggingface
+          TRANSFORMERS_CACHE: ${{ github.workspace }}/backend/.model_cache/huggingface
+          SENTENCE_TRANSFORMERS_HOME: ${{ github.workspace }}/backend/.model_cache/sentence_transformers
         run: python scripts/download_models.py
 
       - name: Check live gate target
