@@ -90,7 +90,6 @@
     "importantNotice": "ਮਹੱਤਵਪੂਰਨ ਸੂਚਨਾ",
     "disclaimerWarning": "ਇਹ ਪੇਸ਼ੇਵਰ ਮਾਨਸਿਕ ਸਿਹਤ ਸਹਾਇਤਾ, ਡਾਕਟਰੀ ਸਲਾਹ ਜਾਂ ਥੈਰੇਪੀ ਦਾ ਬਦਲ ਨਹੀਂ ਹੈ। ਜੇਕਰ ਤੁਸੀਂ ਕਿਸੇ ਸੰਕਟ ਦਾ ਸਾਹਮਣਾ ਕਰ ਰਹੇ ਹੋ, ਤਾਂ ਕਿਰਪਾ ਕਰਕੇ ਕਿਸੇ ਯੋਗ ਪੇਸ਼ੇਵਰ ਜਾਂ ਸੰਕਟ ਹੈਲਪਲਾਈਨ ਨਾਲ ਸੰਪਰਕ ਕਰੋ।",
     "crisisSupport": "ਸੰਕਟ ਸਹਾਇਤਾ (ਭਾਰਤ):",
-    "crisisNumbers": "iCall: 9152987821 | Vandrevala Foundation: +91 9999 666 555",
     "beginJourney": "ਮੈਂ ਸਮਝਦਾ ਹਾਂ — ਆਪਣੀ ਯਾਤਰਾ ਸ਼ੁਰੂ ਕਰੋ",
     "openUserMenu": "ਉਪਭੋਗਤਾ ਮੇਨੂ ਖੋਲ੍ਹੋ",
     "localProfile": "ਸਥਾਨਕ ਪ੍ਰੋਫਾਈਲ",
@@ -756,16 +755,17 @@
   },
   "privacy": {
     "pageTitle": "ਗੋਪਨੀਯਤਾ ਨੀਤੀ — AskMukthiGuru",
-    "pageDescription": "AskMukthiGuru ਤੁਹਾਡੇ ਡਾਟੇ ਨੂੰ ਕਿਵੇਂ ਸੰਭਾਲਦਾ ਹੈ: ਘੱਟੋ-ਘੱਟ ਸੰਗ੍ਰਹਿ, ਕੋਈ ਤੀਜੀ-ਧਿਰ ਸਾਂਝਾਕਰਨ ਨਹੀਂ, DPDP ਐਕਟ ਅਤੇ GDPR ਅਧੀਨ ਪੂਰੇ ਨਿਰਯਾਤ ਅਤੇ ਮਿਟਾਉਣ ਦੇ ਅਧਿਕਾਰ।",
+    "pageDescription": "How AskMukthiGuru handles your data: what we store, which services process it, and your export and deletion rights under the DPDP Act and GDPR.",
     "title": "ਗੋਪਨੀਯਤਾ ਨੀਤੀ",
     "lastUpdated": "ਆਖਰੀ ਅੱਪਡੇਟ: {{date}}",
-    "intro": "AskMukthiGuru ਇੱਕ ਗੋਪਨੀਯਤਾ-ਪਹਿਲ ਅਧਿਆਤਮਿਕ ਸਾਥੀ ਹੈ। ਅਸੀਂ ਅਨੁਭਵ ਪ੍ਰਦਾਨ ਕਰਨ ਲਈ ਲੋੜੀਂਦਾ ਘੱਟੋ-ਘੱਟ ਡਾਟਾ ਇਕੱਠਾ ਕਰਦੇ ਹਾਂ: ਤੁਹਾਡੀ ਈਮੇਲ (ਪ੍ਰਮਾਣਿਕਤਾ ਲਈ) ਅਤੇ ਤੁਹਾਡੇ ਗੱਲਬਾਤ ਸੁਨੇਹੇ (ਤੁਹਾਡੀ ਡਿਵਾਈਸ 'ਤੇ chatStorage ਰਾਹੀਂ ਸਥਾਨਕ ਤੌਰ 'ਤੇ ਸਟੋਰ ਕੀਤੇ ਜਾਂਦੇ ਹਨ ਤਾਂ ਜੋ ਤੁਸੀਂ ਜਿੱਥੋਂ ਛੱਡਿਆ ਸੀ ਉੱਥੋਂ ਸ਼ੁਰੂ ਕਰ ਸਕੋ)।",
+    "intro": "AskMukthiGuru is a privacy-first spiritual companion. We collect the minimum data needed to run it: your email (for sign-in), the messages you send, and the answers you receive.",
     "whatWeStore": "ਅਸੀਂ ਕੀ ਸਟੋਰ ਕਰਦੇ ਹਾਂ",
     "storeEmail": "ਈਮੇਲ ਪਤਾ ਅਤੇ ਐਨਕ੍ਰਿਪਟਡ ਪਾਸਵਰਡ (ਜਾਂ Google ਪ੍ਰੋਫਾਈਲ) — ਸਾਈਨ-ਇਨ ਲਈ।",
-    "storeChats": "ਗੱਲਬਾਤ ਅਤੇ ਸੁਨੇਹੇ — chatStorage ਰਾਹੀਂ ਸਥਾਨਕ ਤੌਰ 'ਤੇ ਸਟੋਰ ਕੀਤੇ ਜਾਂਦੇ ਹਨ; ਬੈਕਐਂਡ ਇਨਫਰੈਂਸ ਲੌਗ ਚੈਟ ਸਮੱਗਰੀ ਅਤੇ ਸੰਬੰਧਿਤ ਪਛਾਣਕਰਤਾਵਾਂ ਨੂੰ ਬਰਕਰਾਰ ਰੱਖ ਸਕਦੇ ਹਨ।",
+    "storeChats": "Your chat history is kept on your device so you can pick up where you left off. To answer you, each message is sent to our server and to the AI model provider that writes the reply. Our server also keeps a copy of each question and answer, with emails, phone numbers and ID-like numbers automatically removed, so we can review answer quality and safety.",
+    "storeMemory": "Memory (signed-in seekers who turn it on): short facts you share about yourself may be saved so later answers can take them into account. You can view, edit or delete them in your profile.",
     "storeMeditation": "ਧਿਆਨ ਸੈਸ਼ਨ — ਤੁਹਾਡੀ ਡਿਵਾਈਸ 'ਤੇ ਸਥਾਨਕ ਤੌਰ 'ਤੇ ਸਟੋਰ ਕੀਤੇ ਜਾਂਦੇ ਹਨ।",
     "whatWeNeverDo": "ਅਸੀਂ ਕੀ ਕਦੇ ਨਹੀਂ ਕਰਦੇ",
-    "neverSell": "ਤੁਹਾਡਾ ਡਾਟਾ ਤੀਜੀ ਧਿਰ ਨੂੰ ਵੇਚਣਾ ਜਾਂ ਸਾਂਝਾ ਕਰਨਾ।",
+    "neverSell": "Sell your data, or share it with anyone beyond the services needed to answer you (our hosting, database and AI model providers).",
     "neverTrain": "ਬਾਹਰੀ ਮਾਡਲਾਂ ਨੂੰ ਸਿਖਲਾਈ ਦੇਣ ਲਈ ਤੁਹਾਡੀਆਂ ਗੱਲਬਾਤਾਂ ਦੀ ਵਰਤੋਂ ਕਰਨਾ।",
     "neverAds": "ਤੁਹਾਨੂੰ ਇਸ਼ਤਿਹਾਰ ਦਿਖਾਉਣਾ।",
     "yourRights": "ਤੁਹਾਡੇ ਅਧਿਕਾਰ (DPDP ਐਕਟ / GDPR)",
@@ -1775,7 +1775,7 @@
         "q4": "ਮੈਨੂੰ ਰੋਜ਼ਾਨਾ ਏਆਈ ਗੁਰੂ ਨਾਲ ਕਿੰਨਾ ਸਮਾਂ ਬਿਤਾਉਣਾ ਚਾਹੀਦਾ ਹੈ?",
         "a4": "ਦਸ ਮਿੰਟ ਕਾਫ਼ੀ ਹਨ। ਤਿੰਨ ਮਿੰਟ ਦਾ ਸੈਰੀਨ ਮਾਈਂਡ ਪ੍ਰਾਣਾਯਾਮ, ਇੱਕ ਸੱਚਾ ਸਵਾਲ, ਅਤੇ ਉੱਤਰ ਨਾਲ ਇੱਕ ਮਿੰਟ ਦਾ ਮੌਨ। ਸਮੇਂ ਨਾਲੋਂ ਨਿਰੰਤਰਤਾ ਜ਼ਿਆਦਾ ਮਹੱਤਵਪੂਰਨ ਹੈ।",
         "q5": "ਕੀ ਮੇਰੀ ਗੱਲਬਾਤ ਨਿੱਜੀ ਅਤੇ ਸੁਰੱਖਿਅਤ ਹੈ?",
-        "a5": "ਹਾਂ। ਤੁਹਾਡੀ ਗੱਲਬਾਤ ਇਨਕ੍ਰਿਪਟਡ ਹੈ, ਸਿਰਫ਼ ਤੁਹਾਡੀ ਨਿਰਧਾਰਤ ਮਿਆਦ ਤੱਕ ਰੱਖੀ ਜਾਂਦੀ ਹੈ, ਅਤੇ ਕਦੇ ਕਿਸੇ ਨਾਲ ਸਾਂਝੀ ਨਹੀਂ ਕੀਤੀ ਜਾਂਦੀ। ਅਗਿਆਤ ਮੋਡ ਵਿੱਚ ਸਭ ਕੁਝ ਤੁਹਾਡੇ ਬ੍ਰਾਊਜ਼ਰ ਵਿੱਚ ਹੀ ਰਹਿੰਦਾ ਹੈ।"
+        "a5": "Your conversations are never sold, and they travel over encrypted connections. Anonymous chats keep their history only in your browser, but each message is still processed by our server and AI provider to write a reply. See the privacy policy for what the server keeps."
       },
       "cta": {
         "heading": "ਆਪਣੀ ਸਾਧਨਾ ਸ਼ੁਰੂ ਕਰੋ",

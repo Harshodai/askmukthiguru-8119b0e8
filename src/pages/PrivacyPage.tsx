@@ -13,13 +13,13 @@ const PrivacyPage = () => {
     canonical: buildCanonical('/privacy'),
   });
 
-  const PRIVACY_REVISION_DATE = '2026-07-11';
+  const PRIVACY_REVISION_DATE = '2026-10-05';
 
   return (
     <PublicShell>
       <article className="w-full">
         <header className="max-w-3xl mx-auto px-4 sm:px-6 pt-10 sm:pt-14 pb-6 sm:pb-8">
-          <div className="flex items-center gap-2 text-sm text-ojas mb-5">
+          <div className="flex items-center gap-2 text-sm text-ojas-ink dark:text-ojas mb-5">
             <Sparkles className="w-4 h-4" aria-hidden="true" />
             <span>AskMukthiGuru</span>
           </div>
@@ -38,6 +38,7 @@ const PrivacyPage = () => {
               <ul>
                 <li>{t('privacy.storeEmail')}</li>
                 <li>{t('privacy.storeChats')}</li>
+                <li>{t('privacy.storeMemory')}</li>
                 <li>{t('privacy.storeMeditation')}</li>
               </ul>
               <h2>{t('privacy.whatWeNeverDo')}</h2>
@@ -55,7 +56,7 @@ const PrivacyPage = () => {
               <p>{t('privacy.aiDisclosureText')}</p>
             </div>
           </div>
-          <Link to="/" className="inline-flex mt-6 text-sm text-ojas hover:underline">
+          <Link to="/" className="inline-flex mt-6 text-sm text-ojas-ink dark:text-ojas hover:underline">
             {t('privacy.backToHome')}
           </Link>
         </section>

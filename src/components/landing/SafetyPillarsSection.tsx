@@ -10,6 +10,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { CrisisLines } from '@/components/common/CrisisLines';
+import { INDIA_CRISIS_LINES, US_CRISIS_LINES } from '@/lib/crisisHelplines';
 
 export const SafetyPillarsSection = () => {
   const { t } = useTranslation();
@@ -104,22 +106,12 @@ export const SafetyPillarsSection = () => {
             <div className="space-y-4">
               <div>
                 <p className="text-xs text-muted-foreground">{t('crisisDialog.indiaHelplines', 'India Helplines')}</p>
-                <p className="text-sm font-semibold text-foreground mt-1">
-                  iCall: <a href="tel:9152987821" className="text-saffron-gold hover:underline">9152987821</a>
-                  <span className="text-xs font-normal text-muted-foreground block mt-0.5">
-                    {t('crisisDialog.icallAvailability', 'Monday–Saturday, 10:00–20:00 IST')}
-                  </span>
-                </p>
-                <p className="text-sm font-semibold text-foreground mt-2">
-                  Vandrevala Foundation: <a href="tel:+919999666555" className="text-saffron-gold hover:underline">+91 9999 666 555</a>
-                </p>
+                <CrisisLines lines={INDIA_CRISIS_LINES} className="mt-1 text-sm" />
               </div>
 
               <div className="border-t border-border/40 pt-3">
                 <p className="text-xs text-muted-foreground">{t('crisisDialog.unitedStates', 'United States')}</p>
-                <p className="text-sm font-semibold text-foreground mt-1">
-                  {t('crisisDialog.usLifeline', 'Suicide & Crisis Lifeline')}: <a href="tel:988" className="text-saffron-gold hover:underline">988</a>
-                </p>
+                <CrisisLines lines={US_CRISIS_LINES} className="mt-1 text-sm" />
               </div>
             </div>
           </div>

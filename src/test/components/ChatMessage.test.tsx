@@ -420,3 +420,38 @@ describe('ChatMessage guidance plan', () => {
     });
   });
 });
+
+describe('ChatMessage seeker-readiness (faculty review 2026-10-05)', () => {
+  it('shows no grounding label on the client-authored welcome greeting', () => {
+    render(<ChatMessage message={makeGuruMessage({ isWelcome: true })} isLastGuru />, { wrapper });
+    expect(screen.queryByTestId('response-provenance')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Reflective guidance/)).not.toBeInTheDocument();
+  });
+
+  it('does not stack a "Verification unavailable" row under a failed message', () => {
+    const message = makeGuruMessage({
+      content: 'The Guru could not be reached.',
+      groundingState: 'system_error',
+      error: {
+        kind: 'network',
+        title: 'Connection problem',
+        description: 'The Guru could not be reached. Check your connection and retry.',
+        retryable: true,
+        actionLabel: 'retry',
+      },
+    });
+    render(<ChatMessage message={message} isLastGuru />, { wrapper });
+    expect(screen.queryByText('Verification unavailable')).not.toBeInTheDocument();
+  });
+
+  it('hides the engineering "Deepen & Tune" panel by default', () => {
+    const message = makeGuruMessage({
+      content: 'The Beautiful State is a state of connection. Inner Stillness follows.',
+      groundingState: 'grounded',
+    });
+    render(<ChatMessage message={message} isLastGuru />, { wrapper });
+    expect(screen.queryByText(/Memgraph/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/bolt:\/\//)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Deepen & Tune/i)).not.toBeInTheDocument();
+  });
+});

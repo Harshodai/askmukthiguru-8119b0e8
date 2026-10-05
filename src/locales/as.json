@@ -90,7 +90,6 @@
     "importantNotice": "গুৰুত্বপূৰ্ণ জাননী",
     "disclaimerWarning": "ই কোনো পেছাদাৰী মানসিক স্বাস্থ্য সেৱা, চিকিৎসা পৰামৰ্শ বা থেৰাপীৰ বিকল্প নহয়। যদি আপুনি সংকটত আছে, অনুগ্ৰহ কৰি কোনো যোগ্য বিশেষজ্ঞ বা সংকট হেল্পলাইনত যোগাযোগ কৰক।",
     "crisisSupport": "সংকটৰ সহায় (ভাৰত):",
-    "crisisNumbers": "iCall: 9152987821 | Vandrevala Foundation: +91 9999 666 555",
     "beginJourney": "মই বুজি পাইছোঁ — মোৰ যাত্ৰা আৰম্ভ কৰক",
     "openUserMenu": "ব্যৱহাৰকাৰী মেনু খোলক",
     "localProfile": "স্থানীয় প্ৰ'ফাইল",
@@ -756,16 +755,17 @@
   },
   "privacy": {
     "pageTitle": "গোপনীয়তা নীতি — AskMukthiGuru",
-    "pageDescription": "AskMukthiGuru এ আপোনাৰ ডাটা কেনেদৰে ব্যৱহাৰ কৰে: নূন্যতম সংগ্ৰহ, কোনো তৃতীয় পক্ষৰ সৈতে ভাগ-বতৰা নকৰা, আৰু সম্পূৰ্ণ এক্সপ'ৰ্ট আৰু মচি পেলোৱাৰ অধিকাৰ।",
+    "pageDescription": "How AskMukthiGuru handles your data: what we store, which services process it, and your export and deletion rights under the DPDP Act and GDPR.",
     "title": "গোপনীয়তা নীতি",
     "lastUpdated": "অন্তিম নবীকৰণ: {{date}}",
-    "intro": "AskMukthiGuru হৈছে গোপনীয়তাক প্ৰাথমিকতা দিয়া এক আধ্যাত্মিক সংগী। আমি সেৱা প্ৰদানৰ বাবে কেৱল নূন্যতম প্ৰয়োজনীয় ডাটা সংগ্ৰহ কৰোঁ: আপোনাৰ ইমেইল (প্ৰমাণীকৰণৰ বাবে), আপোনাৰ কথোপকথন বাৰ্তা (যাতে আপুনি পিছত অব্যাহত ৰাখিব পাৰে), আৰু ধ্যানৰ সত্ৰ গণনা (আপোনাৰ ধাৰাবাহিকতা দেখুৱাবলৈ)।",
+    "intro": "AskMukthiGuru is a privacy-first spiritual companion. We collect the minimum data needed to run it: your email (for sign-in), the messages you send, and the answers you receive.",
     "whatWeStore": "আমি কি সংৰক্ষণ কৰোঁ",
     "storeEmail": "ইমেইল ঠিকনা আৰু এনক্ৰিপ্ট কৰা পাছৱৰ্ড (বা Google প্ৰ'ফাইল) — ছাইন ইনৰ বাবে।",
-    "storeChats": "চেটৰ কথোপকথন আৰু বাৰ্তাসমূহ — chatStorage ৰ জৰিয়তে স্থানীয়ভাৱে সংৰক্ষিত; বেকএণ্ড অনুমান লগেও চেটৰ সমল আৰু সম্পৰ্কিত চিনাক্তকাৰীসমূহ ৰাখিব পাৰে।",
+    "storeChats": "Your chat history is kept on your device so you can pick up where you left off. To answer you, each message is sent to our server and to the AI model provider that writes the reply. Our server also keeps a copy of each question and answer, with emails, phone numbers and ID-like numbers automatically removed, so we can review answer quality and safety.",
+    "storeMemory": "Memory (signed-in seekers who turn it on): short facts you share about yourself may be saved so later answers can take them into account. You can view, edit or delete them in your profile.",
     "storeMeditation": "ধ্যানৰ সত্ৰসমূহ — কেৱল আপোনাৰ ডিভাইচত স্থানীয়ভাৱে।",
     "whatWeNeverDo": "আমি কেতিয়াও নকৰা কামসমূহ",
-    "neverSell": "আপোনাৰ ডাটা কোনো তৃতীয় পক্ষক বিক্ৰী বা ভাগ-বতৰা নকৰোঁ।",
+    "neverSell": "Sell your data, or share it with anyone beyond the services needed to answer you (our hosting, database and AI model providers).",
     "neverTrain": "বাহ্যিক মডেল প্ৰশিক্ষণৰ বাবে আপোনাৰ কথোপকথন ব্যৱহাৰ নকৰোঁ।",
     "neverAds": "আপোনাক বিজ্ঞাপন প্ৰদৰ্শন নকৰোঁ।",
     "yourRights": "আপোনাৰ অধিকাৰসমূহ (DPDP আইন / GDPR)",
@@ -1775,7 +1775,7 @@
         "q4": "দৈনিক এআই গুৰুৰ সৈতে কিমান সময় কটোৱা উচিত?",
         "a4": "দহ মিনিটেই যথেষ্ট। তিনি মিনিটৰ চেৰিন মাইণ্ড প্ৰাণায়াম, এটা প্ৰকৃত প্ৰশ্ন, আৰু উত্তৰৰ সৈতে এক মিনিটৰ মৌনতা। সময়তকৈ নিয়মীয়াতাহে বেছি গুৰুত্বপূৰ্ণ।",
         "q5": "মোৰ কথোপকথন ব্যক্তিগত আৰু সুৰক্ষিতনে?",
-        "a5": "হয়। আপোনাৰ কথোপকথন এনক্ৰিপ্ট কৰা থাকে, কেৱল আপোনাৰ নিৰ্ধাৰিত সময়লৈকে সংৰক্ষিত হয়, আৰু কাৰো সৈতে ভাগ-বতৰা কৰা নহয়। বেনামী ম'ডত সকলো কেৱল আপোনাৰ ব্ৰাউজাৰতে থাকে।"
+        "a5": "Your conversations are never sold, and they travel over encrypted connections. Anonymous chats keep their history only in your browser, but each message is still processed by our server and AI provider to write a reply. See the privacy policy for what the server keeps."
       },
       "cta": {
         "heading": "আপোনাৰ সাধনা আৰম্ভ কৰক",

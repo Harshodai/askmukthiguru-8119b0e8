@@ -90,7 +90,6 @@
     "importantNotice": "முக்கிய அறிவிப்பு",
     "disclaimerWarning": "இது தொழில்முறை மனநல ஆதரவு, மருத்துவ ஆலோசனை அல்லது சிகிச்சைக்கான மாற்றாக இல்லை. உங்களுக்கு ஏதேனும் நெருக்கடி ஏற்பட்டிருந்தால், ஒரு தகுதிவாய்ந்த நிபுணர் அல்லது நெருக்கடி உதவி மையத்தைத் தொடர்பு கொள்ளவும்.",
     "crisisSupport": "நெருக்கடி உதவி (இந்தியா):",
-    "crisisNumbers": "ஐ கால்: 9152987821 | வந்தேவாலா அறக்கட்டளை: +91 9999 666 555",
     "beginJourney": "எனக்கு புரிகிறது — எனது பயணத்தைத் தொடங்கு",
     "openUserMenu": "பயனர் மெனுவை திற",
     "localProfile": "உள்ளூர் சுயவிவரம்",
@@ -755,16 +754,17 @@
   },
   "privacy": {
     "pageTitle": "தனியுரிமைக் கொள்கை — அஸ்குமுக்திகுரு",
-    "pageDescription": "அஸ்குமுக்திகுரு உங்கள் தரவை எவ்வாறு கையாள்கிறது: குறைந்தபட்ச சேகரிப்பு, மூன்றாம் தரப்பு பகிர்வு இல்லை.",
+    "pageDescription": "How AskMukthiGuru handles your data: what we store, which services process it, and your export and deletion rights under the DPDP Act and GDPR.",
     "title": "தனியுரிமைக் கொள்கை",
     "lastUpdated": "கடைசியாக புதுப்பிக்கப்பட்டது: {{date}}",
-    "intro": "அஸ்குமுக்திகுரு தனியுரிமைக்கு முதலிடம் அளிக்கும் ஆன்மீக வழிகாட்டியாகும். அனுபவத்தை வழங்குவதற்குத் தேவையான குறைந்தபட்சத் தரவை மட்டுமே நாங்கள் சேகரிக்கிறோம்: உங்கள் மின்னஞ்சல் (அங்கீகாரத்திற்காக) மற்றும் உங்கள் உரையாடல் செய்திகள் (chatStorage மூலம் உங்கள் சாதனத்தில் உள்ளூரில் சேமிக்கப்படுகின்றன; பின்தள அனுமானப் பதிவுகளும் அரட்டை உள்ளடக்கத்தைத் தக்கவைக்கலாம்).",
+    "intro": "AskMukthiGuru is a privacy-first spiritual companion. We collect the minimum data needed to run it: your email (for sign-in), the messages you send, and the answers you receive.",
     "whatWeStore": "நாங்கள் சேமிப்பவை",
     "storeEmail": "மின்னஞ்சல் முகவரி & குறியாக்கப்பட்ட கடவுச்சொல் — உள்நுழைவிற்காக.",
-    "storeChats": "உரையாடல்கள் மற்றும் செய்திகள் — chatStorage மூலம் உள்ளூரில் சேமிக்கப்படும்; பின்தள அனுமானப் பதிவுகள் (backend inference logs) அரட்டை உள்ளடக்கம் மற்றும் தொடர்புடைய அடையாளங்காட்டிகளை வைத்திருக்கலாம்.",
+    "storeChats": "Your chat history is kept on your device so you can pick up where you left off. To answer you, each message is sent to our server and to the AI model provider that writes the reply. Our server also keeps a copy of each question and answer, with emails, phone numbers and ID-like numbers automatically removed, so we can review answer quality and safety.",
+    "storeMemory": "Memory (signed-in seekers who turn it on): short facts you share about yourself may be saved so later answers can take them into account. You can view, edit or delete them in your profile.",
     "storeMeditation": "தியான அமர்வுகள் — உங்கள் சாதனத்தில் உள்ளூரில் சேமிக்கப்படும்.",
     "whatWeNeverDo": "நாங்கள் ஒருபோதும் செய்யாதவை",
-    "neverSell": "உங்கள் தரவை மூன்றாம் தரப்பினருக்கு விற்கவோ அல்லது பகிரவோ மாட்டோம்.",
+    "neverSell": "Sell your data, or share it with anyone beyond the services needed to answer you (our hosting, database and AI model providers).",
     "neverTrain": "வெளிப்புற மாதிரிகளுக்குப் பயிற்சியளிக்க உங்கள் உரையாடல்களைப் பயன்படுத்த மாட்டோம்.",
     "neverAds": "உங்களுக்கு விளம்பரங்களைக் காட்ட மாட்டோம்.",
     "yourRights": "உங்களுக்கான உரிமைகள் (DPDP சட்டம் / GDPR)",
@@ -1774,7 +1774,7 @@
         "q4": "தினமும் ஏஐ குருவுடன் எவ்வளவு நேரம் செலவிட வேண்டும்?",
         "a4": "பத்து நிமிடங்கள் போதுமானது. மூன்று நிமிடங்கள் செரீன் மைண்ட் சுவாசம், ஒரு நேர்மையான கேள்வி, பதிலை உள்வாங்க ஒரு நிமிடம் மவுனம். நேரத்தை விட தொடர்ச்சியே முக்கியமானது.",
         "q5": "எனது உரையாடல் தனிப்பட்டதாகவும் பாதுகாப்பாகவும் இருக்குமா?",
-        "a5": "ஆம். உரையாடல்கள் என்க்ரிப்ட் செய்யப்படுகின்றன, உங்கள் விருப்பப்படி மட்டுமே சேமிக்கப்படுகின்றன, யாருக்கும் விற்கப்படுவதில்லை. அநாமதேய பயன்முறையில் அனைத்தும் உங்கள் உலாவியிலேயே இருக்கும்."
+        "a5": "Your conversations are never sold, and they travel over encrypted connections. Anonymous chats keep their history only in your browser, but each message is still processed by our server and AI provider to write a reply. See the privacy policy for what the server keeps."
       },
       "cta": {
         "heading": "உங்கள் பயிற்சியைத் தொடங்குங்கள்",

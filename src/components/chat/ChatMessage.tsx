@@ -1076,7 +1076,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                           )}
 
                           {/* 3. "DEEPEN & TUNE" 4-QUADRANT INTERACTIVE CONTROL BAR */}
-                          {isGuru && !isStreaming && !message.error && !isCrisisAnswer(message.content) && (
+                          {FEATURE_FLAGS.deepenAndTuneBar && isGuru && !isStreaming && !message.error && !message.isWelcome && !isCrisisAnswer(message.content) && (
                             <DeepenAndTuneBar
                               message={message}
                               queryText={queryText}
@@ -1415,7 +1415,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                 boxes. Zero-citation states (reflective guidance, safety redirect,
                 unverified attribution, system error) have nothing to expand into,
                 so they keep their own standalone row. */}
-            {FEATURE_FLAGS.responseProvenance && isGuru && !isStreaming && citations.length === 0 && (message.content || typeof message.confidenceScore === 'number' || hasUnverifiedAttribution) && (
+            {FEATURE_FLAGS.responseProvenance && isGuru && !isStreaming && !message.error && !message.isWelcome && citations.length === 0 && (message.content || typeof message.confidenceScore === 'number' || hasUnverifiedAttribution) && (
               <div
                 data-testid="response-provenance"
                 role="status"

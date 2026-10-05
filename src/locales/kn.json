@@ -90,7 +90,6 @@
     "importantNotice": "ಮುಖ್ಯವಾದ ಪ್ರಕಟಣೆ",
     "disclaimerWarning": "ಇದು ವೃತ್ತಿಪರ ಮಾನಸಿಕ ಆರೋಗ್ಯ ಬೆಂಬಲ, ವೈದ್ಯಕೀಯ ಸಲಹೆ ಅಥವಾ ಚಿಕಿತ್ಸೆಗೆ ಪರ್ಯಾಯವಲ್ಲ. ನೀವು ಬಿಕ್ಕಟ್ಟನ್ನು ಎದುರಿಸುತ್ತಿದ್ದರೆ, ದಯವಿಟ್ಟು ಅರ್ಹ ವೃತ್ತಿಪರರನ್ನು ಅಥವಾ ಬಿಕ್ಕಟ್ಟು ಸಹಾಯವಾಣಿಯನ್ನು ಸಂಪರ್ಕಿಸಿ.",
     "crisisSupport": "ಕ್ರಿಸಿಸ್ ಸಹಾಯ (ಭಾರತ):",
-    "crisisNumbers": "ಐಕಾಲ್: 9152987821 | ವಂದ್ರೆವಾಲಾ ಫೌಂಡೇಷನ್: +91 9999 666 555",
     "beginJourney": "ನಾನು ಅರ್ಥಮಾಡಿಕೊಂಡೆ — ನಾನು ಪ್ರಯಾಣವನ್ನು ಪ್ರಾರಂಭಿಸುತ್ತೇನೆ",
     "openUserMenu": "ವ್ಯಕ್ತಿಯ ಮೆನು ತೆರೆಯಿರಿ",
     "localProfile": "ಸ್ಥಳೀಯ ಪ್ರೊಫೈಲ್",
@@ -755,16 +754,17 @@
   },
   "privacy": {
     "pageTitle": "ಗೌಪ್ಯತಾ ನೀತಿ — AskMukthiGuru",
-    "pageDescription": "AskMukthiGuru ನಿಮ್ಮ ಡೇಟಾವನ್ನು ಹೇಗೆ ನಿರ್ವಹಿಸುತ್ತದೆ: ಕನಿಷ್ಠ ಸಂಗ್ರಹಣೆ, ಯಾವುದೇ ಮೂರನೇ ವ್ಯಕ್ತಿ ಹಂಚಿಕೆ ಇಲ್ಲ, ಮತ್ತು ಜಿಡಿಪಿಆರ್ ಅಡಿಯಲ್ಲಿ ಸಂಪೂರ್ಣ ರಫ್ತು ಮತ್ತು ಅಳಿಸುವಿಕೆ ಹಕ್ಕುಗಳು.",
+    "pageDescription": "How AskMukthiGuru handles your data: what we store, which services process it, and your export and deletion rights under the DPDP Act and GDPR.",
     "title": "ಗೌಪ್ಯತಾ ನೀತಿ",
     "lastUpdated": "ಕೊನೆಯದಾಗಿ ನವೀಕರಿಸಲಾಗಿದೆ: {{date}}",
-    "intro": "AskMukthiGuru ಗೌಪ್ಯತೆಗೆ ಮೊದಲ ಆದ್ಯತೆ ನೀಡುವ ಆಧ್ಯಾತ್ಮಿಕ ಒಡನಾಡಿಯಾಗಿದೆ. ದೃಢೀಕರಣಕ್ಕಾಗಿ ನಿಮ್ಮ ಇಮೇಲ್ ಮತ್ತು ಸಂಭಾಷಣೆಗಳನ್ನು ಮಾತ್ರ ನಾವು ಸಂಗ್ರಹಿಸುತ್ತೇವೆ.",
+    "intro": "AskMukthiGuru is a privacy-first spiritual companion. We collect the minimum data needed to run it: your email (for sign-in), the messages you send, and the answers you receive.",
     "whatWeStore": "ನಾವು ಏನನ್ನು ಉಳಿಸುತ್ತೇವೆ",
     "storeEmail": "ಇಮೇಲ್ ವಿಳಾಸ ಮತ್ತು ಎನ್‌ಕ್ರಿಪ್ಟ್ ಮಾಡಿದ ಪಾಸ್‌ವರ್ಡ್ — ಸೈನ್-ಇನ್‌ಗಾಗಿ.",
-    "storeChats": "ಚಾಟ್ ಸಂಭಾಷಣೆಗಳು ಮತ್ತು ಸಂದೇಶಗಳು — chatStorage ಮೂಲಕ ನಿಮ್ಮ ಸಾಧನದಲ್ಲಿ ಸ್ಥಳೀಯವಾಗಿ ಸಂಗ್ರಹಿಸಲಾಗಿದೆ, ಬ್ಯಾಕೆಂಡ್ ಇನ್ಫರೆನ್ಸ್ ಲಾಗ್‌ಗಳು ಚಾಟ್ ವಿಷಯ ಮತ್ತು ಸಂಬಂಧಿತ ಗುರುತಿಸುವಿಕೆಗಳನ್ನು ಉಳಿಸಿಕೊಳ್ಳಬಹುದು.",
+    "storeChats": "Your chat history is kept on your device so you can pick up where you left off. To answer you, each message is sent to our server and to the AI model provider that writes the reply. Our server also keeps a copy of each question and answer, with emails, phone numbers and ID-like numbers automatically removed, so we can review answer quality and safety.",
+    "storeMemory": "Memory (signed-in seekers who turn it on): short facts you share about yourself may be saved so later answers can take them into account. You can view, edit or delete them in your profile.",
     "storeMeditation": "ಧ್ಯಾನ ಅವಧಿಗಳು - ನಿಮ್ಮ ಸಾಧನದಲ್ಲಿ ಸ್ಥಳೀಯವಾಗಿ ಸಂಗ್ರಹಿಸಲಾಗಿದೆ.",
     "whatWeNeverDo": "ನಾವು ಎಂದಿಗೂ ಮಾಡುವುದಿಲ್ಲ",
-    "neverSell": "ನಿಮ್ಮ ಡೇಟಾವನ್ನು ಮೂರನೇ ವ್ಯಕ್ತಿಗಳೊಂದಿಗೆ ಮಾರಾಟ ಮಾಡುವುದಿಲ್ಲ ಅಥವಾ ಹಂಚಿಕೊಳ್ಳುವುದಿಲ್ಲ.",
+    "neverSell": "Sell your data, or share it with anyone beyond the services needed to answer you (our hosting, database and AI model providers).",
     "neverTrain": "ಹೊರಗಿನ ಮಾದರಿಗಳಿಗೆ ತರಬೇತಿ ನೀಡಲು ನಿಮ್ಮ ಸಂಭಾಷಣೆಗಳನ್ನು ಬಳಸುವುದಿಲ್ಲ.",
     "neverAds": "ನಿಮಗೆ ಜಾಹೀರಾತುಗಳನ್ನು ತೋರಿಸುವುದಿಲ್ಲ.",
     "yourRights": "ನಿಮ್ಮ ಹಕ್ಕುಗಳು (ಡಿ.ಪಿ.ಡಿ.ಪಿ. ಕಾಯಿದೆ / ಜಿ.ಡಿ.ಪಿ.ಆರ್.)",
@@ -1774,7 +1774,7 @@
         "q4": "ದಿನಕ್ಕೆ ಎಷ್ಟು ಸಮಯ ಎಐ ಗುರುವಿನೊಂದಿಗೆ ಕಳೆಯಬೇಕು?",
         "a4": "ಹತ್ತು ನಿಮಿಷಗಳು ಸಾಕು. ಮೂರು ನಿಮಿಷಗಳ ಸೆರೀನ್ ಮೈಂಡ್ ಶ್ವಾಸಕ್ರಿಯೆ, ಒಂದು ಪ್ರಾಮಾಣಿಕ ಪ್ರಶ್ನೆ ಮತ್ತು ಉತ್ತರದೊಂದಿಗೆ ಒಂದು ನಿಮಿಷ ಮೌನ. ಸಮಯಕ್ಕಿಂತ ನಿರಂತರತೆಯೇ ಮುಖ್ಯ.",
         "q5": "ನನ್ನ ಸಂಭಾಷಣೆ ಖಾಸಗಿಯಾಗಿರುತ್ತದೆಯೇ?",
-        "a5": "ಹೌದು. ಸಂಭಾಷಣೆಗಳನ್ನು ಎನ್‌ಕ್ರಿಪ್ಟ್ ಮಾಡಲಾಗುತ್ತದೆ ಮತ್ತು ಯಾರೊಂದಿಗೂ ಹಂಚಿಕೊಳ್ಳಲಾಗುವುದಿಲ್ಲ. ಅನಾಮಧೇಯ ಮೋಡ್‌ನಲ್ಲಿ ಎಲ್ಲವೂ ನಿಮ್ಮ ಬ್ರೌಸರ್‌ನಲ್ಲಿಯೇ ಇರುತ್ತದೆ."
+        "a5": "Your conversations are never sold, and they travel over encrypted connections. Anonymous chats keep their history only in your browser, but each message is still processed by our server and AI provider to write a reply. See the privacy policy for what the server keeps."
       },
       "cta": {
         "heading": "ನಿಮ್ಮ ಸಾಧನೆಯನ್ನು ಆರಂಭಿಸಿ",
