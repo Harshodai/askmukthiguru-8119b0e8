@@ -69,6 +69,9 @@ DOCTRINE_CATEGORIES = {
     },
     "ekam": {
         "patterns": ["ekam", "varadaiahpalem", "ekam world"],
+        # Geography keywords pull location chunks; inject them only for a
+        # "where is Ekam" style query, never for "the wisdom of Ekam".
+        "location_only": True,
         "keywords": [
             "varadaiahpalem",
             "tirupati",
@@ -132,6 +135,48 @@ DOCTRINE_CATEGORIES = {
             "mantra",
         ],
     },
+    # Teacher-grounded mechanisms the topic categories above miss (Manus audit
+    # 2026-10-05, scenarios 1, 2, 4). Every keyword occurs in the live corpus
+    # text (data/neo4j_graph_dump.json, data/qdrant_chunk_reclean_backup_*.json,
+    # and the live scenario-4 clip for "pleasurable states" / "illusory sense
+    # of I"). Order matters: inject_doctrine_keywords takes the first top_k.
+    # "requires": every substring must also appear in the query.
+    "root_cause_of_suffering": {
+        "patterns": ["root cause", "cause of", "causes"],
+        "requires": ["suffer"],
+        "keywords": [
+            "separation",
+            "disconnection",
+            "self-obsession",
+            "illusory sense of I",
+        ],
+    },
+    "detachment": {
+        "patterns": ["detachment", "detached", "detach", "non-attachment"],
+        "keywords": [
+            "attachment",
+            "clinging",
+            "pleasurable states",
+            "presence",
+        ],
+    },
+    "self_judgment_defense": {
+        "patterns": [
+            "self-judgment",
+            "self-judgement",
+            "self judgment",
+            "self judgement",
+            "wall of defense",
+            "wall of defence",
+            "defensive",
+        ],
+        "keywords": [
+            "witness",
+            "inner state",
+            "judgment",
+            "defensiveness",
+        ],
+    },
     "consciousness": {
         "patterns": ["consciousness", "awareness", "enlightenment", "awakening"],
         "keywords": [
@@ -146,6 +191,13 @@ DOCTRINE_CATEGORIES = {
 }
 
 
+# Narrower than _LOCATION_SIGNALS below, whose "state"/"place" fire on every
+# "Beautiful State" question.
+_WHERE_RE = re.compile(
+    r"\b(?:where|located|location|address|directions?|reach|visit\w*|travel)\b", re.I
+)
+
+
 # Evolution marker: 2026-07-08 | source: advanced-python-plan | confidence: 0.95
 # lru_cache: same query → instant return, avoids repeated O(N·M) pattern scan
 @lru_cache(maxsize=1024)
@@ -158,6 +210,8 @@ def classify_doctrine_query(query: str) -> tuple[str, ...]:
     q = query.lower()
     matched = []
     for category, data in DOCTRINE_CATEGORIES.items():
+        if not all(req in q for req in data.get("requires", ())):
+            continue
         for pattern in data["patterns"]:
             if pattern in q:
                 matched.append(category)
@@ -213,6 +267,8 @@ def inject_doctrine_keywords(
 
     keywords = []
     for cat in categories:
+        if DOCTRINE_CATEGORIES[cat].get("location_only") and not _WHERE_RE.search(query):
+            continue
         keywords.extend(DOCTRINE_CATEGORIES[cat]["keywords"][:top_k])
 
     # Deduplicate preserving order

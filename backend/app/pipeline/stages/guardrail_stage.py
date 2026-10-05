@@ -269,4 +269,37 @@ class OutputGuardrailStage(Stage):
             # Using "error" here caused false-positive error rate inflation in telemetry.
             ctx.last_stage_status = "moderated"
         ctx.is_blocked = is_blocked
+        if not is_blocked:
+            await _append_relationship_boundary(ctx)
         return None
+
+
+async def _append_relationship_boundary(ctx: PipelineContext) -> None:
+    """Relationship-repair question -> the answer carries the safety boundary.
+
+    Deterministic and independent of what the graph generated: the answer may
+    suggest contact or apology, and the seeker may not have said "abuse".
+    """
+    from guardrails.lightweight_handler import (
+        RELATIONSHIP_SAFETY_BOUNDARY,
+        needs_relationship_safety_boundary,
+    )
+
+    question = (ctx.state or {}).get("user_msg_en") or ctx.user_msg or ""
+    answer = ctx.final_answer or ""
+    if not answer.strip() or not needs_relationship_safety_boundary(question):
+        return
+    boundary = RELATIONSHIP_SAFETY_BOUNDARY
+    if ctx.is_indic:
+        try:
+            boundary = (
+                await ctx.container.translation.translate_text(
+                    text=boundary, source_lang="en", target_lang=ctx.preferred_lang
+                )
+                or RELATIONSHIP_SAFETY_BOUNDARY
+            )
+        except Exception:  # noqa: BLE001 -- the English boundary beats none
+            logger.warning("Relationship boundary translation failed; appending English.")
+            boundary = RELATIONSHIP_SAFETY_BOUNDARY
+    if boundary not in answer:
+        ctx.final_answer = f"{answer.rstrip()}\n\n{boundary}"

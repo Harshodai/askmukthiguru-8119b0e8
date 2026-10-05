@@ -62,6 +62,24 @@ _PRACTICE_HOWTO_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Question shapes one verbatim clip cannot answer: a contrast, a root cause or
+# "why", a personal how-to (heal / overcome / repair ...), or a multi-part
+# question. Live 2026-10-05 (audits/scenarios-2026-10-05/): each of these was
+# served a topic-matched clip that did not answer the exact question. They go
+# to GraphStage's grounded synthesis, which is labelled as synthesis. "Why do
+# you ..." asks the teachers their own reason, which a clip can answer.
+_SYNTHESIS_SHAPE_RE = re.compile(
+    r"\bdifference\s+between\b|\bdiffer(?:s|ent)?\s+from\b|\bvs\b\.?|\bversus\b"
+    r"|\bcompar\w*|\bcontrast\w*"
+    r"|\broot\s+causes?\b|\bwhat\s+causes?\b|\bwhy\s+(?:do|does|am)\b(?!\s+you\b)"
+    r"|\bhow\s+(?:(?:can|do|should|could)\s+(?:i|we)|to)\b.{0,40}?"
+    r"\b(?:heal|overcome|stop|deal|let\s+go|repair|fix|forgive|cope|handle|get\s+over"
+    r"|break\s+free|release|reconcile|move\s+on)\b"
+    r"|,\s*and\s+(?:how|what|why|when|where|which|can|should|is|are|do|does)\b"
+    r"|\?[^?]+\?",
+    re.IGNORECASE,
+)
+
 # Strong references to in-flight memory writes to prevent garbage collection before execution
 _FP_MEMORY_WRITE_TASKS: set[asyncio.Task] = set()
 
@@ -419,6 +437,16 @@ class FirstPersonBridgeStage(Stage):
 
         if is_meditation_imperative(query) or _PRACTICE_HOWTO_RE.search(query):
             logger.info("[FirstPersonBridge] Guided-practice request; GraphStage runs.")
+            return None
+        # A clip cannot carry the relationship safety boundary
+        # (OutputGuardrailStage appends it on the graph path), so a
+        # relationship-repair question never takes the bridge.
+        from guardrails.lightweight_handler import needs_relationship_safety_boundary
+
+        if _SYNTHESIS_SHAPE_RE.search(query) or needs_relationship_safety_boundary(query):
+            logger.info(
+                "[FirstPersonBridge] Question needs synthesis, not one clip; GraphStage runs."
+            )
             return None
         state = getattr(ctx, "state", None) or {}
         # RequestStateStage already produced the English query (its own

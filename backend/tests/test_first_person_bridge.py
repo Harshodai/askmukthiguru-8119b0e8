@@ -823,3 +823,61 @@ async def test_guided_practice_requests_go_to_the_graph(fp_pipeline, msg):
 async def test_question_about_a_practice_still_gets_a_clip(fp_pipeline):
     result = await FirstPersonBridgeStage().run(_ctx(_container(), msg="What is Soul Sync?"))
     assert result is not None
+
+
+# ---------------------------------------------------------------------------
+# Question shape — one verbatim clip cannot answer a contrast, a root cause, a
+# personal how-to or a multi-part question (Manus audit 2026-10-05).
+# ---------------------------------------------------------------------------
+
+_AUDIT_SCENARIOS = [
+    "What is the root cause of human suffering, and how do two states of being "
+    "determine our daily life?",
+    "How can I heal from self-judgment and the inner wall of defense in my relationships?",
+    "Guide me in a meditation to calm the wandering mind and experience inner stillness.",
+    "How does the wisdom of Ekam view the difference between detachment and living "
+    "in a beautiful state?",
+]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("msg", _AUDIT_SCENARIOS)
+async def test_audit_scenarios_decline_the_bridge(fp_pipeline, msg):
+    assert await FirstPersonBridgeStage().run(_ctx(_container(), msg=msg)) is None
+    fp_pipeline.execute.assert_not_called()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "msg",
+    [
+        "What is the difference between pleasure and the beautiful state?",
+        "Detachment vs presence",
+        "Compare Soul Sync and Serene Mind",
+        "Why do I keep suffering?",
+        "What causes anger?",
+        "How do I stop overthinking?",
+        "How to let go of the past",
+        "What is the Beautiful State? How do I live in it?",
+        "Should I forgive my mother?",
+    ],
+)
+async def test_synthesis_shaped_questions_decline_the_bridge(fp_pipeline, msg):
+    assert await FirstPersonBridgeStage().run(_ctx(_container(), msg=msg)) is None
+    fp_pipeline.execute.assert_not_called()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "msg",
+    [
+        "What is the Beautiful State?",
+        "What is Soul Sync?",
+        "What does Sri Krishnaji say about anger?",
+        "Why did you build Ekam?",
+    ],
+)
+async def test_plain_what_is_questions_still_reach_the_clip(fp_pipeline, msg):
+    result = await FirstPersonBridgeStage().run(_ctx(_container(), msg=msg))
+    assert result is not None and result.final_answer == _ANSWER
+    fp_pipeline.execute.assert_called_once()
