@@ -26,21 +26,43 @@ import urllib.error
 import urllib.request
 
 # Host service endpoints
-QDRANT_HOST_URL = "http://localhost:6333"
-NEO4J_CONTAINER = "mukthiguru-neo4j"
-import os as _os
-NEO4J_PASS = _os.environ["NEO4J_PASSWORD"]  # required
+QDRANT_HOST_URL = os.environ.get("QDRANT_URL", "http://localhost:6333").rstrip("/")
+
+# The graph container. Memgraph replaced Neo4j on 2026-09-19 and the `neo4j`
+# compose service now sits behind the `legacy-neo4j` profile, so it is not
+# running in a default `docker compose up`. Defaulting to the old container
+# name made every graph backup a silent no-op against a container that does
+# not exist. Both speak Bolt and ship cypher-shell, so the commands below are
+# unchanged. Override with GRAPH_CONTAINER when running the legacy profile.
+NEO4J_CONTAINER = os.environ.get("GRAPH_CONTAINER", "mukthiguru-memgraph")
+NEO4J_PASS = os.environ["NEO4J_PASSWORD"]  # required
+
+# Collections to snapshot. `make clean`/`make docker-rebuild` call this script
+# as their protective backup before destroying volumes, so anything missing
+# here is data the safety net does not actually save. The old single
+# "spiritual_wisdom" default covered neither the live corpus collection nor
+# the first-person teacher clips.
+DEFAULT_COLLECTIONS = [
+    os.environ.get("QDRANT_COLLECTION", "spiritual_wisdom_contextual"),
+    os.environ.get("FIRST_PERSON_COLLECTION", "first_person_v7"),
+]
 
 # Backup directories on host
 BACKUP_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "backups"))
-QDRANT_BACKUP_PATH = os.path.join(BACKUP_DIR, "qdrant", "spiritual_wisdom.snapshot")
+
+
+def qdrant_backup_path(collection_name):
+    """One snapshot file per collection, named after it."""
+    return os.path.join(BACKUP_DIR, "qdrant", f"{collection_name}.snapshot")
+
+
 NEO4J_BACKUP_PATH = os.path.join(BACKUP_DIR, "neo4j", "backup.cypher")
 SUPABASE_BACKUP_PATH = os.path.join(BACKUP_DIR, "supabase", "data.sql")
 
 
 def setup_directories():
     """Ensure all host backup directories exist."""
-    os.makedirs(os.path.dirname(QDRANT_BACKUP_PATH), exist_ok=True)
+    os.makedirs(os.path.join(BACKUP_DIR, "qdrant"), exist_ok=True)
     os.makedirs(os.path.dirname(NEO4J_BACKUP_PATH), exist_ok=True)
     os.makedirs(os.path.dirname(SUPABASE_BACKUP_PATH), exist_ok=True)
     print(f"[*] Backup directories established under: {BACKUP_DIR}")
@@ -89,8 +111,10 @@ def get_supabase_container():
 # ─── Qdrant Backup & Restore ──────────────────────────────────────────────────
 
 
-def backup_qdrant(collection_name="spiritual_wisdom"):
+def backup_qdrant(collection_name=None):
     """Create a collection snapshot and download it to the host."""
+    collection_name = collection_name or DEFAULT_COLLECTIONS[0]
+    snapshot_path = qdrant_backup_path(collection_name)
     print(f"\n[Qdrant] Starting backup of collection '{collection_name}'...")
 
     # 1. Trigger snapshot generation
@@ -114,9 +138,9 @@ def backup_qdrant(collection_name="spiritual_wisdom"):
     print(f"  [*] Downloading snapshot from Qdrant: {download_url}")
 
     try:
-        urllib.request.urlretrieve(download_url, QDRANT_BACKUP_PATH)
+        urllib.request.urlretrieve(download_url, snapshot_path)
         print(
-            f"  [✅] Qdrant backup saved: {QDRANT_BACKUP_PATH} ({os.path.getsize(QDRANT_BACKUP_PATH) / 1024 / 1024:.2f} MB)"
+            f"  [✅] Qdrant backup saved: {snapshot_path} ({os.path.getsize(snapshot_path) / 1024 / 1024:.2f} MB)"
         )
         return True
     except Exception as e:
@@ -124,25 +148,27 @@ def backup_qdrant(collection_name="spiritual_wisdom"):
         return False
 
 
-def restore_qdrant(collection_name="spiritual_wisdom"):
+def restore_qdrant(collection_name=None):
     """Upload and restore collection from snapshot."""
+    collection_name = collection_name or DEFAULT_COLLECTIONS[0]
+    snapshot_path = qdrant_backup_path(collection_name)
     print(f"\n[Qdrant] Restoring collection '{collection_name}' from snapshot...")
 
-    if not os.path.exists(QDRANT_BACKUP_PATH):
-        print(f"  [-] Qdrant snapshot not found at {QDRANT_BACKUP_PATH}. Skipping Qdrant restore.")
+    if not os.path.exists(snapshot_path):
+        print(f"  [-] Qdrant snapshot not found at {snapshot_path}. Skipping Qdrant restore.")
         return False
 
     # Standard multipart form data upload implementation using only standard library
     try:
         # Load snapshot file
-        with open(QDRANT_BACKUP_PATH, "rb") as f:
+        with open(snapshot_path, "rb") as f:
             snapshot_bytes = f.read()
 
         boundary = b"----WebKitFormBoundaryAskMukthiGuruBackup"
         parts = []
         parts.append(b"--" + boundary)
         parts.append(
-            b'Content-Disposition: form-data; name="snapshot"; filename="spiritual_wisdom.snapshot"'
+            f'Content-Disposition: form-data; name="snapshot"; filename="{collection_name}.snapshot"'.encode()
         )
         parts.append(b"Content-Type: application/octet-stream")
         parts.append(b"")
@@ -395,12 +421,23 @@ def restore_supabase():
 def main():
     parser = argparse.ArgumentParser(description="AskMukthiGuru — Backup & Restore Manager")
     parser.add_argument("action", choices=["backup", "restore"], help="Action to execute")
-    parser.add_argument("--collection", default="spiritual_wisdom", help="Target Qdrant collection")
+    parser.add_argument(
+        "--collection",
+        action="append",
+        dest="collections",
+        help="Qdrant collection to snapshot; repeatable. Defaults to the live "
+        f"corpus and first-person clip collections ({', '.join(DEFAULT_COLLECTIONS)}).",
+    )
 
     args = parser.parse_args()
 
-    # Enforce Docker path on macOS
-    os.environ["PATH"] = "/Users/harshodaikolluru/.docker/bin:" + os.environ.get("PATH", "")
+    # Docker Desktop on macOS installs its CLI outside the default PATH.
+    # Prepend it only when it exists, so this script also runs on Linux/CI.
+    _mac_docker_bin = os.path.expanduser("~/.docker/bin")
+    if os.path.isdir(_mac_docker_bin):
+        os.environ["PATH"] = _mac_docker_bin + os.pathsep + os.environ.get("PATH", "")
+
+    collections = args.collections or DEFAULT_COLLECTIONS
 
     setup_directories()
 
@@ -411,7 +448,7 @@ def main():
         print("   INITIATING MUKTHI GURU COMPREHENSIVE BACKUP PIPELINE")
         print("=" * 80)
 
-        q_ok = backup_qdrant(args.collection)
+        q_ok = all([backup_qdrant(c) for c in collections])
         n_ok = backup_neo4j()
         s_ok = backup_supabase()
 
@@ -429,7 +466,7 @@ def main():
         print("   INITIATING MUKTHI GURU COMPREHENSIVE RESTORATION PIPELINE")
         print("=" * 80)
 
-        q_ok = restore_qdrant(args.collection)
+        q_ok = all([restore_qdrant(c) for c in collections])
         n_ok = restore_neo4j()
         s_ok = restore_supabase()
 

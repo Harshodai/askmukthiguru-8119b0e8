@@ -11,6 +11,7 @@ RUFF := $(shell if [ -x "$(BACKEND_VENV)/bin/ruff" ]; then echo "$(BACKEND_VENV)
 BANDIT := $(shell if [ -x "$(BACKEND_VENV)/bin/bandit" ]; then echo "$(BACKEND_VENV)/bin/bandit"; elif [ -x "$(ROOT_VENV)/bin/bandit" ]; then echo "$(ROOT_VENV)/bin/bandit"; else echo "bandit"; fi)
 
 # Colors for terminal output
+RED=\033[1;31m
 YELLOW=\033[1;33m
 GREEN=\033[1;32m
 NC=\033[0m # No Color
@@ -121,7 +122,10 @@ docker-down: ## Stop and remove all Docker containers
 
 clean: ## Stop Docker, remove volumes, and clean local caches (automatically backs up first!)
 	@echo "${YELLOW}Taking protective snapshot of all databases before clean...${NC}"
-	@$(PYTHON) scripts/backup/snapshot_manager.py backup || true
+	@# No `|| true` here: the next line destroys the volumes holding the corpus
+	@# and the first-person clips. If the snapshot fails, stop and say so.
+	@$(PYTHON) scripts/backup/snapshot_manager.py backup || \
+		(echo "${RED}Protective snapshot FAILED — refusing to delete volumes. Fix the backup, or run 'docker compose down -v' yourself if you really mean to discard the data.${NC}" && exit 1)
 	@echo "${YELLOW}Cleaning up volumes and caches...${NC}"
 	@cd backend && DOCKER_CONFIG=$(DOCKER_CONFIG_CLEAN) PATH=$(DOCKER_BIN):$$PATH docker compose down -v
 	@find . -type d -name "__pycache__" -exec rm -rf {} +

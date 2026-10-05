@@ -193,8 +193,17 @@ services:
     logging: *default-logging
     ports:
       - "8000:8000"
+    # backend/.env used to reach the container only by being baked into the
+    # image (`COPY backend/ .` + a root-anchored `.env*` dockerignore rule).
+    # It is now excluded from the build context, so it is passed at runtime
+    # here instead. Later files win: root ../.env overrides backend/.env,
+    # which matches the precedence the baked file had. Both are optional so
+    # a fresh clone with only backend/.env starts.
     env_file:
-      - ../.env
+      - path: ./.env
+        required: false
+      - path: ../.env
+        required: false
     environment: &backend-env
       # Bound numeric-library thread pools (2026-09-06, fix for L-DOCKER-9:
       # RuntimeError: can't start new thread under load). MKL/OpenBLAS/OMP
@@ -451,7 +460,10 @@ services:
       retries: 3
       start_period: 30s
     env_file:
-      - ../.env
+      - path: ./.env
+        required: false
+      - path: ../.env
+        required: false
     environment: *backend-env
     command: >
       celery -A celery_config worker
