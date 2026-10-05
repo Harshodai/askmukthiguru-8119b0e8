@@ -803,3 +803,23 @@ async def test_mild_or_no_distress_still_gets_the_clip(fp_pipeline, level):
 
 def test_decline_level_matches_distress_moderate():
     assert bridge_module._DISTRESS_DECLINE_LEVEL == DistressLevel.MODERATE.value
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "msg",
+    [
+        "How do I practice Soul Sync?",
+        "guide me through the serene mind meditation",
+        "What are the steps of soul sync",
+    ],
+)
+async def test_guided_practice_requests_go_to_the_graph(fp_pipeline, msg):
+    assert await FirstPersonBridgeStage().run(_ctx(_container(), msg=msg)) is None
+    fp_pipeline.execute.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_question_about_a_practice_still_gets_a_clip(fp_pipeline):
+    result = await FirstPersonBridgeStage().run(_ctx(_container(), msg="What is Soul Sync?"))
+    assert result is not None

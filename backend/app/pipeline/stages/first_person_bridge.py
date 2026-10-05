@@ -56,6 +56,12 @@ logger = logging.getLogger(__name__)
 # DistressLevel.MODERATE; an int so this module stays import-light.
 _DISTRESS_DECLINE_LEVEL = 2
 
+_PRACTICE_HOWTO_RE = re.compile(
+    r"\b(how|steps?|guide|teach me|instructions?)\b.{0,40}"
+    r"\b(soul\s*sync|serene\s*mind|meditat\w*|breath\w*)",
+    re.IGNORECASE,
+)
+
 # Strong references to in-flight memory writes to prevent garbage collection before execution
 _FP_MEMORY_WRITE_TASKS: set[asyncio.Task] = set()
 
@@ -401,6 +407,14 @@ class FirstPersonBridgeStage(Stage):
         level = getattr(getattr(ctx, "assessment", None), "level", None)
         if int(getattr(level, "value", 0) or 0) >= _DISTRESS_DECLINE_LEVEL:
             logger.info("[FirstPersonBridge] Distress level %s; GraphStage runs.", level)
+            return None
+        # Guided practices (Soul Sync, Serene Mind) are step-by-step; one clip
+        # is not the steps. A request to do one, or to learn how, goes to the
+        # graph's meditation/teaching path (live 2026-10-05: no Soul Sync steps).
+        from rag.meditation import is_meditation_imperative
+
+        if is_meditation_imperative(query) or _PRACTICE_HOWTO_RE.search(query):
+            logger.info("[FirstPersonBridge] Guided-practice request; GraphStage runs.")
             return None
         state = getattr(ctx, "state", None) or {}
         # RequestStateStage already produced the English query (its own
