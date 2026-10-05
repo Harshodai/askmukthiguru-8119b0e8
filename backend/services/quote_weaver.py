@@ -634,6 +634,9 @@ def _clean_pointer(
 
 # ponytail: clean thematic inquiry catalog — authentic Atma Vichara inquiries
 # strictly free from artificial affirmations or pseudo-spiritual instructions.
+# These are product-written questions, not quotes: never a doctrinal claim
+# stated as fact ("all suffering is ...", 2026-10-05 QA audit), only an
+# invitation to look.
 _THEMATIC_INQUIRIES: dict[str, tuple[str, str, str]] = {
     "peace": (
         "When inner turmoil or conflict arises within you, what is the belief, need to be right, or fear that keeps it alive?",
@@ -642,7 +645,7 @@ _THEMATIC_INQUIRIES: dict[str, tuple[str, str, str]] = {
     ),
     "suffering": (
         "What is the thought or expectation you are clinging to right now that creates this inner ache?",
-        "Can you witness this suffering without attempting to escape, recognizing that all suffering is an obsessive preoccupation with oneself?",
+        "Can you witness this suffering without attempting to escape it, and notice how much of it circles around your own self?",
         "What shift occurs in your body and consciousness when you shift from self-centric fear into conscious connection with life?",
     ),
     "relationships": (

@@ -723,3 +723,20 @@ def test_fp_exact_cache_honours_the_benchmark_cache_switch(monkeypatch):
     pipe.execute(query="What causes suffering?", query_dense_vector=[1.0, 0.0])
     redis.get.assert_not_called()
     redis.set.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Class: product-written text stated as doctrine (reflection prompts)
+# ---------------------------------------------------------------------------
+
+
+def test_reflection_prompts_make_no_absolute_doctrinal_claim():
+    import re
+
+    from services.quote_weaver import _THEMATIC_INQUIRIES
+
+    absolute = re.compile(r"\b(?:all|every)\s+\w+\s+(?:is|are)\b|\bis\s+always\b", re.I)
+    for theme, prompts in _THEMATIC_INQUIRIES.items():
+        for p in prompts:
+            assert p.rstrip("'\" ").endswith("?"), (theme, p)
+            assert not absolute.search(p), (theme, p)
