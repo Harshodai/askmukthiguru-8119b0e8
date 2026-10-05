@@ -287,10 +287,16 @@ async def handle_fallback(state: GraphState, config: Optional[RunnableConfig] = 
     # equivalent safety valve, so a real retrieved-evidence miss produced a
     # generic refusal instead of the excerpts that were actually found.
     try:
-        from rag.nodes.generation import _grounded_partial_answer
+        from rag.nodes.generation import _grounded_partial_answer, _partial_evidence_kwargs
 
         candidate_docs = state.get("reranked_docs") or state.get("documents") or []
-        partial = _grounded_partial_answer(candidate_docs) if candidate_docs else None
+        partial = (
+            _grounded_partial_answer(
+                candidate_docs, require_overlap=True, **_partial_evidence_kwargs(state)
+            )
+            if candidate_docs
+            else None
+        )
         if partial:
             partial_answer, partial_citations = partial
             logger.info(

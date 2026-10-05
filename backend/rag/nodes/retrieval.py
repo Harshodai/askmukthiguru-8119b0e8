@@ -268,6 +268,9 @@ def _okf_match(query: str, limit: int = 3, teacher: str | None = None) -> list[d
                 # Keyword overlap is a weaker signal than cosine; scored below the
                 # semantic path so it never outranks a real embedding match.
                 "score": min(1.0, score) * _OKF_KEYWORD_SCORE_CEILING,
+                # Same marker as the semantic branch: generation labels OKF as
+                # curated notes and never offers it as the teachers' own words.
+                "knowledge_source": "okf",
                 # GURU_DEMO_READINESS F4: see the semantic branch above for why.
                 "chunk_provenance": "polished_speech",
                 "title": e["title"],

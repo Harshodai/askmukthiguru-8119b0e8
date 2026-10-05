@@ -219,6 +219,15 @@ def _source_kind_label(doc: dict) -> str:
     services/qdrant/searcher.py always populates.
     """
     provenance = doc.get("chunk_provenance") or ""
+    if doc.get("knowledge_source") == "okf":
+        # OKF entries carry chunk_provenance="polished_speech" for citation
+        # plumbing, but their bodies are reviewed notes ABOUT a teaching
+        # (summary, key-teaching bullets), mostly LLM-drafted. Labelling them
+        # VERBATIM invited the model to quote a summary as the teachers' words.
+        return (
+            "CURATED NOTES — reviewed notes ABOUT this teaching, not a transcript; "
+            "only text inside quotation marks is the teachers' own words"
+        )
     if provenance == ChunkProvenance.MACHINE_SUMMARY.value or doc.get("raptor_level") == 1:
         return (
             "MACHINE SUMMARY — an AI-written summary ABOUT this teaching, not the teachers' words"
@@ -597,8 +606,125 @@ def _redact_unsupported_sentences(verification: dict, *, floor: float) -> tuple[
     return body + "\n\n" + voice_register.redaction_note(removed), removed
 
 
+# Only text the teachers actually spoke or published may be offered as "their
+# words". OKF entries are reviewed notes ABOUT a teaching (headings, a summary,
+# bullet lists -- most were drafted by an LLM and then approved), RAPTOR and
+# machine summaries are AI-written, and graph docs are edge lists. Live
+# 2026-10-04: an OKF entry was shown under "let me give you theirs directly"
+# with its markdown headings intact.
+_PARTIAL_EXCLUDED_PROVENANCE = frozenset(
+    {
+        ChunkProvenance.MACHINE_SUMMARY.value,
+        ChunkProvenance.THIRD_PARTY_PROSE.value,
+        ChunkProvenance.JUNK.value,
+    }
+)
+_PARTIAL_EXCLUDED_SOURCES = frozenset({"okf", "neo4j_subgraph", "lightrag"})
+
+# A seeker who did not raise suicide or self-harm must not be handed a passage
+# about it as "the answer". Live 2026-10-04: a Hindi question about anger got
+# "Did you know that self-harm is the leading cause of death..." because that
+# happened to be the first 360 characters of the top document.
+_SELF_HARM_TOPIC = re.compile(
+    r"suicid|self[- ]?harm|kill(?:ing|ed|s)?\s+(?:him|her|my|your|our|them)sel|"
+    r"take\s+(?:his|her|my|your|their)\s+own\s+life|end(?:ing)?\s+(?:my|his|her|their|your)\s+life",
+    re.IGNORECASE,
+)
+
+_PARTIAL_EXCERPT_MAX_CHARS = 360
+_SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+")
+_LATIN_WORD = re.compile(r"[a-z]+")
+_RELEVANCE_STOPWORDS = frozenset(
+    """about above after again against also because been before being below between
+    both could does doing down during each from further have having here into itself
+    just more most much myself only other ought ourselves over same should some such
+    than that their theirs them themselves then there these they this those through
+    under until very want what when where which while whom will with would your
+    yours yourself yourselves please tell explain know feel feeling really always
+    never every something someone thing things make made like many even still
+    teach teaching teachings teacher teachers guru gurus preethaji krishnaji""".split()
+)
+
+
+def _relevance_stems(text: str) -> set[str]:
+    """Crude, deterministic content-word stems (first 5 letters of 4+ letter words)."""
+    return {
+        w[:5]
+        for w in _LATIN_WORD.findall((text or "").lower())
+        if len(w) >= 4 and w not in _RELEVANCE_STOPWORDS
+    }
+
+
+def _clean_partial_text(text: str, title: str) -> str:
+    """Drop markdown structure so a quote reads as speech, not a document dump."""
+    lines: list[str] = []
+    title_norm = " ".join(title.lower().split())
+    for line in (text or "").splitlines():
+        stripped = line.strip()
+        if (
+            not stripped
+            or re.match(r"^#{1,6}\s", stripped)
+            or re.fullmatch(r"[-*_=]{3,}", stripped)
+        ):
+            continue
+        if not lines and title_norm and " ".join(stripped.lower().split()) == title_norm:
+            continue
+        stripped = re.sub(r"^(?:>\s*|[-*\u2022]\s+|\d+[.)]\s+)", "", stripped)
+        stripped = re.sub(r"(\*\*|__)(.+?)\1", r"\2", stripped)
+        lines.append(stripped)
+    # A chunk stored with its newlines already collapsed still carries "# " runs.
+    joined = re.sub(r"(?:^|\s)#{1,6}\s", " ", " ".join(lines))
+    return " ".join(joined.split())
+
+
+def _best_excerpt_window(text: str, question_stems: set[str]) -> tuple[str, int]:
+    """Return the sentence window (<= cap chars) sharing most stems with the question.
+
+    The excerpt used to be the document's first 360 characters, whatever they
+    said. Ties keep the earliest window, so with no question this is unchanged.
+    """
+    sentences = [s for s in _SENTENCE_SPLIT.split(text) if s.strip()] or [text]
+    best_text, best_score = "", -1
+    for start in range(len(sentences)):
+        window = ""
+        for sentence in sentences[start:]:
+            candidate = f"{window} {sentence}".strip()
+            if window and len(candidate) > _PARTIAL_EXCERPT_MAX_CHARS:
+                break
+            window = candidate
+            if len(window) >= _PARTIAL_EXCERPT_MAX_CHARS:
+                break
+        score = len(_relevance_stems(window) & question_stems) if question_stems else 0
+        if score > best_score:
+            best_text, best_score = window, score
+        if not question_stems:
+            break
+    if len(best_text) > _PARTIAL_EXCERPT_MAX_CHARS:
+        best_text = best_text[: _PARTIAL_EXCERPT_MAX_CHARS - 3].rsplit(" ", 1)[0] + "..."
+    return best_text, max(best_score, 0)
+
+
+def _partial_evidence_kwargs(state: dict) -> dict:
+    """Relevance context every partial-evidence caller passes.
+
+    The rerank floor applies only when a cross-encoder actually scored the
+    docs: the high-confidence bypass copies retrieval scores (RRF, a different
+    scale) into ``rerank_score``, and those docs were bypassed for being good.
+    """
+    trace = state.get("evaluation_trace") or {}
+    reranked = isinstance(trace, dict) and trace.get("rerank_bypassed") is False
+    return {
+        "question": state.get("question", "") or "",
+        "min_rerank_score": float(settings.rerank_min_score) if reranked else None,
+    }
+
+
 def _grounded_partial_answer(
-    relevant_docs: list[dict], max_docs: int = 2
+    relevant_docs: list[dict],
+    max_docs: int = 2,
+    question: str = "",
+    require_overlap: bool = False,
+    min_rerank_score: float | None = None,
 ) -> tuple[str, list[str]] | None:
     """Build a citation-preserving extractive answer when generation is rejected.
 
@@ -606,9 +732,38 @@ def _grounded_partial_answer(
     excerpts already present in retrieved documents and labels the result as
     partial. Every excerpt is tied to its document's absolute source URL, so the
     response cannot claim a generated teaching passed verification when it did not.
+
+    With a ``question``, the window shown from each document is the one that
+    shares the most content words with it. ``require_overlap`` additionally
+    drops documents sharing none -- for callers whose docs were NOT graded
+    relevant (the CRAG-exhausted terminal fallback). Lexical overlap misses
+    paraphrase, so graded docs are not held to it. A question with no
+    Latin-script content words (an untranslated Indic query) cannot be matched
+    lexically, so relevance is never judged for it.
+
+    ``min_rerank_score`` drops documents the cross-encoder scored below it.
+    The fast path hands generation its top reranked docs with no confidence
+    gate, so without this a question the corpus cannot answer ("What is the
+    capital of France?", live 2026-10-05) got an unrelated excerpt labelled
+    grounded.
     """
+    question_stems = _relevance_stems(question)
+    seeker_raised_self_harm = bool(_SELF_HARM_TOPIC.search(question or ""))
     excerpts: list[tuple[int, str, str, str]] = []
     for raw_index, doc in enumerate(relevant_docs):
+        score = doc.get("rerank_score")
+        if (
+            min_rerank_score is not None
+            and isinstance(score, (int, float))
+            and score < min_rerank_score
+        ):
+            continue
+        if (
+            doc.get("knowledge_source") in _PARTIAL_EXCLUDED_SOURCES
+            or doc.get("chunk_provenance") in _PARTIAL_EXCLUDED_PROVENANCE
+            or doc.get("raptor_level") == 1
+        ):
+            continue
         # The preface promises the teachers' own words, so ingestion machinery
         # (LLM-written [Context: ...] summaries, [Potential Questions: ...]
         # footers) must never be shown as a quote. Live 2026-09-26 (mul-012): a
@@ -631,12 +786,17 @@ def _grounded_partial_answer(
         ):
             continue
         title = str(doc.get("title") or url).strip()
-        excerpt = " ".join(text.split())
+        cleaned = _clean_partial_text(text, title)
+        if not cleaned:
+            continue
         # Keep the deterministic safety-valve response concise. This is a
-        # source excerpt, not a generated summary, so the cap only truncates
-        # the retrieved text and never adds model-authored content.
-        if len(excerpt) > 360:
-            excerpt = excerpt[:357].rsplit(" ", 1)[0] + "..."
+        # source excerpt, not a generated summary, so the window only selects
+        # and truncates retrieved text and never adds model-authored content.
+        excerpt, overlap = _best_excerpt_window(cleaned, question_stems)
+        if require_overlap and question_stems and overlap == 0:
+            continue
+        if not seeker_raised_self_harm and _SELF_HARM_TOPIC.search(excerpt):
+            continue
         excerpts.append((raw_index, title, excerpt, url))
         if len(excerpts) >= max_docs:
             break
@@ -3263,7 +3423,7 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
     # retrying generation. Standard/deep requests retain the existing retry
     # behavior because they have a different verification budget and contract.
     if refusal_action == "retry" and query_tier in ("tier2_simple", "fast") and relevant_docs:
-        partial = _grounded_partial_answer(relevant_docs)
+        partial = _grounded_partial_answer(relevant_docs, **_partial_evidence_kwargs(state))
         if partial:
             partial_answer, partial_citations = partial
             partial_citations = _sanitize_citations(partial_citations, docs=relevant_docs)
@@ -3321,7 +3481,7 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
                 "_needs_retry": True,
                 "refusal_quality_failure": True,
             }
-        partial = _grounded_partial_answer(relevant_docs)
+        partial = _grounded_partial_answer(relevant_docs, **_partial_evidence_kwargs(state))
         if partial:
             partial_answer, partial_citations = partial
             partial_citations = _sanitize_citations(partial_citations, docs=relevant_docs)
@@ -3778,7 +3938,7 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
                 "faithfulness_score": redacted_faithfulness,
                 "confidence_score": confidence,
             }
-        partial = _grounded_partial_answer(relevant_docs)
+        partial = _grounded_partial_answer(relevant_docs, **_partial_evidence_kwargs(state))
         if partial:
             partial_answer, partial_citations = partial
             partial_citations = _sanitize_citations(partial_citations, docs=relevant_docs)
