@@ -19,6 +19,13 @@ from rag.prompts import MEDITATION_STEPS
 
 logger = logging.getLogger(__name__)
 
+# One-line stop condition delivered with every guided practice. Deliberately
+# promises no outcome and no duration-to-calm: breathwork can aggravate dizziness,
+# panic or trauma responses, so the seeker is told up front that stopping is fine.
+MEDITATION_STOP_CONDITION = (
+    "Stop and breathe normally if you feel dizzy, panicky or uncomfortable; results vary."
+)
+
 MEDITATION_SCRIPTS = {
     "serene_mind": {
         "title": "Serene Mind Meditation",
@@ -43,6 +50,16 @@ MEDITATION_SCRIPTS = {
         ],
     },
 }
+
+
+def format_meditation_script(script_name: str) -> str:
+    """Render a full scripted practice with its stop condition appended."""
+    script = MEDITATION_SCRIPTS[script_name]
+    return (
+        f"**{script['title']}**\n\n"
+        + "\n".join(f"{i + 1}. {s}" for i, s in enumerate(script["steps"]))
+        + f"\n\n_{MEDITATION_STOP_CONDITION}_"
+    )
 
 
 def get_meditation_script(script_name: str) -> dict:
@@ -142,6 +159,7 @@ def format_meditation_response(step: int) -> Optional[str]:
     return (
         f"**Step {step_data['step']}/{_get_max_step()}: {step_data['title']}**\n\n"
         + step_data["prompt"]
+        + f"\n\n_{MEDITATION_STOP_CONDITION}_"
     )
 
 

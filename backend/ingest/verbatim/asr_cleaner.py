@@ -33,12 +33,27 @@ _IT_KIND_OF_RE = re.compile(r"^It kind of, ")
 _NO_NO_RE = re.compile(r"\bno, no,\s+", re.IGNORECASE)
 
 
+# Whole-word ASR restart across punctuation: 'relationships. relationships. are' -> 'relationships are'.
+_PUNCT_REPEAT_RE = re.compile(r"\b(\w{5,})[.,]\s+\1\b[.,]?", re.IGNORECASE)
+
+# Case-flipped restart with no punctuation: 'seek Seek the truth' -> 'seek the truth'.
+# Only fires when the two words differ in case, so legitimate 'that that' / 'had had' survive.
+_CASE_FLIP_REPEAT_RE = re.compile(r"\b(\w{4,})\s+(\1)\b", re.IGNORECASE)
+
+
+def _drop_case_flip(m: re.Match[str]) -> str:
+    return m.group(1) if m.group(1) != m.group(2) else m.group(0)
+
+
 def clean_verbatim_text(text: str) -> str:
     """Remove ASR noise from verbatim text. Preserves all meaning. Idempotent."""
     # Remove stutter repeats: 'So, So' -> 'So'
     text = _STUTTER_RE.sub(lambda m: m.group(1) or m.group(2) or m.group(3), text)
     # Remove false starts with repetition
     text = _FALSE_START_RE.sub(lambda m: m.group(1), text)
+    # Remove whole-word ASR restarts ('relationships. relationships.', 'seek Seek')
+    text = _PUNCT_REPEAT_RE.sub(lambda m: m.group(1), text)
+    text = _CASE_FLIP_REPEAT_RE.sub(_drop_case_flip, text)
     # Remove embedded audience acks mid-sentence
     text = _EMBEDDED_ACK_RE.sub("", text)
     # Remove 'It kind of,' opener

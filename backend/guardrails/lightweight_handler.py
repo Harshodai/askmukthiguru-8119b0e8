@@ -102,6 +102,22 @@ _BLOCKED_TOPICS = {
         r"\bdomestic\s+(violence|abuse)\b",
         r"\bafraid\s+(of\s+my|for\s+my\s+life)\b.*\b(husband|wife|partner|spouse|family)\b",
         r"\bpartner\s+(is\s+violent|hits\s+me|threatens\s+me)\b",
+        # Abuse/coercion/danger cue + reconcile/contact advice + a relationship word, in any
+        # order ("my abusive husband ... should I call and apologise?"). Reconciliation advice
+        # to someone in danger is a safety matter, not a relationship-doctrine answer.
+        # The relationship word keeps "my boss is abusive" untouched.
+        r"(?s)^(?=.*\b(?:partner|husband|wife|spouse|boyfriend|girlfriend|ex|father|mother|parents?|in-laws?|family)\b)"
+        r"(?=.*\b(?:abus\w*|violen\w*|controlling|coerc\w+|threat\w*|stalk\w*|dangerous)\b)"
+        r"(?=.*\b(?:apologi[sz]\w*|reconcil\w+|go\s+back|take\s+(?:him|her|them)\s+back|"
+        r"call(?:ing)?\s+(?:him|her|them)|contact(?:ing)?\s+(?:him|her|them)|forgive\w*|"
+        r"get\s+back\s+together|make\s+up)\b)",
+    ],
+    # Possible medical emergency: the safe answer is "seek urgent care", never a teaching.
+    "medical_emergency": [
+        r"\bchest\s+(?:pain|tightness|pressure)\b",
+        r"\bheart\s+attack\b",
+        r"\b(?:can'?t|cannot|unable\s+to)\s+breathe\b",
+        r"\b(?:shortness\s+of|difficulty\s+(?:in\s+)?|trouble)\s*breath\w*\b",
     ],
     "divination_and_astrology": [
         r"\b(astrolog(?:y|ical)|horoscope|zodiac|kundli|kundali|rashi|jyotish|tarot|palmistry|palm\s*reading)\b",
@@ -140,6 +156,9 @@ _BLOCKED_TOPICS = {
         r"\bhow\s+to\s+get\s+rich\s+(fast|quick)\b",
         # Promised sums from a practice (run 1: "manifest exactly one million dollars").
         r"\bmanifest\w*\b[^.?!]*\b(?:million|lakhs?|crores?|dollars|rupees|\$\s?\d)",
+        # "Can this make me wealthy?" asks a practice to promise money.
+        r"\b(?:make|bring|get|give|turn)\s+me\s+(?:wealthy|rich|a\s+millionaire|financially\s+(?:free|independent|successful))\b",
+        r"\bcan\s+(?:this|it|the\s+(?:practice|retreat|meditation|deeksha)|meditation)\b[^.?!]*\b(?:wealthy|rich|millionaire)\b",
     ],
     "manipulation": [
         r"\bhow\s+to\s+(manipulate|deceive|trick|scam)\b",
@@ -192,6 +211,19 @@ _BLOCKED_TOPICS = {
         r"\bwhat\s+(medicine|drug|pill|supplement)\b",
         r"\bsymptoms?\s+of\b",
         r"\b(cure|heal)\s+(clinical|severe)\s+(depression|anxiety|illness|disorder)\b",
+        # Diagnosed psychiatric condition + a cure/fix request ("I have OCD; can this retreat cure me?").
+        r"\b(?:ocd|ptsd|bipolar|schizophreni\w*|adhd|panic\s+disorder|psychosis|eating\s+disorder|anorexia|bulimia)\b"
+        r"[^.?!]*\b(?:cure\w*|heal\w*|fix\w*|treat\w*|get\s+rid|overcome|recover\w*)\b",
+        r"\b(?:cure\w*|heal\w*|fix\w*|treat\w*|get\s+rid|overcome)\b[^.?!]*"
+        r"\b(?:ocd|ptsd|bipolar|schizophreni\w*|adhd|panic\s+disorder|psychosis|eating\s+disorder)\b",
+        r"\b(?:cure\w*|heal\w*|fix\w*|reverse|treat\w*)\b[^.?!]*\bheart\s+(?:disease|condition|problem|failure|blockage)\b",
+        r"\bheart\s+(?:disease|condition|problem|failure|blockage)\b[^.?!]*\b(?:cure\w*|heal\w*|fix\w*|reverse|treat\w*)\b",
+        # First-person dissociation / derealisation: a clinical symptom, not an ego-dissolution cue.
+        r"\bi(?:'m|\s+am|\s+keep|\s+have\s+been|\s+feel\s+like\s+i\s+am)\s+(?:dissociat\w+|depersonali[sz]\w+|derealis\w+|hallucinat\w+)\b",
+        r"\b(?:dissociative\s+(?:episode|disorder|identity)|depersonali[sz]ation|derealization)\b",
+        # Substance addiction + a spiritual cure / Vasana framing.
+        r"\b(?:addict\w*|alcoholi\w+|relaps\w+|withdrawal)\b[^.?!]*\b(?:alcohol|drink\w*|drugs?|nicotine|smok\w+|opioids?|cocaine|heroin|weed|cannabis)\b"
+        r"|\b(?:alcohol|drink\w*|drugs?|nicotine|smok\w+|opioids?|cocaine|heroin|weed|cannabis)\b[^.?!]*\b(?:addict\w*|alcoholi\w+|relaps\w+|withdrawal)\b",
     ],
 }
 
@@ -278,6 +310,12 @@ _BLOCK_RESPONSES = {
         "I sense this message is trying to redirect my purpose. "
         "I am Mukthi Guru, and my sole purpose is to share the sacred teachings of "
         "Sri Preethaji and Sri Krishnaji. How may I guide you on your spiritual journey? 🙏"
+    ),
+    "medical_emergency": (
+        "Please do not wait on this. Chest pain, trouble breathing, or a feeling that something is "
+        "seriously wrong with your body needs urgent medical care, not a spiritual practice. "
+        "Call your local emergency number now (112 in India, 911 in US, 999 in UK) or go to the nearest "
+        "emergency room. Peace practices can come after you are safe and have been seen by a doctor. 🙏"
     ),
     "medical_advice_broad": (
         "I care deeply about your health. Mukthi Guru shares spiritual wisdom for inner peace, "
@@ -366,7 +404,7 @@ _OUTPUT_BLOCK_PATTERNS = [
         "medical_replacement",
     ),
     (
-        r"\b(?:cure|cures|cured|curing|heal|heals|healed|healing)\b.*\b(?:cancer|diabetes|tumor|tumors|bipolar|schizophrenia|clinical\s+depression|disease)\b|\b(?:cancer|diabetes|tumor|tumors|bipolar|schizophrenia|clinical\s+depression|disease)\b.*\b(?:cure|cures|cured|curing|heal|heals|healed|healing)\b",
+        r"\b(?:cure|cures|cured|curing|heal|heals|healed|healing)\b.*\b(?:cancer|diabetes|tumor|tumors|bipolar|schizophrenia|ocd|ptsd|clinical\s+depression|disease)\b|\b(?:cancer|diabetes|tumor|tumors|bipolar|schizophrenia|ocd|ptsd|clinical\s+depression|disease)\b.*\b(?:cure|cures|cured|curing|heal|heals|healed|healing)\b",
         "disease_cure_claim",
     ),
     (r"\b(?:guaranteed|100%|risk.?free)\b.*\b(?:return|profit|income)\b", "financial_promise"),

@@ -1661,7 +1661,7 @@ async def handle_meditation(state: GraphState, config: Optional[RunnableConfig] 
     except (TypeError, ValueError):
         step = 0
     question = state.get("question", "").lower()
-    from rag.meditation import MEDITATION_SCRIPTS
+    from rag.meditation import format_meditation_script
 
     start_step = getattr(settings, "meditation_start_step", 1)
     safe_fallback = getattr(settings, "meditation_safe_fallback", True)
@@ -1691,10 +1691,7 @@ async def handle_meditation(state: GraphState, config: Optional[RunnableConfig] 
 
     if fresh and not is_interrogative:
         if "soul sync" in question:
-            script = MEDITATION_SCRIPTS["soul_sync"]
-            response = f"**{script['title']}**\n\n" + "\n".join(
-                f"{i + 1}. {s}" for i, s in enumerate(script["steps"])
-            )
+            response = format_meditation_script("soul_sync")
             return {
                 "final_answer": response,
                 "meditation_step": 0,
@@ -1704,10 +1701,7 @@ async def handle_meditation(state: GraphState, config: Optional[RunnableConfig] 
             }
 
         if "serene mind" in question:
-            script = MEDITATION_SCRIPTS["serene_mind"]
-            response = f"**{script['title']}**\n\n" + "\n".join(
-                f"{i + 1}. {s}" for i, s in enumerate(script["steps"])
-            )
+            response = format_meditation_script("serene_mind")
             return {
                 "final_answer": response,
                 "meditation_step": 0,
@@ -1717,10 +1711,7 @@ async def handle_meditation(state: GraphState, config: Optional[RunnableConfig] 
             }
 
         if "meditation" in question or practice_keyword:
-            script = MEDITATION_SCRIPTS["serene_mind"]
-            response = f"**{script['title']}**\n\n" + "\n".join(
-                f"{i + 1}. {s}" for i, s in enumerate(script["steps"])
-            )
+            response = format_meditation_script("serene_mind")
             return {
                 "final_answer": response,
                 "meditation_step": 0,
